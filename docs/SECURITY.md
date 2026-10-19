@@ -1,0 +1,93 @@
+# Security — Questify
+
+> One page: what we protect, from whom, and how. Stage 6, 2026-10-17. Not a compliance document
+> (that is `STORE_COMPLIANCE.md`). Mitigations here also appear in the SRS or `ARCHITECTURE.md`.
+
+## Assets worth protecting
+
+1. **The points record and prize handover.** Cheating, forged points and stolen prizes are the
+   product's main fraud target.
+2. **Players' personal data** (phone, email, birth year, photos). A leak harms people and breaks
+   PDPL and store rules.
+3. **Staff and admin accounts.** An admin can read players, change texts for everyone and switch
+   features off (ADR-093).
+4. **Organizer data and isolation.** One organizer must never see another's data (NFR-016).
+5. **Signing keys:** Apple Pass Type ID certificate, push keys, SMS and cloud credentials.
+6. **Uploaded prize codes.**
+7. **Availability during a live event.** An outage at a festival is the worst day.
+
+## Trust boundaries
+
+Untrusted input enters at: the sign-in code request; the scanned QR/NFC payloads; the quest
+completion call; photo and text uploads; mini-game inputs; join-form answers; all organizer-written
+text (shown to players); CSV and code uploads; wallet web-service calls; provider callbacks; the
+public event page and join code; and the big-screen/station links.
+
+## Who can do what
+
+| Capability | Anonymous | Player | Operator | Editor | Owner | Admin |
+|---|---|---|---|---|---|---|
+| View public event page | yes | yes | yes | yes | yes | yes |
+| Join, play, reserve | no | yes | only if the owner allows (ADR-057) | no | no | no |
+| Scan players, award within caps | no | no | yes (own event, abilities, booth) | no | no | no |
+| Hand over prizes | no | no | prize-desk operators | no | no | no |
+| Create and edit quests, rewards, announcements | no | no | no | yes (own events, per scope) | yes | via logged support edit |
+| Invite editors, set event limits | no | no | no | no | yes | yes |
+| Export event data | no | no | no | yes | yes | yes (logged) |
+| Activate events, set limits and add-ons | no | no | no | no | no | yes |
+| View any player record | no | own only | no | no | no | yes, read-only, logged |
+| Change texts, switches, templates platform-wide | no | no | no | no | no | yes |
+| Add or remove admins; force sign-outs | no | no | no | no | no | yes |
+
+## Authentication
+
+- Players: phone (+966) or email, one-time code; 5-minute expiry; attempt limits; resend limits per
+  number, email and IP; tokens rotate.
+- Staff (editors, owners, admins): email + password + email code, sessions expire after inactivity,
+  sessions listed and revocable (ADR-078, F-293). The user considers this "very safe" (2026-10-17). It
+  means a mailbox takeover can open an admin account, which ADR-078 and ADR-094 accepted.
+- Passwords: argon2id; breached-password check on set; never logged.
+- Rotating My QR: a signed token with the player id and a 30-second window, verified server-side;
+  the wallet-pass fixed code is accepted too (ADR-091) and is therefore a shareable secret by design.
+
+## Top abuse cases
+
+| # | Abuse case | Type | Mitigation |
+|---|---|---|---|
+| 1 | A player on organizer A reads organizer B's data by changing an id | Information disclosure | Authorization check on every object, an `organizer_id` on every tenant row, row-level security in PostgreSQL, and outsider tests using only the public credential (NFR-016, NFR-018) |
+| 2 | Scripts spam the completion call, replay requests or forge QR contents | Tampering | Signed QR payloads with a version (regenerate kills old ones); idempotency keys; unique (enrollment, quest); rate limits; flags for bursts and impossible speed (ADR-041) |
+| 3 | A fake score from a modified mini-game | Tampering | The server issues a seeded round and replays the inputs; a reported score is never trusted (FR-1805) |
+| 4 | SMS pumping: someone requests thousands of codes to run up Questify's SMS bill | Denial of service / cost | Per-number, per-IP and global limits and cost alert in the usage view; email fallback; Saudi numbers only; challenge after repeated requests (ADR-099 risk) |
+| 5 | Phishing or takeover of an admin or owner mailbox | Spoofing / elevation | Password + email code; short sessions; admin session list and forced sign-out; every admin read and change logged; alert on new admin sign-in |
+| 6 | An operator or kiosk misuses scanning to award points | Elevation of privilege | Per-operator abilities and booth limits; owner caps; every award in the append-only record with the operator id (F-110) |
+| 7 | Stolen or shared pass/QR used at the prize desk | Spoofing | The desk checks the reservation, the player's profile and open flags; a held item needs a person to clear the flag (ADR-100) |
+| 8 | Uploaded files carry malware or inappropriate content | Tampering | Private storage, type and size checks, images re-encoded, never served from the API origin; report and unpublish (PD-29) |
+| 9 | Organizer-written text injects script into the dashboard or app | Tampering | Output encoding everywhere, no raw HTML in texts, content-security policy on web pages |
+| 10 | Leaked signing keys (wallet certificate, push keys) | Information disclosure | Keys only in the secret store, access limited and logged; expiry alerts; rotation procedure written before launch |
+
+## Secrets policy
+
+Secrets live in environment variables injected from the cloud's secret store. Never in code, git,
+logs, chat or docs. Separate values per environment. Rotated when a person with access leaves, on
+suspicion, and before certificate expiry. A pre-commit and CI secret scan runs on every change.
+
+## Data protection
+
+- In transit: TLS everywhere, HSTS on web pages.
+- At rest: encrypted storage by the cloud; extra column encryption for prize codes.
+- Residency: all personal data in Saudi Arabia (ADR-070); the exceptions are push tokens/text,
+  wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer and any foreign email provider, each listed in the data map (NFR-020) and on the
+  counsel list.
+- Minimisation: no ad networks or tracking SDKs; location only while the app is open; photos only
+  through the system picker or camera (NFR-021).
+- Deletion: real deletion on request, anonymising audit rows; the one-way fingerprint keeps bans
+  (ADR-084). No restore after deletion (ADR-094).
+- Backups: point-in-time, copied to the second Saudi region, restore rehearsed (NFR-026).
+
+## Tests that prove it
+
+- An **outsider suite** holding only the public credential must be able to do nothing it should not
+  (global standard; NFR-017, NFR-018).
+- Cross-tenant tests: an editor of organizer A against every route of organizer B returns 403/404.
+- Load test at 20,000 completions per minute before the first event (NFR-003).
+- A restore rehearsal and an SMS-pumping simulation before launch.

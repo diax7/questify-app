@@ -1,0 +1,63 @@
+# Open Questions — Questify
+
+Honest unknowns. Each has why it matters and the stage that resolves it. When one is answered,
+move the answer into the right doc (often `DECISIONS.md`) and delete the question here. Question
+IDs are never reused.
+
+**Legal questions are batched.** Everything marked "counsel" goes to one Saudi lawyer review near
+the end of planning (user, 2026-10-16).
+
+**Answered so far:** Q-030 → ADR-101, Q-002 → ADR-006, Q-008 → ADR-008, Q-019 → ADR-015, Q-020 → ADR-010,
+Q-048 → ADR-014, Q-065 → ADR-016, Q-066 → ADR-019, Q-067 → ADR-017, Q-068 → ADR-018, Q-001 → ADR-022, Q-007 → ADR-023,
+Q-003 → ADR-024, Q-005 → ADR-025, Q-052 → ADR-026, Q-012 → ADR-027, Q-014 → ADR-028, Q-013 → ADR-029,
+Q-004 → ADR-030, Q-011 → ADR-032, Q-054 → ADR-034, Q-055 → ADR-035, Q-006 → ADR-040, Q-009 → ADR-040/041. Q-016 → ADR-048, Q-072 → ADR-047, Q-073 → ADR-047. Q-010 → ADR-049, Q-018 → ADR-050. Q-017 → ADR-052, Q-058 → ADR-053, Q-015 → ADR-054. Q-057 → ADR-055. Q-059 → ADR-061. Q-056 → ADR-066 (dropped). Q-032 → ADR-070, Q-045 → ADR-071. Q-050 → moot (ADR-073: declarations always cover every feature). Q-023 → F-45, Q-064 → ADR-062/082.
+
+## Product
+
+| ID | Question | Why it matters | Claude's leaning | Stage |
+|---|---|---|---|---|
+| Q-053 | The **"+" next to the coin balance** reads as "buy more coins" in game UIs. Change it to "earn more" (opens quests) or remove it? | ADR-002: no payments. Reviewers check for purchase affordances | Change it to "earn more" | 4 |
+| Q-069 | Which mascot: Saqr (falcon explorer), Fennec (desert fox scout), Bousla (living compass), Maha (Arabian oryx ranger) or Kanz (treasure-chest buddy)? The team votes on one board (`design/codex-image-2/make_mascot_board.py`) | The mascot appears in onboarding, tips, empty states and celebrations; a full character sheet (and later animations) follows the choice | Decide when the three concept sheets arrive (Phase 6) | 4 |
+
+## Business & launch
+
+| ID | Question | Why it matters | Stage |
+|---|---|---|---|
+| Q-021 | Is the name "Questify" free on both stores and as a trademark in KSA? | Store app names must be unique; similar apps may exist | 3 |
+| Q-022 | Is there a first pilot event, and a target date? | Sets the roadmap and the first-release cut | 3 / 8 |
+
+## Compliance & legal
+
+These came from `STORE_COMPLIANCE.md` (its SC-## IDs are shown). Compliance questions that
+overlap the ones above were merged into them.
+
+| ID | Question | Why it matters | Who answers | Stage |
+|---|---|---|---|---|
+| Q-040 (SC-02) | Organizers fund the prizes, but Apple 5.3.1 says the developer must sponsor contests. Is naming Questify as administrator, with the organizer as prize provider, enough? | It could cause a rejection; Apple's documentation doesn't say | Apple (ask in the first submission's notes) + counsel | 8 |
+| Q-041 (SC-03) | Does an organizer's leaderboard with prizes at a commercial event count as a Ministry of Commerce "commercial competition" that needs a Chamber licence? And at internal corporate events? | Decides whether organizers can set up rank prizes themselves | Counsel | 3 |
+| Q-042 (SC-04) | What age counts as full legal capacity for PDPL consent? Can attending an event be the legal basis for 13–17-year-olds instead of guardian consent? | Shapes sign-up and the minimum age | Counsel | 1 Interim (ADR-084): 13–17s use the app like adults, including marketing if they opt in; counsel to confirm. |
+| Q-043 (SC-05) | Is Questify a controller, joint controller or processor of attendee data at an organizer's event? | Decides who answers data requests, who reports breaches, and the organizer agreement | Counsel + Dhia | 3 Wallet passes (ADR-091) store a username and numbers in Apple and Google accounts outside the Kingdom; **user states the lawyer accepts it (2026-10-17); to be confirmed in the lawyer review.** |
+| Q-044 (SC-06) | Are registration on SDAIA's National Register and a data protection officer mandatory for Questify? | A legal obligation, or voluntary | SDAIA self-assessment + counsel | 8 |
+| Q-046 (SC-10) | Do the chosen framework and SDKs ship privacy manifests and support Android target API 36 and Xcode 26? **Answered 2026-10-19 (T-015, research):** Apple has required Xcode 26 / iOS 26 SDK since 28 April 2026; Google Play has required target API 36 for new apps and updates since 31 August 2026 (extension to 1 November 2026). Expo SDK 57 (30 June 2026) is current; SDK 56 needs Xcode 26.4, supports Android 7+ and iOS 16.4+, and has a Hermes memory regression fixed in SDK 57. **Use SDK 57 at build start.** Consequence: iOS minimum becomes 16.4 (Q-082). | Either one blocks the upload | Stage 6 check | 6 |
+| Q-047 (SC-11) | Has Saudi Arabia's draft Consumer Protection Law (Arabic-only information duties) been enacted? | Arabic duties and the competition rules it references | Counsel | 8 |
+| Q-049 (SC-14) | Which Play Console declarations (EU trader status, app content) apply to this account? | Not verifiable before the account exists | Check at account setup | 8 |
+| Q-051 (SC-17) | How long must prize-fulfilment and moderation records be kept after an account is deleted? | Retention wording in the privacy policy and the deletion page | Counsel | 8 |
+
+## Technical
+
+| ID | Question | Why it matters | Stage |
+|---|---|---|---|
+| Q-031 | Backend: which managed PostgreSQL in a live Saudi region (Google Cloud Dammam via CNTXT, Oracle Riyadh/Jeddah, or another), and which open-source libraries for sign-in, real-time and storage? Managed Supabase is ruled out (no Middle East region, ADR-086) **Stage 6 (2026-10-17): user decided "I will see later".** Claude's lean: Oracle Riyadh (main) + Jeddah (recovery); Google Dammam via CNTXT is the fallback; AWS Saudi is announced for December 2026 and Azure for Q4 2026, neither confirmed live. Still to verify: that managed PostgreSQL and a Redis-compatible cache are offered in Riyadh/Jeddah, and a real quote (`INTEGRATIONS.md`) **Checked 2026-10-19 (T-014, research only):** Oracle lists Riyadh (me-riyadh-1) and Jeddah (me-jeddah-1) as live, one availability domain each. Oracle says Email Delivery is in every commercial region; OCI Cache (Valkey 7.2/8.1, Redis 7.0.5) and OCI Database with PostgreSQL are regional services, but Oracle's public pages do not list them per region for Riyadh/Jeddah. **Still needed: open the OCI console on a real account, pick Riyadh, and confirm 'Create PostgreSQL DB system' and 'Create cache cluster' are offered.** **Decided for now 2026-10-19: CranL Pro, riyadh-1 (ADR-107). Open: CranL's written answers on HA, point-in-time restore, backup copies, uptime and hosting provider; production move to Oracle/sccc/Google if they fall short.** | Hard to reverse; tenant isolation, residency (ADR-070), recovery targets (ADR-082) | 6 |
+| Q-033 | How far can "change without a release" go: config and content only, or also over-the-air code updates? | Apple 2.5.2 limits downloading code (ADR-007) | 6 |
+| Q-034 | SMS and email providers? Price per login SMS in Saudi Arabia, and what a 20,000-player event costs (Questify absorbs it, ADR-099) **Stage 6:** SMS shortlist is Msegat or Taqnyat (ADR-103); get written quotes and register a sender name (SAR 230 a year, commercial registration + Chamber letter). Email provider still open: prefer the cloud's in-region email service **Checked 2026-10-19:** Msegat needs a valid Saudi commercial registration (individuals cannot subscribe), takes 3–7 business days to open the account and 3–7 more to activate a sender name through the Jaber system (SAR 230 a year, English-only sender names, Chamber of Commerce authorization letter). One point per SMS; Arabic text splits at 70 characters per segment, so keep OTP texts short. Unified price on all Saudi networks. A SAR 699 one-year package exists but its message count was not shown. The API can require a static server IP (can be switched off). Taqnyat figures are in INTEGRATIONS.md. **Update 2026-10-19: Msegat is in use (active account, services and ads senders, user's statement). Integration notes are in INTEGRATIONS.md. Still needed: Msegat's quote at volume and delivery-receipt details.** | Saudi sender-ID registration; the SMS bill is unbounded by event size | 6 |
+| Q-070 | Deferred deep link on iOS (F-71): is "the event page copies the code, the app offers a one-tap paste button" reliable and allowed, with no fingerprinting or tracking SDK (PD-27)? Android uses the Play install referrer **Stage 6 proposal:** the event page copies the link on tap; after install a "Paste event code" button reads it; Android uses the install referrer. No fingerprinting: shared venue Wi-Fi makes it unreliable. Confirm in the grill | Decides whether "scan → install → land in the event" works on iPhone or needs a second scan | 6 |
+| Q-071 | NFC (F-105): which tag type; iOS and Android read/write limits; how the app proves a tap came from a real tag rather than a shared link; share of Saudi Android phones without NFC **Stage 6 note:** static NFC tags can be copied, so a tap is a weaker proof than a scan. A proposed answer is tags that sign each tap with a counter (e.g. NTAG 424 DNA) checked on the server, with plain NDEF tags as the cheap option. Unverified: confirm which tags the NFC library can configure on both phones before choosing | Decides whether NFC quests work on every phone and how far they can be trusted | 6 |
+| Q-074 | Tuning values and their defaults: My QR grace period; the rotation interval of screen QR codes (30–60 s); thresholds for the flags ("far from the venue", impossible speed, bursts); "running low" for stock and uploaded codes; how long pickups stay reserved by default | The SRS states the behaviors; the numbers need real-world testing. Organizers adjust some per event | 6 |
+| Q-075 | Retention periods per data type: location readings, photos, help tickets, logs, closed-event data, inactive accounts, organizer exports, the deletion fingerprint (FR-1704) | The privacy policy must state a period per type (`STORE_COMPLIANCE.md` §4); PDPL minimization | 8 (counsel, with Q-051) |
+| Q-076 | Wallet passes: does Apple allow an organizer's logo and name on a Questify-signed pass, and does a Pass Type ID on the personal developer account (ADR-010) work for this? Do both wallets accept the Questify frame design? **Stage 6:** the signing certificate can be made without a Mac (OpenSSL on Windows plus the Apple developer web portal). Whether the personal account works for a Pass Type ID is not checked | The pass design depends on it | 6 / 8. **User states yes, Apple allows an event logo on a wallet pass (2026-10-17); not independently checked.** |
+| Q-077 | When is the first event, and what is cut if the build runs long? The user chose no review point and no cut order (Stage 5, 2026-10-17) | v1 holds about 510 requirements for a team of one developer plus Claude; without a date or a cut order the first event can slip indefinitely | 8 |
+| Q-078 | The stores list the individual (Dhia) as seller (ADR-010), but a company signs the organizer contracts and invoices (ADR-076). Which party is named as the controller of player data in the privacy policy and terms, and who is responsible to organizers and players? | Decides the wording of the privacy policy, terms and organizer DPA (with Q-043) | 8, counsel |
+| Q-079 | Is an app restart acceptable when a player switches Arabic ↔ English in Settings (React Native reads the layout direction at launch)? Alternatives: choose the language once at first launch only, or build per-component direction handling | Decides the language-switch experience and how much RTL testing it needs | 6 / 4 |
+| Q-080 | Name display (ADR-106): may other players see a player's full name when the owner chooses it? What must the join card say, and does PDPL data minimization allow it? Applies to the event ranking, big screen and profile cards | Relaxes the rule that only username and avatar are public (FR-120, ADR-032); privacy-law question | 8 (counsel) |
+| Q-081 | Tickets (ADR-105): is 'one reply, then closed' enough for event teams and players, or do we allow one follow-up? Which response-time targets apply to the Questify queue? | Players cannot follow up in the same ticket | 8 |
+| Q-082 | The Expo SDK we will use (57) supports iOS 16.4 and later, but NFR-008 / ADR-074 say iOS 16. Is dropping iOS 16.0 to 16.3 acceptable? (Share of Saudi iPhones on those versions is small but not measured.) | Raises the minimum supported iPhone software by a few point releases | 6 / 8 |

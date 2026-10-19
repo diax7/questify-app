@@ -1,0 +1,130 @@
+# API — Questify
+
+> The contract between the clients and the server (not the implementation). Stage 6, 2026-10-17.
+> **Surface: internal-only in v1** (the player app, the web app and the wallet providers are the only
+> callers), but built as if it could be opened later, because the AI setup wizard (ADR-060) and
+> agencies would call an organizer API. Nothing here is a public promise yet. Proposed, ADR-102.
+
+## Conventions
+
+- **Base path and versioning:** `/v1`. A breaking change gets `/v2`; the app keeps working against
+  `/v1` until its minimum-supported version is raised in the console. The app sends its version in
+  `X-App-Version`, and the server answers `426` with a store link if the build is too old.
+- **Format:** JSON, UTF-8, camelCase; times in ISO-8601 UTC; ids are UUIDs; numbers are Western
+  digits (ADR-018). User-facing text comes as `{ "ar": "...", "en": "..." }`.
+- **Auth schemes:**
+  - *Player bearer token:* short-lived access token plus a rotating refresh token, issued after a
+    phone or email code (ADR-030). Operators use the same token plus an event role.
+  - *Staff session:* secure, HTTP-only cookie after email + password + email code (ADR-078), with CSRF
+    protection and inactivity expiry (NFR-030).
+  - *Screen token:* a signed read-only token in the big-screen and station page links.
+  - *Provider callback:* signed requests from SMS, email and wallet services.
+  - Roles: `anonymous`, `player`, `operator` (a player with an event assignment), `editor`, `owner`,
+    `admin`. Every route lists who may call it; the server re-checks the organizer and event on
+    every request (NFR-016).
+- **Errors:** one envelope everywhere: `{ "code": "<machine_code>", "message": { "ar", "en" },
+  "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
+  409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many
+  requests / busy, 503 maintenance (with the maintenance message).
+- **Pagination:** cursor-based (`?cursor=&limit=`); lists return `nextCursor`.
+- **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a
+  message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
+  hours and returns it for a retry.
+- **Rate limiting:** `429` with `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` headers.
+  Limits are tuning numbers editable in the console (F-279): login-code requests per phone/email/IP,
+  scans per minute per player, uploads, exports.
+- **Live updates:** `GET /v1/events/{id}/stream` (server-sent events) carries ranking changes,
+  announcements, "flash quest started", maintenance. If the stream drops, the app falls back to
+  polling every 5 seconds (NFR-005).
+- **Webhooks:** none sent to organizers in v1. Inbound: SMS delivery receipts, email bounces, wallet
+  device registrations; all verified by signature.
+- **Config:** `GET /v1/config` returns the composed configuration (see `CONFIGURABILITY.md`) with an
+  `ETag`; the app keeps the last copy that worked (F-282).
+- **Deprecation:** since the API is internal, old routes are removed after the minimum app version
+  passes them; each change is recorded in `docs/` changelog notes. If the API is ever opened,
+  `Deprecation` and `Sunset` headers and a minimum 6 months' notice apply (proposed).
+- **OpenAPI:** generated from the shared schemas during the build; until then this file is the
+  source of truth.
+
+## Operations (v1 baseline)
+
+Auth shows who may call. "Rate" notes any special limit.
+
+> **Baseline only.** The operations below cover the core loop, rewards, notifications, wallet, the dashboard and the console at group level. Still to be listed when each phase is built: agenda and session registration and check-in; polls, community quests, surveys and ratings; the Questify layer (profile, items, achievements, gems, daily challenge and word, streaks, Questify home, Explore, public events list); guest lists, join fields and rank prizes; reports, blocks and help-desk tickets; consent, data export and deletion requests; operator invites, station and kiosk pairing, inbox; maps and sponsors; big-screen and station feeds. They follow the same conventions.
+
+### Sign-in and account
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `POST /v1/auth/code` | anonymous | `{channel: phone\|email, value}` → `202`; sends a code (SMS, or email after 30 s, FR-1812) | 422 bad number (not +966), 429 |
+| `POST /v1/auth/verify` | anonymous | `{value, code}` → `{accessToken, refreshToken, player, isNew}` | 401 wrong/expired code, 429 |
+| `POST /v1/auth/refresh`, `POST /v1/auth/logout` | player | rotate / revoke | 401 |
+| `GET /v1/me`, `PATCH /v1/me` | player | profile; username, character, frame, title, city, interests | 409 name taken, 422 filtered word |
+| `DELETE /v1/me` | player | start account deletion → `202` | 409 if handover pending (explained) |
+| `POST /v1/staff/auth/password`, `/staff/auth/code` | anonymous | two-step staff sign-in → session cookie | 401, 429 |
+
+### Joining and events
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `GET /v1/public/events/{joinCode}` | anonymous | name, art, dates, language, join fields (event page) | 404 |
+| `POST /v1/events/{id}/join` | player | `{answers}` → enrollment | 403 full (hard limit), 409 already joined, 422 missing field |
+| `POST /v1/events/{id}/leave` | player | → 204 | |
+| `GET /v1/events/{id}/home` | player | layout blocks, up next, happening now, my rank card | 403 not enrolled |
+| `GET /v1/events/{id}/ranking?scope=` | player | top 10 plus the player's own row, `{rows[11]}` (ADR-052) | |
+
+### Quests and verification
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `GET /v1/events/{id}/quests` | player | categories with quests, my progress | |
+| `POST /v1/quests/{id}/complete` | player | `{proof: {type, code\|nfc\|…}, location?}`, **Idempotency-Key** → `{points, balance, rank, xp?}` | 409 done, 403 paused/closed/not yet, 422 bad or old code, 429 busy |
+| `POST /v1/operator/scan` | operator | scanned My QR + quest/award → `{player, result}` | 403 outside abilities or booth limit, 422 expired My QR |
+| `POST /v1/operator/award` | operator | manual award within caps | 403 over cap |
+| `POST /v1/quests/{id}/submissions` | player | signed upload then `{mediaKey, text}` → pending | 413, 422 type |
+| `POST /v1/minigames/rounds`, `POST /v1/minigames/rounds/{id}/result` | player | issue seeded round; send inputs for replay | 422 impossible inputs → flag, 409 attempts used |
+| `POST /v1/quests/{id}/vote` | player | poll or organizer-written options | 409 voted |
+
+### Rewards and handover
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `GET /v1/events/{id}/shop` | player | rewards, balance, window | |
+| `POST /v1/rewards/{id}/reserve` | player | **Idempotency-Key** → reservation with pickup code | 409 out of stock, 422 not enough balance, 403 window closed |
+| `POST /v1/desk/handover` | operator (prize desk) | scan reservation → handed | 403 open flag holds items (ADR-100), 409 already handed |
+
+### Notifications and wallet
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `GET /v1/notifications`, `PATCH /v1/notifications/settings` | player | list; channel opt-ins with dates | |
+| `POST /v1/devices` | player | register push token + integrity attestation | |
+| `GET /v1/wallet/apple/{eventId}`, `/wallet/google/{eventId}` | player | signed `.pkpass` / Save-to-Wallet link | 503 if certificate unavailable |
+| `POST /v1/wallet/apple/v1/...` (Apple web service) | provider | register/unregister device, list updated passes, fetch pass | per Apple spec |
+
+### Organizer dashboard
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `GET/POST/PATCH /v1/organizers/{id}/events` | owner, editor (scoped) | create, duplicate, edit event | 403 outside scope |
+| `…/events/{id}/categories`, `…/quests` (CRUD, reorder) | owner, editor | validated by the quest-type schema; live edits take `{apply: future\|past}` and `{confirm: true}` | 422 schema, 409 conflict (last save wins) |
+| `…/events/{id}/rewards`, `…/codes` (upload) | owner, editor | rewards, stock, prize codes | 422 duplicate codes |
+| `…/events/{id}/announcements` | owner, editor | send now or schedule, with push option | 422 outside CST send window |
+| `…/events/{id}/config` | owner, editor | words, layout, bar items, branding, features | 422 protected item hidden (FR-1750) |
+| `…/events/{id}/reports`, `…/export` | owner, editor | participation, survey, one-page report, exports (logged) | |
+| `…/members` | owner | invite editors, event limits | 409 |
+| `POST …/events/{id}/qr/regenerate`, `…/operators/batch` | owner, editor | new quest QR; batch operator QRs | |
+| `GET …/events/{id}/stream` | owner, editor | live control room | |
+
+### Questify console
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `…/admin/organizers`, `…/events/{id}/activate` | admin | approve organizers; set limit mode, limit, add-ons | |
+| `…/admin/settings`, `…/admin/translations` | admin | feature switches, tuning numbers, text matrix, banner, maintenance | 422 placeholder removed |
+| `…/admin/players` (search, view, fix, data request) | admin | read-only view logged; fix and merge; export/delete | |
+| `…/admin/templates`, `…/legal`, `…/words`, `…/help` | admin | templates (CST rules enforced), legal versions, word lists, FAQ | 422 |
+| `…/admin/health`, `…/admin/admins`, `…/admin/seasons` | admin | health view; admin accounts and sessions; ranking seasons | |
+
+Console and dashboard routes live under `/v1/staff/...`; the exact paths are finished when the build
+starts. Every state-changing call writes to the audit log (NFR-019).

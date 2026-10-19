@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+node_modules/
+dist/
+coverage/
+.expo/
+*.log
+.DS_Store
+
+# Large or confidential planning assets stay out of git (back them up separately)
+docs/design/assets/
+docs/design/codex-image-2/
+docs/design/references/*.pdf
+docs/inputs/

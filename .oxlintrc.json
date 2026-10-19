@@ -1,0 +1,12 @@
+{
+  "plugins": ["typescript", "import", "unicorn"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "import/no-relative-parent-imports": "error",
+    "no-console": "warn"
+  },
+  "ignorePatterns": ["node_modules", "dist", "coverage", ".expo", "docs"]
+}

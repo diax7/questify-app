@@ -1,0 +1,26 @@
+{
+  "name": "questify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint --deny-warnings .",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "audit": "pnpm audit --audit-level moderate",
+    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "ci:full": "pnpm ci:changed && pnpm audit"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.88.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.1.2"
+}
