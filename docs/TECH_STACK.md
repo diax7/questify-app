@@ -57,10 +57,14 @@ Licenses of everything on this table are re-checked when each package is install
   builds from day one.
 - **Language switching:** in React Native the layout direction is read when the app starts, so
   switching Arabic ↔ English inside the app restarts it. Most players choose a language once at
-  first launch (Q-079 asks whether that is acceptable for Settings).
+  first launch (accepted for Settings: ADR-110, ask then restart).
 - **Over-the-air updates** must not change the app's purpose or add features (Apple 2.5.2, ADR-007).
   EAS Update carries code and assets only, never personal data. Whether to use it at all is
   Q-033's answer; the default is to use it for bug fixes only.
 - **Vitest is pinned to 4.1.12** (not 5.x): with Stryker 10 and Vitest 5 the mutation runner reported false "survived" mutants (score 20% on code the tests fully cover); with Vitest 4.1.12 it is correct (100%). Revisit when Stryker supports Vitest 5.
 - **Install size budget:** see NFR-031.
 - Decisions: ADR-101 (framework), ADR-102 (technical shape), ADR-103 (SMS shortlist).
+
+## Expo SDK note (2026-10-19)
+
+Expo SDK 57 (React Native 0.86, React 19.2, iOS 16.4+, Android 7+) is the pinned line. SDK 58 was released on 2026-10-15 (React Native 0.88, built for iOS 27, UIScene life cycle, Strict TypeScript API, R8 on by default, `expo-localization` iOS RTL change). It is days old, so it waits: revisit before the first store submission and whenever Apple's SDK deadline requires it. Expo tooling needs Node 22.13 or newer on the 22 line.

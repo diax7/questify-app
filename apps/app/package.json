@@ -2,8 +2,35 @@
   "name": "@questify/app",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
+  "main": "expo-router/entry",
+  "imports": {
+    "#src/*": "./src/*"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo-google-fonts/baloo-bhaijaan-2": "0.4.2",
+    "@expo-google-fonts/rubik": "0.4.2",
+    "@expo/vector-icons": "^15.1.1",
+    "@questify/shared": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "57.0.30",
+    "expo-constants": "~57.0.22",
+    "expo-font": "~57.0.4",
+    "expo-linking": "~57.0.13",
+    "expo-localization": "~57.0.2",
+    "expo-router": "~57.0.28",
+    "expo-splash-screen": "~57.0.10",
+    "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.26",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.2"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.0",
+    "@types/react": "~19.2.18"
   }
 }

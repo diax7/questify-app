@@ -23,6 +23,15 @@ export const MESSAGES = {
     ar: "يرجى تحديث التطبيق للمتابعة.",
     en: "Please update the app to continue.",
   },
+  "common.cancel": { ar: "إلغاء", en: "Cancel" },
+  "common.continue": { ar: "متابعة", en: "Continue" },
+  "common.comingSoon": { ar: "قريبا", en: "Coming soon" },
+  "settings.language": { ar: "اللغة", en: "Language" },
+  "settings.restartTitle": { ar: "تغيير اللغة", en: "Change language" },
+  "settings.restartBody": {
+    ar: "سيُعاد تشغيل التطبيق ليظهر بالكامل باللغة الجديدة.",
+    en: "The app will restart to show everything in the new language.",
+  },
   "points.balance": {
     ar: "لديك {points} {currency}",
     en: "You have {points} {currency}",

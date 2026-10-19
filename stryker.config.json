@@ -5,11 +5,14 @@
   "mutate": [
     "packages/*/src/**/*.ts",
     "apps/api/src/**/*.ts",
+    "apps/app/src/**/*.ts",
     "!**/*.test.ts",
     "!**/index.ts",
     "!apps/api/src/server.ts",
     "!apps/api/src/migrate-cli.ts",
-    "!apps/api/src/staff-cli.ts"
+    "!apps/api/src/staff-cli.ts",
+    "!apps/app/src/i18n/native.ts",
+    "!apps/app/src/theme/fonts.ts"
   ],
   "thresholds": {
     "high": 90,

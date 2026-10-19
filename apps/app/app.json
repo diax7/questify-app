@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Questify",
+    "slug": "questify",
+    "scheme": "questify",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "app.questify.mobile",
+      "supportsTablet": false,
+      "infoPlist": { "CFBundleAllowMixedLocalizations": true }
+    },
+    "android": {
+      "package": "app.questify.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-localization",
+        { "supportedLocales": { "ios": ["ar", "en"], "android": ["ar", "en"] } }
+      ],
+      "expo-splash-screen",
+      "expo-status-bar"
+    ],
+    "updates": { "enabled": false }
+  }
+}
