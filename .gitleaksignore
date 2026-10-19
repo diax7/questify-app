@@ -1,0 +1,2 @@
+# A made-up password in a test (apps/api/test/auth/sessions.int.test.ts), flagged as an API key; not a secret.
+bd0175284bfa4ca04ac613b641ebf352febe464e:apps/api/test/auth/sessions.int.test.ts:generic-api-key:405

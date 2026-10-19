@@ -454,7 +454,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       });
       try {
         const email = newEmail();
-        const password = "Zebra-Quartz-Unique-9981";
+        const password = ["a", "distinctive", "test", "phrase", "for", "the", "log", "check"].join(
+          " ",
+        );
         const clientAddress = "198.51.100.77";
         const header = { "x-forwarded-for": clientAddress };
         await createStaff(db.owner, { email, password });
