@@ -33,7 +33,10 @@ export type BootDecision = Readonly<{
   language: Language;
   /** The layout direction the phone started with is not the one this language needs (Q-079). */
   needsRestart: boolean;
-  /** The wanted language could not be applied (the phone would not switch), so the layout's language is used. */
+  /**
+   * The layout could not be turned to the language's direction (Expo Go resets it on every launch), so the texts are
+   * in the wanted language but the layout keeps the direction the app started with.
+   */
   fellBack: boolean;
 }>;
 
@@ -47,8 +50,9 @@ export function languageOfLayout(layoutIsRtl: boolean): Language {
  * language (FR-1743). React Native reads the layout direction only at launch, so a language whose direction
  * differs from the direction the app started with takes effect after a restart (ADR-110).
  *
- * If a restart for this language was already tried and the direction still does not match (a phone that will not
- * switch), the app carries on in the language that fits the layout instead of restarting forever.
+ * If a restart for this language was already tried and the direction still does not match (Expo Go, or a phone that
+ * will not switch), the app keeps the player's language for the texts and does not restart again. Dropping back to
+ * the other language would make the switch look like it did nothing.
  */
 export function decideBoot(input: {
   stored: unknown;
@@ -59,7 +63,7 @@ export function decideBoot(input: {
   const wanted = isLanguage(input.stored) ? input.stored : languageFromDevice(input.device);
   const mismatch = isRtl(wanted) !== input.layoutIsRtl;
   if (mismatch && input.restartTriedFor === wanted) {
-    return { language: languageOfLayout(input.layoutIsRtl), needsRestart: false, fellBack: true };
+    return { language: wanted, needsRestart: false, fellBack: true };
   }
   return { language: wanted, needsRestart: mismatch, fellBack: false };
 }

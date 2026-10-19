@@ -33,6 +33,7 @@
       "expo-status-bar"
     ],
     "extra": {
+      "supportsRTL": true,
       "router": {},
       "eas": {
         "projectId": "1ff85195-221e-4284-87b5-392d625f94cc"

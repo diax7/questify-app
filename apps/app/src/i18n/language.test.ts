@@ -132,7 +132,7 @@ describe("decideBoot", () => {
 });
 
 describe("decideBoot after a restart that did not take", () => {
-  it("carries on in the layout's language instead of restarting again", () => {
+  it("keeps the chosen language for the texts instead of restarting again (Expo Go)", () => {
     expect(
       decideBoot({
         stored: "ar",
@@ -140,7 +140,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: false,
         restartTriedFor: "ar",
       }),
-    ).toEqual({ language: "en", needsRestart: false, fellBack: true });
+    ).toEqual({ language: "ar", needsRestart: false, fellBack: true });
     expect(
       decideBoot({
         stored: "en",
@@ -148,7 +148,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: true,
         restartTriedFor: "en",
       }),
-    ).toEqual({ language: "ar", needsRestart: false, fellBack: true });
+    ).toEqual({ language: "en", needsRestart: false, fellBack: true });
   });
 
   it("still restarts when the earlier attempt was for a different language", () => {
