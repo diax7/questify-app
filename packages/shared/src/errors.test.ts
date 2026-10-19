@@ -21,14 +21,15 @@ describe("apiError", () => {
   it.each(["Event_Full", "event-full", "", "1event", "event full"])(
     "rejects the machine code %j",
     (code) => {
-      expect(() => apiError(code, message)).toThrow(RangeError);
+      expect(() => apiError(code, message)).toThrow(/lower snake case/);
     },
   );
 
   it.each([
     { ar: "", en: "The event is full" },
+    { ar: "   ", en: "The event is full" },
     { ar: "الحدث ممتلئ", en: "  " },
   ])("rejects a message missing a language %j", (bad) => {
-    expect(() => apiError("event_full", bad)).toThrow(RangeError);
+    expect(() => apiError("event_full", bad)).toThrow(/non-empty Arabic and English/);
   });
 });

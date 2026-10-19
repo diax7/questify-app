@@ -475,6 +475,8 @@ other docs feed it and stay as its detailed appendices.
 - 2026-10-19 **T-001 done.** Monorepo (pnpm workspace: `apps/api`, `apps/web`, `apps/app`, `packages/shared`), strict TypeScript 7, oxlint, oxfmt, vitest 5, one-job CI (`.github/workflows/ci.yml`, actions pinned by SHA, gitleaks 8.30.1 with a pinned checksum), Dependabot monthly. `pnpm ci:changed` passes. Mutation check on the first real code (`apiError`) caught a broken rule; gitleaks passes a clean tree and fails (exit 1, 2 findings) on planted fake keys. The CI run itself has not happened yet because there is no GitHub remote. Local node is 24; `.nvmrc` pins 22.
 - Large assets (`docs/design/assets`, `docs/design/codex-image-2`, brand-deck PDF, BRD) are in `.gitignore`; they need a separate backup.
 
+- 2026-10-19 **T-016 done** (contract tests wait for the OpenAPI file in T-005 and later). Stryker 10 mutation testing on `packages/*` (break below 80%; `apiError` scores 100%), SBOM script (`pnpm sbom:generate`, CycloneDX), audit in CI. Findings: Stryker 10 gives false results with Vitest 5, so Vitest is pinned to 4.1.12; Stryker pulls in `qs` with known moderate issues, so `qs >= 6.16.0` is forced by an override. A planted vulnerable dependency (lodash 4.17.15) made `pnpm audit` exit 1. **Repository:** https://github.com/diax7/questify-app (public, everything in one repo, user's choice); CI passes in 26 s; GitHub secret scanning, push protection and Dependabot alerts are on.
+
 ## Next
 
 1. **Stage 9**, wrap-up: consistency pass across all docs, SRS consolidation, final approval to end planning (then apply `_blueprint/CLAUDE_BUILD_DRAFT.md`).

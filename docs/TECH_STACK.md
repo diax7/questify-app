@@ -61,5 +61,6 @@ Licenses of everything on this table are re-checked when each package is install
 - **Over-the-air updates** must not change the app's purpose or add features (Apple 2.5.2, ADR-007).
   EAS Update carries code and assets only, never personal data. Whether to use it at all is
   Q-033's answer; the default is to use it for bug fixes only.
+- **Vitest is pinned to 4.1.12** (not 5.x): with Stryker 10 and Vitest 5 the mutation runner reported false "survived" mutants (score 20% on code the tests fully cover); with Vitest 4.1.12 it is correct (100%). Revisit when Stryker supports Vitest 5.
 - **Install size budget:** see NFR-031.
 - Decisions: ADR-101 (framework), ADR-102 (technical shape), ADR-103 (SMS shortlist).

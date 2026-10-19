@@ -14,3 +14,6 @@ docs/design/assets/
 docs/design/codex-image-2/
 docs/design/references/*.pdf
 docs/inputs/
+.stryker-tmp/
+reports/
+sbom.cdx.json

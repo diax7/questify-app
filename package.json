@@ -9,15 +9,19 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "audit": "pnpm audit --audit-level moderate",
-    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
-    "ci:full": "pnpm ci:changed && pnpm audit"
+    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm mutation",
+    "ci:full": "pnpm ci:changed && pnpm audit",
+    "mutation": "stryker run",
+    "sbom:generate": "pnpm sbom --sbom-format cyclonedx --prod --lockfile-only > sbom.cdx.json"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/node": "26.6.5",
     "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22"

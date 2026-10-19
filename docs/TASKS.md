@@ -46,7 +46,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: The dashboard login works on a desktop and on a phone browser in both languages.
 - [ ] **T-012** Outsider and cross-tenant test suites wired into CI — delivers no FR (infrastructure or quality gate); depends on: T-003
   - Done when: CI fails when any route or table is reachable with only the public credential, or when one organizer reaches another's data.
-- [ ] **T-016** Quality tooling: mutation testing on core code (e.g. Stryker), contract tests against the generated OpenAPI file, SBOM generation, dependency audit and secret scan in CI (QUALITY_BASELINE sections 2 to 4) — delivers no FR (infrastructure or quality gate); depends on: T-001
+- [x] **T-016** Quality tooling: mutation testing on core code (e.g. Stryker), contract tests against the generated OpenAPI file, SBOM generation, dependency audit and secret scan in CI (QUALITY_BASELINE sections 2 to 4) — delivers no FR (infrastructure or quality gate); depends on: T-001
   - Done when: CI runs a mutation check on a sample core module and fails below the agreed score; an SBOM is produced from a build; a planted vulnerable dependency fails the audit.
 - [ ] **T-017** Infrastructure as code: create and rebuild staging and production on CranL (apps, databases, buckets, cron, settings) from scripts kept in the repository, never by hand — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A fresh environment is created from the scripts alone; a second run changes nothing; no setting exists only in the dashboard.
