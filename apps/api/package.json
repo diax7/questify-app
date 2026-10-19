@@ -9,13 +9,16 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/server.ts src/migrate-cli.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap && node -e \"require('node:fs').cpSync('migrations','dist/migrations',{recursive:true});require('node:fs').cpSync('db','dist/db',{recursive:true})\"",
+    "build": "esbuild src/server.ts src/migrate-cli.ts --bundle --external:@node-rs/argon2 --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap && node -e \"require('node:fs').cpSync('migrations','dist/migrations',{recursive:true});require('node:fs').cpSync('db','dist/db',{recursive:true})\"",
     "start": "node dist/server.cjs"
   },
   "dependencies": {
+    "@node-rs/argon2": "2.2.2",
     "@questify/shared": "workspace:*",
     "fastify": "5.12.7",
-    "pg": "8.23.1"
+    "nodemailer": "10.1.2",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",

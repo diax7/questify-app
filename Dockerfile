@@ -15,11 +15,16 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN pnpm --filter @questify/api build
+# The native argon2 library cannot be bundled, so its production dependencies are installed from the
+# lockfile into a folder that the runtime image copies.
+RUN pnpm --filter @questify/api deploy --legacy --prod /deploy
 
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
-ENV NODE_ENV=production PORT=3000
+# hashing runs on the libuv thread pool; keep spare threads for DNS and file work
+ENV NODE_ENV=production PORT=3000 UV_THREADPOOL_SIZE=8
 WORKDIR /srv
-# The bundle contains every dependency, so no node_modules are needed at run time.
+# The bundle contains every dependency except the native argon2 library.
+COPY --from=build /deploy/node_modules ./node_modules
 COPY --from=build /repo/apps/api/dist/server.cjs ./server.cjs
 COPY --from=build /repo/apps/api/dist/migrate-cli.cjs ./migrate.cjs
 COPY --from=build /repo/apps/api/dist/migrations ./migrations

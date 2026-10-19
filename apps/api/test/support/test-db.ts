@@ -9,6 +9,7 @@ export const TEST_DATABASE_URL = process.env["TEST_DATABASE_URL"];
 
 const API_ROOT = join(import.meta.dirname, "..", "..");
 const ROLE_PASSWORD = "test-only-password";
+const ROLE_SETUP_LOCK = 7_361_903;
 
 export type TestDatabase = Readonly<{
   /** The migration owner (a superuser here). */
@@ -44,9 +45,15 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const name = `questify_test_${randomBytes(6).toString("hex")}`;
   const admin = await connect(TEST_DATABASE_URL);
   await admin.query(`CREATE DATABASE ${name}`);
-  await admin.query(await readFile(join(API_ROOT, "db", "roles.sql"), "utf8"));
-  await admin.query(`ALTER ROLE questify_app PASSWORD '${ROLE_PASSWORD}'`);
-  await admin.query(`ALTER ROLE questify_outsider PASSWORD '${ROLE_PASSWORD}'`);
+  // Roles are shared by the whole server, so test files running in parallel must set them one at a time.
+  await admin.query("SELECT pg_advisory_lock($1)", [ROLE_SETUP_LOCK]);
+  try {
+    await admin.query(await readFile(join(API_ROOT, "db", "roles.sql"), "utf8"));
+    await admin.query(`ALTER ROLE questify_app PASSWORD '${ROLE_PASSWORD}'`);
+    await admin.query(`ALTER ROLE questify_outsider PASSWORD '${ROLE_PASSWORD}'`);
+  } finally {
+    await admin.query("SELECT pg_advisory_unlock($1)", [ROLE_SETUP_LOCK]);
+  }
 
   const owner = await connect(urlFor(TEST_DATABASE_URL, name));
   await migrate(owner, join(API_ROOT, "migrations"));

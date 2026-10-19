@@ -14,6 +14,9 @@ const TABLES = [
   "player",
   "event",
   "enrollment",
+  "staff_login_challenge",
+  "staff_session",
+  "auth_throttle",
   "schema_migration",
 ];
 
