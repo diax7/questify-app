@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addressBucket,
   codePointLength,
+  isPlausibleEmail,
   normalizeEmail,
   normalizePassword,
 } from "#src/auth/normalize";
@@ -95,4 +96,39 @@ describe("addressBucket", () => {
       expect(addressBucket(value)).toBe("unknown");
     },
   );
+});
+
+const emailOfLength = (length: number): string => `${"a".repeat(length - 5)}@x.sa`;
+
+describe("isPlausibleEmail", () => {
+  it.each(["a@x.sa", "sara.k+tag@najd.sa", "a@b", "ا@b.sa"])("accepts %j", (email) => {
+    expect(isPlausibleEmail(email)).toBe(true);
+  });
+
+  it.each([
+    ["no @", "nobody"],
+    ["nothing before @", "@x.sa"],
+    ["nothing after @", "a@"],
+    ["two @", "a@b@c.sa"],
+    ["a space", "a b@x.sa"],
+    ["a trailing space", "a@x.sa "],
+    ["a newline", "a@x.sa\n"],
+    ["a NUL", `a${String.fromCodePoint(0)}b@x.sa"`],
+    ["a DEL", `a${String.fromCodePoint(0x7f)}b@x.sa`],
+    ["a capital letter", "A@x.sa"],
+    ["empty", ""],
+  ])("refuses %s", (_label, email) => {
+    expect(isPlausibleEmail(email)).toBe(false);
+  });
+
+  it("allows 254 characters and refuses 255", () => {
+    expect(isPlausibleEmail(emailOfLength(254))).toBe(true);
+    expect(isPlausibleEmail(emailOfLength(255))).toBe(false);
+  });
+
+  it("refuses what NFKC makes too long (one compatibility character becomes many)", () => {
+    const expanding = "\uFDFA".repeat(40);
+    expect(normalizeEmail(`${expanding}@x.sa`).length).toBeGreaterThan(254);
+    expect(isPlausibleEmail(normalizeEmail(`${expanding}@x.sa`))).toBe(false);
+  });
 });

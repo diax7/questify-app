@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { HttpError } from "./http-error";
@@ -11,7 +12,7 @@ let calls = 0;
 
 async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   calls = 0;
-  const instance = Fastify();
+  const instance = Fastify({ genReqId: () => randomUUID() });
   const store = new MemoryIdempotencyStore(() => clock);
   registerConventions(instance, { minAppVersion, idempotencyStore: store });
   // Stands in for the staff scope, which sets the signed-in user as the owner of idempotency keys.
@@ -41,6 +42,20 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   instance.post("/created", { config: { idempotent: true } }, async (_request, reply) =>
     reply.code(201).header("content-type", "text/plain").send("made"),
   );
+  instance.get("/lock-timeout", async () => {
+    throw Object.assign(new Error("canceling statement due to lock timeout"), { code: "55P03" });
+  });
+  instance.get("/statement-timeout", async () => {
+    throw Object.assign(new Error("canceling statement due to statement timeout"), {
+      code: "57014",
+    });
+  });
+  instance.get("/too-many-connections", async () => {
+    throw Object.assign(new Error("sorry, too many clients already"), { code: "53300" });
+  });
+  instance.get("/other-db-error", async () => {
+    throw Object.assign(new Error("duplicate key"), { code: "23505" });
+  });
   instance.get("/forbidden", async () => {
     throw Object.assign(new Error("nope"), { statusCode: 403 });
   });
@@ -329,5 +344,25 @@ describe("HttpError", () => {
     expect(error.status).toBe(409);
     expect(error.message).toBe("clash: Clash");
     expect(error.envelope.details).toEqual({});
+  });
+});
+
+describe("a busy database", () => {
+  it.each(["/lock-timeout", "/statement-timeout", "/too-many-connections"])(
+    "answers %s with 503 busy and a Retry-After, not an internal error",
+    async (url) => {
+      app = await build();
+      const response = await app.inject({ method: "GET", url });
+      expect(response.statusCode).toBe(503);
+      expect(response.headers["retry-after"]).toBe("2");
+      expect(response.json()).toMatchObject({ code: "busy" });
+    },
+  );
+
+  it("still treats any other database error as an internal error without leaking it", async () => {
+    app = await build();
+    const response = await app.inject({ method: "GET", url: "/other-db-error" });
+    expect(response.statusCode).toBe(500);
+    expect(response.body).not.toContain("duplicate key");
   });
 });

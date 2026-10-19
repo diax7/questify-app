@@ -188,7 +188,7 @@ export async function replaceCode(db: Db, id: string, codeHash: Buffer): Promise
 
 export async function insertSession(
   db: Db,
-  session: { staffUserId: string; tokenHash: string; userAgent: string | null; ip: string | null },
+  session: { staffUserId: string; tokenHash: string; userAgent: string | null; ip: string },
 ): Promise<void> {
   await db.query(
     `INSERT INTO staff_session (staff_user_id, token_hash, user_agent, ip)
@@ -197,7 +197,7 @@ export async function insertSession(
       session.staffUserId,
       session.tokenHash,
       session.userAgent === null ? null : session.userAgent.slice(0, 300),
-      session.ip === null ? null : session.ip.slice(0, 64),
+      session.ip.slice(0, 64),
     ],
   );
 }

@@ -19,19 +19,23 @@ export type SmtpOptions = Readonly<{
   transport?: SmtpTransport;
 }>;
 
+/** Gmail's SMTP server over TLS, with every wait capped at five seconds. */
+export function smtpTransportOptions(user: string, appPassword: string) {
+  return {
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user, pass: appPassword },
+    connectionTimeout: SEND_TIMEOUT_MS,
+    greetingTimeout: SEND_TIMEOUT_MS,
+    socketTimeout: SEND_TIMEOUT_MS,
+  } as const;
+}
+
 /** Sends through Gmail's SMTP server over TLS, with every wait capped at five seconds. */
 export function createSmtpSender(options: SmtpOptions): EmailSender {
   const transport: SmtpTransport =
-    options.transport ??
-    createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: options.user, pass: options.appPassword },
-      connectionTimeout: SEND_TIMEOUT_MS,
-      greetingTimeout: SEND_TIMEOUT_MS,
-      socketTimeout: SEND_TIMEOUT_MS,
-    });
+    options.transport ?? createTransport(smtpTransportOptions(options.user, options.appPassword));
   return {
     name: "smtp",
     send: async (message) => {

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
 import { HttpError } from "./http-error";
@@ -19,6 +19,8 @@ export type ConventionOptions = Readonly<{
 
 type Claim = Readonly<{ scope: string; key: string }>;
 
+/** PostgreSQL lock_timeout (55P03), statement_timeout (57014) and too many connections (53300): a busy database, not a bug. */
+const DATABASE_BUSY = new Set(["55P03", "57014", "53300"]);
 const KEY_FORMAT = /^[\x21-\x7e]{1,255}$/;
 const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
 
@@ -43,7 +45,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
   const replays = new WeakSet<FastifyRequest>();
 
   app.addHook("onRequest", async (request, reply) => {
-    reply.header("x-request-id", randomUUID());
+    reply.header("x-request-id", request.id);
     const version = headerValue(request.headers["x-app-version"]);
     if (version === undefined) {
       return;
@@ -128,7 +130,11 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
   });
 
   app.setErrorHandler(
-    async (error: Error & { statusCode?: number }, _request, reply: FastifyReply) => {
+    async (
+      error: Error & { statusCode?: number; code?: string },
+      _request,
+      reply: FastifyReply,
+    ) => {
       if (error instanceof HttpError) {
         return reply.code(error.status).send(error.envelope);
       }
@@ -138,6 +144,20 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
           message: { ar: "الطلب غير صالح.", en: "The request is not valid." },
           details: {},
         });
+      }
+      if (error.code !== undefined && DATABASE_BUSY.has(error.code)) {
+        app.log.warn({ event: "database.busy", code: error.code });
+        return reply
+          .code(503)
+          .header("retry-after", "2")
+          .send({
+            code: "busy",
+            message: {
+              ar: "الخدمة مشغولة. حاول بعد لحظات.",
+              en: "The service is busy. Try again in a moment.",
+            },
+            details: {},
+          });
       }
       app.log.error(error);
       return reply.code(500).send({

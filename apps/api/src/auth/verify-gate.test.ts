@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GateBusyError, createVerifyGate } from "#src/auth/verify-gate";
 
 const later = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,6 +110,33 @@ describe("createVerifyGate", () => {
     hold.release();
     await Promise.all([first, ...rest]);
     expect(order).toEqual([1, 2, 3]);
+  });
+
+  it("leaves no place taken by a job that gave up waiting", async () => {
+    const gate = createVerifyGate({ limit: 1, waitMs: 20 });
+    const hold = deferred();
+    const first = gate.run(() => hold.promise);
+    await expect(gate.run(async () => "late")).rejects.toBeInstanceOf(GateBusyError);
+    hold.release();
+    await first;
+    expect(await gate.run(async () => "ok")).toBe("ok");
+  });
+
+  it("stops the waiting timer once a waiting job gets its place", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = createVerifyGate({ limit: 1, waitMs: 1000 });
+      const hold = deferred();
+      const first = gate.run(() => hold.promise);
+      const second = gate.run(async () => "done");
+      expect(vi.getTimerCount()).toBe(1);
+      hold.release();
+      await first;
+      await second;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("names the busy error clearly", () => {

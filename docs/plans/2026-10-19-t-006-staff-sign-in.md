@@ -281,3 +281,28 @@ notes on T-004 and T-011), `STATE.md`. New dependencies: `@node-rs/argon2`, `nod
 2. Session limits are constants for now.
 3. Gmail SMTP is a stop-gap with a daily cap; the swap point is the `EmailSender` interface.
 4. Password reset, breached check and web password setting are deferred to T-020.
+
+## As built: where the code differs from the plan above
+
+- **Resends do not consume the hourly challenge budget.** Resends are bounded per challenge (3) and challenges per hour
+  (5), so at most 20 emails an hour per user; counting a resend against the budget would punish honest users.
+- **`trustProxy` is a function** that trusts the first N hops (`hop < TRUST_PROXY_HOPS`); Fastify's types reject a
+  number. `TRUST_PROXY_HOPS` is **required in production** (no default), because a wrong guess makes every user share
+  one address bucket.
+- **No "open the challenge" lookup.** The challenge insert has no `RETURNING`, so the select policy is never needed
+  and the capability was removed.
+- **A `DELETE` with a `WHERE` must also pass the select policy**, so the retention sweep and "replace my challenge"
+  use bare `DELETE`s and the delete policies choose the rows. Session deletes are retention-only: no code path
+  deletes a live session.
+- **Lookup by normalized email** (`app.auth_email`); there is no derived `email_key` column.
+- **The sweep** is best effort (a failure is logged as `staff.sweep_failed` and never blocks a sign-in) and its timer
+  lives in each `SignIn` instance.
+- **Admin alerts** are sent after the sign-in answers; a failure is logged.
+- **Logs** hold the request id (the same value as the `x-request-id` header) and a 12-character keyed tag of the client
+  address, never the address: the request serializer writes method and path only.
+- **Database overload** (lock timeout, statement timeout, too many connections) answers `503 busy` with `Retry-After`.
+- **Mutation testing** runs in `ci:full` on the developer machine, not in the pull-request gate: with the database
+  tests included it takes about 20 minutes on 16 cores, far too long for a 2-core runner. It stays a hard gate for
+  core changes (break below 80%, target 90% on core files) and is recorded in `QUALITY_BASELINE.md`.
+- **Migration 0002** was edited after its first commit (the session delete policy); it had not been applied to any
+  environment at that point.

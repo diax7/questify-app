@@ -38,6 +38,7 @@ describe("health", () => {
     const response = await app.inject({ method: "GET", url: "/readyz" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", checks: { database: "ok" } });
+    expect(response.headers["cache-control"]).toBe("no-store");
   });
 
   it("answers /readyz 503 when the database does not", async () => {
@@ -49,6 +50,7 @@ describe("health", () => {
     const response = await app.inject({ method: "GET", url: "/readyz" });
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({ status: "unavailable", checks: { database: "down" } });
+    expect(response.headers["cache-control"]).toBe("no-store");
   });
 
   it("applies the API conventions to health routes too", async () => {
@@ -121,6 +123,18 @@ describe("loggerOptions", () => {
     expect(loggerOptions({ ...base, nodeEnv: "production" }).level).toBe("info");
     expect(loggerOptions({ ...base, nodeEnv: "development" }).level).toBe("debug");
     expect(loggerOptions({ ...base, nodeEnv: "test" }).level).toBe("debug");
+  });
+
+  it("logs a request as method and path only, never the client address", () => {
+    const { req } = loggerOptions(base).serializers;
+    const request = {
+      method: "POST",
+      url: "/v1/staff/auth/password",
+      ip: "203.0.113.9",
+      socket: { remoteAddress: "127.0.0.1" },
+      headers: { cookie: "x" },
+    } as unknown as Parameters<typeof req>[0];
+    expect(req(request)).toEqual({ method: "POST", url: "/v1/staff/auth/password" });
   });
 
   it("removes credentials, session cookies and idempotency keys from every log line", () => {

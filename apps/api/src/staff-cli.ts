@@ -1,6 +1,6 @@
 import { Client } from "pg";
-import { createAuthKeys } from "./auth/keys";
-import { clearThrottleFor, createStaffAccount } from "./auth/staff-admin";
+import { createAuthKeys } from "#src/auth/keys";
+import { clearThrottleFor, createStaffAccount } from "#src/auth/staff-admin";
 
 /**
  * One-off staff account administration, run inside the app container with the owner's database connection.

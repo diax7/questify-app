@@ -1,3 +1,4 @@
+import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateToken } from "#src/auth/keys";
 import { loggerOptions } from "#src/app";
@@ -17,6 +18,7 @@ import {
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 const COOKIE_NAME = "__Host-qs_session";
+const tokenOf = (cookie: string): string => cookie.split("=")[1] ?? "";
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
   let db: TestDatabase;
@@ -162,6 +164,56 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       for (const value of ["", "x", "a".repeat(44), `${"a".repeat(42)}!`]) {
         expect((await me(`${COOKIE_NAME}=${value}`)).statusCode).toBe(401);
       }
+    });
+  });
+
+  describe("what the session check answers", () => {
+    it("says 'none' for a token that is not even shaped like one, without touching the database", async () => {
+      const untouched = {
+        connect: () => {
+          throw new Error("the database must not be used");
+        },
+      } as unknown as Pool;
+      for (const token of ["", "short", "a".repeat(44), `${"a".repeat(42)}!`]) {
+        expect(await createSessions(untouched).authenticate(token)).toEqual({ kind: "none" });
+      }
+    });
+
+    it("says 'none' for a well-formed token nobody holds", async () => {
+      expect(await createSessions(test.pool).authenticate("A".repeat(43))).toEqual({
+        kind: "none",
+      });
+    });
+
+    it("says 'valid' with the account, and 'expired' for a revoked or stale session", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      const live = await seedSession(user);
+      const revoked = await seedSession(user, { revoked: true });
+      const stale = await seedSession(user, { idleMinutes: 45 });
+      const service = createSessions(test.pool);
+      expect(await service.authenticate(tokenOf(live.cookie))).toMatchObject({
+        kind: "valid",
+        sessionId: live.id,
+        account: { id: user, platformRole: "none", status: "active" },
+      });
+      expect(await service.authenticate(tokenOf(revoked.cookie))).toEqual({ kind: "expired" });
+      expect(await service.authenticate(tokenOf(stale.cookie))).toEqual({ kind: "expired" });
+    });
+
+    it("answers a cookie that is not a session differently from a session that has ended", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      const garbage = await me(`${COOKIE_NAME}=garbage`);
+      expect(garbage.json()).toMatchObject({ code: "unauthenticated" });
+      const unknown = await me(`${COOKIE_NAME}=${"A".repeat(43)}`);
+      expect(unknown.json()).toMatchObject({ code: "unauthenticated" });
+      const revoked = await me((await seedSession(user, { revoked: true })).cookie);
+      expect(revoked.json()).toMatchObject({ code: "session_expired" });
+      const nothing = await test.app.inject({
+        method: "GET",
+        url: "/v1/staff/me",
+        headers: browserHeaders(),
+      });
+      expect(nothing.json()).toMatchObject({ code: "unauthenticated" });
     });
   });
 
@@ -393,7 +445,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
   });
 
   describe("what the logs hold", () => {
-    it("records the sign-in events and none of the secrets", async () => {
+    it("records the sign-in events with the request id, and none of the secrets or addresses", async () => {
       const lines: string[] = [];
       const logged = await startApp(db, {
         ...loggerOptions(testConfig()),
@@ -403,20 +455,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       try {
         const email = newEmail();
         const password = "Zebra-Quartz-Unique-9981";
+        const clientAddress = "198.51.100.77";
+        const header = { "x-forwarded-for": clientAddress };
         await createStaff(db.owner, { email, password });
-        const first = await postPassword(logged, email, password);
+        const first = await postPassword(logged, email, password, header);
         const { challengeToken } = first.json<{ challengeToken: string }>();
-        const done = await postCode(logged, challengeToken, logged.mail.lastCode(email));
+        const done = await postCode(logged, challengeToken, logged.mail.lastCode(email), header);
         const cookieValue = String(done.headers["set-cookie"]).split(";")[0]?.split("=")[1] ?? "";
         await logged.app.inject({
           method: "GET",
           url: "/v1/staff/me",
-          headers: withSession(`${COOKIE_NAME}=${cookieValue}`),
+          headers: withSession(`${COOKIE_NAME}=${cookieValue}`, header),
         });
         const text = lines.join("\n");
         expect(text).toContain("staff.password_ok");
         expect(text).toContain("staff.session_opened");
-        for (const secret of [password, challengeToken, cookieValue, email, "x-forwarded-for"]) {
+        expect(text).toMatch(/"addr":"[0-9a-f]{12}"/);
+        expect(text).toContain(String(first.headers["x-request-id"]));
+        for (const secret of [
+          password,
+          challengeToken,
+          cookieValue,
+          email,
+          clientAddress,
+          "127.0.0.1",
+          "remoteAddress",
+        ]) {
           expect(text, `log contains ${secret.slice(0, 8)}`).not.toContain(secret);
         }
       } finally {

@@ -1,11 +1,16 @@
-import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { randomUUID } from "node:crypto";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from "fastify";
 import type { Pool } from "pg";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { registerStaffRoutes, type RouteInfo } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
-import { createSignIn, type AuthLog } from "#src/auth/sign-in";
+import { createSignIn } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
@@ -31,9 +36,15 @@ declare module "fastify" {
 const READINESS_TIMEOUT_MS = 2000;
 
 /** Log level by environment, with secrets and keys removed from every log line. */
-export function loggerOptions(config: AppConfig): { level: string; redact: string[] } {
+export function loggerOptions(config: AppConfig): {
+  level: string;
+  redact: string[];
+  serializers: { req: (request: FastifyRequest) => { method: string; url: string } };
+} {
   return {
     level: config.nodeEnv === "production" ? "info" : "debug",
+    // Method and path only: the default serializer also writes the client address, which is personal data.
+    serializers: { req: (request) => ({ method: request.method, url: request.url }) },
     redact: [
       "req.headers.authorization",
       "req.headers.cookie",
@@ -62,6 +73,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const { config } = options;
   const app = Fastify({
     logger: options.logger ?? loggerOptions(config),
+    genReqId: () => randomUUID(),
     // Trust exactly the proxies we run (hop 0 is the nearest); a client-sent X-Forwarded-For beyond them is ignored.
     trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,
   });
@@ -73,7 +85,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
     idempotencyStore: options.idempotencyStore,
   });
 
-  const log: AuthLog = (event, fields) => app.log.info({ event, ...fields });
   app.decorate(
     "staffRoutes",
     registerStaffRoutes(app, {
@@ -82,7 +93,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
         keys: createAuthKeys(config.auth.secret),
         email: options.emailSender,
         gate: createVerifyGate(AUTH_LIMITS.verifyGate),
-        log,
         securityAlertEmail: config.auth.securityAlertEmail,
       }),
       sessions: createSessions(options.pool),

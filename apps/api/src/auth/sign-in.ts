@@ -6,7 +6,12 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { newSignInAlertEmail, signInCodeEmail } from "#src/auth/email/templates";
 import { generateCode, generateToken, hashToken, safeEqual, type AuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
-import { addressBucket, codePointLength, normalizeEmail } from "#src/auth/normalize";
+import {
+  addressBucket,
+  codePointLength,
+  isPlausibleEmail,
+  normalizeEmail,
+} from "#src/auth/normalize";
 import {
   MAX_PASSWORD_LENGTH,
   dummyVerify,
@@ -41,13 +46,17 @@ export type SignInDeps = Readonly<{
   keys: AuthKeys;
   email: EmailSender;
   gate: VerifyGate;
-  log: AuthLog;
   /** Told about every new platform-admin session, besides the admin's own mailbox. */
   securityAlertEmail: string | undefined;
 }>;
 
 /** Who is asking: the client address and browser, kept on the session so the person can recognise it. */
-export type Caller = Readonly<{ address: string; userAgent: string | null }>;
+export type Caller = Readonly<{
+  address: string;
+  userAgent: string | null;
+  /** Writes an event to the request's own log, so it carries the request id. */
+  log: AuthLog;
+}>;
 
 export type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
 
@@ -81,7 +90,7 @@ export type SignIn = Readonly<{
     input: { challengeToken: string; code: string },
     caller: Caller,
   ) => Promise<CodeResult>;
-  resend: (input: { challengeToken: string }) => Promise<ResendResult>;
+  resend: (input: { challengeToken: string }, caller: Caller) => Promise<ResendResult>;
 }>;
 
 const L = AUTH_LIMITS;
@@ -95,6 +104,19 @@ async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T
     client.release();
   }
 }
+
+/** Logs an event with a short keyed tag of the client address (never the address), so abuse can be told apart. */
+function say(
+  deps: SignInDeps,
+  caller: Caller,
+  event: string,
+  fields: Readonly<Record<string, string | number>> = {},
+): void {
+  const tag = deps.keys.addressKey(addressBucket(caller.address)).toString("hex").slice(0, 12);
+  caller.log(event, { addr: tag, ...fields });
+}
+
+const reasonOf = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
 
 type Keys = Readonly<{ email: Buffer; address: Buffer }>;
 
@@ -158,6 +180,9 @@ async function releaseReservation(
 }
 
 async function lookupAccount(deps: SignInDeps, email: string): Promise<Account | undefined> {
+  if (!isPlausibleEmail(email)) {
+    return undefined;
+  }
   return withClient(deps.pool, (client) =>
     withPreIdentityContext(client, { kind: "email", email }, () => findAccountByEmail(client)),
   );
@@ -168,14 +193,14 @@ async function checkPassword(
   deps: SignInDeps,
   account: Account | undefined,
   password: string,
-): Promise<"ok" | "wrong" | "busy"> {
+): Promise<Account | "wrong" | "busy"> {
   try {
     return await deps.gate.run(async () => {
       if (account === undefined || account.status !== "active") {
         await dummyVerify(password);
         return "wrong";
       }
-      return (await verifyPassword(account.passwordHash, password)) ? "ok" : "wrong";
+      return (await verifyPassword(account.passwordHash, password)) ? account : "wrong";
     });
   } catch (error) {
     if (error instanceof GateBusyError) {
@@ -244,6 +269,7 @@ async function endChallenge(deps: SignInDeps, challengeToken: string): Promise<v
 /** Sends the code. If no sender takes it, the challenge is ended so the person starts over. */
 async function deliverCode(
   deps: SignInDeps,
+  caller: Caller,
   to: string,
   code: string,
   challengeToken: string,
@@ -255,16 +281,19 @@ async function deliverCode(
     });
     return true;
   } catch (error) {
-    deps.log("staff.email_unavailable", {
-      reason: error instanceof Error ? error.name : "unknown",
-    });
+    say(deps, caller, "staff.email_unavailable", { reason: reasonOf(error) });
     await endChallenge(deps, challengeToken);
     return false;
   }
 }
 
 /** Makes the stored hash current when the parameters changed. A failure is logged and never blocks sign-in. */
-async function refreshHash(deps: SignInDeps, account: Account, password: string): Promise<void> {
+async function refreshHash(
+  deps: SignInDeps,
+  caller: Caller,
+  account: Account,
+  password: string,
+): Promise<void> {
   if (!needsRehash(account.passwordHash)) {
     return;
   }
@@ -281,25 +310,29 @@ async function refreshHash(deps: SignInDeps, account: Account, password: string)
       ),
     );
   } catch (error) {
-    deps.log("staff.rehash_failed", { reason: error instanceof Error ? error.name : "unknown" });
+    say(deps, caller, "staff.rehash_failed", { reason: reasonOf(error) });
   }
 }
 
 /** Remembers when the retention sweep last ran, so it runs at most every ten minutes per service. */
 type SweepClock = { last: number };
 
-/** Removes old sessions, challenges and throttle rows. */
-async function sweepIfDue(deps: SignInDeps, clock: SweepClock): Promise<void> {
+/** Removes old sessions, challenges and throttle rows. Best effort: a failure is logged and never blocks sign-in. */
+async function sweepIfDue(deps: SignInDeps, caller: Caller, clock: SweepClock): Promise<void> {
   if (Date.now() - clock.last < L.sweepIntervalMs) {
     return;
   }
-  clock.last = Date.now();
-  await withClient(deps.pool, (client) =>
-    withRequestContext(client, {}, async () => {
-      await sweepRetention(client);
-      await sweepThrottle(client);
-    }),
-  );
+  try {
+    await withClient(deps.pool, (client) =>
+      withRequestContext(client, {}, async () => {
+        await sweepRetention(client);
+        await sweepThrottle(client);
+      }),
+    );
+    clock.last = Date.now();
+  } catch (error) {
+    say(deps, caller, "staff.sweep_failed", { reason: reasonOf(error) });
+  }
 }
 
 function keysFor(deps: SignInDeps, email: string, caller: Caller): Keys {
@@ -322,30 +355,30 @@ async function passwordStep(
   const keys = keysFor(deps, email, caller);
   const reservation = await reserveAttempt(deps, keys);
   if (reservation.kind === "throttled") {
-    deps.log("staff.throttled", { step: "password" });
+    say(deps, caller, "staff.throttled", { step: "password" });
     return reservation;
   }
-  const account = await lookupAccount(deps, email);
-  const verdict = await checkPassword(deps, account, input.password);
+  const verdict = await checkPassword(deps, await lookupAccount(deps, email), input.password);
   if (verdict === "busy") {
     await withClient(deps.pool, (client) =>
       withRequestContext(client, {}, () => releaseReservation(client, keys, reservation)),
     );
     return { kind: "busy" };
   }
-  if (verdict === "wrong" || account === undefined) {
-    deps.log("staff.password_failed");
+  if (verdict === "wrong") {
+    say(deps, caller, "staff.password_failed");
     return { kind: "invalid_credentials" };
   }
+  const account = verdict;
   const opened = await openChallenge(deps, account, keys, reservation);
   if (opened.kind === "challenge_cap") {
-    deps.log("staff.throttled", { step: "challenge_cap" });
+    say(deps, caller, "staff.throttled", { step: "challenge_cap" });
     return opened;
   }
-  deps.log("staff.password_ok", { user: account.id });
-  await sweepIfDue(deps, clock);
-  await refreshHash(deps, account, input.password);
-  if (!(await deliverCode(deps, account.email, opened.code, opened.challengeToken))) {
+  say(deps, caller, "staff.password_ok", { user: account.id });
+  await sweepIfDue(deps, caller, clock);
+  await refreshHash(deps, caller, account, input.password);
+  if (!(await deliverCode(deps, caller, account.email, opened.code, opened.challengeToken))) {
     return { kind: "email_unavailable" };
   }
   return {
@@ -374,7 +407,9 @@ async function judgeCode(
   if (full !== undefined) {
     return full;
   }
-  await bumpAttempts(client, challenge.id);
+  if (!(await bumpAttempts(client, challenge.id))) {
+    return { kind: "challenge_expired" };
+  }
   if (!safeEqual(deps.keys.codeHash(challenge.id, code), challenge.codeHash)) {
     await recordFailure(client, keys);
     return { kind: "invalid_code", attemptsLeft: L.maxCodeAttempts - (challenge.attempts + 1) };
@@ -423,12 +458,13 @@ async function codeStep(
     }),
   );
   if (outcome.kind === "signed_in") {
-    deps.log("staff.session_opened", { user: outcome.account.id });
-    await alertAdminSignIn(deps, outcome.account, caller);
+    say(deps, caller, "staff.session_opened", { user: outcome.account.id });
+    // Not awaited: sending mail must not hold up the sign-in. Failures are caught and logged inside.
+    void alertAdminSignIn(deps, outcome.account, caller);
   } else if (outcome.kind === "invalid_code") {
-    deps.log("staff.code_failed", { attemptsLeft: outcome.attemptsLeft });
+    say(deps, caller, "staff.code_failed", { attemptsLeft: outcome.attemptsLeft });
   } else if (outcome.kind === "throttled") {
-    deps.log("staff.throttled", { step: "code" });
+    say(deps, caller, "staff.throttled", { step: "code" });
   }
   return outcome;
 }
@@ -450,7 +486,7 @@ async function alertAdminSignIn(
     try {
       await deps.email.send({ to, ...content });
     } catch (error) {
-      deps.log("staff.alert_failed", { reason: error instanceof Error ? error.name : "unknown" });
+      say(deps, caller, "staff.alert_failed", { reason: reasonOf(error) });
     }
   }
 }
@@ -459,7 +495,11 @@ type Resending =
   | Exclude<ResendResult, { kind: "resent" | "email_unavailable" }>
   | Readonly<{ kind: "resending"; to: string; code: string }>;
 
-async function resend(deps: SignInDeps, input: { challengeToken: string }): Promise<ResendResult> {
+async function resend(
+  deps: SignInDeps,
+  input: { challengeToken: string },
+  caller: Caller,
+): Promise<ResendResult> {
   const tokenHash = hashToken(input.challengeToken);
   const prepared = await withClient(deps.pool, (client) =>
     withPreIdentityContext(
@@ -490,7 +530,9 @@ async function resend(deps: SignInDeps, input: { challengeToken: string }): Prom
           return { kind: "challenge_expired" };
         }
         const code = generateCode();
-        await replaceCode(client, challenge.id, deps.keys.codeHash(challenge.id, code));
+        if (!(await replaceCode(client, challenge.id, deps.keys.codeHash(challenge.id, code)))) {
+          return { kind: "resend_limit" };
+        }
         return { kind: "resending", to: account.email, code };
       },
     ),
@@ -498,7 +540,7 @@ async function resend(deps: SignInDeps, input: { challengeToken: string }): Prom
   if (prepared.kind !== "resending") {
     return prepared;
   }
-  return (await deliverCode(deps, prepared.to, prepared.code, input.challengeToken))
+  return (await deliverCode(deps, caller, prepared.to, prepared.code, input.challengeToken))
     ? { kind: "resent" }
     : { kind: "email_unavailable" };
 }
@@ -509,6 +551,6 @@ export function createSignIn(deps: SignInDeps): SignIn {
   return {
     passwordStep: (input, caller) => passwordStep(deps, clock, input, caller),
     codeStep: (input, caller) => codeStep(deps, input, caller),
-    resend: (input) => resend(deps, input),
+    resend: (input, caller) => resend(deps, input, caller),
   };
 }

@@ -59,7 +59,11 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 
 function callerOf(request: FastifyRequest): Caller {
   const agent = request.headers["user-agent"];
-  return { address: request.ip, userAgent: typeof agent === "string" ? agent.slice(0, 300) : null };
+  return {
+    address: request.ip,
+    userAgent: typeof agent === "string" ? agent.slice(0, 300) : null,
+    log: (event, fields) => request.log.info({ event, ...fields }),
+  };
 }
 
 function waitThen(reply: FastifyReply, seconds: number): void {
@@ -151,7 +155,7 @@ function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/resend", open, async (request, reply) => {
     const body = parse(resendBody, request.body);
-    const result = await deps.signIn.resend(body);
+    const result = await deps.signIn.resend(body, callerOf(request));
     switch (result.kind) {
       case "resent":
         return {};

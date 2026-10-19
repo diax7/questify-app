@@ -72,5 +72,10 @@ let dummyHash: Promise<string> | undefined;
  */
 export async function dummyVerify(password: string): Promise<void> {
   dummyHash ??= hashPassword(`dummy-${Math.random().toString(36)}-${Date.now()}`);
-  await verifyPassword(await dummyHash, password);
+  try {
+    await verifyPassword(await dummyHash, password);
+  } catch (error) {
+    dummyHash = undefined;
+    throw error;
+  }
 }

@@ -5,6 +5,25 @@ export function normalizeEmail(input: string): string {
   return input.normalize("NFKC").trim().toLowerCase();
 }
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254;
+
+/**
+ * True when a normalized email could be a real address: lowercase, one @ with text on both sides, no
+ * whitespace or control characters, at most 254 characters. It says nothing about whether the mailbox exists.
+ */
+export function isPlausibleEmail(email: string): boolean {
+  return (
+    email.length <= MAX_EMAIL_LENGTH &&
+    email === email.toLowerCase() &&
+    EMAIL_SHAPE.test(email) &&
+    ![...email].some((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code < 0x20 || code === 0x7f;
+    })
+  );
+}
+
 /** The number of characters a person sees (Unicode code points), not UTF-16 units. */
 export function codePointLength(text: string): number {
   let count = 0;

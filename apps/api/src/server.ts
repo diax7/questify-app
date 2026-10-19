@@ -1,12 +1,12 @@
 import { Pool } from "pg";
-import { buildApp } from "./app";
-import { createFailoverSender } from "./auth/email/failover";
-import { createResendSender } from "./auth/email/resend";
-import type { EmailSender } from "./auth/email/sender";
-import { createSmtpSender } from "./auth/email/smtp";
-import { dummyVerify } from "./auth/password";
-import { loadConfig, type AppConfig } from "./config";
-import { MemoryIdempotencyStore } from "./idempotency-store";
+import { buildApp } from "#src/app";
+import { createFailoverSender } from "#src/auth/email/failover";
+import { createResendSender } from "#src/auth/email/resend";
+import type { EmailSender } from "#src/auth/email/sender";
+import { createSmtpSender } from "#src/auth/email/smtp";
+import { dummyVerify } from "#src/auth/password";
+import { loadConfig, type AppConfig } from "#src/config";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
 const POOL_SIZE = 10;
 const STATEMENT_TIMEOUT_MS = 5000;

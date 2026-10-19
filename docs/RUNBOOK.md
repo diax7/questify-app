@@ -4,8 +4,9 @@
 
 ## Local checks
 
-- `pnpm ci:changed`: lint, format check, types, tests and the mutation check (what a pull request needs).
-- `pnpm ci:full`: everything above plus the dependency audit.
+- `pnpm ci:changed`: lint, format check, types and all tests (what the pull-request gate runs).
+- `pnpm ci:full`: `ci:changed` plus the dependency audit and the mutation check (about 20 minutes with the database
+  tests; run it before merging core changes, in the background).
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.

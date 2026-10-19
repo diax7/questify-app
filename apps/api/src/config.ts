@@ -54,6 +54,16 @@ function whole(env: Env, name: string, fallback: string, min: number, max: numbe
   return value;
 }
 
+/** Production must say how many proxies stand in front, because a wrong guess makes everyone share one address. */
+function proxyHops(env: Env, nodeEnv: string): number {
+  if (nodeEnv === "production" && optional(env, "TRUST_PROXY_HOPS") === undefined) {
+    throw new Error(
+      "TRUST_PROXY_HOPS is required in production: the number of proxies in front of the API (edge, dashboard proxy).",
+    );
+  }
+  return whole(env, "TRUST_PROXY_HOPS", "1", 0, 10);
+}
+
 function origin(env: Env, name: string): string {
   const text = required(env, name);
   let url: URL;
@@ -116,7 +126,7 @@ export function loadConfig(env: Env): AppConfig {
     minAppVersion,
     releaseSha: env["RELEASE_SHA"] ?? "dev",
     databaseUrl: required(env, "DATABASE_URL"),
-    trustProxyHops: whole(env, "TRUST_PROXY_HOPS", "1", 0, 10),
+    trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
   };
 }

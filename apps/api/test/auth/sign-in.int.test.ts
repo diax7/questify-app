@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import * as passwordModule from "#src/auth/password";
 import { createAuthKeys } from "#src/auth/keys";
 import { BUCKETS } from "#src/auth/throttle";
 import { testConfig } from "#test/support/auth-app";
@@ -17,15 +18,29 @@ import {
 } from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
+vi.mock("#src/auth/password", async (importOriginal) => {
+  const actual = await importOriginal<typeof passwordModule>();
+  return {
+    ...actual,
+    dummyVerify: vi.fn(actual.dummyVerify),
+    verifyPassword: vi.fn(actual.verifyPassword),
+  };
+});
+
+/** How many dummy and real password checks one wrong-password attempt for this email cost. */
+const checksFor = async (test: TestApp, email: string): Promise<[number, number]> => {
+  vi.mocked(passwordModule.dummyVerify).mockClear();
+  vi.mocked(passwordModule.verifyPassword).mockClear();
+  await postPassword(test, email, "not the password at all");
+  return [
+    vi.mocked(passwordModule.dummyVerify).mock.calls.length,
+    vi.mocked(passwordModule.verifyPassword).mock.calls.length,
+  ];
+};
+
 const token = (response: { json: <T>() => T }): string =>
   response.json<{ challengeToken: string }>().challengeToken;
 const wrongCode = (code: string): string => (code === "000000" ? "000001" : "000000");
-const time = async (run: () => Promise<unknown>): Promise<number> => {
-  const start = performance.now();
-  await run();
-  return performance.now() - start;
-};
-
 describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
   let db: TestDatabase;
   let test: TestApp;
@@ -154,14 +169,38 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       expect(test.mail.to(disabled)).toEqual([]);
     });
 
-    it("spends the same time on an unknown email as on a wrong password", async () => {
-      const email = newEmail();
-      await createStaff(db.owner, { email });
-      await postPassword(test, "warm@najd.sa");
-      const wrong = await time(() => postPassword(test, email, "not the password at all"));
-      const unknown = await time(() => postPassword(test, "ghost@najd.sa"));
-      expect(unknown).toBeGreaterThan(15);
-      expect(unknown).toBeGreaterThan(wrong * 0.4);
+    it("pays for exactly one password check whatever the email, so timing reveals nothing", async () => {
+      const real = newEmail();
+      const disabled = newEmail();
+      await createStaff(db.owner, { email: real });
+      await createStaff(db.owner, { email: disabled, status: "disabled" });
+      // [dummy checks, real checks]: an unknown or disabled account does a dummy check, a real one a real check.
+      expect(await checksFor(test, "ghost@najd.sa")).toEqual([1, 0]);
+      expect(await checksFor(test, disabled)).toEqual([1, 0]);
+      expect(await checksFor(test, "nobody")).toEqual([1, 0]);
+      expect(await checksFor(test, real)).toEqual([0, 1]);
+    });
+
+    it.each([
+      ["text with no @", "nobody"],
+      ["an address with a space", "a b@najd.sa"],
+      ["an address with a control character", `a${String.fromCodePoint(1)}b@najd.sa`],
+      ["a compatibility character that expands past 254", `${"\uFDFA".repeat(40)}@najd.sa`],
+    ])("answers %s exactly like an unknown email, and counts it", async (_label, email) => {
+      const ip = freshIp();
+      const unknown = await postPassword(test, "ghost@najd.sa", "wrong password here", {
+        "x-forwarded-for": ip,
+      });
+      const malformed = await postPassword(test, email, "wrong password here", {
+        "x-forwarded-for": ip,
+      });
+      expect(malformed.statusCode).toBe(401);
+      expect(malformed.json()).toEqual(unknown.json());
+      const rows = await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = 'fail_address' AND key = $1",
+        [keys.addressKey(ip)],
+      );
+      expect(rows[0]?.n).toBe(2);
     });
 
     it("treats an email typed in capitals or with spaces as the same account", async () => {
@@ -518,6 +557,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
         payload: { challengeToken: token(first) },
       });
       expect(later.statusCode).toBe(200);
+      expect(later.json()).toEqual({});
       expect(test.mail.to(email)).toHaveLength(2);
     });
 
@@ -586,12 +626,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       const regular = newEmail();
       await createStaff(db.owner, { email: admin, admin: true });
       await createStaff(db.owner, { email: regular });
+      const before = test.mail.to("security@questify.test").length;
       await signInFully(test, admin, { "user-agent": "Chrome on Windows" });
       await signInFully(test, regular);
+      await vi.waitFor(() => {
+        expect(test.mail.to("security@questify.test")).toHaveLength(before + 1);
+        expect(test.mail.to(admin).some((mail) => mail.subject.includes("New sign-in"))).toBe(true);
+      });
       const alerts = test.mail.to(admin).filter((mail) => mail.subject.includes("New sign-in"));
       expect(alerts).toHaveLength(1);
       expect(alerts[0]?.text).toContain("Chrome on Windows");
-      expect(test.mail.to("security@questify.test")).toHaveLength(1);
       expect(test.mail.to(regular)).toHaveLength(1);
     });
 
@@ -603,6 +647,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       const done = await postCode(test, token(first), test.mail.lastCode(admin));
       test.mail.failing = false;
       expect(done.statusCode).toBe(200);
+    });
+  });
+
+  describe("the retention sweep", () => {
+    it("never blocks a sign-in when it fails, and says so in the log", async () => {
+      const lines: string[] = [];
+      const logged = await startApp(db, {
+        level: "debug",
+        stream: { write: (line: string) => void lines.push(line) },
+      });
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      await owner(
+        `CREATE OR REPLACE FUNCTION sweep_boom() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN RAISE EXCEPTION 'sweep is broken'; END $$`,
+      );
+      await owner(
+        `CREATE TRIGGER sweep_boom BEFORE DELETE ON auth_throttle
+         FOR EACH ROW WHEN (OLD.at < now() - interval '12 hours') EXECUTE FUNCTION sweep_boom()`,
+      );
+      await owner(
+        "INSERT INTO auth_throttle (bucket, key, at) VALUES ('fail_email', sha256('stale'), now() - interval '2 days')",
+      );
+      try {
+        const response = await postPassword(logged, email);
+        expect(response.statusCode).toBe(200);
+        const failed = lines
+          .map((line) => JSON.parse(line) as Record<string, unknown>)
+          .find((entry) => entry["event"] === "staff.sweep_failed");
+        expect(failed).toMatchObject({ reason: expect.any(String) });
+      } finally {
+        await owner("DROP TRIGGER sweep_boom ON auth_throttle");
+        await owner("DELETE FROM auth_throttle WHERE key = sha256('stale')");
+        await logged.close();
+      }
     });
   });
 

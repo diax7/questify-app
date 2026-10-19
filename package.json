@@ -9,8 +9,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "audit": "pnpm audit --audit-level moderate",
-    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm mutation",
-    "ci:full": "pnpm ci:changed && pnpm audit",
+    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "ci:full": "pnpm ci:changed && pnpm audit && pnpm mutation",
     "mutation": "stryker run",
     "sbom:generate": "pnpm sbom --sbom-format cyclonedx --prod --lockfile-only > sbom.cdx.json"
   },

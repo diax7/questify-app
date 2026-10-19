@@ -10,7 +10,10 @@ import type { TestDatabase } from "#test/support/test-db";
 export const DASHBOARD_ORIGIN = "https://app.questify.test";
 export const PASSWORD = "correct horse battery staple";
 
-export function testConfig(databaseUrl = "postgres://unused"): AppConfig {
+export function testConfig(
+  databaseUrl = "postgres://unused",
+  auth: Partial<AppConfig["auth"]> = {},
+): AppConfig {
   return {
     nodeEnv: "test",
     host: "127.0.0.1",
@@ -26,6 +29,7 @@ export function testConfig(databaseUrl = "postgres://unused"): AppConfig {
       smtpAppPassword: "unused",
       resend: undefined,
       securityAlertEmail: "security@questify.test",
+      ...auth,
     },
   };
 }
@@ -88,11 +92,12 @@ export type TestApp = Readonly<{
 export async function startApp(
   db: TestDatabase,
   logger: FastifyServerOptions["logger"] = false,
+  auth: Partial<AppConfig["auth"]> = {},
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
   const app = buildApp({
-    config: testConfig(db.appUrl),
+    config: testConfig(db.appUrl, auth),
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: mail,

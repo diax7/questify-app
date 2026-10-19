@@ -103,6 +103,16 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...REQUIRED, TRUST_PROXY_HOPS: value })).toThrow(/TRUST_PROXY_HOPS/);
   });
 
+  it("requires TRUST_PROXY_HOPS in production, because a wrong guess makes everyone share one address", () => {
+    expect(() => loadConfig({ ...REQUIRED, NODE_ENV: "production" })).toThrow(/TRUST_PROXY_HOPS/);
+    expect(
+      loadConfig({ ...REQUIRED, NODE_ENV: "production", TRUST_PROXY_HOPS: "2" }),
+    ).toMatchObject({
+      trustProxyHops: 2,
+    });
+    expect(loadConfig({ ...REQUIRED, NODE_ENV: "development" }).trustProxyHops).toBe(1);
+  });
+
   it("accepts zero proxies", () => {
     expect(loadConfig({ ...REQUIRED, TRUST_PROXY_HOPS: "0" }).trustProxyHops).toBe(0);
   });

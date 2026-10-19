@@ -1,3 +1,4 @@
+import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import { verifyPassword } from "#src/auth/password";
@@ -77,6 +78,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
     await expect(
       createStaffAccount(db.owner, { email: "TWICE@najd.sa", password: strong, admin: false }),
     ).rejects.toThrow(/already exists/);
+  });
+
+  it("keeps the real cause of an account that already exists", async () => {
+    await createStaffAccount(db.owner, { email: "cause@najd.sa", password: strong, admin: false });
+    const error = await createStaffAccount(db.owner, {
+      email: "cause@najd.sa",
+      password: strong,
+      admin: false,
+    }).catch((caught: unknown) => caught);
+    expect((error as Error).cause).toMatchObject({ code: "23505" });
+  });
+
+  it("passes any other database failure through instead of calling it a duplicate", async () => {
+    const broken = {
+      query: async () => {
+        throw new Error("connection lost");
+      },
+    } as unknown as Client;
+    await expect(
+      createStaffAccount(broken, { email: "x@najd.sa", password: strong, admin: false }),
+    ).rejects.toThrow("connection lost");
   });
 
   it("clears a person's failure count and challenge count", async () => {

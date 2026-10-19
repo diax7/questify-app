@@ -1,10 +1,10 @@
 import type { Client } from "pg";
 import type { AuthKeys } from "#src/auth/keys";
-import { normalizeEmail } from "#src/auth/normalize";
+import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { checkPasswordPolicy, hashPassword } from "#src/auth/password";
 import { BUCKETS, clearKey } from "#src/auth/throttle";
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DOMAIN_WITH_DOT = /@[^\s@]+\.[^\s@]+$/;
 const UNIQUE_VIOLATION = "23505";
 
 const REASONS = {
@@ -24,7 +24,7 @@ export async function createStaffAccount(
   input: { email: string; password: string; admin: boolean },
 ): Promise<string> {
   const email = normalizeEmail(input.email);
-  if (!EMAIL.test(email) || email.length > 254) {
+  if (!isPlausibleEmail(email) || !DOMAIN_WITH_DOT.test(email)) {
     throw new Error(`"${email}" is not a valid email address.`);
   }
   const policy = checkPasswordPolicy(input.password, email);
