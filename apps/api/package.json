@@ -4,10 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/server.cjs --sourcemap",
+    "start": "node dist/server.cjs"
   },
   "dependencies": {
     "@questify/shared": "workspace:*",
     "fastify": "5.12.7"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

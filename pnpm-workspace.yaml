@@ -9,3 +9,6 @@ strictDepBuilds: true
 # qs is pulled in by Stryker and has known moderate issues below 6.16.0
 overrides:
   qs: ">=6.16.0"
+
+allowBuilds:
+  esbuild: true

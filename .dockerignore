@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+docs
+coverage
+.stryker-tmp
+reports
+.env
+.env.*
+.cranl
+sbom.cdx.json
