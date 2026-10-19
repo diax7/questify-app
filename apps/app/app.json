@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Questify",
-    "slug": "questify",
+    "slug": "nafes",
     "scheme": "questify",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -9,7 +9,10 @@
     "ios": {
       "bundleIdentifier": "app.questify.mobile",
       "supportsTablet": false,
-      "infoPlist": { "CFBundleAllowMixedLocalizations": true }
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleLocalizations": ["ar", "en"]
+      }
     },
     "android": {
       "package": "app.questify.mobile"
@@ -19,11 +22,25 @@
       "expo-font",
       [
         "expo-localization",
-        { "supportedLocales": { "ios": ["ar", "en"], "android": ["ar", "en"] } }
+        {
+          "supportedLocales": {
+            "ios": ["ar", "en"],
+            "android": ["ar", "en"]
+          }
+        }
       ],
       "expo-splash-screen",
       "expo-status-bar"
     ],
-    "updates": { "enabled": false }
+    "updates": {
+      "enabled": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1ff85195-221e-4284-87b5-392d625f94cc"
+      }
+    },
+    "owner": "nafess-team"
   }
 }
