@@ -166,3 +166,11 @@
 | AWS Saudi, Azure Saudi | Announced for December 2026 / Q4 2026 | Later | Not yet | Brand names | Not live; cannot plan a launch on them |
 
 Claude's lean: **production on Oracle (Riyadh main, Jeddah recovery) once the console confirms PostgreSQL and the cache there; staging, rehearsal and demos on CranL Pro in Riyadh.** The server is plain containers plus PostgreSQL, so moving between hosts later is a data migration, not a rewrite. If Oracle's console lacks PostgreSQL in Riyadh, the next candidates are sccc or Google Dammam. Questions for CranL before trusting it with production: who runs the Riyadh and Jeddah hardware; is it in-Kingdom; automatic backups and how often; point-in-time restore; copy of backups to a second city; HA failover for a managed PostgreSQL; the written uptime commitment; maximum database size and connections; and its CST registration or hosting partner's.
+
+## CranL staging (built 2026-10-19)
+
+- **Project:** Nafes, region `riyadh-1` (Riyadh). **Apps:** `questify-api-staging` (Dockerfile build from the public repository, port 3000), live at https://questify-api-staging-3ez01s.cranl.net/healthz. **Databases:** `questify-db` (PostgreSQL), `questify-cache` (Redis). Database hosts are internal names, not reachable from the internet (checked: name does not resolve from outside).
+- **Deploys** are manual: the app is created from a public Git URL, so CranL has no GitHub webhook. A GitHub Actions deploy job using a CranL API key kept as a repository secret is part of T-017.
+- **Backups:** CranL database snapshots save only `public`-schema rows, 7 days, no restore of roles, policies or functions, no point-in-time recovery. See the ADR-107 addendum. A scheduled `pg_dump` to a second Saudi location is T-019.
+- **Access:** the CranL command line is signed in as the account that owns Nafes and the B7R App organization. Questify work uses only the Nafes project, selected per command with the `CRANL_PROJECT` setting, never as the saved default.
+

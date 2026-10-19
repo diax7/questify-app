@@ -1628,3 +1628,6 @@ developer against an already large plan (Q-077); Standard everywhere would give 
 **Why:** The user wants the build to follow worldwide best practice for infrastructure, security, code and tests, not only to follow our own plan.
 **Trade-offs:** More Phase 0 work before the first feature; a paid external penetration test; the baseline adds checks to every core change.
 
+### ADR-107 addendum (2026-10-19): what CranL's backups really are
+After the staging environment was created, CranL's API documentation showed that its managed-database "snapshots" save only the rows of the `public` schema, are kept 7 days, and cannot restore roles, row-level-security policies, functions or other schemas; there is no point-in-time recovery or physical backup. That does **not** meet NFR-026 (5 minutes of data loss, 1 hour to recover). Consequences: (1) CranL stays the choice for the build and **staging**; (2) the independent nightly dump to a second place in Saudi Arabia (T-019) is mandatory, not optional, and still gives up to 24 hours of loss; (3) **production on CranL is not acceptable until CranL provides point-in-time recovery or we run our own WAL archiving**, otherwise production moves to Oracle, sccc or Google Dammam (T-811). Decided by evidence, not by the user; the user may overrule it.
+

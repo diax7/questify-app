@@ -479,6 +479,8 @@ other docs feed it and stay as its detailed appendices.
 
 - 2026-10-19 **T-005 done.** `packages/shared`: error envelope, cursor pagination (`encodeCursor`, `decodeCursor`, `parseLimit`), app-version compare, rate-limit header helper. `apps/api`: `registerConventions` (request id, one error envelope that never leaks causes, 426 for old apps, `Idempotency-Key` on routes marked `config.idempotent`, replay of the first answer, 409 while running, 422 on a different body, retry after a 5xx, 24-hour expiry) with an in-memory store (the database store comes with T-003). 82 tests; mutation score 88%. Not yet built: an actual rate limiter (only the headers) and the principal that scopes keys (comes with sign-in, T-006/T-107).
 
+- 2026-10-19 **T-002 partly done.** API server entry, `/healthz` and `/readyz`, esbuild bundle and a Dockerfile (239 MB, non-root, healthcheck, base image pinned by digest) built and tested locally. Deployed to CranL Riyadh (`questify-api-staging`, Nafes project); the health URL answers over HTTPS. Databases confirmed in `riyadh-1` and not reachable from the internet. **Not met yet:** a restore from backup (CranL snapshots are too limited, ADR-107 addendum) and the secret store (environment variables are set per app on CranL). T-002 stays open until T-019 provides a restorable backup.
+
 ## Next
 
 1. **Stage 9**, wrap-up: consistency pass across all docs, SRS consolidation, final approval to end planning (then apply `_blueprint/CLAUDE_BUILD_DRAFT.md`).
