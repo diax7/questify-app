@@ -17,6 +17,8 @@ const TABLES = [
   "staff_login_challenge",
   "staff_session",
   "auth_throttle",
+  "platform_setting",
+  "event_entitlement",
   "schema_migration",
 ];
 

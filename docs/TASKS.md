@@ -35,7 +35,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [x] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
-- [ ] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
+- [x] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
   - Done when: Changing a setting changes the composed config within a minute without any release; an unknown block is ignored by an older app.
 - [ ] **T-008** Translation store: keys with Arabic and English values, shipped defaults, fallback to defaults, placeholder protection — delivers FR 1768, 1767, 1506, 1507; depends on: T-007
   - Done when: A blank or missing key shows the shipped text; a save that removes a placeholder is refused; numbers render in Western digits in both languages.

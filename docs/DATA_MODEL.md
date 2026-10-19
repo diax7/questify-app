@@ -155,7 +155,9 @@ jsonb, ip, at)`: append-only, never edited.
 | announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |
 | venue_map, map_pin, sponsor, survey, survey_answer | Maps, sponsor profiles, surveys | Answers yes |
-| translation, platform_setting | Text matrix and platform switches/tuning (see `CONFIGURABILITY.md`) | No |
+| translation | Text matrix (T-008) | No |
+| platform_setting | One row per block: `features` (per feature: enabled, message, minAppVersion) and `tuning` (numbers). Anyone using the app may read; only a Questify admin writes; never deleted. Records who changed it | No |
+| event_entitlement | Add-ons Questify unlocked for an event (`event_id`, `feature`, `granted_by`). Kept apart from `event.config` because the organizer can edit that column and must not unlock anything for themselves (FR-1729). Visible to whoever can see the event; written only by an admin | No |
 | wallet_pass, wallet_registration | Serial, auth token, device registrations for pass updates | Linked to player |
 | word_list, deletion_request, data_request | Username filter lists; legal requests and what was done | Requests yes |
 | usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076) | No |

@@ -42,8 +42,14 @@
   polling every 5 seconds (NFR-005).
 - **Webhooks:** none sent to organizers in v1. Inbound: SMS delivery receipts, email bounces, wallet
   device registrations; all verified by signature.
-- **Config:** `GET /v1/config` returns the composed configuration (see `CONFIGURABILITY.md`) with an
-  `ETag`; the app keeps the last copy that worked (F-282).
+- **Config:** `GET /v1/config[?event=<id>]` returns the composed configuration with an `ETag` (see
+  `CONFIGURABILITY.md`); anyone may read it. The document is `{schemaVersion: 1, features: {<name>: {enabled,
+  minAppVersion, message}}, tuning: {<name>: number}}`, keys sorted. An unchanged document costs one request:
+  `If-None-Match` with the tag answers `304`. `Cache-Control: no-cache`, so apps always revalidate. A change
+  reaches every app within 15 seconds (the server's cache) plus the time until the app next asks. An event the
+  caller cannot see (private, or not there) answers `404` exactly alike. The app keeps the last document that
+  passed `parseComposedConfig` (F-282), drops blocks it does not know, and treats a feature as absent when its
+  own version is below `minAppVersion`.
 - **Deprecation:** since the API is internal, old routes are removed after the minimum app version
   passes them; each change is recorded in `docs/` changelog notes. If the API is ever opened,
   `Deprecation` and `Sunset` headers and a minimum 6 months' notice apply (proposed).

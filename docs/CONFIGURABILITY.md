@@ -36,6 +36,25 @@ for an event.
    limits the damage: validation on save, protected items, an audit entry for every change, and the
    last-working copy on the phone.
 
+## As built (T-007)
+
+- **The registry is code.** `packages/shared/src/config/registry.ts` lists the features and tuning numbers the reviewed app
+  contains. A key is added in the same change that builds the feature (FR-1504); a save naming anything else is refused.
+- **Composition** (`composeConfig`): a feature is on when the platform has it on **and** (it is not an add-on **or** Questify
+  unlocked it for the event) **and** the event has not switched it off. A lower level can only narrow a higher one. A
+  platform "off" message is shown only while the platform has it off. Numbers outside their safe range are never used; the
+  default is used instead.
+- **Saving is strict, reading is tolerant.** `validatePlatformSettings` and `validateEventConfig` refuse unknown features,
+  out-of-range numbers, blank messages, bad versions and unknown fields, and report every problem at once. Reading stored
+  data drops whatever is malformed, so one damaged value never stops an app getting its configuration.
+- **Who writes what.** A Questify admin: platform settings and unlocks (database rules and the service both check). An
+  organizer: only the feature switches inside their own event's config. Unlocks live in `event_entitlement`, not in
+  `event.config`.
+- **Caching.** The server keeps a reading for 15 seconds; a save on that copy clears it at once, other copies catch up within
+  15 seconds. The ETag is a hash of the document, so it changes exactly when the document does.
+- **Still to come:** the admin screens and routes that call these saves (T-703, T-602), the translation bundle (T-008),
+  maintenance mode and the banner (T-703).
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |

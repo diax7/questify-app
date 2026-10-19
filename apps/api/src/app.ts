@@ -14,6 +14,8 @@ import { createSignIn } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { registerConfigRoutes } from "#src/settings/routes";
+import { createSettingsService, type SettingsService } from "#src/settings/service";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
 export type AppOptions = Readonly<{
@@ -23,6 +25,8 @@ export type AppOptions = Readonly<{
   pool: Pool;
   /** Sends the sign-in codes (Gmail first, Resend as the backup). */
   emailSender: EmailSender;
+  /** Reads and saves configuration. Created from the pool when not given (tests give one with a short cache). */
+  settings?: SettingsService;
   logger?: FastifyServerOptions["logger"];
 }>;
 
@@ -99,6 +103,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
       dashboardOrigin: config.auth.dashboardOrigin,
     }),
   );
+
+  registerConfigRoutes(app, options.settings ?? createSettingsService({ pool: options.pool }));
 
   app.get("/healthz", async (_request, reply) => {
     reply.header("cache-control", "no-store");

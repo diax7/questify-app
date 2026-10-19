@@ -5,6 +5,7 @@ import { EmailSendError, type EmailMessage, type EmailSender } from "#src/auth/e
 import { hashPassword } from "#src/auth/password";
 import type { AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
+import type { SettingsService } from "#src/settings/service";
 import type { TestDatabase } from "#test/support/test-db";
 
 export const DASHBOARD_ORIGIN = "https://app.questify.test";
@@ -93,6 +94,7 @@ export async function startApp(
   db: TestDatabase,
   logger: FastifyServerOptions["logger"] = false,
   auth: Partial<AppConfig["auth"]> = {},
+  settings?: SettingsService,
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
@@ -101,6 +103,7 @@ export async function startApp(
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: mail,
+    ...(settings === undefined ? {} : { settings }),
     logger,
   });
   await app.ready();
