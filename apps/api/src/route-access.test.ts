@@ -12,12 +12,12 @@ describe("registerRouteInventory", () => {
   it("records each route with its access kind, including the automatic HEAD route", async () => {
     const { app, inventory } = build();
     app.get("/a", { config: { access: "public" } }, async () => ({}));
-    app.post("/b", { config: { access: "staff" } }, async () => ({}));
+    app.post("/v1/staff/b", { config: { access: "staff" } }, async () => ({}));
     await app.ready();
     expect(inventory).toEqual([
       { method: "GET", url: "/a", access: "public" },
       { method: "HEAD", url: "/a", access: "public" },
-      { method: "POST", url: "/b", access: "staff" },
+      { method: "POST", url: "/v1/staff/b", access: "staff" },
     ]);
     await app.close();
   });
@@ -45,10 +45,17 @@ describe("registerRouteInventory", () => {
 
   it("allows an idempotent route that has a principal", async () => {
     const { app, inventory } = build();
-    app.post("/pay", { config: { access: "staff", idempotent: true } }, async () => ({}));
+    app.post("/v1/staff/pay", { config: { access: "staff", idempotent: true } }, async () => ({}));
     await app.ready();
-    expect(inventory).toEqual([{ method: "POST", url: "/pay", access: "staff" }]);
+    expect(inventory).toEqual([{ method: "POST", url: "/v1/staff/pay", access: "staff" }]);
     await app.close();
+  });
+
+  it("refuses a staff label on a route outside /v1/staff, where no session check would run", () => {
+    const { app } = build();
+    expect(() => app.get("/me", { config: { access: "staff" } }, async () => ({}))).toThrow(
+      "Route GET /me is marked staff but is outside /v1/staff/, where the session check runs.",
+    );
   });
 
   it("lists the known kinds", () => {

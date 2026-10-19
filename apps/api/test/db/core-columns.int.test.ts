@@ -247,31 +247,90 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       expect(rows).toEqual([{ event_scope: null }]);
     });
 
-    it("lets the creator of an organizer with no owner become its first owner, and nobody else", async () => {
-      const fresh = (
+    it("cannot be claimed by a stranger, even for an organizer with no owner", async () => {
+      const orphan = (
         await db.owner.query<{ id: string }>(
-          "INSERT INTO organizer (name, slug) VALUES ('Fresh', 'fresh') RETURNING id",
+          "INSERT INTO organizer (name, slug) VALUES ('Orphan', 'orphan') RETURNING id",
         )
       ).rows[0]?.id;
-      await expect(
-        as(
-          { staffUserId: stranger },
-          "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
-          [ids.orgA, stranger],
-        ),
-      ).rejects.toThrow(/row-level security/);
-      await as(
+      for (const target of [orphan, ids.orgB]) {
+        await expect(
+          as(
+            { staffUserId: stranger },
+            "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+            [target, stranger],
+          ),
+        ).rejects.toThrow(/row-level security/);
+      }
+    });
+
+    it("is created together with its first owner, by a signed-in staff user only", async () => {
+      const [created] = await as(
         { staffUserId: stranger },
-        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
-        [fresh, stranger],
+        "SELECT create_organizer('Fresh Co', 'fresh-co') AS id",
       );
+      const id = (created as { id: string }).id;
+      const rows = (
+        await db.owner.query(
+          "SELECT staff_user_id, role FROM organizer_member WHERE organizer_id = $1",
+          [id],
+        )
+      ).rows;
+      expect(rows).toEqual([{ staff_user_id: stranger, role: "owner" }]);
+      await expect(as({}, "SELECT create_organizer('Nobody', 'nobody')")).rejects.toThrow(
+        /signed-in staff/,
+      );
+    });
+
+    it("refuses a bare organizer row from anyone but an admin", async () => {
+      await expect(
+        as({ staffUserId: stranger }, "INSERT INTO organizer (name, slug) VALUES ('Bare', 'bare')"),
+      ).rejects.toThrow(/row-level security/);
+    });
+
+    it("never loses its owner: an owner cannot demote or remove themselves", async () => {
+      const ownerContext = { organizerId: ids.orgA, staffUserId: owner };
+      await as(
+        ownerContext,
+        "UPDATE organizer_member SET role = 'editor' WHERE staff_user_id = $1",
+        [owner],
+      );
+      await as(ownerContext, "DELETE FROM organizer_member WHERE staff_user_id = $1", [owner]);
+      const rows = (
+        await db.owner.query("SELECT role FROM organizer_member WHERE staff_user_id = $1", [owner])
+      ).rows;
+      expect(rows).toEqual([{ role: "owner" }]);
+    });
+
+    it("cannot make a second owner by promoting an editor directly", async () => {
       await expect(
         as(
-          { staffUserId: editor },
-          "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
-          [fresh, editor],
+          { organizerId: ids.orgA, staffUserId: owner },
+          "UPDATE organizer_member SET role = 'owner' WHERE staff_user_id = $1",
+          [editor],
         ),
       ).rejects.toThrow(/row-level security/);
+    });
+
+    it("changes owner only through a transfer by the owner, to an existing editor", async () => {
+      await expect(
+        as({ staffUserId: editor }, "SELECT transfer_ownership($1, $2)", [ids.orgA, editor]),
+      ).rejects.toThrow(/only the owner/);
+      await expect(
+        as({ staffUserId: owner }, "SELECT transfer_ownership($1, $2)", [ids.orgA, stranger]),
+      ).rejects.toThrow(/already be an editor/);
+      await as({ staffUserId: owner }, "SELECT transfer_ownership($1, $2)", [ids.orgA, editor]);
+      const rows = (
+        await db.owner.query<{ staff_user_id: string; role: string }>(
+          "SELECT staff_user_id, role FROM organizer_member WHERE organizer_id = $1 ORDER BY role",
+          [ids.orgA],
+        )
+      ).rows;
+      expect(rows).toEqual([
+        { staff_user_id: owner, role: "editor" },
+        { staff_user_id: editor, role: "owner" },
+      ]);
+      await as({ staffUserId: editor }, "SELECT transfer_ownership($1, $2)", [ids.orgA, owner]);
     });
 
     it("cannot be removed by an editor", async () => {

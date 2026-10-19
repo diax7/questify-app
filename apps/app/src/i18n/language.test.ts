@@ -60,6 +60,7 @@ describe("decideBoot", () => {
     ).toEqual({
       language: "ar",
       needsRestart: false,
+      fellBack: false,
     });
     expect(
       decideBoot({
@@ -71,6 +72,7 @@ describe("decideBoot", () => {
     ).toEqual({
       language: "en",
       needsRestart: false,
+      fellBack: false,
     });
   });
 
@@ -100,6 +102,7 @@ describe("decideBoot", () => {
     ).toEqual({
       language: "ar",
       needsRestart: true,
+      fellBack: false,
     });
     expect(
       decideBoot({
@@ -111,6 +114,7 @@ describe("decideBoot", () => {
     ).toEqual({
       language: "en",
       needsRestart: true,
+      fellBack: false,
     });
   });
 
@@ -121,6 +125,7 @@ describe("decideBoot", () => {
       ).toEqual({
         language: "ar",
         needsRestart: false,
+        fellBack: false,
       });
     }
   });
@@ -135,7 +140,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: false,
         restartTriedFor: "ar",
       }),
-    ).toEqual({ language: "en", needsRestart: false });
+    ).toEqual({ language: "en", needsRestart: false, fellBack: true });
     expect(
       decideBoot({
         stored: "en",
@@ -143,7 +148,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: true,
         restartTriedFor: "en",
       }),
-    ).toEqual({ language: "ar", needsRestart: false });
+    ).toEqual({ language: "ar", needsRestart: false, fellBack: true });
   });
 
   it("still restarts when the earlier attempt was for a different language", () => {
@@ -154,7 +159,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: false,
         restartTriedFor: "en",
       }),
-    ).toEqual({ language: "ar", needsRestart: true });
+    ).toEqual({ language: "ar", needsRestart: true, fellBack: false });
   });
 
   it("ignores the note when the layout already matches", () => {
@@ -165,7 +170,7 @@ describe("decideBoot after a restart that did not take", () => {
         layoutIsRtl: true,
         restartTriedFor: "ar",
       }),
-    ).toEqual({ language: "ar", needsRestart: false });
+    ).toEqual({ language: "ar", needsRestart: false, fellBack: false });
   });
 });
 

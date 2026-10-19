@@ -100,27 +100,61 @@ CREATE TRIGGER enrollment_status_guard BEFORE UPDATE ON enrollment
 CREATE FUNCTION app_is_owner(org uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
   AS $$ SELECT EXISTS (SELECT 1 FROM organizer_member m
                        WHERE m.organizer_id = org AND m.staff_user_id = app_staff_user_id() AND m.role = 'owner') $$;
-CREATE FUNCTION app_organizer_has_owner(org uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-  AS $$ SELECT EXISTS (SELECT 1 FROM organizer_member m WHERE m.organizer_id = org AND m.role = 'owner') $$;
-REVOKE ALL ON FUNCTION app_is_owner(uuid), app_organizer_has_owner(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION app_is_owner(uuid), app_organizer_has_owner(uuid) TO questify_app;
+REVOKE ALL ON FUNCTION app_is_owner(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_is_owner(uuid) TO questify_app;
+
+-- An organizer is created together with its first owner, in one step, so no organizer is ever left without an owner
+-- for someone else to claim. Only a signed-in staff user can call it, and only for themselves.
+CREATE FUNCTION create_organizer(organizer_name text, organizer_slug text) RETURNS uuid
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  creator uuid := app_staff_user_id();
+  created uuid;
+BEGIN
+  IF creator IS NULL THEN
+    RAISE EXCEPTION 'only a signed-in staff user can create an organizer' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  INSERT INTO organizer (name, slug) VALUES (organizer_name, organizer_slug) RETURNING id INTO created;
+  INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES (created, creator, 'owner');
+  RETURN created;
+END $$;
+REVOKE ALL ON FUNCTION create_organizer(text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION create_organizer(text, text) TO questify_app;
+
+-- Ownership moves only by a transfer: the current owner (or an admin) names another member, who becomes owner while
+-- the old owner becomes an editor, in one step.
+CREATE FUNCTION transfer_ownership(org uuid, new_owner uuid) RETURNS void
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT (app_is_admin() OR app_is_owner(org)) THEN
+    RAISE EXCEPTION 'only the owner or a Questify admin can transfer ownership' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM organizer_member WHERE organizer_id = org AND staff_user_id = new_owner AND role = 'editor') THEN
+    RAISE EXCEPTION 'the new owner must already be an editor of this organizer' USING ERRCODE = 'check_violation';
+  END IF;
+  UPDATE organizer_member SET role = 'editor', event_scope = NULL WHERE organizer_id = org AND role = 'owner';
+  UPDATE organizer_member SET role = 'owner', event_scope = NULL WHERE organizer_id = org AND staff_user_id = new_owner;
+END $$;
+REVOKE ALL ON FUNCTION transfer_ownership(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION transfer_ownership(uuid, uuid) TO questify_app;
+
+-- Organizers are created through create_organizer (or by an admin), never as a bare row without an owner.
+DROP POLICY organizer_insert ON organizer;
+CREATE POLICY organizer_insert ON organizer FOR INSERT TO questify_app WITH CHECK (app_is_admin());
 
 DROP POLICY member_tenant ON organizer_member;
 -- Reading: the team of the organizer in context, your own memberships, or everything for an admin.
 CREATE POLICY member_read ON organizer_member FOR SELECT TO questify_app
   USING (organizer_id = app_organizer_id() OR staff_user_id = app_staff_user_id() OR app_is_admin());
--- Adding: an owner adds editors; the person who creates an organizer becomes its first owner (T-101 sign-up).
+-- Adding and changing: an owner manages the other members (only editors can be added this way); an owner never
+-- changes or removes their own row, so an organizer cannot lose its owner except through transfer_ownership.
 CREATE POLICY member_insert ON organizer_member FOR INSERT TO questify_app
-  WITH CHECK (
-    app_is_admin()
-    OR app_is_owner(organizer_id)
-    OR (staff_user_id = app_staff_user_id() AND role = 'owner' AND NOT app_organizer_has_owner(organizer_id))
-  );
+  WITH CHECK (app_is_admin() OR (app_is_owner(organizer_id) AND role = 'editor'));
 CREATE POLICY member_update ON organizer_member FOR UPDATE TO questify_app
-  USING (app_is_admin() OR app_is_owner(organizer_id))
-  WITH CHECK (app_is_admin() OR app_is_owner(organizer_id));
+  USING (app_is_admin() OR (app_is_owner(organizer_id) AND staff_user_id <> app_staff_user_id()))
+  WITH CHECK (app_is_admin() OR (app_is_owner(organizer_id) AND role = 'editor'));
 CREATE POLICY member_delete ON organizer_member FOR DELETE TO questify_app
-  USING (app_is_admin() OR app_is_owner(organizer_id));
+  USING (app_is_admin() OR (app_is_owner(organizer_id) AND staff_user_id <> app_staff_user_id()));
 
 REVOKE UPDATE ON organizer_member FROM questify_app;
 GRANT UPDATE (role, event_scope) ON organizer_member TO questify_app;

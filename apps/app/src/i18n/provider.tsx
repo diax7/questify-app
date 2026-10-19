@@ -74,7 +74,10 @@ export function I18nProvider({
           await restartApp();
           return;
         }
-        await saveRestartNote(AsyncStorage, "");
+        // Keep the note when the phone would not switch, so the next launch does not try (and restart) again.
+        if (!decision.fellBack) {
+          await saveRestartNote(AsyncStorage, "");
+        }
         finish(decision.language);
       } catch {
         // Anything that fails here must not leave the player on the splash screen: carry on in the language that

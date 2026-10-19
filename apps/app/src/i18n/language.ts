@@ -33,6 +33,8 @@ export type BootDecision = Readonly<{
   language: Language;
   /** The layout direction the phone started with is not the one this language needs (Q-079). */
   needsRestart: boolean;
+  /** The wanted language could not be applied (the phone would not switch), so the layout's language is used. */
+  fellBack: boolean;
 }>;
 
 /** The language whose direction matches the layout the app actually started with. */
@@ -57,7 +59,7 @@ export function decideBoot(input: {
   const wanted = isLanguage(input.stored) ? input.stored : languageFromDevice(input.device);
   const mismatch = isRtl(wanted) !== input.layoutIsRtl;
   if (mismatch && input.restartTriedFor === wanted) {
-    return { language: languageOfLayout(input.layoutIsRtl), needsRestart: false };
+    return { language: languageOfLayout(input.layoutIsRtl), needsRestart: false, fellBack: true };
   }
-  return { language: wanted, needsRestart: mismatch };
+  return { language: wanted, needsRestart: mismatch, fellBack: false };
 }

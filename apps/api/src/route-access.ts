@@ -8,6 +8,9 @@ import type { FastifyInstance } from "fastify";
 export const ACCESS_KINDS = ["public", "staff"] as const;
 export type Access = (typeof ACCESS_KINDS)[number];
 
+/** Each access kind is enforced by a hook on its own path; a label alone would protect nothing. */
+const STAFF_PREFIX = "/v1/staff/";
+
 export type RouteInfo = Readonly<{ method: string; url: string; access: Access }>;
 
 const isAccess = (value: unknown): value is Access =>
@@ -30,6 +33,11 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
       if (!isAccess(access)) {
         throw new Error(
           `Route ${name} must declare config.access (one of ${ACCESS_KINDS.join(", ")}).`,
+        );
+      }
+      if (access === "staff" && !route.url.startsWith(STAFF_PREFIX)) {
+        throw new Error(
+          `Route ${name} is marked staff but is outside ${STAFF_PREFIX}, where the session check runs.`,
         );
       }
       if (access === "public" && route.config?.idempotent === true) {

@@ -80,6 +80,15 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   instance.get("/other-db-error", async () => {
     throw Object.assign(new Error("duplicate key"), { code: "23505" });
   });
+  instance.get("/client-400", async () => {
+    throw Object.assign(new Error("bad"), { statusCode: 400 });
+  });
+  instance.get("/client-499", async () => {
+    throw Object.assign(new Error("odd"), { statusCode: 499 });
+  });
+  instance.get("/server-500", async () => {
+    throw Object.assign(new Error("secret detail"), { statusCode: 500 });
+  });
   instance.get("/forbidden", async () => {
     throw Object.assign(new Error("nope"), { statusCode: 403 });
   });
@@ -400,5 +409,38 @@ describe("a busy database", () => {
     const response = await app.inject({ method: "GET", url: "/other-db-error" });
     expect(response.statusCode).toBe(500);
     expect(response.body).not.toContain("duplicate key");
+  });
+});
+
+describe("error edges", () => {
+  it.each([
+    ["/client-400", 400],
+    ["/client-499", 499],
+  ])("keeps a framework client error %s as %i with the generic message", async (url, status) => {
+    app = await build();
+    const response = await app.inject({ method: "GET", url });
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: "invalid_request" });
+  });
+
+  it("treats a framework error marked 500 as an internal error, without its detail", async () => {
+    app = await build();
+    const response = await app.inject({ method: "GET", url: "/server-500" });
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toMatchObject({ code: "internal_error" });
+    expect(response.body).not.toContain("secret detail");
+  });
+
+  it("says the database is busy in both languages", async () => {
+    app = await build();
+    const response = await app.inject({ method: "GET", url: "/lock-timeout" });
+    expect(response.json()).toEqual({
+      code: "busy",
+      message: {
+        ar: "الخدمة مشغولة. حاول بعد لحظات.",
+        en: "The service is busy. Try again in a moment.",
+      },
+      details: {},
+    });
   });
 });
