@@ -40,6 +40,15 @@ export type BootDecision = Readonly<{
   fellBack: boolean;
 }>;
 
+/**
+ * The `textAlign` that puts text at the reading start of the language: right for Arabic, left for English. React
+ * Native swaps "left" and "right" when the whole app runs right to left, so the value depends on the layout the app
+ * started with too (in Expo Go an Arabic screen can run in a left-to-right app).
+ */
+export function textAlignFor(language: Language, layoutIsRtl: boolean): "left" | "right" {
+  return isRtl(language) === layoutIsRtl ? "left" : "right";
+}
+
 /** The language whose direction matches the layout the app actually started with. */
 export function languageOfLayout(layoutIsRtl: boolean): Language {
   return layoutIsRtl ? "ar" : "en";
