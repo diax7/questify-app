@@ -90,6 +90,8 @@ the client-address count (ADR-113).
 ## Web app (dashboard)
 
 - Image: `Dockerfile.web` at the repository root (CranL builds from the folder holding the Dockerfile), with CranL Dockerfile path `Dockerfile.web`; port 3000; health check on `/en/sign-in`.
+- Staging (2026-10-20): app `questify-web-staging`, https://questify-web-staging-4ecphq.cranl.net; the API's
+  `DASHBOARD_ORIGIN` is that address until `questify.nafes.com` (CNAME already in Cloudflare, DNS only) is switched on.
 - Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
   (never the public https URL: the app refuses to start with one). No secrets in the web app.
 - The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).

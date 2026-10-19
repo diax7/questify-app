@@ -507,10 +507,12 @@ other docs feed it and stay as its detailed appendices.
 - 2026-10-20 **T-011 built, staging check open.** `apps/web`: Next.js 16.4.2 (React 19.2.3, one React across the repo), pages under `/{ar|en}` with `<html lang dir>` from the server, a `/v1` forwarder (allow-listed headers both ways, 1 MB cap, 15 s timeout, no retry, `X-Forwarded-For` passed through, API reached on its internal address only, ADR-113 Proposed), two-step staff sign-in (password, emailed code, resend countdown, Arabic-Indic digits accepted), a signed-in home (organizer names now in `/me`), sign out, CSP with a per-request nonce. Design tokens moved to `packages/shared`. 51 unit tests, 12 browser tests (desktop and a 360 px phone, both languages, keyboard only) on the standalone build the Docker image ships; CI builds the web app and runs the browser tests only when web, shared, API source or migrations change. CTO code review 93 (GO). **Open:** staging deploy and the real-iPhone and Android check, which waits on a working email sender (ADR-112, T-021).
 - 2026-10-20 **Email decision (ADR-112).** Gmail API from `questify@nafes.com` (nafes.com already has Workspace, SPF, DKIM and DMARC); dashboard on `questify.nafes.com`; setup steps in RUNBOOK; T-021 builds the sender.
 
+- 2026-10-20 **Staging is live with the new code; T-021 done.** API migrated (0002 to 0006) and verified, owner connection removed afterwards. Web app `questify-web-staging` at https://questify-web-staging-4ecphq.cranl.net (Dockerfile.web at the repo root: CranL builds from the Dockerfile's folder). Email from `questify@nafes.com` via the Gmail API: SPF, DKIM, DMARC PASS. Admin account for the user created with a generated password sent by email. The user chose the CranL address for now; `questify.nafes.com` is attached for later.
+
 ## Next
 
-1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-011 staging check, T-021 Gmail API sender, T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
-2. **Waiting on Dhia:** the `questify@nafes.com` mailbox and the Gmail API service account with domain-wide delegation, key into CranL (RUNBOOK, Email sending; ADR-112); later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
+1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-011 phone check (the user), T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
+2. **Waiting on Dhia:** sign in on the staging web app from an iPhone and an Android phone in both languages (T-011); later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
 3. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084.
 
 ## Run complete — 2026-10-18
