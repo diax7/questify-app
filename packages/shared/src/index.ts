@@ -32,3 +32,15 @@ export {
 } from "./config/validate";
 export type { RateLimitState } from "./rate-limit";
 export { rateLimitHeaders } from "./rate-limit";
+export type { Language } from "./i18n/digits";
+export { formatNumber, toWesternDigits } from "./i18n/digits";
+export type { MessageKey, Messages } from "./i18n/messages";
+export { MESSAGES } from "./i18n/messages";
+export { interpolate, placeholdersOf } from "./i18n/placeholders";
+export type { Overrides } from "./i18n/translate";
+export {
+  NO_OVERRIDES,
+  createTranslator,
+  isUsableOverride,
+  validateTranslation,
+} from "./i18n/translate";

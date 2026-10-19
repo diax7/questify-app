@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import {
   REGISTRIES,
@@ -14,6 +13,7 @@ import {
   type Registries,
 } from "@questify/shared";
 import { withRequestContext } from "#src/db/context";
+import { etagOf } from "#src/etag";
 import { createTtlCache } from "#src/settings/cache";
 import {
   deleteEntitlement,
@@ -58,9 +58,6 @@ export type SettingsOptions = Readonly<{
 
 const DEFAULT_TTL_MS = 15_000;
 const MAX_CACHED = 1000;
-
-const etagOf = (config: ComposedConfig): string =>
-  `"${createHash("sha256").update(JSON.stringify(config)).digest("hex").slice(0, 32)}"`;
 
 async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();

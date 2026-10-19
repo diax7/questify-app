@@ -19,6 +19,7 @@ const TABLES = [
   "auth_throttle",
   "platform_setting",
   "event_entitlement",
+  "translation",
   "schema_migration",
 ];
 

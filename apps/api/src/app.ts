@@ -16,6 +16,8 @@ import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
 import { registerConfigRoutes } from "#src/settings/routes";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
+import { registerTranslationRoutes } from "#src/translations/routes";
+import { createTranslationService, type TranslationService } from "#src/translations/service";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
 export type AppOptions = Readonly<{
@@ -27,6 +29,8 @@ export type AppOptions = Readonly<{
   emailSender: EmailSender;
   /** Reads and saves configuration. Created from the pool when not given (tests give one with a short cache). */
   settings?: SettingsService;
+  /** Reads and saves the translation store. Created from the pool when not given. */
+  translations?: TranslationService;
   logger?: FastifyServerOptions["logger"];
 }>;
 
@@ -105,6 +109,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   );
 
   registerConfigRoutes(app, options.settings ?? createSettingsService({ pool: options.pool }));
+
+  registerTranslationRoutes(
+    app,
+    options.translations ?? createTranslationService({ pool: options.pool }),
+  );
 
   app.get("/healthz", async (_request, reply) => {
     reply.header("cache-control", "no-store");

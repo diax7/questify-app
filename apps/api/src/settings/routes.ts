@@ -1,20 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { invalidRequest, notFound } from "#src/auth/http-errors";
+import { etagMatches } from "#src/etag";
 import type { SettingsService } from "#src/settings/service";
 
 const query = z.strictObject({ event: z.uuid().optional() });
-
-/** True when the If-None-Match header names this tag (a list, a weak tag or "*" all count). */
-function matches(header: string | undefined, etag: string): boolean {
-  if (header === undefined) {
-    return false;
-  }
-  return header
-    .split(",")
-    .map((tag) => tag.trim().replace(/^W\//, ""))
-    .some((tag) => tag === etag || tag === "*");
-}
 
 /**
  * `GET /v1/config[?event=<id>]`: the composed configuration (shipped defaults, then platform settings, then the
@@ -32,7 +22,7 @@ export function registerConfigRoutes(app: FastifyInstance, settings: SettingsSer
       throw notFound();
     }
     reply.header("etag", result.etag).header("cache-control", "no-cache");
-    if (matches(request.headers["if-none-match"], result.etag)) {
+    if (etagMatches(request.headers["if-none-match"], result.etag)) {
       return reply.code(304).send();
     }
     return result.config;

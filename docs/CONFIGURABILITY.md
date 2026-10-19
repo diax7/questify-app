@@ -55,6 +55,22 @@ for an event.
 - **Still to come:** the admin screens and routes that call these saves (T-703, T-602), the translation bundle (T-008),
   maintenance mode and the banner (T-703).
 
+## As built (T-008): texts
+
+- **Shipped texts** are `MESSAGES` in `packages/shared/src/i18n/messages.ts`: every key in Arabic and English, the same
+  `{placeholders}` in both. A key is added in the same change that uses it. A test keeps the two languages in step and
+  keeps Arabic-Indic digits out.
+- **The store** (`translation` table) holds only what an admin changed, per language. Saving a blank value removes that
+  language's change (back to the shipped text); a key with neither language left is deleted.
+- **Save rules** (`validateTranslation`): the key must exist; every placeholder of the shipped text must still be there and no
+  other may be added (the message names the missing or extra one); Arabic-Indic digits are written as 0-9; at most 1000
+  characters. Both languages are checked and reported together, and nothing is written if either fails.
+- **Showing a text** (`createTranslator`): the admin's value when it is usable, otherwise the shipped text. Usable means not
+  blank and the same placeholders as the shipped text, so a damaged stored value never reaches a screen. Numbers passed in
+  as values are formatted with Western digits in both languages (`formatNumber`).
+- **Still to come:** the matrix editor and its search and filters (T-702), plural and singular forms of renamed words
+  (NFR-014, T-117), and date and time formatting in Western digits (with the first screen that shows a date).
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |

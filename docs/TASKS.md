@@ -37,7 +37,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
 - [x] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
   - Done when: Changing a setting changes the composed config within a minute without any release; an unknown block is ignored by an older app.
-- [ ] **T-008** Translation store: keys with Arabic and English values, shipped defaults, fallback to defaults, placeholder protection — delivers FR 1768, 1767, 1506, 1507; depends on: T-007
+- [x] **T-008** Translation store: keys with Arabic and English values, shipped defaults, fallback to defaults, placeholder protection — delivers FR 1768, 1767, 1506, 1507; depends on: T-007
   - Done when: A blank or missing key shows the shipped text; a save that removes a placeholder is refused; numbers render in Western digits in both languages.
 - [ ] **T-009** Expo app shell: development build, navigation skeleton, Arabic and English with full RTL, design tokens, Baloo Bhaijaan 2 and Rubik fonts, language by phone setting — delivers FR 1743; depends on: T-001, T-015
   - Done when: The app runs on a real iPhone and Android phone in both languages and mirrors every screen; how a language switch behaves is settled by Q-079; tokens (not colours) are used in components.

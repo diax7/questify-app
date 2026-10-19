@@ -50,6 +50,10 @@
   caller cannot see (private, or not there) answers `404` exactly alike. The app keeps the last document that
   passed `parseComposedConfig` (F-282), drops blocks it does not know, and treats a feature as absent when its
   own version is below `minAppVersion`.
+- **Texts:** `GET /v1/translations` returns `{ar: {key: text}, en: {key: text}}`: only the texts a Questify
+  admin changed. Anyone may read it; it carries an `ETag` (304 when unchanged) and the server keeps it for 15 seconds.
+  The app lays it over the texts shipped inside it (`createTranslator`), so a key that is missing, blank, damaged (a
+  placeholder gone) or unreachable shows the shipped text (FR-1768). Numbers in any text are shown in Western digits.
 - **Deprecation:** since the API is internal, old routes are removed after the minimum app version
   passes them; each change is recorded in `docs/` changelog notes. If the API is ever opened,
   `Deprecation` and `Sunset` headers and a minimum 6 months' notice apply (proposed).
