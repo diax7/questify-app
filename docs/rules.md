@@ -75,8 +75,13 @@ half-applied (NFR-007): the player sees it and can retry. No personal data in er
   edges and error paths; mock only what is slow, random or external (providers, time), never the
   database for core logic.
 - **Outsider suite:** a small suite that holds only the public credential and asserts it can do nothing
-  (NFR-017, NFR-018). Runs on every pull request.
+  (NFR-017, NFR-018). Runs on every pull request. `apps/api/test/security/outsider.int.test.ts` reads the live
+  catalog, so a new table, sequence, function or schema is covered without editing it.
 - **Cross-tenant suite:** an editor of organizer A against every organizer B route must fail.
+  `apps/api/test/security/cross-tenant.int.test.ts` (database) and `routes.int.test.ts` (HTTP).
+  **A new table or route fails CI until it is classified there:** a table as owned (by an organizer, a staff
+  member or a player, with a forged-insert case) or shared (with the reason); a route with how it keeps callers
+  apart, and a test when it touches tenant data.
 - **Web end-to-end:** Playwright for the dashboard, console and event page.
 - **App flows:** an open-source mobile flow-test tool (verify the current choice when installing) for
   join, scan, reserve, and Arabic/RTL checks on a real device.

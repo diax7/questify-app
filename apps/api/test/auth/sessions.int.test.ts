@@ -397,47 +397,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
     });
   });
 
-  describe("default deny, across the whole app", () => {
-    it("has exactly these public routes and nothing else open", () => {
-      const open = test.app.routeInventory
-        .filter((route) => route.access === "public" && route.method !== "HEAD")
-        .map((route) => `${route.method} ${route.url}`)
-        .toSorted();
-      expect(open).toEqual([
-        "GET /healthz",
-        "GET /readyz",
-        "GET /v1/config",
-        "GET /v1/translations",
-        "POST /v1/staff/auth/code",
-        "POST /v1/staff/auth/password",
-        "POST /v1/staff/auth/resend",
-      ]);
-    });
-
-    it("answers 401 with no-store on every staff route when there is no session", async () => {
-      const closed = test.app.routeInventory.filter(
-        (route) => route.access === "staff" && route.method !== "HEAD",
-      );
-      expect(closed.length).toBeGreaterThanOrEqual(4);
-      for (const route of closed) {
-        const url = route.url.replace(":id", "00000000-0000-4000-8000-000000000000");
-        const response = await test.app.inject({
-          method: route.method as "GET" | "POST" | "DELETE",
-          url,
-          headers: browserHeaders(),
-        });
-        expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);
-        expect(response.headers["cache-control"]).toBe("no-store");
-      }
-    });
-
-    it("keeps staff routes under /v1/staff, where the session check runs", () => {
-      for (const route of test.app.routeInventory.filter((entry) => entry.access === "staff")) {
-        expect(route.url.startsWith("/v1/staff/")).toBe(true);
-      }
-    });
-  });
-
   describe("what the logs hold", () => {
     it("records the sign-in events with the request id, and none of the secrets or addresses", async () => {
       const lines: string[] = [];

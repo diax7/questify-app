@@ -1,0 +1,150 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  TEST_DATABASE_URL,
+  createTestDatabase,
+  seedTwoTenants,
+  type TestDatabase,
+} from "#test/support/test-db";
+
+/**
+ * The outsider suite (T-012, NFR-017, NFR-018): `questify_outsider` holds only what PUBLIC holds, the same seat as
+ * anyone who gets hold of a connection string without our role's rights. Every check reads the live catalog, so a
+ * table, sequence, function or schema added later is covered without editing this file.
+ */
+describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential only)", () => {
+  let db: TestDatabase;
+
+  beforeAll(async () => {
+    db = await createTestDatabase();
+    await seedTwoTenants(db.owner);
+  });
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const rows = async <T extends Record<string, unknown>>(sql: string): Promise<T[]> =>
+    (await db.owner.query<T>(sql)).rows;
+
+  const tables = async (): Promise<string[]> =>
+    (
+      await rows<{ name: string }>(
+        `SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') ORDER BY 1`,
+      )
+    ).map((row) => row.name);
+
+  describe("live attempts", () => {
+    it("cannot read or delete from any table", async () => {
+      const all = await tables();
+      expect(all.length).toBeGreaterThan(10);
+      for (const table of all) {
+        await expect(
+          db.outsider.query(`SELECT * FROM public.${table} LIMIT 1`),
+          table,
+        ).rejects.toThrow(/permission denied/);
+        await expect(db.outsider.query(`DELETE FROM public.${table}`), table).rejects.toThrow(
+          /permission denied/,
+        );
+      }
+    });
+
+    it("cannot call the request-context functions", async () => {
+      await expect(db.outsider.query("SELECT public.app_is_admin()")).rejects.toThrow(
+        /permission denied/,
+      );
+    });
+
+    it("cannot create anything", async () => {
+      await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
+        /permission denied/,
+      );
+      await expect(db.outsider.query("CREATE SCHEMA sneaky")).rejects.toThrow(/permission denied/);
+    });
+  });
+
+  describe("catalog (every object, present and future)", () => {
+    it("holds no right on any table, view or sequence", async () => {
+      const held = await rows(
+        `SELECT c.relname, p.priv FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) AS p(priv)
+         WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+           AND has_table_privilege('questify_outsider', c.oid, p.priv)
+         UNION ALL
+         SELECT c.relname, p.priv FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('USAGE'), ('SELECT'), ('UPDATE')) AS p(priv)
+         WHERE n.nspname = 'public' AND c.relkind = 'S'
+           AND has_sequence_privilege('questify_outsider', c.oid, p.priv)`,
+      );
+      expect(held).toEqual([]);
+    });
+
+    it("can run no function in the public schema", async () => {
+      const held = await rows(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND has_function_privilege('questify_outsider', p.oid, 'EXECUTE')`,
+      );
+      expect(held).toEqual([]);
+    });
+
+    it("cannot create in any schema or in the database", async () => {
+      const held = await rows(
+        `SELECT nspname FROM pg_namespace
+         WHERE has_schema_privilege('questify_outsider', oid, 'CREATE')
+         UNION ALL
+         SELECT 'database' WHERE has_database_privilege('questify_outsider', current_database(), 'CREATE')`,
+      );
+      expect(held).toEqual([]);
+    });
+
+    it("has only the public schema to look at (a new schema must join this suite)", async () => {
+      const schemas = await rows<{ nspname: string }>(
+        `SELECT nspname FROM pg_namespace
+         WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND nspname NOT LIKE 'pg\\_%'`,
+      );
+      expect(schemas.map((row) => row.nspname)).toEqual(["public"]);
+    });
+  });
+
+  describe("structure (deny by default)", () => {
+    it("has row-level security forced on every table", async () => {
+      const open = await rows(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT (c.relrowsecurity AND c.relforcerowsecurity)`,
+      );
+      expect(open).toEqual([]);
+    });
+
+    it("has no view, which would read with its owner's rights and skip row-level security", async () => {
+      const views = await rows(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind IN ('v', 'm')`,
+      );
+      expect(views).toEqual([]);
+    });
+
+    it("grants nothing on a table to PUBLIC", async () => {
+      expect(
+        await rows(
+          "SELECT table_name FROM information_schema.role_table_grants WHERE grantee = 'PUBLIC' AND table_schema = 'public'",
+        ),
+      ).toEqual([]);
+    });
+
+    it("gives the app role no dangerous rights", async () => {
+      const held = await rows(
+        `SELECT c.relname, p.priv FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) AS p(priv)
+         WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND has_table_privilege('questify_app', c.oid, p.priv)
+         UNION ALL
+         SELECT 'schema public', 'CREATE' WHERE has_schema_privilege('questify_app', 'public', 'CREATE')`,
+      );
+      expect(held).toEqual([]);
+    });
+
+    it("makes the app role neither a superuser nor able to skip row-level security", async () => {
+      expect(
+        await rows("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'questify_app'"),
+      ).toEqual([{ rolsuper: false, rolbypassrls: false }]);
+    });
+  });
+});

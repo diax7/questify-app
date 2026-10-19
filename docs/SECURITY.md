@@ -122,5 +122,9 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
 - An **outsider suite** holding only the public credential must be able to do nothing it should not
   (global standard; NFR-017, NFR-018).
 - Cross-tenant tests: an editor of organizer A against every route of organizer B returns 403/404.
+  Built in T-012 (`apps/api/test/security/`): every table is classified as owned or shared, and for each owned
+  table organizer A (or another staff member, or another player) can read none of the other side's rows beyond what
+  is public by design (organizer names, public events and their add-ons), change or delete none through any column
+  it may update, and forge none. Every route is listed with how it keeps callers apart.
 - Load test at 20,000 completions per minute before the first event (NFR-003).
 - A restore rehearsal and an SMS-pumping simulation before launch.

@@ -7,24 +7,6 @@ import {
   type TestDatabase,
 } from "#test/support/test-db";
 
-const TABLES = [
-  "organizer",
-  "staff_user",
-  "organizer_member",
-  "player",
-  "event",
-  "enrollment",
-  "staff_login_challenge",
-  "staff_session",
-  "auth_throttle",
-  "platform_setting",
-  "event_entitlement",
-  "player_contact",
-  "audit_log",
-  "translation",
-  "schema_migration",
-];
-
 describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
   let db: TestDatabase;
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
@@ -47,66 +29,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
       context,
       async () => (await db.app.query<T & Record<string, unknown>>(sql, values)).rows,
     );
-
-  describe("outsider (holds no rights)", () => {
-    it.each(TABLES)("cannot read %s", async (table) => {
-      await expect(db.outsider.query(`SELECT * FROM public.${table}`)).rejects.toThrow(
-        /permission denied/,
-      );
-    });
-    it.each(TABLES)("cannot write %s", async (table) => {
-      await expect(db.outsider.query(`DELETE FROM public.${table}`)).rejects.toThrow(
-        /permission denied/,
-      );
-    });
-    it("cannot call the request-context functions", async () => {
-      await expect(db.outsider.query("SELECT public.app_is_admin()")).rejects.toThrow(
-        /permission denied/,
-      );
-    });
-    it("cannot create anything", async () => {
-      await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
-        /permission denied/,
-      );
-    });
-  });
-
-  describe("structure (deny by default)", () => {
-    it("has row-level security forced on every table", async () => {
-      const { rows } = await db.owner.query<{ relname: string }>(
-        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT (c.relrowsecurity AND c.relforcerowsecurity)`,
-      );
-      expect(rows).toEqual([]);
-    });
-    it("has no table privilege granted to PUBLIC", async () => {
-      const { rows } = await db.owner.query(
-        "SELECT table_name FROM information_schema.role_table_grants WHERE grantee = 'PUBLIC' AND table_schema = 'public'",
-      );
-      expect(rows).toEqual([]);
-    });
-    it("lets no function in the public schema be run by PUBLIC", async () => {
-      const { rows } = await db.owner.query(
-        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-         WHERE n.nspname = 'public' AND has_function_privilege('questify_outsider', p.oid, 'EXECUTE')`,
-      );
-      expect(rows).toEqual([]);
-    });
-    it("gives the app role no dangerous table rights", async () => {
-      const { rows } = await db.owner.query(
-        `SELECT c.relname, p.priv FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-         CROSS JOIN (VALUES ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) AS p(priv)
-         WHERE n.nspname = 'public' AND c.relkind = 'r' AND has_table_privilege('questify_app', c.oid, p.priv)`,
-      );
-      expect(rows).toEqual([]);
-    });
-    it("makes the app role neither a superuser nor able to skip row-level security", async () => {
-      const { rows } = await db.owner.query(
-        "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'questify_app'",
-      );
-      expect(rows).toEqual([{ rolsuper: false, rolbypassrls: false }]);
-    });
-  });
 
   describe("tenant isolation (the API's role)", () => {
     it("shows an unidentified caller no private data, only public live events", async () => {
