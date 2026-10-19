@@ -20,8 +20,8 @@
 
 ## Staff sign-in
 
-Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `DASHBOARD_ORIGIN`, `SMTP_USER`, `SMTP_APP_PASSWORD`,
-optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
+Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
+optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
 **Create an account** (inside the app container, with the owner connection; the password is piped in, never
@@ -40,7 +40,7 @@ same attention if the attacker rotates addresses (look for the `staff.throttled`
 too; then change the password (no web reset exists until T-020).
 
 **Both email senders are down** (`staff.email_unavailable` in the log, sign-in answers 503): nobody can sign in.
-Check the Gmail app password and Google's sending limit, then Resend's key and domain. A sender that is
+The log line names the step and Google's reason (`unauthorized_client`: the domain-wide delegation or its scope is missing; `invalid_grant`: the mailbox in `GMAIL_ACT_AS` or `MAIL_FROM` is not a real user, or the clock is off). Check Google's daily sending limit, then Resend's key and domain. A sender that is
 configured but wrong shows as `staff.email_failover` first.
 
 **Force a person out**: end their sessions from the database owner connection
@@ -55,33 +55,34 @@ change or remove an entry, the owner included; do not try to work around the tri
 **Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows; nothing stored depends on
 it. Sessions stay valid. Do it when someone with access leaves or the secret may have leaked.
 
-## Email domain (ADR-112)
+## Email sending (ADR-112)
 
-Sending address: `noreply@questify.nafes.com`, through the Gmail API. Done once, by whoever controls `nafes.com`'s
-DNS and the Google accounts. No password or key ever goes into chat, the repository or a doc.
+Sender: `questify@nafes.com`, through the Gmail API. Done once by the admin of the `nafes.com` Google Workspace.
+No password or key ever goes into chat, the repository or a doc.
 
-1. **Google Workspace:** sign up (Business Starter is enough) with `questify.nafes.com` as the domain, or add it as
-   a secondary domain if `nafes.com` already has Workspace. Verify it with the TXT record Google shows.
-2. **Mailbox:** create the user `noreply@questify.nafes.com` (one licence). Turn on 2-Step Verification for the admin.
-3. **DNS on `questify.nafes.com`:**
-   - MX: Google's MX record (`smtp.google.com`, priority 1), so bounces and replies have a home.
-   - SPF: TXT `v=spf1 include:_spf.google.com ~all`.
-   - DKIM: Admin console, Apps, Google Workspace, Gmail, Authenticate email: generate a **2048-bit** key, add the TXT
-     record at `google._domainkey.questify.nafes.com`, then press **Start authentication**.
-   - DMARC: TXT at `_dmarc.questify.nafes.com`: `v=DMARC1; p=none; rua=mailto:dmarc@questify.nafes.com; adkim=s; aspf=s`.
-     After two to four weeks of clean reports change `p=none` to `p=quarantine`, later to `p=reject`.
-4. **Gmail API access without a password:** in Google Cloud, create a project, enable the **Gmail API**, create a
-   **service account**, and create a JSON key for it (if the organization policy "Disable service account key
-   creation" blocks it, allow it for this project only). In the Workspace Admin console, Security, API controls,
-   **Domain-wide delegation**: add the service account's client ID with exactly one scope,
-   `https://www.googleapis.com/auth/gmail.send`.
-5. **Secrets:** put the JSON key into the CranL secret store of `questify-api-staging` (the variable name comes with
-   T-021). Delete the downloaded file afterwards.
-6. **Watch the reputation:** add the domain to Google Postmaster Tools. Test by sending a code to a Gmail address and
-   opening "Show original": SPF, DKIM and DMARC must all say PASS.
+Already in place on `nafes.com` (checked 2026-10-20): Google Workspace mail, SPF `include:_spf.google.com`, DKIM
+(`google._domainkey`, 2048-bit) and DMARC `p=none` with reports to `dmarc@nafes.com`. DNS is on Cloudflare.
 
-Also good for staying out of spam: one fixed "From" name, a plain-text part in every message, no link shorteners, and
-a slow start in volume. Resend (backup) gets its own subdomain `send.questify.nafes.com` with its own SPF and DKIM.
+1. **Mailbox:** `questify@nafes.com` is an **alias** of an existing user (the user's choice, 2026-10-20). The service
+   account acts for that user and sends with the alias as From; if Google refuses the alias as the sign-in subject,
+   set `GMAIL_ACT_AS` to the real mailbox. Sent codes appear in that user's Sent folder, and replies reach them.
+2. **Google Cloud:** in console.cloud.google.com (signed in as a nafes.com admin) create a project `questify-mail`,
+   enable the **Gmail API**, create a **service account** `questify-mailer`, and create a **JSON key** for it. If key
+   creation is blocked ("Disable service account key creation" organization policy), allow it for this project only.
+3. **Permission:** Workspace Admin console, Security, Access and data control, API controls, **Manage domain-wide
+   delegation**, Add new: the service account's **client ID** (a long number on the service account page) with exactly
+   one scope: `https://www.googleapis.com/auth/gmail.send`.
+4. **Secrets:** in CranL, app `questify-api-staging`, Environment: add `GMAIL_SERVICE_ACCOUNT_KEY` = the whole JSON
+   key file's content, and `MAIL_FROM` = `questify@nafes.com`. Then delete the downloaded key file.
+5. **Check:** sign in on staging with a Gmail address; in Gmail, "Show original" must say SPF, DKIM and DMARC PASS.
+   Add `nafes.com` to Google Postmaster Tools to watch delivery.
+
+Later, by the domain owner: after two to four weeks of clean DMARC reports, change `p=none` to `p=quarantine`, then
+`p=reject` (this covers all of nafes.com's mail).
+
+**Dashboard address:** `questify.nafes.com` gets a DNS record pointing at the CranL web app when it is deployed. In
+Cloudflare it must be **DNS only (grey cloud)**: Cloudflare's proxy would add a hop in front of CranL's edge and break
+the client-address count (ADR-113).
 
 ## Web app (dashboard)
 

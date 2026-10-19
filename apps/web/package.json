@@ -12,7 +12,7 @@
     "build": "next build",
     "start": "node -e \"require('node:fs').cpSync('.next/static','.next/standalone/apps/web/.next/static',{recursive:true})\" && node .next/standalone/apps/web/server.js",
     "typecheck": "tsc --noEmit",
-    "e2e:api": "pnpm --filter @questify/api exec esbuild test/e2e-server.ts --bundle --platform=node --target=node22 --format=esm --external:pg --external:fastify --external:@node-rs/argon2 --external:nodemailer --external:zod --outfile=test/support/e2e-server.bundle.mjs",
+    "e2e:api": "pnpm --filter @questify/api exec esbuild test/e2e-server.ts --bundle --platform=node --target=node22 --format=esm --external:pg --external:fastify --external:@node-rs/argon2 --external:zod --outfile=test/support/e2e-server.bundle.mjs",
     "e2e": "pnpm e2e:api && playwright test"
   },
   "dependencies": {

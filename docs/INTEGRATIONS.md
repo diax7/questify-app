@@ -103,10 +103,10 @@
   suppress the address. A provider outage leaves SMS login working.
 - **Data and PII:** email address and the code text.
 
-- **Staff email, current choice (ADR-112, 2026-10-20):** Google Workspace on `questify.nafes.com`, sent through the
-  Gmail API by a service account with domain-wide delegation (`gmail.send` only), with SPF, DKIM and DMARC on the
-  domain; Resend as backup on `send.questify.nafes.com`. Setup steps for the owner of `nafes.com`: `RUNBOOK.md`,
-  "Email domain". Replaces the stop-gap below once T-021 lands.
+- **Staff email, current choice (ADR-112, 2026-10-20):** `questify@nafes.com` in nafes.com's Google Workspace,
+  sent through the Gmail API by a service account with domain-wide delegation (`gmail.send` only); nafes.com
+  already has SPF, DKIM and DMARC. Resend stays the backup. Setup steps: `RUNBOOK.md`, "Email sending". The SMTP
+  sender and its app password were removed with T-021.
 - **Staff sign-in codes, stop-gap (2026-10-19, superseded by ADR-112):** Gmail SMTP (a **dedicated** Google account with an
   app password, never a personal mailbox) as the primary and Resend as the backup. Both are foreign providers
   that see staff email addresses and codes, so this is a **time-limited exception** to the in-region preference

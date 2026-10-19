@@ -5,8 +5,13 @@ const REQUIRED = {
   DATABASE_URL: "postgres://questify_app:pw@db:5432/questify",
   AUTH_SECRET: "s".repeat(32),
   DASHBOARD_ORIGIN: "https://app.questify.sa",
-  SMTP_USER: "bot@gmail.com",
-  SMTP_APP_PASSWORD: "app-password",
+  GMAIL_SERVICE_ACCOUNT_KEY: JSON.stringify({
+    type: "service_account",
+    client_email: "mailer@questify.iam.gserviceaccount.com",
+    private_key: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+    token_uri: "https://oauth2.googleapis.com/token",
+  }),
+  MAIL_FROM: "questify@nafes.com",
 };
 
 describe("loadConfig", () => {
@@ -23,8 +28,15 @@ describe("loadConfig", () => {
       auth: {
         secret: REQUIRED.AUTH_SECRET,
         dashboardOrigin: "https://app.questify.sa",
-        smtpUser: "bot@gmail.com",
-        smtpAppPassword: "app-password",
+        gmail: {
+          key: {
+            clientEmail: "mailer@questify.iam.gserviceaccount.com",
+            privateKey: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+            tokenUri: "https://oauth2.googleapis.com/token",
+          },
+          from: "questify@nafes.com",
+          actAs: undefined,
+        },
         resend: undefined,
         securityAlertEmail: undefined,
       },
@@ -64,6 +76,38 @@ describe("loadConfig", () => {
 
   it.each(["banana", "1", ""])("rejects the minimum app version %j", (version) => {
     expect(() => loadConfig({ ...REQUIRED, MIN_APP_VERSION: version })).toThrow(/MIN_APP_VERSION/);
+  });
+
+  it("reads the mailbox to act for when the sender address is an alias", () => {
+    expect(loadConfig({ ...REQUIRED, GMAIL_ACT_AS: "dhia@nafes.com" }).auth.gmail.actAs).toBe(
+      "dhia@nafes.com",
+    );
+  });
+
+  it("refuses a missing or broken Gmail key without echoing it", () => {
+    const without: Record<string, string> = { ...REQUIRED };
+    delete without["GMAIL_SERVICE_ACCOUNT_KEY"];
+    expect(() => loadConfig(without)).toThrow("GMAIL_SERVICE_ACCOUNT_KEY is required.");
+    expect(() => loadConfig({ ...REQUIRED, GMAIL_SERVICE_ACCOUNT_KEY: "{secret-ish" })).toThrow(
+      /^GMAIL_SERVICE_ACCOUNT_KEY is not valid JSON: paste the whole key file/,
+    );
+    expect(() =>
+      loadConfig({ ...REQUIRED, GMAIL_SERVICE_ACCOUNT_KEY: '{"type":"authorized_user"}' }),
+    ).toThrow('its "type" must be "service_account"');
+    expect(() =>
+      loadConfig({
+        ...REQUIRED,
+        GMAIL_SERVICE_ACCOUNT_KEY: '{"type":"service_account","client_email":"a@b.c"}',
+      }),
+    ).toThrow("GMAIL_SERVICE_ACCOUNT_KEY is missing private_key, token_uri.");
+  });
+
+  it("refuses a sender that is not one plain email address", () => {
+    for (const bad of ["questify", "Questify <q@nafes.com>", "q@nafes.com\nBcc: x@y.z", "a@b"]) {
+      expect(() => loadConfig({ ...REQUIRED, MAIL_FROM: bad })).toThrow(
+        /MAIL_FROM must be one email address/,
+      );
+    }
   });
 
   it("rejects an unknown NODE_ENV", () => {

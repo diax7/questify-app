@@ -505,12 +505,12 @@ other docs feed it and stay as its detailed appendices.
 - 2026-10-20 **Arabic layout confirmed on the user's phone (Expo Go).** Each screen frame takes the language's direction and text starts from it (no fixed `textAlign`, which React Native reads relative to the container and so flipped Arabic twice). The tab bar keeps one order in both languages (user's choice, ADR-110 note).
 - 2026-10-20 **T-011 started.** Plan `docs/plans/2026-10-20-t-011-web-shell.md` (Next.js 16.4, language in the URL, our own `/v1` forwarder, sign-in screens, Playwright on desktop and phone); CTO plan review 84, then 93 (GO).
 - 2026-10-20 **T-011 built, staging check open.** `apps/web`: Next.js 16.4.2 (React 19.2.3, one React across the repo), pages under `/{ar|en}` with `<html lang dir>` from the server, a `/v1` forwarder (allow-listed headers both ways, 1 MB cap, 15 s timeout, no retry, `X-Forwarded-For` passed through, API reached on its internal address only, ADR-113 Proposed), two-step staff sign-in (password, emailed code, resend countdown, Arabic-Indic digits accepted), a signed-in home (organizer names now in `/me`), sign out, CSP with a per-request nonce. Design tokens moved to `packages/shared`. 51 unit tests, 12 browser tests (desktop and a 360 px phone, both languages, keyboard only) on the standalone build the Docker image ships; CI builds the web app and runs the browser tests only when web, shared, API source or migrations change. CTO code review 93 (GO). **Open:** staging deploy and the real-iPhone and Android check, which waits on a working email sender (ADR-112, T-021).
-- 2026-10-20 **Email decision (ADR-112).** Google Workspace on `questify.nafes.com`, Gmail API with a service account, SPF, DKIM and DMARC; setup steps in RUNBOOK; T-021 builds the sender.
+- 2026-10-20 **Email decision (ADR-112).** Gmail API from `questify@nafes.com` (nafes.com already has Workspace, SPF, DKIM and DMARC); dashboard on `questify.nafes.com`; setup steps in RUNBOOK; T-021 builds the sender.
 
 ## Next
 
 1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-011 staging check, T-021 Gmail API sender, T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
-2. **Waiting on Dhia:** Google Workspace on `questify.nafes.com` with SPF, DKIM, DMARC and the Gmail API service account (RUNBOOK, Email domain; ADR-112); later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
+2. **Waiting on Dhia:** the `questify@nafes.com` mailbox and the Gmail API service account with domain-wide delegation, key into CranL (RUNBOOK, Email sending; ADR-112); later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
 3. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084.
 
 ## Run complete — 2026-10-18

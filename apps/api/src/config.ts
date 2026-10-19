@@ -1,11 +1,12 @@
+import { parseServiceAccountKey, type ServiceAccountKey } from "#src/auth/email/gmail";
+
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
   secret: string;
   /** The one origin of the dashboard, which proxies /v1. State-changing cookie requests must come from it. */
   dashboardOrigin: string;
-  /** The dedicated Gmail account that sends sign-in codes. */
-  smtpUser: string;
-  smtpAppPassword: string;
+  /** The Gmail API sender (ADR-112): a service account acting for a Workspace mailbox, sending from `from`. */
+  gmail: Readonly<{ key: ServiceAccountKey; from: string; actAs: string | undefined }>;
   /** The backup email provider. Present only when both its key and its verified From address are set. */
   resend: Readonly<{ apiKey: string; from: string }> | undefined;
   /** An extra mailbox, besides the admin's own, that is told about every new admin sign-in. */
@@ -80,6 +81,16 @@ function origin(env: Env, name: string): string {
   return text;
 }
 
+const EMAIL_ADDRESS = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i;
+
+function emailAddress(env: Env, name: string): string {
+  const text = required(env, name);
+  if (!EMAIL_ADDRESS.test(text)) {
+    throw new Error(`${name} must be one email address like questify@nafes.com; got "${text}".`);
+  }
+  return text;
+}
+
 function authConfig(env: Env): AuthConfig {
   const secret = required(env, "AUTH_SECRET");
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -95,8 +106,12 @@ function authConfig(env: Env): AuthConfig {
   return {
     secret,
     dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
-    smtpUser: required(env, "SMTP_USER"),
-    smtpAppPassword: required(env, "SMTP_APP_PASSWORD"),
+    gmail: {
+      key: parseServiceAccountKey(required(env, "GMAIL_SERVICE_ACCOUNT_KEY")),
+      from: emailAddress(env, "MAIL_FROM"),
+      actAs:
+        optional(env, "GMAIL_ACT_AS") === undefined ? undefined : emailAddress(env, "GMAIL_ACT_AS"),
+    },
     resend:
       resendKey !== undefined && resendFrom !== undefined
         ? { apiKey: resendKey, from: resendFrom }

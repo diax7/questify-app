@@ -28,8 +28,15 @@ export function testConfig(
     auth: {
       secret: "t".repeat(40),
       dashboardOrigin: DASHBOARD_ORIGIN,
-      smtpUser: "bot@gmail.test",
-      smtpAppPassword: "unused",
+      gmail: {
+        key: {
+          clientEmail: "mailer@questify.iam.gserviceaccount.test",
+          privateKey: "unused",
+          tokenUri: "https://oauth2.googleapis.test/token",
+        },
+        from: "questify@nafes.test",
+        actAs: undefined,
+      },
       resend: undefined,
       securityAlertEmail: "security@questify.test",
       ...auth,

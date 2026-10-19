@@ -1,6 +1,8 @@
 import { EmailSendError, type EmailMessage, type EmailSender } from "#src/auth/email/sender";
 
 export const FAILOVER_DEADLINE_MS = 8000;
+/** The primary gets this long, so the backup always has time left inside the overall deadline. */
+export const PRIMARY_BUDGET_MS = 5000;
 
 export type FailoverOptions = Readonly<{
   primary: EmailSender;
@@ -9,6 +11,7 @@ export type FailoverOptions = Readonly<{
   /** Called when the backup takes over, with the names only. */
   onFailover?: (from: string, to: string) => void;
   deadlineMs?: number;
+  primaryBudgetMs?: number;
 }>;
 
 function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -30,7 +33,11 @@ function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
 export function createFailoverSender(options: FailoverOptions): EmailSender {
   const attempt = async (message: EmailMessage): Promise<void> => {
     try {
-      await options.primary.send(message);
+      // Cut a slow primary off (a cold token plus a slow send can take longer than its own steps' caps allow).
+      await withDeadline(
+        options.primary.send(message),
+        options.primaryBudgetMs ?? PRIMARY_BUDGET_MS,
+      );
       return;
     } catch (primaryError) {
       if (options.backup === undefined) {

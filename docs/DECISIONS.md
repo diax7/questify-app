@@ -1657,21 +1657,25 @@ For later: the user's preference for the decryption key is **a secret stored in 
 **Fixed from the review in the same change:** points, balances and statuses closed to hand edits at the database (column grants and guard triggers), player phone and email moved to `player_contact`, owner-only team changes, explicit filters in the sign-in queries, one shared connection helper with the context set in one round trip, app-wide route access (every route declares who may call it), a guard against a restart loop in the app, CI fails if the database tests would be skipped and now runs the API build, the API image installs only the API's packages.
 **Deferred with a home:** a config cache keyed by visibility (T-111), request and response schemas in `packages/shared` before the app calls its first real endpoint (T-111), the ledger trigger for score and balance (T-105), editor event-scope rules in the database (T-101).
 
-## ADR-112 — Staff email goes through the Gmail API on Google Workspace, from questify.nafes.com
+## ADR-112 — Staff email goes through the Gmail API from questify@nafes.com
 **Status:** Accepted (user, 2026-10-20). Replaces the Gmail SMTP app-password stop-gap of 2026-10-19; Resend stays the backup.
-**Decision:** Questify's emails (staff sign-in codes, invites) are sent from a Google Workspace mailbox on the domain
-`questify.nafes.com` (for example `noreply@questify.nafes.com`) through the **Gmail API**, authorised by a Google
-Cloud **service account with domain-wide delegation** limited to the `gmail.send` scope. No mailbox password or
-personal login is stored anywhere; the service account key lives in the CranL secret store only. The domain carries
-**SPF** (`include:_spf.google.com`), **DKIM** (Google's 2048-bit key), and **DMARC** (start at `p=none` with reports,
-move to `p=quarantine` and then `p=reject` once the reports are clean). Resend, the backup, sends from its own
-subdomain (`send.questify.nafes.com`) with its own SPF and DKIM, so the two never weaken each other.
-**Why:** the user wants no password on the server and mail that does not land in spam. Our own SPF, DKIM and DMARC
-are only possible on a domain we control; a free Gmail address is signed as gmail.com, not as Questify.
-**Consequences:** about USD 7–8 a month for one Workspace mailbox. Google stays a foreign provider that sees staff
-addresses and codes, so the data-map entry and Q-083 (counsel) still apply. New task T-021 replaces the SMTP sender
-in the API with a Gmail API sender (no new library: a signed service-account token and one HTTPS call, with the
-same timeouts and the Resend fallback). The Gmail app password is no longer needed for the staging check.
+**Decision:** Questify's emails (staff sign-in codes, invites) are sent from **`questify@nafes.com`**, a mailbox in
+the existing Google Workspace of `nafes.com`, through the **Gmail API**, authorised by a Google Cloud **service
+account with domain-wide delegation** limited to the `gmail.send` scope. No mailbox password or personal login is
+stored anywhere; the service account key lives in the CranL secret store only. The dashboard lives on
+**`questify.nafes.com`** (a separate DNS record when the web app is deployed).
+**Email authentication (checked in public DNS, 2026-10-20):** `nafes.com` already has SPF
+(`v=spf1 include:_spf.google.com ~all`), Google's 2048-bit DKIM key (`google._domainkey`), and DMARC
+(`p=none`, reports to `dmarc@nafes.com`). Nothing new is needed for Gmail API mail to pass all three. Tightening
+DMARC to `p=quarantine` and then `p=reject` affects all of nafes.com's mail, so it is the domain owner's step, done
+after reading the reports. Resend, the backup, would send from its own subdomain (for example `send.nafes.com`)
+with its own SPF and DKIM.
+**Why:** the user wants no password on the server and mail that does not land in spam; Google Workspace on a
+domain with SPF, DKIM and DMARC already in place gives both.
+**Consequences:** one Workspace licence for `questify@nafes.com` (if it is a new user). Google stays a foreign
+provider that sees staff addresses and codes, so the data-map entry and Q-083 (counsel) still apply. T-021 replaces
+the SMTP sender in the API with a Gmail API sender (no new library: a signed service-account token and one HTTPS
+call, with the same timeouts and the Resend fallback). The Gmail app password is no longer needed.
 
 ## ADR-113 — One trusted proxy hop: the web forwarder passes the client address through
 **Status:** Proposed (T-011, CTO plan review 2026-10-20).

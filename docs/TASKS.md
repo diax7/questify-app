@@ -36,7 +36,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [x] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
-  - Note: code, tests and review are done; the live staging check (migrate, create a throwaway account, sign in over HTTPS) waits on the Gmail app password in the CranL secret store.
+  - Note: code, tests and review are done; the live staging check (migrate, create a throwaway account, sign in over HTTPS) waits on the email sender: now the Gmail API (ADR-112, T-021); the key and `MAIL_FROM` are in CranL.
 - [x] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
   - Done when: Changing a setting changes the composed config within a minute without any release; an unknown block is ignored by an older app.
 - [x] **T-008** Translation store: keys with Arabic and English values, shipped defaults, fallback to defaults, placeholder protection — delivers FR 1768, 1767, 1506, 1507; depends on: T-007
@@ -63,8 +63,8 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
 - [ ] **T-019** (deferred by the user, 2026-10-19: no backup while staging holds only fake data; **must be done before the first real player** and is part of the release gate) Second backup copy: a nightly dump of the database and bucket copied to a second place in Saudi Arabia that we control, and a restore from it (ADR-107 condition) — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore from the second copy into a scratch database works and the time it took is written down.
 
-- [ ] **T-021** Gmail API email sender (ADR-112): replace the SMTP sender in `apps/api/src/auth/email/` with a Gmail API sender authorised by a service account with domain-wide delegation (`gmail.send`), keeping the timeouts, the Resend fallback and the "what the logs hold" rules; remove the SMTP sender and its settings; RUNBOOK email-domain steps (SPF, DKIM, DMARC, Postmaster Tools) — delivers no FR (infrastructure); depends on: T-006
-  - Done when: a staging sign-in code arrives in a Gmail inbox (not spam) from `noreply@questify.nafes.com` with SPF, DKIM and DMARC all "pass" in the message headers; no password is stored anywhere.
+- [ ] **T-021** Gmail API email sender (ADR-112): replace the SMTP sender in `apps/api/src/auth/email/` with a Gmail API sender authorised by a service account with domain-wide delegation (`gmail.send`), keeping the timeouts, the Resend fallback and the "what the logs hold" rules; remove the SMTP sender and its settings; RUNBOOK email-sending steps — delivers no FR (infrastructure); depends on: T-006
+  - Done when: a staging sign-in code arrives in a Gmail inbox (not spam) from `questify@nafes.com` with SPF, DKIM and DMARC all "pass" in the message headers; no password is stored anywhere.
 - [ ] **T-020** Staff password reset and password change: reset by email link, breached-password check (k-anonymity range API, `Add-Padding`, 3 s timeout, listed in the data map) on every set, revoke all of the user's sessions on a change or reset (ASVS V7) — delivers FR 1725 (recovery); depends on: T-006
   - Done when: A staff user who forgot the password can set a new one through an emailed link that works once; all their sessions end; a password found in the breach list is refused; a locked-out admin has a documented way back.
 

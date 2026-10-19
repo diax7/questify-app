@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFailoverSender } from "#src/auth/email/failover";
 import { createResendSender } from "#src/auth/email/resend";
 import { EmailSendError, type EmailSender } from "#src/auth/email/sender";
-import { createSmtpSender, smtpTransportOptions, type SmtpTransport } from "#src/auth/email/smtp";
 import { newSignInAlertEmail, signInCodeEmail } from "#src/auth/email/templates";
 
 const message = { to: "sara@najd.sa", subject: "s", text: "t 123456" };
@@ -22,39 +21,6 @@ const failingSender = (name: string): EmailSender => ({
   send: async () => {
     throw new EmailSendError(name, "down");
   },
-});
-
-describe("createSmtpSender", () => {
-  it("sends from the signed-in account with the given subject and text", async () => {
-    const sendMail = vi.fn<SmtpTransport["sendMail"]>(async () => ({}));
-    await createSmtpSender({
-      user: "bot@gmail.com",
-      appPassword: "x",
-      transport: { sendMail },
-    }).send(message);
-    expect(sendMail).toHaveBeenCalledWith({
-      from: "Questify <bot@gmail.com>",
-      to: "sara@najd.sa",
-      subject: "s",
-      text: "t 123456",
-    });
-  });
-
-  it("turns any transport failure into an EmailSendError that hides the recipient and text", async () => {
-    const sender = createSmtpSender({
-      user: "bot@gmail.com",
-      appPassword: "x",
-      transport: {
-        sendMail: async () => {
-          throw new Error("550 sara@najd.sa rejected: t 123456");
-        },
-      },
-    });
-    const error = await sender.send(message).catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(EmailSendError);
-    expect(String((error as Error).message)).not.toContain("sara@najd.sa");
-    expect(String((error as Error).message)).not.toContain("123456");
-  });
 });
 
 describe("createResendSender", () => {
@@ -101,7 +67,7 @@ describe("createResendSender", () => {
 
 describe("createFailoverSender", () => {
   it("uses only the primary when it works", async () => {
-    const primary = okSender("smtp");
+    const primary = okSender("gmail");
     const backup = okSender("resend");
     await createFailoverSender({ primary, backup }).send(message);
     expect(primary.sent).toHaveLength(1);
@@ -111,17 +77,17 @@ describe("createFailoverSender", () => {
   it("sends the same message through the backup when the primary fails, and says so", async () => {
     const backup = okSender("resend");
     const onFailover = vi.fn();
-    await createFailoverSender({ primary: failingSender("smtp"), backup, onFailover }).send(
+    await createFailoverSender({ primary: failingSender("gmail"), backup, onFailover }).send(
       message,
     );
     expect(backup.sent).toEqual([message]);
-    expect(onFailover).toHaveBeenCalledWith("smtp", "resend");
+    expect(onFailover).toHaveBeenCalledWith("gmail", "resend");
   });
 
   it("fails when both senders fail", async () => {
     await expect(
       createFailoverSender({
-        primary: failingSender("smtp"),
+        primary: failingSender("gmail"),
         backup: failingSender("resend"),
       }).send(message),
     ).rejects.toThrow(/every sender failed/);
@@ -129,12 +95,12 @@ describe("createFailoverSender", () => {
 
   it("fails with the primary's error when there is no backup", async () => {
     await expect(
-      createFailoverSender({ primary: failingSender("smtp") }).send(message),
-    ).rejects.toThrow(/"smtp" failed/);
+      createFailoverSender({ primary: failingSender("gmail") }).send(message),
+    ).rejects.toThrow(/"gmail" failed/);
   });
 
   it("gives up after the deadline instead of waiting for a stuck sender", async () => {
-    const stuck: EmailSender = { name: "smtp", send: () => new Promise(() => undefined) };
+    const stuck: EmailSender = { name: "gmail", send: () => new Promise(() => undefined) };
     await expect(
       createFailoverSender({ primary: stuck, deadlineMs: 20 }).send(message),
     ).rejects.toThrow(/within 20 ms/);
@@ -215,32 +181,26 @@ describe("email sender details", () => {
   });
 
   it("names each sender, so logs and failover reports say which one failed", () => {
-    expect(
-      createSmtpSender({ user: "a@b.c", appPassword: "x", transport: { sendMail: async () => 0 } })
-        .name,
-    ).toBe("smtp");
     expect(createResendSender({ apiKey: "k", from: "a@b.c" }).name).toBe("resend");
     expect(createFailoverSender({ primary: okSender("a") }).name).toBe("failover");
   });
 
   it("makes errors that name their sender and keep the cause", async () => {
     const cause = new Error("boom");
-    const error = await createSmtpSender({
-      user: "a@b.c",
-      appPassword: "x",
-      transport: {
-        sendMail: async () => {
-          throw cause;
-        },
-      },
+    const error = await createResendSender({
+      apiKey: "k",
+      from: "a@b.c",
+      fetch: (async () => {
+        throw cause;
+      }) as unknown as typeof fetch,
     })
       .send(message)
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(EmailSendError);
     expect(error).toMatchObject({
       name: "EmailSendError",
-      sender: "smtp",
-      message: 'Email sender "smtp" failed: the SMTP server did not accept the message',
+      sender: "resend",
+      message: 'Email sender "resend" failed: the request failed or timed out',
       cause,
     });
   });
@@ -287,7 +247,7 @@ describe("email sender details", () => {
 
   it("reports both failures when every sender fails, naming the failover", async () => {
     const error = await createFailoverSender({
-      primary: failingSender("smtp"),
+      primary: failingSender("gmail"),
       backup: failingSender("resend"),
     })
       .send(message)
@@ -297,15 +257,29 @@ describe("email sender details", () => {
       message: 'Email sender "failover" failed: every sender failed',
     });
     const causes = ((error as Error).cause as AggregateError).errors as EmailSendError[];
-    expect(causes.map((cause) => cause.sender)).toEqual(["smtp", "resend"]);
+    expect(causes.map((cause) => cause.sender)).toEqual(["gmail", "resend"]);
+  });
+
+  it("cuts off a slow primary in time for the backup to send inside the overall deadline", async () => {
+    vi.useFakeTimers();
+    const stuck: EmailSender = { name: "gmail", send: () => new Promise(() => undefined) };
+    const backup = okSender("resend");
+    const onFailover = vi.fn();
+    const pending = createFailoverSender({ primary: stuck, backup, onFailover }).send(message);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(backup.sent).toEqual([]);
+    await vi.advanceTimersByTimeAsync(2);
+    await pending;
+    expect(backup.sent).toEqual([message]);
+    expect(onFailover).toHaveBeenCalledWith("gmail", "resend");
   });
 
   it("names the failover in a deadline error and stops its timer once a send succeeds", async () => {
     vi.useFakeTimers();
-    await createFailoverSender({ primary: okSender("smtp") }).send(message);
+    await createFailoverSender({ primary: okSender("gmail") }).send(message);
     expect(vi.getTimerCount()).toBe(0);
 
-    const stuck: EmailSender = { name: "smtp", send: () => new Promise(() => undefined) };
+    const stuck: EmailSender = { name: "gmail", send: () => new Promise(() => undefined) };
     const pending = createFailoverSender({ primary: stuck, deadlineMs: 50 })
       .send(message)
       .catch((caught: unknown) => caught);
@@ -314,23 +288,5 @@ describe("email sender details", () => {
       sender: "failover",
       message: 'Email sender "failover" failed: no sender finished within 50 ms',
     });
-  });
-});
-
-describe("smtpTransportOptions", () => {
-  it("connects to Gmail over TLS on 465 with the app password and a 5 second cap on every wait", () => {
-    expect(smtpTransportOptions("bot@gmail.com", "app-pass")).toEqual({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: "bot@gmail.com", pass: "app-pass" },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5000,
-    });
-  });
-
-  it("builds a real sender without opening a connection", () => {
-    expect(createSmtpSender({ user: "bot@gmail.com", appPassword: "x" }).name).toBe("smtp");
   });
 });

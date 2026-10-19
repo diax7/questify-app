@@ -1,9 +1,9 @@
 import { Pool } from "pg";
 import { buildApp } from "#src/app";
 import { createFailoverSender } from "#src/auth/email/failover";
+import { createGmailSender } from "#src/auth/email/gmail";
 import { createResendSender } from "#src/auth/email/resend";
 import type { EmailSender } from "#src/auth/email/sender";
-import { createSmtpSender } from "#src/auth/email/smtp";
 import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
@@ -24,9 +24,11 @@ function createPool(config: AppConfig): Pool {
 }
 
 function createEmailSender(config: AppConfig, onFailover: (from: string, to: string) => void) {
-  const primary = createSmtpSender({
-    user: config.auth.smtpUser,
-    appPassword: config.auth.smtpAppPassword,
+  const { gmail } = config.auth;
+  const primary = createGmailSender({
+    key: gmail.key,
+    from: gmail.from,
+    ...(gmail.actAs === undefined ? {} : { actAs: gmail.actAs }),
   });
   const backup: EmailSender | undefined =
     config.auth.resend === undefined ? undefined : createResendSender(config.auth.resend);

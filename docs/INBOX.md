@@ -599,3 +599,4 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - User: "to send emails I want to use Gmail API not gmail password, and I want it to have spf dkim dmarc and
   anything more to make sure it's not go to spam."
 - Answers: Google Workspace on our own domain (recommended option); the domain is `questify.nafes.com`.
+- 2026-10-20, later: "questify.nafes.com is the dashboard domain and questify@nafes.com is the send from email." Checked in public DNS: `nafes.com` already runs Google Workspace (Google MX), with SPF `include:_spf.google.com`, a 2048-bit Google DKIM key, and DMARC `p=none` reporting to `dmarc@nafes.com`; DNS is on Cloudflare. ADR-112 and the RUNBOOK were updated to match.
