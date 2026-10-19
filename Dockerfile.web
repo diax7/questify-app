@@ -1,4 +1,5 @@
-# Web app image for CranL (build type: Dockerfile, Dockerfile path apps/web/Dockerfile). Built from the repository root.
+# Web app image for CranL (build type: Dockerfile, Dockerfile path Dockerfile.web). Built from the repository root;
+# it sits at the root because CranL builds from the folder that holds the Dockerfile.
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
 WORKDIR /repo
 RUN corepack enable

@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   poweredByHeader: false,
-  // A self-contained server for the Docker image (apps/web/Dockerfile); traced from the repository root because
+  // A self-contained server for the Docker image (Dockerfile.web at the repository root); traced from the repository root because
   // the shared package and the fonts live outside apps/web.
   output: "standalone",
   outputFileTracingRoot: join(import.meta.dirname, "..", ".."),

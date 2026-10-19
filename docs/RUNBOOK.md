@@ -66,6 +66,9 @@ Already in place on `nafes.com` (checked 2026-10-20): Google Workspace mail, SPF
 1. **Mailbox:** `questify@nafes.com` is an **alias** of an existing user (the user's choice, 2026-10-20). The service
    account acts for that user and sends with the alias as From; if Google refuses the alias as the sign-in subject,
    set `GMAIL_ACT_AS` to the real mailbox. Sent codes appear in that user's Sent folder, and replies reach them.
+   Set up on 2026-10-20: the alias belongs to `system@nafes.com` (`GMAIL_ACT_AS=system@nafes.com`), and
+   `questify@nafes.com` was added to that mailbox's Gmail settings under "Send mail as"; without that step Gmail
+   rewrites the From line to `system@nafes.com`.
 2. **Google Cloud:** in console.cloud.google.com (signed in as a nafes.com admin) create a project `questify-mail`,
    enable the **Gmail API**, create a **service account** `questify-mailer`, and create a **JSON key** for it. If key
    creation is blocked ("Disable service account key creation" organization policy), allow it for this project only.
@@ -86,7 +89,7 @@ the client-address count (ADR-113).
 
 ## Web app (dashboard)
 
-- Image: `apps/web/Dockerfile`, built from the repository root; port 3000; health check on `/en/sign-in`.
+- Image: `Dockerfile.web` at the repository root (CranL builds from the folder holding the Dockerfile), with CranL Dockerfile path `Dockerfile.web`; port 3000; health check on `/en/sign-in`.
 - Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
   (never the public https URL: the app refuses to start with one). No secrets in the web app.
 - The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).
