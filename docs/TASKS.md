@@ -16,7 +16,7 @@ How to read a task: `delivers` lists FR numbers from `SRS.md` (FR-### shortened 
 
 _A working skeleton: repository, pipeline, Saudi staging environment, tenant-safe database, sign-in for staff and players, configuration and translations, and the first installable build._
 
-- [ ] **T-001** Create the monorepo (app, web, api, shared) with strict TypeScript, lint, format, type and test commands, and a single-job CI gate that also runs a secret scan — delivers no FR (infrastructure or quality gate); depends on: none
+- [x] **T-001** Create the monorepo (app, web, api, shared) with strict TypeScript, lint, format, type and test commands, and a single-job CI gate that also runs a secret scan — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A clean checkout runs lint, types and tests with zero warnings in one command and in CI; a planted fake secret makes CI fail.
 - [ ] **T-013** Get written SMS quotes from Msegat and Taqnyat and start the sender-name registration (commercial registration, Chamber of Commerce letter, SAR 230 a year per name); pick the gateway (Q-034, ADR-103) — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: Two written quotes are filed; one gateway is chosen; the sender-name request is submitted.

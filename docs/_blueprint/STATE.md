@@ -470,6 +470,11 @@ other docs feed it and stay as its detailed appendices.
 - Root `CLAUDE.md` switched to BUILD. First work: Phase 0, in `docs/TASKS.md` order (T-001 monorepo and CI, T-002 CranL staging, T-013 SMS (Msegat account exists), T-014 and T-015 done by research, T-119 draft legal text).
 - Still open, not blocking: CranL written answers (T-811), the lawyer batch (T-807), Msegat volume quote, mascot images, Q-082 (iOS 16.4).
 
+## Build log
+
+- 2026-10-19 **T-001 done.** Monorepo (pnpm workspace: `apps/api`, `apps/web`, `apps/app`, `packages/shared`), strict TypeScript 7, oxlint, oxfmt, vitest 5, one-job CI (`.github/workflows/ci.yml`, actions pinned by SHA, gitleaks 8.30.1 with a pinned checksum), Dependabot monthly. `pnpm ci:changed` passes. Mutation check on the first real code (`apiError`) caught a broken rule; gitleaks passes a clean tree and fails (exit 1, 2 findings) on planted fake keys. The CI run itself has not happened yet because there is no GitHub remote. Local node is 24; `.nvmrc` pins 22.
+- Large assets (`docs/design/assets`, `docs/design/codex-image-2`, brand-deck PDF, BRD) are in `.gitignore`; they need a separate backup.
+
 ## Next
 
 1. **Stage 9**, wrap-up: consistency pass across all docs, SRS consolidation, final approval to end planning (then apply `_blueprint/CLAUDE_BUILD_DRAFT.md`).
