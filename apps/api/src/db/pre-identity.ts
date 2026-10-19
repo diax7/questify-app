@@ -9,12 +9,10 @@ export type Lookup =
   | Readonly<{ kind: "session"; tokenHash: string }>
   | Readonly<{ kind: "challenge"; tokenHash: string }>;
 
-/** What the work may do once it has found the row: continue as that user, and open a new challenge. */
+/** What the work may do once it has found the row: continue as that user. */
 export type Identify = Readonly<{
   /** Continue the same transaction as this staff user. The id must come from a database row. */
   promote: (staffUserId: string) => Promise<void>;
-  /** Make the challenge with this token hash visible (needed to read back a challenge just created). */
-  openChallenge: (tokenHash: string) => Promise<void>;
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -39,12 +37,19 @@ function checkedHash(name: string, value: string): string {
   return value;
 }
 
+const hasControlCharacter = (text: string): boolean =>
+  [...text].some((character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code < 0x20 || code === 0x7f;
+  });
+
 function lookupSetting(lookup: Lookup): readonly [string, string] {
   switch (lookup.kind) {
     case "email": {
       if (
         lookup.email.length > MAX_EMAIL_LENGTH ||
         lookup.email !== lookup.email.toLowerCase() ||
+        hasControlCharacter(lookup.email) ||
         !EMAIL.test(lookup.email)
       ) {
         throw new RangeError("email must be a normalized (lowercase) address.");
@@ -90,8 +95,6 @@ export async function withPreIdentityContext<T>(
         }
         await set(client, "app.staff_user_id", staffUserId);
       },
-      openChallenge: async (tokenHash) =>
-        set(client, "app.challenge_token_hash", checkedHash("tokenHash", tokenHash)),
     });
     await client.query("COMMIT");
     return result;

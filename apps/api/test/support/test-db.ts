@@ -18,6 +18,8 @@ export type TestDatabase = Readonly<{
   app: Client;
   /** A role with no rights at all. */
   outsider: Client;
+  /** Connection string for the API's role, for tests that need a pool. */
+  appUrl: string;
   close: () => Promise<void>;
 }>;
 
@@ -64,6 +66,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     owner,
     app,
     outsider,
+    appUrl: urlFor(TEST_DATABASE_URL, name, "questify_app"),
     close: async () => {
       await Promise.all([owner.end(), app.end(), outsider.end()]);
       await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);

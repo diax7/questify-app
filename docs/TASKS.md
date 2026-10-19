@@ -30,6 +30,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A suite using only the public credential can read and write nothing; an editor of organizer A gets 403/404 on every organizer B route.
 - [ ] **T-004** Append-only audit log and change log infrastructure (updates and deletes revoked in the database) — delivers FR 1029, 1030, 1410; depends on: T-003
   - Done when: Any attempt to update or delete an audit row fails at the database; each state-changing call writes who, what, before, after and when.
+  - Note (T-006): staff sign-in events (`staff.password_ok`, `staff.password_failed`, `staff.throttled`, `staff.code_failed`, `staff.session_opened`, `staff.session_revoked`) are written to the structured log only until this task lands; then they move here.
 - [x] **T-005** Shared API conventions: error envelope, idempotency-key middleware, cursor pagination, rate-limit headers, request ids, app-version check (426) — delivers FR 1033, 1735; depends on: T-001
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [ ] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
@@ -44,6 +45,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A build installs from TestFlight on an iPhone and from Play internal testing on an Android phone.
 - [ ] **T-011** Next.js web app shell: staff login screens, responsive layout usable on a phone browser, Arabic and English — delivers FR 1746; depends on: T-006, T-008
   - Done when: The dashboard login works on a desktop and on a phone browser in both languages.
+  - Note (T-006, plan M4/R3): the dashboard's server reverse-proxies `/v1` to the API so the browser sees one origin (no CORS; the `__Host-` session cookie and `SameSite=Strict` work). The proxy must forward `X-Forwarded-For`, and `TRUST_PROXY_HOPS` is set to the real chain (edge, dashboard proxy, API) and checked on staging.
 - [ ] **T-012** Outsider and cross-tenant test suites wired into CI — delivers no FR (infrastructure or quality gate); depends on: T-003
   - Done when: CI fails when any route or table is reachable with only the public credential, or when one organizer reaches another's data.
 - [x] **T-016** Quality tooling: mutation testing on core code (e.g. Stryker), contract tests against the generated OpenAPI file, SBOM generation, dependency audit and secret scan in CI (QUALITY_BASELINE sections 2 to 4) — delivers no FR (infrastructure or quality gate); depends on: T-001
@@ -52,8 +54,12 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A fresh environment is created from the scripts alone; a second run changes nothing; no setting exists only in the dashboard.
 - [ ] **T-018** Observability and service levels: OpenTelemetry logs, metrics and traces without personal data; written targets with alerts; a runbook entry for every alert — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A forced error shows in the logs with a request id and no personal data; each alert links to a runbook; the targets in QUALITY_BASELINE are measured on a dashboard.
+  - Note (T-006, recorded deviation from the core Definition of Done): wire alerts for the sign-in signals `staff.email_failover`, `staff.email_unavailable` (both email senders down: nobody can sign in), `staff.throttled` and failure spikes, and one sign-in address key carrying most sign-in traffic. Until this task is done those signals exist only as log lines; the runbook entries are in `docs/RUNBOOK.md`.
 - [ ] **T-019** (deferred by the user, 2026-10-19: no backup while staging holds only fake data; **must be done before the first real player** and is part of the release gate) Second backup copy: a nightly dump of the database and bucket copied to a second place in Saudi Arabia that we control, and a restore from it (ADR-107 condition) — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore from the second copy into a scratch database works and the time it took is written down.
+
+- [ ] **T-020** Staff password reset and password change: reset by email link, breached-password check (k-anonymity range API, `Add-Padding`, 3 s timeout, listed in the data map) on every set, revoke all of the user's sessions on a change or reset (ASVS V7) — delivers FR 1725 (recovery); depends on: T-006
+  - Done when: A staff user who forgot the password can set a new one through an emailed link that works once; all their sessions end; a password found in the breach list is refused; a locked-out admin has a documented way back.
 
 ## Phase 1 — Core loop
 

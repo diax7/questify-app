@@ -15,8 +15,12 @@
 - **Auth schemes:**
   - *Player bearer token:* short-lived access token plus a rotating refresh token, issued after a
     phone or email code (ADR-030). Operators use the same token plus an event role.
-  - *Staff session:* secure, HTTP-only cookie after email + password + email code (ADR-078), with CSRF
-    protection and inactivity expiry (NFR-030).
+  - *Staff session:* cookie `__Host-qs_session` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, no
+    `Domain`) after email + password + email code (ADR-078), with inactivity expiry (NFR-030). **The
+    dashboard's server reverse-proxies `/v1` to the API**, so the browser sees one origin: no CORS, and the
+    cookie works. State-changing requests must carry `Origin` equal to the dashboard origin (else
+    `403 csrf_rejected`). The proxy forwards `X-Forwarded-For`; the API trusts exactly
+    `TRUST_PROXY_HOPS` proxies (edge, dashboard proxy). Every `/v1/staff/*` answer is `Cache-Control: no-store`.
   - *Screen token:* a signed read-only token in the big-screen and station page links.
   - *Provider callback:* signed requests from SMS, email and wallet services.
   - Roles: `anonymous`, `player`, `operator` (a player with an event assignment), `editor`, `owner`,
@@ -61,7 +65,12 @@ Auth shows who may call. "Rate" notes any special limit.
 | `POST /v1/auth/refresh`, `POST /v1/auth/logout` | player | rotate / revoke | 401 |
 | `GET /v1/me`, `PATCH /v1/me` | player | profile; username, character, frame, title, city, interests | 409 name taken, 422 filtered word |
 | `DELETE /v1/me` | player | start account deletion → `202` | 409 if handover pending (explained) |
-| `POST /v1/staff/auth/password`, `/staff/auth/code` | anonymous | two-step staff sign-in → session cookie | 401, 429 |
+| `POST /v1/staff/auth/password` | anonymous | `{email, password}` → `{challengeToken, expiresInSeconds}`; emails a six-digit code (valid 10 minutes) | 400, 401 `invalid_credentials` (same for unknown, wrong and disabled), 429 `too_many_attempts` / `too_many_challenges` (`Retry-After`), 503 `busy` / `email_unavailable` |
+| `POST /v1/staff/auth/code` | anonymous | `{challengeToken, code}` → `{account}` and the session cookie | 400, 401 `invalid_code` (`details.attemptsLeft`), 410 `challenge_expired`, 429 |
+| `POST /v1/staff/auth/resend` | anonymous | `{challengeToken}` → `{}`; new code, old one stops (3 resends, 60 s apart) | 410, 429 `resend_too_soon` / `resend_limit`, 503 |
+| `POST /v1/staff/auth/sign-out` | staff | ends this session, clears the cookie → `204` | 401, 403 |
+| `GET /v1/staff/me` | staff | `{id, email, platformRole, memberships}` | 401 |
+| `GET /v1/staff/sessions`, `DELETE /v1/staff/sessions/{id}` | staff | the user's live sessions (current marked); end one of their own → `204` | 401, 404 |
 
 ### Joining and events
 

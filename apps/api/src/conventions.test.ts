@@ -14,6 +14,13 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   const instance = Fastify();
   const store = new MemoryIdempotencyStore(() => clock);
   registerConventions(instance, { minAppVersion, idempotencyStore: store });
+  // Stands in for the staff scope, which sets the signed-in user as the owner of idempotency keys.
+  instance.addHook("onRequest", async (request) => {
+    const user = request.headers["x-test-user"];
+    if (typeof user === "string") {
+      request.principalId = user;
+    }
+  });
 
   instance.post("/pay", { config: { idempotent: true } }, async (request) => {
     calls += 1;
@@ -137,6 +144,9 @@ describe("app version", () => {
   });
 });
 
+const as = (user: string) =>
+  post("/pay", { "idempotency-key": "same", "x-test-user": user }, { amount: 1 });
+
 describe("idempotency key", () => {
   it("is required on an unsafe route", async () => {
     app = await build();
@@ -155,6 +165,20 @@ describe("idempotency key", () => {
     expect(second.json()).toEqual(first.json());
     expect(second.headers["idempotent-replayed"]).toBe("true");
     expect(first.headers["idempotent-replayed"]).toBeUndefined();
+  });
+
+  it("keeps keys apart per signed-in user, so two users can reuse the same key", async () => {
+    app = await build();
+    const [first, second, firstAgain] = [
+      await as("user-a"),
+      await as("user-b"),
+      await as("user-a"),
+    ];
+    expect(calls).toBe(2);
+    expect(first.json().call).toBe(1);
+    expect(second.json().call).toBe(2);
+    expect(firstAgain.json().call).toBe(1);
+    expect(firstAgain.headers["idempotent-replayed"]).toBe("true");
   });
 
   it("refuses the same key with a different body", async () => {

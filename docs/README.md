@@ -61,6 +61,7 @@ consolidated at the end. The other docs hold the detail it points to.
 | `STORE_COMPLIANCE.md` | Apple, Google Play and Saudi (PDPL, SMS) rules, as a pre-submission checklist, plus the product decisions they force (PD-01–30) | Done 2026-10-16; all PDs decided 2026-10-17 (ADR-070 to ADR-073) |
 | `legal/` (not yet created; waits for counsel, T-807) | Privacy policy, terms, prize rules, community guidelines | Stage 8 |
 | `ROADMAP.md` · `TASKS.md` · `TEST_STRATEGY.md` · `RISKS.md` | Build order (9 phases), 132 tasks covering all 546 requirements, testing, 18 risks | Drafted 2026-10-17 (Stage 8) |
+| `RUNBOOK.md` | How to run the checks, create staff accounts, free a locked-out person, and what to do when sign-in email is down | Started 2026-10-19 (T-006) |
 | `QUALITY_BASELINE.md` | The standards every phase and release is checked against (OWASP ASVS/MASVS, tests, infrastructure, operations) | Written 2026-10-19 (ADR-108) |
 | `rules.md` | Hard rules, quality bar, coding standards, Definition of Done | Drafted 2026-10-17 (Stage 7) |
 | `_blueprint/CLAUDE_BUILD_DRAFT.md` | The proposed build-phase changes to the root `CLAUDE.md`; applied when planning is approved | Draft, not applied |

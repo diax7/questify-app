@@ -132,6 +132,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sign-in tables", () => {
       expect(await found(lookup, "SELECT 1 FROM staff_login_challenge")).toEqual([]);
     });
 
+    it("does not let a challenge lookup open accounts or sessions", async () => {
+      const lookup: Lookup = { kind: "challenge", tokenHash: saraChallenge };
+      expect(await found(lookup, "SELECT 1 FROM staff_user")).toEqual([]);
+      expect(await found(lookup, "SELECT 1 FROM staff_session")).toEqual([]);
+    });
+
+    it("opens one session even when the same user has several", async () => {
+      const second = token();
+      await db.owner.query(
+        "INSERT INTO staff_session (staff_user_id, token_hash) VALUES ($1, $2)",
+        [sara, bytea(second)],
+      );
+      const rows = await found<{ token_hash: Buffer }>(
+        { kind: "session", tokenHash: second },
+        "SELECT token_hash FROM staff_session",
+      );
+      expect(rows.map((row) => row.token_hash.toString("hex"))).toEqual([second]);
+    });
+
     it("does not carry a lookup into the next transaction", async () => {
       await found({ kind: "email", email: "sara@x.sa" }, "SELECT 1");
       expect(await asContext({}, "SELECT 1 FROM staff_user")).toEqual([]);
@@ -144,7 +163,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sign-in tables", () => {
         { staffUserId: sara },
         "SELECT staff_user_id FROM staff_session",
       );
-      expect(rows).toEqual([{ staff_user_id: sara }]);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.staff_user_id === sara)).toBe(true);
     });
 
     it("cannot list challenges by user, so no code hash is browsable", async () => {
@@ -166,12 +186,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sign-in tables", () => {
       expect(rows).toEqual([{ revoked_at: null }]);
     });
 
-    it("lets an admin see every session", async () => {
-      expect(await asContext({ isAdmin: true }, "SELECT 1 FROM staff_session")).toHaveLength(2);
+    it("keeps every session when a signed-in user runs a bare delete (only the sweep deletes sessions)", async () => {
+      const mine = await asContext(
+        { staffUserId: sara },
+        "SELECT 1 FROM staff_session WHERE token_hash = $1",
+        [bytea(saraSession)],
+      );
+      await asContext({ staffUserId: sara }, "DELETE FROM staff_session");
+      const { rows } = await db.owner.query(
+        "SELECT 1 FROM staff_session WHERE token_hash = ANY($1)",
+        [[bytea(saraSession), bytea(khalidSession)]],
+      );
+      expect(mine).toHaveLength(1);
+      expect(rows).toHaveLength(2);
     });
 
-    it("creates a challenge only for themselves and can read it back by its own token", async () => {
-      const mine = token();
+    it("lets an admin see every session", async () => {
+      const rows = await asContext<{ token_hash: Buffer }>(
+        { isAdmin: true },
+        "SELECT token_hash FROM staff_session WHERE token_hash = ANY($1)",
+        [[bytea(saraSession), bytea(khalidSession)]],
+      );
+      expect(rows).toHaveLength(2);
+    });
+
+    it("creates a challenge only for themselves", async () => {
       await expect(
         asContext(
           { staffUserId: sara },
@@ -180,22 +219,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sign-in tables", () => {
           [khalid, bytea(token()), bytea(token())],
         ),
       ).rejects.toThrow(/row-level security/);
-      const rows = await withPreIdentityContext(
-        db.app,
-        { kind: "email", email: "sara@x.sa" },
-        async ({ promote, openChallenge }) => {
-          await promote(sara);
-          await openChallenge(mine);
-          return (
-            await db.app.query(
-              `INSERT INTO staff_login_challenge (staff_user_id, token_hash, code_hash, expires_at)
-               VALUES ($1, $2, $3, now() + interval '10 minutes') RETURNING id`,
-              [sara, bytea(mine), bytea(token())],
-            )
-          ).rows;
-        },
+      await asContext(
+        { staffUserId: sara },
+        `INSERT INTO staff_login_challenge (staff_user_id, token_hash, code_hash, expires_at)
+         VALUES ($1, $2, $3, now() + interval '10 minutes')`,
+        [sara, bytea(token()), bytea(token())],
       );
-      expect(rows).toHaveLength(1);
     });
 
     it("can replace their own earlier challenges", async () => {

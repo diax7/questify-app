@@ -103,6 +103,13 @@
   suppress the address. A provider outage leaves SMS login working.
 - **Data and PII:** email address and the code text.
 
+- **Staff sign-in codes, stop-gap (2026-10-19, user's choice):** Gmail SMTP (a **dedicated** Google account with an
+  app password, never a personal mailbox) as the primary and Resend as the backup. Both are foreign providers
+  that see staff email addresses and codes, so this is a **time-limited exception** to the in-region preference
+  above: it goes in the data map (NFR-020) and the counsel batch (T-807), and the final choice is Q-083. Resend
+  sends only from an address on a verified domain (SPF and DKIM), so it stays off until a domain exists.
+  Timeouts: 5 s per sender, 8 s for the whole attempt; the same code goes to both senders.
+
 ## Push (APNs and FCM)
 
 - **Purpose:** announcements, rank alerts, reminders (ADR-065).

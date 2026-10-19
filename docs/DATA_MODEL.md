@@ -62,10 +62,19 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | Field | Type | Constraints | PII | Notes |
 |---|---|---|---|---|
 | id | uuid | PK | no | |
-| email | citext | unique | **yes** | |
+| email | text | unique, lowercase (the API normalizes with NFKC, trim, lowercase) | **yes** | Looked up through the `app.auth_email` setting at sign-in |
 | password_hash | text | argon2id | **secret** | Never logged or exported |
 | platform_role | enum | none, admin | no | One admin role (ADR-079) |
 | status, last_sign_in_at | | | no | |
+
+### Staff sign-in tables (T-006, migration 0002)
+| Table | Fields | Notes |
+|---|---|---|
+| staff_login_challenge | id, staff_user_id, token_hash (bytea, unique), code_hash (bytea), expires_at, attempts 0–5, resends 0–3, last_sent_at, consumed_at | Found only by the browser's secret token. `code_hash` is an HMAC bound to the challenge id. A new challenge deletes the user's earlier ones; rows older than a day are swept |
+| staff_session | id, staff_user_id, token_hash (bytea, unique), created_at, last_seen_at, revoked_at, user_agent, ip | **IP and user agent are personal data**; they live only here and are swept 30 days after the session ends. The API may update only `last_seen_at` and `revoked_at`; a trigger refuses un-revoking |
+| auth_throttle | bucket, key (HMAC), at | Sliding-window counts for failed attempts per email and per address (IPv6 as /64) and for challenges per user. Keys are keyed hashes, never readable. Rows older than a day are swept |
+
+The API role cannot create staff accounts or change `platform_role` / `status` (column grants): accounts come from the owner connection (the `staff` CLI) until T-101 and T-701.
 
 ### organizer and organizer_member
 `organizer(id, name, slug, status, branding jsonb{logo, banner, accent}, dpa_accepted_at,

@@ -27,6 +27,7 @@ WORKDIR /srv
 COPY --from=build /deploy/node_modules ./node_modules
 COPY --from=build /repo/apps/api/dist/server.cjs ./server.cjs
 COPY --from=build /repo/apps/api/dist/migrate-cli.cjs ./migrate.cjs
+COPY --from=build /repo/apps/api/dist/staff-cli.cjs ./staff.cjs
 COPY --from=build /repo/apps/api/dist/migrations ./migrations
 COPY --from=build /repo/apps/api/dist/db ./db
 USER node

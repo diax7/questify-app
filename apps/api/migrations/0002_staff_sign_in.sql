@@ -78,11 +78,12 @@ CREATE POLICY session_insert_own ON staff_session FOR INSERT TO questify_app
 CREATE POLICY session_update ON staff_session FOR UPDATE TO questify_app
   USING (staff_user_id = app_staff_user_id() OR token_hash = app_session_token_hash())
   WITH CHECK (staff_user_id = app_staff_user_id() OR token_hash = app_session_token_hash());
--- Own rows, and any row 30 days past its end or last use (the global sweep removes IP and user agent).
--- As above, the API issues a bare `DELETE FROM staff_session` and lets this policy choose the rows.
+-- Only rows 30 days past their end or last use (the global sweep removes IP and user agent). Sign-out and
+-- "end this session" are updates (revoked_at), never deletes, so no "own rows" branch exists here: a bare
+-- `DELETE FROM staff_session` run in any context can never remove a live session. The API issues it bare and
+-- lets this policy choose the rows, because a DELETE with a WHERE must also pass the SELECT policy.
 CREATE POLICY session_delete ON staff_session FOR DELETE TO questify_app
-  USING (staff_user_id = app_staff_user_id()
-         OR COALESCE(revoked_at, last_seen_at) < now() - interval '30 days');
+  USING (COALESCE(revoked_at, last_seen_at) < now() - interval '30 days');
 
 GRANT SELECT, INSERT, DELETE ON staff_session TO questify_app;
 GRANT UPDATE (last_seen_at, revoked_at) ON staff_session TO questify_app;

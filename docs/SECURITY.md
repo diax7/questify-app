@@ -46,9 +46,32 @@ public event page and join code; and the big-screen/station links.
 - Staff (editors, owners, admins): email + password + email code, sessions expire after inactivity,
   sessions listed and revocable (ADR-078, F-293). The user considers this "very safe" (2026-10-17). It
   means a mailbox takeover can open an admin account, which ADR-078 and ADR-094 accepted.
-- Passwords: argon2id; breached-password check on set; never logged.
+- Passwords: argon2id (19 MiB, 2 passes, 1 lane); 12 to 128 characters counted as code points after NFKC;
+  breached-password check on set arrives with T-020 (nothing sets a password from the web before then); never logged.
 - Rotating My QR: a signed token with the player id and a 30-second window, verified server-side;
   the wallet-pass fixed code is accepted too (ADR-091) and is therefore a shareable secret by design.
+
+### Staff sign-in controls (T-006) and where they are proven
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V6 authentication | argon2id; same answer and same time for unknown, wrong and disabled; one sliding-window throttle per email and per address (8 and 30 failures in 15 minutes) counted across challenges; 5 code attempts per challenge, kept across resends; 5 challenges an hour; second factor is the emailed code (ADR-078) | `test/auth/sign-in.int.test.ts` |
+| V7 session management | 256-bit random token stored as SHA-256; `__Host-` cookie, `HttpOnly`, `Secure`, `SameSite=Strict`; idle 30 minutes / maximum 12 hours (admins 15 minutes / 8 hours), checked against the user's current role on every request; revoke, list, cap of 10 live sessions; disabled users and revoked sessions stop at the next request | `test/auth/sessions.int.test.ts` |
+| V11 cryptography | `crypto.randomInt` for codes, `randomBytes` for tokens, HMAC with per-purpose keys derived from `AUTH_SECRET`, constant-time comparison | `src/auth/keys.test.ts` |
+| V16 logging | events carry user id and event name only; no email, address, password, code or token; `Set-Cookie` and `Cookie` are redacted | "what the logs hold" test |
+| V3 / V4 | default-deny staff scope with an explicit public list; `Origin` check on state-changing requests; `no-store` on every staff answer | route-walk tests |
+
+**Thinner wall on the sign-in paths.** Before a person is identified, sign-in code opens exactly one row through
+a narrow setting (`app.auth_email`, `app.session_token_hash`, `app.challenge_token_hash`). Trusted code, not
+the caller's identity, opens that row, so row-level security protects less here than on identified requests.
+Tests assert that one lookup exposes one row and nothing else, and the request can never supply these values.
+
+**Admin power to record.** Any context with `isAdmin` can overwrite any `password_hash` through the column
+grant (the baseline `staff_user_own` policy allows admins). That is an admin power under ADR-094; T-701
+must not widen it without a decision.
+
+**Deviation recorded.** The alerts for these signals (email senders down, throttle spikes, one address key
+carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 
 ## Top abuse cases
 

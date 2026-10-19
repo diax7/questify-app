@@ -32,10 +32,7 @@ const bodyHash = (request: FastifyRequest): string =>
     )
     .digest("hex");
 
-const principal = (request: FastifyRequest): string => {
-  const candidate = (request as FastifyRequest & { principalId?: string }).principalId;
-  return candidate ?? "anonymous";
-};
+const principal = (request: FastifyRequest): string => request.principalId ?? "anonymous";
 
 /**
  * Applies the rules in docs/API.md (Conventions) to every route: one error envelope,
