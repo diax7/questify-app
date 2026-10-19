@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import { recordAudit } from "#src/audit/record";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { withPreIdentityContext } from "#src/db/pre-identity";
@@ -57,6 +58,8 @@ export type Caller = Readonly<{
   userAgent: string | null;
   /** Writes an event to the request's own log, so it carries the request id. */
   log: AuthLog;
+  /** The request id, so an audit entry can be traced to its request. */
+  requestId?: string | undefined;
 }>;
 
 export type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
@@ -444,13 +447,20 @@ async function codeStep(
       if (!(await consumeChallenge(client, challenge.id))) {
         return { kind: "challenge_expired" } as const;
       }
-      await insertSession(client, {
+      const sessionId = await insertSession(client, {
         staffUserId: account.id,
         tokenHash: session.hash,
         userAgent: caller.userAgent,
         ip: caller.address,
       });
-      await capLiveSessions(client, account.id, L.maxLiveSessions);
+      const endedOlder = await capLiveSessions(client, account.id, L.maxLiveSessions);
+      await recordAudit(client, {
+        actor: { type: "staff", id: account.id },
+        action: "staff.session.open",
+        target: { type: "staff_session", id: sessionId },
+        after: { endedOlderSessions: endedOlder },
+        requestId: caller.requestId,
+      });
       return { kind: "signed_in", sessionToken: session.token, account } as const;
     }),
   );

@@ -20,6 +20,7 @@ const TABLES = [
   "platform_setting",
   "event_entitlement",
   "player_contact",
+  "audit_log",
   "translation",
   "schema_migration",
 ];

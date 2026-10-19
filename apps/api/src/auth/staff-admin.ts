@@ -1,4 +1,5 @@
 import type { Client } from "pg";
+import { recordAudit } from "#src/audit/record";
 import type { AuthKeys } from "#src/auth/keys";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { checkPasswordPolicy, hashPassword } from "#src/auth/password";
@@ -31,16 +32,42 @@ export async function createStaffAccount(
   if (!policy.ok) {
     throw new Error(REASONS[policy.reason]);
   }
+  const passwordHash = await hashPassword(input.password);
   try {
-    const { rows } = await owner.query<{ id: string }>(
-      "INSERT INTO staff_user (email, password_hash, platform_role) VALUES ($1, $2, $3) RETURNING id",
-      [email, await hashPassword(input.password), input.admin ? "admin" : "none"],
-    );
-    return rows[0]?.id ?? "";
+    return await inTransaction(owner, async () => {
+      const { rows } = await owner.query<{ id: string }>(
+        "INSERT INTO staff_user (email, password_hash, platform_role) VALUES ($1, $2, $3) RETURNING id",
+        [email, passwordHash, input.admin ? "admin" : "none"],
+      );
+      const id = rows[0]?.id;
+      if (id === undefined) {
+        throw new Error("Creating the staff account returned no id; nothing was saved.");
+      }
+      await recordAudit(owner, {
+        actor: { type: "system" },
+        action: "staff.create",
+        target: { type: "staff_user", id },
+        after: { platformRole: input.admin ? "admin" : "none" },
+      });
+      return id;
+    });
   } catch (error) {
     if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
       throw new Error(`An account for ${email} already exists.`, { cause: error });
     }
+    throw error;
+  }
+}
+
+/** Runs `work` in one transaction on the owner connection, so a change and its audit entry stay together. */
+async function inTransaction<T>(owner: Client, work: () => Promise<T>): Promise<T> {
+  await owner.query("BEGIN");
+  try {
+    const result = await work();
+    await owner.query("COMMIT");
+    return result;
+  } catch (error) {
+    await owner.query("ROLLBACK");
     throw error;
   }
 }
@@ -56,14 +83,22 @@ export async function clearThrottleFor(
   rawEmail: string,
 ): Promise<boolean> {
   const email = normalizeEmail(rawEmail);
-  await clearKey(owner, BUCKETS.failEmail, keys.emailKey(email));
-  const { rows } = await owner.query<{ id: string }>("SELECT id FROM staff_user WHERE email = $1", [
-    email,
-  ]);
-  const id = rows[0]?.id;
-  if (id === undefined) {
-    return false;
-  }
-  await clearKey(owner, BUCKETS.challengeUser, keys.userKey(id));
-  return true;
+  return inTransaction(owner, async () => {
+    await clearKey(owner, BUCKETS.failEmail, keys.emailKey(email));
+    const { rows } = await owner.query<{ id: string }>(
+      "SELECT id FROM staff_user WHERE email = $1",
+      [email],
+    );
+    const id = rows[0]?.id;
+    if (id !== undefined) {
+      await clearKey(owner, BUCKETS.challengeUser, keys.userKey(id));
+    }
+    await recordAudit(owner, {
+      actor: { type: "system" },
+      action: "staff.throttle.clear",
+      target: { type: "staff_user", id },
+      after: { found: id !== undefined },
+    });
+    return id !== undefined;
+  });
 }

@@ -16,9 +16,13 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
 import { createTtlCache } from "#src/settings/cache";
+import { diff } from "#src/audit/entry";
+import { recordAudit, type AuditMeta } from "#src/audit/record";
 import {
   deleteEntitlement,
   insertEntitlement,
+  lockEventSwitches,
+  lockPlatformBlocks,
   readEntitlements,
   readStoredEventConfig,
   readStoredPlatform,
@@ -40,13 +44,32 @@ export type SettingsService = Readonly<{
   /** The configuration an app receives; `undefined` means no event (the platform level only). */
   forEvent: (eventId: string | undefined) => Promise<ConfigResult>;
   /** A Questify admin replaces the feature switches and/or tuning numbers. */
-  savePlatformSettings: (admin: PublicAccount, input: unknown) => Promise<SaveResult>;
-  /** An organizer replaces the feature switches of one of their own events. */
-  saveEventSwitches: (organizerId: string, eventId: string, input: unknown) => Promise<SaveResult>;
+  savePlatformSettings: (
+    admin: PublicAccount,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
+  /** A member of the organizer replaces the feature switches of one of the organizer's events. */
+  saveEventSwitches: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
   /** A Questify admin unlocks an add-on for an event. */
-  unlockFeature: (admin: PublicAccount, eventId: string, feature: string) => Promise<SaveResult>;
+  unlockFeature: (
+    admin: PublicAccount,
+    eventId: string,
+    feature: string,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
   /** A Questify admin takes an unlocked add-on away from an event. */
-  lockFeature: (admin: PublicAccount, eventId: string, feature: string) => Promise<SaveResult>;
+  lockFeature: (
+    admin: PublicAccount,
+    eventId: string,
+    feature: string,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
 }>;
 
 export type SettingsOptions = Readonly<{
@@ -132,36 +155,73 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       return fresh;
     },
 
-    savePlatformSettings: (admin, input) =>
+    savePlatformSettings: (admin, input, meta = {}) =>
       asAdmin(admin, async (client) => {
         const checked = validatePlatformSettings(registries, input);
         if (!checked.ok) {
           return { ok: false, reason: "invalid", issues: checked.issues };
         }
-        for (const key of ["features", "tuning"] as const) {
-          const block = checked.value[key];
-          if (block !== undefined) {
-            await upsertPlatformBlock(client, key, block, admin.id);
-          }
+        const keys = (["features", "tuning"] as const).filter(
+          (key) => checked.value[key] !== undefined,
+        );
+        const stored = await lockPlatformBlocks(client, keys);
+        const changes = diff(
+          Object.fromEntries(keys.map((key) => [key, stored[key] ?? null])),
+          Object.fromEntries(keys.map((key) => [key, checked.value[key]])),
+        );
+        const changed = keys.filter((key) => key in changes.after);
+        for (const key of changed) {
+          await upsertPlatformBlock(client, key, checked.value[key], admin.id);
+        }
+        if (changed.length > 0) {
+          await recordAudit(client, {
+            actor: { type: "admin", id: admin.id },
+            action: "platform_settings.update",
+            target: { type: "platform_setting", id: changed.join(",") },
+            ...changes,
+            requestId: meta.requestId,
+          });
         }
         return { ok: true };
       }),
 
-    saveEventSwitches: async (organizerId, eventId, input) => {
+    saveEventSwitches: async (actor, eventId, input, meta = {}) => {
       const checked = validateEventConfig(registries, input);
       if (!checked.ok) {
         return { ok: false, reason: "invalid", issues: checked.issues };
       }
-      const written = await withConnection(options.pool, (client) =>
-        withRequestContext(client, { organizerId }, () =>
-          writeEventSwitches(client, eventId, checked.value.features ?? {}),
+      const next = checked.value.features ?? {};
+      const found = await withConnection(options.pool, (client) =>
+        withRequestContext(
+          client,
+          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
+          async () => {
+            const current = await lockEventSwitches(client, eventId);
+            if (current === undefined) {
+              return false;
+            }
+            const changes = diff({ features: current.features ?? {} }, { features: next });
+            if ("features" in changes.after) {
+              await writeEventSwitches(client, eventId, next);
+              await recordAudit(client, {
+                actor: { type: "staff", id: actor.staffUserId },
+                action: "event.features.update",
+                organizerId: current.organizerId,
+                eventId,
+                target: { type: "event", id: eventId },
+                ...changes,
+                requestId: meta.requestId,
+              });
+            }
+            return true;
+          },
         ),
       );
       forgetAll();
-      return written ? { ok: true } : { ok: false, reason: "not_found" };
+      return found ? { ok: true } : { ok: false, reason: "not_found" };
     },
 
-    unlockFeature: (admin, eventId, feature) =>
+    unlockFeature: (admin, eventId, feature, meta = {}) =>
       asAdmin(admin, async (client) => {
         if (!isGatedFeature(registries, feature)) {
           return {
@@ -170,15 +230,40 @@ export function createSettingsService(options: SettingsOptions): SettingsService
             issues: [{ path: "feature", message: "is not a gated feature of the app" }],
           };
         }
-        const done = await insertEntitlement(client, eventId, feature, admin.id);
-        return done ? { ok: true } : { ok: false, reason: "not_found" };
+        const change = await insertEntitlement(client, eventId, feature, admin.id);
+        if (change.kind === "no_event") {
+          return { ok: false, reason: "not_found" };
+        }
+        if (change.kind === "added") {
+          await recordAudit(client, {
+            actor: { type: "admin", id: admin.id },
+            action: "event.addon.unlock",
+            organizerId: change.organizerId,
+            eventId,
+            target: { type: "event", id: eventId },
+            after: { feature },
+            requestId: meta.requestId,
+          });
+        }
+        return { ok: true };
       }),
 
-    lockFeature: (admin, eventId, feature) =>
-      asAdmin(admin, async (client) =>
-        (await deleteEntitlement(client, eventId, feature))
-          ? { ok: true }
-          : { ok: false, reason: "not_found" },
-      ),
+    lockFeature: (admin, eventId, feature, meta = {}) =>
+      asAdmin(admin, async (client) => {
+        const organizerId = await deleteEntitlement(client, eventId, feature);
+        if (organizerId === undefined) {
+          return { ok: false, reason: "not_found" };
+        }
+        await recordAudit(client, {
+          actor: { type: "admin", id: admin.id },
+          action: "event.addon.lock",
+          organizerId,
+          eventId,
+          target: { type: "event", id: eventId },
+          before: { feature },
+          requestId: meta.requestId,
+        });
+        return { ok: true };
+      }),
   };
 }

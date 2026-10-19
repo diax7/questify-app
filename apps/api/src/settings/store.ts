@@ -28,6 +28,18 @@ export async function readEntitlements(db: Db, eventId: string): Promise<string[
   return rows.map((row) => row.feature);
 }
 
+/** The stored blocks, locked until the transaction ends, so the audit's "before" is what this save replaces. */
+export async function lockPlatformBlocks(
+  db: Db,
+  keys: readonly ("features" | "tuning")[],
+): Promise<Partial<Record<"features" | "tuning", unknown>>> {
+  const { rows } = await db.query<{ key: "features" | "tuning"; value: unknown }>(
+    "SELECT key, value FROM platform_setting WHERE key = ANY($1) FOR UPDATE",
+    [keys],
+  );
+  return Object.fromEntries(rows.map((row) => [row.key, row.value]));
+}
+
 export async function upsertPlatformBlock(
   db: Db,
   key: "features" | "tuning",
@@ -41,50 +53,71 @@ export async function upsertPlatformBlock(
   );
 }
 
+/** An event's current feature switches, locked until the transaction ends. Undefined when the caller cannot see it. */
+export async function lockEventSwitches(
+  db: Db,
+  eventId: string,
+): Promise<{ organizerId: string; features: unknown } | undefined> {
+  const { rows } = await db.query<{ organizer_id: string; features: unknown }>(
+    "SELECT organizer_id, config -> 'features' AS features FROM event WHERE id = $1 FOR UPDATE",
+    [eventId],
+  );
+  const row = rows[0];
+  return row === undefined ? undefined : { organizerId: row.organizer_id, features: row.features };
+}
+
 /** Replaces the feature switches inside an event's config and keeps whatever else it holds. */
 export async function writeEventSwitches(
   db: Db,
   eventId: string,
   switches: Readonly<Record<string, boolean>>,
-): Promise<boolean> {
-  const { rowCount } = await db.query(
+): Promise<void> {
+  await db.query(
     `UPDATE event
      SET config = jsonb_set(config, '{features}', $2::jsonb, true), config_version = config_version + 1
      WHERE id = $1`,
     [eventId, JSON.stringify(switches)],
   );
-  return rowCount === 1;
 }
 
-/** Records that Questify unlocked an add-on for an event (a repeat changes nothing). False when the event does not exist. */
+export type EntitlementChange =
+  | Readonly<{ kind: "no_event" }>
+  | Readonly<{ kind: "added" | "already"; organizerId: string }>;
+
+/** Records that Questify unlocked an add-on for an event, and says whether it was new. */
 export async function insertEntitlement(
   db: Db,
   eventId: string,
   feature: string,
   adminId: string,
-): Promise<boolean> {
-  const { rows } = await db.query<{ found: number }>(
+): Promise<EntitlementChange> {
+  const { rows } = await db.query<{ organizer_id: string | null; added: number }>(
     `WITH target AS (SELECT id, organizer_id FROM event WHERE id = $1),
           added AS (
             INSERT INTO event_entitlement (event_id, organizer_id, feature, granted_by)
             SELECT id, organizer_id, $2, $3 FROM target
             ON CONFLICT (event_id, feature) DO NOTHING
+            RETURNING 1
           )
-     SELECT count(*)::int AS found FROM target`,
+     SELECT (SELECT organizer_id FROM target) AS organizer_id, (SELECT count(*)::int FROM added) AS added`,
     [eventId, feature, adminId],
   );
-  return rows[0]?.found === 1;
+  const row = rows[0];
+  if (row?.organizer_id === null || row === undefined) {
+    return { kind: "no_event" };
+  }
+  return { kind: row.added === 1 ? "added" : "already", organizerId: row.organizer_id };
 }
 
-/** Removes an unlock. False when there was nothing to remove. */
+/** Removes an unlock and returns the event's organizer, or undefined when there was nothing to remove. */
 export async function deleteEntitlement(
   db: Db,
   eventId: string,
   feature: string,
-): Promise<boolean> {
-  const { rowCount } = await db.query(
-    "DELETE FROM event_entitlement WHERE event_id = $1 AND feature = $2",
+): Promise<string | undefined> {
+  const { rows } = await db.query<{ organizer_id: string }>(
+    "DELETE FROM event_entitlement WHERE event_id = $1 AND feature = $2 RETURNING organizer_id",
     [eventId, feature],
   );
-  return rowCount === 1;
+  return rows[0]?.organizer_id;
 }

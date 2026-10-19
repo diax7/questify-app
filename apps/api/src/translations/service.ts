@@ -9,6 +9,8 @@ import {
   type Messages,
   type Overrides,
 } from "@questify/shared";
+import { diff } from "#src/audit/entry";
+import { recordAudit, type AuditMeta } from "#src/audit/record";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -26,7 +28,12 @@ export type TranslationService = Readonly<{
   /** Every value an admin has set that the app can use. Everything else comes from the shipped texts. */
   bundle: () => Promise<Bundle>;
   /** A Questify admin changes one or both languages of a key. A blank value removes that language's change. */
-  save: (admin: PublicAccount, key: string, input: unknown) => Promise<SaveTranslationResult>;
+  save: (
+    admin: PublicAccount,
+    key: string,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<SaveTranslationResult>;
 }>;
 
 export type TranslationOptions = Readonly<{
@@ -56,11 +63,16 @@ function toOverrides(messages: Messages, rows: readonly Row[]): Overrides {
   return result;
 }
 
+/**
+ * Applies the changed languages of one key, and records the change in the audit log in the same transaction.
+ * A save that changes nothing writes nothing.
+ */
 async function writeRow(
   client: PoolClient,
   key: string,
   changes: Partial<Record<Language, string>>,
-  adminId: string,
+  admin: PublicAccount,
+  meta: AuditMeta,
 ): Promise<void> {
   const { rows } = await client.query<Row>(
     "SELECT key, ar, en FROM translation WHERE key = $1 FOR UPDATE",
@@ -76,16 +88,27 @@ async function writeRow(
   };
   const ar = next("ar");
   const en = next("en");
-  if (ar === null && en === null) {
-    await client.query("DELETE FROM translation WHERE key = $1", [key]);
+  const changed = diff({ ar: current?.ar ?? null, en: current?.en ?? null }, { ar, en });
+  if (Object.keys(changed.after).length === 0) {
     return;
   }
-  await client.query(
-    `INSERT INTO translation (key, ar, en, updated_by) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (key) DO UPDATE SET ar = EXCLUDED.ar, en = EXCLUDED.en,
-       updated_at = now(), updated_by = EXCLUDED.updated_by`,
-    [key, ar, en, adminId],
-  );
+  if (ar === null && en === null) {
+    await client.query("DELETE FROM translation WHERE key = $1", [key]);
+  } else {
+    await client.query(
+      `INSERT INTO translation (key, ar, en, updated_by) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (key) DO UPDATE SET ar = EXCLUDED.ar, en = EXCLUDED.en,
+         updated_at = now(), updated_by = EXCLUDED.updated_by`,
+      [key, ar, en, admin.id],
+    );
+  }
+  await recordAudit(client, {
+    actor: { type: "admin", id: admin.id },
+    action: "translation.update",
+    target: { type: "translation", id: key },
+    ...changed,
+    requestId: meta.requestId,
+  });
 }
 
 /** Reads and saves the texts an admin changed (F-277, FR-1766 to FR-1768). */
@@ -117,7 +140,7 @@ export function createTranslationService(options: TranslationOptions): Translati
       return fresh;
     },
 
-    save: async (admin, key, body) => {
+    save: async (admin, key, body, meta = {}) => {
       if (admin.platformRole !== "admin" || admin.status !== "active") {
         return { ok: false, reason: "forbidden" };
       }
@@ -148,7 +171,7 @@ export function createTranslationService(options: TranslationOptions): Translati
       }
       await withConnection(options.pool, (client) =>
         withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () =>
-          writeRow(client, key, changes, admin.id),
+          writeRow(client, key, changes, admin, meta),
         ),
       );
       cache.clear();

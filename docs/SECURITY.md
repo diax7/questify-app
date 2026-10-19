@@ -70,6 +70,16 @@ Tests assert that one lookup exposes one row and nothing else, and the request c
 grant (the baseline `staff_user_own` policy allows admins). That is an admin power under ADR-094; T-701
 must not widen it without a decision.
 
+### Audit log (T-004)
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V16 logging (security events, log protection) | every state-changing call writes one entry in the same transaction as the change: actor, action, target, organizer and event, before and after, request id, time set by the database. Append-only for every role, owner included; the API cannot backdate or renumber. Entries never hold a secret, an email, a phone number, an address or a user agent (refused in code at any depth). Sign-in success and session end are entries; failed sign-ins stay in the server log | `test/audit/audit.int.test.ts`, `src/audit/entry.test.ts` |
+| V8 authorization | an entry can only be written in the caller's own name and organizer; `system` entries only from the owner connection (CLI, jobs); an organizer reads only its own | same suite, plus `test/db/isolation.int.test.ts` |
+
+Changing the table itself (a migration) is guarded by review only. The only sanctioned future change to past
+entries is the anonymisation path for a deleted player (Q-084).
+
 **Deviation recorded.** The alerts for these signals (email senders down, throttle spikes, one address key
 carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 

@@ -22,6 +22,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
   let admin: PublicAccount;
   let regular: PublicAccount;
+  let staffA = "";
+  const memberA = () => ({ staffUserId: staffA, organizerId: ids.orgA });
   const clock = { now: 1_000_000 };
 
   beforeAll(async () => {
@@ -31,6 +33,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     const regularId = await createStaff(db.owner, { email: "editor@najd.test" });
     admin = { id: adminId, email: "root@questify.test", status: "active", platformRole: "admin" };
     regular = { id: regularId, email: "editor@najd.test", status: "active", platformRole: "none" };
+    staffA = await createStaff(db.owner, { email: "member@najd.test" });
+    await db.owner.query(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+      [ids.orgA, staffA],
+    );
     pool = new Pool({ connectionString: db.appUrl, max: 4 });
     settings = createSettingsService({ pool, ttlMs: 15_000, now: () => clock.now });
     test = await startApp(db, false, {}, settings);
@@ -201,22 +208,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
   describe("an event", () => {
     it("can switch a feature off for itself only", async () => {
       expect(
-        await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: { cheers: false } }),
+        await settings.saveEventSwitches(memberA(), ids.eventA, { features: { cheers: false } }),
       ).toEqual({
         ok: true,
       });
       expect((await configOf(`?event=${ids.eventA}`)).features["cheers"]?.enabled).toBe(false);
       expect((await configOf()).features["cheers"]?.enabled).toBe(true);
-      await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: {} });
+      await settings.saveEventSwitches(memberA(), ids.eventA, { features: {} });
       expect((await configOf(`?event=${ids.eventA}`)).features["cheers"]?.enabled).toBe(true);
     });
 
     it("never switches on what the platform switched off", async () => {
       await settings.savePlatformSettings(admin, { features: { polls: { enabled: false } } });
-      await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: { polls: true } });
+      await settings.saveEventSwitches(memberA(), ids.eventA, { features: { polls: true } });
       expect((await configOf(`?event=${ids.eventA}`)).features["polls"]?.enabled).toBe(false);
       await settings.savePlatformSettings(admin, { features: {} });
-      await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: {} });
+      await settings.saveEventSwitches(memberA(), ids.eventA, { features: {} });
     });
 
     it("keeps the rest of the event's config when switches are saved and bumps its version", async () => {
@@ -227,7 +234,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         "SELECT config_version FROM event WHERE id = $1",
         [ids.eventA],
       );
-      await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: { shop: false } });
+      await settings.saveEventSwitches(memberA(), ids.eventA, { features: { shop: false } });
       const rows = await owner<{ config: unknown; config_version: number }>(
         "SELECT config, config_version FROM event WHERE id = $1",
         [ids.eventA],
@@ -235,22 +242,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expect(rows[0]?.config).toEqual({ branding: { accent: "gold" }, features: { shop: false } });
       expect(rows[0]?.config_version).toBe((before[0]?.config_version ?? 0) + 1);
       await owner("UPDATE event SET config = '{}' WHERE id = $1", [ids.eventA]);
-      await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: {} });
+      await settings.saveEventSwitches(memberA(), ids.eventA, { features: {} });
     });
 
     it("refuses a switch for a feature the app does not have, and refuses an owner writing an unlock", async () => {
       expect(
-        await settings.saveEventSwitches(ids.orgA, ids.eventA, { features: { teleporter: false } }),
+        await settings.saveEventSwitches(memberA(), ids.eventA, {
+          features: { teleporter: false },
+        }),
       ).toMatchObject({ ok: false, reason: "invalid" });
       expect(
-        await settings.saveEventSwitches(ids.orgA, ids.eventA, { unlocked: ["bigScreen"] }),
+        await settings.saveEventSwitches(memberA(), ids.eventA, { unlocked: ["bigScreen"] }),
       ).toMatchObject({ ok: false, reason: "invalid" });
       expect((await configOf(`?event=${ids.eventA}`)).features["bigScreen"]?.enabled).toBe(false);
     });
 
     it("cannot be edited by another organizer", async () => {
       expect(
-        await settings.saveEventSwitches(ids.orgA, ids.eventB, { features: { shop: false } }),
+        await settings.saveEventSwitches(memberA(), ids.eventB, { features: { shop: false } }),
       ).toEqual({ ok: false, reason: "not_found" });
       const rows = await owner<{ config: unknown }>("SELECT config FROM event WHERE id = $1", [
         ids.eventB,

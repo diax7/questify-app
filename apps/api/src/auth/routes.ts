@@ -61,6 +61,7 @@ function callerOf(request: FastifyRequest): Caller {
     address: request.ip,
     userAgent: typeof agent === "string" ? agent.slice(0, 300) : null,
     log: (event, fields) => request.log.info({ event, ...fields }),
+    requestId: request.id,
   };
 }
 
@@ -192,7 +193,7 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
   scope.delete("/sessions/:id", staffOnly, async (request, reply) => {
     const { account, sessionId } = request.staff ?? failClosed();
     const { id } = parse(sessionParams, request.params);
-    if (!(await deps.sessions.revoke(account.id, id))) {
+    if (!(await deps.sessions.revoke(account.id, id, { requestId: request.id }))) {
       throw notFound();
     }
     if (id === sessionId) {
@@ -203,7 +204,7 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
 
   scope.post("/auth/sign-out", staffOnly, async (request, reply) => {
     const { account, sessionId } = request.staff ?? failClosed();
-    await deps.sessions.revoke(account.id, sessionId);
+    await deps.sessions.revoke(account.id, sessionId, { requestId: request.id });
     reply.header("set-cookie", clearedSessionCookie());
     return reply.code(204).send();
   });

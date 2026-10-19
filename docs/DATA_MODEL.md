@@ -153,8 +153,13 @@ PD-29.
 ### flag, ticket, audit_log
 `flag(id, event_id, enrollment_id, type, evidence jsonb, status open|cleared|confirmed, raised_by,
 cleared_by)`. `ticket(id, event_id, player_id, text, status, answers)`.
-`audit_log(id bigserial, actor_type, actor_id, action, target_type, target_id, before jsonb, after
-jsonb, ip, at)`: append-only, never edited.
+`audit_log(id bigint identity, at, actor_type admin|staff|system, actor_id, organizer_id, event_id, action,
+target_type, target_id, before jsonb, after jsonb, request_id)` (migration 0006, T-004): append-only for every
+role, the database owner included (triggers set to fire always). No foreign keys, so an entry outlives the event it
+describes. The API may insert only in its own name and cannot set `id` or `at`; an organizer reads its own entries
+(including a Questify admin's support work in its events), an admin reads all. No client address and no email: the
+request id links an entry to the server log. `before`/`after` hold only the top-level keys that changed and never a
+secret or contact detail (refused in code, which rolls back the change too).
 
 ## Other entities (one line each)
 

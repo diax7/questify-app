@@ -330,19 +330,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       expect((await stateOf(seeded[9]?.id ?? ""))?.revoked_at).toBeNull();
     });
 
-    it("ends every session of a user at once", async () => {
-      const user = await createStaff(db.owner, { email: newEmail() });
-      const sessions = [];
-      for (let index = 0; index < 3; index += 1) {
-        sessions.push(await seedSession(user));
-      }
-      const count = await createSessions(test.pool).revokeAll(user);
-      expect(count).toBe(3);
-      for (const session of sessions) {
-        expect((await me(session.cookie)).statusCode).toBe(401);
-      }
-    });
-
     it("shows only the caller's own memberships", async () => {
       const first = await createStaff(db.owner, { email: newEmail() });
       const second = await createStaff(db.owner, { email: newEmail() });

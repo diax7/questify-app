@@ -28,9 +28,10 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A health endpoint answers from staging; a restore of last night's backup into a scratch database succeeds; no resource is reachable from the public internet except the API.
 - [x] **T-003** Database baseline: organizers, events, players, staff, enrollments; every tenant table has an organizer key; row-level security on; public access revoked by default — delivers FR 1501, 1502; depends on: T-002
   - Done when: A suite using only the public credential can read and write nothing; an editor of organizer A gets 403/404 on every organizer B route.
-- [ ] **T-004** Append-only audit log and change log infrastructure (updates and deletes revoked in the database) — delivers FR 1029, 1030, 1410; depends on: T-003
+- [x] **T-004** Append-only audit log and change log infrastructure (updates and deletes revoked in the database) — delivers FR 1029, 1030, 1410; depends on: T-003
   - Done when: Any attempt to update or delete an audit row fails at the database; each state-changing call writes who, what, before, after and when.
-  - Note (T-006): staff sign-in events (`staff.password_ok`, `staff.password_failed`, `staff.throttled`, `staff.code_failed`, `staff.session_opened`, `staff.session_revoked`) are written to the structured log only until this task lands; then they move here.
+  - Note (T-006): staff sign-in events go to the structured log. With this task, a session opened (`staff.session.open`) and ended (`staff.session.end`) are also audit entries; failed passwords, failed codes and throttling stay in the server log only (they are not changes, and they would fill the permanent record from outside).
+  - Note: every later task that changes state calls `recordAudit` inside the change's transaction (`docs/plans/2026-10-19-t-004-audit-log.md`).
 - [x] **T-005** Shared API conventions: error envelope, idempotency-key middleware, cursor pagination, rate-limit headers, request ids, app-version check (426) — delivers FR 1033, 1735; depends on: T-001
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [x] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
@@ -70,6 +71,7 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
 - [ ] **T-101** Organizer sign-up, accepting organizer terms and the data processing agreement, one owner, invite editors by email, owner transfer, editor event limits — delivers FR 1401, 1726, 1011, 1012, 1013, 1014, 1723, 1724; depends on: T-006
   - Done when: Anyone can create an organizer account and a draft event with no approval; an editor cannot do owner-only things; the owner can invite and limit editors.
   - Note (ADR-111): enforce editor event-scope limits in the database too, and derive the organizer context from the caller's membership on the server. The first-owner rule for a new organizer is already in migration 0005.
+  - Note (T-004): `create_organizer` and `transfer_ownership` must write audit entries (`organizer.create`, `organizer.owner.transfer`) in the same transaction.
 - [ ] **T-102** Event builder: create, edit, delete an event with kind, time zone, event-day start, join methods; lifecycle states Draft to Archived — delivers FR 1001, 1002, 1003, 1728, 1714, 1715, 1017, 1608; depends on: T-101
   - Done when: A draft event can be created and edited; its state moves Scheduled to Live to Ended at the set times; every shown time is in the event's time zone.
 - [ ] **T-103** Categories and quests builder (dashboard): bilingual fields, default General category, order, repeatable quests, start/end times, show/hide while live — delivers FR 1004, 1005, 1006, 1007, 1008, 223, 228, 229, 233, 225, 226, 227, 1505; depends on: T-102

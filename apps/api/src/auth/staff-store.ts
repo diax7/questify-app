@@ -190,10 +190,10 @@ export async function replaceCode(db: Db, id: string, codeHash: Buffer): Promise
 export async function insertSession(
   db: Db,
   session: { staffUserId: string; tokenHash: string; userAgent: string | null; ip: string },
-): Promise<void> {
-  await db.query(
+): Promise<string> {
+  const { rows } = await db.query<{ id: string }>(
     `INSERT INTO staff_session (staff_user_id, token_hash, user_agent, ip)
-     VALUES ($1, decode($2, 'hex'), $3, $4)`,
+     VALUES ($1, decode($2, 'hex'), $3, $4) RETURNING id`,
     [
       session.staffUserId,
       session.tokenHash,
@@ -201,17 +201,25 @@ export async function insertSession(
       session.ip.slice(0, 64),
     ],
   );
+  const id = rows[0]?.id;
+  if (id === undefined) {
+    throw new Error(
+      "Opening a staff session returned no id; the insert was refused without an error.",
+    );
+  }
+  return id;
 }
 
-/** Ends the user's oldest live sessions beyond `keep`, newest first. */
-export async function capLiveSessions(db: Db, staffUserId: string, keep: number): Promise<void> {
-  await db.query(
+/** Ends the user's oldest live sessions beyond `keep`, newest first, and says how many it ended. */
+export async function capLiveSessions(db: Db, staffUserId: string, keep: number): Promise<number> {
+  const { rowCount } = await db.query(
     `UPDATE staff_session SET revoked_at = now()
      WHERE id IN (SELECT id FROM staff_session
                   WHERE staff_user_id = $1 AND revoked_at IS NULL
                   ORDER BY created_at DESC OFFSET $2)`,
     [staffUserId, keep],
   );
+  return rowCount ?? 0;
 }
 
 /** Under the session lookup context: the one session, with its age and idle time from the database clock. */
@@ -250,15 +258,6 @@ export async function revokeSessionById(db: Db, staffUserId: string, id: string)
     [id, staffUserId],
   );
   return rowCount === 1;
-}
-
-/** Ends every live session of one user. */
-export async function revokeAllSessions(db: Db, staffUserId: string): Promise<number> {
-  const { rowCount } = await db.query(
-    "UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = $1 AND revoked_at IS NULL",
-    [staffUserId],
-  );
-  return rowCount ?? 0;
 }
 
 export async function listLiveSessions(

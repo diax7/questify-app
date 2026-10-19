@@ -3,6 +3,7 @@
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "mutate": [
+    "apps/api/src/audit/**/*.ts",
     "apps/api/src/auth/**/*.ts",
     "apps/api/src/db/**/*.ts",
     "apps/api/src/conventions.ts",

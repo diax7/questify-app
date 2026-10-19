@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { recordAudit, type AuditMeta } from "#src/audit/record";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { withPreIdentityContext } from "#src/db/pre-identity";
@@ -9,7 +10,6 @@ import {
   listLiveSessions,
   listMemberships,
   readAccount,
-  revokeAllSessions,
   revokeSessionById,
   touchSession,
   type Membership,
@@ -33,10 +33,8 @@ export type Sessions = Readonly<{
     staffUserId: string,
     platformRole: PublicAccount["platformRole"],
   ) => Promise<SessionSummary[]>;
-  /** Ends one of the user's own sessions. False when there is no such live session. */
-  revoke: (staffUserId: string, sessionId: string) => Promise<boolean>;
-  /** Ends all of the user's sessions (password change or reset, forced sign-out). */
-  revokeAll: (staffUserId: string) => Promise<number>;
+  /** Ends one of the user's own sessions and records it. False when there is no such live session. */
+  revoke: (staffUserId: string, sessionId: string, meta?: AuditMeta) => Promise<boolean>;
   memberships: (staffUserId: string) => Promise<Membership[]>;
 }>;
 
@@ -96,10 +94,19 @@ export function createSessions(pool: Pool): Sessions {
       asUser(pool, staffUserId, (client) =>
         listLiveSessions(client, staffUserId, sessionLimitsFor(platformRole)),
       ),
-    revoke: (staffUserId, sessionId) =>
-      asUser(pool, staffUserId, (client) => revokeSessionById(client, staffUserId, sessionId)),
-    revokeAll: (staffUserId) =>
-      asUser(pool, staffUserId, (client) => revokeAllSessions(client, staffUserId)),
+    revoke: (staffUserId, sessionId, meta = {}) =>
+      asUser(pool, staffUserId, async (client) => {
+        const ended = await revokeSessionById(client, staffUserId, sessionId);
+        if (ended) {
+          await recordAudit(client, {
+            actor: { type: "staff", id: staffUserId },
+            action: "staff.session.end",
+            target: { type: "staff_session", id: sessionId },
+            requestId: meta.requestId,
+          });
+        }
+        return ended;
+      }),
     memberships: (staffUserId) =>
       asUser(pool, staffUserId, (client) => listMemberships(client, staffUserId)),
   };

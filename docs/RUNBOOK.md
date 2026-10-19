@@ -38,8 +38,13 @@ Check the Gmail app password and Google's sending limit, then Resend's key and d
 configured but wrong shows as `staff.email_failover` first.
 
 **Force a person out**: end their sessions from the database owner connection
-(`UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = '...' AND revoked_at IS NULL`); the admin
-screen for this arrives with T-701.
+(`UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = '...' AND revoked_at IS NULL`), then record it
+in the same transaction:
+`INSERT INTO audit_log (actor_type, action, target_type, target_id) VALUES ('system', 'staff.session.end_all', 'staff_user', '...')`.
+The admin screen for this arrives with T-701.
+
+**Audit log**: read it from the owner connection (`SELECT * FROM audit_log ORDER BY id DESC LIMIT 50`). No one can
+change or remove an entry, the owner included; do not try to work around the triggers.
 
 **Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows; nothing stored depends on
 it. Sessions stay valid. Do it when someone with access leaves or the secret may have leaked.
