@@ -17,7 +17,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
       redact: ["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]'],
     },
     trustProxy: true,
-    disableRequestLogging: false,
   });
 
   registerConventions(app, {
