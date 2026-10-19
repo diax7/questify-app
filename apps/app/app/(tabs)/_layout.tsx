@@ -23,7 +23,8 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.navigationActive,
         tabBarInactiveTintColor: colors.navigationInactive,
-        tabBarStyle: { backgroundColor: colors.navigationBar },
+        // The tabs keep one order in both languages, even when the app runs right to left (user, ADR-110 note).
+        tabBarStyle: { backgroundColor: colors.navigationBar, direction: "ltr" },
         tabBarLabelStyle: {
           fontFamily: fontFamily.bodySemiBold,
           fontSize: typography.label.fontSize,
