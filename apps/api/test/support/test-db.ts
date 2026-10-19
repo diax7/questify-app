@@ -1,0 +1,110 @@
+import { randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { Client } from "pg";
+import { migrate } from "#src/db/migrate";
+
+/** Admin connection string of a throw-away PostgreSQL server. Integration tests are skipped when it is not set. */
+export const TEST_DATABASE_URL = process.env["TEST_DATABASE_URL"];
+
+const API_ROOT = join(import.meta.dirname, "..", "..");
+const ROLE_PASSWORD = "test-only-password";
+
+export type TestDatabase = Readonly<{
+  /** The migration owner (a superuser here). */
+  owner: Client;
+  /** The running API's role: subject to row-level security. */
+  app: Client;
+  /** A role with no rights at all. */
+  outsider: Client;
+  close: () => Promise<void>;
+}>;
+
+function urlFor(base: string, database: string, user?: string): string {
+  const url = new URL(base);
+  url.pathname = `/${database}`;
+  if (user !== undefined) {
+    url.username = user;
+    url.password = ROLE_PASSWORD;
+  }
+  return url.toString();
+}
+
+async function connect(url: string): Promise<Client> {
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  return client;
+}
+
+/** Creates a fresh database, runs the roles script and every migration, and connects the three roles. */
+export async function createTestDatabase(): Promise<TestDatabase> {
+  if (TEST_DATABASE_URL === undefined) {
+    throw new Error("TEST_DATABASE_URL is not set.");
+  }
+  const name = `questify_test_${randomBytes(6).toString("hex")}`;
+  const admin = await connect(TEST_DATABASE_URL);
+  await admin.query(`CREATE DATABASE ${name}`);
+  await admin.query(await readFile(join(API_ROOT, "db", "roles.sql"), "utf8"));
+  await admin.query(`ALTER ROLE questify_app PASSWORD '${ROLE_PASSWORD}'`);
+  await admin.query(`ALTER ROLE questify_outsider PASSWORD '${ROLE_PASSWORD}'`);
+
+  const owner = await connect(urlFor(TEST_DATABASE_URL, name));
+  await migrate(owner, join(API_ROOT, "migrations"));
+  const app = await connect(urlFor(TEST_DATABASE_URL, name, "questify_app"));
+  const outsider = await connect(urlFor(TEST_DATABASE_URL, name, "questify_outsider"));
+
+  return {
+    owner,
+    app,
+    outsider,
+    close: async () => {
+      await Promise.all([owner.end(), app.end(), outsider.end()]);
+      await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
+      await admin.end();
+    },
+  };
+}
+
+/** Inserts two organizers with an event each and returns their ids (as the owner, bypassing the rules on purpose). */
+export async function seedTwoTenants(owner: Client): Promise<{
+  orgA: string;
+  orgB: string;
+  eventA: string;
+  eventB: string;
+  playerA: string;
+  playerB: string;
+}> {
+  const one = async (sql: string, values: unknown[] = []): Promise<string> => {
+    const { rows } = await owner.query<{ id: string }>(sql, values);
+    return rows[0]?.id ?? "";
+  };
+  const orgA = await one(
+    "INSERT INTO organizer (name, slug) VALUES ('Najd Events', 'najd') RETURNING id",
+  );
+  const orgB = await one(
+    "INSERT INTO organizer (name, slug) VALUES ('Tabuk Fest', 'tabuk') RETURNING id",
+  );
+  const eventA = await one(
+    "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'NAJD1', 'Tech Fest', 'live') RETURNING id",
+    [orgA],
+  );
+  const eventB = await one(
+    "INSERT INTO event (organizer_id, join_code, name_en, status, access) VALUES ($1, 'TABUK1', 'Winter Fest', 'live', 'private') RETURNING id",
+    [orgB],
+  );
+  const playerA = await one(
+    "INSERT INTO player (username, email) VALUES ('sara_k', 'sara@example.com') RETURNING id",
+  );
+  const playerB = await one(
+    "INSERT INTO player (username, email) VALUES ('khalid_m', 'khalid@example.com') RETURNING id",
+  );
+  await owner.query(
+    "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+    [orgA, eventA, playerA],
+  );
+  await owner.query(
+    "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+    [orgB, eventB, playerB],
+  );
+  return { orgA, orgB, eventA, eventB, playerA, playerB };
+}
