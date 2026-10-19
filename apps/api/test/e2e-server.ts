@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { Pool } from "pg";
 import { buildApp } from "#src/app";
 import type { EmailMessage, EmailSender } from "#src/auth/email/sender";
@@ -27,6 +28,7 @@ class FileEmailSender implements EmailSender {
   private readonly codes: Record<string, string> = {};
 
   constructor(private readonly file: string) {
+    mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, "{}");
   }
 
