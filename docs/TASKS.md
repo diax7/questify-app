@@ -24,7 +24,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A written note lists each needed service as available in the region, with a price; the database choice in ADR-102 is confirmed or changed.
 - [ ] **T-015** Check the chosen Expo SDK against the stores' current rules: privacy manifests, Android target API, Xcode version (Q-046, NFR-010) — delivers no FR (infrastructure or quality gate); depends on: T-001
   - Done when: A note records the SDK version and confirms it meets both stores' current requirements, or lists what must change.
-- [ ] **T-002** Stand up the staging environment in the chosen Saudi region: managed PostgreSQL with backups, cache, object storage, secret store, container hosting (needs Q-031 decided) — delivers no FR (infrastructure or quality gate); depends on: T-001, T-014
+- [x] **T-002** Stand up the staging environment in the chosen Saudi region: managed PostgreSQL with backups, cache, object storage, secret store, container hosting (needs Q-031 decided) — delivers no FR (infrastructure or quality gate); depends on: T-001, T-014
   - Done when: A health endpoint answers from staging; a restore of last night's backup into a scratch database succeeds; no resource is reachable from the public internet except the API.
 - [x] **T-003** Database baseline: organizers, events, players, staff, enrollments; every tenant table has an organizer key; row-level security on; public access revoked by default — delivers FR 1501, 1502; depends on: T-002
   - Done when: A suite using only the public credential can read and write nothing; an editor of organizer A gets 403/404 on every organizer B route.
@@ -52,7 +52,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A fresh environment is created from the scripts alone; a second run changes nothing; no setting exists only in the dashboard.
 - [ ] **T-018** Observability and service levels: OpenTelemetry logs, metrics and traces without personal data; written targets with alerts; a runbook entry for every alert — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A forced error shows in the logs with a request id and no personal data; each alert links to a runbook; the targets in QUALITY_BASELINE are measured on a dashboard.
-- [ ] **T-019** Second backup copy: a nightly dump of the database and bucket copied to a second place in Saudi Arabia that we control, and a restore from it (ADR-107 condition) — delivers no FR (infrastructure or quality gate); depends on: T-002
+- [ ] **T-019** (deferred by the user, 2026-10-19: no backup while staging holds only fake data; **must be done before the first real player** and is part of the release gate) Second backup copy: a nightly dump of the database and bucket copied to a second place in Saudi Arabia that we control, and a restore from it (ADR-107 condition) — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore from the second copy into a scratch database works and the time it took is written down.
 
 ## Phase 1 — Core loop
