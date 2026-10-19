@@ -6,7 +6,6 @@ import {
   isRtl,
   languageFromDevice,
   languageOfLayout,
-  textAlignFor,
 } from "#src/i18n/language.ts";
 
 const locale = (languageCode: string | null) => ({ languageCode });
@@ -129,18 +128,6 @@ describe("decideBoot", () => {
         fellBack: false,
       });
     }
-  });
-});
-
-describe("textAlignFor", () => {
-  it("puts Arabic on the right and English on the left in a left-to-right app (Expo Go)", () => {
-    expect(textAlignFor("ar", false)).toBe("right");
-    expect(textAlignFor("en", false)).toBe("left");
-  });
-
-  it("uses left in a right-to-left app for Arabic, which React Native shows on the right", () => {
-    expect(textAlignFor("ar", true)).toBe("left");
-    expect(textAlignFor("en", true)).toBe("right");
   });
 });
 

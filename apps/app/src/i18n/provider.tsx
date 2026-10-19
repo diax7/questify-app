@@ -15,7 +15,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import { decideBoot, isRtl, languageOfLayout, textAlignFor } from "#src/i18n/language.ts";
+import { decideBoot, isRtl, languageOfLayout } from "#src/i18n/language.ts";
 import {
   applyDirectionForNextLaunch,
   deviceLocales,
@@ -34,8 +34,6 @@ type Translate = (key: MessageKey, params?: Readonly<Record<string, string | num
 type I18n = Readonly<{
   language: Language;
   rtl: boolean;
-  /** Where text starts for this language, given the layout the app started with. */
-  textAlign: "left" | "right";
   t: Translate;
   /** Saves the choice and restarts the app so the layout direction changes everywhere (Q-079). */
   switchLanguage: (next: Language) => Promise<void>;
@@ -107,7 +105,6 @@ export function I18nProvider({
     return {
       language,
       rtl: isRtl(language),
-      textAlign: textAlignFor(language, layoutIsRtl()),
       t: (key, params) => translate(key, language, params),
       switchLanguage,
     };
