@@ -9,13 +9,18 @@ export type AppOptions = Readonly<{
   logger?: FastifyServerOptions["logger"];
 }>;
 
+/** Log level by environment, with secrets and keys removed from every log line. */
+export function loggerOptions(config: AppConfig): { level: string; redact: string[] } {
+  return {
+    level: config.nodeEnv === "production" ? "info" : "debug",
+    redact: ["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]'],
+  };
+}
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({
-    logger: options.logger ?? {
-      level: options.config.nodeEnv === "production" ? "info" : "debug",
-      redact: ["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]'],
-    },
+    logger: options.logger ?? loggerOptions(options.config),
     trustProxy: true,
   });
 

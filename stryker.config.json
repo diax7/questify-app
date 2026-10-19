@@ -2,7 +2,14 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
-  "mutate": ["packages/*/src/**/*.ts", "apps/api/src/**/*.ts", "!**/*.test.ts", "!**/index.ts"],
+  "mutate": [
+    "packages/*/src/**/*.ts",
+    "apps/api/src/**/*.ts",
+    "!**/*.test.ts",
+    "!**/index.ts",
+    "!apps/api/src/server.ts",
+    "!apps/api/src/migrate-cli.ts"
+  ],
   "thresholds": {
     "high": 90,
     "low": 80,

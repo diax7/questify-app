@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
+import { buildApp, loggerOptions } from "./app";
 import { MemoryIdempotencyStore } from "./idempotency-store";
 
 let app: FastifyInstance;
@@ -54,5 +54,23 @@ describe("health", () => {
     await build();
     const response = await app.inject({ method: "GET", url: "/healthz" });
     expect(response.headers["cache-control"]).toBe("no-store");
+  });
+});
+
+describe("loggerOptions", () => {
+  const base = { host: "0.0.0.0", port: 3000, minAppVersion: "1.0.0", releaseSha: "x" } as const;
+
+  it("is quieter in production than in development", () => {
+    expect(loggerOptions({ ...base, nodeEnv: "production" }).level).toBe("info");
+    expect(loggerOptions({ ...base, nodeEnv: "development" }).level).toBe("debug");
+    expect(loggerOptions({ ...base, nodeEnv: "test" }).level).toBe("debug");
+  });
+
+  it("removes credentials and idempotency keys from every log line", () => {
+    expect(loggerOptions({ ...base, nodeEnv: "production" }).redact).toEqual([
+      "req.headers.authorization",
+      "req.headers.cookie",
+      'req.headers["idempotency-key"]',
+    ]);
   });
 });

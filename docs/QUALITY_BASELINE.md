@@ -39,6 +39,7 @@ Evidence for each ASVS/MASVS control is a test, a CI check or a short written no
 - **Non-functional:** a load test (for example k6) at 20,000 completions per minute per event before launch (NFR-003); a restore rehearsal (NFR-026); a failover drill.
 - **Mobile:** flow tests on real iPhone and Android devices, Arabic and English, RTL.
 - Coverage is a signal, not a goal; the core must have meaningful tests and passing mutation checks.
+- Mutation scope: all code under `packages/*/src` and `apps/api/src`, **except** the two thin process entry points (`server.ts`, `migrate-cli.ts`). Those are proven by the real deploy and by `migrate.cjs --verify` against the live database instead. The build fails below 80% overall; the target for core modules is 90%.
 
 ## 4. Infrastructure and operations
 
