@@ -33,7 +33,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Note (T-006): staff sign-in events (`staff.password_ok`, `staff.password_failed`, `staff.throttled`, `staff.code_failed`, `staff.session_opened`, `staff.session_revoked`) are written to the structured log only until this task lands; then they move here.
 - [x] **T-005** Shared API conventions: error envelope, idempotency-key middleware, cursor pagination, rate-limit headers, request ids, app-version check (426) — delivers FR 1033, 1735; depends on: T-001
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
-- [ ] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
+- [x] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
 - [ ] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
   - Done when: Changing a setting changes the composed config within a minute without any release; an unknown block is ignored by an older app.

@@ -25,6 +25,11 @@ describe("readCookie", () => {
     expect(readCookie(`${SESSION_COOKIE}=a=b=`, SESSION_COOKIE)).toBe("a=b=");
   });
 
+  it("does not read a part with no equals sign as if it ended in the name", () => {
+    expect(readCookie(`${SESSION_COOKIE}X`, SESSION_COOKIE)).toBeUndefined();
+    expect(readCookie(`${SESSION_COOKIE}X; a=1`, SESSION_COOKIE)).toBeUndefined();
+  });
+
   it("takes the first cookie of that name", () => {
     expect(readCookie(`${SESSION_COOKIE}=one; ${SESSION_COOKIE}=two`, SESSION_COOKIE)).toBe("one");
   });

@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
+import { createSignIn } from "#src/auth/sign-in";
+import { GateBusyError } from "#src/auth/verify-gate";
 import { BUCKETS } from "#src/auth/throttle";
 import {
   PASSWORD,
@@ -92,6 +94,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in edge cases", () 
     }
   };
 
+  describe("password handling details", () => {
+    it("leaves a hash with the current parameters alone", async () => {
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      const before = await owner<{ password_hash: string }>(
+        "SELECT password_hash FROM staff_user WHERE email = $1",
+        [email],
+      );
+      expect((await postPassword(test, email)).statusCode).toBe(200);
+      const after = await owner<{ password_hash: string }>(
+        "SELECT password_hash FROM staff_user WHERE email = $1",
+        [email],
+      );
+      expect(after[0]?.password_hash).toBe(before[0]?.password_hash);
+    });
+
+    it("accepts a password of exactly 128 characters", async () => {
+      const email = newEmail();
+      const long = "p".repeat(128);
+      await createStaff(db.owner, { email, password: long });
+      expect((await postPassword(test, email, long)).statusCode).toBe(200);
+    });
+
+    it("tells the person in the email how many minutes the code lasts", async () => {
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      await postPassword(test, email);
+      expect(test.mail.to(email)[0]?.text).toContain("valid for 10 minutes");
+    });
+  });
+
+  describe("when password checks are all busy", () => {
+    it("answers busy and gives back the reserved attempt", async () => {
+      const email = newEmail();
+      await createStaff(db.owner, { email });
+      const busy = createSignIn({
+        pool: test.pool,
+        keys,
+        email: test.mail,
+        gate: {
+          run: async () => {
+            throw new GateBusyError();
+          },
+        },
+        securityAlertEmail: undefined,
+      });
+      const result = await busy.passwordStep(
+        { email, password: PASSWORD },
+        { address: freshIp(), userAgent: null, log: () => undefined },
+      );
+      expect(result).toEqual({ kind: "busy" });
+      const rows = await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = $1 AND key = $2",
+        [BUCKETS.failEmail, keys.emailKey(email)],
+      );
+      expect(rows[0]?.n).toBe(0);
+      expect(test.mail.to(email)).toEqual([]);
+    });
+  });
+
   describe("what is logged for each outcome", () => {
     it("names every event with its fields and a keyed address tag", async () => {
       await withLogs(async (logged, events) => {
@@ -163,6 +225,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in edge cases", () 
           .map((entry) => entry["step"])
           .toSorted();
         expect(steps).toEqual(["challenge_cap", "code", "password"]);
+      });
+    });
+
+    it("does not log a throttle for a code that simply expired", async () => {
+      await withLogs(async (logged, events) => {
+        const response = await postCode(logged, "A".repeat(43), "123456");
+        expect(response.statusCode).toBe(410);
+        expect(events().filter((entry) => entry.event === "staff.throttled")).toEqual([]);
       });
     });
 

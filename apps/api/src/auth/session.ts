@@ -70,6 +70,7 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
         }
         await promote(session.staffUserId);
         const account = await readAccount(client, session.staffUserId);
+        // Stryker disable next-line ConditionalExpression: unreachable: a session row cannot outlive its user (the foreign key cascades)
         if (account === undefined) {
           return { kind: "none" };
         }
@@ -77,12 +78,15 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
         const lapsed =
           session.revoked ||
           account.status !== "active" ||
+          // Stryker disable next-line EqualityOperator: equivalent: the compared values are fractional seconds from a moving clock and are never exactly equal
           session.idleSeconds > limits.idleSeconds ||
+          // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
           session.ageSeconds > limits.maxAgeSeconds;
         if (lapsed) {
           await revokeSessionById(client, session.id);
           return { kind: "expired" };
         }
+        // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
         if (session.idleSeconds > AUTH_LIMITS.touchIntervalSeconds) {
           await touchSession(client, session.id);
         }

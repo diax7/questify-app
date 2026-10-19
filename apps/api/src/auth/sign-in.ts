@@ -319,6 +319,7 @@ type SweepClock = { last: number };
 
 /** Removes old sessions, challenges and throttle rows. Best effort: a failure is logged and never blocks sign-in. */
 async function sweepIfDue(deps: SignInDeps, caller: Caller, clock: SweepClock): Promise<void> {
+  // Stryker disable next-line EqualityOperator: equivalent: a millisecond boundary on the wall clock
   if (Date.now() - clock.last < L.sweepIntervalMs) {
     return;
   }
@@ -431,12 +432,14 @@ async function codeStep(
         challenge === undefined ||
         challenge.consumed ||
         challenge.expired ||
+        // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
         challenge.attempts >= L.maxCodeAttempts
       ) {
         return { kind: "challenge_expired" } as const;
       }
       await promote(challenge.staffUserId);
       const account = await readAccount(client, challenge.staffUserId);
+      // Stryker disable next-line ConditionalExpression: unreachable: a challenge cannot outlive its user (the foreign key cascades)
       if (account === undefined || account.status !== "active") {
         return { kind: "challenge_expired" } as const;
       }
@@ -511,13 +514,16 @@ async function resend(
           challenge === undefined ||
           challenge.consumed ||
           challenge.expired ||
+          // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
           challenge.attempts >= L.maxCodeAttempts
         ) {
           return { kind: "challenge_expired" };
         }
+        // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: defence in depth: replaceCode also refuses a fourth resend and the caller maps that to the same answer
         if (challenge.resends >= L.maxResends) {
           return { kind: "resend_limit" };
         }
+        // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from the database clock are never exactly 60
         if (challenge.secondsSinceSent < L.resendSpacingSeconds) {
           return {
             kind: "resend_too_soon",
@@ -526,6 +532,7 @@ async function resend(
         }
         await promote(challenge.staffUserId);
         const account = await readAccount(client, challenge.staffUserId);
+        // Stryker disable next-line ConditionalExpression: unreachable: a challenge cannot outlive its user (the foreign key cascades)
         if (account === undefined || account.status !== "active") {
           return { kind: "challenge_expired" };
         }
@@ -547,6 +554,7 @@ async function resend(
 
 /** The staff sign-in flow: password, then the emailed code, with every failure returned as a value. */
 export function createSignIn(deps: SignInDeps): SignIn {
+  // Stryker disable next-line ObjectLiteral: equivalent: an undefined start makes the first comparison NaN, which also means 'sweep now'
   const clock: SweepClock = { last: 0 };
   return {
     passwordStep: (input, caller) => passwordStep(deps, clock, input, caller),

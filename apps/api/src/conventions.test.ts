@@ -9,9 +9,28 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let app: FastifyInstance;
 let clock = 1_000_000;
 let calls = 0;
+let slow: {
+  entered: () => void;
+  started: Promise<void>;
+  finish: () => void;
+  finished: Promise<void>;
+};
+
+/** Lets a test hold the /slow route open until it says so, instead of guessing with timers. */
+function makeSlowGate(): typeof slow {
+  const gate = {} as typeof slow;
+  gate.started = new Promise<void>((resolve) => {
+    gate.entered = resolve;
+  });
+  gate.finished = new Promise<void>((resolve) => {
+    gate.finish = resolve;
+  });
+  return gate;
+}
 
 async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   calls = 0;
+  slow = makeSlowGate();
   const instance = Fastify({ genReqId: () => randomUUID() });
   const store = new MemoryIdempotencyStore(() => clock);
   registerConventions(instance, { minAppVersion, idempotencyStore: store });
@@ -28,7 +47,8 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
     return { received: request.body, call: calls };
   });
   instance.post("/slow", { config: { idempotent: true } }, async () => {
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    slow.entered();
+    await slow.finished;
     calls += 1;
     return { done: true };
   });
@@ -208,10 +228,11 @@ describe("idempotency key", () => {
   it("refuses a second request while the first is still running", async () => {
     app = await build();
     const running = post("/slow", { "idempotency-key": "s" }, {});
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await slow.started;
     const duplicate = await post("/slow", { "idempotency-key": "s" }, {});
     expect(duplicate.statusCode).toBe(409);
     expect(duplicate.json().code).toBe("request_in_progress");
+    slow.finish();
     expect((await running).statusCode).toBe(200);
     expect(calls).toBe(1);
   });
@@ -274,8 +295,9 @@ describe("every error speaks both languages", () => {
       BILINGUAL,
     );
     const running = post("/slow", { "idempotency-key": "p" }, {});
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await slow.started;
     expect((await post("/slow", { "idempotency-key": "p" }, {})).json().message).toEqual(BILINGUAL);
+    slow.finish();
     await running;
   });
 });
