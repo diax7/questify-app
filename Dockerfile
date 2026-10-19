@@ -21,6 +21,9 @@ ENV NODE_ENV=production PORT=3000
 WORKDIR /srv
 # The bundle contains every dependency, so no node_modules are needed at run time.
 COPY --from=build /repo/apps/api/dist/server.cjs ./server.cjs
+COPY --from=build /repo/apps/api/dist/migrate-cli.cjs ./migrate.cjs
+COPY --from=build /repo/apps/api/dist/migrations ./migrations
+COPY --from=build /repo/apps/api/dist/db ./db
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD wget -qO- "http://127.0.0.1:${PORT}/healthz" >/dev/null || exit 1

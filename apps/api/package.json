@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/server.cjs --sourcemap",
+    "build": "esbuild src/server.ts src/migrate-cli.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap && node -e \"require('node:fs').cpSync('migrations','dist/migrations',{recursive:true});require('node:fs').cpSync('db','dist/db',{recursive:true})\"",
     "start": "node dist/server.cjs"
   },
   "dependencies": {
