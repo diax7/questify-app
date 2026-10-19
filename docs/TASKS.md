@@ -26,7 +26,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A note records the SDK version and confirms it meets both stores' current requirements, or lists what must change.
 - [ ] **T-002** Stand up the staging environment in the chosen Saudi region: managed PostgreSQL with backups, cache, object storage, secret store, container hosting (needs Q-031 decided) — delivers no FR (infrastructure or quality gate); depends on: T-001, T-014
   - Done when: A health endpoint answers from staging; a restore of last night's backup into a scratch database succeeds; no resource is reachable from the public internet except the API.
-- [ ] **T-003** Database baseline: organizers, events, players, staff, enrollments; every tenant table has an organizer key; row-level security on; public access revoked by default — delivers FR 1501, 1502; depends on: T-002
+- [x] **T-003** Database baseline: organizers, events, players, staff, enrollments; every tenant table has an organizer key; row-level security on; public access revoked by default — delivers FR 1501, 1502; depends on: T-002
   - Done when: A suite using only the public credential can read and write nothing; an editor of organizer A gets 403/404 on every organizer B route.
 - [ ] **T-004** Append-only audit log and change log infrastructure (updates and deletes revoked in the database) — delivers FR 1029, 1030, 1410; depends on: T-003
   - Done when: Any attempt to update or delete an audit row fails at the database; each state-changing call writes who, what, before, after and when.
