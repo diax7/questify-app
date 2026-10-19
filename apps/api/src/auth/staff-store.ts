@@ -45,6 +45,8 @@ export type SessionSummary = Readonly<{
 
 export type Membership = Readonly<{
   organizerId: string;
+  /** Organizer names are public (event pages), so a member may always see the name. */
+  organizerName: string;
   role: "owner" | "editor";
   eventScope: string[] | null;
 }>;
@@ -291,14 +293,18 @@ export async function listLiveSessions(
 export async function listMemberships(db: Db, staffUserId: string): Promise<Membership[]> {
   const { rows } = await db.query<{
     organizer_id: string;
+    organizer_name: string;
     role: "owner" | "editor";
     event_scope: string[] | null;
   }>(
-    "SELECT organizer_id, role, event_scope FROM organizer_member WHERE staff_user_id = $1 ORDER BY created_at",
+    `SELECT m.organizer_id, o.name AS organizer_name, m.role, m.event_scope
+     FROM organizer_member m JOIN organizer o ON o.id = m.organizer_id
+     WHERE m.staff_user_id = $1 ORDER BY m.created_at`,
     [staffUserId],
   );
   return rows.map((row) => ({
     organizerId: row.organizer_id,
+    organizerName: row.organizer_name,
     role: row.role,
     eventScope: row.event_scope,
   }));

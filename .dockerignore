@@ -11,3 +11,6 @@ reports
 .env.*
 .cranl
 sbom.cdx.json
+**/.next
+apps/web/.e2e
+apps/api/test/support/e2e-server.bundle.mjs

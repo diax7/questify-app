@@ -67,5 +67,10 @@ Licenses of everything on this table are re-checked when each package is install
 
 ## Expo SDK note (2026-10-19)
 
+Web: **Next.js 16.4.2** (App Router, React 19.2.3 like the app, one React across the repo; standalone output, Cache Components off) since T-011. Its build
+type check needs the TypeScript 5 JS API, which the repo's TypeScript 7 lacks, so `next build` skips it
+(`typescript.ignoreBuildErrors`) and `pnpm typecheck` (tsc 7) is the type gate in CI. Browser tests: Playwright
+1.64 (chromium; desktop and a 360 px phone profile).
+
 Expo SDK 57 (React Native 0.86, React 19.2, iOS 16.4+, Android 7+) is the pinned line. SDK 58 was released on 2026-10-15 (React Native 0.88, built for iOS 27, UIScene life cycle, Strict TypeScript API, R8 on by default, `expo-localization` iOS RTL change). It is days old, so it waits: revisit before the first store submission and whenever Apple's SDK deadline requires it. Expo tooling needs Node 22.13 or newer on the 22 line.
 Do not set `supportsRTL: true` on the `expo-localization` plugin: on iOS it forces the layout from the phone's locale on every launch, which would fight the player's saved language (ADR-110) and could restart the app in a loop.

@@ -1,0 +1,31 @@
+# Web app image for CranL (build type: Dockerfile, Dockerfile path apps/web/Dockerfile). Built from the repository root.
+FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
+WORKDIR /repo
+RUN corepack enable
+
+# Dependencies first, for layer caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/app/package.json apps/app/
+COPY packages/shared/package.json packages/shared/
+# Only the web app and what it depends on.
+RUN pnpm install --frozen-lockfile --filter @questify/web...
+
+COPY tsconfig.base.json ./
+COPY packages/shared packages/shared
+COPY apps/web apps/web
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @questify/web build
+
+FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
+WORKDIR /srv
+# The standalone server with only the files it uses; static files and fonts sit next to it.
+COPY --from=build /repo/apps/web/.next/standalone ./
+COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
+USER node
+EXPOSE 3000
+# The sign-in page answers without calling the API (no session cookie), so this checks the web server alone.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD wget -qO- "http://127.0.0.1:${PORT}/en/sign-in" >/dev/null || exit 1
+CMD ["node", "apps/web/server.js"]

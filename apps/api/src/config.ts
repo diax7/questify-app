@@ -60,7 +60,7 @@ function whole(env: Env, name: string, fallback: string, min: number, max: numbe
 function proxyHops(env: Env, nodeEnv: string): number {
   if (nodeEnv === "production" && optional(env, "TRUST_PROXY_HOPS") === undefined) {
     throw new Error(
-      "TRUST_PROXY_HOPS is required in production: the number of proxies in front of the API (edge, dashboard proxy).",
+      "TRUST_PROXY_HOPS is required in production: the number of proxies that add to X-Forwarded-For in front of the API (1 on CranL: the edge; the web app's forwarder passes it through, ADR-113).",
     );
   }
   return whole(env, "TRUST_PROXY_HOPS", "1", 0, 10);

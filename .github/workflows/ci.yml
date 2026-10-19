@@ -1,6 +1,7 @@
 name: CI
 
-# One job, the cheapest checks first. Drafts are skipped. Roughly 3 minutes per run.
+# One job, the cheapest checks first. Drafts are skipped. Roughly 3 minutes per run; about 4 more when the web app or
+# the API changes (web build and browser tests, scoped by scripts/ci-scope.mjs).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -18,7 +19,7 @@ jobs:
   checks:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -66,3 +67,48 @@ jobs:
 
       - name: Dependency audit
         run: pnpm audit
+
+      - name: Which heavier checks this change needs
+        id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ci-scope.mjs "$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the web build
+        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.e2e == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**', 'packages/shared/src/**') }}
+          restore-keys: next-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Web build
+        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.e2e == 'true'
+        run: pnpm --filter @questify/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Cache the test browser
+        if: steps.scope.outputs.e2e == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Browser tests (sign-in on desktop and phone, both languages)
+        if: steps.scope.outputs.e2e == 'true'
+        run: |
+          set -euo pipefail
+          pnpm --filter @questify/web exec playwright install --with-deps chromium
+          pnpm --filter @questify/web e2e
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Keep the browser test traces on failure
+        if: failure() && steps.scope.outputs.e2e == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-results
+          path: apps/web/.e2e/results
+          retention-days: 5
+          include-hidden-files: true

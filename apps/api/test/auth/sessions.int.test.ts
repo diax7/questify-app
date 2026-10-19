@@ -345,7 +345,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       );
       const response = await me((await seedSession(first)).cookie);
       expect(response.json<{ memberships: Array<{ organizerId: string }> }>().memberships).toEqual([
-        { organizerId: org[0]?.id, role: "owner", eventScope: null },
+        { organizerId: org[0]?.id, organizerName: "Org One", role: "owner", eventScope: null },
       ]);
     });
   });

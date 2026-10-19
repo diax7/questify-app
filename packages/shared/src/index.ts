@@ -32,6 +32,7 @@ export {
 } from "./config/validate";
 export type { RateLimitState } from "./rate-limit";
 export { rateLimitHeaders } from "./rate-limit";
+export { colors, palette, radius, spacing } from "./design/tokens";
 export type { Language } from "./i18n/digits";
 export { formatNumber, toWesternDigits } from "./i18n/digits";
 export type { MessageKey, Messages } from "./i18n/messages";

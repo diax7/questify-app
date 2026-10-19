@@ -3,7 +3,29 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#src/*": "./src/*",
+    "#e2e/*": "./e2e/*"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node -e \"require('node:fs').cpSync('.next/static','.next/standalone/apps/web/.next/static',{recursive:true})\" && node .next/standalone/apps/web/server.js",
+    "typecheck": "tsc --noEmit",
+    "e2e:api": "pnpm --filter @questify/api exec esbuild test/e2e-server.ts --bundle --platform=node --target=node22 --format=esm --external:pg --external:fastify --external:@node-rs/argon2 --external:nodemailer --external:zod --outfile=test/support/e2e-server.bundle.mjs",
+    "e2e": "pnpm e2e:api && playwright test"
+  },
+  "dependencies": {
+    "@expo-google-fonts/baloo-bhaijaan-2": "0.4.2",
+    "@expo-google-fonts/rubik": "0.4.2",
+    "@questify/shared": "workspace:*",
+    "next": "16.4.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7"
   }
 }

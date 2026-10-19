@@ -1672,3 +1672,15 @@ are only possible on a domain we control; a free Gmail address is signed as gmai
 addresses and codes, so the data-map entry and Q-083 (counsel) still apply. New task T-021 replaces the SMTP sender
 in the API with a Gmail API sender (no new library: a signed service-account token and one HTTPS call, with the
 same timeouts and the Resend fallback). The Gmail app password is no longer needed for the staging check.
+
+## ADR-113 — One trusted proxy hop: the web forwarder passes the client address through
+**Status:** Proposed (T-011, CTO plan review 2026-10-20).
+**Decision:** The web app's `/v1` forwarder passes `X-Forwarded-For` through unchanged (a Next.js route handler
+cannot see its own peer) and calls the API at its **internal** address (`API_ORIGIN`, plain http and a one-word host,
+enforced at start-up). The API trusts exactly one hop (`TRUST_PROXY_HOPS=1`): the entry CranL's edge adds. The
+mobile app reaches the API through the same edge, so both paths have the same count.
+**Evidence (2026-10-20, from inside the staging container):** `http://questify-api-staging-3ez01s:3000` answers over
+the project's private network (Docker DNS, a 10.0.1.x peer, no HTTP proxy adding headers on that path).
+**Still to prove on staging:** that the edge appends its own entry. If it passes the client's value through instead,
+neither path has a trustworthy address and CranL is asked for its client-address header before launch.
+**Replaces:** the T-006 note's chain "edge, dashboard proxy, API", which assumed the forwarder appends.

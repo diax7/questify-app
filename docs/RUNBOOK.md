@@ -10,7 +10,13 @@
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.
-- CI (`.github/workflows/ci.yml`): one job, a PostgreSQL 17 service, secret scan, `ci:changed`, `pnpm audit`.
+- CI (`.github/workflows/ci.yml`): one job, a PostgreSQL 17 service, secret scan, `ci:changed`, the API build,
+  `pnpm audit`; then, only when `scripts/ci-scope.mjs` says the change needs them, the web build and the browser
+  tests (web app, shared package, lockfile, workflow, API source or migrations).
+- Browser tests locally (web app): `pnpm --filter @questify/web build`, then
+  `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
+  playwright install chromium`). Run them before merging any web, shared or API change; they are part of `ci:full`
+  in spirit and take about a minute.
 
 ## Staff sign-in
 
@@ -76,6 +82,13 @@ DNS and the Google accounts. No password or key ever goes into chat, the reposit
 
 Also good for staying out of spam: one fixed "From" name, a plain-text part in every message, no link shorteners, and
 a slow start in volume. Resend (backup) gets its own subdomain `send.questify.nafes.com` with its own SPF and DKIM.
+
+## Web app (dashboard)
+
+- Image: `apps/web/Dockerfile`, built from the repository root; port 3000; health check on `/en/sign-in`.
+- Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
+  (never the public https URL: the app refuses to start with one). No secrets in the web app.
+- The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).
 
 ## Database and deploy
 
