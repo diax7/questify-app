@@ -1,4 +1,5 @@
 import type { Client, PoolClient } from "pg";
+import { setLocalSettings } from "#src/db/connection";
 
 /**
  * How sign-in finds one row before it knows who the caller is. Each kind opens exactly one row:
@@ -63,10 +64,6 @@ function lookupSetting(lookup: Lookup): readonly [string, string] {
   }
 }
 
-async function set(client: Client | PoolClient, name: string, value: string): Promise<void> {
-  await client.query("SELECT set_config($1, $2, true)", [name, value]);
-}
-
 /**
  * Runs `work` in one transaction that can see exactly the one row `lookup` names, and nothing else,
  * until `work` promotes itself to the user it found. Only sign-in code calls this; no request value
@@ -84,16 +81,16 @@ export async function withPreIdentityContext<T>(
   const [name, value] = lookupSetting(lookup);
   await client.query("BEGIN");
   try {
-    for (const setting of SETTINGS) {
-      await set(client, setting, "");
-    }
-    await set(client, name, value);
+    await setLocalSettings(
+      client,
+      SETTINGS.map((setting) => [setting, setting === name ? value : ""] as const),
+    );
     const result = await work({
       promote: async (staffUserId) => {
         if (!UUID.test(staffUserId)) {
           throw new RangeError("staffUserId must be a UUID.");
         }
-        await set(client, "app.staff_user_id", staffUserId);
+        await setLocalSettings(client, [["app.staff_user_id", staffUserId]]);
       },
     });
     await client.query("COMMIT");

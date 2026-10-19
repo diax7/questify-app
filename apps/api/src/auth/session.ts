@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { withPreIdentityContext } from "#src/db/pre-identity";
 import { hashToken } from "#src/auth/keys";
@@ -39,17 +40,8 @@ export type Sessions = Readonly<{
   memberships: (staffUserId: string) => Promise<Membership[]>;
 }>;
 
-async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    return await work(client);
-  } finally {
-    client.release();
-  }
-}
-
 const asUser = <T>(pool: Pool, staffUserId: string, work: (client: PoolClient) => Promise<T>) =>
-  withClient(pool, (client) => withRequestContext(client, { staffUserId }, () => work(client)));
+  withConnection(pool, (client) => withRequestContext(client, { staffUserId }, () => work(client)));
 
 /**
  * Reads the session and its user, ends it if it should not live on, and records activity at most once a
@@ -59,7 +51,7 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
   if (!TOKEN_FORMAT.test(token)) {
     return { kind: "none" };
   }
-  return withClient(pool, (client) =>
+  return withConnection(pool, (client) =>
     withPreIdentityContext(
       client,
       { kind: "session", tokenHash: hashToken(token) },
@@ -83,7 +75,7 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
           // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
           session.ageSeconds > limits.maxAgeSeconds;
         if (lapsed) {
-          await revokeSessionById(client, session.id);
+          await revokeSessionById(client, session.staffUserId, session.id);
           return { kind: "expired" };
         }
         // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
@@ -102,12 +94,14 @@ export function createSessions(pool: Pool): Sessions {
     authenticate: (token) => authenticate(pool, token),
     list: (staffUserId, platformRole) =>
       asUser(pool, staffUserId, (client) =>
-        listLiveSessions(client, sessionLimitsFor(platformRole)),
+        listLiveSessions(client, staffUserId, sessionLimitsFor(platformRole)),
       ),
     revoke: (staffUserId, sessionId) =>
-      asUser(pool, staffUserId, (client) => revokeSessionById(client, sessionId)),
-    revokeAll: (staffUserId) => asUser(pool, staffUserId, (client) => revokeAllSessions(client)),
-    memberships: (staffUserId) => asUser(pool, staffUserId, (client) => listMemberships(client)),
+      asUser(pool, staffUserId, (client) => revokeSessionById(client, staffUserId, sessionId)),
+    revokeAll: (staffUserId) =>
+      asUser(pool, staffUserId, (client) => revokeAllSessions(client, staffUserId)),
+    memberships: (staffUserId) =>
+      asUser(pool, staffUserId, (client) => listMemberships(client, staffUserId)),
   };
 }
 

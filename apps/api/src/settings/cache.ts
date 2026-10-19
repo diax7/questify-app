@@ -22,7 +22,6 @@ export function createTtlCache<V>(options: {
         return undefined;
       }
       if (entry.expiresAt <= now()) {
-        // Stryker disable next-line CallExpression: equivalent, a dead entry is never returned and is dropped when it ages out of the maximum
         entries.delete(key);
         return undefined;
       }
@@ -33,7 +32,6 @@ export function createTtlCache<V>(options: {
       entries.set(key, { value, expiresAt: now() + options.ttlMs });
       if (entries.size > options.maxEntries) {
         const [oldest] = entries.keys();
-        // Stryker disable next-line ConditionalExpression: equivalent, the map holds more than the maximum here so it has a first key
         if (oldest !== undefined) {
           entries.delete(oldest);
         }

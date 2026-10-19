@@ -7,6 +7,14 @@ import { migrate } from "#src/db/migrate";
 /** Admin connection string of a throw-away PostgreSQL server. Integration tests are skipped when it is not set. */
 export const TEST_DATABASE_URL = process.env["TEST_DATABASE_URL"];
 
+// In CI the database tests are the security proof (outsider, isolation, sign-in). A missing database must turn CI red,
+// never quietly skip them.
+if (process.env["CI"] !== undefined && TEST_DATABASE_URL === undefined) {
+  throw new Error(
+    "TEST_DATABASE_URL is not set in CI, so the database and security tests would be skipped.",
+  );
+}
+
 const API_ROOT = join(import.meta.dirname, "..", "..");
 const ROLE_PASSWORD = "test-only-password";
 const ROLE_SETUP_LOCK = 7_361_903;
@@ -102,11 +110,11 @@ export async function seedTwoTenants(owner: Client): Promise<{
     "INSERT INTO event (organizer_id, join_code, name_en, status, access) VALUES ($1, 'TABUK1', 'Winter Fest', 'live', 'private') RETURNING id",
     [orgB],
   );
-  const playerA = await one(
-    "INSERT INTO player (username, email) VALUES ('sara_k', 'sara@example.com') RETURNING id",
-  );
-  const playerB = await one(
-    "INSERT INTO player (username, email) VALUES ('khalid_m', 'khalid@example.com') RETURNING id",
+  const playerA = await one("INSERT INTO player (username) VALUES ('sara_k') RETURNING id");
+  const playerB = await one("INSERT INTO player (username) VALUES ('khalid_m') RETURNING id");
+  await owner.query(
+    "INSERT INTO player_contact (player_id, email) VALUES ($1, 'sara@example.com'), ($2, 'khalid@example.com')",
+    [playerA, playerB],
   );
   await owner.query(
     "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",

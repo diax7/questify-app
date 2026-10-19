@@ -67,6 +67,23 @@ graph TD
 Rule: a module talks to another only through its exported functions, never into its tables. This
 keeps the later split cheap.
 
+**In the code (Phase 0):** identity lives in `apps/api/src/auth` (staff sign-in so far), config in `apps/api/src/settings`
+and `apps/api/src/translations`, the database helpers in `apps/api/src/db`. New modules use the names in the table.
+
+**How a request uses the database** (foundation review, 2026-10-19):
+- A service owns the connection and the transaction (`withConnection` in `db/connection.ts`, then `withRequestContext`
+  or, for sign-in only, `withPreIdentityContext`). The context is set in one round trip.
+- Store functions take the client that is already inside that transaction and never open their own. A write that spans
+  modules (a quest completion writes completion, ledger entry and score) runs in **one** transaction that the calling
+  service opens and passes down.
+- Every query also states its own filter (`WHERE staff_user_id = $1`, `WHERE email = $1`). Row-level security is the
+  second wall, never the only one. The only queries that leave the choice to the policy are the two retention sweeps,
+  which say why.
+- The organizer context comes from the caller's membership row, looked up on the server; never from a header the client
+  sends. Owner-only rules are enforced in the database (`app_is_owner`); event-scope limits for editors arrive with T-101.
+- Every route declares who may call it (`config.access`, `route-access.ts`); a route without it stops the server from
+  starting, and a test walks every route.
+
 ## Primary flow — a player scans a quest QR
 
 ```mermaid

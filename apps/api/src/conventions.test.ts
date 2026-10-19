@@ -59,6 +59,10 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
     }
     return reply.send({ ok: true });
   });
+  instance.post("/empty", { config: { idempotent: true } }, async (_request, reply) => {
+    calls += 1;
+    return reply.code(204).send();
+  });
   instance.post("/created", { config: { idempotent: true } }, async (_request, reply) =>
     reply.code(201).header("content-type", "text/plain").send("made"),
   );
@@ -214,6 +218,16 @@ describe("idempotency key", () => {
     expect(second.json().call).toBe(2);
     expect(firstAgain.json().call).toBe(1);
     expect(firstAgain.headers["idempotent-replayed"]).toBe("true");
+  });
+
+  it("remembers an empty 204 answer, so a retry replays it instead of running the action again", async () => {
+    app = await build();
+    const first = await post("/empty", { "idempotency-key": "e" }, {});
+    const second = await post("/empty", { "idempotency-key": "e" }, {});
+    expect(first.statusCode).toBe(204);
+    expect(second.statusCode).toBe(204);
+    expect(second.headers["idempotent-replayed"]).toBe("true");
+    expect(calls).toBe(1);
   });
 
   it("refuses the same key with a different body", async () => {

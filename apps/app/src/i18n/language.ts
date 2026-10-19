@@ -35,16 +35,29 @@ export type BootDecision = Readonly<{
   needsRestart: boolean;
 }>;
 
+/** The language whose direction matches the layout the app actually started with. */
+export function languageOfLayout(layoutIsRtl: boolean): Language {
+  return layoutIsRtl ? "ar" : "en";
+}
+
 /**
  * Chooses the language at launch: the player's saved choice if there is a valid one, otherwise the phone's
  * language (FR-1743). React Native reads the layout direction only at launch, so a language whose direction
- * differs from the direction the app started with takes effect after a restart.
+ * differs from the direction the app started with takes effect after a restart (ADR-110).
+ *
+ * If a restart for this language was already tried and the direction still does not match (a phone that will not
+ * switch), the app carries on in the language that fits the layout instead of restarting forever.
  */
 export function decideBoot(input: {
   stored: unknown;
   device: readonly DeviceLocale[];
   layoutIsRtl: boolean;
+  restartTriedFor: unknown;
 }): BootDecision {
-  const language = isLanguage(input.stored) ? input.stored : languageFromDevice(input.device);
-  return { language, needsRestart: isRtl(language) !== input.layoutIsRtl };
+  const wanted = isLanguage(input.stored) ? input.stored : languageFromDevice(input.device);
+  const mismatch = isRtl(wanted) !== input.layoutIsRtl;
+  if (mismatch && input.restartTriedFor === wanted) {
+    return { language: languageOfLayout(input.layoutIsRtl), needsRestart: false };
+  }
+  return { language: wanted, needsRestart: mismatch };
 }

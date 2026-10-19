@@ -9,7 +9,8 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/app/package.json apps/app/
 COPY packages/shared/package.json packages/shared/
-RUN pnpm install --frozen-lockfile
+# Only the API and what it depends on (not the Expo app or the web app).
+RUN pnpm install --frozen-lockfile --filter @questify/api...
 
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared

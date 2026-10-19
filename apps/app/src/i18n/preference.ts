@@ -7,6 +7,8 @@ export type KeyValueStorage = Readonly<{
 }>;
 
 export const LANGUAGE_KEY = "questify.language";
+/** Which language the last restart was for, so a restart that did not take is not repeated forever. */
+export const RESTART_KEY = "questify.restartTriedFor";
 
 /**
  * The saved language choice, exactly as stored (it is checked where it is used). An unreadable store counts as
@@ -23,4 +25,21 @@ export async function loadStoredLanguage(storage: KeyValueStorage): Promise<stri
 /** Saves the player's choice. Throws if it cannot be saved, so the switch is not reported as done. */
 export async function saveLanguage(storage: KeyValueStorage, language: Language): Promise<void> {
   await storage.setItem(LANGUAGE_KEY, language);
+}
+
+/** The language the last restart was for, or null. An unreadable store counts as none. */
+export async function loadRestartNote(storage: KeyValueStorage): Promise<string | null> {
+  try {
+    return await storage.getItem(RESTART_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Notes, before restarting, which language the restart is for. Empty clears the note once a launch fits. */
+export async function saveRestartNote(
+  storage: KeyValueStorage,
+  language: Language | "",
+): Promise<void> {
+  await storage.setItem(RESTART_KEY, language);
 }

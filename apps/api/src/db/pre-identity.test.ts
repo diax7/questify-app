@@ -19,12 +19,14 @@ const HASH = "ab".repeat(32);
 const emailOfLength = (length: number): string => `${"a".repeat(length - 5)}@x.sa`;
 const USER = "11111111-2222-4333-8444-555555555555";
 
-const settingsSet = (calls: Call[]): Map<string, unknown> =>
-  new Map(
-    calls
-      .filter((call) => call.text.startsWith("SELECT set_config"))
-      .map((call) => [String(call.values?.[0]), call.values?.[1]]),
-  );
+const settingsSet = (calls: Call[]): Map<string, unknown> => {
+  const settings = new Map<string, unknown>();
+  for (const call of calls.filter((entry) => entry.text.includes("set_config"))) {
+    const [names, values] = call.values as [string[], string[]];
+    names.forEach((name, index) => settings.set(name, values[index]));
+  }
+  return settings;
+};
 
 describe("withPreIdentityContext", () => {
   it("opens one lookup and clears every other setting", async () => {

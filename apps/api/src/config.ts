@@ -22,6 +22,8 @@ export type AppConfig = Readonly<{
   releaseSha: string;
   /** Connection string for the API's own database role (not the owner). */
   databaseUrl: string;
+  /** Connections the API may hold at once. Raise it with the database's connection limit, not beyond it. */
+  databasePoolSize: number;
   /** How many proxies sit in front of the API; the client address is read that many hops from the right. */
   trustProxyHops: number;
   auth: AuthConfig;
@@ -126,6 +128,7 @@ export function loadConfig(env: Env): AppConfig {
     minAppVersion,
     releaseSha: env["RELEASE_SHA"] ?? "dev",
     databaseUrl: required(env, "DATABASE_URL"),
+    databasePoolSize: whole(env, "DATABASE_POOL_SIZE", "10", 1, 200),
     trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
   };

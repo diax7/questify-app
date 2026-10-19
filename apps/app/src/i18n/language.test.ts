@@ -5,6 +5,7 @@ import {
   isLanguage,
   isRtl,
   languageFromDevice,
+  languageOfLayout,
 } from "#src/i18n/language.ts";
 
 const locale = (languageCode: string | null) => ({ languageCode });
@@ -49,31 +50,65 @@ describe("languageFromDevice", () => {
 
 describe("decideBoot", () => {
   it("follows the phone on a first launch, with no restart when the layout already matches", () => {
-    expect(decideBoot({ stored: undefined, device: [locale("ar")], layoutIsRtl: true })).toEqual({
+    expect(
+      decideBoot({
+        stored: undefined,
+        device: [locale("ar")],
+        layoutIsRtl: true,
+        restartTriedFor: null,
+      }),
+    ).toEqual({
       language: "ar",
       needsRestart: false,
     });
-    expect(decideBoot({ stored: null, device: [locale("en")], layoutIsRtl: false })).toEqual({
+    expect(
+      decideBoot({
+        stored: null,
+        device: [locale("en")],
+        layoutIsRtl: false,
+        restartTriedFor: null,
+      }),
+    ).toEqual({
       language: "en",
       needsRestart: false,
     });
   });
 
   it("uses the player's saved choice over the phone's language", () => {
-    expect(decideBoot({ stored: "ar", device: [locale("en")], layoutIsRtl: true }).language).toBe(
-      "ar",
-    );
-    expect(decideBoot({ stored: "en", device: [locale("ar")], layoutIsRtl: false }).language).toBe(
-      "en",
-    );
+    expect(
+      decideBoot({ stored: "ar", device: [locale("en")], layoutIsRtl: true, restartTriedFor: null })
+        .language,
+    ).toBe("ar");
+    expect(
+      decideBoot({
+        stored: "en",
+        device: [locale("ar")],
+        layoutIsRtl: false,
+        restartTriedFor: null,
+      }).language,
+    ).toBe("en");
   });
 
   it("asks for a restart when the saved language needs the other direction", () => {
-    expect(decideBoot({ stored: "ar", device: [locale("en")], layoutIsRtl: false })).toEqual({
+    expect(
+      decideBoot({
+        stored: "ar",
+        device: [locale("en")],
+        layoutIsRtl: false,
+        restartTriedFor: null,
+      }),
+    ).toEqual({
       language: "ar",
       needsRestart: true,
     });
-    expect(decideBoot({ stored: "en", device: [locale("ar")], layoutIsRtl: true })).toEqual({
+    expect(
+      decideBoot({
+        stored: "en",
+        device: [locale("ar")],
+        layoutIsRtl: true,
+        restartTriedFor: null,
+      }),
+    ).toEqual({
       language: "en",
       needsRestart: true,
     });
@@ -81,10 +116,62 @@ describe("decideBoot", () => {
 
   it("ignores a saved value that is not a language", () => {
     for (const stored of ["fr", "", 5, {}, "AR"]) {
-      expect(decideBoot({ stored, device: [locale("ar")], layoutIsRtl: true })).toEqual({
+      expect(
+        decideBoot({ stored, device: [locale("ar")], layoutIsRtl: true, restartTriedFor: null }),
+      ).toEqual({
         language: "ar",
         needsRestart: false,
       });
     }
+  });
+});
+
+describe("decideBoot after a restart that did not take", () => {
+  it("carries on in the layout's language instead of restarting again", () => {
+    expect(
+      decideBoot({
+        stored: "ar",
+        device: [locale("en")],
+        layoutIsRtl: false,
+        restartTriedFor: "ar",
+      }),
+    ).toEqual({ language: "en", needsRestart: false });
+    expect(
+      decideBoot({
+        stored: "en",
+        device: [locale("ar")],
+        layoutIsRtl: true,
+        restartTriedFor: "en",
+      }),
+    ).toEqual({ language: "ar", needsRestart: false });
+  });
+
+  it("still restarts when the earlier attempt was for a different language", () => {
+    expect(
+      decideBoot({
+        stored: "ar",
+        device: [locale("en")],
+        layoutIsRtl: false,
+        restartTriedFor: "en",
+      }),
+    ).toEqual({ language: "ar", needsRestart: true });
+  });
+
+  it("ignores the note when the layout already matches", () => {
+    expect(
+      decideBoot({
+        stored: "ar",
+        device: [locale("en")],
+        layoutIsRtl: true,
+        restartTriedFor: "ar",
+      }),
+    ).toEqual({ language: "ar", needsRestart: false });
+  });
+});
+
+describe("languageOfLayout", () => {
+  it("is Arabic for a right-to-left layout and English otherwise", () => {
+    expect(languageOfLayout(true)).toBe("ar");
+    expect(languageOfLayout(false)).toBe("en");
   });
 });

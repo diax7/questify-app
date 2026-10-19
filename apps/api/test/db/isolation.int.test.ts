@@ -19,6 +19,7 @@ const TABLES = [
   "auth_throttle",
   "platform_setting",
   "event_entitlement",
+  "player_contact",
   "translation",
   "schema_migration",
 ];
@@ -211,14 +212,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
     });
     it("treats usernames as unique ignoring case", async () => {
       await expect(
-        db.owner.query(
-          "INSERT INTO player (username, email) VALUES ('SARA_K', 'other@example.com')",
-        ),
+        db.owner.query("INSERT INTO player (username) VALUES ('SARA_K')"),
       ).rejects.toThrow(/duplicate key/);
     });
     it("allows only Saudi (+966) phone numbers", async () => {
       await expect(
-        db.owner.query("INSERT INTO player (username, phone_e164) VALUES ('abc', '+971501234567')"),
+        db.owner.query(
+          "INSERT INTO player_contact (player_id, phone_e164) VALUES ($1, '+971501234567')",
+          [ids.playerA],
+        ),
       ).rejects.toThrow(/check/);
     });
     it("allows only one owner per organizer", async () => {

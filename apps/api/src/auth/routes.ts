@@ -26,8 +26,6 @@ import {
 } from "#src/auth/session";
 import type { Caller, SignIn } from "#src/auth/sign-in";
 
-export type RouteInfo = Readonly<{ method: string; url: string; public: boolean }>;
-
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
   sessions: Sessions;
@@ -104,7 +102,7 @@ async function requireSession(
 }
 
 function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
-  const open = { config: { public: true }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
+  const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
 
   scope.post("/auth/password", open, async (request, reply) => {
     const body = parse(passwordBody, request.body);
@@ -172,8 +170,10 @@ function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
   });
 }
 
+const staffOnly = { config: { access: "staff" } } as const;
+
 function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
-  scope.get("/me", async (request) => {
+  scope.get("/me", staffOnly, async (request) => {
     const { account } = request.staff ?? failClosed();
     return {
       id: account.id,
@@ -183,13 +183,13 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
     };
   });
 
-  scope.get("/sessions", async (request) => {
+  scope.get("/sessions", staffOnly, async (request) => {
     const { account, sessionId } = request.staff ?? failClosed();
     const live = await deps.sessions.list(account.id, account.platformRole);
     return { sessions: live.map((session) => ({ ...session, current: session.id === sessionId })) };
   });
 
-  scope.delete("/sessions/:id", async (request, reply) => {
+  scope.delete("/sessions/:id", staffOnly, async (request, reply) => {
     const { account, sessionId } = request.staff ?? failClosed();
     const { id } = parse(sessionParams, request.params);
     if (!(await deps.sessions.revoke(account.id, id))) {
@@ -201,7 +201,7 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
     return reply.code(204).send();
   });
 
-  scope.post("/auth/sign-out", async (request, reply) => {
+  scope.post("/auth/sign-out", staffOnly, async (request, reply) => {
     const { account, sessionId } = request.staff ?? failClosed();
     await deps.sessions.revoke(account.id, sessionId);
     reply.header("set-cookie", clearedSessionCookie());
@@ -215,23 +215,16 @@ function failClosed(): never {
 }
 
 /**
- * Registers every /v1/staff route inside one scope whose hook demands a valid session unless the route is
- * on the explicit public list (the three sign-in steps). Forgetting to protect a new route is therefore
- * impossible: the default is closed. Returns the route inventory the tests walk.
+ * Registers every /v1/staff route inside one scope whose hook demands a valid session unless the route's access is
+ * "public" (the three sign-in steps). Every route declares its access; the app refuses to start otherwise
+ * (route-access.ts).
  */
-export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps): RouteInfo[] {
-  const inventory: RouteInfo[] = [];
+export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps): void {
   app.register(
     async (scope) => {
-      scope.addHook("onRoute", (route) => {
-        const methods = Array.isArray(route.method) ? route.method : [route.method];
-        for (const method of methods) {
-          inventory.push({ method, url: route.url, public: route.config?.public === true });
-        }
-      });
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        const isPublic = request.routeOptions.config.public === true;
+        const isPublic = request.routeOptions.config.access === "public";
         checkOrigin(request, deps.dashboardOrigin, !isPublic);
         if (!isPublic) {
           await requireSession(request, reply, deps.sessions);
@@ -242,5 +235,4 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps)
     },
     { prefix: "/v1/staff" },
   );
-  return inventory;
 }

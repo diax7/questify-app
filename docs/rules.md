@@ -55,6 +55,14 @@ Zod schemas, the quest-type schemas, the configuration schema). Modules inside `
 another module's tables. New code goes in the module that owns the data. No relative `..` imports:
 use absolute package paths.
 
+Database and routes (foundation review, 2026-10-19):
+- Every query states its own filter; row-level security is the second wall. Leaving the choice to a policy is allowed only
+  for retention sweeps, with a comment saying why.
+- A column that holds money, standing or power (points, balances, statuses, roles) gets a column grant or a guard
+  trigger in the same migration that creates it, with a test from the API role's seat.
+- Every route declares `config.access`. A public route never takes idempotency keys.
+- Services open the transaction; store functions take the client and never open their own.
+
 ## Error handling
 
 Fail fast with a message that says what failed and what to do next. Never swallow an error. Server

@@ -23,6 +23,7 @@ export function testConfig(
     minAppVersion: "1.0.0",
     releaseSha: "test",
     databaseUrl,
+    databasePoolSize: 4,
     trustProxyHops: 1,
     auth: {
       secret: "t".repeat(40),

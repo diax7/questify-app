@@ -61,5 +61,8 @@ jobs:
       - name: Lint, format, types, tests
         run: pnpm ci:changed
 
+      - name: API build (the bundle the Docker image ships)
+        run: pnpm --filter @questify/api build
+
       - name: Dependency audit
         run: pnpm audit

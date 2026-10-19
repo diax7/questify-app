@@ -35,6 +35,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [x] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
+  - Note: code, tests and review are done; the live staging check (migrate, create a throwaway account, sign in over HTTPS) waits on the Gmail app password in the CranL secret store.
 - [x] **T-007** Configuration service: platform settings, event configuration, composed /v1/config with ETag and per-feature minimum app version — delivers FR 1503, 1504, 1010, 1729; depends on: T-005
   - Done when: Changing a setting changes the composed config within a minute without any release; an unknown block is ignored by an older app.
 - [x] **T-008** Translation store: keys with Arabic and English values, shipped defaults, fallback to defaults, placeholder protection — delivers FR 1768, 1767, 1506, 1507; depends on: T-007
@@ -68,6 +69,7 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
 
 - [ ] **T-101** Organizer sign-up, accepting organizer terms and the data processing agreement, one owner, invite editors by email, owner transfer, editor event limits — delivers FR 1401, 1726, 1011, 1012, 1013, 1014, 1723, 1724; depends on: T-006
   - Done when: Anyone can create an organizer account and a draft event with no approval; an editor cannot do owner-only things; the owner can invite and limit editors.
+  - Note (ADR-111): enforce editor event-scope limits in the database too, and derive the organizer context from the caller's membership on the server. The first-owner rule for a new organizer is already in migration 0005.
 - [ ] **T-102** Event builder: create, edit, delete an event with kind, time zone, event-day start, join methods; lifecycle states Draft to Archived — delivers FR 1001, 1002, 1003, 1728, 1714, 1715, 1017, 1608; depends on: T-101
   - Done when: A draft event can be created and edited; its state moves Scheduled to Live to Ended at the set times; every shown time is in the event's time zone.
 - [ ] **T-103** Categories and quests builder (dashboard): bilingual fields, default General category, order, repeatable quests, start/end times, show/hide while live — delivers FR 1004, 1005, 1006, 1007, 1008, 223, 228, 229, 233, 225, 226, 227, 1505; depends on: T-102
@@ -76,6 +78,7 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
   - Done when: A regenerated QR makes the old printed code fail immediately; a forged payload is rejected.
 - [ ] **T-105** Completion engine: one transaction writes completion, ledger entry, score, balance and idempotency key; rate limits on typed codes; scan-QR and enter-code quests — delivers FR 201, 211, 202, 304, 316, 317, 401, 402, 322, 303; depends on: T-104, T-005
   - Done when: Two simultaneous scans produce one completion; a retry with the same key never pays twice; a gallery image is never accepted as a scan; the ledger cannot be edited.
+  - Note (ADR-111): add the ledger with a trigger that keeps `enrollment.score` and `balance` in step; the API role has no write right on those columns (migration 0005). The idempotency guarantee is the unique index on the completion's key inside the business transaction, not a separate store.
 - [ ] **T-106** Ranking: sorted store per event, ties go to who reached the score first, exclusions and bans, ranking on/off, rebuild from the ledger — delivers FR 606, 609, 607, 1612, 318; depends on: T-105
   - Done when: A change in score appears in the ranking within 5 seconds; deleting the cache and rebuilding gives the same order; ties resolve by time reached.
 - [ ] **T-107** Player sign-in: SMS and email codes, +966 only, resend and attempt limits, SMS adapter (Saudi gateway) and email adapter, email fallback after 30 s, auto-fill — delivers FR 106, 107, 108, 109, 110, 323, 1740, 1812, 1813, 1109, 1110; depends on: T-005, T-013

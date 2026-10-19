@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { withPreIdentityContext } from "#src/db/pre-identity";
 import type { EmailSender } from "#src/auth/email/sender";
@@ -96,15 +97,6 @@ export type SignIn = Readonly<{
 const L = AUTH_LIMITS;
 const EXPIRES_IN_MINUTES = L.challengeValiditySeconds / 60;
 
-async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    return await work(client);
-  } finally {
-    client.release();
-  }
-}
-
 /** Logs an event with a short keyed tag of the client address (never the address), so abuse can be told apart. */
 function say(
   deps: SignInDeps,
@@ -152,7 +144,7 @@ async function reserveAttempt(
   deps: SignInDeps,
   keys: Keys,
 ): Promise<Throttled | (Reservation & { kind: "reserved" })> {
-  return withClient(deps.pool, (client) =>
+  return withConnection(deps.pool, (client) =>
     withRequestContext(client, {}, async () => {
       if (!(await tryLock(client, keys.email))) {
         return { kind: "throttled", retryAfterSeconds: 1 } as const;
@@ -183,8 +175,10 @@ async function lookupAccount(deps: SignInDeps, email: string): Promise<Account |
   if (!isPlausibleEmail(email)) {
     return undefined;
   }
-  return withClient(deps.pool, (client) =>
-    withPreIdentityContext(client, { kind: "email", email }, () => findAccountByEmail(client)),
+  return withConnection(deps.pool, (client) =>
+    withPreIdentityContext(client, { kind: "email", email }, () =>
+      findAccountByEmail(client, email),
+    ),
   );
 }
 
@@ -221,7 +215,7 @@ async function openChallenge(
   keys: Keys,
   reservation: Reservation,
 ): Promise<Opened> {
-  return withClient(deps.pool, (client) =>
+  return withConnection(deps.pool, (client) =>
     withPreIdentityContext(client, { kind: "email", email: account.email }, async ({ promote }) => {
       await promote(account.id);
       await releaseReservation(client, keys, reservation);
@@ -257,7 +251,7 @@ async function openChallenge(
 
 /** Ends the challenge a token opens. Used when its code could not be emailed. */
 async function endChallenge(deps: SignInDeps, challengeToken: string): Promise<void> {
-  await withClient(deps.pool, (client) =>
+  await withConnection(deps.pool, (client) =>
     withPreIdentityContext(
       client,
       { kind: "challenge", tokenHash: hashToken(challengeToken) },
@@ -299,7 +293,7 @@ async function refreshHash(
   }
   try {
     const fresh = await deps.gate.run(() => hashPassword(password));
-    await withClient(deps.pool, (client) =>
+    await withConnection(deps.pool, (client) =>
       withPreIdentityContext(
         client,
         { kind: "email", email: account.email },
@@ -324,7 +318,7 @@ async function sweepIfDue(deps: SignInDeps, caller: Caller, clock: SweepClock): 
     return;
   }
   try {
-    await withClient(deps.pool, (client) =>
+    await withConnection(deps.pool, (client) =>
       withRequestContext(client, {}, async () => {
         await sweepRetention(client);
         await sweepThrottle(client);
@@ -361,7 +355,7 @@ async function passwordStep(
   }
   const verdict = await checkPassword(deps, await lookupAccount(deps, email), input.password);
   if (verdict === "busy") {
-    await withClient(deps.pool, (client) =>
+    await withConnection(deps.pool, (client) =>
       withRequestContext(client, {}, () => releaseReservation(client, keys, reservation)),
     );
     return { kind: "busy" };
@@ -425,7 +419,7 @@ async function codeStep(
 ): Promise<CodeResult> {
   const tokenHash = hashToken(input.challengeToken);
   const session = generateToken();
-  const outcome = await withClient(deps.pool, (client) =>
+  const outcome = await withConnection(deps.pool, (client) =>
     withPreIdentityContext(client, { kind: "challenge", tokenHash }, async ({ promote }) => {
       const challenge = await lockChallenge(client);
       if (
@@ -504,7 +498,7 @@ async function resend(
   caller: Caller,
 ): Promise<ResendResult> {
   const tokenHash = hashToken(input.challengeToken);
-  const prepared = await withClient(deps.pool, (client) =>
+  const prepared = await withConnection(deps.pool, (client) =>
     withPreIdentityContext(
       client,
       { kind: "challenge", tokenHash },

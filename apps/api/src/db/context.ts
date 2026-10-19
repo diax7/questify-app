@@ -1,4 +1,5 @@
 import type { Client, PoolClient } from "pg";
+import { setLocalSettings } from "#src/db/connection";
 
 /** Who is making the request. The database reads this to apply row-level security. */
 export type RequestContext = Readonly<{
@@ -39,9 +40,7 @@ export async function withRequestContext<T>(
   ];
   await client.query("BEGIN");
   try {
-    for (const [name, value] of values) {
-      await client.query("SELECT set_config($1, $2, true)", [name, value]);
-    }
+    await setLocalSettings(client, values);
     const result = await work();
     await client.query("COMMIT");
     return result;

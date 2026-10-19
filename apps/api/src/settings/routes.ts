@@ -12,7 +12,7 @@ const query = z.strictObject({ event: z.uuid().optional() });
  * The answer carries an ETag, so an unchanged configuration costs one tiny request (304).
  */
 export function registerConfigRoutes(app: FastifyInstance, settings: SettingsService): void {
-  app.get("/v1/config", async (request, reply) => {
+  app.get("/v1/config", { config: { access: "public" } }, async (request, reply) => {
     const parsed = query.safeParse(request.query);
     if (!parsed.success) {
       throw invalidRequest();

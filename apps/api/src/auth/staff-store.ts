@@ -66,9 +66,10 @@ const toAccount = (row: AccountRow): Account => ({
 });
 
 /** Under the email lookup context: the one account with that email. */
-export async function findAccountByEmail(db: Db): Promise<Account | undefined> {
+export async function findAccountByEmail(db: Db, email: string): Promise<Account | undefined> {
   const { rows } = await db.query<AccountRow>(
-    "SELECT id, email, password_hash, status, platform_role FROM staff_user",
+    "SELECT id, email, password_hash, status, platform_role FROM staff_user WHERE email = $1",
+    [email],
   );
   return rows[0] === undefined ? undefined : toAccount(rows[0]);
 }
@@ -243,24 +244,26 @@ export async function touchSession(db: Db, id: string): Promise<void> {
   await db.query("UPDATE staff_session SET last_seen_at = now() WHERE id = $1", [id]);
 }
 
-export async function revokeSessionById(db: Db, id: string): Promise<boolean> {
+export async function revokeSessionById(db: Db, staffUserId: string, id: string): Promise<boolean> {
   const { rowCount } = await db.query(
-    "UPDATE staff_session SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
-    [id],
+    "UPDATE staff_session SET revoked_at = now() WHERE id = $1 AND staff_user_id = $2 AND revoked_at IS NULL",
+    [id, staffUserId],
   );
   return rowCount === 1;
 }
 
-/** Ends every live session of the promoted user. */
-export async function revokeAllSessions(db: Db): Promise<number> {
+/** Ends every live session of one user. */
+export async function revokeAllSessions(db: Db, staffUserId: string): Promise<number> {
   const { rowCount } = await db.query(
-    "UPDATE staff_session SET revoked_at = now() WHERE revoked_at IS NULL",
+    "UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = $1 AND revoked_at IS NULL",
+    [staffUserId],
   );
   return rowCount ?? 0;
 }
 
 export async function listLiveSessions(
   db: Db,
+  staffUserId: string,
   limits: { idleSeconds: number; maxAgeSeconds: number },
 ): Promise<SessionSummary[]> {
   const { rows } = await db.query<{
@@ -271,11 +274,11 @@ export async function listLiveSessions(
     ip: string | null;
   }>(
     `SELECT id, created_at, last_seen_at, user_agent, ip FROM staff_session
-     WHERE revoked_at IS NULL
+     WHERE staff_user_id = $3 AND revoked_at IS NULL
        AND last_seen_at > now() - make_interval(secs => $1)
        AND created_at > now() - make_interval(secs => $2)
      ORDER BY created_at DESC`,
-    [limits.idleSeconds, limits.maxAgeSeconds],
+    [limits.idleSeconds, limits.maxAgeSeconds, staffUserId],
   );
   return rows.map((row) => ({
     id: row.id,
@@ -286,12 +289,15 @@ export async function listLiveSessions(
   }));
 }
 
-export async function listMemberships(db: Db): Promise<Membership[]> {
+export async function listMemberships(db: Db, staffUserId: string): Promise<Membership[]> {
   const { rows } = await db.query<{
     organizer_id: string;
     role: "owner" | "editor";
     event_scope: string[] | null;
-  }>("SELECT organizer_id, role, event_scope FROM organizer_member ORDER BY created_at");
+  }>(
+    "SELECT organizer_id, role, event_scope FROM organizer_member WHERE staff_user_id = $1 ORDER BY created_at",
+    [staffUserId],
+  );
   return rows.map((row) => ({
     organizerId: row.organizer_id,
     role: row.role,

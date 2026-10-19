@@ -12,7 +12,7 @@ declare module "fastify" {
   }
 
   interface FastifyContextConfig {
-    /** Explicit allowlist: the route is reachable without a session (the sign-in steps). */
-    public?: boolean;
+    /** Who may call the route (route-access.ts). Required: a route without it stops the server from starting. */
+    access?: import("#src/route-access").Access;
   }
 }

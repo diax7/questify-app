@@ -15,14 +15,19 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import { decideBoot, isRtl } from "#src/i18n/language.ts";
+import { decideBoot, isRtl, languageOfLayout } from "#src/i18n/language.ts";
 import {
   applyDirectionForNextLaunch,
   deviceLocales,
   layoutIsRtl,
   restartApp,
 } from "#src/i18n/native.ts";
-import { loadStoredLanguage, saveLanguage } from "#src/i18n/preference.ts";
+import {
+  loadRestartNote,
+  loadStoredLanguage,
+  saveLanguage,
+  saveRestartNote,
+} from "#src/i18n/preference.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
 
@@ -49,17 +54,32 @@ export function I18nProvider({
 
   useEffect(() => {
     let active = true;
-    void (async () => {
-      const stored = await loadStoredLanguage(AsyncStorage);
-      const decision = decideBoot({ stored, device: deviceLocales(), layoutIsRtl: layoutIsRtl() });
-      if (decision.needsRestart) {
-        applyDirectionForNextLaunch(decision.language);
-        await restartApp();
-        return;
-      }
+    const finish = (chosen: Language): void => {
       if (active) {
-        setLanguage(decision.language);
+        setLanguage(chosen);
         onReady?.();
+      }
+    };
+    void (async () => {
+      try {
+        const decision = decideBoot({
+          stored: await loadStoredLanguage(AsyncStorage),
+          device: deviceLocales(),
+          layoutIsRtl: layoutIsRtl(),
+          restartTriedFor: await loadRestartNote(AsyncStorage),
+        });
+        if (decision.needsRestart) {
+          await saveRestartNote(AsyncStorage, decision.language);
+          applyDirectionForNextLaunch(decision.language);
+          await restartApp();
+          return;
+        }
+        await saveRestartNote(AsyncStorage, "");
+        finish(decision.language);
+      } catch {
+        // Anything that fails here must not leave the player on the splash screen: carry on in the language that
+        // fits the layout the app started with.
+        finish(languageOfLayout(layoutIsRtl()));
       }
     })();
     return () => {
@@ -69,6 +89,7 @@ export function I18nProvider({
 
   const switchLanguage = useCallback(async (next: Language) => {
     await saveLanguage(AsyncStorage, next);
+    await saveRestartNote(AsyncStorage, next);
     applyDirectionForNextLaunch(next);
     await restartApp();
   }, []);

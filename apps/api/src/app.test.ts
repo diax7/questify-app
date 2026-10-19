@@ -92,7 +92,7 @@ async function ipSeenBehind(forwardedFor: string, hops: number): Promise<string>
     emailSender: new RecordingEmailSender(),
     logger: false,
   });
-  app.get("/whoami", async (incoming) => ({ ip: incoming.ip }));
+  app.get("/whoami", { config: { access: "public" } }, async (incoming) => ({ ip: incoming.ip }));
   await app.ready();
   const response = await app.inject({
     method: "GET",

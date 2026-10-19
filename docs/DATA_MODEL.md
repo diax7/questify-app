@@ -44,9 +44,8 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | Field | Type | Constraints | PII | Notes |
 |---|---|---|---|---|
 | id | uuid | PK | no | |
-| username | citext | unique, required | yes (public) | The @username (gamer tag); changeable by the Questify team, old names kept in `username_history` |
-| phone_e164 | text | unique, nullable | **yes** | +966 only (ADR-030); at least one of phone or email |
-| email | citext | unique, nullable | **yes** | |
+| username | text | unique ignoring case (index on lower()), required | yes (public) | The @username (gamer tag); changeable by the Questify team, old names kept in `username_history` |
+| phone_e164, email | | moved to `player_contact` (migration 0005) | **yes** | Only the player and Questify admins can read them; organizers cannot (see below) |
 | birth_year | smallint | nullable | yes | Age gate (13+) |
 | city | text | nullable | yes | Optional |
 | interests | text[] | | no | Optional |
@@ -57,6 +56,22 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | gems | bigint | ≥ 0, cache | no | |
 | status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084) |
 | created_at, deleted_at | timestamptz | | no | |
+
+### player_contact (migration 0005)
+| Field | Type | Constraints | PII | Notes |
+|---|---|---|---|---|
+| player_id | uuid | PK, FK player | no | |
+| phone_e164 | text | unique, +966 only (ADR-030) | **yes** | |
+| email | text | unique, lowercase | **yes** | At least one of phone or email |
+
+Kept apart from `player` so an organizer, who can see the players in its events, never sees their phone or email.
+
+### Who may write what (column rules, migration 0005)
+Row-level security picks rows; column grants and guard triggers close the columns that matter. For the API's role:
+- `enrollment.score` and `balance`: **never written by hand.** They are copies of the points ledger; T-105 adds the ledger and the trigger that keeps them in step. A player may enroll only themselves, only in an event they can see, only as pending or active, and may only change their own status to `left`; the event's organizer or an admin changes any status.
+- `player.status`: only a Questify admin, except that a player may delete their own active account. A new player is always created active.
+- `organizer_member`: only the organizer's owner (or an admin) adds, changes or removes members; the person who creates an organizer becomes its first owner. Owner checks run in the database (`app_is_owner`).
+- `staff_user`: the API may change only `password_hash` (migration 0002).
 
 ### staff_user
 | Field | Type | Constraints | PII | Notes |
@@ -87,7 +102,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | id | uuid | PK | no | |
 | organizer_id | uuid | FK, indexed, RLS key | no | |
 | join_code, slug | text | unique | no | In QR and event page |
-| status | enum | draft, rehearsal, active, closed, archived | no | Activation by Questify (ADR-076) |
+| status | enum | draft, scheduled, live, ended, archived | no | Matches FR-1017 and the code; activation by Questify (ADR-076); rehearsal is a mode of a draft or scheduled event (ADR-080) |
 | player_limit_mode, player_limit | enum, int | hard/soft/none | no | |
 | add_ons | text[] | | no | Big screen, NFC, kiosks, sponsors, branding, invitations |
 | timezone, day_start_hour | text, int | default 4 | no | |

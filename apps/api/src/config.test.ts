@@ -18,6 +18,7 @@ describe("loadConfig", () => {
       minAppVersion: "1.0.0",
       releaseSha: "dev",
       databaseUrl: REQUIRED.DATABASE_URL,
+      databasePoolSize: 10,
       trustProxyHops: 1,
       auth: {
         secret: REQUIRED.AUTH_SECRET,
@@ -111,6 +112,17 @@ describe("loadConfig", () => {
       trustProxyHops: 2,
     });
     expect(loadConfig({ ...REQUIRED, NODE_ENV: "development" }).trustProxyHops).toBe(1);
+  });
+
+  it.each(["0", "201", "x", "2.5"])("rejects DATABASE_POOL_SIZE %j", (value) => {
+    expect(() => loadConfig({ ...REQUIRED, DATABASE_POOL_SIZE: value })).toThrow(
+      /DATABASE_POOL_SIZE/,
+    );
+  });
+
+  it("reads the pool size, from 1 to 200", () => {
+    expect(loadConfig({ ...REQUIRED, DATABASE_POOL_SIZE: "1" }).databasePoolSize).toBe(1);
+    expect(loadConfig({ ...REQUIRED, DATABASE_POOL_SIZE: "200" }).databasePoolSize).toBe(200);
   });
 
   it("accepts zero proxies", () => {

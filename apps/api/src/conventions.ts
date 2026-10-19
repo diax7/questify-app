@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
-import { HttpError } from "./http-error";
-import type { IdempotencyStore } from "./idempotency-store";
+import { HttpError } from "#src/http-error";
+import type { IdempotencyStore } from "#src/idempotency-store";
 
 declare module "fastify" {
   interface FastifyContextConfig {
@@ -114,7 +114,9 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
       return payload;
     }
     claims.delete(request);
-    if (reply.statusCode >= 500 || typeof payload !== "string") {
+    // An empty answer (204) has no payload; it is remembered as empty so a retry replays it instead of running again.
+    const body = payload === undefined || payload === null ? "" : payload;
+    if (reply.statusCode >= 500 || typeof body !== "string") {
       await options.idempotencyStore.abort(claim.scope, claim.key);
       return payload;
     }
@@ -123,7 +125,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
       claim.scope,
       claim.key,
       reply.statusCode,
-      payload,
+      body,
       contentType,
     );
     return payload;

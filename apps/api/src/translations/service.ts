@@ -10,6 +10,7 @@ import {
   type Overrides,
 } from "@questify/shared";
 import type { PublicAccount } from "#src/auth/staff-store";
+import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
 import { createTtlCache } from "#src/settings/cache";
@@ -40,15 +41,6 @@ const DEFAULT_TTL_MS = 15_000;
 const input = z.strictObject({ ar: z.string().optional(), en: z.string().optional() });
 
 type Row = { key: string; ar: string | null; en: string | null };
-
-async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    return await work(client);
-  } finally {
-    client.release();
-  }
-}
 
 /** Keeps only what the app can use: known keys, non-blank, with the shipped placeholders. */
 function toOverrides(messages: Messages, rows: readonly Row[]): Overrides {
@@ -111,7 +103,7 @@ export function createTranslationService(options: TranslationOptions): Translati
       if (cached !== undefined) {
         return cached;
       }
-      const rows = await withClient(options.pool, (client) =>
+      const rows = await withConnection(options.pool, (client) =>
         withRequestContext(
           client,
           {},
@@ -154,7 +146,7 @@ export function createTranslationService(options: TranslationOptions): Translati
       if (issues.length > 0) {
         return { ok: false, reason: "invalid", issues };
       }
-      await withClient(options.pool, (client) =>
+      await withConnection(options.pool, (client) =>
         withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () =>
           writeRow(client, key, changes, admin.id),
         ),

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { LANGUAGE_KEY, loadStoredLanguage, saveLanguage } from "#src/i18n/preference.ts";
+import {
+  LANGUAGE_KEY,
+  RESTART_KEY,
+  loadRestartNote,
+  loadStoredLanguage,
+  saveLanguage,
+  saveRestartNote,
+} from "#src/i18n/preference.ts";
 
 const memory = () => {
   const data = new Map<string, string>();
@@ -52,5 +59,28 @@ describe("language preference", () => {
       },
     };
     await expect(saveLanguage(broken, "en")).rejects.toThrow("disk full");
+  });
+});
+
+describe("restart note", () => {
+  it("keeps the note under its own fixed name and reads it back", async () => {
+    const storage = memory();
+    expect(RESTART_KEY).toBe("questify.restartTriedFor");
+    await saveRestartNote(storage, "ar");
+    expect(storage.data.get(RESTART_KEY)).toBe("ar");
+    expect(await loadRestartNote(storage)).toBe("ar");
+    await saveRestartNote(storage, "");
+    expect(await loadRestartNote(storage)).toBe("");
+  });
+
+  it("reads none when there is none or the store cannot be read", async () => {
+    expect(await loadRestartNote(memory())).toBeNull();
+    const broken = {
+      getItem: async () => {
+        throw new Error("disk unavailable");
+      },
+      setItem: async () => undefined,
+    };
+    expect(await loadRestartNote(broken)).toBeNull();
   });
 });

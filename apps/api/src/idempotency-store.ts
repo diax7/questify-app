@@ -30,7 +30,10 @@ type Entry =
       contentType: string;
     };
 
-/** In-memory store for tests and local use. The shared database version arrives with T-003. */
+/**
+ * In-memory store: one copy of the server, keys kept 24 hours. The hard guarantee for points is the unique key inside
+ * the completion transaction (T-105); this store stays a convenience for other unsafe actions.
+ */
 export class MemoryIdempotencyStore implements IdempotencyStore {
   private readonly entries = new Map<string, Entry>();
 

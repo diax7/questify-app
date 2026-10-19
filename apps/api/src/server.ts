@@ -8,7 +8,6 @@ import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
-const POOL_SIZE = 10;
 const STATEMENT_TIMEOUT_MS = 5000;
 const LOCK_TIMEOUT_MS = 2000;
 const CONNECT_TIMEOUT_MS = 3000;
@@ -16,7 +15,7 @@ const CONNECT_TIMEOUT_MS = 3000;
 function createPool(config: AppConfig): Pool {
   return new Pool({
     connectionString: config.databaseUrl,
-    max: POOL_SIZE,
+    max: config.databasePoolSize,
     statement_timeout: STATEMENT_TIMEOUT_MS,
     query_timeout: STATEMENT_TIMEOUT_MS + 1000,
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,

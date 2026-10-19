@@ -12,6 +12,7 @@ import {
   type PlatformSettings,
   type Registries,
 } from "@questify/shared";
+import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
 import { createTtlCache } from "#src/settings/cache";
@@ -59,15 +60,6 @@ export type SettingsOptions = Readonly<{
 const DEFAULT_TTL_MS = 15_000;
 const MAX_CACHED = 1000;
 
-async function withClient<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    return await work(client);
-  } finally {
-    client.release();
-  }
-}
-
 /** Reads, composes, and saves the platform and event configuration (F-277 to F-282, FR-1503, FR-1504). */
 export function createSettingsService(options: SettingsOptions): SettingsService {
   const registries = options.registries ?? REGISTRIES;
@@ -94,7 +86,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
   };
 
   const load = (eventId: string | undefined): Promise<ConfigResult> =>
-    withClient(options.pool, (client) =>
+    withConnection(options.pool, (client) =>
       withRequestContext(client, {}, async () => {
         const platform = await loadPlatform(client);
         if (eventId === undefined) {
@@ -121,7 +113,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     if (admin.platformRole !== "admin" || admin.status !== "active") {
       return { ok: false, reason: "forbidden" };
     }
-    const result = await withClient(options.pool, (client) =>
+    const result = await withConnection(options.pool, (client) =>
       withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () => work(client)),
     );
     forgetAll();
@@ -160,7 +152,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       if (!checked.ok) {
         return { ok: false, reason: "invalid", issues: checked.issues };
       }
-      const written = await withClient(options.pool, (client) =>
+      const written = await withConnection(options.pool, (client) =>
         withRequestContext(client, { organizerId }, () =>
           writeEventSwitches(client, eventId, checked.value.features ?? {}),
         ),

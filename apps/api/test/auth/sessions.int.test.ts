@@ -410,19 +410,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
     });
   });
 
-  describe("default deny", () => {
-    it("lists exactly three public routes, the sign-in steps", () => {
-      const open = test.app.staffRoutes.filter((route) => route.public);
-      expect(open.map((route) => `${route.method} ${route.url}`).toSorted()).toEqual([
+  describe("default deny, across the whole app", () => {
+    it("has exactly these public routes and nothing else open", () => {
+      const open = test.app.routeInventory
+        .filter((route) => route.access === "public" && route.method !== "HEAD")
+        .map((route) => `${route.method} ${route.url}`)
+        .toSorted();
+      expect(open).toEqual([
+        "GET /healthz",
+        "GET /readyz",
+        "GET /v1/config",
+        "GET /v1/translations",
         "POST /v1/staff/auth/code",
         "POST /v1/staff/auth/password",
         "POST /v1/staff/auth/resend",
       ]);
     });
 
-    it("answers 401 with no-store on every other staff route when there is no session", async () => {
-      const closed = test.app.staffRoutes.filter(
-        (route) => !route.public && route.method !== "HEAD",
+    it("answers 401 with no-store on every staff route when there is no session", async () => {
+      const closed = test.app.routeInventory.filter(
+        (route) => route.access === "staff" && route.method !== "HEAD",
       );
       expect(closed.length).toBeGreaterThanOrEqual(4);
       for (const route of closed) {
@@ -437,8 +444,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       }
     });
 
-    it("puts only /v1/staff routes in the staff inventory", () => {
-      for (const route of test.app.staffRoutes) {
+    it("keeps staff routes under /v1/staff, where the session check runs", () => {
+      for (const route of test.app.routeInventory.filter((entry) => entry.access === "staff")) {
         expect(route.url.startsWith("/v1/staff/")).toBe(true);
       }
     });

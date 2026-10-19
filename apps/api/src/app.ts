@@ -8,12 +8,13 @@ import type { Pool } from "pg";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
-import { registerStaffRoutes, type RouteInfo } from "#src/auth/routes";
+import { registerStaffRoutes } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
 import { createSignIn } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { registerRouteInventory, type RouteInfo } from "#src/route-access";
 import { registerConfigRoutes } from "#src/settings/routes";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
 import { registerTranslationRoutes } from "#src/translations/routes";
@@ -36,8 +37,8 @@ export type AppOptions = Readonly<{
 
 declare module "fastify" {
   interface FastifyInstance {
-    /** Every route in the staff scope and whether it is on the public list; the tests walk it. */
-    staffRoutes: RouteInfo[];
+    /** Every route with who may call it; the tests walk it. */
+    routeInventory: RouteInfo[];
   }
 }
 
@@ -85,6 +86,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     // Trust exactly the proxies we run (hop 0 is the nearest); a client-sent X-Forwarded-For beyond them is ignored.
     trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,
   });
+  app.decorate("routeInventory", registerRouteInventory(app));
   // JSON only: a form or plain-text body must never reach a handler.
   app.removeContentTypeParser("text/plain");
 
@@ -93,20 +95,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
     idempotencyStore: options.idempotencyStore,
   });
 
-  app.decorate(
-    "staffRoutes",
-    registerStaffRoutes(app, {
-      signIn: createSignIn({
-        pool: options.pool,
-        keys: createAuthKeys(config.auth.secret),
-        email: options.emailSender,
-        gate: createVerifyGate(AUTH_LIMITS.verifyGate),
-        securityAlertEmail: config.auth.securityAlertEmail,
-      }),
-      sessions: createSessions(options.pool),
-      dashboardOrigin: config.auth.dashboardOrigin,
+  registerStaffRoutes(app, {
+    signIn: createSignIn({
+      pool: options.pool,
+      keys: createAuthKeys(config.auth.secret),
+      email: options.emailSender,
+      gate: createVerifyGate(AUTH_LIMITS.verifyGate),
+      securityAlertEmail: config.auth.securityAlertEmail,
     }),
-  );
+    sessions: createSessions(options.pool),
+    dashboardOrigin: config.auth.dashboardOrigin,
+  });
 
   registerConfigRoutes(app, options.settings ?? createSettingsService({ pool: options.pool }));
 
@@ -115,12 +114,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     options.translations ?? createTranslationService({ pool: options.pool }),
   );
 
-  app.get("/healthz", async (_request, reply) => {
+  app.get("/healthz", { config: { access: "public" } }, async (_request, reply) => {
     reply.header("cache-control", "no-store");
     return { status: "ok", release: config.releaseSha };
   });
 
-  app.get("/readyz", async (_request, reply) => {
+  app.get("/readyz", { config: { access: "public" } }, async (_request, reply) => {
     reply.header("cache-control", "no-store");
     const database = await databaseReady(options.pool);
     return reply.code(database ? 200 : 503).send({
