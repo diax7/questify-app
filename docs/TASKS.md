@@ -30,7 +30,7 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A suite using only the public credential can read and write nothing; an editor of organizer A gets 403/404 on every organizer B route.
 - [ ] **T-004** Append-only audit log and change log infrastructure (updates and deletes revoked in the database) — delivers FR 1029, 1030, 1410; depends on: T-003
   - Done when: Any attempt to update or delete an audit row fails at the database; each state-changing call writes who, what, before, after and when.
-- [ ] **T-005** Shared API conventions: error envelope, idempotency-key middleware, cursor pagination, rate-limit headers, request ids, app-version check (426) — delivers FR 1033, 1735; depends on: T-001
+- [x] **T-005** Shared API conventions: error envelope, idempotency-key middleware, cursor pagination, rate-limit headers, request ids, app-version check (426) — delivers FR 1033, 1735; depends on: T-001
   - Done when: Repeating a request with the same idempotency key returns the first result; an old app version receives 426 with a store link; the error envelope is identical on every route.
 - [ ] **T-006** Staff sign-in: email, password (argon2id), email code, inactivity expiry, session list — delivers FR 1725; depends on: T-003
   - Done when: A staff user cannot reach any page without all three steps; a session expires after the inactivity limit; wrong codes are limited.
