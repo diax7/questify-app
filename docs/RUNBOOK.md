@@ -49,6 +49,34 @@ change or remove an entry, the owner included; do not try to work around the tri
 **Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows; nothing stored depends on
 it. Sessions stay valid. Do it when someone with access leaves or the secret may have leaked.
 
+## Email domain (ADR-112)
+
+Sending address: `noreply@questify.nafes.com`, through the Gmail API. Done once, by whoever controls `nafes.com`'s
+DNS and the Google accounts. No password or key ever goes into chat, the repository or a doc.
+
+1. **Google Workspace:** sign up (Business Starter is enough) with `questify.nafes.com` as the domain, or add it as
+   a secondary domain if `nafes.com` already has Workspace. Verify it with the TXT record Google shows.
+2. **Mailbox:** create the user `noreply@questify.nafes.com` (one licence). Turn on 2-Step Verification for the admin.
+3. **DNS on `questify.nafes.com`:**
+   - MX: Google's MX record (`smtp.google.com`, priority 1), so bounces and replies have a home.
+   - SPF: TXT `v=spf1 include:_spf.google.com ~all`.
+   - DKIM: Admin console, Apps, Google Workspace, Gmail, Authenticate email: generate a **2048-bit** key, add the TXT
+     record at `google._domainkey.questify.nafes.com`, then press **Start authentication**.
+   - DMARC: TXT at `_dmarc.questify.nafes.com`: `v=DMARC1; p=none; rua=mailto:dmarc@questify.nafes.com; adkim=s; aspf=s`.
+     After two to four weeks of clean reports change `p=none` to `p=quarantine`, later to `p=reject`.
+4. **Gmail API access without a password:** in Google Cloud, create a project, enable the **Gmail API**, create a
+   **service account**, and create a JSON key for it (if the organization policy "Disable service account key
+   creation" blocks it, allow it for this project only). In the Workspace Admin console, Security, API controls,
+   **Domain-wide delegation**: add the service account's client ID with exactly one scope,
+   `https://www.googleapis.com/auth/gmail.send`.
+5. **Secrets:** put the JSON key into the CranL secret store of `questify-api-staging` (the variable name comes with
+   T-021). Delete the downloaded file afterwards.
+6. **Watch the reputation:** add the domain to Google Postmaster Tools. Test by sending a code to a Gmail address and
+   opening "Show original": SPF, DKIM and DMARC must all say PASS.
+
+Also good for staying out of spam: one fixed "From" name, a plain-text part in every message, no link shorteners, and
+a slow start in volume. Resend (backup) gets its own subdomain `send.questify.nafes.com` with its own SPF and DKIM.
+
 ## Database and deploy
 
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the

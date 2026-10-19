@@ -594,3 +594,8 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - User: "the event owner can show the full name of the users in his platform, or only the username, or both. This is just an option, and our design should be flexible for all those changes or any options." (Note: this relaxes FR-120 / ADR-032, which show only username and avatar; needs a consent line on the join card and counsel input.)
 - User asked Claude to "think with me": suggest more ideas for gamification, interaction and customization, so no good feature is missed. Candidate list and the user's picks: `_blueprint/WIREFRAME_REVIEW.md` (Idea round). Still pending approval.
 
+## 2026-10-20 — Email sending (processed into ADR-112, INTEGRATIONS, TASKS T-021)
+
+- User: "to send emails I want to use Gmail API not gmail password, and I want it to have spf dkim dmarc and
+  anything more to make sure it's not go to spam."
+- Answers: Google Workspace on our own domain (recommended option); the domain is `questify.nafes.com`.
