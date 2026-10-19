@@ -39,7 +39,7 @@ graph TD
 | Player app | All player and operator screens; scanning; mini-games; keeps the last working configuration | HTTPS JSON `/v1`, server-sent events for live updates | API |
 | Web app | Event page, station (rotating QR) page, big screen, deletion page, organizer dashboard, Questify console | Same API; staff cookie session | API |
 | API server | Authentication, authorization, all rules; the modules below | REST `/v1`, event stream | PostgreSQL, Redis, storage |
-| Workers | Sends SMS, email, push; scheduled jobs (daily word, reports, reservation expiry, flag checks); wallet pass updates | pg-boss queues in PostgreSQL | PostgreSQL, providers |
+| Workers | Sends SMS, email, push; scheduled jobs (daily word, reports, reservation expiry, flag checks, nightly backup dump); wallet pass updates. **Run inside the API container in v1** (mode setting; ADR-109) and can be split out later | pg-boss queues in PostgreSQL | PostgreSQL, providers |
 | PostgreSQL | The only source of truth, including the append-only points record | SQL | none |
 | Redis-compatible store | Live rankings, rate limits, short-lived login/QR windows. **Rebuildable** from PostgreSQL | Redis protocol | none |
 | Object storage | Photos, organizer art, exports | Signed URLs | none |
