@@ -32,9 +32,6 @@
       "expo-splash-screen",
       "expo-status-bar"
     ],
-    "updates": {
-      "enabled": false
-    },
     "extra": {
       "router": {},
       "eas": {

@@ -1,6 +1,6 @@
 import { getLocales } from "expo-localization";
-import * as Updates from "expo-updates";
-import { DevSettings, I18nManager } from "react-native";
+import { reloadAppAsync } from "expo";
+import { I18nManager } from "react-native";
 import type { Language } from "@questify/shared";
 import type { DeviceLocale } from "#src/i18n/language.ts";
 import { isRtl } from "#src/i18n/language.ts";
@@ -21,11 +21,10 @@ export function applyDirectionForNextLaunch(language: Language): void {
   I18nManager.forceRTL(isRtl(language));
 }
 
-/** Reopens the app on the same screen state it can restore. In a development build it reloads the bundle instead. */
+/**
+ * Reopens the app so the new layout direction applies everywhere. `reloadAppAsync` is Expo's restart for every kind of
+ * build (Expo Go, development builds and the store app).
+ */
 export async function restartApp(): Promise<void> {
-  if (__DEV__) {
-    DevSettings.reload();
-    return;
-  }
-  await Updates.reloadAsync();
+  await reloadAppAsync("language changed");
 }
