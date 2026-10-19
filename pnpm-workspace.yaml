@@ -9,6 +9,18 @@ strictDepBuilds: true
 # qs is pulled in by Stryker and has known moderate issues below 6.16.0
 overrides:
   qs: ">=6.16.0"
+  # Expo's build tooling (xcode, query-string) still asks for versions with known moderate issues.
+  "uuid@<11.1.1": "^11.1.1"
+  "decode-uri-component@<=0.4.2": ">=0.4.3"
+  "@babel/core@<=7.29.0": "^7.29.7"
 
 allowBuilds:
   esbuild: true
+
+# Advisories with no patched release on npm yet (checked 2026-10-19). Both sit only in Expo's and Metro's
+# build tooling (the dev server, config plugins, code signing for builds): neither is in the app we ship nor
+# in the API image. Re-check monthly; remove each line when a fixed version exists.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm # braces: stack exhaustion on deeply nested patterns (Metro file watching)
+    - GHSA-86w9-cpqp-85rv # node-forge: RSA signature verification (@expo/cli code-signing helper)
