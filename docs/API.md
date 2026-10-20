@@ -166,7 +166,9 @@ Auth shows who may call. "Rate" notes any special limit.
 the caller's membership from the database: **a non-member gets 404** (the same as an unknown organizer), **an editor on
 an owner route gets 403 `owner_only`**; an event outside a limited editor's limit answers 404, as a missing one, and a
 limited editor cannot create events (403 `scope_limited`, T-102). The database checks the membership again on every query (DATA_MODEL "The organizer context").
-| `POST …/events/{id}/qr/regenerate`, `…/operators/batch` | owner, editor | new quest QR; batch operator QRs | |
+| `GET …/events/{eventId}/codes` | owner, editor | `{codes: [{questId, categoryId, category, title, version, url}]}` for the quests whose type carries a printed QR, in builder order; `url` is `DASHBOARD_ORIGIN/q/{token}` (T-104); any status | 404 |
+| `POST …/events/{eventId}/quests/{questId}/qr/regenerate` | owner, editor | → `{version, url}`; the version goes up, so every code printed before stops working at once (FR-1711); no live confirmation (the dashboard asks first) | 404 (another event, or a type without a code), 409 `event_closed` |
+| `…/operators/batch` | owner, editor | batch operator QRs | |
 | `GET …/events/{id}/stream` | owner, editor | live control room | |
 
 ### Questify console

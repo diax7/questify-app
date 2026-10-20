@@ -16,6 +16,7 @@ const STORED: QuestRecord = {
   visible: false,
   position: 4,
   config: { code: "NAJD2030" },
+  qrVersion: 1,
 };
 const ZONE = "Asia/Riyadh";
 

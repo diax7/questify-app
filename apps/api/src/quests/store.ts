@@ -25,6 +25,8 @@ export type QuestRecord = Readonly<{
   visible: boolean;
   position: number;
   config: Readonly<Record<string, unknown>>;
+  /** The version its printed QR carries (T-104); a regenerated code bumps it. */
+  qrVersion: number;
 }>;
 
 /** The fields the API writes on a quest (migration 0010's column grants), all known before a write. */
@@ -66,11 +68,12 @@ type QuestRow = {
   visible: boolean;
   position: number;
   type_config: Record<string, unknown>;
+  qr_version: number;
 };
 
 const CATEGORY_COLUMNS = "id, event_id, name_ar, name_en, position";
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-  repeat_cap, opens_at, closes_at, visible, position, type_config`;
+  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -93,6 +96,7 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   visible: row.visible,
   position: row.position,
   config: row.type_config,
+  qrVersion: row.qr_version,
 });
 
 const lockClause = (lock: boolean) => (lock ? " FOR NO KEY UPDATE" : "");
@@ -343,4 +347,14 @@ export async function reorder(
     [ids],
   );
   return true;
+}
+
+/** Bumps a quest's code version, so every code printed before stops working (FR-1711). Returns the new version. */
+export async function bumpQrVersion(db: PoolClient, id: string): Promise<number> {
+  const { rows } = await db.query<{ qr_version: number }>(
+    "UPDATE quest SET qr_version = qr_version + 1 WHERE id = $1 RETURNING qr_version",
+    [id],
+  );
+  // The caller read this quest with a lock in the same transaction, so the row is there.
+  return (rows[0] as { qr_version: number }).qr_version;
 }

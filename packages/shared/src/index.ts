@@ -69,4 +69,10 @@ export {
   zoneLabel,
 } from "./time/event-time";
 export type { QuestType } from "./quests/registry";
-export { QUEST_TYPES, QUEST_TYPE_NAMES, isQuestType, parseQuestConfig } from "./quests/registry";
+export {
+  QR_QUEST_TYPES,
+  QUEST_TYPES,
+  QUEST_TYPE_NAMES,
+  isQuestType,
+  parseQuestConfig,
+} from "./quests/registry";

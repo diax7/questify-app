@@ -14,6 +14,7 @@ import {
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import { readBuilder, type BuilderDeps, type Done } from "#src/quests/builder";
+import { listCodes, regenerateCode, type CodeDeps } from "#src/quests/codes";
 import {
   createCategory,
   deleteCategory,
@@ -231,7 +232,7 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps): void {
  * The quest builder's routes (FR-1004–1008, FR-226–229), inside the organizer scope. Categories and quests are always
  * read under the event in the path, so an id from another event is "not found".
  */
-export function registerBuilderRoutes(scope: FastifyInstance, deps: BuilderDeps): void {
+export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps): void {
   scope.get("/events/:eventId/quests", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const result = await readBuilder(deps, organizerContextOf(request), eventId);
@@ -244,4 +245,25 @@ export function registerBuilderRoutes(scope: FastifyInstance, deps: BuilderDeps)
   });
   registerCategoryRoutes(scope, deps);
   registerQuestRoutes(scope, deps);
+  registerCodeRoutes(scope, deps);
+}
+
+/** The printed quest codes (FR-305) and regenerating one (FR-1711). */
+function registerCodeRoutes(scope: FastifyInstance, deps: CodeDeps): void {
+  scope.get("/events/:eventId/codes", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const result = await listCodes(deps, organizerContextOf(request), eventId);
+    return answer(result, (codes) => ({ codes }));
+  });
+
+  scope.post("/events/:eventId/quests/:questId/qr/regenerate", member, async (request) => {
+    const { eventId, questId } = parse(questParams, request.params);
+    const result = await regenerateCode(
+      deps,
+      organizerContextOf(request),
+      { eventId, questId },
+      callerOf(request),
+    );
+    return answer(result, (code) => code);
+  });
 }

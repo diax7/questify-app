@@ -357,15 +357,13 @@ Behavior:
 
 ### 3.5 Quest QR and NFC print page
 
-Primary action: **Print sheet**.
+Primary action: **Print or save as PDF** (built in T-104).
 
 ```
 +----------------------------+
 | < Build   Print codes      |
-| [*Print sheet*]            |
-| [ Download all (PDF) ]     |
+| [*Print or save as PDF*]   |
 |----------------------------|
-| Show: All quests v         |
 | Size: Small  Large v       |
 |----------------------------|
 | [QR]  Scan the gate QR     |
@@ -381,8 +379,12 @@ Primary action: **Print sheet**.
 +----------------------------+
 ```
 
-- Print sheet: one page per quest or several per page; each code has the quest title in the
-  event's languages and the station name.
+- Print sheet: Small puts several codes on a page, Large one per page; each code has the quest
+  title in the event's languages (an English-only event prints English) and its category, which
+  stands in for the station name until stations exist (T-205, T-309). Each card also downloads
+  as an SVG. Codes are black on white in every theme and never mirrored right to left.
+- No separate "Download all (PDF)": the one primary button prints, and the browser's own "Save as
+  PDF" gives the file. "Show: All quests" waits until a second type carries a code.
 - **Regenerate** opens a confirmation screen: "The printed code stops working at once. Reprint it
   before players scan." (FR-1711). The old code is refused from that moment.
 - On a phone, "Print sheet" opens the phone's own print or save-as-PDF option.

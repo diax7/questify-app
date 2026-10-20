@@ -4,6 +4,7 @@ import { loadConfig } from "./config";
 const REQUIRED = {
   DATABASE_URL: "postgres://questify_app:pw@db:5432/questify",
   AUTH_SECRET: "s".repeat(32),
+  QR_SECRET: "q".repeat(32),
   DASHBOARD_ORIGIN: "https://app.questify.sa",
   GMAIL_SERVICE_ACCOUNT_KEY: JSON.stringify({
     type: "service_account",
@@ -40,6 +41,7 @@ describe("loadConfig", () => {
         resend: undefined,
         securityAlertEmail: undefined,
       },
+      qrSecret: REQUIRED.QR_SECRET,
     });
   });
 
@@ -117,6 +119,14 @@ describe("loadConfig", () => {
   it.each(Object.keys(REQUIRED))("names %s when it is missing or blank", (name) => {
     expect(() => loadConfig({ ...REQUIRED, [name]: undefined })).toThrow(new RegExp(name));
     expect(() => loadConfig({ ...REQUIRED, [name]: "  " })).toThrow(new RegExp(name));
+  });
+
+  it("requires a QR_SECRET of at least 32 characters", () => {
+    const { QR_SECRET: _omitted, ...withoutQr } = REQUIRED;
+    expect(() => loadConfig(withoutQr)).toThrow(/QR_SECRET is required/);
+    expect(() => loadConfig({ ...REQUIRED, QR_SECRET: "x".repeat(31) })).toThrow(
+      /QR_SECRET must be at least 32/,
+    );
   });
 
   it("rejects an AUTH_SECRET shorter than 32 characters", () => {

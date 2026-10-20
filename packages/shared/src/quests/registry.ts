@@ -18,10 +18,11 @@ const bilingualHint = z
  */
 export const QUEST_TYPES = {
   /** The player scans the quest's QR code (T-104 signs it; T-105 completes it). */
-  scan_qr: { label: "quests.type.scanQr", config: z.strictObject({}) },
+  scan_qr: { label: "quests.type.scanQr", usesQuestQr: true, config: z.strictObject({}) },
   /** The player types a code shown at the venue (T-105). The code is a secret: never shown to players. */
   enter_code: {
     label: "quests.type.enterCode",
+    usesQuestQr: false,
     config: z.strictObject({
       code: z
         .string()
@@ -37,6 +38,9 @@ export const QUEST_TYPES = {
 export type QuestType = keyof typeof QUEST_TYPES;
 
 export const QUEST_TYPE_NAMES = Object.keys(QUEST_TYPES) as QuestType[];
+
+/** The types whose quests carry a printed quest QR (FR-305): scanned to complete, or as a fallback (FR-216). */
+export const QR_QUEST_TYPES = QUEST_TYPE_NAMES.filter((type) => QUEST_TYPES[type].usesQuestQr);
 
 export function isQuestType(value: string): value is QuestType {
   return Object.hasOwn(QUEST_TYPES, value);

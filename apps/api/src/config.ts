@@ -28,6 +28,11 @@ export type AppConfig = Readonly<{
   /** How many proxies sit in front of the API; the client address is read that many hops from the right. */
   trustProxyHops: number;
   auth: AuthConfig;
+  /**
+   * Key material for the codes printed in quest QRs; at least 32 characters. Its own secret, not AUTH_SECRET's: printed
+   * codes live a whole event, and rotating it voids every one (RUNBOOK).
+   */
+  qrSecret: string;
 }>;
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -146,5 +151,15 @@ export function loadConfig(env: Env): AppConfig {
     databasePoolSize: whole(env, "DATABASE_POOL_SIZE", "10", 1, 200),
     trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
+    qrSecret: qrSecret(env),
   };
+}
+
+/** Required in every environment: a missing key must stop the server, never fall back to a known one. */
+function qrSecret(env: Env): string {
+  const secret = required(env, "QR_SECRET");
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(`QR_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
+  }
+  return secret;
 }

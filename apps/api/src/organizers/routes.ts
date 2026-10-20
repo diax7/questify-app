@@ -19,6 +19,7 @@ import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
+import type { QuestCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
@@ -30,6 +31,8 @@ export type OrganizerRoutesDeps = Readonly<{
   sessions: Sessions;
   team: Team;
   events: Events;
+  /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
+  questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
   dashboardOrigin: string;
 }>;
 
@@ -188,7 +191,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       });
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events);
-      registerBuilderRoutes(scope, { pool: deps.pool });
+      registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
     },
     { prefix: ORGANIZER_PREFIX },
   );

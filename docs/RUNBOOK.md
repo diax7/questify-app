@@ -20,7 +20,7 @@
 
 ## Staff sign-in
 
-Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
+Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
 optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
@@ -80,6 +80,13 @@ change or remove an entry, the owner included; do not try to work around the tri
 
 **Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows; nothing stored depends on
 it. Sessions stay valid. Do it when someone with access leaves or the secret may have leaked.
+
+**Rotating `QR_SECRET`** (ADR-116): every quest QR ever printed, in every organizer's events, stops working at once;
+there is no grace period. Do it only when the secret may have leaked (anyone holding it can make a code for any
+quest). Steps: set a new value in the secret store and redeploy the API; tell every organizer with a scheduled or live
+event to open Print codes and reprint (the page shows the new codes); note it in the incident log. Players who scan
+an old code get "this code no longer works" (T-105). A routine rotation is not needed: the key signs codes, it does
+not encrypt data.
 
 ## Email sending (ADR-112)
 

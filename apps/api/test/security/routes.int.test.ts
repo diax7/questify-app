@@ -96,6 +96,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a quest of another event answers 404, so a live event's confirmation cannot be skipped (test/quests/builder)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/quests/:questId":
     "a quest of another event answers 404 (test/quests/builder)",
+  "GET /v1/organizers/:organizerId/events/:eventId/codes":
+    "members of that organizer within their event limit; another event answers 404 (test/quests/codes)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/qr/regenerate":
+    "a quest of the path's event only; another event's quest answers 404 (test/quests/codes)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };

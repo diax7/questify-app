@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
-import { QUEST_TYPES, QUEST_TYPE_NAMES, isQuestType, parseQuestConfig } from "#src/quests/registry";
+import {
+  QR_QUEST_TYPES,
+  QUEST_TYPES,
+  QUEST_TYPE_NAMES,
+  isQuestType,
+  parseQuestConfig,
+} from "#src/quests/registry";
 
 describe("the quest-type registry", () => {
   it("names each type in both languages", () => {
     for (const type of QUEST_TYPE_NAMES) {
       expect(MESSAGES, type).toHaveProperty([QUEST_TYPES[type].label]);
+    }
+  });
+
+  it("says for every type whether its quests carry a printed QR", () => {
+    expect(QR_QUEST_TYPES).toEqual(["scan_qr"]);
+    for (const type of QUEST_TYPE_NAMES) {
+      expect(typeof QUEST_TYPES[type].usesQuestQr, type).toBe("boolean");
     }
   });
 

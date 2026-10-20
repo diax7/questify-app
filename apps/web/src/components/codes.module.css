@@ -1,0 +1,61 @@
+/* The print-codes sheet (T-104). The codes themselves are black on white in every theme: scanners need that
+   contrast, so it is a function of the code, not a colour of the brand (NFR-024 covers the brand). */
+
+.sheet {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.large {
+  grid-template-columns: 1fr;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: white;
+  color: black;
+  break-inside: avoid;
+  text-align: center;
+}
+
+.code {
+  inline-size: 100%;
+  max-inline-size: 240px;
+  block-size: auto;
+  background: white;
+}
+
+.large .code {
+  max-inline-size: 480px;
+}
+
+.title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.small {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+@media print {
+  /* Only the sheet prints, in normal flow: no bar, no buttons; one large code per page. */
+  :global(header),
+  .controls {
+    display: none;
+  }
+  .card {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .large .card {
+    break-after: page;
+  }
+}

@@ -1697,3 +1697,23 @@ row-level security stays one simple rule. Quests not tied to an event (FR on Que
 `questify_quest`, when they are built.
 **Replaces:** DATA_MODEL's earlier note that such quests are `quest` rows with a null `event_id`.
 **Why:** a null tenant key would need an exception in every quest policy and in the outsider and cross-tenant tests.
+
+## ADR-115 — `uqr` draws QR codes in the dashboard
+**Status:** Proposed (T-104, CTO plan review 2026-10-20).
+**Decision:** The dashboard draws quest QR codes with `uqr` 0.1.3 (unjs, MIT, no dependencies, 79 kB), pinned
+exactly, in `apps/web` only, through `encode()` into an SVG path (never raw HTML). The API signs codes; it never draws
+them.
+**Why:** a QR encoder (Reed–Solomon, masks, version tables) is not worth owning; `qrcode` brings `pngjs`,
+`dijkstrajs` and `yargs`. **Fallback:** `qrcode-generator` (also dependency-free) if `uqr` stalls; the token format does
+not depend on the library.
+
+## ADR-116 — Quest QR codes are signed with their own secret, `QR_SECRET`
+**Status:** Proposed (T-104, CTO plan review 2026-10-20).
+**Decision:** A quest QR holds `{DASHBOARD_ORIGIN}/q/{token}`; the token is base64url of a format byte, the quest id,
+its code version and a 128-bit HMAC-SHA256 tag over those, under `HMAC(QR_SECRET, "questify/qr/v1/quest")`. `QR_SECRET`
+is a new required production secret (32+ characters), set by Dhia in the secret store, separate from `AUTH_SECRET`.
+**Why:** printed codes live a whole event, and `AUTH_SECRET` is rotated whenever someone with access leaves (RUNBOOK);
+deriving from it would force every organizer to reprint each time. A leak of `QR_SECRET` voids every code in every
+event at rotation (RUNBOOK procedure). A per-quest random nonce was considered and rejected: SECURITY and ARCHITECTURE
+call for signed codes, and rotating station codes (FR-314) need a key anyway.
+

@@ -43,6 +43,7 @@ export function testConfig(
       securityAlertEmail: "security@questify.test",
       ...auth,
     },
+    qrSecret: "q".repeat(40),
   };
 }
 

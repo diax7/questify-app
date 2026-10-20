@@ -12,6 +12,8 @@ export type Deleting =
   | Readonly<{ kind: "category"; category: CategoryView }>;
 
 export type CardActions = Readonly<{
+  /** Where a quest's printed code is, for the types that have one. */
+  codeLink: (quest: QuestView) => string | undefined;
   reorderCategories: (ids: string[]) => void;
   rename: (category: CategoryView, name: { ar: string; en: string }) => void;
   reorderQuests: (category: CategoryView, ids: string[]) => void;
@@ -169,6 +171,11 @@ function QuestRow({
           >
             {t("quests.edit")}
           </button>
+          {actions.codeLink(quest) === undefined ? null : (
+            <a className={styles.textLink} href={actions.codeLink(quest)}>
+              {t("codes.printQr")}
+            </a>
+          )}
           <button
             type="button"
             className={styles.quiet}

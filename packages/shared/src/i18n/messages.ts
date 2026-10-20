@@ -417,6 +417,50 @@ export const MESSAGES = {
   },
   "quests.type.scanQr": { ar: "مسح رمز QR", en: "Scan a QR code" },
   "quests.type.enterCode": { ar: "إدخال رمز", en: "Enter a code" },
+  "codes.title": { ar: "رموز QR للطباعة", en: "Print codes" },
+  "codes.print": { ar: "طباعة أو حفظ PDF", en: "Print or save as PDF" },
+  "codes.size": { ar: "الحجم", en: "Size" },
+  "codes.sizeSmall": { ar: "صغير (عدة رموز في الصفحة)", en: "Small (several per page)" },
+  "codes.sizeLarge": { ar: "كبير (رمز في كل صفحة)", en: "Large (one per page)" },
+  "codes.download": { ar: "تنزيل SVG", en: "Download SVG" },
+  "codes.regenerate": { ar: "رمز جديد", en: "New code" },
+  "codes.regenerateTitle": { ar: "إنشاء رمز جديد؟", en: "Make a new code?" },
+  "codes.regenerateBody": {
+    ar: "يتوقف الرمز المطبوع عن العمل فورًا. أعد طباعته قبل أن يمسحه اللاعبون.",
+    en: "The printed code stops working at once. Reprint it before players scan.",
+  },
+  "codes.regenerated": {
+    ar: "أنشأنا رمزًا جديدًا. الرمز القديم لم يعد يعمل. اطبعه مجددًا.",
+    en: "New code made. The old code no longer works. Print it again.",
+  },
+  "codes.loadFailed": {
+    ar: "تعذّر تجهيز الرموز. حاول مرة أخرى.",
+    en: "We could not make the codes. Try again.",
+  },
+  "codes.regenerateFailed": {
+    ar: "لم نُنشئ رمزًا جديدًا، فالرمز القديم ما زال يعمل. حاول مرة أخرى.",
+    en: "No new code was made, so the old code still works. Try again.",
+  },
+  "codes.empty": {
+    ar: "لا مهام برموز QR بعد. أضف مهمة مسح رمز QR.",
+    en: "No quests with codes yet. Add a quest that uses a QR.",
+  },
+  "codes.toBuilder": { ar: "إلى المهام", en: "Go to quests" },
+  "codes.version": { ar: "النسخة {version}", en: "Version {version}" },
+  "codes.codeFor": { ar: "رمز QR للمهمة «{name}»", en: "QR code for “{name}”" },
+  "codes.printQr": { ar: "طباعة QR", en: "Print QR" },
+  "scan.title": {
+    ar: "امسح هذا الرمز من تطبيق Questify",
+    en: "Scan this code in the Questify app",
+  },
+  "scan.body": {
+    ar: "هذا رمز مهمة في فعالية. افتح تطبيق Questify وادخل الفعالية، ثم امسح الرمز من تبويب المهام لتحصل على النقاط.",
+    en: "This is a quest code at an event. Open the Questify app, enter the event, then scan the code from the Quests tab to earn the points.",
+  },
+  "scan.noApp": {
+    ar: "ليس لديك التطبيق؟ اسأل منظّم الفعالية عن طريقة الانضمام.",
+    en: "Don't have the app? Ask the event's organizer how to join.",
+  },
   "points.balance": {
     ar: "لديك {points} {currency}",
     en: "You have {points} {currency}",

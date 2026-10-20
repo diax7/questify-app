@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language } from "@questify/shared";
+import { QUEST_TYPES, type Language } from "@questify/shared";
 import { useRef, useState, type FormEvent } from "react";
 import {
   CategoryCard,
@@ -76,7 +76,10 @@ export function QuestBuilder({
     setEditing(null);
     focus.restore();
   };
+  const codesPage = `/${language}/organizers/${organizerId}/events/${eventId}/codes`;
   const actions: CardActions = {
+    codeLink: (quest) =>
+      QUEST_TYPES[quest.type].usesQuestQr ? `${codesPage}#code-${quest.id}` : undefined,
     reorderCategories: (ids) => void b.send("PUT", "/categories/order", { ids }),
     rename: (category, name) => void b.send("PATCH", `/categories/${category.id}`, { name }),
     reorderQuests: (category, ids) =>
@@ -166,6 +169,9 @@ export function QuestBuilder({
       <h1 id="builder-title" tabIndex={-1} className={styles.title}>
         {t("quests.title")}
       </h1>
+      <a className={styles.textLink} href={codesPage}>
+        {t("codes.title")}
+      </a>
       {live ? (
         <p role="status" className={styles.notice}>
           {t("quests.liveBanner")}

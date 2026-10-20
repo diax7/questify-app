@@ -559,15 +559,22 @@ other docs feed it and stay as its detailed appendices.
   events could have edited a live event's quest through a draft event's path (closed before code: every child row is
   read under the path's event); the builder's dialogs opened off-screen on a phone with no focus (now focused and in
   view, focus returned after).
+- 2026-10-20 **T-104 done.** Quest QR codes: each scan quest has a signed code (`{dashboard}/q/{token}`: the quest,
+  its code version and a 128-bit HMAC under the new `QR_SECRET`), checked strictly and bound to its quest; "New code"
+  bumps the version so the printed one stops working at once. The dashboard's Print codes page draws them (`uqr`),
+  prints or saves them as PDF through the browser, downloads each as SVG; a phone camera that scans a code outside the
+  app lands on a page that says to scan it inside the app. Migration 0011. CTO: plan 87 → 94; phases 93, 92 (GO).
+  T-105 verifies scans with `verifyQuestCode` and compares the version. Waiting on Dhia: ADR-115, ADR-116, and
+  `QR_SECRET` in staging.
 
 ## Next
 
-1. **Now:** T-104 (quest QR codes), then T-105 (the completion engine) and T-106 (ranking).
+1. **Now:** T-105 (the completion engine: scan and entry-code quests, the points ledger), then T-106 (ranking).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0010 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0011, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
-   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table, Proposed).
+   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed; set `QR_SECRET` in staging.
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.
 
 ## Run complete — 2026-10-18
