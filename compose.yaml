@@ -2,6 +2,9 @@
 services:
   postgres:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    # Every integration test file opens its own pool; on a many-core machine the parallel suite needs more than the
+    # default 100 connections (CI's 2-core runner does not).
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

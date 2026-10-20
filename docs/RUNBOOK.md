@@ -10,6 +10,9 @@
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.
+- "too many clients" or "remaining connection slots" in a local full run: every integration file opens its own pool.
+  `compose.yaml` starts PostgreSQL with 300 connections; a container made before that keeps 100 until
+  `docker exec questifyapp-postgres-1 psql -U postgres -c "ALTER SYSTEM SET max_connections = 300"` and a restart.
 - CI (`.github/workflows/ci.yml`): one job, a PostgreSQL 17 service, secret scan, `ci:changed`, the API build,
   `pnpm audit`; then, only when `scripts/ci-scope.mjs` says the change needs them, the web build and the browser
   tests (web app, shared package, lockfile, workflow, API source or migrations).
