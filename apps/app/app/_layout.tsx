@@ -2,9 +2,11 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { DEFAULT_THEME } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { I18nProvider } from "#src/i18n/provider.tsx";
 import { FONT_FILES } from "#src/theme/fonts.ts";
+import { ThemeProvider } from "#src/theme/theme.tsx";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -22,9 +24,11 @@ export default function RootLayout() {
   }, [ready]);
 
   return (
-    <I18nProvider onReady={onLanguageReady}>
-      <StatusBar style="dark" />
-      {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
-    </I18nProvider>
+    <ThemeProvider theme={DEFAULT_THEME}>
+      <I18nProvider onReady={onLanguageReady}>
+        <StatusBar style="dark" />
+        {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
+      </I18nProvider>
+    </ThemeProvider>
   );
 }

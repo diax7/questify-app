@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import type { MessageKey } from "@questify/shared";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { colors, fontFamily, typography } from "#src/theme/tokens.ts";
+import { useTheme } from "#src/theme/theme.tsx";
 
 type Icon = keyof typeof Ionicons.glyphMap;
 
@@ -17,17 +17,18 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
 
 export default function TabsLayout() {
   const { t } = useI18n();
+  const { theme, text } = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.navigationActive,
-        tabBarInactiveTintColor: colors.navigationInactive,
+        tabBarActiveTintColor: theme.colors.navigationActive,
+        tabBarInactiveTintColor: theme.colors.navigationInactive,
         // The tabs keep one order in both languages, even when the app runs right to left (user, ADR-110 note).
-        tabBarStyle: { backgroundColor: colors.navigationBar, direction: "ltr" },
+        tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
         tabBarLabelStyle: {
-          fontFamily: fontFamily.bodySemiBold,
-          fontSize: typography.label.fontSize,
+          fontFamily: text.label.fontFamily,
+          fontSize: text.label.fontSize,
         },
       }}
     >

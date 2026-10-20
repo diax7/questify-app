@@ -600,3 +600,19 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   anything more to make sure it's not go to spam."
 - Answers: Google Workspace on our own domain (recommended option); the domain is `questify.nafes.com`.
 - 2026-10-20, later: "questify.nafes.com is the dashboard domain and questify@nafes.com is the send from email." Checked in public DNS: `nafes.com` already runs Google Workspace (Google MX), with SPF `include:_spf.google.com`, a 2048-bit Google DKIM key, and DMARC `p=none` reporting to `dmarc@nafes.com`; DNS is on Cloudflare. ADR-112 and the RUNBOOK were updated to match.
+
+## 2026-10-20 — Autonomous build while the user is away (processed into STATE and the work order below)
+
+- User: "I will now have to go for a few days and I would like you to keep going. For now, I will not provide
+  you the Apple and Google account, so you can skip those part. And any part that requires my things like the
+  SMS, that I will provide it to you later. For now, I would like you to focus more on the development and for
+  the requirements of the system, the functions itself, the design system, go with the design system that we
+  already have right now. The adventure one, but keep it flexible to be changed later to another completely
+  design. So don't do something like it's hard coded. And try to do as much as work as possible without
+  waiting and needing my input."
+- "Push whatever you have now into Git. Then start working on the new phases. … Try to use the CTO cycle as
+  much as you can in the most important things. … Do your plan, validate it, do it, test it."
+- Processed: skip T-010 (store accounts) and T-013 (SMS quotes); build SMS behind its adapter with a fake until
+  Msegat credentials arrive; the design system is the adventure theme behind swappable theme tokens (no colors,
+  fonts or shapes hard-coded in screens); CTO cycle on the core tasks. Decisions that are the user's stay
+  `Proposed` and go to OPEN_QUESTIONS for the user's return.

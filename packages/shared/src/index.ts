@@ -32,7 +32,19 @@ export {
 } from "./config/validate";
 export type { RateLimitState } from "./rate-limit";
 export { rateLimitHeaders } from "./rate-limit";
-export { colors, palette, radius, spacing } from "./design/tokens";
+export type {
+  ColorRole,
+  FontRole,
+  FontWeight,
+  RadiusStep,
+  SpacingStep,
+  TextStyle,
+  TextVariant,
+  Theme,
+} from "./design/theme";
+export { adventurePalette, adventureTheme } from "./design/adventure";
+export type { ThemeId } from "./design/themes";
+export { DEFAULT_THEME, THEMES } from "./design/themes";
 export type { Language } from "./i18n/digits";
 export { formatNumber, toWesternDigits } from "./i18n/digits";
 export type { MessageKey, Messages } from "./i18n/messages";

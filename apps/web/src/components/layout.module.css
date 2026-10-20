@@ -48,7 +48,7 @@
   width: 100%;
   max-width: 440px;
   margin-inline: auto;
-  background: #fff;
+  background: var(--color-surface);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl) var(--space-lg);
@@ -154,7 +154,7 @@
   margin: 0;
   padding: var(--space-md);
   border-radius: var(--radius-md);
-  background: #fde8e0;
+  background: var(--color-danger-surface);
   border-inline-start: 4px solid var(--color-hot);
 }
 
@@ -185,7 +185,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  background: #fff;
+  background: var(--color-surface);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
 }

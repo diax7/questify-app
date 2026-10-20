@@ -1,9 +1,9 @@
-import { Alert, Pressable, StyleSheet, View } from "react-native";
-import type { Language } from "@questify/shared";
+import { Alert, Pressable, View } from "react-native";
+import type { Language, Theme } from "@questify/shared";
 import { AppText } from "#src/components/AppText.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { colors, radius, spacing } from "#src/theme/tokens.ts";
+import { useThemedStyles } from "#src/theme/theme.tsx";
 
 // Each language is named in itself, so a player can find their own whatever language the screen is in.
 const LANGUAGES: ReadonlyArray<{ code: Language; name: string }> = [
@@ -13,6 +13,7 @@ const LANGUAGES: ReadonlyArray<{ code: Language; name: string }> = [
 
 export default function ProfileScreen() {
   const { t, language, switchLanguage } = useI18n();
+  const styles = useThemedStyles(makeStyles);
 
   const choose = (next: Language): void => {
     if (next === language) {
@@ -43,15 +44,15 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: spacing.md },
+const makeStyles = (theme: Theme) => ({
+  row: { flexDirection: "row" as const, gap: theme.spacing.md },
   option: {
     flex: 1,
-    alignItems: "center",
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
+    alignItems: "center" as const,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
-  selected: { borderColor: colors.primaryAction },
+  selected: { borderColor: theme.colors.primaryAction },
 });

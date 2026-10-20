@@ -10,8 +10,9 @@ import {
   Rubik_600SemiBold,
   Rubik_700Bold,
 } from "@expo-google-fonts/rubik";
+import type { FontName } from "#src/theme/font-faces.ts";
 
-/** The font files shipped inside the app, keyed by the names in `fontFamily` (tokens.ts). Both faces cover Arabic and Latin (ADR-017). */
+/** The font files shipped inside the app, keyed by the names in FONT_FACES (font-faces.ts). */
 export const FONT_FILES = {
   BalooBhaijaan2_500Medium,
   BalooBhaijaan2_600SemiBold,
@@ -21,4 +22,4 @@ export const FONT_FILES = {
   Rubik_500Medium,
   Rubik_600SemiBold,
   Rubik_700Bold,
-};
+} satisfies Record<FontName, unknown>;

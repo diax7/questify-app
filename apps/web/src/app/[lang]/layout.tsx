@@ -3,7 +3,8 @@ import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { directionOf, isLanguage, translatorFor } from "#src/lib/language.ts";
-import { tokenVariables } from "#src/lib/theme.ts";
+import { DEFAULT_THEME } from "@questify/shared";
+import { themeVariables } from "#src/lib/theme.ts";
 // oxlint-disable-next-line import/no-unassigned-import -- Next loads global CSS only through a side-effect import.
 import "#src/app/globals.css";
 
@@ -61,7 +62,7 @@ export default async function LanguageLayout({ children, params }: Props) {
       lang={lang}
       dir={directionOf(lang)}
       className={`${display.variable} ${body.variable}`}
-      style={tokenVariables()}
+      style={themeVariables(DEFAULT_THEME)}
     >
       <body>{children}</body>
     </html>

@@ -140,6 +140,13 @@ with replay) end in the same `complete` transaction, differing only in the proof
   NFR-018).
 - **Time:** all times stored in UTC; each event has a time zone and a "day starts at" hour (default
   4 am).
+- **Visual theme (NFR-024, ADR-093):** a theme is one `Theme` value in `packages/shared/src/design/`
+  (colour roles, font roles with weights, text scale, spacing, radius); `THEMES` lists them and contract tests
+  (contrast, Arabic line height, order) run against each. The app reads it through `useTheme()` and
+  `useThemedStyles()` (`apps/app/src/theme/theme.tsx`), mapping font roles to its font files in
+  `font-faces.ts`; the web sets it as CSS variables on `<html>` (`apps/web/src/lib/theme.ts`), and a test
+  refuses raw colours in style sheets. The adventure theme is the only one today; a completely different
+  theme is a new value plus its fonts, with no screen rewritten.
 - **Environments:** development, staging (a copy in the Saudi region), production. "Rehearsal mode"
   (ADR-080) and the review demo tenant (ADR-009) are data flags inside production, not separate
   systems.

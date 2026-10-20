@@ -1,21 +1,24 @@
 import type { CSSProperties } from "react";
-import { colors, radius, spacing } from "@questify/shared";
+import type { Theme } from "@questify/shared";
 
 const kebab = (name: string): string =>
   name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-/** The shared tokens as CSS variables (`--color-text`, `--space-md`, `--radius-md`), set once on `<html>`. */
-export function tokenVariables(): CSSProperties {
+/**
+ * A theme as CSS variables (`--color-text`, `--space-md`, `--radius-md`), set once on `<html>`. Style sheets use only
+ * these names, so another theme restyles every page without touching them (NFR-024).
+ */
+export function themeVariables(theme: Theme): CSSProperties {
   const entries: [string, string][] = [
-    ...Object.entries(colors).map(([name, value]): [string, string] => [
+    ...Object.entries(theme.colors).map(([name, value]): [string, string] => [
       `--color-${kebab(name)}`,
       value,
     ]),
-    ...Object.entries(spacing).map(([name, value]): [string, string] => [
+    ...Object.entries(theme.spacing).map(([name, value]): [string, string] => [
       `--space-${name}`,
       `${value}px`,
     ]),
-    ...Object.entries(radius).map(([name, value]): [string, string] => [
+    ...Object.entries(theme.radius).map(([name, value]): [string, string] => [
       `--radius-${name}`,
       `${value}px`,
     ]),
