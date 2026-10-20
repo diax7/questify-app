@@ -1,2 +1,4 @@
 # A made-up password in a test (apps/api/test/auth/sessions.int.test.ts), flagged as an API key; not a secret.
 bd0175284bfa4ca04ac613b641ebf352febe464e:apps/api/test/auth/sessions.int.test.ts:generic-api-key:405
+# A key-derivation purpose label ("questify/qr/v1") quoted in the T-104 plan, flagged as an API key; not a secret.
+5a1aeffa8dec703a72fb3d2bba6fde5fed3a7d5c:docs/plans/2026-10-20-t-104-quest-qr-codes.md:generic-api-key:30
