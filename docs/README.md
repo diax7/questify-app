@@ -59,7 +59,7 @@ consolidated at the end. The other docs hold the detail it points to.
 | File | Holds | Status |
 |---|---|---|
 | `STORE_COMPLIANCE.md` | Apple, Google Play and Saudi (PDPL, SMS) rules, as a pre-submission checklist, plus the product decisions they force (PD-01–30) | Done 2026-10-16; all PDs decided 2026-10-17 (ADR-070 to ADR-073) |
-| `legal/` (not yet created; waits for counsel, T-807) | Privacy policy, terms, prize rules, community guidelines | Stage 8 |
+| `legal/` + `legal/README.md` | Player terms of use, privacy policy and community guidelines (Arabic first, English alongside), placeholders and the counsel question list. Prize rules and organizer terms come later | v0.1 drafts 2026-10-20 (T-119); counsel review T-807 |
 | `ROADMAP.md` · `TASKS.md` · `TEST_STRATEGY.md` · `RISKS.md` | Build order (9 phases), 132 tasks covering all 546 requirements, testing, 18 risks | Drafted 2026-10-17 (Stage 8) |
 | `RUNBOOK.md` | How to run the checks, create staff accounts, free a locked-out person, and what to do when sign-in email is down | Started 2026-10-19 (T-006) |
 | `QUALITY_BASELINE.md` | The standards every phase and release is checked against (OWASP ASVS/MASVS, tests, infrastructure, operations) | Written 2026-10-19 (ADR-108) |

@@ -8,9 +8,9 @@
 
 | Service | Purpose | Auth model | Cost | Personal data crosses? | Sandbox? | Status |
 |---|---|---|---|---|---|---|
-| Saudi cloud (Q-031) | Hosting, PostgreSQL, Redis, storage, email | Cloud account, IAM roles | **Paid** | It hosts the data (inside Saudi) | Staging copy | **Open** (user: later). Claude's lean: Oracle Riyadh + Jeddah |
-| Saudi SMS gateway | Login codes, operator invites, opted-in promotions | API key | **Paid** per SMS | Phone number, message text (in Saudi) | Test/trial sender | **Msegat or Taqnyat** (ADR-103) |
-| Email provider | Email login codes, team invites, invoices, opted-in promotions | API key / SMTP credentials | **Paid** | Email address, text | Test mode | Open (Q-034); cloud's in-region email service preferred |
+| Saudi cloud (Q-031) | Hosting, PostgreSQL, Redis, storage, email | Cloud account, IAM roles | **Paid** | It hosts the data (inside Saudi) | Staging copy | **CranL Pro, riyadh-1** (ADR-107); production move reviewed at T-811 |
+| Saudi SMS gateway | Login codes, operator invites, opted-in promotions | API key | **Paid** per SMS | Phone number, message text (in Saudi) | Test/trial sender | **Msegat** in use (ADR-103, Q-034); Taqnyat is the fallback |
+| Email provider | Email login codes, team invites, invoices, opted-in promotions | API key / SMTP credentials | **Paid** | Email address, text | Test mode | **Gmail API** from `questify@nafes.com` (ADR-112), Resend as backup; final provider with counsel (Q-083) |
 | Apple Push (APNs) | iPhone push | Auth key (.p8) | Free | Device token, message text (abroad) | Sandbox APNs | Required |
 | Firebase Cloud Messaging | Android push | Service account | Free | Device token, message text (abroad) | Test project | Required |
 | Apple Wallet | Event pass | Pass Type ID certificate; web service with per-pass token | $99/yr (the developer account) | Logo, name, dates, @username, score, balance, level, rank on the pass (ADR-091) | Test pass on a real iPhone | Q-076 |

@@ -96,7 +96,8 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
   - Done when: A player stays signed in across launches; changing a phone needs a code on the new number first.
 - [ ] **T-109** Profile at sign-up and username rules: unique case-insensitive @username, history, word lists, rate limit, avatar from the set, birth year gate, public profile fields only — delivers FR 117, 118, 119, 120, 704, 705, 1412, 1628, 1701, 1702; depends on: T-107
   - Done when: A duplicate or filtered username is refused; under-age sign-up is refused kindly; other players see only username and avatar.
-- [ ] **T-119** Draft v0 terms of use, privacy policy and community guidelines text (Arabic first, English alongside) so sign-up can record acceptance; counsel reviews them later in T-807 — delivers no FR (infrastructure or quality gate); depends on: none
+- [x] **T-119** Draft v0 terms of use, privacy policy and community guidelines text (Arabic first, English alongside) so sign-up can record acceptance; counsel reviews them later in T-807 — delivers no FR (infrastructure or quality gate); depends on: none
+  - Done 2026-10-20: `docs/legal/` (terms, privacy policy, community guidelines; Arabic first, v0.1 drafts with placeholders). Questions for counsel in `docs/legal/README.md` and Q-085; contradictions found while drafting went to Q-086 and Q-087, and stale rows in INTEGRATIONS and STORE_COMPLIANCE were corrected.
   - Done when: Three draft documents exist in both languages with version numbers; T-110 can record acceptance of them.
 - [ ] **T-110** Legal steps: terms and privacy before data collection, recorded acceptance, guideline reminder before first submission, Settings Legal and contact — delivers FR 1705, 1706, 1707; depends on: T-109, T-119
   - Done when: No data is stored before the terms are accepted; the acceptance and version are recorded.
