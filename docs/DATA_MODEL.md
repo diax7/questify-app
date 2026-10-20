@@ -157,6 +157,10 @@ earned and ranks; balance is earned minus spent (ADR-043).
 `category(id, event_id, title i18n, order_mode any|in_order, completion_bonus, position, collapsed)`.
 `quest(id, event_id, category_id, type, title/description i18n, points, verification, caps,
 opens_at/closes_at, flash, community_goal, status, qr_version, type_config jsonb, version)`.
+**Built so far (T-103, migration 0010):** `category(name_ar, name_en, position)` and `quest(type, title, description,
+points, repeat_cap, opens_at, closes_at, visible, position, type_config)`; each later field arrives with its task
+(order mode, bonus and unlocks T-304; verification and QR version T-104; flash T-307; community goal T-306; pause as
+its own field T-603). Show or hide is `visible`, not a status.
 `type_config` is validated per quest type by the shared schema. Editing a live quest asks
 "future only or also past" (ADR-063) and writes the audit log.
 
@@ -222,7 +226,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | poll, poll_vote, survey_question, quest_rating | Live polls and their options, one vote per player, survey questions, optional quest ratings | Votes and answers yes |
 | community_quest, milestone | Shared goals with measure, milestones, rewards | No |
 | rank_prize, souvenir_grant | Prizes attached to final ranks with claim deadline; souvenir rules and grants | Grants link to players |
-| questify_quest, daily_question | Quests not tied to an event (`quest.event_id` is null for these); the daily challenge question bank | No |
+| questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank | No |
 | ranking_season | Monthly Questify-wide seasons and archives | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | device_pairing | Paired stations, kiosks and big screens, with pairing codes | Device tokens |

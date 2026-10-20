@@ -212,3 +212,51 @@ export const scopeLimited = make(
   "أنت محدود بفعاليات مختارة، فلا يمكنك إنشاء فعالية جديدة.",
   "You are limited to chosen events, so you cannot create a new one.",
 );
+export const confirmRequired = make(
+  409,
+  "confirm_required",
+  "الفعالية جارية: يرى اللاعبون هذا التغيير فورًا. أكّد للمتابعة.",
+  "The event is live: players see this change at once. Confirm to go ahead.",
+);
+export const eventClosed = make(
+  409,
+  "event_closed",
+  "انتهت الفعالية، فمهامها وفئاتها ثابتة.",
+  "The event has ended, so its quests and categories are fixed.",
+);
+export const invalidQuest = make(
+  422,
+  "invalid_quest",
+  "راجع بيانات المهمة: الحقل المحدد غير صالح.",
+  "Check the quest's details: the named field is not valid.",
+);
+export const invalidCategory = make(
+  422,
+  "invalid_category",
+  "راجع بيانات الفئة: الحقل المحدد غير صالح.",
+  "Check the category's details: the named field is not valid.",
+);
+export const limitReached = make(
+  409,
+  "limit_reached",
+  "وصلت إلى الحد الأقصى لهذه الفعالية.",
+  "This event has reached its limit.",
+);
+export const orderStale = make(
+  409,
+  "order_stale",
+  "تغيّر الترتيب أثناء عملك. أعد التحميل وحاول مرة أخرى.",
+  "The order changed while you worked. Reload and try again.",
+);
+export const lastCategory = make(
+  409,
+  "last_category",
+  "تحتاج الفعالية إلى فئة واحدة على الأقل.",
+  "An event needs at least one category.",
+);
+export const categoryNotEmpty = make(
+  409,
+  "category_not_empty",
+  "في هذه الفئة مهام. اختر نقلها إلى فئة أخرى أو حذفها.",
+  "This category holds quests. Choose to move them to another category or delete them.",
+);

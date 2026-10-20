@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+import {
+  blankQuest,
+  createQuestBody,
+  editQuestBody,
+  moved,
+  questProblem,
+  questDraftOf,
+  textFor,
+  type QuestView,
+} from "#src/lib/quests.ts";
+
+const QUEST: QuestView = {
+  id: "q1",
+  categoryId: "c1",
+  type: "enter_code",
+  title: { ar: "الرمز", en: null },
+  description: { ar: null, en: null },
+  points: 15,
+  repeatCap: 2,
+  opensAt: "2030-11-01T07:00:00.000Z",
+  closesAt: null,
+  visible: true,
+  position: 0,
+  config: { code: "NAJD2030" },
+};
+
+describe("textFor", () => {
+  it("uses the page's language and falls back to the other", () => {
+    expect(textFor({ ar: "أ", en: "B" }, "en")).toBe("B");
+    expect(textFor({ ar: "أ", en: null }, "en")).toBe("أ");
+    expect(textFor({ ar: null, en: "B" }, "ar")).toBe("B");
+    expect(textFor({ ar: null, en: null }, "ar")).toBe("");
+  });
+});
+
+describe("moved", () => {
+  it("swaps a row with its neighbour", () => {
+    expect(moved(["a", "b", "c"], 1, -1)).toEqual(["b", "a", "c"]);
+    expect(moved(["a", "b", "c"], 1, 1)).toEqual(["a", "c", "b"]);
+  });
+
+  it("refuses to move past either end", () => {
+    expect(moved(["a", "b"], 0, -1)).toBeUndefined();
+    expect(moved(["a", "b"], 1, 1)).toBeUndefined();
+    expect(moved(["a"], 3, -1)).toBeUndefined();
+  });
+});
+
+describe("quest bodies", () => {
+  const before = questDraftOf(QUEST, "Asia/Riyadh");
+
+  it("shows the times in the event's zone, empty when not set", () => {
+    expect(before).toMatchObject({ opensAt: "2030-11-01T10:00", closesAt: "", titleEn: "" });
+  });
+
+  it("creates with everything, empty times as none", () => {
+    expect(createQuestBody({ ...blankQuest("c1"), titleEn: "Find" })).toEqual({
+      type: "scan_qr",
+      categoryId: "c1",
+      title: { ar: "", en: "Find" },
+      description: { ar: "", en: "" },
+      points: 10,
+      repeatCap: 1,
+      opensAt: null,
+      closesAt: null,
+      visible: true,
+      config: {},
+    });
+  });
+
+  it("edits with only what changed", () => {
+    expect(editQuestBody(before, before)).toEqual({});
+    expect(editQuestBody({ ...before, points: 20, opensAt: "", visible: false }, before)).toEqual({
+      points: 20,
+      opensAt: null,
+      visible: false,
+    });
+    expect(editQuestBody({ ...before, config: { code: "TABUK31" } }, before)).toEqual({
+      config: { code: "TABUK31" },
+    });
+  });
+});
+
+describe("questProblem", () => {
+  const fine = { ...blankQuest("c1"), titleEn: "Find" };
+
+  it("passes a sound draft", () => {
+    expect(questProblem(fine)).toBeUndefined();
+    expect(
+      questProblem({ ...fine, type: "enter_code", config: { code: "NAJD2030" } }),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ["title", { titleEn: "  " }],
+    ["points", { points: -1 }],
+    ["points", { points: 100_001 }],
+    ["points", { points: 1.5 }],
+    ["closesAt", { opensAt: "2030-11-01T10:00", closesAt: "2030-11-01T10:00" }],
+    ["config", { type: "enter_code", config: { code: "AB" } }],
+  ] as const)("names %s", (field, change) => {
+    expect(questProblem({ ...fine, ...change })).toBe(field);
+  });
+});

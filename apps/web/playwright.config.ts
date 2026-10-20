@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { CODES_FILE } from "#e2e/paths.ts";
+import { CODES_FILE, CONTROL_PORT } from "#e2e/paths.ts";
 
 /**
  * Browser tests of the dashboard sign-in (T-011) against the real API on a throw-away database. The API server is
@@ -33,6 +33,7 @@ export default defineConfig({
         E2E_API_PORT: String(API_PORT),
         E2E_WEB_ORIGIN: WEB_ORIGIN,
         E2E_CODES_FILE: CODES_FILE,
+        E2E_CONTROL_PORT: String(CONTROL_PORT),
       },
       reuseExistingServer: false,
       timeout: 60_000,

@@ -78,6 +78,24 @@ const ROUTES: Readonly<Record<string, string>> = {
     "only this organizer's drafts within the caller's limit (test/events/events, test/db/event-lifecycle)",
   "POST /v1/organizers/:organizerId/events/:eventId/end":
     "owner only (walked below); the database checks the owner again (test/events/events, test/db/event-lifecycle)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests":
+    "members of that organizer within their event limit; another event answers 404 (test/quests/builder)",
+  "POST /v1/organizers/:organizerId/events/:eventId/categories":
+    "only into the path's event, which the caller may reach; the database sets the organizer (test/quests/builder, test/db/quest-builder)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/categories/order":
+    "only the path's event's categories, as an exact set (test/quests/builder)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/categories/:categoryId":
+    "a category of another event answers 404 (test/quests/builder)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/categories/:categoryId":
+    "a category of another event answers 404; quests move only within the event (test/quests/builder)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/categories/:categoryId/quests/order":
+    "a category of another event answers 404 (test/quests/builder)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests":
+    "only into a category of the path's event (test/quests/builder, test/db/quest-builder)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/quests/:questId":
+    "a quest of another event answers 404, so a live event's confirmation cannot be skipped (test/quests/builder)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/quests/:questId":
+    "a quest of another event answers 404 (test/quests/builder)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };

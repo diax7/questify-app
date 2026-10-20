@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { Pool } from "pg";
 import { buildApp } from "#src/app";
@@ -12,7 +13,7 @@ import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
  * bundled and started by Playwright, never part of the product. Sign-in codes are written to a file the tests read,
  * so the product needs no test endpoint.
  *
- * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CODES_FILE.
+ * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CODES_FILE, E2E_CONTROL_PORT.
  */
 const required = (name: string): string => {
   const value = process.env[name];
@@ -90,6 +91,47 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => void stop());
   process.on("SIGTERM", () => void stop());
   await app.listen({ host: "127.0.0.1", port });
+  startControl(Number(required("E2E_CONTROL_PORT")), db);
+}
+
+/**
+ * Test-only control on its own local port: `POST /event-status {eventId, status}` moves an event the way Questify's
+ * activation will (T-210), so a browser test can work on a live event. Never part of the API.
+ */
+function startControl(port: number, db: Awaited<ReturnType<typeof createTestDatabase>>): void {
+  const server = createServer((request, response) => {
+    let raw = "";
+    request.on("data", (chunk: Buffer) => {
+      raw += chunk.toString();
+    });
+    request.on("end", () => {
+      let body: { eventId?: string; status?: string };
+      try {
+        body = JSON.parse(raw || "{}") as typeof body;
+      } catch (error) {
+        response.writeHead(400).end(String(error));
+        return;
+      }
+      const times =
+        body.status === "live"
+          ? ["-1 hour", "1 day"]
+          : body.status === "ended"
+            ? ["-2 days", "-1 day"]
+            : ["1 day", "2 days"];
+      db.owner
+        .query(
+          "UPDATE event SET status = $2, starts_at = now() + $3::interval, ends_at = now() + $4::interval WHERE id = $1",
+          [body.eventId, body.status, times[0], times[1]],
+        )
+        .then((result) => {
+          response.writeHead(result.rowCount === 1 ? 204 : 404).end();
+        })
+        .catch((error: unknown) => {
+          response.writeHead(400).end(String(error));
+        });
+    });
+  });
+  server.listen(port, "127.0.0.1");
 }
 
 void main().catch((error: unknown) => {

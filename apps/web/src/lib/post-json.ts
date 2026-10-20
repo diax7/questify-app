@@ -12,7 +12,7 @@ export function postJson(path: string, payload: unknown): Promise<PostResult> {
  * an empty answer (204) as ok with no body.
  */
 export async function requestJson(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   payload?: unknown,
   headers: Readonly<Record<string, string>> = {},

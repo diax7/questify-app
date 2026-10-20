@@ -1689,3 +1689,11 @@ the project's private network (Docker DNS, a 10.0.1.x peer, no HTTP proxy adding
 `X-Forwarded-For`, were throttled on the 31st, and the next attempt through the web forwarder was throttled as well:
 the edge appends the real client address and both paths count it the same way.
 **Replaces:** the T-006 note's chain "edge, dashboard proxy, API", which assumed the forwarder appends.
+
+## ADR-114 — Questify-wide quests get their own table
+**Status:** Proposed (T-103 planning, CTO review 2026-10-20).
+**Decision:** `quest.event_id` is NOT NULL: every row in `quest` belongs to an event and its organizer, so tenant
+row-level security stays one simple rule. Quests not tied to an event (FR on Questify-wide quests) get their own table,
+`questify_quest`, when they are built.
+**Replaces:** DATA_MODEL's earlier note that such quests are `quest` rows with a null `event_id`.
+**Why:** a null tenant key would need an exception in every quest policy and in the outsider and cross-tenant tests.

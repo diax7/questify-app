@@ -550,15 +550,24 @@ other docs feed it and stay as its detailed appendices.
   seconds, audited. CTO: plan 86 → 94; phases 92, 92, 92 (GO). Bugs found on the way: impossible dates (30 February) were
   accepted; a time read back with less precision than stored looked like a change, so an event ended early could not
   be renamed.
+- 2026-10-20 **T-103 done.** The quest builder: categories (add, rename, reorder, delete with a choice to move or
+  delete their quests; every event has a General category) and quests (scan a QR, enter a code; bilingual title and
+  description, points, a repeat cap, an opening window in the event's zone, show or hide, move between categories,
+  reorder). Migration 0010; the shared quest-type registry, which each later quest task extends with its player flow
+  (FR-1505). In a live event every change asks for a confirmation; an ended event is shown and not changed. Entry codes
+  never reach the audit log. CTO: plan 88 → 94; phases 93, 93, 88 → 95 (GO). Bugs found on the way: an editor of two
+  events could have edited a live event's quest through a draft event's path (closed before code: every child row is
+  read under the path's event); the builder's dialogs opened off-screen on a phone with no focus (now focused and in
+  view, focus returned after).
 
 ## Next
 
-1. **Now:** T-103 (categories and quests builder), then T-104 to T-106 (QR codes, the completion engine, ranking).
+1. **Now:** T-104 (quest QR codes), then T-105 (the completion engine) and T-106 (ranking).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0009 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0010 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
-   domain for the Resend backup (Q-083); "accept ADR-113".
+   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table, Proposed).
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.
 
 ## Run complete — 2026-10-18

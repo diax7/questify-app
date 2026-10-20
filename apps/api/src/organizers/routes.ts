@@ -19,6 +19,7 @@ import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
+import { registerBuilderRoutes } from "#src/quests/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
@@ -187,6 +188,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       });
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events);
+      registerBuilderRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },
   );

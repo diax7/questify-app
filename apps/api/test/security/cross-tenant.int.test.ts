@@ -25,6 +25,8 @@ type Fixtures = Readonly<{
   playerB: string;
   staffA: string;
   staffB: string;
+  /** The General category of organizer B's private event. */
+  categoryB: string;
 }>;
 
 type Seat = "organizer" | "staff" | "player";
@@ -101,6 +103,56 @@ const OWNED: Readonly<Record<string, Owned>> = {
         forge: (f) => ({
           sql: "INSERT INTO event (organizer_id, join_code, name_en) VALUES ($1, 'FORGE1', 'Forged')",
           values: [f.orgB],
+        }),
+      },
+    ],
+  },
+  category: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO category (event_id, name_en) VALUES ($1, 'Stolen')",
+          values: [f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players read quests through their own API (T-105, T-114), not these tables",
+        forge: (f) => ({
+          sql: "INSERT INTO category (event_id, name_en) VALUES ($1, 'Mine now')",
+          values: [f.eventA],
+        }),
+      },
+    ],
+  },
+  quest: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'scan_qr', 'Stolen', 1)",
+          values: [f.eventB, f.categoryB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players read quests through their own API (T-105, T-114), not these tables",
+        forge: (f) => ({
+          sql: "INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, gen_random_uuid(), 'scan_qr', 'Mine now', 1)",
+          values: [f.eventA],
         }),
       },
     ],
@@ -415,7 +467,12 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
   }
   const staffA = await createStaff(db.owner, { email: "owner@najd.test" });
   const staffB = await createStaff(db.owner, { email: "owner@tabuk.test" });
-  const f: Fixtures = { ...base, publicEventB, staffA, staffB };
+  const categoryB = (await run("SELECT id FROM category WHERE event_id = $1", [base.eventB]))
+    .rows[0]?.id;
+  if (categoryB === undefined) {
+    throw new Error("Fixture: organizer B's event has no General category.");
+  }
+  const f: Fixtures = { ...base, publicEventB, staffA, staffB, categoryB };
   for (const [org, staff, events] of [
     [f.orgA, staffA, [f.eventA]],
     [f.orgB, staffB, [f.eventB, publicEventB]],
@@ -454,6 +511,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
         [event, org],
+      );
+      await run(
+        "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",
+        [event],
       );
     }
   }

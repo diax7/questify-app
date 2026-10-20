@@ -182,6 +182,9 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           {status === "draft" ? (
             <span className={styles.muted}>{t("events.draftNote")}</span>
           ) : null}
+          <a className={styles.textLink} href={`${pages}/${event.id}/quests`}>
+            {t("quests.title")}
+          </a>
         </p>
       )}
       {problem === null ? null : (
