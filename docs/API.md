@@ -36,7 +36,7 @@
   message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
   hours and returns it for a retry.
 - **Rate limiting:** `429` with a `Retry-After` header and `details.retryAfterSeconds` (what the app needs to say when to try again).
-  Limits are tuning numbers editable in the console (F-279): login-code requests per phone/email/IP,
+  Limits are tuning numbers, editable in the console (F-279) once its tuning lands; today they are code constants (`apps/api/src/auth/limits.ts`): login-code requests per phone/email/IP,
   scans per minute per player, uploads, exports.
 - **Live updates:** `GET /v1/events/{id}/stream` (server-sent events) carries ranking changes,
   announcements, "flash quest started", maintenance. If the stream drops, the app falls back to
