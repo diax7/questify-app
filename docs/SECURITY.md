@@ -84,6 +84,15 @@ must not widen it without a decision.
 Changing the table itself (a migration) is guarded by review only. The only sanctioned future change to past
 entries is the anonymisation path for a deleted player (Q-084).
 
+### Points ledger and completions (T-105)
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V8 authorization / business logic | one definer function, `complete_quest`, is the only writer of completions and points; the player is the request's own, never an argument; it checks enrollment, event, quest, proof and cap under a lock on the player's enrollment; points come from the quest row, never the request. The rules hold whatever the API sends; the QR signature and the player's identity are the API's (signed code, bearer session) | `test/db/completion-engine.int.test.ts` (a recorded mutation pass over the function's rules), `test/completions/complete.int.test.ts` |
+| V11 / V16 integrity | the ledger is append-only for every role through any DML, the owner included (ALWAYS triggers on UPDATE, DELETE, TRUNCATE); a DDL change (dropping a trigger) goes through reviewed migrations only. Score and balance are trigger-kept sums of it | same suite |
+| V2 / V11 anti-automation | wrong typed codes are reserved before they are checked, under a lock on the player, so a burst cannot slip past the count: 5 per quest, 20 per player, 30 per install in 10 minutes. `X-Device-Id` is a claim from an honest client (an attacker rotates it); the per-player limits are the real wall | `test/completions/complete.int.test.ts` |
+| V3 sessions (players) | bearer tokens of 256 bits stored as SHA-256; a session counts only while the player is active, the session unexpired and not revoked; issuing is T-107 | `test/db/completion-engine.int.test.ts`, `test/completions/complete.int.test.ts` |
+
 **Deviation recorded.** The alerts for these signals (email senders down, throttle spikes, one address key
 carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 

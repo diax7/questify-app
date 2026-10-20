@@ -12,6 +12,8 @@
     "apps/api/src/organizers/**/*.ts",
     "apps/api/src/events/**/*.ts",
     "apps/api/src/quests/**/*.ts",
+    "apps/api/src/completions/**/*.ts",
+    "apps/api/src/players/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/time/**/*.ts",
     "!**/*.test.ts",

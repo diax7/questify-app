@@ -260,3 +260,39 @@ export const categoryNotEmpty = make(
   "في هذه الفئة مهام. اختر نقلها إلى فئة أخرى أو حذفها.",
   "This category holds quests. Choose to move them to another category or delete them.",
 );
+export const questNotOpen = make(
+  403,
+  "quest_not_open",
+  "هذه المهمة غير متاحة الآن.",
+  "This quest is not open right now.",
+);
+export const enrollmentInactive = make(
+  403,
+  "enrollment_inactive",
+  "لا يمكنك المشاركة في هذه الفعالية الآن.",
+  "You cannot take part in this event right now.",
+);
+export const alreadyCompleted = make(
+  409,
+  "already_completed",
+  "أكملت هذه المهمة من قبل.",
+  "You already completed this quest.",
+);
+export const questCodeInvalid = make(
+  422,
+  "invalid_code",
+  "هذا الرمز لا يعمل لهذه المهمة.",
+  "This code does not work for this quest.",
+);
+export const idempotencyKeyReused = make(
+  422,
+  "idempotency_key_reused",
+  "تم استخدام هذا المفتاح مع طلب مختلف.",
+  "This key was already used with a different request.",
+);
+export const hasCompletions = make(
+  409,
+  "has_completions",
+  "أكمل لاعبون هذه المهمة، فنقاطهم محفوظة. أخفِها بدلًا من حذفها.",
+  "Players completed this quest, so their points stay. Hide it instead of deleting it.",
+);

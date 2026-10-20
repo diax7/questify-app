@@ -27,10 +27,14 @@ const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
 const headerValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
 
+/**
+ * What a key promises to repeat: the method, the real path (not the route's pattern, so the same key on two quests'
+ * `/v1/quests/:questId/complete` is two different requests) and the body.
+ */
 const bodyHash = (request: FastifyRequest): string =>
   createHash("sha256")
     .update(
-      `${request.method} ${request.routeOptions.url ?? request.url}\n${JSON.stringify(request.body ?? null)}`,
+      `${request.method} ${request.url.split("?")[0]}\n${JSON.stringify(request.body ?? null)}`,
     )
     .digest("hex");
 

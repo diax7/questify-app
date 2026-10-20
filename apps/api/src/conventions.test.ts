@@ -46,6 +46,10 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
     calls += 1;
     return { received: request.body, call: calls };
   });
+  instance.post("/things/:id", { config: { idempotent: true } }, async (request) => {
+    calls += 1;
+    return { id: (request.params as { id: string }).id, call: calls };
+  });
   instance.post("/slow", { config: { idempotent: true } }, async () => {
     slow.entered();
     await slow.finished;
@@ -236,6 +240,18 @@ describe("idempotency key", () => {
     expect(first.statusCode).toBe(204);
     expect(second.statusCode).toBe(204);
     expect(second.headers["idempotent-replayed"]).toBe("true");
+    expect(calls).toBe(1);
+  });
+
+  it("refuses the same key on another path of the same route, never replaying the first path's answer", async () => {
+    app = await build();
+    const first = await post("/things/a", { "idempotency-key": "k" }, { code: "X" });
+    const other = await post("/things/b", { "idempotency-key": "k" }, { code: "X" });
+    const again = await post("/things/a?ignored=1", { "idempotency-key": "k" }, { code: "X" });
+    expect(first.json()).toEqual({ id: "a", call: 1 });
+    expect(other.statusCode).toBe(422);
+    expect(other.json().code).toBe("idempotency_key_reused");
+    expect(again.headers["idempotent-replayed"]).toBe("true");
     expect(calls).toBe(1);
   });
 

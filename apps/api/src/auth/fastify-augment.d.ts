@@ -10,7 +10,9 @@ declare module "fastify" {
     staff?: StaffPrincipal;
     /** Set only on organizer routes, for a member of that organizer. */
     organizer?: OrganizerPrincipal;
-    /** Who owns the request's idempotency keys: the staff user id once signed in. */
+    /** Set only on player routes, for a player whose bearer token checked out (players/guard.ts). */
+    player?: Readonly<{ id: string }>;
+    /** Who owns the request's idempotency keys: the staff user id once signed in, `player:<id>` for a player. */
     principalId?: string;
   }
 

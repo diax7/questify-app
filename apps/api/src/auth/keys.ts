@@ -43,6 +43,12 @@ export type AuthKeys = Readonly<{
   userKey: (userId: string) => Buffer;
   /** Throttle key for an organizer id (invites per organizer). */
   organizerKey: (organizerId: string) => Buffer;
+  /** Throttle key for a player (wrong entry codes, T-105). */
+  playerKey: (playerId: string) => Buffer;
+  /** Throttle key for a player on one quest. */
+  playerQuestKey: (playerId: string, questId: string) => Buffer;
+  /** Throttle key for an app install (its X-Device-Id). */
+  deviceKey: (deviceId: string) => Buffer;
   /** Hash of a code, bound to its challenge so equal codes differ between challenges. */
   codeHash: (challengeId: string, code: string) => Buffer;
 }>;
@@ -64,12 +70,18 @@ export function createAuthKeys(secret: string): AuthKeys {
   const address = keyed("throttle-address");
   const user = keyed("throttle-user");
   const organizer = keyed("throttle-organizer");
+  const player = keyed("throttle-player");
+  const playerQuest = keyed("throttle-player-quest");
+  const device = keyed("throttle-device");
   const code = derive("code");
   return {
     emailKey: email,
     addressKey: address,
     userKey: user,
     organizerKey: organizer,
+    playerKey: player,
+    playerQuestKey: (playerId, questId) => playerQuest(`${playerId}\n${questId}`),
+    deviceKey: device,
     codeHash: (challengeId, value) =>
       createHmac("sha256", code).update(`${challengeId}\n${value}`).digest(),
   };

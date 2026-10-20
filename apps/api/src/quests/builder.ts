@@ -54,7 +54,9 @@ export type Refused =
   | Readonly<{ kind: "limit_reached"; limit: number }>
   | Readonly<{ kind: "order_stale" }>
   | Readonly<{ kind: "last_category" }>
-  | Readonly<{ kind: "category_not_empty"; quests: number }>;
+  | Readonly<{ kind: "category_not_empty"; quests: number }>
+  /** Players completed it: its points are history (T-105); hide it instead, until T-604 offers keep or remove. */
+  | Readonly<{ kind: "has_completions" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -248,6 +250,11 @@ export async function withEvent<T>(
       return { kind: "event_closed" };
     }
     // Stryker restore all
+    // A player completed the quest between the check and the delete: its points are history (migration 0012).
+    const pg = error as { code?: string; table?: string };
+    if (pg.code === "23503" && pg.table === "quest_completion") {
+      return { kind: "has_completions" };
+    }
     throw error;
   }
 }
@@ -305,4 +312,21 @@ export function readBuilder(
       },
     ),
   );
+}
+
+/** True when a player completed any of these quests (their points are history, migration 0012). */
+export async function anyCompletions(
+  client: PoolClient,
+  where: Readonly<{ questId: string } | { categoryId: string }>,
+): Promise<boolean> {
+  const { rowCount } =
+    "questId" in where
+      ? await client.query("SELECT 1 FROM quest_completion WHERE quest_id = $1 LIMIT 1", [
+          where.questId,
+        ])
+      : await client.query(
+          "SELECT 1 FROM quest_completion c JOIN quest q ON q.id = c.quest_id WHERE q.category_id = $1 LIMIT 1",
+          [where.categoryId],
+        );
+  return rowCount === 1;
 }

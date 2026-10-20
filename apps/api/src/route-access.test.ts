@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { ACCESS_KINDS, registerRouteInventory } from "#src/route-access";
+import { ACCESS_KINDS, PLAYER_GUARD, registerRouteInventory } from "#src/route-access";
 
 const build = () => {
   const app = Fastify();
@@ -28,7 +28,7 @@ describe("registerRouteInventory", () => {
   it("stops the server from starting when a route does not say who may call it", async () => {
     const { app } = build();
     expect(() => app.get("/forgotten", async () => ({}))).toThrow(
-      "Route GET /forgotten must declare config.access (one of public, staff, member, owner).",
+      "Route GET /forgotten must declare config.access (one of public, staff, member, owner, player).",
     );
   });
 
@@ -51,6 +51,26 @@ describe("registerRouteInventory", () => {
     app.post("/v1/staff/pay", { config: { access: "staff", idempotent: true } }, async () => ({}));
     await app.ready();
     expect(inventory).toEqual([{ method: "POST", url: "/v1/staff/pay", access: "staff" }]);
+    await app.close();
+  });
+
+  it("refuses a player route until the player guard is registered, and takes it after", async () => {
+    const { app, inventory } = build();
+    expect(() =>
+      app.post("/v1/quests/:id/complete", { config: { access: "player" } }, async () => ({})),
+    ).toThrow(
+      "Route POST /v1/quests/:id/complete is marked player but the player guard is not registered before it.",
+    );
+    app.decorate(PLAYER_GUARD, true);
+    app.post(
+      "/v1/quests/:id/complete",
+      { config: { access: "player", idempotent: true } },
+      async () => ({}),
+    );
+    await app.ready();
+    expect(inventory).toEqual([
+      { method: "POST", url: "/v1/quests/:id/complete", access: "player" },
+    ]);
     await app.close();
   });
 
@@ -99,6 +119,6 @@ describe("registerRouteInventory", () => {
   });
 
   it("lists the known kinds", () => {
-    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner"]);
+    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner", "player"]);
   });
 });

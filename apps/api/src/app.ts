@@ -18,7 +18,9 @@ import { createSignIn, reasonOf } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { registerCompletionRoutes } from "#src/completions/routes";
 import { createEvents } from "#src/events/events";
+import { registerPlayerGuard } from "#src/players/guard";
 import { createQuestCodeKey } from "#src/quests/qr";
 import { startLifecycleTick } from "#src/events/tick";
 import { createInvites } from "#src/organizers/accept";
@@ -152,13 +154,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 
+  const questCodeKey = createQuestCodeKey(config.qrSecret);
+  registerPlayerGuard(app, options.pool);
+  registerCompletionRoutes(app, {
+    pool: options.pool,
+    codeKey: questCodeKey,
+    keys: signInDeps.keys,
+  });
+
   registerOrganizerRoutes(app, {
     pool: options.pool,
     sessions: createSessions(options.pool),
     team: createTeam(passwordDeps),
     events: createEvents({ pool: options.pool }),
     questCodes: {
-      codeKey: createQuestCodeKey(config.qrSecret),
+      codeKey: questCodeKey,
       codeOrigin: config.auth.dashboardOrigin,
     },
     dashboardOrigin: config.auth.dashboardOrigin,

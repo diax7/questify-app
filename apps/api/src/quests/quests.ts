@@ -3,6 +3,7 @@ import type { Caller } from "#src/auth/sign-in";
 import type { Actor } from "#src/events/events";
 import {
   BUILDER_LIMITS,
+  anyCompletions,
   audit,
   auditView,
   done,
@@ -119,6 +120,9 @@ export function deleteQuest(
     const current = await readQuest(client, target.eventId, target.id, true);
     if (current === undefined) {
       return { kind: "not_found" };
+    }
+    if (await anyCompletions(client, { questId: current.id })) {
+      return { kind: "has_completions" };
     }
     await audit(client, actor, caller, {
       action: "quest.delete",

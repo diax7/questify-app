@@ -35,7 +35,7 @@
 - **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a
   message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
   hours and returns it for a retry.
-- **Rate limiting:** `429` with `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` headers.
+- **Rate limiting:** `429` with a `Retry-After` header and `details.retryAfterSeconds` (what the app needs to say when to try again).
   Limits are tuning numbers editable in the console (F-279): login-code requests per phone/email/IP,
   scans per minute per player, uploads, exports.
 - **Live updates:** `GET /v1/events/{id}/stream` (server-sent events) carries ranking changes,
@@ -108,7 +108,7 @@ Auth shows who may call. "Rate" notes any special limit.
 | Operation | Auth | Request → Response | Errors |
 |---|---|---|---|
 | `GET /v1/events/{id}/quests` | player | categories with quests, my progress | |
-| `POST /v1/quests/{id}/complete` | player | `{proof: {type, code\|nfc\|…}, location?}`, **Idempotency-Key** → `{points, balance, rank, xp?}` | 409 done, 403 paused/closed/not yet, 422 bad or old code, 429 busy |
+| `POST /v1/quests/{id}/complete` | player (`Authorization: Bearer`) | `{proof: {type: "qr", code: token} \| {type: "code", code}}`, **Idempotency-Key**, optional `X-Device-Id` (a UUID per install) → `{completionId, points, occurrence, score, balance, replayed}` (T-105; rank arrives with T-106, XP with T-401). A retry with the same key answers the first completion with the current score and balance; the same key for another quest is 422 `idempotency_key_reused`. The convention layer replays any 4xx for 24 hours too, so the app makes a new key per tap and reuses one only to retry a dropped connection | 401, 404 (no such quest or not in its event), 403 `quest_not_open {reason: event_not_live\|hidden\|not_started\|ended}` / `enrollment_inactive {reason}`, 409 `already_completed {cap}`, 422 `invalid_code` (one answer for a forged, old, other-quest or wrong code), 429 `too_many_attempts` with `retry-after` (wrong typed codes: 5 per quest, 20 per player, 30 per device in 10 minutes) |
 | `POST /v1/operator/scan` | operator | scanned My QR + quest/award → `{player, result}` | 403 outside abilities or booth limit, 422 expired My QR |
 | `POST /v1/operator/award` | operator | manual award within caps | 403 over cap |
 | `POST /v1/quests/{id}/submissions` | player | signed upload then `{mediaKey, text}` → pending | 413, 422 type |

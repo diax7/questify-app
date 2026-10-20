@@ -157,6 +157,58 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  quest_completion: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key) SELECT organizer_id, event_id, id, gen_random_uuid(), 1, 'qr', 'forged' FROM enrollment WHERE event_id = $1",
+          values: [f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key) SELECT organizer_id, event_id, id, gen_random_uuid(), 1, 'qr', 'forged' FROM enrollment WHERE event_id = $1",
+          values: [f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  ledger_entry: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor) VALUES ($1, $2, gen_random_uuid(), 'quest', 1000, 1000, 'player')",
+          values: [f.orgB, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor) VALUES ($1, $2, gen_random_uuid(), 'quest', 1000, 1000, 'player')",
+          values: [f.orgB, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   enrollment: {
     probes: [
       {
@@ -370,6 +422,8 @@ const SHARED: Readonly<Record<string, string>> = {
   translation: "platform-wide texts; only a Questify admin writes (test/translations)",
   auth_throttle: "keyed by a one-way tag, not by a person; no data to leak (test/auth)",
   schema_migration: "the migration record; the API role has no rights on it (outsider suite)",
+  player_session:
+    "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */
@@ -517,6 +571,19 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
         [event],
       );
     }
+  }
+  // One real completion and its points on each side, made by the completion engine itself (migration 0012).
+  for (const [player, event] of [
+    [f.playerA, f.eventA],
+    [f.playerB, f.eventB],
+  ] as const) {
+    await db.owner.query("BEGIN");
+    await db.owner.query("SELECT set_config('app.player_id', $1, true)", [player]);
+    await db.owner.query(
+      "SELECT complete_quest((SELECT id FROM quest WHERE event_id = $1 LIMIT 1), 'qr', 1, NULL, 'seed', NULL)",
+      [event],
+    );
+    await db.owner.query("COMMIT");
   }
   // Rows past their retention, which the sweeps may remove whoever runs them.
   await run(

@@ -14,6 +14,9 @@ export const BUCKETS = {
   outboundMail: "outbound_mail",
   inviteOrganizer: "invite_organizer",
   inviteAddress: "invite_address",
+  codePlayerQuest: "code_player_quest",
+  codePlayer: "code_player",
+  codeDevice: "code_device",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

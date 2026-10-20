@@ -61,6 +61,14 @@ through their lifecycle. Once is harmless: the next tick catches up, and every s
 no one waits on the tick. Repeated for more than five minutes: check the database (`55P03` is a lock timeout, `08…` a
 lost connection); to move due events by hand, run `SELECT advance_event_lifecycle();` with the API's role.
 
+**`quest.refused` spikes in the log** (T-105): the `reason` says which. Many `forged` or `not_questify` from one player
+means someone is trying made-up QR contents; many `old` after a "New code" means a printed sheet was not replaced.
+A player stopped by the wrong-code limit (`too_many_attempts`) waits out the 10-minute window; there is no command to
+free a player sooner yet. Nothing here holds or removes points: flags come with T-209.
+
+**`quest.code_release_failed`**: the database was unreachable for the moment after a correct code; that player has one
+extra counted attempt for 10 minutes. No action unless it repeats (then check the database).
+
 **`staff.breach_check_unavailable` in the log** (password set answers 503): the API cannot reach
 `api.pwnedpasswords.com`. Check outbound HTTPS from the API container; nothing is changed while it is down.
 `staff.password_notice_failed` means a "password changed" email did not go out (see the email senders below).

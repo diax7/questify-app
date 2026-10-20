@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
   categoryNotEmpty,
+  hasCompletions,
   confirmRequired,
   eventClosed,
   invalidCategory,
@@ -111,6 +112,8 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
       throw lastCategory();
     case "category_not_empty":
       throw categoryNotEmpty({ quests: result.quests });
+    case "has_completions":
+      throw hasCompletions();
   }
 }
 

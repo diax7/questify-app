@@ -165,16 +165,26 @@ its own field T-603). Show or hide is `visible`, not a status.
 "future only or also past" (ADR-063) and writes the audit log.
 
 ### quest_completion
-`id, enrollment_id, quest_id, status pending|approved|rejected, idempotency_key, verified_by (player
-id of the operator, if any), method (qr|my_qr|nfc|manual|auto|wallet_code|minigame|submission|vote),
-created_at, decided_at`. **Unique (enrollment_id, quest_id)** for one-time quests and
-**unique (idempotency_key)**. Repeatable quests add `occurrence`.
+**Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the
+quest's cap), method (qr|code; later tasks add my_qr, nfc, manual, submission…), idempotency_key, device_id, created_at`.
+**Unique (enrollment_id, quest_id, occurrence)** (one row per time a player completed a quest) and **unique
+(enrollment_id, idempotency_key)** (a retry finds the first completion). Composite foreign keys keep the event, the
+enrollment and the quest of one tenant; all RESTRICT. `device_id` (an app install id, personal data) lives here, not on
+the ledger, so account deletion can clear it. Pending and approved states arrive with submissions (T-301).
 
 ### ledger_entry (event layer; append-only)
-`id bigserial, event_id, enrollment_id, delta, kind (quest|bonus|manual_award|spend|reversal|...),
-ref_type, ref_id, actor (system|operator|staff), reason, created_at`. Updates and deletes are
-revoked in the database, not just in code (NFR-019). Corrections are new entries. Score and balance
-are sums of this table.
+**Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, kind (quest; later spend,
+manual_award, reversal…), score_delta, balance_delta, completion_id, quest_id, actor (player; later operator, staff),
+operator_id, created_at`. Two deltas so a spend moves only the balance and a removal after spending can move the score
+and the balance by different amounts (FR-1601), while score and balance stay the exact sums of this table. A trigger
+moves the enrollment's caches on every insert. Append-only for every role, the owner included (ALWAYS triggers on
+UPDATE, DELETE, TRUNCATE; NFR-019). Only `complete_quest` writes it; corrections are new entries. A partial unique
+index pays a completion once.
+
+**`complete_quest` (definer):** the only writer of completions and quest entries. The player is the request's
+`app.player_id`, never an argument; it locks the player's enrollment, answers a repeated key with the first completion,
+then checks the enrollment is active, the event live at this moment, the quest visible and open, the proof fitting the
+quest's type (QR version, typed code), and the cap, and writes the completion and the entry.
 
 ### xp_entry and gem entries (Questify layer; append-only)
 `xp_entry(id, player_id, delta, source (quest_first_completion|daily|level|...), ref, created_at)`;
@@ -206,7 +216,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 
 | Entity | Purpose | PII |
 |---|---|---|
-| auth_session, login_challenge, device | Sign-in sessions; hashed one-time codes with expiry and attempt count; device + push token + integrity result | Device ids, tokens (yes) |
+| player_session (built: T-105 lookup only; T-107/T-108 issue and refresh), login_challenge, device | Sign-in sessions; hashed one-time codes with expiry and attempt count; device + push token + integrity result | Device ids, tokens (yes) |
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | Operator role, station, abilities, booth limits per event | Links a player |

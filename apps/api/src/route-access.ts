@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
  * starting, so nothing becomes public by being forgotten. Later tasks add their kinds here (player bearer token,
  * screen token, signed provider callback), each with the hook that enforces it.
  */
-export const ACCESS_KINDS = ["public", "staff", "member", "owner"] as const;
+export const ACCESS_KINDS = ["public", "staff", "member", "owner", "player"] as const;
 export type Access = (typeof ACCESS_KINDS)[number];
 
 /** Each access kind is enforced by a hook on its own path; a label alone would protect nothing. */
@@ -14,6 +14,9 @@ const STAFF_PREFIX = "/v1/staff/";
 export const ORGANIZER_PREFIX = "/v1/organizers/:organizerId";
 
 export type RouteInfo = Readonly<{ method: string; url: string; access: Access }>;
+
+/** The decorator `registerPlayerGuard` sets, so a player route registered without the guard stops the server. */
+export const PLAYER_GUARD = "playerGuard";
 
 const isAccess = (value: unknown): value is Access =>
   typeof value === "string" && (ACCESS_KINDS as readonly string[]).includes(value);
@@ -47,6 +50,12 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
       if ((access === "member" || access === "owner") !== organizerRoute) {
         throw new Error(
           `Route ${name}: member and owner routes, and only they, live under ${ORGANIZER_PREFIX}, where the membership check runs.`,
+        );
+      }
+      // A player route has no path of its own: the bearer check is one hook on every route marked `player`.
+      if (access === "player" && !app.hasDecorator(PLAYER_GUARD)) {
+        throw new Error(
+          `Route ${name} is marked player but the player guard is not registered before it.`,
         );
       }
       if (access === "public" && route.config?.idempotent === true) {

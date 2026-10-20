@@ -566,14 +566,25 @@ other docs feed it and stay as its detailed appendices.
   app lands on a page that says to scan it inside the app. Migration 0011. CTO: plan 87 → 94; phases 93, 92 (GO).
   T-105 verifies scans with `verifyQuestCode` and compares the version. Waiting on Dhia: ADR-115, ADR-116, and
   `QR_SECRET` in staging.
+- 2026-10-20 **T-105 done.** The completion engine: a player with a session completes a scan or entry-code quest
+  through `POST /v1/quests/{id}/complete`. One database function, the only writer, checks enrollment, event, quest,
+  proof and cap under a lock on the player and writes the completion and its points; the points ledger is append-only
+  for every role and the score and balance are trigger-kept sums of it. Retries never pay twice (the key is stored with
+  the completion), two scans at once pay once (proven over 25 connections), wrong typed codes are limited per quest,
+  player and install. No player can sign in yet (T-107 waits on Msegat), so the route sits behind a session lookup that
+  T-107 will issue tokens for. Migration 0012. CTO: plan 83 → 94; phases 93 → 95, 95 (GO). Bugs found on the way: a
+  replay check that hashed the route pattern instead of the path (one quest's answer could replay for another), and a
+  plpgsql variable named `found` that shadowed `FOUND`.
 
 ## Next
 
-1. **Now:** T-105 (the completion engine: scan and entry-code quests, the points ledger), then T-106 (ranking).
+1. **Now:** T-107 (player sign-in; Dhia put the Msegat username, API key and services sender in the staging secret
+   store on 2026-10-20, with `QR_SECRET`), then T-106 (ranking) and the Phase 1 player tasks sign-in unlocks. T-107 goes before T-106: nothing in
+   T-106 is its prerequisite, and sign-in unblocks real players.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0011, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
-3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
+   0012, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed; set `QR_SECRET` in staging.
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.
 

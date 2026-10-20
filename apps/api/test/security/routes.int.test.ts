@@ -100,6 +100,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit; another event answers 404 (test/quests/codes)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/qr/regenerate":
     "a quest of the path's event only; another event's quest answers 404 (test/quests/codes)",
+  "POST /v1/quests/:questId/complete":
+    "a player's own bearer session only; the database writes for the player of the request, never an argument (test/completions/complete, test/db/completion-engine)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };
