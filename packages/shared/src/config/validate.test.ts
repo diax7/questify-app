@@ -8,7 +8,11 @@ import {
 import type { Registries } from "./registry";
 
 const registries: Registries = {
-  features: { shop: { gated: false }, bigScreen: { gated: true } },
+  features: {
+    shop: { gated: false },
+    bigScreen: { gated: true },
+    usernameChanges: { gated: false, level: "platform" },
+  },
   tuning: { qrSeconds: { default: 45, min: 30, max: 60 } },
 };
 const MESSAGE = { ar: "متوقفة", en: "Paused" };
@@ -24,6 +28,11 @@ describe("validatePlatformSettings", () => {
       tuning: { qrSeconds: 50 },
     };
     expect(platform(full)).toEqual({ ok: true, value: full });
+  });
+
+  it("accepts a platform setting for a feature Questify sets for every event", () => {
+    const off = { features: { usernameChanges: { enabled: false } } };
+    expect(platform(off)).toEqual({ ok: true, value: off });
   });
 
   it("refuses a feature the app does not have, naming it (FR-1504)", () => {
@@ -127,6 +136,13 @@ describe("validateEventConfig", () => {
 
   it("refuses a switch that is not true or false", () => {
     expect(event({ features: { shop: "off" } }).ok).toBe(false);
+  });
+
+  it("refuses an event switch for a feature Questify sets for every event", () => {
+    expect(event({ features: { usernameChanges: false } })).toEqual({
+      ok: false,
+      issues: [{ path: "features.usernameChanges", message: "is set by Questify for every event" }],
+    });
   });
 
   it("refuses an unlock written by the event owner, because only Questify unlocks add-ons", () => {

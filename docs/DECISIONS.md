@@ -1739,3 +1739,15 @@ client is the official `redis` package (node-redis).
 events and the big screen in milliseconds without counting rows on every request. **Cost:** one managed Redis service
 on CranL. **Staging:** the service is created with the next staging deploy; until then the API runs without it only in
 development and tests that do not need rankings.
+
+## ADR-119 — The first word lists come from LDNOOBW, cut and reviewed
+**Status:** Accepted (user, 2026-10-21, T-109: "Open list + my review").
+**Decision:** The Arabic and English lists that block offensive usernames (FR-118, FR-1412) start from the "List of
+Dirty, Naughty, Obscene, and Otherwise Bad Words" (LDNOOBW, CC BY 4.0, credited in `docs/legal/THIRD_PARTY.md`), cut by
+Claude to remove entries that would block ordinary names or words (for example «فرج», a common name; «بيضان»; "how to
+kill"). They are data in the database, edited later by a Questify admin (FR-1779); the migration only seeds them.
+Matching runs in the database after Arabic and case folding: entries of four letters or fewer match a whole token of
+the username (between `_`, digits or its ends); longer entries, and a few short ones that never appear in innocent
+words, match anywhere.
+**Why:** an empty list blocks nothing at launch (store review, PD-11), and a list made from scratch would miss common
+terms. The cut keeps false refusals rare; the admin can add or remove words without a release.

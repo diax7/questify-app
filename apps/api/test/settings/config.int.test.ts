@@ -69,8 +69,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           polls: { enabled: true, minAppVersion: null, message: null },
           ranking: { enabled: true, minAppVersion: null, message: null },
           shop: { enabled: true, minAppVersion: null, message: null },
+          usernameChanges: { enabled: true, minAppVersion: null, message: null },
         },
-        tuning: { myQrGraceSeconds: 5, screenQrRotationSeconds: 45 },
+        tuning: { myQrGraceSeconds: 5, screenQrRotationSeconds: 45, usernameChangeDays: 30 },
       });
     });
 
@@ -407,7 +408,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         message: null,
       });
       expect(config.features).not.toHaveProperty("teleporter");
-      expect(config.tuning).toEqual({ myQrGraceSeconds: 5, screenQrRotationSeconds: 45 });
+      expect(config.tuning).toEqual({
+        myQrGraceSeconds: 5,
+        screenQrRotationSeconds: 45,
+        usernameChangeDays: 30,
+      });
       await owner("DELETE FROM platform_setting");
       expireCaches();
     });

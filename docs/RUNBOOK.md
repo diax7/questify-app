@@ -122,6 +122,21 @@ not encrypt data.
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## Usernames and the word lists (T-109, ADR-119)
+
+- **Editing the lists until the console has a screen (FR-1779):** with the owner connection, add a word with
+  `INSERT INTO username_word (word, match, language) VALUES (username_fold('<word>'), 'part', 'en');` (letters only;
+  `word` matches a whole part of a name between `_` and digits, `part` matches anywhere). The table refuses anything
+  else. Existing names are never re-checked: a new word applies to new names and renames.
+- **What still slips through:** joined words against a `word` entry (`bigass`), repeated letters (`fuuuck`), spellings
+  the digit map does not cover. Add a `part` entry when a pattern shows up.
+- **Accepted false refusals:** a `part` entry also blocks innocent names that contain it, for example `swanky`
+  (wank), `yamashita` and `matsushita` (shit), `pussycat` (pussy). Remove or narrow an entry if players run into one.
+- **Username changes:** the platform feature `usernameChanges` (on by default) and the tuning number
+  `usernameChangeDays` (default 30) in the platform settings. Every name a player had stays in `username_history`.
+- **The migration refuses to run** when existing names break the new character rule or read alike after folding: it
+  lists the player ids; rename them (owner connection) and run it again.
+
 ## Rankings and Redis (T-106, ADR-118)
 
 - **Settings:** `REDIS_URL` (`redis://` or `rediss://`; required in production). Check at deploy whether CranL's

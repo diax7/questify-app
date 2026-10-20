@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { AVATARS } from "@questify/shared";
 import { z } from "zod";
 import {
   accountBanned,
@@ -17,6 +18,7 @@ import {
   tooManyAttempts,
   tooYoung,
   unauthenticated,
+  usernameBlocked,
   usernameTaken,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
@@ -40,6 +42,7 @@ const signupBody = z.strictObject({
   signupToken: TOKEN,
   username: z.string().min(1).max(120),
   birthYear: z.int().min(0).max(9999),
+  avatar: z.enum(AVATARS),
 });
 const refreshBody = z.strictObject({ refreshToken: TOKEN });
 
@@ -70,6 +73,7 @@ const SIGNUP_REFUSALS = {
   invalid_birth_year: invalidBirthYear,
   too_young: tooYoung,
   username_taken: usernameTaken,
+  username_blocked: usernameBlocked,
   contact_taken: contactTaken,
 } as const;
 

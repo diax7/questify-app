@@ -44,9 +44,10 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | Field | Type | Constraints | PII | Notes |
 |---|---|---|---|---|
 | id | uuid | PK | no | |
-| username | text | unique ignoring case (index on lower()), required | yes (public) | The @username (gamer tag); changeable by the Questify team, old names kept in `username_history` |
+| username | text | unique after folding (`username_fold`: case, أ/إ/آ→ا, ة→ه, ى→ي); CHECK: 3–30 Arabic letters without marks, Latin letters, digits, `_` (migration 0016) | yes (public) | The @username (gamer tag); written only by `create_player` and `rename_player` (the word lists, the change limit and the history), never by the API role directly. Every name kept in `username_history` |
+| avatar | text | one of `falcon`, `fox`, `camel`, `owl`, `lantern`, `explorer-hat` (CHECK, the same list as `AVATARS`) | yes (public) | Questify's default avatars (FR-117); the player changes it freely |
 | phone_e164, email | | moved to `player_contact` (migration 0005) | **yes** | Only the player and Questify admins can read them; organizers cannot (see below) |
-| birth_year | smallint | nullable | yes | Age gate (13+) |
+| birth_year | smallint | nullable | yes | Age gate (13+); set only at sign-up, never changed by the API role |
 | city | text | nullable | yes | Optional |
 | interests | text[] | | no | Optional |
 | character_id, frame_item_id, title_item_id | uuid | FK | no | Avatar parts |
@@ -56,6 +57,13 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | gems | bigint | ≥ 0, cache | no | |
 | status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084) |
 | created_at, deleted_at | timestamptz | | no | |
+
+### username_history, username_word (migration 0016)
+`username_history (player_id, username, reason signup|rename, changed_at)`: every name a player had, written by a
+trigger on `player`; append-only for every role (deleting needs the erasure flag, T-217); no grant to the API role; the
+change limit counts `rename` rows only. `username_word (word, match word|part, language)`: the lists that refuse
+usernames (ADR-119), stored folded and letters only (a CHECK refuses anything else), no grant; read inside
+`create_player` and `rename_player` through `username_blocked(name)`.
 
 ### player_contact (migration 0005)
 | Field | Type | Constraints | PII | Notes |

@@ -4,6 +4,8 @@ import type { LocalizedText } from "#src/errors";
 export type FeatureDefinition = Readonly<{
   /** An add-on: hidden for an event until Questify unlocks it for that event (FR-1729). */
   gated: boolean;
+  /** Set by Questify for every event at once; an organizer has no switch for it (FR-1702's username changes). */
+  level?: "platform";
 }>;
 
 /** A number an admin may tune, with the range that is safe (F-279). Out-of-range values are never used. */
@@ -46,12 +48,16 @@ export const FEATURES: FeatureRegistry = {
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },
   shop: { gated: false },
+  /** Players may change their username (FR-1702), at most once per `usernameChangeDays`. */
+  usernameChanges: { gated: false, level: "platform" },
 };
 
 /** Starting values from Q-074 (still to be tested in the field); admins adjust them inside the range. */
 export const TUNING: TuningRegistry = {
   myQrGraceSeconds: { default: 5, min: 0, max: 30 },
   screenQrRotationSeconds: { default: 45, min: 30, max: 60 },
+  /** Days between two username changes (FR-705); sign-up does not count. */
+  usernameChangeDays: { default: 30, min: 1, max: 365 },
 };
 
 export const REGISTRIES: Registries = { features: FEATURES, tuning: TUNING };

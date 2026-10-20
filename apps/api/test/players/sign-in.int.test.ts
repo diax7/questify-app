@@ -101,6 +101,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
       signupToken,
       username: `runner_${counter}`,
       birthYear: 1998,
+      avatar: "falcon",
     });
     expect(created.statusCode).toBe(201);
     return { ...created.json<Issued>(), contact };
@@ -475,6 +476,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
         signupToken: fromEmail,
         username: `لاعب_${counter}`,
         birthYear: 2000,
+        avatar: "falcon",
       });
       expect(created.statusCode).toBe(201);
       expect(
@@ -491,7 +493,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
         ["has space", "characters"],
         ["abcلاعب", "mixed_scripts"],
       ]) {
-        const refused = await post("signup", { signupToken: token, username, birthYear: 1990 });
+        const refused = await post("signup", {
+          signupToken: token,
+          username,
+          birthYear: 1990,
+          avatar: "falcon",
+        });
         expect(refused.statusCode).toBe(422);
         expect(refused.json()).toMatchObject({ code: "invalid_username", details: { reason } });
       }
@@ -500,6 +507,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
         signupToken: token,
         username: `kept_${counter}`,
         birthYear: 1990,
+        avatar: "falcon",
       });
       expect(created.statusCode).toBe(201);
     });
@@ -508,10 +516,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
       const taken = await signUp();
       const token = await signupToken();
       const answers = [
-        [{ username: taken.player.username.toUpperCase(), birthYear: 1990 }, 409, "username_taken"],
-        [{ username: "future_one", birthYear: riyadhYear() + 1 }, 422, "invalid_birth_year"],
-        [{ username: "too_young_x", birthYear: riyadhYear() - 12 }, 422, "too_young"],
-        [{ username: "after_young", birthYear: 1990 }, 410, "signup_expired"],
+        [
+          { username: taken.player.username.toUpperCase(), birthYear: 1990, avatar: "falcon" },
+          409,
+          "username_taken",
+        ],
+        [
+          { username: "future_one", birthYear: riyadhYear() + 1, avatar: "falcon" },
+          422,
+          "invalid_birth_year",
+        ],
+        [
+          { username: "too_young_x", birthYear: riyadhYear() - 12, avatar: "falcon" },
+          422,
+          "too_young",
+        ],
+        [{ username: "after_young", birthYear: 1990, avatar: "falcon" }, 410, "signup_expired"],
       ] as const;
       for (const [fields, status, code] of answers) {
         const refused = await post("signup", { signupToken: token, ...fields });
@@ -538,6 +558,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
         signupToken: first,
         username: `second_${counter}`,
         birthYear: 1990,
+        avatar: "falcon",
       });
       expect(refused.statusCode).toBe(409);
       expect(refused.json()).toMatchObject({ code: "contact_taken" });

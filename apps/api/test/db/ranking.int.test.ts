@@ -237,8 +237,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rankings (database)", () => {
         [event, [a.enrollment, b.enrollment, c.enrollment]],
       );
       expect(rows).toEqual([
-        { enrollment_id: a.enrollment, username: expect.stringMatching(/^ranker_/), ranked: true },
-        { enrollment_id: b.enrollment, username: null, ranked: false },
+        {
+          enrollment_id: a.enrollment,
+          username: expect.stringMatching(/^ranker_/),
+          avatar: "falcon",
+          ranked: true,
+        },
+        { enrollment_id: b.enrollment, username: null, avatar: null, ranked: false },
       ]);
       await expect(
         as({ playerId: c.player }, "SELECT * FROM ranking_rows($1, $2)", [event, [a.enrollment]]),

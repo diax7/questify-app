@@ -45,6 +45,13 @@ function unknownFeatureIssues(registries: Registries, keys: readonly string[]): 
     .map((key) => ({ path: `features.${key}`, message: "is not a feature of the app" }));
 }
 
+/** Features Questify sets for every event at once: an event cannot switch them. */
+function platformOnlyIssues(registries: Registries, keys: readonly string[]): ConfigIssue[] {
+  return keys
+    .filter((key) => registries.features[key]?.level === "platform")
+    .map((key) => ({ path: `features.${key}`, message: "is set by Questify for every event" }));
+}
+
 function tuningIssues(
   registries: Registries,
   tuning: Readonly<Record<string, number>>,
@@ -92,7 +99,11 @@ export function validateEventConfig(
   if (!parsed.success) {
     return { ok: false, issues: issuesOf(parsed.error) };
   }
-  const issues = unknownFeatureIssues(registries, Object.keys(parsed.data.features ?? {}));
+  const keys = Object.keys(parsed.data.features ?? {});
+  const issues = [
+    ...unknownFeatureIssues(registries, keys),
+    ...platformOnlyIssues(registries, keys),
+  ];
   return issues.length > 0 ? { ok: false, issues } : { ok: true, value: parsed.data };
 }
 

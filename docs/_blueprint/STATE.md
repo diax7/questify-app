@@ -593,20 +593,27 @@ other docs feed it and stay as its detailed appendices.
   and the organizer's own team never appear; every change of who may be ranked marks the event for repair through
   database triggers, and a repair job rebuilds within seconds. The owner hides or shows the ranking from the event page
   (FR-607). Measured at 20,000 players: per-row rules took 1.7 s, now about 50 ms (the Redis-down path only).
-  Migration 0015. CTO: plan 82 → 93; phases 92, 87 → 94, 93. A full disk stopped the work for an hour: killed mutation
+  Migration 0015. CTO: plan 82 → 93; phases 92, 87 → 94, 93; mutation 92%. A full disk stopped the work for an hour: killed mutation
   runs had left thousands of test databases inside Docker (105 GB); test databases now carry their creation time and
   stale ones are swept (memory note `stryker-stop-cleanup`).
+- 2026-10-21 **T-109 done.** Usernames and avatars: a new player picks a username, one of the six default avatars and
+  a birth year. Names that read alike (case, أ/إ/آ, ة/ه, ى/ي) count as one; a word list in Arabic and English blocks
+  offensive names (started from an open list and reviewed: Dhia's call, ADR-119; false positives like "therapist",
+  "basement" and «فرج» were cut). Every name a player had is kept; a rename is allowed once every 30 days and only
+  while Questify allows it. The review found the API's database role could still rename players directly, skipping
+  the filter: that right is gone, and only the checked functions write names. Other players only ever see the
+  username and avatar. Migration 0016. CTO: plan 78 → 93; phases 92, 94.
 
 ## Next
 
-1. **Now:** the Phase 1 player tasks sign-in and ranking unlocked (T-109 profile rules, T-110 consent, T-111 join with
-   the sign-in screens once the app shell runs), then T-208 (exclusion list and bans).
+1. **Now:** T-110 (consent at sign-up), then T-111 (join; its screens wait for the app shell), then T-208 (exclusion
+   list and bans).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0015, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0016, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

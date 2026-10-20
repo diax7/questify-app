@@ -362,3 +362,21 @@ export const rankingOff = make(
   "الترتيب مخفي في هذه الفعالية.",
   "The ranking is hidden for this event.",
 );
+export const usernameBlocked = make(
+  422,
+  "username_blocked",
+  "لا يمكن استخدام اسم المستخدم هذا. اختر اسمًا آخر.",
+  "That username can't be used. Choose another.",
+);
+export const usernameChangesOff = make(
+  403,
+  "username_changes_off",
+  "تغيير اسم المستخدم متوقف حاليًا.",
+  "Username changes are paused for now.",
+);
+export const usernameTooSoon = make(
+  429,
+  "username_too_soon",
+  "غيّرت اسم المستخدم مؤخرًا. يمكنك تغييره مرة أخرى لاحقًا.",
+  "You changed your username recently. You can change it again later.",
+);

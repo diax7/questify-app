@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import { checkUsername, toWesternDigits, type UsernameCheck } from "@questify/shared";
+import { checkUsername, toWesternDigits, type Avatar, type UsernameCheck } from "@questify/shared";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { EmailSender } from "#src/auth/email/sender";
@@ -39,7 +39,7 @@ export type Issued = Readonly<{
   accessToken: string;
   refreshToken: string;
   expiresInSeconds: number;
-  player: Readonly<{ id: string; username: string }>;
+  player: Readonly<{ id: string; username: string; avatar: Avatar }>;
 }>;
 
 type Unavailable = Readonly<{ kind: "sms_unavailable" | "email_unavailable" }>;
@@ -79,6 +79,7 @@ export type SignupResult =
         | "invalid_birth_year"
         | "too_young"
         | "username_taken"
+        | "username_blocked"
         | "contact_taken";
     }>;
 
@@ -94,7 +95,7 @@ export type PlayerSignIn = Readonly<{
   resend: (input: { challengeToken: string; lang: Lang }, asker: Asker) => Promise<ResendResult>;
   verify: (input: { challengeToken: string; code: string }, asker: Asker) => Promise<VerifyResult>;
   signup: (
-    input: { signupToken: string; username: string; birthYear: number },
+    input: { signupToken: string; username: string; birthYear: number; avatar: Avatar },
     asker: Asker,
   ) => Promise<SignupResult>;
   refresh: (input: { refreshToken: string }, asker: Asker) => Promise<RefreshResult>;
@@ -407,16 +408,19 @@ async function issuedTo(
 ): Promise<Issued> {
   const { rows } = await withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId }, () =>
-      client.query<{ username: string }>("SELECT username FROM player WHERE id = $1", [playerId]),
+      client.query<{ username: string; avatar: Avatar }>(
+        "SELECT username, avatar FROM player WHERE id = $1",
+        [playerId],
+      ),
     ),
   );
   // The tokens were just issued to this player in a committed transaction, so its row is readable.
-  const { username } = onlyRow(rows, "the player's own row");
+  const { username, avatar } = onlyRow(rows, "the player's own row");
   return {
     accessToken: tokens.access,
     refreshToken: tokens.refresh,
     expiresInSeconds: L.accessTokenSeconds,
-    player: { id: playerId, username },
+    player: { id: playerId, username, avatar },
   };
 }
 
@@ -508,6 +512,7 @@ const SIGNUP_OUTCOMES: Readonly<Record<string, SignupRefusal>> = {
   invalid_birth_year: "invalid_birth_year",
   too_young: "too_young",
   username_taken: "username_taken",
+  username_blocked: "username_blocked",
   contact_taken: "contact_taken",
 };
 
@@ -523,11 +528,12 @@ async function signup(
   const tokens = newTokens();
   const { rows } = await inTransaction(deps, (client) =>
     client.query<{ outcome: string; player_id: string | null }>(
-      "SELECT * FROM create_player($1, $2, $3, $4, $5, $6)",
+      "SELECT * FROM create_player($1, $2, $3, $4, $5, $6, $7)",
       [
         tokenHash(input.signupToken),
         name.username,
         input.birthYear,
+        input.avatar,
         tokens.accessHash,
         tokens.refreshHash,
         tokens.family,

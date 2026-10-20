@@ -205,9 +205,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         expect(seen.me).toEqual({
           rank: 12,
           username: await usernameOf(last?.id ?? ""),
+          avatar: "falcon",
           score: 10,
         });
         expect(seen.rows.some((row) => row.isMe)).toBe(false);
+        // Only the username and avatar of another player are ever shown (FR-120).
+        for (const row of seen.rows) {
+          expect(Object.keys(row).toSorted()).toEqual([
+            "avatar",
+            "isMe",
+            "rank",
+            "score",
+            "username",
+          ]);
+        }
         const first = await view(players[0]?.token ?? "", event);
         expect(first.rows[0]).toMatchObject({ rank: 1, isMe: true, score: 20 });
       });

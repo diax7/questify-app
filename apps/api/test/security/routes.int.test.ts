@@ -108,6 +108,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a player with an active enrollment in that event only; the definers read the caller from the session, never an argument (test/ranking/ranking, test/db/ranking)",
   "PUT /v1/organizers/:organizerId/events/:eventId/ranking":
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
+  "GET /v1/me":
+    "the bearer's own profile only; the player comes from the session (test/players/profile)",
+  "PATCH /v1/me":
+    "the bearer's own avatar and username only; renames go through rename_player, bound to the session (test/players/profile, test/db/usernames)",
   "POST /v1/auth/code":
     "player sign-in; opens a challenge for the contact in the body, the same answer for every contact (test/players/sign-in)",
   "POST /v1/auth/resend": "bound to its own challenge token (test/players/sign-in)",

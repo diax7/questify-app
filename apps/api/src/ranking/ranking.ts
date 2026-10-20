@@ -15,12 +15,19 @@ export type RankingDeps = Readonly<{
   log: RankingLog;
 }>;
 
-export type RankingRow = Readonly<{ rank: number; username: string; score: number; isMe: boolean }>;
+/** Only the username and avatar of another player are ever shown (FR-120). */
+export type RankingRow = Readonly<{
+  rank: number;
+  username: string;
+  avatar: string;
+  score: number;
+  isMe: boolean;
+}>;
 
 /** The top 10 and the reader's own place (ADR-052); `me` is null when the reader is not ranked. */
 export type RankingView = Readonly<{
   rows: readonly RankingRow[];
-  me: Readonly<{ rank: number; username: string; score: number }> | null;
+  me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
   total: number;
 }>;
 
@@ -83,10 +90,12 @@ function fromPostgres(
   me: Own,
 ): Promise<RankingView> {
   return inContext(deps, { playerId }, async (client) => {
-    const top = await client.query<{ enrollment_id: string; username: string; score: string }>(
-      "SELECT enrollment_id, username, score FROM ranking_top($1, $2)",
-      [eventId, TOP],
-    );
+    const top = await client.query<{
+      enrollment_id: string;
+      username: string;
+      avatar: string;
+      score: string;
+    }>("SELECT enrollment_id, username, avatar, score FROM ranking_top($1, $2)", [eventId, TOP]);
     const { rows } = await client.query<{ place: string | null; total: string }>(
       "SELECT place, total FROM ranking_position($1)",
       [eventId],
@@ -96,6 +105,7 @@ function fromPostgres(
       rows: top.rows.map((row, index) => ({
         rank: index + 1,
         username: row.username,
+        avatar: row.avatar,
         score: Number(row.score),
         isMe: row.enrollment_id === me.enrollmentId,
       })),
@@ -110,7 +120,10 @@ function fromPostgres(
   });
 }
 
-type Named = ReadonlyMap<string, Readonly<{ username: string | null; ranked: boolean }>>;
+type Named = ReadonlyMap<
+  string,
+  Readonly<{ username: string | null; avatar: string | null; ranked: boolean }>
+>;
 
 /** The rows of the top as the database sees them now, or `not_enrolled` when the reader may no longer look. */
 async function rowsOf(
@@ -124,6 +137,7 @@ async function rowsOf(
       const { rows } = await client.query<{
         enrollment_id: string;
         username: string | null;
+        avatar: string | null;
         ranked: boolean;
       }>("SELECT * FROM ranking_rows($1, $2)", [eventId, top.map((row) => row.enrollmentId)]);
       return new Map(rows.map((row) => [row.enrollment_id, row]));
@@ -169,15 +183,25 @@ async function fromRedis(
 
 function ownOf(deps: RankingDeps, eventId: string, playerId: string) {
   return inContext(deps, { playerId }, async (client): Promise<Own | undefined> => {
-    const { rows } = await client.query<{ id: string; score: string; username: string }>(
-      `SELECT e.id, e.score, p.username FROM enrollment e JOIN player p ON p.id = e.player_id
+    const { rows } = await client.query<{
+      id: string;
+      score: string;
+      username: string;
+      avatar: string;
+    }>(
+      `SELECT e.id, e.score, p.username, p.avatar FROM enrollment e JOIN player p ON p.id = e.player_id
        WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
       [eventId, playerId],
     );
     const row = rows[0];
     return row === undefined
       ? undefined
-      : { enrollmentId: row.id, score: Number(row.score), username: row.username };
+      : {
+          enrollmentId: row.id,
+          score: Number(row.score),
+          username: row.username,
+          avatar: row.avatar,
+        };
   });
 }
 
@@ -309,16 +333,19 @@ export function createRanking(deps: RankingDeps): Ranking {
   };
 }
 
-type Own = Readonly<{ enrollmentId: string; score: number; username: string }>;
+type Own = Readonly<{ enrollmentId: string; score: number; username: string; avatar: string }>;
 
 const meOf = (me: Own, place: number | null): RankingView["me"] =>
-  place === null ? null : { rank: place, username: me.username, score: me.score };
+  place === null
+    ? null
+    : { rank: place, username: me.username, avatar: me.avatar, score: me.score };
 
 function viewOf(copy: Read, named: Named, me: Own): RankingView {
   return {
     rows: copy.top.map((row, index) => ({
       rank: index + 1,
       username: named.get(row.enrollmentId)?.username ?? "",
+      avatar: named.get(row.enrollmentId)?.avatar ?? "",
       score: Number(row.score),
       isMe: row.enrollmentId === me.enrollmentId,
     })),

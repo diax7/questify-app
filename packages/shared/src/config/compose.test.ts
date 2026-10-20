@@ -28,6 +28,20 @@ describe("composeConfig defaults", () => {
     });
   });
 
+  it("ignores an event switch for a platform-level feature; only the platform turns it off", () => {
+    const withRenames = {
+      features: { ...FEATURES, renames: { gated: false, level: "platform" as const } },
+      tuning: TUNING,
+    };
+    const stored = { features: { renames: false } };
+    expect(composeConfig(withRenames, {}, stored).features["renames"]?.enabled).toBe(true);
+    expect(
+      composeConfig(withRenames, { features: { renames: { enabled: false } } }, undefined).features[
+        "renames"
+      ]?.enabled,
+    ).toBe(false);
+  });
+
   it("lists features and tuning in a fixed order, so equal settings always give equal documents", () => {
     const a = composeConfig(registries, {}, undefined);
     const reversed: FeatureRegistry = {

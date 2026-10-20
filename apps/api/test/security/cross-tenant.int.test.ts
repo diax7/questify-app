@@ -378,6 +378,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
         mine: (f) => f.playerA,
         theirs: (f) => f.playerB,
         forge: () => ({ sql: "INSERT INTO player (username) VALUES ('forged_one')", values: [] }),
+        // Since T-109 no one but the sign-up definer creates a player.
+        forgeRefusedBy: /permission denied/,
       },
       {
         seat: "organizer",
@@ -385,6 +387,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
         mine: (f) => f.playerA,
         theirs: (f) => f.playerB,
         forge: () => ({ sql: "INSERT INTO player (username) VALUES ('forged_two')", values: [] }),
+        // Since T-109 no one but the sign-up definer creates a player.
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },
@@ -426,6 +430,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; a challenge is reached only through definers bound to its token (test/db/player-sign-in)",
   player_refresh:
     "no right for the API role at all; a refresh token is rotated only through a definer bound to it (test/db/player-sign-in)",
+  username_history:
+    "no right for the API role at all; written by a trigger on player and read by the console later (test/db/usernames)",
+  username_word:
+    "no right for the API role at all; read by the username check inside the definers (test/db/usernames)",
   ranking_repair:
     "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
   player_session:

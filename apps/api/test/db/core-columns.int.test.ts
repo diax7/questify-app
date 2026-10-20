@@ -158,17 +158,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       ]);
     });
 
-    it("lets a player change their own username and delete their own account", async () => {
-      await as({ playerId: ids.playerA }, "UPDATE player SET username = 'sara_new' WHERE id = $1", [
+    it("lets a player change their own avatar and delete their own account, but never rename directly", async () => {
+      for (const column of ["username = 'sara_new'", "birth_year = 1990"]) {
+        await expect(
+          as({ playerId: ids.playerA }, `UPDATE player SET ${column} WHERE id = $1`, [ids.playerA]),
+        ).rejects.toThrow(/permission denied/);
+      }
+      await as({ playerId: ids.playerA }, "UPDATE player SET avatar = 'owl' WHERE id = $1", [
         ids.playerA,
       ]);
       await as({ playerId: ids.playerA }, "UPDATE player SET status = 'deleted' WHERE id = $1", [
         ids.playerA,
       ]);
       const rows = (
-        await db.owner.query("SELECT username, status FROM player WHERE id = $1", [ids.playerA])
+        await db.owner.query("SELECT username, avatar, status FROM player WHERE id = $1", [
+          ids.playerA,
+        ])
       ).rows;
-      expect(rows).toEqual([{ username: "sara_new", status: "deleted" }]);
+      expect(rows).toEqual([{ username: "sara_k", avatar: "owl", status: "deleted" }]);
       await db.owner.query("UPDATE player SET status = 'active' WHERE id = $1", [ids.playerA]);
     });
 

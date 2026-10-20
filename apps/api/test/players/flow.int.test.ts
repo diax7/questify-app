@@ -246,7 +246,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
       }
       counter += 1;
       const created = await flow.signup(
-        { signupToken: verified.signupToken, username: `flow_${counter}`, birthYear: 1990 },
+        {
+          signupToken: verified.signupToken,
+          username: `flow_${counter}`,
+          birthYear: 1990,
+          avatar: "falcon",
+        },
         asker(),
       );
       if (created.kind !== "created") {

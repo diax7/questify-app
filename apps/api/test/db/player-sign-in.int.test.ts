@@ -72,7 +72,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
   const createPlayer = async (signup: Buffer, name: string, born: number, t: Tokens = tokens()) =>
     (
       await call<{ outcome: string; player_id: string | null }>(
-        "SELECT * FROM create_player($1, $2, $3, $4, $5, $6)",
+        "SELECT * FROM create_player($1, $2, $3, 'falcon', $4, $5, $6)",
         [sha(signup), name, born, sha(t.access), sha(t.refresh), t.family],
       )
     )[0];
@@ -546,7 +546,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       for (const fn of [
         "start_player_challenge(gen_random_uuid(), '\\x00', 'phone', 'x', '\\x00', '\\x00')",
         "sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00')",
-        "create_player('\\x00', 'x', 1990, '\\x00', '\\x00', gen_random_uuid())",
+        "create_player('\\x00', 'x', 1990, 'falcon', '\\x00', '\\x00', gen_random_uuid())",
         "rotate_player_refresh('\\x00', '\\x00', '\\x00')",
         "sign_out_player('\\x00')",
         "sweep_player_sign_in()",
