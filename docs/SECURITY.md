@@ -118,7 +118,9 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   through the system picker or camera (NFR-021).
 - Deletion: real deletion on request, anonymising audit rows; the one-way fingerprint keeps bans
   (ADR-084). No restore after deletion (ADR-094).
-- Backups: point-in-time, copied to the second Saudi region, restore rehearsed (NFR-026).
+- Backups (target, NFR-026): point-in-time, copied to a second place in Saudi Arabia that we control, restore rehearsed.
+  **Today:** CranL offers neither point-in-time restore nor a second-region copy (ADR-107 addenda); staging holds only
+  test data, and the nightly copy with a proven restore is T-019, required before the first real player.
 
 ## Tests that prove it
 
