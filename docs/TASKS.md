@@ -22,8 +22,9 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: Two written quotes are filed; one gateway is chosen; the sender-name request is submitted.
 - [ ] **T-014** Verify the chosen Saudi cloud offers managed PostgreSQL with point-in-time recovery, a cache, object storage and email in that region, and get a quote (Q-031); if not, take the fallback — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A written note lists each needed service as available in the region, with a price; the database choice in ADR-102 is confirmed or changed.
-- [ ] **T-015** Check the chosen Expo SDK against the stores' current rules: privacy manifests, Android target API, Xcode version (Q-046, NFR-010) — delivers no FR (infrastructure or quality gate); depends on: T-001
+- [x] **T-015** Check the chosen Expo SDK against the stores' current rules: privacy manifests, Android target API, Xcode version (Q-046, NFR-010) — delivers no FR (infrastructure or quality gate); depends on: T-001
   - Done when: A note records the SDK version and confirms it meets both stores' current requirements, or lists what must change.
+  - Done 2026-10-20: `docs/compliance/EXPO_SDK_CHECK.md`. SDK 57 meets every current rule; required-reason APIs added to `app.json`. Open: data types in the privacy manifest before the first TestFlight upload (A2), and move to SDK 58 before Apple requires Xcode 27, expected spring 2027 (A3).
 - [x] **T-002** Stand up the staging environment in the chosen Saudi region: managed PostgreSQL with backups, cache, object storage, secret store, container hosting (needs Q-031 decided) — delivers no FR (infrastructure or quality gate); depends on: T-001, T-014
   - Done when: A health endpoint answers from staging; a restore of last night's backup into a scratch database succeeds; no resource is reachable from the public internet except the API.
 - [x] **T-003** Database baseline: organizers, events, players, staff, enrollments; every tenant table has an organizer key; row-level security on; public access revoked by default — delivers FR 1501, 1502; depends on: T-002
