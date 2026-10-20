@@ -25,7 +25,7 @@ const required = (name: string): string => {
 /** The password the e2e breach list knows (e2e/paths.ts has the same text). */
 const E2E_BREACHED_PASSWORD = "this one was in a breach 2019";
 
-/** Keeps the last sign-in code and the last reset link sent to each address in a JSON file. */
+/** Keeps the last sign-in code and the last reset or invite link sent to each address in a JSON file. */
 class FileEmailSender implements EmailSender {
   readonly name = "e2e-file";
   private readonly mail: { codes: Record<string, string>; links: Record<string, string> } = {
@@ -39,7 +39,9 @@ class FileEmailSender implements EmailSender {
   }
 
   send(message: EmailMessage): Promise<void> {
-    const link = /https?:\/\/\S+\/reset-password#token=[A-Za-z0-9_-]+/.exec(message.text)?.[0];
+    const link = /https?:\/\/\S+\/(?:reset-password|invite)#token=[A-Za-z0-9_-]+/.exec(
+      message.text,
+    )?.[0];
     const code = /(?<![0-9])[0-9]{6}(?![0-9])/.exec(message.text)?.[0];
     if (link !== undefined) {
       this.mail.links[message.to] = link;
@@ -57,7 +59,7 @@ async function main(): Promise<void> {
   const ids = await seedTwoTenants(db.owner);
   // One editor account per test and browser size (an organizer has one owner), so the per-account limits (5 codes an hour) never cross tests.
   for (const size of ["desktop", "phone"]) {
-    for (const name of ["ar", "en", "keys", "resend", "reset", "change"]) {
+    for (const name of ["ar", "en", "keys", "resend", "reset", "change", "creator"]) {
       const id = await createStaff(db.owner, { email: `${name}.${size}@najd.test` });
       await db.owner.query(
         "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",

@@ -7,6 +7,8 @@ const config: NextConfig = {
   // the shared package and the fonts live outside apps/web.
   output: "standalone",
   outputFileTracingRoot: join(import.meta.dirname, "..", ".."),
+  // The organizer documents are read from the repository's docs at request time (app/[lang]/legal).
+  outputFileTracingIncludes: { "/[lang]/legal/[document]": ["../../docs/legal/organizer-*.md"] },
   // No image optimiser on the server (and so no `sharp`): nothing needs resized images yet.
   images: { unoptimized: true },
   // The shared package ships TypeScript sources.

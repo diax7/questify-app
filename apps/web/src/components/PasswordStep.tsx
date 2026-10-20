@@ -78,6 +78,9 @@ export function PasswordStep({
       <a className={styles.textLink} href={`/${language}/forgot-password`}>
         {t("staff.forgotPassword")}
       </a>
+      <a className={styles.textLink} href={`/${language}/sign-up`}>
+        {t("staff.signUpLink")}
+      </a>
     </form>
   );
 }

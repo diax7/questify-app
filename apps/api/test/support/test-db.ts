@@ -103,11 +103,11 @@ export async function seedTwoTenants(owner: Client): Promise<{
     "INSERT INTO organizer (name, slug) VALUES ('Tabuk Fest', 'tabuk') RETURNING id",
   );
   const eventA = await one(
-    "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'NAJD1', 'Tech Fest', 'live') RETURNING id",
+    "INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at) VALUES ($1, 'NAJD1', 'Tech Fest', 'live', now() - interval '1 hour', now() + interval '30 days') RETURNING id",
     [orgA],
   );
   const eventB = await one(
-    "INSERT INTO event (organizer_id, join_code, name_en, status, access) VALUES ($1, 'TABUK1', 'Winter Fest', 'live', 'private') RETURNING id",
+    "INSERT INTO event (organizer_id, join_code, name_en, status, access, starts_at, ends_at) VALUES ($1, 'TABUK1', 'Winter Fest', 'live', 'private', now() - interval '1 hour', now() + interval '30 days') RETURNING id",
     [orgB],
   );
   const playerA = await one("INSERT INTO player (username) VALUES ('sara_k') RETURNING id");

@@ -367,7 +367,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     it("reads the platform settings once for several events", async () => {
       const second = (
         await owner<{ id: string }>(
-          "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'NAJD2', 'Second Fest', 'live') RETURNING id",
+          "INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at) VALUES ($1, 'NAJD2', 'Second Fest', 'live', now() - interval '1 hour', now() + interval '30 days') RETURNING id",
           [ids.orgA],
         )
       )[0]?.id;

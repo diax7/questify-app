@@ -11,13 +11,16 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { createPasswords } from "#src/auth/password-reset";
+import { createSignUp } from "#src/auth/sign-up";
 import { registerStaffRoutes } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
 import { createSignIn, reasonOf } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { createInvites } from "#src/organizers/accept";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
+import { createTeam } from "#src/organizers/team";
 import { registerRouteInventory, type RouteInfo } from "#src/route-access";
 import { registerConfigRoutes } from "#src/settings/routes";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
@@ -128,21 +131,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
       app.log.warn({ event: "deferred.dropped", count: deferred.pending() });
     }
   });
+  const passwordDeps = {
+    ...signInDeps,
+    breachCheck: options.breachCheck,
+    deferred,
+    dashboardOrigin: config.auth.dashboardOrigin,
+  };
+  const signIn = createSignIn(signInDeps);
   registerStaffRoutes(app, {
-    signIn: createSignIn(signInDeps),
+    signIn,
+    invites: createInvites(passwordDeps, signIn),
     sessions: createSessions(options.pool),
-    passwords: createPasswords({
-      ...signInDeps,
-      breachCheck: options.breachCheck,
-      deferred,
-      dashboardOrigin: config.auth.dashboardOrigin,
-    }),
+    passwords: createPasswords(passwordDeps),
+    signUp: createSignUp(passwordDeps),
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 
   registerOrganizerRoutes(app, {
     pool: options.pool,
     sessions: createSessions(options.pool),
+    team: createTeam(passwordDeps),
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

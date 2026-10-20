@@ -530,16 +530,29 @@ other docs feed it and stay as its detailed appendices.
   reset-password, account pages. CTO: plan 84 → 94, code 88 (one real bug: sign-in deleted pending reset links,
   fixed with a test) → fixes sent. API 843 tests, 20 browser tests.
 
+- 2026-10-20 **T-101 done.** Organizer sign-up (email, password, organizer name, the three organizer documents, then
+  the emailed code; the same answer for an email that already has an account, which gets a note with no code),
+  creating another organizer while signed in, the team (invite editors by email with an optional event limit,
+  change limits, remove, leave), owner transfer by owner invite, and invite acceptance with an existing or a new
+  account (a new account still signs in with an emailed code). Migration 0008: the organizer context now comes from
+  the caller's membership in the database (a forged organizer id opens nothing), editor event limits apply to events,
+  enrollments, players and event audit entries, members join only through invites, and sign-up completes only with
+  the HMAC of the emailed code. A daily budget of 400 sign-up and invite emails keeps sign-in codes deliverable.
+  Organizer drafts (terms, DPA, content rules) served by the web app. CTO: plan 82 → 93; phases 93, 93, 92 (GO).
+  Bugs found on the way: a sub-select in the event and enrollment rules made PostgreSQL report infinite recursion;
+  an editor leaving could not write their own audit entry after the delete; the invite page re-checked its link after
+  acceptance and lost the code step.
+
 ## Next
 
-1. **Now:** T-101 (organizer sign-up and team; plan in review), then T-102 to T-106 (events, quests, QR codes, the
-   completion engine, ranking).
+1. **Now:** T-102 (event builder; plan in review), then T-103 to T-106 (quests, QR codes, the completion engine,
+   ranking).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
-   infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migration 0007 and
-   outbound HTTPS to `api.pwnedpasswords.com` when T-020 is deployed.
+   infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 and
+   0008 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
    domain for the Resend backup (Q-083); "accept ADR-113".
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087.
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

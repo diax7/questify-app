@@ -1,6 +1,6 @@
 "use client";
 
-import { toWesternDigits, type Language } from "@questify/shared";
+import { toWesternDigits, type Language, type MessageKey } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { isolate, translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
@@ -20,17 +20,35 @@ function useCountdown(): [number, (seconds: number) => void] {
   return [left, setLeft];
 }
 
-/** Step 2: the six-digit code from the email. Arabic-Indic digits typed on an Arabic keyboard become 0-9. */
+/** Where the code and its resend go: staff sign-in by default, or the organizer sign-up. */
+export type CodePaths = Readonly<{ code: string; resend: string }>;
+
+const SIGN_IN_PATHS: CodePaths = { code: "/v1/staff/auth/code", resend: "/v1/staff/auth/resend" };
+export const SIGN_UP_PATHS: CodePaths = {
+  code: "/v1/staff/auth/sign-up/code",
+  resend: "/v1/staff/auth/sign-up/resend",
+};
+
+/**
+ * Step 2: the six-digit code from the email. Arabic-Indic digits typed on an Arabic keyboard become 0-9. After a right
+ * code the person goes home, unless the page has something to finish first (accepting an invite).
+ */
 export function CodeStep({
   language,
   email,
   challengeToken,
   onRestart,
+  paths = SIGN_IN_PATHS,
+  submitLabel = "staff.signIn",
+  onSignedIn,
 }: Readonly<{
   language: Language;
   email: string;
   challengeToken: string;
   onRestart: (reason: string) => void;
+  paths?: CodePaths;
+  submitLabel?: MessageKey;
+  onSignedIn?: () => Promise<void>;
 }>) {
   const t = translatorFor(language);
   const field = useRef<HTMLInputElement>(null);
@@ -60,9 +78,13 @@ export function CodeStep({
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    const result = await postJson("/v1/staff/auth/code", { challengeToken, code });
+    const result = await postJson(paths.code, { challengeToken, code });
     if (result.ok) {
-      window.location.assign(`/${language}`);
+      if (onSignedIn === undefined) {
+        window.location.assign(`/${language}`);
+      } else {
+        await onSignedIn();
+      }
       return;
     }
     setBusy(false);
@@ -72,7 +94,7 @@ export function CodeStep({
   const resend = async (): Promise<void> => {
     setBusy(true);
     setProblem(null);
-    const result = await postJson("/v1/staff/auth/resend", { challengeToken });
+    const result = await postJson(paths.resend, { challengeToken });
     setBusy(false);
     if (result.ok) {
       setNotice(t("staff.resent"));
@@ -122,7 +144,7 @@ export function CodeStep({
         disabled={busy || code.length !== 6}
         aria-busy={busy}
       >
-        {t("staff.signIn")}
+        {t(submitLabel)}
       </button>
       <div className={styles.row}>
         <button

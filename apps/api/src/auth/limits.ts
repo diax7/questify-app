@@ -11,6 +11,19 @@ export const AUTH_LIMITS = {
   resetRequestsPerEmail: { max: 3, windowSeconds: 3600 },
   resetRequestsPerAddress: { max: 10, windowSeconds: 3600 },
   resetValiditySeconds: 1800,
+  /** Organizer sign-ups started per email and per client address (T-101). */
+  signupsPerEmail: { max: 3, windowSeconds: 3600 },
+  signupsPerAddress: { max: 10, windowSeconds: 3600 },
+  /** Organizers one signed-in person may create in a day. */
+  organizersPerUser: { max: 5, windowSeconds: 86_400 },
+  /** Team invites: pending per organizer, sent per day before and after the first event is activated (T-101). */
+  invitesPending: 20,
+  invitesPerDay: { activated: 30, notActivated: 10, windowSeconds: 86_400 },
+  inviteValiditySeconds: 7 * 86_400,
+  /** Looking at or accepting an invite link without signing in, per client address. */
+  inviteChecksPerAddress: { max: 20, windowSeconds: 3600 },
+  /** Sign-up and invite email for the whole platform per day, well under the provider's quota (T-101). */
+  outboundMailPerDay: { max: 400, windowSeconds: 86_400 },
   /** The database caps attempts per challenge at 5 and resends at 3; these mirror those checks. */
   maxCodeAttempts: 5,
   maxResends: 3,

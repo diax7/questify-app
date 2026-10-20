@@ -117,7 +117,10 @@ export const reasonOf = (error: unknown): string =>
 export type Keys = Readonly<{ email: Buffer; address: Buffer }>;
 
 /** The failure windows for this email and this address; returns how long to wait when either is full. */
-async function exceededWindow(client: PoolClient, keys: Keys): Promise<Throttled | undefined> {
+export async function exceededWindow(
+  client: PoolClient,
+  keys: Keys,
+): Promise<Throttled | undefined> {
   const [byEmail, byAddress] = [
     await countRecent(client, BUCKETS.failEmail, keys.email, L.failuresPerEmail.windowSeconds),
     await countRecent(
@@ -136,7 +139,7 @@ async function exceededWindow(client: PoolClient, keys: Keys): Promise<Throttled
   return undefined;
 }
 
-async function recordFailure(client: PoolClient, keys: Keys): Promise<void> {
+export async function recordFailure(client: PoolClient, keys: Keys): Promise<void> {
   await record(client, BUCKETS.failEmail, keys.email);
   await record(client, BUCKETS.failAddress, keys.address);
 }

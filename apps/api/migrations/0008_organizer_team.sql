@@ -250,6 +250,9 @@ REVOKE ALL ON FUNCTION complete_signup(text, bytea, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION complete_signup(text, bytea, uuid) TO questify_app;
 
 -- ================================================================ invites (editors) and owner invites (transfer)
+-- The invite functions raise their own SQLSTATE codes, which the API maps to answers (organizers/accept.ts):
+-- QI410 the invite cannot be used (expired, used, stale owner invite, its events gone), QI403 sent to another email,
+-- QI409 already a member.
 CREATE FUNCTION app_invite_token_hash() RETURNS bytea LANGUAGE sql STABLE
   AS $$ SELECT decode(NULLIF(current_setting('app.invite_token_hash', true), ''), 'hex') $$;
 REVOKE ALL ON FUNCTION app_invite_token_hash() FROM PUBLIC;
@@ -305,12 +308,12 @@ BEGIN
   IF invite.role = 'owner' AND NOT EXISTS (
     SELECT 1 FROM organizer_member WHERE organizer_id = invite.organizer_id AND staff_user_id = invite.invited_by AND role = 'owner'
   ) THEN
-    RAISE EXCEPTION 'the person who sent this owner invite no longer owns the organizer' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'the person who sent this owner invite no longer owns the organizer' USING ERRCODE = 'QI410';
   END IF;
   IF EXISTS (SELECT 1 FROM organizer_member WHERE organizer_id = invite.organizer_id AND staff_user_id = member) THEN
     -- An owner invite may go to a current editor; an editor invite to a current member would change nothing.
     IF invite.role = 'editor' THEN
-      RAISE EXCEPTION 'this person is already a member of the organizer' USING ERRCODE = 'unique_violation';
+      RAISE EXCEPTION 'this person is already a member of the organizer' USING ERRCODE = 'QI409';
     END IF;
   ELSE
     -- Events deleted since the invite was sent leave its limit; if none is left the invite is refused rather than
@@ -318,7 +321,7 @@ BEGIN
     limit_now := ARRAY(SELECT s.id FROM unnest(invite.event_scope) AS s(id)
                        WHERE EXISTS (SELECT 1 FROM event e WHERE e.id = s.id AND e.organizer_id = invite.organizer_id));
     IF invite.event_scope IS NOT NULL AND cardinality(limit_now) = 0 THEN
-      RAISE EXCEPTION 'the events this invite was limited to no longer exist' USING ERRCODE = 'check_violation';
+      RAISE EXCEPTION 'the events this invite was limited to no longer exist' USING ERRCODE = 'QI410';
     END IF;
     INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope)
     VALUES (invite.organizer_id, member, 'editor', CASE WHEN invite.event_scope IS NULL THEN NULL ELSE limit_now END);
@@ -343,12 +346,12 @@ DECLARE
 BEGIN
   SELECT * INTO invite FROM organizer_invite WHERE token_hash = app_invite_token_hash() FOR UPDATE;
   IF NOT FOUND OR invite.expires_at <= now() THEN
-    RAISE EXCEPTION 'this invite has expired or was already used' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'this invite has expired or was already used' USING ERRCODE = 'QI410';
   END IF;
   IF member IS NULL OR NOT EXISTS (
     SELECT 1 FROM staff_user WHERE id = member AND email = invite.email AND status = 'active'
   ) THEN
-    RAISE EXCEPTION 'this invite was sent to another email address' USING ERRCODE = 'insufficient_privilege';
+    RAISE EXCEPTION 'this invite was sent to another email address' USING ERRCODE = 'QI403';
   END IF;
   RETURN apply_invite(invite, member, request);
 END $$;
@@ -364,7 +367,7 @@ DECLARE
 BEGIN
   SELECT * INTO invite FROM organizer_invite WHERE token_hash = app_invite_token_hash() FOR UPDATE;
   IF NOT FOUND OR invite.expires_at <= now() THEN
-    RAISE EXCEPTION 'this invite has expired or was already used' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'this invite has expired or was already used' USING ERRCODE = 'QI410';
   END IF;
   IF new_password_hash IS NULL OR new_password_hash !~ '^\$argon2id\$' THEN
     RAISE EXCEPTION 'a new account needs an argon2id password hash' USING ERRCODE = 'check_violation';

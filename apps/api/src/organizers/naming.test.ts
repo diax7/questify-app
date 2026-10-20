@@ -33,6 +33,9 @@ describe("checkOrganizerName", () => {
     "Najd.Events",
     "support@najd",
     "PAY-NOW.COM",
+    "pay-now\uFF0Eco",
+    "pay-now\u3002co",
+    "ｐａｙ-now.co",
   ])("refuses %j, which reads as an address", (name) => {
     expect(checkOrganizerName(name)).toEqual({ ok: false, reason: "looks_like_address" });
   });

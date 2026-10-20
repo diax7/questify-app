@@ -406,7 +406,7 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
   const run = (sql: string, values: unknown[]) => db.owner.query<{ id: string }>(sql, values);
   const publicEventB = (
     await run(
-      "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'TABUK2', 'Open Day', 'live') RETURNING id",
+      "INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at) VALUES ($1, 'TABUK2', 'Open Day', 'live', now() - interval '1 hour', now() + interval '30 days') RETURNING id",
       [base.orgB],
     )
   ).rows[0]?.id;

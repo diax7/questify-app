@@ -46,13 +46,13 @@ export async function codeFor(email: string, previous?: string): Promise<string>
   return fresh() ?? "";
 }
 
-/** The newest reset link emailed to this address that differs from `previous`. */
+/** The newest reset or invite link emailed to this address that differs from `previous`. */
 export async function linkFor(email: string, previous?: string): Promise<string> {
   const fresh = (): string | undefined => {
     const link = readMailbox().links[email];
     return link === previous ? undefined : link;
   };
-  await expect.poll(fresh, { timeout: 10_000 }).toMatch(/\/reset-password#token=/);
+  await expect.poll(fresh, { timeout: 10_000 }).toMatch(/\/(?:reset-password|invite)#token=/);
   return fresh() ?? "";
 }
 

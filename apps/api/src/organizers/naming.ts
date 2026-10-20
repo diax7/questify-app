@@ -7,7 +7,8 @@ export const MAX_NAME_LENGTH = 80;
  * Text that reads as a web address or an email. Organizer names reach other people's inboxes in invites, so a name
  * like "Account suspended, visit pay-now.co" must not become a phishing line sent from Questify's domain.
  */
-const LOOKS_LIKE_ADDRESS = /:\/\/|www\.|@|[\p{L}\p{N}-]\.[a-z]{2,}(?![\p{L}\p{N}])/iu;
+const LOOKS_LIKE_ADDRESS =
+  /:\/\/|www[.\u3002\uFF61]|@|[\p{L}\p{N}-][.\u3002\uFF61][a-z]{2,}(?![\p{L}\p{N}])/iu;
 const CONTROL = /[\p{Cc}\p{Cf}]/u;
 const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -31,7 +32,8 @@ export function checkOrganizerName(raw: string): NameCheck {
   if (CONTROL.test(name)) {
     return { ok: false, reason: "control_characters" };
   }
-  if (LOOKS_LIKE_ADDRESS.test(name)) {
+  // NFKC folds look-alike characters (a fullwidth dot, fullwidth letters) so "pay-now．co" is caught too.
+  if (LOOKS_LIKE_ADDRESS.test(name.normalize("NFKC"))) {
     return { ok: false, reason: "looks_like_address" };
   }
   return { ok: true, name };
@@ -49,8 +51,8 @@ export function slugFor(name: string): string {
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-|-$/g, "")
     .slice(0, 40)
-    .replace(/-+$/, "");
+    .replace(/-$/, "");
   return base === "" ? `org-${randomPart(10)}` : `${base}-${randomPart(6)}`;
 }

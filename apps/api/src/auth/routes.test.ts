@@ -9,6 +9,8 @@ import type {
   RequestResult,
 } from "#src/auth/password-reset";
 import type { Sessions } from "#src/auth/session";
+import type { CreateResult, SignUp, SignUpCodeResult, StartResult } from "#src/auth/sign-up";
+import type { AcceptNewResult, AcceptResult, InspectResult, Invites } from "#src/organizers/accept";
 import type { CodeResult, PasswordResult, ResendResult, SignIn } from "#src/auth/sign-in";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
@@ -33,6 +35,12 @@ async function start(results: {
   request?: RequestResult;
   confirm?: ConfirmResult;
   change?: ChangeResult;
+  signUpStart?: StartResult;
+  signUpCode?: SignUpCodeResult;
+  createOrganizer?: CreateResult;
+  inspect?: InspectResult;
+  accept?: AcceptResult;
+  acceptNew?: AcceptNewResult;
   signedIn?: boolean;
 }): Promise<void> {
   const signIn: SignIn = {
@@ -45,6 +53,23 @@ async function start(results: {
     confirmReset: async () => results.confirm ?? { kind: "reset" },
     change: async () => results.change ?? { kind: "changed" },
   };
+  const signUp: SignUp = {
+    start: async () =>
+      results.signUpStart ?? { kind: "code_sent", challengeToken: TOKEN, expiresInSeconds: 600 },
+    code: async () => results.signUpCode ?? { kind: "challenge_expired" },
+    resend: async () => ({ kind: "resent" }),
+    createOrganizer: async () => results.createOrganizer ?? { kind: "created", organizerId: "o1" },
+  };
+  const invites: Invites = {
+    inspect: async () =>
+      results.inspect ?? {
+        kind: "invite",
+        invite: { organizerName: "Najd", role: "editor", email: "a@x.sa", accountExists: false },
+      },
+    accept: async () => results.accept ?? { kind: "joined", organizerId: "o1" },
+    acceptNew: async () =>
+      results.acceptNew ?? { kind: "code_sent", challengeToken: TOKEN, expiresInSeconds: 600 },
+  };
   app = Fastify();
   registerConventions(app, {
     minAppVersion: "1.0.0",
@@ -53,6 +78,8 @@ async function start(results: {
   registerStaffRoutes(app, {
     signIn,
     passwords,
+    signUp,
+    invites,
     sessions: results.signedIn === true ? liveSession : noSessions,
     dashboardOrigin: ORIGIN,
   });
@@ -311,5 +338,218 @@ describe("password change answers (T-020)", () => {
     const response = await changePassword();
     expect(response.statusCode).toBe(503);
     expect(response.headers["retry-after"]).toBe("30");
+  });
+});
+
+const ACCEPT = { terms: "0.1", dpa: "0.1", contentRules: "0.1" };
+const signUpStart = () =>
+  post("/v1/staff/auth/sign-up", {
+    email: "new@x.sa",
+    password: "a long enough password",
+    organizerName: "Najd Events",
+    accept: ACCEPT,
+  });
+
+describe("sign-up answers (T-101)", () => {
+  it("answers a started sign-up like the password step: a challenge token", async () => {
+    await start({});
+    const response = await signUpStart();
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ challengeToken: TOKEN, expiresInSeconds: 600 });
+  });
+
+  it.each([
+    [{ kind: "invalid_email" } as const, 400, "invalid_request"],
+    [
+      { kind: "invalid_name", reason: "looks_like_address" } as const,
+      422,
+      "invalid_organizer_name",
+    ],
+    [
+      { kind: "acceptance_required", documents: ["organizer_dpa"] } as const,
+      422,
+      "acceptance_required",
+    ],
+    [{ kind: "weak", reason: "breached" } as const, 422, "weak_password"],
+    [{ kind: "email_unavailable" } as const, 503, "email_unavailable"],
+    [{ kind: "throttled", retryAfterSeconds: 7 } as const, 429, "too_many_attempts"],
+  ])("maps %j to %i %s", async (result, status, errorCode) => {
+    await start({ signUpStart: result });
+    const response = await signUpStart();
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: errorCode });
+  });
+
+  it("names the refused document and the name rule", async () => {
+    await start({ signUpStart: { kind: "acceptance_required", documents: ["organizer_dpa"] } });
+    expect((await signUpStart()).json()).toMatchObject({
+      details: { documents: ["organizer_dpa"] },
+    });
+    await app.close();
+    await start({ signUpStart: { kind: "invalid_name", reason: "too_short" } });
+    expect((await signUpStart()).json()).toMatchObject({ details: { reason: "too_short" } });
+  });
+
+  it("refuses a sign-up without the three acceptances before calling the flow", async () => {
+    await start({});
+    const response = await post("/v1/staff/auth/sign-up", {
+      email: "new@x.sa",
+      password: "a long enough password",
+      organizerName: "Najd Events",
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("opens the session cookie and names the new organizer on a right code", async () => {
+    await start({
+      signUpCode: {
+        kind: "signed_up",
+        sessionToken: TOKEN,
+        account: { id: "u9", email: "new@x.sa", status: "active", platformRole: "none" },
+        organizerId: "o9",
+      },
+    });
+    const response = await post("/v1/staff/auth/sign-up/code", {
+      challengeToken: TOKEN,
+      code: "123456",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      account: { id: "u9", email: "new@x.sa", platformRole: "none" },
+      organizerId: "o9",
+    });
+    expect(String(response.headers["set-cookie"])).toContain("Max-Age=43200");
+  });
+
+  it("maps a wrong code and an expired sign-up", async () => {
+    await start({ signUpCode: { kind: "invalid_code", attemptsLeft: 2 } });
+    const wrong = await post("/v1/staff/auth/sign-up/code", { challengeToken: TOKEN, code: "1" });
+    expect(wrong.statusCode).toBe(400);
+    const right = await post("/v1/staff/auth/sign-up/code", {
+      challengeToken: TOKEN,
+      code: "123456",
+    });
+    expect(right.statusCode).toBe(401);
+    expect(right.json()).toMatchObject({ code: "invalid_code", details: { attemptsLeft: 2 } });
+  });
+
+  it("answers a resend with an empty object", async () => {
+    await start({});
+    const response = await post("/v1/staff/auth/sign-up/resend", { challengeToken: TOKEN });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({});
+  });
+});
+
+const create = () =>
+  app.inject({
+    method: "POST",
+    url: "/v1/staff/organizers",
+    headers: {
+      origin: ORIGIN,
+      cookie: `__Host-qs_session=${TOKEN}`,
+      "idempotency-key": `create-${Math.random()}`,
+    },
+    payload: { name: "Second Co", accept: ACCEPT },
+  });
+
+describe("creating another organizer (T-101)", () => {
+  it("needs a session", async () => {
+    await start({});
+    expect((await create()).statusCode).toBe(401);
+  });
+
+  it("answers 201 with the new organizer", async () => {
+    await start({ signedIn: true });
+    const response = await create();
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ organizerId: "o1" });
+  });
+
+  it.each([
+    [{ kind: "invalid_name", reason: "too_long" } as const, 422, "invalid_organizer_name"],
+    [
+      { kind: "acceptance_required", documents: ["organizer_terms"] } as const,
+      422,
+      "acceptance_required",
+    ],
+    [{ kind: "throttled", retryAfterSeconds: 60 } as const, 429, "too_many_attempts"],
+  ])("maps %j to %i %s", async (result, status, errorCode) => {
+    await start({ signedIn: true, createOrganizer: result });
+    const response = await create();
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: errorCode });
+  });
+});
+
+describe("invite answers (T-101)", () => {
+  it("shows what an invite opens, and refuses a malformed token", async () => {
+    await start({});
+    const shown = await post("/v1/staff/invites/inspect", { token: TOKEN });
+    expect(shown.statusCode).toBe(200);
+    expect(shown.json()).toEqual({
+      organizerName: "Najd",
+      role: "editor",
+      email: "a@x.sa",
+      accountExists: false,
+    });
+    expect((await post("/v1/staff/invites/inspect", { token: "short" })).statusCode).toBe(400);
+  });
+
+  it.each([
+    [{ kind: "invalid" } as const, 410, "invite_invalid"],
+    [{ kind: "throttled", retryAfterSeconds: 9 } as const, 429, "too_many_attempts"],
+  ])("maps an inspected %j to %i %s", async (result, status, errorCode) => {
+    await start({ inspect: result });
+    const response = await post("/v1/staff/invites/inspect", { token: TOKEN });
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: errorCode });
+  });
+
+  it("accepts for a signed-in person, and needs the session", async () => {
+    const accept = () =>
+      app.inject({
+        method: "POST",
+        url: "/v1/staff/invites/accept",
+        headers: { origin: ORIGIN, cookie: `__Host-qs_session=${TOKEN}` },
+        payload: { token: TOKEN },
+      });
+    await start({});
+    expect((await accept()).statusCode).toBe(401);
+    await app.close();
+    await start({ signedIn: true });
+    expect((await accept()).json()).toEqual({ organizerId: "o1" });
+    await app.close();
+    await start({ signedIn: true, accept: { kind: "other_account" } });
+    const other = await accept();
+    expect(other.statusCode).toBe(403);
+    expect(other.json()).toMatchObject({ code: "invite_other_account" });
+    await app.close();
+    await start({ signedIn: true, accept: { kind: "already_member" } });
+    expect((await accept()).json()).toMatchObject({ code: "already_member" });
+  });
+
+  it.each([
+    [{ kind: "sign_in_to_accept" } as const, 409, "sign_in_to_accept"],
+    [{ kind: "invalid" } as const, 410, "invite_invalid"],
+    [{ kind: "weak", reason: "breached" } as const, 422, "weak_password"],
+    [{ kind: "email_unavailable" } as const, 503, "email_unavailable"],
+  ])("maps a new account's acceptance %j to %i %s", async (result, status, errorCode) => {
+    await start({ acceptNew: result });
+    const response = await post("/v1/staff/invites/accept-new", {
+      token: TOKEN,
+      password: "a long enough password",
+    });
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: errorCode });
+  });
+
+  it("chains a new account into the sign-in code step", async () => {
+    await start({});
+    const response = await post("/v1/staff/invites/accept-new", {
+      token: TOKEN,
+      password: "a long enough password",
+    });
+    expect(response.json()).toEqual({ challengeToken: TOKEN, expiresInSeconds: 600 });
   });
 });

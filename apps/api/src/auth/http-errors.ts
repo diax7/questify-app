@@ -116,3 +116,99 @@ export const ownerOnly = make(
   "هذا الإجراء لمالك الجهة المنظِّمة فقط.",
   "Only the organizer's owner can do this.",
 );
+export const acceptanceRequired = make(
+  422,
+  "acceptance_required",
+  "وافق على شروط المنظِّمين واتفاقية معالجة البيانات وقواعد المحتوى للمتابعة.",
+  "Accept the organizer terms, the data processing agreement and the content rules to continue.",
+);
+export const invalidOrganizerName = make(
+  422,
+  "invalid_organizer_name",
+  "اكتب اسم الجهة المنظِّمة كما يعرفه الناس، دون روابط أو عناوين بريد.",
+  "Write the organizer's name as people know it, without links or email addresses.",
+);
+export const ownerRequired = make(
+  409,
+  "owner_required",
+  "لكل جهة منظِّمة مالك واحد. انقل الملكية أولًا.",
+  "An organizer always has one owner. Transfer ownership first.",
+);
+export const alreadyMember = make(
+  409,
+  "already_member",
+  "هذا الشخص عضو في الفريق من قبل.",
+  "This person is already on the team.",
+);
+export const inviteInvalid = make(
+  410,
+  "invite_invalid",
+  "انتهت صلاحية الدعوة أو استُخدمت من قبل. اطلب دعوة جديدة.",
+  "This invite has expired or was already used. Ask for a new one.",
+);
+export const inviteOtherAccount = make(
+  403,
+  "invite_other_account",
+  "أُرسلت هذه الدعوة إلى بريد آخر. سجّل الدخول بالحساب الذي وصلته الدعوة.",
+  "This invite was sent to another email. Sign in with the account it was sent to.",
+);
+export const signInToAccept = make(
+  409,
+  "sign_in_to_accept",
+  "لهذا البريد حساب. سجّل الدخول ثم اقبل الدعوة.",
+  "This email has an account. Sign in, then accept the invite.",
+);
+export const mailCap = make(
+  429,
+  "mail_cap",
+  "وصلنا إلى حد الرسائل لهذا اليوم. حاول غدًا.",
+  "We have reached today's email limit. Try again tomorrow.",
+);
+export const invalidScope = make(
+  422,
+  "invalid_scope",
+  "اختر فعالية واحدة على الأقل من فعاليات هذه الجهة.",
+  "Choose at least one of this organizer's events.",
+);
+export const inviteSelf = make(
+  422,
+  "invite_self",
+  "لا يمكنك دعوة نفسك.",
+  "You cannot invite yourself.",
+);
+export const invitesPendingFull = make(
+  409,
+  "invites_pending_full",
+  "لديك 20 دعوة بانتظار القبول. ألغِ دعوة قبل إرسال أخرى.",
+  "You have 20 invites waiting. Cancel one before sending another.",
+);
+export const invalidEvent = make(
+  422,
+  "invalid_event",
+  "راجع بيانات الفعالية: الحقل المحدد غير صالح.",
+  "Check the event's details: the named field is not valid.",
+);
+export const eventTimesLocked = make(
+  409,
+  "event_times_locked",
+  "لا يمكن تغيير هذه الأوقات الآن: بدأت الفعالية أو انتهت.",
+  "These times can no longer change: the event has started or ended.",
+);
+export const eventNotDraft = make(
+  409,
+  "event_not_draft",
+  "يمكن حذف المسودات فقط. الفعالية المفعّلة تبقى في السجل.",
+  "Only drafts can be deleted. An activated event stays on record.",
+);
+export const eventNotLive = make(
+  409,
+  "event_not_live",
+  "يمكن إنهاء الفعالية مبكرًا أثناء سيرها فقط.",
+  "Only a live event can be ended early.",
+);
+export const scopeLimited = make(
+  403,
+  "scope_limited",
+  "أنت محدود بفعاليات مختارة، فلا يمكنك إنشاء فعالية جديدة.",
+  "You are limited to chosen events, so you cannot create a new one.",
+);

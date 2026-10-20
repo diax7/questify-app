@@ -82,6 +82,13 @@ Auth shows who may call. "Rate" notes any special limit.
 | `POST /v1/staff/auth/reset/request` | anonymous | `{email, lang: ar\|en}` → `202 {}`, the same for every email; an active account gets a link `DASHBOARD_ORIGIN/{lang}/reset-password#token=…` (valid 30 minutes, one use, replaces older links), sent after the answer (T-020) | 400, 403 `csrf_rejected`, 429 `too_many_attempts` (3 an hour per email, 10 per address; `Retry-After`) |
 | `POST /v1/staff/auth/reset/confirm` | anonymous | `{token, newPassword}` → `204`; sets the password, ends every session, clears the sign-in lockout; the person then signs in with password and code | 400, 410 `reset_link_invalid` (unknown, expired or used), 422 `weak_password` (`details.reason`: `too_short`, `too_long`, `same_as_email`, `context_word`, `breached`), 429, 503 `breach_check_unavailable` (`Retry-After: 30`) / `busy` |
 | `POST /v1/staff/password` | staff | `{currentPassword, newPassword}` → `204`; ends every other session, keeps this one | 401, 403 `current_password_wrong` (counts toward the sign-in lockout) / `csrf_rejected`, 422 `weak_password`, 429, 503 |
+| `POST /v1/staff/auth/sign-up` | anonymous | `{email, password, organizerName, accept: {terms, dpa, contentRules}}` → `{challengeToken, expiresInSeconds}`, the same for a new and an existing email; a new email gets a code, an existing one a note with no code (T-101) | 400, 422 `acceptance_required` (`details.documents`) / `invalid_organizer_name` (`details.reason`) / `weak_password`, 429, 503 `email_unavailable` (also when the day's mail budget is spent) / `breach_check_unavailable` |
+| `POST /v1/staff/auth/sign-up/code` | anonymous | `{challengeToken, code}` → `{account, organizerId}` and the session cookie; creates the account and its organizer (FR-1401) | 401 `invalid_code`, 410 `challenge_expired`, 429 |
+| `POST /v1/staff/auth/sign-up/resend` | anonymous | `{challengeToken}` → `{}` (as the sign-in resend) | 410, 429, 503 |
+| `POST /v1/staff/organizers` | staff | `{name, accept}` → `201 {organizerId}`; **Idempotency-Key required**; 5 a day | 422, 429 |
+| `POST /v1/staff/invites/inspect` | anonymous | `{token}` → `{organizerName, role, email, accountExists}` | 400, 410 `invite_invalid`, 429 (20 an hour per address) |
+| `POST /v1/staff/invites/accept` | staff | `{token}` → `{organizerId}`; only the account the invite was sent to | 403 `invite_other_account`, 409 `already_member`, 410 |
+| `POST /v1/staff/invites/accept-new` | anonymous | `{token, password}` → `{challengeToken, expiresInSeconds}`: creates the invited email's account, then emails a sign-in code (no session from the link alone, ADR-078) | 409 `sign_in_to_accept`, 410, 422 `weak_password`, 429, 503 |
 | `POST /v1/staff/auth/sign-out` | staff | ends this session, clears the cookie → `204` | 401, 403 |
 | `GET /v1/staff/me` | staff | `{id, email, platformRole, memberships: [{organizerId, organizerName, role, eventScope}]}` (only the caller's own memberships; organizer names are public) | 401 |
 | `GET /v1/staff/sessions`, `DELETE /v1/staff/sessions/{id}` | staff | the user's live sessions (current marked); end one of their own → `204` | 401, 404 |
@@ -135,7 +142,18 @@ Auth shows who may call. "Rate" notes any special limit.
 | `…/events/{id}/announcements` | owner, editor | send now or schedule, with push option | 422 outside CST send window |
 | `…/events/{id}/config` | owner, editor | words, layout, bar items, branding, features | 422 protected item hidden (FR-1750) |
 | `…/events/{id}/reports`, `…/export` | owner, editor | participation, survey, one-page report, exports (logged) | |
-| `…/members` | owner | invite editors, event limits | 409 |
+| `GET …/members` | owner, editor | `{members: [{staffUserId, email, role, eventScope, joinedAt}], invites: [{id, email, role, eventScope, expiresAt}]}` (T-101) | 404 |
+| `POST …/invites` | owner | `{email, eventScope?: uuid[≥1]}` → `201 {id}`; emails a link `DASHBOARD_ORIGIN/en/invite#token=…` valid 7 days; re-inviting an email replaces its invite (no Idempotency-Key needed) | 400, 409 `already_member`, 422 `invite_self` / `invalid_scope`, 429 `too_many_attempts` (20 pending; 10 a day before an event is activated, 30 after) / `mail_cap`, 503 `email_unavailable` |
+| `POST …/ownership` | owner | `{email}` → `201 {id}`; an owner invite (one at a time); on acceptance the invitee becomes owner and the owner an editor (FR-1723) | as for invites |
+| `DELETE …/invites/{inviteId}` | owner | → 204 | 404 |
+| `PATCH …/members/{staffUserId}` | owner | `{eventScope: uuid[≥1] \| null}` → 204; an editor's event limit (FR-1724) | 404, 422 `invalid_scope` |
+| `DELETE …/members/{staffUserId}` | owner | removes an editor → 204 | 404, 409 `owner_required` (the owner themselves) |
+| `DELETE …/members/me` | owner, editor | an editor leaves → 204 | 409 `owner_required` (the owner) |
+
+**Organizer routes (T-101):** every `/v1/organizers/{id}/…` route runs the staff session and Origin checks, then reads
+the caller's membership from the database: **a non-member gets 404** (the same as an unknown organizer), **an editor on
+an owner route gets 403 `owner_only`**; a limited editor working on an event outside their limit gets 403 from the event
+routes (T-102). The database checks the membership again on every query (DATA_MODEL "The organizer context").
 | `POST …/events/{id}/qr/regenerate`, `…/operators/batch` | owner, editor | new quest QR; batch operator QRs | |
 | `GET …/events/{id}/stream` | owner, editor | live control room | |
 

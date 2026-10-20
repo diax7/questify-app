@@ -4,6 +4,8 @@ node_modules
 **/node_modules
 **/dist
 docs
+# The organizer documents are served by the web app (app/[lang]/legal).
+!docs/legal
 coverage
 .stryker-tmp
 reports

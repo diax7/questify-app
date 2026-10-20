@@ -54,10 +54,19 @@ export default async function HomePage({
               <li key={membership.organizerId} className={styles.card}>
                 <span>{membership.organizerName}</span>
                 <span className={styles.badge}>{t(`staff.role.${membership.role}`)}</span>
+                <a
+                  className={styles.textLink}
+                  href={`/${lang}/organizers/${membership.organizerId}/team`}
+                >
+                  {t("staff.team")}
+                </a>
               </li>
             ))}
           </ul>
         )}
+        <a className={styles.button} href={`/${lang}/organizers/new`}>
+          {t("staff.newOrganizer")}
+        </a>
       </main>
     </>
   );

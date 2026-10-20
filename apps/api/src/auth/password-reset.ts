@@ -53,7 +53,8 @@ export type PasswordDeps = SignInDeps &
   }>;
 
 type Weak = Readonly<{ kind: "weak"; reason: WeakReason }>;
-type NotSet = Weak | Readonly<{ kind: "breach_unavailable" }> | Readonly<{ kind: "busy" }>;
+/** Why a new password was not set: weak, the breach list unreachable, or no hashing place free. */
+export type NotSet = Weak | Readonly<{ kind: "breach_unavailable" }> | Readonly<{ kind: "busy" }>;
 
 export type RequestResult = Readonly<{ kind: "accepted" }> | Throttled;
 export type ConfirmResult =
@@ -185,10 +186,10 @@ async function requestReset(
   return { kind: "accepted" };
 }
 
-type Ready = Readonly<{ kind: "ready"; hash: string }>;
+export type Ready = Readonly<{ kind: "ready"; hash: string }>;
 
 /** The breach check and the hash, both outside any transaction (a network call must never hold a row lock). */
-async function breachCheckAndHash(
+export async function breachCheckAndHash(
   deps: PasswordDeps,
   password: string,
   caller: Caller,

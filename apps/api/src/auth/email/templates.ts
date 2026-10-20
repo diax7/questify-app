@@ -85,3 +85,73 @@ export function passwordChangedEmail(input: { at: Date; dashboardOrigin: string 
     ].join("\n"),
   };
 }
+
+/** The organizer sign-up code (T-101). It carries nothing the person typed, so it cannot carry someone's message. */
+export function signUpCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
+  const { code, expiresInMinutes } = input;
+  return {
+    subject: "رمز إنشاء حسابك في كويستيفاي | Your Questify sign-up code",
+    text: [
+      `رمز إنشاء حسابك: ${code}`,
+      `الرمز صالح لمدة ${minutesAr(expiresInMinutes)}. إذا لم تحاول إنشاء حساب في كويستيفاي، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
+      "",
+      `Your sign-up code: ${code}`,
+      `It is valid for ${expiresInMinutes} minutes. If you did not try to create a Questify account, ignore this email and never share the code.`,
+    ].join("\n"),
+  };
+}
+
+/** Sent instead of a sign-up code when the email already has an account; it holds no code. */
+export function alreadyHaveAccountEmail(input: { dashboardOrigin: string }): Content {
+  const origin = input.dashboardOrigin;
+  return {
+    subject: "لديك حساب في كويستيفاي | You already have a Questify account",
+    text: [
+      "طُلب إنشاء حساب جديد في كويستيفاي بهذا البريد، وله حساب لدينا من قبل.",
+      `سجّل الدخول من ${origin}/ar/sign-in ثم أنشئ جهة منظِّمة جديدة من حسابك.`,
+      `إذا نسيت كلمة المرور، فأعد تعيينها من ${origin}/ar/forgot-password.`,
+      "إذا لم تطلب ذلك، تجاهل هذه الرسالة.",
+      "",
+      "Someone asked to create a new Questify account with this email, which already has one.",
+      `Sign in at ${origin}/en/sign-in, then create a new organizer from your account.`,
+      `If you forgot your password, reset it at ${origin}/en/forgot-password.`,
+      "If this was not you, ignore this email.",
+    ].join("\n"),
+  };
+}
+
+/**
+ * A team invite (T-101). The organizer's name is the only text an organizer wrote, and names that read as addresses
+ * are refused when the organizer is created (organizers/naming.ts).
+ */
+export function inviteEmail(input: {
+  organizerName: string;
+  role: "editor" | "owner";
+  link: string;
+  validForDays: number;
+}): Content {
+  const { organizerName, link, validForDays } = input;
+  const ar =
+    input.role === "owner"
+      ? `دُعيت لتصبح مالك «${organizerName}» في كويستيفاي.`
+      : `دُعيت إلى فريق «${organizerName}» في كويستيفاي محررًا للفعاليات.`;
+  const en =
+    input.role === "owner"
+      ? `You are invited to become the owner of "${organizerName}" on Questify.`
+      : `You are invited to join the "${organizerName}" team on Questify as an editor.`;
+  return {
+    subject:
+      input.role === "owner"
+        ? "دعوة لملكية جهة منظِّمة | Become an organizer's owner on Questify"
+        : "دعوة إلى فريق في كويستيفاي | You are invited to a Questify team",
+    text: [
+      ar,
+      `افتح الرابط لقبول الدعوة: ${link}`,
+      `الرابط صالح لمدة ${validForDays} أيام. إذا لم تتوقع هذه الدعوة، تجاهل الرسالة.`,
+      "",
+      en,
+      `Open this link to accept: ${link}`,
+      `The link works for ${validForDays} days. If you did not expect this invite, ignore this email.`,
+    ].join("\n"),
+  };
+}

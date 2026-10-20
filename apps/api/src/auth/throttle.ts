@@ -8,6 +8,12 @@ export const BUCKETS = {
   challengeUser: "challenge_user",
   resetEmail: "reset_email",
   resetAddress: "reset_address",
+  signupEmail: "signup_email",
+  signupAddress: "signup_address",
+  organizerCreate: "organizer_create",
+  outboundMail: "outbound_mail",
+  inviteOrganizer: "invite_organizer",
+  inviteAddress: "invite_address",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

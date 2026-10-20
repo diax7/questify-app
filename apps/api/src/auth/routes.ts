@@ -1,6 +1,7 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
+  acceptanceRequired,
   breachCheckUnavailable,
   busy,
   challengeExpired,
@@ -8,6 +9,11 @@ import {
   emailUnavailable,
   invalidCode,
   invalidCredentials,
+  invalidOrganizerName,
+  inviteInvalid,
+  inviteOtherAccount,
+  alreadyMember,
+  signInToAccept,
   invalidRequest,
   notFound,
   resendLimit,
@@ -21,13 +27,18 @@ import {
 import { sessionLimitsFor } from "#src/auth/limits";
 import type { Passwords, WeakReason } from "#src/auth/password-reset";
 import { clearedSessionCookie, sessionCookie, type Sessions } from "#src/auth/session";
-import type { Caller, SignIn } from "#src/auth/sign-in";
+import type { ResendResult, SignIn } from "#src/auth/sign-in";
+import type { SignUp } from "#src/auth/sign-up";
+import type { Invites } from "#src/organizers/accept";
+import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
   sessions: Sessions;
   passwords: Passwords;
+  signUp: SignUp;
+  invites: Invites;
   /** The one origin allowed to make state-changing requests with the session cookie. */
   dashboardOrigin: string;
 }>;
@@ -56,25 +67,22 @@ const changeBody = z.object({
   currentPassword: z.string().min(1).max(1024),
   newPassword: z.string().min(1).max(1024),
 });
+const acceptBody = z.object({
+  terms: z.string().max(20),
+  dpa: z.string().max(20),
+  contentRules: z.string().max(20),
+});
+const signUpBody = z.object({
+  email: z.string().min(3).max(254),
+  password: z.string().min(1).max(1024),
+  organizerName: z.string().min(1).max(400),
+  accept: acceptBody,
+});
+const inviteTokenBody = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });
+const acceptNewBody = inviteTokenBody.extend({ password: z.string().min(1).max(1024) });
+const createOrganizerBody = z.object({ name: z.string().min(1).max(400), accept: acceptBody });
 const BREACH_RETRY_SECONDS = 30;
-
-function parse<T>(schema: z.ZodType<T>, value: unknown): T {
-  const result = schema.safeParse(value);
-  if (!result.success) {
-    throw invalidRequest();
-  }
-  return result.data;
-}
-
-function callerOf(request: FastifyRequest): Caller {
-  const agent = request.headers["user-agent"];
-  return {
-    address: request.ip,
-    userAgent: typeof agent === "string" ? agent.slice(0, 300) : null,
-    log: (event, fields) => request.log.info({ event, ...fields }),
-    requestId: request.id,
-  };
-}
+const staffOnly = { config: { access: "staff" } } as const;
 
 function waitThen(reply: FastifyReply, seconds: number): void {
   reply.header("retry-after", String(seconds));
@@ -131,6 +139,162 @@ function registerResetRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): voi
   });
 }
 
+function registerSignUpRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
+  const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
+
+  scope.post("/auth/sign-up", open, async (request, reply) => {
+    const body = parse(signUpBody, request.body);
+    const result = await deps.signUp.start(body, callerOf(request));
+    switch (result.kind) {
+      case "code_sent":
+        return { challengeToken: result.challengeToken, expiresInSeconds: result.expiresInSeconds };
+      case "invalid_email":
+        throw invalidRequest();
+      case "invalid_name":
+        throw invalidOrganizerName({ reason: result.reason });
+      case "acceptance_required":
+        throw acceptanceRequired({ documents: result.documents });
+      case "email_unavailable":
+        throw emailUnavailable();
+      default:
+        return refuseNewPassword(reply, result);
+    }
+  });
+
+  scope.post("/auth/sign-up/code", open, async (request, reply) => {
+    const body = parse(codeBody, request.body);
+    const result = await deps.signUp.code(body, callerOf(request));
+    switch (result.kind) {
+      case "signed_up": {
+        const limits = sessionLimitsFor(result.account.platformRole);
+        reply.header("set-cookie", sessionCookie(result.sessionToken, limits.maxAgeSeconds));
+        return {
+          account: {
+            id: result.account.id,
+            email: result.account.email,
+            platformRole: result.account.platformRole,
+          },
+          organizerId: result.organizerId,
+        };
+      }
+      case "invalid_code":
+        throw invalidCode({ attemptsLeft: result.attemptsLeft });
+      case "challenge_expired":
+        throw challengeExpired();
+      case "throttled":
+        waitThen(reply, result.retryAfterSeconds);
+        throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    }
+  });
+
+  scope.post("/auth/sign-up/resend", open, async (request, reply) => {
+    const body = parse(resendBody, request.body);
+    return answerResend(reply, await deps.signUp.resend(body, callerOf(request)));
+  });
+
+  // A double click must not make two organizers: the Idempotency-Key replays the first answer.
+  scope.post(
+    "/organizers",
+    { config: { access: "staff", idempotent: true }, bodyLimit: SIGN_IN_BODY_LIMIT },
+    async (request, reply) => {
+      const { account } = request.staff ?? failClosed();
+      const body = parse(createOrganizerBody, request.body);
+      const result = await deps.signUp.createOrganizer(body, account, callerOf(request));
+      switch (result.kind) {
+        case "created":
+          return reply.code(201).send({ organizerId: result.organizerId });
+        case "invalid_name":
+          throw invalidOrganizerName({ reason: result.reason });
+        case "acceptance_required":
+          throw acceptanceRequired({ documents: result.documents });
+        case "throttled":
+          waitThen(reply, result.retryAfterSeconds);
+          throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+      }
+    },
+  );
+}
+
+/** The answers to a resend, shared by sign-in and sign-up. */
+function answerResend(reply: FastifyReply, result: ResendResult): Record<string, never> {
+  switch (result.kind) {
+    case "resent":
+      return {};
+    case "challenge_expired":
+      throw challengeExpired();
+    case "resend_too_soon":
+      waitThen(reply, result.retryAfterSeconds);
+      throw resendTooSoon({ retryAfterSeconds: result.retryAfterSeconds });
+    case "resend_limit":
+      throw resendLimit();
+    case "email_unavailable":
+      throw emailUnavailable();
+  }
+}
+
+type InviteRefusal = Readonly<{
+  kind: "invalid" | "other_account" | "already_member" | "sign_in_to_accept";
+}>;
+
+function refuseInvite(result: InviteRefusal): never {
+  switch (result.kind) {
+    case "invalid":
+      throw inviteInvalid();
+    case "other_account":
+      throw inviteOtherAccount();
+    case "already_member":
+      throw alreadyMember();
+    case "sign_in_to_accept":
+      throw signInToAccept();
+  }
+}
+
+function registerInviteRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
+  const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
+
+  scope.post("/invites/inspect", open, async (request, reply) => {
+    const { token } = parse(inviteTokenBody, request.body);
+    const result = await deps.invites.inspect(token, callerOf(request));
+    if (result.kind === "invite") {
+      return result.invite;
+    }
+    if (result.kind === "throttled") {
+      waitThen(reply, result.retryAfterSeconds);
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    }
+    return refuseInvite(result);
+  });
+
+  scope.post(
+    "/invites/accept",
+    { ...staffOnly, bodyLimit: SIGN_IN_BODY_LIMIT },
+    async (request) => {
+      const { account } = request.staff ?? failClosed();
+      const { token } = parse(inviteTokenBody, request.body);
+      const result = await deps.invites.accept(token, account.id, callerOf(request));
+      return result.kind === "joined" ? { organizerId: result.organizerId } : refuseInvite(result);
+    },
+  );
+
+  scope.post("/invites/accept-new", open, async (request, reply) => {
+    const body = parse(acceptNewBody, request.body);
+    const result = await deps.invites.acceptNew(body, callerOf(request));
+    switch (result.kind) {
+      case "code_sent":
+        return { challengeToken: result.challengeToken, expiresInSeconds: result.expiresInSeconds };
+      case "invalid":
+      case "other_account":
+      case "already_member":
+      case "sign_in_to_accept":
+        return refuseInvite(result);
+      case "email_unavailable":
+        throw emailUnavailable();
+      default:
+        return refuseNewPassword(reply, result);
+    }
+  });
+}
+
 function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
   const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
 
@@ -183,24 +347,9 @@ function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/resend", open, async (request, reply) => {
     const body = parse(resendBody, request.body);
-    const result = await deps.signIn.resend(body, callerOf(request));
-    switch (result.kind) {
-      case "resent":
-        return {};
-      case "challenge_expired":
-        throw challengeExpired();
-      case "resend_too_soon":
-        waitThen(reply, result.retryAfterSeconds);
-        throw resendTooSoon({ retryAfterSeconds: result.retryAfterSeconds });
-      case "resend_limit":
-        throw resendLimit();
-      case "email_unavailable":
-        throw emailUnavailable();
-    }
+    return answerResend(reply, await deps.signIn.resend(body, callerOf(request)));
   });
 }
-
-const staffOnly = { config: { access: "staff" } } as const;
 
 function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
   scope.get("/me", staffOnly, async (request) => {
@@ -279,6 +428,8 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps)
       });
       registerSignInRoutes(scope, deps);
       registerResetRoutes(scope, deps);
+      registerSignUpRoutes(scope, deps);
+      registerInviteRoutes(scope, deps);
       registerSessionRoutes(scope, deps);
     },
     { prefix: "/v1/staff" },

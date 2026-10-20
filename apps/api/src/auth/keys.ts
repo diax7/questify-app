@@ -41,6 +41,8 @@ export type AuthKeys = Readonly<{
   addressKey: (address: string) => Buffer;
   /** Throttle key for a staff user id. */
   userKey: (userId: string) => Buffer;
+  /** Throttle key for an organizer id (invites per organizer). */
+  organizerKey: (organizerId: string) => Buffer;
   /** Hash of a code, bound to its challenge so equal codes differ between challenges. */
   codeHash: (challengeId: string, code: string) => Buffer;
 }>;
@@ -61,11 +63,13 @@ export function createAuthKeys(secret: string): AuthKeys {
   const email = keyed("throttle-email");
   const address = keyed("throttle-address");
   const user = keyed("throttle-user");
+  const organizer = keyed("throttle-organizer");
   const code = derive("code");
   return {
     emailKey: email,
     addressKey: address,
     userKey: user,
+    organizerKey: organizer,
     codeHash: (challengeId, value) =>
       createHmac("sha256", code).update(`${challengeId}\n${value}`).digest(),
   };

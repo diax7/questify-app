@@ -47,6 +47,15 @@ too; then change the password (dashboard, My account) or reset it.
 3. Lost the mailbox: there is no web way back (the mailbox is the second factor, ADR-078). With the owner connection,
    disable the account and create a new one; record it.
 
+**`staff.outbound_cap` in the log** (sign-up answers 503, invites answer `mail_cap`): the day's budget of 400 sign-up and
+invite emails is spent. Sign-in and reset codes are not counted and still go out. Look for an abuse pattern (many
+sign-ups from one address range); the budget refills over 24 hours, or raise `outboundMailPerDay` in
+`apps/api/src/auth/limits.ts` if the traffic is real.
+
+**Invite links answer 429 for many people at one site** (launch day behind one office network): looking at and
+accepting invite links share 20 an hour per client address (`inviteChecksPerAddress` in
+`apps/api/src/auth/limits.ts`). Raise it for the day, or ask people to open their link from a phone's own network.
+
 **`staff.breach_check_unavailable` in the log** (password set answers 503): the API cannot reach
 `api.pwnedpasswords.com`. Check outbound HTTPS from the API container; nothing is changed while it is down.
 `staff.password_notice_failed` means a "password changed" email did not go out (see the email senders below).

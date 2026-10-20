@@ -57,3 +57,5 @@ export {
   isUsableOverride,
   validateTranslation,
 } from "./i18n/translate";
+export type { Acceptance, OrganizerDocument, OrganizerDocumentId } from "./legal/documents";
+export { missingAcceptances, organizerDocuments } from "./legal/documents";

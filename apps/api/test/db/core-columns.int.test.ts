@@ -109,7 +109,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
     it("refuses a player joining as banned or removed", async () => {
       const event = (
         await db.owner.query<{ id: string }>(
-          "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'OPEN2', 'Open', 'live') RETURNING id",
+          "INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at) VALUES ($1, 'OPEN2', 'Open', 'live', now() - interval '1 hour', now() + interval '30 days') RETURNING id",
           [ids.orgA],
         )
       ).rows[0]?.id;

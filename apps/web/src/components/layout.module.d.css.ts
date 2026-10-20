@@ -7,6 +7,8 @@ declare const styles: {
   readonly brand: string;
   readonly button: string;
   readonly card: string;
+  readonly check: string;
+  readonly choices: string;
   readonly code: string;
   readonly field: string;
   readonly form: string;

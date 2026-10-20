@@ -38,6 +38,32 @@ const ROUTES: Readonly<Record<string, string>> = {
     "names no account: the same 202 for every email; the link goes only to the account's own mailbox (test/auth/password-reset)",
   "POST /v1/staff/auth/reset/confirm":
     "bound to the one link its secret token opens (test/auth/password-reset, test/db/password-reset)",
+  "POST /v1/staff/auth/sign-up":
+    "names no account: the same answer for a new and an existing email; only the mailbox owner reads the email (test/auth/sign-up)",
+  "POST /v1/staff/auth/sign-up/code":
+    "bound to its own pending sign-up token; creates only that sign-up's account (test/auth/sign-up)",
+  "POST /v1/staff/auth/sign-up/resend":
+    "bound to its own pending sign-up token (test/auth/sign-up)",
+  "POST /v1/staff/organizers":
+    "creates an organizer owned by the caller only; the database sets the owner from the session (test/auth/sign-up)",
+  "POST /v1/staff/invites/inspect":
+    "shows only the invite its secret token opens; the token's holder already proved the mailbox (test/organizers/team)",
+  "POST /v1/staff/invites/accept":
+    "the database accepts only for the account the invite was sent to (test/organizers/team, test/db/organizer-team)",
+  "POST /v1/staff/invites/accept-new":
+    "bound to its own invite token; creates only the invited email's account, then a normal sign-in code (test/organizers/team)",
+  "POST /v1/organizers/:organizerId/invites":
+    "owner of that organizer only (owner route, walked below)",
+  "POST /v1/organizers/:organizerId/ownership":
+    "owner of that organizer only (owner route, walked below)",
+  "DELETE /v1/organizers/:organizerId/invites/:inviteId":
+    "owner only; another organizer's invite id deletes nothing (404)",
+  "PATCH /v1/organizers/:organizerId/members/:staffUserId":
+    "owner only; only this organizer's editors and events (test/organizers/team)",
+  "DELETE /v1/organizers/:organizerId/members/:staffUserId":
+    "owner only; only this organizer's editors, never the owner (test/organizers/team)",
+  "DELETE /v1/organizers/:organizerId/members/me":
+    "the caller leaves; the owner cannot (test/organizers/team)",
   "GET /v1/organizers/:organizerId/members":
     "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
   "POST /v1/staff/password":
@@ -54,6 +80,11 @@ const PUBLIC_ROUTES = [
   "POST /v1/staff/auth/resend",
   "POST /v1/staff/auth/reset/confirm",
   "POST /v1/staff/auth/reset/request",
+  "POST /v1/staff/auth/sign-up",
+  "POST /v1/staff/auth/sign-up/code",
+  "POST /v1/staff/auth/sign-up/resend",
+  "POST /v1/staff/invites/accept-new",
+  "POST /v1/staff/invites/inspect",
 ];
 
 const MISSING = "00000000-0000-4000-8000-000000000000";
