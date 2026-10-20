@@ -1,3 +1,4 @@
+import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   browserHeaders,
@@ -37,6 +38,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "names no account: the same 202 for every email; the link goes only to the account's own mailbox (test/auth/password-reset)",
   "POST /v1/staff/auth/reset/confirm":
     "bound to the one link its secret token opens (test/auth/password-reset, test/db/password-reset)",
+  "GET /v1/organizers/:organizerId/members":
+    "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };
@@ -76,10 +79,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
     await db.close();
   });
 
-  const routes = (access?: "public" | "staff") =>
+  const routes = (access?: "public" | "staff" | "member" | "owner") =>
     test.app.routeInventory.filter(
       (route) => route.method !== "HEAD" && (access === undefined || route.access === access),
     );
+
+  const call = async (
+    route: { method: string; url: string },
+    organizerId: string,
+    cookie: string,
+  ): Promise<LightMyRequestResponse> =>
+    test.app.inject({
+      method: route.method as "GET" | "POST" | "PATCH" | "DELETE",
+      url: route.url.replace(":organizerId", organizerId).replace(/:[a-zA-Z]+/g, MISSING),
+      headers: withSession(cookie),
+      ...(route.method === "GET" ? {} : { payload: {} }),
+    });
 
   const sessionIdsOf = async (staffUserId: string): Promise<string[]> =>
     (
@@ -118,12 +133,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
 
   describe("outsider (no session)", () => {
     it("answers 401 with no-store on every staff route", async () => {
-      const closed = routes("staff");
+      const closed = [...routes("staff"), ...routes("member"), ...routes("owner")];
       expect(closed.length).toBeGreaterThanOrEqual(4);
       for (const route of closed) {
         const response = await test.app.inject({
           method: route.method as "GET" | "POST" | "DELETE",
-          url: route.url.replace(":id", MISSING),
+          url: route.url.replace(":id", MISSING).replace(":organizerId", MISSING),
           headers: browserHeaders(),
         });
         expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);
@@ -208,6 +223,81 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       expect(out.statusCode).toBe(204);
       expect(await stillSignedIn(cookieA)).toBe(401);
       expect(await stillSignedIn(cookieB)).toBe(200);
+    });
+  });
+
+  describe("organizer routes", () => {
+    let ownerCookie = "";
+    let editorCookie = "";
+    let strangerCookie = "";
+
+    beforeAll(async () => {
+      const ownerId = await createStaff(db.owner, { email: "boss@najd-team.test" });
+      const editorId = await createStaff(db.owner, { email: "editor@najd-team.test" });
+      const strangerId = await createStaff(db.owner, { email: "boss@tabuk-team.test" });
+      const org = (
+        await db.owner.query<{ id: string }>(
+          "INSERT INTO organizer (name, slug) VALUES ('Team Co', 'team-co') RETURNING id",
+        )
+      ).rows[0]?.id;
+      await db.owner.query(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner'), ($1, $3, 'editor'), ($4, $5, 'editor')",
+        [org, ownerId, editorId, ids.orgB, strangerId],
+      );
+      organizerOfTeam = org ?? "";
+      ownerCookie = await signInFully(test, "boss@najd-team.test");
+      editorCookie = await signInFully(test, "editor@najd-team.test");
+      strangerCookie = await signInFully(test, "boss@tabuk-team.test");
+    });
+
+    let organizerOfTeam = "";
+
+    it("declares every route under /v1/organizers as member or owner", () => {
+      const organizerRoutes = routes().filter((route) => route.url.startsWith("/v1/organizers/"));
+      expect(organizerRoutes.length).toBeGreaterThan(0);
+      for (const route of organizerRoutes) {
+        expect(["member", "owner"], `${route.method} ${route.url}`).toContain(route.access);
+      }
+    });
+
+    it("answers a member of another organizer exactly like a missing organizer: 404", async () => {
+      for (const route of [...routes("member"), ...routes("owner")]) {
+        const other = await call(route, organizerOfTeam, strangerCookie);
+        const missing = await call(route, MISSING, strangerCookie);
+        expect(other.statusCode, `${route.method} ${route.url}`).toBe(404);
+        expect(shape(other.body)).toEqual(shape(missing.body));
+        const malformed = await call(route, "not-a-uuid", strangerCookie);
+        expect(malformed.statusCode).toBe(404);
+      }
+    });
+
+    it("refuses an editor every owner route with 403", async () => {
+      for (const route of routes("owner")) {
+        const response = await call(route, organizerOfTeam, editorCookie);
+        expect(response.statusCode, `${route.method} ${route.url}`).toBe(403);
+        expect(response.json()).toMatchObject({ code: "owner_only" });
+      }
+    });
+
+    it("shows the team to its members, owner first, with emails and no other account fields", async () => {
+      for (const cookie of [ownerCookie, editorCookie]) {
+        const response = await test.app.inject({
+          url: `/v1/organizers/${organizerOfTeam}/members`,
+          headers: withSession(cookie),
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.headers["cache-control"]).toBe("no-store");
+        const body = response.json<{
+          members: { email: string; role: string }[];
+          invites: unknown[];
+        }>();
+        expect(body.members.map((member) => [member.email, member.role])).toEqual([
+          ["boss@najd-team.test", "owner"],
+          ["editor@najd-team.test", "editor"],
+        ]);
+        expect(response.body).not.toContain("argon2");
+        expect(response.body).not.toContain("tabuk");
+      }
     });
   });
 });

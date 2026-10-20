@@ -5,11 +5,13 @@ import type { FastifyInstance } from "fastify";
  * starting, so nothing becomes public by being forgotten. Later tasks add their kinds here (player bearer token,
  * screen token, signed provider callback), each with the hook that enforces it.
  */
-export const ACCESS_KINDS = ["public", "staff"] as const;
+export const ACCESS_KINDS = ["public", "staff", "member", "owner"] as const;
 export type Access = (typeof ACCESS_KINDS)[number];
 
 /** Each access kind is enforced by a hook on its own path; a label alone would protect nothing. */
 const STAFF_PREFIX = "/v1/staff/";
+/** `member` and `owner` routes live here, where the organizer hook checks the membership (organizers/routes.ts). */
+export const ORGANIZER_PREFIX = "/v1/organizers/:organizerId";
 
 export type RouteInfo = Readonly<{ method: string; url: string; access: Access }>;
 
@@ -38,6 +40,13 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
       if (access === "staff" && !route.url.startsWith(STAFF_PREFIX)) {
         throw new Error(
           `Route ${name} is marked staff but is outside ${STAFF_PREFIX}, where the session check runs.`,
+        );
+      }
+      const organizerRoute =
+        route.url === ORGANIZER_PREFIX || route.url.startsWith(`${ORGANIZER_PREFIX}/`);
+      if ((access === "member" || access === "owner") !== organizerRoute) {
+        throw new Error(
+          `Route ${name}: member and owner routes, and only they, live under ${ORGANIZER_PREFIX}, where the membership check runs.`,
         );
       }
       if (access === "public" && route.config?.idempotent === true) {

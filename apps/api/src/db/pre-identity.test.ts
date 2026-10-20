@@ -42,6 +42,8 @@ describe("withPreIdentityContext", () => {
       "app.session_token_hash",
       "app.challenge_token_hash",
       "app.reset_token_hash",
+      "app.signup_token_hash",
+      "app.invite_token_hash",
     ]) {
       expect(settings.get(name)).toBe("");
     }
@@ -53,6 +55,8 @@ describe("withPreIdentityContext", () => {
     ["session", "app.session_token_hash"],
     ["challenge", "app.challenge_token_hash"],
     ["reset", "app.reset_token_hash"],
+    ["signup", "app.signup_token_hash"],
+    ["invite", "app.invite_token_hash"],
   ] as const)("opens a %s lookup by token hash", async (kind, setting) => {
     const { client, calls } = fakeClient();
     await withPreIdentityContext(client, { kind, tokenHash: HASH }, async () => 1);

@@ -5,7 +5,6 @@ import {
   busy,
   challengeExpired,
   currentPasswordWrong,
-  csrfRejected,
   emailUnavailable,
   invalidCode,
   invalidCredentials,
@@ -14,7 +13,6 @@ import {
   resendLimit,
   resendTooSoon,
   resetLinkInvalid,
-  sessionExpired,
   tooManyAttempts,
   tooManyChallenges,
   unauthenticated,
@@ -22,14 +20,9 @@ import {
 } from "#src/auth/http-errors";
 import { sessionLimitsFor } from "#src/auth/limits";
 import type { Passwords, WeakReason } from "#src/auth/password-reset";
-import {
-  SESSION_COOKIE,
-  clearedSessionCookie,
-  readCookie,
-  sessionCookie,
-  type Sessions,
-} from "#src/auth/session";
+import { clearedSessionCookie, sessionCookie, type Sessions } from "#src/auth/session";
 import type { Caller, SignIn } from "#src/auth/sign-in";
+import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
@@ -39,7 +32,6 @@ export type StaffRoutesDeps = Readonly<{
   dashboardOrigin: string;
 }>;
 
-const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const SIGN_IN_BODY_LIMIT = 4096;
 
 const passwordBody = z.object({
@@ -86,39 +78,6 @@ function callerOf(request: FastifyRequest): Caller {
 
 function waitThen(reply: FastifyReply, seconds: number): void {
   reply.header("retry-after", String(seconds));
-}
-
-/**
- * Cookie requests that change something must come from the dashboard's own origin. Browsers always send
- * Origin on such requests; sign-in steps carry no cookie yet, so they only refuse a *different* origin.
- */
-function checkOrigin(request: FastifyRequest, origin: string, cookieRequired: boolean): void {
-  if (SAFE_METHODS.has(request.method)) {
-    return;
-  }
-  const sent = request.headers.origin;
-  if (sent === undefined ? cookieRequired : sent !== origin) {
-    throw csrfRejected();
-  }
-}
-
-async function requireSession(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  sessions: Sessions,
-): Promise<void> {
-  const token = readCookie(request.headers.cookie, SESSION_COOKIE);
-  if (token === undefined) {
-    throw unauthenticated();
-  }
-  const result = await sessions.authenticate(token);
-  if (result.kind === "valid") {
-    request.staff = { account: result.account, sessionId: result.sessionId };
-    request.principalId = result.account.id;
-    return;
-  }
-  reply.header("set-cookie", clearedSessionCookie());
-  throw result.kind === "none" ? unauthenticated() : sessionExpired();
 }
 
 type NotSet =

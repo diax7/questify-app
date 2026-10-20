@@ -3,13 +3,16 @@ import { setLocalSettings } from "#src/db/connection";
 
 /**
  * How sign-in finds one row before it knows who the caller is. Each kind opens exactly one row:
- * the account with that email, or the session, challenge or password-reset link with that token hash.
+ * the account with that email, or the session, challenge, password-reset link, pending sign-up or invite with that
+ * token hash.
  */
 export type Lookup =
   | Readonly<{ kind: "email"; email: string }>
   | Readonly<{ kind: "session"; tokenHash: string }>
   | Readonly<{ kind: "challenge"; tokenHash: string }>
-  | Readonly<{ kind: "reset"; tokenHash: string }>;
+  | Readonly<{ kind: "reset"; tokenHash: string }>
+  | Readonly<{ kind: "signup"; tokenHash: string }>
+  | Readonly<{ kind: "invite"; tokenHash: string }>;
 
 /** What the work may do once it has found the row: continue as that user. */
 export type Identify = Readonly<{
@@ -31,6 +34,8 @@ const SETTINGS = [
   "app.session_token_hash",
   "app.challenge_token_hash",
   "app.reset_token_hash",
+  "app.signup_token_hash",
+  "app.invite_token_hash",
 ] as const;
 
 function checkedHash(name: string, value: string): string {
@@ -65,6 +70,10 @@ function lookupSetting(lookup: Lookup): readonly [string, string] {
       return ["app.challenge_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
     case "reset":
       return ["app.reset_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
+    case "signup":
+      return ["app.signup_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
+    case "invite":
+      return ["app.invite_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
   }
 }
 

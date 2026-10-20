@@ -70,7 +70,7 @@ Kept apart from `player` so an organizer, who can see the players in its events,
 Row-level security picks rows; column grants and guard triggers close the columns that matter. For the API's role:
 - `enrollment.score` and `balance`: **never written by hand.** They are copies of the points ledger; T-105 adds the ledger and the trigger that keeps them in step. A player may enroll only themselves, only in an event they can see, only as pending or active, and may only change their own status to `left`; the event's organizer or an admin changes any status.
 - `player.status`: only a Questify admin, except that a player may delete their own active account. A new player is always created active.
-- `organizer_member`: only the organizer's owner (or an admin) adds, changes or removes members; the person who creates an organizer becomes its first owner. Owner checks run in the database (`app_is_owner`).
+- `organizer_member`: only the organizer's owner (or an admin) adds members or changes an editor's event limit; an editor may leave; the owner never removes or demotes themselves. Roles change only inside the invite functions (migration 0008), never through the API's role. The person who creates an organizer becomes its first owner. Owner checks run in the database (`app_is_owner`).
 - `staff_user`: the API may change only `password_hash` (migration 0002).
 
 ### staff_user
@@ -89,7 +89,31 @@ Row-level security picks rows; column grants and guard triggers close the column
 | staff_session | id, staff_user_id, token_hash (bytea, unique), created_at, last_seen_at, revoked_at, user_agent, ip | **IP and user agent are personal data**; they live only here and are swept 30 days after the session ends. The API may update only `last_seen_at` and `revoked_at`; a trigger refuses un-revoking |
 | auth_throttle | bucket, key (HMAC), at | Sliding-window counts for failed attempts per email and per address (IPv6 as /64) and for challenges per user. Keys are keyed hashes, never readable. Rows older than a day are swept |
 
-The API role cannot create staff accounts or change `platform_role` / `status` (column grants): accounts come from the owner connection (the `staff` CLI) until T-101 and T-701.
+The API role cannot create staff accounts or change `platform_role` / `status` (column grants): accounts come from the owner connection (the `staff` CLI) and, since T-101, from the definer functions `complete_signup` and `accept_invite_new` only.
+
+### The organizer context (T-101, migration 0008)
+1. **No staff member, no tenant.** `app_organizer_id()` returns the request's organizer only when the request's staff
+   user is a member of it (or the request is a platform admin's). An organizer context without a member staff user
+   opens nothing, so a forged or stale organizer id reaches no row. Future non-staff tenant contexts (jobs, operators,
+   screens) get their own explicit branch when they are built.
+2. **The event limit comes from the membership row.** `app_event_scope()` reads the caller's `event_scope`; NULL
+   means every event, and an empty limit is refused (there is no "none"). Every table that names an event checks it
+   for organizer members: `event`, `enrollment`, the players reached through enrollments, and the event entries of
+   `audit_log`. Organizer-level audit entries (team changes, no event) stay readable by every member: team membership
+   is not secret. A limited editor cannot create events (they would fall outside their own limit).
+3. A limit names only the organizer's own events (trigger). Policies call the context functions directly, never
+   through a sub-select: the event and enrollment rules refer to each other, and PostgreSQL treats any sub-select in
+   that cycle as infinite recursion.
+4. Organizers are created only by `create_organizer` (signed-in staff) and `complete_signup`, both with the three
+   acceptances and an audit entry. Members join only through `accept_invite` / `accept_invite_new`, which also move
+   ownership for an owner invite.
+
+### Organizer team tables (T-101, migration 0008)
+| Table | Fields | Notes |
+|---|---|---|
+| organizer_acceptance | organizer_id, document (organizer_terms, organizer_dpa, organizer_content_rules), version, accepted_by, accepted_at | Append-only; written only by the creation functions; members read their organizer's rows (FR-1726) |
+| organizer_invite | id, organizer_id, email, role (editor, owner), event_scope, token_hash, invited_by, expires_at | One per email per organizer; one owner invite per organizer; found by members or by the link's token; swept 30 days after expiry. Email is PII |
+| staff_signup | id, token_hash, code_hash, email, password_hash (NULL when the email already had an account), organizer_name, accepted versions, attempts, resends, last_sent_at, expires_at | Found only by the browser's token; swept after a day. Email is PII |
 
 ### organizer and organizer_member
 `organizer(id, name, slug, status, branding jsonb{logo, banner, accent}, dpa_accepted_at,

@@ -303,7 +303,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
 
     it("cannot be unlocked by the organizer, even by going to the database with their own rights", async () => {
       await expect(
-        withRequestContext(db.app, { organizerId: ids.orgA }, () =>
+        withRequestContext(db.app, memberA(), () =>
           db.app.query(
             "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
             [ids.eventA, ids.orgA],

@@ -17,6 +17,7 @@ import { createSignIn, reasonOf } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { registerRouteInventory, type RouteInfo } from "#src/route-access";
 import { registerConfigRoutes } from "#src/settings/routes";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
@@ -136,6 +137,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       deferred,
       dashboardOrigin: config.auth.dashboardOrigin,
     }),
+    dashboardOrigin: config.auth.dashboardOrigin,
+  });
+
+  registerOrganizerRoutes(app, {
+    pool: options.pool,
+    sessions: createSessions(options.pool),
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

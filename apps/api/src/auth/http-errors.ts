@@ -110,3 +110,9 @@ export const breachCheckUnavailable = make(
   "تعذر فحص كلمة المرور الآن. حاول بعد قليل.",
   "We could not check the password right now. Try again shortly.",
 );
+export const ownerOnly = make(
+  403,
+  "owner_only",
+  "هذا الإجراء لمالك الجهة المنظِّمة فقط.",
+  "Only the organizer's owner can do this.",
+);

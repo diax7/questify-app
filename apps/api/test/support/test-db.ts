@@ -126,3 +126,28 @@ export async function seedTwoTenants(owner: Client): Promise<{
   );
   return { orgA, orgB, eventA, eventB, playerA, playerB };
 }
+
+let memberCounter = 0;
+
+/**
+ * A staff account that belongs to an organizer, for tests that act in an organizer's name: the database opens an
+ * organizer only to its members (migration 0008, "no staff member, no tenant").
+ */
+export async function addMember(
+  owner: Client,
+  organizerId: string,
+  role: "owner" | "editor" = "owner",
+  eventScope: string[] | null = null,
+): Promise<string> {
+  memberCounter += 1;
+  const { rows } = await owner.query<{ id: string }>(
+    "INSERT INTO staff_user (email, password_hash) VALUES ($1, 'unused') RETURNING id",
+    [`member${memberCounter}.${randomBytes(3).toString("hex")}@team.test`],
+  );
+  const id = rows[0]?.id ?? "";
+  await owner.query(
+    "INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope) VALUES ($1, $2, $3, $4)",
+    [organizerId, id, role, eventScope],
+  );
+  return id;
+}

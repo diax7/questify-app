@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext } from "#src/db/context";
 import {
   TEST_DATABASE_URL,
+  addMember,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -10,10 +11,14 @@ import {
 describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
   let db: TestDatabase;
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
+  let memberA: string;
+  /** A member of organizer A acting in its name. */
+  const seatA = () => ({ organizerId: ids.orgA, staffUserId: memberA });
 
   beforeAll(async () => {
     db = await createTestDatabase();
     ids = await seedTwoTenants(db.owner);
+    memberA = await addMember(db.owner, ids.orgA, "editor");
   });
   afterAll(async () => {
     await db.close();
@@ -43,26 +48,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
 
     it("lets organizer A read only its own enrollments and players", async () => {
       const enrollments = await as<{ organizer_id: string }>(
-        { organizerId: ids.orgA },
+        seatA(),
         "SELECT organizer_id FROM enrollment",
       );
       expect(enrollments.map((r) => r.organizer_id)).toEqual([ids.orgA]);
-      const players = await as<{ username: string }>(
-        { organizerId: ids.orgA },
-        "SELECT username FROM player",
-      );
+      const players = await as<{ username: string }>(seatA(), "SELECT username FROM player");
       expect(players.map((r) => r.username)).toEqual(["sara_k"]);
     });
 
     it("hides organizer B's private event from organizer A", async () => {
-      const events = await as<{ id: string }>({ organizerId: ids.orgA }, "SELECT id FROM event");
+      const events = await as<{ id: string }>(seatA(), "SELECT id FROM event");
       expect(events.map((r) => r.id)).toEqual([ids.eventA]);
     });
 
     it("refuses organizer A creating an event under organizer B", async () => {
       await expect(
         as(
-          { organizerId: ids.orgA },
+          seatA(),
           "INSERT INTO event (organizer_id, join_code, name_en) VALUES ($1, 'EVIL1', 'x')",
           [ids.orgB],
         ),
@@ -70,10 +72,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
     });
 
     it("changes nothing when organizer A updates or deletes organizer B's event", async () => {
-      await as({ organizerId: ids.orgA }, "UPDATE event SET name_en = 'hacked' WHERE id = $1", [
-        ids.eventB,
-      ]);
-      await as({ organizerId: ids.orgA }, "DELETE FROM event WHERE id = $1", [ids.eventB]);
+      await as(seatA(), "UPDATE event SET name_en = 'hacked' WHERE id = $1", [ids.eventB]);
+      await as(seatA(), "DELETE FROM event WHERE id = $1", [ids.eventB]);
       const { rows } = await db.owner.query("SELECT name_en FROM event WHERE id = $1", [
         ids.eventB,
       ]);
@@ -82,10 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
 
     it("refuses moving an own event to another organizer", async () => {
       await expect(
-        as({ organizerId: ids.orgA }, "UPDATE event SET organizer_id = $1 WHERE id = $2", [
-          ids.orgB,
-          ids.eventA,
-        ]),
+        as(seatA(), "UPDATE event SET organizer_id = $1 WHERE id = $2", [ids.orgB, ids.eventA]),
       ).rejects.toThrow(/row-level security/);
     });
 
@@ -114,8 +111,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
       expect(await as({ isAdmin: true }, "SELECT id FROM enrollment")).toHaveLength(2);
     });
 
+    it("opens nothing for an organizer context without a member (no staff member, no tenant)", async () => {
+      const outsider = await addMember(db.owner, ids.orgB, "editor");
+      for (const context of [
+        { organizerId: ids.orgA },
+        { organizerId: ids.orgA, staffUserId: outsider },
+      ]) {
+        expect(await as(context, "SELECT 1 FROM enrollment")).toEqual([]);
+        expect(await as(context, "SELECT 1 FROM player")).toEqual([]);
+        expect(await as(context, "SELECT 1 FROM audit_log")).toEqual([]);
+        const events = await as<{ id: string }>(context, "SELECT id FROM event");
+        expect(events.map((row) => row.id)).toEqual([ids.eventA]);
+        await expect(
+          as(
+            context,
+            "INSERT INTO event (organizer_id, join_code, name_en) VALUES ($1, 'FORGED', 'x')",
+            [ids.orgA],
+          ),
+        ).rejects.toThrow(/row-level security/);
+      }
+    });
+
     it("forgets the context when the transaction ends", async () => {
-      await as({ organizerId: ids.orgA }, "SELECT 1");
+      await as(seatA(), "SELECT 1");
       expect(await as({}, "SELECT id FROM enrollment")).toEqual([]);
     });
 

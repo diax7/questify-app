@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createHash, randomBytes } from "node:crypto";
 import { withRequestContext, type RequestContext } from "#src/db/context";
+import { withPreIdentityContext } from "#src/db/pre-identity";
 import {
   TEST_DATABASE_URL,
   createTestDatabase,
@@ -66,7 +68,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
     });
 
     it("cannot be set by the organizer or an admin either: only the points ledger may move them", async () => {
-      for (const context of [{ organizerId: ids.orgA }, { isAdmin: true }]) {
+      for (const context of [{ organizerId: ids.orgA, staffUserId: owner }, { isAdmin: true }]) {
         await expect(as(context, "UPDATE enrollment SET balance = 5")).rejects.toThrow(
           /permission denied/,
         );
@@ -135,7 +137,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
 
     it("lets the event's organizer change a status", async () => {
       await as(
-        { organizerId: ids.orgA },
+        { organizerId: ids.orgA, staffUserId: owner },
         "UPDATE enrollment SET status = 'active' WHERE player_id = $1",
         [ids.playerA],
       );
@@ -179,9 +181,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
 
   describe("contact details", () => {
     it("are hidden from the organizer of a player's event", async () => {
-      const players = await as({ organizerId: ids.orgA }, "SELECT username FROM player");
+      const players = await as(
+        { organizerId: ids.orgA, staffUserId: owner },
+        "SELECT username FROM player",
+      );
       expect(players.length).toBeGreaterThan(0);
-      expect(await as({ organizerId: ids.orgA }, "SELECT * FROM player_contact")).toEqual([]);
+      expect(
+        await as({ organizerId: ids.orgA, staffUserId: owner }, "SELECT * FROM player_contact"),
+      ).toEqual([]);
     });
 
     it("are visible to the player and to Questify admins", async () => {
@@ -209,11 +216,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
         "UPDATE organizer_member SET event_scope = NULL WHERE staff_user_id = $1",
         [editor],
       );
-      await as(
-        { organizerId: ids.orgA, staffUserId: editor },
-        "UPDATE organizer_member SET role = 'owner' WHERE staff_user_id = $1",
-        [editor],
-      );
+      await expect(
+        as(
+          { organizerId: ids.orgA, staffUserId: editor },
+          "UPDATE organizer_member SET role = 'owner' WHERE staff_user_id = $1",
+          [editor],
+        ),
+      ).rejects.toThrow(/permission denied/);
       const rows = (
         await db.owner.query<{ role: string; event_scope: string[] | null }>(
           "SELECT role, event_scope FROM organizer_member WHERE staff_user_id = $1",
@@ -223,14 +232,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       expect(rows).toEqual([{ role: "editor", event_scope: [ids.eventA] }]);
     });
 
-    it("cannot gain members added by an editor", async () => {
+    it("cannot gain members by a bare insert, from an editor or even the owner: only invites add members", async () => {
       await expect(
         as(
           { organizerId: ids.orgA, staffUserId: editor },
           "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
           [ids.orgA, stranger],
         ),
-      ).rejects.toThrow(/row-level security/);
+      ).rejects.toThrow(/permission denied/);
+      await expect(
+        as(
+          { organizerId: ids.orgA, staffUserId: owner },
+          "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
+          [ids.orgA, stranger],
+        ),
+      ).rejects.toThrow(/permission denied/);
     });
 
     it("can be changed by the owner", async () => {
@@ -260,26 +276,67 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
             "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
             [target, stranger],
           ),
-        ).rejects.toThrow(/row-level security/);
+        ).rejects.toThrow(/permission denied/);
       }
     });
 
-    it("is created together with its first owner, by a signed-in staff user only", async () => {
+    it("is created together with its first owner, acceptances and audit entry, by an active staff user only", async () => {
       const [created] = await as(
         { staffUserId: stranger },
-        "SELECT create_organizer('Fresh Co', 'fresh-co') AS id",
+        "SELECT create_organizer('Fresh Co', 'fresh-co', '0.1', '0.1', '0.1', NULL) AS id",
       );
       const id = (created as { id: string }).id;
-      const rows = (
+      const members = (
         await db.owner.query(
           "SELECT staff_user_id, role FROM organizer_member WHERE organizer_id = $1",
           [id],
         )
       ).rows;
-      expect(rows).toEqual([{ staff_user_id: stranger, role: "owner" }]);
-      await expect(as({}, "SELECT create_organizer('Nobody', 'nobody')")).rejects.toThrow(
-        /signed-in staff/,
+      expect(members).toEqual([{ staff_user_id: stranger, role: "owner" }]);
+      const accepted = (
+        await db.owner.query(
+          "SELECT document, version, accepted_by FROM organizer_acceptance WHERE organizer_id = $1 ORDER BY document",
+          [id],
+        )
+      ).rows;
+      expect(accepted).toEqual(
+        ["organizer_content_rules", "organizer_dpa", "organizer_terms"].map((document) => ({
+          document,
+          version: "0.1",
+          accepted_by: stranger,
+        })),
       );
+      const audit = (
+        await db.owner.query("SELECT actor_id, action FROM audit_log WHERE organizer_id = $1", [id])
+      ).rows;
+      expect(audit).toEqual([{ actor_id: stranger, action: "organizer.create" }]);
+      await expect(
+        as({}, "SELECT create_organizer('Nobody', 'nobody', '0.1', '0.1', '0.1', NULL)"),
+      ).rejects.toThrow(/signed-in staff/);
+      const disabled = (
+        await db.owner.query<{ id: string }>(
+          "INSERT INTO staff_user (email, password_hash, status) VALUES ('off@najd.sa', 'h', 'disabled') RETURNING id",
+        )
+      ).rows[0]?.id as string;
+      await expect(
+        as(
+          { staffUserId: disabled },
+          "SELECT create_organizer('Off Co', 'off-co', '0.1', '0.1', '0.1', NULL)",
+        ),
+      ).rejects.toThrow(/signed-in staff/);
+    });
+
+    it("keeps acceptances append-only for the API", async () => {
+      await expect(
+        as(
+          { organizerId: ids.orgA, staffUserId: owner },
+          "INSERT INTO organizer_acceptance (organizer_id, document, version, accepted_by) VALUES ($1, 'organizer_terms', '9.9', $2)",
+          [ids.orgA, owner],
+        ),
+      ).rejects.toThrow(/permission denied/);
+      await expect(
+        as({ organizerId: ids.orgA, staffUserId: owner }, "DELETE FROM organizer_acceptance"),
+      ).rejects.toThrow(/permission denied/);
     });
 
     it("refuses a bare organizer row from anyone but an admin", async () => {
@@ -290,11 +347,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
 
     it("never loses its owner: an owner cannot demote or remove themselves", async () => {
       const ownerContext = { organizerId: ids.orgA, staffUserId: owner };
-      await as(
-        ownerContext,
-        "UPDATE organizer_member SET role = 'editor' WHERE staff_user_id = $1",
-        [owner],
-      );
+      await expect(
+        as(ownerContext, "UPDATE organizer_member SET role = 'editor' WHERE staff_user_id = $1", [
+          owner,
+        ]),
+      ).rejects.toThrow(/permission denied/);
       await as(ownerContext, "DELETE FROM organizer_member WHERE staff_user_id = $1", [owner]);
       const rows = (
         await db.owner.query("SELECT role FROM organizer_member WHERE staff_user_id = $1", [owner])
@@ -309,17 +366,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
           "UPDATE organizer_member SET role = 'owner' WHERE staff_user_id = $1",
           [editor],
         ),
-      ).rejects.toThrow(/row-level security/);
+      ).rejects.toThrow(/permission denied/);
     });
 
-    it("changes owner only through a transfer by the owner, to an existing editor", async () => {
-      await expect(
-        as({ staffUserId: editor }, "SELECT transfer_ownership($1, $2)", [ids.orgA, editor]),
-      ).rejects.toThrow(/only the owner/);
-      await expect(
-        as({ staffUserId: owner }, "SELECT transfer_ownership($1, $2)", [ids.orgA, stranger]),
-      ).rejects.toThrow(/already be an editor/);
-      await as({ staffUserId: owner }, "SELECT transfer_ownership($1, $2)", [ids.orgA, editor]);
+    it("changes owner only through an owner invite accepted by its addressee", async () => {
+      const token = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      await db.owner.query(
+        `INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, 'editor@najd.sa', 'owner', decode($2, 'hex'), $3, now() + interval '7 days')`,
+        [ids.orgA, tokenHash, owner],
+      );
+      const accept = (who: string) =>
+        withPreIdentityContext(db.app, { kind: "invite", tokenHash }, async ({ promote }) => {
+          await promote(who);
+          return (await db.app.query("SELECT accept_invite(NULL) AS organizer")).rows;
+        });
+      await expect(accept(stranger)).rejects.toThrow(/another email address/);
+      expect(await accept(editor)).toEqual([{ organizer: ids.orgA }]);
       const rows = (
         await db.owner.query<{ staff_user_id: string; role: string }>(
           "SELECT staff_user_id, role FROM organizer_member WHERE organizer_id = $1 ORDER BY role",
@@ -330,7 +394,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
         { staff_user_id: owner, role: "editor" },
         { staff_user_id: editor, role: "owner" },
       ]);
-      await as({ staffUserId: editor }, "SELECT transfer_ownership($1, $2)", [ids.orgA, owner]);
+      await expect(accept(editor)).rejects.toThrow(/expired or was already used/);
+      // Hand the organizer back for the other tests, the same way.
+      const back = randomBytes(32).toString("hex");
+      const backHash = createHash("sha256").update(back).digest("hex");
+      await db.owner.query(
+        `INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, 'owner@najd.sa', 'owner', decode($2, 'hex'), $3, now() + interval '7 days')`,
+        [ids.orgA, backHash, editor],
+      );
+      await withPreIdentityContext(
+        db.app,
+        { kind: "invite", tokenHash: backHash },
+        async ({ promote }) => {
+          await promote(owner);
+          await db.app.query("SELECT accept_invite(NULL)");
+        },
+      );
+      await db.owner.query(
+        "UPDATE organizer_member SET event_scope = ARRAY[$2]::uuid[] WHERE staff_user_id = $1",
+        [editor, ids.eventA],
+      );
+    });
+
+    it("refuses an owner invite whose sender no longer owns the organizer", async () => {
+      const tokenHash = createHash("sha256").update(randomBytes(32)).digest("hex");
+      await db.owner.query(
+        `INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at)
+         VALUES ($1, 'stranger@najd.sa', 'owner', decode($2, 'hex'), $3, now() + interval '7 days')`,
+        [ids.orgA, tokenHash, editor],
+      );
+      await expect(
+        withPreIdentityContext(db.app, { kind: "invite", tokenHash }, async ({ promote }) => {
+          await promote(stranger);
+          await db.app.query("SELECT accept_invite(NULL)");
+        }),
+      ).rejects.toThrow(/no longer owns/);
+      await db.owner.query("DELETE FROM organizer_invite WHERE token_hash = decode($1, 'hex')", [
+        tokenHash,
+      ]);
     });
 
     it("cannot be removed by an editor", async () => {

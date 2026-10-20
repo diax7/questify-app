@@ -253,7 +253,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
         "actor_type, actor_id, organizer_id, event_id, action, target_type",
         ["staff", memberA, ids.orgA, temp, "event.test", "event"],
       );
-      await as({ organizerId: ids.orgA }, "DELETE FROM event WHERE id = $1", [temp]);
+      await as({ organizerId: ids.orgA, staffUserId: memberA }, "DELETE FROM event WHERE id = $1", [
+        temp,
+      ]);
+      expect((await db.owner.query("SELECT 1 FROM event WHERE id = $1", [temp])).rows).toEqual([]);
       const left = (await db.owner.query("SELECT 1 FROM audit_log WHERE event_id = $1", [temp]))
         .rows;
       expect(left).toHaveLength(1);

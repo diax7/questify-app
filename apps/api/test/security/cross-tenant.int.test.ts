@@ -55,6 +55,8 @@ type Owned = Readonly<{
 }>;
 
 const POLICY = /row-level security/;
+const SIGNUP_A = "new.owner@najd.test";
+const SIGNUP_B = "new.owner@tabuk.test";
 const hash = () => `\\x${randomBytes(32).toString("hex")}`;
 
 const OWNED: Readonly<Record<string, Owned>> = {
@@ -84,6 +86,7 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
           values: [f.orgB, f.staffA],
         }),
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },
@@ -213,6 +216,52 @@ const OWNED: Readonly<Record<string, Owned>> = {
         forge: (f) => ({
           sql: "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '30 minutes')",
           values: [f.staffB, hash()],
+        }),
+      },
+    ],
+  },
+  organizer_acceptance: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO organizer_acceptance (organizer_id, document, version, accepted_by) VALUES ($1, 'organizer_terms', '9.9', $2)",
+          values: [f.orgB, f.staffA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  organizer_invite: {
+    sweep: (row) => `${row}expires_at < now() - interval '30 days'`,
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at) VALUES ($1, 'forged@x.test', 'editor', $2, $3, now() + interval '7 days')",
+          values: [f.orgB, hash(), f.staffA],
+        }),
+      },
+    ],
+  },
+  staff_signup: {
+    sweep: (row) => `${row}created_at < now() - interval '1 day'`,
+    probes: [
+      {
+        seat: "staff",
+        column: "email",
+        mine: () => SIGNUP_A,
+        theirs: () => SIGNUP_B,
+        ownRowsHidden: "a pending sign-up is read only by its own token, during sign-up",
+        forge: () => ({
+          sql: "INSERT INTO staff_signup (token_hash, code_hash, email, organizer_name, accepted_terms, accepted_dpa, accepted_content, expires_at) VALUES ($1, $2, 'forged@x.test', 'Forged', '0.1', '0.1', '0.1', now() + interval '10 minutes')",
+          values: [hash(), hash()],
         }),
       },
     ],
@@ -387,6 +436,16 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '30 minutes')",
       [staff, hash()],
     );
+    for (const document of ["organizer_terms", "organizer_dpa", "organizer_content_rules"]) {
+      await run(
+        "INSERT INTO organizer_acceptance (organizer_id, document, version, accepted_by) VALUES ($1, $2, '0.1', $3)",
+        [org, document, staff],
+      );
+    }
+    await run(
+      "INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at) VALUES ($1, $2, 'editor', $3, $4, now() + interval '7 days')",
+      [org, `invited.${org.slice(0, 8)}@team.test`, hash(), staff],
+    );
     await run(
       "INSERT INTO audit_log (actor_type, actor_id, organizer_id, action, target_type) VALUES ('staff', $1, $2, 'event.seed', 'event')",
       [staff, org],
@@ -411,6 +470,21 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
     "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at, created_at) VALUES ($1, $2, now() - interval '2 days', now() - interval '2 days')",
     [staffB, hash()],
   );
+  await run(
+    "INSERT INTO organizer_invite (organizer_id, email, role, token_hash, invited_by, expires_at) VALUES ($1, 'aged@team.test', 'editor', $2, $3, now() - interval '40 days')",
+    [f.orgB, hash(), staffB],
+  );
+  for (const [email, age] of [
+    [SIGNUP_A, "0 seconds"],
+    [SIGNUP_B, "0 seconds"],
+    [SIGNUP_B, "2 days"],
+  ] as const) {
+    await run(
+      `INSERT INTO staff_signup (token_hash, code_hash, email, organizer_name, accepted_terms, accepted_dpa, accepted_content, expires_at, created_at)
+       VALUES ($1, $2, $3, 'Pending Co', '0.1', '0.1', '0.1', now() + interval '10 minutes', now() - interval '${age}')`,
+      [hash(), hash(), email],
+    );
+  }
   return f;
 }
 

@@ -8,6 +8,9 @@ const build = () => {
   return { app, inventory };
 };
 
+const message = (url: string): string =>
+  `Route GET ${url}: member and owner routes, and only they, live under /v1/organizers/:organizerId, where the membership check runs.`;
+
 describe("registerRouteInventory", () => {
   it("records each route with its access kind, including the automatic HEAD route", async () => {
     const { app, inventory } = build();
@@ -25,7 +28,7 @@ describe("registerRouteInventory", () => {
   it("stops the server from starting when a route does not say who may call it", async () => {
     const { app } = build();
     expect(() => app.get("/forgotten", async () => ({}))).toThrow(
-      "Route GET /forgotten must declare config.access (one of public, staff).",
+      "Route GET /forgotten must declare config.access (one of public, staff, member, owner).",
     );
   });
 
@@ -58,7 +61,44 @@ describe("registerRouteInventory", () => {
     );
   });
 
+  it("keeps member and owner routes under /v1/organizers/:organizerId, and nothing else there", async () => {
+    const { app, inventory } = build();
+    app.get(
+      "/v1/organizers/:organizerId/members",
+      { config: { access: "member" } },
+      async () => ({}),
+    );
+    app.post(
+      "/v1/organizers/:organizerId/invites",
+      { config: { access: "owner" } },
+      async () => ({}),
+    );
+    await app.ready();
+    expect(inventory.filter((route) => route.method !== "HEAD")).toEqual([
+      { method: "GET", url: "/v1/organizers/:organizerId/members", access: "member" },
+      { method: "POST", url: "/v1/organizers/:organizerId/invites", access: "owner" },
+    ]);
+    await app.close();
+    expect(() =>
+      build().app.get("/v1/staff/team", { config: { access: "member" } }, async () => ({})),
+    ).toThrow(message("/v1/staff/team"));
+    expect(() =>
+      build().app.get(
+        "/v1/organizers/:organizerIdx",
+        { config: { access: "owner" } },
+        async () => ({}),
+      ),
+    ).toThrow(message("/v1/organizers/:organizerIdx"));
+    expect(() =>
+      build().app.get(
+        "/v1/organizers/:organizerId/open",
+        { config: { access: "public" } },
+        async () => ({}),
+      ),
+    ).toThrow(message("/v1/organizers/:organizerId/open"));
+  });
+
   it("lists the known kinds", () => {
-    expect(ACCESS_KINDS).toEqual(["public", "staff"]);
+    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner"]);
   });
 });

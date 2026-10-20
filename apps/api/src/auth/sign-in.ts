@@ -387,6 +387,32 @@ async function passwordStep(
   };
 }
 
+/**
+ * Inside the caller's transaction, as the user: stores the new session, ends the oldest ones beyond the cap, and audits
+ * the opening. Shared by sign-in and sign-up, so both open a session the same way.
+ */
+export async function openSession(
+  client: PoolClient,
+  staffUserId: string,
+  tokenHash: string,
+  caller: Caller,
+): Promise<void> {
+  const sessionId = await insertSession(client, {
+    staffUserId,
+    tokenHash,
+    userAgent: caller.userAgent,
+    ip: caller.address,
+  });
+  const endedOlder = await capLiveSessions(client, staffUserId, L.maxLiveSessions);
+  await recordAudit(client, {
+    actor: { type: "staff", id: staffUserId },
+    action: "staff.session.open",
+    target: { type: "staff_session", id: sessionId },
+    after: { endedOlderSessions: endedOlder },
+    requestId: caller.requestId,
+  });
+}
+
 type Judged = CodeResult | Readonly<{ kind: "ok"; account: PublicAccount }>;
 
 /** Checks one code guess inside the locked challenge. Wrong guesses are recorded and returned, not thrown. */
@@ -448,20 +474,7 @@ async function codeStep(
       if (!(await consumeChallenge(client, challenge.id))) {
         return { kind: "challenge_expired" } as const;
       }
-      const sessionId = await insertSession(client, {
-        staffUserId: account.id,
-        tokenHash: session.hash,
-        userAgent: caller.userAgent,
-        ip: caller.address,
-      });
-      const endedOlder = await capLiveSessions(client, account.id, L.maxLiveSessions);
-      await recordAudit(client, {
-        actor: { type: "staff", id: account.id },
-        action: "staff.session.open",
-        target: { type: "staff_session", id: sessionId },
-        after: { endedOlderSessions: endedOlder },
-        requestId: caller.requestId,
-      });
+      await openSession(client, account.id, session.hash, caller);
       return { kind: "signed_in", sessionToken: session.token, account } as const;
     }),
   );
