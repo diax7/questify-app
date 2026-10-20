@@ -75,6 +75,9 @@ export function PasswordStep({
       <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
         {t("common.continue")}
       </button>
+      <a className={styles.textLink} href={`/${language}/forgot-password`}>
+        {t("staff.forgotPassword")}
+      </a>
     </form>
   );
 }

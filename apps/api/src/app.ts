@@ -5,12 +5,15 @@ import Fastify, {
   type FastifyServerOptions,
 } from "fastify";
 import type { Pool } from "pg";
+import type { BreachCheck } from "#src/auth/breached";
+import { createDeferred, type Deferred } from "#src/auth/deferred";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
+import { createPasswords } from "#src/auth/password-reset";
 import { registerStaffRoutes } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
-import { createSignIn } from "#src/auth/sign-in";
+import { createSignIn, reasonOf } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
@@ -28,6 +31,10 @@ export type AppOptions = Readonly<{
   pool: Pool;
   /** Sends the sign-in codes (Gmail first, Resend as the backup). */
   emailSender: EmailSender;
+  /** Checks new passwords against known breaches (Pwned Passwords in production, a fake in tests). */
+  breachCheck: BreachCheck;
+  /** Work that runs after an answer has gone. Created when not given; tests give one to wait on. */
+  deferred?: Deferred;
   /** Reads and saves configuration. Created from the pool when not given (tests give one with a short cache). */
   settings?: SettingsService;
   /** Reads and saves the translation store. Created from the pool when not given. */
@@ -43,6 +50,8 @@ declare module "fastify" {
 }
 
 const READINESS_TIMEOUT_MS = 2000;
+/** How long shutdown waits for emails still being sent. */
+const DRAIN_TIMEOUT_MS = 5000;
 
 /** Log level by environment, with secrets and keys removed from every log line. */
 export function loggerOptions(config: AppConfig): {
@@ -95,15 +104,38 @@ export function buildApp(options: AppOptions): FastifyInstance {
     idempotencyStore: options.idempotencyStore,
   });
 
+  const signInDeps = {
+    pool: options.pool,
+    keys: createAuthKeys(config.auth.secret),
+    email: options.emailSender,
+    gate: createVerifyGate(AUTH_LIMITS.verifyGate),
+    securityAlertEmail: config.auth.securityAlertEmail,
+  };
+  const deferred =
+    options.deferred ??
+    createDeferred((error) => {
+      app.log.error({ event: "deferred.task_failed", reason: reasonOf(error) });
+    });
+  app.addHook("onClose", async () => {
+    await Promise.race([
+      deferred.idle(),
+      new Promise((resolve) => {
+        setTimeout(resolve, DRAIN_TIMEOUT_MS).unref();
+      }),
+    ]);
+    if (deferred.pending() > 0) {
+      app.log.warn({ event: "deferred.dropped", count: deferred.pending() });
+    }
+  });
   registerStaffRoutes(app, {
-    signIn: createSignIn({
-      pool: options.pool,
-      keys: createAuthKeys(config.auth.secret),
-      email: options.emailSender,
-      gate: createVerifyGate(AUTH_LIMITS.verifyGate),
-      securityAlertEmail: config.auth.securityAlertEmail,
-    }),
+    signIn: createSignIn(signInDeps),
     sessions: createSessions(options.pool),
+    passwords: createPasswords({
+      ...signInDeps,
+      breachCheck: options.breachCheck,
+      deferred,
+      dashboardOrigin: config.auth.dashboardOrigin,
+    }),
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

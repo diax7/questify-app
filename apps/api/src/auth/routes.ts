@@ -1,8 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  breachCheckUnavailable,
   busy,
   challengeExpired,
+  currentPasswordWrong,
   csrfRejected,
   emailUnavailable,
   invalidCode,
@@ -11,12 +13,15 @@ import {
   notFound,
   resendLimit,
   resendTooSoon,
+  resetLinkInvalid,
   sessionExpired,
   tooManyAttempts,
   tooManyChallenges,
   unauthenticated,
+  weakPassword,
 } from "#src/auth/http-errors";
 import { sessionLimitsFor } from "#src/auth/limits";
+import type { Passwords, WeakReason } from "#src/auth/password-reset";
 import {
   SESSION_COOKIE,
   clearedSessionCookie,
@@ -29,6 +34,7 @@ import type { Caller, SignIn } from "#src/auth/sign-in";
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
   sessions: Sessions;
+  passwords: Passwords;
   /** The one origin allowed to make state-changing requests with the session cookie. */
   dashboardOrigin: string;
 }>;
@@ -46,6 +52,19 @@ const codeBody = z.object({
 });
 const resendBody = z.object({ challengeToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });
 const sessionParams = z.object({ id: z.uuid() });
+const resetRequestBody = z.object({
+  email: z.string().min(3).max(254),
+  lang: z.enum(["ar", "en"]),
+});
+const resetConfirmBody = z.object({
+  token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  newPassword: z.string().min(1).max(1024),
+});
+const changeBody = z.object({
+  currentPassword: z.string().min(1).max(1024),
+  newPassword: z.string().min(1).max(1024),
+});
+const BREACH_RETRY_SECONDS = 30;
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -100,6 +119,57 @@ async function requireSession(
   }
   reply.header("set-cookie", clearedSessionCookie());
   throw result.kind === "none" ? unauthenticated() : sessionExpired();
+}
+
+type NotSet =
+  | Readonly<{ kind: "weak"; reason: WeakReason }>
+  | Readonly<{ kind: "breach_unavailable" }>
+  | Readonly<{ kind: "busy" }>
+  | Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
+
+/** The answers a new password can get when it was not set, shared by reset and change. */
+function refuseNewPassword(reply: FastifyReply, result: NotSet): never {
+  switch (result.kind) {
+    case "weak":
+      throw weakPassword({ reason: result.reason });
+    case "breach_unavailable":
+      waitThen(reply, BREACH_RETRY_SECONDS);
+      throw breachCheckUnavailable({ retryAfterSeconds: BREACH_RETRY_SECONDS });
+    case "busy":
+      waitThen(reply, 2);
+      throw busy();
+    case "throttled":
+      waitThen(reply, result.retryAfterSeconds);
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+  }
+}
+
+function registerResetRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
+  const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
+
+  scope.post("/auth/reset/request", open, async (request, reply) => {
+    const body = parse(resetRequestBody, request.body);
+    const result = await deps.passwords.requestReset(body, callerOf(request));
+    switch (result.kind) {
+      case "accepted":
+        return reply.code(202).send({});
+      case "throttled":
+        waitThen(reply, result.retryAfterSeconds);
+        throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    }
+  });
+
+  scope.post("/auth/reset/confirm", open, async (request, reply) => {
+    const body = parse(resetConfirmBody, request.body);
+    const result = await deps.passwords.confirmReset(body, callerOf(request));
+    if (result.kind === "reset") {
+      return reply.code(204).send();
+    }
+    if (result.kind === "link_invalid") {
+      throw resetLinkInvalid();
+    }
+    return refuseNewPassword(reply, result);
+  });
 }
 
 function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
@@ -202,6 +272,23 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
     return reply.code(204).send();
   });
 
+  scope.post(
+    "/password",
+    { ...staffOnly, bodyLimit: SIGN_IN_BODY_LIMIT },
+    async (request, reply) => {
+      const staff = request.staff ?? failClosed();
+      const body = parse(changeBody, request.body);
+      const result = await deps.passwords.change(body, staff, callerOf(request));
+      if (result.kind === "changed") {
+        return reply.code(204).send();
+      }
+      if (result.kind === "current_wrong") {
+        throw currentPasswordWrong();
+      }
+      return refuseNewPassword(reply, result);
+    },
+  );
+
   scope.post("/auth/sign-out", staffOnly, async (request, reply) => {
     const { account, sessionId } = request.staff ?? failClosed();
     await deps.sessions.revoke(account.id, sessionId, { requestId: request.id });
@@ -217,7 +304,7 @@ function failClosed(): never {
 
 /**
  * Registers every /v1/staff route inside one scope whose hook demands a valid session unless the route's access is
- * "public" (the three sign-in steps). Every route declares its access; the app refuses to start otherwise
+ * "public" (the three sign-in steps and the two reset steps). Every route declares its access; the app refuses to start otherwise
  * (route-access.ts).
  */
 export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps): void {
@@ -232,6 +319,7 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps)
         }
       });
       registerSignInRoutes(scope, deps);
+      registerResetRoutes(scope, deps);
       registerSessionRoutes(scope, deps);
     },
     { prefix: "/v1/staff" },

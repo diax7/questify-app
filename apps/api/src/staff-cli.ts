@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import { createBreachCheck } from "#src/auth/breached";
 import { createAuthKeys } from "#src/auth/keys";
 import { clearThrottleFor, createStaffAccount } from "#src/auth/staff-admin";
 
@@ -34,11 +35,11 @@ async function main(): Promise<void> {
   await owner.connect();
   try {
     if (command === "create") {
-      const id = await createStaffAccount(owner, {
-        email,
-        password: await readStdin(),
-        admin: flags.includes("--admin"),
-      });
+      const id = await createStaffAccount(
+        owner,
+        { email, password: await readStdin(), admin: flags.includes("--admin") },
+        createBreachCheck(),
+      );
       process.stdout.write(`Created ${email} (${id}).\n`);
       return;
     }

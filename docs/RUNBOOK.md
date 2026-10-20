@@ -37,7 +37,19 @@ If an attacker keeps a known admin email throttled, this is also the way back in
 same attention if the attacker rotates addresses (look for the `staff.throttled` log lines).
 
 **"Too many sign-in codes" (5 an hour)** can be caused by someone who knows the password. `clear-throttle` frees it
-too; then change the password (no web reset exists until T-020).
+too; then change the password (dashboard, My account) or reset it.
+
+**A locked-out admin (or anyone), in order:**
+1. Forgot the password: "Forgot your password?" on the sign-in page emails a link (30 minutes, one use). Using it
+   ends every session and clears the sign-in lockout, so the next sign-in works.
+2. Throttled, or the reset requests are used up (3 an hour per email): `node staff.cjs clear-throttle <email>` clears
+   the failures, the code count and the reset-request count.
+3. Lost the mailbox: there is no web way back (the mailbox is the second factor, ADR-078). With the owner connection,
+   disable the account and create a new one; record it.
+
+**`staff.breach_check_unavailable` in the log** (password set answers 503): the API cannot reach
+`api.pwnedpasswords.com`. Check outbound HTTPS from the API container; nothing is changed while it is down.
+`staff.password_notice_failed` means a "password changed" email did not go out (see the email senders below).
 
 **Both email senders are down** (`staff.email_unavailable` in the log, sign-in answers 503): nobody can sign in.
 The log line names the step and Google's reason (`unauthorized_client`: the domain-wide delegation or its scope is missing; `invalid_grant`: the mailbox in `GMAIL_ACT_AS` or `MAIL_FROM` is not a real user, or the clock is off). Check Google's daily sending limit, then Resend's key and domain. A sender that is

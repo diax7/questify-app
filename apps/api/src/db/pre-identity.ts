@@ -3,12 +3,13 @@ import { setLocalSettings } from "#src/db/connection";
 
 /**
  * How sign-in finds one row before it knows who the caller is. Each kind opens exactly one row:
- * the account with that email, the session with that token hash, or the challenge with that token hash.
+ * the account with that email, or the session, challenge or password-reset link with that token hash.
  */
 export type Lookup =
   | Readonly<{ kind: "email"; email: string }>
   | Readonly<{ kind: "session"; tokenHash: string }>
-  | Readonly<{ kind: "challenge"; tokenHash: string }>;
+  | Readonly<{ kind: "challenge"; tokenHash: string }>
+  | Readonly<{ kind: "reset"; tokenHash: string }>;
 
 /** What the work may do once it has found the row: continue as that user. */
 export type Identify = Readonly<{
@@ -29,6 +30,7 @@ const SETTINGS = [
   "app.auth_email",
   "app.session_token_hash",
   "app.challenge_token_hash",
+  "app.reset_token_hash",
 ] as const;
 
 function checkedHash(name: string, value: string): string {
@@ -61,6 +63,8 @@ function lookupSetting(lookup: Lookup): readonly [string, string] {
       return ["app.session_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
     case "challenge":
       return ["app.challenge_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
+    case "reset":
+      return ["app.reset_token_hash", checkedHash("tokenHash", lookup.tokenHash)];
   }
 }
 

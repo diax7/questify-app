@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFailoverSender } from "#src/auth/email/failover";
 import { createResendSender } from "#src/auth/email/resend";
 import { EmailSendError, type EmailSender } from "#src/auth/email/sender";
-import { newSignInAlertEmail, signInCodeEmail } from "#src/auth/email/templates";
+import {
+  newSignInAlertEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+  signInCodeEmail,
+} from "#src/auth/email/templates";
 
 const message = { to: "sara@najd.sa", subject: "s", text: "t 123456" };
 
@@ -288,5 +293,46 @@ describe("email sender details", () => {
       sender: "failover",
       message: 'Email sender "failover" failed: no sender finished within 50 ms',
     });
+  });
+});
+
+const resetText = (minutes: number): string =>
+  passwordResetEmail({ link: "x", expiresInMinutes: minutes }).text;
+
+describe("password emails (T-020)", () => {
+  it("writes the reset link email word for word, Arabic first, the link in both parts", () => {
+    const link = "https://app.questify.sa/ar/reset-password#token=abc";
+    expect(passwordResetEmail({ link, expiresInMinutes: 30 })).toEqual({
+      subject: "إعادة تعيين كلمة المرور | Reset your Questify password",
+      text: [
+        "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في كويستيفاي.",
+        `افتح هذا الرابط لاختيار كلمة مرور جديدة: ${link}`,
+        "يعمل الرابط مرة واحدة لمدة 30 دقيقة. إذا لم تطلب ذلك، تجاهل هذه الرسالة، فكلمة مرورك لم تتغير.",
+        "",
+        "We received a request to reset the password of your Questify account.",
+        `Open this link to choose a new password: ${link}`,
+        "The link works once, for 30 minutes. If you did not ask for this, ignore this email; your password has not changed.",
+      ].join("\n"),
+    });
+  });
+
+  it("counts minutes the Arabic way: own forms for one and two, plural from 3 to 10, singular from 11", () => {
+    expect(resetText(10)).toContain("لمدة 10 دقائق");
+    expect(resetText(3)).toContain("لمدة 3 دقائق");
+    expect(resetText(11)).toContain("لمدة 11 دقيقة");
+    expect(resetText(2)).toContain("لمدة دقيقتين");
+    expect(resetText(1)).toContain("لمدة دقيقة واحدة");
+  });
+
+  it("writes the password-changed notice with the time in Riyadh and a way back, holding no secret", () => {
+    const content = passwordChangedEmail({
+      at: new Date("2026-10-19T09:30:00Z"),
+      dashboardOrigin: "https://app.questify.sa",
+    });
+    expect(content.subject).toBe("تغيّرت كلمة المرور | Your Questify password was changed");
+    expect(content.text).toContain("12:30 (Riyadh)");
+    expect(content.text).toContain("https://app.questify.sa/ar/forgot-password");
+    expect(content.text).toContain("https://app.questify.sa/en/forgot-password");
+    expect(content.text).not.toMatch(/token|[٠-٩]/);
   });
 });

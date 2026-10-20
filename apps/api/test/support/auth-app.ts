@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyServerOptions, LightMyRequestResponse } from "fastify";
 import { Pool, type Client } from "pg";
 import { buildApp } from "#src/app";
+import { BreachCheckUnavailable, type BreachCheck } from "#src/auth/breached";
+import { createDeferred, type Deferred } from "#src/auth/deferred";
 import { EmailSendError, type EmailMessage, type EmailSender } from "#src/auth/email/sender";
 import { hashPassword } from "#src/auth/password";
 import type { AppConfig } from "#src/config";
@@ -73,6 +75,31 @@ export class RecordingEmailSender implements EmailSender {
   }
 }
 
+/** A password the fake breach list knows. */
+export const BREACHED_PASSWORD = "this one was in a breach 2019";
+
+/** Stands in for Pwned Passwords: knows one breached password and can be told the service is down. */
+export class FakeBreachCheck {
+  down = false;
+  /** Throws an error that is not "unavailable", which must never be mistaken for one. */
+  broken = false;
+  readonly seen: string[] = [];
+  /** Runs inside the check, so a test can change the database between a reset's two phases. */
+  during: (() => Promise<void>) | undefined;
+
+  readonly check: BreachCheck = async (password) => {
+    this.seen.push(password);
+    await this.during?.();
+    if (this.down) {
+      throw new BreachCheckUnavailable("told to be down");
+    }
+    if (this.broken) {
+      throw new TypeError("told to break");
+    }
+    return password === BREACHED_PASSWORD;
+  };
+}
+
 export type StaffSeed = Readonly<{
   email: string;
   password?: string;
@@ -95,6 +122,9 @@ export async function createStaff(owner: Client, seed: StaffSeed): Promise<strin
 export type TestApp = Readonly<{
   app: FastifyInstance;
   mail: RecordingEmailSender;
+  breach: FakeBreachCheck;
+  /** Waits for work that runs after an answer (reset emails, change notices). */
+  deferred: Deferred;
   pool: Pool;
   close: () => Promise<void>;
 }>;
@@ -108,11 +138,17 @@ export async function startApp(
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
+  const breach = new FakeBreachCheck();
+  const deferred = createDeferred((error) => {
+    throw error;
+  });
   const app = buildApp({
     config: testConfig(db.appUrl, auth),
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: mail,
+    breachCheck: breach.check,
+    deferred,
     ...(settings === undefined ? {} : { settings }),
     ...(translations === undefined ? {} : { translations }),
     logger,
@@ -121,6 +157,8 @@ export async function startApp(
   return {
     app,
     mail,
+    breach,
+    deferred,
     pool,
     close: async () => {
       await app.close();

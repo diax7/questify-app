@@ -2,6 +2,7 @@ import type { Client } from "pg";
 import { recordAudit } from "#src/audit/record";
 import type { AuthKeys } from "#src/auth/keys";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
+import { BreachCheckUnavailable, type BreachCheck } from "#src/auth/breached";
 import { checkPasswordPolicy, hashPassword } from "#src/auth/password";
 import { BUCKETS, clearKey } from "#src/auth/throttle";
 
@@ -12,6 +13,8 @@ const REASONS = {
   too_short: "The password must have at least 12 characters.",
   too_long: "The password must have at most 128 characters.",
   same_as_email: "The password must not be the email address.",
+  context_word: "The password must not contain Questify, Nafes or the email's name.",
+  breached: "This password appears in a known data breach; choose another.",
 } as const;
 
 /**
@@ -23,6 +26,7 @@ const REASONS = {
 export async function createStaffAccount(
   owner: Client,
   input: { email: string; password: string; admin: boolean },
+  breachCheck: BreachCheck,
 ): Promise<string> {
   const email = normalizeEmail(input.email);
   if (!isPlausibleEmail(email) || !DOMAIN_WITH_DOT.test(email)) {
@@ -32,6 +36,7 @@ export async function createStaffAccount(
   if (!policy.ok) {
     throw new Error(REASONS[policy.reason]);
   }
+  await refuseBreached(breachCheck, input.password);
   const passwordHash = await hashPassword(input.password);
   try {
     return await inTransaction(owner, async () => {
@@ -59,6 +64,22 @@ export async function createStaffAccount(
   }
 }
 
+/** Every password set goes through the breach list (T-020); no answer means no account. */
+async function refuseBreached(breachCheck: BreachCheck, password: string): Promise<void> {
+  let breached: boolean;
+  try {
+    breached = await breachCheck(password);
+  } catch (error) {
+    if (error instanceof BreachCheckUnavailable) {
+      throw new Error("The breached-password check is unreachable; try again.", { cause: error });
+    }
+    throw error;
+  }
+  if (breached) {
+    throw new Error(REASONS.breached);
+  }
+}
+
 /** Runs `work` in one transaction on the owner connection, so a change and its audit entry stay together. */
 async function inTransaction<T>(owner: Client, work: () => Promise<T>): Promise<T> {
   await owner.query("BEGIN");
@@ -73,7 +94,8 @@ async function inTransaction<T>(owner: Client, work: () => Promise<T>): Promise<
 }
 
 /**
- * Frees a person who is throttled: removes their failure count and their challenge count.
+ * Frees a person who is throttled: removes their failure count, their reset-request count and their challenge
+ * count.
  *
  * @returns false when no account has that email (the failure count is cleared anyway).
  */
@@ -85,6 +107,7 @@ export async function clearThrottleFor(
   const email = normalizeEmail(rawEmail);
   return inTransaction(owner, async () => {
     await clearKey(owner, BUCKETS.failEmail, keys.emailKey(email));
+    await clearKey(owner, BUCKETS.resetEmail, keys.emailKey(email));
     const { rows } = await owner.query<{ id: string }>(
       "SELECT id FROM staff_user WHERE email = $1",
       [email],

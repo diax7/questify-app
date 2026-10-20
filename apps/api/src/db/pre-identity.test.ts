@@ -41,6 +41,7 @@ describe("withPreIdentityContext", () => {
       "app.is_admin",
       "app.session_token_hash",
       "app.challenge_token_hash",
+      "app.reset_token_hash",
     ]) {
       expect(settings.get(name)).toBe("");
     }
@@ -51,6 +52,7 @@ describe("withPreIdentityContext", () => {
   it.each([
     ["session", "app.session_token_hash"],
     ["challenge", "app.challenge_token_hash"],
+    ["reset", "app.reset_token_hash"],
   ] as const)("opens a %s lookup by token hash", async (kind, setting) => {
     const { client, calls } = fakeClient();
     await withPreIdentityContext(client, { kind, tokenHash: HASH }, async () => 1);
@@ -73,6 +75,7 @@ describe("withPreIdentityContext", () => {
     ["a short session hash", { kind: "session", tokenHash: "ab" }],
     ["an upper-case session hash", { kind: "session", tokenHash: "AB".repeat(32) }],
     ["a non-hex challenge hash", { kind: "challenge", tokenHash: "zz".repeat(32) }],
+    ["a short reset hash", { kind: "reset", tokenHash: "ab" }],
   ] as const)("refuses %s before talking to the database", async (_label, lookup) => {
     const { client, calls } = fakeClient();
     await expect(withPreIdentityContext(client, lookup, async () => 1)).rejects.toThrow(RangeError);

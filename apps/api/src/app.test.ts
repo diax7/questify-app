@@ -15,6 +15,7 @@ async function build(pool: Pool = poolThat(async () => ({ rows: [] }))): Promise
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: new RecordingEmailSender(),
+    breachCheck: async () => false,
     logger: false,
   });
   await app.ready();
@@ -90,6 +91,7 @@ async function ipSeenBehind(forwardedFor: string, hops: number): Promise<string>
     idempotencyStore: new MemoryIdempotencyStore(),
     pool: poolThat(async () => ({ rows: [] })),
     emailSender: new RecordingEmailSender(),
+    breachCheck: async () => false,
     logger: false,
   });
   app.get("/whoami", { config: { access: "public" } }, async (incoming) => ({ ip: incoming.ip }));

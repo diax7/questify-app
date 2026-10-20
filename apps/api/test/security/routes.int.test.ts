@@ -33,6 +33,12 @@ const ROUTES: Readonly<Record<string, string>> = {
   "DELETE /v1/staff/sessions/:id":
     "another person's session answers 404 and stays live (tested below)",
   "POST /v1/staff/auth/sign-out": "ends only the caller's own session (tested below)",
+  "POST /v1/staff/auth/reset/request":
+    "names no account: the same 202 for every email; the link goes only to the account's own mailbox (test/auth/password-reset)",
+  "POST /v1/staff/auth/reset/confirm":
+    "bound to the one link its secret token opens (test/auth/password-reset, test/db/password-reset)",
+  "POST /v1/staff/password":
+    "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };
 
 const PUBLIC_ROUTES = [
@@ -43,6 +49,8 @@ const PUBLIC_ROUTES = [
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",
+  "POST /v1/staff/auth/reset/confirm",
+  "POST /v1/staff/auth/reset/request",
 ];
 
 const MISSING = "00000000-0000-4000-8000-000000000000";

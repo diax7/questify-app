@@ -65,6 +65,71 @@ export const MESSAGES = {
   "staff.role.owner": { ar: "مالك", en: "Owner" },
   "staff.role.editor": { ar: "محرر", en: "Editor" },
   "staff.signOut": { ar: "تسجيل الخروج", en: "Sign out" },
+  "staff.forgotPassword": { ar: "نسيت كلمة المرور؟", en: "Forgot your password?" },
+  "staff.forgotTitle": { ar: "إعادة تعيين كلمة المرور", en: "Reset your password" },
+  "staff.forgotHint": {
+    ar: "أدخل بريدك الإلكتروني وسنرسل إليه رابطًا لاختيار كلمة مرور جديدة.",
+    en: "Enter your email and we will send it a link to choose a new password.",
+  },
+  "staff.sendLink": { ar: "إرسال الرابط", en: "Send the link" },
+  "staff.linkSent": {
+    ar: "إذا كان لهذا البريد حساب، فقد أرسلنا إليه رابطًا يعمل لمدة 30 دقيقة.",
+    en: "If an account uses this email, we sent it a link. It works for 30 minutes.",
+  },
+  "staff.backToSignIn": { ar: "العودة إلى تسجيل الدخول", en: "Back to sign in" },
+  "staff.newPasswordTitle": { ar: "اختر كلمة مرور جديدة", en: "Choose a new password" },
+  "staff.newPassword": { ar: "كلمة المرور الجديدة", en: "New password" },
+  "staff.confirmPassword": {
+    ar: "أعد كتابة كلمة المرور الجديدة",
+    en: "Type the new password again",
+  },
+  "staff.passwordRules": {
+    ar: "12 حرفًا على الأقل. تصلح عبارة يسهل تذكرها، دون اسم Questify أو بريدك.",
+    en: "At least 12 characters. A phrase you can remember works well; leave out Questify and your email.",
+  },
+  "staff.passwordsDiffer": {
+    ar: "كلمتا المرور غير متطابقتين.",
+    en: "The two passwords do not match.",
+  },
+  "staff.savePassword": { ar: "حفظ كلمة المرور", en: "Save the password" },
+  "staff.passwordReset": {
+    ar: "حُفظت كلمة المرور الجديدة. سجّل الدخول بها.",
+    en: "Your new password is saved. Sign in with it.",
+  },
+  "staff.linkMissing": {
+    ar: "افتح الرابط من بريدك مرة أخرى، أو اطلب رابطًا جديدًا.",
+    en: "Open the link from your email again, or ask for a new one.",
+  },
+  "staff.requestNewLink": { ar: "طلب رابط جديد", en: "Ask for a new link" },
+  "staff.showPassword": { ar: "إظهار كلمة المرور", en: "Show password" },
+  "staff.hidePassword": { ar: "إخفاء كلمة المرور", en: "Hide password" },
+  "staff.account": { ar: "حسابي", en: "My account" },
+  "staff.changePassword": { ar: "تغيير كلمة المرور", en: "Change password" },
+  "staff.currentPassword": { ar: "كلمة المرور الحالية", en: "Current password" },
+  "staff.passwordChanged": {
+    ar: "تغيّرت كلمة المرور، وخرجنا من أجهزتك الأخرى.",
+    en: "Your password is changed, and your other devices are signed out.",
+  },
+  "staff.weak.tooShort": {
+    ar: "كلمة المرور قصيرة: استخدم 12 حرفًا على الأقل.",
+    en: "Too short: use at least 12 characters.",
+  },
+  "staff.weak.tooLong": {
+    ar: "كلمة المرور طويلة: استخدم 128 حرفًا على الأكثر.",
+    en: "Too long: use at most 128 characters.",
+  },
+  "staff.weak.sameAsEmail": {
+    ar: "لا تستخدم بريدك الإلكتروني كلمةً للمرور.",
+    en: "Do not use your email as the password.",
+  },
+  "staff.weak.contextWord": {
+    ar: "لا تضع Questify أو Nafes أو اسم بريدك في كلمة المرور.",
+    en: "Leave Questify, Nafes and your email's name out of the password.",
+  },
+  "staff.weak.breached": {
+    ar: "ظهرت كلمة المرور هذه في تسريب بيانات معروف. اختر غيرها.",
+    en: "This password appeared in a known data breach. Choose another.",
+  },
   "points.balance": {
     ar: "لديك {points} {currency}",
     en: "You have {points} {currency}",

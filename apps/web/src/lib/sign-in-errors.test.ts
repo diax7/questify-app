@@ -80,3 +80,31 @@ describe("describeProblem", () => {
     }
   });
 });
+
+describe("describeProblem for a refused new password (T-020)", () => {
+  it.each([
+    ["too_short", "staff.weak.tooShort"],
+    ["too_long", "staff.weak.tooLong"],
+    ["same_as_email", "staff.weak.sameAsEmail"],
+    ["context_word", "staff.weak.contextWord"],
+    ["breached", "staff.weak.breached"],
+  ] as const)(
+    "names the %s reason in the page's language instead of the generic text",
+    (reason, key) => {
+      const ar = describeProblem(envelope("weak_password", { reason }), "ar", translatorFor("ar"));
+      const en = describeProblem(envelope("weak_password", { reason }), "en", translatorFor("en"));
+      expect(ar).toEqual({ text: translatorFor("ar")(key), restart: false });
+      expect(en.text).toBe(translatorFor("en")(key));
+      expect(en.text).not.toBe("The server's message.");
+    },
+  );
+
+  it("falls back to the API's words for a reason it does not know", () => {
+    const problem = describeProblem(
+      envelope("weak_password", { reason: "something_new" }),
+      "en",
+      translatorFor("en"),
+    );
+    expect(problem.text).toBe("The server's message.");
+  });
+});

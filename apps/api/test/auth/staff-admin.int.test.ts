@@ -4,7 +4,7 @@ import { createAuthKeys } from "#src/auth/keys";
 import { verifyPassword } from "#src/auth/password";
 import { clearThrottleFor, createStaffAccount } from "#src/auth/staff-admin";
 import { BUCKETS, record } from "#src/auth/throttle";
-import { testConfig } from "#test/support/auth-app";
+import { BREACHED_PASSWORD, FakeBreachCheck, testConfig } from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration", () => {
@@ -19,9 +19,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
   });
 
   const strong = "a long enough password";
+  const breach = new FakeBreachCheck();
+  const create = (owner: Client, input: { email: string; password: string; admin: boolean }) =>
+    createStaffAccount(owner, input, breach.check);
+
+  it("refuses a password from a known breach, and makes no account (T-020)", async () => {
+    await expect(
+      create(db.owner, { email: "breached@najd.sa", password: BREACHED_PASSWORD, admin: false }),
+    ).rejects.toThrow("This password appears in a known data breach; choose another.");
+    const { rows } = await db.owner.query(
+      "SELECT 1 FROM staff_user WHERE email = 'breached@najd.sa'",
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("makes no account when the breach check cannot answer, and says to try again", async () => {
+    breach.down = true;
+    try {
+      await expect(
+        create(db.owner, { email: "unchecked@najd.sa", password: strong, admin: false }),
+      ).rejects.toThrow("The breached-password check is unreachable; try again.");
+    } finally {
+      breach.down = false;
+    }
+    const { rows } = await db.owner.query(
+      "SELECT 1 FROM staff_user WHERE email = 'unchecked@najd.sa'",
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("refuses a password with the product name in it", async () => {
+    await expect(
+      create(db.owner, { email: "ctx@najd.sa", password: "welcome to questify!", admin: false }),
+    ).rejects.toThrow("must not contain Questify");
+  });
 
   it("creates an account with a hashed password and the right role", async () => {
-    const id = await createStaffAccount(db.owner, {
+    const id = await create(db.owner, {
       email: "  New.Person@Najd.SA ",
       password: strong,
       admin: false,
@@ -42,7 +76,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
   });
 
   it("creates an admin when asked", async () => {
-    const id = await createStaffAccount(db.owner, {
+    const id = await create(db.owner, {
       email: "boss@najd.sa",
       password: strong,
       admin: true,
@@ -66,23 +100,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
       /must not be the email/,
     ],
   ])("refuses %s", async (_label, email, password, message) => {
-    await expect(createStaffAccount(db.owner, { email, password, admin: false })).rejects.toThrow(
-      message,
-    );
+    await expect(create(db.owner, { email, password, admin: false })).rejects.toThrow(message);
     const { rows } = await db.owner.query("SELECT 1 FROM staff_user WHERE email = $1", [email]);
     expect(rows).toEqual([]);
   });
 
   it("explains that an account already exists, whatever the capitalisation", async () => {
-    await createStaffAccount(db.owner, { email: "twice@najd.sa", password: strong, admin: false });
+    await create(db.owner, { email: "twice@najd.sa", password: strong, admin: false });
     await expect(
-      createStaffAccount(db.owner, { email: "TWICE@najd.sa", password: strong, admin: false }),
+      create(db.owner, { email: "TWICE@najd.sa", password: strong, admin: false }),
     ).rejects.toThrow(/already exists/);
   });
 
   it("keeps the real cause of an account that already exists", async () => {
-    await createStaffAccount(db.owner, { email: "cause@najd.sa", password: strong, admin: false });
-    const error = await createStaffAccount(db.owner, {
+    await create(db.owner, { email: "cause@najd.sa", password: strong, admin: false });
+    const error = await create(db.owner, {
       email: "cause@najd.sa",
       password: strong,
       admin: false,
@@ -97,12 +129,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
       },
     } as unknown as Client;
     await expect(
-      createStaffAccount(broken, { email: "x@najd.sa", password: strong, admin: false }),
+      create(broken, { email: "x@najd.sa", password: strong, admin: false }),
     ).rejects.toThrow("connection lost");
   });
 
   it("clears a person's failure count and challenge count", async () => {
-    const id = await createStaffAccount(db.owner, {
+    const id = await create(db.owner, {
       email: "locked@najd.sa",
       password: strong,
       admin: false,
@@ -110,6 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
     for (let count = 0; count < 3; count += 1) {
       await record(db.owner, BUCKETS.failEmail, keys.emailKey("locked@najd.sa"));
       await record(db.owner, BUCKETS.challengeUser, keys.userKey(id));
+      await record(db.owner, BUCKETS.resetEmail, keys.emailKey("locked@najd.sa"));
     }
     await record(db.owner, BUCKETS.failEmail, keys.emailKey("someone.else@najd.sa"));
 

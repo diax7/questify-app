@@ -187,6 +187,48 @@ export async function replaceCode(db: Db, id: string, codeHash: Buffer): Promise
   return rowCount === 1;
 }
 
+// ---------------------------------------------------------------- password reset links (T-020)
+
+/** Removes the promoted user's reset links (a new link or a new password replaces them). A bare delete. */
+export async function deleteOwnResetLinks(db: Db): Promise<void> {
+  await db.query("DELETE FROM staff_password_reset");
+}
+
+export async function insertResetLink(
+  db: Db,
+  link: { staffUserId: string; tokenHash: string; validForSeconds: number },
+): Promise<void> {
+  await db.query(
+    `INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at)
+     VALUES ($1, decode($2, 'hex'), now() + make_interval(secs => $3))`,
+    [link.staffUserId, link.tokenHash, link.validForSeconds],
+  );
+}
+
+/** Under the reset lookup context: the one link and whether it has expired, by the database's own clock. */
+export async function findResetLink(
+  db: Db,
+): Promise<Readonly<{ staffUserId: string; expired: boolean }> | undefined> {
+  const { rows } = await db.query<{ staff_user_id: string; expired: boolean }>(
+    "SELECT staff_user_id, expires_at <= now() AS expired FROM staff_password_reset",
+  );
+  const row = rows[0];
+  return row === undefined ? undefined : { staffUserId: row.staff_user_id, expired: row.expired };
+}
+
+/**
+ * Under the reset lookup context: uses the link up by deleting it, if it is still valid by the database's clock.
+ * A second caller with the same token waits on the row lock and then finds nothing.
+ *
+ * @returns the link's user id, or undefined when it was already used or has expired.
+ */
+export async function consumeResetLink(db: Db): Promise<string | undefined> {
+  const { rows } = await db.query<{ staff_user_id: string }>(
+    "DELETE FROM staff_password_reset WHERE expires_at > now() RETURNING staff_user_id",
+  );
+  return rows[0]?.staff_user_id;
+}
+
 // ---------------------------------------------------------------- sessions
 
 export async function insertSession(
@@ -262,6 +304,24 @@ export async function revokeSessionById(db: Db, staffUserId: string, id: string)
   return rowCount === 1;
 }
 
+/**
+ * Ends every live session of a user, or every one but `keep` (a password change keeps the session it came from).
+ *
+ * @returns how many sessions were ended.
+ */
+export async function revokeUserSessions(
+  db: Db,
+  staffUserId: string,
+  keep?: string,
+): Promise<number> {
+  const { rowCount } = await db.query(
+    `UPDATE staff_session SET revoked_at = now()
+     WHERE staff_user_id = $1 AND revoked_at IS NULL AND id IS DISTINCT FROM $2::uuid`,
+    [staffUserId, keep ?? null],
+  );
+  return rowCount ?? 0;
+}
+
 export async function listLiveSessions(
   db: Db,
   staffUserId: string,
@@ -314,4 +374,5 @@ export async function listMemberships(db: Db, staffUserId: string): Promise<Memb
 export async function sweepRetention(db: Db): Promise<void> {
   await db.query("DELETE FROM staff_session");
   await db.query("DELETE FROM staff_login_challenge");
+  await db.query("DELETE FROM staff_password_reset");
 }

@@ -1,33 +1,5 @@
-import { readFileSync } from "node:fs";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { CODES_FILE } from "#e2e/paths.ts";
-
-let addressCounter = 0;
-
-/** Each test gets its own client address, so the API's per-address throttles never cross tests. */
-async function freshAddress(page: Page): Promise<void> {
-  addressCounter += 1;
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": `198.51.100.${addressCounter}` });
-}
-
-/** The account for this test and browser size (created by apps/api/test/e2e-server.ts). */
-const account = (name: string, info: TestInfo): string => `${name}.${info.project.name}@najd.test`;
-
-const PASSWORD = "correct horse battery staple";
-
-function readCode(email: string): string | undefined {
-  try {
-    return (JSON.parse(readFileSync(CODES_FILE, "utf8")) as Record<string, string>)[email];
-  } catch {
-    return undefined;
-  }
-}
-
-/** The code emailed to this address, waiting for the API to send it (it answers before the email goes out). */
-async function codeFor(email: string): Promise<string> {
-  await expect.poll(() => readCode(email), { timeout: 10_000 }).toMatch(/^[0-9]{6}$/);
-  return readCode(email) ?? "";
-}
+import { expect, test, type Page } from "@playwright/test";
+import { PASSWORD, account, codeFor, freshAddress } from "#e2e/mail.ts";
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {
   const overflow = await page.evaluate(

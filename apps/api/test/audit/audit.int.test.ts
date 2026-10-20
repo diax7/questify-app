@@ -384,11 +384,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
     });
 
     it("staff CLI: a system entry for each command, without the email", async () => {
-      const id = await createStaffAccount(db.owner, {
-        email: "cli@najd.test",
-        password: "a long enough password",
-        admin: false,
-      });
+      const id = await createStaffAccount(
+        db.owner,
+        { email: "cli@najd.test", password: "a long enough password", admin: false },
+        async () => false,
+      );
       await clearThrottleFor(db.owner, createAuthKeys(testConfig().auth.secret), "cli@najd.test");
       await clearThrottleFor(db.owner, createAuthKeys(testConfig().auth.secret), "ghost@najd.test");
       const made = await newEntries();

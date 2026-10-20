@@ -7,6 +7,10 @@ export const AUTH_LIMITS = {
   /** Challenges (emailed codes) a user can start per hour, however they are used. */
   challengesPerUser: { max: 5, windowSeconds: 3600 },
   challengeValiditySeconds: 600,
+  /** Password-reset emails asked for per email and per client address (T-020). */
+  resetRequestsPerEmail: { max: 3, windowSeconds: 3600 },
+  resetRequestsPerAddress: { max: 10, windowSeconds: 3600 },
+  resetValiditySeconds: 1800,
   /** The database caps attempts per challenge at 5 and resends at 3; these mirror those checks. */
   maxCodeAttempts: 5,
   maxResends: 3,

@@ -47,7 +47,9 @@ public event page and join code; and the big-screen/station links.
   sessions listed and revocable (ADR-078, F-293). The user considers this "very safe" (2026-10-17). It
   means a mailbox takeover can open an admin account, which ADR-078 and ADR-094 accepted.
 - Passwords: argon2id (19 MiB, 2 passes, 1 lane); 12 to 128 characters counted as code points after NFKC;
-  breached-password check on set arrives with T-020 (nothing sets a password from the web before then); never logged.
+  every set (reset, change, `staff-cli create`) refuses the product names and the email's name part (ASVS V6.2.11) and
+  any password in Have I Been Pwned's Pwned Passwords list (k-anonymity: 5 hex characters of the SHA-1 leave the
+  server, padding on; T-020); never logged.
 - Rotating My QR: a signed token with the player id and a 30-second window, verified server-side;
   the wallet-pass fixed code is accepted too (ADR-091) and is therefore a shareable secret by design.
 
@@ -57,6 +59,7 @@ public event page and join code; and the big-screen/station links.
 |---|---|---|
 | V6 authentication | argon2id; same answer and same time for unknown, wrong and disabled; one sliding-window throttle per email and per address (8 and 30 failures in 15 minutes) counted across challenges; 5 code attempts per challenge, kept across resends; 5 challenges an hour; second factor is the emailed code (ADR-078) | `test/auth/sign-in.int.test.ts` |
 | V7 session management | 256-bit random token stored as SHA-256; `__Host-` cookie, `HttpOnly`, `Secure`, `SameSite=Strict`; idle 30 minutes / maximum 12 hours (admins 15 minutes / 8 hours), checked against the user's current role on every request; revoke, list, cap of 10 live sessions; disabled users and revoked sessions stop at the next request | `test/auth/sessions.int.test.ts` |
+| V6 recovery and change (T-020) | reset by emailed link: 256-bit token stored as SHA-256, in the URL fragment (never in a log, a proxy or a `Referer`), valid 30 minutes, one use (used up by deleting it), one per person; the request answers the same 202 for every email and works after the answer; 3 an hour per email, 10 per address; a reset ends every session and clears the sign-in lockout; a change needs the current password (counted in the sign-in lockout) and ends every other session (ASVS 5.0 V7.4.3); breached-password check fails closed (3 s, one retry); every change emails a notice (admins: the security mailbox too) | `test/auth/password-reset.int.test.ts`, `test/auth/password-reset-paths.int.test.ts`, `test/db/password-reset.int.test.ts` |
 | V11 cryptography | `crypto.randomInt` for codes, `randomBytes` for tokens, HMAC with per-purpose keys derived from `AUTH_SECRET`, constant-time comparison | `src/auth/keys.test.ts` |
 | V16 logging | events carry the request id, the event name, the user id (when known) and a 12-character keyed tag of the client address; never the email, the address itself, the password, the code or a token; the request serializer writes method and path only; `Set-Cookie` and `Cookie` are redacted | "what the logs hold" test |
 | V3 / V4 | default-deny staff scope with an explicit public list; `Origin` check on state-changing requests; `no-store` on every staff answer | route-walk tests |
@@ -109,7 +112,7 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
 - In transit: TLS everywhere, HSTS on web pages.
 - At rest: encrypted storage by the cloud; extra column encryption for prize codes.
 - Residency: all personal data in Saudi Arabia (ADR-070); the exceptions are push tokens/text,
-  wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer and any foreign email provider, each listed in the data map (NFR-020) and on the
+  wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer, any foreign email provider and the Pwned Passwords range API (5 hex characters of a password's SHA-1, no personal data), each listed in the data map (NFR-020) and on the
   counsel list.
 - Minimisation: no ad networks or tracking SDKs; location only while the app is open; photos only
   through the system picker or camera (NFR-021).

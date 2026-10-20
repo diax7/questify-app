@@ -19,6 +19,7 @@
 | Expo EAS | Cloud builds, store submission, bug-fix updates | Expo access token | Free plan (15+15 builds/mo); Starter $19; Production $199 per month | **None** (code and assets only) | n/a | Accepted with ADR-101 |
 | App Store Connect / Google Play Console | Distribution | API key / service account | $99/yr Apple, $25 once Google | Store listing only | TestFlight, internal testing | ADR-010 |
 | Play Install Referrer | Android one-scan join | Google library | Free | A referrer string (the join code) | Yes | Required |
+| Pwned Passwords (Have I Been Pwned) | Breached-password check on every staff password set (T-020) | None (public range API) | Free | **None**: only the first 5 hex characters of the password's SHA-1, with `Add-Padding` | n/a | In use. Timeout 3 s for the whole check; one retry on a network error, 429 or 5xx with at least 1 s left; fallback: fail closed (`503 breach_check_unavailable`, nothing changed). Egress to `api.pwnedpasswords.com` must stay open |
 | Error tracking | Crashes and server errors | DSN token | Free self-hosted, or paid hosted | Must be none: scrubbed | Yes | Open (self-hosted GlitchTip preferred) |
 
 ## Saudi cloud (Q-031)

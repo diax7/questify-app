@@ -8,15 +8,22 @@ export function TopBar({
   language,
   path,
   children,
-}: Readonly<{ language: Language; path: string; children?: ReactNode }>) {
+}: Readonly<{
+  language: Language;
+  /** The page's path after the language, for the language switch; null hides the switch. */
+  path: string | null;
+  children?: ReactNode;
+}>) {
   const other = otherLanguage(language);
   return (
     <header className={styles.bar}>
       <span className={styles.brand}>{translatorFor(language)("staff.dashboard")}</span>
       <nav className={styles.actions}>
-        <a className={styles.link} href={`/${other}${path}`} lang={other} hrefLang={other}>
-          {LANGUAGE_NAMES[other]}
-        </a>
+        {path === null ? null : (
+          <a className={styles.link} href={`/${other}${path}`} lang={other} hrefLang={other}>
+            {LANGUAGE_NAMES[other]}
+          </a>
+        )}
         {children}
       </nav>
     </header>

@@ -86,3 +86,27 @@ export const invalidRequest = make(
   "The request is not valid.",
 );
 export const notFound = make(404, "not_found", "غير موجود.", "Not found.");
+export const weakPassword = make(
+  422,
+  "weak_password",
+  "اختر كلمة مرور أقوى.",
+  "Choose a stronger password.",
+);
+export const resetLinkInvalid = make(
+  410,
+  "reset_link_invalid",
+  "انتهت صلاحية الرابط أو استُخدم من قبل. اطلب رابطا جديدا.",
+  "This link has expired or was already used. Ask for a new one.",
+);
+export const currentPasswordWrong = make(
+  403,
+  "current_password_wrong",
+  "كلمة المرور الحالية غير صحيحة.",
+  "Your current password is not correct.",
+);
+export const breachCheckUnavailable = make(
+  503,
+  "breach_check_unavailable",
+  "تعذر فحص كلمة المرور الآن. حاول بعد قليل.",
+  "We could not check the password right now. Try again shortly.",
+);

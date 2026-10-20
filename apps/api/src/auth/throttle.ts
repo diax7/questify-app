@@ -6,6 +6,8 @@ export const BUCKETS = {
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",
+  resetEmail: "reset_email",
+  resetAddress: "reset_address",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

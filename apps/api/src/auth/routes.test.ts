@@ -2,6 +2,12 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { registerConventions } from "#src/conventions";
 import { registerStaffRoutes } from "#src/auth/routes";
+import type {
+  ChangeResult,
+  ConfirmResult,
+  Passwords,
+  RequestResult,
+} from "#src/auth/password-reset";
 import type { Sessions } from "#src/auth/session";
 import type { CodeResult, PasswordResult, ResendResult, SignIn } from "#src/auth/sign-in";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
@@ -15,22 +21,41 @@ const noSessions = {
   authenticate: async () => ({ kind: "none" }),
 } as unknown as Sessions;
 
+const ACCOUNT = { id: "u1", email: "a@x.sa", status: "active", platformRole: "none" } as const;
+const liveSession = {
+  authenticate: async () => ({ kind: "valid", account: ACCOUNT, sessionId: "s1" }),
+} as unknown as Sessions;
+
 async function start(results: {
   password?: PasswordResult;
   code?: CodeResult;
   resend?: ResendResult;
+  request?: RequestResult;
+  confirm?: ConfirmResult;
+  change?: ChangeResult;
+  signedIn?: boolean;
 }): Promise<void> {
   const signIn: SignIn = {
     passwordStep: async () => results.password ?? { kind: "invalid_credentials" },
     codeStep: async () => results.code ?? { kind: "challenge_expired" },
     resend: async () => results.resend ?? { kind: "challenge_expired" },
   };
+  const passwords: Passwords = {
+    requestReset: async () => results.request ?? { kind: "accepted" },
+    confirmReset: async () => results.confirm ?? { kind: "reset" },
+    change: async () => results.change ?? { kind: "changed" },
+  };
   app = Fastify();
   registerConventions(app, {
     minAppVersion: "1.0.0",
     idempotencyStore: new MemoryIdempotencyStore(),
   });
-  registerStaffRoutes(app, { signIn, sessions: noSessions, dashboardOrigin: ORIGIN });
+  registerStaffRoutes(app, {
+    signIn,
+    passwords,
+    sessions: results.signedIn === true ? liveSession : noSessions,
+    dashboardOrigin: ORIGIN,
+  });
   await app.ready();
 }
 
@@ -181,5 +206,110 @@ describe("the session guard", () => {
     });
     expect(unknown.json()).toMatchObject({ code: "unauthenticated" });
     expect(String(unknown.headers["set-cookie"])).toContain("Max-Age=0");
+  });
+});
+
+const requestReset = (payload: unknown = { email: "a@x.sa", lang: "ar" }) =>
+  post("/v1/staff/auth/reset/request", payload);
+const confirmReset = () =>
+  post("/v1/staff/auth/reset/confirm", { token: TOKEN, newPassword: "a long new password" });
+const changePassword = () =>
+  app.inject({
+    method: "POST",
+    url: "/v1/staff/password",
+    headers: { origin: ORIGIN, cookie: `__Host-qs_session=${TOKEN}` },
+    payload: { currentPassword: "old one", newPassword: "a long new password" },
+  });
+
+describe("password reset answers (T-020)", () => {
+  it("accepts a request with 202 and an empty body", async () => {
+    await start({});
+    const response = await requestReset();
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({});
+  });
+
+  it("refuses a language other than Arabic or English, since it goes into the emailed link", async () => {
+    await start({});
+    expect((await requestReset({ email: "a@x.sa", lang: "fr" })).statusCode).toBe(400);
+    expect((await requestReset({ email: "a@x.sa", lang: "../x" })).statusCode).toBe(400);
+  });
+
+  it("tells a throttled requester how long to wait", async () => {
+    await start({ request: { kind: "throttled", retryAfterSeconds: 120 } });
+    const response = await requestReset();
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("120");
+    expect(response.json()).toMatchObject({ code: "too_many_attempts" });
+  });
+
+  it("answers a used reset with 204", async () => {
+    await start({});
+    expect((await confirmReset()).statusCode).toBe(204);
+  });
+
+  it("refuses a malformed token before calling the flow", async () => {
+    await start({});
+    const response = await post("/v1/staff/auth/reset/confirm", {
+      token: "short",
+      newPassword: "x",
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it.each([
+    [{ kind: "link_invalid" } as const, 410, "reset_link_invalid", undefined],
+    [{ kind: "weak", reason: "breached" } as const, 422, "weak_password", undefined],
+    [{ kind: "weak", reason: "context_word" } as const, 422, "weak_password", undefined],
+    [{ kind: "breach_unavailable" } as const, 503, "breach_check_unavailable", "30"],
+    [{ kind: "busy" } as const, 503, "busy", "2"],
+    [{ kind: "throttled", retryAfterSeconds: 5 } as const, 429, "too_many_attempts", "5"],
+  ])("maps %j to %i %s", async (result, status, errorCode, retryAfter) => {
+    await start({ confirm: result });
+    const response = await confirmReset();
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: errorCode });
+    expect(response.headers["retry-after"]).toBe(retryAfter);
+  });
+
+  it("names the reason a password was refused", async () => {
+    await start({ confirm: { kind: "weak", reason: "too_short" } });
+    expect((await confirmReset()).json()).toMatchObject({ details: { reason: "too_short" } });
+  });
+});
+
+describe("password change answers (T-020)", () => {
+  it("needs a session", async () => {
+    await start({});
+    expect((await changePassword()).statusCode).toBe(401);
+  });
+
+  it("answers a change with 204", async () => {
+    await start({ signedIn: true });
+    expect((await changePassword()).statusCode).toBe(204);
+  });
+
+  it("answers a wrong current password with 403, not 401, so the page keeps its session", async () => {
+    await start({ signedIn: true, change: { kind: "current_wrong" } });
+    const response = await changePassword();
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "current_password_wrong" });
+  });
+
+  it("maps a weak new password to 422 with its reason", async () => {
+    await start({ signedIn: true, change: { kind: "weak", reason: "same_as_email" } });
+    const response = await changePassword();
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({
+      code: "weak_password",
+      details: { reason: "same_as_email" },
+    });
+  });
+
+  it("asks to retry in 30 seconds when the breach check is down", async () => {
+    await start({ signedIn: true, change: { kind: "breach_unavailable" } });
+    const response = await changePassword();
+    expect(response.statusCode).toBe(503);
+    expect(response.headers["retry-after"]).toBe("30");
   });
 });

@@ -37,6 +37,9 @@ export default async function HomePage({
   return (
     <>
       <TopBar language={lang} path="">
+        <a className={styles.link} href={`/${lang}/account`}>
+          {t("staff.account")}
+        </a>
         <SignOutButton language={lang} />
       </TopBar>
       <main className={styles.page}>

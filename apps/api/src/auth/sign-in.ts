@@ -101,7 +101,7 @@ const L = AUTH_LIMITS;
 const EXPIRES_IN_MINUTES = L.challengeValiditySeconds / 60;
 
 /** Logs an event with a short keyed tag of the client address (never the address), so abuse can be told apart. */
-function say(
+export function say(
   deps: SignInDeps,
   caller: Caller,
   event: string,
@@ -111,9 +111,10 @@ function say(
   caller.log(event, { addr: tag, ...fields });
 }
 
-const reasonOf = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
+export const reasonOf = (error: unknown): string =>
+  error instanceof Error ? error.name : "unknown";
 
-type Keys = Readonly<{ email: Buffer; address: Buffer }>;
+export type Keys = Readonly<{ email: Buffer; address: Buffer }>;
 
 /** The failure windows for this email and this address; returns how long to wait when either is full. */
 async function exceededWindow(client: PoolClient, keys: Keys): Promise<Throttled | undefined> {
@@ -140,10 +141,10 @@ async function recordFailure(client: PoolClient, keys: Keys): Promise<void> {
   await record(client, BUCKETS.failAddress, keys.address);
 }
 
-type Reservation = Readonly<{ emailAt: string; addressAt: string }>;
+export type Reservation = Readonly<{ emailAt: string; addressAt: string }>;
 
 /** Counts first, then records this attempt as a failure that a success will take back. */
-async function reserveAttempt(
+export async function reserveAttempt(
   deps: SignInDeps,
   keys: Keys,
 ): Promise<Throttled | (Reservation & { kind: "reserved" })> {
@@ -165,7 +166,7 @@ async function reserveAttempt(
   );
 }
 
-async function releaseReservation(
+export async function releaseReservation(
   client: PoolClient,
   keys: Keys,
   reservation: Reservation,
@@ -333,7 +334,7 @@ async function sweepIfDue(deps: SignInDeps, caller: Caller, clock: SweepClock): 
   }
 }
 
-function keysFor(deps: SignInDeps, email: string, caller: Caller): Keys {
+export function keysFor(deps: SignInDeps, email: string, caller: Caller): Keys {
   return {
     email: deps.keys.emailKey(email),
     address: deps.keys.addressKey(addressBucket(caller.address)),

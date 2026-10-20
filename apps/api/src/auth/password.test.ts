@@ -46,6 +46,24 @@ describe("checkPasswordPolicy", () => {
     });
   });
 
+  it("refuses a password that contains the product or company name, in any letter case", () => {
+    for (const password of ["my-QUESTIFY-pass", "nafes is the best"]) {
+      expect(checkPasswordPolicy(password, EMAIL)).toEqual({ ok: false, reason: "context_word" });
+    }
+  });
+
+  it("refuses a password that contains the email's name part once it has four characters", () => {
+    expect(checkPasswordPolicy("hello SARA 2026!", EMAIL)).toEqual({
+      ok: false,
+      reason: "context_word",
+    });
+    expect(checkPasswordPolicy("alibaba and the forty", "ali@najd.sa")).toEqual({ ok: true });
+    expect(checkPasswordPolicy("i am omar the great", "omar@najd.sa")).toEqual({
+      ok: false,
+      reason: "context_word",
+    });
+  });
+
   it("asks for no mix of letters, digits or symbols", () => {
     expect(checkPasswordPolicy("aaaaaaaaaaaa", EMAIL)).toEqual({ ok: true });
   });

@@ -17,9 +17,11 @@ declare const styles: {
   readonly notice: string;
   readonly page: string;
   readonly panel: string;
+  readonly passwordRow: string;
   readonly quiet: string;
   readonly row: string;
   readonly subtitle: string;
+  readonly textLink: string;
   readonly title: string;
 };
 export default styles;

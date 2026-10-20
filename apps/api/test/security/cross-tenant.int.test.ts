@@ -201,6 +201,22 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  staff_password_reset: {
+    sweep: (row) => `${row}created_at < now() - interval '1 day'`,
+    probes: [
+      {
+        seat: "staff",
+        column: "staff_user_id",
+        mine: (f) => f.staffA,
+        theirs: (f) => f.staffB,
+        ownRowsHidden: "a reset link is read only by its own token, from the emailed link",
+        forge: (f) => ({
+          sql: "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '30 minutes')",
+          values: [f.staffB, hash()],
+        }),
+      },
+    ],
+  },
   player: {
     probes: [
       {
@@ -335,7 +351,7 @@ async function sampleValue(
   return rows[0]?.value ?? null;
 }
 
-/** Two organizers, each with an owner, a session, a sign-in challenge, an audit entry and add-ons. */
+/** Two organizers, each with an owner, a session, a sign-in challenge, a reset link, an audit entry and add-ons. */
 async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
   const base = await seedTwoTenants(db.owner);
   const run = (sql: string, values: unknown[]) => db.owner.query<{ id: string }>(sql, values);
@@ -368,6 +384,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       [staff, hash(), hash()],
     );
     await run(
+      "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '30 minutes')",
+      [staff, hash()],
+    );
+    await run(
       "INSERT INTO audit_log (actor_type, actor_id, organizer_id, action, target_type) VALUES ('staff', $1, $2, 'event.seed', 'event')",
       [staff, org],
     );
@@ -386,6 +406,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
   await run(
     "INSERT INTO staff_login_challenge (staff_user_id, token_hash, code_hash, expires_at, created_at) VALUES ($1, $2, $3, now() - interval '2 days', now() - interval '2 days')",
     [staffB, hash(), hash()],
+  );
+  await run(
+    "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at, created_at) VALUES ($1, $2, now() - interval '2 days', now() - interval '2 days')",
+    [staffB, hash()],
   );
   return f;
 }

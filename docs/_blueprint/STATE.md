@@ -511,11 +511,35 @@ other docs feed it and stay as its detailed appendices.
 
 - 2026-10-20 **T-011 done.** The user signed in on an iPhone and an Android phone in both languages. Forged `X-Forwarded-For` values did not escape the per-address throttle on either path (ADR-113 proven). Phase 0: 12 of 21 tasks.
 
+- 2026-10-20 **Autonomous build started** (user away for some days; INBOX entry). Store accounts (T-010) and SMS
+  (T-013) skipped until the user returns; SMS is built behind its adapter with a fake.
+- 2026-10-20 **Swappable visual theme (NFR-024).** The adventure look is one `Theme` value in `packages/shared`
+  (colour roles, font roles with weights, text scale, spacing, radius); the app reads it through `useTheme()` /
+  `useThemedStyles()`, the web through CSS variables; contrast and Arabic line-height contract tests run for every
+  registered theme, and a web test refuses raw colours in style sheets. A new look is a new value plus its fonts.
+- 2026-10-20 **T-015 done.** Expo SDK 57 meets every current App Store and Play rule (`docs/compliance/EXPO_SDK_CHECK.md`);
+  required-reason APIs added to `app.json`. Before the first TestFlight upload: data types in the privacy manifest;
+  move to SDK 58 before Apple requires Xcode 27 (expected spring 2027).
+- 2026-10-20 **T-119 done.** v0.1 player terms, privacy policy and community guidelines in `docs/legal/` (Arabic
+  first); questions for counsel in its README and Q-085; contradictions found went to Q-086 and Q-087.
+- 2026-10-20 **T-020 done.** Password reset by emailed link (fragment token, 30 minutes, one use, one per person,
+  same 202 for every email, work after the answer drained on shutdown), change while signed in (keeps this
+  session, ends the others), breached-password check on every set including `staff-cli create` (Pwned Passwords,
+  k-anonymity, 3 s, one retry, fails closed), product names and the email's name refused, a "password changed"
+  notice, reset clears the sign-in lockout (RUNBOOK "A locked-out admin"). Migration 0007. Web: forgot-password,
+  reset-password, account pages. CTO: plan 84 → 94, code 88 (one real bug: sign-in deleted pending reset links,
+  fixed with a test) → fixes sent. API 843 tests, 20 browser tests.
+
 ## Next
 
-1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
-2. **Waiting on Dhia:** later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
-3. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084.
+1. **Now:** T-101 (organizer sign-up and team; plan in review), then T-102 to T-106 (events, quests, QR codes, the
+   completion engine, ranking).
+2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
+   infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migration 0007 and
+   outbound HTTPS to `api.pwnedpasswords.com` when T-020 is deployed.
+3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
+   domain for the Resend backup (Q-083); "accept ADR-113".
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087.
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

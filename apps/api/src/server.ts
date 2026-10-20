@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { buildApp } from "#src/app";
+import { createBreachCheck } from "#src/auth/breached";
 import { createFailoverSender } from "#src/auth/email/failover";
 import { createGmailSender } from "#src/auth/email/gmail";
 import { createResendSender } from "#src/auth/email/resend";
@@ -53,6 +54,7 @@ async function main(): Promise<void> {
     emailSender: createEmailSender(config, (from, to) => {
       app.log.warn({ event: "staff.email_failover", from, to });
     }),
+    breachCheck: createBreachCheck(),
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

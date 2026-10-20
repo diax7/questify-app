@@ -13,13 +13,22 @@ export const ARGON2_PARAMS = {
 export const MIN_PASSWORD_LENGTH = 12;
 export const MAX_PASSWORD_LENGTH = 128;
 
+export type PolicyReason = "too_short" | "too_long" | "same_as_email" | "context_word";
+
 export type PasswordPolicyResult =
   | Readonly<{ ok: true }>
-  | Readonly<{ ok: false; reason: "too_short" | "too_long" | "same_as_email" }>;
+  | Readonly<{ ok: false; reason: PolicyReason }>;
+
+/** Words a password must not contain: the product and company names (ASVS V6.2.11). */
+const CONTEXT_WORDS = ["questify", "nafes"] as const;
+/** A shorter email name (like "ali") is too common inside ordinary words to refuse. */
+const MIN_LOCAL_PART_LENGTH = 4;
 
 /**
  * Checks a new password against the length policy (12 to 128 characters after NFKC, counted as
- * code points, no composition rules) and refuses the account's own email.
+ * code points, no composition rules), refuses the account's own email, and refuses a password that
+ * contains the product's names or the email's name part. The breached-password check is separate
+ * because it needs the network (breached.ts).
  */
 export function checkPasswordPolicy(password: string, email: string): PasswordPolicyResult {
   const prepared = normalizePassword(password);
@@ -30,8 +39,18 @@ export function checkPasswordPolicy(password: string, email: string): PasswordPo
   if (length > MAX_PASSWORD_LENGTH) {
     return { ok: false, reason: "too_long" };
   }
-  if (prepared.toLowerCase() === normalizeEmail(email)) {
+  const lower = prepared.toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
+  if (lower === normalizedEmail) {
     return { ok: false, reason: "same_as_email" };
+  }
+  const localPart = normalizedEmail.split("@")[0] ?? "";
+  const words: string[] = [...CONTEXT_WORDS];
+  if (codePointLength(localPart) >= MIN_LOCAL_PART_LENGTH) {
+    words.push(localPart);
+  }
+  if (words.some((word) => lower.includes(word))) {
+    return { ok: false, reason: "context_word" };
   }
   return { ok: true };
 }

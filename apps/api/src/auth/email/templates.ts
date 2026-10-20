@@ -42,3 +42,46 @@ export function newSignInAlertEmail(input: { at: Date; userAgent: string | null 
     ].join("\n"),
   };
 }
+
+/** "N minutes" after "لمدة": one and two have their own forms; the noun is plural from 3 to 10, singular from 11. */
+function minutesAr(count: number): string {
+  if (count === 1) {
+    return "دقيقة واحدة";
+  }
+  if (count === 2) {
+    return "دقيقتين";
+  }
+  return count >= 3 && count <= 10 ? `${count} دقائق` : `${count} دقيقة`;
+}
+
+/** The password reset link (T-020). The link holds the secret in its fragment; the text never repeats it. */
+export function passwordResetEmail(input: { link: string; expiresInMinutes: number }): Content {
+  const { link, expiresInMinutes } = input;
+  return {
+    subject: "إعادة تعيين كلمة المرور | Reset your Questify password",
+    text: [
+      "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في كويستيفاي.",
+      `افتح هذا الرابط لاختيار كلمة مرور جديدة: ${link}`,
+      `يعمل الرابط مرة واحدة لمدة ${minutesAr(expiresInMinutes)}. إذا لم تطلب ذلك، تجاهل هذه الرسالة، فكلمة مرورك لم تتغير.`,
+      "",
+      "We received a request to reset the password of your Questify account.",
+      `Open this link to choose a new password: ${link}`,
+      `The link works once, for ${expiresInMinutes} minutes. If you did not ask for this, ignore this email; your password has not changed.`,
+    ].join("\n"),
+  };
+}
+
+/** Sent after every password change or reset, so a person learns at once if it was not them. */
+export function passwordChangedEmail(input: { at: Date; dashboardOrigin: string }): Content {
+  const when = `${riyadhTime(input.at)} (Riyadh)`;
+  return {
+    subject: "تغيّرت كلمة المرور | Your Questify password was changed",
+    text: [
+      `تغيّرت كلمة مرور حسابك في كويستيفاي في ${when}.`,
+      `إذا لم تغيّرها أنت، أعد تعيينها فورا من ${input.dashboardOrigin}/ar/forgot-password وتواصل مع فريق كويستيفاي.`,
+      "",
+      `The password of your Questify account was changed at ${when}.`,
+      `If this was not you, reset it now at ${input.dashboardOrigin}/en/forgot-password and contact the Questify team.`,
+    ].join("\n"),
+  };
+}
