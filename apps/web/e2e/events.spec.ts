@@ -74,3 +74,27 @@ test("names a field the API refused, in Arabic, right to left", async ({ page },
   await page.getByRole("button", { name: "إنشاء الفعالية" }).click();
   await expect(page.getByText("اجعل وقت النهاية بعد وقت البداية.")).toBeVisible();
 });
+
+test("the owner hides the ranking and shows it again, in Arabic; it stays as saved after a reload", async ({
+  page,
+}, info) => {
+  test.setTimeout(60_000);
+  await signUpOwner(page, info.project.name);
+  await page.goto(page.url().replace("/en", "/ar"));
+  await page.getByRole("link", { name: "الفعاليات" }).click();
+  await page.getByRole("link", { name: "فعالية جديدة" }).click();
+  await page.getByLabel("الاسم بالعربية", { exact: true }).fill("ملتقى الترتيب");
+  await page.getByLabel("تبدأ", { exact: true }).fill("2030-11-01T09:00");
+  await page.getByLabel("تنتهي", { exact: true }).fill("2030-11-01T17:00");
+  await page.getByRole("button", { name: "إنشاء الفعالية" }).click();
+
+  const shown = page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" });
+  await expect(shown).toBeChecked();
+  await expect(page.getByText("الترتيب ظاهر للاعبين.", { exact: false })).toBeVisible();
+  await shown.uncheck();
+  await expect(page.getByText("الترتيب مخفي عن اللاعبين.", { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" })).not.toBeChecked();
+  await page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" }).check();
+  await expect(page.getByText("الترتيب ظاهر للاعبين.", { exact: false })).toBeVisible();
+});

@@ -24,7 +24,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
     regular = { id: regularId, email: "editor@najd.test", status: "active", platformRole: "none" };
     pool = new Pool({ connectionString: db.appUrl, max: 4 });
     service = createTranslationService({ pool, ttlMs: 15_000, now: () => clock.now });
-    test = await startApp(db, false, {}, undefined, service);
+    test = await startApp(db, false, {}, { translations: service });
   });
   afterAll(async () => {
     await test.close();

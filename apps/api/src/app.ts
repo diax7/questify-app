@@ -25,6 +25,10 @@ import { registerPlayerAuthRoutes } from "#src/players/routes";
 import { createPlayerSignIn } from "#src/players/sign-in";
 import type { SmsSender } from "#src/players/sms";
 import { createQuestCodeKey } from "#src/quests/qr";
+import { createRanking } from "#src/ranking/ranking";
+import { registerRankingRoutes } from "#src/ranking/routes";
+import type { RankingStore } from "#src/ranking/store";
+import { startRankingTick } from "#src/ranking/tick";
 import { startLifecycleTick } from "#src/events/tick";
 import { createInvites } from "#src/organizers/accept";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
@@ -56,6 +60,10 @@ export type AppOptions = Readonly<{
   logger?: FastifyServerOptions["logger"];
   /** How often events move through their lifecycle; off when not given (tests call the database function). */
   lifecycleIntervalMs?: number;
+  /** The Redis copy of the rankings (ADR-118); without one, rankings are read from PostgreSQL. */
+  rankingStore?: RankingStore;
+  /** How often marked rankings are repaired; off when not given (tests call `repairDue`). */
+  rankingRepairIntervalMs?: number;
 }>;
 
 declare module "fastify" {
@@ -166,6 +174,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
+  const settings = options.settings ?? createSettingsService({ pool: options.pool });
+  const ranking = createRanking({
+    pool: options.pool,
+    store: options.rankingStore,
+    log: (level, fields) => app.log[level](fields),
+  });
   registerPlayerGuard(app, options.pool);
   registerPlayerAuthRoutes(
     app,
@@ -180,13 +194,22 @@ export function buildApp(options: AppOptions): FastifyInstance {
     pool: options.pool,
     codeKey: questCodeKey,
     keys: signInDeps.keys,
+    ranking,
   });
+  registerRankingRoutes(app, { ranking, settings });
+  if (options.rankingRepairIntervalMs !== undefined) {
+    const tick = startRankingTick(ranking, options.rankingRepairIntervalMs, (fields) =>
+      app.log.error(fields),
+    );
+    app.addHook("onClose", tick.stop);
+  }
 
   registerOrganizerRoutes(app, {
     pool: options.pool,
     sessions: createSessions(options.pool),
     team: createTeam(passwordDeps),
     events: createEvents({ pool: options.pool }),
+    settings,
     questCodes: {
       codeKey: questCodeKey,
       codeOrigin: config.auth.dashboardOrigin,
@@ -203,7 +226,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.addHook("onClose", tick.stop);
   }
 
-  registerConfigRoutes(app, options.settings ?? createSettingsService({ pool: options.pool }));
+  registerConfigRoutes(app, settings);
 
   registerTranslationRoutes(
     app,

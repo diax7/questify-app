@@ -19,6 +19,7 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -216,6 +217,15 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
             {event === null ? t("events.create") : t("events.save")}
           </button>
         </form>
+      )}
+      {event === null ? null : (
+        <RankingSwitch
+          language={language}
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.ranking}
+          myRole={myRole}
+        />
       )}
       {event === null ? null : (
         <EventDangerZone

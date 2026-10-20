@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyServerOptions, LightMyRequestResponse } from "fastify";
 import { Pool, type Client } from "pg";
-import { buildApp } from "#src/app";
+import { buildApp, type AppOptions } from "#src/app";
 import { BreachCheckUnavailable, type BreachCheck } from "#src/auth/breached";
 import { createDeferred, type Deferred } from "#src/auth/deferred";
 import { EmailSendError, type EmailMessage, type EmailSender } from "#src/auth/email/sender";
@@ -8,8 +8,6 @@ import { hashPassword } from "#src/auth/password";
 import type { AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import type { SmsMessage, SmsResult, SmsSender } from "#src/players/sms";
-import type { SettingsService } from "#src/settings/service";
-import type { TranslationService } from "#src/translations/service";
 import type { TestDatabase } from "#test/support/test-db";
 
 export const DASHBOARD_ORIGIN = "https://app.questify.test";
@@ -46,6 +44,7 @@ export function testConfig(
     },
     qrSecret: "q".repeat(40),
     msegat: undefined,
+    redisUrl: undefined,
   };
 }
 
@@ -159,8 +158,7 @@ export async function startApp(
   db: TestDatabase,
   logger: FastifyServerOptions["logger"] = false,
   auth: Partial<AppConfig["auth"]> = {},
-  settings?: SettingsService,
-  translations?: TranslationService,
+  extra: Partial<Pick<AppOptions, "settings" | "translations" | "rankingStore">> = {},
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
@@ -177,8 +175,7 @@ export async function startApp(
     smsSender: sms,
     breachCheck: breach.check,
     deferred,
-    ...(settings === undefined ? {} : { settings }),
-    ...(translations === undefined ? {} : { translations }),
+    ...extra,
     logger,
   });
   await app.ready();

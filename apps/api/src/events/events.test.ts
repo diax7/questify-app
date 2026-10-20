@@ -20,6 +20,7 @@ const STORED: EventRecord = {
   status: "draft",
   statusNow: "draft",
   createdAt: new Date("2030-01-01T00:00:00Z"),
+  rankingOn: true,
 };
 
 describe("merge", () => {

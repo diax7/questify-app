@@ -23,6 +23,8 @@ export type EventRecord = Readonly<{
   /** The status at this moment, before the lifecycle tick catches up (migration 0009). */
   statusNow: EventStatus;
   createdAt: Date;
+  /** The event's own ranking switch (FR-607); on unless the owner turned it off. */
+  rankingOn: boolean;
 }>;
 
 /** The fields the API may write (the column grants of migration 0009). */
@@ -57,10 +59,12 @@ type Row = {
   status: EventStatus;
   status_now: EventStatus;
   created_at: Date;
+  ranking_on: boolean;
 };
 
 const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods, timezone,
-  day_start_hour, starts_at, ends_at, status, event_status_now(status, starts_at, ends_at) AS status_now, created_at`;
+  day_start_hour, starts_at, ends_at, status, event_status_now(status, starts_at, ends_at) AS status_now, created_at,
+  coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -77,6 +81,7 @@ const toRecord = (row: Row): EventRecord => ({
   status: row.status,
   statusNow: row.status_now,
   createdAt: row.created_at,
+  rankingOn: row.ranking_on,
 });
 
 /** The events the caller may see in their organizer (the database applies an editor's limit). */

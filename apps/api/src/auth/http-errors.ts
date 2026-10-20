@@ -350,3 +350,15 @@ export const contactTaken = make(
   "لهذا الرقم أو البريد حساب الآن. سجّل الدخول من جديد.",
   "This number or email has an account now. Sign in again.",
 );
+export const notEnrolled = make(
+  403,
+  "not_enrolled",
+  "انضم إلى الفعالية لترى ترتيبها.",
+  "Join the event to see its ranking.",
+);
+export const rankingOff = make(
+  404,
+  "ranking_off",
+  "الترتيب مخفي في هذه الفعالية.",
+  "The ranking is hidden for this event.",
+);

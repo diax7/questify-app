@@ -63,6 +63,16 @@ test("an owner invites an editor, who joins with a new password and the emailed 
   await page.getByRole("button", { name: "Create the account" }).click();
   await expect(page).toHaveURL(/\/en$/);
 
+  // An event for the editor to look at: the ranking switch is the owner's (FR-607).
+  await page.getByRole("link", { name: "Events" }).click();
+  await page.getByRole("link", { name: "New event" }).click();
+  await page.getByLabel("Name in English", { exact: true }).fill("Team Rally");
+  await page.getByLabel("Starts", { exact: true }).fill("2030-11-01T09:00");
+  await page.getByLabel("Ends", { exact: true }).fill("2030-11-01T17:00");
+  await page.getByRole("button", { name: "Create event" }).click();
+  await expect(page.getByRole("checkbox", { name: "Show the ranking to players" })).toBeChecked();
+  await page.getByRole("link", { name: "Home" }).click();
+
   await page.getByRole("link", { name: "Team" }).click();
   const editorEmail = uniqueEmail("editor", info.project.name);
   const invite = page.getByRole("form", { name: "Invite an editor" });
@@ -89,6 +99,16 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Team" }).click();
     await expect(editor.getByText(ownerEmail)).toBeVisible();
     await expect(editor.getByRole("form", { name: "Invite an editor" })).toHaveCount(0);
+    await editor.getByRole("link", { name: "Home" }).click();
+    await editor.getByRole("link", { name: "Events" }).click();
+    await editor.getByRole("link", { name: "Team Rally" }).click();
+    await expect(editor.getByText("Players can see the ranking.", { exact: false })).toBeVisible();
+    await expect(
+      editor.getByText("Only the owner can change this.", { exact: false }),
+    ).toBeVisible();
+    await expect(editor.getByRole("checkbox", { name: "Show the ranking to players" })).toHaveCount(
+      0,
+    );
   } finally {
     await guest.close();
   }

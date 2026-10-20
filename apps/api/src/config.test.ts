@@ -14,6 +14,7 @@ const REQUIRED = {
   }),
   MAIL_FROM: "questify@nafes.com",
 };
+const REDIS = { REDIS_URL: "redis://cache:6379" };
 const MSEGAT = {
   MSEGAT_USERNAME: "nafes",
   MSEGAT_API_KEY: "test-key",
@@ -48,6 +49,7 @@ describe("loadConfig", () => {
       },
       qrSecret: REQUIRED.QR_SECRET,
       msegat: undefined,
+      redisUrl: undefined,
     });
   });
 
@@ -55,6 +57,7 @@ describe("loadConfig", () => {
     const config = loadConfig({
       ...REQUIRED,
       ...MSEGAT,
+      ...REDIS,
       NODE_ENV: "production",
       HOST: "127.0.0.1",
       PORT: "8080",
@@ -168,7 +171,13 @@ describe("loadConfig", () => {
   it("requires TRUST_PROXY_HOPS in production, because a wrong guess makes everyone share one address", () => {
     expect(() => loadConfig({ ...REQUIRED, NODE_ENV: "production" })).toThrow(/TRUST_PROXY_HOPS/);
     expect(
-      loadConfig({ ...REQUIRED, ...MSEGAT, NODE_ENV: "production", TRUST_PROXY_HOPS: "2" }),
+      loadConfig({
+        ...REQUIRED,
+        ...MSEGAT,
+        ...REDIS,
+        NODE_ENV: "production",
+        TRUST_PROXY_HOPS: "2",
+      }),
     ).toMatchObject({
       trustProxyHops: 2,
     });
@@ -191,7 +200,7 @@ describe("loadConfig", () => {
   });
 
   describe("Msegat", () => {
-    const PRODUCTION = { ...REQUIRED, NODE_ENV: "production", TRUST_PROXY_HOPS: "1" };
+    const PRODUCTION = { ...REQUIRED, ...REDIS, NODE_ENV: "production", TRUST_PROXY_HOPS: "1" };
 
     it("reads the account when all three are set", () => {
       expect(loadConfig({ ...REQUIRED, ...MSEGAT }).msegat).toEqual({
@@ -217,6 +226,26 @@ describe("loadConfig", () => {
         const partial = { ...REQUIRED, ...MSEGAT, [missing]: " " };
         expect(() => loadConfig(partial)).toThrow(/required together/);
       }
+    });
+  });
+
+  describe("Redis", () => {
+    const PRODUCTION = { ...REQUIRED, ...MSEGAT, NODE_ENV: "production", TRUST_PROXY_HOPS: "1" };
+
+    it("is optional outside production and required in production", () => {
+      expect(loadConfig(REQUIRED).redisUrl).toBeUndefined();
+      expect(() => loadConfig(PRODUCTION)).toThrow("REDIS_URL is required.");
+      expect(loadConfig({ ...PRODUCTION, ...REDIS }).redisUrl).toBe("redis://cache:6379");
+    });
+
+    it("takes redis:// and rediss:// only", () => {
+      expect(loadConfig({ ...REQUIRED, REDIS_URL: "rediss://cache:6380" }).redisUrl).toBe(
+        "rediss://cache:6380",
+      );
+      expect(() => loadConfig({ ...REQUIRED, REDIS_URL: "http://cache" })).toThrow(/redis:\/\//);
+      expect(() => loadConfig({ ...REQUIRED, REDIS_URL: "not a url" })).toThrow(
+        /REDIS_URL must be/,
+      );
     });
   });
 });

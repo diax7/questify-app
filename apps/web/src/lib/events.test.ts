@@ -22,6 +22,7 @@ const EVENT: EventView = {
   endsAt: "2030-11-01T14:00:00.000Z",
   status: "draft",
   statusNow: "draft",
+  ranking: true,
 };
 
 describe("nameFor", () => {

@@ -292,6 +292,21 @@ export const MESSAGES = {
     en: "“{name}” ends now and nobody can earn points after that. This cannot be undone.",
   },
   "events.ended": { ar: "انتهت الفعالية.", en: "The event has ended." },
+  "events.ranking.title": { ar: "الترتيب", en: "Ranking" },
+  "events.ranking.label": { ar: "إظهار الترتيب للاعبين", en: "Show the ranking to players" },
+  "events.ranking.hint": {
+    ar: "يبقى الترتيب محدّثًا وهو مخفي، ويعود بالمراكز الحالية عند إظهاره.",
+    en: "The ranking stays up to date while hidden and comes back with current places.",
+  },
+  "events.ranking.shown": { ar: "الترتيب ظاهر للاعبين.", en: "Players can see the ranking." },
+  "events.ranking.hidden": {
+    ar: "الترتيب مخفي عن اللاعبين.",
+    en: "The ranking is hidden from players.",
+  },
+  "events.ranking.ownerOnly": {
+    ar: "يغيّر المالك وحده هذا الإعداد.",
+    en: "Only the owner can change this.",
+  },
   "quests.title": { ar: "المهام", en: "Quests" },
   "quests.addCategory": { ar: "إضافة فئة", en: "Add category" },
   "quests.field.categoryAr": { ar: "اسم الفئة بالعربية", en: "Category name in Arabic" },

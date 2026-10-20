@@ -40,7 +40,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     );
     pool = new Pool({ connectionString: db.appUrl, max: 4 });
     settings = createSettingsService({ pool, ttlMs: 15_000, now: () => clock.now });
-    test = await startApp(db, false, {}, settings);
+    test = await startApp(db, false, {}, { settings });
   });
   afterAll(async () => {
     await test.close();
@@ -67,6 +67,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           bigScreen: { enabled: false, minAppVersion: null, message: null },
           cheers: { enabled: true, minAppVersion: null, message: null },
           polls: { enabled: true, minAppVersion: null, message: null },
+          ranking: { enabled: true, minAppVersion: null, message: null },
           shop: { enabled: true, minAppVersion: null, message: null },
         },
         tuning: { myQrGraceSeconds: 5, screenQrRotationSeconds: 45 },

@@ -152,6 +152,14 @@ it, except a limit's last event, which stays so the editor sees nothing rather t
 fields disclosed on the join card, PD-17), `score bigint` and `balance bigint` (**caches of the
 ledger**), `status` active/left/removed/banned. **Unique (event_id, player_id).** Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
+**Ranking (T-106, migration 0015):** `score_version bigint`, the id of the ledger entry that last changed the score
+(set by the ledger trigger; ties go to the lower version, FR-606); index `(event_id, score DESC, score_version)` for
+active rows with points (it replaces the earlier ranking index). Who is ranked is one rule in two forms
+(`ranking_eligible` for a row, `ranked_enrollments(event)` for an event, tested to agree): points above zero, an
+active enrollment and player, and not on the organizer's team by email. `ranking_repair (event_id, marked_at)` holds
+the events whose Redis copy may be wrong (no grants; written by definers and by triggers on enrollment and player
+status, contact email and team membership; claimed by the repair job). The Redis copy holds enrollment ids, points
+and versions only, never a name or contact (ADR-118).
 
 ### category, quest
 `category(id, event_id, title i18n, order_mode any|in_order, completion_bonus, position, collapsed)`.

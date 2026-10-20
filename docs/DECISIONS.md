@@ -1728,3 +1728,14 @@ chosen. This is a known, accepted exception to hard rule 3 for the address and t
 (SECURITY.md). **Revisit:** when a Saudi email provider is chosen (Q-034); the switch is configuration behind the
 `EmailSender` interface.
 
+
+## ADR-118 — Live rankings in a managed Redis from T-106
+**Status:** Accepted (user, 2026-10-20, T-106: "Redis now").
+**Decision:** Event rankings live in a Redis-compatible store (CranL managed Redis in the Nafes project, `riyadh-1`),
+one sorted set per event and ranking, written after each completion commits and rebuilt from PostgreSQL whenever it is
+missing or doubted. PostgreSQL stays the source of truth; the store holds nothing that cannot be rebuilt (ADR-102). The
+client is the official `redis` package (node-redis).
+**Why:** the approved architecture (ARCHITECTURE.md, TECH_STACK.md) and NFR-005: top 10 and "my rank" for 20,000-player
+events and the big screen in milliseconds without counting rows on every request. **Cost:** one managed Redis service
+on CranL. **Staging:** the service is created with the next staging deploy; until then the API runs without it only in
+development and tests that do not need rankings.

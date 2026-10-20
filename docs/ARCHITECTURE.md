@@ -115,9 +115,14 @@ sequenceDiagram
 4. One database transaction writes the completion, the append-only ledger entry and the cached
    score/balance, and the Questify XP if it is the player's first completion of that quest. Nothing is
    half-applied.
-5. After commit, the ranking store is updated. If that step fails, a job repairs it from the
-   ledger; the player still sees the confirmed result, and the rank catches up within the 5-second
-   target (NFR-005).
+5. After commit, the ranking store is updated (T-106, ADR-118): one Redis sorted set per event, each
+   player at their points and a version (the ledger entry that last changed their points, so ties go
+   to who reached them first). A write never moves a player back to an older version, and a removed
+   player leaves a tombstone a late write cannot undo. If the write fails, the event is marked for
+   repair in PostgreSQL and a job rebuilds it within seconds; so does every change of who may be
+   ranked (a ban, a status change, a new team member), through database triggers. The player still
+   sees the confirmed result (with `rank: null`), and the rank catches up within the 5-second target
+   (NFR-005).
 6. A rejected request tells the player why; nothing is stored. Under overload the server answers
    "busy, retry" rather than losing the request (NFR-003).
 
@@ -157,7 +162,7 @@ with replay) end in the same `complete` transaction, differing only in the proof
 |---|---|
 | Two scans of the same quest at once | A unique constraint on (enrollment, quest) for one-time quests. The second request returns "already completed" |
 | A request dies halfway | There is no halfway: the database transaction either commits everything or nothing. The ranking store is updated after commit and repaired by a job |
-| The ranking store is lost | It is rebuilt from the ledger. During the rebuild the app shows the last known ranking |
+| The ranking store is lost or down | Readers get the same order straight from PostgreSQL (`ranking_top`, `ranking_position`), and the set is rebuilt from the enrollments' ledger-kept points the moment it is missing, without losing writes that land during the rebuild. A backstop rebuilds every live event every 5 minutes |
 | The database is restored to 5 minutes earlier | Multi-node PostgreSQL with replicas means a node failure loses nothing; only a logical disaster needs a point-in-time restore, which can lose up to 5 minutes (ADR-082). Players confirmed in that window are told their last minutes were rolled back through a banner; the post-event report notes it. Accepted risk, rehearsed before launch (NFR-026) |
 | Two editors change the same record | Last save wins (ADR-088); every change is in the audit log |
 

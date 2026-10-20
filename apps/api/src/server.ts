@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { createClient, type RedisClientType } from "redis";
 import { buildApp } from "#src/app";
 import { createBreachCheck } from "#src/auth/breached";
 import { createFailoverSender } from "#src/auth/email/failover";
@@ -9,11 +10,51 @@ import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
+import { createRankingStore } from "#src/ranking/store";
 
 const STATEMENT_TIMEOUT_MS = 5000;
 const LOCK_TIMEOUT_MS = 2000;
 const CONNECT_TIMEOUT_MS = 3000;
 const LIFECYCLE_INTERVAL_MS = 30_000;
+const RANKING_REPAIR_INTERVAL_MS = 2000;
+/** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
+const REDIS_COMMAND_TIMEOUT_MS = 250;
+const REDIS_CONNECT_TIMEOUT_MS = 2000;
+
+/**
+ * The Redis client for rankings: commands fail at once while it is disconnected (no offline queue), so callers fall
+ * back to PostgreSQL instead of waiting; it keeps reconnecting in the background.
+ */
+function createRedis(url: string, log: (fields: Record<string, string>) => void): RedisClientType {
+  const client: RedisClientType = createClient({
+    url,
+    disableOfflineQueue: true,
+    commandOptions: { timeout: REDIS_COMMAND_TIMEOUT_MS },
+    socket: {
+      connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
+      reconnectStrategy: (retries) => Math.min(200 * (retries + 1), 5000),
+    },
+  });
+  client.on("error", (error: unknown) => {
+    log({ event: "redis.error", reason: error instanceof Error ? error.name : "unknown" });
+  });
+  return client;
+}
+
+/** Rankings need Redis to keep every key: an evicting policy could drop a set while its "built" mark stays. */
+async function checkEviction(
+  client: RedisClientType,
+  log: (fields: Record<string, string>) => void,
+) {
+  try {
+    const policy = (await client.configGet("maxmemory-policy"))["maxmemory-policy"];
+    if (policy !== "noeviction") {
+      log({ event: "redis.eviction_policy", policy: policy ?? "unknown" });
+    }
+  } catch {
+    log({ event: "redis.eviction_policy", policy: "unreadable" });
+  }
+}
 
 function createPool(config: AppConfig): Pool {
   return new Pool({
@@ -42,12 +83,25 @@ function createEmailSender(config: AppConfig, onFailover: (from: string, to: str
   });
 }
 
+/** A line on standard error for Redis problems, which happen before and outside any request. */
+const warn = (fields: Record<string, string>) =>
+  process.stderr.write(`${JSON.stringify(fields)}
+`);
+
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const pool = createPool(config);
   pool.on("error", (error) => {
     process.stderr.write(`Database pool error: ${error.name}\n`);
   });
+  const redis = config.redisUrl === undefined ? undefined : createRedis(config.redisUrl, warn);
+  if (redis !== undefined) {
+    // Not awaited: the API starts without Redis and serves rankings from PostgreSQL until it connects.
+    redis
+      .connect()
+      .then(() => checkEviction(redis, warn))
+      .catch(() => warn({ event: "redis.connect_failed" }));
+  }
   // One instance for now, so remembering keys in memory is enough. The database-backed store arrives with T-105.
   const app = buildApp({
     config,
@@ -59,6 +113,8 @@ async function main(): Promise<void> {
     breachCheck: createBreachCheck(),
     ...(config.msegat === undefined ? {} : { smsSender: createMsegatSender(config.msegat) }),
     lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
+    ...(redis === undefined ? {} : { rankingStore: createRankingStore(redis) }),
+    rankingRepairIntervalMs: RANKING_REPAIR_INTERVAL_MS,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");
@@ -67,6 +123,9 @@ async function main(): Promise<void> {
     app.log.info({ signal }, "shutting down");
     await app.close();
     await pool.end();
+    if (redis?.isOpen === true) {
+      await redis.close();
+    }
     process.exit(0);
   };
   process.once("SIGTERM", () => void stop("SIGTERM"));

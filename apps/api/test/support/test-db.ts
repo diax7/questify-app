@@ -18,6 +18,33 @@ if (process.env["CI"] !== undefined && TEST_DATABASE_URL === undefined) {
 const API_ROOT = join(import.meta.dirname, "..", "..");
 const ROLE_PASSWORD = "test-only-password";
 const ROLE_SETUP_LOCK = 7_361_903;
+/** No test file runs this long; an older database was left by a run that was killed before it could drop it. */
+const STALE_AFTER_SECONDS = 2 * 60 * 60;
+/** How many leftovers one new database sweeps, so a large backlog never slows one test file down much. */
+const SWEEP_LIMIT = 20;
+const NAME = /^questify_test_(?:([0-9]{10})_)?[0-9a-f]{12}$/;
+
+/**
+ * Drops test databases left behind by killed runs (a mutation run that was stopped, a crash): names carry their
+ * creation time, and anything older than two hours, or from before names carried it, is a leftover. Without this, each
+ * killed run leaves its databases and the local server's disk only grows.
+ */
+async function sweepLeftovers(admin: Client): Promise<void> {
+  const { rows } = await admin.query<{ datname: string }>(
+    "SELECT datname FROM pg_database WHERE datname LIKE 'questify_test_%' ORDER BY oid",
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const stale = rows
+    .map((row) => row.datname)
+    .filter((name) => {
+      const born = NAME.exec(name)?.[1];
+      return NAME.test(name) && (born === undefined || now - Number(born) > STALE_AFTER_SECONDS);
+    })
+    .slice(0, SWEEP_LIMIT);
+  for (const name of stale) {
+    await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+  }
+}
 
 export type TestDatabase = Readonly<{
   /** The migration owner (a superuser here). */
@@ -52,8 +79,9 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   if (TEST_DATABASE_URL === undefined) {
     throw new Error("TEST_DATABASE_URL is not set.");
   }
-  const name = `questify_test_${randomBytes(6).toString("hex")}`;
+  const name = `questify_test_${Math.floor(Date.now() / 1000)}_${randomBytes(6).toString("hex")}`;
   const admin = await connect(TEST_DATABASE_URL);
+  await sweepLeftovers(admin);
   await admin.query(`CREATE DATABASE ${name}`);
   // Roles are shared by the whole server, so test files running in parallel must set them one at a time.
   await admin.query("SELECT pg_advisory_lock($1)", [ROLE_SETUP_LOCK]);

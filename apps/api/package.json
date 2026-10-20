@@ -17,6 +17,7 @@
     "@questify/shared": "workspace:*",
     "fastify": "5.12.7",
     "pg": "8.23.1",
+    "redis": "6.3.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

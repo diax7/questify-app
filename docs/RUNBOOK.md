@@ -122,6 +122,29 @@ not encrypt data.
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## Rankings and Redis (T-106, ADR-118)
+
+- **Settings:** `REDIS_URL` (`redis://` or `rediss://`; required in production). Check at deploy whether CranL's
+  managed Redis needs TLS (`rediss://`). Without Redis the API serves rankings from PostgreSQL (same order, more
+  database work: about 50 ms per "my place" at 20,000 players).
+- **The Redis must keep every key:** `maxmemory-policy noeviction`. The API reads it after connecting and logs
+  `redis.eviction_policy` when it is something else or cannot be read (some managed services hide `CONFIG`; then check
+  it in the provider's console at each deploy).
+- **When Redis is down or slow** (250 ms per command): completions still succeed and answer `rank: null`; rankings are
+  read from PostgreSQL; the event is marked in `ranking_repair` and the repair job (every 2 seconds) rebuilds it when
+  Redis is back. A backstop rebuilds every live event whose copy is older than 5 minutes. Log events:
+  `ranking.write_failed`, `ranking.read_failed`, `ranking.rebuild_failed`, `ranking.mark_failed`, `redis.error`,
+  `redis.connect_failed`.
+- **Rebuild one event by hand:** mark it, and the repair job rebuilds it within seconds. With the owner connection (no
+  request context): `SELECT mark_ranking_repair('<event id>');`. Losing the whole Redis is harmless: every copy is
+  rebuilt from PostgreSQL the first time it is read.
+- **Several API instances:** the ranking switch (and every event setting) is cached for up to 15 seconds per instance;
+  another instance can show the old switch for that long after the owner changes it.
+- **Not yet signalled:** a change of a staff user's email (no route changes it yet) sends no repair; the backstop
+  catches it within 5 minutes.
+- **Local runs:** `docker compose up -d` starts Redis on 56379; set `TEST_REDIS_URL=redis://127.0.0.1:56379` for the
+  ranking tests (they skip without it).
+
 ## Email sending (ADR-112)
 
 Sender: `questify@nafes.com`, through the Gmail API. Done once by the admin of the `nafes.com` Google Workspace.

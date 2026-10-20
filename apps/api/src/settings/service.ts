@@ -56,6 +56,17 @@ export type SettingsService = Readonly<{
     input: unknown,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
+  /**
+   * A member of the organizer turns one feature of one event on or off, keeping the event's other switches (who may is
+   * the route's rule: the ranking is the owner's, FR-607).
+   */
+  saveEventSwitch: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    feature: string,
+    enabled: boolean,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
   /** A Questify admin unlocks an add-on for an event. */
   unlockFeature: (
     admin: PublicAccount,
@@ -201,6 +212,43 @@ export function createSettingsService(options: SettingsOptions): SettingsService
               return false;
             }
             const changes = diff({ features: current.features ?? {} }, { features: next });
+            if ("features" in changes.after) {
+              await writeEventSwitches(client, eventId, next);
+              await recordAudit(client, {
+                actor: { type: "staff", id: actor.staffUserId },
+                action: "event.features.update",
+                organizerId: current.organizerId,
+                eventId,
+                target: { type: "event", id: eventId },
+                ...changes,
+                requestId: meta.requestId,
+              });
+            }
+            return true;
+          },
+        ),
+      );
+      forgetAll();
+      return found ? { ok: true } : { ok: false, reason: "not_found" };
+    },
+
+    saveEventSwitch: async (actor, eventId, feature, enabled, meta = {}) => {
+      const checked = validateEventConfig(registries, { features: { [feature]: enabled } });
+      if (!checked.ok) {
+        return { ok: false, reason: "invalid", issues: checked.issues };
+      }
+      const found = await withConnection(options.pool, (client) =>
+        withRequestContext(
+          client,
+          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
+          async () => {
+            const current = await lockEventSwitches(client, eventId);
+            if (current === undefined) {
+              return false;
+            }
+            const before = readEventSwitches({ features: current.features });
+            const next = { ...before, [feature]: enabled };
+            const changes = diff({ features: before }, { features: next });
             if ("features" in changes.after) {
               await writeEventSwitches(client, eventId, next);
               await recordAudit(client, {

@@ -18,6 +18,7 @@ import type {
 } from "#src/events/events";
 import type { EventRecord } from "#src/events/store";
 import { organizerContextOf } from "#src/organizers/context";
+import type { SettingsService } from "#src/settings/service";
 
 const BODY_LIMIT = 8192;
 
@@ -45,6 +46,7 @@ const eventFields = {
 const patchBody = z.strictObject(eventFields);
 const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
 const endBody = z.strictObject({ confirm: z.literal(true) });
+const rankingBody = z.strictObject({ enabled: z.boolean() });
 const eventParams = z.object({ eventId: z.uuid() });
 
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
@@ -66,6 +68,7 @@ const view = (event: EventRecord) => ({
   status: event.status,
   statusNow: event.statusNow,
   createdAt: event.createdAt.toISOString(),
+  ranking: event.rankingOn,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {
@@ -110,7 +113,11 @@ function answerGone(reply: FastifyReply, result: RemoveResult | EndResult) {
  * The event builder's routes, registered inside the organizer scope (its hook has already checked the session and
  * the membership). An editor limited to chosen events sees only those: the database applies the limit.
  */
-export function registerEventRoutes(scope: FastifyInstance, events: Events): void {
+export function registerEventRoutes(
+  scope: FastifyInstance,
+  events: Events,
+  settings: SettingsService,
+): void {
   scope.get("/events", member, async (request) => {
     const list = await events.list(organizerContextOf(request));
     return { events: list.map(view) };
@@ -162,5 +169,23 @@ export function registerEventRoutes(scope: FastifyInstance, events: Events): voi
       reply,
       await events.endEarly(organizerContextOf(request), eventId, callerOf(request)),
     );
+  });
+
+  // FR-607: the owner turns the event's ranking off and on; the event's other switches stay as they are.
+  scope.put("/events/:eventId/ranking", owner, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const { enabled } = parse(rankingBody, request.body);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventSwitch(
+      { staffUserId: context.staffUserId, organizerId: context.organizerId },
+      eventId,
+      "ranking",
+      enabled,
+      { requestId: request.id },
+    );
+    if (!saved.ok) {
+      throw notFound();
+    }
+    return { ranking: enabled };
   });
 }

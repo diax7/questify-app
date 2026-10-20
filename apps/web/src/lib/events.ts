@@ -20,6 +20,8 @@ export type EventView = Readonly<{
   endsAt: string;
   status: EventStatus;
   statusNow: EventStatus;
+  /** The event's own ranking switch (FR-607). */
+  ranking: boolean;
 }>;
 
 /** The name in the page's language, else the other one (an event needs only one). */

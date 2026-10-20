@@ -38,6 +38,11 @@ export type AppConfig = Readonly<{
    * in production; elsewhere, without it, every SMS is refused and the app offers email.
    */
   msegat: Readonly<{ userName: string; apiKey: string; sender: string }> | undefined;
+  /**
+   * The Redis that holds live rankings (ADR-118). Required in production; elsewhere, without it, rankings are read from
+   * PostgreSQL (the same order, more database work).
+   */
+  redisUrl: string | undefined;
 }>;
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -158,7 +163,25 @@ export function loadConfig(env: Env): AppConfig {
     auth: authConfig(env),
     qrSecret: qrSecret(env),
     msegat: msegat(env, nodeEnv),
+    redisUrl: redisUrl(env, nodeEnv),
   };
+}
+
+function redisUrl(env: Env, nodeEnv: string): string | undefined {
+  const text = nodeEnv === "production" ? required(env, "REDIS_URL") : optional(env, "REDIS_URL");
+  if (text === undefined) {
+    return undefined;
+  }
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    throw new Error("REDIS_URL must be a URL like redis://host:6379 or rediss://host:6380.");
+  }
+  if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
+    throw new Error(`REDIS_URL must start with redis:// or rediss://; got "${url.protocol}".`);
+  }
+  return text;
 }
 
 const MSEGAT_NAMES = ["MSEGAT_USERNAME", "MSEGAT_API_KEY", "MSEGAT_SENDER"] as const;

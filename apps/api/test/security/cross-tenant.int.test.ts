@@ -426,6 +426,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; a challenge is reached only through definers bound to its token (test/db/player-sign-in)",
   player_refresh:
     "no right for the API role at all; a refresh token is rotated only through a definer bound to it (test/db/player-sign-in)",
+  ranking_repair:
+    "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
   player_session:
     "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
 };

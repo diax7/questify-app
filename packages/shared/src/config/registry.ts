@@ -43,6 +43,8 @@ export const FEATURES: FeatureRegistry = {
   bigScreen: { gated: true },
   cheers: { gated: false },
   polls: { gated: false },
+  /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
+  ranking: { gated: false },
   shop: { gated: false },
 };
 

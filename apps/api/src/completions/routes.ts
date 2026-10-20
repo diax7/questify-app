@@ -16,6 +16,7 @@ import {
   type CompletionDeps,
   type CompletionResult,
 } from "#src/completions/complete";
+import type { Ranking } from "#src/ranking/ranking";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,10 +33,8 @@ const questParams = z.object({ questId: z.uuid() });
 const deviceOf = (header: unknown): string | undefined =>
   typeof header === "string" && UUID.test(header) ? header.toLowerCase() : undefined;
 
-function answer(reply: FastifyReply, result: CompletionResult) {
+function answer(reply: FastifyReply, result: Exclude<CompletionResult, { kind: "completed" }>) {
   switch (result.kind) {
-    case "completed":
-      return result.value;
     case "not_found":
       throw notFound();
     case "enrollment_inactive":
@@ -59,7 +58,10 @@ function answer(reply: FastifyReply, result: CompletionResult) {
  * `POST /v1/quests/:questId/complete` (FR-201, 211, 302, 304): a player with a live session completes a quest with its
  * QR's token or its typed code. Every call needs an Idempotency-Key; a retry with the same key gets the first answer.
  */
-export function registerCompletionRoutes(app: FastifyInstance, deps: CompletionDeps): void {
+export function registerCompletionRoutes(
+  app: FastifyInstance,
+  deps: CompletionDeps & Readonly<{ ranking: Ranking }>,
+): void {
   app.post(
     "/v1/quests/:questId/complete",
     { config: { access: "player", idempotent: true }, bodyLimit: 1024 },
@@ -83,7 +85,12 @@ export function registerCompletionRoutes(app: FastifyInstance, deps: CompletionD
         },
         callerOf(request),
       );
-      return answer(reply, result);
+      if (result.kind !== "completed") {
+        return answer(reply, result);
+      }
+      // The player's place after this completion: null when not ranked or when Redis could not answer (T-106).
+      const rank = await deps.ranking.afterCompletion(player.id, result.value.completionId);
+      return { ...result.value, rank };
     },
   );
 }

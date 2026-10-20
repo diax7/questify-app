@@ -25,12 +25,14 @@ import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import { ORGANIZER_PREFIX } from "#src/route-access";
+import type { SettingsService } from "#src/settings/service";
 
 export type OrganizerRoutesDeps = Readonly<{
   pool: Pool;
   sessions: Sessions;
   team: Team;
   events: Events;
+  settings: SettingsService;
   /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
   questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
   dashboardOrigin: string;
@@ -190,7 +192,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);
-      registerEventRoutes(scope, deps.events);
+      registerEventRoutes(scope, deps.events, deps.settings);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
     },
     { prefix: ORGANIZER_PREFIX },
