@@ -1717,3 +1717,14 @@ deriving from it would force every organizer to reprint each time. A leak of `QR
 event at rotation (RUNBOOK procedure). A per-quest random nonce was considered and rejected: SECURITY and ARCHITECTURE
 call for signed codes, and rotating station codes (FR-314) need a key anyway.
 
+## ADR-117 — Player email sign-in codes go through the staff email path (Gmail, Resend backup) for now
+**Status:** Accepted (user, 2026-10-20, T-107 planning: "Use Gmail for now").
+**Decision:** Players who sign in by email (no +966 number, or when SMS fails, FR-108, FR-1812) get their one-time
+code through the same sender as staff codes (ADR-112: the Gmail API from questify@nafes.com, Resend as backup). Only
+the email address and a short-lived code pass through the provider; nothing else about the player does. A separate
+daily budget for player codes keeps staff sign-in codes deliverable when players' volume spikes.
+**Why:** email sign-in is required (non-Saudi numbers, the SMS fallback), and no in-region email provider has been
+chosen. This is a known, accepted exception to hard rule 3 for the address and the code only, recorded in the data map
+(SECURITY.md). **Revisit:** when a Saudi email provider is chosen (Q-034); the switch is configuration behind the
+`EmailSender` interface.
+

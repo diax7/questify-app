@@ -216,7 +216,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 
 | Entity | Purpose | PII |
 |---|---|---|
-| player_session (built: T-105 lookup only; T-107/T-108 issue and refresh), login_challenge, device | Sign-in sessions; hashed one-time codes with expiry and attempt count; device + push token + integrity result | Device ids, tokens (yes) |
+| player_session, player_refresh, player_login_challenge (built: T-105, T-107, migration 0013), device | Access tokens (1 hour, `refresh_family`), rotating refresh tokens (180 days; a family per device, at most 10 live; reuse ends the family), one-time code challenges (the phone or email, its keyed hash for lookup, the code's HMAC, 3 tries, 3 resends, 5 minutes; the signup token's hash for 15 minutes after a right code for a new contact). No grant on the challenge and refresh tables: definer functions only. Swept: challenges an hour after expiry, ended or used tokens 7 days after; device + push token + integrity result later | The challenge holds a phone or email for minutes; tokens are stored hashed |
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | Operator role, station, abilities, booth limits per event | Links a player |

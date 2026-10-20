@@ -91,7 +91,14 @@ entries is the anonymisation path for a deleted player (Q-084).
 | V8 authorization / business logic | one definer function, `complete_quest`, is the only writer of completions and points; the player is the request's own, never an argument; it checks enrollment, event, quest, proof and cap under a lock on the player's enrollment; points come from the quest row, never the request. The rules hold whatever the API sends; the QR signature and the player's identity are the API's (signed code, bearer session) | `test/db/completion-engine.int.test.ts` (a recorded mutation pass over the function's rules), `test/completions/complete.int.test.ts` |
 | V11 / V16 integrity | the ledger is append-only for every role through any DML, the owner included (ALWAYS triggers on UPDATE, DELETE, TRUNCATE); a DDL change (dropping a trigger) goes through reviewed migrations only. Score and balance are trigger-kept sums of it | same suite |
 | V2 / V11 anti-automation | wrong typed codes are reserved before they are checked, under a lock on the player, so a burst cannot slip past the count: 5 per quest, 20 per player, 30 per install in 10 minutes. `X-Device-Id` is a claim from an honest client (an attacker rotates it); the per-player limits are the real wall | `test/completions/complete.int.test.ts` |
-| V3 sessions (players) | bearer tokens of 256 bits stored as SHA-256; a session counts only while the player is active, the session unexpired and not revoked; issuing is T-107 | `test/db/completion-engine.int.test.ts`, `test/completions/complete.int.test.ts` |
+| V3 sessions (players) | bearer tokens of 256 bits stored as SHA-256; a session counts only while the player is active, the session unexpired and not revoked. Issued only by database functions that consume proof in the same transaction (a challenge token and its code, a signup token, a refresh token), never from a bare player id; access 1 hour, refresh 180 days rotated on every use, one family per device (at most 10); a reused refresh token outside the 60-second retry grace ends the family and is audited; sign-out by the refresh token (T-107) | `test/db/player-sign-in.int.test.ts`, `test/players/sign-in.int.test.ts`, `test/db/completion-engine.int.test.ts`, `test/completions/complete.int.test.ts` |
+| V15 definer functions (T-107) | every `SECURITY DEFINER` function runs with `search_path = public, pg_temp` (pg_temp last), and no role but the owner may create temporary tables (`TEMPORARY` revoked from `PUBLIC`, migration 0014): a caller cannot shadow a table the function reads with a temporary one of the same name. A new definer function takes the same setting; a test fails the build if one does not | `test/db/player-sign-in.int.test.ts` |
+
+**Residual risk accepted (T-107, plan review minor 1).** Someone who knows a player's phone number can ask for codes
+and guess wrong: 30 wrong codes a day lock that number out of SMS sign-in until the window moves on, and 5 codes an
+hour (10 a day) stop its codes. Email sign-in still works, and support frees the number (RUNBOOK, "Player sign-in and
+SMS"). The windows stay per contact because a per-address limit cannot stop a spread-out attack and would lock out
+whole venues.
 
 **Deviation recorded.** The alerts for these signals (email senders down, throttle spikes, one address key
 carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
@@ -103,7 +110,7 @@ carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 | 1 | A player on organizer A reads organizer B's data by changing an id | Information disclosure | Authorization check on every object, an `organizer_id` on every tenant row, row-level security in PostgreSQL, and outsider tests using only the public credential (NFR-016, NFR-018) |
 | 2 | Scripts spam the completion call, replay requests or forge QR contents | Tampering | Signed QR payloads with a version (regenerate kills old ones); idempotency keys; unique (enrollment, quest); rate limits; flags for bursts and impossible speed (ADR-041) |
 | 3 | A fake score from a modified mini-game | Tampering | The server issues a seeded round and replays the inputs; a reported score is never trusted (FR-1805) |
-| 4 | SMS pumping: someone requests thousands of codes to run up Questify's SMS bill | Denial of service / cost | Per-number, per-IP and global limits and cost alert in the usage view; email fallback; Saudi numbers only; challenge after repeated requests (ADR-099 risk) |
+| 4 | SMS pumping: someone requests thousands of codes to run up Questify's SMS bill | Denial of service / cost | Saudi mobiles only; every SMS sent (first and resent) counts per number (5 an hour, 10 a day), per install (10 an hour) and per address (200 an hour, a ceiling only: venues and carriers put thousands behind one address); a platform ceiling (5,000 an hour, warning at half, Q-093) refuses with the email offer (T-107). Still to come: the cost alert in the usage view and a challenge after repeated requests (ADR-099 risk) |
 | 5 | Phishing or takeover of an admin or owner mailbox | Spoofing / elevation | Password + email code; short sessions; admin session list and forced sign-out; every admin read and change logged; alert on new admin sign-in |
 | 6 | An operator or kiosk misuses scanning to award points | Elevation of privilege | Per-operator abilities and booth limits; owner caps; every award in the append-only record with the operator id (F-110) |
 | 7 | Stolen or shared pass/QR used at the prize desk | Spoofing | The desk checks the reservation, the player's profile and open flags; a held item needs a person to clear the flag (ADR-100) |
@@ -122,7 +129,8 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
 - In transit: TLS everywhere, HSTS on web pages.
 - At rest: encrypted storage by the cloud; extra column encryption for prize codes.
 - Residency: all personal data in Saudi Arabia (ADR-070); the exceptions are push tokens/text,
-  wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer, any foreign email provider and the Pwned Passwords range API (5 hex characters of a password's SHA-1, no personal data), each listed in the data map (NFR-020) and on the
+  wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer, any foreign email provider (staff mail, and player sign-in codes by email until Q-034 is
+  answered: only the address and the code pass through, ADR-117) and the Pwned Passwords range API (5 hex characters of a password's SHA-1, no personal data), each listed in the data map (NFR-020) and on the
   counsel list.
 - Minimisation: no ad networks or tracking SDKs; location only while the app is open; photos only
   through the system picker or camera (NFR-021).

@@ -49,6 +49,12 @@ export type AuthKeys = Readonly<{
   playerQuestKey: (playerId: string, questId: string) => Buffer;
   /** Throttle key for an app install (its X-Device-Id). */
   deviceKey: (deviceId: string) => Buffer;
+  /** Throttle key for a player's phone or email (sign-in codes, T-107). */
+  contactThrottleKey: (contact: string) => Buffer;
+  /** Finds a contact's earlier sign-in challenges without storing the contact twice (T-107). */
+  contactLookupKey: (contact: string) => Buffer;
+  /** Hash of a player's sign-in code, bound to its challenge. */
+  playerCodeHash: (challengeId: string, code: string) => Buffer;
   /** Hash of a code, bound to its challenge so equal codes differ between challenges. */
   codeHash: (challengeId: string, code: string) => Buffer;
 }>;
@@ -73,6 +79,9 @@ export function createAuthKeys(secret: string): AuthKeys {
   const player = keyed("throttle-player");
   const playerQuest = keyed("throttle-player-quest");
   const device = keyed("throttle-device");
+  const contactThrottle = keyed("throttle-contact");
+  const contactLookup = keyed("contact-lookup");
+  const playerCode = derive("player-code");
   const code = derive("code");
   return {
     emailKey: email,
@@ -82,6 +91,10 @@ export function createAuthKeys(secret: string): AuthKeys {
     playerKey: player,
     playerQuestKey: (playerId, questId) => playerQuest(`${playerId}\n${questId}`),
     deviceKey: device,
+    contactThrottleKey: contactThrottle,
+    contactLookupKey: contactLookup,
+    playerCodeHash: (challengeId, value) =>
+      createHmac("sha256", playerCode).update(`${challengeId}\n${value}`).digest(),
     codeHash: (challengeId, value) =>
       createHmac("sha256", code).update(`${challengeId}\n${value}`).digest(),
   };

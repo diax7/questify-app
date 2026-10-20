@@ -17,6 +17,13 @@ export const BUCKETS = {
   codePlayerQuest: "code_player_quest",
   codePlayer: "code_player",
   codeDevice: "code_device",
+  playerCodeContact: "player_code_contact",
+  playerCodeDevice: "player_code_device",
+  playerCodeAddress: "player_code_address",
+  playerFailContact: "player_fail_contact",
+  playerFailAddress: "player_fail_address",
+  smsPlatform: "sms_platform",
+  playerEmailPlatform: "player_email_platform",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

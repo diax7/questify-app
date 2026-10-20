@@ -7,6 +7,7 @@ import { EmailSendError, type EmailMessage, type EmailSender } from "#src/auth/e
 import { hashPassword } from "#src/auth/password";
 import type { AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
+import type { SmsMessage, SmsResult, SmsSender } from "#src/players/sms";
 import type { SettingsService } from "#src/settings/service";
 import type { TranslationService } from "#src/translations/service";
 import type { TestDatabase } from "#test/support/test-db";
@@ -44,6 +45,7 @@ export function testConfig(
       ...auth,
     },
     qrSecret: "q".repeat(40),
+    msegat: undefined,
   };
 }
 
@@ -73,6 +75,28 @@ export class RecordingEmailSender implements EmailSender {
 
   to(address: string): EmailMessage[] {
     return this.sent.filter((message) => message.to === address);
+  }
+}
+
+/** Collects every SMS instead of sending it; `next` is the gateway's answer (sent unless told otherwise). */
+export class RecordingSmsSender implements SmsSender {
+  readonly name = "recording";
+  readonly sent: SmsMessage[] = [];
+  next: SmsResult = { kind: "sent" };
+
+  send(message: SmsMessage): Promise<SmsResult> {
+    this.sent.push(message);
+    return Promise.resolve(this.next);
+  }
+
+  /** The six-digit code in the most recent SMS to this number. */
+  lastCode(to: string): string {
+    const text = this.sent.filter((message) => message.to === to).at(-1)?.text ?? "";
+    const code = /[0-9]{6}/.exec(text)?.[0];
+    if (code === undefined) {
+      throw new Error(`No sign-in code was texted to ${to}.`);
+    }
+    return code;
   }
 }
 
@@ -123,6 +147,7 @@ export async function createStaff(owner: Client, seed: StaffSeed): Promise<strin
 export type TestApp = Readonly<{
   app: FastifyInstance;
   mail: RecordingEmailSender;
+  sms: RecordingSmsSender;
   breach: FakeBreachCheck;
   /** Waits for work that runs after an answer (reset emails, change notices). */
   deferred: Deferred;
@@ -139,6 +164,7 @@ export async function startApp(
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
+  const sms = new RecordingSmsSender();
   const breach = new FakeBreachCheck();
   const deferred = createDeferred((error) => {
     throw error;
@@ -148,6 +174,7 @@ export async function startApp(
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: mail,
+    smsSender: sms,
     breachCheck: breach.check,
     deferred,
     ...(settings === undefined ? {} : { settings }),
@@ -158,6 +185,7 @@ export async function startApp(
   return {
     app,
     mail,
+    sms,
     breach,
     deferred,
     pool,

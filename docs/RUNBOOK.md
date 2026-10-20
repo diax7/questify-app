@@ -99,6 +99,29 @@ event to open Print codes and reprint (the page shows the new codes); note it in
 an old code get "this code no longer works" (T-105). A routine rotation is not needed: the key signs codes, it does
 not encrypt data.
 
+## Player sign-in and SMS (T-107)
+
+- **Settings:** `MSEGAT_USERNAME`, `MSEGAT_API_KEY`, `MSEGAT_SENDER` (the activated services sender, never the `…AD`
+  one), all three or none; production refuses to start without them. Without them elsewhere every SMS is refused and
+  the app offers email.
+- **Before the first real SMS from a server:** Msegat may reject calls from an unregistered address (`M0037`). Register
+  the API's outbound address in the Msegat account or switch the static-IP check off there.
+- **Log events** (never a phone, email, code or token): `player.code_sent {channel, outcome}` (`unknown_timeout` and
+  the like mean the text may still arrive), `player.sms_refused {gateway, reason}` with Msegat's code, `player.budget_half`
+  / `player.budget_spent {channel}`, `player.throttled`, `player.code_failed`, `player.signed_in`, `player.signed_up`,
+  `player.refresh_reuse`.
+- **`sms_refused` reasons:** `1060` the balance is spent (top up the Msegat account; players meanwhile use email);
+  `M0037` the static-IP check; `1110` the sender name is wrong or not activated; `1120` the number or international
+  sending; `unreachable` Msegat could not be reached twice; `not_configured` no Msegat settings.
+- **Budgets:** at most 5,000 login SMS an hour on the whole platform (`smsPerHour`, a warning at half; Q-093) and 1,000
+  player email codes a day (`playerEmailsPerDay`, below the mailbox quota so staff codes always have room, ADR-117).
+  A spent budget answers 503 until the window moves on. Tuning numbers live in `apps/api/src/auth/limits.ts`.
+- **Freeing a contact or an address** (a player locked out by someone else's wrong guesses, SECURITY.md): the counts
+  are rows in `auth_throttle` (buckets `player_code_contact`, `player_code_device`, `player_code_address`,
+  `player_fail_contact`, `player_fail_address`), keyed by `contactThrottleKey` of the stored phone (`+9665…`) or
+  lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
+  connection), as for staff.
+
 ## Email sending (ADR-112)
 
 Sender: `questify@nafes.com`, through the Gmail API. Done once by the admin of the `nafes.com` Google Workspace.

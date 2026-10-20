@@ -21,6 +21,9 @@ import { registerConventions } from "#src/conventions";
 import { registerCompletionRoutes } from "#src/completions/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
+import { registerPlayerAuthRoutes } from "#src/players/routes";
+import { createPlayerSignIn } from "#src/players/sign-in";
+import type { SmsSender } from "#src/players/sms";
 import { createQuestCodeKey } from "#src/quests/qr";
 import { startLifecycleTick } from "#src/events/tick";
 import { createInvites } from "#src/organizers/accept";
@@ -42,6 +45,8 @@ export type AppOptions = Readonly<{
   emailSender: EmailSender;
   /** Checks new passwords against known breaches (Pwned Passwords in production, a fake in tests). */
   breachCheck: BreachCheck;
+  /** Sends player sign-in codes by SMS (Msegat). Without one, every SMS is refused and the app offers email. */
+  smsSender?: SmsSender;
   /** Work that runs after an answer has gone. Created when not given; tests give one to wait on. */
   deferred?: Deferred;
   /** Reads and saves configuration. Created from the pool when not given (tests give one with a short cache). */
@@ -61,6 +66,12 @@ declare module "fastify" {
 }
 
 const READINESS_TIMEOUT_MS = 2000;
+
+/** Stands in when no SMS gateway is configured (development, tests that do not send SMS). */
+const NO_SMS: SmsSender = {
+  name: "none",
+  send: () => Promise.resolve({ kind: "refused", reason: "not_configured" }),
+};
 /** How long shutdown waits for emails still being sent. */
 const DRAIN_TIMEOUT_MS = 5000;
 
@@ -156,6 +167,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   registerPlayerGuard(app, options.pool);
+  registerPlayerAuthRoutes(
+    app,
+    createPlayerSignIn({
+      pool: options.pool,
+      keys: signInDeps.keys,
+      sms: options.smsSender ?? NO_SMS,
+      email: options.emailSender,
+    }),
+  );
   registerCompletionRoutes(app, {
     pool: options.pool,
     codeKey: questCodeKey,

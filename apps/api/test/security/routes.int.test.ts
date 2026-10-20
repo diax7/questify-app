@@ -104,6 +104,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a player's own bearer session only; the database writes for the player of the request, never an argument (test/completions/complete, test/db/completion-engine)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
+  "POST /v1/auth/code":
+    "player sign-in; opens a challenge for the contact in the body, the same answer for every contact (test/players/sign-in)",
+  "POST /v1/auth/resend": "bound to its own challenge token (test/players/sign-in)",
+  "POST /v1/auth/verify":
+    "bound to its own challenge token and code; the player comes from the database (test/players/sign-in)",
+  "POST /v1/auth/signup": "bound to the signup token a verified code made (test/players/sign-in)",
+  "POST /v1/auth/refresh": "bound to the refresh token's own family (test/players/sign-in)",
+  "POST /v1/auth/logout": "ends only the presented refresh token's family (test/players/sign-in)",
 };
 
 const PUBLIC_ROUTES = [
@@ -111,6 +119,12 @@ const PUBLIC_ROUTES = [
   "GET /readyz",
   "GET /v1/config",
   "GET /v1/translations",
+  "POST /v1/auth/code",
+  "POST /v1/auth/logout",
+  "POST /v1/auth/refresh",
+  "POST /v1/auth/resend",
+  "POST /v1/auth/signup",
+  "POST /v1/auth/verify",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",

@@ -575,18 +575,27 @@ other docs feed it and stay as its detailed appendices.
   T-107 will issue tokens for. Migration 0012. CTO: plan 83 → 94; phases 93 → 95, 95 (GO). Bugs found on the way: a
   replay check that hashed the route pattern instead of the path (one quest's answer could replay for another), and a
   plpgsql variable named `found` that shadowed `FOUND`.
+- 2026-10-20 **T-107 done (server side).** Player sign-in: a six-digit code by SMS to a Saudi mobile (Msegat) or by
+  email, a profile step for a new contact (username and birth year; under 13 refused), then a 1-hour access token and a
+  180-day refresh token that rotates on every use; a reused refresh token ends that device's sign-in. The answer to a
+  code request is the same whether or not an account exists. Limits per number, install and address, and platform
+  ceilings for SMS (5,000 an hour, Q-093) and player email (1,000 a day, ADR-117). A security sweep found that definer
+  functions could be fooled by a caller's temporary table of the same name: migration 0014 closes it for every
+  function, and a test fails the build if a new one is not pinned. The Arabic brand name in emails and SMS now follows
+  ADR-019 (كويستفاي; the emails had a misspelling). Migrations 0013, 0014. CTO: plan 83 → 94; phases 87 → 95, 93 (GO);
+  mutation 96%. The sign-in screens wait for the app shell (moved to T-111). Local test runs needed more database
+  connections (`compose.yaml`: 300).
 
 ## Next
 
-1. **Now:** T-107 (player sign-in; Dhia put the Msegat username, API key and services sender in the staging secret
-   store on 2026-10-20, with `QR_SECRET`), then T-106 (ranking) and the Phase 1 player tasks sign-in unlocks. T-107 goes before T-106: nothing in
-   T-106 is its prerequisite, and sign-in unblocks real players.
+1. **Now:** T-106 (ranking), then the Phase 1 player tasks sign-in unlocked (T-109 profile rules, T-110 consent,
+   T-111 join with the sign-in screens once the app shell runs).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0012, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0014, Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
-   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed; set `QR_SECRET` in staging.
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.
+   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

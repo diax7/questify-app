@@ -8,6 +8,7 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
+import { createMsegatSender } from "#src/players/sms";
 
 const STATEMENT_TIMEOUT_MS = 5000;
 const LOCK_TIMEOUT_MS = 2000;
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
       app.log.warn({ event: "staff.email_failover", from, to });
     }),
     breachCheck: createBreachCheck(),
+    ...(config.msegat === undefined ? {} : { smsSender: createMsegatSender(config.msegat) }),
     lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.

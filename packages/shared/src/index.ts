@@ -76,3 +76,5 @@ export {
   isQuestType,
   parseQuestConfig,
 } from "./quests/registry";
+export type { UsernameCheck } from "./players/username";
+export { USERNAME_MAX, USERNAME_MIN, checkUsername } from "./players/username";

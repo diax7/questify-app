@@ -14,6 +14,11 @@ const REQUIRED = {
   }),
   MAIL_FROM: "questify@nafes.com",
 };
+const MSEGAT = {
+  MSEGAT_USERNAME: "nafes",
+  MSEGAT_API_KEY: "test-key",
+  MSEGAT_SENDER: "Questify",
+};
 
 describe("loadConfig", () => {
   it("uses safe defaults for everything that has one", () => {
@@ -42,12 +47,14 @@ describe("loadConfig", () => {
         securityAlertEmail: undefined,
       },
       qrSecret: REQUIRED.QR_SECRET,
+      msegat: undefined,
     });
   });
 
   it("reads every setting from the environment", () => {
     const config = loadConfig({
       ...REQUIRED,
+      ...MSEGAT,
       NODE_ENV: "production",
       HOST: "127.0.0.1",
       PORT: "8080",
@@ -161,7 +168,7 @@ describe("loadConfig", () => {
   it("requires TRUST_PROXY_HOPS in production, because a wrong guess makes everyone share one address", () => {
     expect(() => loadConfig({ ...REQUIRED, NODE_ENV: "production" })).toThrow(/TRUST_PROXY_HOPS/);
     expect(
-      loadConfig({ ...REQUIRED, NODE_ENV: "production", TRUST_PROXY_HOPS: "2" }),
+      loadConfig({ ...REQUIRED, ...MSEGAT, NODE_ENV: "production", TRUST_PROXY_HOPS: "2" }),
     ).toMatchObject({
       trustProxyHops: 2,
     });
@@ -181,5 +188,35 @@ describe("loadConfig", () => {
 
   it("accepts zero proxies", () => {
     expect(loadConfig({ ...REQUIRED, TRUST_PROXY_HOPS: "0" }).trustProxyHops).toBe(0);
+  });
+
+  describe("Msegat", () => {
+    const PRODUCTION = { ...REQUIRED, NODE_ENV: "production", TRUST_PROXY_HOPS: "1" };
+
+    it("reads the account when all three are set", () => {
+      expect(loadConfig({ ...REQUIRED, ...MSEGAT }).msegat).toEqual({
+        userName: "nafes",
+        apiKey: "test-key",
+        sender: "Questify",
+      });
+    });
+
+    it("is optional outside production", () => {
+      expect(loadConfig(REQUIRED).msegat).toBeUndefined();
+    });
+
+    it("is required in production", () => {
+      expect(() => loadConfig(PRODUCTION)).toThrow(
+        /MSEGAT_USERNAME.*required together in production/,
+      );
+      expect(loadConfig({ ...PRODUCTION, ...MSEGAT }).msegat?.sender).toBe("Questify");
+    });
+
+    it("refuses a partial account anywhere", () => {
+      for (const missing of Object.keys(MSEGAT)) {
+        const partial = { ...REQUIRED, ...MSEGAT, [missing]: " " };
+        expect(() => loadConfig(partial)).toThrow(/required together/);
+      }
+    });
   });
 });

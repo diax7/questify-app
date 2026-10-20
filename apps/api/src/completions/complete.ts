@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { toWesternDigits } from "@questify/shared";
 import type { AuthKeys } from "#src/auth/keys";
 import { COMPLETION_LIMITS } from "#src/auth/limits";
 import type { Caller } from "#src/auth/sign-in";
@@ -50,17 +51,12 @@ export type CompletionResult =
 
 export type CompletionDeps = Readonly<{ pool: Pool; codeKey: QuestCodeKey; keys: AuthKeys }>;
 
-const DIGITS = /[٠-٩۰-۹]/g;
-
 /**
  * A typed entry code as the quest stores it: Arabic-Indic and Persian digits made Western (ADR-018), spaces trimmed,
  * letters upper-case.
  */
 export function normalizeEntryCode(typed: string): string {
-  return typed
-    .replace(DIGITS, (digit) => String((digit.codePointAt(0) ?? 0) % 16))
-    .trim()
-    .toUpperCase();
+  return toWesternDigits(typed).trim().toUpperCase();
 }
 
 /** The SQLSTATEs of `complete_quest` (migration 0012). */

@@ -150,7 +150,7 @@ describe("newSignInAlertEmail", () => {
 describe("exact email text", () => {
   it("writes the sign-in code email word for word, Arabic first", () => {
     expect(signInCodeEmail({ code: "042917", expiresInMinutes: 10 })).toEqual({
-      subject: "رمز الدخول إلى كويستيفاي | Your Questify sign-in code",
+      subject: "رمز الدخول إلى كويستفاي | Your Questify sign-in code",
       text: [
         "رمز الدخول الخاص بك: 042917",
         "الرمز صالح لمدة 10 دقائق. إذا لم تحاول تسجيل الدخول، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.",
@@ -170,7 +170,7 @@ describe("exact email text", () => {
       text: [
         `تم تسجيل دخول جديد إلى حسابك في ${when}.`,
         "الجهاز: Chrome on Windows",
-        "إذا لم تكن أنت، تواصل مع فريق كويستيفاي فورا.",
+        "إذا لم تكن أنت، تواصل مع فريق كويستفاي فورا.",
         "",
         `A new sign-in to your account happened at ${when}.`,
         "Device: Chrome on Windows",
@@ -305,7 +305,7 @@ describe("password emails (T-020)", () => {
     expect(passwordResetEmail({ link, expiresInMinutes: 30 })).toEqual({
       subject: "إعادة تعيين كلمة المرور | Reset your Questify password",
       text: [
-        "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في كويستيفاي.",
+        "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في كويستفاي.",
         `افتح هذا الرابط لاختيار كلمة مرور جديدة: ${link}`,
         "يعمل الرابط مرة واحدة لمدة 30 دقيقة. إذا لم تطلب ذلك، تجاهل هذه الرسالة، فكلمة مرورك لم تتغير.",
         "",

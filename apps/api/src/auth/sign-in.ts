@@ -102,7 +102,7 @@ const EXPIRES_IN_MINUTES = L.challengeValiditySeconds / 60;
 
 /** Logs an event with a short keyed tag of the client address (never the address), so abuse can be told apart. */
 export function say(
-  deps: SignInDeps,
+  deps: Pick<SignInDeps, "keys">,
   caller: Caller,
   event: string,
   fields: Readonly<Record<string, string | number>> = {},

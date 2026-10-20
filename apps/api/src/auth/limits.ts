@@ -59,3 +59,29 @@ export const COMPLETION_LIMITS = {
   wrongCodesPerPlayer: { max: 20, windowSeconds: 600 },
   wrongCodesPerDevice: { max: 30, windowSeconds: 600 },
 } as const;
+
+/**
+ * Player sign-in (T-107), seconds unless the name says otherwise. Every code sent counts, first or resent: SMS costs
+ * money (ADR-099) and floods a phone. A client address is only an abuse ceiling: a venue's Wi-Fi or a carrier's NAT
+ * puts thousands of players behind one, so the real walls are the contact and the install.
+ */
+export const PLAYER_SIGN_IN_LIMITS = {
+  codeLifetimeSeconds: 300,
+  triesPerCode: 3,
+  resendSpacingSeconds: 60,
+  maxResends: 3,
+  emailFallbackAfterSeconds: 30,
+  codesPerContactHour: { max: 5, windowSeconds: 3600 },
+  codesPerContactDay: { max: 10, windowSeconds: 86_400 },
+  codesPerDeviceHour: { max: 10, windowSeconds: 3600 },
+  codesPerAddressHour: { max: 200, windowSeconds: 3600 },
+  failuresPerContact: { max: 10, windowSeconds: 900 },
+  failuresPerContactDay: { max: 30, windowSeconds: 86_400 },
+  failuresPerAddress: { max: 100, windowSeconds: 900 },
+  /** All login SMS on the platform in an hour: a brake on SMS pumping; a warning at half (Q-093 tunes it). */
+  smsPerHour: { max: 5000, windowSeconds: 3600 },
+  /** Player email codes a day, below the mailbox's quota, so staff codes always have room (ADR-117). */
+  playerEmailsPerDay: { max: 1000, windowSeconds: 86_400 },
+  /** Access tokens live 1 hour and refresh tokens 180 days (migration 0013 holds the same numbers). */
+  accessTokenSeconds: 3600,
+} as const;

@@ -296,3 +296,57 @@ export const hasCompletions = make(
   "أكمل لاعبون هذه المهمة، فنقاطهم محفوظة. أخفِها بدلًا من حذفها.",
   "Players completed this quest, so their points stay. Hide it instead of deleting it.",
 );
+export const phoneNotSupported = make(
+  422,
+  "phone_not_supported",
+  "نرسل الرمز إلى أرقام الجوال السعودية فقط. استخدم بريدك الإلكتروني بدلًا منه.",
+  "Codes go to Saudi mobile numbers only. Use your email instead.",
+);
+export const smsUnavailable = make(
+  503,
+  "sms_unavailable",
+  "تعذّر إرسال الرسالة الآن. استخدم بريدك الإلكتروني بدلًا منها.",
+  "We could not send the text right now. Use your email instead.",
+);
+export const accountBanned = make(
+  403,
+  "account_banned",
+  "حسابك موقوف. تواصل مع فريق Questify إن كنت ترى أنه خطأ.",
+  "Your account is suspended. Contact the Questify team if you think this is a mistake.",
+);
+export const signupExpired = make(
+  410,
+  "signup_expired",
+  "انتهت مهلة إنشاء الحساب. اطلب رمزًا جديدًا.",
+  "The time to create your account ran out. Ask for a new code.",
+);
+export const tooYoung = make(
+  422,
+  "too_young",
+  "يجب أن يكون عمرك 13 سنة أو أكثر لإنشاء حساب.",
+  "You need to be 13 or older to create an account.",
+);
+export const invalidBirthYear = make(
+  422,
+  "invalid_birth_year",
+  "أدخل سنة ميلاد صحيحة.",
+  "Enter a valid birth year.",
+);
+export const invalidUsername = make(
+  422,
+  "invalid_username",
+  "اختر اسم مستخدم من 3 إلى 30 حرفًا أو رقمًا أو _ بالعربية أو الإنجليزية.",
+  "Choose a username of 3 to 30 letters, digits or _, in Arabic or English.",
+);
+export const usernameTaken = make(
+  409,
+  "username_taken",
+  "اسم المستخدم هذا محجوز. جرّب اسمًا آخر.",
+  "That username is taken. Try another.",
+);
+export const contactTaken = make(
+  409,
+  "contact_taken",
+  "لهذا الرقم أو البريد حساب الآن. سجّل الدخول من جديد.",
+  "This number or email has an account now. Sign in again.",
+);

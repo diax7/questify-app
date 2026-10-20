@@ -763,8 +763,8 @@ Questify reading (interpretation, confirm with counsel):
 For Questify:
 
 - Register one **service** sender name (e.g., "Questify") under the Questify company CR for OTPs
-  and transactional messages. Template: "رمز التحقق لتسجيل الدخول إلى Questify: 123456. لا تشاركه مع
-  أحد." / "Your Questify sign-in code is 123456. Do not share it." Add the Android SMS Retriever
+  and transactional messages. Template (as built, T-107; the Arabic brand name per ADR-019): "رمز الدخول إلى
+  كويستفاي: 123456. لا تشاركه مع أحد." / "Your Questify sign-in code is 123456. Do not share it." Add the Android SMS Retriever
   hash to the template.
 - Organizer-branded SMS ("from STC Events") needs that organizer's own registered sender name. Not
   in v1.

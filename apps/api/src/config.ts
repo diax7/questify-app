@@ -33,6 +33,11 @@ export type AppConfig = Readonly<{
    * codes live a whole event, and rotating it voids every one (RUNBOOK).
    */
   qrSecret: string;
+  /**
+   * The Msegat account for player sign-in SMS (ADR-103): its user name, API key and activated services sender. Required
+   * in production; elsewhere, without it, every SMS is refused and the app offers email.
+   */
+  msegat: Readonly<{ userName: string; apiKey: string; sender: string }> | undefined;
 }>;
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -152,6 +157,27 @@ export function loadConfig(env: Env): AppConfig {
     trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
     qrSecret: qrSecret(env),
+    msegat: msegat(env, nodeEnv),
+  };
+}
+
+const MSEGAT_NAMES = ["MSEGAT_USERNAME", "MSEGAT_API_KEY", "MSEGAT_SENDER"] as const;
+
+/** All three or none; production needs them, since players sign in by phone first (FR-106). */
+function msegat(env: Env, nodeEnv: string): AppConfig["msegat"] {
+  const set = MSEGAT_NAMES.filter((name) => optional(env, name) !== undefined);
+  if (set.length === 0 && nodeEnv !== "production") {
+    return undefined;
+  }
+  if (set.length !== MSEGAT_NAMES.length) {
+    throw new Error(
+      `${MSEGAT_NAMES.join(", ")} are required together${nodeEnv === "production" ? " in production" : ""}: the Msegat user name, API key and activated services sender.`,
+    );
+  }
+  return {
+    userName: required(env, "MSEGAT_USERNAME"),
+    apiKey: required(env, "MSEGAT_API_KEY"),
+    sender: required(env, "MSEGAT_SENDER"),
   };
 }
 

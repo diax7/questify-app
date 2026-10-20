@@ -68,8 +68,11 @@
 - **Auth and secrets:** API key in the secret store; rotated when staff change.
 - **Endpoints/events used:** send, balance, delivery receipt callback (signed).
 - **Rate limits:** provider caps and our own per-number limits (login codes) as tuning numbers.
-- **Failure behavior:** timeout 5 s; one retry with the same message id (no double send); if the
-  gateway fails or the code does not arrive in 30 s, the app offers an **email code** (FR-1812). 
+- **Failure behavior (built, T-107):** timeout 5 s. Msegat has no idempotency key, so a retry after a timeout could
+  send the code twice: one retry happens only when the request provably never left (connection refused, DNS). A
+  timeout or an unreadable answer is "unknown": the code stays valid and the app offers an **email code** after 30 s
+  (FR-1812). A definite refusal (any Msegat code other than `1`/`M0000`) ends the code and answers `sms_unavailable`
+  with the email offer. 
   **One gateway at launch** (user's choice in the Stage 6 grill; Claude had recommended both
   Msegat and Taqnyat with automatic failover). Switching to the other is a configuration change made
   by a person, not automatic. **Risk accepted:** if the gateway fails at the start of a big event, a
