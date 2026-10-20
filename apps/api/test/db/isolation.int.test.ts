@@ -80,10 +80,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
       expect(rows).toEqual([{ name_en: "Winter Fest" }]);
     });
 
-    it("refuses moving an own event to another organizer", async () => {
+    it("refuses moving an own event to another organizer: the column is not writable at all", async () => {
       await expect(
         as(seatA(), "UPDATE event SET organizer_id = $1 WHERE id = $2", [ids.orgB, ids.eventA]),
-      ).rejects.toThrow(/row-level security/);
+      ).rejects.toThrow(/permission denied/);
     });
 
     it("lets a player see only their own enrollments and themselves", async () => {

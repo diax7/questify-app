@@ -56,6 +56,12 @@ export default async function HomePage({
                 <span className={styles.badge}>{t(`staff.role.${membership.role}`)}</span>
                 <a
                   className={styles.textLink}
+                  href={`/${lang}/organizers/${membership.organizerId}/events`}
+                >
+                  {t("events.title")}
+                </a>
+                <a
+                  className={styles.textLink}
                   href={`/${lang}/organizers/${membership.organizerId}/team`}
                 >
                   {t("staff.team")}

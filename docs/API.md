@@ -136,7 +136,12 @@ Auth shows who may call. "Rate" notes any special limit.
 
 | Operation | Auth | Request → Response | Errors |
 |---|---|---|---|
-| `GET/POST/PATCH /v1/organizers/{id}/events` | owner, editor (scoped) | create, duplicate, edit event | 403 outside scope |
+| `GET …/events` | owner, editor | `{events: [event]}` newest first; a limited editor sees only their events (T-102) | 404 |
+| `POST …/events` | owner, editor (unlimited) | **Idempotency-Key**; `{name: {ar?, en?}, kind?, venue?: {ar?, en?}, access?, joinMethods?, timezone?, dayStartHour?, startsAt, endsAt}` → `201 {event}`, always a draft. Times are the event's wall clock `YYYY-MM-DDTHH:mm` (no offset), read in `timezone` (default `Asia/Riyadh`); unknown fields (`status`, `joinCode`) are refused | 400, 403 `scope_limited`, 422 `invalid_event` `{field}` |
+| `GET …/events/{eventId}` | owner, editor | `{event}`: `{id, joinCode, name, kind, venue, access, joinMethods, timezone, dayStartHour, startsAt, endsAt (UTC ISO), status, statusNow, createdAt}`; `statusNow` is the status at this moment, before the lifecycle tick | 404 (also outside an editor's limit) |
+| `PATCH …/events/{eventId}` | owner, editor | the same fields, all optional → `{event}`; times sent are read in the zone sent, else the stored one; a zone sent alone keeps the instants. Scheduled: the start stays in the future; live: only a later end; ended: times fixed | 404, 409 `event_times_locked`, 422 `invalid_event` `{field}` |
+| `DELETE …/events/{eventId}` | owner, editor | drafts only → 204 (FR-1003) | 404, 409 `event_not_draft` |
+| `POST …/events/{eventId}/end` | owner | `{confirm: true}` → 204; ends a live event now (FR-1608) | 400, 403 `owner_only`, 404, 409 `event_not_live` |
 | `…/events/{id}/categories`, `…/quests` (CRUD, reorder) | owner, editor | validated by the quest-type schema; live edits take `{apply: future\|past}` and `{confirm: true}` | 422 schema, 409 conflict (last save wins) |
 | `…/events/{id}/rewards`, `…/codes` (upload) | owner, editor | rewards, stock, prize codes | 422 duplicate codes |
 | `…/events/{id}/announcements` | owner, editor | send now or schedule, with push option | 422 outside CST send window |
@@ -152,8 +157,8 @@ Auth shows who may call. "Rate" notes any special limit.
 
 **Organizer routes (T-101):** every `/v1/organizers/{id}/…` route runs the staff session and Origin checks, then reads
 the caller's membership from the database: **a non-member gets 404** (the same as an unknown organizer), **an editor on
-an owner route gets 403 `owner_only`**; a limited editor working on an event outside their limit gets 403 from the event
-routes (T-102). The database checks the membership again on every query (DATA_MODEL "The organizer context").
+an owner route gets 403 `owner_only`**; an event outside a limited editor's limit answers 404, as a missing one, and a
+limited editor cannot create events (403 `scope_limited`, T-102). The database checks the membership again on every query (DATA_MODEL "The organizer context").
 | `POST …/events/{id}/qr/regenerate`, `…/operators/batch` | owner, editor | new quest QR; batch operator QRs | |
 | `GET …/events/{id}/stream` | owner, editor | live control room | |
 

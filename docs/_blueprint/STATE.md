@@ -542,14 +542,21 @@ other docs feed it and stay as its detailed appendices.
   Bugs found on the way: a sub-select in the event and enrollment rules made PostgreSQL report infinite recursion;
   an editor leaving could not write their own audit entry after the delete; the invite page re-checked its link after
   acceptance and lost the code step.
+- 2026-10-20 **T-102 done.** The event builder: create, edit and delete events (kind, names and venue in either
+  language, time zone, event-day start hour, access, join methods) from the dashboard, with times typed as the event's
+  own wall clock and shown with its zone ("Fri, 1 Nov 2030, 09:00 (Dubai time)"). Migration 0009: the API's role can
+  never write `status` (new events are always drafts), times lock once an event starts or ends, only drafts are
+  deleted, the owner ends a live event early, and the API moves events from scheduled to live to ended every 30
+  seconds, audited. CTO: plan 86 → 94; phases 92, 92, 92 (GO). Bugs found on the way: impossible dates (30 February) were
+  accepted; a time read back with less precision than stored looked like a change, so an event ended early could not
+  be renamed.
 
 ## Next
 
-1. **Now:** T-102 (event builder; plan in review), then T-103 to T-106 (quests, QR codes, the completion engine,
-   ranking).
+1. **Now:** T-103 (categories and quests builder), then T-104 to T-106 (QR codes, the completion engine, ranking).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
-   infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 and
-   0008 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
+   0009 and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); Msegat credentials (T-013, T-107); a
    domain for the Resend backup (Q-083); "accept ADR-113".
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090.

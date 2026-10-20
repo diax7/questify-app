@@ -56,6 +56,11 @@ sign-ups from one address range); the budget refills over 24 hours, or raise `ou
 accepting invite links share 20 an hour per client address (`inviteChecksPerAddress` in
 `apps/api/src/auth/limits.ts`). Raise it for the day, or ask people to open their link from a phone's own network.
 
+**`event.lifecycle_failed` in the log** (with `reason` and the SQLSTATE `code`): the 30-second tick could not move events
+through their lifecycle. Once is harmless: the next tick catches up, and every status shown is read at the moment, so
+no one waits on the tick. Repeated for more than five minutes: check the database (`55P03` is a lock timeout, `08…` a
+lost connection); to move due events by hand, run `SELECT advance_event_lifecycle();` with the API's role.
+
 **`staff.breach_check_unavailable` in the log** (password set answers 503): the API cannot reach
 `api.pwnedpasswords.com`. Check outbound HTTPS from the API container; nothing is changed while it is down.
 `staff.password_notice_failed` means a "password changed" email did not go out (see the email senders below).

@@ -129,10 +129,23 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | status | enum | draft, scheduled, live, ended, archived | no | Matches FR-1017 and the code; activation by Questify (ADR-076); rehearsal is a mode of a draft or scheduled event (ADR-080) |
 | player_limit_mode, player_limit | enum, int | hard/soft/none | no | |
 | add_ons | text[] | | no | Big screen, NFC, kiosks, sponsors, branding, invitations |
-| timezone, day_start_hour | text, int | default 4 | no | |
+| timezone, day_start_hour | text, int | default 4 | no | A real IANA zone (trigger against `pg_timezone_names`, migration 0009) |
+| kind | text | physical, virtual, workplace | no | Migration 0009 |
+| venue_ar, venue_en | text | ≤ 200 | no | Migration 0009 |
+| join_methods | text[] | ⊆ code, qr, link, public_list; ≥ 1; public_list only when access is public | no | Migration 0009 |
 | starts_at, ends_at, shop_closes_at | timestamptz | | no | Balance closes after the shop window (ADR-048) |
 | config | jsonb + config_version | schema-validated | no | See `CONFIGURABILITY.md` |
 | managed_by_questify | bool | | no | ADR-077 |
+
+**The event lifecycle (T-102, migration 0009).** The API's role never writes `status`: column grants leave it out of
+INSERT and UPDATE, so a new event is always a draft. Questify activates it (T-210, draft to scheduled); time moves it from
+scheduled to live to ended, through `advance_event_lifecycle()`, which the API calls every 30 seconds and which audits
+each move as `event.lifecycle` (actor `system`); only the owner ends a live event early (`end_event_early`, audited as
+`event.end`). `event_status_now(status, starts_at, ends_at)` gives the status at this moment, so nothing waits for the
+tick; it is the only place the rule lives. Out of draft an event always has both times (CHECK). The times guard, judged
+on the status now: scheduled keeps a future start; live keeps its start, zone and day start and its end may only move
+later; ended keeps everything. Only drafts are deleted (policy), and a deleted event leaves the editor limits that named
+it, except a limit's last event, which stays so the editor sees nothing rather than everything.
 
 ### enrollment (a player in an event)
 `id`, `event_id`, `player_id`, `joined_at`, `join_source`, `join_answers jsonb` (**PII**, only

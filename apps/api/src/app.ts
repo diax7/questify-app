@@ -18,6 +18,8 @@ import { createSignIn, reasonOf } from "#src/auth/sign-in";
 import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
+import { createEvents } from "#src/events/events";
+import { startLifecycleTick } from "#src/events/tick";
 import { createInvites } from "#src/organizers/accept";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { createTeam } from "#src/organizers/team";
@@ -44,6 +46,8 @@ export type AppOptions = Readonly<{
   /** Reads and saves the translation store. Created from the pool when not given. */
   translations?: TranslationService;
   logger?: FastifyServerOptions["logger"];
+  /** How often events move through their lifecycle; off when not given (tests call the database function). */
+  lifecycleIntervalMs?: number;
 }>;
 
 declare module "fastify" {
@@ -151,8 +155,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     pool: options.pool,
     sessions: createSessions(options.pool),
     team: createTeam(passwordDeps),
+    events: createEvents({ pool: options.pool }),
     dashboardOrigin: config.auth.dashboardOrigin,
   });
+
+  if (options.lifecycleIntervalMs !== undefined) {
+    const tick = startLifecycleTick({
+      pool: options.pool,
+      intervalMs: options.lifecycleIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    app.addHook("onClose", tick.stop);
+  }
 
   registerConfigRoutes(app, options.settings ?? createSettingsService({ pool: options.pool }));
 

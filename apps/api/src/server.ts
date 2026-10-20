@@ -12,6 +12,7 @@ import { MemoryIdempotencyStore } from "#src/idempotency-store";
 const STATEMENT_TIMEOUT_MS = 5000;
 const LOCK_TIMEOUT_MS = 2000;
 const CONNECT_TIMEOUT_MS = 3000;
+const LIFECYCLE_INTERVAL_MS = 30_000;
 
 function createPool(config: AppConfig): Pool {
   return new Pool({
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
       app.log.warn({ event: "staff.email_failover", from, to });
     }),
     breachCheck: createBreachCheck(),
+    lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

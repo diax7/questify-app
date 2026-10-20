@@ -13,17 +13,14 @@ import {
   ownerOnly,
   ownerRequired,
   tooManyAttempts,
-  unauthenticated,
 } from "#src/auth/http-errors";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
-import {
-  membershipOf,
-  readTeam,
-  type OrganizerContext,
-  type OrganizerPrincipal,
-} from "#src/organizers/store";
+import type { Events } from "#src/events/events";
+import { registerEventRoutes } from "#src/events/routes";
+import { organizerContextOf } from "#src/organizers/context";
+import { membershipOf, readTeam } from "#src/organizers/store";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import { ORGANIZER_PREFIX } from "#src/route-access";
 
@@ -31,6 +28,7 @@ export type OrganizerRoutesDeps = Readonly<{
   pool: Pool;
   sessions: Sessions;
   team: Team;
+  events: Events;
   dashboardOrigin: string;
 }>;
 
@@ -49,25 +47,6 @@ const ownershipBody = z.object({ email: z.string().min(3).max(254), lang: langua
 const scopeBody = z.object({ eventScope: scopeList.nullable() });
 const memberParams = z.object({ staffUserId: z.uuid() });
 const inviteParams = z.object({ inviteId: z.uuid() });
-
-/** The caller and the organizer they are a member of; only reachable after the scope's hook. */
-export function organizerContextOf(
-  request: FastifyRequest,
-): OrganizerContext & { email: string; organizer: OrganizerPrincipal } {
-  const staff = request.staff;
-  const organizer = request.organizer;
-  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: the scope's hook sets both or answers
-  if (staff === undefined || organizer === undefined) {
-    // Reached only if the scope's hook was bypassed, which must never answer a request.
-    throw unauthenticated();
-  }
-  return {
-    staffUserId: staff.account.id,
-    organizerId: organizer.id,
-    email: staff.account.email,
-    organizer,
-  };
-}
 
 function actorOf(request: FastifyRequest): Actor {
   const context = organizerContextOf(request);
@@ -207,6 +186,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);
+      registerEventRoutes(scope, deps.events);
     },
     { prefix: ORGANIZER_PREFIX },
   );

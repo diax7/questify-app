@@ -66,6 +66,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the caller leaves; the owner cannot (test/organizers/team)",
   "GET /v1/organizers/:organizerId/members":
     "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
+  "GET /v1/organizers/:organizerId/events":
+    "members of that organizer only; a limited editor sees only their events (test/events/events)",
+  "POST /v1/organizers/:organizerId/events":
+    "members of that organizer only; the database sets nothing outside it; a limited editor cannot create (test/events/events)",
+  "GET /v1/organizers/:organizerId/events/:eventId":
+    "another organizer's event, or one outside an editor's limit, answers 404 (test/events/events)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId":
+    "only this organizer's events within the caller's limit; status and organizer are not writable (test/events/events, test/db/event-lifecycle)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId":
+    "only this organizer's drafts within the caller's limit (test/events/events, test/db/event-lifecycle)",
+  "POST /v1/organizers/:organizerId/events/:eventId/end":
+    "owner only (walked below); the database checks the owner again (test/events/events, test/db/event-lifecycle)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
 };
