@@ -1685,6 +1685,7 @@ enforced at start-up). The API trusts exactly one hop (`TRUST_PROXY_HOPS=1`): th
 mobile app reaches the API through the same edge, so both paths have the same count.
 **Evidence (2026-10-20, from inside the staging container):** `http://questify-api-staging-3ez01s:3000` answers over
 the project's private network (Docker DNS, a 10.0.1.x peer, no HTTP proxy adding headers on that path).
-**Still to prove on staging:** that the edge appends its own entry. If it passes the client's value through instead,
-neither path has a trustworthy address and CranL is asked for its client-address header before launch.
+**Proven on staging (2026-10-20):** 30 failed sign-ins straight to the public API, each with a different forged
+`X-Forwarded-For`, were throttled on the 31st, and the next attempt through the web forwarder was throttled as well:
+the edge appends the real client address and both paths count it the same way.
 **Replaces:** the T-006 note's chain "edge, dashboard proxy, API", which assumed the forwarder appends.

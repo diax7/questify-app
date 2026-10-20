@@ -509,10 +509,12 @@ other docs feed it and stay as its detailed appendices.
 
 - 2026-10-20 **Staging is live with the new code; T-021 done.** API migrated (0002 to 0006) and verified, owner connection removed afterwards. Web app `questify-web-staging` at https://questify-web-staging-4ecphq.cranl.net (Dockerfile.web at the repo root: CranL builds from the Dockerfile's folder). Email from `questify@nafes.com` via the Gmail API: SPF, DKIM, DMARC PASS. Admin account for the user created with a generated password sent by email. The user chose the CranL address for now; `questify.nafes.com` is attached for later.
 
+- 2026-10-20 **T-011 done.** The user signed in on an iPhone and an Android phone in both languages. Forged `X-Forwarded-For` values did not escape the per-address throttle on either path (ADR-113 proven). Phase 0: 12 of 21 tasks.
+
 ## Next
 
-1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-011 phone check (the user), T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
-2. **Waiting on Dhia:** sign in on the staging web app from an iPhone and an Android phone in both languages (T-011); later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
+1. **Phase 0 still open:** T-009 device run (Expo Go works in English; Arabic restart fixed, to retest), T-010 cloud builds, T-017 infrastructure as code, T-018 observability, T-013 Msegat quote, T-119 draft legal text. T-019 backups before real players.
+2. **Waiting on Dhia:** later the Apple Developer account (T-010); a domain for the Resend backup (Q-083).
 3. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084.
 
 ## Run complete — 2026-10-18
