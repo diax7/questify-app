@@ -695,6 +695,20 @@ export const MESSAGES = {
     ar: "تعذّر تحميل السجل. تحقّق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load the history. Check your connection, then try again.",
   },
+  "ranking.rowLabel": {
+    ar: "المركز {rank}، @{username}، النقاط: {score}",
+    en: "Rank {rank}, @{username}, {score} points",
+  },
+  "ranking.rowLabelMe": {
+    ar: "المركز {rank}، أنت، النقاط: {score}",
+    en: "Rank {rank}, you, {score} points",
+  },
+  "ranking.you": { ar: "أنت", en: "You" },
+  "ranking.empty": {
+    ar: "لا أحد يملك نقاطًا بعد. كن الأول!",
+    en: "No one has points yet. Be the first!",
+  },
+  "ranking.refreshFailed": { ar: "تعذّر تحديث الترتيب.", en: "Couldn't refresh the ranking." },
   "ranking.off": {
     ar: "الترتيب مخفي في هذه الفعالية.",
     en: "The ranking is hidden for this event.",

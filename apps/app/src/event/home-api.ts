@@ -121,19 +121,30 @@ export async function fetchHome(
   );
 }
 
-export type RankRow = Readonly<{ rank: number; username: string; score: number; isMe: boolean }>;
+/** A ranking row: public profile details only (FR-604); `avatar` may be one this app does not know (F-282). */
+export type RankRow = Readonly<{
+  rank: number;
+  username: string;
+  avatar: string;
+  score: number;
+  isMe: boolean;
+}>;
 
 /** `GET /v1/events/{id}/ranking` (T-106): the top rows and the player's own place. */
 export type Ranking = Readonly<{
   rows: readonly RankRow[];
-  me: Readonly<{ rank: number; username: string; score: number }> | null;
+  me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
   total: number;
 }>;
 
-/** `off` hides the ranking (404 `ranking_off`); anything else that fails is `network`. */
+/**
+ * `off` hides the ranking (404 `ranking_off`); any other 403 or 404 is `gone`, the server's word that this is no longer
+ * the player's event; anything else that fails is `network`.
+ */
 export type RankingAnswer =
   | Readonly<{ kind: "ranking"; ranking: Ranking }>
   | Readonly<{ kind: "off" }>
+  | Readonly<{ kind: "gone" }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
@@ -141,6 +152,7 @@ const isRow = (value: unknown): value is RankRow =>
   isRecord(value) &&
   typeof value["rank"] === "number" &&
   typeof value["username"] === "string" &&
+  typeof value["avatar"] === "string" &&
   typeof value["score"] === "number" &&
   typeof value["isMe"] === "boolean";
 
@@ -154,6 +166,7 @@ export function readRanking(body: unknown): Ranking | undefined {
     (isRecord(me) &&
       typeof me["rank"] === "number" &&
       typeof me["username"] === "string" &&
+      typeof me["avatar"] === "string" &&
       typeof me["score"] === "number");
   if (!meOk || !body["rows"].every(isRow)) {
     return undefined;
@@ -166,7 +179,11 @@ export function rankingAnswer(answer: AuthedResult): RankingAnswer {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    return { kind: answer.code === "ranking_off" ? "off" : "network" };
+    // The same status means two things here: the ranking switched off, or not this player's event.
+    if (answer.code === "ranking_off") {
+      return { kind: "off" };
+    }
+    return { kind: answer.status === 403 || answer.status === 404 ? "gone" : "network" };
   }
   const ranking = readRanking(answer.body);
   return ranking === undefined ? { kind: "network" } : { kind: "ranking", ranking };

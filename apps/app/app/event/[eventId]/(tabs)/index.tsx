@@ -5,6 +5,7 @@ import { AppState, Pressable, ScrollView, View } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { Avatar } from "#src/components/Avatar.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
@@ -53,9 +54,10 @@ function CountdownLine({ event }: Readonly<{ event: Home["event"] }>) {
 
 /** My rank and the top 3 (FR-802); a tap opens the ranking. Hidden when the ranking is off. */
 function RankingCard({ eventId, ranking }: Readonly<{ eventId: string; ranking: RankingAnswer }>) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  if (ranking.kind === "off" || ranking.kind === "signed_out") {
+  // Gone: Home's own read is the one place that forgets the event, so the card only steps aside.
+  if (ranking.kind === "off" || ranking.kind === "signed_out" || ranking.kind === "gone") {
     return null;
   }
   return (
@@ -75,10 +77,13 @@ function RankingCard({ eventId, ranking }: Readonly<{ eventId: string; ranking: 
               : t("eventHome.yourRank", { rank: ranking.ranking.me.rank })}
           </AppText>
           {ranking.ranking.rows.slice(0, 3).map((row) => (
-            <View key={row.username} style={styles.rankRow}>
+            <View key={`${row.rank}:${row.username}`} style={styles.rankRow}>
               <AppText>{row.rank}</AppText>
-              <AppText style={styles.grow}>@{row.username}</AppText>
-              <AppText>{row.score}</AppText>
+              <Avatar name={row.avatar} username={row.username} size={28} />
+              <AppText numberOfLines={1} style={[styles.grow, { writingDirection: "ltr" }]}>
+                @{row.username}
+              </AppText>
+              <AppText>{formatNumber(row.score, language)}</AppText>
             </View>
           ))}
         </>

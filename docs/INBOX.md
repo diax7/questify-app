@@ -616,3 +616,9 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   Msegat credentials arrive; the design system is the adventure theme behind swappable theme tokens (no colors,
   fonts or shapes hard-coded in screens); CTO cycle on the core tasks. Decisions that are the user's stay
   `Proposed` and go to OPEN_QUESTIONS for the user's return.
+
+## 2026-10-21 — Text size → processed
+
+- "there is no accessibility settings in our app, its one font, one size and its the same for all users, we accept
+  this" (during T-116, on whether the ranking's rows may cap large text).
+- Processed: ADR-121 (Accepted); the app ignores the phone's text size everywhere; Reduce Motion stays (FR-408).

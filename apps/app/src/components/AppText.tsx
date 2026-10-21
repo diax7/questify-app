@@ -15,6 +15,8 @@ export function AppText({ variant = "body", muted = false, style, ...rest }: Pro
   const { theme, text } = useTheme();
   return (
     <Text
+      // One font at one size for every player, whatever the phone's text size (ADR-121).
+      allowFontScaling={false}
       {...rest}
       style={[
         text[variant],

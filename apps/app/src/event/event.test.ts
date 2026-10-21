@@ -251,6 +251,16 @@ describe("rankingAnswer", () => {
     total: 12,
   };
 
+  it("reads an avatar this app does not know, and refuses one that is not a string", () => {
+    const newer = { ...ranking, rows: [{ ...ranking.rows[0], avatar: "dragon" }] };
+    expect(rankingAnswer(ok(newer))).toMatchObject({ kind: "ranking" });
+    expect(rankingAnswer(ok({ ...ranking, rows: [{ ...ranking.rows[0], avatar: 3 }] }))).toEqual({
+      kind: "network",
+    });
+    const { avatar: _avatar, ...noAvatar } = ranking.me;
+    expect(rankingAnswer(ok({ ...ranking, me: noAvatar }))).toEqual({ kind: "network" });
+  });
+
   it("reads the ranking, with or without the player's own place", () => {
     expect(rankingAnswer(ok(ranking))).toMatchObject({ kind: "ranking", ranking: { total: 12 } });
     expect(rankingAnswer(ok({ ...ranking, me: null }))).toMatchObject({ kind: "ranking" });
@@ -258,7 +268,9 @@ describe("rankingAnswer", () => {
 
   it("hides the card when the ranking is off, and says so for any other failure", () => {
     expect(rankingAnswer(error(404, "ranking_off"))).toEqual({ kind: "off" });
-    expect(rankingAnswer(error(403, "not_enrolled"))).toEqual({ kind: "network" });
+    expect(rankingAnswer(error(404, "not_found"))).toEqual({ kind: "gone" });
+    expect(rankingAnswer(error(403, "not_enrolled"))).toEqual({ kind: "gone" });
+    expect(rankingAnswer(error(500, "internal"))).toEqual({ kind: "network" });
     expect(rankingAnswer(ok({ ...ranking, rows: [{ rank: "1" }] }))).toEqual({ kind: "network" });
     expect(rankingAnswer(ok({ ...ranking, me: { rank: 1 } }))).toEqual({ kind: "network" });
   });

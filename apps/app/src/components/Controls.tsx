@@ -41,6 +41,7 @@ export function Field({ label, style, ...input }: FieldProps) {
     <View style={styles.field}>
       <AppText variant="label">{label}</AppText>
       <TextInput
+        allowFontScaling={false}
         accessibilityLabel={label}
         placeholderTextColor={theme.colors.textMuted}
         style={[styles.input, style]}

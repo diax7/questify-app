@@ -1763,3 +1763,13 @@ asks for re-authentication before changing an attribute that signs a person in; 
 sessions (so the real owner can change it back) compensate, and support handles a takeover reported from a notice.
 **Cost:** someone holding an unlocked phone with the app can move the account to their own number; the owner learns of
 it from the notice. Revisit if support sees such cases (an extra code to the old contact when it is still reachable).
+
+## ADR-121 — One font at one size for every player
+**Status:** Accepted (user, 2026-10-21: "there is no accessibility settings in our app, its one font, one size and
+its the same for all users, we accept this").
+**Decision:** The app draws all its text at the theme's sizes and ignores the phone's text-size setting
+(`allowFontScaling={false}` in `AppText` and in every text field). It follows ADR-085, which set no large-text target
+for v1. The phone's Reduce Motion setting is still respected, because FR-408 requires it.
+**Why:** every screen keeps the layout it was designed with. In particular the ranking fits 11 rows on the smallest
+phone with no scrolling (FR-603), which no layout can promise at very large text sizes.
+**Cost:** players who rely on large text see the app's own size. Screen readers still read every row in full.

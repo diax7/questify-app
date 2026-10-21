@@ -674,9 +674,15 @@ other docs feed it and stay as its detailed appendices.
   default storage and overlay permissions are blocked). Not yet run on a phone (T-009): the camera and haptics need a
   real device. CTO: plan 88 → 94; code 92, its fixes applied.
 
+- 2026-10-21 **T-116 built.** The ranking screen shows the top 10 with each player's avatar, the player's own row
+  highlighted, and their own row as an 11th with their real rank when they are lower; all of it fits one screen on
+  every phone, with no scrolling, and refreshes every 15 seconds while open. Dhia decided the app has one font at one
+  size for everyone (ADR-121). Not yet run on a phone (T-009 now lists every on-phone check). CTO: plan 86 → 93; code
+  93, its fixes applied.
+
 ## Next
 
-1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-116 ranking screen).
+1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-117).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
      tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
      with the next Expo update.
