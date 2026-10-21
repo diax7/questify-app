@@ -24,6 +24,7 @@ export const BUCKETS = {
   playerFailAddress: "player_fail_address",
   smsPlatform: "sms_platform",
   playerEmailPlatform: "player_email_platform",
+  joinCodeMiss: "join_code_miss",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

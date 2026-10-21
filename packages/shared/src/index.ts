@@ -93,3 +93,6 @@ export type { Avatar } from "./players/avatars";
 export { AVATARS } from "./players/avatars";
 export type { UsernameCheck } from "./players/username";
 export { USERNAME_MAX, USERNAME_MIN, checkUsername } from "./players/username";
+export type { JoinCard } from "./join/card";
+export { joinCard } from "./join/card";
+export { JOIN_LINK_HOSTS, joinLink, parseJoinLink } from "./join/link";

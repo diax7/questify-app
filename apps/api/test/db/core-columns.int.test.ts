@@ -87,12 +87,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
   });
 
   describe("enrollment", () => {
-    it("lets a player join a public live event they can see", async () => {
-      await as(
-        { playerId: ids.playerB },
-        "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
-        [ids.orgA, ids.eventA, ids.playerB],
-      );
+    it("lets a player join a public live event by its code, through join_event only (T-111)", async () => {
+      await as({ playerId: ids.playerB }, "SELECT join_event('NAJD1', 'code', '0.1')");
       expect(await enrollmentOf(ids.playerB)).toBeDefined();
     });
 

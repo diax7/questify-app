@@ -14,8 +14,10 @@
     "apps/api/src/quests/**/*.ts",
     "apps/api/src/completions/**/*.ts",
     "apps/api/src/players/**/*.ts",
+    "apps/api/src/join/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",
+    "packages/shared/src/join/**/*.ts",
     "packages/shared/src/time/**/*.ts",
     "!**/*.test.ts",
     "!**/*.d.ts"

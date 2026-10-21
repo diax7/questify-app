@@ -610,13 +610,22 @@ other docs feed it and stay as its detailed appendices.
   player documents and a contact page are on the web in both languages; the contact page honestly says the details
   are being prepared (a release gate, STORE_COMPLIANCE §4). Migration 0017. CTO: plan 84 → 93; phases 94, 93,
   94; mutation 93.6%. Questions for counsel: Q-095.
+- 2026-10-21 **T-111 server half done.** Joining an event: by its code (typed, scanned from the join QR or opened
+  from the invite link) or from the public list; anyone can browse public events and their quests before signing in;
+  the join card says what the organizer will see, and its version is kept with the membership; a private event's
+  joiner waits for approval (T-218). Scoping found a hole that had been in the database since the start: a signed-in
+  player could add themselves to any event, private ones included, and an organizer could add any player to their
+  event and so read that player's row. Nothing used it yet; now only one checked database function adds members.
+  Wrong codes are limited per address and per player; right codes cost nothing, so a crowd's correct scans never
+  use up the limit. Migration 0018. CTO: plan 84 → 94; phases 93, 92, 93; mutation 97.8%. The app screens wait for the app
+  shell (T-009).
 
 ## Next
 
-1. **Now:** T-111 (join; its screens wait for the app shell), then T-208 (exclusion list and bans).
+1. **Now:** T-208 (exclusion list and bans; it also builds the organizer's narrow read of players, SECURITY.md).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0017, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0018, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel).

@@ -179,6 +179,12 @@ active enrollment and player, and not on the organizer's team by email. `ranking
 the events whose Redis copy may be wrong (no grants; written by definers and by triggers on enrollment and player
 status, contact email and team membership; claimed by the repair job). The Redis copy holds enrollment ids, points
 and versions only, never a name or contact (ADR-118).
+**Joining (T-111, migration 0018):** `card_version` (the join card the player accepted, FR-121; NULL before 0018) and
+`joined_via` (code, qr, link, public_list). Nobody inserts an enrollment directly but the platform admin: players
+join through `join_event(code, via, card)`, which checks the event's state, its join methods and access type (a
+private event makes a `pending` member) and decides under a row lock; organizers will invite through their own
+definers (T-204, T-218). Anonymous reads go through `public_events`, `public_event` and `public_event_quests`, which
+return named columns only (never a quest's `type_config`).
 
 ### category, quest
 `category(id, event_id, title i18n, order_mode any|in_order, completion_bonus, position, collapsed)`.

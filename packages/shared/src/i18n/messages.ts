@@ -13,6 +13,13 @@ export const MESSAGES = {
   "nav.ranking": { ar: "الترتيب", en: "Ranking" },
   "nav.shop": { ar: "المتجر", en: "Shop" },
   "nav.profile": { ar: "حسابي", en: "Profile" },
+  "joinCard.title": { ar: "سيرى منظّم الفعالية", en: "The event's organizer will see" },
+  "joinCard.username": { ar: "اسم المستخدم والصورة الرمزية", en: "Your username and avatar" },
+  "joinCard.progress": {
+    ar: "نقاطك والمهام التي تُكملها في هذه الفعالية",
+    en: "Your points and the quests you complete in this event",
+  },
+  "joinCard.handovers": { ar: "الجوائز التي تستلمها", en: "The prizes you collect" },
   "contact.title": { ar: "تواصل معنا", en: "Contact us" },
   "contact.pending": {
     ar: "نجهّز بيانات التواصل الآن، وستظهر هنا قبل إطلاق التطبيق.",

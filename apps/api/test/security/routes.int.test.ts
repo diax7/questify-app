@@ -110,6 +110,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
   "GET /v1/me":
     "the bearer's own profile only; the player comes from the session (test/players/profile)",
+  "GET /v1/public/events":
+    "no tenant data: public events that list themselves, through public_events with named columns only (test/join/join, test/db/join)",
+  "GET /v1/public/events/:joinCode":
+    "one event's card by its code, the secret that grants it; no organizer or player data; wrong codes are throttled (test/join/join, test/db/join)",
+  "GET /v1/public/events/:joinCode/quests":
+    "public and unlisted events' visible quests by named columns, never type_config; a private event answers members_only (test/join/join, test/db/join)",
+  "POST /v1/join":
+    "enrolls only the bearer, through join_event bound to the session; nobody inserts an enrollment directly (test/join/join, test/db/join)",
+  "GET /v1/me/events":
+    "the bearer's own enrollments only, read under row-level security (test/join/join)",
   "POST /v1/me/acceptances":
     "records the bearer's own acceptances only, through accept_player_documents bound to the session (test/players/legal, test/db/player-legal)",
   "PATCH /v1/me":
@@ -128,6 +138,9 @@ const PUBLIC_ROUTES = [
   "GET /healthz",
   "GET /readyz",
   "GET /v1/config",
+  "GET /v1/public/events",
+  "GET /v1/public/events/:joinCode",
+  "GET /v1/public/events/:joinCode/quests",
   "GET /v1/translations",
   "POST /v1/auth/code",
   "POST /v1/auth/logout",

@@ -386,3 +386,33 @@ export const playerAcceptanceRequired = make(
   "وافق على شروط الاستخدام وسياسة الخصوصية للمتابعة.",
   "Accept the terms of use and the privacy policy to continue.",
 );
+export const eventEnded = make(
+  409,
+  "event_ended",
+  "انتهت هذه الفعالية، فلا يمكن الانضمام إليها.",
+  "This event has ended, so it cannot be joined.",
+);
+export const joinMethodOff = make(
+  403,
+  "join_method_off",
+  "لا تقبل هذه الفعالية الانضمام بهذه الطريقة. اسأل منظّمها.",
+  "This event does not take joins this way. Ask its organizer.",
+);
+export const joinNotAllowed = make(
+  403,
+  "join_not_allowed",
+  "لا يمكنك الانضمام إلى هذه الفعالية.",
+  "You cannot join this event.",
+);
+export const joinCardStale = make(
+  422,
+  "card_version_stale",
+  "تغيّرت بطاقة الانضمام. راجعها ثم انضم.",
+  "The join card has changed. Read it again, then join.",
+);
+export const membersOnly = make(
+  403,
+  "members_only",
+  "مهام هذه الفعالية لأعضائها فقط.",
+  "This event's quests are for its members only.",
+);
