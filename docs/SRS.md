@@ -784,6 +784,7 @@ Added on 2026-10-17 after the second review pass. Rewritten rows elsewhere in th
 | FR-1844 | The dashboard shall show the owner and editors, per operator and station, scans per hour, awards or handovers and last activity, and shall let them send a push to operators only. | Should | F-346 | Given an operator with no scans for 30 minutes, when the owner opens Operators, then the last-activity column shows it. Given a staff briefing, when it is sent, then only operators receive it. |
 | FR-1845 | The dashboard shall show a readiness checklist before go-live and the console shall show the same list for events starting soon; it shall block nothing. | Should | F-347 | Given no rehearsal was run, when the owner opens Overview, then the checklist shows Rehearsal run as missing. Given an event starting tomorrow, when an admin opens the activation view, then the same checklist shows. |
 | FR-1846 | The setup wizard shall have these ten skippable steps in order: Basics and access, Join rules, Quests, Rewards, Sponsors, Screens and staff, Home and look, Messages, Add-ons and activation, Rehearse and review. This replaces the twelve steps of FR-1751. | Must | F-348 | Given an organizer opens the wizard, when they view the progress list, then ten steps show and each can be opened. Given any step is skipped, when the wizard continues, then the template's defaults stay. |
+| FR-1847 | The dashboard shall let the owner choose, per event, whether shop purchases also lower the ranking score (off by default: purchases lower only the balance), locked once the event is live. | Must | F-112 | Given the option is off, when a player spends 100 points, then the balance drops by 100 and the score and rank do not change. Given the option is on, when a player spends 100 points, then the score drops by 100 and the ranking updates; when the redemption is cancelled, then both come back. Given a live event, when the owner opens the setting, then it cannot be changed. |
 
 ## 2. Non-functional requirements
 
@@ -1437,3 +1438,4 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1844 | F-346 | Should | pending |
 | FR-1845 | F-347 | Should | pending |
 | FR-1846 | F-348 | Must | pending |
+| FR-1847 | F-112 | Must | pending |

@@ -650,3 +650,10 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - First Android development build finished (EAS a1411217, APK on expo.dev).
 - Processed: Q-034's volume quote is dropped for now; ADR-122 and ADR-133 marked Accepted in DECISIONS.md (that
   file is committed with T-201/T-202, which another session has open).
+
+## 2026-10-22 — Spending and the ranking → processed
+
+- "if the when you buy something, will you have your points with you? Like, or you will lose them on the leaderboard
+  and you get down. I think each event could have its own thinking or way. So let's make it an option for them."
+- Processed: ADR-134 (Accepted), FR-1847; ADR-043 amended. Off by default; locked once the event is live (Claude's
+  assumption).
