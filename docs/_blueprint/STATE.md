@@ -645,6 +645,12 @@ other docs feed it and stay as its detailed appendices.
   shell. CTO: plan 81 → 93; phases 92, 95. Found: the Arabic brand spelling drifts in six older strings (Q-098, ADR-019).
   One flaky e2e seen once (the players page on the phone layout, under the full suite; it passed alone and in the next
   full run): watch it.
+- 2026-10-21 **T-111 app half built.** The app can now sign a player in (consent, a phone or email code, the profile
+  step), keep them signed in safely (tokens only in the phone's keychain, never in a backup; a reinstall starts signed
+  out; a lost network does not sign anyone out), open an event's join card from a code, a pasted or shared link or the
+  public list, join (after sign-in when needed, and only then), switch between joined events, accept new terms on
+  launch and sign out. Arabic-Indic digits work in the code and the birth year. Not yet run on a phone: that is
+  T-009, which needs Dhia. CTO: plan 82 → 93; core 88 → 94; screens 84 → 94; mutation 89.6% on the session core.
 
 ## Next
 

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
 import type { Issued } from "#src/api/session.ts";
-import { requestCode, resendCode, signUp, verifyCode } from "#src/auth/sign-in-api.ts";
+import {
+  isolatedLtr,
+  requestCode,
+  resendCode,
+  signUp,
+  verifyCode,
+  westernDigits,
+} from "#src/auth/sign-in-api.ts";
 
 const headers = new Headers();
 const ok = (body: unknown, status = 200): ApiResult => ({ kind: "ok", status, body, headers });
@@ -212,5 +219,52 @@ describe("signUp", () => {
       type: "expired",
       problem: MESSAGE,
     });
+  });
+});
+
+describe("the terms changing under the person", () => {
+  it("asks for the consent again with the versions the API names", async () => {
+    const answer = fail(422, "acceptance_required", {
+      documents: [
+        { id: "terms_of_use", version: "0.2" },
+        { id: "privacy_policy", version: "0.1" },
+      ],
+    });
+    expect(
+      await requestCode(setup(answer).deps, {
+        channel: "phone",
+        value: "x",
+        lang: "ar",
+        versions: VERSIONS,
+      }),
+    ).toEqual({
+      type: "versions_changed",
+      versions: { terms: "0.2", privacy: "0.1" },
+      problem: {
+        ar: expect.any(String),
+        en: "The terms or the privacy policy changed. Read them, then accept.",
+      },
+    });
+    const thin = fail(422, "acceptance_required", { documents: "none" });
+    expect(
+      await requestCode(setup(thin).deps, {
+        channel: "phone",
+        value: "x",
+        lang: "ar",
+        versions: VERSIONS,
+      }),
+    ).toMatchObject({ type: "versions_changed", versions: undefined });
+  });
+});
+
+describe("typed numbers and contacts", () => {
+  it("reads Arabic-Indic and Persian digits as Western, trimmed", () => {
+    expect(westernDigits(" ١٩٩٥ ")).toBe("1995");
+    expect(westernDigits("۱۲۳۴۵۶")).toBe("123456");
+    expect(westernDigits("2001")).toBe("2001");
+  });
+
+  it("keeps a phone or email left to right inside Arabic text", () => {
+    expect(isolatedLtr("+966551234567")).toBe("⁦+966551234567⁩");
   });
 });

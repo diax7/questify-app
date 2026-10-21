@@ -51,7 +51,12 @@ describe("the sign-in flow", () => {
       { type: "versions_loaded", versions: undefined },
       { type: "accepted" },
     );
-    expect(stuck).toEqual({ step: "consent", versions: undefined, pending: undefined });
+    expect(stuck).toEqual({
+      step: "consent",
+      versions: undefined,
+      problem: null,
+      pending: undefined,
+    });
     expect(run(startSignIn(undefined), { type: "accepted" }).step).toBe("consent");
   });
 
@@ -132,6 +137,8 @@ describe("the sign-in flow", () => {
       const profile = run(toCode(), { type: "new_player", signupToken: "signup" });
       expect(profile).toEqual({
         step: "profile",
+        versions: VERSIONS,
+        channel: "phone",
         signupToken: "signup",
         problem: null,
         pending: JOIN,
@@ -183,5 +190,66 @@ describe("the sign-in flow", () => {
       { type: "accepted" },
     );
     expect(run(contact, { type: "accepted" })).toBe(contact);
+  });
+
+  it("goes back to a new code when the signup token ends on the profile step, keeping the join", () => {
+    const profile = run(toCode(), { type: "new_player", signupToken: "s" });
+    expect(run(profile, { type: "expired", problem: PROBLEM })).toEqual({
+      step: "contact",
+      versions: VERSIONS,
+      channel: "phone",
+      pending: JOIN,
+      problem: PROBLEM,
+      offerEmail: false,
+      previous: undefined,
+    });
+  });
+
+  it("asks for the consent again with the new versions when the terms changed, at any step", () => {
+    const NEW = { terms: "0.2", privacy: "0.1" };
+    const contact = run(
+      startSignIn(JOIN),
+      { type: "versions_loaded", versions: VERSIONS },
+      { type: "accepted" },
+    );
+    for (const state of [contact, toCode()]) {
+      expect(run(state, { type: "versions_changed", versions: NEW, problem: PROBLEM })).toEqual({
+        step: "consent",
+        versions: NEW,
+        problem: PROBLEM,
+        pending: JOIN,
+      });
+    }
+    const consent = run(contact, { type: "versions_changed", versions: NEW, problem: PROBLEM });
+    expect(run(consent, { type: "accepted" })).toMatchObject({
+      step: "contact",
+      versions: NEW,
+      problem: null,
+    });
+  });
+
+  it("names the SMS challenge when the person switches to email, so it ends (FR-1812)", () => {
+    expect(run(toCode(), { type: "channel_chosen", channel: "email" })).toMatchObject({
+      step: "contact",
+      channel: "email",
+      previous: "token",
+    });
+    const contact = run(
+      startSignIn(undefined),
+      { type: "versions_loaded", versions: VERSIONS },
+      { type: "accepted" },
+    );
+    expect(contact).toMatchObject({ previous: undefined });
+  });
+
+  it("does nothing more once done or closed", () => {
+    const done = run(toCode(), { type: "signed_in" });
+    for (const event of [
+      { type: "closed" },
+      { type: "expired", problem: null },
+      { type: "versions_changed", versions: undefined, problem: null },
+    ] as const) {
+      expect(run(done, event)).toBe(done);
+    }
   });
 });

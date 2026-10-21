@@ -14,46 +14,49 @@ export type Channel = "phone" | "email";
 
 type Problem = LocalizedText | null;
 
+/** What every step after the consent keeps, so an ended code or signup token can go back without losing anything. */
+type Carried = Readonly<{
+  versions: SignupAcceptance;
+  channel: Channel;
+  pending: PendingJoin | undefined;
+}>;
+
 /** Where the sign-in stands. Each screen renders one step; nothing here talks to the network. */
 export type SignInState =
   | Readonly<{
       step: "consent";
       versions: SignupAcceptance | undefined;
-      pending: PendingJoin | undefined;
-    }>
-  | Readonly<{
-      step: "contact";
-      versions: SignupAcceptance;
-      channel: Channel;
-      problem: Problem;
-      /** A non-Saudi number was typed: the screen offers email (FR-108). */
-      offerEmail: boolean;
-      pending: PendingJoin | undefined;
-    }>
-  | Readonly<{
-      step: "code";
-      versions: SignupAcceptance;
-      channel: Channel;
-      contact: string;
-      challengeToken: string;
-      /** When the resend button wakes (ms), and, for a phone, when the email offer shows (FR-1812). */
-      resendAt: number;
-      emailOfferAt: number | null;
-      attemptsLeft: number | null;
       problem: Problem;
       pending: PendingJoin | undefined;
     }>
-  | Readonly<{
-      step: "profile";
-      signupToken: string;
-      problem: Problem;
-      pending: PendingJoin | undefined;
-    }>
+  | (Carried &
+      Readonly<{
+        step: "contact";
+        problem: Problem;
+        /** A non-Saudi number was typed: the screen offers email (FR-108). */
+        offerEmail: boolean;
+        /** The SMS challenge the email offer replaces: sent with the email request, so it ends (FR-1812). */
+        previous: string | undefined;
+      }>)
+  | (Carried &
+      Readonly<{
+        step: "code";
+        contact: string;
+        challengeToken: string;
+        /** When the resend button wakes (ms), and, for a phone, when the email offer shows (FR-1812). */
+        resendAt: number;
+        emailOfferAt: number | null;
+        attemptsLeft: number | null;
+        problem: Problem;
+      }>)
+  | (Carried & Readonly<{ step: "profile"; signupToken: string; problem: Problem }>)
   | Readonly<{ step: "done"; join: PendingJoin | undefined }>
   | Readonly<{ step: "closed" }>;
 
 export type SignInEvent =
   | Readonly<{ type: "versions_loaded"; versions: SignupAcceptance | undefined }>
+  /** The terms or privacy changed since the screen loaded them (422 `acceptance_required`): ask again (T-110). */
+  | Readonly<{ type: "versions_changed"; versions: SignupAcceptance | undefined; problem: Problem }>
   | Readonly<{ type: "accepted" }>
   | Readonly<{ type: "channel_chosen"; channel: Channel }>
   | Readonly<{
@@ -74,11 +77,31 @@ export type SignInEvent =
 
 /** The first step: the consent, carrying the join the person tapped, if any. */
 export function startSignIn(pending: PendingJoin | undefined): SignInState {
-  return { step: "consent", versions: undefined, pending };
+  return { step: "consent", versions: undefined, problem: null, pending };
 }
 
 const pendingOf = (state: SignInState): PendingJoin | undefined =>
   state.step === "done" || state.step === "closed" ? undefined : state.pending;
+
+const contactStep = (
+  carried: Carried,
+  problem: Problem,
+  previous: string | undefined = undefined,
+): SignInState => ({
+  step: "contact",
+  versions: carried.versions,
+  channel: carried.channel,
+  pending: carried.pending,
+  problem,
+  offerEmail: false,
+  previous,
+});
+
+const carriedOf = (state: Carried): Carried => ({
+  versions: state.versions,
+  channel: state.channel,
+  pending: state.pending,
+});
 
 function fromCode(state: Extract<SignInState, { step: "code" }>, event: SignInEvent): SignInState {
   switch (event.type) {
@@ -95,30 +118,48 @@ function fromCode(state: Extract<SignInState, { step: "code" }>, event: SignInEv
       return { ...state, problem: event.problem };
     // An ended code goes back to the contact step: a new code is a new request.
     case "expired":
-      return {
-        step: "contact",
-        versions: state.versions,
-        channel: state.channel,
-        problem: event.problem,
-        offerEmail: false,
-        pending: state.pending,
-      };
+      return contactStep(carriedOf(state), event.problem);
     case "new_player":
       return {
         step: "profile",
+        ...carriedOf(state),
         signupToken: event.signupToken,
         problem: null,
-        pending: state.pending,
       };
     case "channel_chosen":
-      // The email offer after 30 seconds (FR-1812): back to the contact step on email.
+      // The email offer after 30 seconds (FR-1812): the email request names this challenge so it ends.
+      return contactStep(
+        { ...carriedOf(state), channel: event.channel },
+        null,
+        state.challengeToken,
+      );
+    default:
+      return state;
+  }
+}
+
+function fromContact(
+  state: Extract<SignInState, { step: "contact" }>,
+  event: SignInEvent,
+): SignInState {
+  switch (event.type) {
+    case "channel_chosen":
+      return { ...state, channel: event.channel, problem: null, offerEmail: false };
+    case "refused":
+      return { ...state, problem: event.problem, offerEmail: event.offerEmail === true };
+    case "code_sent":
       return {
-        step: "contact",
-        versions: state.versions,
-        channel: event.channel,
+        step: "code",
+        ...carriedOf(state),
+        contact: event.contact,
+        challengeToken: event.challengeToken,
+        resendAt: event.now + event.resendAfterSeconds * 1000,
+        emailOfferAt:
+          event.emailFallbackAfterSeconds === null
+            ? null
+            : event.now + event.emailFallbackAfterSeconds * 1000,
+        attemptsLeft: null,
         problem: null,
-        offerEmail: false,
-        pending: state.pending,
       };
     default:
       return state;
@@ -127,14 +168,25 @@ function fromCode(state: Extract<SignInState, { step: "code" }>, event: SignInEv
 
 /**
  * Moves the sign-in on. Closing drops everything, the pending join included (closing sign-in joins nothing, ADR-089);
- * signing in hands the pending join on exactly once.
+ * signing in hands the pending join on exactly once; new versions of the terms send the person back to the consent.
  */
 export function signInStep(state: SignInState, event: SignInEvent): SignInState {
+  if (state.step === "done" || state.step === "closed") {
+    return state;
+  }
   if (event.type === "closed") {
     return { step: "closed" };
   }
-  if (event.type === "signed_in" && state.step !== "done" && state.step !== "closed") {
+  if (event.type === "signed_in") {
     return { step: "done", join: pendingOf(state) };
+  }
+  if (event.type === "versions_changed") {
+    return {
+      step: "consent",
+      versions: event.versions,
+      problem: event.problem,
+      pending: state.pending,
+    };
   }
   switch (state.step) {
     case "consent":
@@ -143,46 +195,21 @@ export function signInStep(state: SignInState, event: SignInEvent): SignInState 
       }
       // No versions in force, no consent, and so no code request (T-110).
       if (event.type === "accepted" && state.versions !== undefined) {
-        return {
-          step: "contact",
-          versions: state.versions,
-          channel: "phone",
-          problem: null,
-          offerEmail: false,
-          pending: state.pending,
-        };
+        return contactStep(
+          { versions: state.versions, channel: "phone", pending: state.pending },
+          null,
+        );
       }
       return state;
     case "contact":
-      if (event.type === "channel_chosen") {
-        return { ...state, channel: event.channel, problem: null, offerEmail: false };
-      }
-      if (event.type === "refused") {
-        return { ...state, problem: event.problem, offerEmail: event.offerEmail === true };
-      }
-      if (event.type === "code_sent") {
-        return {
-          step: "code",
-          versions: state.versions,
-          channel: state.channel,
-          contact: event.contact,
-          challengeToken: event.challengeToken,
-          resendAt: event.now + event.resendAfterSeconds * 1000,
-          emailOfferAt:
-            event.emailFallbackAfterSeconds === null
-              ? null
-              : event.now + event.emailFallbackAfterSeconds * 1000,
-          attemptsLeft: null,
-          problem: null,
-          pending: state.pending,
-        };
-      }
-      return state;
+      return fromContact(state, event);
     case "code":
       return fromCode(state, event);
     case "profile":
-      return event.type === "refused" ? { ...state, problem: event.problem } : state;
-    default:
-      return state;
+      if (event.type === "refused") {
+        return { ...state, problem: event.problem };
+      }
+      // An ended signup token: back to the contact step for a new code, the pending join kept.
+      return event.type === "expired" ? contactStep(carriedOf(state), event.problem) : state;
   }
 }

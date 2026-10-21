@@ -65,7 +65,23 @@ export async function loadConfig(
 
 /** The terms and privacy versions in force, from the documents the config names (unknown ids are ignored). */
 export function signupVersions(config: ComposedConfig | undefined): SignupAcceptance | undefined {
-  const documents = config?.legal?.documents ?? [];
+  return versionsFrom(config?.legal?.documents);
+}
+
+/**
+ * The terms and privacy versions from a list of `{id, version}` documents: the config's, or a 422
+ * `acceptance_required`'s `details.documents`. Anything else, or a list without both, is undefined.
+ */
+export function versionsFrom(value: unknown): SignupAcceptance | undefined {
+  const documents = Array.isArray(value)
+    ? value.filter(
+        (item): item is { id: string; version: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof (item as { id: unknown }).id === "string" &&
+          typeof (item as { version: unknown }).version === "string",
+      )
+    : [];
   const terms = documents.find((document) => document.id === "terms_of_use")?.version;
   const privacy = documents.find((document) => document.id === "privacy_policy")?.version;
   return terms === undefined || privacy === undefined ? undefined : { terms, privacy };

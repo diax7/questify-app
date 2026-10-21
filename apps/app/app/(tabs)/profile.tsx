@@ -1,6 +1,9 @@
 import { Alert, Pressable, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
+import { router } from "expo-router";
 import { AppText } from "#src/components/AppText.tsx";
+import { Button } from "#src/components/Controls.tsx";
+import { usePlayer } from "#src/auth/player.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -13,7 +16,16 @@ const LANGUAGES: ReadonlyArray<{ code: Language; name: string }> = [
 
 export default function ProfileScreen() {
   const { t, language, switchLanguage } = useI18n();
+  const { state, signOut } = usePlayer();
   const styles = useThemedStyles(makeStyles);
+
+  // FR-124: the confirmation says what signing out does; cancelling keeps the player signed in.
+  const confirmSignOut = (): void => {
+    Alert.alert(t("signOut.title"), t("signOut.body"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("signOut.confirm"), style: "destructive", onPress: () => void signOut() },
+    ]);
+  };
 
   const choose = (next: Language): void => {
     if (next === language) {
@@ -40,6 +52,15 @@ export default function ProfileScreen() {
           </Pressable>
         ))}
       </View>
+      {state.status === "signed_in" ? (
+        <>
+          {state.me === undefined ? null : <AppText variant="title">@{state.me.username}</AppText>}
+          <Button kind="quiet" label={t("signOut.confirm")} onPress={confirmSignOut} />
+        </>
+      ) : null}
+      {state.status === "signed_out" ? (
+        <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
+      ) : null}
     </Screen>
   );
 }

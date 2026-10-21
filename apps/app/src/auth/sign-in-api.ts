@@ -1,7 +1,8 @@
-import type { Language, SignupAcceptance } from "@questify/shared";
+import { MESSAGES, toWesternDigits, type Language, type SignupAcceptance } from "@questify/shared";
 import type { ApiResult, Client } from "#src/api/client.ts";
 import type { Issued, Session } from "#src/api/session.ts";
 import type { Channel, SignInEvent } from "#src/auth/sign-in-flow.ts";
+import { versionsFrom } from "#src/config/remote.ts";
 
 export type SignInDeps = Readonly<{
   client: Client;
@@ -9,10 +10,16 @@ export type SignInDeps = Readonly<{
   now: () => number;
 }>;
 
-const OFFLINE = {
-  ar: "تعذّر الوصول إلى كويستفاي. تحقّق من اتصالك ثم حاول مرة أخرى.",
-  en: "Questify could not be reached. Check your connection, then try again.",
-};
+const OFFLINE = MESSAGES["signIn.offline"];
+
+/**
+ * What a person typed into a number field, in Western digits and trimmed: an Arabic phone keypad types ١٩٩٥, which
+ * `Number` cannot read (it would reach the API as null). Used for the code and the birth year.
+ */
+export const westernDigits = (typed: string): string => toWesternDigits(typed).trim();
+
+/** A phone number or an email kept left to right inside Arabic text (U+2066 … U+2069 isolate it). */
+export const isolatedLtr = (text: string): string => `⁦${text}⁩`;
 
 const problemOf = (answer: ApiResult) =>
   answer.kind === "network" ? OFFLINE : answer.kind === "error" ? answer.message : null;
@@ -64,6 +71,14 @@ export async function requestCode(
       resendAfterSeconds: numberOf(answer.body["resendAfterSeconds"], 60),
       emailFallbackAfterSeconds:
         input.channel === "phone" ? numberOf(answer.body["emailFallbackAfterSeconds"], 30) : null,
+    };
+  }
+  // The terms changed since the screen loaded them: show the new versions; retrying with the old ones never works.
+  if (answer.kind === "error" && answer.code === "acceptance_required") {
+    return {
+      type: "versions_changed",
+      versions: versionsFrom(answer.details["documents"]),
+      problem: MESSAGES["signIn.versionsChanged"],
     };
   }
   return {

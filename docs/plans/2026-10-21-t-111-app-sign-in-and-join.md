@@ -105,3 +105,9 @@ for the screens.
   code"), and no Join button on an ended event. **m15:** this slice reads only the global config; per-event config comes
   with T-113's switcher.
 - **Nits:** the reducer is `src/auth/sign-in-flow.ts`; the install id sits in AsyncStorage.
+
+## Correction (CTO screens review, 2026-10-21)
+
+Revision 1 M1's "quests before sign-in shown as a plain list on the card" is withdrawn: T-114's quest cards are the real
+screen, so FR-111 is partly delivered here (public events and the join card before sign-in; their quests and prizes
+come with T-114 and T-201).
