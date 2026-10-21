@@ -271,6 +271,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
           opensAt: null,
           closesAt: null,
           done: 1,
+          earned: 10,
+          state: "open",
         },
       ]);
       expect(answer.body).not.toContain("SECRET");
@@ -284,12 +286,57 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       expect(answer.json()).toMatchObject({ code: "not_enrolled" });
     });
 
-    it.each(["pending", "left", "banned"])("refuses a %s member", async (status) => {
+    it("tells a pending member they wait for approval, and nothing else", async () => {
+      const event = await newEvent();
+      await newQuest(event);
+      const player = await newPlayer(event.id, "pending");
+      const answer = await asPlayer(player.token, `/v1/events/${event.id}/quests`);
+      expect(answer.statusCode).toBe(403);
+      expect(answer.json()).toMatchObject({ code: "membership_pending" });
+      expect(answer.body).not.toContain("A quest");
+    });
+
+    it.each(["left", "removed", "banned"])("refuses a %s member", async (status) => {
       const event = await newEvent();
       const player = await newPlayer(event.id, status);
       const answer = await asPlayer(player.token, `/v1/events/${event.id}/quests`);
       expect(answer.statusCode).toBe(403);
       expect(answer.json()).toMatchObject({ code: "not_enrolled" });
+    });
+
+    it("gives each quest its state on the server's clock, and the event's status and zone", async () => {
+      const event = await newEvent();
+      const open = await newQuest(event);
+      const finishedQuest = await newQuest(event);
+      const later = await newQuest(event);
+      const over = await newQuest(event);
+      await owner("UPDATE quest SET opens_at = now() + interval '1 hour' WHERE id = $1", [later]);
+      await owner("UPDATE quest SET closes_at = now() - interval '1 minute' WHERE id = $1", [over]);
+      const player = await newPlayer(event.id);
+      await complete(player.id, finishedQuest);
+      const answer = await asPlayer(player.token, `/v1/events/${event.id}/quests`);
+      const body = answer.json<{ event: Row; categories: { quests: Row[] }[] }>();
+      expect(body.event).toEqual({ statusNow: "live", timezone: "Asia/Riyadh" });
+      const stateOf = (id: string) =>
+        body.categories[0]?.quests.find((q) => q["id"] === id)?.["state"];
+      expect([open, finishedQuest, later, over].map(stateOf)).toEqual([
+        "open",
+        "done",
+        "not_yet",
+        "closed",
+      ]);
+    });
+
+    it("says not live for every unfinished quest before the event starts", async () => {
+      const event = await newEvent({ status: "scheduled", startsIn: "1 day", endsIn: "2 days" });
+      await newQuest(event);
+      const player = await newPlayer(event.id);
+      const body = (await asPlayer(player.token, `/v1/events/${event.id}/quests`)).json<{
+        event: Row;
+        categories: { quests: Row[] }[];
+      }>();
+      expect(body.event["statusNow"]).toBe("scheduled");
+      expect(body.categories[0]?.quests[0]?.["state"]).toBe("not_live");
     });
   });
 

@@ -87,6 +87,7 @@ export {
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isQuestType,
+  normalizeEntryCode,
   parseQuestConfig,
 } from "./quests/registry";
 export type { Avatar } from "./players/avatars";

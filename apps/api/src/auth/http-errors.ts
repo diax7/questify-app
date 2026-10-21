@@ -410,6 +410,12 @@ export const joinCardStale = make(
   "تغيّرت بطاقة الانضمام. راجعها ثم انضم.",
   "The join card has changed. Read it again, then join.",
 );
+export const membershipPending = make(
+  403,
+  "membership_pending",
+  "طلب انضمامك بانتظار موافقة المنظّم.",
+  "Your request to join is waiting for the organizer's approval.",
+);
 export const membersOnly = make(
   403,
   "members_only",

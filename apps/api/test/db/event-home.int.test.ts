@@ -107,6 +107,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "description_ar",
           "description_en",
           "done",
+          "earned",
           "opens_at",
           "points",
           "quest_id",
@@ -131,6 +132,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
       expect(done(await read(me))).toBe(1);
       expect(done(await read(someoneElse))).toBe(2);
       expect(done(await read(await newPlayer()))).toBe(0);
+    });
+
+    it("sums the calling player's own points from the ledger, unmoved by a later points change", async () => {
+      const quest = await newQuest({ cap: 3 });
+      const me = await newPlayer();
+      const someoneElse = await newPlayer();
+      await complete(me, quest);
+      await owner("UPDATE quest SET points = 25 WHERE id = $1", [quest]);
+      await complete(me, quest);
+      await complete(someoneElse, quest);
+      const earned = (rows: Row[]) => rows.find((row) => row["quest_id"] === quest)?.["earned"];
+      expect(earned(await read(me))).toBe("35");
+      expect(earned(await read(someoneElse))).toBe("25");
+      expect(earned(await read(await newPlayer()))).toBe("0");
     });
 
     it.each(["pending", "left", "removed", "banned"])(

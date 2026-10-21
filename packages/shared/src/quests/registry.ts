@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toWesternDigits } from "#src/i18n/digits";
 
 /** An entry code: ASCII letters and digits only, so an Arabic or an English keyboard types the same thing. */
 const ENTRY_CODE = /^[A-Za-z0-9]{4,32}$/;
@@ -44,6 +45,14 @@ export const QR_QUEST_TYPES = QUEST_TYPE_NAMES.filter((type) => QUEST_TYPES[type
 
 export function isQuestType(value: string): value is QuestType {
   return Object.hasOwn(QUEST_TYPES, value);
+}
+
+/**
+ * A typed entry code as the quest stores it: Arabic-Indic and Persian digits made Western (ADR-018), spaces trimmed,
+ * letters upper-case.
+ */
+export function normalizeEntryCode(typed: string): string {
+  return toWesternDigits(typed).trim().toUpperCase();
 }
 
 /** A type's config as stored: validated and normalized (an entry code upper-cased), or undefined when it is not one. */

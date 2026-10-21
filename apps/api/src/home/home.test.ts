@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finished, isOpen, pickUpNext, type MemberQuest } from "#src/home/home";
+import { finished, isOpen, pickUpNext, questState, type MemberQuest } from "#src/home/home";
 
 const NOW = new Date("2026-11-01T12:00:00Z");
 const before = new Date("2026-11-01T11:00:00Z");
@@ -15,6 +15,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   opensAt: null,
   closesAt: null,
   done: 0,
+  earned: 0,
   ...fields,
 });
 
@@ -43,6 +44,27 @@ describe("isOpen", () => {
 
   it("is closed for a player who finished it", () => {
     expect(isOpen(quest("a", { done: 1 }), "live", NOW)).toBe(false);
+  });
+});
+
+describe("questState", () => {
+  it("says done for a finished quest, even closed or in an ended event", () => {
+    expect(questState(quest("a", { done: 1, closesAt: before }), "live", NOW)).toBe("done");
+    expect(questState(quest("a", { done: 1 }), "ended", NOW)).toBe("done");
+    expect(questState(quest("a", { done: 1, opensAt: after }), "scheduled", NOW)).toBe("done");
+  });
+
+  it("then the event not live, before the quest's own window", () => {
+    expect(questState(quest("a", { opensAt: after }), "scheduled", NOW)).toBe("not_live");
+    expect(questState(quest("a", { closesAt: before }), "ended", NOW)).toBe("not_live");
+  });
+
+  it("then the window: not yet before it opens, closed from its closing time", () => {
+    expect(questState(quest("a", { opensAt: after }), "live", NOW)).toBe("not_yet");
+    expect(questState(quest("a", { opensAt: NOW }), "live", NOW)).toBe("open");
+    expect(questState(quest("a", { closesAt: NOW }), "live", NOW)).toBe("closed");
+    expect(questState(quest("a", { closesAt: after }), "live", NOW)).toBe("open");
+    expect(questState(quest("a", { repeatCap: 2, done: 1 }), "live", NOW)).toBe("open");
   });
 });
 

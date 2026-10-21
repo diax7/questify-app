@@ -196,7 +196,8 @@ private event makes a `pending` member) and decides under a row lock; organizers
 definers (T-204, T-218). Anonymous reads go through `public_events`, `public_event` and `public_event_quests`, which
 return named columns only (never a quest's `type_config`). An event's members read its quests through
 `member_event_quests(event)` (migration 0021): an active enrollment of an active player only, visible quests by named
-columns, each with how many times the calling player completed it.
+columns, each with how many times the calling player completed it and, since migration 0022, the points they earned
+from it (`earned`, the sum of their ledger entries for the quest, so a later points change does not move it).
 **Standing (T-208, migration 0019):** an enrollment's status changes from the organizer seat only through
 `set_enrollment_ban(event, enrollment, banned, request)` (the owner; `active|pending|left → banned`, `banned →
 active`, audited with statuses only); the player's own way out is `active|pending → left`; the admin keeps direct

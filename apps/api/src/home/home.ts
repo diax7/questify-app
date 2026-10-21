@@ -19,6 +19,8 @@ export type MemberQuest = Readonly<{
   closesAt: Date | null;
   /** How many times the calling player completed it. */
   done: number;
+  /** The points the calling player earned from it, from the ledger (migration 0022). */
+  earned: number;
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }>;
@@ -53,15 +55,28 @@ export type Home = Readonly<{
 /** Finished means done to its repeat cap: the same rule for progress and for Up next, so they never disagree. */
 export const finished = (quest: MemberQuest): boolean => quest.done >= quest.repeatCap;
 
-/** Open for this player now: the event is live, the quest's window holds `now`, and they have not finished it. */
-export function isOpen(quest: MemberQuest, statusNow: EventStatusNow, now: Date): boolean {
-  return (
-    statusNow === "live" &&
-    (quest.opensAt === null || quest.opensAt <= now) &&
-    (quest.closesAt === null || quest.closesAt > now) &&
-    !finished(quest)
-  );
+export type QuestState = "done" | "not_live" | "not_yet" | "closed" | "open";
+
+/**
+ * Where a quest stands for this player now, the one rule for Home's Up next and the Quests tab: finished first, then
+ * the event not live, then the quest's window (open from `opensAt`, closed at `closesAt`). `now` is the database's.
+ */
+export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: Date): QuestState {
+  if (finished(quest)) {
+    return "done";
+  }
+  if (statusNow !== "live") {
+    return "not_live";
+  }
+  if (quest.opensAt !== null && quest.opensAt > now) {
+    return "not_yet";
+  }
+  return quest.closesAt !== null && quest.closesAt <= now ? "closed" : "open";
 }
+
+/** Open for this player now: the event is live, the quest's window holds `now`, and they have not finished it. */
+export const isOpen = (quest: MemberQuest, statusNow: EventStatusNow, now: Date): boolean =>
+  questState(quest, statusNow, now) === "open";
 
 /**
  * Up next (FR-804, FR-1748): the pinned quest while it is open for this player; else the open quest with the most
@@ -101,6 +116,8 @@ type QuestRow = Readonly<{
   opens_at: Date | null;
   closes_at: Date | null;
   done: number;
+  /** bigint: pg returns it as text. */
+  earned: string;
 }>;
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>
@@ -127,23 +144,54 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       opensAt: row.opens_at,
       closesAt: row.closes_at,
       done: row.done,
+      earned: Number(row.earned),
     });
     categories.set(row.category_id, category);
   }
   return [...categories.values()];
 }
 
-/** The event's quests for an active member (T-114's tab, Home's Up next); null for anyone else. */
+export type QuestsView =
+  | Readonly<{
+      kind: "quests";
+      event: Readonly<{ statusNow: EventStatusNow; timezone: string }>;
+      categories: readonly Readonly<{
+        id: string;
+        name: Text;
+        quests: readonly (MemberQuest & Readonly<{ state: QuestState }>)[];
+      }>[];
+    }>
+  /** An enrollment waiting for the owner's approval (FR-1819): told so, and shown nothing else. */
+  | Readonly<{ kind: "pending" }>
+  /** A stranger, or a left, removed or banned member: the same whether or not the event exists. */
+  | Readonly<{ kind: "not_member" }>;
+
+/** The event's quests for an active member (T-114's tab), each with its state on the database's clock. */
 export async function memberQuests(
   deps: HomeDeps,
   playerId: string,
   eventId: string,
-): Promise<MemberCategory[] | null> {
+): Promise<QuestsView> {
   return asPlayer(deps, playerId, async (client) => {
-    if ((await standingOf(client, playerId, eventId))?.status !== "active") {
-      return null;
+    const row = await standingOf(client, playerId, eventId);
+    if (row?.status === "pending") {
+      return { kind: "pending" } as const;
     }
-    return questRows(client, eventId);
+    if (row?.status !== "active") {
+      return { kind: "not_member" } as const;
+    }
+    const categories = (await questRows(client, eventId)).map((category) => ({
+      ...category,
+      quests: category.quests.map((quest) => ({
+        ...quest,
+        state: questState(quest, row.status_now, row.now),
+      })),
+    }));
+    return {
+      kind: "quests",
+      event: { statusNow: row.status_now, timezone: row.timezone },
+      categories,
+    } as const;
   });
 }
 
@@ -174,8 +222,8 @@ async function standingOf(
     `SELECT n.status, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
             e.timezone, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.focus_quest_id,
             now() AS now
-     FROM enrollment n JOIN event e ON e.id = n.event_id
-     WHERE n.event_id = $1 AND n.player_id = $2`,
+     FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
+     WHERE n.event_id = $1 AND n.player_id = $2 AND p.status = 'active'`,
     [eventId, playerId],
   );
   return rows[0];
