@@ -233,6 +233,22 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  event_exclusion: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_exclusion (organizer_id, event_id, kind, value, created_by) VALUES ($1, $2, 'email_domain', 'forged.sa', $3)",
+          values: [f.orgB, f.eventB, f.staffA],
+        }),
+        // Written only by add_exclusion and remove_exclusion, which check the owner (T-208).
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   event_entitlement: {
     probes: [
       {
@@ -386,6 +402,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
         column: "id",
         mine: (f) => f.playerA,
         theirs: (f) => f.playerB,
+        ownRowsHidden:
+          "organizers read their players only through event_players, with the join card's columns (T-208)",
         forge: () => ({ sql: "INSERT INTO player (username) VALUES ('forged_two')", values: [] }),
         // Since T-109 no one but the sign-up definer creates a player.
         forgeRefusedBy: /permission denied/,
@@ -581,6 +599,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
         [event, org],
+      );
+      await run(
+        "INSERT INTO event_exclusion (organizer_id, event_id, kind, value, created_by) VALUES ($1, $2, 'email_domain', 'seeded.sa', $3)",
+        [org, event, staff],
       );
       await run(
         "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",

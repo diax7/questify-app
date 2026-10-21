@@ -19,6 +19,7 @@ import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
+import { registerModerationRoutes } from "#src/moderation/routes";
 import type { QuestCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import { organizerContextOf } from "#src/organizers/context";
@@ -194,6 +195,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events, deps.settings);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
+      registerModerationRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },
   );

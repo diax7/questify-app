@@ -12,6 +12,7 @@ import {
 } from "@questify/shared";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { onlyRow } from "#src/db/rows";
 import type { EmailSender } from "#src/auth/email/sender";
 import { signInCodeEmail } from "#src/auth/email/templates";
 import { generateCode, generateToken, hashToken, type AuthKeys } from "#src/auth/keys";
@@ -163,15 +164,6 @@ export function typedCode(typed: string): string {
  *
  * @throws Error when it returned none, which would mean the function changed under the API.
  */
-function onlyRow<T>(rows: readonly T[], name: string): T {
-  const [row] = rows;
-  // Stryker disable next-line ConditionalExpression,BlockStatement,StringLiteral: unreachable: these functions return exactly one row
-  if (row === undefined) {
-    throw new Error(`${name} returned no row.`);
-  }
-  return row;
-}
-
 const inTransaction = <T>(deps: PlayerSignInDeps, work: (client: PoolClient) => Promise<T>) =>
   withConnection(deps.pool, (client) => withRequestContext(client, {}, () => work(client)));
 

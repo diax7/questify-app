@@ -46,14 +46,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
       ]);
     });
 
-    it("lets organizer A read only its own enrollments and players", async () => {
+    it("lets organizer A read only its own enrollments, and players only through event_players (T-208)", async () => {
       const enrollments = await as<{ organizer_id: string }>(
         seatA(),
         "SELECT organizer_id FROM enrollment",
       );
       expect(enrollments.map((r) => r.organizer_id)).toEqual([ids.orgA]);
       const players = await as<{ username: string }>(seatA(), "SELECT username FROM player");
-      expect(players.map((r) => r.username)).toEqual(["sara_k"]);
+      expect(players).toEqual([]);
     });
 
     it("hides organizer B's private event from organizer A", async () => {

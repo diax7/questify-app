@@ -63,7 +63,7 @@ public event page and join code; and the big-screen/station links.
 | V4 tenant boundary (T-101) | the organizer context counts only for a member staff user (`app_organizer_id()` reads the membership); editor event limits on events, enrollments, players and event audit entries; members join only through invites (definer functions; no INSERT for the API role); a sign-up completes only with the HMAC of the emailed code, checked in the database; the outbound mail budget (400 a day for sign-up and invite mail) keeps sign-in codes deliverable; organizer names that read as addresses are refused | `test/db/organizer-team.int.test.ts`, `test/db/isolation.int.test.ts`, `test/organizers/team.int.test.ts`, `test/auth/sign-up.int.test.ts`, cross-tenant and route suites |
 | V11 cryptography | `crypto.randomInt` for codes, `randomBytes` for tokens, HMAC with per-purpose keys derived from `AUTH_SECRET`, constant-time comparison; quest QR codes signed with HMAC-SHA256 (128-bit tag) under a key derived from its own `QR_SECRET`, decoded strictly (one canonical spelling), bound to their quest and version (ADR-116) | `src/auth/keys.test.ts`, `src/quests/qr.test.ts` |
 | V8 authorization (joining, T-111) | players join only through `join_event`, bound to the session; the enrollment insert policy is admin-only (until 0018 a player could enroll in any event by id, private ones included, and an organizer could enroll any player in their own event and so read that player's row); wrong join codes are counted per address (60 in 10 minutes) and per player (20), right ones cost nothing; a miss is reserved before the lookup, so a burst cannot pass the budget | `test/db/join.int.test.ts`, `test/join/join.int.test.ts` |
-| V16 logging | events carry the request id, the event name, the user id (when known) and a 12-character keyed tag of the client address; never the email, the address itself, the password, the code or a token; the request serializer writes method and path only (never a body: the code request's contact and accepted versions stay out; a request refused for its versions logs no `player.*` event, T-110); `Set-Cookie` and `Cookie` are redacted | "what the logs hold" test |
+| V16 logging | events carry the request id, the event name, the user id (when known) and a 12-character keyed tag of the client address; never the email, the address itself, the password, the code or a token; the request serializer writes method and path only (the URL can hold a players search, `?q=`, which is a username prefix: usernames are public pseudonyms, not personal data; never a body: the code request's contact and accepted versions stay out; a request refused for its versions logs no `player.*` event, T-110); `Set-Cookie` and `Cookie` are redacted | "what the logs hold" test |
 | V3 / V4 | default-deny staff scope with an explicit public list; `Origin` check on state-changing requests; `no-store` on every staff answer | route-walk tests |
 
 **Thinner wall on the sign-in paths.** Before a person is identified, sign-in code opens exactly one row through
@@ -139,12 +139,15 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   through the system picker or camera (NFR-021).
 - Deletion: real deletion on request, anonymising audit rows; the one-way fingerprint keeps bans
   (ADR-084). No restore after deletion (ADR-094).
-- What an organizer may read about a player (known gap, T-111): the join card (FR-121, version 0.1) discloses
-  the username and avatar, points and quests in the event, and prizes collected (PD-17). Row-level security on
-  `player` still lets an organizer read every column of a player enrolled in their events, `birth_year` included:
-  there is one database role, so a column grant cannot separate the seats. No route reaches it today; the first
-  organizer view of players (T-208) reads through a definer or view with the disclosed columns only, with a test
-  that `birth_year` never appears and a cross-tenant probe.
+- What an organizer reads about a player (closed in T-208, migration 0019): the join card (FR-121, version 0.1)
+  discloses the username and avatar, points and quests in the event, and prizes collected (PD-17). Organizers no
+  longer read `player` at all; `event_players` returns those columns only (tested: no birth year, no contact, a
+  cross-tenant probe). `enrollment_read` still lets the organizer seat read `enrollment.player_id`; the API never
+  returns it, and the dashboard reads enrollments through definers as it grows.
+- Accepted risk (T-208): the exclusion list can work as a lookup. An owner who adds a phone number and watches the
+  board can learn which username has it, though organizers never see contacts. FR-319 needs the behaviour; it is
+  kept small: no "excluded" flag in any answer, at most 500 entries an event, every add and remove audited (the kind,
+  never the value), phones masked in every answer.
 - Backups (target, NFR-026): point-in-time, copied to a second place in Saudi Arabia that we control, restore rehearsed.
   **Today:** CranL offers neither point-in-time restore nor a second-region copy (ADR-107 addenda); staging holds only
   test data, and the nightly copy with a proven restore is T-019, required before the first real player.

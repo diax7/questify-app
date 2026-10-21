@@ -416,3 +416,27 @@ export const membersOnly = make(
   "مهام هذه الفعالية لأعضائها فقط.",
   "This event's quests are for its members only.",
 );
+export const banNotAllowed = make(
+  409,
+  "ban_not_allowed",
+  "أُزيل هذا اللاعب من الفعالية، فلا يمكن حظره أو رفع الحظر عنه.",
+  "This player was removed from the event, so they cannot be banned or unbanned.",
+);
+export const invalidExclusion = make(
+  422,
+  "invalid_exclusion",
+  "أدخل رقم جوال سعوديًا أو نطاق بريد مثل company.com.",
+  "Enter a Saudi mobile number or an email domain such as company.com.",
+);
+export const exclusionListFull = make(
+  409,
+  "exclusion_list_full",
+  "قائمة الاستبعاد ممتلئة (500 إدخال). احذف إدخالًا ثم أضف غيره.",
+  "The exclusion list is full (500 entries). Remove one, then add another.",
+);
+export const cannotLeave = make(
+  409,
+  "cannot_leave",
+  "لا يمكنك مغادرة هذه الفعالية.",
+  "You cannot leave this event.",
+);

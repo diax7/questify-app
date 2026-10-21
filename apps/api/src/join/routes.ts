@@ -2,6 +2,7 @@ import { MESSAGES, decodeCursor, encodeCursor, joinCard, parseLimit } from "@que
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
+  cannotLeave,
   eventEnded,
   invalidRequest,
   joinCardStale,
@@ -17,6 +18,7 @@ import {
   findByCode,
   isThrottled,
   joinByCode,
+  leaveEvent,
   listPublicEvents,
   myEvents,
   questsByCode,
@@ -27,6 +29,7 @@ const CODE = /^[A-Za-z0-9]{4,12}$/;
 const VERSION = z.string().regex(/^[0-9]+(\.[0-9]+){0,2}$/);
 
 const codeParams = z.object({ joinCode: z.string() });
+const eventParams = z.object({ eventId: z.uuid() });
 const listQuery = z.strictObject({
   cursor: z.string().max(200).optional(),
   limit: z.string().optional(),
@@ -181,6 +184,28 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
             status: result.status,
             alreadyMember: result.kind === "already",
           };
+      }
+    },
+  );
+
+  // FR-1703: the app confirms first; the player stops playing and the event's pushes stop (push task: active only).
+  app.post(
+    "/v1/events/:eventId/leave",
+    { config: { access: "player" } },
+    async (request, reply) => {
+      const { eventId } = parse(eventParams, request.params);
+      const player = request.player;
+      // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+      if (player === undefined) {
+        throw unauthenticated();
+      }
+      switch (await leaveEvent(deps, player.id, eventId)) {
+        case "left":
+          return reply.code(204).send();
+        case "not_found":
+          throw notFound();
+        case "cannot_leave":
+          throw cannotLeave();
       }
     },
   );

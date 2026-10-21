@@ -185,6 +185,20 @@ join through `join_event(code, via, card)`, which checks the event's state, its 
 private event makes a `pending` member) and decides under a row lock; organizers will invite through their own
 definers (T-204, T-218). Anonymous reads go through `public_events`, `public_event` and `public_event_quests`, which
 return named columns only (never a quest's `type_config`).
+**Standing (T-208, migration 0019):** an enrollment's status changes from the organizer seat only through
+`set_enrollment_ban(event, enrollment, banned, request)` (the owner; `active|pending|left → banned`, `banned →
+active`, audited with statuses only); the player's own way out is `active|pending → left`; the admin keeps direct
+changes. Organizers read players only through `event_players(event, after, page, prefix)`, which returns
+`enrollment_id, username, avatar, status, score, joined_at` (`player_own` no longer has an organizer branch).
+
+### event_exclusion (migration 0019)
+`event_exclusion (id, organizer_id, event_id, kind phone|email_domain, value, created_by, created_at)`, unique
+`(event_id, kind, value)`, at most 500 an event; phones `+9665XXXXXXXX`, domains lower case with dotted labels
+(an `xn--` last label allowed), checked by the table; `(event_id, organizer_id)` references the event, deleted with
+it; `created_by` set NULL when the staff account goes (the audit entry keeps who). Forced RLS: the event's team reads;
+written only by `add_exclusion` and `remove_exclusion` (the owner). Both forms of the ranking rule leave listed
+players unranked (a phone equal, or an email whose domain equals an entry); list changes and a player's phone or
+email change mark the event's repair.
 
 ### category, quest
 `category(id, event_id, title i18n, order_mode any|in_order, completion_bonus, position, collapsed)`.

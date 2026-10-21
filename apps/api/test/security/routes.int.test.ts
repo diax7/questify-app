@@ -120,6 +120,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "enrolls only the bearer, through join_event bound to the session; nobody inserts an enrollment directly (test/join/join, test/db/join)",
   "GET /v1/me/events":
     "the bearer's own enrollments only, read under row-level security (test/join/join)",
+  "POST /v1/events/:eventId/leave":
+    "leaves only the bearer's own enrollment, read and written under row-level security (test/join/leave)",
+  "GET /v1/organizers/:organizerId/events/:eventId/players":
+    "members of that organizer within their event limit, through event_players with the join card's columns; another event answers an empty list (test/moderation/moderation, test/db/bans)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/ban":
+    "the organizer's owner only, for an enrollment of the path's event; set_enrollment_ban checks again and audits (test/moderation/moderation, test/db/bans)",
+  "GET /v1/organizers/:organizerId/events/:eventId/exclusions":
+    "members of that organizer within their event limit; phones masked for every seat; another event answers 404 (test/moderation/moderation)",
+  "POST /v1/organizers/:organizerId/events/:eventId/exclusions":
+    "the organizer's owner only, for the path's event; add_exclusion checks again and audits the kind, never the value (test/moderation/moderation, test/db/bans)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/exclusions/:exclusionId":
+    "the organizer's owner only; another event's or organizer's entry answers 404 (test/moderation/moderation, test/db/bans)",
   "POST /v1/me/acceptances":
     "records the bearer's own acceptances only, through accept_player_documents bound to the session (test/players/legal, test/db/player-legal)",
   "PATCH /v1/me":

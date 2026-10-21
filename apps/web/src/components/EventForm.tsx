@@ -186,6 +186,9 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           <a className={styles.textLink} href={`${pages}/${event.id}/quests`}>
             {t("quests.title")}
           </a>
+          <a className={styles.textLink} href={`${pages}/${event.id}/players`}>
+            {t("players.title")}
+          </a>
         </p>
       )}
       {problem === null ? null : (

@@ -131,12 +131,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       expect((await enrollmentOf(ids.playerB))?.status).toBe("left");
     });
 
-    it("lets the event's organizer change a status", async () => {
-      await as(
+    it("lets the event's organizer change a status only through the audited definer, and the admin directly (T-208)", async () => {
+      const changed = await as(
         { organizerId: ids.orgA, staffUserId: owner },
-        "UPDATE enrollment SET status = 'active' WHERE player_id = $1",
+        "UPDATE enrollment SET status = 'active' WHERE player_id = $1 RETURNING id",
         [ids.playerA],
       );
+      expect(changed).toEqual([]);
+      expect((await enrollmentOf(ids.playerA))?.status).toBe("banned");
+      await as({ isAdmin: true }, "UPDATE enrollment SET status = 'active' WHERE player_id = $1", [
+        ids.playerA,
+      ]);
       expect((await enrollmentOf(ids.playerA))?.status).toBe("active");
     });
   });
@@ -183,12 +188,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
   });
 
   describe("contact details", () => {
-    it("are hidden from the organizer of a player's event", async () => {
+    it("are hidden from the organizer of a player's event, who reads no player row either (T-208)", async () => {
       const players = await as(
         { organizerId: ids.orgA, staffUserId: owner },
         "SELECT username FROM player",
       );
-      expect(players.length).toBeGreaterThan(0);
+      expect(players).toEqual([]);
       expect(
         await as({ organizerId: ids.orgA, staffUserId: owner }, "SELECT * FROM player_contact"),
       ).toEqual([]);

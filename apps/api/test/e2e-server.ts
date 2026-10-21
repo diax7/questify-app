@@ -105,11 +105,28 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
       raw += chunk.toString();
     });
     request.on("end", () => {
-      let body: { eventId?: string; status?: string };
+      let body: { eventId?: string; status?: string; usernames?: string[] };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
       } catch (error) {
         response.writeHead(400).end(String(error));
+        return;
+      }
+      // /players: enrolls new players with these usernames in the event (the dashboard's players page, T-208).
+      if (request.url === "/players") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) SELECT unnest($2::text[]) RETURNING id)
+             INSERT INTO enrollment (organizer_id, event_id, player_id)
+             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1`,
+            [body.eventId, body.usernames ?? []],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === (body.usernames ?? []).length ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
         return;
       }
       const times =

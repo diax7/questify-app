@@ -335,3 +335,38 @@ export async function myEvents(deps: JoinDeps, playerId: string): Promise<MyEven
     }),
   );
 }
+
+export type LeaveOutcome = "left" | "not_found" | "cannot_leave";
+
+/**
+ * Leaves an event (FR-1703): an active or pending member becomes `left`, under the player's own rules; leaving again
+ * is the same answer. A banned or removed player cannot leave, which would let them join again (T-208).
+ */
+export async function leaveEvent(
+  deps: JoinDeps,
+  playerId: string,
+  eventId: string,
+): Promise<LeaveOutcome> {
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, { playerId }, async () => {
+      const left = await client.query(
+        `UPDATE enrollment SET status = 'left'
+         WHERE event_id = $1 AND player_id = $2 AND status IN ('active', 'pending') RETURNING id`,
+        [eventId, playerId],
+      );
+      // The answer describes what this request did: a ban landing just after it does not turn it into a refusal.
+      if (left.rowCount === 1) {
+        return "left";
+      }
+      const { rows } = await client.query<{ status: string }>(
+        "SELECT status FROM enrollment WHERE event_id = $1 AND player_id = $2",
+        [eventId, playerId],
+      );
+      const status = rows[0]?.status;
+      if (status === undefined) {
+        return "not_found";
+      }
+      return status === "left" ? "left" : "cannot_leave";
+    }),
+  );
+}

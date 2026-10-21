@@ -117,7 +117,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer team (database)", ()
     );
 
   describe("an editor limited to one event", () => {
-    it("sees only that event, its enrollments and its players", async () => {
+    it("sees only that event and its enrollments, and no player rows (event_players, T-208)", async () => {
       const events = await as<{ id: string }>(
         seat(limited),
         "SELECT id FROM event WHERE organizer_id = $1",
@@ -130,7 +130,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer team (database)", ()
       );
       expect(enrollments.map((row) => row.event_id)).toEqual([ids.eventA]);
       const players = await as<{ id: string }>(seat(limited), "SELECT id FROM player");
-      expect(players.map((row) => row.id)).toEqual([ids.playerA]);
+      expect(players).toEqual([]);
     });
 
     it("cannot change or delete the other event or its enrollments, even with a bare statement", async () => {
