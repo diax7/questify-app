@@ -1,5 +1,6 @@
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DEFAULT_TERMS } from "@questify/shared";
 import { createEvents } from "#src/events/events";
 import { startLifecycleTick } from "#src/events/tick";
 import {
@@ -28,6 +29,8 @@ const DRAFT = {
   startsAt: "2030-11-01T09:00",
   endsAt: "2030-11-01T17:00",
 };
+
+const termsUrl = (org: string, event: string) => `/v1/organizers/${org}/events/${event}/terms`;
 
 const ownerOf = (org: string) => ({
   organizerId: org,
@@ -79,7 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
   };
 
   const call = (
-    method: "GET" | "POST" | "PATCH" | "DELETE",
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
     url: string,
     cookie: string,
     payload?: object,
@@ -108,6 +111,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
     expect(response.statusCode).toBe(201);
     return response.json<{ event: EventView }>().event;
   };
+
+  const save = (org: string, event: string, cookie: string, payload: object) =>
+    call("PUT", termsUrl(org, event), cookie, payload);
 
   /** Moves an event out of draft the way Questify's activation will (T-210): through the owner connection. */
   const setStatus = (id: string, status: string, startsAt: string, endsAt: string) =>
@@ -445,6 +451,116 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
         { confirm: true },
       );
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe("the event's words (T-117)", () => {
+    const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
+    const STUDENTS = { ar: { one: "طالب", many: "طلاب" }, en: { one: "student", many: "students" } };
+
+    it("saves the words trimmed, shows them on the event read and in the app's configuration, and audits a change", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie);
+      const body = {
+        currency: { icon: "gem", ar: { one: " جوهرة ", many: "جواهر" }, en: GEMS.en },
+        player: STUDENTS,
+      };
+      const saved = await save(org.id, event.id, org.cookie, body);
+      expect(saved.statusCode).toBe(200);
+      const terms = { ...DEFAULT_TERMS, currency: { icon: "gem", ...GEMS }, player: STUDENTS };
+      expect(saved.json()).toStrictEqual({ terms });
+      const read = await call("GET", `/v1/organizers/${org.id}/events/${event.id}`, org.cookie);
+      expect(read.json<{ event: { terms: unknown } }>().event.terms).toStrictEqual(terms);
+      const list = await call("GET", `/v1/organizers/${org.id}/events`, org.cookie);
+      expect(list.json<{ events: object[] }>().events[0]).not.toHaveProperty("terms");
+
+      await owner("UPDATE event SET access = 'public' WHERE id = $1", [event.id]);
+      await setStatus(event.id, "live", "-1 hour", "1 day");
+      const config = await test.app.inject({ method: "GET", url: `/v1/config?event=${event.id}` });
+      expect(config.json<{ terms: unknown }>().terms).toStrictEqual(terms);
+      const platform = await test.app.inject({ method: "GET", url: "/v1/config" });
+      expect(platform.json<{ terms: unknown }>().terms).toStrictEqual(DEFAULT_TERMS);
+
+      expect(await auditOf(event.id, "event.terms.update")).toStrictEqual([
+        {
+          before: { terms: {} },
+          after: { terms: { currency: { icon: "gem", ...GEMS }, player: STUDENTS } },
+        },
+      ]);
+      expect((await save(org.id, event.id, org.cookie, body)).statusCode).toBe(200);
+      expect(await auditOf(event.id, "event.terms.update")).toHaveLength(1);
+    });
+
+    it("replaces the whole set: a word left out returns to the default, and the icon saves on its own", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie);
+      await save(org.id, event.id, org.cookie, { player: STUDENTS });
+      const saved = await save(org.id, event.id, org.cookie, { currency: { icon: "leaf" } });
+      expect(saved.json()).toStrictEqual({
+        terms: { ...DEFAULT_TERMS, currency: { ...DEFAULT_TERMS.currency, icon: "leaf" } },
+      });
+      const [row] = await owner<{ config: unknown; config_version: number }>(
+        "SELECT config, config_version FROM event WHERE id = $1",
+        [event.id],
+      );
+      expect(row).toStrictEqual({
+        config: { terms: { currency: { icon: "leaf" } } },
+        config_version: 3,
+      });
+    });
+
+    it("keeps the event's switches, and works after the event ends but not once it is archived", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie);
+      await call("PUT", `/v1/organizers/${org.id}/events/${event.id}/ranking`, org.cookie, {
+        enabled: false,
+      });
+      await setStatus(event.id, "ended", "-2 days", "-1 day");
+      expect((await save(org.id, event.id, org.cookie, { player: STUDENTS })).statusCode).toBe(200);
+      const [row] = await owner<{ config: unknown }>("SELECT config FROM event WHERE id = $1", [
+        event.id,
+      ]);
+      expect(row?.config).toStrictEqual({
+        features: { ranking: false },
+        terms: { player: STUDENTS },
+      });
+      await owner("UPDATE event SET status = 'archived' WHERE id = $1", [event.id]);
+      const archived = await save(org.id, event.id, org.cookie, {});
+      expect(archived.statusCode).toBe(409);
+      expect(archived.json()).toMatchObject({ code: "event_archived" });
+    });
+
+    it("lets an editor within their events save, and answers 404 outside the caller's reach", async () => {
+      const org = await newOrganizer();
+      const mine = await created(org.id, org.cookie);
+      const elsewhere = await created(org.id, org.cookie);
+      const limited = await memberOf(org.id, "editor", [mine.id]);
+      expect((await save(org.id, mine.id, limited, { player: STUDENTS })).statusCode).toBe(200);
+      expect((await save(org.id, elsewhere.id, limited, { player: STUDENTS })).statusCode).toBe(
+        404,
+      );
+      const other = await newOrganizer();
+      expect((await save(org.id, mine.id, other.cookie, {})).statusCode).toBe(404);
+      expect((await save(other.id, mine.id, other.cookie, {})).statusCode).toBe(404);
+      expect(
+        (await save(org.id, "00000000-0000-4000-8000-000000000000", org.cookie, {})).statusCode,
+      ).toBe(404);
+      expect((await auditOf(elsewhere.id, "event.terms.update")).length).toBe(0);
+    });
+
+    it.each([
+      [{ player: { ar: STUDENTS.ar, en: { one: "student" } } }, "player.en.many"],
+      [{ currency: { ar: GEMS.ar } }, "currency.en"],
+      [{ currency: { icon: "trophy" } }, "currency.icon"],
+      [{ player: { ...STUDENTS, en: { one: "student1", many: "students" } } }, "player.en.one"],
+      [{ quest: GEMS }, ""],
+    ])("names the field it refuses (%j)", async (payload, field) => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie);
+      const refused = await save(org.id, event.id, org.cookie, payload);
+      expect(refused.statusCode).toBe(422);
+      expect(refused.json()).toMatchObject({ code: "invalid_terms", details: { field } });
+      expect(await auditOf(event.id, "event.terms.update")).toHaveLength(0);
     });
   });
 

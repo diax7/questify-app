@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { loadEventTerms } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
 
 type EventValue = Readonly<{
@@ -10,6 +12,8 @@ type EventValue = Readonly<{
   /** The event's name as Home last read it, for the pill when the list could not be read. */
   knownName: string | undefined;
   rememberName: (name: string) => void;
+  /** The event's words (FR-404, FR-940): its cached copy, then the fresh one; Questify's own until either exists. */
+  terms: EventTerms;
 }>;
 
 const EventContext = createContext<EventValue | undefined>(undefined);
@@ -21,6 +25,7 @@ export function EventProvider({
 }: Readonly<{ eventId: string; children: ReactNode }>) {
   const [events, setEvents] = useState<readonly MyEvent[] | undefined>(undefined);
   const [knownName, rememberName] = useState<string | undefined>(undefined);
+  const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
   const load = useCallback(async () => {
     const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
     setEvents(answer.kind === "ok" ? readMyEvents(answer.body) : undefined);
@@ -29,11 +34,29 @@ export function EventProvider({
     void markOpened(keyValueStore, eventId, Date.now());
     void load();
   }, [eventId, load]);
+  useEffect(() => {
+    // Another event never keeps the last one's words, even for the moment before its own load.
+    setTerms(DEFAULT_TERMS);
+    let current = true;
+    void loadEventTerms({ client: api.session, store: keyValueStore }, eventId, (loaded) => {
+      if (current) {
+        setTerms(loaded);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [eventId]);
   const value = useMemo(
-    () => ({ eventId, events, knownName, rememberName }),
-    [eventId, events, knownName],
+    () => ({ eventId, events, knownName, rememberName, terms }),
+    [eventId, events, knownName, terms],
   );
   return <EventContext.Provider value={value}>{children}</EventContext.Provider>;
+}
+
+/** The words of the event the screen is inside. */
+export function useTerms(): EventTerms {
+  return useEvent().terms;
 }
 
 export function useEvent(): EventValue {

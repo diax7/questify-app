@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
-import { CONFIG_KEY, consentVersions, loadConfig, signupVersions } from "#src/config/remote.ts";
+import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
+import {
+  CONFIG_KEY,
+  configKeyOf,
+  consentVersions,
+  loadConfig,
+  loadEventTerms,
+  signupVersions,
+} from "#src/config/remote.ts";
 
 const CONFIG = {
   schemaVersion: 1,
@@ -116,5 +124,95 @@ describe("the consent versions", () => {
     const thin = { ...CONFIG, legal: { documents: [] } };
     const { client } = fake([ok(thin), ok(thin)]);
     expect(await consentVersions({ client, store: memoryStore() })).toBeUndefined();
+  });
+});
+
+const GEMS = {
+  ...DEFAULT_TERMS,
+  currency: { icon: "gem", ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } },
+} satisfies EventTerms;
+const LEAVES = {
+  ...DEFAULT_TERMS,
+  currency: {
+    icon: "leaf",
+    ar: { one: "ورقة", many: "أوراق" },
+    en: { one: "leaf", many: "leaves" },
+  },
+} satisfies EventTerms;
+
+describe("an event's configuration", () => {
+  it("asks the event's own address and keeps a copy per event, beside the platform's", async () => {
+    const store = memoryStore({ etag: '"p"', body: CONFIG });
+    const a = fake([ok({ ...CONFIG, terms: GEMS }, '"a1"')]);
+    const loaded = await loadConfig({ client: a.client, store }, { event: "event-a" });
+    expect(loaded?.terms).toStrictEqual(GEMS);
+    expect(a.calls[0]).toMatchObject({ method: "GET", path: "/v1/events/event-a/config" });
+    expect(a.calls[0]?.headers).toBeUndefined();
+    expect(JSON.parse(store.data.get(configKeyOf("event-a")) ?? "").etag).toBe('"a1"');
+    expect(JSON.parse(store.data.get(CONFIG_KEY) ?? "")).toEqual({ etag: '"p"', body: CONFIG });
+  });
+
+  it("offline, never shows one event's words in another", async () => {
+    const store = memoryStore();
+    await loadConfig(
+      { client: fake([ok({ ...CONFIG, terms: GEMS })]).client, store },
+      { event: "a" },
+    );
+    await loadConfig(
+      { client: fake([ok({ ...CONFIG, terms: LEAVES })]).client, store },
+      { event: "b" },
+    );
+    const offline = { client: fake([]).client, store };
+    expect((await loadConfig(offline, { event: "a" }))?.terms).toStrictEqual(GEMS);
+    expect((await loadConfig(offline, { event: "b" }))?.terms).toStrictEqual(LEAVES);
+    expect(await loadConfig(offline, { event: "c" })).toBeUndefined();
+  });
+
+  it("keeps the event's copy when the session has ended", async () => {
+    const store = memoryStore();
+    store.data.set(
+      configKeyOf("a"),
+      JSON.stringify({ etag: '"a1"', body: { ...CONFIG, terms: GEMS } }),
+    );
+    const client = { request: async () => ({ kind: "signed_out" }) as const };
+    expect((await loadConfig({ client, store }, { event: "a" }))?.terms).toStrictEqual(GEMS);
+  });
+
+  it("reads a copy saved before the event's words as the defaults", async () => {
+    const store = memoryStore();
+    store.data.set(configKeyOf("old"), JSON.stringify({ etag: null, body: CONFIG }));
+    expect(
+      (await loadConfig({ client: fake([]).client, store }, { event: "old" }))?.terms,
+    ).toStrictEqual(DEFAULT_TERMS);
+  });
+});
+
+describe("loadEventTerms", () => {
+  it("shows the cached words first, then the fresh ones", async () => {
+    const store = memoryStore();
+    store.data.set(
+      configKeyOf("a"),
+      JSON.stringify({ etag: '"a1"', body: { ...CONFIG, terms: GEMS } }),
+    );
+    const shown: EventTerms[] = [];
+    const { client, calls } = fake([ok({ ...CONFIG, terms: LEAVES }, '"a2"')]);
+    await loadEventTerms({ client, store }, "a", (terms) => shown.push(terms));
+    expect(shown).toStrictEqual([GEMS, LEAVES]);
+    expect(calls[0]?.headers).toEqual({ "if-none-match": '"a1"' });
+  });
+
+  it("shows nothing with no copy and no answer, so the screens keep the defaults", async () => {
+    const shown: EventTerms[] = [];
+    await loadEventTerms({ client: fake([]).client, store: memoryStore() }, "a", (terms) =>
+      shown.push(terms),
+    );
+    expect(shown).toStrictEqual([]);
+  });
+
+  it("shows the fresh words when nothing was cached", async () => {
+    const shown: EventTerms[] = [];
+    const client = fake([ok({ ...CONFIG, terms: GEMS })]).client;
+    await loadEventTerms({ client, store: memoryStore() }, "a", (terms) => shown.push(terms));
+    expect(shown).toStrictEqual([GEMS]);
   });
 });

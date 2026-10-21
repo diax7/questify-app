@@ -3,17 +3,20 @@ import {
   formatEventTime,
   formatNumber,
   isQuestType,
+  type EventTerms,
   type MessageKey,
 } from "@questify/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
+import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { completedText } from "#src/event/amount.ts";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import {
   completeQuest,
   keyFor,
@@ -59,10 +62,11 @@ export function outcomeText(
   answer: CompletionAnswer,
   t: ReturnType<typeof useI18n>["t"],
   language: "ar" | "en",
+  terms: EventTerms,
 ): string | null {
   switch (answer.kind) {
     case "completed":
-      return t("questsTab.completed", { points: formatNumber(answer.points, language) });
+      return completedText(t, terms, language, answer.points);
     case "wrong_code":
       return answer.problem?.[language] ?? t("questsTab.failed");
     case "not_open":
@@ -170,13 +174,14 @@ export function QuestSheet({
   onCompleted: (answer: CompletionAnswer) => void;
 }>) {
   const { t, language } = useI18n();
+  const terms = useTerms();
   // Kept here, not in the code field: a success turns the quest to done and the field goes, its message stays.
   const [outcome, setOutcome] = useState<string | null>(null);
   if (quest === undefined) {
     return null;
   }
   const done = (answer: CompletionAnswer) => {
-    setOutcome(outcomeText(answer, t, language));
+    setOutcome(outcomeText(answer, t, language, terms));
     onCompleted(answer);
   };
   const description = textIn(quest.description, language);
@@ -191,9 +196,7 @@ export function QuestSheet({
     <Sheet visible title={textIn(quest.title, language)} onClose={onClose}>
       {isQuestType(quest.type) ? <AppText muted>{t(QUEST_TYPES[quest.type].label)}</AppText> : null}
       {description === "" ? null : <AppText>{description}</AppText>}
-      <AppText variant="label">
-        {t("quests.pointsShort", { points: formatNumber(quest.points, language) })}
-      </AppText>
+      <Amount amount={formatNumber(quest.points, language)} form="labelled" variant="label" />
       {quest.repeatCap > 1 ? (
         <AppText>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}

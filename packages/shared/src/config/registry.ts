@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import type { EventTerms } from "./terms";
 
 /** A feature that exists inside the reviewed app. Configuration can only switch these on or off (FR-1504). */
 export type FeatureDefinition = Readonly<{
@@ -35,6 +36,8 @@ export type EventConfig = Readonly<{
   features?: Readonly<Record<string, boolean>> | undefined;
   /** Gated features Questify unlocked for this event. */
   unlocked?: readonly string[] | undefined;
+  /** The event's own words (FR-404, FR-940); the defaults when it set none. */
+  terms?: EventTerms | undefined;
 }>;
 
 /**

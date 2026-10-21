@@ -679,11 +679,18 @@ other docs feed it and stay as its detailed appendices.
   every phone, with no scrolling, and refreshes every 15 seconds while open. Dhia decided the app has one font at one
   size for everyone (ADR-121). Not yet run on a phone (T-009 now lists every on-phone check). CTO: plan 86 → 93; code
   93, its fixes applied.
+- 2026-10-21 **T-117 built.** Each event names its currency (both languages, singular and plural, one of five icons)
+  and what players and operators are called, from an "Event words" section on the event page with a live preview.
+  The app, the quest builder and the players page use those words; sentences that would need Arabic grammar around a
+  renamed noun were rephrased (ADR-058). Found and fixed: an unlisted or private event's configuration never reached the
+  app, and Home and the ranking read its ranking as off; a player now reads it through `GET /v1/events/{id}/config`
+  (ADR-122, Proposed). Q-105 holds the star-vs-XP icon and quest/category renames. 2366 tests, 64 browser tests,
+  `expo export` clean; mutation not run (not core, Token budget rule 4). CTO code review 88, then 93 (GO).
 
 ## Next
 
-1. **Now:** T-117 (currency and renamed words): the plan is GO (CTO 92, `docs/plans/2026-10-21-t-117-currency-and-words.md`,
-   with its build notes at the end); build Phase 1. One task per session (CLAUDE.md, Token budget).
+1. **Now:** T-118 (close the first loop: end-to-end test and a first demo build on real phones). One task per
+   session (CLAUDE.md, Token budget).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
      tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
      with the next Expo update.
@@ -691,8 +698,8 @@ other docs feed it and stay as its detailed appendices.
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
-   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-120 (a contact change proves only the new contact), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times), Q-102 (quest detail fields), Q-103 (scan sound and coin art).
+   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-120 (a contact change proves only the new contact), ADR-115 (`uqr` for drawing QR codes), ADR-116 (`QR_SECRET`) and ADR-122 (a player reads a joined event's configuration), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times), Q-102 (quest detail fields), Q-103 (scan sound and coin art), Q-105 (star icon and XP, quest and category renames).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

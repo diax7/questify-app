@@ -1,4 +1,4 @@
-import { formatNumber, type Theme } from "@questify/shared";
+import { DEFAULT_TERMS, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
@@ -12,7 +12,8 @@ import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { completedText } from "#src/event/amount.ts";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { outcomeText } from "#src/event/QuestSheet.tsx";
 import {
   completeQuest,
@@ -79,9 +80,10 @@ function refusalText(
   t: ReturnType<typeof useI18n>["t"],
   language: "ar" | "en",
 ) {
+  // A refusal names no amount, so the currency's words are never used here.
   return answer.kind === "reload"
     ? t("scanner.unavailable")
-    : (outcomeText(answer, t, language) ?? "");
+    : (outcomeText(answer, t, language, DEFAULT_TERMS) ?? "");
 }
 
 /**
@@ -92,6 +94,7 @@ function Celebration({
   onClaim,
 }: Readonly<{ step: Extract<ScanStep, { kind: "celebrating" }>; onClaim: () => void }>) {
   const { t, language } = useI18n();
+  const terms = useTerms();
   const [categoryShown, setCategoryShown] = useState(false);
   const category = step.details?.finishedCategory;
   const claim = () =>
@@ -113,7 +116,8 @@ function Celebration({
   return (
     <PopIn>
       <AppText variant="display">
-        {t("questsTab.completed", { points: formatNumber(step.points, language) })}
+        {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
+        {completedText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step.points)}
       </AppText>
       {quest === undefined ? null : (
         <AppText variant="title">{textIn(quest.title, language)}</AppText>

@@ -1,12 +1,13 @@
-import { formatEventTime, formatNumber, type Theme } from "@questify/shared";
+import { formatEventTime, formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
@@ -72,9 +73,7 @@ function QuestCard({
   return (
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
-      <AppText muted>
-        {t("quests.pointsShort", { points: formatNumber(quest.points, language) })}
-      </AppText>
+      <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
       {quest.repeatCap > 1 ? (
         <AppText muted>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}
@@ -105,11 +104,13 @@ function CategorySection({
   onOpenQuest: (questId: string) => void;
 }>) {
   const { t, language, rtl } = useI18n();
+  const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   const summary = categorySummary(category);
   // A closed category's arrow points along the reading direction.
   const arrow = open ? "▾" : rtl ? "◂" : "▸";
   const summaryText = t("questsTab.summary", {
+    currency: termFor(terms.currency, language, summary.available),
     earned: formatNumber(summary.earned, language),
     available: formatNumber(summary.available, language),
     finished: summary.finished,

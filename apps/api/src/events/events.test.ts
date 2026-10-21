@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TERMS } from "@questify/shared";
 import { createEvents, merge, type Actor } from "#src/events/events";
 import type { EventRecord } from "#src/events/store";
 
@@ -21,6 +22,7 @@ const STORED: EventRecord = {
   statusNow: "draft",
   createdAt: new Date("2030-01-01T00:00:00Z"),
   rankingOn: true,
+  terms: DEFAULT_TERMS,
 };
 
 describe("merge", () => {

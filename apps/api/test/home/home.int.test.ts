@@ -209,6 +209,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       expect(home.json()).toMatchObject({ rankingOn: false });
     });
 
+    it("reads the ranking switch of an unlisted or private event the player joined", async () => {
+      for (const access of ["unlisted", "private"]) {
+        const event = await newEvent();
+        await owner("UPDATE event SET access = $2 WHERE id = $1", [event.id, access]);
+        const player = await newPlayer(event.id);
+        const home = await asPlayer(player.token, `/v1/events/${event.id}/home`);
+        expect(home.json(), access).toMatchObject({ rankingOn: true });
+      }
+    });
+
     it("gives a pending member the event and 'pending' only", async () => {
       const event = await newEvent();
       await newQuest(event);
@@ -470,6 +480,58 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       for (const payload of [{}, { questId: "nope" }, { questId: null, extra: 1 }]) {
         expect((await pin(event.id, null, organizer, payload)).statusCode).toBe(400);
       }
+    });
+  });
+
+  describe("the event's configuration for a player (T-117)", () => {
+    const TERMS = {
+      currency: {
+        icon: "gem",
+        ar: { one: "جوهرة", many: "جواهر" },
+        en: { one: "gem", many: "gems" },
+      },
+    };
+
+    it("gives a member the event's words even when the event is unlisted, and an ETag", async () => {
+      const event = await newEvent();
+      await owner("UPDATE event SET access = 'unlisted', config = $2 WHERE id = $1", [
+        event.id,
+        JSON.stringify({ terms: TERMS }),
+      ]);
+      const player = await newPlayer(event.id);
+      const config = await asPlayer(player.token, `/v1/events/${event.id}/config`);
+      expect(config.statusCode).toBe(200);
+      expect(config.json<{ terms: { currency: unknown } }>().terms.currency).toStrictEqual(
+        TERMS.currency,
+      );
+      const again = await test.app.inject({
+        method: "GET",
+        url: `/v1/events/${event.id}/config`,
+        headers: {
+          authorization: `Bearer ${player.token}`,
+          "if-none-match": String(config.headers["etag"]),
+        },
+      });
+      expect(again.statusCode).toBe(304);
+      const anyone = await test.app.inject({ method: "GET", url: `/v1/config?event=${event.id}` });
+      expect(anyone.statusCode).toBe(404);
+    });
+
+    it("answers 404 to a player outside the event, and 401 without a session", async () => {
+      const event = await newEvent();
+      await owner("UPDATE event SET access = 'private' WHERE id = $1", [event.id]);
+      const stranger = await newPlayer(null);
+      expect((await asPlayer(stranger.token, `/v1/events/${event.id}/config`)).statusCode).toBe(
+        404,
+      );
+      const member = await newPlayer(event.id);
+      expect((await asPlayer(member.token, `/v1/events/${event.id}/config`)).statusCode).toBe(200);
+      // The member's reading is cached for them alone: the stranger still gets 404.
+      expect((await asPlayer(stranger.token, `/v1/events/${event.id}/config`)).statusCode).toBe(
+        404,
+      );
+      const none = await test.app.inject({ method: "GET", url: `/v1/events/${event.id}/config` });
+      expect(none.statusCode).toBe(401);
     });
   });
 });

@@ -96,7 +96,7 @@ test("in a live event, a change waits for the confirmation and then goes through
   });
   expect(moved.status()).toBe(204);
   await page.reload();
-  await expect(page.getByText("الفعالية جارية: يرى اللاعبون كل تغيير فورًا.")).toBeVisible();
+  await expect(page.getByText("الفعالية جارية: يظهر كل تغيير في التطبيق فورًا.")).toBeVisible();
   await page.getByRole("button", { name: "إخفاء" }).click();
   await expect(page.getByRole("heading", { name: "الفعالية جارية" })).toBeFocused();
   await page.getByRole("alertdialog").getByRole("button", { name: "متابعة" }).click();
@@ -129,7 +129,7 @@ test("pins one quest as Up next, moves the pin, warns while it is hidden, and cl
   await expect(first).not.toContainText("مثبّتة كمهمة تالية");
 
   await second.getByRole("button", { name: "إخفاء" }).click();
-  await expect(second).toContainText("مخفية، فلن يراها اللاعبون مهمةً تالية حتى تُظهرها.");
+  await expect(second).toContainText("مخفية، فلن تظهر مهمةً تالية حتى تُظهرها.");
 
   await pinOf(second).click();
   await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");

@@ -22,7 +22,7 @@ export function registerRankingRoutes(
     if (player === undefined) {
       throw unauthenticated();
     }
-    const config = await deps.settings.forEvent(eventId);
+    const config = await deps.settings.forEvent(eventId, player.id);
     if (config.kind !== "ok") {
       throw notFound();
     }

@@ -68,8 +68,31 @@ for an event.
 - **Showing a text** (`createTranslator`): the admin's value when it is usable, otherwise the shipped text. Usable means not
   blank and the same placeholders as the shipped text, so a damaged stored value never reaches a screen. Numbers passed in
   as values are formatted with Western digits in both languages (`formatNumber`).
-- **Still to come:** the matrix editor and its search and filters (T-702), plural and singular forms of renamed words
-  (NFR-014, T-117), and date and time formatting in Western digits (with the first screen that shows a date).
+- **Still to come:** the matrix editor and its search and filters (T-702), and date and time formatting in Western
+  digits (with the first screen that shows a date).
+- **A changed key:** when a shipped text gains or loses a placeholder (T-117 put `{currency}` and `{player}` into several),
+  an admin's override written for the old text no longer has the same placeholders, so the shipped text shows until the
+  admin saves it again.
+
+## As built (T-117): the event's words
+
+- **Stored** in `event.config.terms`, only the words the organizer changed; the event page's "Event words" section saves
+  the whole set (`PUT …/events/{id}/terms`). Questify's defaults: «نقطة / نقاط», "point / points", the coin; «لاعب /
+  لاعبون», "player / players"; «مشغّل / مشغّلون», "operator / operators".
+- **Rules** (`validateEventTerms`, shared): a word is given in both languages with both forms, or left out; each form is
+  trimmed, 1 to 30 characters, with no digits, braces, control or bidi characters. The icon is one of five images
+  (coin, crown coin, gem, leaf, star); there is no upload (FR-405).
+- **Reading** (`readEventTerms`) is tolerant: each word that is wholly usable is kept, anything else is the default, so
+  a damaged value never empties a label. The composed configuration always carries the complete set.
+- **Arabic grammar (ADR-058):** a renamed noun is used only where it needs no article, agreement or counting: as a label
+  before a colon («جواهر: 120»), as a heading on its own (the players page title is the plural as typed), or after لكل
+  in the singular («عدد المرات لكل طالب: 3»). Sentences that would need more were rephrased with no noun. English uses
+  the singular for exactly 1 ("+1 gem"), and a label or heading takes the plural with a capital ("Gems: 120").
+- **The app** keeps one copy of the configuration per event (`questify.config.<eventId>`, beside the platform's), shows
+  the cached words first and then the fresh ones, and Questify's defaults until either exists. An icon it does not know
+  shows the coin. A scan paid in another event names the amount with Questify's words, since that event's are unknown.
+- **Not yet:** renaming "quest" and "category" (ADR-058 names them; they need a requirement first, Q-105), and the big
+  screen (T-5xx) uses these words when it exists.
 
 ## What can be configured
 

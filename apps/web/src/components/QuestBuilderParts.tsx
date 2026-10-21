@@ -1,6 +1,12 @@
 "use client";
 
-import { QUEST_TYPES, formatEventTime, type Language } from "@questify/shared";
+import {
+  QUEST_TYPES,
+  formatEventTime,
+  termFor,
+  type EventTerms,
+  type Language,
+} from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { moved, textFor, type CategoryView, type QuestView } from "#src/lib/quests.ts";
@@ -110,6 +116,7 @@ function OrderButtons({
 function QuestRow({
   language,
   timeZone,
+  terms,
   quest,
   ids,
   index,
@@ -121,6 +128,7 @@ function QuestRow({
 }: Readonly<{
   language: Language;
   timeZone: string;
+  terms: EventTerms;
   quest: QuestView;
   ids: readonly string[];
   index: number;
@@ -147,9 +155,16 @@ function QuestRow({
       {pinned && !quest.visible ? (
         <span className={styles.muted}>{t("quests.pinnedHidden")}</span>
       ) : null}
-      <span className={styles.muted}>{t("quests.pointsShort", { points: quest.points })}</span>
+      <span className={styles.muted}>
+        {t("quests.pointsShort", {
+          currency: termFor(terms.currency, language),
+          points: quest.points,
+        })}
+      </span>
       {quest.repeatCap > 1 ? (
-        <span className={styles.muted}>{t("quests.repeatShort", { count: quest.repeatCap })}</span>
+        <span className={styles.muted}>
+          {t("quests.repeatShort", { player: terms.player[language].one, count: quest.repeatCap })}
+        </span>
       ) : null}
       {when(quest.opensAt, "quests.opens")}
       {when(quest.closesAt, "quests.closes")}
@@ -211,6 +226,7 @@ function QuestRow({
 export function CategoryCard({
   language,
   timeZone,
+  terms,
   category,
   order,
   index,
@@ -222,6 +238,7 @@ export function CategoryCard({
 }: Readonly<{
   language: Language;
   timeZone: string;
+  terms: EventTerms;
   category: CategoryView;
   order: readonly string[];
   index: number;
@@ -303,6 +320,7 @@ export function CategoryCard({
               key={quest.id}
               language={language}
               timeZone={timeZone}
+              terms={terms}
               quest={quest}
               ids={questIds}
               index={questIndex}

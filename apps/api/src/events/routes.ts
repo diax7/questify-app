@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotLive,
+  eventArchived,
   eventTimesLocked,
   invalidEvent,
+  invalidTerms,
   notFound,
   scopeLimited,
 } from "#src/auth/http-errors";
@@ -136,13 +139,14 @@ export function registerEventRoutes(
     },
   );
 
+  // The single read alone carries the event's words: the event page's form edits them.
   scope.get("/events/:eventId", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const event = await events.get(organizerContextOf(request), eventId);
     if (event === undefined) {
       throw notFound();
     }
-    return { event: view(event) };
+    return { event: { ...view(event), terms: event.terms } };
   });
 
   scope.patch("/events/:eventId", member, async (request) => {
@@ -169,6 +173,31 @@ export function registerEventRoutes(
       reply,
       await events.endEarly(organizerContextOf(request), eventId, callerOf(request)),
     );
+  });
+
+  // FR-404, FR-405, FR-940: the event's currency and renamed words. The body is the whole form; a word left out
+  // returns to the default. The shared schema checks it, so a missing form is named (422 with the field).
+  scope.put("/events/:eventId/terms", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventTerms(
+      { staffUserId: context.staffUserId, organizerId: context.organizerId },
+      eventId,
+      request.body,
+      { requestId: request.id },
+    );
+    if (saved.ok) {
+      // The body passed the strict check, so the tolerant read gives exactly what was stored, trimmed, defaults filled.
+      return { terms: readEventTerms(request.body) };
+    }
+    switch (saved.reason) {
+      case "invalid":
+        throw invalidTerms({ field: saved.issues[0]?.path });
+      case "archived":
+        throw eventArchived();
+      default:
+        throw notFound();
+    }
   });
 
   // FR-607: the owner turns the event's ranking off and on; the event's other switches stay as they are.

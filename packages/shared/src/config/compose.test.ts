@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { composeConfig } from "./compose";
+import { DEFAULT_TERMS } from "./terms";
 import type { FeatureRegistry, TuningRegistry } from "./registry";
 
 const FEATURES: FeatureRegistry = {
@@ -32,7 +33,17 @@ describe("composeConfig defaults", () => {
           { id: "community_guidelines", version: "0.1" },
         ],
       },
+      terms: DEFAULT_TERMS,
     });
+  });
+
+  it("carries the event's words, and Questify's own outside an event", () => {
+    const terms = {
+      ...DEFAULT_TERMS,
+      currency: { ...DEFAULT_TERMS.currency, icon: "gem" as const },
+    };
+    expect(composeConfig(registries, {}, { terms }).terms).toBe(terms);
+    expect(composeConfig(registries, {}, {}).terms).toBe(DEFAULT_TERMS);
   });
 
   it("ignores an event switch for a platform-level feature; only the platform turns it off", () => {

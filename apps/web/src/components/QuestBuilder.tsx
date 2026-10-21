@@ -1,6 +1,6 @@
 "use client";
 
-import { QUEST_TYPES, type Language } from "@questify/shared";
+import { DEFAULT_TERMS, QUEST_TYPES, type Language } from "@questify/shared";
 import { useRef, useState, type FormEvent } from "react";
 import {
   CategoryCard,
@@ -69,6 +69,7 @@ export function QuestBuilder({
   const focus = useReturnFocus();
   const categories = b.categories ?? [];
   const timeZone = b.event?.timezone ?? "Asia/Riyadh";
+  const terms = b.event?.terms ?? DEFAULT_TERMS;
   const live = b.event?.statusNow === "live";
   const closed = b.event?.statusNow === "ended" || b.event?.statusNow === "archived";
 
@@ -211,6 +212,7 @@ export function QuestBuilder({
         <QuestForm
           language={language}
           timeZone={timeZone}
+          terms={terms}
           categories={categories}
           initial={editing.initial}
           isNew={editing.quest === undefined}
@@ -229,6 +231,7 @@ export function QuestBuilder({
             key={category.id}
             language={language}
             timeZone={timeZone}
+            terms={terms}
             category={category}
             order={categories.map((item) => item.id)}
             index={index}

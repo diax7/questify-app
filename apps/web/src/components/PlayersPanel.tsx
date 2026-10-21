@@ -1,6 +1,13 @@
 "use client";
 
-import { formatNumber, type Language } from "@questify/shared";
+import {
+  DEFAULT_TERMS,
+  formatNumber,
+  readEventTerms,
+  termFor,
+  type EventTerms,
+  type Language,
+} from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
@@ -74,11 +81,14 @@ function BanDialog({
 
 function PlayerRow({
   language,
+  currency,
   player,
   canBan,
   ask,
 }: Readonly<{
   language: Language;
+  /** The event's currency as a label («جواهر»). */
+  currency: string;
   player: Player;
   canBan: boolean;
   ask: (player: Player, opener: HTMLButtonElement) => void;
@@ -90,7 +100,7 @@ function PlayerRow({
         <strong dir="auto">@{player.username}</strong>
         <span className={styles.badge}>{t(`players.status.${player.status}`)}</span>
         <span>
-          {t("players.points")}: {formatNumber(player.score, language)}
+          {t("players.points", { currency })}: {formatNumber(player.score, language)}
         </span>
       </p>
       {canBan && player.status !== "removed" ? (
@@ -104,6 +114,25 @@ function PlayerRow({
       ) : null}
     </li>
   );
+}
+
+/** The event's words for the title and the points column (FR-941); the defaults until they arrive or if they fail. */
+function useEventTerms(organizerId: string, eventId: string): EventTerms {
+  const loaded = useRef(false);
+  const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
+  useEffect(() => {
+    if (loaded.current) {
+      return;
+    }
+    loaded.current = true;
+    void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}`).then((result) => {
+      if (result.ok) {
+        setTerms(readEventTerms((result.body as { event?: { terms?: unknown } }).event?.terms));
+      }
+    });
+    // Once per page, also under Strict Mode's double effect.
+  }, [organizerId, eventId]);
+  return terms;
 }
 
 /** Loads the event's players page by page; the search that produced the list is kept apart from the box's text. */
@@ -163,6 +192,7 @@ function usePlayers(base: string, onFailure: (body: unknown) => void) {
  */
 export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) {
   const t = translatorFor(language);
+  const terms = useEventTerms(organizerId, eventId);
   const base = `/v1/organizers/${organizerId}/events/${eventId}/players`;
   const [query, setQuery] = useState("");
   const [asking, setAsking] = useState<Player | null>(null);
@@ -223,7 +253,7 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
       )}
       <div className={styles.form} inert={asking !== null}>
         <h2 id="players-title" className={styles.title}>
-          {t("players.title")}
+          {t("players.title", { players: termFor(terms.player, language) })}
         </h2>
         {myRole === "owner" ? null : <p className={styles.muted}>{t("players.ownerOnly")}</p>}
         <form className={styles.form} role="search" onSubmit={submit}>
@@ -260,6 +290,7 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
             <PlayerRow
               key={player.enrollmentId}
               language={language}
+              currency={termFor(terms.currency, language)}
               player={player}
               canBan={myRole === "owner"}
               ask={(chosen, button) => {

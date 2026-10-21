@@ -1773,3 +1773,18 @@ for v1. The phone's Reduce Motion setting is still respected, because FR-408 req
 **Why:** every screen keeps the layout it was designed with. In particular the ranking fits 11 rows on the smallest
 phone with no scrolling (FR-603), which no layout can promise at very large text sizes.
 **Cost:** players who rely on large text see the app's own size. Screen readers still read every row in full.
+
+## ADR-122 — A player reads the configuration of an event they joined
+**Status:** Proposed (Claude, 2026-10-21, T-117).
+**Context:** `GET /v1/config?event=` is public and reads the event with no caller, so row-level security hides every
+event that is not public. An unlisted or private event's words never reached the app, and Home and the ranking read
+such an event's ranking switch as off (Home said the ranking was off; the ranking answered 404).
+**Decision:** `SettingsService.forEvent(eventId, playerId?)` reads the event as anyone first, cached per event; only
+when that answers "not found" and a player is given does it read again with the player's context, cached for that
+player alone (15 seconds). A new player route, `GET /v1/events/{id}/config`, answers the
+same document with the same ETag to a player who joined the event. Home and the ranking pass the player too.
+**Why:** the database already decides who may see an event; the route adds no rule of its own. The public route keeps
+its meaning for anyone without a session.
+**Cost:** a public event still costs one reading per event every 15 seconds. An unlisted or private event costs one
+reading per player every 15 seconds, and its entries share the 1000-entry cache. The phone keeps one copy per event,
+removed when the app forgets the event.

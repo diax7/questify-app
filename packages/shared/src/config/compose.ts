@@ -1,6 +1,7 @@
 import type { LocalizedText } from "#src/errors";
 import { playerDocuments } from "#src/legal/documents";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
+import { DEFAULT_TERMS, type EventTerms } from "./terms";
 
 export type ComposedFeature = Readonly<{
   enabled: boolean;
@@ -20,6 +21,8 @@ export type ComposedConfig = Readonly<{
    * so a new version never needs an app release.
    */
   legal: Readonly<{ documents: readonly Readonly<{ id: string; version: string }>[] }>;
+  /** The event's currency and renamed words, always complete; Questify's own words outside an event. */
+  terms: EventTerms;
 }>;
 
 // The keys of an object are unique, so two of them are never equal.
@@ -74,5 +77,6 @@ export function composeConfig(
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
     legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
+    terms: event?.terms ?? DEFAULT_TERMS,
   };
 }

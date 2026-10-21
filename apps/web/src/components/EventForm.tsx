@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language } from "@questify/shared";
+import { readEventTerms, termFor, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   EventAccessFields,
@@ -19,6 +19,7 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import styles from "#src/components/layout.module.css";
 
@@ -167,6 +168,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
     setDraft((current) => (current === null ? current : { ...current, ...patch }));
   const status = event?.statusNow ?? "draft";
   const name = event === null ? "" : nameFor(event, language);
+  const terms = readEventTerms(event?.terms);
 
   return (
     <section className={styles.panel} aria-labelledby="event-title">
@@ -187,7 +189,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
             {t("quests.title")}
           </a>
           <a className={styles.textLink} href={`${pages}/${event.id}/players`}>
-            {t("players.title")}
+            {t("players.title", { players: termFor(terms.player, language) })}
           </a>
         </p>
       )}
@@ -228,6 +230,17 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           eventId={event.id}
           initial={event.ranking}
           myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <EventWords
+          language={language}
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={terms}
+          saved={(saved) =>
+            setEvent((current) => (current === null ? null : { ...current, terms: saved }))
+          }
         />
       )}
       {event === null ? null : (

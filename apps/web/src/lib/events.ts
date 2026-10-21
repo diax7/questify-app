@@ -22,6 +22,8 @@ export type EventView = Readonly<{
   statusNow: EventStatus;
   /** The event's own ranking switch (FR-607). */
   ranking: boolean;
+  /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
+  terms?: unknown;
 }>;
 
 /** The name in the page's language, else the other one (an event needs only one). */

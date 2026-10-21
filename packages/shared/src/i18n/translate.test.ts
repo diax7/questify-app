@@ -190,9 +190,7 @@ describe("createTranslator", () => {
 
   it("works with the real shipped messages", () => {
     const t = createTranslator(MESSAGES);
-    expect(t("points.balance", "en", { points: 1250, currency: "gems" })).toBe(
-      "You have 1,250 gems",
-    );
-    expect(t("points.balance", "ar", { points: 1250, currency: "جواهر" })).toBe("لديك 1,250 جواهر");
+    expect(t("quests.pointsShort", "en", { points: 1250, currency: "Gems" })).toBe("Gems: 1,250");
+    expect(t("quests.pointsShort", "ar", { points: 1250, currency: "جواهر" })).toBe("جواهر: 1,250");
   });
 });

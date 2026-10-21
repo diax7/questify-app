@@ -4,8 +4,11 @@ import {
   composeConfig,
   isGatedFeature,
   readEventSwitches,
+  readEventTerms,
   readPlatformSettings,
+  readStoredTerms,
   validateEventConfig,
+  validateEventTerms,
   validatePlatformSettings,
   type ComposedConfig,
   type ConfigIssue,
@@ -22,12 +25,14 @@ import {
   deleteEntitlement,
   insertEntitlement,
   lockEventSwitches,
+  lockEventTerms,
   lockPlatformBlocks,
   readEntitlements,
   readStoredEventConfig,
   readStoredPlatform,
   upsertPlatformBlock,
   writeEventSwitches,
+  writeEventTerms,
 } from "#src/settings/store";
 import type { PublicAccount } from "#src/auth/staff-store";
 
@@ -38,11 +43,14 @@ export type ConfigResult =
 export type SaveResult =
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; reason: "invalid"; issues: readonly ConfigIssue[] }>
-  | Readonly<{ ok: false; reason: "forbidden" | "not_found" }>;
+  | Readonly<{ ok: false; reason: "forbidden" | "not_found" | "archived" }>;
 
 export type SettingsService = Readonly<{
-  /** The configuration an app receives; `undefined` means no event (the platform level only). */
-  forEvent: (eventId: string | undefined) => Promise<ConfigResult>;
+  /**
+   * The configuration an app receives; `undefined` means no event (the platform level only). Without a player it is
+   * what anyone may see (a public event); with one, also the events that player joined (unlisted and private ones).
+   */
+  forEvent: (eventId: string | undefined, playerId?: string) => Promise<ConfigResult>;
   /** A Questify admin replaces the feature switches and/or tuning numbers. */
   savePlatformSettings: (
     admin: PublicAccount,
@@ -65,6 +73,16 @@ export type SettingsService = Readonly<{
     eventId: string,
     feature: string,
     enabled: boolean,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
+  /**
+   * A member of the organizer replaces the event's words (FR-404, FR-940): a word left out returns to the default.
+   * Any status but archived, since a name can be fixed after the event.
+   */
+  saveEventTerms: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    input: unknown,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
   /** A Questify admin unlocks an add-on for an event. */
@@ -92,6 +110,7 @@ export type SettingsOptions = Readonly<{
 }>;
 
 const DEFAULT_TTL_MS = 15_000;
+
 const MAX_CACHED = 1000;
 
 /** Reads, composes, and saves the platform and event configuration (F-277 to F-282, FR-1503, FR-1504). */
@@ -119,9 +138,9 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     return platform;
   };
 
-  const load = (eventId: string | undefined): Promise<ConfigResult> =>
+  const load = (eventId: string | undefined, playerId: string | undefined): Promise<ConfigResult> =>
     withConnection(options.pool, (client) =>
-      withRequestContext(client, {}, async () => {
+      withRequestContext(client, playerId === undefined ? {} : { playerId }, async () => {
         const platform = await loadPlatform(client);
         if (eventId === undefined) {
           const config = composeConfig(registries, platform, undefined);
@@ -135,10 +154,25 @@ export function createSettingsService(options: SettingsOptions): SettingsService
         const config = composeConfig(registries, platform, {
           features: readEventSwitches(stored),
           unlocked,
+          terms: readEventTerms(readStoredTerms(stored)),
         });
         return { kind: "ok", config, etag: etagOf(config) } as const;
       }),
     );
+
+  const reading = async (
+    eventId: string | undefined,
+    playerId: string | undefined,
+  ): Promise<ConfigResult> => {
+    const key = `${eventId ?? "platform"}:${playerId ?? ""}`;
+    const cached = composedCache.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const fresh = await load(eventId, playerId);
+    composedCache.set(key, fresh);
+    return fresh;
+  };
 
   const asAdmin = async (
     admin: PublicAccount,
@@ -155,15 +189,14 @@ export function createSettingsService(options: SettingsOptions): SettingsService
   };
 
   return {
-    forEvent: async (eventId) => {
-      const key = eventId ?? "platform";
-      const cached = composedCache.get(key);
-      if (cached !== undefined) {
-        return cached;
+    forEvent: async (eventId, playerId) => {
+      // The document depends only on the event; who may see it is what differs. A public event is read once for
+      // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.
+      const shared = await reading(eventId, undefined);
+      if (playerId === undefined || shared.kind === "ok") {
+        return shared;
       }
-      const fresh = await load(eventId);
-      composedCache.set(key, fresh);
-      return fresh;
+      return reading(eventId, playerId);
     },
 
     savePlatformSettings: (admin, input, meta = {}) =>
@@ -267,6 +300,44 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       );
       forgetAll();
       return found ? { ok: true } : { ok: false, reason: "not_found" };
+    },
+
+    saveEventTerms: async (actor, eventId, input, meta = {}) => {
+      const checked = validateEventTerms(input);
+      if (!checked.ok) {
+        return { ok: false, reason: "invalid", issues: checked.issues };
+      }
+      const result = await withConnection(options.pool, (client) =>
+        withRequestContext(
+          client,
+          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
+          async (): Promise<SaveResult> => {
+            const current = await lockEventTerms(client, eventId);
+            if (current === undefined) {
+              return { ok: false, reason: "not_found" };
+            }
+            if (current.archived) {
+              return { ok: false, reason: "archived" };
+            }
+            const changes = diff({ terms: current.terms ?? {} }, { terms: checked.value });
+            if ("terms" in changes.after) {
+              await writeEventTerms(client, eventId, checked.value);
+              await recordAudit(client, {
+                actor: { type: "staff", id: actor.staffUserId },
+                action: "event.terms.update",
+                organizerId: current.organizerId,
+                eventId,
+                target: { type: "event", id: eventId },
+                ...changes,
+                requestId: meta.requestId,
+              });
+            }
+            return { ok: true };
+          },
+        ),
+      );
+      forgetAll();
+      return result;
     },
 
     unlockFeature: (admin, eventId, feature, meta = {}) =>

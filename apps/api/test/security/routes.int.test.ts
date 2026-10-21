@@ -104,8 +104,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a player's own bearer session only; the database writes for the player of the request, never an argument (test/completions/complete, test/db/completion-engine)",
   "POST /v1/staff/password":
     "changes only the caller's own password, after their current one (test/auth/password-reset)",
+  "GET /v1/events/:eventId/config":
+    "a player who joined the event (row-level security on the player's own context); anyone else 404, the reading cached per player (test/home/home)",
   "GET /v1/events/:eventId/ranking":
     "a player with an active enrollment in that event only; the definers read the caller from the session, never an argument (test/ranking/ranking, test/db/ranking)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/terms":
+    "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404 (test/events/events)",
   "PUT /v1/organizers/:organizerId/events/:eventId/ranking":
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
   "GET /v1/me":

@@ -1,14 +1,15 @@
-import { formatNumber, type Theme } from "@questify/shared";
+import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { AppState, View, type LayoutChangeEvent } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { fetchRanking, type Ranking } from "#src/event/home-api.ts";
 import { forget } from "#src/event/launch.ts";
 import { rankingRows, rowHeight, type ShownRow } from "#src/event/ranking.ts";
@@ -98,11 +99,13 @@ function RankBadge({ rank }: Readonly<{ rank: number }>) {
 
 function Row({ row, height }: Readonly<{ row: ShownRow; height: number }>) {
   const { t, language } = useI18n();
+  const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   const score = formatNumber(row.score, language);
+  const currency = termFor(terms.currency, language, row.score);
   const label = row.isMe
-    ? t("ranking.rowLabelMe", { rank: row.rank, score })
-    : t("ranking.rowLabel", { rank: row.rank, username: row.username, score });
+    ? t("ranking.rowLabelMe", { rank: row.rank, score, currency })
+    : t("ranking.rowLabel", { rank: row.rank, username: row.username, score, currency });
   return (
     <View
       accessible
@@ -120,6 +123,7 @@ function Row({ row, height }: Readonly<{ row: ShownRow; height: number }>) {
         @{row.username}
       </AppText>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}
+      <CurrencyIcon size={20} />
       <AppText variant="label" numberOfLines={1}>
         {score}
       </AppText>

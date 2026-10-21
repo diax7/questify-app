@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
+import { readEventTerms } from "./terms";
 
 export type ConfigIssue = Readonly<{ path: string; message: string }>;
 
@@ -124,6 +125,8 @@ const composedShape = z.object({
   ),
   tuning: z.record(z.string(), z.number()),
   legal: z.object({ documents: z.array(z.object({ id: z.string(), version: z.string() })) }),
+  // Read tolerantly: a copy saved before T-117 has none, and one bad word falls back to its default.
+  terms: z.unknown().optional().transform(readEventTerms),
 });
 
 /**

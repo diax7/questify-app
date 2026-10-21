@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
@@ -36,7 +37,7 @@ function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone
         </AppText>
         <AppText muted>{formatEventTime(new Date(entry.at), timeZone, language)}</AppText>
       </View>
-      <AppText variant="title">{signed(amount, language)}</AppText>
+      <Amount amount={signed(amount, language)} form="labelled" variant="label" />
     </View>
   );
 }

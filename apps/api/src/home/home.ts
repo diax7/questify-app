@@ -271,7 +271,7 @@ export async function readHome(
   if (home === null) {
     return null;
   }
-  const config = await deps.settings.forEvent(eventId);
+  const config = await deps.settings.forEvent(eventId, playerId);
   const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
   return { ...home, rankingOn };
 }

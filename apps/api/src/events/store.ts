@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { PoolClient } from "pg";
+import { readEventTerms, type EventTerms } from "@questify/shared";
 
 export type EventKind = "physical" | "virtual" | "workplace";
 export type EventAccess = "public" | "unlisted" | "private";
@@ -25,6 +26,8 @@ export type EventRecord = Readonly<{
   createdAt: Date;
   /** The event's own ranking switch (FR-607); on unless the owner turned it off. */
   rankingOn: boolean;
+  /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
+  terms: EventTerms;
 }>;
 
 /** The fields the API may write (the column grants of migration 0009). */
@@ -60,11 +63,12 @@ type Row = {
   status_now: EventStatus;
   created_at: Date;
   ranking_on: boolean;
+  terms: unknown;
 };
 
 const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods, timezone,
   day_start_hour, starts_at, ends_at, status, event_status_now(status, starts_at, ends_at) AS status_now, created_at,
-  coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on`;
+  coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on, config -> 'terms' AS terms`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -82,6 +86,7 @@ const toRecord = (row: Row): EventRecord => ({
   statusNow: row.status_now,
   createdAt: row.created_at,
   rankingOn: row.ranking_on,
+  terms: readEventTerms(row.terms),
 });
 
 /** The events the caller may see in their organizer (the database applies an editor's limit). */

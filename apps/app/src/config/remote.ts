@@ -1,5 +1,11 @@
-import { parseComposedConfig, type ComposedConfig, type SignupAcceptance } from "@questify/shared";
-import type { Client } from "#src/api/client.ts";
+import {
+  parseComposedConfig,
+  type ComposedConfig,
+  type EventTerms,
+  type SignupAcceptance,
+} from "@questify/shared";
+import type { ApiRequest, Client } from "#src/api/client.ts";
+import type { AuthedResult } from "#src/api/session.ts";
 
 /** The shape of AsyncStorage the config needs (injected, so the logic runs in tests). */
 export type KeyValueStore = Readonly<{
@@ -9,10 +15,19 @@ export type KeyValueStore = Readonly<{
 
 export const CONFIG_KEY = "questify.config";
 
+/** Each scope keeps its own copy and ETag: the platform's, and one per event, so one event never shows another's. */
+export const configKeyOf = (event: string | undefined): string =>
+  event === undefined ? CONFIG_KEY : `${CONFIG_KEY}.${event}`;
+
 type Cached = Readonly<{ etag: string | null; body: unknown }>;
 
-async function readCached(store: KeyValueStore): Promise<Cached | undefined> {
-  const raw = await store.getItem(CONFIG_KEY);
+/** The plain client, or the session for an event's copy: a signed-out answer keeps the last working copy too. */
+type ConfigClient = Readonly<{
+  request: (request: Omit<ApiRequest, "accessToken">) => Promise<AuthedResult>;
+}>;
+
+async function readCached(store: KeyValueStore, key: string): Promise<Cached | undefined> {
+  const raw = await store.getItem(key);
   if (raw === null) {
     return undefined;
   }
@@ -33,18 +48,20 @@ const usable = (cached: Cached | undefined): ComposedConfig | undefined => {
 };
 
 /**
- * The platform's composed configuration (`GET /v1/config`), revalidated with its ETag. A failed fetch or an answer the
- * app cannot read keeps the last working copy (F-282); with none, it is undefined and the caller says so.
+ * The composed configuration, revalidated with its ETag: the platform's (`GET /v1/config`), or with `event` that of an
+ * event the player joined (`GET /v1/events/:id/config`, so `client` must carry the session). A failed fetch or an
+ * answer the app cannot read keeps the last working copy (F-282); with none, it is undefined and the caller says so.
  */
 export async function loadConfig(
-  deps: Readonly<{ client: Client; store: KeyValueStore }>,
-  options: Readonly<{ revalidate?: boolean }> = {},
+  deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
+  options: Readonly<{ revalidate?: boolean; event?: string }> = {},
 ): Promise<ComposedConfig | undefined> {
-  const cached = await readCached(deps.store);
+  const key = configKeyOf(options.event);
+  const cached = await readCached(deps.store, key);
   const etag = options.revalidate === false ? null : (cached?.etag ?? null);
   const answer = await deps.client.request({
     method: "GET",
-    path: "/v1/config",
+    path: options.event === undefined ? "/v1/config" : `/v1/events/${options.event}/config`,
     ...(etag === null ? {} : { headers: { "if-none-match": etag } }),
   });
   if (answer.kind === "error" && answer.status === 304) {
@@ -54,13 +71,32 @@ export async function loadConfig(
     const parsed = parseComposedConfig(answer.body);
     if (parsed.ok) {
       await deps.store.setItem(
-        CONFIG_KEY,
+        key,
         JSON.stringify({ etag: answer.headers.get("etag"), body: answer.body } satisfies Cached),
       );
       return parsed.config;
     }
   }
   return usable(cached);
+}
+
+/**
+ * The event's words for the screens (FR-404, FR-940): the event's cached copy first, so nothing flashes, then the fresh
+ * one. With neither, `show` is never called and the screens keep Questify's defaults.
+ */
+export async function loadEventTerms(
+  deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
+  event: string,
+  show: (terms: EventTerms) => void,
+): Promise<void> {
+  const cached = usable(await readCached(deps.store, configKeyOf(event)));
+  if (cached !== undefined) {
+    show(cached.terms);
+  }
+  const fresh = await loadConfig(deps, { event });
+  if (fresh !== undefined) {
+    show(fresh.terms);
+  }
 }
 
 /** The terms and privacy versions in force, from the documents the config names (unknown ids are ignored). */

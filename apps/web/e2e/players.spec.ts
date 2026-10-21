@@ -22,7 +22,7 @@ test("the owner bans a player and keeps the exclusion list", async ({ page, requ
   expect(seeded.status()).toBe(204);
 
   await page.goto(page.url().replace(/\/quests$/, "/players"));
-  await expect(page.getByRole("heading", { name: "اللاعبون", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "لاعبون", level: 2 })).toBeVisible();
   const falcon = page.getByRole("listitem").filter({ hasText: `@falcon_${tag}` });
   await expect(falcon).toContainText("يلعب");
   await falcon.getByRole("button", { name: "حظر" }).click();

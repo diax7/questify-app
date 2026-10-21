@@ -1,15 +1,16 @@
-import { formatNumber, type Theme } from "@questify/shared";
+import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { Amount, CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import {
   fetchHome,
@@ -102,7 +103,7 @@ function UpNextCard({ eventId, upNext }: Readonly<{ eventId: string; upNext: Hom
     <View style={styles.card}>
       <AppText variant="title">{t("eventHome.upNext")}</AppText>
       <AppText variant="label">{textIn(upNext.title, language)}</AppText>
-      <AppText muted>{t("quests.pointsShort", { points: upNext.points })}</AppText>
+      <Amount amount={formatNumber(upNext.points, language)} form="labelled" muted />
       <Button
         label={t("eventHome.go")}
         onPress={() =>
@@ -130,7 +131,8 @@ function Counter({ id, value }: Readonly<{ id: string; value: number }>) {
 }
 
 function Standing({ home }: Readonly<{ home: Home }>) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   if (home.standing.status === "pending") {
     return <AppText>{t("eventHome.pending")}</AppText>;
@@ -140,7 +142,10 @@ function Standing({ home }: Readonly<{ home: Home }>) {
   return (
     <View style={styles.card}>
       <View style={styles.rankRow}>
-        <AppText style={styles.grow}>{t("eventHome.points")}</AppText>
+        <CurrencyIcon size={24} />
+        <AppText style={styles.grow}>
+          {t("eventHome.points", { currency: termFor(terms.currency, language) })}
+        </AppText>
         <Counter id={`${eventId}:score`} value={score} />
       </View>
       <View style={styles.rankRow}>

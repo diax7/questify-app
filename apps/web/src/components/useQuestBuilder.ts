@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language } from "@questify/shared";
+import { readEventTerms, type EventTerms, type Language } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
@@ -24,7 +24,12 @@ export type SendOptions = Readonly<{
   key?: string;
 }>;
 
-export type BuilderEvent = Readonly<{ timezone: string; name: string; statusNow: string }>;
+export type BuilderEvent = Readonly<{
+  timezone: string;
+  name: string;
+  statusNow: string;
+  terms: EventTerms;
+}>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 const FIELD_CODES = new Set(["invalid_quest", "invalid_category"]);
@@ -93,6 +98,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
               timezone: string;
               statusNow: string;
               name: { ar: string | null; en: string | null };
+              terms?: unknown;
             };
           }
         ).event;
@@ -101,6 +107,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
           timezone: view.timezone,
           statusNow: view.statusNow,
           name: view.name[language] ?? other ?? "",
+          terms: readEventTerms(view.terms),
         });
         void reload();
       }

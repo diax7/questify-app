@@ -6,6 +6,7 @@ import {
   validatePlatformSettings,
 } from "./validate";
 import type { Registries } from "./registry";
+import { DEFAULT_TERMS } from "./terms";
 
 const registries: Registries = {
   features: {
@@ -169,12 +170,27 @@ describe("parseComposedConfig", () => {
     features: { shop: { enabled: true, minAppVersion: null, message: null } },
     tuning: { qrSeconds: 45 },
     legal: { documents: [{ id: "terms_of_use", version: "0.1" }] },
+    terms: DEFAULT_TERMS,
   };
 
   it("accepts a composed document", () => {
     expect(parseComposedConfig(valid)).toEqual({ ok: true, config: valid });
     const { legal: _legal, ...withoutLegal } = valid;
     expect(parseComposedConfig(withoutLegal)).toEqual({ ok: false });
+  });
+
+  it("reads a copy from before the event's words as the defaults, and drops one bad word", () => {
+    const { terms: _terms, ...older } = valid;
+    expect(parseComposedConfig(older)).toEqual({ ok: true, config: valid });
+    const gems = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
+    const result = parseComposedConfig({
+      ...valid,
+      terms: { currency: { icon: "gem", ...gems }, player: { ar: "x" }, operator: 7 },
+    });
+    expect(result).toEqual({
+      ok: true,
+      config: { ...valid, terms: { ...DEFAULT_TERMS, currency: { icon: "gem", ...gems } } },
+    });
   });
 
   it("ignores blocks it does not know, so a newer server never breaks an older app", () => {

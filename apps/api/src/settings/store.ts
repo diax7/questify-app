@@ -80,6 +80,32 @@ export async function writeEventSwitches(
   );
 }
 
+/** An event's stored words, locked until the transaction ends. Undefined when the caller cannot see the event. */
+export async function lockEventTerms(
+  db: Db,
+  eventId: string,
+): Promise<{ organizerId: string; terms: unknown; archived: boolean } | undefined> {
+  const { rows } = await db.query<{ organizer_id: string; terms: unknown; archived: boolean }>(
+    `SELECT organizer_id, config -> 'terms' AS terms, status = 'archived' AS archived
+     FROM event WHERE id = $1 FOR UPDATE`,
+    [eventId],
+  );
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : { organizerId: row.organizer_id, terms: row.terms, archived: row.archived };
+}
+
+/** Replaces the words inside an event's config and keeps whatever else it holds. */
+export async function writeEventTerms(db: Db, eventId: string, terms: unknown): Promise<void> {
+  await db.query(
+    `UPDATE event
+     SET config = jsonb_set(config, '{terms}', $2::jsonb, true), config_version = config_version + 1
+     WHERE id = $1`,
+    [eventId, JSON.stringify(terms)],
+  );
+}
+
 export type EntitlementChange =
   | Readonly<{ kind: "no_event" }>
   | Readonly<{ kind: "added" | "already"; organizerId: string }>;

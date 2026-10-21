@@ -1,6 +1,13 @@
 "use client";
 
-import { QUEST_TYPES, QUEST_TYPE_NAMES, zoneLabel, type Language } from "@questify/shared";
+import {
+  QUEST_TYPES,
+  QUEST_TYPE_NAMES,
+  termFor,
+  zoneLabel,
+  type EventTerms,
+  type Language,
+} from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { QUEST_TYPE_FIELDS } from "#src/components/QuestTypeFields.tsx";
@@ -12,6 +19,8 @@ type Props = Readonly<{
   language: Language;
   /** The event's zone: the times are typed and shown in it. */
   timeZone: string;
+  /** The event's words: the points field is named after its currency (FR-404). */
+  terms: EventTerms;
   categories: readonly CategoryView[];
   initial: QuestDraft;
   /** False when editing: a quest's type is fixed once it exists. */
@@ -25,6 +34,7 @@ type Props = Readonly<{
 export function QuestForm({
   language,
   timeZone,
+  terms,
   categories,
   initial,
   isNew,
@@ -111,7 +121,7 @@ export function QuestForm({
       {text("descriptionAr", 2000, true)}
       {text("descriptionEn", 2000, true)}
       <label className={styles.field}>
-        {t("quests.field.points")}
+        {t("quests.field.points", { currency: termFor(terms.currency, language) })}
         <input
           className={styles.input}
           type="number"
@@ -128,7 +138,13 @@ export function QuestForm({
           }}
         />
       </label>
-      <QuestRepeatField language={language} draft={draft} busy={busy} change={change} />
+      <QuestRepeatField
+        language={language}
+        player={terms.player[language].one}
+        draft={draft}
+        busy={busy}
+        change={change}
+      />
       {(["opensAt", "closesAt"] as const).map((key) => (
         <label key={key} className={styles.field}>
           {t(`quests.field.${key}`)}
@@ -175,11 +191,14 @@ export function QuestForm({
 /** "Can be done more than once", and how many times when it can (FR-227). */
 function QuestRepeatField({
   language,
+  player,
   draft,
   busy,
   change,
 }: Readonly<{
   language: Language;
+  /** The event's word for a player, singular («لكل طالب»). */
+  player: string;
   draft: QuestDraft;
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
@@ -198,7 +217,7 @@ function QuestRepeatField({
       </label>
       {draft.repeatCap > 1 ? (
         <label className={styles.field}>
-          {t("quests.field.repeatCap")}
+          {t("quests.field.repeatCap", { player })}
           <input
             className={styles.input}
             type="number"

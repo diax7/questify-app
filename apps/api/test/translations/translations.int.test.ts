@@ -141,7 +141,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
   describe("what is refused", () => {
     it("a save that removes a placeholder, naming it, and writes nothing (FR-1767)", async () => {
       await reset();
-      expect(await service.save(admin, "points.balance", { en: "You have {points}" })).toEqual({
+      expect(await service.save(admin, "quests.pointsShort", { en: "You have {points}" })).toEqual({
         ok: false,
         reason: "invalid",
         issues: [{ path: "en", message: "is missing {currency}" }],
@@ -151,7 +151,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
 
     it("reports both languages at once and writes neither", async () => {
       await reset();
-      const result = await service.save(admin, "points.balance", {
+      const result = await service.save(admin, "quests.pointsShort", {
         ar: "لديك {points}",
         en: "You have {coins} {currency}",
       });
@@ -166,7 +166,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
 
     it("accepts placeholders in another order", async () => {
       await reset();
-      expect(await service.save(admin, "points.balance", { en: "{currency}: {points}" })).toEqual({
+      expect(
+        await service.save(admin, "quests.pointsShort", { en: "{points} {currency}" }),
+      ).toEqual({
         ok: true,
       });
     });
@@ -244,11 +246,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
       await owner(
         `INSERT INTO translation (key, ar, en) VALUES
            ('old.removed.key', 'x', 'y'),
-           ('points.balance', 'لديك {points} {currency}', 'You have gems'),
+           ('quests.pointsShort', 'لديك {points} {currency}', 'You have gems'),
            ('nav.home', NULL, 'Start')`,
       );
       expect(await bundleOf()).toEqual({
-        ar: { "points.balance": "لديك {points} {currency}" },
+        ar: { "quests.pointsShort": "لديك {points} {currency}" },
         en: { "nav.home": "Start" },
       });
     });
@@ -270,11 +272,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
     it("shows numbers in Western digits in both languages", async () => {
       await reset();
       const t = createTranslator(MESSAGES, await bundleOf());
-      expect(t("points.balance", "ar", { points: 20000, currency: "نقطة" })).toBe(
-        "لديك 20,000 نقطة",
+      expect(t("quests.pointsShort", "ar", { points: 20000, currency: "نقاط" })).toBe(
+        "نقاط: 20,000",
       );
-      expect(t("points.balance", "en", { points: 20000, currency: "points" })).toBe(
-        "You have 20,000 points",
+      expect(t("quests.pointsShort", "en", { points: 20000, currency: "Points" })).toBe(
+        "Points: 20,000",
       );
     });
   });

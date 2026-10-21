@@ -22,7 +22,16 @@ export type {
   TuningRegistry,
 } from "./config/registry";
 export { FEATURES, REGISTRIES, TUNING } from "./config/registry";
-export { readEventSwitches, readPlatformSettings } from "./config/read";
+export { readEventSwitches, readPlatformSettings, readStoredTerms } from "./config/read";
+export type { CurrencyIcon, EventTerms, EventTermsInput, Word, WordForms } from "./config/terms";
+export {
+  CURRENCY_ICONS,
+  DEFAULT_TERMS,
+  TERM_MAX,
+  readEventTerms,
+  termFor,
+  validateEventTerms,
+} from "./config/terms";
 export type { ConfigIssue, Validation } from "./config/validate";
 export {
   isGatedFeature,

@@ -1,7 +1,10 @@
+import { configKeyOf } from "#src/config/remote.ts";
+
 /** The phone's plain key-value storage (AsyncStorage in the app, a map in tests). */
 export type KeyValueStore = Readonly<{
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
 }>;
 
 /** An event of the player's, as `GET /v1/me/events` lists it (T-111), newest join first. */
@@ -60,6 +63,7 @@ export async function markOpened(
 export async function forget(store: KeyValueStore, eventId: string): Promise<void> {
   const { [eventId]: _gone, ...rest } = await readRecent(store);
   await store.setItem(RECENT_KEY, JSON.stringify(rest)).catch(() => undefined);
+  await store.removeItem(configKeyOf(eventId)).catch(() => undefined);
 }
 
 /**

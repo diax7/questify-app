@@ -88,13 +88,13 @@ test("the owner hides the ranking and shows it again, in Arabic; it stays as sav
   await page.getByLabel("تنتهي", { exact: true }).fill("2030-11-01T17:00");
   await page.getByRole("button", { name: "إنشاء الفعالية" }).click();
 
-  const shown = page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" });
+  const shown = page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" });
   await expect(shown).toBeChecked();
-  await expect(page.getByText("الترتيب ظاهر للاعبين.", { exact: false })).toBeVisible();
+  await expect(page.getByText("الترتيب ظاهر في التطبيق.", { exact: false })).toBeVisible();
   await shown.uncheck();
-  await expect(page.getByText("الترتيب مخفي عن اللاعبين.", { exact: false })).toBeVisible();
+  await expect(page.getByText("الترتيب مخفي في التطبيق.", { exact: false })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" })).not.toBeChecked();
-  await page.getByRole("checkbox", { name: "إظهار الترتيب للاعبين" }).check();
-  await expect(page.getByText("الترتيب ظاهر للاعبين.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).not.toBeChecked();
+  await page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" }).check();
+  await expect(page.getByText("الترتيب ظاهر في التطبيق.", { exact: false })).toBeVisible();
 });

@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { parseComposedConfig, type ComposedConfig } from "@questify/shared";
+import { DEFAULT_TERMS, parseComposedConfig, type ComposedConfig } from "@questify/shared";
 import { withRequestContext } from "#src/db/context";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
@@ -79,6 +80,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
             { id: "community_guidelines", version: "0.1" },
           ],
         },
+        terms: DEFAULT_TERMS,
       });
     });
 
@@ -324,6 +326,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
   });
 
   describe("who can see an event's configuration", () => {
+    it("reads a public event once for every player, not once per player (ADR-122)", async () => {
+      const counted = createSettingsService({ pool, ttlMs: 15_000, now: () => clock.now });
+      const connect = vi.spyOn(pool, "connect");
+      try {
+        for (const player of [randomUUID(), randomUUID(), undefined]) {
+          expect((await counted.forEvent(ids.eventA, player)).kind).toBe("ok");
+        }
+        expect(connect).toHaveBeenCalledTimes(1);
+      } finally {
+        connect.mockRestore();
+      }
+    });
+
     it("answers 404 for a private event and for one that does not exist, exactly alike", async () => {
       const priv = await getConfig(`?event=${ids.eventB}`);
       const missing = await getConfig("?event=00000000-0000-4000-8000-000000000000");

@@ -90,7 +90,7 @@ test("an owner invites an editor, who joins with a new password and the emailed 
   await page.getByLabel("Starts", { exact: true }).fill("2030-11-01T09:00");
   await page.getByLabel("Ends", { exact: true }).fill("2030-11-01T17:00");
   await page.getByRole("button", { name: "Create event" }).click();
-  await expect(page.getByRole("checkbox", { name: "Show the ranking to players" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Show the ranking in the app" })).toBeChecked();
   await page.getByRole("link", { name: "Home" }).click();
 
   await page.getByRole("link", { name: "Team" }).click();
@@ -122,11 +122,11 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Home" }).click();
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();
-    await expect(editor.getByText("Players can see the ranking.", { exact: false })).toBeVisible();
+    await expect(editor.getByText("The ranking shows in the app.", { exact: false })).toBeVisible();
     await expect(
       editor.getByText("Only the owner can change this.", { exact: false }),
     ).toBeVisible();
-    await expect(editor.getByRole("checkbox", { name: "Show the ranking to players" })).toHaveCount(
+    await expect(editor.getByRole("checkbox", { name: "Show the ranking in the app" })).toHaveCount(
       0,
     );
   } finally {

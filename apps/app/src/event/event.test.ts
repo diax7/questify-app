@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { configKeyOf } from "#src/config/remote.ts";
 import { countdown, nextBoundary, spanText } from "#src/event/countdown.ts";
 import { homeAnswer, rankingAnswer, readHome } from "#src/event/home-api.ts";
 import {
@@ -145,6 +146,9 @@ const memoryStore = (initial: Record<string, string> = {}) => {
     setItem: async (key, value) => {
       data.set(key, value);
     },
+    removeItem: async (key) => {
+      data.delete(key);
+    },
   };
   return { store, data };
 };
@@ -158,17 +162,24 @@ describe("the recency map", () => {
   });
 
   it("marks an event opened and forgets one", async () => {
-    const { store, data } = memoryStore({ [RECENT_KEY]: '{"a": 1}' });
+    const { store, data } = memoryStore({
+      [RECENT_KEY]: '{"a": 1}',
+      [configKeyOf("a")]: "{}",
+      [configKeyOf("b")]: "{}",
+    });
     await markOpened(store, "b", 50);
     expect(JSON.parse(data.get(RECENT_KEY) ?? "")).toEqual({ a: 1, b: 50 });
     await forget(store, "a");
     expect(JSON.parse(data.get(RECENT_KEY) ?? "")).toEqual({ b: 50 });
+    expect(data.has(configKeyOf("a"))).toBe(false);
+    expect(data.has(configKeyOf("b"))).toBe(true);
   });
 
   it("never fails the screen when the storage does", async () => {
     const broken: KeyValueStore = {
       getItem: () => Promise.reject(new Error("disk")),
       setItem: () => Promise.reject(new Error("disk")),
+      removeItem: () => Promise.reject(new Error("disk")),
     };
     await expect(markOpened(broken, "a", 1)).resolves.toBeUndefined();
     await expect(forget(broken, "a")).resolves.toBeUndefined();

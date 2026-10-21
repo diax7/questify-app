@@ -55,6 +55,11 @@ export function readPlatformSettings(stored: {
   };
 }
 
+/** The words block of an event's stored config, as stored (read it with `readEventTerms`). */
+export function readStoredTerms(stored: unknown): unknown {
+  return isRecord(stored) ? stored["terms"] : undefined;
+}
+
 /** Reads the feature switches stored in an event's config; anything that is not true or false is dropped. */
 export function readEventSwitches(stored: unknown): Readonly<Record<string, boolean>> {
   const features = isRecord(stored) ? stored["features"] : undefined;

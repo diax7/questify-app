@@ -188,6 +188,18 @@ export const invalidEvent = make(
   "راجع بيانات الفعالية: الحقل المحدد غير صالح.",
   "Check the event's details: the named field is not valid.",
 );
+export const invalidTerms = make(
+  422,
+  "invalid_terms",
+  "راجع كلمات الفعالية: الحقل المحدد غير صالح.",
+  "Check the event's words: the named field is not valid.",
+);
+export const eventArchived = make(
+  409,
+  "event_archived",
+  "الفعالية مؤرشفة، فلا يمكن تعديلها.",
+  "The event is archived, so it cannot change.",
+);
 export const eventTimesLocked = make(
   409,
   "event_times_locked",
