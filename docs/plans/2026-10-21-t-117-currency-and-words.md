@@ -147,3 +147,14 @@ noun; K = kept, outside an event or Questify-level)
 | `points.balance` | tests only | delete | — |
 
 English `{currencyByCount}` is the one form for exactly 1, else the many form; Arabic never counts a renamed noun.
+
+## CTO re-review (Revision 1): GO, 92/100. To fold in while building
+
+- **m1, Phase 1:** both languages use the same placeholder, `{currency}` (the T-008 parity test requires it). One
+  helper picks the form: Arabic always the many form; English the one form for exactly 1, else the many form.
+  `{currencyByCount}` is dropped.
+- **m2, Phase 2:** the dashboard preview also shows a line with the singular, «عدد المرات لكل طالب: 3», so the
+  organizer sees that form too.
+- **Nits:**
+  - «عدد المرات لكل {player}: {count}» instead of «المرات لكل …».
+  - The English field hint asks for lower case (a proper noun stays as typed).
