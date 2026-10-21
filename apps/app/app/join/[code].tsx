@@ -9,6 +9,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import type { PendingJoin } from "#src/auth/sign-in-flow.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { textIn } from "#src/i18n/text.ts";
 import {
   fetchCard,
   joinEvent,
@@ -36,9 +37,6 @@ type Outcome = keyof typeof OUTCOME_KEY;
 
 const isOutcome = (value: unknown): value is Outcome =>
   typeof value === "string" && value in OUTCOME_KEY;
-
-const textIn = (text: Readonly<{ ar: string | null; en: string | null }>, language: "ar" | "en") =>
-  text[language] ?? text[language === "ar" ? "en" : "ar"] ?? "";
 
 /**
  * The join card (FR-121, FR-111, FR-112): the event, what the organizer will see, one Join button. Anyone can read it;
@@ -143,6 +141,12 @@ export default function JoinScreen() {
         )}
         {result === undefined ? null : <AppText>{t(OUTCOME_KEY[result])}</AppText>}
         <Problem problem={problem} />
+        {joined ? (
+          <Button
+            label={t("joinCard.openEvent")}
+            onPress={() => router.replace(`/event/${event.id}`)}
+          />
+        ) : null}
         {ended || joined ? null : (
           <Button
             label={t("joinCard.join")}

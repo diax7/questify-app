@@ -11,12 +11,22 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
  * the content takes the language's direction itself, so a screen mirrors in Arabic even when the app as a whole could
  * not (Expo Go). The tab bar sits outside this frame.
  */
-export function Screen({ title, children }: { title: string; children?: ReactNode }) {
+export function Screen({
+  title,
+  header,
+  children,
+}: {
+  title: string;
+  /** Above the title: the event pill inside an event (FR-1610). */
+  header?: ReactNode;
+  children?: ReactNode;
+}) {
   const { rtl } = useI18n();
   const styles = useThemedStyles(makeStyles);
   return (
     <SafeAreaView edges={["top"]} style={styles.page}>
       <View style={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
+        {header}
         <AppText variant="display">{title}</AppText>
         {children}
       </View>

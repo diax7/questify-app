@@ -7,6 +7,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
+import { readMyEvents, readRecent, type MyEvent } from "#src/event/launch.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -17,9 +18,6 @@ type ListedEvent = Readonly<{
   name: Text;
   status?: "active" | "pending";
 }>;
-
-/** The chosen event, per player on this phone (cleared at sign-out). */
-const EVENT_KEY = "questify.event";
 
 const isText = (value: unknown): value is Text =>
   typeof value === "object" && value !== null && "ar" in value && "en" in value;
@@ -145,26 +143,37 @@ function PublicEvents() {
   );
 }
 
-/** The event switcher (FR-122): the player's events, the chosen one first; pending ones say so. */
+/**
+ * The player's events (FR-122): the one opened most recently on this phone first is marked; pending ones say so. A
+ * failed read says so with a retry: it is never shown as "no events".
+ */
 function MyEvents() {
   const { t } = useI18n();
-  const [events, setEvents] = useState<ListedEvent[] | undefined>(undefined);
-  const [chosen, setChosen] = useState<string | null>(null);
-  useEffect(() => {
-    void keyValueStore.getItem(EVENT_KEY).then(setChosen);
-    void api.session.request({ method: "GET", path: "/v1/me/events" }).then((answer) => {
-      const body = answer.kind === "ok" ? (answer.body as { events?: unknown }) : {};
-      setEvents(listedEvents(body?.events));
-    });
+  const [events, setEvents] = useState<MyEvent[] | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const [latest, setLatest] = useState<string | undefined>(undefined);
+  const load = useCallback(async () => {
+    setFailed(false);
+    const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
+    const read = answer.kind === "ok" ? readMyEvents(answer.body) : undefined;
+    setFailed(read === undefined);
+    setEvents(read);
+    const recent = await readRecent(keyValueStore);
+    setLatest(Object.entries(recent).toSorted((a, b) => b[1] - a[1])[0]?.[0]);
   }, []);
-  const choose = (id: string) => {
-    setChosen(id);
-    void keyValueStore.setItem(EVENT_KEY, id);
-  };
+  useEffect(() => {
+    void load();
+  }, [load]);
   return (
     <>
       <AppText variant="title">{t("home.myEvents")}</AppText>
-      {events === undefined ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {failed ? (
+        <>
+          <AppText accessibilityRole="alert">{t("home.eventsFailed")}</AppText>
+          <Button kind="quiet" label={t("common.retry")} onPress={() => void load()} />
+        </>
+      ) : null}
+      {events === undefined && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
       {events?.length === 0 ? <AppText muted>{t("home.noEvents")}</AppText> : null}
       {(events ?? []).map((event) => (
         <EventRow
@@ -173,11 +182,11 @@ function MyEvents() {
           note={
             event.status === "pending"
               ? t("players.status.pending")
-              : event.id === chosen
+              : event.id === latest
                 ? t("home.current")
                 : undefined
           }
-          onPress={() => choose(event.id)}
+          onPress={() => router.replace(`/event/${event.id}`)}
         />
       ))}
     </>
@@ -185,17 +194,22 @@ function MyEvents() {
 }
 
 /**
- * Home (T-111's part): a code or link to open an event's join card, the public list for someone not signed in, and
- * the event switcher for a player. The event's own Home (banner, progress, ranking card) is T-113's.
+ * Questify home (FR-623, T-111): a code or link to open an event's join card, the public list for someone not signed
+ * in, and a player's events. Inside an event, its own Home takes over (T-113); this screen's own bar is T-408.
  */
-export default function HomeScreen() {
+export default function QuestifyHomeScreen() {
   const { t } = useI18n();
   const { state } = usePlayer();
   return (
-    <Screen title={t("nav.home")}>
+    <Screen title={t("home.title")}>
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         <CodeEntry />
-        {state.status === "signed_in" ? <MyEvents /> : null}
+        {state.status === "signed_in" ? (
+          <>
+            <MyEvents />
+            <Button kind="quiet" label={t("nav.profile")} onPress={() => router.push("/profile")} />
+          </>
+        ) : null}
         {state.status === "signed_out" ? (
           <>
             {state.ended ? (

@@ -590,6 +590,11 @@ export const MESSAGES = {
   "eventInfo.starts": { ar: "تبدأ {time}", en: "Starts {time}" },
   "eventInfo.ends": { ar: "تنتهي {time}", en: "Ends {time}" },
   "joinCard.openEvent": { ar: "الذهاب إلى الفعالية", en: "Go to the event" },
+  "common.back": { ar: "رجوع", en: "Back" },
+  "eventInfo.mapsFailed": {
+    ar: "تعذّر فتح الخرائط على هذا الجوال.",
+    en: "Couldn't open a maps app on this phone.",
+  },
   "ranking.off": {
     ar: "الترتيب مخفي في هذه الفعالية.",
     en: "The ranking is hidden for this event.",

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
 import { router } from "expo-router";
@@ -14,7 +15,8 @@ const LANGUAGES: ReadonlyArray<{ code: Language; name: string }> = [
   { code: "en", name: "English" },
 ];
 
-export default function ProfileScreen() {
+/** The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. */
+export function ProfileScreen({ header }: Readonly<{ header?: ReactNode }>) {
   const { t, language, switchLanguage } = useI18n();
   const { state, signOut } = usePlayer();
   const styles = useThemedStyles(makeStyles);
@@ -23,7 +25,11 @@ export default function ProfileScreen() {
   const confirmSignOut = (): void => {
     Alert.alert(t("signOut.title"), t("signOut.body"), [
       { text: t("common.cancel"), style: "cancel" },
-      { text: t("signOut.confirm"), style: "destructive", onPress: () => void signOut() },
+      {
+        text: t("signOut.confirm"),
+        style: "destructive",
+        onPress: () => void signOut().then(() => router.replace("/home")),
+      },
     ]);
   };
 
@@ -38,7 +44,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <Screen title={t("nav.profile")}>
+    <Screen title={t("nav.profile")} header={header}>
       <AppText variant="title">{t("settings.language")}</AppText>
       <View style={styles.row}>
         {LANGUAGES.map((option) => (
