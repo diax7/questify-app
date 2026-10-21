@@ -602,6 +602,18 @@ in Stage 6 must support it. After upload, confirm the target in Play Console's A
 Watch transitive permissions: an image or camera library may add `READ_MEDIA_IMAGES` to the merged
 manifest. Inspect the merged manifest of every release build.
 
+**Checked 2026-10-21 (T-115, `npx expo config --type introspect`):**
+- **Android asks for** `INTERNET`, `VIBRATE` (haptics) and `CAMERA` only.
+- **Blocked in `apps/app/app.json`** (`android.blockedPermissions`): Expo's default storage and overlay permissions
+  (`READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`), plus `RECORD_AUDIO`,
+  `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO`, so no library can add them unnoticed.
+- **iOS** has `NSCameraUsageDescription` only: no microphone, no photo library.
+- **The camera text:** "Questify uses the camera to scan the QR codes at your event." /
+  «يستخدم كويستفاي الكاميرا لمسح رموز QR في فعاليتك.», through `apps/app/locales/{ar,en}.json`. It names scanning
+  only, because photo quests do not exist yet; widen it to the draft above with T-301.
+- **When the camera is asked for:** the app asks in context when the player opens the scanner, never at launch.
+- **Repeat** the check on every release build.
+
 ### 2.8 User-generated content policy
 
 UGC apps "must implement robust, effective, and ongoing UGC moderation that":

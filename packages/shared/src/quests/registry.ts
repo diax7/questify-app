@@ -40,6 +40,12 @@ export type QuestType = keyof typeof QUEST_TYPES;
 
 export const QUEST_TYPE_NAMES = Object.keys(QUEST_TYPES) as QuestType[];
 
+/**
+ * The hosts whose `/q/{token}` links are printed quest codes (ADR-116: the dashboard's address). A build may read one
+ * more, staging for a demo (the app's `EXPO_PUBLIC_QUEST_CODE_ORIGIN`).
+ */
+export const QUEST_CODE_HOSTS: readonly string[] = ["questify.nafes.com"];
+
 /** The types whose quests carry a printed quest QR (FR-305): scanned to complete, or as a fallback (FR-216). */
 export const QR_QUEST_TYPES = QUEST_TYPE_NAMES.filter((type) => QUEST_TYPES[type].usesQuestQr);
 

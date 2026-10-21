@@ -667,18 +667,25 @@ other docs feed it and stay as its detailed appendices.
   the event. Quests have no location, time, difficulty, tips or steps yet (Q-102). Not yet run on a phone (T-009).
   CTO: plan 86 → 94; code 92, with its fixes applied.
 
+- 2026-10-21 **T-115 built.** Players can scan a quest's printed QR code inside the app (live camera only), see
+  "Scanned! Checking…" at once, then their points with a celebration, or the reason in clear words; finishing a whole
+  category plays a full-screen one. Home's points count up to their new value, and a points history lists every point
+  earned. Reduce Motion turns all of it off. Android now asks only for internet, vibration and the camera (Expo's
+  default storage and overlay permissions are blocked). Not yet run on a phone (T-009): the camera and haptics need a
+  real device. CTO: plan 88 → 94; code 92, its fixes applied.
+
 ## Next
 
-1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-115 scanner and celebration).
+1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-116 ranking screen).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
      tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
      with the next Expo update.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0022, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-120 (a contact change proves only the new contact), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times), Q-102 (quest detail fields).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times), Q-102 (quest detail fields), Q-103 (scan sound and coin art).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

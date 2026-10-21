@@ -1,0 +1,195 @@
+import { describe, expect, it } from "vitest";
+import { activityAnswer, readActivity } from "#src/event/activity-api.ts";
+import { detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
+import { keyFor, type Category, type Quest, type QuestsView } from "#src/event/quests-api.ts";
+
+const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
+  id,
+  title: { ar: null, en: id },
+  description: { ar: null, en: null },
+  type: "scan_qr",
+  points: 10,
+  repeatCap: 1,
+  opensAt: null,
+  closesAt: null,
+  done: 0,
+  earned: 0,
+  state: "open",
+  ...fields,
+});
+
+const view = (...categories: Category[]): QuestsView => ({
+  event: { statusNow: "live", timezone: "Asia/Riyadh" },
+  categories,
+});
+
+const category = (id: string, quests: Quest[]): Category => ({
+  id,
+  name: { ar: null, en: id },
+  quests,
+});
+
+const fresh = () => "new-key";
+
+const checking: ScanStep = { kind: "checking", questId: "q1", token: "t1" };
+
+describe("scanStep", () => {
+  it("goes from a read to checking, then to the celebration on the server's word", () => {
+    const read = scanStep({ kind: "scanning" }, { type: "read", questId: "q1", token: "t1" });
+    expect(read).toEqual(checking);
+    expect(
+      scanStep(read, {
+        type: "answered",
+        answer: { kind: "completed", points: 25, score: 40, replayed: false },
+      }),
+    ).toEqual({
+      kind: "celebrating",
+      questId: "q1",
+      points: 25,
+      replayed: false,
+      details: undefined,
+    });
+  });
+
+  it("ends a refused scan in its reason, with no celebration", () => {
+    expect(scanStep(checking, { type: "answered", answer: { kind: "limit" } })).toEqual({
+      kind: "refused",
+      answer: { kind: "limit" },
+    });
+    expect(scanStep(checking, { type: "answered", answer: { kind: "failed" } })).toEqual({
+      kind: "refused",
+      answer: { kind: "failed" },
+    });
+  });
+
+  it("offers a retry of the same scan after a lost answer", () => {
+    const lost = scanStep(checking, { type: "answered", answer: { kind: "network" } });
+    expect(lost).toEqual({ kind: "lost", questId: "q1", token: "t1" });
+    expect(scanStep(lost, { type: "retry" })).toEqual(checking);
+  });
+
+  it("ignores a read while checking, and an answer or details that do not fit", () => {
+    expect(scanStep(checking, { type: "read", questId: "q2", token: "t2" })).toBe(checking);
+    expect(scanStep(checking, { type: "again" })).toBe(checking);
+    const scanning: ScanStep = { kind: "scanning" };
+    expect(scanStep(scanning, { type: "answered", answer: { kind: "limit" } })).toBe(scanning);
+    expect(scanStep(scanning, { type: "retry" })).toBe(scanning);
+    expect(
+      scanStep(scanning, {
+        type: "details",
+        details: { quest: undefined, finishedCategory: undefined, otherEvent: false },
+      }),
+    ).toBe(scanning);
+  });
+
+  it("scans again from a celebration or a refusal", () => {
+    expect(scanStep({ kind: "refused", answer: { kind: "limit" } }, { type: "again" })).toEqual({
+      kind: "scanning",
+    });
+  });
+
+  it("takes the same key only to retry after a network failure, a new one after a server failure", () => {
+    expect(keyFor({ key: "k1", code: "t1", retryable: true }, "t1", fresh)).toBe("k1");
+    expect(keyFor({ key: "k1", code: "t1", retryable: false }, "t1", fresh)).toBe("new-key");
+  });
+});
+
+describe("detailsAfter", () => {
+  it("names the quest and the category this scan just finished", () => {
+    const done = category("c", [quest("q1", { state: "done" }), quest("q2", { state: "done" })]);
+    expect(detailsAfter(view(done), "q1", false)).toEqual({
+      quest: done.quests[0],
+      finishedCategory: done,
+      otherEvent: false,
+    });
+  });
+
+  it("finishes no category on a replay, below the cap, or with a quest left", () => {
+    const done = category("c", [quest("q1", { state: "done" })]);
+    expect(detailsAfter(view(done), "q1", true).finishedCategory).toBeUndefined();
+    const belowCap = category("c", [quest("q1", { repeatCap: 3, done: 1, state: "open" })]);
+    expect(detailsAfter(view(belowCap), "q1", false).finishedCategory).toBeUndefined();
+    const left = category("c", [quest("q1", { state: "done" }), quest("q2")]);
+    expect(detailsAfter(view(left), "q1", false).finishedCategory).toBeUndefined();
+  });
+
+  it("says another event when the quest is not this event's, and nothing when the quests could not be read", () => {
+    expect(detailsAfter(view(category("c", [quest("q9")])), "q1", false)).toEqual({
+      quest: undefined,
+      finishedCategory: undefined,
+      otherEvent: true,
+    });
+    expect(detailsAfter(undefined, "q1", false)).toEqual({
+      quest: undefined,
+      finishedCategory: undefined,
+      otherEvent: false,
+    });
+  });
+});
+
+const ENTRY = {
+  id: "41",
+  at: "2026-11-01T12:00:00.000Z",
+  kind: "quest",
+  scoreDelta: 10,
+  balanceDelta: 10,
+  reason: { type: "quest", questId: "q1", title: { ar: null, en: "Find the word" } },
+};
+
+const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });
+const error = (status: number, code: string) => ({
+  kind: "error" as const,
+  status,
+  code,
+  message: null,
+  details: {},
+  headers: new Headers(),
+});
+
+describe("readActivity and activityAnswer", () => {
+  it("reads entries and the cursor", () => {
+    expect(readActivity({ entries: [ENTRY], nextCursor: "41" })).toEqual({
+      entries: [{ ...ENTRY, reason: undefined, title: { ar: null, en: "Find the word" } }].map(
+        ({ reason: _reason, ...entry }) => entry,
+      ),
+      nextCursor: "41",
+    });
+  });
+
+  it("shows a kind or reason this app does not know, without a title", () => {
+    const spend = {
+      ...ENTRY,
+      kind: "spend",
+      scoreDelta: 0,
+      balanceDelta: -50,
+      reason: { type: "reward" },
+    };
+    expect(readActivity({ entries: [spend], nextCursor: null })?.entries[0]).toMatchObject({
+      kind: "spend",
+      balanceDelta: -50,
+      title: null,
+    });
+  });
+
+  it("treats any other shape as a failure to load", () => {
+    expect(
+      readActivity({ entries: [{ ...ENTRY, scoreDelta: "10" }], nextCursor: null }),
+    ).toBeUndefined();
+    expect(
+      readActivity({ entries: [{ ...ENTRY, reason: null }], nextCursor: null }),
+    ).toBeUndefined();
+    expect(readActivity({ entries: [], nextCursor: 41 })).toBeUndefined();
+    expect(readActivity({ nextCursor: null })).toBeUndefined();
+  });
+
+  it("waits when pending and forgets only on the server's definite answer", () => {
+    expect(activityAnswer(ok({ entries: [], nextCursor: null }))).toEqual({
+      kind: "page",
+      page: { entries: [], nextCursor: null },
+    });
+    expect(activityAnswer(error(403, "membership_pending"))).toEqual({ kind: "pending" });
+    expect(activityAnswer(error(403, "not_enrolled"))).toEqual({ kind: "gone" });
+    expect(activityAnswer(error(500, "internal"))).toEqual({ kind: "network" });
+    expect(activityAnswer({ kind: "network" })).toEqual({ kind: "network" });
+  });
+});

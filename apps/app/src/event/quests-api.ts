@@ -243,18 +243,26 @@ export function keyFor(last: Attempt | undefined, code: string, makeKey: () => s
   return last !== undefined && last.retryable && last.code === code ? last.key : makeKey();
 }
 
-/** Completes an entry-code quest (FR-202); the server normalizes the code (`normalizeEntryCode`). */
-export async function completeWithCode(
+/** How a completion is proven: a typed entry code (FR-202) or a scanned quest QR's token (FR-201). */
+export type Proof =
+  | Readonly<{ type: "code"; code: string }>
+  | Readonly<{ type: "qr"; code: string }>;
+
+/**
+ * Completes a quest with its proof; the server normalizes a typed code (`normalizeEntryCode`) and verifies a token.
+ * The key is the caller's, from `keyFor`.
+ */
+export async function completeQuest(
   session: Pick<Session, "request">,
   questId: string,
-  code: string,
+  proof: Proof,
   idempotencyKey: string,
 ): Promise<CompletionAnswer> {
   return completionAnswer(
     await session.request({
       method: "POST",
       path: `/v1/quests/${encodeURIComponent(questId)}/complete`,
-      body: { proof: { type: "code", code } },
+      body: { proof },
       headers: { "idempotency-key": idempotencyKey },
     }),
   );

@@ -24,3 +24,13 @@ auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm # braces: stack exhaustion on deeply nested patterns (Metro file watching)
     - GHSA-86w9-cpqp-85rv # node-forge: RSA signature verification (@expo/cli code-signing helper)
+
+# expo-camera's CameraView is a class component typed against `react`, which pnpm's strict layout does not link into
+# the package, so its props are lost to TypeScript. Linking the app's @types/react to it restores them.
+packageExtensions:
+  expo-camera:
+    peerDependencies:
+      "@types/react": "*"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true

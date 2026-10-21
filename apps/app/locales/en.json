@@ -1,0 +1,5 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Questify uses the camera to scan the QR codes at your event."
+  }
+}

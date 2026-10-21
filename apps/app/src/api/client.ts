@@ -50,16 +50,15 @@ export function apiBaseUrl(configured: string | undefined, development: boolean)
       "EXPO_PUBLIC_API_URL is not set: a release build must name its API (an https origin).",
     );
   }
-  let url: URL;
-  try {
-    url = new URL(configured);
-  } catch {
+  // Checked by pattern, not `URL`: React Native's `URL` accepts anything and never throws.
+  const url = /^(https?):\/\/([A-Za-z0-9.-]+(?::[0-9]{1,5})?)(?:\/\S*)?$/.exec(configured.trim());
+  if (url === null) {
     throw new Error(`EXPO_PUBLIC_API_URL "${configured}" is not a URL.`);
   }
-  if (url.protocol !== "https:" && !development) {
+  if (url[1] !== "https" && !development) {
     throw new Error(`EXPO_PUBLIC_API_URL must be https in a release build, not "${configured}".`);
   }
-  return url.origin;
+  return `${url[1]}://${(url[2] ?? "").toLowerCase()}`;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

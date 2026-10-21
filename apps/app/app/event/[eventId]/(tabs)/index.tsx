@@ -1,4 +1,4 @@
-import type { Theme } from "@questify/shared";
+import { formatNumber, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
@@ -6,6 +6,7 @@ import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { CountingNumber } from "#src/components/motion.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
@@ -110,6 +111,19 @@ function UpNextCard({ eventId, upNext }: Readonly<{ eventId: string; upNext: Hom
   );
 }
 
+/** The points and balance (FR-403), counting to each new value; another event's Home mounts new counters. */
+function Counter({ id, value }: Readonly<{ id: string; value: number }>) {
+  const { language } = useI18n();
+  return (
+    <CountingNumber
+      key={id}
+      variant="title"
+      value={value}
+      format={(shown) => formatNumber(shown, language)}
+    />
+  );
+}
+
 function Standing({ home }: Readonly<{ home: Home }>) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -117,15 +131,16 @@ function Standing({ home }: Readonly<{ home: Home }>) {
     return <AppText>{t("eventHome.pending")}</AppText>;
   }
   const { score, balance, questsDone, questsTotal } = home.standing;
+  const eventId = home.event.id;
   return (
     <View style={styles.card}>
       <View style={styles.rankRow}>
         <AppText style={styles.grow}>{t("eventHome.points")}</AppText>
-        <AppText variant="title">{score}</AppText>
+        <Counter id={`${eventId}:score`} value={score} />
       </View>
       <View style={styles.rankRow}>
         <AppText style={styles.grow}>{t("eventHome.balance")}</AppText>
-        <AppText variant="title">{balance}</AppText>
+        <Counter id={`${eventId}:balance`} value={balance} />
       </View>
       <AppText muted>{t("eventHome.progress", { done: questsDone, total: questsTotal })}</AppText>
     </View>
@@ -223,6 +238,13 @@ export default function EventHomeScreen() {
           <RankingCard eventId={eventId} ranking={ranking} />
         ) : null}
         {ended ? null : <UpNextCard eventId={eventId} upNext={home.upNext} />}
+        {home.standing.status === "active" ? (
+          <Button
+            kind="quiet"
+            label={t("history.title")}
+            onPress={() => router.push(`/event/${eventId}/history`)}
+          />
+        ) : null}
         <Button
           kind="quiet"
           label={t("eventHome.info")}

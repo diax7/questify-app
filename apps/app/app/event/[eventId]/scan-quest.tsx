@@ -1,0 +1,281 @@
+import { formatNumber, type Theme } from "@questify/shared";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Haptics from "expo-haptics";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { AppState, Linking, View } from "react-native";
+import { api } from "#src/api/app-session.ts";
+import { randomUuid } from "#src/api/uuid.ts";
+import { AppText } from "#src/components/AppText.tsx";
+import { BackButton } from "#src/components/BackButton.tsx";
+import { Button } from "#src/components/Controls.tsx";
+import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
+import { Screen } from "#src/components/Screen.tsx";
+import { detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
+import { useEvent } from "#src/event/EventContext.tsx";
+import { outcomeText } from "#src/event/QuestSheet.tsx";
+import {
+  completeQuest,
+  fetchQuests,
+  keyFor,
+  type Attempt,
+  type CompletionAnswer,
+} from "#src/event/quests-api.ts";
+import { OPEN_GATE, passes, questCodeOrigin, readScan, type ScanGate } from "#src/event/scan.ts";
+import { useI18n } from "#src/i18n/provider.tsx";
+import { textIn } from "#src/i18n/text.ts";
+import { useThemedStyles } from "#src/theme/theme.tsx";
+
+/** The one extra web origin this build reads quest codes from (a staging demo, or development). */
+const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
+
+/** Haptics never block a scan: a phone without them simply stays still. */
+const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
+
+/** True while this screen is in front and the app is in the foreground: the camera runs only then. */
+function useCameraActive(): boolean {
+  const [focused, setFocused] = useState(false);
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  useEffect(() => {
+    const watcher = AppState.addEventListener("change", (state) =>
+      setForeground(state === "active"),
+    );
+    return () => watcher.remove();
+  }, []);
+  return focused && foreground;
+}
+
+/** Asked when the scanner opens, never at launch; denied once on Android may be asked again (STORE_COMPLIANCE §2.7). */
+function PermissionCard({
+  canAskAgain,
+  onAllow,
+}: Readonly<{ canAskAgain: boolean; onAllow: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <View style={{ gap: 12 }}>
+      <AppText variant="title">{t("scanner.permissionTitle")}</AppText>
+      <AppText>{canAskAgain ? t("scanner.permissionBody") : t("scanner.denied")}</AppText>
+      {canAskAgain ? (
+        <Button label={t("scanner.allow")} onPress={onAllow} />
+      ) : (
+        <Button
+          label={t("scanner.openSettings")}
+          onPress={() => void Linking.openSettings().catch(() => undefined)}
+        />
+      )}
+    </View>
+  );
+}
+
+/** The words for a refusal in the scanner: as the quest sheet, and "not available to you" where it would reload. */
+function refusalText(
+  answer: CompletionAnswer,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+) {
+  return answer.kind === "reload"
+    ? t("scanner.unavailable")
+    : (outcomeText(answer, t, language) ?? "");
+}
+
+/**
+ * Points with the quest's title (which also says which quest a code was for, when the player opened the scanner from
+ * another quest), then (when this scan finished its category) the full-screen category celebration (FR-406, FR-407). */
+function Celebration({
+  step,
+  onClaim,
+}: Readonly<{ step: Extract<ScanStep, { kind: "celebrating" }>; onClaim: () => void }>) {
+  const { t, language } = useI18n();
+  const [categoryShown, setCategoryShown] = useState(false);
+  const category = step.details?.finishedCategory;
+  const claim = () =>
+    category !== undefined && !categoryShown ? setCategoryShown(true) : onClaim();
+  // Until the quests are read again, the category step and the title are unknown: Claim waits for them.
+  const ready = step.details !== undefined;
+  if (categoryShown && category !== undefined) {
+    return (
+      <PopIn>
+        <SpinningCoin size={120} />
+        <AppText variant="display">
+          {t("scanner.categoryDone", { name: textIn(category.name, language) })}
+        </AppText>
+        <Button label={t("scanner.claim")} onPress={onClaim} />
+      </PopIn>
+    );
+  }
+  const quest = step.details?.quest;
+  return (
+    <PopIn>
+      <AppText variant="display">
+        {t("questsTab.completed", { points: formatNumber(step.points, language) })}
+      </AppText>
+      {quest === undefined ? null : (
+        <AppText variant="title">{textIn(quest.title, language)}</AppText>
+      )}
+      {step.details?.otherEvent ? <AppText>{t("scanner.otherEvent")}</AppText> : null}
+      <Button label={t("scanner.claim")} disabled={!ready} onPress={claim} />
+    </PopIn>
+  );
+}
+
+/**
+ * The scanner (FR-201, FR-303, FR-406, FR-621): the live camera only, never an image from the gallery. A read shows
+ * "Scanned! Checking…" at once, then the server's answer: the points, or the reason in clear words. One scan at a time;
+ * the same unrecognised code is reported once. The server verifies every code; the app only reads the quest id.
+ */
+export default function ScanQuestScreen() {
+  const { t, language } = useI18n();
+  const { eventId } = useEvent();
+  const styles = useThemedStyles(makeStyles);
+  const [permission, requestPermission, getPermission] = useCameraPermissions();
+  const active = useCameraActive();
+  const [step, dispatch] = useReducer(scanStep, { kind: "scanning" });
+  const [notice, setNotice] = useState<string | null>(null);
+  const [cameraFailed, setCameraFailed] = useState(false);
+  const gate = useRef<ScanGate>(OPEN_GATE);
+  const attempt = useRef<Attempt | undefined>(undefined);
+
+  // Coming back from Settings re-reads the permission, so allowing it there works without a restart.
+  useEffect(() => {
+    const watcher = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void getPermission();
+      }
+    });
+    return () => watcher.remove();
+  }, [getPermission]);
+
+  const submit = async (questId: string, token: string) => {
+    const key = keyFor(attempt.current, token, randomUuid);
+    const answer = await completeQuest(api.session, questId, { type: "qr", code: token }, key);
+    attempt.current = { key, code: token, retryable: answer.kind === "network" };
+    if (answer.kind === "signed_out") {
+      router.replace("/home");
+      return;
+    }
+    dispatch({ type: "answered", answer });
+    if (answer.kind === "completed") {
+      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
+      const quests = await fetchQuests(api.session, eventId);
+      dispatch({
+        type: "details",
+        details: detailsAfter(
+          quests.kind === "quests" ? quests.view : undefined,
+          questId,
+          answer.replayed,
+        ),
+      });
+    } else if (answer.kind !== "network") {
+      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
+    }
+  };
+
+  const scanned = ({ data }: { data: string }) => {
+    if (!passes(gate.current, data)) {
+      return;
+    }
+    const scan = readScan(data, EXTRA_ORIGIN);
+    if (scan.kind === "other") {
+      gate.current = { busy: false, ignored: data };
+      setNotice(t("scanner.notQuestify"));
+      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+      return;
+    }
+    gate.current = { busy: true, ignored: null };
+    setNotice(null);
+    if (scan.kind === "join") {
+      router.replace({ pathname: "/join/[code]", params: { code: scan.code, via: "qr" } });
+      return;
+    }
+    buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    dispatch({ type: "read", questId: scan.questId, token: scan.token });
+    void submit(scan.questId, scan.token);
+  };
+
+  // The last attempt stays: rescanning the same code after a lost answer reuses its key (`keyFor`), so it never pays
+  // twice; any answer from the server already made the next key new.
+  const again = () => {
+    gate.current = OPEN_GATE;
+    setNotice(null);
+    dispatch({ type: "again" });
+  };
+  const retry = () => {
+    if (step.kind === "lost") {
+      dispatch({ type: "retry" });
+      void submit(step.questId, step.token);
+    }
+  };
+
+  const granted = permission?.granted === true;
+  const scanning = step.kind === "scanning";
+  return (
+    <Screen title={t("scanner.title")} header={<BackButton />}>
+      {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {permission !== null && !granted ? (
+        <PermissionCard
+          canAskAgain={permission.canAskAgain}
+          onAllow={() => void requestPermission()}
+        />
+      ) : null}
+      {granted && scanning && active && !cameraFailed ? (
+        <View style={styles.camera}>
+          <CameraView
+            style={{ flex: 1 }}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+            onBarcodeScanned={scanning ? scanned : undefined}
+            onMountError={() => setCameraFailed(true)}
+          />
+        </View>
+      ) : null}
+      {cameraFailed ? (
+        <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
+      ) : null}
+      {notice === null ? null : <AppText accessibilityRole="alert">{notice}</AppText>}
+      {step.kind === "checking" ? (
+        <View style={styles.result}>
+          <SpinningCoin />
+          <AppText variant="title" accessibilityRole="alert">
+            {t("scanner.checking")}
+          </AppText>
+        </View>
+      ) : null}
+      {step.kind === "celebrating" ? (
+        <Celebration step={step} onClaim={() => router.back()} />
+      ) : null}
+      {step.kind === "refused" ? (
+        <View style={styles.result}>
+          <AppText variant="title" accessibilityRole="alert">
+            {refusalText(step.answer, t, language)}
+          </AppText>
+          <Button label={t("scanner.again")} onPress={again} />
+        </View>
+      ) : null}
+      {step.kind === "lost" ? (
+        <View style={styles.result}>
+          <AppText accessibilityRole="alert">{t("join.network")}</AppText>
+          <Button label={t("common.retry")} onPress={retry} />
+          <Button kind="quiet" label={t("scanner.again")} onPress={again} />
+        </View>
+      ) : null}
+    </Screen>
+  );
+}
+
+const makeStyles = (theme: Theme) => ({
+  camera: {
+    flex: 1,
+    maxHeight: 420,
+    overflow: "hidden" as const,
+    borderRadius: theme.radius.lg,
+    borderWidth: 3,
+    borderColor: theme.colors.border,
+  },
+  result: { gap: theme.spacing.md, alignItems: "center" as const },
+});

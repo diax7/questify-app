@@ -1,10 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
-import { useState } from "react";
+import { Tabs, router } from "expo-router";
 import { Pressable, View } from "react-native";
 import type { MessageKey, Theme } from "@questify/shared";
-import { AppText } from "#src/components/AppText.tsx";
-import { Sheet } from "#src/components/Sheet.tsx";
+import { useEvent } from "#src/event/EventContext.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -20,8 +18,8 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
 ];
 
 /**
- * The large round button in the middle of the bar (FR-620). It replaces the tab's own button, so it never opens the
- * tab's screen: until T-115 (the scanner and My QR) it opens a "coming soon" sheet.
+ * The large round button in the middle of the bar (FR-620, FR-621). It replaces the tab's own button, so it never
+ * opens the tab's screen: it opens the scanner over the tabs (My QR joins it with T-205).
  */
 function ScanButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
   const { theme } = useTheme();
@@ -47,42 +45,38 @@ function ScanButton({ label, onPress }: Readonly<{ label: string; onPress: () =>
 export default function EventTabsLayout() {
   const { t } = useI18n();
   const { theme, text } = useTheme();
-  const [soon, setSoon] = useState(false);
+  const { eventId } = useEvent();
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: theme.colors.navigationActive,
-          tabBarInactiveTintColor: theme.colors.navigationInactive,
-          tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
-          tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
-        }}
-      >
-        {TABS.map((tab) => (
-          <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
-            options={{
-              title: t(tab.title),
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name={tab.icon} size={size} color={color} />
-              ),
-              ...(tab.name === "scan"
-                ? {
-                    tabBarButton: () => (
-                      <ScanButton label={t(tab.title)} onPress={() => setSoon(true)} />
-                    ),
-                  }
-                : {}),
-            }}
-          />
-        ))}
-      </Tabs>
-      <Sheet visible={soon} title={t("scan.soonTitle")} onClose={() => setSoon(false)}>
-        <AppText>{t("scan.soonBody")}</AppText>
-      </Sheet>
-    </>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.navigationActive,
+        tabBarInactiveTintColor: theme.colors.navigationInactive,
+        tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
+        tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
+      }}
+    >
+      {TABS.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: t(tab.title),
+            tabBarIcon: ({ color, size }) => <Ionicons name={tab.icon} size={size} color={color} />,
+            ...(tab.name === "scan"
+              ? {
+                  tabBarButton: () => (
+                    <ScanButton
+                      label={t(tab.title)}
+                      onPress={() => router.push(`/event/${eventId}/scan-quest`)}
+                    />
+                  ),
+                }
+              : {}),
+          }}
+        />
+      ))}
+    </Tabs>
   );
 }
 

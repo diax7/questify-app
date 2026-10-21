@@ -198,6 +198,8 @@ return named columns only (never a quest's `type_config`). An event's members re
 `member_event_quests(event)` (migration 0021): an active enrollment of an active player only, visible quests by named
 columns, each with how many times the calling player completed it and, since migration 0022, the points they earned
 from it (`earned`, the sum of their ledger entries for the quest, so a later points change does not move it).
+The activity history reads `member_activity(event, before_id, page)` (migration 0023): the calling active member's own
+ledger entries in the event, newest first, a page of at most 100, each with its quest's title.
 **Standing (T-208, migration 0019):** an enrollment's status changes from the organizer seat only through
 `set_enrollment_ban(event, enrollment, banned, request)` (the owner; `active|pending|left → banned`, `banned →
 active`, audited with statuses only); the player's own way out is `active|pending → left`; the admin keeps direct

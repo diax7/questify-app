@@ -5,6 +5,7 @@ import {
   isQuestType,
   type MessageKey,
 } from "@questify/shared";
+import { router } from "expo-router";
 import { useState } from "react";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
@@ -12,8 +13,9 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
+import { useEvent } from "#src/event/EventContext.tsx";
 import {
-  completeWithCode,
+  completeQuest,
   keyFor,
   type Attempt,
   type CompletionAnswer,
@@ -53,7 +55,7 @@ const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */
 const typedCode = (text: string) => text.replace(/[^A-Za-z0-9٠-٩۰-۹]/g, "").slice(0, 32);
 
-function outcomeText(
+export function outcomeText(
   answer: CompletionAnswer,
   t: ReturnType<typeof useI18n>["t"],
   language: "ar" | "en",
@@ -93,7 +95,7 @@ function CodeEntry({
   const submit = async () => {
     const key = keyFor(last, code, randomUuid);
     setBusy(true);
-    const answer = await completeWithCode(api.session, quest.id, code, key);
+    const answer = await completeQuest(api.session, quest.id, { type: "code", code }, key);
     setBusy(false);
     setLast({ key, code, retryable: answer.kind === "network" });
     // A repeatable quest starts again from an empty field.
@@ -129,7 +131,7 @@ function Verification({
   onDone,
 }: Readonly<{ quest: Quest; onDone: (answer: CompletionAnswer) => void }>) {
   const { t } = useI18n();
-  const [soon, setSoon] = useState(false);
+  const { eventId } = useEvent();
   if (quest.state !== "open" || !isQuestType(quest.type)) {
     return null;
   }
@@ -139,8 +141,15 @@ function Verification({
   return (
     <>
       <AppText variant="label">{t("questsTab.verifyScan")}</AppText>
-      <Button label={t("questsTab.scan")} onPress={() => setSoon(true)} />
-      {soon ? <AppText>{t("scan.soonBody")}</AppText> : null}
+      <Button
+        label={t("questsTab.scan")}
+        onPress={() =>
+          router.push({
+            pathname: "/event/[eventId]/scan-quest",
+            params: { eventId, quest: quest.id },
+          })
+        }
+      />
     </>
   );
 }

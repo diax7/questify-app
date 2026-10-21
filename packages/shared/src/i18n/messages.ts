@@ -550,11 +550,6 @@ export const MESSAGES = {
   },
   "nav.rewards": { ar: "الجوائز", en: "Rewards" },
   "nav.scan": { ar: "المسح", en: "Scan" },
-  "scan.soonTitle": { ar: "المسح قريبًا", en: "Scanning is coming" },
-  "scan.soonBody": {
-    ar: "قريبًا تمسح رموز المهام من هنا وتُظهر رمزك للمنظّمين.",
-    en: "Soon you'll scan quest codes here and show your own code to the organizers.",
-  },
   "common.close": { ar: "إغلاق", en: "Close" },
   "eventHome.startsIn": { ar: "تبدأ بعد {span}", en: "Starts in {span}" },
   "eventHome.endsIn": { ar: "تنتهي بعد {span}", en: "Ends in {span}" },
@@ -627,7 +622,7 @@ export const MESSAGES = {
   "questsTab.codeLabel": { ar: "الرمز", en: "Code" },
   "questsTab.codeHint": { ar: "حروف إنجليزية (A–Z) وأرقام", en: "Letters A–Z and digits" },
   "questsTab.submit": { ar: "إرسال الرمز", en: "Send code" },
-  "questsTab.completed": { ar: "النقاط: +{points}", en: "+{points} points" },
+  "questsTab.completed": { ar: "النقاط: \u200E+{points}", en: "+{points} points" },
   "questsTab.wait": {
     ar: "محاولات كثيرة. حاول بعد {span}.",
     en: "Too many tries. Try again in {span}.",
@@ -656,6 +651,49 @@ export const MESSAGES = {
   "questsTab.failed": {
     ar: "تعذّر إكمال المهمة. حاول مرة أخرى.",
     en: "Couldn't complete the quest. Try again.",
+  },
+  "scanner.title": { ar: "امسح رمز المهمة", en: "Scan a quest code" },
+  "scanner.checking": { ar: "قرأنا الرمز! نتحقّق منه…", en: "Scanned! Checking…" },
+  "scanner.claim": { ar: "اجمعها", en: "Claim" },
+  "scanner.otherEvent": {
+    ar: "احتُسبت النقاط في فعالية أخرى من فعالياتك.",
+    en: "These points counted in another of your events.",
+  },
+  "scanner.categoryDone": {
+    ar: "أنجزت كل مهام «{name}»!",
+    en: "You finished every quest in {name}!",
+  },
+  "scanner.notQuestify": { ar: "هذا ليس رمز كويستفاي.", en: "This isn't a Questify code." },
+  "scanner.unavailable": {
+    ar: "هذه المهمة غير متاحة لك.",
+    en: "This quest isn't available to you.",
+  },
+  "scanner.again": { ar: "مسح رمز آخر", en: "Scan another" },
+  "scanner.permissionTitle": { ar: "الكاميرا لمسح الرموز", en: "The camera scans codes" },
+  "scanner.permissionBody": {
+    ar: "نستخدم الكاميرا لقراءة رموز المهام في الفعالية فقط، ولا نحفظ أي صورة.",
+    en: "Questify uses the camera only to read quest codes at the event. No picture is saved.",
+  },
+  "scanner.allow": { ar: "السماح بالكاميرا", en: "Allow the camera" },
+  "scanner.denied": {
+    ar: "الكاميرا مغلقة لهذا التطبيق. افتح الإعدادات واسمح بها لتمسح الرموز.",
+    en: "The camera is off for this app. Open Settings and allow it to scan codes.",
+  },
+  "scanner.openSettings": { ar: "فتح الإعدادات", en: "Open Settings" },
+  "scanner.cameraFailed": {
+    ar: "تعذّر تشغيل الكاميرا. أغلق المسح وحاول مرة أخرى.",
+    en: "Couldn't start the camera. Close the scanner and try again.",
+  },
+  "history.title": { ar: "سجل النقاط", en: "Points history" },
+  "history.empty": {
+    ar: "لا نقاط بعد. أنجز مهمة لتبدأ.",
+    en: "No points yet. Complete a quest to start.",
+  },
+  "history.quest": { ar: "مهمة: {title}", en: "Quest: {title}" },
+  "history.other": { ar: "تعديل في النقاط", en: "Points change" },
+  "history.failed": {
+    ar: "تعذّر تحميل السجل. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    en: "Couldn't load the history. Check your connection, then try again.",
   },
   "ranking.off": {
     ar: "الترتيب مخفي في هذه الفعالية.",

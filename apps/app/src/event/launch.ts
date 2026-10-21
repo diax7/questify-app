@@ -11,6 +11,8 @@ export type MyEvent = Readonly<{
   name: Readonly<{ ar: string | null; en: string | null }>;
   statusNow: string;
   status: "active" | "pending";
+  /** The event's IANA zone, for its times. */
+  timezone?: string;
 }>;
 
 /** When each event was last opened on this phone (FR-1610): one map, cleared at every sign-out. */
@@ -85,6 +87,7 @@ export function readMyEvents(body: unknown): MyEvent[] | undefined {
       typeof item["joinCode"] === "string" &&
       typeof item["statusNow"] === "string" &&
       (item["status"] === "active" || item["status"] === "pending") &&
+      (item["timezone"] === undefined || typeof item["timezone"] === "string") &&
       isRecord(item["name"]),
   );
 }
