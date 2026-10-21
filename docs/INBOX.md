@@ -640,3 +640,13 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - Processed: ADR-113 to 116 and 120 Accepted; ADR-123 to ADR-132; ADR-019 superseded; ADR-072 confirmed; FR-620,
   FR-830 and NFR-008 amended; Q-083, Q-077, Q-022 updated; 15 questions closed. Expo was already signed in; the
   first Android development build was started (`expo-dev-client` added, which the profile needs).
+
+## 2026-10-22 — SMS test, store name, ADR-122 and ADR-133 → processed
+
+- "for the SMS thing, no need for a volume quote right now. We already have a subscription there and account."
+- SMS test: the real test after go-live (production with the new code, then sign in on the app with Dhia's number).
+- Store name: "give me 10 options here in the chat and I will pick and tell you later" (ADR-131).
+- ADR-122 and ADR-133: accepted.
+- First Android development build finished (EAS a1411217, APK on expo.dev).
+- Processed: Q-034's volume quote is dropped for now; ADR-122 and ADR-133 marked Accepted in DECISIONS.md (that
+  file is committed with T-201/T-202, which another session has open).
