@@ -18,6 +18,7 @@ export type CardActions = Readonly<{
   rename: (category: CategoryView, name: { ar: string; en: string }) => void;
   reorderQuests: (category: CategoryView, ids: string[]) => void;
   toggle: (quest: QuestView) => void;
+  pin: (quest: QuestView) => void;
   edit: (quest: QuestView) => void;
   add: (category: CategoryView) => void;
   remove: (target: Deleting) => void;
@@ -115,6 +116,7 @@ function QuestRow({
   busy,
   actions,
   category,
+  pinned,
   readOnly,
 }: Readonly<{
   language: Language;
@@ -125,6 +127,8 @@ function QuestRow({
   busy: boolean;
   actions: CardActions;
   category: CategoryView;
+  /** The event's Up next pin (FR-1748). */
+  pinned: boolean;
   readOnly: boolean;
 }>) {
   const t = translatorFor(language);
@@ -139,6 +143,10 @@ function QuestRow({
       <strong>{textFor(quest.title, language)}</strong>
       <span className={styles.badge}>{t(QUEST_TYPES[quest.type].label)}</span>
       {quest.visible ? null : <span className={styles.badge}>{t("quests.hidden")}</span>}
+      {pinned ? <span className={styles.badge}>{t("quests.pinned")}</span> : null}
+      {pinned && !quest.visible ? (
+        <span className={styles.muted}>{t("quests.pinnedHidden")}</span>
+      ) : null}
       <span className={styles.muted}>{t("quests.pointsShort", { points: quest.points })}</span>
       {quest.repeatCap > 1 ? (
         <span className={styles.muted}>{t("quests.repeatShort", { count: quest.repeatCap })}</span>
@@ -162,6 +170,15 @@ function QuestRow({
             onClick={() => actions.toggle(quest)}
           >
             {quest.visible ? t("quests.hide") : t("quests.show")}
+          </button>
+          <button
+            type="button"
+            className={styles.quiet}
+            disabled={busy}
+            aria-pressed={pinned}
+            onClick={() => actions.pin(quest)}
+          >
+            {t("quests.pin")}
           </button>
           <button
             type="button"
@@ -199,6 +216,7 @@ export function CategoryCard({
   index,
   busy,
   actions,
+  focusQuestId,
   readOnly,
   canDelete,
 }: Readonly<{
@@ -209,6 +227,7 @@ export function CategoryCard({
   index: number;
   busy: boolean;
   actions: CardActions;
+  focusQuestId: string | null;
   /** An ended event: everything is shown, nothing changes. */
   readOnly: boolean;
   /** False for the last category: every event keeps one (FR-228). */
@@ -290,6 +309,7 @@ export function CategoryCard({
               busy={busy}
               actions={actions}
               category={category}
+              pinned={quest.id === focusQuestId}
               readOnly={readOnly}
             />
           ))}

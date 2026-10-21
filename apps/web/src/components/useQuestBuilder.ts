@@ -48,6 +48,7 @@ function problemText(body: unknown, language: Language): string {
 export function useQuestBuilder(language: Language, organizerId: string, eventId: string) {
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [categories, setCategories] = useState<readonly CategoryView[] | null>(null);
+  const [focusQuestId, setFocusQuestId] = useState<string | null>(null);
   const [event, setEvent] = useState<BuilderEvent | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -72,7 +73,9 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
   const reload = useCallback(async () => {
     const result = await requestJson("GET", `${base}/quests`);
     if (!failed(result)) {
-      setCategories((result.body as { categories: CategoryView[] }).categories);
+      const view = result.body as { focusQuestId: string | null; categories: CategoryView[] };
+      setFocusQuestId(view.focusQuestId);
+      setCategories(view.categories);
     }
   }, [base, failed]);
 
@@ -139,6 +142,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
 
   return {
     categories,
+    focusQuestId,
     event,
     busy,
     problem,

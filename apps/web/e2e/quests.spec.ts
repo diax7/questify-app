@@ -104,3 +104,34 @@ test("in a live event, a change waits for the confirmation and then goes through
     "مخفية",
   );
 });
+
+test("pins one quest as Up next, moves the pin, warns while it is hidden, and clears it", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await openBuilder(page, info.project.name);
+  await addQuest(page, "عام", "زر جناح الرعاة");
+  await addQuest(page, "عام", "التقط صورة");
+  const general = page.getByRole("region", { name: "عام" });
+  const first = general.getByRole("listitem").filter({ hasText: "زر جناح الرعاة" });
+  const second = general.getByRole("listitem").filter({ hasText: "التقط صورة" });
+  const pinOf = (row: typeof first) => row.getByRole("button", { name: "تثبيت كمهمة تالية" });
+
+  await pinOf(first).click();
+  await expect(pinOf(first)).toHaveAttribute("aria-pressed", "true");
+  await expect(first).toContainText("مثبّتة كمهمة تالية");
+  await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");
+
+  // One pin per event: pinning another moves it.
+  await pinOf(second).click();
+  await expect(pinOf(second)).toHaveAttribute("aria-pressed", "true");
+  await expect(pinOf(first)).toHaveAttribute("aria-pressed", "false");
+  await expect(first).not.toContainText("مثبّتة كمهمة تالية");
+
+  await second.getByRole("button", { name: "إخفاء" }).click();
+  await expect(second).toContainText("مخفية، فلن يراها اللاعبون مهمةً تالية حتى تُظهرها.");
+
+  await pinOf(second).click();
+  await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");
+  await expect(general).not.toContainText("مثبّتة كمهمة تالية");
+});

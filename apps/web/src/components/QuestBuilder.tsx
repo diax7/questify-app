@@ -85,6 +85,9 @@ export function QuestBuilder({
     reorderQuests: (category, ids) =>
       void b.send("PUT", `/categories/${category.id}/quests/order`, { ids }),
     toggle: (quest) => void b.send("PATCH", `/quests/${quest.id}`, { visible: !quest.visible }),
+    // One pin per event (FR-1748): pinning another moves it, pressing the pinned one clears it.
+    pin: (quest) =>
+      void b.send("PUT", "/focus", { questId: b.focusQuestId === quest.id ? null : quest.id }),
     edit: (quest) => {
       focus.remember();
       setEditing({ quest, initial: questDraftOf(quest, timeZone), key: crypto.randomUUID() });
@@ -231,6 +234,7 @@ export function QuestBuilder({
             index={index}
             busy={b.busy}
             actions={actions}
+            focusQuestId={b.focusQuestId}
             readOnly={closed}
             canDelete={categories.length > 1}
           />
