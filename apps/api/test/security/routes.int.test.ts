@@ -124,6 +124,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "leaves only the bearer's own enrollment, read and written under row-level security (test/join/leave)",
   "GET /v1/events/:eventId/home":
     "the bearer's own enrollment in that event only, read under row-level security; strangers and former members answer not_enrolled whether or not the event exists (test/home/home)",
+  "GET /v1/events/:eventId/activity":
+    "the bearer's own ledger entries in that event only, through member_activity bound to the session; strangers and former members answer not_enrolled (test/home/home, test/db/activity)",
   "GET /v1/events/:eventId/quests":
     "an active member of that event only, through member_event_quests bound to the session; named columns, never type_config (test/home/home, test/db/event-home)",
   "PUT /v1/organizers/:organizerId/events/:eventId/focus":

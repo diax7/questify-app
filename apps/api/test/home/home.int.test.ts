@@ -340,6 +340,77 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
     });
   });
 
+  describe("GET /v1/events/:eventId/activity", () => {
+    it("lists the player's own points record, newest first, page by page", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event, { cap: 5, title: "Find the word" });
+      const player = await newPlayer(event.id);
+      for (let n = 0; n < 4; n += 1) {
+        await complete(player.id, quest);
+      }
+      const first = await asPlayer(player.token, `/v1/events/${event.id}/activity?limit=3`);
+      expect(first.statusCode).toBe(200);
+      const page = first.json<{ entries: Row[]; nextCursor: string | null }>();
+      expect(page.entries).toHaveLength(3);
+      expect(page.entries[0]).toMatchObject({
+        kind: "quest",
+        scoreDelta: 10,
+        balanceDelta: 10,
+        reason: { type: "quest", questId: quest, title: { ar: null, en: "Find the word" } },
+      });
+      expect(page.nextCursor).toBe(page.entries[2]?.["id"]);
+      const rest = (
+        await asPlayer(
+          player.token,
+          `/v1/events/${event.id}/activity?limit=3&cursor=${page.nextCursor}`,
+        )
+      ).json<{ entries: Row[]; nextCursor: string | null }>();
+      expect(rest.entries).toHaveLength(1);
+      expect(rest.nextCursor).toBeNull();
+    });
+
+    it("refuses a malformed cursor or limit", async () => {
+      const event = await newEvent();
+      const player = await newPlayer(event.id);
+      for (const query of [
+        "cursor=abc",
+        "cursor=0",
+        "cursor=-1",
+        "cursor=9999999999999999999",
+        "limit=0",
+        "limit=101",
+        "extra=1",
+      ]) {
+        expect(
+          (await asPlayer(player.token, `/v1/events/${event.id}/activity?${query}`)).statusCode,
+        ).toBe(400);
+      }
+    });
+
+    it("tells a pending member to wait and refuses everyone else", async () => {
+      const event = await newEvent();
+      const pending = await newPlayer(event.id, "pending");
+      expect(
+        (await asPlayer(pending.token, `/v1/events/${event.id}/activity`)).json(),
+      ).toMatchObject({
+        code: "membership_pending",
+      });
+      for (const status of ["left", "removed", "banned"]) {
+        const player = await newPlayer(event.id, status);
+        const answer = await asPlayer(player.token, `/v1/events/${event.id}/activity`);
+        expect(answer.statusCode).toBe(403);
+        expect(answer.json()).toMatchObject({ code: "not_enrolled" });
+      }
+      const stranger = await newPlayer(null);
+      expect((await asPlayer(stranger.token, `/v1/events/${event.id}/activity`)).statusCode).toBe(
+        403,
+      );
+      expect(
+        (await asPlayer(stranger.token, `/v1/events/${randomUUID()}/activity`)).statusCode,
+      ).toBe(403);
+    });
+  });
+
   describe("PUT /v1/organizers/:organizerId/events/:eventId/focus", () => {
     it("pins and clears, shows the pin in the builder, and audits each change once", async () => {
       const event = await newEvent();

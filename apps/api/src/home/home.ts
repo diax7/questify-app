@@ -275,3 +275,67 @@ export async function readHome(
   const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
   return { ...home, rankingOn };
 }
+
+/** One line of a player's points record (FR-410), as `member_activity` gives it (migration 0023). */
+export type ActivityEntry = Readonly<{
+  id: string;
+  at: Date;
+  kind: string;
+  scoreDelta: number;
+  balanceDelta: number;
+  reason: Readonly<{ type: "quest"; questId: string; title: Text }> | Readonly<{ type: string }>;
+}>;
+
+type ActivityRow = Readonly<{
+  id: string;
+  at: Date;
+  kind: string;
+  score_delta: string;
+  balance_delta: string;
+  quest_id: string | null;
+  title_ar: string | null;
+  title_en: string | null;
+}>;
+
+export type ActivityView =
+  | Readonly<{ kind: "entries"; entries: readonly ActivityEntry[] }>
+  | Readonly<{ kind: "pending" }>
+  | Readonly<{ kind: "not_member" }>;
+
+/** The player's own points record in the event, newest first, a page before `beforeId` (a ledger id), or the first. */
+export async function memberActivity(
+  deps: HomeDeps,
+  playerId: string,
+  page: Readonly<{ eventId: string; beforeId: string | null; limit: number }>,
+): Promise<ActivityView> {
+  return asPlayer(deps, playerId, async (client) => {
+    const row = await standingOf(client, playerId, page.eventId);
+    if (row?.status === "pending") {
+      return { kind: "pending" } as const;
+    }
+    if (row?.status !== "active") {
+      return { kind: "not_member" } as const;
+    }
+    const { rows } = await client.query<ActivityRow>("SELECT * FROM member_activity($1, $2, $3)", [
+      page.eventId,
+      page.beforeId,
+      page.limit,
+    ]);
+    const entries = rows.map((entry) => ({
+      id: entry.id,
+      at: entry.at,
+      kind: entry.kind,
+      scoreDelta: Number(entry.score_delta),
+      balanceDelta: Number(entry.balance_delta),
+      reason:
+        entry.quest_id === null
+          ? { type: entry.kind }
+          : {
+              type: "quest" as const,
+              questId: entry.quest_id,
+              title: { ar: entry.title_ar, en: entry.title_en },
+            },
+    }));
+    return { kind: "entries", entries } as const;
+  });
+}

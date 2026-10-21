@@ -1,8 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { membershipPending, notEnrolled, unauthenticated } from "#src/auth/http-errors";
+import { parseLimit } from "@questify/shared";
+import {
+  invalidRequest,
+  membershipPending,
+  notEnrolled,
+  unauthenticated,
+} from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import {
+  memberActivity,
   memberQuests,
   readHome,
   type HomeDeps,
@@ -11,6 +18,26 @@ import {
 } from "#src/home/home";
 
 const eventParams = z.object({ eventId: z.uuid() });
+const activityQuery = z.strictObject({
+  cursor: z.string().max(20).optional(),
+  limit: z.string().optional(),
+});
+/** A ledger id: the cursor of the history, opaque to the app; 18 digits at most, so it always fits a bigint. */
+const LEDGER_ID = /^[1-9][0-9]{0,17}$/;
+
+function activityPage(query: z.infer<typeof activityQuery>): {
+  beforeId: string | null;
+  limit: number;
+} {
+  if (query.cursor !== undefined && !LEDGER_ID.test(query.cursor)) {
+    throw invalidRequest();
+  }
+  try {
+    return { beforeId: query.cursor ?? null, limit: parseLimit(query.limit) };
+  } catch {
+    throw invalidRequest();
+  }
+}
 
 const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   id: quest.id,
@@ -49,6 +76,24 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
       throw notEnrolled();
     }
     return home;
+  });
+
+  // FR-410: the player's own points record in this event, newest first, page by page.
+  app.get("/v1/events/:eventId/activity", { config: { access: "player" } }, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const { beforeId, limit } = activityPage(parse(activityQuery, request.query));
+    const view = await memberActivity(deps, playerIdOf(request), { eventId, beforeId, limit });
+    if (view.kind === "pending") {
+      throw membershipPending();
+    }
+    if (view.kind === "not_member") {
+      throw notEnrolled();
+    }
+    const last = view.entries.at(-1);
+    return {
+      entries: view.entries,
+      nextCursor: view.entries.length === limit && last !== undefined ? last.id : null,
+    };
   });
 
   app.get("/v1/events/:eventId/quests", { config: { access: "player" } }, async (request) => {
