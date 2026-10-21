@@ -154,6 +154,12 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   the audit entry, sessions kept so the real owner can change it back, support for the rest. No new account-existence
   oracle: whether another account has a contact is said only after its code is entered, so only someone holding it
   learns it; every request counts in the player's window, refused ones too.
+- The app's session (MASVS-STORAGE, T-111 app half): the access and refresh tokens are one item in the phone's
+  keychain or keystore (`expo-secure-store`, `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`: never in a backup to another device),
+  never in AsyncStorage. The first launch of an install clears that item, because the iOS keychain outlives an
+  uninstall. A store that cannot be read (a lost Android key) counts as no session. One refresh is in flight at a
+  time; only the API's 401 to a refresh ends the session. A release build without its API address, or with plain
+  http, stops at start (MASVS-NETWORK).
 - Backups (target, NFR-026): point-in-time, copied to a second place in Saudi Arabia that we control, restore rehearsed.
   **Today:** CranL offers neither point-in-time restore nor a second-region copy (ADR-107 addenda); staging holds only
   test data, and the nightly copy with a proven restore is T-019, required before the first real player.

@@ -19,6 +19,8 @@
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",
     "packages/shared/src/join/**/*.ts",
+    "apps/app/src/api/client.ts",
+    "apps/app/src/api/session.ts",
     "packages/shared/src/time/**/*.ts",
     "!**/*.test.ts",
     "!**/*.d.ts"

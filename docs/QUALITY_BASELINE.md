@@ -35,8 +35,10 @@ Evidence for each ASVS/MASVS control is a test, a CI check or a short written no
 
 - **Pyramid:** many fast unit tests, fewer integration tests against a real PostgreSQL and cache, a few end-to-end flows.
 - **Core extras:** property tests (mini-game replay checker, username and word filters, configuration merge); **mutation testing on the core** (for example Stryker) so the tests are proven to catch real breakage; contract tests against the generated OpenAPI file.
-  Mutation scope today (`stryker.config.json`): `apps/api/src/{audit,auth,db,organizers,events}`, the conventions,
-  idempotency and route-access modules, and `packages/shared/src/time` (target 90%, break 80%).
+  Mutation scope today (`stryker.config.json`): `apps/api/src/{audit,auth,db,organizers,events,quests,completions,
+  players,join,moderation}`, the conventions, idempotency and route-access modules, `packages/shared/src/{quests,
+  players,time,join}`, and the app's session core `apps/app/src/api/{client,session}.ts` (T-111 app half) (target 90%,
+  break 80%).
 - **Security tests:** the outsider suite and the cross-tenant suite on every pull request.
 - **Non-functional:** a load test (for example k6) at 20,000 completions per minute per event before launch (NFR-003); a restore rehearsal (NFR-026); a failover drill.
 - **Mobile:** flow tests on real iPhone and Android devices, Arabic and English, RTL.
