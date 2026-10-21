@@ -163,6 +163,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | join_methods | text[] | ⊆ code, qr, link, public_list; ≥ 1; public_list only when access is public | no | Migration 0009 |
 | starts_at, ends_at, shop_closes_at | timestamptz | | no | Balance closes after the shop window (ADR-048) |
 | config | jsonb + config_version | schema-validated | no | See `CONFIGURABILITY.md` |
+| focus_quest_id | uuid | null, or a quest of the same event (FK `(focus_quest_id, id)` → `quest (id, event_id)`); `ON DELETE SET NULL (focus_quest_id)` | no | The quest pinned as Up next (FR-1748); migration 0021 |
 | managed_by_questify | bool | | no | ADR-077 |
 
 **The event lifecycle (T-102, migration 0009).** The API's role never writes `status`: column grants leave it out of
@@ -193,7 +194,9 @@ and versions only, never a name or contact (ADR-118).
 join through `join_event(code, via, card)`, which checks the event's state, its join methods and access type (a
 private event makes a `pending` member) and decides under a row lock; organizers will invite through their own
 definers (T-204, T-218). Anonymous reads go through `public_events`, `public_event` and `public_event_quests`, which
-return named columns only (never a quest's `type_config`).
+return named columns only (never a quest's `type_config`). An event's members read its quests through
+`member_event_quests(event)` (migration 0021): an active enrollment of an active player only, visible quests by named
+columns, each with how many times the calling player completed it.
 **Standing (T-208, migration 0019):** an enrollment's status changes from the organizer seat only through
 `set_enrollment_ban(event, enrollment, banned, request)` (the owner; `active|pending|left → banned`, `banned →
 active`, audited with statuses only); the player's own way out is `active|pending → left`; the admin keeps direct

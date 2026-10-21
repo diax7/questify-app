@@ -61,6 +61,8 @@ export type Refused =
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
 export type BuilderView = Readonly<{
+  /** The quest pinned as Up next (FR-1748), or null. */
+  focusQuestId: string | null;
   categories: readonly (CategoryRecord & { quests: readonly QuestRecord[] })[];
 }>;
 
@@ -282,10 +284,15 @@ export const audit = (
     requestId: caller.requestId,
   });
 
-async function view(client: PoolClient, eventId: string): Promise<BuilderView> {
+async function view(
+  client: PoolClient,
+  eventId: string,
+  focusQuestId: string | null,
+): Promise<BuilderView> {
   const categories = await listCategories(client, eventId);
   const quests = await listQuests(client, eventId);
   return {
+    focusQuestId,
     categories: categories.map((category) => ({
       ...category,
       quests: quests.filter((quest) => quest.categoryId === category.id),
@@ -304,11 +311,14 @@ export function readBuilder(
       client,
       { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
       async () => {
-        const { rowCount } = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
+        const { rows } = await client.query<{ focus_quest_id: string | null }>(
+          "SELECT focus_quest_id FROM event WHERE organizer_id = $1 AND id = $2",
           [actor.organizerId, eventId],
         );
-        return rowCount === 1 ? done(await view(client, eventId)) : { kind: "not_found" };
+        const event = rows[0];
+        return event === undefined
+          ? { kind: "not_found" }
+          : done(await view(client, eventId, event.focus_quest_id));
       },
     ),
   );

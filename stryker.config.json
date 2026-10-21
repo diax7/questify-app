@@ -16,6 +16,7 @@
     "apps/api/src/players/**/*.ts",
     "apps/api/src/join/**/*.ts",
     "apps/api/src/moderation/**/*.ts",
+    "apps/api/src/home/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",
     "packages/shared/src/join/**/*.ts",

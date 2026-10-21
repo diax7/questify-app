@@ -21,6 +21,7 @@ import { registerConventions } from "#src/conventions";
 import { registerCompletionRoutes } from "#src/completions/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
+import { registerHomeRoutes } from "#src/home/routes";
 import { registerJoinRoutes } from "#src/join/routes";
 import { registerContactRoutes } from "#src/players/contact";
 import { registerProfileRoutes } from "#src/players/profile";
@@ -209,6 +210,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     email: options.emailSender,
   });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  registerHomeRoutes(app, { pool: options.pool, settings });
   if (options.rankingRepairIntervalMs !== undefined) {
     const tick = startRankingTick(ranking, options.rankingRepairIntervalMs, (fields) =>
       app.log.error(fields),

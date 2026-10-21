@@ -122,6 +122,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the bearer's own enrollments only, read under row-level security (test/join/join)",
   "POST /v1/events/:eventId/leave":
     "leaves only the bearer's own enrollment, read and written under row-level security (test/join/leave)",
+  "GET /v1/events/:eventId/home":
+    "the bearer's own enrollment in that event only, read under row-level security; strangers and former members answer not_enrolled whether or not the event exists (test/home/home)",
+  "GET /v1/events/:eventId/quests":
+    "an active member of that event only, through member_event_quests bound to the session; named columns, never type_config (test/home/home, test/db/event-home)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/focus":
+    "members of that organizer within their event limit; only a quest of the path's event, another answers 404; audited (test/home/home, test/db/event-home)",
   "GET /v1/organizers/:organizerId/events/:eventId/players":
     "members of that organizer within their event limit, through event_players with the join card's columns; another event answers an empty list (test/moderation/moderation, test/db/bans)",
   "PUT /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/ban":

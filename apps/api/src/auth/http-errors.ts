@@ -353,8 +353,8 @@ export const contactTaken = make(
 export const notEnrolled = make(
   403,
   "not_enrolled",
-  "انضم إلى الفعالية لترى ترتيبها.",
-  "Join the event to see its ranking.",
+  "انضم إلى الفعالية لتشارك فيها.",
+  "Join the event to take part.",
 );
 export const rankingOff = make(
   404,

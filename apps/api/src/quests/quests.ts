@@ -160,3 +160,38 @@ export function reorderQuests(
     return done(null);
   });
 }
+
+/**
+ * Pins a quest of this event as Up next for every player, or clears the pin with null (FR-1748). No confirmation, even
+ * while the event is live: a pin moves no points. A quest outside the event is "not found"; the pin holds while the
+ * quest is hidden, and Up next skips it until it shows again.
+ */
+export function setFocus(
+  deps: BuilderDeps,
+  actor: Actor,
+  eventId: string,
+  questId: string | null,
+  caller: Caller,
+): Promise<Done<Readonly<{ focusQuestId: string | null }>>> {
+  return withEvent(deps, actor, eventId, { change: undefined }, async (client) => {
+    if (questId !== null && (await readQuest(client, eventId, questId)) === undefined) {
+      return { kind: "not_found" };
+    }
+    const { rows } = await client.query<{ focus_quest_id: string | null }>(
+      "SELECT focus_quest_id FROM event WHERE id = $1",
+      [eventId],
+    );
+    const before = rows[0]?.focus_quest_id ?? null;
+    if (before !== questId) {
+      await client.query("UPDATE event SET focus_quest_id = $2 WHERE id = $1", [eventId, questId]);
+      await audit(client, actor, caller, {
+        action: "event.focus_set",
+        eventId,
+        target: { type: "event", id: eventId },
+        before: { focusQuestId: before },
+        after: { focusQuestId: questId },
+      });
+    }
+    return done({ focusQuestId: questId });
+  });
+}

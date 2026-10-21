@@ -22,7 +22,7 @@ import {
   reorderCategories,
   updateCategory,
 } from "#src/quests/categories";
-import { createQuest, deleteQuest, reorderQuests, updateQuest } from "#src/quests/quests";
+import { createQuest, deleteQuest, reorderQuests, setFocus, updateQuest } from "#src/quests/quests";
 import type { CategoryRecord, QuestRecord } from "#src/quests/store";
 
 const BODY_LIMIT = 16_384;
@@ -58,6 +58,7 @@ const questBody = z.strictObject({
 });
 const questPatch = z.strictObject({ ...questFields, categoryId: z.uuid().optional(), confirm });
 const changeBody = z.strictObject({ confirm }).default({});
+const focusBody = z.strictObject({ questId: z.uuid().nullable() });
 const orderBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_ORDER), confirm });
 
 const eventParams = z.object({ eventId: z.uuid() });
@@ -240,11 +241,25 @@ export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps): v
     const { eventId } = parse(eventParams, request.params);
     const result = await readBuilder(deps, organizerContextOf(request), eventId);
     return answer(result, (builder) => ({
+      focusQuestId: builder.focusQuestId,
       categories: builder.categories.map((category) => ({
         ...categoryView(category),
         quests: category.quests.map(questView),
       })),
     }));
+  });
+  // FR-1748: the quest every player sees as Up next while it is open for them; null clears it.
+  scope.put("/events/:eventId/focus", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const { questId } = parse(focusBody, request.body);
+    const result = await setFocus(
+      deps,
+      organizerContextOf(request),
+      eventId,
+      questId,
+      callerOf(request),
+    );
+    return answer(result, (focus) => focus);
   });
   registerCategoryRoutes(scope, deps);
   registerQuestRoutes(scope, deps);
