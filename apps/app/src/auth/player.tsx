@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, deviceId, keyValueStore } from "#src/api/app-session.ts";
+import { ADD_EMAIL_SHOWN_KEY } from "#src/account/add-email.ts";
 import { RECENT_KEY } from "#src/event/launch.ts";
 
 /** What the app needs of `GET /v1/me`: held in memory only, never stored (masked contacts included). */
@@ -32,7 +33,7 @@ type PlayerValue = Readonly<{
 }>;
 
 /** The per-player things a phone keeps outside the secure store; cleared at every sign-out, chosen or forced. */
-export const PLAYER_KEYS = [RECENT_KEY, "questify.addEmailShown"] as const;
+export const PLAYER_KEYS = [RECENT_KEY, ADD_EMAIL_SHOWN_KEY] as const;
 
 const isMe = (value: unknown): value is Me =>
   typeof value === "object" &&

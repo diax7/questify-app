@@ -2,6 +2,7 @@ import { parseJoinLink, type Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
@@ -206,6 +207,7 @@ export default function QuestifyHomeScreen() {
         <CodeEntry />
         {state.status === "signed_in" ? (
           <>
+            <AddEmailCard />
             <MyEvents />
             <Button kind="quiet" label={t("nav.profile")} onPress={() => router.push("/profile")} />
           </>

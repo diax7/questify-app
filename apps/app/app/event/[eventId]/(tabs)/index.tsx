@@ -2,6 +2,7 @@ import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
+import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { Amount, CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
@@ -242,6 +243,7 @@ export default function EventHomeScreen() {
   return (
     <Screen title={textIn(home.event.name, language)} header={<EventPill />}>
       <ScrollView contentContainerStyle={{ gap: 16 }}>
+        <AddEmailCard />
         <CountdownLine event={home.event} />
         <Standing home={home} />
         {home.standing.status === "active" && ranking !== undefined ? (
