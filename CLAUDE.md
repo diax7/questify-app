@@ -15,6 +15,20 @@ any organizer anywhere; Saudi Arabia is the first market (Arabic + English, RTL)
   between code and docs goes to `docs/OPEN_QUESTIONS.md`, never a silent override. Tick finished tasks in
   `docs/TASKS.md`.
 
+## Token budget (Dhia, 2026-10-21: all five rules approved)
+
+1. **One task per session.** Finish the task, commit, update `docs/_blueprint/STATE.md`, then stop and tell
+   Dhia to start a fresh session (`/clear`). Never carry several tasks in one conversation.
+2. **One CTO review per task.** Core tasks (see Quality bar) get one plan review and one code review. Every
+   other task gets one code review only, with no plan review. Re-review only when a BLOCKER or MAJOR finding
+   was fixed; fold minor findings in without asking again.
+3. **The reviewer's model:** Opus for core tasks. Sonnet (`model: "sonnet"`) for every other review: screens,
+   copy, docs, config.
+4. **Mutation testing only on core code** (QUALITY_BASELINE, ADR-111), never on screens or app UI modules.
+5. **Short messages.** Brief prompts to subagents (point at files; don't restate them), brief status to Dhia,
+   no long recaps. Read only the part of a file that is needed; avoid full-size image reads unless new art
+   is being adopted.
+
 ## Read order at the start of every session
 
 1. `docs/_blueprint/STATE.md`: where the project stands and what comes next

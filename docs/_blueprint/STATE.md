@@ -682,7 +682,8 @@ other docs feed it and stay as its detailed appendices.
 
 ## Next
 
-1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-117).
+1. **Now:** T-117 (currency and renamed words): the plan is GO (CTO 92, `docs/plans/2026-10-21-t-117-currency-and-words.md`,
+   with its build notes at the end); build Phase 1. One task per session (CLAUDE.md, Token budget).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
      tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
      with the next Expo update.
