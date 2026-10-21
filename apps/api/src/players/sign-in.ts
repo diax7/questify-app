@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import { checkUsername, toWesternDigits, type Avatar, type UsernameCheck } from "@questify/shared";
+import {
+  checkUsername,
+  missingSignupAcceptances,
+  signupDocuments,
+  toWesternDigits,
+  type Avatar,
+  type PlayerDocumentId,
+  type SignupAcceptance,
+  type UsernameCheck,
+} from "@questify/shared";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { EmailSender } from "#src/auth/email/sender";
@@ -53,6 +62,7 @@ export type CodeRequestResult =
       emailFallbackAfterSeconds?: number;
     }>
   | Readonly<{ kind: "phone_not_supported" | "invalid_email" }>
+  | Readonly<{ kind: "acceptance_required"; documents: readonly DocumentVersion[] }>
   | Throttled
   | Unavailable;
 
@@ -89,7 +99,13 @@ export type RefreshResult =
 
 export type PlayerSignIn = Readonly<{
   requestCode: (
-    input: { channel: Channel; value: string; previous?: string | undefined; lang: Lang },
+    input: {
+      channel: Channel;
+      value: string;
+      previous?: string | undefined;
+      lang: Lang;
+      accept: SignupAcceptance;
+    },
     asker: Asker,
   ) => Promise<CodeRequestResult>;
   resend: (input: { challengeToken: string; lang: Lang }, asker: Asker) => Promise<ResendResult>;
@@ -109,6 +125,13 @@ const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 const tokenHash = (token: string): Buffer => Buffer.from(hashToken(token), "hex");
 
 type Contact = Readonly<{ channel: Channel; value: string }>;
+
+export type DocumentVersion = Readonly<{ id: PlayerDocumentId; version: string }>;
+
+/** The terms and privacy in force, as a refusal names them so a stale app can show them and retry. */
+function signupDocumentsInForce(): DocumentVersion[] {
+  return signupDocuments().map(({ id, version }) => ({ id, version }));
+}
 
 /** The phone or email as the database stores it, or why it cannot take a code. */
 export function contactOf(
@@ -231,6 +254,7 @@ type Opened = Readonly<{ kind: "opened"; challengeToken: string; code: string }>
 async function openChallenge(
   deps: PlayerSignInDeps,
   contact: Contact,
+  accept: SignupAcceptance,
   asker: Asker,
 ): Promise<Opened | Throttled | Unavailable> {
   return inTransaction(deps, async (client) => {
@@ -241,13 +265,15 @@ async function openChallenge(
     const id = randomUUID();
     const token = generateToken();
     const code = generateCode();
-    await client.query("SELECT start_player_challenge($1, $2, $3, $4, $5, $6)", [
+    await client.query("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8)", [
       id,
       tokenHash(token.token),
       contact.channel,
       contact.value,
       deps.keys.contactLookupKey(contact.value),
       deps.keys.playerCodeHash(id, code),
+      accept.terms,
+      accept.privacy,
     ]);
     return { kind: "opened", challengeToken: token.token, code } as const;
   });
@@ -275,11 +301,16 @@ async function requestCode(
   input: Parameters<PlayerSignIn["requestCode"]>[0],
   asker: Asker,
 ): Promise<CodeRequestResult> {
+  // First of all: nothing is counted, stored or logged for a person who has not accepted the versions in force
+  // (FR-1705).
+  if (missingSignupAcceptances(input.accept).length > 0) {
+    return { kind: "acceptance_required", documents: signupDocumentsInForce() };
+  }
   const contact = contactOf(input.channel, input.value);
   if ("kind" in contact) {
     return contact;
   }
-  const opened = await openChallenge(deps, contact, asker);
+  const opened = await openChallenge(deps, contact, input.accept, asker);
   if (opened.kind !== "opened") {
     return opened;
   }

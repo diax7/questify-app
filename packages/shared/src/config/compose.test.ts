@@ -25,6 +25,13 @@ describe("composeConfig defaults", () => {
         shop: { enabled: true, minAppVersion: null, message: null },
       },
       tuning: { graceSeconds: 5, qrSeconds: 45 },
+      legal: {
+        documents: [
+          { id: "terms_of_use", version: "0.1" },
+          { id: "privacy_policy", version: "0.1" },
+          { id: "community_guidelines", version: "0.1" },
+        ],
+      },
     });
   });
 

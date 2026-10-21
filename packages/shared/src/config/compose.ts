@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import { playerDocuments } from "#src/legal/documents";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
 
 export type ComposedFeature = Readonly<{
@@ -14,6 +15,11 @@ export type ComposedConfig = Readonly<{
   schemaVersion: 1;
   features: Readonly<Record<string, ComposedFeature>>;
   tuning: Readonly<Record<string, number>>;
+  /**
+   * The player documents in force (FR-1705), for every event alike: the app shows these versions and sends them back,
+   * so a new version never needs an app release.
+   */
+  legal: Readonly<{ documents: readonly Readonly<{ id: string; version: string }>[] }>;
 }>;
 
 // The keys of an object are unique, so two of them are never equal.
@@ -67,5 +73,6 @@ export function composeConfig(
     schemaVersion: 1,
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
+    legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
   };
 }

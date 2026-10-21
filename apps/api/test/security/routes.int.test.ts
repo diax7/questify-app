@@ -110,6 +110,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
   "GET /v1/me":
     "the bearer's own profile only; the player comes from the session (test/players/profile)",
+  "POST /v1/me/acceptances":
+    "records the bearer's own acceptances only, through accept_player_documents bound to the session (test/players/legal, test/db/player-legal)",
   "PATCH /v1/me":
     "the bearer's own avatar and username only; renames go through rename_player, bound to the session (test/players/profile, test/db/usernames)",
   "POST /v1/auth/code":

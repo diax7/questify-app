@@ -113,11 +113,13 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
 - [x] **T-119** Draft v0 terms of use, privacy policy and community guidelines text (Arabic first, English alongside) so sign-up can record acceptance; counsel reviews them later in T-807 — delivers no FR (infrastructure or quality gate); depends on: none
   - Done 2026-10-20: `docs/legal/` (terms, privacy policy, community guidelines; Arabic first, v0.1 drafts with placeholders). Questions for counsel in `docs/legal/README.md` and Q-085; contradictions found while drafting went to Q-086 and Q-087, and stale rows in INTEGRATIONS and STORE_COMPLIANCE were corrected.
   - Done when: Three draft documents exist in both languages with version numbers; T-110 can record acceptance of them.
-- [ ] **T-110** Legal steps: terms and privacy before data collection, recorded acceptance, guideline reminder before first submission, Settings Legal and contact — delivers FR 1705, 1706, 1707; depends on: T-109, T-119
+- [x] **T-110** Legal steps: terms and privacy before data collection, recorded acceptance, guideline reminder before first submission, Settings Legal and contact — delivers FR 1705, 1706, 1707; depends on: T-109, T-119
   - Done when: No data is stored before the terms are accepted; the acceptance and version are recorded.
+  - Done 2026-10-21 (CTO cycle: plan 84 → 93; phases 94, 93, 94; mutation 93.6%): migration 0017 (`player_acceptance`, append-only, the player's own rows; the code challenge carries the accepted terms and privacy versions, NOT NULL; sign-up and sign-in record them; `accept_player_documents`), the versions in force in `/v1/config` (`legal.documents`), `accept` on `POST /v1/auth/code` checked before anything is stored or logged, `legal` on `GET /v1/me`, `POST /v1/me/acceptances`, the three player documents on the web and the contact page. **Partly delivered:** FR-1706 (recorded and readable; T-301 refuses a first submission without it); FR-1707 (the web pages; the app's Settings → Legal with T-111's shell; an event's rules page with T-214). Plan: `docs/plans/2026-10-21-t-110-player-legal.md`. Questions: Q-095.
 - [ ] **T-111** Join: by code, join QR, invite link and public list; join card with rules; browse before sign-in; sign-in at the Join tap; several events at once — delivers FR 101, 102, 103, 104, 105, 111, 112, 121, 122; depends on: T-107, T-102
   - Done when: A signed-out person can browse a public event and is asked to sign in only at Join; a private event cannot be found in the public list.
   - Carries the sign-in screens from T-107 (2026-10-20; the API is built): phone or email entry (a non-Saudi number offers email), the code screen with the 60-second resend and, for phone, the email offer after 30 seconds (`emailFallbackAfterSeconds`, passing `previous`), the profile step (username, birth year), and the token store: refresh before the access token's hour ends, and only one refresh in flight at a time (two at once sign the device out by design). FR-1740 auto-fill adds the SMS Retriever hash once the app's signing key exists.
+  - Note 2026-10-21 (T-110): the consent screen comes before the phone or email: it opens the terms and privacy as the web pages and sends `accept: {terms, privacy}` with the versions from `/v1/config` `legal.documents` (never from the build; a cached config from before T-110 has no `legal` block, so refetch before showing the screen). The config parser keeps document ids as plain strings (F-282: a newer server must not break an older app); narrow to the known ids on the screen and ignore unknown ones. Declining stores nothing and goes back. A `422 acceptance_required` re-shows the versions in `details.documents`. On launch, a non-empty `GET /v1/me` `legal.toAccept` shows the re-acceptance screen (`POST /v1/me/acceptances`). Settings → Legal opens `/{lang}/legal/{id}` and `/{lang}/contact`.
   - Note 2026-10-21 (T-109): the profile step sends `avatar` (one of the six) with the username and birth year; a `429 username_too_soon` on a later rename shows `details.nextChangeAt` formatted in the player's language with Western digits (FR-705).
 - [ ] **T-112** Event web page with link preview, store buttons and the join code; install prompt; Android install referrer and iPhone paste-code flow — delivers FR 113, 114, 115, 116, 1741; depends on: T-111
   - Done when: Opening a join link on a phone without the app leads to the store and, after install, to the event card (Android automatic, iPhone with one tap).
@@ -174,6 +176,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
 - [ ] **T-217** Account deletion from the app and from a web page: remove the profile and points, anonymize log entries, keep prize-handover records only as the law requires, keep a one-way fingerprint so bans stand — delivers FR 126, 127, 128, 1704, 1739; depends on: T-109, T-206
   - Done when: A deleted account cannot sign in or be found; log entries are anonymized; a ban still applies to the same phone or email; a pending handover is explained before deletion.
   - Note 2026-10-21 (T-109): `username_history` is append-only; the erasure definer sets `app.erasure = on` in its transaction to delete the player's rows (a guard against mistakes, not a security boundary). Also revoke the player's refresh families (T-107).
+  - Note 2026-10-21 (T-110): `player_acceptance` is append-only under the same erasure flag; erase it with the account unless counsel wants it kept as proof of consent (Q-095).
 - [ ] **T-216** Today's ranking for multi-day events, reset at the event day start — delivers FR 608, 610, 1611; depends on: T-106, T-102
   - Done when: Today's ranking shows only points earned since the event day started and resets at the set hour.
   - Note 2026-10-21 (T-106): `GET /v1/events/{id}/ranking` gains `?scope=today`; today's order needs its own version and points per event day (a separate sorted set per day), the same exclusions and the same repair path.
@@ -190,6 +193,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Gains FR-1006 from T-103: the submission type's schema refuses `video` with a clear message.
   - Done when: A submission's points stay pending until approved; submissions are visible only to the organizer team.
   - Note 2026-10-21 (T-109): text submissions are checked with the username word lists (`username_word`): a match marks the item for its reviewer and does not block it (FR-1628).
+  - Note 2026-10-21 (T-110): a first submission is refused until `GET /v1/me` `legal.guidelinesAccepted` is true; the submission screen shows the guidelines and records them with `POST /v1/me/acceptances {guidelines}` (FR-1706).
 - [ ] **T-302** Vote and quiz quests with timers and one try per question; enter-a-code variants — delivers FR 207, 208, 209, 210; depends on: T-105
   - Done when: A quiz question closes at the timer; the right answer shows after answering.
 - [ ] **T-303** Challenge quests (staff confirm), meet-someone quests, survey quests, share quests, location check-in with the QR fallback — delivers FR 203, 212, 213, 214, 215, 216, 219, 220, 1744; depends on: T-205
@@ -324,8 +328,10 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-21 (T-109): the word lists live in `username_word` (letters only, folded; the table refuses anything else); the console edits them through definers and shows `username_history` to admins (FR-1702, FR-1779).
 - [ ] **T-706** Messaging tools: templates with CST rules, push to a group, campaigns, support contact details — delivers FR 1777, 1780, 1731; depends on: T-407
   - Done when: A promotional template without an opt-out cannot be saved.
+  - Note 2026-10-21 (T-110): the support contact details fill `/{lang}/contact` (it says they are being prepared until then) and the legal drafts' placeholders; a release gate (STORE_COMPLIANCE §4).
 - [ ] **T-707** Legal documents with versions and forced re-acceptance; help and FAQ content — delivers FR 1781, 1782; depends on: T-110
   - Done when: Publishing a new version asks players and organizers to accept again.
+  - Note 2026-10-21 (T-110): player versions live in `playerDocuments()` and reach apps through `/v1/config`; players accept again through `POST /v1/me/acceptances`. Whether routes refuse until then is Q-095.
 - [ ] **T-708** Legal data requests: export and delete a player's data; player data download; no restore after deletion — delivers FR 1778, 1418, 1776; depends on: T-704
   - Done when: A deletion request removes the profile and anonymizes log entries; a deleted account cannot be restored.
 - [ ] **T-709** Platform health view, platform numbers, admin accounts and sessions — delivers FR 1783, 1419, 1785, 1403; depends on: T-004
@@ -360,6 +366,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done when: Both stores accept the submission for review.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A written answer exists for each batched question or it stays listed in OPEN_QUESTIONS.
+  - Note 2026-10-21 (T-110): add Q-095 (minors accepting before the birth year, keeping acceptance records after erasure) to the batch; the company details fill the contact page and the drafts' placeholders.
 - [ ] **T-808** Final accessibility-of-text and Arabic copy pass; microcopy review with the ux-araby skill — delivers no FR (infrastructure or quality gate); depends on: T-802
   - Done when: Every screen has been read in Arabic and English by a person.
 - [ ] **T-809** Independent penetration test against ASVS L2 (core) and MASVS L1 with open-book access; fix or accept in writing every finding — delivers no FR (infrastructure or quality gate); depends on: T-804, T-805

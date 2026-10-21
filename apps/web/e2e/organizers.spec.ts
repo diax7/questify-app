@@ -42,7 +42,27 @@ test("opens each organizer document from the sign-up page", async ({ page }) => 
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   await page.goto("/ar/legal/organizer_dpa");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  expect((await page.goto("/en/legal/privacy_policy"))?.status()).toBe(404);
+  expect((await page.goto("/en/legal/cookie_policy"))?.status()).toBe(404);
+});
+
+test("opens each player document in both languages, and the contact page", async ({ page }) => {
+  await freshAddress(page);
+  for (const [id, ar, en] of [
+    ["terms_of_use", "شروط استخدام Questify", "Questify Terms of Use"],
+    ["privacy_policy", "سياسة الخصوصية في Questify", "Questify Privacy Policy"],
+    ["community_guidelines", "إرشادات مجتمع Questify", "Questify Community Guidelines"],
+  ] as const) {
+    await page.goto(`/en/legal/${id}`);
+    await expect(page.getByRole("heading", { level: 1, name: en })).toBeVisible();
+    await expect(page.getByText("v0.1")).toBeVisible();
+    await page.goto(`/ar/legal/${id}`);
+    await expect(page.getByRole("heading", { level: 1, name: ar })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  }
+  await page.goto("/en/contact");
+  await expect(page.getByRole("heading", { level: 1, name: "Contact us" })).toBeVisible();
+  await page.goto("/ar/contact");
+  await expect(page.getByRole("heading", { level: 1, name: "تواصل معنا" })).toBeVisible();
 });
 
 test("an owner invites an editor, who joins with a new password and the emailed code", async ({

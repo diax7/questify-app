@@ -74,6 +74,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       username: "shown_name",
       avatar: "falcon",
       usernameChange: { allowed: true, nextChangeAt: null },
+      legal: { toAccept: ["terms_of_use", "privacy_policy"], guidelinesAccepted: false },
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

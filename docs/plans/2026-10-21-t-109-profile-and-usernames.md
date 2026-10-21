@@ -115,3 +115,9 @@ ADR-119 (Accepted 2026-10-21): the first word lists come from LDNOOBW, cut and r
   (history row, counts), exact equality is the no-op; `username_blocked` keeps the signup token like
   `username_taken`; T-106 lands before 0016; TASKS says FR-1702 "in part" (the admin view of the history comes with
   the console).
+
+## Build notes
+
+- Phase reviews: 92 (database), 94 (API). **Mutation (2026-10-21):** 93.9% over `profile.ts` (85.3), `compose.ts`
+  (96.6) and `validate.ts` (100); the database rules are covered by `test/db/usernames.int.test.ts` (folding, every
+  match form, the history, the rename limit and its race).

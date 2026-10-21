@@ -380,3 +380,9 @@ export const usernameTooSoon = make(
   "غيّرت اسم المستخدم مؤخرًا. يمكنك تغييره مرة أخرى لاحقًا.",
   "You changed your username recently. You can change it again later.",
 );
+export const playerAcceptanceRequired = make(
+  422,
+  "acceptance_required",
+  "وافق على شروط الاستخدام وسياسة الخصوصية للمتابعة.",
+  "Accept the terms of use and the privacy policy to continue.",
+);

@@ -65,6 +65,17 @@ change limit counts `rename` rows only. `username_word (word, match word|part, l
 usernames (ADR-119), stored folded and letters only (a CHECK refuses anything else), no grant; read inside
 `create_player` and `rename_player` through `username_blocked(name)`.
 
+### player_acceptance (migration 0017)
+`player_acceptance (player_id, document terms_of_use|privacy_policy|community_guidelines, version, method
+signup|sign_in|reaccept|submission, accepted_at)`, primary key (player, document, version): which version of each
+player document a player accepted and how (FR-1705, FR-1706). Sign-up and sign-in copy the versions the code
+request carried (`player_login_challenge.terms_version` and `privacy_version`, NOT NULL, so no challenge, and so
+no player, exists without them), at the challenge's time; re-acceptance and the guidelines go through
+`accept_player_documents(documents jsonb, how text)` (`how` is the `method`: `reaccept` or `submission`),
+bound to the calling player. Forced RLS: a player reads only their
+own rows; no write grant to the API role; append-only for every role (deleting needs the erasure flag, T-217).
+Players created before 0017 have no rows and are asked again.
+
 ### player_contact (migration 0005)
 | Field | Type | Constraints | PII | Notes |
 |---|---|---|---|---|

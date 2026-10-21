@@ -57,8 +57,21 @@ export {
   isUsableOverride,
   validateTranslation,
 } from "./i18n/translate";
-export type { Acceptance, OrganizerDocument, OrganizerDocumentId } from "./legal/documents";
-export { missingAcceptances, organizerDocuments } from "./legal/documents";
+export type {
+  Acceptance,
+  OrganizerDocument,
+  OrganizerDocumentId,
+  PlayerDocument,
+  PlayerDocumentId,
+  SignupAcceptance,
+} from "./legal/documents";
+export {
+  missingAcceptances,
+  missingSignupAcceptances,
+  organizerDocuments,
+  playerDocuments,
+  signupDocuments,
+} from "./legal/documents";
 export {
   eventDayOf,
   formatEventTime,

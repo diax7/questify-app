@@ -72,6 +72,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           usernameChanges: { enabled: true, minAppVersion: null, message: null },
         },
         tuning: { myQrGraceSeconds: 5, screenQrRotationSeconds: 45, usernameChangeDays: 30 },
+        legal: {
+          documents: [
+            { id: "terms_of_use", version: "0.1" },
+            { id: "privacy_policy", version: "0.1" },
+            { id: "community_guidelines", version: "0.1" },
+          ],
+        },
       });
     });
 

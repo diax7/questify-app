@@ -602,18 +602,24 @@ other docs feed it and stay as its detailed appendices.
   "basement" and «فرج» were cut). Every name a player had is kept; a rename is allowed once every 30 days and only
   while Questify allows it. The review found the API's database role could still rename players directly, skipping
   the filter: that right is gone, and only the checked functions write names. Other players only ever see the
-  username and avatar. Migration 0016. CTO: plan 78 → 93; phases 92, 94.
+  username and avatar. Migration 0016. CTO: plan 78 → 93; phases 92, 94; mutation 94%.
+- 2026-10-21 **T-110 done.** Consent before data: the sign-in screen must send the terms and privacy versions the
+  person accepted, or nothing is stored, counted or logged; the server tells every app which versions are in force
+  (`/v1/config`), so a new version needs no app release. Each acceptance is kept with its version and how it was
+  given (sign-up, sign-in, re-acceptance, before a first submission); a player sees only their own. The three
+  player documents and a contact page are on the web in both languages; the contact page honestly says the details
+  are being prepared (a release gate, STORE_COMPLIANCE §4). Migration 0017. CTO: plan 84 → 93; phases 94, 93,
+  94; mutation 93.6%. Questions for counsel: Q-095.
 
 ## Next
 
-1. **Now:** T-110 (consent at sign-up), then T-111 (join; its screens wait for the app shell), then T-208 (exclusion
-   list and bans).
+1. **Now:** T-111 (join; its screens wait for the app shell), then T-208 (exclusion list and bans).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0016, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0017, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

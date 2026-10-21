@@ -1,9 +1,19 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Pool, PoolClient } from "pg";
-import { AVATARS, TUNING, checkUsername, type Avatar } from "@questify/shared";
+import {
+  AVATARS,
+  TUNING,
+  checkUsername,
+  playerDocuments,
+  signupDocuments,
+  type Avatar,
+  type PlayerDocument,
+  type PlayerDocumentId,
+} from "@questify/shared";
 import { z } from "zod";
 import {
   invalidUsername,
+  playerAcceptanceRequired,
   unauthenticated,
   usernameBlocked,
   usernameChangesOff,
@@ -23,6 +33,11 @@ export type MyProfile = Readonly<{
   username: string;
   avatar: Avatar;
   usernameChange: Readonly<{ allowed: boolean; nextChangeAt: string | null }>;
+  /**
+   * The sign-up documents (terms, privacy) whose version in force the player has not accepted (the app asks on launch),
+   * and whether they accepted the guidelines in force (the first submission needs it, FR-1706).
+   */
+  legal: Readonly<{ toAccept: readonly PlayerDocumentId[]; guidelinesAccepted: boolean }>;
 }>;
 
 const patchBody = z
@@ -56,8 +71,13 @@ async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
       username: string;
       avatar: Avatar;
       next: Date | null;
+      accepted: Record<string, string[]> | null;
     }>(
-      "SELECT p.username, p.avatar, username_next_change($2) AS next FROM player p WHERE p.id = $1",
+      `SELECT p.username, p.avatar, username_next_change($2) AS next,
+              (SELECT jsonb_object_agg(document, versions) FROM (
+                 SELECT document, jsonb_agg(version) AS versions FROM player_acceptance
+                 WHERE player_id = $1 GROUP BY document) a) AS accepted
+       FROM player p WHERE p.id = $1`,
       [playerId, rules.days],
     );
     const row = rows[0];
@@ -73,8 +93,55 @@ async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
         allowed: rules.on && row.next === null,
         nextChangeAt: row.next?.toISOString() ?? null,
       },
+      legal: legalOf(row.accepted ?? {}),
     };
   });
+}
+
+/** What is left to accept, from the versions the player accepted of each document. */
+function legalOf(accepted: Readonly<Record<string, readonly string[]>>): MyProfile["legal"] {
+  const has = (id: PlayerDocumentId, version: string) => accepted[id]?.includes(version) === true;
+  const missing = (documents: readonly PlayerDocument[]) =>
+    documents
+      .filter((document) => !has(document.id, document.version))
+      .map((document) => document.id);
+  return {
+    toAccept: missing(signupDocuments()),
+    guidelinesAccepted: !missing(playerDocuments()).includes("community_guidelines"),
+  };
+}
+
+const VERSION = z.string().regex(/^[0-9]+(\.[0-9]+){0,2}$/);
+const acceptBody = z
+  .strictObject({
+    terms: VERSION.optional(),
+    privacy: VERSION.optional(),
+    guidelines: VERSION.optional(),
+  })
+  .refine((body) => Object.keys(body).length > 0);
+
+/**
+ * Records the versions the player accepted now, all or nothing: every document sent must be the version in force, or
+ * the answer names the versions in force. With the guidelines it is the submission step (FR-1706), else re-acceptance.
+ */
+async function acceptDocuments(
+  deps: ProfileDeps,
+  playerId: string,
+  body: z.infer<typeof acceptBody>,
+): Promise<void> {
+  const sent = playerDocuments().filter((document) => body[document.field] !== undefined);
+  if (sent.some((document) => body[document.field] !== document.version)) {
+    throw playerAcceptanceRequired({
+      documents: playerDocuments().map(({ id, version }) => ({ id, version })),
+    });
+  }
+  const documents = JSON.stringify(sent.map(({ id, version }) => ({ document: id, version })));
+  await asPlayer(deps.pool, playerId, (client) =>
+    client.query("SELECT accept_player_documents($1, $2)", [
+      documents,
+      body.guidelines === undefined ? "reaccept" : "submission",
+    ]),
+  );
 }
 
 /** Renames the caller, or throws the refusal's HTTP error. */
@@ -146,4 +213,15 @@ export function registerProfileRoutes(app: FastifyInstance, deps: ProfileDeps): 
     }
     return readMe(deps, playerId);
   });
+
+  // FR-1705's re-acceptance after a new version, and the guidelines before a first submission (FR-1706).
+  app.post(
+    "/v1/me/acceptances",
+    { config: { access: "player" }, bodyLimit: 1024 },
+    async (request) => {
+      const playerId = own(request);
+      await acceptDocuments(deps, playerId, parse(acceptBody, request.body));
+      return readMe(deps, playerId);
+    },
+  );
 }

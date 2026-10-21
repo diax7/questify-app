@@ -123,6 +123,7 @@ const composedShape = z.object({
     }),
   ),
   tuning: z.record(z.string(), z.number()),
+  legal: z.object({ documents: z.array(z.object({ id: z.string(), version: z.string() })) }),
 });
 
 /**

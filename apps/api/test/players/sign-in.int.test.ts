@@ -20,6 +20,8 @@ type Issued = {
 };
 
 const L = PLAYER_SIGN_IN_LIMITS;
+/** The terms and privacy versions in force, as the sign-in screen sends them (T-110). */
+const ACCEPT = { terms: "0.1", privacy: "0.1" };
 const riyadhYear = () =>
   Number(
     new Intl.DateTimeFormat("en", { timeZone: "Asia/Riyadh", year: "numeric" }).format(new Date()),
@@ -79,7 +81,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
     });
 
   const askCode = (value: string, extra: object = {}, headers: Record<string, string> = {}) =>
-    post("code", { channel: value.includes("@") ? "email" : "phone", value, ...extra }, headers);
+    post(
+      "code",
+      { channel: value.includes("@") ? "email" : "phone", value, accept: ACCEPT, ...extra },
+      headers,
+    );
 
   const codeFor = (contact: string): string =>
     contact.includes("@") ? test.mail.lastCode(contact) : test.sms.lastCode(contact);
@@ -182,12 +188,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
     });
 
     it("refuses an unusable email and a malformed body", async () => {
-      expect((await post("code", { channel: "email", value: "not an email" })).statusCode).toBe(
+      expect(
+        (await post("code", { channel: "email", value: "not an email", accept: ACCEPT }))
+          .statusCode,
+      ).toBe(400);
+      expect((await post("code", { channel: "fax", value: "1", accept: ACCEPT })).statusCode).toBe(
         400,
       );
-      expect((await post("code", { channel: "fax", value: "1" })).statusCode).toBe(400);
       expect(
-        (await post("code", { channel: "phone", value: newPhone(), extra: true })).statusCode,
+        (await post("code", { channel: "phone", value: newPhone(), accept: ACCEPT, extra: true }))
+          .statusCode,
       ).toBe(400);
       expect(
         (await post("verify", { challengeToken: "A".repeat(44), code: "123456" })).statusCode,

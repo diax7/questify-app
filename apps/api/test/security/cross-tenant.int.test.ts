@@ -426,6 +426,8 @@ const SHARED: Readonly<Record<string, string>> = {
   translation: "platform-wide texts; only a Questify admin writes (test/translations)",
   auth_throttle: "keyed by a one-way tag, not by a person; no data to leak (test/auth)",
   schema_migration: "the migration record; the API role has no rights on it (outsider suite)",
+  player_acceptance:
+    "a player reads only their own rows (policy on app_player_id()); no write right at all, the definers record acceptances (test/db/player-legal)",
   player_login_challenge:
     "no right for the API role at all; a challenge is reached only through definers bound to its token (test/db/player-sign-in)",
   player_refresh:

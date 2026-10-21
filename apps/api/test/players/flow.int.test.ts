@@ -77,7 +77,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
   };
   const ask = (value: string) =>
     flow.requestCode(
-      { channel: value.includes("@") ? "email" : "phone", value, lang: "ar" },
+      {
+        channel: value.includes("@") ? "email" : "phone",
+        value,
+        lang: "ar",
+        accept: { terms: "0.1", privacy: "0.1" },
+      },
       asker(),
     );
   const tokenOf = async (value: string): Promise<string> => {
@@ -102,8 +107,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
   const staleChallenge = async (): Promise<Buffer> => {
     const token = randomBytes(32);
     await owner(
-      `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at)
-       VALUES (gen_random_uuid(), $1, 'phone', $2, $3, $4, now() - interval '2 hours')`,
+      `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at,
+                                           terms_version, privacy_version)
+       VALUES (gen_random_uuid(), $1, 'phone', $2, $3, $4, now() - interval '2 hours', '0.1', '0.1')`,
       [token, newPhone(), randomBytes(32), randomBytes(32)],
     );
     return token;

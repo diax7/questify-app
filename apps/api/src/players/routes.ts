@@ -11,6 +11,7 @@ import {
   invalidRequest,
   invalidUsername,
   phoneNotSupported,
+  playerAcceptanceRequired,
   resendLimit,
   resendTooSoon,
   signupExpired,
@@ -30,11 +31,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const LANG = z.enum(["ar", "en"]).default("ar");
 
+const VERSION = z.string().regex(/^[0-9]+(\.[0-9]+){0,2}$/);
 const codeBody = z.strictObject({
   channel: z.enum(["phone", "email"]),
   value: z.string().min(1).max(254),
   previous: TOKEN.optional(),
   lang: LANG,
+  // The terms and privacy versions the person accepted on the sign-in screen (FR-1705).
+  accept: z.strictObject({ terms: VERSION, privacy: VERSION }),
 });
 const resendBody = z.strictObject({ challengeToken: TOKEN, lang: LANG });
 const verifyBody = z.strictObject({ challengeToken: TOKEN, code: z.string().min(1).max(20) });
@@ -97,6 +101,8 @@ export function registerPlayerAuthRoutes(app: FastifyInstance, signIn: PlayerSig
             const { kind: _kind, ...sent } = result;
             return reply.code(202).send(sent);
           }
+          case "acceptance_required":
+            throw playerAcceptanceRequired({ documents: result.documents });
           case "phone_not_supported":
             throw phoneNotSupported({ emailOffered: true });
           case "invalid_email":

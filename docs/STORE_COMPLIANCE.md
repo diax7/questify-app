@@ -827,6 +827,11 @@ behind login), and reachable without an account.
 | **Account deletion page** | How to delete in the app; a web form or email to request deletion without reinstalling; what is deleted, what is kept (e.g., prize-fulfilment records) and for how long; names the app and developer as on the listing. | Play Data safety deletion URL; privacy policy; Apple Privacy Choices URL (optional). | Google 13327111; Apple 5.1.1(v). [verified 2026-10-16] |
 | **Marketing consent text** (if ever used) | Separate, unticked, per channel (push, email, SMS); sender named; how to opt out. Not bundled into the privacy policy. | Sign-up (optional step) and Settings → Notifications. | PDPL Art. 25, IR Art. 29; CST 4.6.6.1; Apple 4.5.4. [verified 2026-10-16] |
 
+**Release gate (T-110, 2026-10-21).** The web pages exist (`/{lang}/legal/{id}` for the three player and three
+organizer documents, `/{lang}/contact`), but the drafts carry placeholders and the contact page says the details are
+being prepared. Before the first store submission: a real support email, the company name, CR number and address on
+the contact page and in the legal drafts' placeholders (T-706, T-807), and counsel's versions of the texts.
+
 ---
 
 ## 5. (a) Pre-submission checklist

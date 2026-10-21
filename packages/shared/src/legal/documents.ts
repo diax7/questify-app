@@ -35,3 +35,49 @@ export function missingAcceptances(accepted: Partial<Acceptance>): OrganizerDocu
     .filter((document) => accepted[document.field] !== document.version)
     .map((document) => document.id);
 }
+
+/**
+ * The documents a player accepts (FR-1705, FR-1706), with the version in force. The texts live in `docs/legal/` and are
+ * shown as the web pages; the app learns these versions from `GET /v1/config`, never from its own build.
+ */
+export type PlayerDocumentId = "terms_of_use" | "privacy_policy" | "community_guidelines";
+
+export type PlayerDocument = Readonly<{
+  id: PlayerDocumentId;
+  /** The field a request names it by. */
+  field: "terms" | "privacy" | "guidelines";
+  version: string;
+}>;
+
+const PLAYER_DOCUMENTS: readonly PlayerDocument[] = [
+  { id: "terms_of_use", field: "terms", version: "0.1" },
+  { id: "privacy_policy", field: "privacy", version: "0.1" },
+  { id: "community_guidelines", field: "guidelines", version: "0.1" },
+];
+
+/** The three player documents and the versions in force now. */
+export function playerDocuments(): readonly PlayerDocument[] {
+  return PLAYER_DOCUMENTS;
+}
+
+/** What a person accepts before their phone or email is stored: the terms and the privacy policy. */
+export type SignupAcceptance = Readonly<{ terms: string; privacy: string }>;
+
+/**
+ * The sign-up documents (terms, privacy) whose given version is not the one in force; never the guidelines, which are
+ * accepted before a first submission instead.
+ */
+export function missingSignupAcceptances(
+  accepted: Readonly<Partial<Record<PlayerDocument["field"], string>>>,
+): PlayerDocumentId[] {
+  return signupDocuments()
+    .filter((document) => accepted[document.field] !== document.version)
+    .map((document) => document.id);
+}
+
+/** The documents accepted before a phone or email is stored: the terms and the privacy policy, in force now. */
+export function signupDocuments(): readonly PlayerDocument[] {
+  return playerDocuments().filter(
+    (document) => document.field === "terms" || document.field === "privacy",
+  );
+}

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { organizerDocuments } from "@questify/shared";
+import { organizerDocuments, playerDocuments } from "@questify/shared";
 import { notFound } from "next/navigation";
 import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage } from "#src/lib/language.ts";
@@ -10,12 +10,15 @@ import styles from "#src/components/layout.module.css";
 type Props = Readonly<{ params: Promise<{ lang: string; document: string }> }>;
 
 /**
- * An organizer document, in the page's language, from `docs/legal/` (the drafts awaiting counsel, T-807). Only the
- * three known ids are served, so no other file can be read through this page.
+ * A legal document, in the page's language, from `docs/legal/` (the drafts awaiting counsel, T-807): the organizer's
+ * three and the player's three (the app's Settings → Legal opens these, FR-1707). Only known ids are served, so no
+ * other file can be read through this page.
  */
 export default async function LegalPage({ params }: Props) {
   const { lang, document } = await params;
-  const known = organizerDocuments().find((item) => item.id === document);
+  const known = [...organizerDocuments(), ...playerDocuments()].find(
+    (item) => item.id === document,
+  );
   if (!isLanguage(lang) || known === undefined) {
     notFound();
   }

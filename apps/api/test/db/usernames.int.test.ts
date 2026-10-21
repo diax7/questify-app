@@ -297,13 +297,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
       const contact = `+9665${String(30_000_000 + counter).slice(-8)}`;
       const token = randomBytes(32);
       const code = randomBytes(32);
-      await db.app.query("SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5)", [
-        randomUUID(),
-        token,
-        contact,
-        randomBytes(32),
-        code,
-      ]);
+      await db.app.query(
+        "SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, '0.1', '0.1')",
+        [randomUUID(), token, contact, randomBytes(32), code],
+      );
       const signup = randomBytes(32);
       await db.app.query("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)", [
         token,

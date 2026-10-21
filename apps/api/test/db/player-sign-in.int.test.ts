@@ -43,7 +43,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
     counter += 1;
     const value = contact ?? `+96655${String(1_000_000 + counter).slice(-7)}`;
     const made = { token: bytes(), code: bytes(), contact: value, key: sha(Buffer.from(value)) };
-    await call("SELECT start_player_challenge($1, $2, $3, $4, $5, $6)", [
+    await call("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, '0.1', '0.1')", [
       randomUUID(),
       made.token,
       channel,
@@ -143,7 +143,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
 
     it("ends when a new code is asked for the same contact (one live code per contact)", async () => {
       const first = await challenge();
-      await call("SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5)", [
+      await call("SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, '0.1', '0.1')", [
         randomUUID(),
         bytes(),
         first.contact,
@@ -168,7 +168,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
         ["email", "@example.com"],
       ]) {
         await expect(
-          call("SELECT start_player_challenge($1, $2, $3, $4, $5, $6)", [
+          call("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, '0.1', '0.1')", [
             randomUUID(),
             bytes(),
             channel,
@@ -544,7 +544,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
         await expect(db.app.query(`SELECT public.${fn}`)).rejects.toThrow(/permission denied/);
       }
       for (const fn of [
-        "start_player_challenge(gen_random_uuid(), '\\x00', 'phone', 'x', '\\x00', '\\x00')",
+        "start_player_challenge(gen_random_uuid(), '\\x00', 'phone', 'x', '\\x00', '\\x00', '0.1', '0.1')",
         "sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00')",
         "create_player('\\x00', 'x', 1990, 'falcon', '\\x00', '\\x00', gen_random_uuid())",
         "rotate_player_refresh('\\x00', '\\x00', '\\x00')",

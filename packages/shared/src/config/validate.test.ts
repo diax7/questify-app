@@ -168,10 +168,13 @@ describe("parseComposedConfig", () => {
     schemaVersion: 1,
     features: { shop: { enabled: true, minAppVersion: null, message: null } },
     tuning: { qrSeconds: 45 },
+    legal: { documents: [{ id: "terms_of_use", version: "0.1" }] },
   };
 
   it("accepts a composed document", () => {
     expect(parseComposedConfig(valid)).toEqual({ ok: true, config: valid });
+    const { legal: _legal, ...withoutLegal } = valid;
+    expect(parseComposedConfig(withoutLegal)).toEqual({ ok: false });
   });
 
   it("ignores blocks it does not know, so a newer server never breaks an older app", () => {
