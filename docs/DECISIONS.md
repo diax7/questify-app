@@ -193,7 +193,7 @@ mixed digits when organizer content, QR codes and phone numbers meet in one scre
 locale is active (e.g. `ar-SA-u-nu-latn`). A test should cover it.
 
 ## ADR-019 — Arabic brand name: كويستفاي
-**Status:** Accepted (user, 2026-10-16). Answers Q-066.
+**Status:** Superseded by ADR-125 (user, 2026-10-21). Was Accepted (user, 2026-10-16), answering Q-066.
 **Decision:** The brand name in Arabic is **كويستفاي**. It is used in Arabic text: the Arabic
 store listing, Arabic copy and every Arabic mention of the brand. It has no logo of its own
 (ADR-020).
@@ -969,7 +969,7 @@ disclosure and permission screen.
 
 ## ADR-072 — Location while the app is open, never in the background
 **Status:** Accepted (user, 2026-10-17). Accepts PD-09, widened. PD-09 proposed location only during
-a location quest.
+a location quest. **Confirmed (user, 2026-10-21, Q-087):** whenever the app is open, not only during a location quest.
 **Decision:**
 - With the player's permission ("While using the app"), the app reads location whenever it is
   open. It never reads location in the background.
@@ -1678,7 +1678,7 @@ the SMTP sender in the API with a Gmail API sender (no new library: a signed ser
 call, with the same timeouts and the Resend fallback). The Gmail app password is no longer needed.
 
 ## ADR-113 — One trusted proxy hop: the web forwarder passes the client address through
-**Status:** Proposed (T-011, CTO plan review 2026-10-20).
+**Status:** Accepted (user, 2026-10-21). Proposed in T-011, CTO plan review 2026-10-20.
 **Decision:** The web app's `/v1` forwarder passes `X-Forwarded-For` through unchanged (a Next.js route handler
 cannot see its own peer) and calls the API at its **internal** address (`API_ORIGIN`, plain http and a one-word host,
 enforced at start-up). The API trusts exactly one hop (`TRUST_PROXY_HOPS=1`): the entry CranL's edge adds. The
@@ -1691,7 +1691,9 @@ the edge appends the real client address and both paths count it the same way.
 **Replaces:** the T-006 note's chain "edge, dashboard proxy, API", which assumed the forwarder appends.
 
 ## ADR-114 — Questify-wide quests get their own table
-**Status:** Proposed (T-103 planning, CTO review 2026-10-20).
+**Status:** Accepted (user, 2026-10-21). Proposed in T-103 planning, CTO review 2026-10-20. The user's note: Questify
+runs no quests inside organizers' events; each event has its own. Questify's own quests live on Questify home, outside
+every event, which is what `questify_quest` holds.
 **Decision:** `quest.event_id` is NOT NULL: every row in `quest` belongs to an event and its organizer, so tenant
 row-level security stays one simple rule. Quests not tied to an event (FR on Questify-wide quests) get their own table,
 `questify_quest`, when they are built.
@@ -1699,7 +1701,7 @@ row-level security stays one simple rule. Quests not tied to an event (FR on Que
 **Why:** a null tenant key would need an exception in every quest policy and in the outsider and cross-tenant tests.
 
 ## ADR-115 — `uqr` draws QR codes in the dashboard
-**Status:** Proposed (T-104, CTO plan review 2026-10-20).
+**Status:** Accepted (user, 2026-10-21). Proposed in T-104, CTO plan review 2026-10-20.
 **Decision:** The dashboard draws quest QR codes with `uqr` 0.1.3 (unjs, MIT, no dependencies, 79 kB), pinned
 exactly, in `apps/web` only, through `encode()` into an SVG path (never raw HTML). The API signs codes; it never draws
 them.
@@ -1708,7 +1710,7 @@ them.
 not depend on the library.
 
 ## ADR-116 — Quest QR codes are signed with their own secret, `QR_SECRET`
-**Status:** Proposed (T-104, CTO plan review 2026-10-20).
+**Status:** Accepted (user, 2026-10-21). Proposed in T-104, CTO plan review 2026-10-20.
 **Decision:** A quest QR holds `{DASHBOARD_ORIGIN}/q/{token}`; the token is base64url of a format byte, the quest id,
 its code version and a 128-bit HMAC-SHA256 tag over those, under `HMAC(QR_SECRET, "questify/qr/v1/quest")`. `QR_SECRET`
 is a new required production secret (32+ characters), set by Dhia in the secret store, separate from `AUTH_SECRET`.
@@ -1753,7 +1755,7 @@ words, match anywhere.
 terms. The cut keeps false refusals rare; the admin can add or remove words without a release.
 
 ## ADR-120 — A contact change proves the new contact, not the old one
-**Status:** Proposed (Claude, 2026-10-21, T-108; CTO review).
+**Status:** Accepted (user, 2026-10-21). Proposed by Claude in T-108; CTO review.
 **Decision:** A player changes their phone or email, or adds the second one, with a code sent to the new contact only
 (FR-125, FR-139). The old contact is not asked for a code. Every change and add sends a notice to the old value of that
 channel and to the other channel (SMS for a phone, email for an email, both languages, never naming the new value),
@@ -1788,3 +1790,73 @@ its meaning for anyone without a session.
 **Cost:** a public event still costs one reading per event every 15 seconds. An unlisted or private event costs one
 reading per player every 15 seconds, and its entries share the 1000-entry cache. The phone keeps one copy per event,
 removed when the app forgets the event.
+
+## ADR-123 — One environment for now: the CranL staging services become production
+**Status:** Accepted (user, 2026-10-21: "I dont want staging for now, only production"; chose "make it production").
+**Decision:** There is no staging environment for now. The live CranL services (`questify-api-staging`,
+`questify-web-staging`, their database, secrets, the Gmail email setup and the admin account) are renamed and
+repointed as production; nothing is rebuilt. Every change that was waiting for "staging" (migrations 0007 onward,
+the managed Redis with `noeviction`, `QR_SECRET`, Msegat's static-IP check) is now done on production.
+**Amends:** ADR-107 and the RUNBOOK's staging steps.
+**Cost:** changes are tried on the live environment; the local suite (`ci:full`) and the database tests are the
+safety net until real players arrive, when a separate test environment is reconsidered.
+
+## ADR-124 — A released username is held for a number of days a Questify admin sets
+**Status:** Accepted (user, 2026-10-21). Answers Q-094.
+**Decision:** A platform setting, edited in the Questify admin console, holds a username a player gave up for N days
+before anyone else can take it. 0 days (the default) frees it at once, as built in T-109. The username history
+(FR-1702) still records who had each name.
+
+## ADR-125 — The brand is written "Questify" in Latin letters in Arabic text too
+**Status:** Accepted (user, 2026-10-21). Answers Q-098; supersedes ADR-019.
+**Decision:** Arabic text writes the brand as "Questify", the same as English. The strings that write «كويستفاي»
+(SMS, emails, the event web page, the contact texts) change to "Questify" in the copy pass (T-808). The Arabic store
+listing uses the same name. The logo stays the English wordmark (ADR-020).
+
+## ADR-126 — No "+" next to the coin balance
+**Status:** Accepted (user, 2026-10-21). Answers Q-053.
+**Decision:** The coin balance is shown with no button beside it. In games a "+" beside coins means "buy more", and
+Questify sells no coins (ADR-002); store reviewers may read it as an in-app purchase.
+
+## ADR-127 — The minimum iPhone software is iOS 16.4
+**Status:** Accepted (user, 2026-10-21). Answers Q-082.
+**Decision:** The app supports iOS 16.4 and later (NFR-008), the minimum of Expo SDK 57 (Q-046). Android stays 9 and
+later.
+
+## ADR-128 — The owner's "billing" powers mean requesting activation; the platform holds no invoices
+**Status:** Accepted (user, 2026-10-21). Answers Q-089.
+**Decision:** ADR-076 stands: the platform holds no prices, invoices or payments. Where older text gives the owner
+"billing" powers (ADR-059, F-188, FR-1011, FR-1012) it means requesting activation, limits and add-ons; SRS §3 and §4
+and `INTEGRATIONS.md` drop platform-sent invoices. Those texts are corrected in the copy pass (T-808) or the next task
+that touches them.
+
+## ADR-129 — Free sounds in the adventure style, a full set
+**Status:** Accepted (user, 2026-10-21: "use free sounds that match our theme and style, we would need much more than 3
+sounds"). Answers Q-103.
+**Decision:** The app uses royalty-free sounds whose licence allows commercial use without credit in the app (for
+example CC0), chosen to match the brand's adventure style (ADR-013). The set covers more than the scan beat: scanned,
+success, refused, level up, reward redeemed, rank change, button taps and the other celebration moments. Each file and
+its licence are listed in the design references. Sounds respect the phone's silent switch.
+
+## ADR-130 — The mascot is Saqr, the falcon explorer
+**Status:** Accepted (user, 2026-10-21). Answers Q-069.
+**Decision:** Saqr is the mascot for onboarding, tips, empty states and celebrations. Its character sheet comes next
+in the design work (Phase 6); the other four concepts are dropped.
+
+## ADR-131 — No trademark registration; the store listing name must still be unique
+**Status:** Accepted (user, 2026-10-21: "no need to have trademark"). Answers Q-021.
+**Decision:** Questify registers no trademark. Other apps named Questify exist (checked 2026-10-21): on the App Store
+"Questify - Task RPG" (Taylor Reilly, playquestify.com) and "Focus Timer · Questify"; on Google Play "Questify"
+(com.codetechno.questify, a quiz game), "Questify - Daily Quest Tracker", "Questify : Sor & Cevapla" and others. Apple
+requires a unique app name, so the listing uses a longer name (for example "Questify: Event Quests"), reserved when the
+Apple account exists (T-010). Google Play does not require unique names.
+**Cost:** another Questify could object to the name later; the user accepts that risk.
+
+## ADR-132 — Where four partly delivered features are finished
+**Status:** Accepted (user, 2026-10-21, Claude's recommendations). Answers Q-096, Q-097, Q-099, Q-101 and Q-102.
+**Decision:**
+- Q-096: exclusion lists check current contacts only; no contact history. Revisit if an organizer reports it.
+- Q-097: a root `not-found.tsx` in Arabic and English, stacked, comes with the next web task that touches the shell.
+- Q-099: the event's about text, address and map position are added to the event form in T-613.
+- Q-101 and Q-102: optional location, estimated minutes, difficulty and tips join the quest form when the builder
+  grows (T-3xx); steps come with multi-step quests; "Up next" switches to points per minute then.

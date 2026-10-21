@@ -622,3 +622,21 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - "there is no accessibility settings in our app, its one font, one size and its the same for all users, we accept
   this" (during T-116, on whether the ranking's rows may cap large text).
 - Processed: ADR-121 (Accepted); the app ignores the phone's text size everywhere; Reduce Motion stays (FR-408).
+
+## 2026-10-21 — Pending items walk-through → processed
+
+- "lets start by this Expo sign-in then Msegat volume quote and for Staging infrastructure, I dont want staging for
+  now, only production"
+- "A domain for the Resend email backup I want the same as gmail but lets skip this for now, gmail is enopgh if it
+  dont go to spam"
+- Answers, one by one: ADR-113, 115, 116, 120 accepted. ADR-114: "Questify doesnt do quests for other events at all,
+  each event have its own things. Questify can do quest for questify it self, our home main page not inside the
+  events". The coin "+": remove it. iOS 16.4: yes. Location: "whenever the app is open". Old usernames: "from the
+  quesrify admin we can set this as 0 days = free at once or x days". Brand in Arabic: keep Latin "Questify",
+  everywhere. Billing: follow ADR-076. Bar order: update the FR text. Exclusions, 404 page, quest fields, event info:
+  Claude's recommendations. Sounds: "use free sounds that match our theme and style, we would need much more than 3
+  sounds I guess". First event: no pilot yet. Trademark: "no need to have trademark"; check the store names. Mascot:
+  Saqr. Staging: make the existing services production. Expo: start the Android development build.
+- Processed: ADR-113 to 116 and 120 Accepted; ADR-123 to ADR-132; ADR-019 superseded; ADR-072 confirmed; FR-620,
+  FR-830 and NFR-008 amended; Q-083, Q-077, Q-022 updated; 15 questions closed. Expo was already signed in; the
+  first Android development build was started (`expo-dev-client` added, which the profile needs).
