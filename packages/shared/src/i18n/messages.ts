@@ -444,6 +444,46 @@ export const MESSAGES = {
   },
   "quests.type.scanQr": { ar: "مسح رمز QR", en: "Scan a QR code" },
   "quests.type.enterCode": { ar: "إدخال رمز", en: "Enter a code" },
+  "eventPage.getReady": { ar: "استعدّ: ثبّت تطبيق كويستفاي", en: "Get ready: install Questify" },
+  "eventPage.liveNow": { ar: "الفعالية جارية الآن", en: "The event is on now" },
+  "eventPage.ended": { ar: "انتهت هذه الفعالية.", en: "This event has ended." },
+  "eventPage.code": { ar: "رمز الفعالية", en: "Event code" },
+  "eventPage.codeHint": {
+    ar: "اكتب هذا الرمز في التطبيق، أو امسح رمز QR الخاص بالفعالية.",
+    en: "Type this code in the app, or scan the event's QR code.",
+  },
+  "eventPage.starts": { ar: "تبدأ", en: "Starts" },
+  "eventPage.ends": { ar: "تنتهي", en: "Ends" },
+  "eventPage.play": { ar: "حمّله من Google Play", en: "Get it on Google Play" },
+  "eventPage.iphone": {
+    ar: "آيفون: انسخ رابط الفعالية وافتح App Store",
+    en: "iPhone: copy the event link and open the App Store",
+  },
+  "eventPage.copyOnly": { ar: "انسخ رابط الفعالية", en: "Copy the event link" },
+  "eventPage.copied": {
+    ar: "نسخنا رابط الفعالية. سيعرض التطبيق لصقه عند فتحه أول مرة.",
+    en: "We copied the event link. The app offers to paste it when you first open it.",
+  },
+  "eventPage.copyFailed": {
+    ar: "تعذّر النسخ. انسخ الرابط أدناه بنفسك.",
+    en: "That could not be copied. Copy the link below yourself.",
+  },
+  "eventPage.soon": {
+    ar: "التطبيق قادم إلى المتاجر قريبًا.",
+    en: "The app is coming to the stores soon.",
+  },
+  "eventPage.unavailable": {
+    ar: "تعذّر تحميل تفاصيل الفعالية. حاول مرة أخرى بعد قليل.",
+    en: "We couldn't load the event details. Try again in a moment.",
+  },
+  "eventPage.throttled": {
+    ar: "رموز خاطئة كثيرة من هذه الشبكة. حاول مرة أخرى بعد دقائق.",
+    en: "Too many wrong codes from this network. Try again in a few minutes.",
+  },
+  "eventPage.notAvailable": {
+    ar: "هذه الفعالية غير متاحة.",
+    en: "This event is not available.",
+  },
   "players.title": { ar: "اللاعبون", en: "Players" },
   "players.search": { ar: "ابحث باسم المستخدم", en: "Search by username" },
   "players.empty": { ar: "لا يوجد لاعبون بعد.", en: "No players yet." },

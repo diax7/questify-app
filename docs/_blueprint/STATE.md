@@ -636,6 +636,15 @@ other docs feed it and stay as its detailed appendices.
   not give one: ADR-120, Proposed). The API can no longer write contacts directly; every change is audited without the
   contact. The profile now shows masked identifiers. Migration 0020. CTO: plan 80 → 94; phases 93, 93, 95; mutation
   92.2% on contact.ts, 91.5% on profile.ts. The screens wait for the app shell (T-009).
+- 2026-10-21 **T-112 web half done.** The event web page `/{lang}/e/{CODE}`: what the join QR and the invite link
+  open on a phone without the app. It shows the event, its code, what the organizer will see, and the way to the
+  stores; WhatsApp and social apps get a preview with the event's name, place and date and a brand image (tested as a
+  WhatsApp bot reads it); unlisted and private events stay out of search; an unknown code says "not available" in both
+  languages; when the API cannot answer, the code and the buttons still work. The store buttons wait for the store
+  listings (T-010: two web settings), and the app's side (the Android referrer, the iPhone paste) waits for the app
+  shell. CTO: plan 81 → 93; phases 92, 95. Found: the Arabic brand spelling drifts in six older strings (Q-098, ADR-019).
+  One flaky e2e seen once (the players page on the phone layout, under the full suite; it passed alone and in the next
+  full run): watch it.
 
 ## Next
 

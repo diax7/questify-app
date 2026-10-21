@@ -200,6 +200,11 @@ the client-address count (ADR-113).
 - Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
   (never the public https URL: the app refuses to start with one). No secrets in the web app.
 - The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).
+- Optional settings `APP_STORE_URL` (https on `apps.apple.com`) and `PLAY_STORE_URL` (https on `play.google.com`): the
+  store pages for the event web page `/{lang}/e/{CODE}` (T-112). Unset, the page shows no store buttons and says the
+  app is coming soon; any other value stops the app at start. The Play link gets the install referrer `join=CODE`.
+- The event page's link preview names `https://questify.sa` (the join link's host) for its canonical and share image,
+  on staging too: a preview of a staging link points at production until the domain serves the web app.
 
 ## Database and deploy
 

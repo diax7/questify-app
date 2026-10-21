@@ -29,4 +29,37 @@ describe("readWebConfig", () => {
       /must be an internal http address/,
     );
   });
+
+  describe("the store links", () => {
+    const base = { API_ORIGIN: "http://questify-api" };
+
+    it("leaves them out when unset or empty", () => {
+      expect(readWebConfig({ ...base, APP_STORE_URL: "", PLAY_STORE_URL: undefined })).toEqual({
+        apiOrigin: "http://questify-api",
+      });
+    });
+
+    it("keeps https links on each store's own host", () => {
+      expect(
+        readWebConfig({
+          ...base,
+          APP_STORE_URL: "https://apps.apple.com/sa/app/questify/id123",
+          PLAY_STORE_URL: "https://play.google.com/store/apps/details?id=sa.questify",
+        }),
+      ).toEqual({
+        apiOrigin: "http://questify-api",
+        appStoreUrl: "https://apps.apple.com/sa/app/questify/id123",
+        playStoreUrl: "https://play.google.com/store/apps/details?id=sa.questify",
+      });
+    });
+
+    it.each([
+      ["APP_STORE_URL", "http://apps.apple.com/app", /must be an https link on apps.apple.com/],
+      ["APP_STORE_URL", "https://play.google.com/x", /must be an https link on apps.apple.com/],
+      ["PLAY_STORE_URL", "https://evil.example/store", /must be an https link on play.google.com/],
+      ["PLAY_STORE_URL", "not a url", /PLAY_STORE_URL "not a url" is not a URL/],
+    ])("refuses %s=%s", (name, value, message) => {
+      expect(() => readWebConfig({ ...base, [name]: value })).toThrow(message);
+    });
+  });
 });
