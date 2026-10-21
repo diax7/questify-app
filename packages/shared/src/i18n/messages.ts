@@ -595,6 +595,68 @@ export const MESSAGES = {
     ar: "تعذّر فتح الخرائط على هذا الجوال.",
     en: "Couldn't open a maps app on this phone.",
   },
+  "questsTab.summary": {
+    ar: "النقاط: {earned} / {available} · المهام: {finished} / {total}",
+    en: "{earned} / {available} pts · {finished} / {total} quests",
+  },
+  "questsTab.empty": {
+    ar: "لا توجد مهام بعد. ترقّب ما يضيفه المنظّم.",
+    en: "No quests yet. Check back soon.",
+  },
+  "questsTab.loadFailed": {
+    ar: "تعذّر تحميل المهام. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    en: "Couldn't load the quests. Check your connection, then try again.",
+  },
+  "questsTab.repeat": { ar: "{done} من {cap}", en: "{done} of {cap}" },
+  "questsTab.done": { ar: "أنجزتها", en: "Done" },
+  "questsTab.notLive": { ar: "غير متاحة الآن", en: "Not available right now" },
+  "questsTab.closed": { ar: "انتهت هذه المهمة", en: "This quest has ended" },
+  "questsTab.unknown": {
+    ar: "غير متاحة في هذا الإصدار من التطبيق. حدّث التطبيق لتلعبها.",
+    en: "Not available in this version of the app. Update the app to play it.",
+  },
+  "questsTab.verifyScan": {
+    ar: "امسح رمز المهمة في الفعالية",
+    en: "Scan the quest's code at the event",
+  },
+  "questsTab.verifyCode": {
+    ar: "اكتب الرمز المعروض في الفعالية",
+    en: "Type the code shown at the event",
+  },
+  "questsTab.scan": { ar: "مسح الرمز", en: "Scan the code" },
+  "questsTab.codeLabel": { ar: "الرمز", en: "Code" },
+  "questsTab.codeHint": { ar: "حروف إنجليزية (A–Z) وأرقام", en: "Letters A–Z and digits" },
+  "questsTab.submit": { ar: "إرسال الرمز", en: "Send code" },
+  "questsTab.completed": { ar: "النقاط: +{points}", en: "+{points} points" },
+  "questsTab.wait": {
+    ar: "محاولات كثيرة. حاول بعد {span}.",
+    en: "Too many tries. Try again in {span}.",
+  },
+  "questsTab.waitSoon": {
+    ar: "محاولات كثيرة. حاول بعد قليل.",
+    en: "Too many tries. Try again shortly.",
+  },
+  "questsTab.notOpen.eventNotLive": {
+    ar: "الفعالية ليست جارية الآن.",
+    en: "The event isn't live right now.",
+  },
+  "questsTab.notOpen.hidden": {
+    ar: "لم تعد هذه المهمة متاحة.",
+    en: "This quest is no longer available.",
+  },
+  "questsTab.notOpen.notStarted": {
+    ar: "لم تبدأ هذه المهمة بعد.",
+    en: "This quest hasn't started yet.",
+  },
+  "questsTab.notOpen.ended": { ar: "انتهت هذه المهمة.", en: "This quest has ended." },
+  "questsTab.limit": {
+    ar: "وصلت إلى الحد الأقصى لهذه المهمة.",
+    en: "You've reached this quest's limit.",
+  },
+  "questsTab.failed": {
+    ar: "تعذّر إكمال المهمة. حاول مرة أخرى.",
+    en: "Couldn't complete the quest. Try again.",
+  },
   "ranking.off": {
     ar: "الترتيب مخفي في هذه الفعالية.",
     en: "The ranking is hidden for this event.",

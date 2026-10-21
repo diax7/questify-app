@@ -659,15 +659,26 @@ other docs feed it and stay as its detailed appendices.
   quest as Up next in the builder. Not yet run on a phone (T-009): also check there that event times show in the
   event's zone (Hermes `Intl` time zones). CTO: plan 79 → 93; phases 94, 95, 92 (its four fixes applied).
 
+- 2026-10-21 **T-114 built.** The Quests tab lists the event's quests by category; each category opens and closes and,
+  closed, shows the points earned of those available and the quests finished. Each quest has a card and a details
+  sheet saying how it is verified. Entry-code quests can now be completed in the app: the player types the code and
+  gets the points (the first quest playable end to end on the phone). Scan quests wait for T-115. The server decides
+  each quest's state on its own clock, so Home and the tab agree; a member waiting for approval is told so and keeps
+  the event. Quests have no location, time, difficulty, tips or steps yet (Q-102). Not yet run on a phone (T-009).
+  CTO: plan 86 → 94; code 92, with its fixes applied.
+
 ## Next
 
-1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-114 Quests tab).
+1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-115 scanner and celebration).
+   - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
+     tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
+     with the next Expo update.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0021, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0022, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
    domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-120 (a contact change proves only the new contact), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts), Q-097, Q-098 (Arabic brand drift), Q-099 (event info fields), Q-100 (bar direction against FR-620), Q-101 (Up next without estimated times), Q-102 (quest detail fields).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says
