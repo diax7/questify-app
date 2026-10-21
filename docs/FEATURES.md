@@ -226,7 +226,7 @@ Area 7.
 
 | # | Feature | Priority | Source | Notes |
 |---|---|---|---|---|
-| F-121 | Two numbers per event: **score** (points earned; ranks you) and **balance** (earned − spent; what you can spend) | Must | Claude | Spending never lowers your rank (ADR-043) |
+| F-121 | Two numbers per event: **score** (points earned; ranks you) and **balance** (earned − spent; what you can spend) | Must | Claude | Spending never lowers your rank by default; each event may choose otherwise (ADR-043, ADR-134) |
 | F-08 | Balance and progress always visible, animated | Must | user | |
 | F-24 | Event currency: name in Arabic and English + an icon from Questify's 3D set (coin, crown coin, gem, leaf, star) | Must | user | No uploaded icons |
 | F-56 | Quest-complete celebration in two steps: a "Scanned! checking…" beat within 300 ms, then the full +points celebration (Claim) when the server confirms | Must | deck / BRD / user | ADR-083. Points are recorded whether or not Claim is tapped |
@@ -320,7 +320,7 @@ Decisions:
 Earlier decisions that apply here:
 - Prizes come from the organizer (ADR-011).
 - Fixed prices, no chance (ADR-026).
-- Spending never lowers rank (ADR-043).
+- Spending never lowers rank by default; each event may choose otherwise (ADR-043, ADR-134).
 - The shop window after the event (ADR-048).
 
 | # | Feature | Priority | Source | Notes |
