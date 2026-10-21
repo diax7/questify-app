@@ -628,16 +628,24 @@ other docs feed it and stay as its detailed appendices.
   player's standing directly with no audit entry, and a ban or a player leaving left no mark for the board to repair
   until the 5-minute backstop. Redemption pausing moved to T-209 (nothing to pause yet). Migration 0019. CTO: plan
   84 → 94; phases 92, 93, 92; mutation 93.2% (moderation alone 91.5%, then three more survivors killed by tests).
+- 2026-10-21 **T-108 server half done.** A player can change their phone or email, or add the second one, with a
+  code sent to the new contact; the account takes it only with the right code. Nothing says whether another account
+  already has that contact until its code comes back, so the feature cannot be used to find out who has an account. The
+  old number or email and the other channel get a notice (SMS or email, both languages) on every change, so a change
+  made from someone else's hands is seen; the old contact is not asked for a code (a player who lost their number could
+  not give one: ADR-120, Proposed). The API can no longer write contacts directly; every change is audited without the
+  contact. The profile now shows masked identifiers. Migration 0020. CTO: plan 80 → 94; phases 93, 93, 95; mutation
+  92.2% on contact.ts, 91.5% on profile.ts. The screens wait for the app shell (T-009).
 
 ## Next
 
 1. **Now:** the next unchecked task in TASKS.md order (Phase 1: T-112 web event page, T-113 waits for the app shell).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
-   0019, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
+   0020, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
 3. **Waiting on Dhia:** the Apple Developer and Google Play accounts (T-010); a
-   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
-4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel).
+   domain for the Resend backup (Q-083); "accept ADR-113"; ADR-114 (Questify-wide quests in their own table), ADR-120 (a contact change proves only the new contact), ADR-115 (`uqr` for drawing QR codes) and ADR-116 (`QR_SECRET`), all Proposed (`QR_SECRET` and the Msegat settings are in the staging secret store, checked 2026-10-20).
+4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-082, Q-083, Q-084, Q-085, Q-086, Q-087, Q-088, Q-089, Q-090, Q-093 (login SMS ceiling), Q-094 (old usernames), Q-095 (player consent, counsel), Q-096 (exclusions and changed contacts).
 
 ## Run complete — 2026-10-18
 - Status: COMPLETE for the blueprint run; **planning is not yet closed**: the root `CLAUDE.md` still says

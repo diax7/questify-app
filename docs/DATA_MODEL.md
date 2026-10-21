@@ -84,6 +84,15 @@ Players created before 0017 have no rows and are asked again.
 | email | text | unique, lowercase | **yes** | At least one of phone or email |
 
 Kept apart from `player` so an organizer, who can see the players in its events, never sees their phone or email.
+Since T-108 (migration 0020) the API's role cannot insert or update it: rows come from `create_player`, and a change
+or an added identifier goes through `confirm_contact_change`.
+
+### player_contact_challenge (migration 0020)
+`player_contact_challenge (id, player_id, token_hash, channel, contact, code_hash, attempts ≤ 3, expires_at 5
+minutes, created_at)`: one live challenge per player (a new request replaces it), bound to the player; the contact is
+held minutes and swept an hour after expiry. No grant to the API's role: `start_contact_change` and
+`confirm_contact_change` only. A confirmed change is audited as `player.contact_change` with the channel and the
+kind (added or replaced), never the contact.
 
 ### Who may write what (column rules, migration 0005)
 Row-level security picks rows; column grants and guard triggers close the columns that matter. For the API's role:

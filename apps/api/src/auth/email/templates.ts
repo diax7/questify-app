@@ -155,3 +155,62 @@ export function inviteEmail(input: {
     ].join("\n"),
   };
 }
+
+/** The code that adds or changes a player's email (T-108): it says what it is for, never "sign-in". */
+export function contactCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
+  const { code, expiresInMinutes } = input;
+  return {
+    subject: "رمز إضافة بريدك إلى كويستفاي | Your code to add this email to Questify",
+    text: [
+      `رمز إضافة هذا البريد إلى حسابك في كويستفاي: ${code}`,
+      `الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلبه، تجاهل هذه الرسالة ولا تشاركه مع أحد.`,
+      "",
+      `Your code to add this email to a Questify account: ${code}`,
+      `It is valid for ${expiresInMinutes} minutes. If you did not ask for it, ignore this email and never share the code.`,
+    ].join("\n"),
+  };
+}
+
+/**
+ * Tells a player that a phone or email on their account was added or changed (T-108): to the old value and to the
+ * other one, so a change made from someone else's hands is seen. It never names the new value.
+ */
+export function contactChangedEmail(input: {
+  channel: "phone" | "email";
+  kind: "added" | "replaced";
+}): Content {
+  const [ar, en] = CHANGE_LINES[input.channel][input.kind];
+  return {
+    subject: "تغيّرت بيانات دخولك في كويستفاي | Your Questify sign-in details changed",
+    text: [
+      ar,
+      "إذا كان هذا أنت، فلا داعي لأي إجراء. إن لم تكن أنت، تواصل معنا من الإعدادات في التطبيق.",
+      "",
+      en,
+      "If this was you, there is nothing to do. If it was not, contact us from Settings in the app.",
+    ].join("\n"),
+  };
+}
+
+const CHANGE_LINES = {
+  phone: {
+    added: [
+      "أُضيف رقم جوال إلى حسابك في كويستفاي.",
+      "A phone number was added to your Questify account.",
+    ],
+    replaced: [
+      "تغيّر رقم الجوال في حسابك في كويستفاي.",
+      "The phone number on your Questify account was changed.",
+    ],
+  },
+  email: {
+    added: [
+      "أُضيف بريد إلكتروني إلى حسابك في كويستفاي.",
+      "An email address was added to your Questify account.",
+    ],
+    replaced: [
+      "تغيّر البريد الإلكتروني في حسابك في كويستفاي.",
+      "The email address on your Questify account was changed.",
+    ],
+  },
+} as const;

@@ -421,6 +421,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO player_contact (player_id, email) VALUES ($1, 'forged@x.test')",
           values: [f.playerB],
         }),
+        // Since T-108 the API's role writes no contact: create_player and confirm_contact_change do.
+        forgeRefusedBy: /permission denied/,
       },
       {
         seat: "organizer",
@@ -433,6 +435,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO player_contact (player_id, email) VALUES ($1, 'forged@x.test')",
           values: [f.playerA],
         }),
+        // Since T-108 the API's role writes no contact: create_player and confirm_contact_change do.
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },
@@ -446,6 +450,8 @@ const SHARED: Readonly<Record<string, string>> = {
   schema_migration: "the migration record; the API role has no rights on it (outsider suite)",
   player_acceptance:
     "a player reads only their own rows (policy on app_player_id()); no write right at all, the definers record acceptances (test/db/player-legal)",
+  player_contact_challenge:
+    "no right for the API role at all; a contact change is reached only through definers bound to the calling player (test/db/contact-change)",
   player_login_challenge:
     "no right for the API role at all; a challenge is reached only through definers bound to its token (test/db/player-sign-in)",
   player_refresh:

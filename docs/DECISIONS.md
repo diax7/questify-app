@@ -1751,3 +1751,15 @@ the username (between `_`, digits or its ends); longer entries, and a few short 
 words, match anywhere.
 **Why:** an empty list blocks nothing at launch (store review, PD-11), and a list made from scratch would miss common
 terms. The cut keeps false refusals rare; the admin can add or remove words without a release.
+
+## ADR-120 — A contact change proves the new contact, not the old one
+**Status:** Proposed (Claude, 2026-10-21, T-108; CTO review).
+**Decision:** A player changes their phone or email, or adds the second one, with a code sent to the new contact only
+(FR-125, FR-139). The old contact is not asked for a code. Every change and add sends a notice to the old value of that
+channel and to the other channel (SMS for a phone, email for an email, both languages, never naming the new value),
+writes an audit entry without the contact, and keeps the player's sessions.
+**Why:** a player who lost their phone number cannot prove it, and FR-125 exists for exactly that case. ASVS 5.0 V7.5.1
+asks for re-authentication before changing an attribute that signs a person in; the notices, the audit entry and kept
+sessions (so the real owner can change it back) compensate, and support handles a takeover reported from a notice.
+**Cost:** someone holding an unlocked phone with the app can move the account to their own number; the owner learns of
+it from the notice. Revisit if support sees such cases (an extra code to the old contact when it is still reachable).

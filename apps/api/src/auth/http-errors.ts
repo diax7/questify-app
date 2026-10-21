@@ -440,3 +440,21 @@ export const cannotLeave = make(
   "لا يمكنك مغادرة هذه الفعالية.",
   "You cannot leave this event.",
 );
+export const contactCodeWrong = make(
+  422,
+  "invalid_code",
+  "الرمز غير صحيح.",
+  "That code is not correct.",
+);
+export const contactInUse = make(
+  409,
+  "contact_in_use",
+  "هذا الرقم أو البريد مرتبط بحساب آخر، فلا يمكن إضافته إلى حسابك.",
+  "This number or email belongs to another account, so it cannot be added to yours.",
+);
+export const contactUnchanged = make(
+  409,
+  "contact_unchanged",
+  "هذا الرقم أو البريد مرتبط بحسابك بالفعل.",
+  "This number or email is already on your account.",
+);

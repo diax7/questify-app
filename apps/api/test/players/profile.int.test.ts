@@ -65,7 +65,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       payload,
     });
 
-  it("shows the player's own name, avatar and whether they may change their name, nothing else", async () => {
+  it("shows the player's own name, avatar, whether they may change their name and masked identifiers, nothing else", async () => {
     const player = await newPlayer("shown_name");
     const answer = await me(player.token);
     expect(answer.statusCode).toBe(200);
@@ -75,6 +75,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       avatar: "falcon",
       usernameChange: { allowed: true, nextChangeAt: null },
       legal: { toAccept: ["terms_of_use", "privacy_policy"], guidelinesAccepted: false },
+      identifiers: { phone: null, email: "p•••@najd.sa" },
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

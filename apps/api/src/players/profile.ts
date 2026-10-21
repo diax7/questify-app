@@ -27,7 +27,10 @@ import type { SettingsService } from "#src/settings/service";
 
 export type ProfileDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
 
-/** What a player sees of their own profile; no contact and no birth year (the app never shows them back). */
+/**
+ * What a player sees of their own profile: no birth year, and their phone and email only masked (the app shows which
+ * is missing, FR-139, FR-1817, without the profile carrying contacts).
+ */
 export type MyProfile = Readonly<{
   id: string;
   username: string;
@@ -38,7 +41,17 @@ export type MyProfile = Readonly<{
    * and whether they accepted the guidelines in force (the first submission needs it, FR-1706).
    */
   legal: Readonly<{ toAccept: readonly PlayerDocumentId[]; guidelinesAccepted: boolean }>;
+  identifiers: Readonly<{ phone: string | null; email: string | null }>;
 }>;
+
+/** A phone as its last four digits. */
+export const maskPhone = (phone: string): string => `•••• ${phone.slice(-4)}`;
+
+/** An email as its first character and its domain (a one-letter local part shows whole: the owner reads it). */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  return `${email.slice(0, 1)}•••${email.slice(at)}`;
+}
 
 const patchBody = z
   .strictObject({
@@ -64,7 +77,7 @@ async function changeRules(settings: SettingsService): Promise<{ on: boolean; da
 const asPlayer = <T>(pool: Pool, playerId: string, work: (client: PoolClient) => Promise<T>) =>
   withConnection(pool, (client) => withRequestContext(client, { playerId }, () => work(client)));
 
-async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
+export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
   const rules = await changeRules(deps.settings);
   return asPlayer(deps.pool, playerId, async (client) => {
     const { rows } = await client.query<{
@@ -72,12 +85,14 @@ async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
       avatar: Avatar;
       next: Date | null;
       accepted: Record<string, string[]> | null;
+      phone: string | null;
+      email: string | null;
     }>(
-      `SELECT p.username, p.avatar, username_next_change($2) AS next,
+      `SELECT p.username, p.avatar, username_next_change($2) AS next, pc.phone_e164 AS phone, pc.email,
               (SELECT jsonb_object_agg(document, versions) FROM (
                  SELECT document, jsonb_agg(version) AS versions FROM player_acceptance
                  WHERE player_id = $1 GROUP BY document) a) AS accepted
-       FROM player p WHERE p.id = $1`,
+       FROM player p LEFT JOIN player_contact pc ON pc.player_id = p.id WHERE p.id = $1`,
       [playerId, rules.days],
     );
     const row = rows[0];
@@ -94,6 +109,10 @@ async function readMe(deps: ProfileDeps, playerId: string): Promise<MyProfile> {
         nextChangeAt: row.next?.toISOString() ?? null,
       },
       legal: legalOf(row.accepted ?? {}),
+      identifiers: {
+        phone: row.phone === null ? null : maskPhone(row.phone),
+        email: row.email === null ? null : maskEmail(row.email),
+      },
     };
   });
 }

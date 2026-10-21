@@ -53,7 +53,7 @@ const refreshBody = z.strictObject({ refreshToken: TOKEN });
 const open = { config: { access: "public" }, bodyLimit: BODY_LIMIT } as const;
 
 /** Who is asking, with the app's install id when it is one (anything else is ignored, never trusted). */
-function askerOf(request: FastifyRequest): Asker {
+export function askerOf(request: FastifyRequest): Asker {
   const device = request.headers["x-device-id"];
   return {
     ...callerOf(request),

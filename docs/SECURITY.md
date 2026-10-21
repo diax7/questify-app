@@ -148,6 +148,12 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   board can learn which username has it, though organizers never see contacts. FR-319 needs the behaviour; it is
   kept small: no "excluded" flag in any answer, at most 500 entries an event, every add and remove audited (the kind,
   never the value), phones masked in every answer.
+- Changing a phone or email (T-108, ADR-120 Proposed): the code goes to the new contact only; the old one is not
+  re-proved (ASVS 5.0 V7.5.1 asks for re-authentication; a player who lost their number cannot give it). Compensating
+  controls: a fresh code to the new contact, notices to the old value and the other channel on every change and add,
+  the audit entry, sessions kept so the real owner can change it back, support for the rest. No new account-existence
+  oracle: whether another account has a contact is said only after its code is entered, so only someone holding it
+  learns it; every request counts in the player's window, refused ones too.
 - Backups (target, NFR-026): point-in-time, copied to a second place in Saudi Arabia that we control, restore rehearsed.
   **Today:** CranL offers neither point-in-time restore nor a second-region copy (ADR-107 addenda); staging holds only
   test data, and the nightly copy with a proven restore is T-019, required before the first real player.

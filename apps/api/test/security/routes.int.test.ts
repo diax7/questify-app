@@ -132,6 +132,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for the path's event; add_exclusion checks again and audits the kind, never the value (test/moderation/moderation, test/db/bans)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/exclusions/:exclusionId":
     "the organizer's owner only; another event's or organizer's entry answers 404 (test/moderation/moderation, test/db/bans)",
+  "POST /v1/me/contact/code":
+    "starts a change for the bearer only; start_contact_change is bound to the session and never says whether another account has the contact (test/players/contact, test/db/contact-change)",
+  "POST /v1/me/contact/verify":
+    "changes the bearer's own contact only, through confirm_contact_change bound to the session (test/players/contact, test/db/contact-change)",
   "POST /v1/me/acceptances":
     "records the bearer's own acceptances only, through accept_player_documents bound to the session (test/players/legal, test/db/player-legal)",
   "PATCH /v1/me":

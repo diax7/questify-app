@@ -84,4 +84,10 @@ export const PLAYER_SIGN_IN_LIMITS = {
   playerEmailsPerDay: { max: 1000, windowSeconds: 86_400 },
   /** Access tokens live 1 hour and refresh tokens 180 days (migration 0013 holds the same numbers). */
   accessTokenSeconds: 3600,
+  /** Codes a player may ask for to change or add a contact (T-108): every request counts, even one refused. */
+  contactCodesPerPlayerHour: { max: 5, windowSeconds: 3600 },
+  contactCodesPerPlayerDay: { max: 10, windowSeconds: 86_400 },
+  /** Wrong contact-change codes per player, as sign-in counts them per contact. */
+  contactFailuresPerPlayer: { max: 10, windowSeconds: 900 },
+  contactFailuresPerPlayerDay: { max: 30, windowSeconds: 86_400 },
 } as const;
