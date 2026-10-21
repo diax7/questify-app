@@ -206,6 +206,28 @@ the client-address count (ADR-113).
 - The event page's link preview names `https://questify.sa` (the join link's host) for its canonical and share image,
   on staging too: a preview of a staging link points at production until the domain serves the web app.
 
+## The first loop on two phones (T-118)
+
+- **Scripted run:** `apps/api/test/loop/first-loop.int.test.ts`. Through the real routes: an organizer signs up, builds
+  an event with one QR quest and reads its code; two players sign up by SMS code and join by the event's code; one
+  scans; the scanner's balance and both rankings update. Run it with `TEST_DATABASE_URL` (and `TEST_REDIS_URL` for the
+  Redis ranking copy, as in production). The one database write stands in for Questify activating the event (T-210).
+- **On real phones (staging):**
+  1. Staging is ready: migrations through 0023, Redis with `REDIS_URL`, `QR_SECRET`, `DASHBOARD_ORIGIN`, and a working
+     sign-in channel (Msegat with M0037 handled, or email codes through Resend: the app offers both).
+  2. Build the development client once: `eas build --profile development --platform android` gives an APK to install
+     by link, with only an Expo account (iPhone needs the Apple Developer account, T-010). It holds no JavaScript: run
+     `npx expo start --dev-client` in `apps/app` (phones on the same network, or `--tunnel`). Unset, the app uses the
+     staging API and web origins in `src/api/client.ts` and `src/event/scan.ts`; if staging moved, set
+     `EXPO_PUBLIC_API_URL` (the API's https origin) and `EXPO_PUBLIC_QUEST_CODE_ORIGIN` (equal to the API's
+     `DASHBOARD_ORIGIN`, which the printed `/q/` links use) for that command.
+  3. On the dashboard: sign up, create the event with its end in the future, add a "Scan a QR code" quest, open its
+     printable code.
+  4. Activate the event until the console does it (T-210), as the database owner:
+     `UPDATE event SET status = 'live', starts_at = now() - interval '1 minute' WHERE lower(join_code) = lower('<CODE>');`
+  5. Phone 1 and phone 2: sign up, join with the code. Phone 1 scans the printed code. Phone 2's ranking shows
+     phone 1 first with the quest's points within its 15-second refresh; phone 1's Home shows the new balance.
+
 ## Database and deploy
 
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the

@@ -686,11 +686,18 @@ other docs feed it and stay as its detailed appendices.
   app, and Home and the ranking read its ranking as off; a player now reads it through `GET /v1/events/{id}/config`
   (ADR-122, Proposed). Q-105 holds the star-vs-XP icon and quest/category renames. 2366 tests, 64 browser tests,
   `expo export` clean; mutation not run (not core, Token budget rule 4). CTO code review 88, then 93 (GO).
+- 2026-10-21 **T-118 scripted half built.** `apps/api/test/loop/first-loop.int.test.ts` drives the first loop through
+  the real routes: an organizer signs up and builds an event with a QR quest, two players sign up by SMS and join by
+  code, one scans, the balance and both rankings update (Redis and PostgreSQL rankings). Found: a player with no points
+  is not ranked, so their own row is absent until a first completion (as designed, ADR-052). The phone run is in
+  `RUNBOOK.md` and waits on Dhia (staging migrated, a development build). Sonnet code review 86; its fixes
+  applied (the dev-client steps, a Redis-only rank check, an exact join check), about 94 by its own estimate.
 
 ## Next
 
-1. **Now:** T-118 (close the first loop: end-to-end test and a first demo build on real phones). One task per
-   session (CLAUDE.md, Token budget).
+1. **Now:** T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations
+   0007 to 0023 and an EAS development build (Android: an Expo account only). Otherwise the next unchecked task in
+   `docs/TASKS.md`. One task per session (CLAUDE.md, Token budget).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
      tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
      with the next Expo update.

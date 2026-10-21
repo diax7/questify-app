@@ -156,6 +156,7 @@ _A real phone runs the whole loop: an organizer builds an event, a player joins,
 - [x] **T-117** Currency name and icon (bilingual) and renamed words 'player' and 'operator' foundations — delivers FR 404, 405, 940, 941; depends on: T-103, T-008
   - Done when: Renaming the currency changes every screen and the dashboard in both languages.
 - [ ] **T-118** Close the first loop: end-to-end test and a first demo build with one event on real phones — delivers no FR (infrastructure or quality gate); depends on: T-115, T-116, T-117, T-010
+  - Scripted half done 2026-10-21: `apps/api/test/loop/first-loop.int.test.ts` runs the whole loop through the real routes (organizer sign-up, event and QR quest, two players by SMS code, join by code, scan, balance and both rankings), on Redis or PostgreSQL rankings; the one database write stands in for Questify's activation (T-210). **Open:** the run on two real phones, steps in `docs/RUNBOOK.md` ("The first loop on two phones"); it needs staging migrated and a development build (Android needs only an Expo account; iPhone waits on T-010).
   - Done when: A scripted run creates an event, joins from a phone, scans a quest, and the ranking and balance update on a second phone.
 
 ## Phase 2 — Rewards and fair play
