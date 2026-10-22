@@ -1510,6 +1510,7 @@ export const MESSAGES = {
   "operator.desk.cancelYes": { ar: "إلغاء الحجز", en: "Cancel reservation" },
   "operator.desk.keep": { ar: "إبقاء الحجز", en: "Keep it" },
   "operator.desk.cancelled": { ar: "أُلغي الحجز.", en: "Reservation cancelled." },
+  "operator.desk.ended": { ar: "انتهى هذا الحجز.", en: "This reservation has ended." },
   "operator.desk.notReady": {
     ar: "اطلب من {player} الضغط على «استلام» في تطبيقه.",
     en: "Ask {player} to tap Collect in their app.",

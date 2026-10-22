@@ -35,7 +35,7 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 type Found = Extract<Lookup, { kind: "found" }>;
 /** What happened to a row on this desk since the scan. */
-type Done = "handed_over" | "cancelled" | "lapsed";
+type Done = "handed_over" | "cancelled" | "ended" | "lapsed";
 
 /** One waiting item: its name, what the desk may do now, and Cancel (FR-925, FR-509, FR-513). */
 function ItemRow({
@@ -69,6 +69,7 @@ function ItemRow({
         </AppText>
       ) : null}
       {done === "cancelled" ? <AppText>{t("operator.desk.cancelled")}</AppText> : null}
+      {done === "ended" ? <AppText>{t("operator.desk.ended")}</AppText> : null}
       {done === undefined || done === "lapsed" ? (
         <>
           {done === "lapsed" ? <AppText>{t("operator.desk.notAccepted")}</AppText> : null}
@@ -222,11 +223,17 @@ type Rows = Readonly<{
 /**
  * Handed over, Hand over and Cancel on the scanned player's rows. One key per row and action until the server answers,
  * so a lost reply is retried, never doubled. After an offer the desk asks every 2 seconds until the player accepts,
- * the offer lapses, or the reservation ends.
+ * the offer lapses, or the reservation ends; `stop` ends every wait (the next scan, leaving the tab).
  */
 function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
   const [busy, setBusy] = useState(false);
   const keys = useRef(new Map<string, string>());
+  // Each scan is a generation: a wait from an earlier one stops at its next step.
+  const generation = useRef(0);
+  const stop = useCallback(() => {
+    generation.current += 1;
+  }, []);
+  useEffect(() => stop, [stop]);
   const keyFor = (name: string) => {
     const key = keys.current.get(name) ?? randomUuid();
     keys.current.set(name, key);
@@ -235,10 +242,17 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
   const mark = (id: string, done: Done) => setDone((current) => ({ ...current, [id]: done }));
 
   const waitForAccept = async (item: DeskItem) => {
+    const started = generation.current;
     let outcome: ReturnType<typeof offerOutcome> = "waiting";
     while (outcome === "waiting") {
       await new Promise((resolve) => setTimeout(resolve, OFFER_POLL_MS));
+      if (generation.current !== started) {
+        return;
+      }
       const poll = await pollOffer(api.session, item.id);
+      if (generation.current !== started) {
+        return;
+      }
       if (poll.kind !== "poll") {
         settle(poll);
         return;
@@ -247,7 +261,7 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
     }
     mark(
       item.id,
-      outcome === "accepted" ? "handed_over" : outcome === "ended" ? "cancelled" : "lapsed",
+      outcome === "accepted" ? "handed_over" : outcome === "ended" ? "ended" : "lapsed",
     );
   };
 
@@ -297,7 +311,7 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
     }
   };
 
-  return { busy, handOver, cancel };
+  return { busy, handOver, cancel, stop };
 }
 
 /**
@@ -362,6 +376,7 @@ export default function DeskTab() {
   };
 
   const next = () => {
+    rows.stop();
     setFound(null);
     setCode(null);
     setDone({});

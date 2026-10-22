@@ -399,6 +399,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       expect(await refusal(collect(player, other))).toEqual({ code: "RE409", detail: "cancelled" });
     });
 
+    it("answers a second Collect past the deadline without renewing it", async () => {
+      const event = await newEvent();
+      const { player } = await newPlayer(event);
+      const id = await reserve(player, await newReward(event));
+      await collect(player, id);
+      await pastDeadline(id);
+      await owner(
+        "UPDATE redemption SET collect_until = now() + interval '1 minute' WHERE id = $1",
+        [id],
+      );
+      const before = (await redemption(id))?.collect_until;
+      const [again] = await collect(player, id);
+      expect((again?.["until"] as Date | undefined)?.getTime()).toBe(before?.getTime());
+      expect((await redemption(id))?.collect_until?.getTime()).toBe(before?.getTime());
+    });
+
+    it("lets another desk take over a live offer past the deadline, never extending it", async () => {
+      const event = await newEvent({ mode: "desk_offer" });
+      const deskOne = await newOperator(event);
+      const deskTwo = await newOperator(event);
+      const { player } = await newPlayer(event);
+      const id = await reserve(player, await newReward(event));
+      await handOver(deskOne, id);
+      await pastDeadline(id);
+      await owner(
+        "UPDATE redemption SET offer_until = now() + interval '30 seconds' WHERE id = $1",
+        [id],
+      );
+      const [row] = await owner<{ offer_until: Date }>(
+        "SELECT offer_until FROM redemption WHERE id = $1",
+        [id],
+      );
+      const taken = await handOver(deskTwo, id);
+      expect(taken?.offer_until?.getTime()).toBe(row?.offer_until.getTime());
+      expect((await redemption(id))?.offer_by).toBe(deskTwo);
+    });
+
     it("lets a live Collect finish past the deadline", async () => {
       const event = await newEvent();
       const desk = await newOperator(event);
@@ -432,6 +469,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       expect(poll).toMatchObject({ status: "reserved", offered: true });
       const [item] = await call<{ state: string }>(player, "SELECT * FROM my_desk_items()");
       expect(item?.state).toBe("offered");
+      await owner("UPDATE enrollment SET status = 'banned' WHERE player_id = $1", [player]);
+      expect(await call(player, "SELECT * FROM my_desk_items()")).toEqual([]);
+      await owner("UPDATE enrollment SET status = 'active' WHERE player_id = $1", [player]);
       const [watch] = await call<{ my_desk_watch: boolean }>(player, "SELECT my_desk_watch()");
       expect(watch?.my_desk_watch).toBe(true);
 

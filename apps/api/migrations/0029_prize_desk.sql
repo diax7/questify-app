@@ -552,7 +552,11 @@ BEGIN
   IF locked.reserved_until <= now() AND coalesce(locked.offer_until <= now(), true) THEN
     RAISE EXCEPTION 'reservation ended' USING ERRCODE = 'RE409', DETAIL = 'expired';
   END IF;
-  UPDATE redemption d SET offer_by = me, offer_until = now() + interval '2 minutes'
+  -- Past the deadline a live offer may change hands but never runs longer (ADR-151).
+  UPDATE redemption d
+  SET offer_by = me,
+      offer_until = CASE WHEN locked.reserved_until <= now() THEN locked.offer_until
+                         ELSE now() + interval '2 minutes' END
   WHERE d.id = target RETURNING d.offer_until INTO until;
   RETURN QUERY SELECT 'offered'::text, until, false;
 END $$;
@@ -658,7 +662,10 @@ BEGIN
   IF locked.reserved_until <= now() AND coalesce(locked.collect_until <= now(), true) THEN
     RAISE EXCEPTION 'reservation ended' USING ERRCODE = 'RE409', DETAIL = 'expired';
   END IF;
-  UPDATE redemption d SET collect_until = now() + interval '5 minutes'
+  -- Past the deadline a live Collect is answered again, never renewed (ADR-151).
+  UPDATE redemption d
+  SET collect_until = CASE WHEN locked.reserved_until <= now() THEN locked.collect_until
+                           ELSE now() + interval '5 minutes' END
   WHERE d.id = target RETURNING d.collect_until INTO until;
   RETURN until;
 END $$;
@@ -706,7 +713,8 @@ END $$;
 REVOKE ALL ON FUNCTION decline_handover(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION decline_handover(uuid) TO questify_app;
 
--- What My QR shows: the caller's reservations ready at a desk or offered by one right now, in every event.
+-- What My QR shows: the caller's reservations ready at a desk or offered by one right now, in every event they are
+-- still an active member of.
 CREATE FUNCTION my_desk_items()
   RETURNS TABLE (redemption_id uuid, event_id uuid, event_name_ar text, event_name_en text, kind text, name_ar text,
                  name_en text, state text, until timestamptz)
@@ -718,7 +726,8 @@ CREATE FUNCTION my_desk_items()
   JOIN redemption d ON d.enrollment_id = n.id AND d.status = 'reserved'
   JOIN reward r ON r.id = d.reward_id
   JOIN event e ON e.id = n.event_id
-  WHERE n.player_id = app_player_id() AND (d.offer_until > now() OR d.collect_until > now())
+  WHERE n.player_id = app_player_id() AND n.status = 'active'
+    AND (d.offer_until > now() OR d.collect_until > now())
   ORDER BY d.created_at, d.id
 $$;
 REVOKE ALL ON FUNCTION my_desk_items() FROM PUBLIC;
