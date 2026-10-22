@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
+import { deskViewOf, type DeskView } from "#src/desk/desk";
 import { openCode, type RewardCodeKey } from "#src/rewards/codes";
 
 export type ShopDeps = Readonly<{
@@ -19,6 +20,8 @@ export type ShopView = Readonly<{
     rules: Bilingual | null;
     firstRedemption: boolean;
     spendLowersRank: boolean;
+    /** The prize desk, shown on every reservation (FR-1716). */
+    desk: DeskView;
   }>;
   balance: number;
   rewards: ReadonlyArray<Readonly<Record<string, unknown>>>;
@@ -197,6 +200,7 @@ export function readShop(
           rules: rules.ar === null && rules.en === null ? null : rules,
           firstRedemption: shop["first_redemption"] === true,
           spendLowersRank: shop["spend_lowers_rank"] === true,
+          desk: deskViewOf(shop),
         },
         balance: Number(shop["balance"]),
         rewards: rewards.map((r) => ({
@@ -223,6 +227,8 @@ export function readShop(
           reservedUntil: iso(d["reserved_until"]),
           createdAt: iso(d["created_at"]),
           endedAt: iso(d["ended_at"]),
+          collectUntil: iso(d["collect_until"]),
+          offerUntil: iso(d["offer_until"]),
           ...reveal(deps, d["id"], d["reward_id"], d["code_cipher"]),
         })),
       };

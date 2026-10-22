@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { cleanCodes, codesRunLow, mergeReward, type RewardRecord } from "#src/rewards/builder";
+import {
+  cleanCodes,
+  codesRunLow,
+  mergeDesk,
+  mergeReward,
+  pinOf,
+  windowsOf,
+  type DeskSettings,
+  type RewardRecord,
+} from "#src/rewards/builder";
 
 const STORED: RewardRecord = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -163,5 +172,79 @@ describe("cleanCodes", () => {
 
   it("refuses the whole upload when one line is not a code", () => {
     expect(cleanCodes(["A", "  "])).toBeUndefined();
+  });
+});
+
+const day = (date: string, opens: string, closes: string) => ({
+  opensAt: `${date}T${opens}`,
+  closesAt: `${date}T${closes}`,
+});
+
+describe("mergeDesk (FR-1716, ADR-150)", () => {
+  const DESK: DeskSettings = {
+    location: { ar: "القاعة ب", en: "Hall B" },
+    pin: { lat: 24.7, lng: 46.6 },
+    hours: [{ opensAt: "2030-01-01T13:00:00.000Z", closesAt: "2030-01-01T19:00:00.000Z" }],
+  };
+  it("keeps everything when nothing is sent, and each part the input leaves out", () => {
+    expect(mergeDesk(DESK, undefined, ZONE)).toBe(DESK);
+    expect(mergeDesk(DESK, {}, ZONE)).toEqual(DESK);
+    expect(mergeDesk(DESK, { location: { en: "Gate 3" } }, ZONE)).toEqual({
+      ...DESK,
+      location: { ar: null, en: "Gate 3" },
+    });
+  });
+
+  it("clears the pin and turns the hours off with null or no windows", () => {
+    expect(mergeDesk(DESK, { pin: null }, ZONE)).toEqual({ ...DESK, pin: null });
+    expect(mergeDesk(DESK, { hours: null }, ZONE)).toEqual({ ...DESK, hours: null });
+    expect(mergeDesk(DESK, { hours: [] }, ZONE)).toEqual({ ...DESK, hours: null });
+  });
+
+  it("reads windows in the event's zone, in order, touching allowed", () => {
+    expect(
+      mergeDesk(
+        DESK,
+        { hours: [day("2030-01-01", "10:00", "14:00"), day("2030-01-01", "14:00", "18:00")] },
+        ZONE,
+      ),
+    ).toMatchObject({
+      hours: [
+        { opensAt: "2030-01-01T07:00:00.000Z", closesAt: "2030-01-01T11:00:00.000Z" },
+        { opensAt: "2030-01-01T11:00:00.000Z", closesAt: "2030-01-01T15:00:00.000Z" },
+      ],
+    });
+  });
+
+  it("refuses a reversed, empty, overlapping or unreadable window", () => {
+    for (const hours of [
+      [day("2030-01-01", "14:00", "10:00")],
+      [day("2030-01-01", "10:00", "10:00")],
+      [day("2030-01-01", "10:00", "14:00"), day("2030-01-01", "13:59", "18:00")],
+      [day("2030-01-02", "10:00", "12:00"), day("2030-01-01", "10:00", "12:00")],
+      [{ opensAt: "soon", closesAt: "2030-01-01T10:00" }],
+      [{ opensAt: "2030-01-01T10:00", closesAt: "later" }],
+    ]) {
+      expect(mergeDesk(DESK, { hours }, ZONE)).toBe("invalid_hours");
+    }
+  });
+});
+
+describe("windowsOf and pinOf", () => {
+  it("pairs the sorted arrays, and answers null when the hours are off", () => {
+    const opens = new Date("2030-01-01T10:00:00Z");
+    const closes = new Date("2030-01-01T12:00:00Z");
+    expect(windowsOf([opens], [closes])).toEqual([
+      { opensAt: "2030-01-01T10:00:00.000Z", closesAt: "2030-01-01T12:00:00.000Z" },
+    ]);
+    expect(windowsOf(null, null)).toBeNull();
+    expect(windowsOf([opens], null)).toBeNull();
+    expect(windowsOf(null, [closes])).toBeNull();
+  });
+
+  it("reads the pin's numeric text, both or neither", () => {
+    expect(pinOf("24.713600", "-46.5")).toEqual({ lat: 24.7136, lng: -46.5 });
+    expect(pinOf(null, "46")).toBeNull();
+    expect(pinOf("24", null)).toBeNull();
   });
 });

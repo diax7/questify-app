@@ -84,8 +84,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           ? "now() - interval '1 hour', now() + interval '1 day'"
           : "now() + interval '1 day', now() + interval '2 days'";
       const [event] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, $2, 'Codes', '${when}', ${times}) RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', $2, 'Codes', '${when}', ${times}) RETURNING id`,
         [orgId, `CODES${counter}`],
       );
       return `/v1/organizers/${orgId}/events/${event?.id}`;
@@ -169,7 +169,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
 
       it("lets the owner switch it on a draft and back", async () => {
         const [draft] = await owner<{ id: string }>(
-          "INSERT INTO event (organizer_id, join_code, name_en, status) VALUES ($1, 'DRAFT1', 'Draft', 'draft') RETURNING id",
+          "INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status) VALUES ($1, 'Hall B', 'DRAFT1', 'Draft', 'draft') RETURNING id",
           [orgId],
         );
         const base = `/v1/organizers/${orgId}/events/${draft?.id}`;

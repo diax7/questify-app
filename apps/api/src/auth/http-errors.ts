@@ -681,3 +681,45 @@ export const guestListFull = make(
   "تتجاوز هذه القائمة الحد الأعلى (10000 مدعو).",
   "This would take the guest list over its limit of 10000 entries.",
 );
+export const deskNeeded = make(
+  409,
+  "desk_needed",
+  "حدّد مكان مكتب الجوائز قبل إضافة جوائز تُستلم منه.",
+  "Set the prize desk's place before adding rewards picked up there.",
+);
+export const deskClosed = make(
+  403,
+  "desk_closed",
+  "مكتب الجوائز مغلق الآن.",
+  "The prize desk is closed right now.",
+);
+export const abilityOff = make(
+  403,
+  "ability_off",
+  "أوقف المنظّم هذه الصلاحية لك.",
+  "The owner turned this off for you.",
+);
+export const notReady = make(
+  409,
+  "not_ready",
+  "اطلب من اللاعب الضغط على «استلام» في تطبيقه أولًا.",
+  "Ask the player to tap Collect in their app first.",
+);
+export const selfHandover = make(
+  409,
+  "self_handover",
+  "لا يمكنك تسليم جائزتك أو إلغاؤها بنفسك.",
+  "You cannot hand over or cancel your own reward.",
+);
+export const handoverMode = make(
+  409,
+  "handover_mode",
+  "تغيّرت طريقة تأكيد الاستلام في هذه الفعالية. حدّث الصفحة.",
+  "This event confirms pickups another way now. Refresh and try again.",
+);
+export const offerGone = make(
+  409,
+  "offer_gone",
+  "انتهى عرض التسليم. اطلب من المكتب إعادة المحاولة.",
+  "The handover offer has ended. Ask the desk to try again.",
+);

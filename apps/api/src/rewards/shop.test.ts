@@ -238,6 +238,14 @@ describe("readShop", () => {
     first_redemption: true,
     balance: "250",
     spend_lowers_rank: true,
+    desk_location_ar: "القاعة ب",
+    desk_location_en: null,
+    desk_lat: "24.713600",
+    desk_lng: "46.675300",
+    desk_opens: [AT],
+    desk_closes: [LATER],
+    desk_state: "closed",
+    handover_confirm: "desk_offer",
   };
   const ROW = {
     id: "r1",
@@ -268,6 +276,8 @@ describe("readShop", () => {
     reserved_until: AT,
     created_at: AT,
     ended_at: LATER,
+    collect_until: AT,
+    offer_until: null,
   };
 
   const shopPool = (shop: Record<string, unknown> | undefined) =>
@@ -288,6 +298,13 @@ describe("readShop", () => {
         rules: { ar: null, en: "One each" },
         firstRedemption: true,
         spendLowersRank: true,
+        desk: {
+          location: { ar: "القاعة ب", en: null },
+          pin: { lat: 24.7136, lng: 46.6753 },
+          hours: [{ opensAt: "2030-01-01T10:00:00.000Z", closesAt: "2030-01-02T10:00:00.000Z" }],
+          state: "closed",
+          confirm: "desk_offer",
+        },
       },
       balance: 250,
       rewards: [
@@ -317,6 +334,8 @@ describe("readShop", () => {
           reservedUntil: "2030-01-01T10:00:00.000Z",
           createdAt: "2030-01-01T10:00:00.000Z",
           endedAt: "2030-01-02T10:00:00.000Z",
+          collectUntil: "2030-01-01T10:00:00.000Z",
+          offerUntil: null,
         },
       ],
     });

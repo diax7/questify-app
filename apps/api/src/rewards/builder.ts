@@ -46,12 +46,39 @@ export type RewardRecord = Readonly<{
   position: number;
 }>;
 
+/** How the player confirms a handover in their own app (ADR-137, ADR-150). */
+export const HANDOVER_CONFIRM = ["collect_first", "desk_offer"] as const;
+export type HandoverConfirm = (typeof HANDOVER_CONFIRM)[number];
+
+/** At most this many opening windows for the desk (ADR-150). */
+export const DESK_WINDOWS = 14;
+
+export type DeskPin = Readonly<{ lat: number; lng: number }>;
+/** One opening window, as instants. */
+export type DeskWindow = Readonly<{ opensAt: string; closesAt: string }>;
+
+/** The event's one prize desk (FR-1716): its place, an optional pin, and its hours (null: open the whole time). */
+export type DeskSettings = Readonly<{
+  location: Bilingual;
+  pin: DeskPin | null;
+  hours: readonly DeskWindow[] | null;
+}>;
+
+export type DeskInput = Readonly<{
+  location?: Text | undefined;
+  pin?: DeskPin | null | undefined;
+  /** Times in the event's zone; null or empty turns the hours off. */
+  hours?: ReadonlyArray<Readonly<{ opensAt: string; closesAt: string }>> | null | undefined;
+}>;
+
 export type ShopSettings = Readonly<{
   pickupMinutes: number;
   daysAfter: number;
   rules: Bilingual;
   /** Purchases also lower the ranking score while the event is live (FR-1847, ADR-134, ADR-135). */
   spendLowersRank: boolean;
+  desk: DeskSettings;
+  handoverConfirm: HandoverConfirm;
 }>;
 
 export type ShopInput = Readonly<{
@@ -59,9 +86,18 @@ export type ShopInput = Readonly<{
   daysAfter?: number | undefined;
   rules?: Text | undefined;
   spendLowersRank?: boolean | undefined;
+  desk?: DeskInput | undefined;
+  handoverConfirm?: HandoverConfirm | undefined;
 }>;
 
-export type RewardField = "name" | "opensAt" | "closesAt" | "kind" | "stock" | "codes";
+export type RewardField =
+  | "name"
+  | "opensAt"
+  | "closesAt"
+  | "kind"
+  | "stock"
+  | "codes"
+  | "deskHours";
 
 /** At most this many codes in one upload (FR-510). */
 export const CODES_PER_UPLOAD = 5000;
@@ -77,7 +113,8 @@ export type RewardDone<T> =
   | Readonly<{ kind: "not_digital" }>
   | Readonly<{ kind: "too_many_codes"; room: number }>
   | Readonly<{ kind: "owner_only" }>
-  | Readonly<{ kind: "setting_locked" }>;
+  | Readonly<{ kind: "setting_locked" }>
+  | Readonly<{ kind: "desk_needed" }>;
 
 export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKey }>;
 
@@ -283,6 +320,10 @@ export function createReward(
     if (count >= REWARD_LIMIT) {
       return { kind: "limit_reached", limit: REWARD_LIMIT };
     }
+    // FR-1716; the database's guard backs this against a desk cleared at the same moment.
+    if (input.kind === "item" && !(await hasDeskPlace(client, eventId))) {
+      return { kind: "desk_needed" };
+    }
     const { rows } = await client.query<RewardRow>(
       `INSERT INTO reward (event_id, kind, name_ar, name_en, description_ar, description_en, price, stock_total,
                            per_player_limit, opens_at, closes_at, section, tag_new, tag_limited, position)
@@ -374,22 +415,122 @@ type ShopRow = {
   shop_rules_ar: string | null;
   shop_rules_en: string | null;
   spend_lowers_rank: boolean;
+  desk_location_ar: string | null;
+  desk_location_en: string | null;
+  desk_lat: string | null;
+  desk_lng: string | null;
+  desk_opens: Date[] | null;
+  desk_closes: Date[] | null;
+  handover_confirm: HandoverConfirm;
 };
+
+/** The desk's windows from the two sorted arrays the database answers, or null when the hours are off. */
+export function windowsOf(
+  opens: readonly Date[] | null,
+  closes: readonly Date[] | null,
+): DeskWindow[] | null {
+  if (opens === null || closes === null) {
+    return null;
+  }
+  return opens.map((opensAt, index) => ({
+    opensAt: opensAt.toISOString(),
+    closesAt: (closes[index] as Date).toISOString(),
+  }));
+}
+
+/** The pin from the database's two numeric columns (both or neither). */
+export const pinOf = (lat: string | null, lng: string | null): DeskPin | null =>
+  lat === null || lng === null ? null : { lat: Number(lat), lng: Number(lng) };
 
 const shopOf = (row: ShopRow): ShopSettings => ({
   pickupMinutes: row.pickup_minutes,
   daysAfter: row.shop_days_after,
   rules: { ar: row.shop_rules_ar, en: row.shop_rules_en },
   spendLowersRank: row.spend_lowers_rank,
+  desk: {
+    location: { ar: row.desk_location_ar, en: row.desk_location_en },
+    pin: pinOf(row.desk_lat, row.desk_lng),
+    hours: windowsOf(row.desk_opens, row.desk_closes),
+  },
+  handoverConfirm: row.handover_confirm,
 });
 
 async function readShop(client: PoolClient, eventId: string): Promise<ShopSettings> {
   const { rows } = await client.query<ShopRow>(
-    `SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en, spend_lowers_rank FROM event
-     WHERE id = $1`,
+    `SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en, spend_lowers_rank, desk_location_ar,
+            desk_location_en, desk_lat, desk_lng, handover_confirm,
+            (SELECT array_agg(lower(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_opens,
+            (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_closes
+     FROM event WHERE id = $1`,
     [eventId],
   );
   return shopOf(rows[0] as ShopRow);
+}
+
+const hasPlace = (desk: DeskSettings): boolean =>
+  desk.location.ar !== null || desk.location.en !== null;
+
+async function hasDeskPlace(client: PoolClient, eventId: string): Promise<boolean> {
+  const { rows } = await client.query(
+    "SELECT 1 FROM event WHERE id = $1 AND (desk_location_ar IS NOT NULL OR desk_location_en IS NOT NULL)",
+    [eventId],
+  );
+  return rows.length > 0;
+}
+
+async function hasActiveItems(client: PoolClient, eventId: string): Promise<boolean> {
+  const { rows } = await client.query(
+    "SELECT 1 FROM reward WHERE event_id = $1 AND kind = 'item' AND status = 'active' LIMIT 1",
+    [eventId],
+  );
+  return rows.length > 0;
+}
+
+/**
+ * The desk after this input (ADR-150): undefined keeps a part, null or no windows turns the hours off. Windows are
+ * times in the event's zone and must be sorted, each closing after it opens and none overlapping the next.
+ */
+export function mergeDesk(
+  current: DeskSettings,
+  input: DeskInput | undefined,
+  timeZone: string,
+): DeskSettings | "invalid_hours" {
+  if (input === undefined) {
+    return current;
+  }
+  const hours = input.hours === undefined ? current.hours : windowsIn(input.hours, timeZone);
+  if (hours === "invalid_hours") {
+    return hours;
+  }
+  return {
+    location: bilingual(input.location, current.location),
+    pin: input.pin === undefined ? current.pin : input.pin,
+    hours,
+  };
+}
+
+function windowsIn(
+  input: ReadonlyArray<Readonly<{ opensAt: string; closesAt: string }>> | null,
+  timeZone: string,
+): DeskWindow[] | null | "invalid_hours" {
+  if (input === null || input.length === 0) {
+    return null;
+  }
+  const windows: DeskWindow[] = [];
+  let previousCloses: Date | undefined;
+  for (const window of input) {
+    const opens = timeOf(window.opensAt, null, timeZone);
+    const closes = timeOf(window.closesAt, null, timeZone);
+    if (!(opens instanceof Date) || !(closes instanceof Date) || closes <= opens) {
+      return "invalid_hours";
+    }
+    if (previousCloses !== undefined && opens < previousCloses) {
+      return "invalid_hours";
+    }
+    previousCloses = closes;
+    windows.push({ opensAt: opens.toISOString(), closesAt: closes.toISOString() });
+  }
+  return windows;
 }
 
 /** The event's shop settings and its active rewards, in order, for the dashboard. */
@@ -434,12 +575,22 @@ export function updateShop(
 ): Promise<RewardDone<ShopSettings>> {
   return withRewardEvent(deps, actor, eventId, async (client, event) => {
     const before = await readShop(client, eventId);
+    const desk = mergeDesk(before.desk, input.desk, event.timezone);
+    if (desk === "invalid_hours") {
+      return { kind: "invalid", field: "deskHours" };
+    }
     const after: ShopSettings = {
       pickupMinutes: input.pickupMinutes ?? before.pickupMinutes,
       daysAfter: input.daysAfter ?? before.daysAfter,
       rules: bilingual(input.rules, before.rules),
       spendLowersRank: input.spendLowersRank ?? before.spendLowersRank,
+      desk,
+      handoverConfirm: input.handoverConfirm ?? before.handoverConfirm,
     };
+    // FR-1716: only the move from a place to none is refused, so an older event without a desk still saves.
+    if (hasPlace(before.desk) && !hasPlace(desk) && (await hasActiveItems(client, eventId))) {
+      return { kind: "desk_needed" };
+    }
     if (after.spendLowersRank !== before.spendLowersRank) {
       if (actor.organizer.role !== "owner") {
         return { kind: "owner_only" };
@@ -450,7 +601,10 @@ export function updateShop(
     }
     await client.query(
       `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5,
-              spend_lowers_rank = $6
+              spend_lowers_rank = $6, desk_location_ar = $7, desk_location_en = $8, desk_lat = $9,
+              desk_lng = $10, handover_confirm = $11,
+              desk_hours = (SELECT range_agg(tstzrange(w.o, w.c))
+                            FROM unnest($12::timestamptz[], $13::timestamptz[]) AS w(o, c))
        WHERE id = $1`,
       [
         eventId,
@@ -459,6 +613,13 @@ export function updateShop(
         after.rules.ar,
         after.rules.en,
         after.spendLowersRank,
+        desk.location.ar,
+        desk.location.en,
+        desk.pin?.lat ?? null,
+        desk.pin?.lng ?? null,
+        after.handoverConfirm,
+        desk.hours?.map((window) => window.opensAt) ?? null,
+        desk.hours?.map((window) => window.closesAt) ?? null,
       ],
     );
     const diff = changes(before, after);

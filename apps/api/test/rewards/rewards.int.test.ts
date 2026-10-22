@@ -501,7 +501,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards and reservations (T-20
       ).toEqual({ code: "42501" });
       expect(
         await refusal(
-          asOrganizer("SELECT end_reservation($1, 'cancelled', 'player', 'player')", [
+          asOrganizer("SELECT end_reservation($1, 'cancelled', 'player', 'player', NULL)", [
             randomUUID(),
           ]),
         ),

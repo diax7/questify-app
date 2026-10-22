@@ -670,3 +670,14 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   do what you think is best".
 - Processed: plan `docs/plans/2026-10-22-t-204-t-205-operators-and-my-qr.md`; ADR-137 (fixed My QR, Accepted),
   ADR-138 (Proposed); FR-306, FR-307, FR-901 amended; Q-107 (booths).
+
+## 2026-10-23 — Prize desk (T-206)
+
+- How the player confirms a handover: "we have the 2 options, in the event settings the owner chooses" (player taps
+  Collect first, or the desk offers and the player accepts).
+- Undo after Handed over: drop it.
+- Desk hours: "having a disk hours is optional things. Like by default, it is open all the time. But he can make it
+  like on and off. And it applies to all the rewards." Several time windows.
+- Processed: plan `docs/plans/2026-10-23-t-206-prize-desk.md`; ADR-150 (Accepted); FR-1716, FR-1717 amended. "All the
+  rewards" read as every reward that goes through the desk (items and experiences); digital codes keep FR-1717
+  (Claude's reading).

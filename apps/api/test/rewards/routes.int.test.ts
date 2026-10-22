@@ -44,8 +44,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
     );
     cookie = await signInFully(test, "owner@rewards.test");
     const [event] = await owner<{ id: string }>(
-      `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-       VALUES ($1, 'SHOP1', 'Shop Fest', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+      `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+       VALUES ($1, 'Hall B', 'SHOP1', 'Shop Fest', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
       [orgId],
     );
     eventId = event?.id ?? "";
@@ -143,6 +143,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         daysAfter: 3,
         rules: { ar: null, en: null },
         spendLowersRank: false,
+        desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
+        handoverConfirm: "collect_first",
       });
       expect(listed.rewards.map((r) => r.id)).toContain(reward.id);
       const edited = await call("PATCH", `${base}/rewards/${reward.id}`, {
@@ -211,8 +213,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
     it("answers 404 for another event's reward and another organizer's event", async () => {
       const reward = await newReward();
       const [other] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, starts_at, ends_at)
-         VALUES ($1, 'SHOP2', 'Other', now() + interval '1 day', now() + interval '2 days') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP2', 'Other', now() + interval '1 day', now() + interval '2 days') RETURNING id`,
         [orgId],
       );
       const elsewhere = `/v1/organizers/${orgId}/events/${other?.id}/rewards/${reward.id}`;
@@ -237,6 +239,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
           daysAfter: 3,
           rules: { ar: null, en: "One per person." },
           spendLowersRank: false,
+          desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
+          handoverConfirm: "collect_first",
         },
       });
       expect((await call("PUT", `${base}/shop`, { pickupMinutes: 5 })).statusCode).toBe(400);
@@ -365,8 +369,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
 
     it("refuses changes once the event is archived, but not after it ended", async () => {
       const [archived] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, 'SHOP3', 'Old', 'archived', now() - interval '9 days', now() - interval '8 days') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP3', 'Old', 'archived', now() - interval '9 days', now() - interval '8 days') RETURNING id`,
         [orgId],
       );
       const old = `/v1/organizers/${orgId}/events/${archived?.id}`;
@@ -382,8 +386,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         code: "event_archived",
       });
       const [ended] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, 'SHOP4', 'Done', 'ended', now() - interval '2 days', now() - interval '1 day') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP4', 'Done', 'ended', now() - interval '2 days', now() - interval '1 day') RETURNING id`,
         [orgId],
       );
       const made = await call(
@@ -397,8 +401,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
 
     it("adds up to 100 rewards to an event, at the end, and refuses the next", async () => {
       const [crowded] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, 'SHOP5', 'Busy', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP5', 'Busy', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
         [orgId],
       );
       await owner(
@@ -424,8 +428,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
 
     it("stores the shop settings, keeps what is not sent, and audits only a change", async () => {
       const [quiet] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, 'SHOP6', 'Quiet', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP6', 'Quiet', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
         [orgId],
       );
       const url = `/v1/organizers/${orgId}/events/${quiet?.id}`;
@@ -569,8 +573,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
 
     it("refuses a reservation once the shop has closed, and a cancel once it expired", async () => {
       const [over] = await owner<{ id: string }>(
-        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
-         VALUES ($1, 'SHOP7', 'Over', 'ended', now() - interval '9 days', now() - interval '8 days') RETURNING id`,
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'SHOP7', 'Over', 'ended', now() - interval '9 days', now() - interval '8 days') RETURNING id`,
         [orgId],
       );
       const late = await newPlayer(50, over?.id);

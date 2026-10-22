@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
+  deskNeeded,
   enrollmentInactive,
   eventArchived,
   idempotencyKeyReused,
@@ -25,6 +26,8 @@ import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import {
   CODES_PER_UPLOAD,
+  DESK_WINDOWS,
+  HANDOVER_CONFIRM,
   REWARD_KINDS,
   SECTIONS,
   addRewardCodes,
@@ -71,11 +74,25 @@ const rewardBody = z.strictObject({
   price: z.number().int().min(1).max(1_000_000),
 });
 const rewardPatch = z.strictObject(rewardFields);
+const deskBody = z.strictObject({
+  location: text(200).optional(),
+  pin: z
+    .strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+    .nullable()
+    .optional(),
+  hours: z
+    .array(z.strictObject({ opensAt: localTime, closesAt: localTime }))
+    .max(DESK_WINDOWS)
+    .nullable()
+    .optional(),
+});
 const shopBody = z.strictObject({
   pickupMinutes: z.number().int().min(15).max(10_080).optional(),
   daysAfter: z.number().int().min(0).max(30).optional(),
   rules: text(2000).optional(),
   spendLowersRank: z.boolean().optional(),
+  desk: deskBody.optional(),
+  handoverConfirm: z.enum(HANDOVER_CONFIRM).optional(),
 });
 /** Each code is checked again after normalizing (`normalizeCode`); this only bounds the request. */
 const codesBody = z.strictObject({
@@ -136,14 +153,17 @@ function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
       throw ownerOnly();
     case "setting_locked":
       throw settingLocked();
+    case "desk_needed":
+      throw deskNeeded();
   }
 }
 
 /**
  * The dashboard's rewards (T-201): `GET`/`POST …/events/:eventId/rewards`, `PATCH`/`DELETE …/rewards/:rewardId`, and
  * `POST …/rewards/:rewardId/codes` to add a digital reward's codes (an Idempotency-Key; a replay answers the first
- * result), and `PUT …/events/:eventId/shop` for the pickup time, the days after the end, the rules and, for the owner
- * only, whether spending lowers the ranking. Owners and editors.
+ * result), and `PUT …/events/:eventId/shop` for the pickup time, the days after the end, the rules, the prize desk
+ * (place, pin, hours, how players confirm) and, for the owner only, whether spending lowers the ranking. Owners and
+ * editors.
  */
 export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: RewardDeps): void {
   scope.get("/events/:eventId/rewards", member, async (request) => {

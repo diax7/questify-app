@@ -198,6 +198,23 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/me/qr": "only the bearer's own code (test/operators/operators)",
   "POST /v1/me/qr/reset":
     "only the bearer's own code (test/operators/operators, test/db/operators)",
+  "GET /v1/operator/events/:eventId/desk":
+    "only an operator of that event with the hand-over ability, through operator_desk bound to the session; anyone else 403 (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/desk/lookup":
+    "only an operator of the body's event with the hand-over ability; names only that event's players, by their current My QR; never a price, score or balance (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/redemptions/:redemptionId/hand-over":
+    "only an operator of the redemption's event with the hand-over ability, never their own; every gate in finish_handover under the locks (test/desk/routes, test/desk/desk)",
+  "GET /v1/operator/redemptions/:redemptionId":
+    "only an operator of the redemption's event; shows only that desk's own offer (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/redemptions/:redemptionId/cancel":
+    "only an operator of the redemption's event with the hand-over ability, never their own; the player's balance is not shown (test/desk/routes, test/desk/desk)",
+  "POST /v1/redemptions/:redemptionId/collect":
+    "only the bearer's own reservation, through start_collect bound to the session; another's answers 404 (test/desk/routes, test/desk/desk)",
+  "POST /v1/redemptions/:redemptionId/accept":
+    "only the bearer's own reservation, and only a live offer from an operator still allowed to hand over (test/desk/routes, test/desk/desk)",
+  "POST /v1/redemptions/:redemptionId/decline":
+    "only the bearer's own reservation (test/desk/routes, test/desk/desk)",
+  "GET /v1/me/desk-items": "only the bearer's own reservations (test/desk/routes, test/desk/desk)",
   "POST /v1/operator/scan":
     "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":
