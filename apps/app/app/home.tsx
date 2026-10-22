@@ -1,5 +1,5 @@
 import { parseJoinLink, type Theme } from "@questify/shared";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
@@ -9,6 +9,7 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { readMyEvents, readRecent, type MyEvent } from "#src/event/launch.ts";
+import { OperatorEvents } from "#src/operator/OperatorEvents.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -201,13 +202,19 @@ function MyEvents() {
 export default function QuestifyHomeScreen() {
   const { t } = useI18n();
   const { state } = usePlayer();
+  // Operator mode sends people here when the owner removed them (FR-905).
+  const { notice } = useLocalSearchParams<{ notice?: string }>();
   return (
     <Screen title={t("home.title")}>
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
+        {notice === "operatorRemoved" ? (
+          <AppText accessibilityRole="alert">{t("operator.removed")}</AppText>
+        ) : null}
         <CodeEntry />
         {state.status === "signed_in" ? (
           <>
             <AddEmailCard />
+            <OperatorEvents />
             <MyEvents />
             <Button kind="quiet" label={t("nav.profile")} onPress={() => router.push("/profile")} />
           </>

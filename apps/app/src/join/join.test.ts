@@ -198,6 +198,19 @@ describe("routeForIncoming", () => {
     }
   });
 
+  it("opens an operator invite's confirm screen from the app link or the invite address", () => {
+    const token = "A".repeat(49) + "Q";
+    for (const incoming of [
+      `questify://operator-invite/${token}`,
+      `/operator-invite/${token}`,
+      `operator-invite/${token}`,
+      `https://questify.nafes.com/ar/op#${token}`,
+    ]) {
+      expect(routeForIncoming(incoming), incoming).toBe(`/operator-invite/${token}`);
+    }
+    expect(routeForIncoming("/operator-invite/short")).toBe("/");
+  });
+
   it("opens Home for anything else, never reading a bare segment as a code", () => {
     for (const incoming of [
       "/ABC234",

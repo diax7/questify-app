@@ -238,3 +238,30 @@ describe("randomUuid", () => {
     expect(new Set(made).size).toBe(50);
   });
 });
+
+/** A quests answer with one scan quest, its fields overridden. */
+const body = (fields: Record<string, unknown>) => ({
+  event: { statusNow: "live", timezone: "Asia/Riyadh" },
+  categories: [
+    {
+      id: "c1",
+      name: { ar: null, en: "General" },
+      quests: [
+        {
+          ...quest("q1", { type: "scan_qr" }),
+          ...fields,
+        },
+      ],
+    },
+  ],
+});
+
+describe("readQuests and the verification methods", () => {
+  it("keeps the server's methods, and gives a scan quest its printed code when an older server sends none", () => {
+    const sent = readQuests(body({ verification: ["my_qr"] }));
+    expect(sent?.categories[0]?.quests[0]?.verification).toEqual(["my_qr"]);
+    const older = readQuests(body({ verification: undefined }));
+    expect(older?.categories[0]?.quests[0]?.verification).toEqual(["quest_qr"]);
+    expect(readQuests(body({ verification: "my_qr" }))).toBeUndefined();
+  });
+});
