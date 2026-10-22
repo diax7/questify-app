@@ -23,6 +23,7 @@ const QUEST: QuestView = {
   visible: true,
   position: 0,
   config: { code: "NAJD2030" },
+  verification: [],
 };
 
 describe("textFor", () => {
@@ -66,6 +67,7 @@ describe("quest bodies", () => {
       closesAt: null,
       visible: true,
       config: {},
+      verification: ["quest_qr"],
     });
   });
 
@@ -88,7 +90,12 @@ describe("questProblem", () => {
   it("passes a sound draft", () => {
     expect(questProblem(fine)).toBeUndefined();
     expect(
-      questProblem({ ...fine, type: "enter_code", config: { code: "NAJD2030" } }),
+      questProblem({
+        ...fine,
+        type: "enter_code",
+        config: { code: "NAJD2030" },
+        verification: [],
+      }),
     ).toBeUndefined();
   });
 
@@ -98,7 +105,9 @@ describe("questProblem", () => {
     ["points", { points: 100_001 }],
     ["points", { points: 1.5 }],
     ["closesAt", { opensAt: "2030-11-01T10:00", closesAt: "2030-11-01T10:00" }],
-    ["config", { type: "enter_code", config: { code: "AB" } }],
+    ["config", { type: "enter_code", config: { code: "AB" }, verification: [] }],
+    ["verification", { verification: [] }],
+    ["verification", { type: "enter_code", config: { code: "NAJD2030" } }],
   ] as const)("names %s", (field, change) => {
     expect(questProblem({ ...fine, ...change })).toBe(field);
   });

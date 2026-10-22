@@ -22,7 +22,7 @@ type Code = Readonly<{
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
 /** The code itself: an SVG path drawn from the data, black on white, never mirrored right to left. */
-function QrImage({ text, label }: Readonly<{ text: string; label: string }>) {
+export function QrImage({ text, label }: Readonly<{ text: string; label: string }>) {
   const { size, path } = qrDrawing(text);
   return (
     <svg

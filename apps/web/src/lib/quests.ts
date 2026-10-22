@@ -1,4 +1,11 @@
-import { parseQuestConfig, toLocalInput, type Language, type QuestType } from "@questify/shared";
+import {
+  parseQuestConfig,
+  parseVerification,
+  toLocalInput,
+  type Language,
+  type QuestType,
+  type QuestVerification,
+} from "@questify/shared";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -16,6 +23,7 @@ export type QuestView = Readonly<{
   visible: boolean;
   position: number;
   config: Readonly<Record<string, unknown>>;
+  verification: readonly QuestVerification[];
 }>;
 
 export type CategoryView = Readonly<{
@@ -56,6 +64,8 @@ export type QuestDraft = Readonly<{
   closesAt: string;
   visible: boolean;
   config: Readonly<Record<string, unknown>>;
+  /** How it is verified (FR-301); a type that offers no method has none. */
+  verification: readonly QuestVerification[];
 }>;
 
 export function blankQuest(categoryId: string): QuestDraft {
@@ -72,6 +82,7 @@ export function blankQuest(categoryId: string): QuestDraft {
     closesAt: "",
     visible: true,
     config: {},
+    verification: ["quest_qr"],
   };
 }
 
@@ -90,6 +101,7 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     closesAt: local(quest.closesAt),
     visible: quest.visible,
     config: quest.config,
+    verification: quest.verification,
   };
 }
 
@@ -103,6 +115,7 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   closesAt: draft.closesAt === "" ? null : draft.closesAt,
   visible: draft.visible,
   config: draft.config,
+  verification: draft.verification,
 });
 
 /** The body to create a quest: everything, with its type. */
@@ -127,7 +140,7 @@ export function editQuestBody(draft: QuestDraft, before: QuestDraft): Record<str
  */
 export function questProblem(
   draft: QuestDraft,
-): "title" | "points" | "closesAt" | "config" | undefined {
+): "title" | "points" | "closesAt" | "config" | "verification" | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
   }
@@ -137,5 +150,10 @@ export function questProblem(
   if (draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt) {
     return "closesAt";
   }
-  return parseQuestConfig(draft.type, draft.config) === undefined ? "config" : undefined;
+  if (parseQuestConfig(draft.type, draft.config) === undefined) {
+    return "config";
+  }
+  return parseVerification(draft.type, draft.verification) === undefined
+    ? "verification"
+    : undefined;
 }

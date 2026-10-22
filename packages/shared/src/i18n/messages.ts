@@ -1223,7 +1223,7 @@ export const MESSAGES = {
     ar: "يمسح المشغّل رمز اللاعب",
     en: "An operator scans the player's code",
   },
-  "quests.verification.required": {
+  "quests.invalid.verification": {
     ar: "اختر طريقة واحدة على الأقل.",
     en: "Choose at least one way.",
   },

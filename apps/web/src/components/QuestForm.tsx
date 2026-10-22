@@ -3,10 +3,12 @@
 import {
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
+  parseVerification,
   termFor,
   zoneLabel,
   type EventTerms,
   type Language,
+  type QuestVerification,
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
@@ -90,7 +92,12 @@ export function QuestForm({
           value={draft.type}
           disabled={busy || !isNew}
           onChange={(event) =>
-            change({ type: event.target.value as QuestDraft["type"], config: {} })
+            change({
+              type: event.target.value as QuestDraft["type"],
+              config: {},
+              verification:
+                parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
+            })
           }
         >
           {QUEST_TYPE_NAMES.map((type) => (
@@ -176,6 +183,7 @@ export function QuestForm({
         disabled={busy}
         change={(config) => change({ config })}
       />
+      <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}
@@ -236,5 +244,48 @@ function QuestRepeatField({
         </label>
       ) : null}
     </>
+  );
+}
+
+/** FR-301: how a scan quest is verified, at least one way; a type with no method shows nothing. */
+function QuestVerificationField({
+  language,
+  draft,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  draft: QuestDraft;
+  busy: boolean;
+  change: (patch: Partial<QuestDraft>) => void;
+}>) {
+  const t = translatorFor(language);
+  const offered: readonly QuestVerification[] = QUEST_TYPES[draft.type].verifications;
+  if (offered.length === 0) {
+    return null;
+  }
+  const toggle = (method: QuestVerification, on: boolean) =>
+    change({
+      verification: offered.filter((item) =>
+        item === method ? on : draft.verification.includes(item),
+      ),
+    });
+  return (
+    <fieldset className={styles.field}>
+      <legend>{t("quests.verification")}</legend>
+      {offered.map((method) => (
+        <label key={method} className={styles.check}>
+          <input
+            type="checkbox"
+            checked={draft.verification.includes(method)}
+            disabled={busy}
+            onChange={(event) => toggle(method, event.target.checked)}
+          />
+          <span>
+            {t(method === "quest_qr" ? "quests.verification.questQr" : "quests.verification.myQr")}
+          </span>
+        </label>
+      ))}
+    </fieldset>
   );
 }
