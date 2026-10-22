@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { onlyRow } from "#src/db/rows";
 import { myCode, type MyCodeKey } from "#src/quests/qr";
 import { unauthenticated } from "#src/auth/http-errors";
 
@@ -11,7 +12,7 @@ export async function myQr(deps: MyQrDeps, playerId: string): Promise<string> {
   const version = await withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId }, async () => {
       const { rows } = await client.query<{ v: number | null }>("SELECT my_qr_version() AS v");
-      return rows[0]?.v ?? null;
+      return onlyRow(rows, "my_qr_version").v;
     }),
   );
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard admits active players only
@@ -32,7 +33,7 @@ export async function resetMyQr(
       const { rows } = await client.query<{ v: number | null }>("SELECT reset_my_qr($1) AS v", [
         requestId,
       ]);
-      return rows[0]?.v ?? null;
+      return onlyRow(rows, "reset_my_qr").v;
     }),
   );
   return version === null ? null : myCode(deps.myKey, playerId, version);

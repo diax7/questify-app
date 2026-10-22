@@ -39,7 +39,7 @@ import {
   revokeInvite,
   updateOperator,
   type CreateResult,
-  type InviteState,
+  type InviteRefusal,
   type OperatorsDeps,
 } from "#src/operators/operators";
 import { myQr, resetMyQr } from "#src/operators/my-qr";
@@ -104,7 +104,7 @@ function answerCreate(reply: FastifyReply, result: CreateResult) {
 }
 
 /** The answer for an invite the caller cannot claim. */
-function inviteRefusal(state: Exclude<InviteState, "ok">): never {
+function inviteRefusal(state: InviteRefusal): never {
   switch (state) {
     case "not_found":
       throw inviteNotFound();
@@ -267,8 +267,8 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
   app.post("/v1/operator-invites/preview", player, async (request) => {
     const { token } = parse(tokenBody, request.body);
     const preview = await previewInvite(deps, playerIdOf(request), inviteOf(token));
-    if (preview.state !== "ok" || preview.event === null) {
-      return inviteRefusal(preview.state === "ok" ? "not_found" : preview.state);
+    if (preview.state !== "ok") {
+      return inviteRefusal(preview.state);
     }
     return { event: preview.event, abilities: preview.abilities };
   });
@@ -276,10 +276,8 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
   app.post("/v1/operator-invites/claim", playerIdempotent, async (request) => {
     const { token } = parse(tokenBody, request.body);
     const claimed = await claimInvite(deps, playerIdOf(request), inviteOf(token), request.id);
-    if (claimed.outcome !== "claimed" || claimed.eventId === null) {
-      return inviteRefusal(
-        claimed.outcome === "claimed" || claimed.outcome === "ok" ? "not_found" : claimed.outcome,
-      );
+    if (claimed.outcome !== "claimed") {
+      return inviteRefusal(claimed.outcome);
     }
     return { eventId: claimed.eventId };
   });

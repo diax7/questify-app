@@ -5,6 +5,7 @@ import { takeOutboundMail } from "#src/auth/outbound";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
+import { onlyRow } from "#src/db/rows";
 import type { OrganizerContext } from "#src/organizers/store";
 import { inviteCode, inviteCodeUrl, type InviteCodeKey } from "#src/quests/qr";
 
@@ -304,7 +305,7 @@ export async function revokeInvite(
       "SELECT revoke_operator_invite($1, $2, $3) AS outcome",
       [target.eventId, target.inviteId, requestId],
     );
-    return rows[0]?.outcome ?? "not_found";
+    return onlyRow(rows, "operator outcome").outcome;
   });
 }
 
@@ -332,7 +333,7 @@ export async function updateOperator(
         requestId,
       ],
     );
-    return rows[0]?.outcome ?? "not_found";
+    return onlyRow(rows, "operator outcome").outcome;
   });
 }
 
@@ -347,26 +348,29 @@ export async function removeOperator(
       "SELECT remove_operator($1, $2, $3) AS outcome",
       [target.eventId, target.operatorId, requestId],
     );
-    return rows[0]?.outcome ?? "not_found";
+    return onlyRow(rows, "operator outcome").outcome;
   });
 }
 
 // ================================================================ the player's side
 
-export type InviteState =
-  | "ok"
+/** Why an invite cannot be used by this person (preview_operator_invite, claim_operator_invite). */
+export type InviteRefusal =
   | "not_found"
   | "used"
   | "expired"
   | "email_mismatch"
   | "already_operator";
 
-export type InvitePreview = Readonly<{
-  state: InviteState;
-  event: Readonly<{ id: string; name: Readonly<{ ar: string | null; en: string | null }> }> | null;
-  abilities: readonly string[];
-}>;
+export type InvitePreview =
+  | Readonly<{
+      state: "ok";
+      event: Readonly<{ id: string; name: Readonly<{ ar: string | null; en: string | null }> }>;
+      abilities: readonly string[];
+    }>
+  | Readonly<{ state: InviteRefusal }>;
 
+/** FR-903: what the confirm screen shows; nothing is written. The database answers one row, with the event when ok. */
 export async function previewInvite(
   deps: Pick<OperatorsDeps, "pool">,
   playerId: string,
@@ -374,37 +378,41 @@ export async function previewInvite(
 ): Promise<InvitePreview> {
   return asPlayer(deps, playerId, async (client) => {
     const { rows } = await client.query<{
-      outcome: InviteState;
-      event_id: string | null;
+      outcome: "ok" | InviteRefusal;
+      event_id: string;
       name_ar: string | null;
       name_en: string | null;
-      abilities: string[] | null;
+      abilities: string[];
     }>("SELECT * FROM preview_operator_invite($1)", [inviteId]);
-    const row = rows[0];
-    // Stryker disable next-line ConditionalExpression: preview_operator_invite always returns one row
-    if (row === undefined || row.event_id === null) {
-      return { state: row?.outcome ?? "not_found", event: null, abilities: [] };
-    }
-    return {
-      state: row.outcome,
-      event: { id: row.event_id, name: { ar: row.name_ar, en: row.name_en } },
-      abilities: row.abilities ?? [],
-    };
+    const row = rows[0] as (typeof rows)[number];
+    return row.outcome === "ok"
+      ? {
+          state: "ok",
+          event: { id: row.event_id, name: { ar: row.name_ar, en: row.name_en } },
+          abilities: row.abilities,
+        }
+      : { state: row.outcome };
   });
 }
 
+/** The caller becomes the invite's operator, once (FR-903). The database answers one row, with the event when claimed. */
 export async function claimInvite(
   deps: Pick<OperatorsDeps, "pool">,
   playerId: string,
   inviteId: string,
   requestId: string,
-): Promise<Readonly<{ outcome: InviteState | "claimed"; eventId: string | null }>> {
+): Promise<
+  Readonly<{ outcome: "claimed"; eventId: string }> | Readonly<{ outcome: InviteRefusal }>
+> {
   return asPlayer(deps, playerId, async (client) => {
-    const { rows } = await client.query<{
-      outcome: InviteState | "claimed";
-      event_id: string | null;
-    }>("SELECT * FROM claim_operator_invite($1, $2)", [inviteId, requestId]);
-    return { outcome: rows[0]?.outcome ?? "not_found", eventId: rows[0]?.event_id ?? null };
+    const { rows } = await client.query<{ outcome: "claimed" | InviteRefusal; event_id: string }>(
+      "SELECT * FROM claim_operator_invite($1, $2)",
+      [inviteId, requestId],
+    );
+    const row = rows[0] as (typeof rows)[number];
+    return row.outcome === "claimed"
+      ? { outcome: "claimed", eventId: row.event_id }
+      : { outcome: row.outcome };
   });
 }
 
@@ -513,8 +521,8 @@ export async function enrollOperator(
       [eventId, cardVersion],
     );
     return {
-      outcome: rows[0]?.outcome ?? "not_allowed",
-      enrollmentId: rows[0]?.enrollment_id ?? null,
+      outcome: onlyRow(rows, "enroll_operator").outcome,
+      enrollmentId: onlyRow(rows, "enroll_operator").enrollment_id,
     };
   });
 }

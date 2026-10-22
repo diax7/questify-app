@@ -51,43 +51,40 @@ export type ScanResult =
   | Readonly<{ kind: "not_operator" }>
   | Readonly<{ kind: "key_reused" }>;
 
-type Refusal =
+type Judged =
+  | Readonly<{ kind: "completed"; row: Row }>
   | Readonly<{ kind: "refused"; reason: RedReason; detail?: string }>
   | Readonly<{ kind: "already_completed" }>
   | Readonly<{ kind: "not_operator" }>
   | Readonly<{ kind: "key_reused" }>;
 
+type Row = { completion_id: string; points: string; occurrence: number; replayed: boolean };
+
+const refused = (reason: RedReason, detail?: string): Judged =>
+  detail === undefined ? { kind: "refused", reason } : { kind: "refused", reason, detail };
+
 /** The SQLSTATEs of operator_complete_quest and record_completion (migration 0026). */
-const REFUSALS: Readonly<Record<string, (detail: string) => Refusal>> = {
+const REFUSALS: Readonly<Record<string, (detail: string | undefined) => Judged>> = {
   OP403: () => ({ kind: "not_operator" }),
-  OQ404: () => ({ kind: "refused", reason: "quest_not_found" }),
-  OA403: () => ({ kind: "refused", reason: "ability_off" }),
-  OS403: () => ({ kind: "refused", reason: "outside_station" }),
-  OY409: () => ({ kind: "refused", reason: "self_scan" }),
-  OM422: () => ({ kind: "refused", reason: "old_code" }),
-  QC404: () => ({ kind: "refused", reason: "not_in_event" }),
-  QC403: (detail) => ({ kind: "refused", reason: "enrollment_inactive", detail }),
-  QN403: (detail) => ({ kind: "refused", reason: "quest_not_open", detail }),
-  QV422: () => ({ kind: "refused", reason: "wrong_method" }),
-  QP403: () => ({ kind: "refused", reason: "operator_not_playing" }),
+  OQ404: () => refused("quest_not_found"),
+  OA403: () => refused("ability_off"),
+  OS403: () => refused("outside_station"),
+  OY409: () => refused("self_scan"),
+  OM422: () => refused("old_code"),
+  QC404: () => refused("not_in_event"),
+  QC403: (detail) => refused("enrollment_inactive", detail),
+  QN403: (detail) => refused("quest_not_open", detail),
+  QV422: () => refused("wrong_method"),
+  QP403: () => refused("operator_not_playing"),
   QD409: () => ({ kind: "already_completed" }),
   QK422: () => ({ kind: "key_reused" }),
 };
 
-/** Reasons that must not name the person: they are not this event's player, or the code named nobody. */
-const NAMELESS: ReadonlySet<RedReason> = new Set([
-  "invalid_code",
-  "not_in_event",
-  "quest_not_found",
-]);
-
-type Row = { completion_id: string; points: string; occurrence: number; replayed: boolean };
-
-async function complete(
+async function judge(
   client: PoolClient,
   request: ScanRequest,
   scanned: Readonly<{ playerId: string; version: number }>,
-): Promise<Row | Refusal> {
+): Promise<Judged> {
   // A refusal raises; the savepoint keeps the transaction usable for reading who was scanned.
   await client.query("SAVEPOINT scan");
   try {
@@ -95,18 +92,22 @@ async function complete(
       "SELECT completion_id, points, occurrence, replayed FROM operator_complete_quest($1, $2, $3, $4)",
       [request.questId, scanned.playerId, scanned.version, request.idempotencyKey],
     );
-    return rows[0] as Row;
+    return { kind: "completed", row: rows[0] as Row };
   } catch (error) {
     const pg = error as { code?: string; detail?: string };
-    const refusal = pg.code === undefined ? undefined : REFUSALS[pg.code];
+    const refusal = REFUSALS[pg.code ?? ""];
     if (refusal === undefined) {
       throw error;
     }
     await client.query("ROLLBACK TO SAVEPOINT scan");
-    return refusal(pg.detail ?? "");
+    return refusal(pg.detail);
   }
 }
 
+/**
+ * Who the station just scanned. The database names only a player of the quest's event, and only to an operator of
+ * that event: someone outside it, an unknown quest or a removed operator get no one.
+ */
 async function subjectOf(
   client: PoolClient,
   questId: string,
@@ -122,7 +123,7 @@ async function subjectOf(
 /**
  * The station scan (FR-923, FR-924): the API opens the My QR; `operator_complete_quest` checks the operator, their
  * ability and quest limit, the player's code version and every completion rule, and pays the player in one
- * transaction. The station then reads who it scanned, unless the scan named nobody it may know.
+ * transaction. The station then reads who it scanned.
  */
 export async function operatorScan(
   deps: ScanDeps,
@@ -135,41 +136,34 @@ export async function operatorScan(
     return { kind: "refused", reason: "invalid_code", player: null };
   }
   const scanned = { playerId: opened.playerId, version: opened.version };
-  const outcome = await withConnection(deps.pool, (client) =>
+  const { judged, player } = await withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId: request.operatorId }, async () => {
-      const result = await complete(client, request, scanned);
-      if ("kind" in result && (result.kind === "not_operator" || result.kind === "key_reused")) {
-        return { result, player: null };
-      }
-      const named = !("kind" in result && result.kind === "refused" && NAMELESS.has(result.reason));
-      return {
-        result,
-        player: named ? await subjectOf(client, request.questId, scanned.playerId) : null,
-      };
+      const result = await judge(client, request, scanned);
+      return { judged: result, player: await subjectOf(client, request.questId, scanned.playerId) };
     }),
   );
-  const { result, player } = outcome;
-  if (!("kind" in result)) {
-    caller.log("operator.scan_completed", {
-      questId: request.questId,
-      replayed: String(result.replayed),
-    });
-    return {
-      kind: "completed",
-      player,
-      points: Number(result.points),
-      occurrence: result.occurrence,
-      replayed: result.replayed,
-      completionId: result.completion_id,
-      playerId: scanned.playerId,
-    };
+  switch (judged.kind) {
+    case "completed":
+      caller.log("operator.scan_completed", {
+        questId: request.questId,
+        replayed: String(judged.row.replayed),
+      });
+      return {
+        kind: "completed",
+        player,
+        points: Number(judged.row.points),
+        occurrence: judged.row.occurrence,
+        replayed: judged.row.replayed,
+        completionId: judged.row.completion_id,
+        playerId: scanned.playerId,
+      };
+    case "refused":
+      caller.log("operator.scan_refused", { reason: judged.reason, questId: request.questId });
+      return { ...judged, player };
+    case "already_completed":
+      return { kind: "already_completed", player };
+    case "not_operator":
+    case "key_reused":
+      return judged;
   }
-  if (result.kind === "refused") {
-    caller.log("operator.scan_refused", { reason: result.reason, questId: request.questId });
-    return { ...result, player };
-  }
-  if (result.kind === "already_completed") {
-    return { kind: "already_completed", player };
-  }
-  return result;
 }
