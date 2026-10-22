@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { isEventFull } from "#src/activation/activation";
 import { operatorInviteEmail } from "#src/auth/email/templates";
 import type { EmailSender } from "#src/auth/email/sender";
 import { takeOutboundMail } from "#src/auth/outbound";
@@ -506,23 +507,30 @@ export async function operatorStations(
   });
 }
 
-export type PlayOutcome = "joined" | "already" | "not_allowed" | "ended";
+export type PlayOutcome = "joined" | "already" | "not_allowed" | "ended" | "full";
 
-/** FR-907: an operator the owner allows to play joins the event as a player. */
+/** FR-907: an operator the owner allows to play joins the event as a player, taking a seat (ADR-141). */
 export async function enrollOperator(
   deps: Pick<OperatorsDeps, "pool">,
   playerId: string,
   eventId: string,
   cardVersion: string,
 ): Promise<Readonly<{ outcome: PlayOutcome; enrollmentId: string | null }>> {
-  return asPlayer(deps, playerId, async (client) => {
-    const { rows } = await client.query<{ outcome: PlayOutcome; enrollment_id: string | null }>(
-      "SELECT * FROM enroll_operator($1, $2)",
-      [eventId, cardVersion],
-    );
-    return {
-      outcome: onlyRow(rows, "enroll_operator").outcome,
-      enrollmentId: onlyRow(rows, "enroll_operator").enrollment_id,
-    };
-  });
+  try {
+    return await asPlayer(deps, playerId, async (client) => {
+      const { rows } = await client.query<{ outcome: PlayOutcome; enrollment_id: string | null }>(
+        "SELECT * FROM enroll_operator($1, $2)",
+        [eventId, cardVersion],
+      );
+      return {
+        outcome: onlyRow(rows, "enroll_operator").outcome,
+        enrollmentId: onlyRow(rows, "enroll_operator").enrollment_id,
+      };
+    });
+  } catch (error) {
+    if (isEventFull(error)) {
+      return { outcome: "full", enrollmentId: null };
+    }
+    throw error;
+  }
 }

@@ -5,6 +5,7 @@ import {
   alreadyOperator,
   emailUnavailable,
   eventClosed,
+  eventFull,
   idempotencyKeyReused,
   invalidOperator,
   inviteEmailMismatch,
@@ -313,6 +314,8 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
         return { enrollmentId: joined.enrollmentId };
       case "ended":
         throw eventClosed();
+      case "full":
+        throw eventFull();
       case "not_allowed":
         throw operatorPlayOff();
     }

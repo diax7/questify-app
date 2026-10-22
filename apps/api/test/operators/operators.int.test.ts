@@ -472,6 +472,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
         ).json(),
       ).toMatchObject({ result: "refused", reason: "operator_not_playing" });
     });
+
+    it("takes a seat when an operator plays, so a full hard limit answers 409 event_full", async () => {
+      const event = await newEvent();
+      await newPlayer(event);
+      await owner("UPDATE event SET player_limit_mode = 'hard', player_limit = 1 WHERE id = $1", [
+        event,
+      ]);
+      const operator = await newOperator(event);
+      await dashboard("PUT", `/events/${event}/operators/${operator.assignment}`, {
+        abilities: ["scan_quests"],
+        canPlay: true,
+        questIds: [],
+      });
+      const play = await app("POST", `/v1/events/${event}/operator/play`, operator.token, {
+        cardVersion: joinCard().version,
+      });
+      expect(play.statusCode).toBe(409);
+      expect(play.json()).toMatchObject({ code: "event_full" });
+    });
   });
 
   describe("My QR", () => {
