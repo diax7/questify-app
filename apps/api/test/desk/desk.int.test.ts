@@ -254,10 +254,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       await firstWork;
       await b.query("BEGIN");
       await b.query("SELECT set_config('app.player_id', $1, true)", [second[0]]);
-      const secondWork = b.query(second[1], second[2]);
+      // Settled at once: the second call may be refused before anything awaits it.
+      const secondWork = Promise.allSettled([b.query(second[1], second[2])]);
       await new Promise((resolve) => setTimeout(resolve, 150));
       await a.query("COMMIT");
-      const settled = await Promise.allSettled([firstWork, secondWork]);
+      const settled = [...(await Promise.allSettled([firstWork])), ...(await secondWork)];
       await b.query(settled[1]?.status === "fulfilled" ? "COMMIT" : "ROLLBACK");
       return settled;
     } finally {
