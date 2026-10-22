@@ -33,6 +33,9 @@ export type Session = Readonly<{
 /** One secure-store item: access, refresh and expiry are written together, so they can never tear apart. */
 export const SESSION_KEY = "questify.session";
 
+/** The account's own secure items besides the session: the cached My QR (ADR-137). They go with the account. */
+export const MY_QR_KEY = "questify.myQr";
+
 /** Refresh when less than this is left (the API's access token lives an hour). */
 const REFRESH_MARGIN_MS = 60_000;
 
@@ -69,6 +72,15 @@ export function createSession(deps: SessionDeps): Session {
   // A chosen sign-out is not "your session ended": a refresh that a late 401 starts meanwhile tells nobody.
   let signingOut = false;
 
+  /** Another account on this phone must never show the last one's code, offline included. */
+  const dropAccountItems = async () => {
+    try {
+      await deps.storage.delete(MY_QR_KEY);
+    } catch {
+      // Worst case the next sign-in's first My QR read replaces it.
+    }
+  };
+
   /** Deletes the stored pair; a store that fails to delete is reported to nobody, the pair is unusable anyway. */
   const forget = async () => {
     try {
@@ -76,6 +88,7 @@ export function createSession(deps: SessionDeps): Session {
     } catch {
       // The next read fails the same way and answers "no session".
     }
+    await dropAccountItems();
   };
 
   /**
@@ -187,7 +200,10 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   return {
-    start: save,
+    start: async (issued) => {
+      await dropAccountItems();
+      await save(issued);
+    },
     signedIn: async () => (await load()) !== undefined,
     request: async (request) => {
       const token = await access();

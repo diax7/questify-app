@@ -23,6 +23,8 @@ export type Quest = Readonly<{
   done: number;
   /** The points this player earned from it, from the ledger. */
   earned: number;
+  /** How it is verified (FR-301): `quest_qr` the printed code, `my_qr` staff scanning My QR. */
+  verification: readonly string[];
   state: QuestState;
 }>;
 
@@ -62,6 +64,9 @@ const isQuest = (value: unknown): value is Quest =>
   isTime(value["opensAt"]) &&
   isTime(value["closesAt"]) &&
   typeof value["state"] === "string" &&
+  (value["verification"] === undefined ||
+    (Array.isArray(value["verification"]) &&
+      value["verification"].every((item) => typeof item === "string"))) &&
   NUMBERS.every((key) => typeof value[key] === "number");
 
 const isCategory = (value: unknown): value is Category =>
@@ -72,6 +77,12 @@ const isCategory = (value: unknown): value is Category =>
   value["quests"].every(isQuest);
 
 /** Checks the answer's shape, so a changed API shows "can't load" instead of a broken screen. */
+/** An API from before T-205 sends no verification: a scan quest then has its printed code only. */
+const withVerification = (quest: Quest): Quest =>
+  (quest.verification as readonly string[] | undefined) === undefined
+    ? { ...quest, verification: quest.type === "scan_qr" ? ["quest_qr"] : [] }
+    : quest;
+
 export function readQuests(body: unknown): QuestsView | undefined {
   if (!isRecord(body) || !isRecord(body["event"]) || !Array.isArray(body["categories"])) {
     return undefined;
@@ -82,7 +93,10 @@ export function readQuests(body: unknown): QuestsView | undefined {
     body["categories"].every(isCategory)
     ? {
         event: { statusNow: event["statusNow"], timezone: event["timezone"] },
-        categories: body["categories"],
+        categories: (body["categories"] as Category[]).map((category) => ({
+          ...category,
+          quests: category.quests.map(withVerification),
+        })),
       }
     : undefined;
 }

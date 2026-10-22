@@ -24,6 +24,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   done: 0,
   earned: 0,
   state: "open",
+  verification: [],
   ...fields,
 });
 

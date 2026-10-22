@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
-import { Pressable, View } from "react-native";
-import type { MessageKey, Theme } from "@questify/shared";
+import type { MessageKey } from "@questify/shared";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
+import { ScanButton } from "#src/components/ScanButton.tsx";
+import { useTheme } from "#src/theme/theme.tsx";
 
 type Icon = keyof typeof Ionicons.glyphMap;
 
@@ -16,27 +16,6 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
   { name: "rewards", title: "nav.rewards", icon: "gift" },
   { name: "profile", title: "nav.profile", icon: "person" },
 ];
-
-/**
- * The large round button in the middle of the bar (FR-620, FR-621). It replaces the tab's own button, so it never
- * opens the tab's screen: it opens the scanner over the tabs (My QR joins it with T-205).
- */
-function ScanButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <View style={styles.scanSlot}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        onPress={onPress}
-        style={styles.scan}
-      >
-        <Ionicons name="scan" size={30} color={theme.colors.onPrimaryAction} />
-      </Pressable>
-    </View>
-  );
-}
 
 /**
  * The event's bar (FR-620, T-113): Home, Quests, Scan in the middle, Rewards, Profile. The tabs keep one order in both
@@ -79,18 +58,3 @@ export default function EventTabsLayout() {
     </Tabs>
   );
 }
-
-const makeStyles = (theme: Theme) => ({
-  scanSlot: { flex: 1, alignItems: "center" as const },
-  scan: {
-    width: 64,
-    height: 64,
-    marginTop: -20,
-    borderRadius: theme.radius.pill,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    borderWidth: 3,
-    borderColor: theme.colors.navigationBar,
-    backgroundColor: theme.colors.primaryAction,
-  },
-});

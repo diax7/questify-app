@@ -1,13 +1,14 @@
 import { DEFAULT_TERMS, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { AppState, Linking, View } from "react-native";
+import { router } from "expo-router";
+import { useEffect, useReducer, useRef, useState } from "react";
+import { AppState, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
+import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
@@ -23,6 +24,7 @@ import {
   type CompletionAnswer,
 } from "#src/event/quests-api.ts";
 import { OPEN_GATE, passes, questCodeOrigin, readScan, type ScanGate } from "#src/event/scan.ts";
+import { inviteTokenOf } from "#src/operator/station.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -32,47 +34,6 @@ const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"
 
 /** Haptics never block a scan: a phone without them simply stays still. */
 const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
-
-/** True while this screen is in front and the app is in the foreground: the camera runs only then. */
-function useCameraActive(): boolean {
-  const [focused, setFocused] = useState(false);
-  const [foreground, setForeground] = useState(AppState.currentState === "active");
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, []),
-  );
-  useEffect(() => {
-    const watcher = AppState.addEventListener("change", (state) =>
-      setForeground(state === "active"),
-    );
-    return () => watcher.remove();
-  }, []);
-  return focused && foreground;
-}
-
-/** Asked when the scanner opens, never at launch; denied once on Android may be asked again (STORE_COMPLIANCE §2.7). */
-function PermissionCard({
-  canAskAgain,
-  onAllow,
-}: Readonly<{ canAskAgain: boolean; onAllow: () => void }>) {
-  const { t } = useI18n();
-  return (
-    <View style={{ gap: 12 }}>
-      <AppText variant="title">{t("scanner.permissionTitle")}</AppText>
-      <AppText>{canAskAgain ? t("scanner.permissionBody") : t("scanner.denied")}</AppText>
-      {canAskAgain ? (
-        <Button label={t("scanner.allow")} onPress={onAllow} />
-      ) : (
-        <Button
-          label={t("scanner.openSettings")}
-          onPress={() => void Linking.openSettings().catch(() => undefined)}
-        />
-      )}
-    </View>
-  );
-}
 
 /** The words for a refusal in the scanner: as the quest sheet, and "not available to you" where it would reload. */
 function refusalText(
@@ -184,6 +145,13 @@ export default function ScanQuestScreen() {
     if (!passes(gate.current, data)) {
       return;
     }
+    // A personal operator code (T-204) opens its confirm screen.
+    const invite = inviteTokenOf(data);
+    if (invite !== null) {
+      gate.current = { busy: true, ignored: null };
+      router.replace(`/operator-invite/${invite}`);
+      return;
+    }
     const scan = readScan(data, EXTRA_ORIGIN);
     if (scan.kind === "other") {
       gate.current = { busy: false, ignored: data };
@@ -220,6 +188,8 @@ export default function ScanQuestScreen() {
   const scanning = step.kind === "scanning";
   return (
     <Screen title={t("scanner.title")} header={<BackButton />}>
+      {/* FR-306, FR-622: My QR sits behind the same round button. */}
+      <Button kind="quiet" label={t("myQr.title")} onPress={() => router.push("/my-qr")} />
       {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
       {permission !== null && !granted ? (
         <PermissionCard

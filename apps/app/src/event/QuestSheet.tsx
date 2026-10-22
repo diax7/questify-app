@@ -142,8 +142,24 @@ function Verification({
   if (quest.type === "enter_code") {
     return <CodeEntry quest={quest} onDone={onDone} />;
   }
+  const staff = quest.verification.includes("my_qr");
+  // T-205: a quest staff verify shows My QR; with no printed code it offers nothing else.
+  const showMyQr = staff ? (
+    <>
+      <AppText variant="label">{t("quests.showMyQr")}</AppText>
+      <Button
+        kind={quest.verification.includes("quest_qr") ? "quiet" : "primary"}
+        label={t("myQr.title")}
+        onPress={() => router.push("/my-qr")}
+      />
+    </>
+  ) : null;
+  if (!quest.verification.includes("quest_qr")) {
+    return showMyQr;
+  }
   return (
     <>
+      {showMyQr}
       <AppText variant="label">{t("questsTab.verifyScan")}</AppText>
       <Button
         label={t("questsTab.scan")}

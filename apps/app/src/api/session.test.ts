@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
-import { SESSION_KEY, createSession, type SecretStorage } from "#src/api/session.ts";
+import { MY_QR_KEY, SESSION_KEY, createSession, type SecretStorage } from "#src/api/session.ts";
 
 const headers = new Headers();
 const ok = (body: unknown = {}): ApiResult => ({ kind: "ok", status: 200, body, headers });
@@ -341,6 +341,18 @@ describe("the session", () => {
       kind: "signed_out",
     });
     expect(calls).toEqual([]);
+  });
+
+  it("drops the cached My QR with the account: at sign-out and at the next sign-in", async () => {
+    const { client } = fakeClient({ "/v1/auth/logout": [ok()] });
+    const storage = memoryStorage();
+    const session = createSession({ client, storage, now: () => 0 });
+    await storage.set(MY_QR_KEY, "earlier account");
+    await session.start(issued(1));
+    expect(storage.data.has(MY_QR_KEY)).toBe(false);
+    await storage.set(MY_QR_KEY, "this account");
+    await session.signOut();
+    expect(storage.data.has(MY_QR_KEY)).toBe(false);
   });
 
   it("signs out with no call when nothing is stored", async () => {

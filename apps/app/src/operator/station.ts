@@ -1,0 +1,93 @@
+import type { MessageKey } from "@questify/shared";
+
+const TOKEN = /^[A-Za-z0-9_-]{50}$/;
+
+/**
+ * The operator invite token in a scanned or opened link (T-204): the dashboard's `https://{host}/{ar|en}/op#{token}`
+ * (a personal QR or an invite email) or the web page's app link `questify://operator-invite/{token}`. Null for
+ * anything else. The host is not checked: the server's signature decides, and a forged token only gets "not valid".
+ */
+export function inviteTokenOf(text: string): string | null {
+  const trimmed = text.trim();
+  const web = /^https:\/\/[A-Za-z0-9.-]+\/(?:ar|en)\/op#([^#\s]+)$/.exec(trimmed)?.[1];
+  const app = /^questify:\/\/operator-invite\/([^/?#\s]+)$/.exec(trimmed)?.[1];
+  const token = web ?? app;
+  return token !== undefined && TOKEN.test(token) ? token : null;
+}
+
+/** A My QR is its bare token (ADR-137): the station sends anything that has its shape and lets the server judge. */
+export function isPlayerCode(text: string): boolean {
+  return TOKEN.test(text.trim());
+}
+
+/** Why the station shows red (API.md, `POST /v1/operator/scan`). */
+const RED_REASONS = [
+  "invalid_code",
+  "old_code",
+  "not_in_event",
+  "enrollment_inactive",
+  "quest_not_open",
+  "quest_not_found",
+  "ability_off",
+  "outside_station",
+  "self_scan",
+  "operator_not_playing",
+  "wrong_method",
+] as const;
+type RedReason = (typeof RED_REASONS)[number];
+
+export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
+
+/** What the full-screen result shows (FR-924): its colour, its words and who was scanned. */
+export type StationResult =
+  | Readonly<{ color: "green"; points: number; player: ScannedPlayer | null }>
+  | Readonly<{ color: "orange"; player: ScannedPlayer | null }>
+  | Readonly<{ color: "red"; reason: MessageKey; player: ScannedPlayer | null }>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const playerOf = (value: unknown): ScannedPlayer | null =>
+  isRecord(value) && typeof value["username"] === "string" && typeof value["avatar"] === "string"
+    ? { username: value["username"], avatar: value["avatar"] }
+    : null;
+
+const camel = (value: string) =>
+  value.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+
+/** The scan's answer as the station shows it; undefined for a body this app cannot read. */
+export function stationResult(body: unknown): StationResult | undefined {
+  if (!isRecord(body)) {
+    return undefined;
+  }
+  const player = playerOf(body["player"]);
+  switch (body["result"]) {
+    case "completed":
+      return typeof body["points"] === "number"
+        ? { color: "green", points: body["points"], player }
+        : undefined;
+    case "already_completed":
+      return { color: "orange", player };
+    case "refused": {
+      // A reason a newer server adds is still red, in the general words.
+      const reason = RED_REASONS.includes(body["reason"] as RedReason)
+        ? (body["reason"] as RedReason)
+        : "invalid_code";
+      return { color: "red", reason: `operator.red.${camel(reason)}` as MessageKey, player };
+    }
+    default:
+      return undefined;
+  }
+}
+
+/** The same code at the same station within this time is the camera reading it again, not a new scan. */
+export const REPEAT_MS = 5000;
+
+export type LastScan = Readonly<{ code: string; questId: string; at: number }> | null;
+
+/** FR-923 with a fixed My QR: a code held up stays one scan until it leaves for 5 seconds or the station changes. */
+export function isRepeat(last: LastScan, code: string, questId: string, now: number): boolean {
+  return (
+    last !== null && last.code === code && last.questId === questId && now - last.at < REPEAT_MS
+  );
+}
