@@ -344,6 +344,10 @@ export default function SignInScreen() {
   }, [state, reload, invite]);
 
   const close = () => {
+    const join = pendingFrom(params);
+    if (join !== undefined) {
+      forgetAnswers(join.code);
+    }
     dispatch({ type: "closed" });
     // Opened from a link at a cold start, there may be nothing behind sign-in.
     if (router.canGoBack()) {

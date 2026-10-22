@@ -413,6 +413,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
       expect(await join(await newPlayer(), event.code)).toMatchObject({ status: "pending" });
     });
 
+    it("lets a pending requester added to the guest list in, without approval (FR-1819)", async () => {
+      const event = await newEvent({ access: "private", welcome: 20 });
+      const player = await newPlayer({ email: "late.vip@acme.sa" });
+      expect(await join(player, event.code)).toMatchObject({ status: "pending" });
+      await addGuest(event.id, "email", "late.vip@acme.sa");
+      const listed = await as<{ id: string }>(
+        { playerId: player },
+        "SELECT id FROM my_invitations()",
+      );
+      expect(listed).toEqual([{ id: event.id }]);
+      expect(await joinInvited(player, event.id)).toMatchObject({
+        outcome: "joined",
+        status: "active",
+        welcome: 20,
+      });
+      expect(await joinInvited(player, event.id)).toMatchObject({ outcome: "already" });
+    });
+
     it("locks an event to verified email domains, letting guests through", async () => {
       const event = await newEvent({ domains: ["acme.sa", "acme.com"] });
       await addGuest(event.id, "phone", "+966522222222");

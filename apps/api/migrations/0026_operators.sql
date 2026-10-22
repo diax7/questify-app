@@ -789,12 +789,13 @@ BEGIN
   IF card IS NULL THEN
     RAISE EXCEPTION 'the join card version is required' USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- The event first, FOR SHARE like every join: a change of the event's join settings waits for this one.
+  SELECT * INTO ev FROM event WHERE id = target_event FOR SHARE;
   SELECT * INTO assignment FROM staff_assignment sa WHERE sa.event_id = target_event AND sa.player_id = me FOR SHARE;
   IF NOT FOUND OR NOT assignment.can_play THEN
     RETURN QUERY SELECT 'not_allowed'::text, NULL::uuid;
     RETURN;
   END IF;
-  SELECT * INTO ev FROM event WHERE id = target_event;
   IF event_status_now(ev.status, ev.starts_at, ev.ends_at) NOT IN ('scheduled', 'live') THEN
     RETURN QUERY SELECT 'ended'::text, NULL::uuid;
     RETURN;

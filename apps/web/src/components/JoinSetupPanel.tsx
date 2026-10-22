@@ -9,6 +9,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   JOIN_FIELD_LIMIT,
+  removesSavedField,
   domainsOf,
   draftsOf,
   fieldsBody,
@@ -157,11 +158,17 @@ function FieldsEditor({
   const [drafts, setDrafts] = useState<FieldDraft[]>(() => draftsOf(setup.fields));
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const { problem, setProblem, fail } = useProblem(language);
   const counter = useRef(0);
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!confirming && removesSavedField(setup.fields, drafts)) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
     setBusy(true);
     setProblem(null);
     setNotice(null);
@@ -220,14 +227,28 @@ function FieldsEditor({
           {notice}
         </p>
       )}
-      <button
-        type="submit"
-        className={styles.button}
-        disabled={busy || drafts.some(needsLabel)}
-        aria-busy={busy}
-      >
-        {t("joinFields.save")}
-      </button>
+      {confirming ? (
+        <div role="alertdialog" aria-labelledby="remove-fields" className={styles.card}>
+          <p id="remove-fields">{t("joinFields.confirmRemove")}</p>
+          <div className={styles.row}>
+            <button type="submit" className={styles.button} disabled={busy}>
+              {t("joinFields.confirmRemoveYes")}
+            </button>
+            <button type="button" className={styles.quiet} onClick={() => setConfirming(false)}>
+              {t("joinFields.confirmRemoveNo")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="submit"
+          className={styles.button}
+          disabled={busy || drafts.some(needsLabel)}
+          aria-busy={busy}
+        >
+          {t("joinFields.save")}
+        </button>
+      )}
     </form>
   );
 }

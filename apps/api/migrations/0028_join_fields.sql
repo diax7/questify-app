@@ -279,7 +279,8 @@ BEGIN
     RETURN;
   END IF;
   SELECT en.* INTO row_found FROM enrollment en WHERE en.event_id = target.id AND en.player_id = me FOR UPDATE;
-  IF row_found.status IN ('active', 'pending') THEN
+  -- A pending requester the organizer has since put on the guest list goes on in without approval (FR-1819).
+  IF row_found.status = 'active' OR (row_found.status = 'pending' AND NOT player_invited(target.id, me)) THEN
     RETURN QUERY SELECT 'already'::text, row_found.id, target.id, row_found.status, 0;
     RETURN;
   END IF;
@@ -422,7 +423,8 @@ CREATE FUNCTION my_invitations()
     SELECT g.event_id FROM event_guest g
     WHERE (g.kind = 'phone' AND g.value = me.phone_e164) OR (g.kind = 'email' AND g.value = me.email))
   WHERE event_status_now(e.status, e.starts_at, e.ends_at) IN ('scheduled', 'live')
-    AND NOT EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = e.id AND n.player_id = me.id AND n.status <> 'left')
+    AND NOT EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = e.id AND n.player_id = me.id
+                    AND n.status NOT IN ('left', 'pending'))
   ORDER BY e.starts_at, e.id
   LIMIT 20
 $$;

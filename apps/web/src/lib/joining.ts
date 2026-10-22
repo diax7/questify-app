@@ -38,6 +38,15 @@ export type FieldDraft = Readonly<{
   required: boolean;
 }>;
 
+/** Whether saving these drafts deletes a saved field, and with it the answers players gave to it. */
+export function removesSavedField(
+  saved: readonly JoinFieldView[],
+  drafts: readonly FieldDraft[],
+): boolean {
+  const kept = new Set(drafts.map((draft) => draft.id));
+  return saved.some((field) => !kept.has(field.id));
+}
+
 export function draftsOf(fields: readonly JoinFieldView[]): FieldDraft[] {
   return fields.map((field) => ({
     key: field.id,

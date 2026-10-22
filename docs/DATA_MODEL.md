@@ -188,8 +188,8 @@ only below a hard limit (`QL409` otherwise, serialized per event by a transactio
 marks once. `event_seat_count(event)` gives the count to the team and admins.
 
 ### enrollment (a player in an event)
-`id`, `event_id`, `player_id`, `joined_at`, `join_source`, `join_answers jsonb` (**PII**, only
-fields disclosed on the join card, PD-17), `score bigint` and `balance bigint` (**caches of the
+`id`, `event_id`, `player_id`, `joined_at`, `joined_via` (code, qr, link, public_list, operator, invite), answers in
+`join_answer` (below), `score bigint` and `balance bigint` (**caches of the
 ledger**), `status` active/left/removed/banned. **Unique (event_id, player_id).** Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
 **Ranking (T-106, migration 0015):** `score_version bigint`, the id of the ledger entry that last changed the score
@@ -325,7 +325,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | wallet_pass, wallet_registration | Serial, auth token, device registrations for pass updates | Linked to player |
 | word_list, deletion_request, data_request | Username filter lists; legal requests and what was done | Requests yes |
 | usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076) | No |
-| guest_list_entry, join_field | Guest-list phones/emails and company-domain locks per event (F-79); the organizer's join-field definitions | Yes (guest list) |
+| event_join_field, join_answer, event_guest (built, T-212, migration 0028) | Up to 5 join fields per event; each member's answers (**PII**, written only by the join definers, read by the event's team, the player and admins; a deleted field takes its answers); guest-list phones and emails (at most 10 000, unique per event). `event` gains `join_fields_version`, `guest_list_only`, `email_domains` (≤ 10) and `welcome_points`; the `welcome` ledger kind (one per enrollment, actor `system`) | Yes (answers, guest list) |
 | poll, poll_vote, survey_question, quest_rating | Live polls and their options, one vote per player, survey questions, optional quest ratings | Votes and answers yes |
 | community_quest, milestone | Shared goals with measure, milestones, rewards | No |
 | rank_prize, souvenir_grant | Prizes attached to final ranks with claim deadline; souvenir rules and grants | Grants link to players |

@@ -25,7 +25,8 @@ export function answersFor(fields: readonly JoinField[], typed: Typed): Record<s
 
 /**
  * Answers waiting through sign-in, by join code (ADR-089): in memory only, never in a route or on the device. Read
- * without removing (React may build a screen's state twice), forgotten once the sign-in ends either way.
+ * without removing (React may build a screen's state twice); forgotten after the join that follows sign-in, or when
+ * sign-in is closed. Leaving sign-in by the back gesture keeps them in memory until the next sign-in or app restart.
  */
 const waiting = new Map<string, Record<string, string>>();
 

@@ -579,6 +579,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
       expect(await join(await newPlayer())).toBe("not_allowed");
     });
 
+    it("waits for a change of the event before enrolling an operator (one welcome amount)", async () => {
+      const event = await newEvent();
+      const { player: operator, assignment } = await newOperator(event);
+      await setOperator(event, assignment, { canPlay: true });
+      await db.owner.query("BEGIN");
+      try {
+        await db.owner.query("UPDATE event SET welcome_points = 10 WHERE id = $1", [event]);
+        const enrolling = withRequestContext(db.app, { playerId: operator }, async () => {
+          await db.app.query("SET LOCAL lock_timeout = '300ms'");
+          return db.app.query("SELECT * FROM enroll_operator($1, '1')", [event]);
+        });
+        expect(await failure(enrolling)).toMatchObject({ code: "55P03" });
+      } finally {
+        await db.owner.query("ROLLBACK");
+      }
+    });
+
     it("keeps operators off both forms of the ranking and marks the event when the team changes", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);

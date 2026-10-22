@@ -261,6 +261,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
       expect(body.guests.map((guest) => guest.value).toSorted()).toEqual(
         ["g•••@acme.sa", "•••• 5678"].toSorted(),
       );
+      const find = async (contact: string) =>
+        (
+          await dash(
+            "GET",
+            `/events/${event.id}/join/guests?contact=${encodeURIComponent(contact)}`,
+          )
+        ).json<{ total: number; guests: { value: string }[] }>();
+      expect(await find("+966512345678")).toMatchObject({
+        total: 2,
+        guests: [{ value: "•••• 5678" }],
+      });
+      expect((await find("GUEST@acme.sa")).guests).toHaveLength(1);
+      expect(await find("other@acme.sa")).toEqual({ total: 2, guests: [] });
+      expect(await find("not a contact")).toEqual({ total: 2, guests: [] });
       const audit = await owner<{ after: Row }>(
         "SELECT after FROM audit_log WHERE event_id = $1 AND action = 'event.guests.add'",
         [event.id],

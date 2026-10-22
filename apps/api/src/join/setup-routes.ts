@@ -26,6 +26,7 @@ import {
 import { organizerContextOf } from "#src/organizers/context";
 
 const eventParams = z.object({ eventId: z.uuid() });
+const guestQuery = z.strictObject({ contact: z.string().max(320).optional() });
 const guestParams = z.object({ eventId: z.uuid(), guestId: z.uuid() });
 const label = z.strictObject({
   ar: z.string().max(120).optional(),
@@ -118,7 +119,11 @@ export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps)
 
   scope.get("/events/:eventId/join/guests", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
-    return answer(await listGuests(deps, organizerContextOf(request), eventId), (list) => list);
+    const { contact } = parse(guestQuery, request.query);
+    return answer(
+      await listGuests(deps, organizerContextOf(request), eventId, contact),
+      (list) => list,
+    );
   });
 
   scope.post(

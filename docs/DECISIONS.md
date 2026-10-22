@@ -1995,7 +1995,9 @@ where it is.
 **Decision:** "guest list only" (FR-134) and the email-domain lock (FR-135) are event settings that apply whatever the
 access type, though the SRS phrases them for private events. A person whose verified phone or email is on the guest
 list passes both locks and joins active even in a private event (FR-1819's invited half). A member is never refused by
-a lock added after they joined; banned and removed players stay out first.
+a lock added after they joined; banned and removed players stay out first. A pending requester later put on the guest
+list goes in without approval when they join again (T-212 review). An operator the owner lets play (FR-907) skips the
+fields and both locks: the owner chose them.
 **Why:** tying the locks to "private" would block changing the access type at any time (FR-1820) or silently drop the
 lock; the organizer named the guest, so a second gate for them would only cause support calls.
 
@@ -2016,6 +2018,8 @@ joined or the event is live, whichever comes first, so every member gets the sam
 (the points this join granted) and the app plays the coin animation once.
 **Why:** one place covers every path into `active`, so T-218 cannot forget it; the ledger stays the only source of
 score and balance (FR-137). The one-time rule across account deletion waits for the fingerprint (T-217).
+**Cost accepted:** every join (operators' too) reads the event FOR SHARE, so joins and edits of the event wait for each
+other briefly; 0027 alone had avoided that. Fine at this scale.
 
 ## ADR-148 — Join answers: the card 0.2, team-only reads, a versioned save of the fields
 **Status:** Proposed (Claude, 2026-10-22; T-212).

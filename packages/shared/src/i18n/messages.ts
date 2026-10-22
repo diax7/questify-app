@@ -1130,6 +1130,12 @@ export const MESSAGES = {
     ar: "حذف حقل محفوظ يحذف إجابات اللاعبين عليه.",
     en: "Removing a saved field deletes the answers players gave to it.",
   },
+  "joinFields.confirmRemove": {
+    ar: "الحفظ يحذف الحقول التي أزلتها وإجابات اللاعبين عليها نهائيًا.",
+    en: "Saving deletes the fields you removed and the answers players gave to them, for good.",
+  },
+  "joinFields.confirmRemoveYes": { ar: "احذف واحفظ", en: "Delete and save" },
+  "joinFields.confirmRemoveNo": { ar: "تراجع", en: "Go back" },
   "joinRules.title": { ar: "من يمكنه الانضمام", en: "Who can join" },
   "joinRules.guestListOnly": {
     ar: "المدعوون في القائمة فقط",
@@ -1173,6 +1179,15 @@ export const MESSAGES = {
   "guests.count": { ar: "في القائمة: {count}", en: "On the list: {count}" },
   "guests.empty": { ar: "قائمة المدعوين فارغة.", en: "The guest list is empty." },
   "guests.remove": { ar: "حذف", en: "Remove" },
+  "guests.find": {
+    ar: "ابحث برقم جوال أو بريد كامل",
+    en: "Find by a full mobile number or email",
+  },
+  "guests.findButton": { ar: "بحث", en: "Find" },
+  "guests.notFound": {
+    ar: "هذا الرقم أو البريد ليس في القائمة.",
+    en: "That number or email is not on the list.",
+  },
   "guests.tooMany": {
     ar: "ألصق {max} سطر على الأكثر في كل مرة.",
     en: "Paste at most {max} lines at a time.",

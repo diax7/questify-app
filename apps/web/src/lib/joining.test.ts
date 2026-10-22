@@ -10,12 +10,15 @@ import {
   newDraft,
   welcomeOf,
   type FieldDraft,
+  type JoinFieldView,
+  removesSavedField,
 } from "#src/lib/joining.ts";
 
-const SAVED = draftsOf([
+const VIEWS: JoinFieldView[] = [
   { id: "f1", kind: "full_name", label: { ar: null, en: null }, required: true },
   { id: "f2", kind: "custom", label: { ar: "القسم", en: null }, required: false },
-]);
+];
+const SAVED = draftsOf(VIEWS);
 
 describe("the field editor", () => {
   it("reads saved fields as rows and offers each named kind once", () => {
@@ -86,5 +89,13 @@ describe("the rules and the guest list", () => {
   it("keeps the pasted lines in place, without trailing empty ones", () => {
     expect(guestLines("a\r\n\r\nb\rc\n\n  \n")).toEqual(["a", "", "b", "c"]);
     expect(guestLines("")).toEqual([]);
+  });
+});
+
+describe("removesSavedField", () => {
+  it("is true only when a saved field is missing from the drafts", () => {
+    expect(removesSavedField(VIEWS, SAVED)).toBe(false);
+    expect(removesSavedField(VIEWS, SAVED.slice(1))).toBe(true);
+    expect(removesSavedField([], [])).toBe(false);
   });
 });

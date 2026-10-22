@@ -32,6 +32,8 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
   const [guests, setGuests] = useState<Guest[] | null>(null);
   const [total, setTotal] = useState(0);
   const [text, setText] = useState("");
+  const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState<string | null>(null);
   const [result, setResult] = useState<Added | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -48,8 +50,11 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
     );
   };
 
-  const load = async () => {
-    const answer = await requestJson("GET", base);
+  const load = async (contact = "") => {
+    const answer = await requestJson(
+      "GET",
+      contact === "" ? base : `${base}?contact=${encodeURIComponent(contact)}`,
+    );
     if (!answer.ok) {
       fail(answer.body);
       return;
@@ -95,6 +100,14 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
     }
     setGuests((current) => (current ?? []).filter((row) => row.id !== guest.id));
     setTotal((count) => count - 1);
+  };
+
+  const find = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProblem(null);
+    const contact = search.trim();
+    setSearched(contact === "" ? null : contact);
+    await load(contact);
   };
 
   const tooMany = lines.length > GUESTS_PER_UPLOAD;
@@ -169,6 +182,26 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
             : t("guests.count", { count: formatNumber(total, language) })}
         </p>
       )}
+      <form className={styles.row} role="search" onSubmit={(event) => void find(event)}>
+        <label className={styles.field}>
+          <span>{t("guests.find")}</span>
+          <input
+            className={styles.input}
+            dir="ltr"
+            maxLength={320}
+            value={search}
+            onChange={(typed) => setSearch(typed.target.value)}
+          />
+        </label>
+        <button type="submit" className={styles.quiet}>
+          {t("guests.findButton")}
+        </button>
+      </form>
+      {searched !== null && guests !== null && guests.length === 0 ? (
+        <p role="status" className={styles.muted}>
+          {t("guests.notFound")}
+        </p>
+      ) : null}
       <ul className={styles.list}>
         {(guests ?? []).map((guest) => (
           <li key={guest.id} className={styles.row}>

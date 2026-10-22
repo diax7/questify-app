@@ -415,30 +415,39 @@ export function updateRules(
   });
 }
 
-/** The event's guest list for its team: the total and the newest 200 entries, masked. */
+/**
+ * The event's guest list for its team: the total and the newest 200 entries, masked. With a contact, only the entry
+ * for exactly that phone or email (none when it is not one), so an older guest can be found and removed (FR-132).
+ */
 export function listGuests(
   deps: SetupDeps,
   actor: Actor,
   eventId: string,
+  contact?: string,
 ): Promise<SetupDone<Readonly<{ total: number; guests: Guest[] }>>> {
+  const wanted = contact === undefined ? undefined : (parseGuest(contact) ?? null);
   return withSetupEvent(
     deps,
     actor,
     eventId,
     async (client) => {
+      const counted = await client.query<{ total: number }>(
+        "SELECT count(*)::int AS total FROM event_guest WHERE event_id = $1",
+        [eventId],
+      );
       const { rows } = await client.query<{
         id: string;
         kind: "phone" | "email";
         value: string;
         created_at: Date;
-        total: number;
       }>(
-        `SELECT id, kind, value, created_at, count(*) OVER ()::int AS total FROM event_guest
-         WHERE event_id = $1 ORDER BY created_at DESC, id LIMIT 200`,
-        [eventId],
+        `SELECT id, kind, value, created_at FROM event_guest
+         WHERE event_id = $1 AND ($2::boolean OR (kind = $3 AND value = $4))
+         ORDER BY created_at DESC, id LIMIT 200`,
+        [eventId, wanted === undefined, wanted?.kind ?? null, wanted?.value ?? null],
       );
       return done({
-        total: rows[0]?.total ?? 0,
+        total: counted.rows[0]?.total ?? 0,
         guests: rows.map((row) => ({
           id: row.id,
           kind: row.kind,
