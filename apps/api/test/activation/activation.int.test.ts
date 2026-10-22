@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { joinCard } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
@@ -103,7 +104,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation over HTTP", (
       method: "POST",
       url: "/v1/join",
       headers: { authorization: `Bearer ${await newPlayer()}`, "x-forwarded-for": freshIp() },
-      payload: { joinCode: code, via: "code", cardVersion: "0.1" },
+      payload: { joinCode: code, via: "code", cardVersion: joinCard().version },
     });
 
   describe("the owner's side", () => {
