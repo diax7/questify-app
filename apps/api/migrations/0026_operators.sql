@@ -384,6 +384,9 @@ $$;
 REVOKE ALL ON FUNCTION my_qr_version() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION my_qr_version() TO questify_app;
 
+-- The reset count below reads only this.
+CREATE INDEX audit_log_qr_reset_idx ON audit_log (target_id, at) WHERE action = 'player.qr_reset';
+
 -- A leaked code stops working (ADR-137): at most 5 resets a day. Returns the new version, or NULL at the limit.
 CREATE FUNCTION reset_my_qr(request uuid) RETURNS integer
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -439,6 +442,9 @@ BEGIN
   END IF;
   IF event_status_now(target.status, target.starts_at, target.ends_at) NOT IN ('draft', 'scheduled', 'live') THEN
     RAISE EXCEPTION 'event closed' USING ERRCODE = 'OE409';
+  END IF;
+  IF (invite_kind = 'email') <> (invite_email IS NOT NULL) THEN
+    RAISE EXCEPTION 'an email invite needs an email, and only it' USING ERRCODE = 'invalid_parameter_value';
   END IF;
   IF how_many IS NULL OR how_many < 1 OR how_many > 100 OR (invite_kind = 'email' AND how_many <> 1) THEN
     RAISE EXCEPTION 'how many invites: 1 to 100, one per email' USING ERRCODE = 'invalid_parameter_value';
@@ -567,7 +573,13 @@ BEGIN
     RETURN;
   END IF;
   INSERT INTO staff_assignment (organizer_id, event_id, player_id, abilities, invite_id)
-  VALUES (found_invite.organizer_id, found_invite.event_id, me, found_invite.abilities, found_invite.id);
+  VALUES (found_invite.organizer_id, found_invite.event_id, me, found_invite.abilities, found_invite.id)
+  ON CONFLICT ON CONSTRAINT staff_assignment_event_id_player_id_key DO NOTHING;
+  -- Two invites of one event claimed at once by one person: the second leaves its invite open.
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT 'already_operator'::text, found_invite.event_id;
+    RETURN;
+  END IF;
   UPDATE operator_invite SET claimed_by = me, claimed_at = now(), email = NULL WHERE id = found_invite.id;
   INSERT INTO audit_log (actor_type, organizer_id, event_id, action, target_type, target_id, after, request_id)
   VALUES ('system', found_invite.organizer_id, found_invite.event_id, 'operator.claim', 'operator_invite',

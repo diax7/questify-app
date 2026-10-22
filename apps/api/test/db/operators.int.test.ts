@@ -209,6 +209,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
         await failure(invite(event, { kind: "email", count: 2, email: "a@b.sa" })),
       ).toMatchObject({ code: "22023" });
       expect(await failure(invite(event, { abilities: ["fly"] }))).toMatchObject({ code: "23514" });
+      expect(await failure(invite(event, { kind: "email" }))).toMatchObject({ code: "22023" });
+      expect(await failure(invite(event, { email: "a@b.sa" }))).toMatchObject({ code: "22023" });
     });
 
     it("refuses invites for an ended event and above 500 open ones", async () => {
@@ -278,6 +280,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
       expect(
         await owner("SELECT 1 FROM staff_assignment WHERE event_id = $1", [event]),
       ).toHaveLength(1);
+    });
+
+    it("makes one assignment when one person claims two invites of an event at once", async () => {
+      const event = await newEvent();
+      const made = await invite(event, { count: 2 });
+      const player = await newPlayer();
+      const clients = await Promise.all(
+        made.map(async () => {
+          const client = new Client({ connectionString: db.appUrl });
+          await client.connect();
+          return client;
+        }),
+      );
+      try {
+        const outcomes = await Promise.all(
+          made.map((row, index) => claim(player, row.id, clients[index])),
+        );
+        expect(outcomes.map((row) => row?.outcome).toSorted()).toEqual([
+          "already_operator",
+          "claimed",
+        ]);
+      } finally {
+        await Promise.all(clients.map((client) => client.end()));
+      }
+      const open = await owner(
+        "SELECT 1 FROM operator_invite WHERE event_id = $1 AND claimed_at IS NULL",
+        [event],
+      );
+      expect(open).toHaveLength(1);
     });
 
     it("answers not_found for revoked or unknown invites and expired for an ended event", async () => {
