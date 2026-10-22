@@ -253,10 +253,19 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 the gem ledger has the same shape. First completion of a quest earns its fixed XP once (ADR-044).
 
 ### reward, reward_code, redemption
-`reward(id, event_id, name i18n, price, stock, kind, window, status)`;
-`reward_code(reward_id, code_ciphertext, state free|reserved|used)` (**secret**, organizer-uploaded);
-`redemption(id, enrollment_id, reward_id, status reserved→picked_up|expired|cancelled,
-reserved_until, handed_by, handed_at)`. A player with an open flag cannot be handed items (ADR-100).
+Built in migration 0024 (T-201, T-202; ADR-133):
+- `reward(id, organizer_id, event_id, kind item|experience, name i18n, description i18n, price, stock_total, units_out,
+  per_player_limit, opens_at, closes_at, section, tag_new, tag_limited, position, status active|removed)`. Stock left is
+  `stock_total − units_out`; `units_out` moves only inside the definer functions, and a CHECK keeps it between 0 and
+  the total. The digital-code kind joins with T-203.
+- `redemption(id, organizer_id, event_id, enrollment_id, reward_id, price (what was paid), status
+  reserved|cancelled|expired, idempotency_key, reserved_until, ended_at, ended_by player|timeout)`; `handed_over`,
+  `handed_by` and `handed_at` join with the prize desk (T-206). Never deleted; no role writes it but the definers.
+- `event` gains `pickup_minutes` (default 120), `shop_days_after` (default 3) and `shop_rules` i18n.
+- The ledger gains `redeem` (balance −price) and `redeem_return` (balance +price), both with `redemption_id` and
+  score 0, one of each per reservation at most; the `system` actor writes only `redeem_return` (the timeout).
+- `reward_code(reward_id, code_ciphertext, state free|reserved|used)` (**secret**, organizer-uploaded) comes with T-203.
+  A player with an open flag cannot be handed items (ADR-100).
 
 ### submission
 `id, completion_id, kind photo|text|video_later, media_key, text, review_status, reviewer, note`.

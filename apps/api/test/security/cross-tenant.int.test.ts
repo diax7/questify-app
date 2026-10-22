@@ -157,6 +157,60 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  reward: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Stolen', 1, 1)",
+          values: [f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players read the shop through event_shop and shop_rewards (T-201), not this table",
+        forge: (f) => ({
+          sql: "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Mine now', 1, 1)",
+          values: [f.eventA],
+        }),
+      },
+    ],
+  },
+  redemption: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, idempotency_key, reserved_until) SELECT organizer_id, event_id, enrollment_id, reward_id, 1, 'forged', now() FROM redemption WHERE event_id = $1",
+          values: [f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players read their reservations through my_redemptions (T-202), not this table",
+        forge: (f) => ({
+          sql: "INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, idempotency_key, reserved_until) VALUES ($1, $2, gen_random_uuid(), gen_random_uuid(), 1, 'forged', now())",
+          values: [f.orgA, f.eventA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   quest_completion: {
     probes: [
       {
@@ -614,6 +668,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
         "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",
         [event],
       );
+      await run(
+        "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Seeded', 1, 5)",
+        [event],
+      );
     }
   }
   // One real completion and its points on each side, made by the completion engine itself (migration 0012).
@@ -625,6 +683,11 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
     await db.owner.query("SELECT set_config('app.player_id', $1, true)", [player]);
     await db.owner.query(
       "SELECT complete_quest((SELECT id FROM quest WHERE event_id = $1 LIMIT 1), 'qr', 1, NULL, 'seed', NULL)",
+      [event],
+    );
+    // And one reservation, made by the shop itself (migration 0024).
+    await db.owner.query(
+      "SELECT reserve_reward((SELECT id FROM reward WHERE event_id = $1 LIMIT 1), 'seed')",
       [event],
     );
     await db.owner.query("COMMIT");

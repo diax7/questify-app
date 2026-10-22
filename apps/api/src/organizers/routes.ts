@@ -22,6 +22,7 @@ import { registerEventRoutes } from "#src/events/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { QuestCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
+import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
@@ -195,6 +196,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events, deps.settings);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
+      registerRewardBuilderRoutes(scope, { pool: deps.pool });
       registerModerationRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },

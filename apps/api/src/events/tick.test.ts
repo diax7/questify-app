@@ -4,8 +4,11 @@ import { startLifecycleTick } from "#src/events/tick";
 
 type Logged = { level: string; fields: Record<string, unknown> };
 
-/** A pool whose connection answers the tick's statements; `moved` is what the lifecycle call returns. */
-function fakePool(moved: () => number | Error) {
+/**
+ * A pool whose connection answers the tick's statements; `moved` is what the lifecycle call returns, `expiry` what each
+ * call returning a reservation does (nothing due by default).
+ */
+function fakePool(moved: () => number | Error, expiry: () => string | null | Error = () => null) {
   const statements: string[] = [];
   const client = {
     query: vi.fn(async (sql: string) => {
@@ -16,6 +19,13 @@ function fakePool(moved: () => number | Error) {
           throw result;
         }
         return { rows: [{ moved: result }] };
+      }
+      if (sql.includes("expire_one_reservation")) {
+        const outcome = expiry();
+        if (outcome instanceof Error) {
+          throw outcome;
+        }
+        return { rows: [{ outcome }] };
       }
       return { rows: [] };
     }),
@@ -107,6 +117,7 @@ describe("startLifecycleTick", () => {
         level: "error",
         fields: { event: "event.lifecycle_failed", reason: "unknown", code: null },
       },
+      { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
   });
@@ -126,9 +137,11 @@ describe("startLifecycleTick", () => {
     const slowPool = {
       connect: async () => {
         connects += 1;
-        await new Promise<void>((resolve) => {
-          finish = resolve;
-        });
+        if (connects === 1) {
+          await new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+        }
         return pool.connect();
       },
     } as unknown as Pool;
@@ -143,7 +156,51 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
+    // The lifecycle call and one look for due reservations; nothing after the stop.
+    expect(connects).toBe(2);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(1);
+    expect(connects).toBe(2);
+  });
+
+  it("returns due reservations one call at a time, and logs only the count", async () => {
+    const outcomes: (string | null)[] = ["expired", "skipped", "expired", null];
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => outcomes.shift() ?? null,
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("expire_one_reservation"))).toHaveLength(4);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "reward.reservations_expired", count: 2 } },
+    ]);
+    await tick.stop();
+  });
+
+  it("stops returning reservations after a batch, and keeps the lifecycle going when returning fails", async () => {
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => "expired",
+    );
+    const tick = start(pool, []);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("expire_one_reservation"))).toHaveLength(200);
+    await tick.stop();
+    const failing = fakePool(
+      () => 1,
+      () => Object.assign(new Error("x"), { name: "DatabaseError", code: "40P01" }),
+    );
+    const logged: Logged[] = [];
+    const second = start(failing.pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "event.lifecycle_moved", count: 1 } },
+      {
+        level: "error",
+        fields: { event: "reward.expiry_failed", reason: "DatabaseError", code: "40P01" },
+      },
+    ]);
+    await second.stop();
   });
 });

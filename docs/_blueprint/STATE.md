@@ -693,9 +693,11 @@ other docs feed it and stay as its detailed appendices.
   `RUNBOOK.md` and waits on Dhia (staging migrated, a development build). Sonnet code review 86; its fixes
   applied (the dev-client steps, a Redis-only rank check, an exact join check), about 94 by its own estimate.
 
+- 2026-10-22 **T-201 and T-202 done** (one CTO cycle: plan 84 → GO; code 93, GO). Migration 0024: `reward` (stock left derived as `stock_total − units_out`), `redemption`, the `redeem` and `redeem_return` ledger kinds (balance only, ADR-043), `reserve_reward`, `cancel_redemption` and `expire_one_reservation` on the lifecycle tick (one reservation per transaction, ADR-133, Accepted). The dashboard's Rewards page and the app's Rewards tab. 2514 tests, the rewards browser test on desktop and phone, `expo export` clean; mutation 96.3% on `apps/api/src/rewards` (550 of 571). Found by the browser test: saving the shop settings sent empty rules as null and got 400; fixed (`shopRequest`). ADR-134 (spending lowers rank, FR-1847) arrived after the review and became T-219. Docker Desktop stopped at 00:02 during the first mutation run; Postgres needed a restart and 640 leftover test databases were dropped.
+
 ## Next
 
-1. **Now:** T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations
+1. **Now:** T-219 (ADR-134, core: the ledger and the ranking) or T-203, then T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations
    0007 to 0023 and an EAS development build (Android: an Expo account only). Otherwise the next unchecked task in
    `docs/TASKS.md`. One task per session (CLAUDE.md, Token budget).
    - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build

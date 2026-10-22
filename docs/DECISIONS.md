@@ -471,7 +471,7 @@ manual review only.
 the organizer (ADR-023), so nothing objectionable reaches other players.
 
 ## ADR-043 — Boards rank points earned; spending never costs rank
-**Status:** Accepted (user, 2026-10-16)
+**Status:** Accepted (user, 2026-10-16). **Amended by ADR-134 (2026-10-22):** this is now each event's default, and the owner may choose otherwise.
 **Decision:**
 - In each event, a player has a **score** (all points earned there) and a **balance** (earned −
   spent).
@@ -1777,7 +1777,7 @@ phone with no scrolling (FR-603), which no layout can promise at very large text
 **Cost:** players who rely on large text see the app's own size. Screen readers still read every row in full.
 
 ## ADR-122 — A player reads the configuration of an event they joined
-**Status:** Proposed (Claude, 2026-10-21, T-117).
+**Status:** Accepted (user, 2026-10-22). Proposed by Claude, 2026-10-21, T-117.
 **Context:** `GET /v1/config?event=` is public and reads the event with no caller, so row-level security hides every
 event that is not public. An unlisted or private event's words never reached the app, and Home and the ranking read
 such an event's ranking switch as off (Home said the ranking was off; the ranking answered 404).
@@ -1860,3 +1860,35 @@ Apple account exists (T-010). Google Play does not require unique names.
 - Q-099: the event's about text, address and map position are added to the event form in T-613.
 - Q-101 and Q-102: optional location, estimated minutes, difficulty and tips join the quest form when the builder
   grows (T-3xx); steps come with multi-step quests; "Up next" switches to points per minute then.
+
+## ADR-133 — Rewards: derived stock, spending in the ledger, one reservation per expiry transaction
+**Status:** Accepted (user, 2026-10-22). Proposed by Claude, 2026-10-21; T-201, T-202. Extends ADR-043, ADR-048, ADR-049.
+**Decision:**
+- A reward's stock left is `stock_total − units_out`. Only the definer functions move `units_out`, under a lock on the
+  reward, and a CHECK keeps it between 0 and the total, so the count never drifts and an organizer cannot lower the
+  stock below what is reserved.
+- Spending is in the points ledger: `redeem` takes the price from the balance and `redeem_return` gives back exactly
+  what the redemption paid. Neither moves the score. A unique index allows one of each per reservation.
+- Every path takes its locks in one order: enrollment, then reward, then redemption. The pickup timeout handles one
+  reservation per transaction and chooses the row without a lock, so it never holds two players' locks.
+- The shop is open while the event is live and for `shop_days_after` days after it ends. Reward edits are allowed
+  until the event is archived.
+
+**Why:** a stock count kept as a copy can drift under races; one derived from what is out cannot. A batch expiry in
+one transaction would deadlock against a player's reserve (CTO plan review).
+
+## ADR-134 — Each event chooses whether spending lowers the ranking
+**Status:** Accepted (user, 2026-10-22: "I think each event could have its own thinking or way. So let's make it an
+option for them."). Amends ADR-043 and ADR-133.
+**Decision:**
+- An event setting, "Spending lowers rank" (FR-1847), edited by the owner in the dashboard. **Off by default**, which
+  keeps ADR-043: the ranking, rank prizes and the finale use points earned, and purchases lower only the balance.
+- On: a `redeem` entry also lowers the score and `redeem_return` restores it, so the ranking, rank prizes and the
+  finale follow what the player still holds. The score never goes below zero, since a player can spend only the
+  balance.
+- The setting locks once the event is live (Claude's assumption, so the board never reshuffles mid-event; the user
+  can widen it). The ranking cache is rebuilt from the ledger as usual.
+- The dashboard explains the trade-off next to the switch: with it on, players may hold their points instead of
+  using the shop.
+**Build:** with T-201/T-202 if they are still open, otherwise a follow-up task; the score trigger reads the event's
+setting.

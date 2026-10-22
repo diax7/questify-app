@@ -476,3 +476,46 @@ export const contactUnchanged = make(
   "هذا الرقم أو البريد مرتبط بحسابك بالفعل.",
   "This number or email is already on your account.",
 );
+export const invalidReward = make(
+  422,
+  "invalid_reward",
+  "راجع بيانات الجائزة: الحقل المحدد غير صالح.",
+  "Check the reward's details: the named field is not valid.",
+);
+export const stockBelowReserved = make(
+  409,
+  "stock_below_reserved",
+  "لا يمكن أن تقل الكمية عن المحجوز منها.",
+  "The stock cannot be lower than the units already reserved.",
+);
+export const shopClosed = make(
+  403,
+  "shop_closed",
+  "متجر الجوائز مغلق الآن.",
+  "The rewards shop is closed right now.",
+);
+export const rewardNotOpen = make(
+  403,
+  "reward_not_open",
+  "هذه الجائزة غير متاحة الآن.",
+  "This reward is not available right now.",
+);
+export const soldOut = make(409, "sold_out", "نفدت هذه الجائزة.", "This reward is sold out.");
+export const rewardLimitReached = make(
+  409,
+  "reward_limit_reached",
+  "وصلت إلى الحد المسموح من هذه الجائزة.",
+  "You have reached the limit for this reward.",
+);
+export const notEnoughBalance = make(
+  422,
+  "not_enough_balance",
+  "رصيدك لا يكفي لهذه الجائزة.",
+  "Your balance is not enough for this reward.",
+);
+export const reservationEnded = make(
+  409,
+  "reservation_ended",
+  "انتهى هذا الحجز، فلا يمكن إلغاؤه.",
+  "This reservation has ended, so it cannot be cancelled.",
+);

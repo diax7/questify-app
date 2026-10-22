@@ -1,4 +1,4 @@
-import { formatEventTime, formatNumber, type Theme } from "@questify/shared";
+import { formatEventTime, formatNumber, type MessageKey, type Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -22,6 +22,13 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 export const signed = (value: number, language: "ar" | "en") =>
   `\u200E${value > 0 ? "+" : value < 0 ? "-" : ""}${formatNumber(Math.abs(value), language)}`;
 
+/** The kinds whose line names what it was for (migrations 0023, 0024); any other kind is a plain balance change. */
+const TITLED: Readonly<Record<string, MessageKey>> = {
+  quest: "history.quest",
+  redeem: "history.redeem",
+  redeem_return: "history.redeemReturn",
+};
+
 function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone: string }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -31,9 +38,9 @@ function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone
     <View style={styles.row}>
       <View style={styles.grow}>
         <AppText variant="label">
-          {entry.title === null
+          {entry.title === null || !(entry.kind in TITLED)
             ? t("history.other")
-            : t("history.quest", { title: textIn(entry.title, language) })}
+            : t(TITLED[entry.kind] ?? "history.other", { title: textIn(entry.title, language) })}
         </AppText>
         <AppText muted>{formatEventTime(new Date(entry.at), timeZone, language)}</AppText>
       </View>

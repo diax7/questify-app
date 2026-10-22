@@ -1,0 +1,263 @@
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import {
+  enrollmentInactive,
+  eventArchived,
+  idempotencyKeyReused,
+  invalidReward,
+  limitReached,
+  notEnoughBalance,
+  notFound,
+  reservationEnded,
+  rewardLimitReached,
+  rewardNotOpen,
+  shopClosed,
+  soldOut,
+  stockBelowReserved,
+  unauthenticated,
+} from "#src/auth/http-errors";
+import { callerOf, parse } from "#src/auth/request";
+import { organizerContextOf } from "#src/organizers/context";
+import {
+  REWARD_KINDS,
+  SECTIONS,
+  createReward,
+  listRewards,
+  removeReward,
+  updateReward,
+  updateShop,
+  type RewardDeps,
+  type RewardDone,
+  type RewardRecord,
+} from "#src/rewards/builder";
+import {
+  cancelRedemption,
+  readShop,
+  reserveReward,
+  type ReserveResult,
+  type ShopDeps,
+} from "#src/rewards/shop";
+
+const BODY_LIMIT = 16_384;
+
+const localTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+const text = (max: number) =>
+  z.strictObject({ ar: z.string().max(max).optional(), en: z.string().max(max).optional() });
+
+const rewardFields = {
+  name: text(120).optional(),
+  description: text(2000).optional(),
+  price: z.number().int().min(1).max(1_000_000).optional(),
+  stock: z.number().int().min(0).max(100_000).optional(),
+  perPlayerLimit: z.number().int().min(1).max(100).nullable().optional(),
+  opensAt: localTime.nullable().optional(),
+  closesAt: localTime.nullable().optional(),
+  section: z.enum(SECTIONS).nullable().optional(),
+  tags: z.strictObject({ new: z.boolean().optional(), limited: z.boolean().optional() }).optional(),
+};
+const rewardBody = z.strictObject({
+  ...rewardFields,
+  kind: z.enum(REWARD_KINDS),
+  name: text(120),
+  price: z.number().int().min(1).max(1_000_000),
+  stock: z.number().int().min(0).max(100_000),
+});
+const rewardPatch = z.strictObject(rewardFields);
+const shopBody = z.strictObject({
+  pickupMinutes: z.number().int().min(15).max(10_080).optional(),
+  daysAfter: z.number().int().min(0).max(30).optional(),
+  rules: text(2000).optional(),
+});
+
+const eventParams = z.object({ eventId: z.uuid() });
+const rewardParams = z.object({ eventId: z.uuid(), rewardId: z.uuid() });
+
+const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
+const creating = { ...member, config: { ...member.config, idempotent: true } } as const;
+
+/** A reward as the dashboard sees it: the stock, what is out and what is left (FR-504, FR-514). */
+const rewardView = (reward: RewardRecord) => ({
+  id: reward.id,
+  kind: reward.kind,
+  name: reward.name,
+  description: reward.description,
+  price: reward.price,
+  stock: reward.stock,
+  unitsOut: reward.unitsOut,
+  stockLeft: reward.stock - reward.unitsOut,
+  perPlayerLimit: reward.perPlayerLimit,
+  opensAt: reward.opensAt?.toISOString() ?? null,
+  closesAt: reward.closesAt?.toISOString() ?? null,
+  section: reward.section,
+  tags: reward.tags,
+  position: reward.position,
+});
+
+function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
+  switch (result.kind) {
+    case "done":
+      return ok(result.value);
+    case "not_found":
+      throw notFound();
+    case "event_archived":
+      throw eventArchived();
+    case "invalid":
+      throw invalidReward({ field: result.field });
+    case "limit_reached":
+      throw limitReached({ limit: result.limit });
+    case "stock_below_reserved":
+      throw stockBelowReserved({ unitsOut: result.unitsOut });
+  }
+}
+
+/**
+ * The dashboard's rewards (T-201): `GET`/`POST …/events/:eventId/rewards`, `PATCH`/`DELETE …/rewards/:rewardId`, and
+ * `PUT …/events/:eventId/shop` for the pickup time, the days after the end and the rules. Owners and editors.
+ */
+export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: RewardDeps): void {
+  scope.get("/events/:eventId/rewards", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const result = await listRewards(deps, organizerContextOf(request), eventId);
+    return answer(result, (value) => ({
+      shop: value.shop,
+      rewards: value.rewards.map(rewardView),
+    }));
+  });
+
+  scope.post("/events/:eventId/rewards", creating, async (request, reply) => {
+    const { eventId } = parse(eventParams, request.params);
+    const body = parse(rewardBody, request.body);
+    const result = await createReward(
+      deps,
+      organizerContextOf(request),
+      eventId,
+      body,
+      callerOf(request),
+    );
+    return answer(result, (reward) => reply.code(201).send({ reward: rewardView(reward) }));
+  });
+
+  scope.patch("/events/:eventId/rewards/:rewardId", member, async (request) => {
+    const { eventId, rewardId } = parse(rewardParams, request.params);
+    const body = parse(rewardPatch, request.body);
+    const result = await updateReward(
+      deps,
+      organizerContextOf(request),
+      { eventId, id: rewardId },
+      body,
+      callerOf(request),
+    );
+    return answer(result, (reward) => ({ reward: rewardView(reward) }));
+  });
+
+  scope.delete("/events/:eventId/rewards/:rewardId", member, async (request, reply) => {
+    const { eventId, rewardId } = parse(rewardParams, request.params);
+    const result = await removeReward(
+      deps,
+      organizerContextOf(request),
+      { eventId, id: rewardId },
+      callerOf(request),
+    );
+    return answer(result, () => reply.code(204).send());
+  });
+
+  scope.put("/events/:eventId/shop", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const body = parse(shopBody, request.body);
+    const result = await updateShop(
+      deps,
+      organizerContextOf(request),
+      eventId,
+      body,
+      callerOf(request),
+    );
+    return answer(result, (shop) => ({ shop }));
+  });
+}
+
+function refusal(result: Exclude<ReserveResult, { kind: "done" }>): never {
+  switch (result.kind) {
+    case "not_found":
+      throw notFound();
+    // Stryker disable next-line ConditionalExpression,StringLiteral: the idempotency convention refuses a reused key first; the database's own check backs it once the stored key has expired
+    case "key_reused":
+      throw idempotencyKeyReused();
+    case "enrollment_inactive":
+      throw enrollmentInactive({ reason: result.reason });
+    case "shop_closed":
+      throw shopClosed({ reason: result.reason });
+    case "reward_not_open":
+      throw rewardNotOpen({ reason: result.reason });
+    case "sold_out":
+      throw soldOut();
+    case "limit_reached":
+      throw rewardLimitReached({ limit: result.limit });
+    case "not_enough_balance":
+      throw notEnoughBalance();
+    case "reservation_ended":
+      throw reservationEnded({ status: result.status });
+  }
+}
+
+const shopParams = z.object({ eventId: z.uuid() });
+const reserveParams = z.object({ rewardId: z.uuid() });
+const cancelParams = z.object({ redemptionId: z.uuid() });
+
+/**
+ * The player's shop (T-201, T-202): `GET /v1/events/:eventId/shop`, `POST /v1/rewards/:rewardId/reserve` (an
+ * Idempotency-Key, a new one per tap) and `POST /v1/redemptions/:redemptionId/cancel` (cancelling twice is harmless).
+ */
+export function registerShopRoutes(app: FastifyInstance, deps: ShopDeps): void {
+  app.get("/v1/events/:eventId/shop", { config: { access: "player" } }, async (request, reply) => {
+    const { eventId } = parse(shopParams, request.params);
+    // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+    if (request.player === undefined) {
+      throw unauthenticated();
+    }
+    const view = await readShop(deps, { playerId: request.player.id, eventId });
+    if (view === undefined) {
+      throw notFound();
+    }
+    reply.header("cache-control", "no-store");
+    return view;
+  });
+
+  app.post(
+    "/v1/rewards/:rewardId/reserve",
+    { config: { access: "player", idempotent: true }, bodyLimit: 1024 },
+    async (request, reply) => {
+      const { rewardId } = parse(reserveParams, request.params);
+      const key = request.headers["idempotency-key"];
+      // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: the player guard and the idempotency convention answer first
+      if (request.player === undefined || typeof key !== "string") {
+        throw unauthenticated();
+      }
+      const result = await reserveReward(deps, {
+        playerId: request.player.id,
+        rewardId,
+        idempotencyKey: key,
+      });
+      if (result.kind !== "done") {
+        return refusal(result);
+      }
+      return reply.code(result.value.replayed ? 200 : 201).send(result.value);
+    },
+  );
+
+  app.post(
+    "/v1/redemptions/:redemptionId/cancel",
+    { config: { access: "player" }, bodyLimit: 1024 },
+    async (request) => {
+      const { redemptionId } = parse(cancelParams, request.params);
+      // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+      if (request.player === undefined) {
+        throw unauthenticated();
+      }
+      const result = await cancelRedemption(deps, { playerId: request.player.id, redemptionId });
+      if (result.kind !== "done") {
+        return refusal(result);
+      }
+      return result.value;
+    },
+  );
+}

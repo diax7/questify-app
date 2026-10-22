@@ -100,6 +100,22 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit; another event answers 404 (test/quests/codes)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/qr/regenerate":
     "a quest of the path's event only; another event's quest answers 404 (test/quests/codes)",
+  "GET /v1/organizers/:organizerId/events/:eventId/rewards":
+    "members of that organizer within their event limit, under row-level security; another organizer's event answers 404 (test/rewards/routes, test/rewards/rewards)",
+  "POST /v1/organizers/:organizerId/events/:eventId/rewards":
+    "only into the path's event, which the caller may reach; the database sets the organizer (test/rewards/routes, test/security/cross-tenant)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/rewards/:rewardId":
+    "a reward of another event answers 404; units out are never the API's to write (test/rewards/routes, test/rewards/rewards)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/rewards/:rewardId":
+    "a reward of another event answers 404; audited (test/rewards/routes)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/shop":
+    "members of that organizer within their event limit; another organizer's event answers 404; audited (test/rewards/routes)",
+  "GET /v1/events/:eventId/shop":
+    "an active member of that event only, through event_shop, shop_rewards and my_redemptions bound to the session; anyone else 404 (test/rewards/routes, test/rewards/rewards)",
+  "POST /v1/rewards/:rewardId/reserve":
+    "reserves only for the bearer, through reserve_reward bound to the session; another event's reward answers 404 (test/rewards/routes, test/rewards/rewards)",
+  "POST /v1/redemptions/:redemptionId/cancel":
+    "cancels only the bearer's own reservation, through cancel_redemption bound to the session; another's answers 404 (test/rewards/routes, test/rewards/rewards)",
   "POST /v1/quests/:questId/complete":
     "a player's own bearer session only; the database writes for the player of the request, never an argument (test/completions/complete, test/db/completion-engine)",
   "POST /v1/staff/password":

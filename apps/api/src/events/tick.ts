@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { expireReservations } from "#src/rewards/shop";
 
 export type LifecycleTickDeps = Readonly<{
   pool: Pool;
@@ -20,8 +21,8 @@ const JITTER = 0.2;
 
 /**
  * Moves events through their lifecycle on time (FR-1608): every interval, one call to `advance_event_lifecycle()` in
- * its own transaction, with no organizer context. A failure is logged and the next run tries again; it never stops
- * the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
+ * its own transaction, with no organizer context; then returns the reservations whose pickup time passed (FR-508). A
+ * failure is logged and the next run tries again; it never stops the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
  */
 export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
   const random = deps.random ?? Math.random;
@@ -47,6 +48,19 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
         event: "event.lifecycle_failed",
         reason: error instanceof Error ? error.name : "unknown",
         // The SQLSTATE says which failure (a lock timeout, a lost connection) and holds no personal data.
+        code: (error as { code?: unknown } | undefined)?.code ?? null,
+      });
+    }
+    // Its own step: a failure returning reservations never holds up the lifecycle, nor the other way round.
+    try {
+      const returned = await expireReservations(deps.pool);
+      if (returned > 0) {
+        deps.log("info", { event: "reward.reservations_expired", count: returned });
+      }
+    } catch (error) {
+      deps.log("error", {
+        event: "reward.expiry_failed",
+        reason: error instanceof Error ? error.name : "unknown",
         code: (error as { code?: unknown } | undefined)?.code ?? null,
       });
     }
