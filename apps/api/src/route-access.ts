@@ -5,11 +5,13 @@ import type { FastifyInstance } from "fastify";
  * starting, so nothing becomes public by being forgotten. Later tasks add their kinds here (player bearer token,
  * screen token, signed provider callback), each with the hook that enforces it.
  */
-export const ACCESS_KINDS = ["public", "staff", "member", "owner", "player"] as const;
+export const ACCESS_KINDS = ["public", "staff", "member", "owner", "player", "admin"] as const;
 export type Access = (typeof ACCESS_KINDS)[number];
 
 /** Each access kind is enforced by a hook on its own path; a label alone would protect nothing. */
 const STAFF_PREFIX = "/v1/staff/";
+/** `admin` routes live here, where the console hook checks for an active platform admin (activation/routes.ts). */
+export const ADMIN_PREFIX = "/v1/admin/";
 /** `member` and `owner` routes live here, where the organizer hook checks the membership (organizers/routes.ts). */
 export const ORGANIZER_PREFIX = "/v1/organizers/:organizerId";
 
@@ -50,6 +52,11 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
       if ((access === "member" || access === "owner") !== organizerRoute) {
         throw new Error(
           `Route ${name}: member and owner routes, and only they, live under ${ORGANIZER_PREFIX}, where the membership check runs.`,
+        );
+      }
+      if ((access === "admin") !== route.url.startsWith(ADMIN_PREFIX)) {
+        throw new Error(
+          `Route ${name}: admin routes, and only they, live under ${ADMIN_PREFIX}, where the platform admin check runs.`,
         );
       }
       // A player route has no path of its own: the bearer check is one hook on every route marked `player`.

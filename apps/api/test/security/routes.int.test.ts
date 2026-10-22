@@ -202,6 +202,28 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/auth/signup": "bound to the signup token a verified code made (test/players/sign-in)",
   "POST /v1/auth/refresh": "bound to the refresh token's own family (test/players/sign-in)",
   "POST /v1/auth/logout": "ends only the presented refresh token's family (test/players/sign-in)",
+  "GET /v1/organizers/:organizerId/events/:eventId/activation":
+    "members of that organizer within their event limit; another organizer's event answers 404 (test/activation/activation)",
+  "POST /v1/organizers/:organizerId/events/:eventId/activation":
+    "the organizer's owner only (walked below); request_event_activation checks the owner again and audits (test/activation/activation, test/db/activation)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/activation":
+    "the organizer's owner only (walked below); withdraw_event_activation checks the owner again (test/activation/activation, test/db/activation)",
+  "GET /v1/admin/activation-requests":
+    "active platform admins only: anyone else 404 (walked below); every organizer by design (test/activation/activation)",
+  "GET /v1/admin/events":
+    "active platform admins only (walked below); finds an event by its join code (test/activation/activation)",
+  "GET /v1/admin/events/:eventId":
+    "active platform admins only (walked below) (test/activation/activation)",
+  "POST /v1/admin/events/:eventId/activate":
+    "active platform admins only (walked below); activate_event checks the account again (app_admin_id) and audits (test/activation/activation, test/db/activation)",
+  "POST /v1/admin/events/:eventId/reject":
+    "active platform admins only (walked below); the definer checks again and audits (test/db/activation)",
+  "PUT /v1/admin/events/:eventId/limit":
+    "active platform admins only (walked below); the definer checks again and audits (test/db/activation)",
+  "PUT /v1/admin/events/:eventId/addons/:feature":
+    "active platform admins only (walked below); the settings service and the entitlement policy check the admin (test/settings)",
+  "DELETE /v1/admin/events/:eventId/addons/:feature":
+    "active platform admins only (walked below); the settings service and the entitlement policy check the admin (test/settings)",
 };
 
 const PUBLIC_ROUTES = [
@@ -253,7 +275,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
     await db.close();
   });
 
-  const routes = (access?: "public" | "staff" | "member" | "owner") =>
+  const routes = (access?: "public" | "staff" | "member" | "owner" | "admin") =>
     test.app.routeInventory.filter(
       (route) => route.method !== "HEAD" && (access === undefined || route.access === access),
     );
@@ -307,7 +329,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
 
   describe("outsider (no session)", () => {
     it("answers 401 with no-store on every staff route", async () => {
-      const closed = [...routes("staff"), ...routes("member"), ...routes("owner")];
+      const closed = [
+        ...routes("staff"),
+        ...routes("member"),
+        ...routes("owner"),
+        ...routes("admin"),
+      ];
       expect(closed.length).toBeGreaterThanOrEqual(4);
       for (const route of closed) {
         const response = await test.app.inject({
@@ -397,6 +424,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       expect(out.statusCode).toBe(204);
       expect(await stillSignedIn(cookieA)).toBe(401);
       expect(await stillSignedIn(cookieB)).toBe(200);
+    });
+  });
+
+  describe("console routes", () => {
+    it("keeps every /v1/admin/ route admin-only and answers any other signed-in person 404", async () => {
+      await createStaff(db.owner, { email: "not-an-admin@najd.test" });
+      await createStaff(db.owner, { email: "retired-admin@questify.test", admin: true });
+      const cookie = await signInFully(test, "not-an-admin@najd.test");
+      const retired = await signInFully(test, "retired-admin@questify.test");
+      await db.owner.query(
+        "UPDATE staff_user SET platform_role = 'none' WHERE email = 'retired-admin@questify.test'",
+      );
+      const consoleRoutes = routes().filter((route) => route.url.startsWith("/v1/admin/"));
+      expect(consoleRoutes.length).toBeGreaterThanOrEqual(8);
+      for (const route of consoleRoutes) {
+        expect(route.access, `${route.method} ${route.url}`).toBe("admin");
+        for (const seat of [cookie, retired]) {
+          const response = await test.app.inject({
+            method: route.method as "GET" | "POST" | "PUT" | "DELETE",
+            url: route.url.replace(/:[a-zA-Z]+/g, MISSING),
+            headers: withSession(seat, { "idempotency-key": MISSING }),
+            ...(route.method === "GET" ? {} : { payload: {} }),
+          });
+          expect(response.statusCode, `${route.method} ${route.url}`).toBe(404);
+          expect(response.headers["cache-control"]).toBe("no-store");
+        }
+      }
     });
   });
 

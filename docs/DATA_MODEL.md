@@ -176,6 +176,17 @@ on the status now: scheduled keeps a future start; live keeps its start, zone an
 later; ended keeps everything. Only drafts are deleted (policy), and a deleted event leaves the editor limits that named
 it, except a limit's last event, which stays so the editor sees nothing rather than everything.
 
+**Activation and limits (T-210, migration 0027, ADR-140 to ADR-142).** `event` gains `player_limit_mode` (none, soft,
+hard), `player_limit` (1 to 1,000,000; NULL exactly with none), `activated_at` and `activated_by`; none is in the API
+role's grants. `event_activation_request(event_id PK, organizer_id, state pending|rejected, requested_by, requested_at,
+note, decided_by, decided_at)` and `event_limit_alert(event_id, organizer_id, level 80|100, players, reached_at; PK
+(event_id, level))` are read by the event's team within their limit and by admins, and written only by definers:
+`request_event_activation` and `withdraw_event_activation` (the owner), `activate_event`, `reject_event_activation` and
+`set_event_player_limit` (an active platform admin, confirmed by `app_admin_id()`), each audited. **Seats** are
+enrollments pending, active or banned; the trigger `enrollment_player_limit` lets a move into pending or active through
+only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
+marks once. `event_seat_count(event)` gives the count to the team and admins.
+
 ### enrollment (a player in an event)
 `id`, `event_id`, `player_id`, `joined_at`, `join_source`, `join_answers jsonb` (**PII**, only
 fields disclosed on the join card, PD-17), `score bigint` and `balance bigint` (**caches of the
@@ -309,6 +320,8 @@ secret or contact detail (refused in code, which rolls back the change too).
 | translation | One row per key an admin changed: `key`, `ar`, `en` (each null when that language uses the shipped text), who and when. A row with neither language is deleted. Anyone using the app may read; only a Questify admin writes | No |
 | platform_setting | One row per block: `features` (per feature: enabled, message, minAppVersion) and `tuning` (numbers). Anyone using the app may read; only a Questify admin writes; never deleted. Records who changed it | No |
 | event_entitlement | Add-ons Questify unlocked for an event (`event_id`, `feature`, `granted_by`). Kept apart from `event.config` because the organizer can edit that column and must not unlock anything for themselves (FR-1729). Visible to whoever can see the event; written only by an admin | No |
+| event_activation_request | The owner's activation request: pending, or rejected with the admin's note (T-210). Written only by definers | No |
+| event_limit_alert | The 80% and 100% player-limit marks reached, once per limit (T-210). Written only by the limit trigger and `set_event_player_limit` | No |
 | wallet_pass, wallet_registration | Serial, auth token, device registrations for pass updates | Linked to player |
 | word_list, deletion_request, data_request | Username filter lists; legal requests and what was done | Requests yes |
 | usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076) | No |

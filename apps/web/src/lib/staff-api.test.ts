@@ -58,9 +58,17 @@ describe("fetchMe", () => {
       me: {
         id: "u1",
         email: "owner@najd.sa",
+        isAdmin: false,
         memberships: [{ organizerId: "o1", organizerName: "Najd Events", role: "owner" }],
       },
     });
+  });
+
+  it("says whether the person is a Questify admin", async () => {
+    reply(200, { ...ME, platformRole: "admin" });
+    expect(await ask()).toMatchObject({ kind: "signed_in", me: { isAdmin: true } });
+    reply(200, { ...ME, platformRole: "superuser" });
+    expect(await ask()).toMatchObject({ kind: "signed_in", me: { isAdmin: false } });
   });
 
   it("says whether a 401 means the session ran out", async () => {

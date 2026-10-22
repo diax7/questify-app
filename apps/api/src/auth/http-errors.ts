@@ -603,3 +603,45 @@ export const operatorPlayOff = make(
   "لم يسمح لك المنظّم باللعب في هذه الفعالية.",
   "The organizer has not allowed you to play this event.",
 );
+export const eventFull = make(
+  409,
+  "event_full",
+  "اكتمل عدد اللاعبين في هذه الفعالية.",
+  "This event is full.",
+);
+export const alreadyActivated = make(
+  409,
+  "already_activated",
+  "الفعالية مفعّلة من قبل.",
+  "This event is already activated.",
+);
+export const noPendingRequest = make(
+  409,
+  "no_pending_request",
+  "لا يوجد طلب تفعيل بانتظار القرار لهذه الفعالية.",
+  "This event has no activation request waiting.",
+);
+export const notActivated = make(
+  409,
+  "not_activated",
+  "لم تُفعَّل الفعالية بعد.",
+  "This event is not activated yet.",
+);
+export const activationIncomplete = make(
+  422,
+  "activation_incomplete",
+  "لا يمكن تفعيل الفعالية قبل إكمال الحقل المحدد.",
+  "The event cannot be activated until the named field is complete.",
+);
+export const invalidLimit = make(
+  422,
+  "invalid_limit",
+  "حد اللاعبين غير صالح: بلا حد، أو عدد صحيح من 1 إلى 1000000.",
+  "The player limit is not valid: none, or a whole number from 1 to 1000000.",
+);
+export const unknownAddon = make(
+  422,
+  "unknown_addon",
+  "هذه الإضافة غير موجودة في التطبيق.",
+  "This add-on does not exist in the app.",
+);

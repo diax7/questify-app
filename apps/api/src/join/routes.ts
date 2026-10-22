@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   cannotLeave,
   eventEnded,
+  eventFull,
   invalidRequest,
   joinCardStale,
   joinMethodOff,
@@ -176,6 +177,8 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
           throw joinMethodOff();
         case "not_allowed":
           throw joinNotAllowed();
+        case "full":
+          throw eventFull();
         case "joined":
         case "already":
           return {

@@ -164,6 +164,7 @@ describe("joining", () => {
   it("passes refusals, a lost session and the network on", async () => {
     for (const code of [
       "event_ended",
+      "event_full",
       "join_method_off",
       "join_not_allowed",
       "not_found",

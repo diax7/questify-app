@@ -7,7 +7,13 @@ export type Membership = Readonly<{
   role: "owner" | "editor";
 }>;
 
-export type Me = Readonly<{ id: string; email: string; memberships: readonly Membership[] }>;
+export type Me = Readonly<{
+  id: string;
+  email: string;
+  /** A Questify platform admin: the console opens for them (T-210). */
+  isAdmin: boolean;
+  memberships: readonly Membership[];
+}>;
 
 export type MeResult =
   | Readonly<{ kind: "signed_in"; me: Me }>
@@ -47,7 +53,12 @@ function readMe(value: unknown): Me | undefined {
   if (memberships.some((membership) => membership === undefined)) {
     return undefined;
   }
-  return { id: value["id"], email: value["email"], memberships: memberships as Membership[] };
+  return {
+    id: value["id"],
+    email: value["email"],
+    isAdmin: value["platformRole"] === "admin",
+    memberships: memberships as Membership[],
+  };
 }
 
 export type MeRequest = Readonly<{

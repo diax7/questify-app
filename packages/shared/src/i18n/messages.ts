@@ -1325,6 +1325,105 @@ export const MESSAGES = {
     en: "You need a connection to show your code the first time.",
   },
   "quests.showMyQr": { ar: "اعرض رمزك على المشغّل", en: "Show your code to an operator" },
+  "activation.title": { ar: "التفعيل", en: "Activation" },
+  "activation.notActivated": {
+    ar: "لم تُفعَّل الفعالية بعد. صفحتها وروابط الدعوة مغلقة أمام الجميع إلا فريقك.",
+    en: "Not activated yet. The event page and invite links are closed to everyone but your team.",
+  },
+  "activation.request": { ar: "اطلب التفعيل", en: "Request activation" },
+  "activation.editorHint": {
+    ar: "اطلب من المالك إرسال طلب التفعيل.",
+    en: "Ask the owner to request activation.",
+  },
+  "activation.priceNote": {
+    ar: "يُتفق على السعر والدفع خارج Questify.",
+    en: "Price and payment are arranged outside Questify.",
+  },
+  "activation.requested": {
+    ar: "أُرسل طلب التفعيل في {date}. ستُفعَّل الفعالية بعد مراجعة Questify.",
+    en: "Activation requested on {date}. Questify activates the event after review.",
+  },
+  "activation.withdraw": { ar: "اسحب الطلب", en: "Withdraw request" },
+  "activation.withdrawConfirm": {
+    ar: "هل تسحب طلب التفعيل؟ تبقى الفعالية مسودة.",
+    en: "Withdraw the activation request? The event stays a draft.",
+  },
+  "activation.rejected": {
+    ar: "لم تُفعِّل Questify الفعالية بعد. ملاحظتها: {note}",
+    en: "Questify has not activated this event yet. Their note: {note}",
+  },
+  "activation.requestAgain": { ar: "اطلب التفعيل مجددًا", en: "Request again" },
+  "activation.limit.none": { ar: "لا حد لعدد اللاعبين.", en: "No player limit." },
+  "activation.limit.soft": {
+    ar: "حتى {limit} لاعب، مع تنبيه عند 80%. يبقى الانضمام مفتوحًا.",
+    en: "Up to {limit} players, warning at 80%. Joining stays open.",
+  },
+  "activation.limit.hard": {
+    ar: "حتى {limit} لاعب. يُغلق الانضمام عند بلوغ الحد.",
+    en: "Up to {limit} players. Joining closes at the limit.",
+  },
+  "activation.players": { ar: "انضم {count} لاعب.", en: "{count} players joined." },
+  "activation.alert.near": {
+    ar: "انضم {count} من أصل {limit} لاعب.",
+    en: "{count} of {limit} players joined.",
+  },
+  "activation.alert.fullHard": {
+    ar: "بلغت الفعالية حد اللاعبين: {count} من {limit}. الانضمام مغلق. اطلب من Questify رفع الحد.",
+    en: "Player limit reached: {count} of {limit}. Joining is closed. Ask Questify to raise your limit.",
+  },
+  "activation.alert.fullSoft": {
+    ar: "بلغت الفعالية حد اللاعبين: {count} من {limit}. يبقى الانضمام مفتوحًا. اطلب من Questify رفع الحد.",
+    en: "Player limit reached: {count} of {limit}. Joining stays open. Ask Questify to raise your limit.",
+  },
+  "activation.addons": { ar: "الإضافات: {list}", en: "Add-ons: {list}" },
+  "activation.noAddons": { ar: "لا إضافات.", en: "No add-ons." },
+  "addon.bigScreen": { ar: "الشاشة الكبيرة", en: "Big screen" },
+  "console.title": { ar: "لوحة Questify", en: "Questify console" },
+  "console.queue": { ar: "طلبات التفعيل", en: "Activation requests" },
+  "console.queueEmpty": { ar: "لا طلبات بانتظار القرار.", en: "No requests waiting." },
+  "console.requestedAt": { ar: "طُلب في {date}", en: "Requested {date}" },
+  "console.lookup": { ar: "افتح فعالية برمز الانضمام", en: "Open an event by its join code" },
+  "console.open": { ar: "افتح", en: "Open" },
+  "console.notFound": { ar: "لا فعالية بهذا الرمز.", en: "No event has this code." },
+  "console.back": { ar: "عودة إلى الطلبات", en: "Back to requests" },
+  "console.owner": { ar: "المالك: {email}", en: "Owner: {email}" },
+  "console.organizer": { ar: "الجهة المنظِّمة: {name}", en: "Organizer: {name}" },
+  "console.limit": { ar: "حد اللاعبين", en: "Player limit" },
+  "console.limit.none": { ar: "بلا حد", en: "None" },
+  "console.limit.soft": {
+    ar: "مرن: تنبيه عند 80% و100% دون منع",
+    en: "Soft: warn at 80% and 100%, never block",
+  },
+  "console.limit.hard": {
+    ar: "صارم: يتوقف الانضمام عند الحد",
+    en: "Hard: joining stops at the number",
+  },
+  "console.limitNumber": { ar: "عدد اللاعبين", en: "Number of players" },
+  "console.addons": { ar: "الإضافات المشتراة", en: "Add-ons bought" },
+  "console.nothingCharged": { ar: "لا يُحصَّل أي مبلغ هنا.", en: "Nothing is charged here." },
+  "console.activate": { ar: "فعّل الفعالية", en: "Activate" },
+  "console.confirmActivate": {
+    ar: "تفعيل «{name}»؟ يرى المالك ذلك فورًا، ويُسجَّل الإجراء.",
+    en: "Activate “{name}”? The owner sees it at once, and the action is logged.",
+  },
+  "console.activated": { ar: "فُعِّلت الفعالية.", en: "Activated." },
+  "console.note": { ar: "ملاحظة للمالك", en: "Note to the owner" },
+  "console.reject": { ar: "ارفض مع ملاحظة", en: "Reject with a note" },
+  "console.rejected": {
+    ar: "رُفض الطلب، ويرى المالك ملاحظتك.",
+    en: "Rejected. The owner sees your note.",
+  },
+  "console.missing.times": {
+    ar: "لا يمكن التفعيل: تحتاج الفعالية إلى وقت بداية ونهاية، والنهاية لم تأتِ بعد.",
+    en: "Cannot activate: the event needs a start and an end, with the end still ahead.",
+  },
+  "console.missing.venue": {
+    ar: "لا يمكن التفعيل: الفعالية الحضورية تحتاج إلى مكان.",
+    en: "Cannot activate: an in-person event needs a venue.",
+  },
+  "console.saveLimit": { ar: "احفظ الحد", en: "Save limit" },
+  "console.limitSaved": { ar: "حُفظ الحد.", en: "Limit saved." },
+  "console.addonsSaved": { ar: "حُفظت الإضافات.", en: "Add-ons saved." },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

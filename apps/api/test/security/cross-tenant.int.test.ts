@@ -410,6 +410,38 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  event_activation_request: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_activation_request (event_id, organizer_id, state) VALUES ($1, $2, 'pending')",
+          values: [f.publicEventB, f.orgB],
+        }),
+        // Written only by request_event_activation and the console's definers (T-210).
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  event_limit_alert: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_limit_alert (event_id, organizer_id, level, players) VALUES ($1, $2, 100, 1)",
+          values: [f.publicEventB, f.orgB],
+        }),
+        // Written only by the limit trigger and set_event_player_limit (T-210).
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   event_entitlement: {
     probes: [
       {
@@ -770,6 +802,14 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_exclusion (organizer_id, event_id, kind, value, created_by) VALUES ($1, $2, 'email_domain', 'seeded.sa', $3)",
         [org, event, staff],
+      );
+      await run(
+        "INSERT INTO event_activation_request (event_id, organizer_id, state, requested_by) VALUES ($1, $2, 'pending', $3)",
+        [event, org, staff],
+      );
+      await run(
+        "INSERT INTO event_limit_alert (event_id, organizer_id, level, players) VALUES ($1, $2, 80, 8)",
+        [event, org],
       );
       await run(
         "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",

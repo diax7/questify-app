@@ -45,6 +45,11 @@ export default async function HomePage({
       <main className={styles.page}>
         <h1 className={styles.title}>{t("nav.home")}</h1>
         <p>{t("staff.signedInAs", { email: isolate(me.email) })}</p>
+        {me.isAdmin ? (
+          <a className={styles.button} href={`/${lang}/console`}>
+            {t("console.title")}
+          </a>
+        ) : null}
         <h2 className={styles.subtitle}>{t("staff.organizers")}</h2>
         {me.memberships.length === 0 ? (
           <p className={styles.muted}>{t("staff.noOrganizers")}</p>

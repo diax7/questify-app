@@ -92,6 +92,8 @@ export type SettingsService = Readonly<{
     feature: string,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
+  /** Drops every cached reading, after a change made outside this service (activation, T-210). */
+  forget: () => void;
   /** A Questify admin takes an unlocked add-on away from an event. */
   lockFeature: (
     admin: PublicAccount,
@@ -339,6 +341,8 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       forgetAll();
       return result;
     },
+
+    forget: forgetAll,
 
     unlockFeature: (admin, eventId, feature, meta = {}) =>
       asAdmin(admin, async (client) => {

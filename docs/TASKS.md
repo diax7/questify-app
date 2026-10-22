@@ -369,10 +369,12 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
 
 - [ ] **T-701** Console foundation: platform admin role, organizer and event management, suspend and edit any event with support logging, urgent reports — delivers FR 1402, 1408, 1409, 1732, 1784; depends on: T-006, T-210
   - Done when: Every support access to an organizer event appears in that event's log.
+  - Note 2026-10-22 (T-210, Q-110): gains FR-1607 and the suspend half of FR-1402 (organizer suspension: players cannot open its events, the dashboard is read-only). The console's `admin` access kind, hook and pages exist (`/v1/admin/`, `/[lang]/console`); use `organizer.status = 'paused'` and a trigger on enrollment like ADR-141's.
 - [ ] **T-702** Translation matrix editor: edit Arabic or English per key, live, placeholders protected — delivers FR 1765, 1766; depends on: T-008
   - Done when: An edit appears in the app within a minute without a release.
 - [ ] **T-703** Platform switches, tuning numbers, maintenance mode, banner, last-working configuration — delivers FR 1405, 1769, 1770, 1771, 1772, 1773, 1734, 420; depends on: T-007
   - Done when: A switched-off feature hides with a message; an unreadable config makes the app use its last working copy.
+  - Note 2026-10-22 (T-210, Q-111): gains FR-1730 (usage per event and organizer) and FR-1731 (support contact edited in the console); the activation and 80%/100% emails wait for the alert switches (FR-1727).
 - [ ] **T-704** Player tools: find a player, read-only record, change username, reset sign-in, merge accounts — delivers FR 1774, 1775; depends on: T-004, T-109
   - Done when: Every look at a player's record is logged.
 - [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109

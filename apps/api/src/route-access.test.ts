@@ -28,7 +28,7 @@ describe("registerRouteInventory", () => {
   it("stops the server from starting when a route does not say who may call it", async () => {
     const { app } = build();
     expect(() => app.get("/forgotten", async () => ({}))).toThrow(
-      "Route GET /forgotten must declare config.access (one of public, staff, member, owner, player).",
+      "Route GET /forgotten must declare config.access (one of public, staff, member, owner, player, admin).",
     );
   });
 
@@ -118,7 +118,25 @@ describe("registerRouteInventory", () => {
     ).toThrow(message("/v1/organizers/:organizerId/open"));
   });
 
+  it("keeps admin routes under /v1/admin/, and nothing else there", async () => {
+    const { app, inventory } = build();
+    app.get("/v1/admin/activation-requests", { config: { access: "admin" } }, async () => ({}));
+    await app.ready();
+    expect(inventory.filter((route) => route.method !== "HEAD")).toEqual([
+      { method: "GET", url: "/v1/admin/activation-requests", access: "admin" },
+    ]);
+    await app.close();
+    expect(() =>
+      build().app.get("/v1/staff/console", { config: { access: "admin" } }, async () => ({})),
+    ).toThrow(
+      "Route GET /v1/staff/console: admin routes, and only they, live under /v1/admin/, where the platform admin check runs.",
+    );
+    expect(() =>
+      build().app.get("/v1/admin/open", { config: { access: "public" } }, async () => ({})),
+    ).toThrow(/admin routes, and only they/);
+  });
+
   it("lists the known kinds", () => {
-    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner", "player"]);
+    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner", "player", "admin"]);
   });
 });

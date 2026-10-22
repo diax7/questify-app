@@ -14,6 +14,8 @@ import {
   ownerRequired,
   tooManyAttempts,
 } from "#src/auth/http-errors";
+import { registerActivationRoutes } from "#src/activation/routes";
+import type { Activation } from "#src/activation/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
@@ -38,6 +40,7 @@ export type OrganizerRoutesDeps = Readonly<{
   team: Team;
   events: Events;
   settings: SettingsService;
+  activation: Activation;
   /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
   questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
   /** Seals and marks digital reward codes before they reach the database (T-203). */
@@ -202,6 +205,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       });
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events, deps.settings);
+      registerActivationRoutes(scope, deps.activation);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });

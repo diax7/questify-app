@@ -1952,3 +1952,39 @@ own email to match; the invite email is cleared once the invite is claimed, canc
 - Booths have no model yet: operators are limited by quest (Q-107).
 **Why:** the owner holds the event's admin powers (FR-901 to FR-909); one engine keeps every completion rule in one
 place; a rate limit would add a write per scan and stop nothing a signed code does not already stop.
+
+## ADR-140 — Activation runs through definers and a console behind its own access kind
+**Status:** Proposed (Claude, 2026-10-22; T-210, ADR-076).
+**Decision:**
+- The owner requests and withdraws activation (`request_event_activation`, `withdraw_event_activation`); a request is one
+  row per event, pending or rejected with the admin's note. The history is the audit log.
+- A Questify admin activates a draft, rejects a request with a note, or changes the limit later, through definers that
+  confirm the account itself is an active platform admin (`app_admin_id()`), not only the request's admin flag.
+  Activation sets the add-ons to exactly the chosen list; add-ons change later through the settings service.
+- The console's routes live under `/v1/admin/` with a new access kind `admin`; anyone who is not an active platform
+  admin gets 404, so the console is not advertised. The dashboard's console pages check the same before rendering.
+**Why:** the admin powers are on the Max bar: two independent checks (the route hook and the database), every action
+audited, and no write grant on the new tables or columns.
+
+## ADR-141 — A seat is a pending, active or banned player; the hard limit is a wall at the enrollment
+**Status:** Proposed (Claude, 2026-10-22; T-210). Needs Dhia's acceptance: a ban keeps the seat.
+**Decision:**
+- Seats are enrollments that are pending, active or banned. A player who left or was removed frees the seat. A banned
+  player keeps the seat, so an organizer who bans cheaters cannot fill those seats with new players past the paid size.
+- Only a move into pending or active takes a seat, so a ban (also of a player who left) is never refused for being over
+  the limit, and lifting a ban takes no new seat.
+- The hard limit is a trigger on `enrollment`, so every way of joining meets it (`join_event`, T-212's `join_invited`):
+  joins at the last seat wait their turn on a per-event transaction lock; the refusal is `QL409`, answered as 409
+  `event_full` ("This event is full."). Every caller that writes an enrollment maps it with `isEventFull`.
+- The marks: 80% from `ceil(0.8 × limit)` (240 of 300) and 100% at the limit, each recorded once per limit
+  (`event_limit_alert`) and shown on the dashboard. Changing the limit recomputes them; a limit below the players
+  already in keeps them all and closes joining (hard).
+**Why:** the paid size is what Questify sells (ADR-076); a wall outside the database could be raced by two joins.
+
+## ADR-142 — What an event needs before activation
+**Status:** Proposed (Claude, 2026-10-22; T-210). Completes the note in the T-102 plan.
+**Decision:** activation refuses (422 `activation_incomplete`, with the field) an event without a start and an end, or
+whose end has passed, and a physical event without a venue in either language. The rest of the checklist only advises
+(DASHBOARD_AND_CONSOLE A3). An event activated after its start becomes live at once.
+**Why:** a scheduled event must have its times (`event_times_once_active`), and players of a physical event need to know
+where it is.

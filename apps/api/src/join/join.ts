@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { isEventFull } from "#src/activation/activation";
 import { addressBucket } from "#src/auth/normalize";
 import type { AuthKeys } from "#src/auth/keys";
 import { BUCKETS, countRecent, forget, record } from "#src/auth/throttle";
@@ -46,7 +47,7 @@ export type JoinOutcome =
       eventId: string;
       status: "active" | "pending";
     }>
-  | Readonly<{ kind: "not_found" | "ended" | "method_off" | "not_allowed" }>;
+  | Readonly<{ kind: "not_found" | "ended" | "method_off" | "not_allowed" | "full" }>;
 
 export type MyEvent = PublicEvent &
   Readonly<{ status: "active" | "pending"; score: number; balance: number }>;
@@ -259,7 +260,7 @@ export async function questsByCode(
 }
 
 type JoinRow = Readonly<{
-  outcome: "joined" | "already" | "not_found" | "ended" | "method_off" | "not_allowed";
+  outcome: "joined" | "already" | "not_found" | "ended" | "method_off" | "not_allowed" | "full";
   enrollment_id: string | null;
   event_id: string | null;
   status: "active" | "pending" | null;
@@ -281,15 +282,29 @@ export async function joinByCode(
     { key: deps.keys.playerKey(request.playerId), max: JOIN_CODE_MISSES.perPlayer },
   ];
   const result = await withMissBudget(deps, budgets, async () => {
-    const row = await withConnection(deps.pool, (client) =>
-      withRequestContext(client, { playerId: request.playerId }, async () => {
-        const { rows } = await client.query<JoinRow>(
-          "SELECT outcome, enrollment_id, event_id, status FROM join_event($1, $2, $3)",
-          [request.code, request.via, request.cardVersion],
-        );
-        return rows[0];
-      }),
-    );
+    const row = await withConnection(deps.pool, async (client) => {
+      try {
+        return await withRequestContext(client, { playerId: request.playerId }, async () => {
+          const { rows } = await client.query<JoinRow>(
+            "SELECT outcome, enrollment_id, event_id, status FROM join_event($1, $2, $3)",
+            [request.code, request.via, request.cardVersion],
+          );
+          return rows[0];
+        });
+      } catch (error) {
+        // A hard player limit that is full refuses the seat inside join_event (migration 0027, T-210).
+        if (isEventFull(error)) {
+          const full: JoinRow = {
+            outcome: "full",
+            enrollment_id: null,
+            event_id: null,
+            status: null,
+          };
+          return full;
+        }
+        throw error;
+      }
+    });
     return row === undefined || row.outcome === "not_found" ? null : row;
   });
   if (isThrottled(result)) {

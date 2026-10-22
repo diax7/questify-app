@@ -19,6 +19,7 @@
     "apps/api/src/home/**/*.ts",
     "apps/api/src/rewards/**/*.ts",
     "apps/api/src/operators/**/*.ts",
+    "apps/api/src/activation/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",
     "packages/shared/src/join/**/*.ts",

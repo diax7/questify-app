@@ -38,6 +38,8 @@ import type { RankingStore } from "#src/ranking/store";
 import { startRankingTick } from "#src/ranking/tick";
 import { startLifecycleTick } from "#src/events/tick";
 import { createInvites } from "#src/organizers/accept";
+import { registerConsoleRoutes } from "#src/activation/routes";
+import { createActivation } from "#src/activation/service";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { createTeam } from "#src/organizers/team";
 import { registerRouteInventory, type RouteInfo } from "#src/route-access";
@@ -238,9 +240,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.addHook("onClose", tick.stop);
   }
 
+  const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
+  const staffSessions = createSessions(options.pool);
+  registerConsoleRoutes(app, {
+    activation,
+    settings,
+    sessions: staffSessions,
+    dashboardOrigin: config.auth.dashboardOrigin,
+  });
   registerOrganizerRoutes(app, {
     pool: options.pool,
-    sessions: createSessions(options.pool),
+    sessions: staffSessions,
+    activation,
     team: createTeam(passwordDeps),
     events: createEvents({ pool: options.pool }),
     settings,
