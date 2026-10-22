@@ -236,7 +236,7 @@ the ledger, so account deletion can clear it. Pending and approved states arrive
 
 ### ledger_entry (event layer; append-only)
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, kind (quest; later spend,
-manual_award, reversal…), score_delta, balance_delta, completion_id, quest_id, actor (player; later operator, staff),
+manual_award, reversal…), score_delta, balance_delta, completion_id, quest_id, actor (player, system, operator since T-205; later staff),
 operator_id, created_at`. Two deltas so a spend moves only the balance and a removal after spending can move the score
 and the balance by different amounts (FR-1601), while score and balance stay the exact sums of this table. A trigger
 moves the enrollment's caches on every insert. Append-only for every role, the owner included (ALWAYS triggers on
@@ -299,7 +299,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | player_session, player_refresh, player_login_challenge (built: T-105, T-107, migration 0013), device | Access tokens (1 hour, `refresh_family`), rotating refresh tokens (180 days; a family per device, at most 10 live; reuse ends the family), one-time code challenges (the phone or email, its keyed hash for lookup, the code's HMAC, 3 tries, 3 resends, 5 minutes; the signup token's hash for 15 minutes after a right code for a new contact). No grant on the challenge and refresh tables: definer functions only. Swept: challenges an hour after expiry, ended or used tokens 7 days after; device + push token + integrity result later | The challenge holds a phone or email for minutes; tokens are stored hashed |
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
-| staff_assignment | Operator role, station, abilities, booth limits per event | Links a player |
+| staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
 | item, player_item, achievement, player_achievement, passport_stamp, streak | Questify layer collectibles and progress | Linked to player |
 | minigame_round | Seed, issue time, replayed inputs, result | Linked to player |
 | daily_word, word_bank | Daily word and valid guesses per language (ADR-097) | No |
@@ -320,7 +320,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | ranking_season | Monthly Questify-wide seasons and archives | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | device_pairing | Paired stations, kiosks and big screens, with pairing codes | Device tokens |
-| operator_invite | Personal and batch operator QRs, claim state, ability presets | Claimed person |
+| operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |
 | invitation_campaign | Questify invitations by interest and city, with counts | No (counts only) |
 | organizer_acceptance | Versioned acceptance of organizer terms, DPA and policy with time | Staff user |
 | event_template | Template structures used to start an event | No |

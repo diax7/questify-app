@@ -1915,3 +1915,40 @@ they were read.
 - One key for now: rotating it makes every code not yet given unreadable, so a rotation means re-uploading those codes
   (RUNBOOK). A key version joins when a rotation is first needed.
 **Why:** a code is money's worth; a leaked dump must not hand them out, and a code already shown cannot be taken back.
+
+## ADR-137 — My QR is a fixed code; prizes need the player's own confirmation
+**Status:** Accepted (user, 2026-10-22; T-205). Amends FR-306 and FR-307 and the "rotates every 30 s" of ADR-057's
+operator flow.
+**Decision:**
+- My QR is a fixed code: the player's id and a version, signed by the API with its own key from `QR_SECRET`
+  (`questify/qr/v1/my`). It works offline and can be shown as long as the player likes.
+- Showing it only identifies the player. A station scan pays the code's owner only; the prize desk (T-206) hands over
+  only after the player accepts in their own app.
+- The player can replace the code at any time (5 times a day); every earlier code then stops at once.
+**Why:** Dhia (2026-10-22): "Fixed code with verification, like he cannot just get the prize with just showing the
+QR, he must redeem it or accept it from his account." A rotating code needed a connection every few hours and still
+let a friend send a fresh screenshot.
+**Risk accepted:** a photographed code can be carried to stations by someone else and earns its owner points there.
+Mitigations: the station shows the player's name and avatar, T-209's burst and impossible-speed flags, and reset. The
+meet-someone scan (T-303) needs its own answer, since a fixed code can be shared in a group chat.
+
+## ADR-138 — Operator invites go by email only
+**Status:** Accepted (user, 2026-10-22; T-204). Amends FR-901 and ADR-057's "phone or email".
+**Decision:** the owner invites an operator by email, or hands a personal operator QR to one named person (or prints a
+batch with an ability preset, FR-1720). No SMS invite and no add-by-phone. Claiming an email invite needs the account's
+own email to match; the invite email is cleared once the invite is claimed, cancelled or expired.
+**Why:** Dhia: "send email only". SMS costs money per message and a personal QR already covers people at the venue.
+
+## ADR-139 — Operator management is the owner's; one completion engine serves both scans
+**Status:** Proposed (Claude, 2026-10-22; T-204, T-205).
+**Decision:**
+- Only the event's owner (or a Questify admin) invites, changes and removes operators; editors read the list. Claim
+  addresses go to the owner only: an editor holding one could make themselves an operator.
+- The station scan and the player's own scan go through one database function (`record_completion`); operators who
+  may not play are refused in one place, a guard on the points record that covers quests and the shop.
+- No rate limit on station scans: every scan needs a real signed My QR, pays a player at most to the quest's cap, is
+  held to one completion per operator, player and quest in any 10 seconds, and names the operator in the points
+  record. T-209's flags watch bursts.
+- Booths have no model yet: operators are limited by quest (Q-107).
+**Why:** the owner holds the event's admin powers (FR-901 to FR-909); one engine keeps every completion rule in one
+place; a rate limit would add a write per scan and stop nothing a signed code does not already stop.
