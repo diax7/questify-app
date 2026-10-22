@@ -466,6 +466,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
       expect(await joinInvited(invited, ended.id)).toMatchObject({ outcome: "ended" });
     });
 
+    it("holds an invited join to a full hard limit (T-210)", async () => {
+      const event = await newEvent({ access: "private" });
+      await addGuest(event.id, "email", "late@acme.sa");
+      const invited = await newPlayer({ email: "late@acme.sa" });
+      await owner("UPDATE event SET player_limit_mode = 'hard', player_limit = 1 WHERE id = $1", [
+        event.id,
+      ]);
+      await owner(
+        "INSERT INTO enrollment (organizer_id, event_id, player_id) SELECT organizer_id, id, $2 FROM event WHERE id = $1",
+        [event.id, await newPlayer()],
+      );
+      await expect(joinInvited(invited, event.id)).rejects.toMatchObject({ code: "QL409" });
+      expect(await enrollmentOf(invited, event.id)).toBeUndefined();
+    });
+
     it("lists the player's own invitations only, with the fields, until they join", async () => {
       const email = "list.me@acme.sa";
       const event = await newEvent({ access: "private", welcome: 50 });

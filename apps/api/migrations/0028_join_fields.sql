@@ -212,7 +212,7 @@ CREATE TRIGGER enrollment_welcome AFTER INSERT OR UPDATE OF status ON enrollment
 -- ================================================================ joining, with answers and the locks
 ALTER TABLE enrollment DROP CONSTRAINT enrollment_joined_via_check;
 ALTER TABLE enrollment ADD CONSTRAINT enrollment_joined_via_check
-  CHECK (joined_via IN ('code', 'qr', 'link', 'public_list', 'invite'));
+  CHECK (joined_via IN ('code', 'qr', 'link', 'public_list', 'operator', 'invite'));
 
 -- The event's fields as the card shows them, in order.
 CREATE FUNCTION event_join_fields_json(target uuid) RETURNS jsonb

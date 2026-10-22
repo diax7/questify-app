@@ -77,7 +77,9 @@ export type JoinOutcome =
       /** The welcome points this join granted (FR-136); 0 when none. */
       welcome: number;
     }>
-  | Readonly<{ kind: "not_found" | "ended" | "method_off" | "not_allowed" | "invite_only" | "full" }>
+  | Readonly<{
+      kind: "not_found" | "ended" | "method_off" | "not_allowed" | "invite_only" | "full";
+    }>
   | Readonly<{ kind: "domain_required"; domains: readonly string[] }>
   /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
   | Readonly<{ kind: "invalid_answers"; field: string | null }>;
