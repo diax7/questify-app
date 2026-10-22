@@ -139,7 +139,21 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/public/events/:joinCode/quests":
     "public and unlisted events' visible quests by named columns, never type_config; a private event answers members_only (test/join/join, test/db/join)",
   "POST /v1/join":
-    "enrolls only the bearer, through join_event bound to the session; nobody inserts an enrollment directly (test/join/join, test/db/join)",
+    "enrolls only the bearer, through join_event or join_invited bound to the session; nobody inserts an enrollment directly; an invitation not the bearer's answers 404 (test/join/join, test/join/join-fields, test/db/join, test/db/join-fields)",
+  "GET /v1/me/invitations":
+    "the bearer's own invitations only, through my_invitations bound to the session's verified contacts; no join code (test/join/join-fields, test/db/join-fields)",
+  "GET /v1/organizers/:organizerId/events/:eventId/join":
+    "members of that organizer within their event limit, read under row-level security; another organizer's event answers 404 (test/join/join-fields)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/join/fields":
+    "members of that organizer within their event limit, written under row-level security with the event locked and the version checked; audited (test/join/join-fields, test/db/join-fields)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/join/rules":
+    "members of that organizer within their event limit; the welcome amount guarded in the database once anyone joined or the event is live; audited (test/join/join-fields, test/db/join-fields)",
+  "GET /v1/organizers/:organizerId/events/:eventId/join/guests":
+    "members of that organizer within their event limit, read under row-level security; contacts masked (test/join/join-fields, test/db/join-fields)",
+  "POST /v1/organizers/:organizerId/events/:eventId/join/guests":
+    "members of that organizer within their event limit, written under row-level security; the audit keeps counts, never a contact (test/join/join-fields, test/db/join-fields)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/join/guests/:guestId":
+    "members of that organizer within their event limit; another event's entry answers 404 (test/join/join-fields)",
   "GET /v1/me/events":
     "the bearer's own enrollments only, read under row-level security (test/join/join)",
   "POST /v1/events/:eventId/leave":

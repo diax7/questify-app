@@ -3,6 +3,7 @@
 import {
   DEFAULT_TERMS,
   formatNumber,
+  joinFieldLabel,
   readEventTerms,
   termFor,
   type EventTerms,
@@ -17,7 +18,21 @@ import styles from "#src/components/layout.module.css";
 
 type Status = "pending" | "active" | "left" | "removed" | "banned";
 
-type Player = Readonly<{ enrollmentId: string; username: string; status: Status; score: number }>;
+type Answer = Readonly<{
+  fieldId: string;
+  kind: string;
+  label: Readonly<{ ar: string | null; en: string | null }>;
+  value: string;
+}>;
+
+type Player = Readonly<{
+  enrollmentId: string;
+  username: string;
+  status: Status;
+  score: number;
+  /** The join answers (FR-131); an older API sends none. */
+  answers?: readonly Answer[];
+}>;
 
 type Page = Readonly<{ players: Player[]; nextCursor: string | null }>;
 
@@ -103,6 +118,16 @@ function PlayerRow({
           {t("players.points", { currency })}: {formatNumber(player.score, language)}
         </span>
       </p>
+      {(player.answers ?? []).length === 0 ? null : (
+        <dl className={styles.muted} aria-label={t("players.answers")}>
+          {(player.answers ?? []).map((answer) => (
+            <div key={answer.fieldId} className={styles.row}>
+              <dt>{joinFieldLabel(answer, language)}:</dt>
+              <dd dir="auto">{answer.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {canBan && player.status !== "removed" ? (
         <button
           type="button"

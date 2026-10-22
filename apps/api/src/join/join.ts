@@ -1,3 +1,4 @@
+import type { JoinFieldKind } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { isEventFull } from "#src/activation/activation";
 import { addressBucket } from "#src/auth/normalize";
@@ -23,9 +24,36 @@ export type PublicEvent = Readonly<{
   statusNow: "scheduled" | "live" | "ended";
 }>;
 
-/** The join card's event: also its access type and how it may be joined. */
+/** A join field as the card shows it (FR-130): a custom one carries its own label. */
+export type JoinFieldView = Readonly<{
+  id: string;
+  kind: JoinFieldKind;
+  label: Text;
+  required: boolean;
+}>;
+
+/** What an event asks and checks at the join (T-212): its fields, its locks and its welcome amount. */
+export type JoinRules = Readonly<{
+  fields: readonly JoinFieldView[];
+  guestListOnly: boolean;
+  emailDomains: readonly string[];
+  welcomePoints: number | null;
+}>;
+
+/** The join card's event: also its access type, how it may be joined and its join rules. */
 export type CardEvent = PublicEvent &
-  Readonly<{ access: "public" | "unlisted" | "private"; joinMethods: readonly string[] }>;
+  Readonly<{
+    access: "public" | "unlisted" | "private";
+    joinMethods: readonly string[];
+    join: JoinRules;
+  }>;
+
+/** An invitation (FR-133): an event whose guest list holds the player, with what its card needs. No join code. */
+export type Invitation = Omit<PublicEvent, "joinCode"> &
+  Readonly<{ access: CardEvent["access"]; join: JoinRules }>;
+
+/** The answers given on the card: field id to text, already trimmed and without blanks. */
+export type JoinAnswers = Readonly<Record<string, string>>;
 
 export type PublicQuest = Readonly<{
   id: string;
@@ -46,8 +74,13 @@ export type JoinOutcome =
       enrollmentId: string;
       eventId: string;
       status: "active" | "pending";
+      /** The welcome points this join granted (FR-136); 0 when none. */
+      welcome: number;
     }>
-  | Readonly<{ kind: "not_found" | "ended" | "method_off" | "not_allowed" | "full" }>;
+  | Readonly<{ kind: "not_found" | "ended" | "method_off" | "not_allowed" | "invite_only" | "full" }>
+  | Readonly<{ kind: "domain_required"; domains: readonly string[] }>
+  /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
+  | Readonly<{ kind: "invalid_answers"; field: string | null }>;
 
 export type MyEvent = PublicEvent &
   Readonly<{ status: "active" | "pending"; score: number; balance: number }>;
@@ -172,14 +205,53 @@ export async function listPublicEvents(
   });
 }
 
+type FieldJson = Readonly<{
+  id: string;
+  kind: JoinFieldKind;
+  labelAr: string | null;
+  labelEn: string | null;
+  required: boolean;
+}>;
+
+type RulesRow = Readonly<{
+  guest_list_only: boolean;
+  email_domains: string[];
+  welcome_points: number | null;
+  fields: FieldJson[];
+}>;
+
+/** The rules as migration 0028's definers return them (`event_join_fields_json`). */
+export const rulesOf = (row: RulesRow): JoinRules => ({
+  fields: row.fields.map((field) => ({
+    id: field.id,
+    kind: field.kind,
+    label: { ar: field.labelAr, en: field.labelEn },
+    required: field.required,
+  })),
+  guestListOnly: row.guest_list_only,
+  emailDomains: row.email_domains,
+  welcomePoints: row.welcome_points,
+});
+
+async function readRules(client: PoolClient, code: string): Promise<JoinRules | undefined> {
+  const { rows } = await client.query<RulesRow>(
+    "SELECT guest_list_only, email_domains, welcome_points, fields FROM public_event_join_rules($1)",
+    [code],
+  );
+  const row = rows[0];
+  return row === undefined ? undefined : rulesOf(row);
+}
+
 async function readCard(client: PoolClient, code: string): Promise<CardEvent | null> {
   const { rows } = await client.query<
     EventRow & { access: CardEvent["access"]; join_methods: string[] }
   >(`SELECT ${EVENT_COLUMNS}, access, join_methods FROM public_event($1)`, [code]);
   const row = rows[0];
-  return row === undefined
+  const join = row === undefined ? undefined : await readRules(client, code);
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: both definers read the same event by the same code in one transaction
+  return row === undefined || join === undefined
     ? null
-    : { ...toEvent(row), access: row.access, joinMethods: row.join_methods };
+    : { ...toEvent(row), access: row.access, joinMethods: row.join_methods, join };
 }
 
 /** One event by its code for the join card, any access type (FR-105), against the address's budget of wrong codes. */
@@ -260,13 +332,92 @@ export async function questsByCode(
 }
 
 type JoinRow = Readonly<{
-  outcome: "joined" | "already" | "not_found" | "ended" | "method_off" | "not_allowed" | "full";
+  outcome:
+    | "joined"
+    | "already"
+    | "not_found"
+    | "ended"
+    | "method_off"
+    | "not_allowed"
+    | "invite_only"
+    | "domain_required"
+    | "full";
   enrollment_id: string | null;
   event_id: string | null;
   status: "active" | "pending" | null;
+  welcome: number;
 }>;
 
-/** Joins the player to the event with this code (FR-101 to 105), against their and their address's wrong codes. */
+/** The database refused the answers (JA422): its DETAIL names the field (`field:<id>`) or says `shape`. */
+type AnswersRefused = Readonly<{ outcome: "invalid_answers"; field: string | null }>;
+
+const FIELD_DETAIL = /^field:(.+)$/;
+
+function answersRefused(error: unknown): AnswersRefused | undefined {
+  const pg = error as { code?: unknown; detail?: unknown };
+  if (pg.code !== "JA422") {
+    return undefined;
+  }
+  const match = FIELD_DETAIL.exec(String(pg.detail));
+  return { outcome: "invalid_answers", field: match?.[1] ?? null };
+}
+
+/**
+ * Runs one join definer for the player. A refusal of the answers rolls the transaction back and comes back as a value,
+ * so a code that exists is never counted as a wrong one because of what was typed in a field.
+ */
+async function runJoin(
+  deps: JoinDeps,
+  playerId: string,
+  sql: string,
+  values: readonly unknown[],
+): Promise<JoinRow | AnswersRefused | undefined> {
+  try {
+    return await withConnection(deps.pool, (client) =>
+      withRequestContext(client, { playerId }, async () => {
+        const { rows } = await client.query<JoinRow>(sql, [...values]);
+        return rows[0];
+      }),
+    );
+  } catch (error) {
+    // A hard player limit that is full refuses the seat inside the definer (migration 0027, T-210).
+    if (isEventFull(error)) {
+      return { outcome: "full", enrollment_id: null, event_id: null, status: null, welcome: 0 };
+    }
+    const refused = answersRefused(error);
+    if (refused === undefined) {
+      throw error;
+    }
+    return refused;
+  }
+}
+
+function outcomeOf(row: JoinRow | AnswersRefused, domains: readonly string[]): JoinOutcome {
+  switch (row.outcome) {
+    case "invalid_answers":
+      return { kind: "invalid_answers", field: row.field };
+    case "domain_required":
+      return { kind: "domain_required", domains };
+    case "joined":
+    case "already": {
+      const { enrollment_id: enrollmentId, event_id: eventId, status } = row;
+      // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: join_core returns all three with a member
+      if (enrollmentId === null || eventId === null || status === null) {
+        throw new Error(`join answered ${row.outcome} without an enrollment; check migration 0028`);
+      }
+      return { kind: row.outcome, enrollmentId, eventId, status, welcome: row.welcome };
+    }
+    default:
+      return { kind: row.outcome };
+  }
+}
+
+const JOIN_COLUMNS = "outcome, enrollment_id, event_id, status, welcome";
+
+/**
+ * Joins the player to the event with this code (FR-101 to 105, FR-130, FR-134, FR-135), with the card's answers,
+ * against their and their address's wrong codes.
+ */
 export async function joinByCode(
   deps: JoinDeps,
   request: Readonly<{
@@ -275,6 +426,7 @@ export async function joinByCode(
     code: string;
     via: JoinVia;
     cardVersion: string;
+    answers: JoinAnswers;
   }>,
 ): Promise<JoinOutcome | Throttled> {
   const budgets = [
@@ -282,29 +434,12 @@ export async function joinByCode(
     { key: deps.keys.playerKey(request.playerId), max: JOIN_CODE_MISSES.perPlayer },
   ];
   const result = await withMissBudget(deps, budgets, async () => {
-    const row = await withConnection(deps.pool, async (client) => {
-      try {
-        return await withRequestContext(client, { playerId: request.playerId }, async () => {
-          const { rows } = await client.query<JoinRow>(
-            "SELECT outcome, enrollment_id, event_id, status FROM join_event($1, $2, $3)",
-            [request.code, request.via, request.cardVersion],
-          );
-          return rows[0];
-        });
-      } catch (error) {
-        // A hard player limit that is full refuses the seat inside join_event (migration 0027, T-210).
-        if (isEventFull(error)) {
-          const full: JoinRow = {
-            outcome: "full",
-            enrollment_id: null,
-            event_id: null,
-            status: null,
-          };
-          return full;
-        }
-        throw error;
-      }
-    });
+    const row = await runJoin(
+      deps,
+      request.playerId,
+      `SELECT ${JOIN_COLUMNS} FROM join_event($1, $2, $3, $4::jsonb)`,
+      [request.code, request.via, request.cardVersion, JSON.stringify(request.answers)],
+    );
     return row === undefined || row.outcome === "not_found" ? null : row;
   });
   if (isThrottled(result)) {
@@ -313,17 +448,60 @@ export async function joinByCode(
   if (result === null) {
     return { kind: "not_found" };
   }
-  if (result.outcome === "joined" || result.outcome === "already") {
-    const { enrollment_id: enrollmentId, event_id: eventId, status } = result;
-    // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: join_event returns all three with a member
-    if (enrollmentId === null || eventId === null || status === null) {
-      throw new Error(
-        `join_event answered ${result.outcome} without an enrollment; check migration 0018`,
-      );
-    }
-    return { kind: result.outcome, enrollmentId, eventId, status };
+  const domains =
+    result.outcome === "domain_required"
+      ? ((await anonymously(deps.pool, (client) => readRules(client, request.code)))
+          ?.emailDomains ?? [])
+      : [];
+  return outcomeOf(result, domains);
+}
+
+/**
+ * Joins an invited player without a code (FR-133): an event whose guest list holds one of their verified identifiers.
+ * Any other event is not found, the same answer for every id.
+ */
+export async function joinInvited(
+  deps: JoinDeps,
+  request: Readonly<{
+    playerId: string;
+    eventId: string;
+    cardVersion: string;
+    answers: JoinAnswers;
+  }>,
+): Promise<JoinOutcome> {
+  const row = await runJoin(
+    deps,
+    request.playerId,
+    `SELECT ${JOIN_COLUMNS} FROM join_invited($1, $2, $3::jsonb)`,
+    [request.eventId, request.cardVersion, JSON.stringify(request.answers)],
+  );
+  // Stryker disable next-line ConditionalExpression: unreachable: join_invited always returns one row
+  if (row === undefined) {
+    return { kind: "not_found" };
   }
-  return { kind: result.outcome };
+  return outcomeOf(row, []);
+}
+
+type InvitationRow = Omit<EventRow, "join_code"> & RulesRow & { access: CardEvent["access"] };
+
+/**
+ * The player's invitations (FR-133), soonest first: what the "You're invited" cards show. A guest passes the guest-list
+ * and domain locks (ADR-145), so the cards show neither.
+ */
+export async function myInvitations(deps: JoinDeps, playerId: string): Promise<Invitation[]> {
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, { playerId }, async () => {
+      const { rows } = await client.query<InvitationRow>(
+        `SELECT id, name_ar, name_en, venue_ar, venue_en, kind, timezone, starts_at, ends_at, status_now, access,
+                false AS guest_list_only, '{}'::text[] AS email_domains, welcome_points, fields
+         FROM my_invitations()`,
+      );
+      return rows.map((row) => {
+        const { joinCode: _code, ...event } = toEvent({ ...row, join_code: "" });
+        return { ...event, access: row.access, join: rulesOf(row) };
+      });
+    }),
+  );
 }
 
 /** The player's events for the switcher (FR-122): active and pending, newest join first, read under their own rules. */

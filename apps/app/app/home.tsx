@@ -11,6 +11,7 @@ import { usePlayer } from "#src/auth/player.tsx";
 import { readMyEvents, readRecent, type MyEvent } from "#src/event/launch.ts";
 import { OperatorEvents } from "#src/operator/OperatorEvents.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { fetchInvitations, type Invitation } from "#src/join/join-api.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
@@ -195,6 +196,37 @@ function MyEvents() {
   );
 }
 
+/** "You're invited" (FR-133): events whose guest list holds the player; nothing at all when there are none. */
+function Invitations() {
+  const { t } = useI18n();
+  const [invitations, setInvitations] = useState<readonly Invitation[]>([]);
+  useEffect(() => {
+    void fetchInvitations(api.session).then((answer) => {
+      if (answer.kind === "list") {
+        setInvitations(answer.invitations);
+      }
+    });
+  }, []);
+  if (invitations.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <AppText variant="title">{t("invitations.title")}</AppText>
+      {invitations.map(({ event }) => (
+        <EventRow
+          key={event.id}
+          event={{ id: event.id, joinCode: "", name: event.name }}
+          note={t("invitations.open")}
+          onPress={() =>
+            router.push({ pathname: "/invite/[eventId]", params: { eventId: event.id } })
+          }
+        />
+      ))}
+    </>
+  );
+}
+
 /**
  * Questify home (FR-623, T-111): a code or link to open an event's join card, the public list for someone not signed
  * in, and a player's events. Inside an event, its own Home takes over (T-113); this screen's own bar is T-408.
@@ -215,6 +247,7 @@ export default function QuestifyHomeScreen() {
           <>
             <AddEmailCard />
             <OperatorEvents />
+            <Invitations />
             <MyEvents />
             <Button kind="quiet" label={t("nav.profile")} onPress={() => router.push("/profile")} />
           </>

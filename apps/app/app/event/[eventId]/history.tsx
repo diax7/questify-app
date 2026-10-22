@@ -38,9 +38,11 @@ function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone
     <View style={styles.row}>
       <View style={styles.grow}>
         <AppText variant="label">
-          {entry.title === null || !(entry.kind in TITLED)
-            ? t("history.other")
-            : t(TITLED[entry.kind] ?? "history.other", { title: textIn(entry.title, language) })}
+          {entry.kind === "welcome"
+            ? t("history.welcome")
+            : entry.title === null || !(entry.kind in TITLED)
+              ? t("history.other")
+              : t(TITLED[entry.kind] ?? "history.other", { title: textIn(entry.title, language) })}
         </AppText>
         <AppText muted>{formatEventTime(new Date(entry.at), timeZone, language)}</AppText>
       </View>

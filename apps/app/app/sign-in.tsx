@@ -32,6 +32,7 @@ import {
 import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { pendingInviteOf } from "#src/operator/station.ts";
+import { forgetAnswers, heldAnswers } from "#src/join/answers.ts";
 import { joinEvent } from "#src/join/join-api.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -55,11 +56,21 @@ function pendingFrom(
 ): PendingJoin | undefined {
   const { code, via, card } = params;
   const ways = ["code", "qr", "link", "public_list"] as const;
-  return typeof code === "string" &&
-    typeof card === "string" &&
-    ways.includes(via as (typeof ways)[number])
-    ? { code, via: via as PendingJoin["via"], cardVersion: card }
-    : undefined;
+  if (
+    typeof code !== "string" ||
+    typeof card !== "string" ||
+    !ways.includes(via as (typeof ways)[number])
+  ) {
+    return undefined;
+  }
+  // The card's answers wait in memory, never in the route (they are personal data).
+  const answers = heldAnswers(code);
+  return {
+    code,
+    via: via as PendingJoin["via"],
+    cardVersion: card,
+    ...(answers === undefined ? {} : { answers }),
+  };
 }
 
 /** A sign-in step that saves the tokens may fail at the secure store: that is a problem to show, not a sign-in. */
@@ -305,6 +316,7 @@ export default function SignInScreen() {
         return;
       }
       const outcome = await joinEvent(api.session, state.join);
+      forgetAnswers(state.join.code);
       // The card screen shows how it went.
       const shown =
         outcome.kind === "joined"
@@ -314,8 +326,10 @@ export default function SignInScreen() {
           : outcome.kind === "stale" || outcome.kind === "network"
             ? outcome.kind
             : undefined;
-      // A refusal (ended, way turned off, not allowed) is shown at once, in the API's own words.
-      const problem = outcome.kind === "refused" ? outcome.problem : null;
+      // A refusal (ended, way turned off, not allowed, an answer missing) is shown at once, in the API's own words.
+      const problem =
+        outcome.kind === "refused" || outcome.kind === "invalid_answers" ? outcome.problem : null;
+      const welcome = outcome.kind === "joined" && outcome.welcome > 0 ? outcome.welcome : 0;
       router.replace({
         pathname: "/join/[code]",
         params: {
@@ -323,6 +337,7 @@ export default function SignInScreen() {
           via: state.join.via,
           ...(shown === undefined ? {} : { outcome: shown }),
           ...(problem === null ? {} : { problemAr: problem.ar, problemEn: problem.en }),
+          ...(welcome === 0 ? {} : { welcome: String(welcome) }),
         },
       });
     });

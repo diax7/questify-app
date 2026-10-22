@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
 import { routeForIncoming } from "#src/join/deep-link.ts";
-import { fetchCard, joinEvent, readCard } from "#src/join/join-api.ts";
+import {
+  fetchCard,
+  fetchInvitations,
+  joinEvent,
+  joinInvitation,
+  readCard,
+} from "#src/join/join-api.ts";
 
 const headers = new Headers();
 const CARD = {
@@ -20,6 +26,16 @@ const EVENT = {
   timezone: "Asia/Riyadh",
   statusNow: "live",
   access: "public",
+};
+const NO_RULES = { fields: [], guestListOnly: false, emailDomains: [], welcomePoints: null };
+const RULES = {
+  fields: [
+    { id: "f1", kind: "company", label: { ar: null, en: null }, required: true },
+    { id: "f2", kind: "badge_color", label: { ar: "اللون", en: null }, required: false },
+  ],
+  guestListOnly: true,
+  emailDomains: ["acme.sa"],
+  welcomePoints: 50,
 };
 const MESSAGE = { ar: "م", en: "M" };
 const fail = (status: number, code: string, details: Record<string, unknown> = {}): ApiResult => ({
@@ -63,7 +79,12 @@ describe("the join card", () => {
       body: { event: EVENT, card: CARD },
       headers,
     });
-    expect(await fetchCard(client, "abc 234")).toEqual({ kind: "card", event: EVENT, card: CARD });
+    // An API from before T-212 sends no join rules: the card asks nothing and locks nothing.
+    expect(await fetchCard(client, "abc 234")).toEqual({
+      kind: "card",
+      event: { ...EVENT, join: NO_RULES },
+      card: CARD,
+    });
     expect(calls[0]?.path).toBe("/v1/public/events/abc%20234");
     for (const body of [
       { event: EVENT },
@@ -73,6 +94,14 @@ describe("the join card", () => {
       { event: { ...EVENT, name: "Fest" }, card: CARD },
       { event: EVENT, card: { ...CARD, version: 1 } },
       { event: EVENT, card: { ...CARD, receives: [{ en: "x" }] } },
+      {
+        event: { ...EVENT, join: { ...RULES, fields: [{ id: "f", kind: "company" }] } },
+        card: CARD,
+      },
+      { event: { ...EVENT, join: { ...RULES, guestListOnly: "yes" } }, card: CARD },
+      { event: { ...EVENT, join: { ...RULES, emailDomains: [1] } }, card: CARD },
+      { event: { ...EVENT, join: { ...RULES, welcomePoints: "5" } }, card: CARD },
+      { event: { ...EVENT, join: null }, card: CARD },
       null,
     ]) {
       expect(readCard(body), JSON.stringify(body)).toBeUndefined();
@@ -82,6 +111,10 @@ describe("the join card", () => {
     ).toEqual({
       kind: "network",
     });
+  });
+
+  it("reads the event's join rules, keeping a field of a kind this build does not know", () => {
+    expect(readCard({ event: { ...EVENT, join: RULES }, card: CARD })?.event.join).toEqual(RULES);
   });
 
   it("maps a missing code, a busy network and an outage", async () => {
@@ -102,6 +135,7 @@ describe("the join card", () => {
 
 describe("joining", () => {
   const JOIN = { code: "ABC234", via: "public_list", cardVersion: "0.1" } as const;
+  const JOIN_BODY = { joinCode: "ABC234", via: "public_list", cardVersion: "0.1" };
 
   it("joins with the card the person saw, and reads a pending or repeated join", async () => {
     const { session, calls } = sessionAnswering({
@@ -115,6 +149,7 @@ describe("joining", () => {
       eventId: "e1",
       status: "pending",
       alreadyMember: true,
+      welcome: 0,
     });
     expect(calls[0]).toEqual({
       method: "POST",
@@ -126,18 +161,94 @@ describe("joining", () => {
         sessionAnswering({
           kind: "ok",
           status: 200,
-          body: { eventId: "e1", status: "active" },
+          body: { eventId: "e1", status: "active", welcome: 40 },
           headers,
         }).session,
         JOIN,
       ),
-    ).toEqual({ kind: "joined", eventId: "e1", status: "active", alreadyMember: false });
+    ).toEqual({
+      kind: "joined",
+      eventId: "e1",
+      status: "active",
+      alreadyMember: false,
+      welcome: 40,
+    });
+    for (const welcome of [-5, 0, "40", null]) {
+      const read = await joinEvent(
+        sessionAnswering({ kind: "ok", status: 200, body: { eventId: "e1", welcome }, headers })
+          .session,
+        JOIN,
+      );
+      expect(read, String(welcome)).toMatchObject({ kind: "joined", welcome: 0 });
+    }
     expect(
       await joinEvent(
         sessionAnswering({ kind: "ok", status: 200, body: {}, headers }).session,
         JOIN,
       ),
     ).toEqual({
+      kind: "network",
+    });
+  });
+
+  it("sends the answers only when there are some, and points at the field the API names", async () => {
+    const { session, calls } = sessionAnswering(fail(422, "invalid_join_answers", { field: "f1" }));
+    expect(await joinEvent(session, { ...JOIN, answers: { f1: "Acme" } })).toEqual({
+      kind: "invalid_answers",
+      field: "f1",
+      problem: MESSAGE,
+    });
+    expect(calls[0]?.body).toEqual({ ...JOIN_BODY, answers: { f1: "Acme" } });
+    await joinEvent(session, { ...JOIN, answers: {} });
+    expect(calls[1]?.body).toEqual(JOIN_BODY);
+    expect(
+      await joinEvent(sessionAnswering(fail(422, "invalid_join_answers")).session, JOIN),
+    ).toEqual({ kind: "invalid_answers", field: null, problem: MESSAGE });
+  });
+
+  it("joins an invitation by its event, without a code", async () => {
+    const { session, calls } = sessionAnswering({
+      kind: "ok",
+      status: 200,
+      body: { eventId: "e9", status: "active", welcome: 10 },
+      headers,
+    });
+    expect(
+      await joinInvitation(session, { eventId: "e9", cardVersion: "0.2", answers: { f1: "A" } }),
+    ).toMatchObject({ kind: "joined", eventId: "e9", welcome: 10 });
+    expect(calls[0]).toEqual({
+      method: "POST",
+      path: "/v1/join",
+      body: { eventId: "e9", via: "invite", cardVersion: "0.2", answers: { f1: "A" } },
+    });
+  });
+
+  it("reads the invitations, and fails the list on one of another shape", async () => {
+    const { joinCode: _code, ...invited } = EVENT;
+    const ok = (body: unknown) => sessionAnswering({ kind: "ok", status: 200, body, headers });
+    expect(
+      await fetchInvitations(
+        ok({ invitations: [{ event: { ...invited, join: RULES }, card: CARD }] }).session,
+      ),
+    ).toEqual({
+      kind: "list",
+      invitations: [{ event: { ...invited, join: RULES }, card: CARD }],
+    });
+    for (const body of [
+      { invitations: [{ event: invited }] },
+      { invitations: [{ event: { ...invited, id: 3 }, card: CARD }] },
+      { invitations: ["x"] },
+      { invitations: "none" },
+      null,
+    ]) {
+      expect(await fetchInvitations(ok(body).session), JSON.stringify(body)).toEqual({
+        kind: "network",
+      });
+    }
+    expect(await fetchInvitations(sessionAnswering({ kind: "signed_out" }).session)).toEqual({
+      kind: "signed_out",
+    });
+    expect(await fetchInvitations(sessionAnswering(fail(500, "internal_error")).session)).toEqual({
       kind: "network",
     });
   });

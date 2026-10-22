@@ -2,8 +2,8 @@ import type { MessageKey } from "#src/i18n/messages";
 
 /**
  * What the join card tells a player before they join (FR-121, PD-17): what the event's organizer receives about them.
- * The version is sent back with the join and kept on the enrollment, so a change here (join answers arrive with T-212)
- * bumps it and the app shows the new card before joining.
+ * The version is sent back with the join and kept on the enrollment, so a change here bumps it and the app shows the
+ * new card before joining. 0.2 (T-212, ADR-148): an event with join fields also receives the answers given on the card.
  */
 export type JoinCard = Readonly<{
   version: string;
@@ -11,13 +11,18 @@ export type JoinCard = Readonly<{
   receives: readonly MessageKey[];
 }>;
 
-const JOIN_CARD: JoinCard = {
-  version: "0.1",
-  title: "joinCard.title",
-  receives: ["joinCard.username", "joinCard.progress", "joinCard.handovers"],
-};
+const VERSION = "0.2";
+const RECEIVES: readonly MessageKey[] = [
+  "joinCard.username",
+  "joinCard.progress",
+  "joinCard.handovers",
+];
 
-/** The join card in force now. */
-export function joinCard(): JoinCard {
-  return JOIN_CARD;
+/** The join card in force now; `withAnswers` when the event asks join fields (FR-129, FR-131). */
+export function joinCard(withAnswers = false): JoinCard {
+  return {
+    version: VERSION,
+    title: "joinCard.title",
+    receives: withAnswers ? [...RECEIVES, "joinCard.answers"] : RECEIVES,
+  };
 }

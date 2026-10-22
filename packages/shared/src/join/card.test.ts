@@ -12,4 +12,11 @@ describe("joinCard", () => {
       expect(MESSAGES[key].en.length, key).toBeGreaterThan(0);
     }
   });
+
+  it("adds the join answers only for an event that asks them, under one version", () => {
+    expect(joinCard().receives).not.toContain("joinCard.answers");
+    expect(joinCard(true).receives).toEqual([...joinCard().receives, "joinCard.answers"]);
+    expect(joinCard(true).version).toBe(joinCard().version);
+    expect(joinCard().version).toBe("0.2");
+  });
 });

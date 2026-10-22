@@ -106,7 +106,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("players, bans and exclusions o
         expect(all.statusCode).toBe(200);
         expect(all.json<{ players: Row[] }>().players.map((p) => p["enrollmentId"])).toEqual(made);
         expect(Object.keys(all.json<{ players: Row[] }>().players[0] ?? {}).toSorted()).toEqual(
-          ["avatar", "enrollmentId", "joinedAt", "score", "status", "username"].toSorted(),
+          [
+            "answers",
+            "avatar",
+            "enrollmentId",
+            "joinedAt",
+            "score",
+            "status",
+            "username",
+          ].toSorted(),
         );
         expect(all.body).not.toContain("1991");
         expect(all.body).not.toContain("@x.sa");

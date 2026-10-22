@@ -8,6 +8,8 @@ export type PendingJoin = Readonly<{
   code: string;
   via: "code" | "qr" | "link" | "public_list";
   cardVersion: string;
+  /** The answers typed on the card (FR-130): personal data, held in memory with the join only. */
+  answers?: Readonly<Record<string, string>>;
 }>;
 
 export type Channel = "phone" | "email";

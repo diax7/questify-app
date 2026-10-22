@@ -14,6 +14,15 @@ export type EventPlayer = Readonly<{
   status: "pending" | "active" | "left" | "removed" | "banned";
   score: number;
   joinedAt: Date;
+  /** The join answers (FR-131), in the event's field order: for this event's team only. */
+  answers: readonly JoinAnswerView[];
+}>;
+
+export type JoinAnswerView = Readonly<{
+  fieldId: string;
+  kind: string;
+  label: Readonly<{ ar: string | null; en: string | null }>;
+  value: string;
 }>;
 
 export type BanOutcome = "changed" | "unchanged" | "not_found" | "not_owner" | "not_allowed";
@@ -102,6 +111,11 @@ export async function listPlayers(
       request.limit,
       request.prefix,
     ]);
+    const answers = await readAnswers(
+      client,
+      request.eventId,
+      rows.map((row) => row.enrollment_id),
+    );
     return rows.map((row) => ({
       enrollmentId: row.enrollment_id,
       username: row.username,
@@ -109,8 +123,43 @@ export async function listPlayers(
       status: row.status,
       score: Number(row.score),
       joinedAt: row.joined_at,
+      answers: answers.get(row.enrollment_id) ?? [],
     }));
   });
+}
+
+/** The page's join answers by enrollment, read under the team's own rules (migration 0028's policy). */
+async function readAnswers(
+  client: PoolClient,
+  eventId: string,
+  enrollmentIds: readonly string[],
+): Promise<Map<string, JoinAnswerView[]>> {
+  const { rows } = await client.query<{
+    enrollment_id: string;
+    field_id: string;
+    kind: string;
+    label_ar: string | null;
+    label_en: string | null;
+    value: string;
+  }>(
+    `SELECT a.enrollment_id, a.field_id, f.kind, f.label_ar, f.label_en, a.value
+     FROM join_answer a JOIN event_join_field f ON f.id = a.field_id
+     WHERE a.event_id = $1 AND a.enrollment_id = ANY ($2::uuid[])
+     ORDER BY f.position, f.id`,
+    [eventId, enrollmentIds],
+  );
+  const byEnrollment = new Map<string, JoinAnswerView[]>();
+  for (const row of rows) {
+    const list = byEnrollment.get(row.enrollment_id) ?? [];
+    list.push({
+      fieldId: row.field_id,
+      kind: row.kind,
+      label: { ar: row.label_ar, en: row.label_en },
+      value: row.value,
+    });
+    byEnrollment.set(row.enrollment_id, list);
+  }
+  return byEnrollment;
 }
 
 /** Bans a player from the event or lifts the ban (FR-321, FR-1605); the database checks the owner and audits. */

@@ -1989,3 +1989,44 @@ whose end has passed, and a physical event without a venue in either language. T
 (DASHBOARD_AND_CONSOLE A3). An event activated after its start becomes live at once.
 **Why:** a scheduled event must have its times (`event_times_once_active`), and players of a physical event need to know
 where it is.
+
+## ADR-145 — The join locks work on any access type, and a guest passes them
+**Status:** Proposed (Claude, 2026-10-22; T-212).
+**Decision:** "guest list only" (FR-134) and the email-domain lock (FR-135) are event settings that apply whatever the
+access type, though the SRS phrases them for private events. A person whose verified phone or email is on the guest
+list passes both locks and joins active even in a private event (FR-1819's invited half). A member is never refused by
+a lock added after they joined; banned and removed players stay out first.
+**Why:** tying the locks to "private" would block changing the access type at any time (FR-1820) or silently drop the
+lock; the organizer named the guest, so a second gate for them would only cause support calls.
+
+## ADR-146 — The domain lock is checked at the join only
+**Status:** Proposed (Claude, 2026-10-22; T-212, answers the T-108 note).
+**Decision:** a member of a domain-locked event whose email later leaves the domain (`confirm_contact_change`) stays a
+member. The lock gates the join; it does not pause a membership.
+**Why:** pausing needs a new enrollment state, a trigger on contact changes and a way back, for a rare case the
+organizer can handle by banning. Revisit if a company asks for it.
+
+## ADR-147 — The welcome reward is a ledger entry granted when an enrollment first becomes active
+**Status:** Proposed (Claude, 2026-10-22; T-212, CTO plan review).
+**Decision:** `event.welcome_points` (1 to 100 000, empty = off), set by the owner or an editor. A trigger on
+`enrollment` writes one `welcome` entry (actor `system`, score and balance by the same amount) the first time an
+enrollment becomes active: a join, an invited join, the owner's approval of a pending join (T-218) or a lifted ban.
+One per enrollment (a unique index): leaving and joining again grants nothing more. The amount is fixed once anyone has
+joined or the event is live, whichever comes first, so every member gets the same. The join answers with `welcome`
+(the points this join granted) and the app plays the coin animation once.
+**Why:** one place covers every path into `active`, so T-218 cannot forget it; the ledger stays the only source of
+score and balance (FR-137). The one-time rule across account deletion waits for the fingerprint (T-217).
+
+## ADR-148 — Join answers: the card 0.2, team-only reads, a versioned save of the fields
+**Status:** Proposed (Claude, 2026-10-22; T-212).
+**Decision:**
+- The join card is version 0.2 for every event; an event with join fields adds "Your answers in the fields below" to
+  what the organizer receives. An app on 0.1 is asked to read the card again (`card_version_stale`).
+- Answers (`join_answer`) are written only by the join definers and read only by that event's team (event scope), the
+  player themself and the platform admin. They appear in the dashboard's players list. Up to 5 fields, one of each
+  named kind and any custom ones; a saved field's kind never changes.
+- The dashboard saves the whole field list with the version it read: a save from a stale page is refused
+  (`join_fields_changed`), since deleting a field deletes the answers given to it.
+- The guest list is shown masked (a phone's last four digits, an email's first letter and domain); the audit keeps
+  counts, never a contact. Owners and editors manage it, like the rest of the event's setup.
+**Why:** answers are personal data (PDPL): the narrowest readers that serve FR-131, and no silent loss of answers.

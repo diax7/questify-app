@@ -442,6 +442,62 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  event_join_field: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        // The organizer comes from the event (a trigger), so naming B's event is the claim.
+        forge: (f) => ({
+          sql: "INSERT INTO event_join_field (event_id, kind, label_en, position) VALUES ($1, 'custom', 'Forged', 4)",
+          values: [f.eventB],
+        }),
+      },
+    ],
+  },
+  event_guest: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_guest (event_id, kind, value) VALUES ($1, 'email', 'forged@tabuk.test')",
+          values: [f.eventB],
+        }),
+      },
+    ],
+  },
+  join_answer: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value) VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, 'Forged')",
+          values: [f.orgB, f.eventB],
+        }),
+        // Written only by the join definers (T-212): the API role holds no write right.
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value) VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, 'Forged')",
+          values: [f.orgB, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   event_entitlement: {
     probes: [
       {
@@ -810,6 +866,18 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_limit_alert (event_id, organizer_id, level, players) VALUES ($1, $2, 80, 8)",
         [event, org],
+      );
+      await run(
+        "INSERT INTO event_join_field (event_id, kind, label_en, position) VALUES ($1, 'custom', 'Seeded', 0)",
+        [event],
+      );
+      await run(
+        "INSERT INTO event_guest (event_id, kind, value) VALUES ($1, 'email', 'seeded@guest.test')",
+        [event],
+      );
+      await run(
+        "INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value) SELECT n.id, j.id, n.organizer_id, n.event_id, 'Seeded' FROM enrollment n JOIN event_join_field j ON j.event_id = n.event_id WHERE n.event_id = $1",
+        [event],
       );
       await run(
         "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",

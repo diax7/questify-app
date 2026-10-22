@@ -5,8 +5,11 @@ import {
   cannotLeave,
   eventEnded,
   eventFull,
+  invalidJoinAnswers,
   invalidRequest,
   joinCardStale,
+  joinDomainRequired,
+  joinInviteOnly,
   joinMethodOff,
   joinNotAllowed,
   membersOnly,
@@ -19,12 +22,18 @@ import {
   findByCode,
   isThrottled,
   joinByCode,
+  joinInvited,
   leaveEvent,
   listPublicEvents,
   myEvents,
+  myInvitations,
   questsByCode,
+  type JoinAnswers,
   type JoinDeps,
+  type JoinOutcome,
 } from "#src/join/join";
+
+type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
 
 const CODE = /^[A-Za-z0-9]{4,12}$/;
 const VERSION = z.string().regex(/^[0-9]+(\.[0-9]+){0,2}$/);
@@ -35,21 +44,71 @@ const listQuery = z.strictObject({
   cursor: z.string().max(200).optional(),
   limit: z.string().optional(),
 });
+/** At most one answer per field, and an event has at most five (migration 0028). */
+const MAX_ANSWERS = 5;
 const joinBody = z.strictObject({
-  joinCode: z.string().max(12),
-  via: z.enum(["code", "qr", "link", "public_list"]),
+  // A code for every way in but an invitation, which names the event instead (FR-133).
+  joinCode: z.string().max(12).optional(),
+  eventId: z.uuid().optional(),
+  via: z.enum(["code", "qr", "link", "public_list", "invite"]),
   // The join card's version the player was shown (FR-121): the consent kept with the enrollment.
   cardVersion: VERSION,
+  answers: z
+    .record(z.uuid(), z.string().max(400))
+    .refine((answers) => Object.keys(answers).length <= MAX_ANSWERS)
+    .optional(),
 });
 
-/** The join card in force, in both languages, as the app shows it before Join. */
-export function cardInForce() {
-  const card = joinCard();
+/** The join card in force, in both languages, as the app shows it before Join; with the answers when asked. */
+export function cardInForce(withAnswers = false) {
+  const card = joinCard(withAnswers);
   return {
     version: card.version,
     title: MESSAGES[card.title],
     receives: card.receives.map((key) => MESSAGES[key]),
   };
+}
+
+/** Trims each answer and leaves out the blank ones: an optional field left empty is not answered (FR-130). */
+export function cleanAnswers(raw: Readonly<Record<string, string>> | undefined): JoinAnswers {
+  return Object.fromEntries(
+    Object.entries(raw ?? {})
+      .map(([field, value]) => [field, value.normalize("NFC").trim()] as const)
+      .filter(([, value]) => value !== ""),
+  );
+}
+
+/** Maps a join's outcome to its answer, or to the refusal it is. */
+function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
+  switch (result.kind) {
+    case "throttled":
+      return throttled(reply, result.retryAfterSeconds);
+    case "not_found":
+      throw notFound();
+    case "ended":
+      throw eventEnded();
+    case "method_off":
+      throw joinMethodOff();
+    case "not_allowed":
+      throw joinNotAllowed();
+    case "invite_only":
+      throw joinInviteOnly();
+    case "domain_required":
+      throw joinDomainRequired(result.domains);
+    case "invalid_answers":
+      throw invalidJoinAnswers({ field: result.field });
+    case "full":
+      throw eventFull();
+    case "joined":
+    case "already":
+      return {
+        enrollmentId: result.enrollmentId,
+        eventId: result.eventId,
+        status: result.status,
+        alreadyMember: result.kind === "already",
+        welcome: result.welcome,
+      };
+  }
 }
 
 function throttled(reply: FastifyReply, retryAfterSeconds: number): never {
@@ -112,7 +171,7 @@ function registerBrowseRoutes(app: FastifyInstance, deps: JoinDeps): void {
       if (event === null) {
         throw notFound();
       }
-      return { event, card: cardInForce() };
+      return { event, card: cardInForce(event.join.fields.length > 0) };
     },
   );
 
@@ -156,6 +215,22 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
       if (body.cardVersion !== joinCard().version) {
         throw joinCardStale({ card: cardInForce() });
       }
+      const answers = cleanAnswers(body.answers);
+      if (body.via === "invite") {
+        if (body.eventId === undefined || body.joinCode !== undefined) {
+          throw invalidRequest();
+        }
+        const invited = await joinInvited(deps, {
+          playerId: player.id,
+          eventId: body.eventId,
+          cardVersion: body.cardVersion,
+          answers,
+        });
+        return joinAnswer(invited, reply);
+      }
+      if (body.joinCode === undefined || body.eventId !== undefined) {
+        throw invalidRequest();
+      }
       if (!CODE.test(body.joinCode)) {
         throw notFound();
       }
@@ -165,31 +240,27 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
         code: body.joinCode,
         via: body.via,
         cardVersion: body.cardVersion,
+        answers,
       });
-      switch (result.kind) {
-        case "throttled":
-          return throttled(reply, result.retryAfterSeconds);
-        case "not_found":
-          throw notFound();
-        case "ended":
-          throw eventEnded();
-        case "method_off":
-          throw joinMethodOff();
-        case "not_allowed":
-          throw joinNotAllowed();
-        case "full":
-          throw eventFull();
-        case "joined":
-        case "already":
-          return {
-            enrollmentId: result.enrollmentId,
-            eventId: result.eventId,
-            status: result.status,
-            alreadyMember: result.kind === "already",
-          };
-      }
+      return joinAnswer(result, reply);
     },
   );
+
+  // FR-133: the events whose guest list holds one of the player's verified identifiers, each with its card.
+  app.get("/v1/me/invitations", { config: { access: "player" } }, async (request) => {
+    const player = request.player;
+    // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+    if (player === undefined) {
+      throw unauthenticated();
+    }
+    const invitations = await myInvitations(deps, player.id);
+    return {
+      invitations: invitations.map((invitation) => ({
+        event: invitation,
+        card: cardInForce(invitation.join.fields.length > 0),
+      })),
+    };
+  });
 
   // FR-1703: the app confirms first; the player stops playing and the event's pushes stop (push task: active only).
   app.post(

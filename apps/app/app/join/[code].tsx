@@ -11,12 +11,22 @@ import type { PendingJoin } from "#src/auth/sign-in-flow.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import {
+  answersFor,
+  firstMissing,
+  heldAnswers,
+  holdAnswers,
+  type Typed,
+} from "#src/join/answers.ts";
+import {
   fetchCard,
   joinEvent,
   type CardAnswer,
   type JoinCard,
   type JoinOutcome,
 } from "#src/join/join-api.ts";
+import { CardReceives } from "#src/join/CardReceives.tsx";
+import { JoinForm } from "#src/join/JoinForm.tsx";
+import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
 type Via = PendingJoin["via"];
 
@@ -38,9 +48,32 @@ type Outcome = keyof typeof OUTCOME_KEY;
 const isOutcome = (value: unknown): value is Outcome =>
   typeof value === "string" && value in OUTCOME_KEY;
 
+const welcomeOf = (value: unknown): number => {
+  const points = Number(value);
+  return Number.isInteger(points) && points > 0 ? points : 0;
+};
+
+/** The card by its code; `card` alone is replaced when a join says it changed. */
+function useCard(code: string) {
+  const [answer, setAnswer] = useState<CardAnswer | undefined>(undefined);
+  const [card, setCard] = useState<JoinCard | undefined>(undefined);
+  const load = useCallback(async () => {
+    const loaded = await fetchCard(api.client, code);
+    setAnswer(loaded);
+    if (loaded.kind === "card") {
+      setCard(loaded.card);
+    }
+  }, [code]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  return { answer, card, setCard, load };
+}
+
 /**
- * The join card (FR-121, FR-111, FR-112): the event, what the organizer will see, one Join button. Anyone can read it;
- * Join asks a signed-out person to sign in first, and the join goes through only after that succeeds.
+ * The join card (FR-121, FR-111, FR-112, FR-130): the event, what the organizer will see, the event's join fields and
+ * locks, one Join button. Anyone can read it; Join asks a signed-out person to sign in first, and the join (with the
+ * answers, held in memory) goes through only after that succeeds. A join that grants the welcome reward plays it once.
  */
 export default function JoinScreen() {
   const { t, language } = useI18n();
@@ -51,11 +84,11 @@ export default function JoinScreen() {
     outcome?: string;
     problemAr?: string;
     problemEn?: string;
+    welcome?: string;
   }>();
   const code = String(params.code).toUpperCase();
   const via: Via = VIAS.includes(params.via as Via) ? (params.via as Via) : "code";
-  const [answer, setAnswer] = useState<CardAnswer | undefined>(undefined);
-  const [card, setCard] = useState<JoinCard | undefined>(undefined);
+  const { answer, card, setCard, load } = useCard(code);
   const [result, setResult] = useState<Outcome | undefined>(
     isOutcome(params.outcome) ? params.outcome : undefined,
   );
@@ -64,26 +97,23 @@ export default function JoinScreen() {
       ? { ar: params.problemAr, en: params.problemEn }
       : null,
   );
+  const [welcome, setWelcome] = useState(welcomeOf(params.welcome));
+  const [typed, setTyped] = useState<Typed>(() => heldAnswers(code) ?? {});
+  const [pointed, setPointed] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const loaded = await fetchCard(api.client, code);
-    setAnswer(loaded);
-    if (loaded.kind === "card") {
-      setCard(loaded.card);
-    }
-  }, [code]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const showOutcome = (outcome: JoinOutcome) => {
     if (outcome.kind === "joined") {
       setResult(outcome.alreadyMember ? "already" : outcome.status);
+      setWelcome(outcome.welcome);
     } else if (outcome.kind === "stale") {
       setCard(outcome.card);
       setResult("stale");
+      // The fields may have changed with it.
+      void load();
+    } else if (outcome.kind === "invalid_answers") {
+      setPointed(outcome.field ?? undefined);
+      setProblem(outcome.problem);
     } else if (outcome.kind === "refused") {
       setProblem(outcome.problem);
     } else if (outcome.kind === "signed_out") {
@@ -95,16 +125,24 @@ export default function JoinScreen() {
   };
 
   const tapJoin = async () => {
-    if (card === undefined) {
+    if (card === undefined || answer?.kind !== "card") {
       return;
     }
+    const fields = answer.event.join.fields;
+    const missing = firstMissing(fields, typed);
+    setPointed(missing);
+    if (missing !== undefined) {
+      return;
+    }
+    const answers = answersFor(fields, typed);
     if (player.status !== "signed_in") {
+      holdAnswers(code, answers);
       router.push({ pathname: "/sign-in", params: { code, via, card: card.version } });
       return;
     }
     setBusy(true);
     setProblem(null);
-    showOutcome(await joinEvent(api.session, { code, via, cardVersion: card.version }));
+    showOutcome(await joinEvent(api.session, { code, via, cardVersion: card.version, answers }));
     setBusy(false);
   };
 
@@ -126,18 +164,15 @@ export default function JoinScreen() {
   const joined = result === "active" || result === "pending" || result === "already";
   return (
     <Screen title={textIn(event.name, language)}>
-      <ScrollView contentContainerStyle={{ gap: 16 }}>
+      <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         {textIn(event.venue, language) === "" ? null : (
           <AppText muted>{textIn(event.venue, language)}</AppText>
         )}
         {ended ? <AppText>{t("eventPage.ended")}</AppText> : null}
-        {card === undefined ? null : (
-          <>
-            <AppText variant="title">{card.title[language]}</AppText>
-            {card.receives.map((item) => (
-              <AppText key={item.en}>• {item[language]}</AppText>
-            ))}
-          </>
+        <CardReceives card={card} />
+        {joined && welcome > 0 ? <WelcomeReward points={welcome} /> : null}
+        {ended || joined ? null : (
+          <JoinForm rules={event.join} typed={typed} onType={setTyped} pointed={pointed} />
         )}
         {result === undefined ? null : <AppText>{t(OUTCOME_KEY[result])}</AppText>}
         <Problem problem={problem} />

@@ -86,7 +86,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
       method: "POST",
       url: "/v1/join",
       headers: { authorization: `Bearer ${token}`, "x-forwarded-for": ip },
-      payload: { via: "code", cardVersion: "0.1", ...payload },
+      payload: { via: "code", cardVersion: "0.2", ...payload },
     });
 
   describe("the public list", () => {
@@ -179,7 +179,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
           statusNow: "live",
         },
         card: {
-          version: "0.1",
+          version: "0.2",
           title: { ar: "سيرى منظّم الفعالية", en: "The event's organizer will see" },
           receives: [
             { en: "Your username and avatar" },
@@ -327,6 +327,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
         eventId: open.id,
         status: "active",
         alreadyMember: false,
+        welcome: 0,
       });
       expect((await join(player.token, { joinCode: open.code })).json()).toEqual({
         ...first.json<Row>(),
@@ -418,7 +419,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
       expect(stale.statusCode).toBe(422);
       expect(stale.json()).toMatchObject({
         code: "card_version_stale",
-        details: { card: { version: "0.1" } },
+        details: { card: { version: "0.2" } },
       });
       for (const payload of [
         { via: "sms" },
@@ -433,7 +434,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
       const anonymous = await test.app.inject({
         method: "POST",
         url: "/v1/join",
-        payload: { joinCode: event.code, via: "code", cardVersion: "0.1" },
+        payload: { joinCode: event.code, via: "code", cardVersion: "0.2" },
       });
       expect(anonymous.statusCode).toBe(401);
       expect(await owner("SELECT 1 FROM enrollment WHERE player_id = $1", [player.id])).toEqual([]);

@@ -645,3 +645,39 @@ export const unknownAddon = make(
   "هذه الإضافة غير موجودة في التطبيق.",
   "This add-on does not exist in the app.",
 );
+export const invalidJoinAnswers = make(
+  422,
+  "invalid_join_answers",
+  "أكمل حقول الانضمام المطلوبة.",
+  "Fill in the join fields this event needs.",
+);
+export const joinInviteOnly = make(
+  403,
+  "join_invite_only",
+  "الانضمام إلى هذه الفعالية بدعوة فقط.",
+  "This event is by invitation only.",
+);
+
+/** FR-135: the refusal names the domains the event takes, in both languages. */
+export const joinDomainRequired = (domains: readonly string[]): HttpError =>
+  new HttpError(
+    403,
+    "join_domain_required",
+    {
+      ar: `تقبل هذه الفعالية بريدًا مؤكَّدًا على: ${domains.map((d) => `@${d}`).join("، ")}`,
+      en: `This event takes a verified email at: ${domains.map((d) => `@${d}`).join(", ")}`,
+    },
+    { domains },
+  );
+export const joinFieldsChanged = make(
+  409,
+  "join_fields_changed",
+  "غيّر شخص آخر حقول الانضمام. حدّث الصفحة ثم احفظ.",
+  "Someone else changed the join fields. Reload, then save.",
+);
+export const guestListFull = make(
+  409,
+  "guest_list_full",
+  "تتجاوز هذه القائمة الحد الأعلى (10000 مدعو).",
+  "This would take the guest list over its limit of 10000 entries.",
+);

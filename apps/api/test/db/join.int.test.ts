@@ -182,6 +182,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event (database)", 
           enrollment_id: null,
           event_id: null,
           status: null,
+          welcome: 0,
         });
       }
       expect(await owner("SELECT 1 FROM enrollment WHERE player_id = $1", [player])).toEqual([]);

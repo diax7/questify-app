@@ -21,6 +21,7 @@ import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
+import { registerJoinSetupRoutes } from "#src/join/setup-routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { OperatorsDeps } from "#src/operators/operators";
 import { registerOperatorRoutes } from "#src/operators/routes";
@@ -210,6 +211,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);
+      registerJoinSetupRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },
   );
