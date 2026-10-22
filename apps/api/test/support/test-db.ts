@@ -22,6 +22,9 @@ const ROLE_SETUP_LOCK = 7_361_903;
 const STALE_AFTER_SECONDS = 2 * 60 * 60;
 /** How many leftovers one new database sweeps, so a large backlog never slows one test file down much. */
 const SWEEP_LIMIT = 20;
+/** How long closing waits for a test's own connections to finish closing before it forces the drop. */
+const LINGER_MS = 2000;
+const LINGER_STEP_MS = 20;
 const NAME = /^questify_test_(?:([0-9]{10})_)?[0-9a-f]{12}$/;
 
 /**
@@ -105,6 +108,18 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     appUrl: urlFor(TEST_DATABASE_URL, name, "questify_app"),
     close: async () => {
       await Promise.all([owner.end(), app.end(), outsider.end()]);
+      // A test's own pool resolves `end()` before its sockets close; forcing the drop then would terminate them and
+      // the pool would raise that as an unhandled error. Wait for them to go, then force whatever is left.
+      for (let waited = 0; waited < LINGER_MS; waited += LINGER_STEP_MS) {
+        const { rows } = await admin.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1",
+          [name],
+        );
+        if (rows[0]?.n === 0) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, LINGER_STEP_MS));
+      }
       await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
       await admin.end();
     },
