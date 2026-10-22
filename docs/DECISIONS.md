@@ -1962,7 +1962,8 @@ place; a rate limit would add a write per scan and stop nothing a signed code do
   confirm the account itself is an active platform admin (`app_admin_id()`), not only the request's admin flag.
   Activation sets the add-ons to exactly the chosen list; add-ons change later through the settings service.
 - The console's routes live under `/v1/admin/` with a new access kind `admin`; anyone who is not an active platform
-  admin gets 404, so the console is not advertised. The dashboard's console pages check the same before rendering.
+  admin gets 404, so the console is not advertised (a request without a session or Origin is refused first with 401 or
+  403, as on every route). The dashboard's console pages check the same before rendering.
 **Why:** the admin powers are on the Max bar: two independent checks (the route hook and the database), every action
 audited, and no write grant on the new tables or columns.
 

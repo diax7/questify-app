@@ -112,8 +112,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation (database)", 
       client,
     );
   const audit = (event: string) =>
-    owner<{ action: string; actor_type: string; after: Row | null }>(
-      "SELECT action, actor_type, after FROM audit_log WHERE event_id = $1 ORDER BY id",
+    owner<{ action: string; actor_type: string; before: Row | null; after: Row | null }>(
+      "SELECT action, actor_type, before, after FROM audit_log WHERE event_id = $1 ORDER BY id",
       [event],
     );
   const alerts = (event: string) =>
@@ -221,6 +221,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation (database)", 
       expect(entries.at(-1)).toMatchObject({
         action: "event.activate",
         actor_type: "admin",
+        before: { status: "draft", limitMode: "none", limit: null, addons: ["oldThing"] },
         after: { status: "scheduled", limitMode: "soft", limit: 300, addons: ["bigScreen"] },
       });
     });
@@ -370,6 +371,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation (database)", 
         await Promise.all(clients.map((client) => client.end()));
       }
       expect(await owner("SELECT event_seats($1) AS n", [event])).toEqual([{ n: 3 }]);
+    });
+
+    it("answers the same player's joins at the last seat as one join, not as full", async () => {
+      const event = await newDraft();
+      await activate(event, "hard", 1);
+      const player = await newPlayer();
+      const clients = await Promise.all(
+        Array.from({ length: 4 }, async () => {
+          const client = new Client({ connectionString: db.appUrl });
+          await client.connect();
+          return client;
+        }),
+      );
+      try {
+        const results = await Promise.allSettled(
+          clients.map((client) =>
+            as(
+              adminSeat(),
+              `INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)
+               ON CONFLICT (event_id, player_id) DO NOTHING`,
+              [ids.orgA, event, player],
+              client,
+            ),
+          ),
+        );
+        expect(results.filter((result) => result.status === "rejected")).toEqual([]);
+      } finally {
+        await Promise.all(clients.map((client) => client.end()));
+      }
+      expect(await owner("SELECT event_seats($1) AS n", [event])).toEqual([{ n: 1 }]);
     });
 
     it("never blocks at a soft limit, and records each mark once (80% rounds up)", async () => {

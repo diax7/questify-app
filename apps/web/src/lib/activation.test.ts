@@ -7,6 +7,7 @@ import {
   type ActivationView,
 } from "#src/lib/activation.ts";
 import {
+  isEventId,
   limitBodyOf,
   missingField,
   nameIn,
@@ -91,6 +92,13 @@ describe("limit words", () => {
 });
 
 describe("console helpers", () => {
+  it("takes only a UUID as an event id", () => {
+    expect(isEventId("0b6f3c2e-8d1a-4f4e-9c3b-2a1d5e6f7a8b")).toBe(true);
+    expect(isEventId("..%2F..%2Fv1%2Fme")).toBe(false);
+    expect(isEventId("0b6f3c2e-8d1a-4f4e-9c3b-2a1d5e6f7a8b/x")).toBe(false);
+    expect(isEventId("")).toBe(false);
+  });
+
   const event = {
     ...VIEW,
     event: {

@@ -1,6 +1,13 @@
 import type { Language } from "@questify/shared";
 import { readActivation, type ActivationView } from "#src/lib/activation.ts";
 
+const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Whether a path segment can name an event; anything else must never reach an API path in the admin's browser. */
+export function isEventId(value: string): boolean {
+  return EVENT_ID.test(value);
+}
+
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
 export type QueueItem = Readonly<{

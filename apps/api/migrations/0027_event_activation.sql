@@ -113,6 +113,11 @@ BEGIN
     RETURN NEW;
   END IF;
   PERFORM lock_event_seats(NEW.event_id);
+  -- The same player's join that held the lock before this one may have committed their row: let ON CONFLICT answer.
+  IF TG_OP = 'INSERT' AND EXISTS (SELECT 1 FROM enrollment WHERE event_id = NEW.event_id AND player_id = NEW.player_id)
+  THEN
+    RETURN NEW;
+  END IF;
   -- Read again under the lock: an admin may have changed the limit meanwhile.
   SELECT player_limit_mode, player_limit INTO mode, cap FROM event WHERE id = NEW.event_id;
   seats := event_seats(NEW.event_id);
@@ -216,6 +221,7 @@ DECLARE
   found_event event := admin_lock_event(target);
   admin uuid := app_admin_id();
   wanted text[] := ARRAY(SELECT DISTINCT unnest(COALESCE(addons, ARRAY[]::text[])) ORDER BY 1);
+  had text[] := ARRAY(SELECT feature FROM event_entitlement WHERE event_id = target ORDER BY 1);
 BEGIN
   IF found_event.status <> 'draft' THEN
     RAISE EXCEPTION 'only a draft can be activated' USING ERRCODE = 'QA409';
@@ -241,7 +247,8 @@ BEGIN
   INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before, after,
                          request_id)
   VALUES ('admin', admin, found_event.organizer_id, target, 'event.activate', 'event', target::text,
-          jsonb_build_object('status', 'draft'),
+          jsonb_build_object('status', 'draft', 'limitMode', found_event.player_limit_mode,
+                             'limit', found_event.player_limit, 'addons', to_jsonb(had)),
           jsonb_build_object('status', 'scheduled', 'limitMode', mode, 'limit', cap, 'addons', to_jsonb(wanted)),
           request);
 END $$;
