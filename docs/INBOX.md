@@ -657,3 +657,16 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   and you get down. I think each event could have its own thinking or way. So let's make it an option for them."
 - Processed: ADR-134 (Accepted), FR-1847; ADR-043 amended. Off by default; locked once the event is live (Claude's
   assumption).
+
+## 2026-10-22 — Operators and My QR (T-204, T-205)
+
+- "how much in % is done yet? do the next 2 tasks" (T-204 and T-205, one session).
+- Operator invites: "send email only".
+- My QR: "what if we made the QR not rotate? like its just fix, what are pros and cons?", then "Fixed code with
+  verivaction, like he cannot just get the prize with just showin the QR, he must redeem it or accept it from his
+  account".
+- Operator bar: all five tabs now, unbuilt ones "coming soon".
+- Station limits: "by defulte the operator have acsses to all, but then yes it could be limited by quest or both, you
+  do what you think is best".
+- Processed: plan `docs/plans/2026-10-22-t-204-t-205-operators-and-my-qr.md`; ADR-137 (fixed My QR, Accepted),
+  ADR-138 (Proposed); FR-306, FR-307, FR-901 amended; Q-107 (booths).

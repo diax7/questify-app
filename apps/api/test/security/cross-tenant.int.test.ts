@@ -60,6 +60,10 @@ type Owned = Readonly<{
 const CODE_REWARD_A = "c0de0000-0000-4000-8000-00000000000a";
 const CODE_REWARD_B = "c0de0000-0000-4000-8000-00000000000b";
 
+/** Each side's operator assignment, made with known ids for the quest-limit probe. */
+const ASSIGNMENT_A = "0be7a000-0000-4000-8000-00000000000a";
+const ASSIGNMENT_B = "0be7a000-0000-4000-8000-00000000000b";
+
 const POLICY = /row-level security/;
 const SIGNUP_A = "new.owner@najd.test";
 const SIGNUP_B = "new.owner@tabuk.test";
@@ -238,6 +242,77 @@ const OWNED: Readonly<Record<string, Owned>> = {
         forge: () => ({
           sql: "INSERT INTO reward_code (reward_id, code_cipher, code_hash) VALUES ($1, $2, $3)",
           values: [CODE_REWARD_A, Buffer.alloc(40), Buffer.alloc(32)],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  staff_assignment: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO staff_assignment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+          values: [f.orgB, f.eventB, f.playerA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "player A staffs no event; an operator reading their own row is in operators.int.test.ts",
+        forge: (f) => ({
+          sql: "INSERT INTO staff_assignment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+          values: [f.orgB, f.eventB, f.playerA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  staff_assignment_quest: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "event_id",
+        mine: (f) => f.eventA,
+        theirs: (f) => f.eventB,
+        forge: (f) => ({
+          sql: "INSERT INTO staff_assignment_quest (assignment_id, event_id, quest_id) SELECT $1, event_id, id FROM quest WHERE event_id = $2",
+          values: [ASSIGNMENT_B, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  operator_invite: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO operator_invite (organizer_id, event_id, kind, label, abilities, created_by, expires_at) VALUES ($1, $2, 'personal', 'Forged', '{scan_quests}', $3, now() + interval '1 day')",
+          values: [f.orgB, f.eventB, f.staffA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players never read invites: they preview and claim through definers (T-204)",
+        forge: (f) => ({
+          sql: "INSERT INTO operator_invite (organizer_id, event_id, kind, label, abilities, created_by, expires_at) VALUES ($1, $2, 'personal', 'Forged', '{scan_quests}', $3, now() + interval '1 day')",
+          values: [f.orgA, f.eventA, f.staffA],
         }),
         forgeRefusedBy: /permission denied/,
       },
@@ -736,6 +811,28 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       [event],
     );
     await db.owner.query("COMMIT");
+  }
+  // One operator on each side, limited to one quest, and one open personal invite (migration 0026).
+  for (const [assignment, org, event, staff] of [
+    [ASSIGNMENT_A, f.orgA, f.eventA, f.staffA],
+    [ASSIGNMENT_B, f.orgB, f.eventB, f.staffB],
+  ] as const) {
+    const { rows } = await db.owner.query<{ id: string }>(
+      "INSERT INTO player (username) VALUES ($1) RETURNING id",
+      [`crew_${assignment.slice(-1)}`],
+    );
+    await run(
+      "INSERT INTO staff_assignment (id, organizer_id, event_id, player_id) VALUES ($1, $2, $3, $4)",
+      [assignment, org, event, rows[0]?.id],
+    );
+    await run(
+      "INSERT INTO staff_assignment_quest (assignment_id, event_id, quest_id) SELECT $1, event_id, id FROM quest WHERE event_id = $2 LIMIT 1",
+      [assignment, event],
+    );
+    await run(
+      "INSERT INTO operator_invite (organizer_id, event_id, kind, label, abilities, created_by, expires_at) VALUES ($1, $2, 'personal', 'Crew', '{scan_quests}', $3, now() + interval '1 day')",
+      [org, event, staff],
+    );
   }
   // Rows past their retention, which the sweeps may remove whoever runs them.
   await run(
