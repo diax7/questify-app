@@ -3,6 +3,11 @@ import {
   blankReward,
   CODES_PER_UPLOAD,
   createRewardBody,
+  deskDraftOf,
+  deskIsSet,
+  deskProblem,
+  deskRequest,
+  nextWindow,
   editRewardBody,
   firstColumn,
   lowCodeRewards,
@@ -99,11 +104,18 @@ describe("rewardProblem", () => {
   });
 });
 
+const NO_DESK = { location: { ar: null, en: null }, pin: null, hours: null };
+
 describe("shopProblem", () => {
   const rules = { ar: null, en: null };
 
   it("keeps the pickup time and the days after inside their ranges", () => {
-    const off = { rules, spendLowersRank: false };
+    const off = {
+      rules,
+      spendLowersRank: false,
+      desk: NO_DESK,
+      handoverConfirm: "collect_first" as const,
+    };
     expect(shopProblem({ pickupMinutes: 15, daysAfter: 0, ...off })).toBeUndefined();
     expect(shopProblem({ pickupMinutes: 10_080, daysAfter: 30, ...off })).toBeUndefined();
     expect(shopProblem({ pickupMinutes: 14, daysAfter: 3, ...off })).toBe("pickupMinutes");
@@ -119,6 +131,8 @@ describe("shopRequest", () => {
         daysAfter: 2,
         rules: { ar: null, en: "One each" },
         spendLowersRank: true,
+        desk: NO_DESK,
+        handoverConfirm: "collect_first",
       }),
     ).toEqual({
       pickupMinutes: 90,
@@ -162,5 +176,110 @@ describe("digital rewards (T-203)", () => {
   it("lists only the rewards whose codes run low", () => {
     const low = { ...VIEW, id: "r2", kind: "digital" as const, lowCodes: true };
     expect(lowCodeRewards([VIEW, low])).toEqual([low]);
+  });
+});
+
+describe("the prize desk (FR-1716, ADR-150)", () => {
+  const SHOP = {
+    pickupMinutes: 120,
+    daysAfter: 3,
+    rules: { ar: null, en: null },
+    spendLowersRank: false,
+    desk: {
+      location: { ar: "القاعة ب", en: null },
+      pin: { lat: 24.7, lng: 46.6 },
+      hours: [{ opensAt: "2030-01-01T13:00:00.000Z", closesAt: "2030-01-01T19:00:00.000Z" }],
+    },
+    handoverConfirm: "desk_offer" as const,
+  };
+  const draft = deskDraftOf(SHOP, "Asia/Riyadh");
+
+  it("reads the desk into the form in the event's zone", () => {
+    expect(draft).toEqual({
+      locationAr: "القاعة ب",
+      locationEn: "",
+      lat: "24.7",
+      lng: "46.6",
+      hoursOn: true,
+      windows: [{ opensAt: "2030-01-01T16:00", closesAt: "2030-01-01T22:00" }],
+      confirm: "desk_offer",
+    });
+    expect(deskDraftOf({ ...SHOP, desk: NO_DESK }, "Asia/Riyadh")).toMatchObject({
+      lat: "",
+      lng: "",
+      hoursOn: false,
+      windows: [],
+    });
+  });
+
+  it("knows a desk is set by either name, not by blanks", () => {
+    expect(deskIsSet(SHOP.desk)).toBe(true);
+    expect(deskIsSet({ ...NO_DESK, location: { ar: null, en: "Hall" } })).toBe(true);
+    expect(deskIsSet({ ...NO_DESK, location: { ar: "  ", en: "" } })).toBe(false);
+    expect(deskIsSet(NO_DESK)).toBe(false);
+  });
+
+  it("sends the pin and hours, null when off or not typed", () => {
+    expect(deskRequest(draft)).toEqual({
+      desk: {
+        location: { ar: "القاعة ب", en: "" },
+        pin: { lat: 24.7, lng: 46.6 },
+        hours: [{ opensAt: "2030-01-01T16:00", closesAt: "2030-01-01T22:00" }],
+      },
+      handoverConfirm: "desk_offer",
+    });
+    expect(deskRequest({ ...draft, lat: " ", lng: "", hoursOn: false })).toMatchObject({
+      desk: { pin: null, hours: null },
+    });
+  });
+
+  it("finds the first problem with the pin and the hours", () => {
+    expect(deskProblem(draft)).toBeUndefined();
+    expect(deskProblem({ ...draft, lat: "", lng: "" })).toBeUndefined();
+    expect(deskProblem({ ...draft, lat: "91" })).toBe("deskPin");
+    expect(deskProblem({ ...draft, lng: "-180.5" })).toBe("deskPin");
+    expect(deskProblem({ ...draft, lng: "" })).toBe("deskPin");
+    expect(deskProblem({ ...draft, lat: "north" })).toBe("deskPin");
+    expect(deskProblem({ ...draft, hoursOn: false, windows: [] })).toBeUndefined();
+    expect(deskProblem({ ...draft, windows: [] })).toBe("deskHours");
+    const day = { opensAt: "2030-01-01T10:00", closesAt: "2030-01-01T12:00" };
+    expect(deskProblem({ ...draft, windows: Array.from({ length: 14 }, () => day) })).toBe(
+      "deskHours",
+    );
+    expect(deskProblem({ ...draft, windows: [{ ...day, closesAt: "2030-01-01T10:00" }] })).toBe(
+      "deskHours",
+    );
+    expect(deskProblem({ ...draft, windows: [{ ...day, opensAt: "" }] })).toBe("deskHours");
+    expect(deskProblem({ ...draft, windows: [{ ...day, closesAt: "" }] })).toBe("deskHours");
+    expect(
+      deskProblem({
+        ...draft,
+        windows: [day, { opensAt: "2030-01-01T12:00", closesAt: "2030-01-01T14:00" }],
+      }),
+    ).toBeUndefined();
+    expect(
+      deskProblem({
+        ...draft,
+        windows: [day, { opensAt: "2030-01-01T11:59", closesAt: "2030-01-01T14:00" }],
+      }),
+    ).toBe("deskHours");
+    const fifteen = Array.from({ length: 15 }, (_, i) => ({
+      opensAt: `2030-01-${String(i + 1).padStart(2, "0")}T10:00`,
+      closesAt: `2030-01-${String(i + 1).padStart(2, "0")}T12:00`,
+    }));
+    expect(deskProblem({ ...draft, windows: fifteen })).toBe("deskHours");
+    expect(deskProblem({ ...draft, windows: fifteen.slice(0, 14) })).toBeUndefined();
+  });
+
+  it("suggests the next window a day after the last, or an empty one", () => {
+    expect(nextWindow([])).toEqual({ opensAt: "", closesAt: "" });
+    expect(nextWindow([{ opensAt: "", closesAt: "2030-01-01T12:00" }])).toEqual({
+      opensAt: "",
+      closesAt: "",
+    });
+    expect(nextWindow([{ opensAt: "2030-01-31T16:00", closesAt: "2030-02-01T01:00" }])).toEqual({
+      opensAt: "2030-02-01T16:00",
+      closesAt: "2030-02-02T01:00",
+    });
   });
 });

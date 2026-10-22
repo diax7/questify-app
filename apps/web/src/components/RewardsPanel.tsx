@@ -13,19 +13,28 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { directionOf, translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import {
+  DESK_WINDOWS,
+  HANDOVER_CONFIRM,
   REWARD_KINDS,
   SECTIONS,
   blankReward,
   createRewardBody,
+  deskDraftOf,
+  deskIsSet,
+  deskProblem,
+  deskRequest,
   editRewardBody,
   firstColumn,
   lowCodeRewards,
+  nextWindow,
   parseCodes,
   rewardDraftOf,
   rewardProblem,
   shopProblem,
   shopRequest,
   type CodesProblem,
+  type DeskDraft,
+  type DeskField,
   type RewardDraft,
   type RewardField,
   type ShopField,
@@ -114,6 +123,7 @@ function RewardForm({
   initial,
   unitsOut,
   editing,
+  deskSet,
   busy,
   submit,
   cancel,
@@ -123,6 +133,8 @@ function RewardForm({
   initial: RewardDraft;
   unitsOut: number;
   editing: boolean;
+  /** Item rewards need the prize desk's place first (FR-1716). */
+  deskSet: boolean;
   busy: boolean;
   submit: (draft: RewardDraft) => void;
   cancel: () => void;
@@ -132,6 +144,7 @@ function RewardForm({
   const [shown, setShown] = useState<RewardField | undefined>(undefined);
   const set = (change: Partial<RewardDraft>) => setDraft((current) => ({ ...current, ...change }));
   const invalid = shown;
+  const needsDesk = !editing && draft.kind === "item" && !deskSet;
   const send = (event: FormEvent) => {
     event.preventDefault();
     const problem = rewardProblem(draft, unitsOut);
@@ -282,12 +295,175 @@ function RewardForm({
           {t(`rewards.invalid.${invalid}`)}
         </p>
       )}
+      {needsDesk ? (
+        <p role="alert" className={styles.alert}>
+          {t("rewards.desk.needed")}
+        </p>
+      ) : null}
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}
         </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        <button type="submit" className={styles.button} disabled={busy || needsDesk}>
           {t("rewards.save")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const CONFIRM_TEXT: Readonly<Record<(typeof HANDOVER_CONFIRM)[number], MessageKey>> = {
+  collect_first: "rewards.desk.confirm.collectFirst",
+  desk_offer: "rewards.desk.confirm.deskOffer",
+};
+
+/**
+ * The event's one prize desk (FR-1716, ADR-150): its place, an optional map pin, optional opening hours as windows in
+ * the event's zone (off: open the whole time), and how players confirm a pickup in their own app (ADR-137).
+ */
+function DeskForm({
+  language,
+  initial,
+  busy,
+  submit,
+}: Readonly<{
+  language: Language;
+  initial: DeskDraft;
+  busy: boolean;
+  submit: (desk: DeskDraft) => void;
+}>) {
+  const t = translatorFor(language);
+  const [draft, setDraft] = useState(initial);
+  const [invalid, setInvalid] = useState<DeskField | undefined>(undefined);
+  const set = (change: Partial<DeskDraft>) => setDraft((current) => ({ ...current, ...change }));
+  const setWindow = (index: number, change: Partial<DeskDraft["windows"][number]>) =>
+    set({ windows: draft.windows.map((w, i) => (i === index ? { ...w, ...change } : w)) });
+  const send = (event: FormEvent) => {
+    event.preventDefault();
+    const problem = deskProblem(draft);
+    setInvalid(problem);
+    if (problem === undefined) {
+      submit(draft);
+    }
+  };
+  const placeSet = draft.locationAr.trim() !== "" || draft.locationEn.trim() !== "";
+  return (
+    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
+      <h3 className={styles.subtitle}>{t("rewards.desk.title")}</h3>
+      {placeSet ? null : <p className={styles.muted}>{t("rewards.desk.needed")}</p>}
+      <div className={styles.row}>
+        <TextField
+          label={t("rewards.desk.locationAr")}
+          lang="ar"
+          value={draft.locationAr}
+          change={(locationAr) => set({ locationAr })}
+        />
+        <TextField
+          label={t("rewards.desk.locationEn")}
+          lang="en"
+          value={draft.locationEn}
+          change={(locationEn) => set({ locationEn })}
+        />
+      </div>
+      <div className={styles.row}>
+        <NumberField
+          label={t("rewards.desk.lat")}
+          value={draft.lat}
+          invalid={invalid === "deskPin"}
+          change={(lat) => set({ lat })}
+        />
+        <NumberField
+          label={t("rewards.desk.lng")}
+          value={draft.lng}
+          invalid={invalid === "deskPin"}
+          change={(lng) => set({ lng })}
+        />
+      </div>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={draft.hoursOn}
+          onChange={(e) =>
+            set({
+              hoursOn: e.target.checked,
+              windows:
+                e.target.checked && draft.windows.length === 0 ? [nextWindow([])] : draft.windows,
+            })
+          }
+        />
+        <span>{t("rewards.desk.hoursOn")}</span>
+      </label>
+      {draft.hoursOn ? (
+        <>
+          <p className={styles.muted}>{t("rewards.desk.hoursHint")}</p>
+          {draft.windows.map((window, index) => (
+            <div key={index} className={styles.row}>
+              <label className={styles.field}>
+                <span>{t("rewards.desk.opens")}</span>
+                <input
+                  className={styles.input}
+                  type="datetime-local"
+                  dir="ltr"
+                  value={window.opensAt}
+                  aria-invalid={invalid === "deskHours"}
+                  onChange={(e) => setWindow(index, { opensAt: e.target.value })}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>{t("rewards.desk.closes")}</span>
+                <input
+                  className={styles.input}
+                  type="datetime-local"
+                  dir="ltr"
+                  value={window.closesAt}
+                  aria-invalid={invalid === "deskHours"}
+                  onChange={(e) => setWindow(index, { closesAt: e.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className={styles.quiet}
+                onClick={() => set({ windows: draft.windows.filter((_, i) => i !== index) })}
+              >
+                {t("rewards.desk.removeWindow")}
+              </button>
+            </div>
+          ))}
+          {draft.windows.length < DESK_WINDOWS ? (
+            <button
+              type="button"
+              className={styles.quiet}
+              onClick={() => set({ windows: [...draft.windows, nextWindow(draft.windows)] })}
+            >
+              {t("rewards.desk.addWindow")}
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <p className={styles.muted}>{t("rewards.desk.alwaysOpen")}</p>
+      )}
+      <fieldset className={styles.choices}>
+        <legend>{t("rewards.desk.confirm")}</legend>
+        {HANDOVER_CONFIRM.map((confirm) => (
+          <label key={confirm} className={styles.check}>
+            <input
+              type="radio"
+              name="handover-confirm"
+              checked={draft.confirm === confirm}
+              onChange={() => set({ confirm })}
+            />
+            <span>{t(CONFIRM_TEXT[confirm])}</span>
+          </label>
+        ))}
+      </fieldset>
+      {invalid === undefined ? null : (
+        <p role="alert" className={styles.alert}>
+          {t(`rewards.invalid.${invalid}`)}
+        </p>
+      )}
+      <div className={styles.actions}>
+        <button type="submit" className={styles.button} disabled={busy}>
+          {t("rewards.desk.save")}
         </button>
       </div>
     </form>
@@ -723,6 +899,20 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
         ) : null
       ) : (
         <>
+          {event === undefined ? null : (
+            <DeskForm
+              key={JSON.stringify(loaded.shop.desk) + loaded.shop.handoverConfirm}
+              language={language}
+              initial={deskDraftOf(loaded.shop, event.timezone)}
+              busy={busy}
+              submit={(desk) =>
+                void run(
+                  () => requestJson("PUT", `${base}/shop`, deskRequest(desk)),
+                  "rewards.desk.saved",
+                )
+              }
+            />
+          )}
           {editing === undefined ? (
             <div className={styles.actions}>
               <button
@@ -746,6 +936,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
               }
               unitsOut={editing.kind === "edit" ? editing.reward.unitsOut : 0}
               editing={editing.kind === "edit"}
+              deskSet={deskIsSet(loaded.shop.desk)}
               busy={busy}
               submit={(draft) => void save(draft)}
               cancel={() => setEditing(undefined)}

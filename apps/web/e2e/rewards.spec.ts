@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 
-/** The rewards shop (T-201): add a reward, raise its stock, set the shop's pickup time, then remove the reward. */
+/**
+ * The rewards shop (T-201, T-206): set the prize desk, add a reward, raise its stock, set the shop's pickup time, then
+ * remove the reward.
+ */
 test("the organizer builds the rewards shop", async ({ page }, info) => {
   test.setTimeout(90_000);
   await openBuilder(page, info.project.name);
@@ -11,6 +14,36 @@ test("the organizer builds the rewards shop", async ({ page }, info) => {
 
   const panel = page.getByRole("region", { name: "الجوائز" });
   await expect(panel.getByText("لا جوائز بعد.")).toBeVisible();
+
+  // An item reward needs the prize desk's place first (FR-1716).
+  await panel.getByRole("button", { name: "إضافة جائزة" }).click();
+  await expect(panel.getByRole("alert")).toHaveText(
+    "حدّد مكان مكتب الجوائز قبل إضافة جوائز تُستلم منه.",
+  );
+  await expect(panel.getByRole("button", { name: "حفظ الجائزة" })).toBeDisabled();
+  await panel.getByRole("button", { name: "إلغاء", exact: true }).click();
+
+  // The desk: its place, optional hours as windows, and how players confirm (ADR-150).
+  await panel.getByLabel("مكان المكتب بالعربية").fill("القاعة ب");
+  await panel.getByRole("checkbox", { name: "تحديد ساعات عمل للمكتب" }).check();
+  await panel.getByLabel("يفتح").fill("2030-01-01T22:00");
+  await panel.getByLabel("يغلق").fill("2030-01-01T18:00");
+  await panel.getByRole("button", { name: "حفظ المكتب" }).click();
+  await expect(panel.getByRole("alert")).toHaveText(
+    "أضف من فترة إلى 14 فترة بالترتيب، تُغلق كل منها بعد أن تفتح ولا تتداخل مع التالية.",
+  );
+  await panel.getByLabel("يفتح").fill("2030-01-01T16:00");
+  await panel.getByLabel("يغلق").fill("2030-01-01T22:00");
+  await panel.getByRole("radio", { name: "يعرض المكتب التسليم، ويقبله اللاعب في تطبيقه." }).check();
+  await panel.getByRole("button", { name: "حفظ المكتب" }).click();
+  await expect(panel.getByRole("status")).toHaveText("حُفظ مكتب الجوائز.");
+  await page.reload();
+  await expect(panel.getByLabel("مكان المكتب بالعربية")).toHaveValue("القاعة ب");
+  await expect(panel.getByLabel("يفتح")).toHaveValue("2030-01-01T16:00");
+  await expect(
+    panel.getByRole("radio", { name: "يعرض المكتب التسليم، ويقبله اللاعب في تطبيقه." }),
+  ).toBeChecked();
+
   await panel.getByRole("button", { name: "إضافة جائزة" }).click();
 
   // A missing name is named before anything is sent.

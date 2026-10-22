@@ -1,6 +1,7 @@
 import type { LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
+import { deskInfoOf, lookupOf, type DeskInfo, type Lookup } from "#src/operator/desk.ts";
 import { stationResult, type StationResult } from "#src/operator/station.ts";
 
 type Requester = Pick<Session, "request">;
@@ -82,6 +83,8 @@ export type OperatorEvent = Readonly<{
   eventId: string;
   name: Bilingual;
   statusNow: string;
+  /** The event's zone, for the desk's hours. */
+  timezone: string;
   abilities: readonly string[];
   canPlay: boolean;
   enrollmentStatus: string | null;
@@ -103,6 +106,7 @@ export async function fetchOperatorEvents(
             eventId: row["eventId"],
             name: row["name"],
             statusNow: String(row["statusNow"]),
+            timezone: typeof row["timezone"] === "string" ? row["timezone"] : "Asia/Riyadh",
             abilities: strings(row["abilities"]),
             canPlay: row["canPlay"] === true,
             enrollmentStatus:
@@ -217,4 +221,114 @@ export async function resetMyQr(
   }
   const token = isRecord(answer.body) ? answer.body["token"] : undefined;
   return typeof token === "string" ? { kind: "code", token } : { kind: "network" };
+}
+
+type Removed = Readonly<{ kind: "removed" }>;
+
+/** FR-905: a removed operator's desk call answers `removed`, and the screen leaves operator mode. */
+const removedOr = (answer: AuthedResult): Removed | Common =>
+  answer.kind === "error" && answer.code === "not_operator" ? { kind: "removed" } : common(answer);
+
+/** The desk's header before any scan (FR-1716). */
+export async function fetchDesk(
+  session: Requester,
+  eventId: string,
+): Promise<Readonly<{ kind: "desk"; desk: DeskInfo }> | Removed | Common> {
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/operator/events/${encodeURIComponent(eventId)}/desk`,
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const desk = deskInfoOf(isRecord(answer.body) ? answer.body["desk"] : undefined);
+  return desk === undefined ? { kind: "network" } : { kind: "desk", desk };
+}
+
+/** FR-925: who the desk scanned and what waits for them; nothing is written (FR-926). */
+export async function lookUpAtDesk(
+  session: Requester,
+  eventId: string,
+  code: string,
+): Promise<Readonly<{ kind: "lookup"; lookup: Lookup }> | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: "/v1/operator/desk/lookup",
+    body: { eventId, code },
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const lookup = lookupOf(answer.body);
+  return lookup === undefined ? { kind: "network" } : { kind: "lookup", lookup };
+}
+
+/** Handed over (collect first: final) or Hand over (desk offer: the player accepts) (FR-507, FR-509). */
+export async function handOverAtDesk(
+  session: Requester,
+  redemptionId: string,
+  idempotencyKey: string,
+): Promise<
+  | Readonly<{ kind: "handed_over" }>
+  | Readonly<{ kind: "offered"; offerUntil: string | null }>
+  | Removed
+  | Common
+> {
+  const answer = await session.request({
+    method: "POST",
+    path: `/v1/operator/redemptions/${encodeURIComponent(redemptionId)}/hand-over`,
+    headers: { "idempotency-key": idempotencyKey },
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const body = isRecord(answer.body) ? answer.body : {};
+  if (body["status"] === "handed_over") {
+    return { kind: "handed_over" };
+  }
+  return body["status"] === "offered"
+    ? {
+        kind: "offered",
+        offerUntil: typeof body["offerUntil"] === "string" ? body["offerUntil"] : null,
+      }
+    : { kind: "network" };
+}
+
+/** The desk's poll while it waits for the player's accept. */
+export async function pollOffer(
+  session: Requester,
+  redemptionId: string,
+): Promise<
+  | Readonly<{ kind: "poll"; status: string; offered: boolean; offerUntil: string | null }>
+  | Removed
+  | Common
+> {
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/operator/redemptions/${encodeURIComponent(redemptionId)}`,
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const body = isRecord(answer.body) ? answer.body : {};
+  return {
+    kind: "poll",
+    status: String(body["status"]),
+    offered: body["offered"] === true,
+    offerUntil: typeof body["offerUntil"] === "string" ? body["offerUntil"] : null,
+  };
+}
+
+/** The operator's Cancel (FR-513, FR-1603): the player's points and the unit come back. */
+export async function cancelAtDesk(
+  session: Requester,
+  redemptionId: string,
+  idempotencyKey: string,
+): Promise<Readonly<{ kind: "cancelled" }> | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: `/v1/operator/redemptions/${encodeURIComponent(redemptionId)}/cancel`,
+    headers: { "idempotency-key": idempotencyKey },
+  });
+  return answer.kind === "ok" ? { kind: "cancelled" } : removedOr(answer);
 }

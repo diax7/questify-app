@@ -98,7 +98,10 @@ its verification method.
 1. Rewards tab → tap a reward → confirmation sheet (price, stock, pickup desk and hours).
 2. Confirm → points leave the balance, the stock is held.
 3. A reservation appears in "My reservations" with a countdown.
-4. At the desk: open the center button → My QR → the operator scans → "Handed over".
+4. At the desk (ADR-150, the owner's choice): **Collect first**: tap Collect on the reservation, which opens My QR
+   ("Collecting: Hoodie · 4:59"); the operator scans and hands it over. **Desk offer**: open My QR; the operator scans
+   and taps Hand over; tap Accept on My QR. Either way the reservation then reads "Picked up" ("Confirmed" for an
+   experience). The reservation and the confirmation sheet show the desk's place and hours (FR-1716).
 5. Digital reward: the code appears in the app at once and stays in history.
 
 ### 3.4 After the event

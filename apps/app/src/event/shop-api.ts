@@ -1,6 +1,7 @@
 import type { LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
+import { deskInfoOf, type DeskInfo } from "#src/operator/desk.ts";
 
 /** A reward as `GET /v1/events/{id}/shop` gives it (T-201). A newer server's unknown kind or section shows as is. */
 export type ShopReward = Readonly<{
@@ -25,6 +26,8 @@ export type MyRedemption = Readonly<{
   price: number;
   status: string;
   reservedUntil: string | null;
+  /** The player's live Collect (collect first), or null. */
+  collectUntil: string | null;
   /** A delivered digital reward's code (FR-511); null for anything else, or when the server could not open it. */
   code: string | null;
   codeUnavailable: boolean;
@@ -38,6 +41,8 @@ export type ShopView = Readonly<{
     firstRedemption: boolean;
     /** A purchase now also lowers the ranking (FR-1847). */
     spendLowersRank: boolean;
+    /** The prize desk, shown on every reservation (FR-1716). */
+    desk: DeskInfo;
   }>;
   balance: number;
   rewards: readonly ShopReward[];
@@ -102,6 +107,7 @@ function redemptionOf(value: unknown): MyRedemption | undefined {
     price: numberOf(value["price"]),
     status: value["status"],
     reservedUntil: stringOr(value["reservedUntil"]),
+    collectUntil: stringOr(value["collectUntil"]),
     code: stringOr(value["code"]),
     codeUnavailable: value["codeUnavailable"] === true,
   };
@@ -121,6 +127,13 @@ export function readShop(body: unknown): ShopView | undefined {
       rules,
       firstRedemption: shop["firstRedemption"] === true,
       spendLowersRank: shop["spendLowersRank"] === true,
+      desk: deskInfoOf(shop["desk"]) ?? {
+        location: null,
+        hours: null,
+        state: "closed",
+        confirm: "collect_first",
+        timeZone: "Asia/Riyadh",
+      },
     },
     balance: numberOf(body["balance"]),
     rewards: body["rewards"].map(rewardOf).filter((r): r is ShopReward => r !== undefined),
@@ -153,11 +166,16 @@ export type RewardAction =
   | "ended"
   | "limit"
   | "too_dear"
-  | "shop_closed";
+  | "shop_closed"
+  | "desk_finished";
 
 export function rewardAction(reward: ShopReward, view: ShopView, now: number): RewardAction {
   if (view.shop.state !== "open") {
     return "shop_closed";
+  }
+  // FR-1717, ADR-150: after the desk's last hours, only digital rewards stay redeemable.
+  if (reward.kind !== "digital" && view.shop.desk.state === "finished") {
+    return "desk_finished";
   }
   if (reward.stockLeft <= 0) {
     return "sold_out";
@@ -245,4 +263,96 @@ export async function cancelRedemption(
   return callAnswer(
     await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/cancel` }),
   );
+}
+
+/** What My QR shows (T-206): rewards ready at a desk or offered by one now, and whether to keep asking. */
+export type DeskItemNow = Readonly<{
+  id: string;
+  kind: string;
+  name: Bilingual;
+  state: "collecting" | "offered";
+  until: string | null;
+}>;
+
+export async function fetchDeskItems(
+  session: Pick<Session, "request">,
+): Promise<
+  | Readonly<{ kind: "items"; items: readonly DeskItemNow[]; watch: boolean }>
+  | Readonly<{ kind: "network" }>
+> {
+  const answer = await session.request({ method: "GET", path: "/v1/me/desk-items" });
+  if (answer.kind !== "ok" || !isRecord(answer.body) || !Array.isArray(answer.body["items"])) {
+    return { kind: "network" };
+  }
+  const items = answer.body["items"].flatMap((row: unknown): DeskItemNow[] =>
+    isRecord(row) && typeof row["id"] === "string"
+      ? [
+          {
+            id: row["id"],
+            kind: typeof row["kind"] === "string" ? row["kind"] : "item",
+            name: textOf(row["name"]),
+            state: row["state"] === "offered" ? "offered" : "collecting",
+            until: stringOr(row["until"]),
+          },
+        ]
+      : [],
+  );
+  return { kind: "items", items, watch: answer.body["watch"] === true };
+}
+
+export type DeskCallAnswer =
+  | Readonly<{ kind: "done" }>
+  | Readonly<{ kind: "refused"; problem: LocalizedText | null }>
+  | Readonly<{ kind: "network" }>
+  | Readonly<{ kind: "signed_out" }>;
+
+function deskAnswer(answer: AuthedResult): DeskCallAnswer {
+  if (answer.kind === "ok") {
+    return { kind: "done" };
+  }
+  if (answer.kind === "error") {
+    return { kind: "refused", problem: answer.message };
+  }
+  return answer.kind === "signed_out" ? { kind: "signed_out" } : { kind: "network" };
+}
+
+/** Collect (collect first): the reward is ready at the desk for 5 minutes. */
+export async function startCollect(
+  session: Pick<Session, "request">,
+  redemptionId: string,
+): Promise<DeskCallAnswer> {
+  return deskAnswer(
+    await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/collect` }),
+  );
+}
+
+/** Accept the desk's offer (desk offer): the handover is final. The key is the tap's. */
+export async function acceptHandover(
+  session: Pick<Session, "request">,
+  redemptionId: string,
+  key: string,
+): Promise<DeskCallAnswer> {
+  return deskAnswer(
+    await session.request({
+      method: "POST",
+      path: `/v1/redemptions/${redemptionId}/accept`,
+      headers: { "idempotency-key": key },
+    }),
+  );
+}
+
+/** Not now: the offer goes, the reservation stays. */
+export async function declineHandover(
+  session: Pick<Session, "request">,
+  redemptionId: string,
+): Promise<DeskCallAnswer> {
+  return deskAnswer(
+    await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/decline` }),
+  );
+}
+
+/** Minutes and seconds left, never below zero, for My QR's countdown ("4:05"). */
+export function countdown(until: string | null, now: number): string {
+  const seconds = until === null ? 0 : Math.max(0, Math.ceil((Date.parse(until) - now) / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }

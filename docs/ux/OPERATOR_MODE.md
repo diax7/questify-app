@@ -198,7 +198,15 @@ Step 2, items found:
 
 Notes:
 - Items: shop items, rank prizes and quest item rewards all show here (FR-521, FR-522). Experience rewards show Confirm instead of Handed over (FR-509).
-- Handed over asks nothing extra: one tap, then the row shows "Handed over - Undo" for 10 seconds, then it locks and Cancel is gone (FR-513; user, 2026-10-17).
+- The player confirms in their own app (ADR-137), the way the owner chose for the event (ADR-150):
+  - **Collect first** (default): the player taps Collect on the reservation; the row reads "Ready" and **Handed over**
+    is final at once. Until then the row reads "Ask {player} to tap Collect in their app" with no button.
+  - **Desk offer**: **Hand over** sends an offer; the row reads "Waiting for {player} to accept…" while My QR on the
+    player's phone shows Accept and Not now for 2 minutes. Accepted: "Handed over". Not accepted: "Not accepted. Try
+    again." with Hand over again.
+- A handover is final, with no undo (ADR-150, replacing the 10-second Undo of 2026-10-17); the row locks and Cancel is
+  gone (FR-513).
+- The desk sees no price, score or balance.
 - Cancel opens a confirm screen: "Cancel this reservation? {player} gets the points back." with Cancel reservation and Keep (FR-513, F-196).
 - Nothing waiting: "Nothing to hand over for Sara_88." with Scan next.
 - Paused {player} state (FR-518, FR-1604: a pause blocks both new redemptions and handover of existing reservations):

@@ -447,7 +447,8 @@ REVOKE ALL ON FUNCTION finish_handover(uuid, uuid, boolean) FROM PUBLIC;
 -- The desk's header before any scan: its place, pin, windows, state and how players confirm. OP403/OA403.
 CREATE FUNCTION operator_desk(target_event uuid)
   RETURNS TABLE (desk_location_ar text, desk_location_en text, desk_lat numeric, desk_lng numeric,
-                 desk_opens timestamptz[], desk_closes timestamptz[], desk_state text, handover_confirm text)
+                 desk_opens timestamptz[], desk_closes timestamptz[], desk_state text, handover_confirm text,
+                 timezone text)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   PERFORM desk_operator(target_event, app_player_id());
@@ -455,7 +456,7 @@ BEGIN
   SELECT e.desk_location_ar, e.desk_location_en, e.desk_lat, e.desk_lng,
          (SELECT array_agg(lower(w) ORDER BY lower(w)) FROM unnest(e.desk_hours) w),
          (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(e.desk_hours) w),
-         desk_state(e.desk_hours), e.handover_confirm
+         desk_state(e.desk_hours), e.handover_confirm, e.timezone
   FROM event e WHERE e.id = target_event;
 END $$;
 REVOKE ALL ON FUNCTION operator_desk(uuid) FROM PUBLIC;
@@ -738,13 +739,13 @@ GRANT EXECUTE ON FUNCTION my_desk_watch() TO questify_app;
 
 -- ================================================================ the player's reads, again
 -- As in 0025, plus the desk (FR-1716: shown on every reservation): its place, pin, windows (sorted), state and how the
--- player confirms.
+-- player confirms, and the event's zone to show the windows in.
 DROP FUNCTION event_shop(uuid);
 CREATE FUNCTION event_shop(target uuid)
   RETURNS TABLE (state text, closes_at timestamptz, pickup_minutes integer, rules_ar text, rules_en text,
                  balance bigint, first_redemption boolean, spend_lowers_rank boolean, desk_location_ar text,
                  desk_location_en text, desk_lat numeric, desk_lng numeric, desk_opens timestamptz[],
-                 desk_closes timestamptz[], desk_state text, handover_confirm text)
+                 desk_closes timestamptz[], desk_state text, handover_confirm text, timezone text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT shop_state(e.status, e.starts_at, e.ends_at, e.shop_days_after),
          e.ends_at + make_interval(days => e.shop_days_after), e.pickup_minutes, e.shop_rules_ar, e.shop_rules_en,
@@ -753,7 +754,7 @@ CREATE FUNCTION event_shop(target uuid)
          e.desk_location_ar, e.desk_location_en, e.desk_lat, e.desk_lng,
          (SELECT array_agg(lower(w) ORDER BY lower(w)) FROM unnest(e.desk_hours) w),
          (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(e.desk_hours) w),
-         desk_state(e.desk_hours), e.handover_confirm
+         desk_state(e.desk_hours), e.handover_confirm, e.timezone
   FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
   WHERE n.event_id = target AND n.player_id = app_player_id() AND n.status = 'active' AND p.status = 'active'
 $$;

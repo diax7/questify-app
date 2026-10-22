@@ -9,6 +9,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { QrCode } from "#src/components/QrCode.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { DeskItems } from "#src/event/DeskItems.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { fetchMyQr, resetMyQr } from "#src/operator/operator-api.ts";
@@ -24,7 +25,8 @@ const store = {
 
 /**
  * My QR (FR-306, ADR-137): the player's fixed code, which an operator scans at a station. Showing it only says who the
- * player is; prizes need the player's own confirmation (T-206). A code someone else saw can be changed at once.
+ * player is; prizes need the player's own confirmation, shown under the code (T-206). A code someone else saw can be
+ * changed at once.
  */
 export default function MyQrScreen() {
   const { t, language } = useI18n();
@@ -83,6 +85,7 @@ export default function MyQrScreen() {
           </View>
         ) : null}
         <AppText>{t("myQr.hint")}</AppText>
+        <DeskItems />
         {note === null ? null : <AppText accessibilityRole="alert">{note}</AppText>}
         {confirming ? (
           <View style={{ gap: 8, alignSelf: "stretch" }}>

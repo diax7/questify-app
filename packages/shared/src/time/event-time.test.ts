@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   eventDayOf,
   formatEventTime,
+  formatTimeWindow,
   isTimeZone,
   localParts,
   toInstant,
@@ -195,5 +196,29 @@ describe("localParts", () => {
 
   it("refuses a zone that is not one", () => {
     expect(() => localParts(new Date(), "asia/riyadh")).toThrow(RangeError);
+  });
+});
+
+describe("formatTimeWindow", () => {
+  it("shows one date for a window inside a day, in the event's zone, the zone named once", () => {
+    const opens = new Date("2026-10-23T13:00:00Z");
+    const closes = new Date("2026-10-23T19:00:00Z");
+    const en = formatTimeWindow(opens, closes, "Asia/Riyadh", "en");
+    expect(en).toBe("Fri 23 Oct, 16:00–22:00 (Riyadh time)");
+    const ar = formatTimeWindow(opens, closes, "Asia/Riyadh", "ar");
+    expect(ar).toContain("16:00–22:00");
+    expect(ar).toContain("، ");
+    expect(ar).not.toMatch(/[٠-٩]/);
+    expect(ar.endsWith("(بتوقيت الرياض)")).toBe(true);
+  });
+
+  it("shows both dates when the window runs past midnight", () => {
+    const en = formatTimeWindow(
+      new Date("2026-10-23T19:00:00Z"),
+      new Date("2026-10-23T23:00:00Z"),
+      "Asia/Riyadh",
+      "en",
+    );
+    expect(en).toBe("Fri 23 Oct, 22:00 – Sat 24 Oct, 02:00 (Riyadh time)");
   });
 });

@@ -191,3 +191,34 @@ export function formatEventTime(instant: Date, timeZone: string, language: Langu
   }).format(instant);
   return `${text} (${zoneLabel(timeZone, language)})`;
 }
+
+/**
+ * A time window for people, in the event's zone (the prize desk's hours, ADR-150): "Thu 23 Oct, 16:00–22:00", or both
+ * dates when it runs past midnight; 24-hour, Western digits, Gregorian, the zone named once.
+ */
+export function formatTimeWindow(
+  opens: Date,
+  closes: Date,
+  timeZone: string,
+  language: Language,
+): string {
+  const day = new Intl.DateTimeFormat(LOCALES[language], {
+    timeZone,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const clock = new Intl.DateTimeFormat(LOCALES[language], {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const separator = language === "ar" ? "، " : ", ";
+  const at = (instant: Date) => `${day.format(instant)}${separator}${clock.format(instant)}`;
+  const text =
+    day.format(opens) === day.format(closes)
+      ? `${at(opens)}–${clock.format(closes)}`
+      : `${at(opens)} – ${at(closes)}`;
+  return `${text} (${zoneLabel(timeZone, language)})`;
+}

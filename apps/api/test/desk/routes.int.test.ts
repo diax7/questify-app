@@ -250,6 +250,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
         hours: null,
         state: "open",
         confirm: "collect_first",
+        timeZone: "Asia/Riyadh",
       });
 
       const header = await app(

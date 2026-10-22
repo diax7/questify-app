@@ -26,11 +26,26 @@ export type RewardView = Readonly<{
   lowCodes: boolean;
 }>;
 
+export const HANDOVER_CONFIRM = ["collect_first", "desk_offer"] as const;
+export type HandoverConfirm = (typeof HANDOVER_CONFIRM)[number];
+
+/** At most this many opening windows, as the API takes them. */
+export const DESK_WINDOWS = 14;
+
+/** The prize desk as the API answers it (FR-1716): hours are instants, or null when the desk is always open. */
+export type DeskView = Readonly<{
+  location: Bilingual;
+  pin: Readonly<{ lat: number; lng: number }> | null;
+  hours: ReadonlyArray<Readonly<{ opensAt: string; closesAt: string }>> | null;
+}>;
+
 export type ShopSettings = Readonly<{
   pickupMinutes: number;
   daysAfter: number;
   rules: Bilingual;
   spendLowersRank: boolean;
+  desk: DeskView;
+  handoverConfirm: HandoverConfirm;
 }>;
 
 /** What the reward form holds: times as the wall clock in the event's zone, empty when not set; "" for no limit. */
@@ -215,4 +230,104 @@ export function firstColumn(csv: string): string {
 /** The digital rewards to warn about (FR-512), in the list's order. */
 export function lowCodeRewards(rewards: readonly RewardView[]): RewardView[] {
   return rewards.filter((reward) => reward.lowCodes);
+}
+
+/** True once the desk has a place: item rewards need it (FR-1716). */
+export const deskIsSet = (desk: DeskView): boolean =>
+  (desk.location.ar ?? "").trim() !== "" || (desk.location.en ?? "").trim() !== "";
+
+/** One opening window in the form: the wall clock in the event's zone. */
+export type WindowDraft = Readonly<{ opensAt: string; closesAt: string }>;
+
+/** What the desk form holds: the pin as typed, the hours switch and its windows (ADR-150). */
+export type DeskDraft = Readonly<{
+  locationAr: string;
+  locationEn: string;
+  lat: string;
+  lng: string;
+  hoursOn: boolean;
+  windows: readonly WindowDraft[];
+  confirm: HandoverConfirm;
+}>;
+
+export function deskDraftOf(shop: ShopSettings, timeZone: string): DeskDraft {
+  const local = (iso: string) => toLocalInput(new Date(iso), timeZone);
+  return {
+    locationAr: shop.desk.location.ar ?? "",
+    locationEn: shop.desk.location.en ?? "",
+    lat: shop.desk.pin === null ? "" : String(shop.desk.pin.lat),
+    lng: shop.desk.pin === null ? "" : String(shop.desk.pin.lng),
+    hoursOn: shop.desk.hours !== null,
+    windows: (shop.desk.hours ?? []).map((w) => ({
+      opensAt: local(w.opensAt),
+      closesAt: local(w.closesAt),
+    })),
+    confirm: shop.handoverConfirm,
+  };
+}
+
+/** The same wall-clock time a day later ("2030-01-31T16:00" → "2030-02-01T16:00"). */
+function nextDay(local: string): string {
+  const day = new Date(`${local.slice(0, 10)}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 1);
+  return `${day.toISOString().slice(0, 10)}${local.slice(10)}`;
+}
+
+/** A new window: the day after the last one, or empty to fill in. */
+export function nextWindow(windows: readonly WindowDraft[]): WindowDraft {
+  const last = windows.at(-1);
+  if (last === undefined || last.opensAt === "" || last.closesAt === "") {
+    return { opensAt: "", closesAt: "" };
+  }
+  return { opensAt: nextDay(last.opensAt), closesAt: nextDay(last.closesAt) };
+}
+
+export type DeskField = "deskPin" | "deskHours";
+
+const coordinate = (text: string, limit: number) => {
+  const value = Number(text);
+  return text.trim() !== "" && Number.isFinite(value) && Math.abs(value) <= limit;
+};
+
+/**
+ * The first part the API would refuse (API.md): a pin needs both numbers in range; with hours on, 1 to 14 windows,
+ * each filled, closing after it opens, in order and not overlapping. Undefined when the draft is fine.
+ */
+export function deskProblem(draft: DeskDraft): DeskField | undefined {
+  const pinTyped = draft.lat.trim() !== "" || draft.lng.trim() !== "";
+  if (pinTyped && !(coordinate(draft.lat, 90) && coordinate(draft.lng, 180))) {
+    return "deskPin";
+  }
+  if (!draft.hoursOn) {
+    return undefined;
+  }
+  if (draft.windows.length === 0 || draft.windows.length > DESK_WINDOWS) {
+    return "deskHours";
+  }
+  let previous = "";
+  for (const window of draft.windows) {
+    if (window.opensAt === "" || window.closesAt === "" || window.closesAt <= window.opensAt) {
+      return "deskHours";
+    }
+    if (window.opensAt < previous) {
+      return "deskHours";
+    }
+    previous = window.closesAt;
+  }
+  return undefined;
+}
+
+/** The desk's part of `PUT …/shop`: hours off sends null; an empty name clears it. */
+export function deskRequest(draft: DeskDraft): Record<string, unknown> {
+  const pinTyped = draft.lat.trim() !== "" || draft.lng.trim() !== "";
+  return {
+    desk: {
+      location: { ar: draft.locationAr, en: draft.locationEn },
+      pin: pinTyped ? { lat: Number(draft.lat), lng: Number(draft.lng) } : null,
+      hours: draft.hoursOn
+        ? draft.windows.map((w) => ({ opensAt: w.opensAt, closesAt: w.closesAt }))
+        : null,
+    },
+    handoverConfirm: draft.confirm,
+  };
 }

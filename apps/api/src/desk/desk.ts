@@ -74,6 +74,8 @@ export type DeskView = Readonly<{
   hours: readonly DeskWindow[] | null;
   state: "open" | "closed" | "finished";
   confirm: "collect_first" | "desk_offer";
+  /** The event's zone, to show the hours in. */
+  timeZone: string;
 }>;
 
 /** The desk as the database answers it for an operator or a player (FR-1716). */
@@ -91,6 +93,7 @@ export function deskViewOf(row: Readonly<Record<string, unknown>>): DeskView {
     ),
     state: row["desk_state"] as DeskView["state"],
     confirm: row["handover_confirm"] as DeskView["confirm"],
+    timeZone: String(row["timezone"]),
   };
 }
 

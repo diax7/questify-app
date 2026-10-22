@@ -16,6 +16,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
+import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import {
@@ -26,6 +27,8 @@ import {
   reserveReward,
   rewardAction,
   sectionsOf,
+  startCollect,
+  type MyRedemption,
   type RewardAction,
   type ShopAnswer,
   type ShopCallAnswer,
@@ -44,6 +47,7 @@ const ACTION_TEXT: Readonly<Record<Exclude<RewardAction, "redeem">, MessageKey>>
   limit: "shop.limit",
   too_dear: "shop.tooDear",
   shop_closed: "shop.closed",
+  desk_finished: "shop.deskFinished",
 };
 
 const KNOWN_SECTIONS: ReadonlySet<string> = new Set(["featured", "merch", "food", "experiences"]);
@@ -99,19 +103,73 @@ function RewardCard({
   );
 }
 
+/** A finished reservation's last word: picked up, confirmed, cancelled, expired or ended. */
+function endedKey(mine: MyRedemption): MessageKey {
+  switch (mine.status) {
+    case "handed_over":
+      return mine.kind === "experience" ? "shop.status.confirmed" : "shop.status.handedOver";
+    case "cancelled":
+      return "shop.status.cancelled";
+    case "expired":
+      return "shop.status.expired";
+    default:
+      return "shop.status.other";
+  }
+}
+
+/**
+ * How a reservation reaches the desk (ADR-137, ADR-150): with collect first the player taps Collect, which opens My QR
+ * ready for 5 minutes; with desk offers the player shows My QR and accepts there.
+ */
+function PickUp({
+  mine,
+  view,
+  busy,
+  onCollect,
+}: Readonly<{
+  mine: MyRedemption;
+  view: ShopView;
+  busy: boolean;
+  onCollect: (id: string) => void;
+}>) {
+  const { t } = useI18n();
+  if (view.shop.desk.confirm === "desk_offer") {
+    return <AppText muted>{t("shop.offerHint")}</AppText>;
+  }
+  const collecting = mine.collectUntil !== null && Date.parse(mine.collectUntil) > Date.now();
+  return (
+    <>
+      <AppText muted>{t(collecting ? "shop.collecting" : "shop.collectHint")}</AppText>
+      <Button
+        label={t("shop.collect")}
+        disabled={busy || view.shop.desk.state !== "open"}
+        onPress={() => onCollect(mine.id)}
+      />
+    </>
+  );
+}
+
 function MyReservations({
   view,
   busy,
   onCancel,
-}: Readonly<{ view: ShopView; busy: boolean; onCancel: (id: string) => void }>) {
+  onCollect,
+}: Readonly<{
+  view: ShopView;
+  busy: boolean;
+  onCancel: (id: string) => void;
+  onCollect: (id: string) => void;
+}>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   if (view.redemptions.length === 0) {
     return null;
   }
+  const waiting = view.redemptions.some((mine) => mine.status === "reserved");
   return (
     <>
       <AppText variant="title">{t("shop.mine")}</AppText>
+      {waiting ? <DeskLine desk={view.shop.desk} /> : null}
       {view.redemptions.map((mine) => (
         <View key={mine.id} style={styles.card}>
           <AppText variant="label">{textIn(mine.name, language)}</AppText>
@@ -130,6 +188,7 @@ function MyReservations({
                   minutes: formatNumber(minutesLeft(mine.reservedUntil, Date.now()), language),
                 })}
               </AppText>
+              <PickUp mine={mine} view={view} busy={busy} onCollect={onCollect} />
               <Button
                 kind="quiet"
                 label={t("shop.cancel")}
@@ -138,15 +197,7 @@ function MyReservations({
               />
             </>
           ) : (
-            <AppText muted>
-              {t(
-                mine.status === "cancelled"
-                  ? "shop.status.cancelled"
-                  : mine.status === "expired"
-                    ? "shop.status.expired"
-                    : "shop.status.other",
-              )}
-            </AppText>
+            <AppText muted>{t(endedKey(mine))}</AppText>
           )}
         </View>
       ))}
@@ -286,6 +337,23 @@ export default function RewardsScreen() {
     );
   };
 
+  // Collect (collect first): ready at the desk for 5 minutes, then My QR for the desk to scan.
+  const collect = async (id: string) => {
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const result = await startCollect(api.session, id);
+    setBusy(false);
+    if (result.kind === "signed_out") {
+      router.replace("/home");
+    } else if (result.kind === "done") {
+      router.push("/my-qr");
+      void load();
+    } else {
+      setProblem(result.kind === "network" ? OFFLINE : result.problem);
+    }
+  };
+
   if (answer === undefined || answer.kind !== "shop") {
     return (
       <Screen title={t("nav.rewards")} header={<EventPill />}>
@@ -358,7 +426,12 @@ export default function RewardsScreen() {
             }}
           />
         ))}
-        <MyReservations view={view} busy={busy} onCancel={cancel} />
+        <MyReservations
+          view={view}
+          busy={busy}
+          onCancel={cancel}
+          onCollect={(id) => void collect(id)}
+        />
       </ScrollView>
       <Sheet
         visible={step !== undefined}
@@ -401,6 +474,7 @@ export default function RewardsScreen() {
                     },
                   )}
             </AppText>
+            {step.reward.kind === "digital" ? null : <DeskLine desk={view.shop.desk} />}
             {view.shop.spendLowersRank ? <AppText>{t("shop.lowersRank")}</AppText> : null}
             <Problem problem={problem} />
             <Button

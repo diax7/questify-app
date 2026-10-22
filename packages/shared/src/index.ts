@@ -84,6 +84,7 @@ export {
 export {
   eventDayOf,
   formatEventTime,
+  formatTimeWindow,
   isTimeZone,
   localParts,
   toInstant,

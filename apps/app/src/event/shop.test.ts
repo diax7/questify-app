@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ApiRequest } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
 import {
+  acceptHandover,
   cancelRedemption,
+  countdown,
+  declineHandover,
+  fetchDeskItems,
   fetchShop,
   inSection,
   minutesLeft,
@@ -10,6 +14,7 @@ import {
   reserveReward,
   rewardAction,
   sectionsOf,
+  startCollect,
   type ShopReward,
   type ShopView,
 } from "#src/event/shop-api.ts";
@@ -40,6 +45,13 @@ const VIEW: ShopView = {
     rules: null,
     firstRedemption: true,
     spendLowersRank: false,
+    desk: {
+      location: null,
+      hours: null,
+      state: "open",
+      confirm: "collect_first",
+      timeZone: "Asia/Riyadh",
+    },
   },
   balance: 300,
   rewards: [REWARD],
@@ -68,11 +80,18 @@ describe("readShop", () => {
         rules: { ar: "قاعدة", en: null },
         firstRedemption: false,
         spendLowersRank: true,
+        desk: { location: { ar: "القاعة ب", en: null }, hours: null, state: "open" },
       },
       balance: 40,
       rewards: [{ ...REWARD, kind: "mystery_box", tags: { popular: true } }, { name: "no id" }],
       redemptions: [
-        { id: "d1", status: "reserved", price: 200, reservedUntil: "2030-01-01T12:00:00Z" },
+        {
+          id: "d1",
+          status: "reserved",
+          price: 200,
+          reservedUntil: "2030-01-01T12:00:00Z",
+          collectUntil: "2030-01-01T10:05:00Z",
+        },
         {},
         { id: "d2", kind: "digital", status: "delivered", code: "GIFT-1", reservedUntil: null },
         { id: "d3", kind: "digital", status: "delivered", codeUnavailable: true },
@@ -84,6 +103,13 @@ describe("readShop", () => {
       rules: { ar: "قاعدة", en: null },
       firstRedemption: false,
       spendLowersRank: true,
+      desk: {
+        location: { ar: "القاعة ب", en: null },
+        hours: null,
+        state: "open",
+        confirm: "collect_first",
+        timeZone: "Asia/Riyadh",
+      },
     });
     expect(view?.rewards).toHaveLength(1);
     expect(view?.rewards[0]).toMatchObject({
@@ -98,6 +124,7 @@ describe("readShop", () => {
         price: 200,
         status: "reserved",
         reservedUntil: "2030-01-01T12:00:00Z",
+        collectUntil: "2030-01-01T10:05:00Z",
         code: null,
         codeUnavailable: false,
       },
@@ -108,6 +135,7 @@ describe("readShop", () => {
         price: 0,
         status: "delivered",
         reservedUntil: null,
+        collectUntil: null,
         code: "GIFT-1",
         codeUnavailable: false,
       },
@@ -118,6 +146,7 @@ describe("readShop", () => {
         price: 0,
         status: "delivered",
         reservedUntil: null,
+        collectUntil: null,
         code: null,
         codeUnavailable: true,
       },
@@ -128,7 +157,19 @@ describe("readShop", () => {
     expect(readShop(undefined)).toBeUndefined();
     expect(readShop({ shop: {} })).toBeUndefined();
   });
+
+  it("reads a missing desk as closed, so nothing looks collectable on a guess", () => {
+    expect(readShop({ shop: { state: "open" }, rewards: [] })?.shop.desk).toEqual({
+      location: null,
+      hours: null,
+      state: "closed",
+      confirm: "collect_first",
+      timeZone: "Asia/Riyadh",
+    });
+  });
 });
+
+const FINISHED = { ...VIEW.shop.desk, state: "finished" } as const;
 
 describe("rewardAction", () => {
   it.each([
@@ -139,6 +180,14 @@ describe("rewardAction", () => {
     ["ended", { ...REWARD, closesAt: "2030-01-01T10:00:00Z" }, VIEW],
     ["limit", { ...REWARD, perPlayerLimit: 1, heldByMe: 1 }, VIEW],
     ["too_dear", { ...REWARD, price: 301 }, VIEW],
+    ["desk_finished", REWARD, { ...VIEW, shop: { ...VIEW.shop, desk: FINISHED } }],
+    [
+      "desk_finished",
+      { ...REWARD, kind: "experience" },
+      { ...VIEW, shop: { ...VIEW.shop, desk: FINISHED } },
+    ],
+    ["redeem", { ...REWARD, kind: "digital" }, { ...VIEW, shop: { ...VIEW.shop, desk: FINISHED } }],
+    ["redeem", REWARD, { ...VIEW, shop: { ...VIEW.shop, desk: { ...FINISHED, state: "closed" } } }],
   ] as const)("offers %s", (action, reward, view) => {
     expect(rewardAction(reward, view, NOW)).toBe(action);
   });
@@ -248,5 +297,84 @@ describe("the calls", () => {
     expect(await cancelRedemption(sessionAnswering({ kind: "network" }).session, "d1")).toEqual({
       kind: "network",
     });
+  });
+});
+
+describe("the desk's calls (T-206)", () => {
+  it("collects, accepts with the tap's key and declines by the reservation's id", async () => {
+    const ok = sessionAnswering({ kind: "ok", status: 200, body: {}, headers });
+    expect(await startCollect(ok.session, "d1")).toEqual({ kind: "done" });
+    expect(await acceptHandover(ok.session, "d1", "key-9")).toEqual({ kind: "done" });
+    expect(await declineHandover(ok.session, "d1")).toEqual({ kind: "done" });
+    expect(ok.calls).toEqual([
+      { method: "POST", path: "/v1/redemptions/d1/collect" },
+      {
+        method: "POST",
+        path: "/v1/redemptions/d1/accept",
+        headers: { "idempotency-key": "key-9" },
+      },
+      { method: "POST", path: "/v1/redemptions/d1/decline" },
+    ]);
+    const refused = sessionAnswering({
+      kind: "error",
+      status: 409,
+      code: "offer_gone",
+      message: MESSAGE,
+      details: {},
+      headers,
+    });
+    expect(await acceptHandover(refused.session, "d1", "k")).toEqual({
+      kind: "refused",
+      problem: MESSAGE,
+    });
+    expect(await startCollect(sessionAnswering({ kind: "network" }).session, "d1")).toEqual({
+      kind: "network",
+    });
+    expect(await declineHandover(sessionAnswering({ kind: "signed_out" }).session, "d1")).toEqual({
+      kind: "signed_out",
+    });
+  });
+
+  it("reads My QR's desk items and whether to keep asking", async () => {
+    const ok = sessionAnswering({
+      kind: "ok",
+      status: 200,
+      body: {
+        items: [
+          { id: "d1", kind: "experience", name: { en: "Lounge" }, state: "offered", until: "x" },
+          { id: "d2", state: "?" },
+          { name: "no id" },
+        ],
+        watch: true,
+      },
+      headers,
+    });
+    expect(await fetchDeskItems(ok.session)).toEqual({
+      kind: "items",
+      items: [
+        {
+          id: "d1",
+          kind: "experience",
+          name: { ar: null, en: "Lounge" },
+          state: "offered",
+          until: "x",
+        },
+        { id: "d2", kind: "item", name: { ar: null, en: null }, state: "collecting", until: null },
+      ],
+      watch: true,
+    });
+    expect(ok.calls[0]).toEqual({ method: "GET", path: "/v1/me/desk-items" });
+    const broken = sessionAnswering({ kind: "ok", status: 200, body: { items: "no" }, headers });
+    expect(await fetchDeskItems(broken.session)).toEqual({ kind: "network" });
+    expect(await fetchDeskItems(sessionAnswering({ kind: "network" }).session)).toEqual({
+      kind: "network",
+    });
+  });
+
+  it("counts down in minutes and seconds, never below zero", () => {
+    expect(countdown("2030-01-01T10:04:05Z", NOW)).toBe("4:05");
+    expect(countdown("2030-01-01T10:00:00.500Z", NOW)).toBe("0:01");
+    expect(countdown("2030-01-01T09:59:00Z", NOW)).toBe("0:00");
+    expect(countdown(null, NOW)).toBe("0:00");
   });
 });

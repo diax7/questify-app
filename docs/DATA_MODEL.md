@@ -264,28 +264,37 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 the gem ledger has the same shape. First completion of a quest earns its fixed XP once (ADR-044).
 
 ### reward, reward_code, redemption
-Built in migrations 0024 (T-201, T-202; ADR-133) and 0025 (T-219, T-203; ADR-134 to ADR-136):
+Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,
+ADR-151):
 - `reward(id, organizer_id, event_id, kind item|experience|digital, name i18n, description i18n, price, stock_total, units_out,
   per_player_limit, opens_at, closes_at, section, tag_new, tag_limited, position, status active|removed)`. Stock left is
   `stock_total − units_out`; `units_out` moves only inside the definer functions, and a CHECK keeps it between 0 and
   the total. A digital reward's `stock_total` is its uploaded codes: created at 0, raised only by `add_reward_codes`
   (a guard refuses the API role any other change).
 - `redemption(id, organizer_id, event_id, enrollment_id, reward_id, price (what was paid), status
-  reserved|cancelled|expired|delivered, idempotency_key, reserved_until (null only when delivered), ended_at, ended_by
-  player|timeout|delivery)`; a digital redemption is `delivered` at once (ADR-136); `handed_over`,
-  `handed_by` and `handed_at` join with the prize desk (T-206). Never deleted; no role writes it but the definers.
+  reserved|cancelled|expired|delivered|handed_over, idempotency_key, reserved_until (null only when delivered),
+  ended_at, ended_by player|timeout|delivery|handover|operator, operator_id (who handed over or cancelled at the desk),
+  collect_until (the player's Collect), offer_by and offer_until (the desk's offer))`; a digital redemption is
+  `delivered` at once (ADR-136); a handed-over one keeps its unit out. Collect and offer exist only on a reserved row.
+  Never deleted; no role writes it but the definers.
 - `event` gains `pickup_minutes` (default 120), `shop_days_after` (default 3), `shop_rules` i18n and
-  `spend_lowers_rank` (default false; the owner's, locked from live on, FR-1847).
+  `spend_lowers_rank` (default false; the owner's, locked from live on, FR-1847); the prize desk (0029):
+  `desk_location` i18n, `desk_lat`/`desk_lng` (both or neither), `desk_hours tstzmultirange` (null: open the whole
+  time; 1 to 14 bounded windows) and `handover_confirm collect_first|desk_offer`. `desk_state()` is the one rule for
+  open, closed and finished. An item reward needs the desk's place (a guard on both tables).
 - The ledger gains `redeem` (balance −price) and `redeem_return` (balance +price), both with `redemption_id`, one of
   each per reservation at most; the `system` actor writes only `redeem_return` (the timeout). `score_delta` is 0, or
   equal to `balance_delta` when the event's option was on and the event live at the spend (ADR-135); a return mirrors
-  its own payment's score. A spend that moves the score marks the ranking for a rebuild. Score ≥ balance holds for
+  its own payment's score. A spend that moves the score marks the ranking for a rebuild. `handover` (0029): both
+  deltas 0, the handing operator named, one per redemption; an operator's cancel writes `redeem_return` as the
+  operator. Score ≥ balance holds for
   every enrollment (quests add both equally); a future balance-only credit would break it, so it must say so.
 - `reward_code(id bigint, organizer_id, event_id, reward_id, code_cipher bytea, code_hash bytea, redemption_id unique
   null, created_at)` (**secret**, organizer-uploaded; T-203): the API's AES-256-GCM cipher bound to the reward and an
   HMAC for finding repeats, unique per event. Organizers read only `id, reward_id, redemption_id, created_at`; players
   and outsiders nothing; `add_reward_codes` writes and `reserve_reward` gives the oldest unused code.
-  A player with an open flag cannot be handed items (ADR-100).
+  A player with an open flag cannot be handed items (ADR-100; T-209 adds the check to `finish_handover`, the one
+  handover body).
 
 ### submission
 `id, completion_id, kind photo|text|video_later, media_key, text, review_status, reviewer, note`.

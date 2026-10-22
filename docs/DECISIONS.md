@@ -2045,3 +2045,33 @@ so the minutes are free and the runners have 4 cores; Stryker's workers crash on
 947 test databases on a nearly full disk; and the PC stays free while the checks run.
 **Cost:** GitHub tests only pushed code, so a branch is pushed before its heavy checks. Re-check this if the
 repository becomes private (minutes are then billed, CLAUDE.md CI rules).
+
+## ADR-150 — The prize desk: the owner picks how players confirm; hours are optional; no undo
+**Status:** Accepted (user, 2026-10-23; T-206). Amends FR-1716 (hours optional), FR-1717 (experiences follow the desk
+too) and OPERATOR_MODE 3.3 (no Undo).
+**Decision:**
+- The player confirms every handover in their own app (ADR-137), and the event's owner chooses how
+  (`handover_confirm`): **Collect first** (default): the player taps Collect on a reservation, which is ready at the
+  desk for 5 minutes; the desk's Handed over is then final. **Desk offer**: the desk taps Hand over and the player
+  accepts on My QR within 2 minutes; the accept is final.
+- A handover is final and written to the points record once; there is no undo.
+- Desk hours are optional. None set: the desk is open the whole time. Set (1 to 14 windows): items and experiences are
+  handed over or confirmed only inside a window and are no longer reservable after the last window ends. Digital codes
+  never go through the desk and keep FR-1717's rule.
+**Why:** Dhia (2026-10-23): "we have the 2 options, in the event settings the owner chooses"; "Drop the undo"; "having
+a desk hours is optional things. Like by default, it is open all the time. But he can make it like on and off. And it
+applies to all the rewards." Claude read "all the rewards" as every reward that goes through the desk.
+
+## ADR-151 — Prize desk details
+**Status:** Proposed (Claude, 2026-10-23; T-206).
+**Decision:**
+- While the desk is closed between windows, a new reservation's pickup time starts at the next opening, so a
+  reservation made overnight does not expire before the desk opens.
+- The pickup timeout skips a reservation the player is collecting or was offered right now; a Collect or offer already
+  live may finish past the pickup deadline. A new Collect, offer or handover on an overdue reservation is refused.
+- Desk hours bound FR-1609: a reservation made 5 minutes before the last window ends is collectible for those minutes.
+- An operator never hands over or cancels their own reservation at the desk (they cancel it as a player).
+- An experience ends as `handed_over`, shown as "Confirmed"; an event with only experiences needs no desk place.
+- The desk sees no price, score or balance; the operator's cancel returns the points as the operator in the points
+  record.
+**Why:** the CTO plan review (86 → 93): each closes a gap where the desk, the timeout and the player could disagree.

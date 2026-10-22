@@ -246,6 +246,7 @@ describe("readShop", () => {
     desk_closes: [LATER],
     desk_state: "closed",
     handover_confirm: "desk_offer",
+    timezone: "Asia/Riyadh",
   };
   const ROW = {
     id: "r1",
@@ -304,6 +305,7 @@ describe("readShop", () => {
           hours: [{ opensAt: "2030-01-01T10:00:00.000Z", closesAt: "2030-01-02T10:00:00.000Z" }],
           state: "closed",
           confirm: "desk_offer",
+          timeZone: "Asia/Riyadh",
         },
       },
       balance: 250,
