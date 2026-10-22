@@ -56,6 +56,10 @@ type Owned = Readonly<{
   sweep?: (row: string) => string;
 }>;
 
+/** Each side's digital reward with one code, made with known ids: the organizer role cannot read `organizer_id` here. */
+const CODE_REWARD_A = "c0de0000-0000-4000-8000-00000000000a";
+const CODE_REWARD_B = "c0de0000-0000-4000-8000-00000000000b";
+
 const POLICY = /row-level security/;
 const SIGNUP_A = "new.owner@najd.test";
 const SIGNUP_B = "new.owner@tabuk.test";
@@ -206,6 +210,34 @@ const OWNED: Readonly<Record<string, Owned>> = {
         forge: (f) => ({
           sql: "INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, idempotency_key, reserved_until) VALUES ($1, $2, gen_random_uuid(), gen_random_uuid(), 1, 'forged', now())",
           values: [f.orgA, f.eventA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  reward_code: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "reward_id",
+        mine: () => CODE_REWARD_A,
+        theirs: () => CODE_REWARD_B,
+        forge: () => ({
+          sql: "INSERT INTO reward_code (reward_id, code_cipher, code_hash) VALUES ($1, $2, $3)",
+          values: [CODE_REWARD_B, Buffer.alloc(40), Buffer.alloc(32)],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "reward_id",
+        mine: () => CODE_REWARD_A,
+        theirs: () => CODE_REWARD_B,
+        ownRowsHidden:
+          "players see their own code through reserve_reward and my_redemptions (T-203), not this table",
+        forge: () => ({
+          sql: "INSERT INTO reward_code (reward_id, code_cipher, code_hash) VALUES ($1, $2, $3)",
+          values: [CODE_REWARD_A, Buffer.alloc(40), Buffer.alloc(32)],
         }),
         forgeRefusedBy: /permission denied/,
       },
@@ -673,6 +705,19 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
         [event],
       );
     }
+  }
+  for (const [reward, event] of [
+    [CODE_REWARD_A, f.eventA],
+    [CODE_REWARD_B, f.eventB],
+  ] as const) {
+    await run(
+      "INSERT INTO reward (id, event_id, kind, name_en, price, stock_total) VALUES ($1, $2, 'digital', 'Code', 1, 1)",
+      [reward, event],
+    );
+    await run(
+      "INSERT INTO reward_code (organizer_id, event_id, reward_id, code_cipher, code_hash) SELECT organizer_id, event_id, id, $2, $3 FROM reward WHERE id = $1",
+      [reward, randomBytes(40), randomBytes(32)],
+    );
   }
   // One real completion and its points on each side, made by the completion engine itself (migration 0012).
   for (const [player, event] of [

@@ -5,6 +5,7 @@ const REQUIRED = {
   DATABASE_URL: "postgres://questify_app:pw@db:5432/questify",
   AUTH_SECRET: "s".repeat(32),
   QR_SECRET: "q".repeat(32),
+  REWARD_CODE_SECRET: "r".repeat(32),
   DASHBOARD_ORIGIN: "https://app.questify.sa",
   GMAIL_SERVICE_ACCOUNT_KEY: JSON.stringify({
     type: "service_account",
@@ -48,6 +49,7 @@ describe("loadConfig", () => {
         securityAlertEmail: undefined,
       },
       qrSecret: REQUIRED.QR_SECRET,
+      rewardCodeSecret: REQUIRED.REWARD_CODE_SECRET,
       msegat: undefined,
       redisUrl: undefined,
     });
@@ -131,13 +133,17 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...REQUIRED, [name]: "  " })).toThrow(new RegExp(name));
   });
 
-  it("requires a QR_SECRET of at least 32 characters", () => {
-    const { QR_SECRET: _omitted, ...withoutQr } = REQUIRED;
-    expect(() => loadConfig(withoutQr)).toThrow(/QR_SECRET is required/);
-    expect(() => loadConfig({ ...REQUIRED, QR_SECRET: "x".repeat(31) })).toThrow(
-      /QR_SECRET must be at least 32/,
-    );
-  });
+  it.each(["QR_SECRET", "REWARD_CODE_SECRET"] as const)(
+    "requires a %s of at least 32 characters",
+    (name) => {
+      const { [name]: _omitted, ...without } = REQUIRED;
+      expect(() => loadConfig(without)).toThrow(new RegExp(`${name} is required`));
+      expect(() => loadConfig({ ...REQUIRED, [name]: "x".repeat(31) })).toThrow(
+        new RegExp(`${name} must be at least 32`),
+      );
+      expect(loadConfig({ ...REQUIRED, [name]: "x".repeat(32) })).toBeDefined();
+    },
+  );
 
   it("rejects an AUTH_SECRET shorter than 32 characters", () => {
     expect(() => loadConfig({ ...REQUIRED, AUTH_SECRET: "x".repeat(31) })).toThrow(/AUTH_SECRET/);

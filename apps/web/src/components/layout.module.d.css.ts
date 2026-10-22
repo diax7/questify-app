@@ -12,6 +12,7 @@ declare const styles: {
   readonly code: string;
   readonly field: string;
   readonly form: string;
+  readonly formCard: string;
   readonly input: string;
   readonly link: string;
   readonly list: string;
@@ -25,5 +26,6 @@ declare const styles: {
   readonly subtitle: string;
   readonly textLink: string;
   readonly title: string;
+  readonly wrap: string;
 };
 export default styles;

@@ -19,6 +19,7 @@ import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
 import { registerCompletionRoutes } from "#src/completions/routes";
+import { createRewardCodeKey } from "#src/rewards/codes";
 import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
@@ -212,7 +213,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerHomeRoutes(app, { pool: options.pool, settings });
-  registerShopRoutes(app, { pool: options.pool });
+  const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
+  registerShopRoutes(app, {
+    pool: options.pool,
+    codeKey: rewardCodeKey,
+    log: (fields) => app.log.error(fields),
+  });
   if (options.rankingRepairIntervalMs !== undefined) {
     const tick = startRankingTick(ranking, options.rankingRepairIntervalMs, (fields) =>
       app.log.error(fields),
@@ -230,6 +236,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       codeKey: questCodeKey,
       codeOrigin: config.auth.dashboardOrigin,
     },
+    rewardCodeKey,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

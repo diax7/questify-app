@@ -23,7 +23,7 @@
 
 ## Staff sign-in
 
-Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
+Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `REWARD_CODE_SECRET` (32+ characters, its own value; T-203), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
 optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
@@ -98,6 +98,13 @@ quest). Steps: set a new value in the secret store and redeploy the API; tell ev
 event to open Print codes and reprint (the page shows the new codes); note it in the incident log. Players who scan
 an old code get "this code no longer works" (T-105). A routine rotation is not needed: the key signs codes, it does
 not encrypt data.
+
+**`REWARD_CODE_SECRET`** (ADR-136) encrypts digital reward codes. Unlike `QR_SECRET` it protects data: losing or
+changing it makes every code not yet given unreadable (players who already redeemed see "We couldn't show this code";
+the log says `reward.code_unreadable` with ids). Back it up with the database's backups, in a separate place. To rotate
+after a leak: set the new value and redeploy; ask each organizer with digital rewards to upload their unused codes again
+on a new reward (the old ones cannot be read), and remove the old reward. Keep the code out of any idempotency cache
+that is shared or written to disk (today's is in memory, per process).
 
 ## Player sign-in and SMS (T-107)
 

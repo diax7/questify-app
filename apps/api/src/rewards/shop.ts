@@ -2,8 +2,14 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
+import { openCode, type RewardCodeKey } from "#src/rewards/codes";
 
-export type ShopDeps = Readonly<{ pool: Pool }>;
+export type ShopDeps = Readonly<{
+  pool: Pool;
+  codeKey: RewardCodeKey;
+  /** Ids only: a code never reaches a log. */
+  log: (fields: Record<string, unknown>) => void;
+}>;
 
 export type ShopView = Readonly<{
   shop: Readonly<{
@@ -12,14 +18,26 @@ export type ShopView = Readonly<{
     pickupMinutes: number;
     rules: Bilingual | null;
     firstRedemption: boolean;
+    spendLowersRank: boolean;
   }>;
   balance: number;
   rewards: ReadonlyArray<Readonly<Record<string, unknown>>>;
   redemptions: ReadonlyArray<Readonly<Record<string, unknown>>>;
 }>;
 
+/** A digital redemption's code (FR-511), or `codeUnavailable` when its sealed value would not open. */
+type Revealed = Readonly<{ code?: string; codeUnavailable?: true }>;
+
 export type Reservation = Readonly<{
-  redemption: Readonly<{ id: string; status: string; price: number; reservedUntil?: string }>;
+  redemption: Readonly<
+    {
+      id: string;
+      kind?: string;
+      status: string;
+      price: number;
+      reservedUntil?: string | null;
+    } & Revealed
+  >;
   balance: number;
   stockLeft: number;
   replayed: boolean;
@@ -75,6 +93,24 @@ async function asPlayer(
 }
 
 const iso = (value: unknown): string | null => (value instanceof Date ? value.toISOString() : null);
+
+/** Opens a delivered code for the player who holds it; nothing for any other redemption. */
+function reveal(
+  deps: ShopDeps,
+  redemptionId: unknown,
+  rewardId: unknown,
+  sealed: unknown,
+): Revealed {
+  if (!(sealed instanceof Buffer)) {
+    return {};
+  }
+  const code = openCode(deps.codeKey, String(rewardId), sealed);
+  if (code === undefined) {
+    deps.log({ event: "reward.code_unreadable", redemptionId, rewardId });
+    return { codeUnavailable: true };
+  }
+  return { code };
+}
 const text = (ar: unknown, en: unknown): Bilingual => ({
   ar: typeof ar === "string" ? ar : null,
   en: typeof en === "string" ? en : null,
@@ -95,9 +131,11 @@ export function reserveReward(
       value: {
         redemption: {
           id: String(row?.["redemption_id"]),
+          kind: String(row?.["kind"]),
           status: String(row?.["status"]),
           price: Number(row?.["price"]),
-          reservedUntil: iso(row?.["reserved_until"]) ?? "",
+          reservedUntil: iso(row?.["reserved_until"]),
+          ...reveal(deps, row?.["redemption_id"], request.rewardId, row?.["code_cipher"]),
         },
         balance: Number(row?.["balance"]),
         stockLeft: Number(row?.["stock_left"]),
@@ -156,6 +194,7 @@ export function readShop(
           pickupMinutes: shop["pickup_minutes"],
           rules: rules.ar === null && rules.en === null ? null : rules,
           firstRedemption: shop["first_redemption"] === true,
+          spendLowersRank: shop["spend_lowers_rank"] === true,
         },
         balance: Number(shop["balance"]),
         rewards: rewards.map((r) => ({
@@ -182,6 +221,7 @@ export function readShop(
           reservedUntil: iso(d["reserved_until"]),
           createdAt: iso(d["created_at"]),
           endedAt: iso(d["ended_at"]),
+          ...reveal(deps, d["id"], d["reward_id"], d["code_cipher"]),
         })),
       };
     }),

@@ -775,6 +775,10 @@ export const MESSAGES = {
     ar: "تجربة يؤكدها المشغّل",
     en: "Experience confirmed by an operator",
   },
+  "rewards.kind.digital": {
+    ar: "رمز رقمي يظهر فور الاستبدال",
+    en: "Digital code shown on redeeming",
+  },
   "rewards.nameAr": { ar: "الاسم بالعربية", en: "Name in Arabic" },
   "rewards.nameEn": { ar: "الاسم بالإنجليزية", en: "Name in English" },
   "rewards.descriptionAr": { ar: "الوصف بالعربية", en: "Description in Arabic" },
@@ -843,6 +847,57 @@ export const MESSAGES = {
   },
   "rewards.saveShop": { ar: "حفظ الإعدادات", en: "Save the settings" },
   "rewards.shopSaved": { ar: "حُفظت إعدادات المتجر.", en: "The shop settings are saved." },
+  "rewards.spendLowersRank": {
+    ar: "الشراء من المتجر يخفض نقاط الترتيب",
+    en: "Buying in the shop lowers ranking points",
+  },
+  "rewards.spendLowersRank.hint": {
+    ar: "عند التفعيل يُخصم السعر من نقاط الترتيب أيضًا أثناء الفعالية، فيتبع الترتيب ما بقي مع كل مشارك. قد يحتفظ المشاركون حينها بنقاطهم بدل استخدام المتجر.",
+    en: "When on, the price also comes off the ranking during the event, so the ranking follows what each player still holds. Players may then keep their points instead of using the shop.",
+  },
+  "rewards.spendLowersRank.locked": {
+    ar: "يُقفل هذا الإعداد عند بدء الفعالية.",
+    en: "This setting locks when the event starts.",
+  },
+  "rewards.spendLowersRank.ownerOnly": {
+    ar: "يغيّره مالك الجهة المنظِّمة فقط.",
+    en: "Only the organizer's owner can change it.",
+  },
+  "rewards.stockFromCodes": {
+    ar: "كمية الجائزة الرقمية هي عدد رموزها، فأضف الرموز بعد حفظها.",
+    en: "A digital reward's stock is its number of codes: add them once it is saved.",
+  },
+  "rewards.redeemed": { ar: "استُبدل: {count}", en: "Redeemed: {count}" },
+  "rewards.codes.add": { ar: "إضافة رموز", en: "Add codes" },
+  "rewards.codes.label": { ar: "الرموز، رمز في كل سطر", en: "Codes, one per line" },
+  "rewards.codes.file": {
+    ar: "أو اختر ملف نص أو CSV (يُؤخذ العمود الأول منه)",
+    en: "Or choose a text or CSV file (its first column is used)",
+  },
+  "rewards.codes.private": {
+    ar: "تُحفظ الرموز مشفّرة، ولا يراها بعد الرفع إلا من يستبدلها.",
+    en: "Codes are stored encrypted. After upload, only the player who redeems one sees it.",
+  },
+  "rewards.codes.save": { ar: "رفع الرموز", en: "Upload the codes" },
+  "rewards.codes.added": {
+    ar: "الرموز المضافة: {added}. المكررة ولم تُضف: {duplicates}.",
+    en: "Codes added: {added}. Repeats skipped: {duplicates}.",
+  },
+  "rewards.codes.invalid.empty": { ar: "أضف رمزًا واحدًا على الأقل.", en: "Add at least one code." },
+  "rewards.codes.invalid.tooMany": {
+    ar: "ارفع 5000 رمز على الأكثر في المرة الواحدة.",
+    en: "Upload at most 5000 codes at a time.",
+  },
+  "rewards.codes.invalid.badCode": {
+    ar: "كل رمز 200 حرف على الأكثر، بلا أحرف مخفية.",
+    en: "Each code is at most 200 characters, with no hidden characters.",
+  },
+  "rewards.lowCodes.title": { ar: "رموز توشك على النفاد", en: "Codes running low" },
+  "rewards.lowCodes.item": { ar: "{name}: متبقٍّ {left}", en: "{name}: {left} left" },
+  "rewards.lowCodes.hint": {
+    ar: "تظهر الجائزة الرقمية الجديدة هنا حتى ترفع رموزها.",
+    en: "A new digital reward shows here until you upload its codes.",
+  },
   "shop.balance": { ar: "رصيدك", en: "Your balance" },
   "shop.all": { ar: "الكل", en: "All" },
   "shop.left": { ar: "متبقٍّ {count}", en: "{count} left" },
@@ -883,7 +938,25 @@ export const MESSAGES = {
     ar: "حُجزت لك. اطلب من المشغّل تأكيدها خلال {minutes} دقيقة.",
     en: "It's yours. Ask an operator to confirm it within {minutes} minutes.",
   },
-  "shop.mine": { ar: "حجوزاتي", en: "My reservations" },
+  "shop.mine": { ar: "جوائزي", en: "My rewards" },
+  "shop.confirmDigitalTitle": { ar: "استبدل هذه الجائزة؟", en: "Redeem this reward?" },
+  "shop.digitalNote": {
+    ar: "يظهر الرمز فور الاستبدال، ولا يمكن الإلغاء بعدها.",
+    en: "The code shows right away, and it can't be cancelled after that.",
+  },
+  "shop.lowersRank": {
+    ar: "يُخصم السعر من نقاط ترتيبك أيضًا، فقد ينزل ترتيبك.",
+    en: "The price also comes off your ranking, so your place may drop.",
+  },
+  "shop.codeTitle": { ar: "رمزك", en: "Your code" },
+  "shop.codeKeep": {
+    ar: "اضغط عليه مطولًا لنسخه، وتجده دائمًا في «جوائزي».",
+    en: "Press and hold to copy it. It stays in My rewards.",
+  },
+  "shop.codeUnavailable": {
+    ar: "تعذّر عرض الرمز الآن. تواصل مع منظّم الفعالية.",
+    en: "We couldn't show this code right now. Contact the event's organizer.",
+  },
   "shop.minutesLeft": { ar: "باقٍ للاستلام {minutes} دقيقة", en: "{minutes} min left to pick up" },
   "shop.cancel": { ar: "إلغاء الحجز", en: "Cancel reservation" },
   "shop.cancelTitle": { ar: "إلغاء هذا الحجز؟", en: "Cancel this reservation?" },

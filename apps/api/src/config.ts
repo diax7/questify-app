@@ -34,6 +34,11 @@ export type AppConfig = Readonly<{
    */
   qrSecret: string;
   /**
+   * Key material for digital reward codes kept encrypted in the database (T-203); at least 32 characters. Its own
+   * secret: losing it makes every code not yet given unreadable, so it is rotated only by re-uploading codes (RUNBOOK).
+   */
+  rewardCodeSecret: string;
+  /**
    * The Msegat account for player sign-in SMS (ADR-103): its user name, API key and activated services sender. Required
    * in production; elsewhere, without it, every SMS is refused and the app offers email.
    */
@@ -161,7 +166,8 @@ export function loadConfig(env: Env): AppConfig {
     databasePoolSize: whole(env, "DATABASE_POOL_SIZE", "10", 1, 200),
     trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
-    qrSecret: qrSecret(env),
+    qrSecret: longSecret(env, "QR_SECRET"),
+    rewardCodeSecret: longSecret(env, "REWARD_CODE_SECRET"),
     msegat: msegat(env, nodeEnv),
     redisUrl: redisUrl(env, nodeEnv),
   };
@@ -205,10 +211,10 @@ function msegat(env: Env, nodeEnv: string): AppConfig["msegat"] {
 }
 
 /** Required in every environment: a missing key must stop the server, never fall back to a known one. */
-function qrSecret(env: Env): string {
-  const secret = required(env, "QR_SECRET");
+function longSecret(env: Env, name: string): string {
+  const secret = required(env, name);
   if (secret.length < MIN_SECRET_LENGTH) {
-    throw new Error(`QR_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
+    throw new Error(`${name} must be at least ${MIN_SECRET_LENGTH} characters.`);
   }
   return secret;
 }

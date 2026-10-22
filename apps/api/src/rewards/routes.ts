@@ -6,21 +6,29 @@ import {
   idempotencyKeyReused,
   invalidReward,
   limitReached,
+  notDigital,
   notEnoughBalance,
   notFound,
+  ownerOnly,
   reservationEnded,
   rewardLimitReached,
   rewardNotOpen,
   shopClosed,
+  settingLocked,
   soldOut,
   stockBelowReserved,
+  stockFromCodes,
+  tooManyCodes,
   unauthenticated,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import {
+  CODES_PER_UPLOAD,
   REWARD_KINDS,
   SECTIONS,
+  addRewardCodes,
+  codesRunLow,
   createReward,
   listRewards,
   removeReward,
@@ -30,6 +38,7 @@ import {
   type RewardDone,
   type RewardRecord,
 } from "#src/rewards/builder";
+import { CODE_MAX_LENGTH } from "#src/rewards/codes";
 import {
   cancelRedemption,
   readShop,
@@ -60,14 +69,23 @@ const rewardBody = z.strictObject({
   kind: z.enum(REWARD_KINDS),
   name: text(120),
   price: z.number().int().min(1).max(1_000_000),
-  stock: z.number().int().min(0).max(100_000),
 });
 const rewardPatch = z.strictObject(rewardFields);
 const shopBody = z.strictObject({
   pickupMinutes: z.number().int().min(15).max(10_080).optional(),
   daysAfter: z.number().int().min(0).max(30).optional(),
   rules: text(2000).optional(),
+  spendLowersRank: z.boolean().optional(),
 });
+/** Each code is checked again after normalizing (`normalizeCode`); this only bounds the request. */
+const codesBody = z.strictObject({
+  codes: z
+    .array(z.string().max(CODE_MAX_LENGTH * 2))
+    .min(1)
+    .max(CODES_PER_UPLOAD),
+});
+/** 5 000 codes of up to 400 characters of JSON each, with room for the envelope. */
+const CODES_BODY_LIMIT = 2_200_000;
 
 const eventParams = z.object({ eventId: z.uuid() });
 const rewardParams = z.object({ eventId: z.uuid(), rewardId: z.uuid() });
@@ -91,6 +109,7 @@ const rewardView = (reward: RewardRecord) => ({
   section: reward.section,
   tags: reward.tags,
   position: reward.position,
+  lowCodes: codesRunLow(reward),
 });
 
 function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
@@ -107,12 +126,24 @@ function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
       throw limitReached({ limit: result.limit });
     case "stock_below_reserved":
       throw stockBelowReserved({ unitsOut: result.unitsOut });
+    case "stock_from_codes":
+      throw stockFromCodes();
+    case "not_digital":
+      throw notDigital();
+    case "too_many_codes":
+      throw tooManyCodes({ room: result.room });
+    case "owner_only":
+      throw ownerOnly();
+    case "setting_locked":
+      throw settingLocked();
   }
 }
 
 /**
  * The dashboard's rewards (T-201): `GET`/`POST …/events/:eventId/rewards`, `PATCH`/`DELETE …/rewards/:rewardId`, and
- * `PUT …/events/:eventId/shop` for the pickup time, the days after the end and the rules. Owners and editors.
+ * `POST …/rewards/:rewardId/codes` to add a digital reward's codes (an Idempotency-Key; a replay answers the first
+ * result), and `PUT …/events/:eventId/shop` for the pickup time, the days after the end, the rules and, for the owner
+ * only, whether spending lowers the ranking. Owners and editors.
  */
 export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: RewardDeps): void {
   scope.get("/events/:eventId/rewards", member, async (request) => {
@@ -160,6 +191,23 @@ export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: Reward
     );
     return answer(result, () => reply.code(204).send());
   });
+
+  scope.post(
+    "/events/:eventId/rewards/:rewardId/codes",
+    { ...creating, bodyLimit: CODES_BODY_LIMIT },
+    async (request) => {
+      const { eventId, rewardId } = parse(rewardParams, request.params);
+      const body = parse(codesBody, request.body);
+      const result = await addRewardCodes(
+        deps,
+        organizerContextOf(request),
+        { eventId, id: rewardId },
+        body.codes,
+        callerOf(request),
+      );
+      return answer(result, (codes) => codes);
+    },
+  );
 
   scope.put("/events/:eventId/shop", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);

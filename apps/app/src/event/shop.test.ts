@@ -34,7 +34,13 @@ const REWARD: ShopReward = {
 };
 
 const VIEW: ShopView = {
-  shop: { state: "open", pickupMinutes: 120, rules: null, firstRedemption: true },
+  shop: {
+    state: "open",
+    pickupMinutes: 120,
+    rules: null,
+    firstRedemption: true,
+    spendLowersRank: false,
+  },
   balance: 300,
   rewards: [REWARD],
   redemptions: [],
@@ -61,12 +67,15 @@ describe("readShop", () => {
         pickupMinutes: 90,
         rules: { ar: "قاعدة", en: null },
         firstRedemption: false,
+        spendLowersRank: true,
       },
       balance: 40,
       rewards: [{ ...REWARD, kind: "mystery_box", tags: { popular: true } }, { name: "no id" }],
       redemptions: [
         { id: "d1", status: "reserved", price: 200, reservedUntil: "2030-01-01T12:00:00Z" },
         {},
+        { id: "d2", kind: "digital", status: "delivered", code: "GIFT-1", reservedUntil: null },
+        { id: "d3", kind: "digital", status: "delivered", codeUnavailable: true },
       ],
     });
     expect(view?.shop).toEqual({
@@ -74,6 +83,7 @@ describe("readShop", () => {
       pickupMinutes: 90,
       rules: { ar: "قاعدة", en: null },
       firstRedemption: false,
+      spendLowersRank: true,
     });
     expect(view?.rewards).toHaveLength(1);
     expect(view?.rewards[0]).toMatchObject({
@@ -83,10 +93,33 @@ describe("readShop", () => {
     expect(view?.redemptions).toEqual([
       {
         id: "d1",
+        kind: "item",
         name: { ar: null, en: null },
         price: 200,
         status: "reserved",
         reservedUntil: "2030-01-01T12:00:00Z",
+        code: null,
+        codeUnavailable: false,
+      },
+      {
+        id: "d2",
+        kind: "digital",
+        name: { ar: null, en: null },
+        price: 0,
+        status: "delivered",
+        reservedUntil: null,
+        code: "GIFT-1",
+        codeUnavailable: false,
+      },
+      {
+        id: "d3",
+        kind: "digital",
+        name: { ar: null, en: null },
+        price: 0,
+        status: "delivered",
+        reservedUntil: null,
+        code: null,
+        codeUnavailable: true,
       },
     ]);
   });
@@ -169,7 +202,22 @@ describe("the calls", () => {
 
   it("reserves with the tap's key and answers the new balance, or the API's words", async () => {
     const ok = sessionAnswering({ kind: "ok", status: 201, body: { balance: 100 }, headers });
-    expect(await reserveReward(ok.session, "r1", "key-1")).toEqual({ kind: "done", balance: 100 });
+    expect(await reserveReward(ok.session, "r1", "key-1")).toEqual({
+      kind: "done",
+      balance: 100,
+      code: null,
+    });
+    const digital = sessionAnswering({
+      kind: "ok",
+      status: 201,
+      body: { balance: 50, redemption: { status: "delivered", code: "GIFT-9" } },
+      headers,
+    });
+    expect(await reserveReward(digital.session, "r1", "key-3")).toEqual({
+      kind: "done",
+      balance: 50,
+      code: "GIFT-9",
+    });
     expect(ok.calls[0]).toEqual({
       method: "POST",
       path: "/v1/rewards/r1/reserve",
@@ -191,7 +239,11 @@ describe("the calls", () => {
 
   it("cancels by the reservation's id", async () => {
     const ok = sessionAnswering({ kind: "ok", status: 200, body: { balance: 300 }, headers });
-    expect(await cancelRedemption(ok.session, "d1")).toEqual({ kind: "done", balance: 300 });
+    expect(await cancelRedemption(ok.session, "d1")).toEqual({
+      kind: "done",
+      balance: 300,
+      code: null,
+    });
     expect(ok.calls[0]).toEqual({ method: "POST", path: "/v1/redemptions/d1/cancel" });
     expect(await cancelRedemption(sessionAnswering({ kind: "network" }).session, "d1")).toEqual({
       kind: "network",

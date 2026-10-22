@@ -20,10 +20,14 @@ export type ShopReward = Readonly<{
 
 export type MyRedemption = Readonly<{
   id: string;
+  kind: string;
   name: Bilingual;
   price: number;
   status: string;
   reservedUntil: string | null;
+  /** A delivered digital reward's code (FR-511); null for anything else, or when the server could not open it. */
+  code: string | null;
+  codeUnavailable: boolean;
 }>;
 
 export type ShopView = Readonly<{
@@ -32,6 +36,8 @@ export type ShopView = Readonly<{
     pickupMinutes: number;
     rules: Bilingual | null;
     firstRedemption: boolean;
+    /** A purchase now also lowers the ranking (FR-1847). */
+    spendLowersRank: boolean;
   }>;
   balance: number;
   rewards: readonly ShopReward[];
@@ -91,10 +97,13 @@ function redemptionOf(value: unknown): MyRedemption | undefined {
   }
   return {
     id: value["id"],
+    kind: typeof value["kind"] === "string" ? value["kind"] : "item",
     name: textOf(value["name"]),
     price: numberOf(value["price"]),
     status: value["status"],
     reservedUntil: stringOr(value["reservedUntil"]),
+    code: stringOr(value["code"]),
+    codeUnavailable: value["codeUnavailable"] === true,
   };
 }
 
@@ -111,6 +120,7 @@ export function readShop(body: unknown): ShopView | undefined {
       pickupMinutes: numberOf(shop["pickupMinutes"], 120),
       rules,
       firstRedemption: shop["firstRedemption"] === true,
+      spendLowersRank: shop["spendLowersRank"] === true,
     },
     balance: numberOf(body["balance"]),
     rewards: body["rewards"].map(rewardOf).filter((r): r is ShopReward => r !== undefined),
@@ -187,14 +197,21 @@ export function minutesLeft(reservedUntil: string | null, now: number): number {
 }
 
 export type ShopCallAnswer =
-  | Readonly<{ kind: "done"; balance: number }>
+  | Readonly<{
+      kind: "done";
+      balance: number;
+      /** The code a digital redemption gave, when it gave one the server could open. */
+      code: string | null;
+    }>
   | Readonly<{ kind: "refused"; problem: LocalizedText | null }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
 function callAnswer(answer: AuthedResult): ShopCallAnswer {
   if (answer.kind === "ok") {
-    return { kind: "done", balance: isRecord(answer.body) ? numberOf(answer.body["balance"]) : 0 };
+    const body = isRecord(answer.body) ? answer.body : {};
+    const redemption = isRecord(body["redemption"]) ? body["redemption"] : {};
+    return { kind: "done", balance: numberOf(body["balance"]), code: stringOr(redemption["code"]) };
   }
   if (answer.kind === "error") {
     return { kind: "refused", problem: answer.message };

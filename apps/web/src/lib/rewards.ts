@@ -2,7 +2,7 @@ import { toLocalInput } from "@questify/shared";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
-export const REWARD_KINDS = ["item", "experience"] as const;
+export const REWARD_KINDS = ["item", "experience", "digital"] as const;
 export const SECTIONS = ["featured", "merch", "food", "experiences"] as const;
 export type RewardKind = (typeof REWARD_KINDS)[number];
 export type Section = (typeof SECTIONS)[number];
@@ -22,9 +22,16 @@ export type RewardView = Readonly<{
   closesAt: string | null;
   section: Section | null;
   tags: Readonly<{ new: boolean; limited: boolean }>;
+  /** A digital reward whose codes run low, or that has none yet (FR-512). */
+  lowCodes: boolean;
 }>;
 
-export type ShopSettings = Readonly<{ pickupMinutes: number; daysAfter: number; rules: Bilingual }>;
+export type ShopSettings = Readonly<{
+  pickupMinutes: number;
+  daysAfter: number;
+  rules: Bilingual;
+  spendLowersRank: boolean;
+}>;
 
 /** What the reward form holds: times as the wall clock in the event's zone, empty when not set; "" for no limit. */
 export type RewardDraft = Readonly<{
@@ -92,9 +99,12 @@ const fieldsOf = (draft: RewardDraft): Record<string, unknown> => ({
   tags: { new: draft.tagNew, limited: draft.tagLimited },
 });
 
-/** The body to create a reward: everything, with its kind. */
+/** The body to create a reward: everything, with its kind. A digital reward has no stock to send: its codes are it. */
 export function createRewardBody(draft: RewardDraft): Record<string, unknown> {
-  return { kind: draft.kind, ...fieldsOf(draft) };
+  const { stock: _codes, ...withoutStock } = fieldsOf(draft);
+  return draft.kind === "digital"
+    ? { kind: draft.kind, ...withoutStock }
+    : { kind: draft.kind, ...fieldsOf(draft) };
 }
 
 /** The body to edit a reward: only what changed (the kind never changes). */
@@ -124,7 +134,7 @@ export function rewardProblem(draft: RewardDraft, unitsOut = 0): RewardField | u
   if (!between(draft.price, 1, 1_000_000)) {
     return "price";
   }
-  if (!between(draft.stock, Math.max(0, unitsOut), 100_000)) {
+  if (draft.kind !== "digital" && !between(draft.stock, Math.max(0, unitsOut), 100_000)) {
     return "stock";
   }
   if (draft.perPlayerLimit !== "" && !between(Number(draft.perPlayerLimit), 1, 100)) {
@@ -152,5 +162,57 @@ export function shopRequest(settings: ShopSettings): Record<string, unknown> {
     pickupMinutes: settings.pickupMinutes,
     daysAfter: settings.daysAfter,
     rules: { ar: settings.rules.ar ?? "", en: settings.rules.en ?? "" },
+    spendLowersRank: settings.spendLowersRank,
   };
+}
+
+/** At most this many codes in one upload, as the API takes them (API.md). */
+export const CODES_PER_UPLOAD = 5000;
+const CODE_MAX_LENGTH = 200;
+const CONTROL = /\p{Cc}/u;
+
+export type CodesProblem = "empty" | "tooMany" | "badCode";
+
+/**
+ * The codes in pasted text or a text/CSV file, one per line (a Windows line end too), blank lines dropped. The API
+ * normalizes and checks each again; this names the problem before sending.
+ */
+export function parseCodes(
+  text: string,
+): Readonly<{ codes: string[] } | { problem: CodesProblem }> {
+  const codes = text
+    .split(/\r?\n/)
+    .map((line) => line.normalize("NFC").trim())
+    .filter((line) => line !== "");
+  if (codes.length === 0) {
+    return { problem: "empty" };
+  }
+  if (codes.length > CODES_PER_UPLOAD) {
+    return { problem: "tooMany" };
+  }
+  if (codes.some((code) => code.length > CODE_MAX_LENGTH || CONTROL.test(code))) {
+    return { problem: "badCode" };
+  }
+  return { codes };
+}
+
+/**
+ * A CSV file's first column, one line each (a quoted cell loses its quotes), so `CODE1,10 SAR` uploads `CODE1`. Pasted
+ * text keeps whole lines: a code may hold a comma.
+ */
+export function firstColumn(csv: string): string {
+  return csv
+    .split(/\r?\n/)
+    .map((line) => {
+      const cell = line.startsWith('"')
+        ? (/^"((?:[^"]|"")*)"/.exec(line)?.[1] ?? "")
+        : line.split(",")[0];
+      return (cell ?? "").replaceAll('""', '"');
+    })
+    .join("\n");
+}
+
+/** The digital rewards to warn about (FR-512), in the list's order. */
+export function lowCodeRewards(rewards: readonly RewardView[]): RewardView[] {
+  return rewards.filter((reward) => reward.lowCodes);
 }

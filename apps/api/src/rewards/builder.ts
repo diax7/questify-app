@@ -6,13 +6,14 @@ import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { audit, bilingual, changes, NO_TEXT } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
+import { markCode, normalizeCode, sealCode, type RewardCodeKey } from "#src/rewards/codes";
 
 /** At most this many rewards per event (removed ones not counted). */
 export const REWARD_LIMIT = 100;
 
 type Text = Readonly<{ ar?: string | undefined; en?: string | undefined }>;
 
-export const REWARD_KINDS = ["item", "experience"] as const;
+export const REWARD_KINDS = ["item", "experience", "digital"] as const;
 export const SECTIONS = ["featured", "merch", "food", "experiences"] as const;
 export type RewardKind = (typeof REWARD_KINDS)[number];
 export type Section = (typeof SECTIONS)[number];
@@ -49,15 +50,21 @@ export type ShopSettings = Readonly<{
   pickupMinutes: number;
   daysAfter: number;
   rules: Bilingual;
+  /** Purchases also lower the ranking score while the event is live (FR-1847, ADR-134, ADR-135). */
+  spendLowersRank: boolean;
 }>;
 
 export type ShopInput = Readonly<{
   pickupMinutes?: number | undefined;
   daysAfter?: number | undefined;
   rules?: Text | undefined;
+  spendLowersRank?: boolean | undefined;
 }>;
 
-export type RewardField = "name" | "opensAt" | "closesAt" | "kind";
+export type RewardField = "name" | "opensAt" | "closesAt" | "kind" | "stock" | "codes";
+
+/** At most this many codes in one upload (FR-510). */
+export const CODES_PER_UPLOAD = 5000;
 
 export type RewardDone<T> =
   | Readonly<{ kind: "done"; value: T }>
@@ -65,9 +72,21 @@ export type RewardDone<T> =
   | Readonly<{ kind: "event_archived" }>
   | Readonly<{ kind: "invalid"; field: RewardField }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
-  | Readonly<{ kind: "stock_below_reserved"; unitsOut: number }>;
+  | Readonly<{ kind: "stock_below_reserved"; unitsOut: number }>
+  | Readonly<{ kind: "stock_from_codes" }>
+  | Readonly<{ kind: "not_digital" }>
+  | Readonly<{ kind: "too_many_codes"; room: number }>
+  | Readonly<{ kind: "owner_only" }>
+  | Readonly<{ kind: "setting_locked" }>;
 
-export type RewardDeps = Readonly<{ pool: Pool }>;
+export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKey }>;
+
+export type CodesAdded = Readonly<{
+  added: number;
+  duplicates: number;
+  stock: number;
+  stockLeft: number;
+}>;
 
 const done = <T>(value: T): RewardDone<T> => ({ kind: "done", value });
 
@@ -248,6 +267,10 @@ export function createReward(
   caller: Caller,
 ): Promise<RewardDone<RewardRecord>> {
   return withRewardEvent(deps, actor, eventId, async (client, event) => {
+    const digital = input.kind === "digital";
+    if (digital ? input.stock !== undefined && input.stock !== 0 : input.stock === undefined) {
+      return digital ? { kind: "stock_from_codes" } : { kind: "invalid", field: "stock" };
+    }
     const fields = mergeReward(undefined, input, event.timezone);
     if (isInvalid(fields)) {
       return fields;
@@ -289,6 +312,9 @@ export function updateReward(
     const current = await readReward(client, target.eventId, target.id);
     if (current === undefined) {
       return { kind: "not_found" };
+    }
+    if (current.kind === "digital" && input.stock !== undefined && input.stock !== current.stock) {
+      return { kind: "stock_from_codes" };
     }
     const fields = mergeReward(current, input, event.timezone);
     if (isInvalid(fields)) {
@@ -347,17 +373,20 @@ type ShopRow = {
   shop_days_after: number;
   shop_rules_ar: string | null;
   shop_rules_en: string | null;
+  spend_lowers_rank: boolean;
 };
 
 const shopOf = (row: ShopRow): ShopSettings => ({
   pickupMinutes: row.pickup_minutes,
   daysAfter: row.shop_days_after,
   rules: { ar: row.shop_rules_ar, en: row.shop_rules_en },
+  spendLowersRank: row.spend_lowers_rank,
 });
 
 async function readShop(client: PoolClient, eventId: string): Promise<ShopSettings> {
   const { rows } = await client.query<ShopRow>(
-    "SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en FROM event WHERE id = $1",
+    `SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en, spend_lowers_rank FROM event
+     WHERE id = $1`,
     [eventId],
   );
   return shopOf(rows[0] as ShopRow);
@@ -391,7 +420,11 @@ export function listRewards(
   );
 }
 
-/** Sets the pickup time, the days the shop stays open after the end, and the shop's rules (ADR-048, ADR-049, FR-515). */
+/**
+ * Sets the pickup time, the days the shop stays open after the end, the shop's rules (ADR-048, ADR-049, FR-515) and
+ * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Sending
+ * its current value is no change, so an editor saves the rest freely. The database's guard backs both refusals.
+ */
 export function updateShop(
   deps: RewardDeps,
   actor: Actor,
@@ -399,17 +432,34 @@ export function updateShop(
   input: ShopInput,
   caller: Caller,
 ): Promise<RewardDone<ShopSettings>> {
-  return withRewardEvent(deps, actor, eventId, async (client) => {
+  return withRewardEvent(deps, actor, eventId, async (client, event) => {
     const before = await readShop(client, eventId);
     const after: ShopSettings = {
       pickupMinutes: input.pickupMinutes ?? before.pickupMinutes,
       daysAfter: input.daysAfter ?? before.daysAfter,
       rules: bilingual(input.rules, before.rules),
+      spendLowersRank: input.spendLowersRank ?? before.spendLowersRank,
     };
+    if (after.spendLowersRank !== before.spendLowersRank) {
+      if (actor.organizer.role !== "owner") {
+        return { kind: "owner_only" };
+      }
+      if (event.statusNow !== "draft" && event.statusNow !== "scheduled") {
+        return { kind: "setting_locked" };
+      }
+    }
     await client.query(
-      `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5
+      `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5,
+              spend_lowers_rank = $6
        WHERE id = $1`,
-      [eventId, after.pickupMinutes, after.daysAfter, after.rules.ar, after.rules.en],
+      [
+        eventId,
+        after.pickupMinutes,
+        after.daysAfter,
+        after.rules.ar,
+        after.rules.en,
+        after.spendLowersRank,
+      ],
     );
     const diff = changes(before, after);
     if (Object.keys(diff.after).length > 0) {
@@ -421,5 +471,97 @@ export function updateShop(
       });
     }
     return done(after);
+  });
+}
+
+/**
+ * Codes left at or below which a digital reward warns its organizer (FR-512): 10% of those uploaded, and never fewer
+ * than 5. A new reward with no codes warns at once.
+ */
+export function codesRunLow(reward: Pick<RewardRecord, "kind" | "stock" | "unitsOut">): boolean {
+  if (reward.kind !== "digital") {
+    return false;
+  }
+  return reward.stock - reward.unitsOut <= Math.max(5, Math.ceil(reward.stock / 10));
+}
+
+/** The upload's codes, normalized and without repeats; undefined when any one is not a valid code. */
+export function cleanCodes(raw: readonly string[]): string[] | undefined {
+  const codes = new Set<string>();
+  for (const line of raw) {
+    const code = normalizeCode(line);
+    if (code === undefined) {
+      return undefined;
+    }
+    codes.add(code);
+  }
+  return [...codes];
+}
+
+type CodesRow = { added: number; duplicates: number; stock_total: number; stock_left: number };
+
+const DIGITAL_REFUSALS: Readonly<Record<string, (detail: string) => RewardDone<never>>> = {
+  // Stryker disable next-line ObjectLiteral,StringLiteral: unreachable in a test: the reward is locked as active just before the definer reads it
+  RN404: () => ({ kind: "not_found" }),
+  RD409: () => ({ kind: "not_digital" }),
+  RC422: (detail) => ({ kind: "too_many_codes", room: Number(detail) }),
+};
+
+/**
+ * Adds uploaded codes to a digital reward (FR-510): each is sealed and marked here, so the database never holds a code
+ * it could read. A code already in the event, or repeated in the upload, is a duplicate; the stock rises by the codes
+ * added. The audit keeps the counts, never a code.
+ */
+export function addRewardCodes(
+  deps: RewardDeps,
+  actor: Actor,
+  target: Readonly<{ eventId: string; id: string }>,
+  raw: readonly string[],
+  caller: Caller,
+): Promise<RewardDone<CodesAdded>> {
+  const codes = cleanCodes(raw);
+  // Stryker disable next-line ConditionalExpression: equivalent: the route takes at least one line, and a line that cleans to nothing is refused as undefined
+  if (codes === undefined || codes.length === 0) {
+    return Promise.resolve({ kind: "invalid", field: "codes" });
+  }
+  return withRewardEvent(deps, actor, target.eventId, async (client) => {
+    const current = await readReward(client, target.eventId, target.id);
+    if (current === undefined) {
+      return { kind: "not_found" };
+    }
+    // The kind, a removal since the read and the 100 000 ceiling are the definer's to refuse (RD409, RN404, RC422).
+    const sealed = codes.map((code) => sealCode(deps.codeKey, target.id, code));
+    const marks = codes.map((code) => markCode(deps.codeKey, code));
+    await client.query("SAVEPOINT add_codes");
+    let row: CodesRow;
+    try {
+      const { rows } = await client.query<CodesRow>("SELECT * FROM add_reward_codes($1, $2, $3)", [
+        target.id,
+        sealed,
+        marks,
+      ]);
+      row = rows[0] as CodesRow;
+    } catch (error) {
+      const pg = error as { code?: string; detail?: string };
+      const refusal = pg.code === undefined ? undefined : DIGITAL_REFUSALS[pg.code];
+      if (refusal === undefined) {
+        throw error;
+      }
+      await client.query("ROLLBACK TO SAVEPOINT add_codes");
+      return refusal(pg.detail ?? "");
+    }
+    const value: CodesAdded = {
+      added: row.added,
+      duplicates: row.duplicates + (raw.length - codes.length),
+      stock: row.stock_total,
+      stockLeft: row.stock_left,
+    };
+    await audit(client, actor, caller, {
+      action: "reward.codes.add",
+      eventId: target.eventId,
+      target: { type: "reward", id: target.id },
+      after: { added: value.added, duplicates: value.duplicates, stock: value.stock },
+    });
+    return done(value);
   });
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeReward, type RewardRecord } from "#src/rewards/builder";
+import { cleanCodes, codesRunLow, mergeReward, type RewardRecord } from "#src/rewards/builder";
 
 const STORED: RewardRecord = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -131,5 +131,37 @@ describe("mergeReward", () => {
         ZONE,
       ),
     ).toMatchObject({ opensAt: null, closesAt: new Date("2030-11-01T06:00:00Z") });
+  });
+});
+
+const digital = (stock: number, unitsOut: number) => ({
+  kind: "digital" as const,
+  stock,
+  unitsOut,
+});
+
+describe("codesRunLow (FR-512)", () => {
+  it("never warns for an item", () => {
+    expect(codesRunLow({ kind: "item", stock: 0, unitsOut: 0 })).toBe(false);
+  });
+
+  it("warns at 10% of the codes left, never below 5, and for a reward with none", () => {
+    expect(codesRunLow(digital(0, 0))).toBe(true);
+    expect(codesRunLow(digital(200, 180))).toBe(true);
+    expect(codesRunLow(digital(200, 179))).toBe(false);
+    expect(codesRunLow(digital(20, 15))).toBe(true);
+    expect(codesRunLow(digital(20, 14))).toBe(false);
+    expect(codesRunLow(digital(101, 90))).toBe(true);
+    expect(codesRunLow(digital(101, 89))).toBe(false);
+  });
+});
+
+describe("cleanCodes", () => {
+  it("normalizes and drops repeats, keeping the first order", () => {
+    expect(cleanCodes([" B ", "A", "B", "e\u0301", "\u00e9"])).toEqual(["B", "A", "\u00e9"]);
+  });
+
+  it("refuses the whole upload when one line is not a code", () => {
+    expect(cleanCodes(["A", "  "])).toBeUndefined();
   });
 });

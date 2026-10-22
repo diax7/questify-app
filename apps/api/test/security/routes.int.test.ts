@@ -108,6 +108,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a reward of another event answers 404; units out are never the API's to write (test/rewards/routes, test/rewards/rewards)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/rewards/:rewardId":
     "a reward of another event answers 404; audited (test/rewards/routes)",
+  "POST /v1/organizers/:organizerId/events/:eventId/rewards/:rewardId/codes":
+    "a reward of another event answers 404; add_reward_codes checks the caller's organizer and events again; codes are sealed before the database and never audited (test/rewards/codes-routes, test/rewards/spend-and-codes)",
   "PUT /v1/organizers/:organizerId/events/:eventId/shop":
     "members of that organizer within their event limit; another organizer's event answers 404; audited (test/rewards/routes)",
   "GET /v1/events/:eventId/shop":

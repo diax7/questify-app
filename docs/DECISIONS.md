@@ -1890,5 +1890,28 @@ option for them."). Amends ADR-043 and ADR-133.
   can widen it). The ranking cache is rebuilt from the ledger as usual.
 - The dashboard explains the trade-off next to the switch: with it on, players may hold their points instead of
   using the shop.
-**Build:** with T-201/T-202 if they are still open, otherwise a follow-up task; the score trigger reads the event's
-setting.
+**Build:** T-219 (migration 0025). Only the owner may change it (FR-1847). The ledger entry itself says what it moved
+(the definers write `score_delta`), and a return mirrors its own payment, so changing the setting later never
+unbalances a return. Spending after the end follows ADR-135.
+
+## ADR-135 — After the event ends, spending moves the balance only
+**Status:** Proposed (Claude, 2026-10-22, from the T-219 CTO plan review; Q-106 asks Dhia).
+**Decision:** with "spending lowers rank" on, a purchase lowers the score only while the event is live. In the days the
+shop stays open after the end (ADR-048) a purchase lowers the balance only, so the final score, the final ranking and
+rank prizes (T-214) never change after the end. A post-end cancel of a purchase made while live still gives its score
+back, since a return mirrors its payment.
+**Why:** otherwise a winner who spends after the end would change the results, and the results would depend on when
+they were read.
+
+## ADR-136 — Digital rewards are delivered at once, and their codes are encrypted by the API
+**Status:** Proposed (Claude, 2026-10-22; T-203).
+**Decision:**
+- Redeeming a digital reward gives the oldest unused uploaded code at once and records the redemption as `delivered`:
+  no pickup time, no timeout and no cancel, since the player has seen the code. The per-player limit counts delivered
+  codes. A stock that claims a code the table does not have refuses the redemption (never a delivery without a code).
+- Codes are encrypted in the API with AES-256-GCM, the reward id as associated data, under a key derived from a new
+  secret `REWARD_CODE_SECRET`; a keyed HMAC finds repeats. The database, its dumps and backups hold no readable code.
+  Organizers never see a code after upload; the player sees theirs in the reserve answer and in their history.
+- One key for now: rotating it makes every code not yet given unreadable, so a rotation means re-uploading those codes
+  (RUNBOOK). A key version joins when a rotation is first needed.
+**Why:** a code is money's worth; a leaked dump must not hand them out, and a code already shown cannot be taken back.

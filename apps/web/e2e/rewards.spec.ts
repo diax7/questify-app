@@ -42,8 +42,39 @@ test("the organizer builds the rewards shop", async ({ page }, info) => {
   await page.reload();
   await expect(panel.getByLabel("مهلة الاستلام بالدقائق")).toHaveValue("90");
 
+  // The owner chooses, before the event starts, whether spending lowers the ranking (T-219).
+  const spendRank = panel.getByRole("checkbox", { name: "الشراء من المتجر يخفض نقاط الترتيب" });
+  await expect(spendRank).not.toBeChecked();
+  await spendRank.check();
+  await panel.getByRole("button", { name: "حفظ الإعدادات" }).click();
+  await expect(panel.getByRole("status")).toHaveText("حُفظت إعدادات المتجر.");
+  await page.reload();
+  await expect(spendRank).toBeChecked();
+
   await panel.getByRole("button", { name: "إزالة" }).click();
   await panel.getByRole("button", { name: "إزالة" }).click();
   await expect(panel.getByRole("status")).toHaveText("أُزيلت الجائزة من المتجر.");
   await expect(panel.getByText("لا جوائز بعد.")).toBeVisible();
+
+  // A digital reward has no stock field; it warns until its codes are uploaded (T-203).
+  await panel.getByRole("button", { name: "إضافة جائزة" }).click();
+  await panel.getByRole("radio", { name: "رمز رقمي يظهر فور الاستبدال" }).check();
+  await expect(panel.getByLabel("الكمية")).toHaveCount(0);
+  await panel.getByLabel("الاسم بالعربية").fill("بطاقة إهداء");
+  await panel.getByLabel("السعر (نقاط)").fill("100");
+  await panel.getByRole("button", { name: "حفظ الجائزة" }).click();
+  await expect(panel.getByRole("status")).toHaveText("حُفظت الجائزة.");
+  const lowCodes = panel.getByRole("note");
+  await expect(lowCodes).toContainText("رموز توشك على النفاد");
+  await expect(lowCodes).toContainText("بطاقة إهداء: متبقٍّ 0");
+
+  await panel.getByRole("button", { name: "إضافة رموز" }).click();
+  await panel.getByRole("button", { name: "رفع الرموز" }).click();
+  await expect(panel.getByRole("alert")).toHaveText("أضف رمزًا واحدًا على الأقل.");
+  const codes = Array.from({ length: 30 }, (_, i) => `GIFT-${i}`);
+  await panel.getByLabel("الرموز، رمز في كل سطر").fill([...codes, "GIFT-0"].join("\n"));
+  await panel.getByRole("button", { name: "رفع الرموز" }).click();
+  await expect(panel.getByRole("status")).toHaveText("الرموز المضافة: 30. المكررة ولم تُضف: 1.");
+  await expect(panel.getByText("متبقٍّ 30 من 30")).toBeVisible();
+  await expect(lowCodes).toHaveCount(0);
 });

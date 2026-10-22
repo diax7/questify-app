@@ -142,6 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         pickupMinutes: 120,
         daysAfter: 3,
         rules: { ar: null, en: null },
+        spendLowersRank: false,
       });
       expect(listed.rewards.map((r) => r.id)).toContain(reward.id);
       const edited = await call("PATCH", `${base}/rewards/${reward.id}`, {
@@ -231,7 +232,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         rules: { en: "One per person." },
       });
       expect(saved.json()).toEqual({
-        shop: { pickupMinutes: 60, daysAfter: 3, rules: { ar: null, en: "One per person." } },
+        shop: {
+          pickupMinutes: 60,
+          daysAfter: 3,
+          rules: { ar: null, en: "One per person." },
+          spendLowersRank: false,
+        },
       });
       expect((await call("PUT", `${base}/shop`, { pickupMinutes: 5 })).statusCode).toBe(400);
       await call("PUT", `${base}/shop`, { pickupMinutes: 120, rules: { en: "" } });
@@ -264,6 +270,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         section: "food",
         tags: { new: true, limited: true },
         position: expect.any(Number),
+        lowCodes: false,
       });
       const [logged] = await owner<{ after: Record<string, unknown> }>(
         "SELECT after FROM audit_log WHERE target_id = $1 AND action = 'reward.create'",

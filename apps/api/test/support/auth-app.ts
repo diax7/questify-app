@@ -43,6 +43,7 @@ export function testConfig(
       ...auth,
     },
     qrSecret: "q".repeat(40),
+    rewardCodeSecret: "r".repeat(40),
     msegat: undefined,
     redisUrl: undefined,
   };

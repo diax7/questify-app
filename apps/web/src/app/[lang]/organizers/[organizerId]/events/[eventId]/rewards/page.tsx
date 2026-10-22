@@ -11,7 +11,12 @@ export default async function RewardsPage({ params }: Props) {
   return (
     <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}/rewards`}>
       {page.kind === "member" ? (
-        <RewardsPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+        <RewardsPanel
+          language={page.language}
+          organizerId={organizerId}
+          eventId={eventId}
+          role={page.membership.role}
+        />
       ) : null}
     </OrganizerShell>
   );

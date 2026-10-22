@@ -18,10 +18,14 @@ import {
   blankReward,
   createRewardBody,
   editRewardBody,
+  firstColumn,
+  lowCodeRewards,
+  parseCodes,
   rewardDraftOf,
   rewardProblem,
   shopProblem,
   shopRequest,
+  type CodesProblem,
   type RewardDraft,
   type RewardField,
   type ShopField,
@@ -33,7 +37,12 @@ import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+type Props = Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  role: "owner" | "editor";
+}>;
 
 type Loaded = Readonly<{ shop: ShopSettings; rewards: RewardView[] }>;
 
@@ -132,7 +141,7 @@ function RewardForm({
     }
   };
   return (
-    <form className={styles.card} onSubmit={send} aria-busy={busy}>
+    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
       <h3 className={styles.subtitle}>{t(editing ? "rewards.edit" : "rewards.add")}</h3>
       {editing ? null : (
         <fieldset className={styles.choices}>
@@ -189,12 +198,14 @@ function RewardForm({
           invalid={invalid === "price"}
           change={(text) => set({ price: Number(text) })}
         />
-        <NumberField
-          label={t("rewards.stock")}
-          value={draft.stock}
-          invalid={invalid === "stock"}
-          change={(text) => set({ stock: Number(text) })}
-        />
+        {draft.kind === "digital" ? null : (
+          <NumberField
+            label={t("rewards.stock")}
+            value={draft.stock}
+            invalid={invalid === "stock"}
+            change={(text) => set({ stock: Number(text) })}
+          />
+        )}
         <NumberField
           label={t("rewards.perPlayerLimit", { player: terms.player[language].one })}
           value={draft.perPlayerLimit}
@@ -202,7 +213,10 @@ function RewardForm({
           change={(perPlayerLimit) => set({ perPlayerLimit })}
         />
       </div>
-      {editing && unitsOut > 0 ? (
+      {draft.kind === "digital" ? (
+        <p className={styles.muted}>{t("rewards.stockFromCodes")}</p>
+      ) : null}
+      {editing && unitsOut > 0 && draft.kind !== "digital" ? (
         <p className={styles.muted}>
           {t("rewards.stockFloor", { count: formatNumber(unitsOut, language) })}
         </p>
@@ -284,11 +298,14 @@ function RewardForm({
 function ShopForm({
   language,
   initial,
+  rankLock,
   busy,
   submit,
 }: Readonly<{
   language: Language;
   initial: ShopSettings;
+  /** Why the ranking choice cannot change here, if it cannot (FR-1847). */
+  rankLock: "locked" | "ownerOnly" | undefined;
   busy: boolean;
   submit: (shop: ShopSettings) => void;
 }>) {
@@ -304,7 +321,7 @@ function ShopForm({
     }
   };
   return (
-    <form className={styles.card} onSubmit={send} aria-busy={busy}>
+    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
       <h3 className={styles.subtitle}>{t("rewards.shop")}</h3>
       <div className={styles.row}>
         <NumberField
@@ -337,6 +354,20 @@ function ShopForm({
         />
       </div>
       <p className={styles.muted}>{t("rewards.rulesHint")}</p>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={draft.spendLowersRank}
+          disabled={rankLock !== undefined}
+          aria-describedby="spend-rank-hint"
+          onChange={(e) => setDraft({ ...draft, spendLowersRank: e.target.checked })}
+        />
+        <span>{t("rewards.spendLowersRank")}</span>
+      </label>
+      <p id="spend-rank-hint" className={styles.muted}>
+        {t("rewards.spendLowersRank.hint")}
+        {rankLock === undefined ? null : ` ${t(`rewards.spendLowersRank.${rankLock}`)}`}
+      </p>
       {invalid === undefined ? null : (
         <p role="alert" className={styles.alert}>
           {t(`rewards.invalid.${invalid}`)}
@@ -358,6 +389,7 @@ function RewardRow({
   busy,
   edit,
   remove,
+  upload,
 }: Readonly<{
   language: Language;
   reward: RewardView;
@@ -365,12 +397,13 @@ function RewardRow({
   busy: boolean;
   edit: () => void;
   remove: () => void;
+  upload: (codes: string[]) => Promise<boolean>;
 }>) {
   const t = translatorFor(language);
   const [confirming, setConfirming] = useState(false);
   const name = reward.name[language] ?? reward.name[language === "ar" ? "en" : "ar"] ?? "";
   return (
-    <li className={styles.card}>
+    <li className={`${styles.card} ${styles.wrap}`}>
       <p className={styles.row}>
         <strong>{name}</strong>
         <span className={styles.badge}>{t(`rewards.kind.${reward.kind}`)}</span>
@@ -390,10 +423,15 @@ function RewardRow({
         </span>
         {reward.unitsOut > 0 ? (
           <span className={styles.muted}>
-            {t("rewards.reserved", { count: formatNumber(reward.unitsOut, language) })}
+            {t(reward.kind === "digital" ? "rewards.redeemed" : "rewards.reserved", {
+              count: formatNumber(reward.unitsOut, language),
+            })}
           </span>
         ) : null}
       </p>
+      {reward.kind === "digital" ? (
+        <CodesForm language={language} busy={busy} upload={upload} />
+      ) : null}
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
           {t("rewards.edit")}
@@ -428,6 +466,123 @@ function RewardRow({
   );
 }
 
+/** Adds a digital reward's codes (FR-510): pasted, one per line, or read from a text or CSV file in the browser. */
+function CodesForm({
+  language,
+  busy,
+  upload,
+}: Readonly<{ language: Language; busy: boolean; upload: (codes: string[]) => Promise<boolean> }>) {
+  const t = translatorFor(language);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [invalid, setInvalid] = useState<CodesProblem | undefined>(undefined);
+  if (!open) {
+    return (
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={busy}
+          onClick={() => setOpen(true)}
+        >
+          {t("rewards.codes.add")}
+        </button>
+      </div>
+    );
+  }
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    const parsed = parseCodes(text);
+    if ("problem" in parsed) {
+      setInvalid(parsed.problem);
+      return;
+    }
+    setInvalid(undefined);
+    if (await upload(parsed.codes)) {
+      setText("");
+      setOpen(false);
+    }
+  };
+  return (
+    <form className={styles.formCard} onSubmit={(e) => void send(e)} aria-busy={busy}>
+      <label className={styles.field}>
+        <span>{t("rewards.codes.label")}</span>
+        <textarea
+          className={styles.input}
+          dir="ltr"
+          rows={6}
+          value={text}
+          aria-invalid={invalid !== undefined}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </label>
+      <label className={styles.field}>
+        <span>{t("rewards.codes.file")}</span>
+        <input
+          type="file"
+          accept=".txt,.csv,text/plain,text/csv"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file !== undefined) {
+              void file
+                .text()
+                .then((read) =>
+                  setText(file.name.toLowerCase().endsWith(".csv") ? firstColumn(read) : read),
+                );
+            }
+          }}
+        />
+      </label>
+      <p className={styles.muted}>{t("rewards.codes.private")}</p>
+      {invalid === undefined ? null : (
+        <p role="alert" className={styles.alert}>
+          {t(`rewards.codes.invalid.${invalid}`)}
+        </p>
+      )}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={busy}
+          onClick={() => setOpen(false)}
+        >
+          {t("common.cancel")}
+        </button>
+        <button type="submit" className={styles.button} disabled={busy}>
+          {t("rewards.codes.save")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** The digital rewards whose codes run low, named with what is left (FR-512); nothing when none is. */
+function LowCodes({ language, rewards }: Readonly<{ language: Language; rewards: RewardView[] }>) {
+  const t = translatorFor(language);
+  const low = lowCodeRewards(rewards);
+  if (low.length === 0) {
+    return null;
+  }
+  return (
+    <div className={styles.alert} role="note" aria-labelledby="low-codes-title">
+      <p id="low-codes-title">
+        <strong>{t("rewards.lowCodes.title")}</strong>
+      </p>
+      <ul>
+        {low.map((reward) => (
+          <li key={reward.id}>
+            {t("rewards.lowCodes.item", {
+              name: reward.name[language] ?? reward.name[language === "ar" ? "en" : "ar"] ?? "",
+              left: formatNumber(reward.stockLeft, language),
+            })}
+          </li>
+        ))}
+      </ul>
+      <p className={styles.muted}>{t("rewards.lowCodes.hint")}</p>
+    </div>
+  );
+}
+
 type Editing =
   | Readonly<{ kind: "new" }>
   | Readonly<{ kind: "edit"; reward: RewardView }>
@@ -437,14 +592,14 @@ type Editing =
  * An event's rewards shop on the dashboard (T-201: FR-504, FR-505, FR-514, FR-516): the rewards with their stock, a
  * form to add or change one, removal with a confirmation, and the shop settings. Every answer refreshes the list.
  */
-export function RewardsPanel({ language, organizerId, eventId }: Props) {
+export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
   const t = translatorFor(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [loaded, setLoaded] = useState<Loaded | undefined>(undefined);
   // Until the event arrives its zone is unknown: adding or editing waits, so no time is read in the wrong zone.
-  const [event, setEvent] = useState<{ timezone: string; terms: EventTerms } | undefined>(
-    undefined,
-  );
+  const [event, setEvent] = useState<
+    { timezone: string; terms: EventTerms; statusNow: string } | undefined
+  >(undefined);
   const terms = event?.terms ?? DEFAULT_TERMS;
   const [editing, setEditing] = useState<Editing>(undefined);
   const [busy, setBusy] = useState(false);
@@ -483,24 +638,42 @@ export function RewardsPanel({ language, organizerId, eventId }: Props) {
     void load();
     void requestJson("GET", base).then((result) => {
       if (result.ok) {
-        const view = (result.body as { event: { timezone: string; terms?: unknown } }).event;
-        setEvent({ timezone: view.timezone, terms: readEventTerms(view.terms) });
+        const view = (
+          result.body as { event: { timezone: string; terms?: unknown; statusNow: string } }
+        ).event;
+        setEvent({
+          timezone: view.timezone,
+          terms: readEventTerms(view.terms),
+          statusNow: view.statusNow,
+        });
       }
     });
   }, [base, load]);
 
-  const run = async (work: () => Promise<PostResult>, done: MessageKey) => {
+  const run = async (
+    work: () => Promise<PostResult>,
+    done: MessageKey | ((body: unknown) => string),
+  ): Promise<boolean> => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
     const result = await work();
-    if (!failed(result)) {
+    const ok = !failed(result);
+    if (ok) {
       setEditing(undefined);
-      setNotice(t(done));
+      setNotice(typeof done === "function" ? done(result.body) : t(done));
       await load();
     }
     setBusy(false);
+    return ok;
   };
+
+  const rankLock =
+    role !== "owner"
+      ? ("ownerOnly" as const)
+      : event === undefined || (event.statusNow !== "draft" && event.statusNow !== "scheduled")
+        ? ("locked" as const)
+        : undefined;
 
   const save = (draft: RewardDraft) =>
     editing?.kind === "edit"
@@ -578,6 +751,7 @@ export function RewardsPanel({ language, organizerId, eventId }: Props) {
               cancel={() => setEditing(undefined)}
             />
           )}
+          <LowCodes language={language} rewards={loaded.rewards} />
           {loaded.rewards.length === 0 ? <p className={styles.muted}>{t("rewards.none")}</p> : null}
           <ul className={styles.list}>
             {loaded.rewards.map((reward) => (
@@ -594,12 +768,32 @@ export function RewardsPanel({ language, organizerId, eventId }: Props) {
                     "rewards.removed",
                   )
                 }
+                upload={(codes) =>
+                  run(
+                    () =>
+                      requestJson(
+                        "POST",
+                        `${base}/rewards/${reward.id}/codes`,
+                        { codes },
+                        { "idempotency-key": crypto.randomUUID() },
+                      ),
+                    (body) => {
+                      const counts = body as { added: number; duplicates: number };
+                      return t("rewards.codes.added", {
+                        added: formatNumber(counts.added, language),
+                        duplicates: formatNumber(counts.duplicates, language),
+                      });
+                    },
+                  )
+                }
               />
             ))}
           </ul>
           <ShopForm
+            key={rankLock ?? "open"}
             language={language}
             initial={loaded.shop}
+            rankLock={rankLock}
             busy={busy}
             submit={(shop) =>
               void run(

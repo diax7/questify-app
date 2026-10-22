@@ -22,6 +22,7 @@ import { registerEventRoutes } from "#src/events/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { QuestCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
+import type { RewardCodeKey } from "#src/rewards/codes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
@@ -37,6 +38,8 @@ export type OrganizerRoutesDeps = Readonly<{
   settings: SettingsService;
   /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
   questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
+  /** Seals and marks digital reward codes before they reach the database (T-203). */
+  rewardCodeKey: RewardCodeKey;
   dashboardOrigin: string;
 }>;
 
@@ -196,7 +199,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events, deps.settings);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
-      registerRewardBuilderRoutes(scope, { pool: deps.pool });
+      registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },

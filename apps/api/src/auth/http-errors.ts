@@ -482,6 +482,30 @@ export const invalidReward = make(
   "راجع بيانات الجائزة: الحقل المحدد غير صالح.",
   "Check the reward's details: the named field is not valid.",
 );
+export const stockFromCodes = make(
+  409,
+  "stock_from_codes",
+  "كمية الجائزة الرقمية هي عدد رموزها، فأضف رموزًا لزيادتها.",
+  "A digital reward's stock is its codes: add codes to raise it.",
+);
+export const notDigital = make(
+  409,
+  "not_digital",
+  "تُضاف الرموز إلى الجوائز الرقمية فقط.",
+  "Codes can be added to digital rewards only.",
+);
+export const tooManyCodes = make(
+  422,
+  "too_many_codes",
+  "تتجاوز هذه الرموز الحد الأعلى للجائزة (100000 رمز).",
+  "These codes would take the reward over its limit of 100000 codes.",
+);
+export const settingLocked = make(
+  409,
+  "setting_locked",
+  "لا يمكن تغيير هذا الإعداد بعد بدء الفعالية.",
+  "This setting cannot change once the event has started.",
+);
 export const stockBelowReserved = make(
   409,
   "stock_below_reserved",

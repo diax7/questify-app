@@ -115,7 +115,15 @@ function MyReservations({
       {view.redemptions.map((mine) => (
         <View key={mine.id} style={styles.card}>
           <AppText variant="label">{textIn(mine.name, language)}</AppText>
-          {mine.status === "reserved" ? (
+          {mine.status === "delivered" ? (
+            mine.code === null ? (
+              <AppText muted>
+                {t(mine.codeUnavailable ? "shop.codeUnavailable" : "shop.status.other")}
+              </AppText>
+            ) : (
+              <CodeText code={mine.code} />
+            )
+          ) : mine.status === "reserved" ? (
             <>
               <AppText>
                 {t("shop.minutesLeft", {
@@ -146,6 +154,16 @@ function MyReservations({
   );
 }
 
+/** A digital reward's code: large, left to right in either language, and selectable so a long press copies it. */
+function CodeText({ code }: Readonly<{ code: string }>) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <AppText variant="title" selectable style={styles.code}>
+      {code}
+    </AppText>
+  );
+}
+
 /** The rules a player reads before their first redemption in this event (FR-515): the organizer's, else Questify's. */
 function RulesText({ view }: Readonly<{ view: ShopView }>) {
   const { t, language } = useI18n();
@@ -163,7 +181,10 @@ function RulesText({ view }: Readonly<{ view: ShopView }>) {
   );
 }
 
-type Step = Readonly<{ reward: ShopReward; stage: "rules" | "confirm" }> | undefined;
+type Step =
+  | Readonly<{ reward: ShopReward; stage: "rules" | "confirm" }>
+  | Readonly<{ reward: ShopReward; stage: "code"; code: string }>
+  | undefined;
 
 /**
  * The event's rewards shop (T-201, T-202): the balance, sections, each reward with its real stock (FR-514), Redeem with
@@ -222,14 +243,24 @@ export default function RewardsScreen() {
     if (result.kind !== "network") {
       pendingKey.current = undefined;
     }
-    const reserved = t(
-      reward.kind === "experience" ? "shop.reservedExperience" : "shop.reservedItem",
-      {
-        minutes: formatNumber(view.shop.pickupMinutes, language),
-      },
-    );
+    // A digital reward whose code the server could not open: the points are spent, so say who helps.
+    const reserved =
+      reward.kind === "digital"
+        ? t(
+            result.kind === "done" && result.code === null
+              ? "shop.codeUnavailable"
+              : "shop.codeKeep",
+          )
+        : t(reward.kind === "experience" ? "shop.reservedExperience" : "shop.reservedItem", {
+            minutes: formatNumber(view.shop.pickupMinutes, language),
+          });
     if (await settle(result, reserved)) {
-      setStep(undefined);
+      // A digital reward's code shows at once; anything else closes the sheet on its notice.
+      setStep(
+        result.kind === "done" && result.code !== null
+          ? { reward, stage: "code", code: result.code }
+          : undefined,
+      );
     }
     setBusy(false);
   };
@@ -331,7 +362,15 @@ export default function RewardsScreen() {
       </ScrollView>
       <Sheet
         visible={step !== undefined}
-        title={t(step?.stage === "rules" ? "shop.rulesTitle" : "shop.confirmTitle")}
+        title={t(
+          step?.stage === "rules"
+            ? "shop.rulesTitle"
+            : step?.stage === "code"
+              ? "shop.codeTitle"
+              : step?.reward.kind === "digital"
+                ? "shop.confirmDigitalTitle"
+                : "shop.confirmTitle",
+        )}
         onClose={() => setStep(undefined)}
       >
         {step?.stage === "rules" ? (
@@ -352,17 +391,31 @@ export default function RewardsScreen() {
               variant="label"
             />
             <AppText>
-              {t(step.reward.kind === "experience" ? "shop.pickupExperience" : "shop.pickupItem", {
-                minutes: formatNumber(view.shop.pickupMinutes, language),
-                currency: termFor(terms.currency, language),
-              })}
+              {step.reward.kind === "digital"
+                ? t("shop.digitalNote")
+                : t(
+                    step.reward.kind === "experience" ? "shop.pickupExperience" : "shop.pickupItem",
+                    {
+                      minutes: formatNumber(view.shop.pickupMinutes, language),
+                      currency: termFor(terms.currency, language),
+                    },
+                  )}
             </AppText>
+            {view.shop.spendLowersRank ? <AppText>{t("shop.lowersRank")}</AppText> : null}
             <Problem problem={problem} />
             <Button
-              label={t("shop.reserve")}
+              label={t(step.reward.kind === "digital" ? "shop.redeem" : "shop.reserve")}
               disabled={busy}
               onPress={() => void reserve(step.reward, view)}
             />
+          </>
+        ) : null}
+        {step?.stage === "code" ? (
+          <>
+            <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
+            <CodeText code={step.code} />
+            <AppText muted>{t("shop.codeKeep")}</AppText>
+            <Button label={t("common.close")} onPress={() => setStep(undefined)} />
           </>
         ) : null}
       </Sheet>
@@ -399,4 +452,10 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.border,
   },
   chosen: { borderColor: theme.colors.primaryAction },
+  // Codes are Latin letters and digits: they read left to right inside Arabic too.
+  code: {
+    writingDirection: "ltr" as const,
+    textAlign: "center" as const,
+    fontVariant: ["tabular-nums" as const],
+  },
 });
