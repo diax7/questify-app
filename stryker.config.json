@@ -37,7 +37,7 @@
   "reporters": ["clear-text", "progress"],
   "coverageAnalysis": "perTest",
   "tempDirName": ".stryker-tmp",
-  "ignorePatterns": ["docs", ".github", ".git", ".stryker-tmp", "reports"],
+  "ignorePatterns": ["docs", ".github", ".git", ".claude", ".stryker-tmp", "reports"],
   "clearTextReporter": {
     "logTests": false,
     "allowColor": false
