@@ -1,4 +1,5 @@
 import type { MessageKey } from "@questify/shared";
+import { decodeBase64Url } from "#src/event/scan.ts";
 
 const TOKEN = /^[A-Za-z0-9_-]{50}$/;
 
@@ -13,6 +14,15 @@ export function inviteTokenOf(text: string): string | null {
   const app = /^questify:\/\/operator-invite\/([^/?#\s]+)$/.exec(trimmed)?.[1];
   const token = web ?? app;
   return token !== undefined && TOKEN.test(token) ? token : null;
+}
+
+/**
+ * The operator invite a signed-out person opened before signing in (FR-903), carried to sign-in as a route param and
+ * opened again when sign-in ends; anything that is not a token's shape is dropped.
+ */
+export function pendingInviteOf(params: Readonly<Record<string, unknown>>): string | undefined {
+  const invite = params["invite"];
+  return typeof invite === "string" && TOKEN.test(invite) ? invite : undefined;
 }
 
 /** A My QR is its bare token (ADR-137): the station sends anything that has its shape and lets the server judge. */
@@ -85,9 +95,29 @@ export const REPEAT_MS = 5000;
 
 export type LastScan = Readonly<{ code: string; questId: string; at: number }> | null;
 
-/** FR-923 with a fixed My QR: a code held up stays one scan until it leaves for 5 seconds or the station changes. */
+/**
+ * FR-923 with a fixed My QR: a code held up stays one scan until it leaves for 5 seconds or the station changes. The
+ * window slides: the caller refreshes `at` on every repeat read (`held`), so a phone held up for a minute is one scan.
+ */
 export function isRepeat(last: LastScan, code: string, questId: string, now: number): boolean {
   return (
     last !== null && last.code === code && last.questId === questId && now - last.at < REPEAT_MS
   );
+}
+
+/** The last scan after a repeat read: the same scan, seen again now (the window slides). */
+export function held(last: NonNullable<LastScan>, now: number): NonNullable<LastScan> {
+  return { ...last, at: now };
+}
+
+/** The player a My QR names (format 0x02, ADR-137), read on the phone only to match a cached code to its account. */
+export function playerOfCode(token: string): string | null {
+  const bytes = TOKEN.test(token) ? decodeBase64Url(token) : null;
+  if (bytes === null || bytes.length !== 37 || bytes[0] !== 0x02) {
+    return null;
+  }
+  const hex = Array.from(bytes.subarray(1, 17), (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

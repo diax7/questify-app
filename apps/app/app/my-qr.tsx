@@ -9,8 +9,10 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { QrCode } from "#src/components/QrCode.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { fetchMyQr, resetMyQr } from "#src/operator/operator-api.ts";
+import { playerOfCode } from "#src/operator/station.ts";
 
 const store = {
   read: () => SecureStore.getItemAsync(MY_QR_KEY).catch(() => null),
@@ -26,6 +28,8 @@ const store = {
  */
 export default function MyQrScreen() {
   const { t, language } = useI18n();
+  const { state } = usePlayer();
+  const me = state.status === "signed_in" ? state.me?.id : undefined;
   const { width } = useWindowDimensions();
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
@@ -33,7 +37,10 @@ export default function MyQrScreen() {
   const [note, setNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const cached = await store.read();
+    // Another account's code never shows, even if dropping it at sign-out failed.
+    const stored = await store.read();
+    const cached =
+      stored !== null && (me === undefined || playerOfCode(stored) === me) ? stored : null;
     if (cached !== null) {
       setToken(cached);
     }
@@ -44,7 +51,7 @@ export default function MyQrScreen() {
     } else if (cached === null) {
       setToken(null);
     }
-  }, []);
+  }, [me]);
   useEffect(() => {
     void load();
   }, [load]);

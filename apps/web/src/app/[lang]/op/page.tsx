@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { OpenInApp } from "#src/components/OpenInApp.tsx";
-import { LANGUAGE_NAMES, isLanguage, otherLanguage, translatorFor } from "#src/lib/language.ts";
+import { OpenInApp, OtherLanguageLink } from "#src/components/OpenInApp.tsx";
+import { webConfig } from "#src/lib/config.ts";
+import { isLanguage, translatorFor } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
@@ -23,18 +24,16 @@ export default async function OperatorInvitePage({ params }: Props) {
     notFound();
   }
   const t = translatorFor(lang);
-  const other = otherLanguage(lang);
+  const { appStoreUrl, playStoreUrl } = webConfig();
   return (
     <main className={styles.page}>
-      <a className={styles.link} href={`/${other}/op`} lang={other} hrefLang={other}>
-        {LANGUAGE_NAMES[other]}
-      </a>
+      <OtherLanguageLink language={lang} />
       <section className={styles.panel} aria-labelledby="op-title">
         <h1 id="op-title" className={styles.title}>
           {t("invitePage.title")}
         </h1>
         <p>{t("invitePage.body")}</p>
-        <OpenInApp language={lang} />
+        <OpenInApp language={lang} appStoreUrl={appStoreUrl} playStoreUrl={playStoreUrl} />
       </section>
     </main>
   );

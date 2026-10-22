@@ -68,7 +68,10 @@ export default function OperatorInviteScreen() {
     return (
       <Screen title={t("invitePage.title")} header={<BackButton />}>
         <AppText>{t("invitePage.body")}</AppText>
-        <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
+        <Button
+          label={t("signIn.start")}
+          onPress={() => router.replace({ pathname: "/sign-in", params: { invite: token } })}
+        />
       </Screen>
     );
   }

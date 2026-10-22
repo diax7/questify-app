@@ -15,6 +15,7 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { scanPlayer } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import {
+  held,
   isPlayerCode,
   isRepeat,
   type LastScan,
@@ -74,6 +75,17 @@ export default function StationScanScreen() {
   const [cameraFailed, setCameraFailed] = useState(false);
   const busy = useRef(false);
   const last = useRef<LastScan>(null);
+  // One key per code and station until the server gives a definite answer: a retry after a lost reply never pays twice.
+  const attempt = useRef<Readonly<{ code: string; questId: string; key: string }> | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const watcher = AppState.addEventListener("change", (state) => {
@@ -87,7 +99,7 @@ export default function StationScanScreen() {
   const show = (next: StationResult) => {
     setResult(next);
     buzz(() => Haptics.notificationAsync(FEEL[next.color]));
-    setTimeout(() => {
+    timer.current = setTimeout(() => {
       setResult(null);
       busy.current = false;
     }, RESULT_MS);
@@ -95,25 +107,36 @@ export default function StationScanScreen() {
 
   const scanned = async ({ data }: { data: string }) => {
     const code = data.trim();
-    if (
-      busy.current ||
-      station === null ||
-      isRepeat(last.current, code, station.questId, Date.now())
-    ) {
+    const now = Date.now();
+    if (station === null) {
+      return;
+    }
+    // A code still in front of the camera keeps its one scan for as long as it stays (the window slides).
+    if (last.current !== null && isRepeat(last.current, code, station.questId, now)) {
+      last.current = held(last.current, now);
+      return;
+    }
+    if (busy.current) {
       return;
     }
     busy.current = true;
-    last.current = { code, questId: station.questId, at: Date.now() };
+    last.current = { code, questId: station.questId, at: now };
     if (!isPlayerCode(code)) {
       show({ color: "red", reason: "operator.red.invalidCode", player: null });
       return;
     }
     setProblem(null);
+    const same = attempt.current?.code === code && attempt.current.questId === station.questId;
+    const key = same && attempt.current !== null ? attempt.current.key : randomUuid();
+    attempt.current = { code, questId: station.questId, key };
     const answer = await scanPlayer(api.session, {
       questId: station.questId,
       code,
-      idempotencyKey: randomUuid(),
+      idempotencyKey: key,
     });
+    if (answer.kind !== "network") {
+      attempt.current = null;
+    }
     if (answer.kind === "result") {
       show(answer.result);
       return;

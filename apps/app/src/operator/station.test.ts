@@ -2,7 +2,10 @@ import { MESSAGES } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   REPEAT_MS,
+  held,
   inviteTokenOf,
+  pendingInviteOf,
+  playerOfCode,
   isPlayerCode,
   isRepeat,
   stationResult,
@@ -98,5 +101,48 @@ describe("isRepeat", () => {
     expect(isRepeat(last, TOKEN, "q2", 1001)).toBe(false);
     expect(isRepeat(last, "B".repeat(50), "q1", 1001)).toBe(false);
     expect(isRepeat(null, TOKEN, "q1", 1001)).toBe(false);
+  });
+});
+
+describe("the sliding repeat window", () => {
+  it("keeps a code held up for 12 seconds, read every second, as one scan", () => {
+    let last = { code: TOKEN, questId: "q1", at: 0 };
+    let scans = 1;
+    for (let now = 1000; now <= 12_000; now += 1000) {
+      if (isRepeat(last, TOKEN, "q1", now)) {
+        last = held(last, now);
+      } else {
+        scans += 1;
+        last = { code: TOKEN, questId: "q1", at: now };
+      }
+    }
+    expect(scans).toBe(1);
+    expect(isRepeat(last, TOKEN, "q1", 12_000 + REPEAT_MS)).toBe(false);
+  });
+});
+
+describe("pendingInviteOf", () => {
+  it("carries a token-shaped invite through sign-in and drops anything else", () => {
+    expect(pendingInviteOf({ invite: TOKEN })).toBe(TOKEN);
+    expect(pendingInviteOf({ invite: "short" })).toBeUndefined();
+    expect(pendingInviteOf({ invite: [TOKEN] })).toBeUndefined();
+    expect(pendingInviteOf({})).toBeUndefined();
+  });
+});
+
+describe("playerOfCode", () => {
+  const PLAYER = "5b1f0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
+  const codeOf = (format: number) =>
+    Buffer.concat([
+      Buffer.from([format]),
+      Buffer.from(PLAYER.replaceAll("-", ""), "hex"),
+      Buffer.from([0, 0, 0, 1]),
+      Buffer.alloc(16, 7),
+    ]).toString("base64url");
+
+  it("reads the player a My QR names, and nothing from other codes", () => {
+    expect(playerOfCode(codeOf(0x02))).toBe(PLAYER);
+    expect(playerOfCode(codeOf(0x01))).toBeNull();
+    expect(playerOfCode("short")).toBeNull();
   });
 });

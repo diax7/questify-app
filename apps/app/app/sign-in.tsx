@@ -31,6 +31,7 @@ import {
 } from "#src/auth/sign-in-flow.ts";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { pendingInviteOf } from "#src/operator/station.ts";
 import { joinEvent } from "#src/join/join-api.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -283,6 +284,8 @@ export default function SignInScreen() {
   const { reload } = usePlayer();
   const params = useLocalSearchParams();
   const [state, dispatch] = useReducer(signInStep, pendingFrom(params), startSignIn);
+  // An operator invite opened before sign-in opens again after it (FR-903).
+  const invite = pendingInviteOf(params);
   const finished = useRef(false);
 
   useEffect(() => {
@@ -298,7 +301,7 @@ export default function SignInScreen() {
     finished.current = true;
     void reload().then(async () => {
       if (state.join === undefined) {
-        router.replace("/");
+        router.replace(invite === undefined ? "/" : `/operator-invite/${invite}`);
         return;
       }
       const outcome = await joinEvent(api.session, state.join);
@@ -323,7 +326,7 @@ export default function SignInScreen() {
         },
       });
     });
-  }, [state, reload]);
+  }, [state, reload, invite]);
 
   const close = () => {
     dispatch({ type: "closed" });
