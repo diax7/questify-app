@@ -1,4 +1,4 @@
-import type { QuestType } from "@questify/shared";
+import type { QuestType, QuestVerification } from "@questify/shared";
 import type { PoolClient } from "pg";
 import type { EventStatus } from "#src/events/store";
 
@@ -27,6 +27,8 @@ export type QuestRecord = Readonly<{
   config: Readonly<Record<string, unknown>>;
   /** The version its printed QR carries (T-104); a regenerated code bumps it. */
   qrVersion: number;
+  /** How it may be verified (FR-301): the printed QR, staff scanning My QR, or both. */
+  verification: readonly QuestVerification[];
 }>;
 
 /** The fields the API writes on a quest (migration 0010's column grants), all known before a write. */
@@ -40,6 +42,7 @@ export type QuestFields = Readonly<{
   closesAt: Date | null;
   visible: boolean;
   config: Readonly<Record<string, unknown>>;
+  verification: readonly QuestVerification[];
 }>;
 
 /** The event as the builder needs it, read under a lock that serializes builder writes but never blocks joins. */
@@ -69,11 +72,12 @@ type QuestRow = {
   position: number;
   type_config: Record<string, unknown>;
   qr_version: number;
+  verification: QuestVerification[];
 };
 
 const CATEGORY_COLUMNS = "id, event_id, name_ar, name_en, position";
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version`;
+  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -97,6 +101,7 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   position: row.position,
   config: row.type_config,
   qrVersion: row.qr_version,
+  verification: row.verification,
 });
 
 const lockClause = (lock: boolean) => (lock ? " FOR NO KEY UPDATE" : "");
@@ -261,8 +266,8 @@ export async function insertQuest(
   );
   const { rows } = await db.query<QuestRow>(
     `INSERT INTO quest (event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-                        repeat_cap, opens_at, closes_at, visible, position, type_config)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                        repeat_cap, opens_at, closes_at, visible, position, type_config, verification)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING ${QUEST_COLUMNS}`,
     [
       eventId,
@@ -279,6 +284,7 @@ export async function insertQuest(
       fields.visible,
       position,
       fields.config,
+      fields.verification,
     ],
   );
   return toQuest(rows[0] as QuestRow);
@@ -301,7 +307,7 @@ export async function updateQuest(
   const { rows } = await db.query<QuestRow>(
     `UPDATE quest SET category_id = $2, title_ar = $3, title_en = $4, description_ar = $5, description_en = $6,
                       points = $7, repeat_cap = $8, opens_at = $9, closes_at = $10, visible = $11, position = $12,
-                      type_config = $13
+                      type_config = $13, verification = $14
      WHERE id = $1 RETURNING ${QUEST_COLUMNS}`,
     [
       current.id,
@@ -317,6 +323,7 @@ export async function updateQuest(
       fields.visible,
       position,
       fields.config,
+      fields.verification,
     ],
   );
   return toQuest(rows[0] as QuestRow);

@@ -20,6 +20,8 @@ import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
+import type { OperatorsDeps } from "#src/operators/operators";
+import { registerOperatorRoutes } from "#src/operators/routes";
 import type { QuestCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import type { RewardCodeKey } from "#src/rewards/codes";
@@ -40,6 +42,8 @@ export type OrganizerRoutesDeps = Readonly<{
   questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
   /** Seals and marks digital reward codes before they reach the database (T-203). */
   rewardCodeKey: RewardCodeKey;
+  /** Operator invites: signed claim addresses and the invite email (T-204). */
+  operators: OperatorsDeps;
   dashboardOrigin: string;
 }>;
 
@@ -201,6 +205,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
+      registerOperatorRoutes(scope, deps.operators);
     },
     { prefix: ORGANIZER_PREFIX },
   );

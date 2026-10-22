@@ -162,6 +162,30 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for the path's event; add_exclusion checks again and audits the kind, never the value (test/moderation/moderation, test/db/bans)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/exclusions/:exclusionId":
     "the organizer's owner only; another event's or organizer's entry answers 404 (test/moderation/moderation, test/db/bans)",
+  "GET /v1/organizers/:organizerId/events/:eventId/operators":
+    "members of that organizer within their event limit, through event_operators and event_operator_invites; claim addresses only for the owner; another event answers 404 (test/operators/operators, test/db/operators)",
+  "POST /v1/organizers/:organizerId/events/:eventId/operators/invites":
+    "the organizer's owner only, for the path's event; create_operator_invites checks again and audits (test/operators/operators, test/db/operators)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/operators/invites/:inviteId":
+    "the organizer's owner only; another event's invite answers 404 (test/operators/operators, test/db/operators)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/operators/:operatorId":
+    "the organizer's owner only; quest limits only to the path's event's quests (test/operators/operators, test/db/operators)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/operators/:operatorId":
+    "the organizer's owner only; another event's operator answers 404 (test/operators/operators, test/db/operators)",
+  "POST /v1/operator-invites/preview":
+    "shows only the invite its signed token opens, to a signed-in player; an email invite only to that email's account (test/operators/operators, test/db/operators)",
+  "POST /v1/operator-invites/claim":
+    "makes only the bearer an operator, once per invite, under a row lock (test/operators/operators, test/db/operators)",
+  "GET /v1/me/operator-events": "only the bearer's own assignments (test/operators/operators)",
+  "GET /v1/operator/events/:eventId/stations":
+    "only an operator of that event, only their own counts; anyone else answers 403 (test/operators/operators, test/db/operators)",
+  "POST /v1/events/:eventId/operator/play":
+    "enrolls only the bearer, only where they are an operator the owner allows to play (test/operators/operators, test/db/operators)",
+  "GET /v1/me/qr": "only the bearer's own code (test/operators/operators)",
+  "POST /v1/me/qr/reset":
+    "only the bearer's own code (test/operators/operators, test/db/operators)",
+  "POST /v1/operator/scan":
+    "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":
     "starts a change for the bearer only; start_contact_change is bound to the session and never says whether another account has the contact (test/players/contact, test/db/contact-change)",
   "POST /v1/me/contact/verify":

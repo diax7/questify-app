@@ -17,6 +17,7 @@ const STORED: QuestRecord = {
   position: 4,
   config: { code: "NAJD2030" },
   qrVersion: 1,
+  verification: [],
 };
 const ZONE = "Asia/Riyadh";
 
@@ -34,6 +35,7 @@ describe("mergeQuest", () => {
       closesAt: null,
       visible: true,
       config: {},
+      verification: ["quest_qr"],
     });
   });
 
@@ -48,6 +50,7 @@ describe("mergeQuest", () => {
       closesAt: STORED.closesAt,
       visible: false,
       config: { code: "NAJD2030" },
+      verification: [],
     });
   });
 
@@ -79,6 +82,7 @@ describe("mergeQuest", () => {
       closesAt: new Date("2030-11-01T10:00:00Z"),
       visible: true,
       config: { code: "TABUK31" },
+      verification: [],
     });
   });
 
@@ -93,8 +97,21 @@ describe("mergeQuest", () => {
     ["closesAt", STORED, { opensAt: "2030-11-01T13:00" }],
     ["config", STORED, { config: { code: "x" } }],
     ["config", undefined, { title: { en: "x" }, points: 1 }],
+    ["verification", STORED, { verification: ["my_qr"] }],
   ] as const)("refuses, naming %s", (field, current, input) => {
     expect(mergeQuest(current, "enter_code", input, ZONE)).toEqual({ kind: "invalid", field });
+  });
+
+  it("takes a scan quest's methods and keeps them when left out", () => {
+    const scan = { ...STORED, type: "scan_qr", config: {}, verification: ["my_qr"] } as const;
+    expect(mergeQuest(scan, "scan_qr", {}, ZONE)).toMatchObject({ verification: ["my_qr"] });
+    expect(
+      mergeQuest(scan, "scan_qr", { verification: ["my_qr", "quest_qr"] }, ZONE),
+    ).toMatchObject({ verification: ["quest_qr", "my_qr"] });
+    expect(mergeQuest(scan, "scan_qr", { verification: [] }, ZONE)).toEqual({
+      kind: "invalid",
+      field: "verification",
+    });
   });
 
   it("takes a title in one language alone", () => {

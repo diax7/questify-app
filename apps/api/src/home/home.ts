@@ -21,6 +21,8 @@ export type MemberQuest = Readonly<{
   done: number;
   /** The points the calling player earned from it, from the ledger (migration 0022). */
   earned: number;
+  /** How it is verified (FR-301): `my_qr` alone means the player shows their My QR to staff (migration 0026). */
+  verification: readonly string[];
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }>;
@@ -118,6 +120,7 @@ type QuestRow = Readonly<{
   done: number;
   /** bigint: pg returns it as text. */
   earned: string;
+  verification: string[];
 }>;
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>
@@ -145,6 +148,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       closesAt: row.closes_at,
       done: row.done,
       earned: Number(row.earned),
+      verification: row.verification,
     });
     categories.set(row.category_id, category);
   }

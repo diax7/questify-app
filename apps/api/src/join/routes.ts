@@ -42,7 +42,7 @@ const joinBody = z.strictObject({
 });
 
 /** The join card in force, in both languages, as the app shows it before Join. */
-function cardInForce() {
+export function cardInForce() {
   const card = joinCard();
   return {
     version: card.version,

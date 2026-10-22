@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
 import {
   QR_QUEST_TYPES,
+  parseVerification,
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isQuestType,
@@ -64,5 +65,31 @@ describe("parseQuestConfig", () => {
     expect(parseQuestConfig("enter_code", { code: "Z".repeat(32) })).toEqual({
       code: "Z".repeat(32),
     });
+  });
+});
+
+describe("quest verification methods (FR-301)", () => {
+  it("gives a new quest its type's first method and keeps an existing quest's own", () => {
+    expect(parseVerification("scan_qr", undefined)).toEqual(["quest_qr"]);
+    expect(parseVerification("scan_qr", undefined, ["my_qr"])).toEqual(["my_qr"]);
+    expect(parseVerification("enter_code", undefined)).toEqual([]);
+  });
+
+  it("stores the chosen methods once each, in the type's order", () => {
+    expect(parseVerification("scan_qr", ["my_qr", "quest_qr", "my_qr"])).toEqual([
+      "quest_qr",
+      "my_qr",
+    ]);
+    expect(parseVerification("scan_qr", ["my_qr"])).toEqual(["my_qr"]);
+    expect(parseVerification("enter_code", [])).toEqual([]);
+  });
+
+  it.each([
+    ["no method for a scan quest", "scan_qr", []],
+    ["an unknown method", "scan_qr", ["nfc"]],
+    ["a method the type does not offer", "enter_code", ["my_qr"]],
+    ["not a list", "scan_qr", "my_qr"],
+  ] as const)("refuses %s", (_name, type, value) => {
+    expect(parseVerification(type, value)).toBeUndefined();
   });
 });

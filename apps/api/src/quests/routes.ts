@@ -48,6 +48,8 @@ const questFields = {
   visible: z.boolean().optional(),
   // Validated against the quest's type by the shared registry.
   config: z.record(z.string(), z.unknown()).optional(),
+  // Checked against the quest's type by the shared registry (FR-301).
+  verification: z.array(z.string().max(20)).max(5).optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -88,6 +90,7 @@ const questView = (quest: QuestRecord) => ({
   visible: quest.visible,
   position: quest.position,
   config: quest.config,
+  verification: quest.verification,
 });
 
 /** The answer for a result: its value through `ok`, or the error that names the refusal. */

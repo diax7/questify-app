@@ -543,3 +543,63 @@ export const reservationEnded = make(
   "انتهى هذا الحجز، فلا يمكن إلغاؤه.",
   "This reservation has ended, so it cannot be cancelled.",
 );
+export const inviteNotFound = make(
+  404,
+  "invite_not_found",
+  "رمز المشغّل هذا غير صالح أو أُلغي.",
+  "This operator code is not valid or was cancelled.",
+);
+export const inviteUsed = make(
+  409,
+  "invite_used",
+  "استُخدم رمز المشغّل هذا من قبل.",
+  "This operator code has already been used.",
+);
+export const inviteExpired = make(
+  409,
+  "invite_expired",
+  "انتهت صلاحية رمز المشغّل هذا.",
+  "This operator code has expired.",
+);
+export const inviteEmailMismatch = make(
+  403,
+  "invite_email_mismatch",
+  "هذه الدعوة لبريد إلكتروني آخر. سجّل الدخول بالبريد الذي وصلته الدعوة، أو أضفه إلى حسابك.",
+  "This invite is for another email. Sign in with the email that received it, or add it to your account.",
+);
+export const alreadyOperator = make(
+  409,
+  "already_operator",
+  "أنت مشغّل في هذه الفعالية بالفعل.",
+  "You are already an operator at this event.",
+);
+export const notOperator = make(
+  403,
+  "not_operator",
+  "لم تعد مشغّلًا في هذه الفعالية.",
+  "You are no longer an operator at this event.",
+);
+export const operatorInvitesFull = make(
+  409,
+  "operator_invites_full",
+  "في الفعالية 500 رمز مشغّل مفتوح. ألغِ بعضها أولًا.",
+  "This event has 500 open operator codes. Cancel some first.",
+);
+export const invalidOperator = make(
+  422,
+  "invalid_operator",
+  "تحقق من بيانات المشغّل.",
+  "Check the operator's details.",
+);
+export const tooManyResets = make(
+  429,
+  "too_many_resets",
+  "غيّرت رمزك 5 مرات اليوم. حاول غدًا.",
+  "You changed your code 5 times today. Try again tomorrow.",
+);
+export const operatorPlayOff = make(
+  403,
+  "operator_play_off",
+  "لم يسمح لك المنظّم باللعب في هذه الفعالية.",
+  "The organizer has not allowed you to play this event.",
+);

@@ -1,6 +1,18 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createQuestCodeKey, questCode, questCodeUrl, verifyQuestCode } from "#src/quests/qr";
+import {
+  createInviteCodeKey,
+  createMyCodeKey,
+  createQuestCodeKey,
+  inviteCode,
+  inviteCodeUrl,
+  myCode,
+  questCode,
+  questCodeUrl,
+  verifyInviteCode,
+  verifyMyCode,
+  verifyQuestCode,
+} from "#src/quests/qr";
 
 const KEY = createQuestCodeKey("q".repeat(32));
 const OTHER_KEY = createQuestCodeKey("r".repeat(32));
@@ -40,7 +52,7 @@ describe("questCode", () => {
   });
 
   it("refuses an id that is not a quest id", () => {
-    expect(() => questCode(KEY, "not-a-uuid", 1)).toThrow(/Not a quest id/);
+    expect(() => questCode(KEY, "not-a-uuid", 1)).toThrow(/Not an id/);
   });
 
   it("accepts the highest version", () => {
@@ -132,5 +144,53 @@ describe("verifyQuestCode", () => {
         version,
       });
     }
+  });
+});
+
+describe("My QR and operator invite codes", () => {
+  const SECRET = "q".repeat(32);
+  const MY = createMyCodeKey(SECRET);
+  const INVITE = createInviteCodeKey(SECRET);
+  const PLAYER = "5b1f0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
+
+  it("refuses a short secret for every purpose", () => {
+    expect(() => createMyCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+    expect(() => createInviteCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens a My QR to its player and version, and nothing else", () => {
+    const token = myCode(MY, PLAYER, 7);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(verifyMyCode(MY, token)).toEqual({ kind: "valid", playerId: PLAYER, version: 7 });
+    expect(verifyMyCode(createMyCodeKey("r".repeat(32)), token)).toEqual({ kind: "forged" });
+    expect(verifyMyCode(MY, swapped(token, 49, token[49] === "A" ? "B" : "A"))).toMatchObject({
+      kind: expect.stringMatching(/forged|not_questify/),
+    });
+    expect(verifyMyCode(MY, "hello")).toEqual({ kind: "not_questify" });
+  });
+
+  it("never opens a code of one purpose as another, even under the same secret", () => {
+    const quest = questCode(createQuestCodeKey(SECRET), PLAYER, 1);
+    const my = myCode(MY, PLAYER, 1);
+    const invite = inviteCode(INVITE, PLAYER);
+    expect(verifyMyCode(MY, quest)).toEqual({ kind: "not_questify" });
+    expect(verifyMyCode(MY, invite)).toEqual({ kind: "not_questify" });
+    expect(verifyInviteCode(INVITE, my)).toEqual({ kind: "not_questify" });
+    expect(verifyQuestCode(createQuestCodeKey(SECRET), my, PLAYER)).toEqual({
+      kind: "not_questify",
+    });
+    expect(new Set([quest, my, invite]).size).toBe(3);
+  });
+
+  it("opens an invite to its id and puts the token in the address's fragment", () => {
+    const id = randomUUID();
+    const token = inviteCode(INVITE, id);
+    expect(verifyInviteCode(INVITE, token)).toEqual({ kind: "valid", inviteId: id });
+    expect(verifyInviteCode(createInviteCodeKey("r".repeat(32)), token)).toEqual({
+      kind: "forged",
+    });
+    expect(inviteCodeUrl("https://questify.nafes.com", "en", token)).toBe(
+      `https://questify.nafes.com/en/op#${token}`,
+    );
   });
 });

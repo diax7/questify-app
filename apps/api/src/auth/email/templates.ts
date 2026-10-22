@@ -214,3 +214,23 @@ const CHANGE_LINES = {
     ],
   },
 } as const;
+
+/**
+ * An operator invite (T-204, email only). No organizer-written text: the app shows the event's name on the claim
+ * screen, after sign-in, so this email carries nothing a stranger could dress up.
+ */
+export function operatorInviteEmail(input: { link: string; validForDays: number }): Content {
+  const { link, validForDays } = input;
+  return {
+    subject: "دعوة لتكون مشغّلًا في فعالية | You are invited to staff an event on Questify",
+    text: [
+      "دُعيت لتعمل مشغّلًا في فعالية على كويستفاي.",
+      `افتح الرابط على جوالك وأكّد في تطبيق كويستفاي: ${link}`,
+      `سجّل الدخول بهذا البريد نفسه. الرابط صالح لمدة ${validForDays} أيام، أو حتى نهاية الفعالية. إذا لم تتوقع هذه الدعوة، تجاهل الرسالة.`,
+      "",
+      "You are invited to work as an operator at an event on Questify.",
+      `Open this link on your phone and confirm in the Questify app: ${link}`,
+      `Sign in with this same email. The link works for ${validForDays} days, or until the event ends. If you did not expect this invite, ignore this email.`,
+    ].join("\n"),
+  };
+}

@@ -60,6 +60,8 @@ const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
   RN404: () => ({ kind: "not_found" }),
   RK422: () => ({ kind: "key_reused" }),
   RA403: (detail) => ({ kind: "enrollment_inactive", reason: detail }),
+  // An operator the owner has not allowed to play (migration 0026).
+  QP403: () => ({ kind: "enrollment_inactive", reason: "operator_not_playing" }),
   RS403: (detail) => ({ kind: "shop_closed", reason: detail }),
   RW403: (detail) => ({ kind: "reward_not_open", reason: detail }),
   RO409: () => ({ kind: "sold_out" }),

@@ -282,6 +282,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
           closesAt: null,
           done: 1,
           earned: 10,
+          verification: [],
           state: "open",
         },
       ]);

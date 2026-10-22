@@ -19,11 +19,17 @@ const bilingualHint = z
  */
 export const QUEST_TYPES = {
   /** The player scans the quest's QR code (T-104 signs it; T-105 completes it). */
-  scan_qr: { label: "quests.type.scanQr", usesQuestQr: true, config: z.strictObject({}) },
+  scan_qr: {
+    label: "quests.type.scanQr",
+    usesQuestQr: true,
+    verifications: ["quest_qr", "my_qr"],
+    config: z.strictObject({}),
+  },
   /** The player types a code shown at the venue (T-105). The code is a secret: never shown to players. */
   enter_code: {
     label: "quests.type.enterCode",
     usesQuestQr: false,
+    verifications: [],
     config: z.strictObject({
       code: z
         .string()
@@ -37,6 +43,13 @@ export const QUEST_TYPES = {
 } as const;
 
 export type QuestType = keyof typeof QUEST_TYPES;
+
+/**
+ * How a quest may be verified (FR-301): the player scans the quest's printed QR, or staff scan the player's My QR
+ * (T-205). A type lists the methods it offers; a quest keeps at least one of them (none for a type that offers none,
+ * such as a typed code). The database's `quest_verification_known` check holds the same rule.
+ */
+export type QuestVerification = "quest_qr" | "my_qr";
 
 export const QUEST_TYPE_NAMES = Object.keys(QUEST_TYPES) as QuestType[];
 
@@ -68,4 +81,28 @@ export function parseQuestConfig(
 ): Record<string, unknown> | undefined {
   const result = QUEST_TYPES[type].config.safeParse(value);
   return result.success ? (result.data as Record<string, unknown>) : undefined;
+}
+
+/**
+ * A quest's verification methods as stored: each one offered by the type, without repeats, in the type's order, and
+ * at least one when the type offers any; undefined when the value is not that. Left out (undefined), a new quest gets
+ * the type's first method and an existing one keeps its own (`current`).
+ */
+export function parseVerification(
+  type: QuestType,
+  value: unknown,
+  current?: readonly QuestVerification[],
+): QuestVerification[] | undefined {
+  const offered: readonly QuestVerification[] = QUEST_TYPES[type].verifications;
+  if (value === undefined) {
+    return [...(current ?? offered.slice(0, 1))];
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every((item) => offered.includes(item as QuestVerification))
+  ) {
+    return undefined;
+  }
+  const chosen = offered.filter((method) => value.includes(method));
+  return offered.length > 0 && chosen.length === 0 ? undefined : chosen;
 }

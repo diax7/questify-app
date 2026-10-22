@@ -55,7 +55,7 @@ export function listCodes(
         }>(
           `SELECT q.id, q.category_id, q.title_ar, q.title_en, q.qr_version, c.name_ar, c.name_en
            FROM quest q JOIN category c ON c.id = q.category_id
-           WHERE q.event_id = $1 AND q.type = ANY ($2)
+           WHERE q.event_id = $1 AND q.type = ANY ($2) AND 'quest_qr' = ANY (q.verification)
            ORDER BY c.position, c.id, q.position, q.id`,
           [eventId, QR_QUEST_TYPES],
         );

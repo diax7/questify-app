@@ -375,4 +375,6 @@ export async function sweepRetention(db: Db): Promise<void> {
   await db.query("DELETE FROM staff_session");
   await db.query("DELETE FROM staff_login_challenge");
   await db.query("DELETE FROM staff_password_reset");
+  // Expired operator invites keep no email (personal data, T-204).
+  await db.query("SELECT sweep_operator_invites()");
 }

@@ -55,6 +55,8 @@ export type CompletionDeps = Readonly<{ pool: Pool; codeKey: QuestCodeKey; keys:
 const REFUSALS: Readonly<Record<string, (detail: string) => CompletionResult>> = {
   QC404: () => ({ kind: "not_found" }),
   QC403: (detail) => ({ kind: "enrollment_inactive", reason: detail }),
+  // An operator the owner has not allowed to play (migration 0026).
+  QP403: () => ({ kind: "enrollment_inactive", reason: "operator_not_playing" }),
   QN403: (detail) => ({ kind: "quest_not_open", reason: detail }),
   QD409: (detail) => ({ kind: "already_completed", cap: Number(detail) }),
   QV422: (detail) => ({ kind: "invalid_code", problem: detail as CodeProblem }),

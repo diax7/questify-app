@@ -1,4 +1,4 @@
-import { parseQuestConfig, toInstant, type QuestType } from "@questify/shared";
+import { parseQuestConfig, parseVerification, toInstant, type QuestType } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { recordAudit } from "#src/audit/record";
 import type { Caller } from "#src/auth/sign-in";
@@ -34,6 +34,7 @@ export type QuestInput = Readonly<{
   closesAt?: string | null | undefined;
   visible?: boolean | undefined;
   config?: unknown;
+  verification?: unknown;
 }>;
 
 export type QuestField =
@@ -43,7 +44,8 @@ export type QuestField =
   | "points"
   | "opensAt"
   | "closesAt"
-  | "config";
+  | "config"
+  | "verification";
 
 /** The refusals every builder action may give. */
 export type Refused =
@@ -142,6 +144,10 @@ export function mergeQuest(
   if (config === undefined) {
     return { kind: "invalid", field: "config" };
   }
+  const verification = parseVerification(type, input.verification, current?.verification);
+  if (verification === undefined) {
+    return { kind: "invalid", field: "verification" };
+  }
   return {
     // Stryker disable next-line StringLiteral: a create always names its category (the route requires it)
     categoryId: input.categoryId ?? current?.categoryId ?? "",
@@ -153,6 +159,7 @@ export function mergeQuest(
     closesAt,
     visible: input.visible ?? current?.visible ?? true,
     config,
+    verification,
   };
 }
 
@@ -179,6 +186,7 @@ export function auditView(quest: QuestRecord): Record<string, unknown> {
     closesAt: quest.closesAt?.toISOString() ?? null,
     visible: quest.visible,
     config,
+    verification: quest.verification,
     ...(code === undefined ? {} : { entryCode: "set" }),
   };
 }

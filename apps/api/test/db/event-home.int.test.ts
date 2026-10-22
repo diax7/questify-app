@@ -113,6 +113,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "quest_id",
           "quest_position",
           "repeat_cap",
+          "verification",
           "title_ar",
           "title_en",
           "type",

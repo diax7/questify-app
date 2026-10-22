@@ -90,13 +90,14 @@ export {
   toLocalInput,
   zoneLabel,
 } from "./time/event-time";
-export type { QuestType } from "./quests/registry";
+export type { QuestType, QuestVerification } from "./quests/registry";
 export {
   QR_QUEST_TYPES,
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isQuestType,
   normalizeEntryCode,
+  parseVerification,
   QUEST_CODE_HOSTS,
   parseQuestConfig,
 } from "./quests/registry";

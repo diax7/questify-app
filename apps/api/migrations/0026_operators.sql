@@ -315,6 +315,7 @@ END $$;
 -- no device id is stored; the ledger's operator_id says who scanned. Refusals beyond record_completion's:
 --   OP403 not an operator of this event   OA403 the scan ability is off   OS403 outside the quest limit
 --   OY409 the operator's own code         OM422 not the player's current My QR version
+--   OQ404 no such quest (QC404 then means the scanned player is not in the event)
 CREATE FUNCTION operator_complete_quest(target uuid, scanned uuid, scanned_version integer, request_key text)
   RETURNS TABLE (completion_id bigint, points bigint, occurrence integer, score bigint, balance bigint,
                  replayed boolean)
@@ -330,7 +331,7 @@ BEGIN
   END IF;
   SELECT * INTO quest_row FROM quest WHERE id = target;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'quest not found' USING ERRCODE = 'QC404';
+    RAISE EXCEPTION 'quest not found' USING ERRCODE = 'OQ404';
   END IF;
   SELECT * INTO assignment FROM staff_assignment sa
   WHERE sa.event_id = quest_row.event_id AND sa.player_id = me FOR SHARE;
@@ -807,3 +808,32 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION enroll_operator(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION enroll_operator(uuid, text) TO questify_app;
+
+-- ================================================================ the Quests tab shows how each quest is verified
+-- A quest staff verify by scanning My QR tells the player to show their code (T-205). The return type changes, so the
+-- function is dropped and created again, with the same guard, columns and grants as 0022.
+DROP FUNCTION member_event_quests(uuid);
+
+CREATE FUNCTION member_event_quests(target uuid)
+  RETURNS TABLE (category_id uuid, category_name_ar text, category_name_en text, category_position integer,
+                 quest_id uuid, title_ar text, title_en text, description_ar text, description_en text,
+                 type text, points integer, repeat_cap integer, opens_at timestamptz, closes_at timestamptz,
+                 quest_position integer, done integer, earned bigint, verification text[])
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  WITH me AS (
+    SELECT n.id FROM enrollment n JOIN player p ON p.id = n.player_id
+    WHERE n.event_id = target AND n.player_id = app_player_id() AND n.status = 'active' AND p.status = 'active'
+  )
+  SELECT c.id, c.name_ar, c.name_en, c.position, q.id, q.title_ar, q.title_en, q.description_ar, q.description_en,
+         q.type, q.points, q.repeat_cap, q.opens_at, q.closes_at, q.position,
+         (SELECT count(*)::int FROM quest_completion qc WHERE qc.enrollment_id = me.id AND qc.quest_id = q.id),
+         (SELECT coalesce(sum(l.score_delta), 0)::bigint FROM ledger_entry l
+          WHERE l.enrollment_id = me.id AND l.quest_id = q.id),
+         q.verification
+  FROM me
+  JOIN category c ON c.event_id = target
+  JOIN quest q ON q.category_id = c.id AND q.event_id = target AND q.visible
+  ORDER BY c.position, c.id, q.position, q.id
+$$;
+REVOKE ALL ON FUNCTION member_event_quests(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION member_event_quests(uuid) TO questify_app;

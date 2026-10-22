@@ -50,6 +50,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   closesAt: quest.closesAt?.toISOString() ?? null,
   done: quest.done,
   earned: quest.earned,
+  verification: quest.verification,
   state: quest.state,
 });
 

@@ -24,13 +24,14 @@ import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
 import { registerHomeRoutes } from "#src/home/routes";
+import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
 import { registerContactRoutes } from "#src/players/contact";
 import { registerProfileRoutes } from "#src/players/profile";
 import { registerPlayerAuthRoutes } from "#src/players/routes";
 import { createPlayerSignIn } from "#src/players/sign-in";
 import type { SmsSender } from "#src/players/sms";
-import { createQuestCodeKey } from "#src/quests/qr";
+import { createInviteCodeKey, createMyCodeKey, createQuestCodeKey } from "#src/quests/qr";
 import { createRanking } from "#src/ranking/ranking";
 import { registerRankingRoutes } from "#src/ranking/routes";
 import type { RankingStore } from "#src/ranking/store";
@@ -180,6 +181,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
+  const operatorDeps = {
+    pool: options.pool,
+    inviteKey: createInviteCodeKey(config.qrSecret),
+    email: options.emailSender,
+    dashboardOrigin: config.auth.dashboardOrigin,
+  };
   const settings = options.settings ?? createSettingsService({ pool: options.pool });
   const ranking = createRanking({
     pool: options.pool,
@@ -213,6 +220,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerHomeRoutes(app, { pool: options.pool, settings });
+  registerOperatorPlayerRoutes(app, {
+    ...operatorDeps,
+    myKey: createMyCodeKey(config.qrSecret),
+    ranking,
+  });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
     pool: options.pool,
@@ -237,6 +249,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       codeOrigin: config.auth.dashboardOrigin,
     },
     rewardCodeKey,
+    operators: operatorDeps,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

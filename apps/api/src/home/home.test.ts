@@ -16,6 +16,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   closesAt: null,
   done: 0,
   earned: 0,
+  verification: ["quest_qr"],
   ...fields,
 });
 
