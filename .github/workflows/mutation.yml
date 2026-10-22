@@ -1,0 +1,106 @@
+name: Mutation
+
+# The mutation check for core code (QUALITY_BASELINE, ADR-111), started by hand. It runs here rather than on Windows,
+# where Stryker's workers crash under load. Free on this public repository; a scoped run takes 10 to 60 minutes, and
+# incremental mode re-tests only mutants whose code or tests changed since the last run.
+# Start it: gh workflow run mutation.yml -f mutate="apps/api/src/join/**/*.ts,!**/*.test.ts"
+on:
+  workflow_dispatch:
+    inputs:
+      mutate:
+        description: "Files to mutate, comma-separated globs (empty: every core module in stryker.config.json)"
+        required: false
+        default: ""
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Each mutant's integration tests create their own database.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      TEST_REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Raise the database's connection limit for parallel test databases
+        run: |
+          set -euo pipefail
+          container="$(docker ps --filter "ancestor=postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24" --format '{{.ID}}' | head -n 1)"
+          docker exec "$container" psql -U postgres -c "ALTER SYSTEM SET max_connections = 300"
+          docker restart "$container"
+          until docker exec "$container" pg_isready -U postgres; do sleep 1; done
+
+      - name: Restore the last run's results
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.run_id }}
+          restore-keys: stryker-incremental-
+
+      - name: Mutation test
+        env:
+          MUTATE: ${{ inputs.mutate }}
+        run: |
+          set -euo pipefail
+          args=(--incremental --concurrency 4 --dryRunTimeoutMinutes 20 --reporters clear-text,html)
+          if [ -n "$MUTATE" ]; then
+            args+=(--mutate "$MUTATE")
+          fi
+          pnpm exec stryker run "${args[@]}"
+
+      - name: Keep these results for the next run
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.run_id }}
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          path: reports/mutation
+          retention-days: 14

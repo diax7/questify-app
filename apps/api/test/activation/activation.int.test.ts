@@ -257,6 +257,84 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation over HTTP", (
     });
   });
 
+  describe("what the console shows and records", () => {
+    it("shows each queued request and the event in full, and 404 for an unknown event", async () => {
+      const { id, code } = await newDraft();
+      await team("POST", id);
+      const queue = await call("GET", "/v1/admin/activation-requests", adminCookie);
+      const item = queue
+        .json<{ requests: { eventId: string }[] }>()
+        .requests.find((request) => request.eventId === id);
+      expect(item).toEqual({
+        eventId: id,
+        name: { ar: null, en: "Spring Fest" },
+        organizer: "Activation Co",
+        requestedAt: expect.any(String),
+        startsAt: expect.any(String),
+        timezone: "Asia/Riyadh",
+      });
+      const detail = await call("GET", `/v1/admin/events/${id}`, adminCookie);
+      expect(detail.json()).toMatchObject({
+        event: {
+          event: {
+            joinCode: code,
+            name: { ar: null, en: "Spring Fest" },
+            venue: { ar: null, en: "Riyadh Front" },
+            startsAt: expect.any(String),
+            endsAt: expect.any(String),
+          },
+        },
+      });
+      expect((await call("GET", `/v1/admin/events/${randomUUID()}`, adminCookie)).statusCode).toBe(
+        404,
+      );
+      const undated = await newDraft();
+      await owner("UPDATE event SET starts_at = NULL, ends_at = NULL WHERE id = $1", [undated.id]);
+      await team("POST", undated.id);
+      const requests = (await call("GET", "/v1/admin/activation-requests", adminCookie)).json<{
+        requests: { eventId: string; startsAt: string | null }[];
+      }>().requests;
+      expect(requests.find((request) => request.eventId === undated.id)?.startsAt).toBeNull();
+      expect(
+        (await call("GET", `/v1/admin/events/${undated.id}`, adminCookie)).json(),
+      ).toMatchObject({ event: { event: { startsAt: null, endsAt: null } } });
+    });
+
+    it("keeps the request id of every change in the audit log", async () => {
+      const { id } = await newDraft();
+      await team("POST", id);
+      await team("DELETE", id);
+      await team("POST", id);
+      await call("POST", `/v1/admin/events/${id}/reject`, adminCookie, { note: "Not yet." });
+      await activate(id, { limit: { mode: "none" }, addons: [] });
+      await call("PUT", `/v1/admin/events/${id}/limit`, adminCookie, { mode: "hard", value: 9 });
+      const entries = await owner<{ action: string; request_id: string | null }>(
+        "SELECT action, request_id FROM audit_log WHERE event_id = $1 ORDER BY id",
+        [id],
+      );
+      expect(entries.length).toBeGreaterThanOrEqual(6);
+      expect(entries.filter((entry) => entry.request_id === null)).toEqual([]);
+    });
+
+    it("shows an add-on in the app's configuration as soon as it is unlocked or locked", async () => {
+      const { id } = await newDraft();
+      const bigScreen = async () =>
+        (await test.app.inject({ url: `/v1/config?event=${id}` })).json<{
+          features: { bigScreen: { enabled: boolean } };
+        }>().features.bigScreen.enabled;
+      await activate(id, { limit: { mode: "none" }, addons: [] });
+      expect(await bigScreen()).toBe(false);
+      await call("PUT", `/v1/admin/events/${id}/addons/bigScreen`, adminCookie);
+      expect(await bigScreen()).toBe(true);
+      await call("DELETE", `/v1/admin/events/${id}/addons/bigScreen`, adminCookie);
+      expect(await bigScreen()).toBe(false);
+      await call("PUT", `/v1/admin/events/${id}/addons/bigScreen`, adminCookie);
+      expect(await bigScreen()).toBe(true);
+      await call("DELETE", `/v1/admin/events/${id}/addons/bigScreen`, adminCookie);
+      expect(await bigScreen()).toBe(false);
+    });
+  });
+
   describe("joining", () => {
     it("has no working join for a draft; activation opens it; a full hard limit closes it", async () => {
       const { id, code } = await newDraft();

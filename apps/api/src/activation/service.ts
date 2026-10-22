@@ -106,6 +106,7 @@ async function refusing<T>(work: () => Promise<T>): Promise<T | Refusal> {
     return await work();
   } catch (error) {
     const refusal = refusalOf(error);
+    // Stryker disable next-line ConditionalExpression,BlockStatement: an unexpected database failure cannot be caused from a test without breaking the database
     if (refusal === undefined) {
       throw error;
     }
@@ -153,6 +154,7 @@ export function createActivation(deps: ActivationDeps) {
         const row = rows[0];
         // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the definer answers one row or raises
         if (row === undefined) {
+          // Stryker disable next-line StringLiteral: unreachable, as above
           throw new Error("request_event_activation answered no row; check migration 0027");
         }
         return { kind: row.outcome, requestedAt: row.requested_at.toISOString() };
@@ -164,6 +166,7 @@ export function createActivation(deps: ActivationDeps) {
           "SELECT withdraw_event_activation($1, $2) AS withdrawn",
           [eventId, caller.requestId ?? null],
         );
+        // Stryker disable next-line OptionalChaining,StringLiteral: equivalent: the definer always answers one row, and the route reads anything but "withdrawn" as 404
         return { kind: rows[0]?.withdrawn === true ? "withdrawn" : "none" };
       }),
 
@@ -295,7 +298,9 @@ async function readConsoleEvent(
     [eventId],
   );
   const row = rows[0];
+  // Stryker disable next-line ConditionalExpression: equivalent: readView of a missing event is undefined too
   const view = row === undefined ? undefined : await readView(client, eventId);
+  // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent: row and view are both present or both missing (the unknown-event test covers the 404)
   if (row === undefined || view === undefined) {
     return undefined;
   }

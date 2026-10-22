@@ -20,6 +20,13 @@
   `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
   playwright install chromium`). Run them before merging any web, shared or API change; they are part of `ci:full`
   in spirit and take about a minute.
+- Heavy checks run on GitHub, started by hand (ADR-149; free while the repository is public): push the branch, then
+  `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 10 to 15
+  minutes) or `gh workflow run mutation.yml --ref <branch> -f mutate="<globs>"` (Stryker with incremental results
+  kept between runs; empty `mutate` runs every core module). Read the result with `gh run watch` and the
+  `mutation-report` artifact. The PC keeps the quick loop: single test files while coding. Local mutation on Windows
+  crashes under load; if it must run here, use `--concurrency 4 --dryRunTimeoutMinutes 20`, then end leftover
+  `stryker` node processes and drop `questify_test_*`.
 
 ## Staff sign-in
 

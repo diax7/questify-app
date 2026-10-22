@@ -2034,3 +2034,14 @@ other briefly; 0027 alone had avoided that. Fine at this scale.
 - The guest list is shown masked (a phone's last four digits, an email's first letter and domain); the audit keeps
   counts, never a contact. Owners and editors manage it, like the rest of the event's setup.
 **Why:** answers are personal data (PDPL): the narrowest readers that serve FR-131, and no silent loss of answers.
+
+## ADR-149 — Heavy checks run on GitHub, by hand
+**Status:** Accepted (user, 2026-10-23).
+**Decision:** the full suite with every browser test (`full.yml`) and mutation testing (`mutation.yml`, incremental)
+run on GitHub's Linux runners, started by hand on a pushed branch. The PC runs the quick checks while coding. The pull
+request gate (`ci.yml`) is unchanged.
+**Why:** Dhia: "not only Mutation, but any test could be there, faster and more efficient." The repository is public,
+so the minutes are free and the runners have 4 cores; Stryker's workers crash on Windows under load, which left up to
+947 test databases on a nearly full disk; and the PC stays free while the checks run.
+**Cost:** GitHub tests only pushed code, so a branch is pushed before its heavy checks. Re-check this if the
+repository becomes private (minutes are then billed, CLAUDE.md CI rules).

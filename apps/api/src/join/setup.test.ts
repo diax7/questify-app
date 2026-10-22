@@ -47,7 +47,19 @@ describe("parseGuest and parseGuests", () => {
     expect(parseGuest("05 1234 5678")).toEqual({ kind: "phone", value: "+966512345678" });
     expect(parseGuest("٠٥١٢٣٤٥٦٧٨")).toEqual({ kind: "phone", value: "+966512345678" });
     expect(parseGuest(" Sara@Acme.SA ")).toEqual({ kind: "email", value: "sara@acme.sa" });
-    for (const bad of ["a@b", "a@b.", "a@.b", "plain", "+14155550100", "a b@c.sa", "a@b@c.sa"]) {
+    expect(parseGuest("a@mail.acme.sa")).toEqual({ kind: "email", value: "a@mail.acme.sa" });
+    for (const bad of [
+      "a@b",
+      "a@b.",
+      "a@.b",
+      "a@acme.sa.",
+      "a@.acme.sa",
+      "a@acme..sa",
+      "plain",
+      "+14155550100",
+      "a b@c.sa",
+      "a@b@c.sa",
+    ]) {
       expect(parseGuest(bad), bad).toBeUndefined();
     }
   });

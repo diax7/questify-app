@@ -18,6 +18,7 @@ export function checkLimit(
   if (input.mode === "none") {
     return value === null ? { mode: "none", value: null } : undefined;
   }
+  // Stryker disable next-line ConditionalExpression: equivalent: Number.isInteger(null) is false too
   if (value === null || !Number.isInteger(value) || value < 1 || value > MAX_PLAYER_LIMIT) {
     return undefined;
   }
@@ -65,7 +66,9 @@ const REFUSALS: Readonly<Record<string, (detail: string) => Refusal>> = {
 export function refusalOf(error: unknown): Refusal | undefined {
   const pg = error as { code?: unknown; detail?: unknown } | null;
   const code = typeof pg?.code === "string" ? pg.code : undefined;
+  // Stryker disable next-line ConditionalExpression: equivalent: no refusal is keyed "undefined"
   const make = code !== undefined && Object.hasOwn(REFUSALS, code) ? REFUSALS[code] : undefined;
+  // Stryker disable next-line ConditionalExpression,OptionalChaining,StringLiteral: equivalent: a missing detail and "" both read as "times", and make is undefined when pg is null
   return make?.(typeof pg?.detail === "string" ? pg.detail : "");
 }
 

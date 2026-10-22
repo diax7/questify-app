@@ -236,6 +236,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
       ).toBe(200);
     });
 
+    it("locks the welcome from going live even with nobody in, and leaves drafts open", async () => {
+      const draft = await newEvent({ status: "draft", startsIn: "1 day" });
+      const rules = (event: string, welcomePoints: number) =>
+        dash("PUT", `/events/${event}/join/rules`, { welcomePoints });
+      expect((await rules(draft.id, 10)).statusCode).toBe(200);
+      expect((await dash("GET", `/events/${draft.id}/join`)).json()).toMatchObject({
+        welcomeLocked: false,
+      });
+      const live = await newEvent();
+      expect((await dash("GET", `/events/${live.id}/join`)).json()).toMatchObject({
+        welcomeLocked: true,
+      });
+      expect((await rules(live.id, 10)).json()).toMatchObject({ code: "setting_locked" });
+    });
+
+    it("reads an archived event's setup but changes nothing in it", async () => {
+      const event = await newEvent({ status: "archived" });
+      expect((await dash("GET", `/events/${event.id}/join`)).statusCode).toBe(200);
+      expect((await dash("GET", `/events/${event.id}/join/guests`)).statusCode).toBe(200);
+      const refused = await dash("PUT", `/events/${event.id}/join/rules`, { welcomePoints: 5 });
+      expect(refused.statusCode).toBe(409);
+      expect(refused.json()).toMatchObject({ code: "event_archived" });
+    });
+
+    it("refuses the same saved field twice in one list", async () => {
+      const event = await newEvent();
+      const saved = (
+        await saveFields(event.id, [{ kind: "custom", label: { en: "Team" }, required: true }])
+      ).json<Setup>();
+      const id = saved.fields[0]?.id;
+      const twice = await dash("PUT", `/events/${event.id}/join/fields`, {
+        version: saved.version,
+        fields: [
+          { id, kind: "custom", label: { en: "Team" }, required: true },
+          { id, kind: "custom", label: { en: "Team again" }, required: false },
+        ],
+      });
+      expect(twice.statusCode).toBe(400);
+    });
+
+    it("audits an upload only when it adds someone", async () => {
+      const event = await newEvent();
+      const upload = () =>
+        dash("POST", `/events/${event.id}/join/guests`, { lines: ["repeat@acme.sa"] });
+      await upload();
+      await upload();
+      expect(
+        await owner("SELECT 1 FROM audit_log WHERE event_id = $1 AND action = 'event.guests.add'", [
+          event.id,
+        ]),
+      ).toHaveLength(1);
+    });
+
     it("uploads a guest list, reports the invalid lines, masks the entries and removes one", async () => {
       const event = await newEvent();
       const added = await dash("POST", `/events/${event.id}/join/guests`, {
