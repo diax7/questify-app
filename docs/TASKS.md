@@ -317,6 +317,11 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Done when: A quest whose reward is an item plus 50 points adds 50 points and a pending desk item; an item out of stock pays the points only and the owner sees a warning.
 - [ ] **T-305** Mini-games: server-issued seeded rounds, replay check, four games, attempts, pass target, organizer images, result retry — delivers FR 217, 218, 1804, 1805, 1806, 1807, 1808, 1809; depends on: T-105
   - Done when: Impossible inputs are rejected and a flag raised; a game quest pays once on the first pass.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-305-mini-games.md`, migration 0050, ADR-212 to ADR-215 and Q-176 to Q-179 Proposed. Split (ADR-214): T-305 builds the round machinery and memory match and slide puzzle (FR-1804 in part); catch and tap rush move to T-305c, organizer images (FR-1808) to T-305b.
+- [ ] **T-305b** Organizer images on mini-game cards, puzzle pictures and falling items — delivers FR 1808; depends on: T-305, T-305c; **blocked on Q-149** (a Questify bucket in `riyadh-1`)
+  - Split from T-305 2026-10-24 (ADR-214): images need an upload and a bucket; until then the default art shows.
+- [ ] **T-305c** Catch and tap rush: fixed-tick replay, reaction-time bounds, app screens — delivers FR 1804 (the last two games); depends on: T-305
+  - Split from T-305 2026-10-24 (ADR-214): real-time replay is its own problem; the round protocol and verdicts are T-305's.
 - [ ] **T-306** Live polls and community quests with milestones and rewards — delivers FR 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 1620; depends on: T-302
   - Done when: A community goal not reached pays nothing; points-based goals count participation points.
 - [ ] **T-307** Flash quests, double-point boosts, live finale — delivers FR 251, 252, 254, 255, 1621; depends on: T-306

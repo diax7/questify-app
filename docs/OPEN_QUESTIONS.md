@@ -358,3 +358,24 @@ needs both positions kept (ADR-206 keeps none); no new flag kind yet. The meet r
 retention (Q-075) and are deleted with either account. Agree, or should a "same small group meeting only each other"
 case be added later?
 Known edges left as they are (CTO code review, 2026-10-23): the per-player limits answer 429 when two of the player's requests contend for the limiter's lock at the same instant (a retry passes); and one Idempotency-Key used for a meeting and for an ordinary completion is not refused as reused (`QK422`): each pays once under its own path, never twice.
+
+## Q-176 — How far mini-game results are checked (2026-10-24, T-305)
+ADR-212: the server replays every round and refuses impossible play, but the round's layout reaches the phone, so a
+modified app could play a perfect game at human speed. The targets sit below perfect play, very lucky rounds are
+flagged for the organizer, and the reward is one quest's points once. Agree, or ask the server for each move (slower
+on a venue network)?
+
+## Q-177 — Mini-game attempts and retry (2026-10-24, T-305)
+ADR-213: an attempt is used when Play is tapped, so quitting a bad round does not give a fresh one; a result that could
+not be sent is kept in the app's memory for the time limit plus 10 minutes (an app closed in between loses it); a round
+already started may finish after the organizer switches mini-games off. Agree?
+
+## Q-178 — Mini-game levels (2026-10-24, T-305)
+ADR-215 and the plan's table: memory match 6, 8 or 10 pairs in 120 seconds (medium within 20 moves, hard within 22);
+slide puzzle 3×3 lightly or fully shuffled in 180 seconds, or 4×4 in 300 seconds. A round is flagged as unlikely after
+3 lucky first-sight matches, or a puzzle solved in fewer moves than its shuffle at under 300 ms a move. Keep as a
+start and tune after a playtest?
+
+## Q-179 — Mini-games in three parts (2026-10-24, T-305)
+ADR-214: memory match and slide puzzle first (T-305), catch and tap rush next (T-305c), organizer images once a
+Questify bucket exists (T-305b, blocked on Q-149). Agree?

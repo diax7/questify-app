@@ -2694,3 +2694,45 @@ review 2026-10-24); a popular player shown
 many times is not a script; comparing two positions would mean keeping coordinates.
 **Build notes (T-303c, 2026-10-23):** the two payments run in player id order, not enrollment id order: Questify XP rows are per player across events, so two meetings of the same two players in two events would otherwise cross (a race test covers it). The rate limiter's lock is `pg_try_advisory_xact_lock` in its own transaction, so it never waits inside a meeting.
 A meeting without an `x-device-id` (a header the client sends, never trusted) skips the same-device refusal and, for that side, the shared-device flag; the pair rule and the daily cap still bound what it earns (CTO code review 2026-10-23, accepted). A deadlock or serialization failure answers 503 `busy` with Retry-After (`conventions.ts`).
+
+## ADR-212 — Mini-game rounds and replay
+**Status:** Proposed (Claude, 2026-10-24; T-305). Q-176. Specifies ADR-097's checking.
+**Decision:** the database issues each round: a 32-bit seed from `gen_random_uuid`, its own clock, the game and level
+frozen from the quest, and the level's numbers from its own copy of the level table. Issuing uses an attempt. The phone
+sends its inputs and the result its engine found; the API replays the inputs with the same shared engine and never
+trusts a reported score. Impossible play (an illegal input, inputs out of order, closer than 100 ms, past the time
+limit or over the cap, a reported result the replay does not reproduce, or more play time than the server saw pass)
+refuses the round, which counts as played, and raises a `minigame` flag. Legal but unlikely play is paid and flagged.
+The refusal's reason is shown to the organizer, never to the player.
+**Why:** FR-218, FR-1805. The seed reaches the phone, so a modified app can see the layout; the targets sit below
+perfect play, the unlikely checks catch the cheap version, and the reward is one quest's points once. A round trip per
+move (the quiz's model) would make the games unplayable on a venue network.
+
+## ADR-213 — Mini-game attempts, pass and retry
+**Status:** Proposed (Claude, 2026-10-24; T-305). Q-177.
+**Decision:** one quest type `game` with a game and a level (easy, medium, hard). Attempts 1 to 10 (default 1), or
+unlimited with a cooldown of 1 to 1,440 minutes; an attempt is used when a round is issued, and Play is idempotent (a
+retried request returns the same round). The quest pays its points, frozen at issue, once, on the first pass; the item
+and the category bonus follow as for every payer. All attempts used without a pass counts the quest done for category
+gates and the bonus (as a quiz with no right answers). A result is taken until the time limit plus 10 minutes; the app
+keeps the inputs in memory only. The event switch `miniGames` (FR-1009) is on by default; off, game quests are hidden
+and no round is issued, but a round already issued may still send its result. Allowed in every event kind.
+**Why:** FR-1806, FR-1807, FR-1809, F-309; counting at issue stops quitting a bad layout; no dead end in an in-order
+category.
+
+## ADR-214 — T-305 is split in three
+**Status:** Proposed (Claude, 2026-10-24; T-305). Q-179.
+**Decision:** T-305 builds the round machinery for all four games, and memory match and slide puzzle end to end.
+T-305c builds catch and tap rush (real-time, fixed-tick replay) on it. T-305b builds organizer images on cards, puzzles
+and falling items (FR-1808) once a Questify bucket exists (Q-149); until then the default art shows. The builder
+refuses the two later games as "not available yet".
+**Why:** the turn-based and real-time replays are different problems, the app screens double the work, and images
+need uploads that are blocked on the bucket (ADR-183).
+
+## ADR-215 — Mini-game levels and how the games are drawn
+**Status:** Proposed (Claude, 2026-10-24; T-305). Q-178.
+**Decision:** each game's easy, medium and hard numbers (board size, time limit, target) are Questify tuning kept on
+the server and sent with every round, so retuning is a deploy, not a store release; the organizer picks only the level.
+The board never mirrors in Arabic (the instructions and the bar do). Motion uses React Native's own `Animated`, so the
+games add no native module and no new EAS build.
+**Why:** configuration over code without giving organizers numbers they cannot judge; a picture puzzle cannot mirror.
