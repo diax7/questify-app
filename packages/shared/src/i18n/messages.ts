@@ -620,6 +620,23 @@ export const MESSAGES = {
   "quests.type.share": { ar: "مشاركة", en: "Share" },
   "quests.type.passport": { ar: "جواز", en: "Passport" },
   "quests.type.location": { ar: "تسجيل حضور في مكان", en: "Check in at a spot" },
+  "quests.type.meet": { ar: "تعارف", en: "Meet someone" },
+  "quests.meet.dailyCap": {
+    ar: "الحد اليومي لكل لاعب (1 إلى 50)",
+    en: "Daily cap per player (1 to 50)",
+  },
+  "quests.meet.repeatCap": {
+    ar: "حد التكرار هو أقصى عدد من اللاعبين يتعرّف عليهم اللاعب مقابل النقاط.",
+    en: "The repeat cap is the most people a player can meet for points.",
+  },
+  "quests.meet.note": {
+    ar: "يعرض كل لاعب من تطبيقه رمزًا يتجدد كل دقيقة، فلا تنفع لقطات الشاشة. يحصل اللاعبان على النقاط معًا، مرة واحدة لكل اثنين.",
+    en: "Each player shows a one-minute code from their app; screenshots stop working. Both players earn the points together, once per pair.",
+  },
+  "quests.invalid.dailyCap": {
+    ar: "اجعل الحد اليومي بين 1 و50، ولا يزيد على حد التكرار.",
+    en: "Set a daily cap from 1 to 50, no higher than the repeat cap.",
+  },
   "quests.place.title": { ar: "المكان", en: "Place" },
   "quests.place.help": {
     ar: "اختياري: نقطة المكان ونصف قطره، لرصد التنقّل السريع بين الأماكن.",
@@ -2904,6 +2921,83 @@ export const MESSAGES = {
     ar: "أرسلت إجاباتك عن هذا الاستبيان.",
     en: "You have answered this survey.",
   },
+  "meet.show": { ar: "اعرض رمزي", en: "Show my code" },
+  "meet.scan": { ar: "امسح رمز لاعب", en: "Scan their code" },
+  "meet.progress": { ar: "تعرّفت على {done} من {cap}", en: "Met {done} of {cap}" },
+  "meet.today": { ar: "اليوم: {count} من {cap}", en: "Today: {count} of {cap}" },
+  "meet.codeTitle": { ar: "رمز التعارف", en: "Your meet code" },
+  "meet.codeHelp": {
+    ar: "اطلب من اللاعب الآخر مسح هذا الرمز. يتجدد كل دقيقة.",
+    en: "Ask the other player to scan this code. It changes every minute.",
+  },
+  "meet.youMet": { ar: "تعرّفت على ‎@{name}", en: "You met @{name}" },
+  "meet.failed": {
+    ar: "تعذّر عرض الرمز. حاول مرة أخرى.",
+    en: "Couldn't show your code. Try again.",
+  },
+  "meet.refused.alreadyMet": {
+    ar: "سبق أن تعرّفت على ‎@{name} في هذه المهمة.",
+    en: "You already met @{name} on this quest.",
+  },
+  "meet.refused.dailyCap": {
+    ar: "بلغت حد اليوم ({count}). يمكنك التعارف على المزيد غدًا.",
+    en: "You've reached today's limit ({count}). You can meet more tomorrow.",
+  },
+  "meet.refused.theirDailyCap": {
+    ar: "بلغ هذا اللاعب حد اليوم. حاول مجددًا غدًا.",
+    en: "They've reached today's limit. Try again tomorrow.",
+  },
+  "meet.refused.done": {
+    ar: "وصلت إلى الحد الأقصى لهذه المهمة.",
+    en: "You've reached this quest's limit.",
+  },
+  "meet.refused.theirDone": {
+    ar: "وصل هذا اللاعب إلى الحد الأقصى لهذه المهمة.",
+    en: "They've reached this quest's limit.",
+  },
+  "meet.refused.ended": {
+    ar: "انتهى هذا الرمز. اطلب رمزًا جديدًا.",
+    en: "This code has ended. Ask for a fresh one.",
+  },
+  "meet.refused.self": {
+    ar: "هذا رمزك. امسح رمز لاعب آخر.",
+    en: "That's your own code. Scan another player's code.",
+  },
+  "meet.refused.sameDevice": {
+    ar: "هذا الرمز معروض على جوالك. امسح الرمز من جوال اللاعب الآخر.",
+    en: "This code is on your own phone. Scan the code on the other player's phone.",
+  },
+  "meet.refused.notInEvent": {
+    ar: "هذا الرمز لفعالية لم تنضم إليها.",
+    en: "This code is for an event you haven't joined.",
+  },
+  "meet.refused.notForThem": {
+    ar: "هذه المهمة غير متاحة لهذا اللاعب.",
+    en: "This quest isn't open for them.",
+  },
+  "meet.refused.badCode": {
+    ar: "هذا ليس رمز تعارف من Questify.",
+    en: "This isn't a Questify meet code.",
+  },
+  "meet.refused.off": {
+    ar: "مهام التعارف متوقفة في هذه الفعالية.",
+    en: "Meet quests are off for this event.",
+  },
+  "events.meetSomeone.title": { ar: "مهام التعارف", en: "Meet-someone quests" },
+  "events.meetSomeone.label": {
+    ar: "إظهار مهام التعارف للاعبين",
+    en: "Show meet-someone quests to players",
+  },
+  "events.meetSomeone.on": {
+    ar: "مهام التعارف ظاهرة، ويحصل اللاعبان على النقاط عند مسح أحدهما رمز الآخر.",
+    en: "Meet quests show, and two players earn points when one scans the other's code.",
+  },
+  "events.meetSomeone.off": {
+    ar: "مهام التعارف مخفية عن اللاعبين ولا تمنح نقاطًا.",
+    en: "Meet quests are hidden from players and earn nothing.",
+  },
+  "flags.method.meetScan": { ar: "تعارف (مسح الرمز)", en: "Meet (scanned)" },
+  "flags.method.meetShown": { ar: "تعارف (عرض الرمز)", en: "Meet (shown)" },
   "play.share.message": {
     ar: "الرسالة التي ستشاركها:",
     en: "The message you'll share:",

@@ -37,6 +37,7 @@ describe("the quest-type registry", () => {
       "share",
       "passport",
       "location",
+      "meet",
     ]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);
@@ -302,5 +303,24 @@ describe("passport quests", () => {
     }
     expect(parseQuestConfig("passport", { needed: 1, steps: [] })).toBeUndefined();
     expect(parseVerification("passport", undefined, undefined)).toEqual([]);
+  });
+});
+
+describe("meet quests", () => {
+  it("default to a daily cap of 5 and take 1 to 50 whole meetings", () => {
+    expect(parseQuestConfig("meet", {})).toEqual({ dailyCap: 5 });
+    expect(parseQuestConfig("meet", { dailyCap: 1 })).toEqual({ dailyCap: 1 });
+    expect(parseQuestConfig("meet", { dailyCap: 50 })).toEqual({ dailyCap: 50 });
+    for (const dailyCap of [0, 51, 2.5, "5", null]) {
+      expect(parseQuestConfig("meet", { dailyCap }), String(dailyCap)).toBeUndefined();
+    }
+    expect(parseQuestConfig("meet", { dailyCap: 5, extra: 1 })).toBeUndefined();
+  });
+
+  it("carry no quest QR and no verification, and never refresh", () => {
+    expect(QUEST_TYPES.meet.usesQuestQr).toBe(false);
+    expect(QUEST_TYPES.meet.verifications).toEqual([]);
+    expect(QUEST_TYPES.meet.oneTry).toBe(false);
+    expect(parseVerification("meet", undefined)).toEqual([]);
   });
 });

@@ -1027,6 +1027,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // Position rows go with their completions (ON DELETE CASCADE), before the accounts (T-303b).
         "enrollment.completion_position",
         "quest_completion.completion_position",
+        // Meetings go with either completion (ON DELETE CASCADE); the accounts' meet codes go after the completions,
+        // before the accounts (T-303c).
+        "enrollment.meet_pass",
+        "enrollment.meeting",
+        "quest_completion.meeting",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

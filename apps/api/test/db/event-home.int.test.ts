@@ -134,6 +134,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "place_lat",
           "place_lng",
           "place_radius_m",
+          "daily_cap",
+          "met_today",
           "title_ar",
           "title_en",
           "type",

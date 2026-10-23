@@ -97,6 +97,7 @@ export {
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isQuestType,
+  MEET_DAILY_CAP,
   normalizeEntryCode,
   parseVerification,
   PASSPORT_STEPS_MAX,
@@ -111,6 +112,7 @@ export {
   SURVEY_TEXT_MAX,
   unavailableSubmissionKind,
 } from "./quests/registry";
+export { MEET_CODE_PREFIX, meetCodeOf, meetTokenOf } from "./quests/meet-code";
 export type { Avatar } from "./players/avatars";
 export { AVATARS } from "./players/avatars";
 export type { UsernameCheck } from "./players/username";

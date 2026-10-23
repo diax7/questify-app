@@ -69,6 +69,9 @@ const bilingualHint = z
   .refine((hint) => hint.ar !== undefined || hint.en !== undefined)
   .optional();
 
+/** A meet quest's daily cap bounds and default (ADR-210); the database holds the same check. */
+export const MEET_DAILY_CAP = { min: 1, max: 50, default: 5 } as const;
+
 /**
  * The quest types the reviewed app can complete (FR-1505: a quest is a type plus a reward plus rules). Each quest task
  * adds its type here, with its config schema and its messages, in the same change that builds the player's side, and
@@ -209,6 +212,25 @@ export const QUEST_TYPES = {
     usesQuestQr: true,
     verifications: ["quest_qr"],
     config: z.strictObject({}),
+  },
+  /**
+   * Two players meet: one shows a one-minute meet code from the app, the other scans it, and both are paid (T-303c,
+   * FR-212, FR-213, ADR-209, ADR-210). One meeting per pair and quest; `dailyCap` is the most meetings a player is paid
+   * for in one event day, the repeat cap the most overall. The event's `meetSomeone` switch hides them all.
+   */
+  meet: {
+    label: "quests.type.meet",
+    oneTry: false,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      dailyCap: z
+        .number()
+        .int()
+        .min(MEET_DAILY_CAP.min)
+        .max(MEET_DAILY_CAP.max)
+        .default(MEET_DAILY_CAP.default),
+    }),
   },
 } as const;
 

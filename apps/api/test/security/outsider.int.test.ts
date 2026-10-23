@@ -199,6 +199,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot show or scan a meet code, read one, or reach the meet helpers (T-303c)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.meet_pass",
+        "SELECT * FROM public.meeting",
+        "SELECT * FROM public.issue_meet_pass(gen_random_uuid(), '\\x00', NULL)",
+        "SELECT * FROM public.meet_pass_state(1)",
+        "SELECT * FROM public.meet_player('\\x00', 'k', NULL, NULL)",
+        "SELECT public.meet_on(gen_random_uuid())",
+        "SELECT public.meet_today(gen_random_uuid(), NULL::public.quest)",
+        "SELECT public.meet_caps(NULL::public.enrollment, NULL::public.quest)",
+        "SELECT public.meet_may_play(NULL::public.enrollment, NULL::public.quest)",
+        "SELECT public.meet_pass_for('\\x00')",
+        "SELECT public.meet_replay(gen_random_uuid(), 'k', 1)",
+        "SELECT * FROM public.meet_answer(NULL::public.meeting, false)",
+        "SELECT public.meet_refusal(NULL::public.meet_pass, NULL::public.enrollment, NULL::public.enrollment, NULL::public.quest)",
+        "SELECT public.pay_meeting(NULL::public.meet_pass, NULL::public.enrollment, NULL::public.enrollment, NULL::public.quest, 'k', NULL, NULL)",
+        "SELECT public.pay_completion(NULL::public.enrollment, gen_random_uuid(), 1, 'qr', 'k', NULL, NULL, NULL)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,
