@@ -400,3 +400,25 @@ counted, so the flag is advisory only. Agree?
 ## Q-182 — Catch and tap rush levels (2026-10-24, T-305c plan)
 ADR-218 and the plan's table: catch 45 s with 30, 40 or 50 items (pass at 20, 30 or 40 caught); tap rush 30 s with a
 score of 20, 28 or 34 to pass, a miss costing a point. Keep as a start and tune after a playtest?
+
+## Q-183 — Splitting T-306 (2026-10-24, T-306 plan)
+ADR-219: live polls now (T-306); community quests next (T-306b); quests, categories or shop rewards unlocked by a
+community goal after that (T-306c). The pushes wait for T-501 and the big-screen scenes for T-504. Agree?
+
+## Q-184 — Live poll rules (2026-10-24, T-306 plan)
+ADR-220: a live poll takes one choice or several (several still count as one vote and one payment), shows results
+after voting, at close or never, and stays open 1 minute to 24 hours once sent. A poll without points still gives
+Questify XP like any quest. Agree, or no XP for a poll without points?
+
+## Q-185 — Polling instead of a live stream (2026-10-24, T-306 plan)
+ADR-221: the app checks for live polls and community progress every 10 seconds while the event is open on screen;
+the live stream waits until the big screen or a load test needs faster updates. Agree?
+
+## Q-186 — Community quest rules (2026-10-24, T-306 plan)
+ADR-222: one community quest running at a time per event; the list of who gets the reward is fixed the moment the
+goal is reached (people who join later are not paid); "everyone" means every active player at that moment; community
+quests do not run in rehearsal (the dashboard shows a preview). Agree?
+
+## Q-187 — Community payout numbers (2026-10-24, T-306 plan)
+ADR-223: rewards paid in batches of 500 players, up to 2 seconds of work every 5 seconds (10,000 players paid within
+about 30 seconds); final results wait until every community reward is paid. Keep as a start?

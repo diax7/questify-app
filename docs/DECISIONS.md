@@ -2788,3 +2788,56 @@ calibration file and 150 ms in the unit file, which Stryker also runs. The plan 
 and scores hits minus misses. The level numbers in the T-305c plan are starting tuning, sent with each round. The
 64 KB result body limit stays one number for every game (a full catch round is under 40 KB).
 **Why:** pass targets below perfect play (ADR-212); a miss penalty stops tapping everywhere from passing.
+
+## ADR-219 — T-306 is split in three
+**Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-183.
+**Decision:** T-306 builds live polls (FR-239 to FR-242). T-306b builds community quests (FR-243 to FR-246, FR-248 to
+FR-250, FR-1620, and FR-247's points, real-world moment and nothing). T-306c builds FR-247's unlock rewards (a quest,
+category or shop reward locked until a community step is reached). The poll push and the milestone push move to
+T-501; the poll and community scenes on the big screen to T-504.
+**Why:** polls are a small change on the finished vote type; the community payer pays many players in one step and
+needs its own lock, batch and idempotency rules; unlocks add a gate to every quest and shop reader. Push and the big
+screen do not exist yet.
+
+## ADR-220 — A live poll is a vote quest with a live block
+**Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-184.
+**Decision:** a vote quest may carry `live: {choices: one | several, results: after_vote | at_close | never, minutes:
+1..1440}`. Saved as a draft (hidden, no window); Send sets `visible`, `opens_at = now()` and `closes_at = now() +
+minutes`, Close moves `closes_at` to now; the API role cannot set those columns on a live poll (guard trigger). Several
+choices are one row per option in `quest_vote`, one completion and one payment. Points are the quest's (0 = none);
+XP follows the quest rule unchanged. Players read counts only when the policy allows; the team always. A poll sent
+in rehearsal goes back to draft at go-live.
+**Why:** reusing the quest gives points, the ledger, audiences, rehearsal, erasure and removal for free, and the
+quest's own window means no player reader changes.
+
+## ADR-221 — Live updates are polled for now
+**Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-185.
+**Decision:** the app reads `GET /v1/events/{id}/live` (open live polls the player has not voted in, recently closed
+polls with results, and T-306b's community progress) every `livePollSeconds` (tuning, 10) while an event screen is
+open and the app is active, with an ETag and 304. The server-sent stream described in API.md is not built; it is the
+growth step if the big screen (T-504) or a load test needs updates faster than polling gives.
+**Why:** polls and a progress bar tolerate a 10 s delay; one small indexed call is cheaper to build and run than a
+stream with its fan-out, reconnects and proxy limits.
+
+## ADR-222 — Community quest counting
+**Status:** Proposed (Claude, 2026-10-24; T-306 plan, built in T-306b). Q-186.
+**Decision:** nothing in the scan transaction touches a community goal. A community tick (every 5 s, `FOR UPDATE SKIP
+LOCKED` per goal) keeps a settled tally: it adds the slice older than 30 s to a settled value and shows settled plus
+the open tail. Points count `quest`, `bonus` and their removals inside the window; completions count the chosen quest
+or category minus removals; players count contributors, kept as rows, who are also the default reward list. When a
+step is reached its payee list is frozen (contributors, or every active player then). A goal closes at its end (or
+the event's) plus 15 s: reached or missed; a missed goal pays nothing. One running goal per event; no rehearsal run.
+**Why:** a shared counter row would serialise every scan in an event at 20,000 completions a minute; a 30 s lag covers
+open transactions (5 s statement timeout), so a settled slice is read once and never again.
+
+## ADR-223 — The community payer
+**Status:** Proposed (Claude, 2026-10-24; T-306 plan, built in T-306b). Q-187.
+**Decision:** a community points reward is ledger kind `community`, actor `system`, balance only while the shop is
+open, no XP (XP follows `quest` entries only). The tick pays due payout rows in batches of 500: payout rows taken in
+enrollment order with SKIP LOCKED, then the batch's enrollments locked in one statement in id order before any other
+lock, one entry each, a partial unique index on (step, enrollment) so the database refuses a second payment, one
+ranking repair mark per batch. A failed batch rolls back and is retried on the next tick; a player request that
+waits past the lock timeout gets `503 busy` and retries with its key. `confirm_results` waits (`409
+community_paying`) until every goal of the event is closed and paid.
+**Why:** one transaction for thousands of players would hold their rows for seconds and block their scans; batches
+in id order keep the ADR-211 lock order and bound any wait to one batch.
