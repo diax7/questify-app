@@ -15,8 +15,10 @@ ALTER TABLE quest ADD CONSTRAINT quest_played_once
 ALTER TABLE quest ADD CONSTRAINT quest_survey_shape CHECK (
   type <> 'survey' OR CASE WHEN jsonb_typeof(type_config -> 'questions') = 'array'
                            THEN jsonb_array_length(type_config -> 'questions') BETWEEN 1 AND 20 ELSE false END);
+-- The link, when present, is https (ADR-199); the API checks its length and the rest of the shape.
 ALTER TABLE quest ADD CONSTRAINT quest_share_shape CHECK (
-  type <> 'share' OR coalesce(jsonb_typeof(type_config -> 'message') = 'object', false));
+  type <> 'share' OR (coalesce(jsonb_typeof(type_config -> 'message') = 'object', false)
+                      AND (type_config -> 'link' IS NULL OR coalesce(type_config ->> 'link' LIKE 'https://%', false))));
 
 -- A challenge's one method is staff scanning the player's My QR (ADR-197); the player has no quest QR to scan.
 ALTER TABLE quest DROP CONSTRAINT quest_verification_known;
@@ -273,7 +275,8 @@ END $$;
 REVOKE ALL ON FUNCTION survey_answer(jsonb, jsonb) FROM PUBLIC;
 
 -- Every answer of a response checked against the survey's config: an object naming only its questions (SA422 `shape`
--- otherwise), each answer valid, each required question answered (SA422, DETAIL its id). The answered ones, cleaned.
+-- otherwise), each answer valid, each required question answered (SA422, DETAIL its id; a question is required unless
+-- its `required` is false). The answered ones, cleaned.
 CREATE FUNCTION survey_answers(config jsonb, given jsonb) RETURNS jsonb
   LANGUAGE plpgsql IMMUTABLE SET search_path = public, pg_temp AS $$
 DECLARE
@@ -290,7 +293,7 @@ BEGIN
     answer := survey_answer(question, given -> (question ->> 'id'));
     IF answer IS NOT NULL THEN
       kept := kept || jsonb_build_object(question ->> 'id', answer);
-    ELSIF coalesce((question ->> 'required')::boolean, true) THEN
+    ELSIF question -> 'required' IS DISTINCT FROM 'false'::jsonb THEN
       RAISE EXCEPTION 'a required question has no answer' USING ERRCODE = 'SA422', DETAIL = question ->> 'id';
     END IF;
   END LOOP;

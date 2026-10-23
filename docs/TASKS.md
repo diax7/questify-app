@@ -372,6 +372,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Done when: A tagged item shows 'presented by' with the sponsor's name and logo.
 - [ ] **T-508** Quest ratings and survey results — delivers FR 1209, 1210, 1211, 1623, 1624; depends on: T-303
   - Note 2026-10-24 (T-303): `survey_summary(event, quest)` (migration 0042) already gives the total, per-question counts, the rating average and the newest 50 texts, names not shown (ADR-198), and the dashboard shows it on the quest's form. Build the results page, export and speaker sharing on it; answers live in `survey_response.answers` (jsonb, answered questions only).
+  - Note 2026-10-24 (T-303 code review): `survey_summary` scans the responses once per question; when results grow, compute it in one `jsonb_each(answers)` pass over the responses, grouped by question id.
   - Done when: Rating is optional and can be skipped; survey results export with the report.
 - [ ] **T-509** Cheers: five fixed reactions, cheers moment started by the owner, big-screen Cheers scene, rate limit, on/off per event — delivers FR 1841; depends on: T-504
   - Done when: No cheer button shows unless a moment is live; a player cannot send more than the per-minute limit.

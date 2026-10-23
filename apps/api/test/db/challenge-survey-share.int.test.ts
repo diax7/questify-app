@@ -238,7 +238,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(await refusal(stationScan(limited, quest, player))).toBe("OS403");
         const operator = await operatorOf(event);
         expect(
-          await query(as(operator), "SELECT quest_id, type FROM operator_stations($1)", [event]),
+          await query(
+            as(operator),
+            "SELECT quest_id, type FROM operator_stations($1) ORDER BY type",
+            [event],
+          ),
         ).toEqual([
           { quest_id: quest, type: "challenge" },
           { quest_id: scanQuest, type: "scan_qr" },
@@ -500,6 +504,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           code: "23514",
         });
         await expect(newQuest(event, "share", {})).rejects.toMatchObject({ code: "23514" });
+        for (const link of ["http://example.com", "javascript:alert(1)", null, 7]) {
+          await expect(newQuest(event, "share", { ...SHARE, link })).rejects.toMatchObject({
+            code: "23514",
+          });
+        }
+        await newQuest(event, "share", { message: SHARE.message });
+      });
+
+      it("takes a question whose required flag is not a boolean as required, without a server error", async () => {
+        const event = await newEvent();
+        const odd = {
+          questions: [
+            { id: "why", text: text("Why?"), kind: "text", required: "yes" },
+            { id: "how", text: text("How?"), kind: "text", required: false },
+          ],
+        };
+        const quest = await newQuest(event, "survey", odd);
+        const { player } = await member(event);
+        expect(await refusal(survey(player, quest, { how: "fine" }))).toBe("SA422:why");
+        expect(await survey(player, quest, { why: "fun" })).toMatchObject({ replayed: false });
       });
     });
 
