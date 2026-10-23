@@ -69,6 +69,8 @@ export type DeskItem = Readonly<{
   id: string;
   kind: "item" | "experience";
   name: Bilingual;
+  /** When the pickup time runs out; null when the server sent none. */
+  reservedUntil: string | null;
   /** The player tapped Collect and it is still live (collect_first). */
   ready: boolean;
   /** This desk's own offer is live (desk_offer). */
@@ -78,14 +80,22 @@ export type DeskItem = Readonly<{
 
 export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
 
-export type Lookup =
-  | Readonly<{
-      kind: "found";
-      player: ScannedPlayer;
-      enrollment: string;
-      items: readonly DeskItem[];
-    }>
-  | Readonly<{ kind: "refused"; reason: MessageKey }>;
+/**
+ * Why nothing can be handed over now (FR-1604, FR-1747, FR-1815): `paused` by the owner, or `held` (a flag or a ban;
+ * the desk is never told which).
+ */
+export type DeskHold = "held" | "paused";
+
+export type Found = Readonly<{
+  kind: "found";
+  player: ScannedPlayer;
+  /** False for a player who left or was removed. */
+  active: boolean;
+  hold: DeskHold | null;
+  items: readonly DeskItem[];
+}>;
+
+export type Lookup = Found | Readonly<{ kind: "refused"; reason: MessageKey }>;
 
 /** Why a scan at the desk found no one, in the station's own words where they are the same. */
 const REFUSED: Readonly<Record<string, MessageKey>> = {
@@ -104,6 +114,7 @@ function itemOf(value: unknown): DeskItem | undefined {
     id: value["id"],
     kind: value["kind"] === "experience" ? "experience" : "item",
     name: textOf(value["name"]) ?? { ar: null, en: null },
+    reservedUntil: typeof value["reservedUntil"] === "string" ? value["reservedUntil"] : null,
     ready: value["ready"] === true,
     offered: value["offered"] === true,
     offerUntil: typeof value["offerUntil"] === "string" ? value["offerUntil"] : null,
@@ -125,31 +136,60 @@ export function lookupOf(body: unknown): Lookup | undefined {
   if (body["result"] !== "found" || !isRecord(player) || !Array.isArray(body["items"])) {
     return undefined;
   }
+  const hold = body["hold"];
   return {
     kind: "found",
     player: { username: String(player["username"]), avatar: String(player["avatar"]) },
-    enrollment: typeof body["enrollment"] === "string" ? body["enrollment"] : "active",
+    active: body["active"] === true,
+    // Anything but a known hold or none reads as held: nothing is handed over on a guess.
+    hold: hold === null || hold === undefined ? null : hold === "paused" ? "paused" : "held",
     items: body["items"].map(itemOf).filter((item): item is DeskItem => item !== undefined),
   };
+}
+
+/** Reads `POST …/desk/find` (FR-1848): the same answer as a scan, or nobody by that name or number. */
+export function findOf(body: unknown): Lookup | undefined {
+  if (isRecord(body) && body["result"] === "none") {
+    return { kind: "refused", reason: "operator.desk.noMatch" };
+  }
+  return lookupOf(body);
+}
+
+/** Whole minutes left of an item's pickup time, never below 0; null when unknown. */
+export function pickupMinutesLeft(item: DeskItem, now: number): number | null {
+  const until = item.reservedUntil === null ? Number.NaN : Date.parse(item.reservedUntil);
+  return Number.isNaN(until) ? null : Math.max(0, Math.ceil((until - now) / 60_000));
 }
 
 /**
  * What a waiting item's row offers now. The server decides again on every tap; this only keeps the desk from offering
  * what it would refuse:
- * - `blocked`: the player is banned or left; `closed`: outside the desk's hours (look-up still works);
+ * - `blocked`: the player left or was removed; `paused` and `held`: the owner must act first (Cancel stays);
+ * - `closed`: outside the desk's hours (look-up still works);
  * - collect_first: `hand_over` once the player tapped Collect, else `not_ready`;
  * - desk_offer: `offer`, then `waiting` while this desk's offer is live.
  */
-export type ItemAction = "blocked" | "closed" | "hand_over" | "not_ready" | "offer" | "waiting";
+export type ItemAction =
+  | "blocked"
+  | "paused"
+  | "held"
+  | "closed"
+  | "hand_over"
+  | "not_ready"
+  | "offer"
+  | "waiting";
 
 export function itemAction(
   item: DeskItem,
   desk: DeskInfo,
-  enrollment: string,
+  found: Readonly<{ active: boolean; hold: DeskHold | null }>,
   now: number,
 ): ItemAction {
-  if (enrollment !== "active") {
+  if (!found.active) {
     return "blocked";
+  }
+  if (found.hold !== null) {
+    return found.hold;
   }
   if (desk.state !== "open") {
     return "closed";

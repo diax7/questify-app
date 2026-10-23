@@ -7,7 +7,7 @@ const t = translatorFor("en");
 describe("awards helpers", () => {
   it("labels each kind and falls back for an unknown one", () => {
     expect(kindKey("removal")).toBe("awards.kind.removal");
-    expect(kindKey("redeem_return")).toBe("awards.kind.redeem_return");
+    expect(kindKey("redeem_return")).toBe("awards.kind.redeemReturn");
     expect(kindKey("future_kind")).toBe("history.other");
   });
 

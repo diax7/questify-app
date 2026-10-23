@@ -112,6 +112,31 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         response.writeHead(400).end(String(error));
         return;
       }
+      // /flagged: enrolls new players and gives each ten scans of new quests at once, which opens a burst case (T-209).
+      if (request.url === "/flagged") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) SELECT unnest($2::text[]) RETURNING id),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1
+                             RETURNING id, organizer_id, event_id),
+                  quests AS (INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points)
+                             SELECT $1, c.id, 'scan_qr', 'Lion ' || n, 'الأسد ' || n, 10
+                             FROM (SELECT id FROM category WHERE event_id = $1 LIMIT 1) c, generate_series(1, 10) n
+                             RETURNING id)
+             INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
+                                           idempotency_key)
+             SELECT j.organizer_id, j.event_id, j.id, q.id, 1, 'qr', gen_random_uuid()::text FROM joined j, quests q`,
+            [body.eventId, body.usernames ?? []],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
       // /players: enrolls new players with these usernames in the event (the dashboard's players page, T-208).
       if (request.url === "/players") {
         db.owner

@@ -10,6 +10,7 @@ import {
   type Language,
 } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards, type Caps, type QuestOption } from "#src/components/PlayerAwards.tsx";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
@@ -34,6 +35,10 @@ type Player = Readonly<{
   score: number;
   /** The join answers (FR-131); an older API sends none. */
   answers?: readonly Answer[];
+  /** The oldest open flag case (T-209), linked to the Flags page. */
+  openFlag?: string | null;
+  /** The owner paused this player's redemptions (FR-518). */
+  redeemPaused?: boolean;
 }>;
 
 type Page = Readonly<{ players: Player[]; nextCursor: string | null }>;
@@ -102,11 +107,17 @@ function PlayerRow({
   player,
   canBan,
   ask,
+  askPause,
+  flagsPage,
   open,
   toggle,
   children,
 }: Readonly<{
   language: Language;
+  /** Opens the owner's pause or resume confirmation for this player. */
+  askPause: (player: Player, opener: HTMLButtonElement) => void;
+  /** The event's Flags page, for the link to an open case. */
+  flagsPage: string;
   /** The event's currency as a label («جواهر»). */
   currency: string;
   player: Player;
@@ -126,6 +137,14 @@ function PlayerRow({
         <span>
           {t("players.points", { currency })}: {formatNumber(player.score, language)}
         </span>
+        {player.openFlag === null || player.openFlag === undefined ? null : (
+          <a className={styles.textLink} href={`${flagsPage}?case=${player.openFlag}`}>
+            {t("players.flagged")}
+          </a>
+        )}
+        {player.redeemPaused === true ? (
+          <span className={styles.badge}>{t("players.redeemPaused")}</span>
+        ) : null}
       </p>
       {(player.answers ?? []).length === 0 ? null : (
         <dl className={styles.muted} aria-label={t("players.answers")}>
@@ -144,6 +163,15 @@ function PlayerRow({
           onClick={(clicked) => ask(player, clicked.currentTarget)}
         >
           {t(player.status === "banned" ? "players.unban" : "players.ban")}
+        </button>
+      ) : null}
+      {canBan ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          onClick={(clicked) => askPause(player, clicked.currentTarget)}
+        >
+          {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
         </button>
       ) : null}
       <button type="button" className={styles.quiet} aria-expanded={open} onClick={toggle}>
@@ -245,9 +273,11 @@ function usePlayers(base: string, onFailure: (body: unknown) => void) {
     void load("", null);
   });
 
-  const mark = (enrollmentId: string, status: Status) =>
+  const mark = (enrollmentId: string, change: Partial<Player>) =>
     setPlayers((current) =>
-      (current ?? []).map((row) => (row.enrollmentId === enrollmentId ? { ...row, status } : row)),
+      (current ?? []).map((row) =>
+        row.enrollmentId === enrollmentId ? { ...row, ...change } : row,
+      ),
     );
 
   return {
@@ -257,6 +287,140 @@ function usePlayers(base: string, onFailure: (body: unknown) => void) {
     search: (text: string) => void load(text, null),
     more: next === null ? null : () => void load(applied, next),
   };
+}
+
+type StandingDeps = Readonly<{
+  base: string;
+  language: Language;
+  mark: (enrollmentId: string, change: Partial<Player>) => void;
+  failed: (body: unknown) => void;
+  clear: () => void;
+  said: (notice: string) => void;
+}>;
+
+/**
+ * The owner's two standing actions on a player, each behind a confirmation: ban or lift (FR-321) and pause or resume
+ * redemption (FR-518, never automatic). Focus returns to the button that opened the sheet.
+ */
+function useStanding({ base, language, mark, failed, clear, said }: StandingDeps) {
+  const t = translatorFor(language);
+  const [asking, setAsking] = useState<Player | null>(null);
+  const [pausing, setPausing] = useState<Player | null>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const close = () => {
+    setAsking(null);
+    setPausing(null);
+  };
+  // Back to the button that opened the dialog, once the panel is no longer inert.
+  useEffect(() => {
+    if (asking === null && pausing === null) {
+      opener.current?.focus();
+    }
+  }, [asking, pausing]);
+
+  // FR-518: the owner pauses or resumes one player's redemptions; never automatic.
+  const pause = async (player: Player) => {
+    const paused = player.redeemPaused !== true;
+    setBusy(true);
+    clear();
+    const result = await requestJson("PUT", `${base}/${player.enrollmentId}/redeem-pause`, {
+      paused,
+    });
+    setBusy(false);
+    close();
+    if (!result.ok) {
+      failed(result.body);
+      return;
+    }
+    mark(player.enrollmentId, { redeemPaused: paused });
+    said(t(paused ? "flags.paused" : "flags.resumed", { name: player.username }));
+  };
+
+  const confirm = async (player: Player) => {
+    const banned = player.status !== "banned";
+    setBusy(true);
+    clear();
+    const result = await requestJson("PUT", `${base}/${player.enrollmentId}/ban`, { banned });
+    setBusy(false);
+    close();
+    if (!result.ok) {
+      failed(result.body);
+      return;
+    }
+    mark(player.enrollmentId, { status: banned ? "banned" : "active" });
+    said(t(banned ? "players.banned" : "players.unbanned", { name: player.username }));
+  };
+
+  return {
+    asking,
+    pausing,
+    busy,
+    close,
+    ban: () => (asking === null ? undefined : void confirm(asking)),
+    pause: () => (pausing === null ? undefined : void pause(pausing)),
+    askBan: (player: Player, button: HTMLButtonElement) => {
+      opener.current = button;
+      setAsking(player);
+    },
+    askPause: (player: Player, button: HTMLButtonElement) => {
+      opener.current = button;
+      setPausing(player);
+    },
+  };
+}
+
+function StandingDialogs({
+  language,
+  standing,
+}: Readonly<{ language: Language; standing: ReturnType<typeof useStanding> }>) {
+  const t = translatorFor(language);
+  const { asking, pausing, busy, close } = standing;
+  if (asking !== null) {
+    return (
+      <BanDialog
+        language={language}
+        player={asking}
+        busy={busy}
+        cancel={close}
+        confirm={standing.ban}
+      />
+    );
+  }
+  if (pausing === null) {
+    return null;
+  }
+  const resuming = pausing.redeemPaused === true;
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t(resuming ? "flags.resumeTitle" : "flags.pauseTitle", { name: pausing.username })}
+      body={t(resuming ? "flags.resumeBody" : "flags.pauseBody")}
+      confirmLabel={t(resuming ? "flags.resume" : "flags.pause")}
+      noteLabel={null}
+      busy={busy}
+      cancel={close}
+      confirm={standing.pause}
+    />
+  );
+}
+
+/** The panel's last problem (an alert) and what was done (a status line). */
+function Said({ problem, notice }: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
+      {problem === null ? null : (
+        <p role="alert" className={styles.alert}>
+          {problem}
+        </p>
+      )}
+      {notice === null ? null : (
+        <p role="status" className={styles.notice}>
+          {notice}
+        </p>
+      )}
+    </>
+  );
 }
 
 /**
@@ -271,9 +435,6 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
   const base = `${eventApi}/players`;
   const [openId, setOpenId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [asking, setAsking] = useState<Player | null>(null);
-  const opener = useRef<HTMLButtonElement | null>(null);
-  const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -286,14 +447,14 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
     setProblem(code === undefined ? t(fallback) : describeProblem(body, language, t).text);
   };
   const list = usePlayers(base, (body) => failed(body, "players.loadFailed"));
-
-  const close = () => setAsking(null);
-  // Back to the button that opened the dialog, once the panel is no longer inert.
-  useEffect(() => {
-    if (asking === null) {
-      opener.current?.focus();
-    }
-  }, [asking]);
+  const standing = useStanding({
+    base,
+    language,
+    mark: list.mark,
+    failed: (body) => failed(body, "players.saveFailed"),
+    clear: () => setProblem(null),
+    said: setNotice,
+  });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -301,33 +462,10 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
     list.search(query.trim());
   };
 
-  const confirm = async (player: Player) => {
-    const banned = player.status !== "banned";
-    setBusy(true);
-    setProblem(null);
-    const result = await requestJson("PUT", `${base}/${player.enrollmentId}/ban`, { banned });
-    setBusy(false);
-    close();
-    if (!result.ok) {
-      failed(result.body, "players.saveFailed");
-      return;
-    }
-    list.mark(player.enrollmentId, banned ? "banned" : "active");
-    setNotice(t(banned ? "players.banned" : "players.unbanned", { name: player.username }));
-  };
-
   return (
     <section className={styles.panel} aria-labelledby="players-title">
-      {asking === null ? null : (
-        <BanDialog
-          language={language}
-          player={asking}
-          busy={busy}
-          cancel={close}
-          confirm={() => void confirm(asking)}
-        />
-      )}
-      <div className={styles.form} inert={asking !== null}>
+      <StandingDialogs language={language} standing={standing} />
+      <div className={styles.form} inert={standing.asking !== null || standing.pausing !== null}>
         <h2 id="players-title" className={styles.title}>
           {t("players.title", { players: termFor(terms.player, language) })}
         </h2>
@@ -345,16 +483,7 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
             />
           </label>
         </form>
-        {problem === null ? null : (
-          <p role="alert" className={styles.alert}>
-            {problem}
-          </p>
-        )}
-        {notice === null ? null : (
-          <p role="status" className={styles.notice}>
-            {notice}
-          </p>
-        )}
+        <Said problem={problem} notice={notice} />
         {list.players === null ? <p className={styles.muted}>{t("common.loading")}</p> : null}
         {list.players !== null && list.players.length === 0 ? (
           <p className={styles.muted}>
@@ -369,10 +498,9 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
               currency={termFor(terms.currency, language)}
               player={player}
               canBan={myRole === "owner"}
-              ask={(chosen, button) => {
-                opener.current = button;
-                setAsking(chosen);
-              }}
+              ask={standing.askBan}
+              askPause={standing.askPause}
+              flagsPage={`/${language}/organizers/${organizerId}/events/${eventId}/flags`}
               open={openId === player.enrollmentId}
               toggle={() => setOpenId(openId === player.enrollmentId ? null : player.enrollmentId)}
             >

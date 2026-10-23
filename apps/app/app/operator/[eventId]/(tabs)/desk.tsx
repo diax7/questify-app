@@ -7,7 +7,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
-import { Button } from "#src/components/Controls.tsx";
+import { Button, Field } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -18,13 +18,15 @@ import {
   deskStateKey,
   itemAction,
   offerOutcome,
+  pickupMinutesLeft,
   type DeskInfo,
   type DeskItem,
-  type Lookup,
+  type Found,
 } from "#src/operator/desk.ts";
 import {
   cancelAtDesk,
   fetchDesk,
+  findAtDesk,
   handOverAtDesk,
   lookUpAtDesk,
   pollOffer,
@@ -33,7 +35,6 @@ import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { isPlayerCode } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-type Found = Extract<Lookup, { kind: "found" }>;
 /** What happened to a row on this desk since the scan. */
 type Done = "handed_over" | "cancelled" | "ended" | "lapsed";
 
@@ -57,8 +58,9 @@ function ItemRow({
 }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const action = itemAction(item, desk, found.enrollment, Date.now());
+  const action = itemAction(item, desk, found, Date.now());
   const player = found.player.username;
+  const minutes = action === "held" ? pickupMinutesLeft(item, Date.now()) : null;
   return (
     <View style={styles.card}>
       <AppText variant="label">{textIn(item.name, language)}</AppText>
@@ -73,6 +75,12 @@ function ItemRow({
       {done === undefined || done === "lapsed" ? (
         <>
           {done === "lapsed" ? <AppText>{t("operator.desk.notAccepted")}</AppText> : null}
+          {action === "held" ? (
+            <AppText accessibilityRole="alert">{t("operator.desk.held")}</AppText>
+          ) : null}
+          {minutes === null ? null : (
+            <AppText muted>{t("operator.desk.pickupLeft", { minutes: String(minutes) })}</AppText>
+          )}
           {action === "not_ready" ? (
             <AppText>{t("operator.desk.notReady", { player })}</AppText>
           ) : null}
@@ -123,9 +131,12 @@ function PlayerCard({
   return (
     <View style={{ gap: 12 }}>
       <AppText variant="title">{player}</AppText>
-      {found.enrollment === "active" ? null : (
+      {found.active ? null : (
         <AppText accessibilityRole="alert">{t("operator.desk.inactive")}</AppText>
       )}
+      {found.active && found.hold === "paused" ? (
+        <AppText accessibilityRole="alert">{t("operator.desk.paused", { player })}</AppText>
+      ) : null}
       {found.items.length === 0 ? (
         <AppText>{t("operator.desk.nothing", { player })}</AppText>
       ) : (
@@ -188,6 +199,36 @@ function DeskCamera({ onCode }: Readonly<{ onCode: (code: string) => void }>) {
   ) : null;
 }
 
+/** FR-1848: find by exact username or mobile number when My QR will not scan; the result reads like a scan's. */
+function DeskFind({ busy, onFind }: Readonly<{ busy: boolean; onFind: (query: string) => void }>) {
+  const { t } = useI18n();
+  const [query, setQuery] = useState("");
+  const send = () => {
+    if (query.trim() !== "") {
+      onFind(query.trim());
+    }
+  };
+  return (
+    <View style={{ gap: 8 }}>
+      <Field
+        label={t("operator.desk.findLink")}
+        placeholder={t("operator.desk.findHint")}
+        autoCapitalize="none"
+        autoCorrect={false}
+        value={query}
+        onChangeText={setQuery}
+        onSubmitEditing={send}
+      />
+      <Button
+        kind="quiet"
+        label={t("operator.desk.find")}
+        disabled={busy || query.trim() === ""}
+        onPress={send}
+      />
+    </View>
+  );
+}
+
 type Failure = Readonly<{ kind: string; message?: { ar: string; en: string } | null }>;
 
 /** Where a refused or failed call goes: out of operator mode, back to sign-in, or a line on the screen. */
@@ -209,6 +250,68 @@ function useOutcome() {
     [language, removed, t],
   );
   return { problem, setProblem, settle };
+}
+
+type Source = Readonly<{ kind: "code" | "find"; value: string }>;
+
+/**
+ * Who the desk is looking at, from My QR or a find by name or phone (FR-925, FR-1848): one read at a time, Retry
+ * reads the same source again, and Scan next forgets it.
+ */
+function useShownPlayer({
+  eventId,
+  setFound,
+  setProblem,
+  settle,
+  loadDesk,
+}: Readonly<{
+  eventId: string;
+  setFound: (found: Found) => void;
+  setProblem: (problem: string | null) => void;
+  settle: (answer: Failure) => void;
+  loadDesk: () => Promise<void>;
+}>) {
+  const { t } = useI18n();
+  const source = useRef<Source | null>(null);
+  const reading = useRef(false);
+  const show = async (from: Source) => {
+    reading.current = true;
+    setProblem(null);
+    const answer =
+      from.kind === "code"
+        ? await lookUpAtDesk(api.session, eventId, from.value)
+        : await findAtDesk(api.session, eventId, from.value);
+    // A player on screen keeps the camera's reads ignored until Scan next.
+    if (answer.kind !== "lookup") {
+      reading.current = false;
+      settle(answer);
+    } else if (answer.lookup.kind === "refused") {
+      reading.current = false;
+      setProblem(t(answer.lookup.reason));
+    } else {
+      source.current = from;
+      setFound(answer.lookup);
+      void loadDesk();
+    }
+  };
+  return {
+    scanned: (text: string) => {
+      if (reading.current) {
+        return;
+      }
+      if (isPlayerCode(text)) {
+        void show({ kind: "code", value: text });
+      } else {
+        setProblem(t("operator.red.invalidCode"));
+      }
+    },
+    find: (query: string) => void show({ kind: "find", value: query }),
+    refresh: () => (source.current === null ? undefined : void show(source.current)),
+    forget: () => {
+      source.current = null;
+      reading.current = false;
+    },
+  };
 }
 
 type Rows = Readonly<{
@@ -324,10 +427,8 @@ export default function DeskTab() {
   const { eventId, event } = useOperator();
   const { problem, setProblem, settle } = useOutcome();
   const [desk, setDesk] = useState<DeskInfo | undefined>(undefined);
-  const [code, setCode] = useState<string | null>(null);
   const [found, setFound] = useState<Found | null>(null);
   const [done, setDone] = useState<Readonly<Record<string, Done>>>({});
-  const reading = useRef(false);
   const rows = useRowActions({ setFound, setDone, settle, clearProblem: () => setProblem(null) });
   const canHandOver = event === undefined || event.abilities.includes("hand_over");
 
@@ -342,46 +443,14 @@ export default function DeskTab() {
   useEffect(() => {
     void loadDesk();
   }, [loadDesk]);
-
-  const look = useCallback(
-    async (scanned: string) => {
-      setProblem(null);
-      const answer = await lookUpAtDesk(api.session, eventId, scanned);
-      if (answer.kind !== "lookup" || answer.lookup.kind === "refused") {
-        reading.current = false;
-        if (answer.kind === "lookup" && answer.lookup.kind === "refused") {
-          setProblem(t(answer.lookup.reason));
-        } else if (answer.kind !== "lookup") {
-          settle(answer);
-        }
-        return;
-      }
-      setCode(scanned);
-      setFound(answer.lookup);
-      void loadDesk();
-    },
-    [eventId, loadDesk, setProblem, settle, t],
-  );
-
-  const scanned = (text: string) => {
-    if (reading.current) {
-      return;
-    }
-    if (!isPlayerCode(text)) {
-      setProblem(t("operator.red.invalidCode"));
-      return;
-    }
-    reading.current = true;
-    void look(text);
-  };
+  const shown = useShownPlayer({ eventId, setFound, setProblem, settle, loadDesk });
 
   const next = () => {
     rows.stop();
     setFound(null);
-    setCode(null);
     setDone({});
     setProblem(null);
-    reading.current = false;
+    shown.forget();
   };
 
   const confirmCancel = (item: DeskItem) =>
@@ -412,7 +481,12 @@ export default function DeskTab() {
         )}
         {problem === null ? null : <AppText accessibilityRole="alert">{problem}</AppText>}
         {canHandOver ? null : <AppText>{t("operator.desk.abilityOff")}</AppText>}
-        {canHandOver && found === null ? <DeskCamera onCode={scanned} /> : null}
+        {canHandOver && found === null ? (
+          <>
+            <DeskCamera onCode={shown.scanned} />
+            <DeskFind busy={rows.busy} onFind={shown.find} />
+          </>
+        ) : null}
         {found !== null && desk !== undefined ? (
           <PlayerCard
             found={found}
@@ -421,7 +495,7 @@ export default function DeskTab() {
             busy={rows.busy}
             onHandOver={(item) => void rows.handOver(item)}
             onCancel={confirmCancel}
-            onRefresh={() => (code === null ? undefined : void look(code))}
+            onRefresh={shown.refresh}
             onNext={next}
           />
         ) : null}

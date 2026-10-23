@@ -7,7 +7,7 @@ import {
   type AwardForm,
   type FoundPlayer,
 } from "#src/operator/award.ts";
-import { deskInfoOf, lookupOf, type DeskInfo, type Lookup } from "#src/operator/desk.ts";
+import { deskInfoOf, findOf, lookupOf, type DeskInfo, type Lookup } from "#src/operator/desk.ts";
 import { stationResult, type StationResult } from "#src/operator/station.ts";
 
 type Requester = Pick<Session, "request">;
@@ -266,6 +266,27 @@ export async function lookUpAtDesk(
     return removedOr(answer);
   }
   const lookup = lookupOf(answer.body);
+  return lookup === undefined ? { kind: "network" } : { kind: "lookup", lookup };
+}
+
+/**
+ * FR-1848: the desk finds a member by exact username or mobile number when My QR will not scan; the answer reads
+ * like a scan's. Too many finds is a refusal with the server's words.
+ */
+export async function findAtDesk(
+  session: Requester,
+  eventId: string,
+  query: string,
+): Promise<Readonly<{ kind: "lookup"; lookup: Lookup }> | AwardRefused | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: `/v1/operator/events/${encodeURIComponent(eventId)}/desk/find`,
+    body: { query },
+  });
+  if (answer.kind !== "ok") {
+    return awardRefusedOr(answer);
+  }
+  const lookup = findOf(answer.body);
   return lookup === undefined ? { kind: "network" } : { kind: "lookup", lookup };
 }
 

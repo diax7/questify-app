@@ -38,7 +38,7 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   award: "awards.kind.award",
   welcome: "awards.kind.welcome",
   redeem: "awards.kind.redeem",
-  redeem_return: "awards.kind.redeem_return",
+  redeem_return: "awards.kind.redeemReturn",
   handover: "awards.kind.handover",
   removal: "awards.kind.removal",
 };

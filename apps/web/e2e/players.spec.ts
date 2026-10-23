@@ -8,18 +8,17 @@ test("the owner bans a player and keeps the exclusion list", async ({ page, requ
   await openBuilder(page, info.project.name);
   const eventId = /\/events\/([0-9a-f-]{36})\/quests/.exec(page.url())?.[1];
   const tag = `${info.project.name.slice(0, 2)}${Date.now() % 1_000_000}`;
-  const seeded = await request.post(`http://127.0.0.1:${CONTROL_PORT}/players`, {
-    // 27 players: one more page than the list's 25, for "Show more".
-    data: {
-      eventId,
-      usernames: [
-        `falcon_${tag}`,
-        `oryx_${tag}`,
-        ...Array.from({ length: 25 }, (_, i) => `ibex${i}_${tag}`),
-      ],
-    },
-  });
-  expect(seeded.status()).toBe(204);
+  // 27 players: one more page than the list's 25, for "Show more". Falcon and oryx join first, in their own
+  // transaction, so they are on the first page (one statement gives every row the same join time).
+  for (const usernames of [
+    [`falcon_${tag}`, `oryx_${tag}`],
+    Array.from({ length: 25 }, (_, i) => `ibex${i}_${tag}`),
+  ]) {
+    const seeded = await request.post(`http://127.0.0.1:${CONTROL_PORT}/players`, {
+      data: { eventId, usernames },
+    });
+    expect(seeded.status()).toBe(204);
+  }
 
   await page.goto(page.url().replace(/\/quests$/, "/players"));
   await expect(page.getByRole("heading", { name: "لاعبون", level: 2 })).toBeVisible();

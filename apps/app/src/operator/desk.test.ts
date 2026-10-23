@@ -3,14 +3,18 @@ import {
   actionLabel,
   deskInfoOf,
   deskStateKey,
+  findOf,
   itemAction,
   lookupOf,
   offerOutcome,
+  pickupMinutesLeft,
   type DeskInfo,
   type DeskItem,
 } from "#src/operator/desk.ts";
 
 const NOW = Date.parse("2030-01-01T12:00:00Z");
+/** A player the desk may serve. */
+const FREE = { active: true, hold: null } as const;
 const LATER = "2030-01-01T12:01:00Z";
 const EARLIER = "2030-01-01T11:59:00Z";
 
@@ -25,6 +29,7 @@ const ITEM: DeskItem = {
   id: "d1",
   kind: "item",
   name: { ar: "هودي", en: "Hoodie" },
+  reservedUntil: null,
   ready: false,
   offered: false,
   offerUntil: null,
@@ -80,9 +85,16 @@ describe("lookupOf", () => {
       lookupOf({
         result: "found",
         player: { username: "sara_88", avatar: "fox" },
-        enrollment: "banned",
+        active: true,
+        hold: "held",
         items: [
-          { id: "d1", kind: "experience", name: { ar: null, en: "Lounge" }, ready: true },
+          {
+            id: "d1",
+            kind: "experience",
+            name: { ar: null, en: "Lounge" },
+            ready: true,
+            reservedUntil: LATER,
+          },
           { kind: "item" },
           { id: "d2", kind: "voucher", name: "x", offered: true, offerUntil: LATER },
         ],
@@ -90,12 +102,14 @@ describe("lookupOf", () => {
     ).toEqual({
       kind: "found",
       player: { username: "sara_88", avatar: "fox" },
-      enrollment: "banned",
+      active: true,
+      hold: "held",
       items: [
         {
           id: "d1",
           kind: "experience",
           name: { ar: null, en: "Lounge" },
+          reservedUntil: LATER,
           ready: true,
           offered: false,
           offerUntil: null,
@@ -104,6 +118,7 @@ describe("lookupOf", () => {
           id: "d2",
           kind: "item",
           name: { ar: null, en: null },
+          reservedUntil: null,
           ready: false,
           offered: true,
           offerUntil: LATER,
@@ -133,7 +148,7 @@ describe("lookupOf", () => {
     });
   });
 
-  it("refuses what is not an answer, and reads a missing enrollment as active", () => {
+  it("refuses what is not an answer, reads a missing active flag as not active and an unknown hold as held", () => {
     expect(lookupOf("found")).toBeUndefined();
     expect(lookupOf({ result: "found", items: [] })).toBeUndefined();
     expect(lookupOf({ result: "found", player: { username: "a" } })).toBeUndefined();
@@ -143,41 +158,91 @@ describe("lookupOf", () => {
     ).toEqual({
       kind: "found",
       player: { username: "a", avatar: "b" },
-      enrollment: "active",
+      active: false,
+      hold: null,
       items: [],
     });
+    expect(
+      lookupOf({
+        result: "found",
+        player: { username: "a", avatar: "b" },
+        hold: "banned",
+        items: [],
+      }),
+    ).toMatchObject({ hold: "held" });
+    expect(
+      lookupOf({
+        result: "found",
+        player: { username: "a", avatar: "b" },
+        hold: "paused",
+        items: [],
+      }),
+    ).toMatchObject({ hold: "paused" });
+  });
+});
+
+describe("findOf (FR-1848)", () => {
+  it("reads nobody found as a refusal with its words, and anything else like a scan", () => {
+    expect(findOf({ result: "none" })).toEqual({
+      kind: "refused",
+      reason: "operator.desk.noMatch",
+    });
+    expect(
+      findOf({ result: "found", player: { username: "a", avatar: "b" }, active: true, items: [] }),
+    ).toMatchObject({
+      kind: "found",
+      active: true,
+    });
+    expect(findOf("none")).toBeUndefined();
+  });
+});
+
+describe("pickupMinutesLeft", () => {
+  it("rounds up whole minutes, never below 0, and knows when it cannot tell", () => {
+    expect(pickupMinutesLeft({ ...ITEM, reservedUntil: "2030-01-01T12:10:30Z" }, NOW)).toBe(11);
+    expect(pickupMinutesLeft({ ...ITEM, reservedUntil: EARLIER }, NOW)).toBe(0);
+    expect(pickupMinutesLeft({ ...ITEM, reservedUntil: null }, NOW)).toBeNull();
+    expect(pickupMinutesLeft({ ...ITEM, reservedUntil: "soon" }, NOW)).toBeNull();
   });
 });
 
 describe("itemAction", () => {
-  it("blocks a banned player and holds everything while the desk is closed", () => {
-    expect(itemAction({ ...ITEM, ready: true }, DESK, "banned", NOW)).toBe("blocked");
-    expect(itemAction({ ...ITEM, ready: true }, { ...DESK, state: "closed" }, "active", NOW)).toBe(
+  it("blocks a player who left, holds a held or paused one, and everything while the desk is closed", () => {
+    expect(itemAction({ ...ITEM, ready: true }, DESK, { active: true, hold: "held" }, NOW)).toBe(
+      "held",
+    );
+    expect(itemAction({ ...ITEM, ready: true }, DESK, { active: true, hold: "paused" }, NOW)).toBe(
+      "paused",
+    );
+    expect(itemAction({ ...ITEM, ready: true }, DESK, { active: false, hold: null }, NOW)).toBe(
+      "blocked",
+    );
+    expect(itemAction({ ...ITEM, ready: true }, { ...DESK, state: "closed" }, FREE, NOW)).toBe(
       "closed",
     );
-    expect(itemAction(ITEM, { ...DESK, state: "finished" }, "active", NOW)).toBe("closed");
+    expect(itemAction(ITEM, { ...DESK, state: "finished" }, FREE, NOW)).toBe("closed");
   });
 
   it("hands over after the player's Collect (collect first)", () => {
-    expect(itemAction(ITEM, DESK, "active", NOW)).toBe("not_ready");
-    expect(itemAction({ ...ITEM, ready: true }, DESK, "active", NOW)).toBe("hand_over");
+    expect(itemAction(ITEM, DESK, FREE, NOW)).toBe("not_ready");
+    expect(itemAction({ ...ITEM, ready: true }, DESK, FREE, NOW)).toBe("hand_over");
   });
 
   it("offers, and waits while this desk's own offer is live (desk offer)", () => {
     const offerDesk: DeskInfo = { ...DESK, confirm: "desk_offer" };
-    expect(itemAction(ITEM, offerDesk, "active", NOW)).toBe("offer");
-    expect(
-      itemAction({ ...ITEM, offered: true, offerUntil: LATER }, offerDesk, "active", NOW),
-    ).toBe("waiting");
-    expect(
-      itemAction({ ...ITEM, offered: true, offerUntil: EARLIER }, offerDesk, "active", NOW),
-    ).toBe("offer");
-    expect(itemAction({ ...ITEM, offered: true, offerUntil: null }, offerDesk, "active", NOW)).toBe(
+    expect(itemAction(ITEM, offerDesk, FREE, NOW)).toBe("offer");
+    expect(itemAction({ ...ITEM, offered: true, offerUntil: LATER }, offerDesk, FREE, NOW)).toBe(
+      "waiting",
+    );
+    expect(itemAction({ ...ITEM, offered: true, offerUntil: EARLIER }, offerDesk, FREE, NOW)).toBe(
       "offer",
     );
-    expect(
-      itemAction({ ...ITEM, offered: false, offerUntil: LATER }, offerDesk, "active", NOW),
-    ).toBe("offer");
+    expect(itemAction({ ...ITEM, offered: true, offerUntil: null }, offerDesk, FREE, NOW)).toBe(
+      "offer",
+    );
+    expect(itemAction({ ...ITEM, offered: false, offerUntil: LATER }, offerDesk, FREE, NOW)).toBe(
+      "offer",
+    );
   });
 });
 
