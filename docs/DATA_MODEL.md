@@ -462,7 +462,8 @@ and `quiz` (`{questions: [{id, text, choices: [{id, text}], right}], timerSecond
 choices, timer null or 5 to 300 s); both have `repeat_cap = 1` (CHECKed with the counts). Once anyone voted or
 started, a trigger refuses changes to ids, counts, order, right answers and the timer (`QL409`, ADR-194). A member who
 stops being active has their open attempts voided; the lifecycle tick (`finish_one_due_quiz`) and `confirm_results`
-finish open attempts that are due, with an approval's re-checks. Account deletion deletes the votes and quiz answers
+finish open attempts that are due, with an approval's re-checks; an attempt whose finishing fails is voided with a
+system audit entry `event.quiz_voided` (its error code only), so the sweep moves on. Account deletion deletes the votes and quiz answers
 (attempts stay for the ledger); the rehearsal wipe deletes all three. No grant on the tables: `vote_quest`,
 `member_vote`, `quest_vote_counts`, `quiz_start`, `quiz_next`, `quiz_answer`, `member_quiz`, `finish_one_due_quiz`.
 **PII:** a player's choices (store forms: "quiz answers, votes"); counts only for the team.

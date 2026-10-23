@@ -36,7 +36,10 @@ export type QuizView = Readonly<{
 /** A step's answer: the quiz after it, and the level its payment reached, if it paid. */
 export type QuizPlay = Readonly<{ quiz: QuizView; levelUp: LevelUp | null }>;
 
-export type QuizAnswer = QuizPlay &
+/** A step's answer and whether this very step paid (a replay, or a read after the payment, did not). */
+export type QuizStep = QuizPlay & Readonly<{ paid: boolean }>;
+
+export type QuizAnswer = QuizStep &
   Readonly<{ result: Readonly<{ right: boolean; rightChoiceId: string; replayed: boolean }> }>;
 
 type QuizRow = {
@@ -128,18 +131,20 @@ export async function readQuiz(
 type Step = Readonly<{ playerId: string; questId: string }>;
 
 /** Starts the player's one attempt, or resumes it (ADR-191). */
-export function startQuiz(deps: PlayDeps, step: Step): Promise<Done<QuizPlay>> {
+export function startQuiz(deps: PlayDeps, step: Step): Promise<Done<QuizStep>> {
   return run(deps, { playerId: step.playerId }, async (client) => {
     await client.query("SELECT quiz_start($1)", [step.questId]);
-    return playOf(client, step.questId);
+    return { ...(await playOf(client, step.questId)), paid: false };
   });
 }
 
 /** Serves the next question, closing an overdue one first; after the last, the quiz finishes and pays. */
-export function nextQuestion(deps: PlayDeps, step: Step): Promise<Done<QuizPlay>> {
+export function nextQuestion(deps: PlayDeps, step: Step): Promise<Done<QuizStep>> {
   return run(deps, { playerId: step.playerId }, async (client) => {
-    await client.query("SELECT quiz_next($1)", [step.questId]);
-    return playOf(client, step.questId);
+    const { rows } = await client.query<{ outcome: string }>("SELECT quiz_next($1) AS outcome", [
+      step.questId,
+    ]);
+    return { ...(await playOf(client, step.questId)), paid: rows[0]?.outcome === "paid" };
   });
 }
 
@@ -155,12 +160,15 @@ export function answerQuestion(
     );
     const play = await playOf(client, step.questId);
     const answered = play.quiz.answered.find((item) => item.id === step.questionId);
+    const replayed = rows[0]?.replayed === true;
+    const last = answered?.position === play.quiz.total;
     return {
       ...play,
+      paid: !replayed && last && play.quiz.completionId !== null,
       result: {
         right: answered?.right ?? false,
         rightChoiceId: answered?.rightChoiceId ?? "",
-        replayed: rows[0]?.replayed === true,
+        replayed,
       },
     };
   });

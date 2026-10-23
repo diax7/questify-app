@@ -260,12 +260,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
     expect(again.json()).toMatchObject({
       quiz: { completionId: finished.json().quiz.completionId, earned: 10 },
       result: { replayed: true },
-      rank: 1,
+      rank: null,
     });
-    expect(upserts.filter((write) => write.event === event)).toEqual([
-      { event, score: 10n },
-      { event, score: 10n },
-    ]);
+    expect((await app("POST", `/v1/quests/${quest}/quiz/next`, token, {})).json()).toMatchObject({
+      quiz: { status: "finished" },
+      rank: null,
+    });
+    expect(upserts.filter((write) => write.event === event)).toEqual([{ event, score: 10n }]);
   });
 
   it("answers a quiz step on another type, and a closed question", async () => {
@@ -292,6 +293,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
     expect(seen.json().answered).toEqual([
       expect.objectContaining({ id: "q1", closed: true, rightChoiceId: "r", choiceId: null }),
     ]);
+  });
+
+  it("moves the ranking when the step that closes the last question pays, and only then", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event, "quiz", { ...QUIZ, timerSeconds: 5 });
+    const token = await newPlayer(event);
+    await app("POST", `/v1/quests/${quest}/quiz/start`, token, {});
+    await app("POST", `/v1/quests/${quest}/quiz/next`, token, {});
+    await app("POST", `/v1/quests/${quest}/quiz/answer`, token, {
+      questionId: "q1",
+      choiceId: "r",
+    });
+    await app("POST", `/v1/quests/${quest}/quiz/next`, token, {});
+    await owner(
+      `UPDATE quiz_answer a SET served_at = now() - interval '1 minute'
+       FROM quiz_attempt t WHERE t.id = a.attempt_id AND t.quest_id = $1 AND a.position = 2`,
+      [quest],
+    );
+    const paid = await app("POST", `/v1/quests/${quest}/quiz/next`, token, {});
+    expect(paid.json()).toMatchObject({ quiz: { status: "finished", earned: 10 }, rank: 1 });
+    expect(paid.json()).not.toHaveProperty("paid");
+    const later = await app("POST", `/v1/quests/${quest}/quiz/start`, token, {});
+    expect(later.json()).toMatchObject({ quiz: { status: "finished" }, rank: null });
+    expect(upserts.filter((write) => write.event === event)).toEqual([{ event, score: 10n }]);
   });
 
   it("builds vote and quiz quests played once, and locks a played quest's answers", async () => {

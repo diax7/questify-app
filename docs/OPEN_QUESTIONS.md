@@ -250,6 +250,10 @@ right answer. A typed-answer question is not in v1. Agree?
 ## Q-157 — Quiz timer and grace (2026-10-24, T-302)
 ADR-192: one timer per quiz (5 to 300 seconds, or none), measured by the server from serving, with 2 seconds of grace;
 no clock between questions. Agree?
+Sweep cost (CTO code review, 2026-10-23): each lifecycle tick's `finish_one_due_quiz` walks the open attempts in id
+order until the first due one, checking each (`quiz_due`: play phase, quest close, last question's time). The open set
+is small (only quizzes in progress) and the `play_phase` branch cannot be pre-filtered in the query, so it stays a
+loop; if a large event shows the tick slowing, keep a `due_at` on the attempt and index it.
 
 ## Q-158 — Vote options and results (2026-10-24, T-302)
 ADR-190 and ADR-195: text options now, images once a Questify bucket exists (Q-149); the team sees counts, players only

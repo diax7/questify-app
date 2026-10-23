@@ -24,7 +24,7 @@ import {
   nextQuestion,
   readQuiz,
   startQuiz,
-  type QuizPlay,
+  type QuizStep,
 } from "#src/plays/quizzes";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { castVote, readVote, voteCounts } from "#src/plays/votes";
@@ -89,12 +89,16 @@ const valueOf = <T>(result: Done<T>, voting = false): T =>
 
 type RankingDeps = Readonly<{ ranking: Ranking }>;
 
-/** A quiz step's answer, with the player's place once it paid; a ranking failure never fails the step. */
-async function withRank<T extends QuizPlay>(deps: RankingDeps, playerId: string, play: T) {
+/**
+ * A quiz step's answer, with the player's place when this step paid (a replay or a later step moves nothing); a
+ * ranking failure never fails the step.
+ */
+async function withRank<T extends QuizStep>(deps: RankingDeps, playerId: string, step: T) {
+  const { paid, ...play } = step;
   const rank =
-    play.quiz.completionId === null
-      ? null
-      : await deps.ranking.afterCompletion(playerId, play.quiz.completionId);
+    paid && play.quiz.completionId !== null
+      ? await deps.ranking.afterCompletion(playerId, play.quiz.completionId)
+      : null;
   return { ...play, rank };
 }
 

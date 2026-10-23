@@ -2,8 +2,9 @@
 -- ordinary completion and keeps the player's choice; a quiz serves its questions one at a time from the server, times
 -- each one on the server's clock, shows the right answer only once the question is answered or closed, and pays the
 -- right answers once, at the end, as one completion (no right answers: no completion). Deny by default: no table is
--- granted to the API role; the definers below are its only doors. Lock order in every writer: the enrollment FOR NO
--- KEY UPDATE, then the attempt FOR UPDATE (confirm_results takes the event FOR UPDATE before both).
+-- granted to the API role; the definers below are its only doors. Lock order in every writer: the event first (FOR KEY
+-- SHARE in the sweep, FOR UPDATE in confirm_results), then the enrollment FOR NO KEY UPDATE, then the attempt FOR
+-- UPDATE.
 
 -- ================================================================ the types
 ALTER TABLE quest DROP CONSTRAINT quest_type_known;
@@ -22,6 +23,7 @@ ALTER TABLE quest ADD CONSTRAINT quest_quiz_shape CHECK (
     AND CASE jsonb_typeof(type_config -> 'timerSeconds')
           WHEN 'null' THEN true
           WHEN 'number' THEN (type_config ->> 'timerSeconds')::numeric BETWEEN 5 AND 300
+                             AND (type_config ->> 'timerSeconds')::numeric % 1 = 0
           ELSE type_config -> 'timerSeconds' IS NULL END));
 
 ALTER TABLE quest_completion DROP CONSTRAINT quest_completion_method_check;
@@ -562,9 +564,12 @@ CREATE FUNCTION quiz_due(attempt quiz_attempt) RETURNS boolean
 $$;
 REVOKE ALL ON FUNCTION quiz_due(quiz_attempt) FROM PUBLIC;
 
--- Finishes one due attempt, under the enrollment then the attempt lock, as the lifecycle tick's system call (nothing
--- for any other caller). Its completion is marked swept, so it raises no burst flag, and the ranking is marked for
--- repair. Answers 'paid', 'finished' or 'void', or NULL when nothing is due.
+-- Finishes one due attempt, under the event, the enrollment then the attempt lock (the event first, as confirm_results
+-- takes it, so the two never wait on each other in a circle), as the lifecycle tick's system call (nothing for any
+-- other caller). Its completion is marked swept, so it raises no burst flag, and the ranking is marked for repair. An
+-- attempt whose finishing fails is voided with an audit entry (its error code only), so one bad attempt never stalls
+-- the sweep. Answers 'paid', 'finished' or 'void', or NULL when nothing is due. Each call walks the open attempts
+-- until the first due one; the cost of that walk at scale is Q-157.
 CREATE FUNCTION finish_one_due_quiz() RETURNS text
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -577,14 +582,23 @@ BEGIN
   FOR due IN SELECT a.* FROM quiz_attempt a WHERE a.status = 'open' ORDER BY a.id LOOP
     CONTINUE WHEN NOT quiz_due(due);
     PERFORM ensure_rehearsal_wiped(due.event_id);
+    PERFORM 1 FROM event e WHERE e.id = due.event_id FOR KEY SHARE;
     PERFORM 1 FROM enrollment n WHERE n.id = due.enrollment_id FOR NO KEY UPDATE;
     SELECT * INTO due FROM quiz_attempt a WHERE a.id = due.id FOR UPDATE;
     CONTINUE WHEN NOT FOUND OR NOT quiz_due(due);
-    UPDATE quiz_attempt a SET swept = true WHERE a.id = due.id RETURNING * INTO due;
-    outcome := finish_quiz(due);
-    IF outcome = 'paid' THEN
-      PERFORM mark_ranking_repair(due.event_id);
-    END IF;
+    BEGIN
+      UPDATE quiz_attempt a SET swept = true WHERE a.id = due.id RETURNING * INTO due;
+      outcome := finish_quiz(due);
+      IF outcome = 'paid' THEN
+        PERFORM mark_ranking_repair(due.event_id);
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      UPDATE quiz_attempt a SET status = 'void', swept = true, finished_at = now() WHERE a.id = due.id;
+      INSERT INTO audit_log (actor_type, organizer_id, event_id, action, target_type, target_id, after)
+      VALUES ('system', due.organizer_id, due.event_id, 'event.quiz_voided', 'quiz_attempt', due.id::text,
+              jsonb_build_object('error', SQLSTATE));
+      outcome := 'void';
+    END;
     RETURN outcome;
   END LOOP;
   RETURN NULL;

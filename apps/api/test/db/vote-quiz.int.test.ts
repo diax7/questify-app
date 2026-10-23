@@ -549,6 +549,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("vote and quiz quests (database
       expect(await standing(late.enrollment)).toMatchObject({ score: "10" });
     });
 
+    it("voids an attempt whose finishing fails, with an audit entry, and sweeps the next one", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event, "quiz", quizConfig());
+      const bad = await member(event);
+      const good = await member(event);
+      for (const one of [bad, good]) {
+        await start(one.player, quest);
+        await next(one.player, quest);
+        await answer(one.player, quest, "q1", "r");
+      }
+      await drain();
+      const broken = (await attemptOf(bad.enrollment))?.id ?? "";
+      await owner(
+        `CREATE FUNCTION test_fail_quiz() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN
+           IF NEW.idempotency_key = 'quiz:${broken}' THEN RAISE EXCEPTION 'broken'; END IF;
+           RETURN NEW;
+         END $$`,
+      );
+      await owner(
+        "CREATE TRIGGER test_fail_quiz BEFORE INSERT ON quest_completion FOR EACH ROW EXECUTE FUNCTION test_fail_quiz()",
+      );
+      try {
+        await owner("UPDATE quest SET closes_at = now() - interval '1 second' WHERE id = $1", [
+          quest,
+        ]);
+        expect(await sweep()).toBe("void");
+        expect(await sweep()).toBe("paid");
+        expect(await sweep()).toBeNull();
+      } finally {
+        await owner("DROP TRIGGER test_fail_quiz ON quest_completion");
+        await owner("DROP FUNCTION test_fail_quiz()");
+      }
+      expect(await attemptOf(bad.enrollment)).toMatchObject({ status: "void", swept: true });
+      expect(await completions(bad.enrollment)).toEqual([]);
+      expect(await standing(good.enrollment)).toEqual({ score: "10", balance: "10" });
+      expect(
+        await owner(
+          "SELECT actor_type, target_type, after FROM audit_log WHERE action = 'event.quiz_voided' AND target_id = $1",
+          [broken],
+        ),
+      ).toEqual([{ actor_type: "system", target_type: "quiz_attempt", after: { error: "P0001" } }]);
+    });
+
     it("finishes the event's open quizzes when the owner confirms the results", async () => {
       const event = await newEvent();
       const quest = await newQuest(event, "quiz", quizConfig());
@@ -645,6 +689,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("vote and quiz quests (database
         code: "23514",
       });
       await expect(newQuest(event, "quiz", quizConfig(3))).rejects.toMatchObject({ code: "23514" });
+      await expect(newQuest(event, "quiz", quizConfig(12.5))).rejects.toMatchObject({
+        code: "23514",
+      });
       await expect(newQuest(event, "quiz", { questions: [] })).rejects.toMatchObject({
         code: "23514",
       });
