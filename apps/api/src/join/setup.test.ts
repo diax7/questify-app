@@ -3,6 +3,8 @@ import { cleanAnswers } from "#src/join/routes";
 import {
   cleanDomains,
   cleanFields,
+  cleanTag,
+  makeOptionId,
   maskGuest,
   parseGuest,
   parseGuests,
@@ -14,7 +16,37 @@ const KEPT: FieldRecord = {
   kind: "company",
   label: { ar: null, en: null },
   required: true,
+  options: null,
 };
+const CHOICE: FieldRecord = {
+  id: "33333333-3333-4333-8333-333333333333",
+  kind: "custom",
+  label: { ar: null, en: "Section" },
+  required: true,
+  options: [
+    { id: "women", ar: "نساء", en: "Women" },
+    { id: "men", ar: "رجال", en: "Men" },
+  ],
+};
+
+describe("guest tags and option ids", () => {
+  it("trims a tag, takes none for blank, and refuses a long one or control characters", () => {
+    expect(cleanTag(" VIP ")).toBe("VIP");
+    expect(cleanTag(undefined)).toBeNull();
+    expect(cleanTag("   ")).toBeNull();
+    expect(cleanTag("ب".repeat(30))).toBe("ب".repeat(30));
+    expect(cleanTag("ب".repeat(31))).toBeUndefined();
+    expect(cleanTag("a	b")).toBeUndefined();
+  });
+
+  it("makes eight-character ids of letters and digits", () => {
+    const made = new Set(Array.from({ length: 50 }, makeOptionId));
+    expect(made.size).toBe(50);
+    for (const id of made) {
+      expect(id).toMatch(/^[a-z0-9]{8}$/);
+    }
+  });
+});
 
 describe("cleanDomains", () => {
   it("lower-cases, drops a leading @ and repeats, and keeps the order", () => {
@@ -84,6 +116,56 @@ describe("maskGuest", () => {
 });
 
 describe("cleanFields", () => {
+  it("cleans a custom field's options, keeping ids and making new ones; null for none", () => {
+    expect(
+      cleanFields(
+        [
+          {
+            id: CHOICE.id,
+            kind: "custom",
+            label: { en: "Section" },
+            required: true,
+            options: [{ id: "women", en: " Ladies " }, { id: "men", ar: "رجال" }, { en: "Kids" }],
+          },
+          { kind: "custom", label: { en: "Team" }, required: false, options: null },
+        ],
+        [CHOICE],
+        () => "kids1",
+      ),
+    ).toEqual([
+      {
+        id: CHOICE.id,
+        kind: "custom",
+        label: { ar: null, en: "Section" },
+        required: true,
+        options: [
+          { id: "women", ar: null, en: "Ladies" },
+          { id: "men", ar: "رجال", en: null },
+          { id: "kids1", ar: null, en: "Kids" },
+        ],
+      },
+      { id: "", kind: "custom", label: { ar: null, en: "Team" }, required: false, options: null },
+    ]);
+  });
+
+  it("refuses options on a named kind and options that break a rule", () => {
+    const two = [{ en: "A" }, { en: "B" }];
+    expect(cleanFields([{ kind: "company", required: true, options: two }], [])).toBeUndefined();
+    expect(
+      cleanFields(
+        [{ kind: "custom", label: { en: "X" }, required: true, options: [{ en: "A" }] }],
+        [],
+      ),
+    ).toBeUndefined();
+    expect(
+      cleanFields(
+        [{ kind: "custom", label: { en: "X" }, required: true, options: two }],
+        [],
+        makeOptionId,
+      ),
+    ).toHaveLength(1);
+  });
+
   it("keeps the order, trims custom labels and drops labels from the named kinds", () => {
     expect(
       cleanFields(
@@ -94,8 +176,14 @@ describe("cleanFields", () => {
         [KEPT],
       ),
     ).toEqual([
-      { id: KEPT.id, kind: "company", label: { ar: null, en: null }, required: false },
-      { id: "", kind: "custom", label: { ar: "القسم", en: null }, required: true },
+      {
+        id: KEPT.id,
+        kind: "company",
+        label: { ar: null, en: null },
+        required: false,
+        options: null,
+      },
+      { id: "", kind: "custom", label: { ar: "القسم", en: null }, required: true, options: null },
     ]);
     expect(cleanFields([], [KEPT])).toEqual([]);
   });

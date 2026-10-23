@@ -1,4 +1,10 @@
-import { JOIN_FIELD_KINDS, type JoinFieldKind } from "@questify/shared";
+import {
+  JOIN_FIELD_KINDS,
+  JOIN_OPTION_MAX,
+  JOIN_OPTION_MIN,
+  type JoinFieldKind,
+  type JoinOption,
+} from "@questify/shared";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -12,6 +18,8 @@ export type JoinFieldView = Readonly<{
   kind: JoinFieldKind;
   label: Bilingual;
   required: boolean;
+  /** A choice field's options (ADR-171); null for a free-text answer. */
+  options: readonly JoinOption[] | null;
 }>;
 
 export type JoinRules = Readonly<{
@@ -28,7 +36,13 @@ export type JoinSetup = Readonly<{
   guests: number;
 }>;
 
-/** A field in the editor: `key` names the row on the page; `id` is set once the field is saved. */
+/** An option in the editor: `key` names the row; `id` is set once it is saved. */
+export type OptionDraft = Readonly<{ key: string; id: string | undefined; ar: string; en: string }>;
+
+/**
+ * A field in the editor: `key` names the row on the page; `id` is set once the field is saved. `options` is null for a
+ * free-text answer, else the choices (a custom field only).
+ */
 export type FieldDraft = Readonly<{
   key: string;
   id: string | undefined;
@@ -36,7 +50,10 @@ export type FieldDraft = Readonly<{
   labelAr: string;
   labelEn: string;
   required: boolean;
+  options: readonly OptionDraft[] | null;
 }>;
+
+export { JOIN_OPTION_MAX, JOIN_OPTION_MIN };
 
 /** Whether saving these drafts deletes a saved field, and with it the answers players gave to it. */
 export function removesSavedField(
@@ -55,6 +72,13 @@ export function draftsOf(fields: readonly JoinFieldView[]): FieldDraft[] {
     labelAr: field.label.ar ?? "",
     labelEn: field.label.en ?? "",
     required: field.required,
+    options:
+      field.options?.map((option) => ({
+        key: option.id,
+        id: option.id,
+        ar: option.ar ?? "",
+        en: option.en ?? "",
+      })) ?? null,
   }));
 }
 
@@ -67,7 +91,7 @@ export function kindsFor(drafts: readonly FieldDraft[], index: number): JoinFiel
 /** A new row: the first named kind still free, else a custom field. */
 export function newDraft(drafts: readonly FieldDraft[], key: string): FieldDraft {
   const kind = kindsFor(drafts, -1)[0] ?? "custom";
-  return { key, id: undefined, kind, labelAr: "", labelEn: "", required: false };
+  return { key, id: undefined, kind, labelAr: "", labelEn: "", required: false, options: null };
 }
 
 /** Moves a row up (-1) or down (+1); a move past either end changes nothing. */
@@ -86,7 +110,15 @@ export function moveDraft(
   return moved;
 }
 
-/** The body of `PUT …/join/fields`: a label only for a custom field, an id only for a saved one. */
+const optionBody = (option: OptionDraft) => ({
+  ...(option.id === undefined ? {} : { id: option.id }),
+  ...(option.ar.trim() === "" ? {} : { ar: option.ar }),
+  ...(option.en.trim() === "" ? {} : { en: option.en }),
+});
+
+/**
+ * The body of `PUT …/join/fields`: a label and options only for a custom field, an id only for a saved one or option.
+ */
 export function fieldsBody(version: number, drafts: readonly FieldDraft[]) {
   return {
     version,
@@ -99,6 +131,7 @@ export function fieldsBody(version: number, drafts: readonly FieldDraft[]) {
               ...(draft.labelAr.trim() === "" ? {} : { ar: draft.labelAr }),
               ...(draft.labelEn.trim() === "" ? {} : { en: draft.labelEn }),
             },
+            options: draft.options?.map(optionBody) ?? null,
           }
         : {}),
       required: draft.required,
@@ -109,6 +142,13 @@ export function fieldsBody(version: number, drafts: readonly FieldDraft[]) {
 /** Whether a custom row still needs a label in at least one language. */
 export const needsLabel = (draft: FieldDraft): boolean =>
   draft.kind === "custom" && draft.labelAr.trim() === "" && draft.labelEn.trim() === "";
+
+/** Whether a choice row still needs options: at least two, each named in a language. */
+export const needsOptions = (draft: FieldDraft): boolean =>
+  draft.kind === "custom" &&
+  draft.options !== null &&
+  (draft.options.length < JOIN_OPTION_MIN ||
+    draft.options.some((option) => option.ar.trim() === "" && option.en.trim() === ""));
 
 /** The domains typed one per line (commas and spaces split too), without blanks. */
 export function domainsOf(text: string): string[] {

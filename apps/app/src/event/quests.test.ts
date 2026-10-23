@@ -171,7 +171,7 @@ describe("completionAnswer", () => {
       kind: "wrong_code",
       problem: { ar: "خطأ", en: "Error" },
     });
-    for (const reason of ["event_not_live", "hidden", "not_started", "ended"]) {
+    for (const reason of ["event_not_live", "hidden", "not_started", "ended", "not_for_you"]) {
       expect(completionAnswer(error(403, "quest_not_open", { reason }))).toEqual({
         kind: "not_open",
         reason,

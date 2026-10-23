@@ -145,7 +145,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
         fields: [{ id: custom, kind: "custom", label: { en: "Wing" }, required: true }],
       });
       expect(reordered.json<Setup>().fields).toEqual([
-        { id: custom, kind: "custom", label: { ar: null, en: "Wing" }, required: true },
+        {
+          id: custom,
+          kind: "custom",
+          label: { ar: null, en: "Wing" },
+          required: true,
+          options: null,
+        },
       ]);
       const stale = await dash("PUT", `/events/${event.id}/join/fields`, {
         version: 1,
@@ -298,6 +304,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
       expect(added.json()).toEqual({
         added: 2,
         existing: 0,
+        tagged: 0,
         invalid: [
           { line: 5, text: "not a contact" },
           { line: 6, text: "a@b" },
@@ -405,7 +412,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
 
       const list = await dash("GET", `/events/${event.id}/players`, undefined, editorCookie);
       expect(list.json<{ players: Row[] }>().players[0]?.["answers"]).toEqual([
-        { fieldId: company, kind: "company", label: { ar: null, en: null }, value: "Acme" },
+        {
+          fieldId: company,
+          kind: "company",
+          label: { ar: null, en: null },
+          value: "Acme",
+          choice: null,
+        },
       ]);
     });
 

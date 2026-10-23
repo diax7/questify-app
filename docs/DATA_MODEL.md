@@ -192,6 +192,20 @@ free seats counted under it (`full` is an answer, never a raised error). `join_r
 pending rows, then the declined ones, each oldest first, for the team in scope (cursor over `(declined, joined_at, id)`);
 `pending_join_requests(event)` counts the pending ones; index `(event_id, joined_at, id) WHERE status = 'pending'`.
 
+**Targeting (T-220, migration 0037, ADR-170 to ADR-173).** `event_join_field.options` (jsonb, custom fields only,
+2 to 20 `{id, ar, en}` with ids `^[a-z0-9]{1,12}$`, checked by `join_options_valid`) makes a choice field: its answer
+is an option id (`check_join_answers`). A trigger refuses options on a field that already has answers, and removing an
+option (or clearing them) that an answer or a rule names (`QT409` answers or rules). `event_guest.tag` (1 to 30
+characters, optional, matched case-insensitively). `category` and `reward` gain `audience_kind` (`answer` or `tag`),
+`audience_field_id` and `audience_values` (1 to 20; tags kept lower case), written only by `set_audience(event, kind,
+item, rule kind, field, values, request)` (owner or editor in scope, event row `FOR NO KEY UPDATE` like the field save,
+audited with ids and counts); the field key is NO ACTION, so a targeted field cannot be deleted while a draft event's
+delete still cascades. `in_audience(enrollment, kind, field, values)` (internal: no rule, a rehearsal enrollment, the
+matching answer, or a tag on a guest entry matching the player's phone or email) filters `member_event_quests`,
+`shop_rewards` and `set_goal`, and refuses in `record_completion` (`QN403 not_for_you`, every completion path) and
+`reserve_reward` (`RN404`); `public_event_quests` leaves targeted categories out. `audience_counts(event)` gives the
+team the reach of each rule as counts. `join_write` keeps a returning player's earlier answers.
+
 **Goal (T-213, migration 0033, ADR-161).** `enrollment.goal_reward_id` is the reward a member pinned as their goal
 (FK with the event to `reward`, `ON DELETE SET NULL (goal_reward_id)`); written only by `set_goal(event, reward)`
 (the caller's active enrollment, a reward active in that event's shop; RN404 otherwise), in no API write grant. A

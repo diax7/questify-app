@@ -1,4 +1,9 @@
-import { officialRules, type JoinFieldKind, type OfficialRules } from "@questify/shared";
+import {
+  officialRules,
+  type JoinFieldKind,
+  type JoinOption,
+  type OfficialRules,
+} from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { isEventFull } from "#src/activation/activation";
 import { addressBucket } from "#src/auth/normalize";
@@ -31,6 +36,8 @@ export type JoinFieldView = Readonly<{
   kind: JoinFieldKind;
   label: Text;
   required: boolean;
+  /** A choice field's options (ADR-171): the answer is one of their ids. Null for free text. */
+  options: readonly JoinOption[] | null;
 }>;
 
 /** What an event asks and checks at the join (T-212): its fields, its locks and its welcome amount. */
@@ -236,6 +243,7 @@ type FieldJson = Readonly<{
   labelAr: string | null;
   labelEn: string | null;
   required: boolean;
+  options?: JoinOption[] | null;
 }>;
 
 type RulesRow = Readonly<{
@@ -252,6 +260,7 @@ export const rulesOf = (row: RulesRow): JoinRules => ({
     kind: field.kind,
     label: { ar: field.labelAr, en: field.labelEn },
     required: field.required,
+    options: field.options ?? null,
   })),
   guestListOnly: row.guest_list_only,
   emailDomains: row.email_domains,

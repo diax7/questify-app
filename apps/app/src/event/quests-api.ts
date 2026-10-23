@@ -177,9 +177,15 @@ export function findQuest(categories: readonly Category[], questId: string): Que
 }
 
 /** The reasons `quest_not_open` gives (API.md). */
-export type NotOpenReason = "event_not_live" | "hidden" | "not_started" | "ended";
+export type NotOpenReason = "event_not_live" | "hidden" | "not_started" | "ended" | "not_for_you";
 
-const NOT_OPEN: readonly string[] = ["event_not_live", "hidden", "not_started", "ended"];
+const NOT_OPEN: readonly string[] = [
+  "event_not_live",
+  "hidden",
+  "not_started",
+  "ended",
+  "not_for_you",
+];
 
 /**
  * What the sheet does with a completion's answer. Never `gone`: a 403 or 404 here is about the quest or the

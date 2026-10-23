@@ -311,7 +311,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
       ).rejects.toThrow(/permission denied/);
     });
 
-    it("lets a member who left come back with new answers; deleting a field takes its answers", async () => {
+    it("keeps a returning member's earlier answers (adding only missing ones); deleting a field takes its answers", async () => {
       const event = await newEvent();
       const company = await addField(event.id, "company", { required: true });
       const player = await newPlayer();
@@ -319,12 +319,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
       await as({ playerId: player }, "UPDATE enrollment SET status = 'left' WHERE event_id = $1", [
         event.id,
       ]);
-      expect((await join(player, event.code, { [company]: "New Co" }))?.outcome).toBe("joined");
-      expect(await owner("SELECT value FROM join_answer WHERE event_id = $1", [event.id])).toEqual([
-        { value: "New Co" },
-      ]);
+      const ticket = await addField(event.id, "ticket_number", { required: false });
+      expect(
+        (await join(player, event.code, { [company]: "New Co", [ticket]: "T-9" }))?.outcome,
+      ).toBe("joined");
+      expect(
+        await owner("SELECT value FROM join_answer WHERE event_id = $1 ORDER BY value", [event.id]),
+      ).toEqual([{ value: "Old Co" }, { value: "T-9" }]);
       await as(teamA(), "DELETE FROM event_join_field WHERE id = $1", [company]);
-      expect(await owner("SELECT 1 FROM join_answer WHERE event_id = $1", [event.id])).toEqual([]);
+      expect(await owner("SELECT value FROM join_answer WHERE event_id = $1", [event.id])).toEqual([
+        { value: "T-9" },
+      ]);
     });
 
     it("answers already to a member without asking for answers added later", async () => {
@@ -517,7 +522,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
         {
           id: event.id,
           welcome_points: 50,
-          fields: [{ id: field, kind: "full_name", labelAr: null, labelEn: null, required: true }],
+          fields: [
+            {
+              id: field,
+              kind: "full_name",
+              labelAr: null,
+              labelEn: null,
+              required: true,
+              options: null,
+            },
+          ],
         },
       ]);
       expect(await as({ playerId: await newPlayer() }, "SELECT * FROM my_invitations()")).toEqual(
@@ -545,7 +559,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
           email_domains: ["acme.sa"],
           welcome_points: 25,
           fields: [
-            { id: field, kind: "custom", labelAr: null, labelEn: "Section", required: false },
+            {
+              id: field,
+              kind: "custom",
+              labelAr: null,
+              labelEn: "Section",
+              required: false,
+              options: null,
+            },
           ],
         },
       ]);

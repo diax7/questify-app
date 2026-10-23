@@ -9,9 +9,9 @@ import {
 import type { JoinField } from "#src/join/join-api.ts";
 
 const FIELDS: JoinField[] = [
-  { id: "a", kind: "full_name", label: { ar: null, en: null }, required: false },
-  { id: "b", kind: "company", label: { ar: null, en: null }, required: true },
-  { id: "c", kind: "custom", label: { ar: "القسم", en: null }, required: true },
+  { id: "a", kind: "full_name", label: { ar: null, en: null }, required: false, options: null },
+  { id: "b", kind: "company", label: { ar: null, en: null }, required: true, options: null },
+  { id: "c", kind: "custom", label: { ar: "القسم", en: null }, required: true, options: null },
 ];
 
 describe("the card's answers", () => {

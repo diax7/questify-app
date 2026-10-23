@@ -1,12 +1,21 @@
-import type { LocalizedText } from "@questify/shared";
+import type { JoinOption, LocalizedText } from "@questify/shared";
 import type { ApiResult, Client } from "#src/api/client.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { PendingJoin } from "#src/auth/sign-in-flow.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
-/** A join field as the card shows it (FR-130); a kind this build does not know reads as a custom field. */
-export type JoinField = Readonly<{ id: string; kind: string; label: Text; required: boolean }>;
+/**
+ * A join field as the card shows it (FR-130); a kind this build does not know reads as a custom field. A choice field
+ * (ADR-171) has options and its answer is one of their ids; null for a free-text answer.
+ */
+export type JoinField = Readonly<{
+  id: string;
+  kind: string;
+  label: Text;
+  required: boolean;
+  options: readonly JoinOption[] | null;
+}>;
 
 /** What an event asks and checks at the join (T-212). An older API sends none of it: no fields, no locks. */
 export type JoinRules = Readonly<{
@@ -79,12 +88,25 @@ export function readJoinCard(card: unknown): JoinCard | undefined {
   };
 }
 
-const isField = (value: unknown): value is JoinField =>
+const isLabel = (value: unknown) =>
+  value === undefined || value === null || typeof value === "string";
+
+const isOption = (value: unknown): value is Partial<JoinOption> & { id: string } =>
+  isRecord(value) &&
+  typeof value["id"] === "string" &&
+  isLabel(value["ar"]) &&
+  isLabel(value["en"]);
+
+const isOptions = (value: unknown) =>
+  value === undefined || value === null || (Array.isArray(value) && value.every(isOption));
+
+const isField = (value: unknown): value is Omit<JoinField, "options"> & { options?: unknown } =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
   typeof value["kind"] === "string" &&
   isText(value["label"]) &&
-  typeof value["required"] === "boolean";
+  typeof value["required"] === "boolean" &&
+  isOptions(value["options"]);
 
 /** The event's join rules; absent is none (an older API), a wrong shape is undefined. */
 export function readRules(value: unknown): JoinRules | undefined {
@@ -103,7 +125,19 @@ export function readRules(value: unknown): JoinRules | undefined {
     return undefined;
   }
   return {
-    fields: value["fields"] as JoinField[],
+    fields: value["fields"].map((field) => ({
+      id: field.id,
+      kind: field.kind,
+      label: field.label,
+      required: field.required,
+      options: Array.isArray(field.options)
+        ? field.options.map((option: Partial<JoinOption> & { id: string }) => ({
+            id: option.id,
+            ar: option.ar ?? null,
+            en: option.en ?? null,
+          }))
+        : null,
+    })),
     guestListOnly: value["guestListOnly"],
     emailDomains: value["emailDomains"] as string[],
     welcomePoints: value["welcomePoints"],

@@ -162,7 +162,7 @@ Agree, or should the switch accept every waiting request at once (the confirmati
 ## Q-136 — A player outside the audience scans a targeted quest (2026-10-23, T-220)
 ADR-170 hides targeted categories and rewards, but a scan of a targeted quest's code answers "This quest is for
 another group of players." rather than "not found", because the code is on a physical booth. Agree, or should the
-refusal look as if the quest did not exist?
+refusal look as if the quest did not exist? (The CTO plan review kept the explicit `not_for_you`; built so.)
 
 ## Q-137 — Targeting needs a choice field (2026-10-23, T-220)
 ADR-171 adds options to custom join fields and allows targeting by answer only on such a field (free-text answers
@@ -174,4 +174,5 @@ person (a tag list per entry, or a "contact, tag" line format)?
 
 ## Q-139 — Targeting single quests (2026-10-23, T-220)
 FR-1708 targets categories and rewards; the plan follows it. Should a single quest inside an open category be
-targetable too, or is moving it to a targeted category enough?
+targetable too, or is moving it to a targeted category enough? (The CTO plan review kept FR-1708 as written:
+categories and rewards only; built so.)

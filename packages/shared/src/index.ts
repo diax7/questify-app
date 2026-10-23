@@ -111,6 +111,14 @@ export { joinCard } from "./join/card";
 export type { JoinFieldKind } from "./join/fields";
 export { JOIN_FIELD_KINDS, joinFieldKindKey, joinFieldLabel } from "./join/fields";
 export { JOIN_LINK_HOSTS, joinLink, parseJoinLink } from "./join/link";
+export type { JoinOption, JoinOptionInput } from "./join/options";
+export {
+  JOIN_OPTION_LABEL_MAX,
+  JOIN_OPTION_MAX,
+  JOIN_OPTION_MIN,
+  cleanOptions,
+  joinOptionLabel,
+} from "./join/options";
 export { parseRehearsalCode } from "./join/rehearsal";
 export type { OfficialRules, RulesData, RulesPrize } from "./results/rules";
 export { officialRules } from "./results/rules";

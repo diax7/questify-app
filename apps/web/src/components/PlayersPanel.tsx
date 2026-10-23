@@ -4,6 +4,7 @@ import {
   DEFAULT_TERMS,
   formatNumber,
   joinFieldLabel,
+  joinOptionLabel,
   readEventTerms,
   termFor,
   type EventTerms,
@@ -26,6 +27,8 @@ type Answer = Readonly<{
   kind: string;
   label: Readonly<{ ar: string | null; en: string | null }>;
   value: string;
+  /** A choice field's answer as its option's labels (T-220); an older API sends none. */
+  choice?: Readonly<{ ar: string | null; en: string | null }> | null;
 }>;
 
 type Player = Readonly<{
@@ -156,7 +159,11 @@ function PlayerRow({
           {(player.answers ?? []).map((answer) => (
             <div key={answer.fieldId} className={styles.row}>
               <dt>{joinFieldLabel(answer, language)}:</dt>
-              <dd dir="auto">{answer.value}</dd>
+              <dd dir="auto">
+                {answer.choice === undefined || answer.choice === null
+                  ? answer.value
+                  : joinOptionLabel({ id: answer.value, ...answer.choice }, language)}
+              </dd>
             </div>
           ))}
         </dl>

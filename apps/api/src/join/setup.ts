@@ -1,11 +1,19 @@
+import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import { readFieldUse } from "#src/audience/audience";
+import { fieldsInUse, type FieldInUse } from "#src/audience/rules";
 import { recordAudit } from "#src/audit/record";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
-import type { JoinFieldKind } from "@questify/shared";
+import {
+  cleanOptions,
+  type JoinFieldKind,
+  type JoinOption,
+  type JoinOptionInput,
+} from "@questify/shared";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import { lockBuilderEvent, type BuilderEvent } from "#src/quests/store";
 
@@ -18,6 +26,8 @@ export type FieldInput = Readonly<{
   kind: JoinFieldKind;
   label?: Label | undefined;
   required: boolean;
+  /** A custom field's choices (ADR-171); left out or null for a free-text answer. */
+  options?: readonly JoinOptionInput[] | null | undefined;
 }>;
 
 export type FieldRecord = Readonly<{
@@ -25,6 +35,7 @@ export type FieldRecord = Readonly<{
   kind: JoinFieldKind;
   label: Readonly<{ ar: string | null; en: string | null }>;
   required: boolean;
+  options: readonly JoinOption[] | null;
 }>;
 
 export type JoinRulesSettings = Readonly<{
@@ -53,12 +64,16 @@ export type Guest = Readonly<{
   id: string;
   kind: "phone" | "email";
   value: string;
+  /** The entry's tag for targeting (ADR-172), or null. */
+  tag: string | null;
   createdAt: Date;
 }>;
 
 export type GuestsAdded = Readonly<{
   added: number;
   existing: number;
+  /** Entries already listed whose tag this upload set or changed. */
+  tagged: number;
   /** The lines that are neither a Saudi mobile nor an email, by their place in the upload (from 1). */
   invalid: readonly Readonly<{ line: number; text: string }>[];
   total: number;
@@ -67,8 +82,9 @@ export type GuestsAdded = Readonly<{
 export type SetupDone<T> =
   | Readonly<{ kind: "done"; value: T }>
   | Readonly<{ kind: "not_found" | "event_archived" | "setting_locked" | "fields_changed" }>
-  | Readonly<{ kind: "invalid"; field: "fields" | "emailDomains" }>
-  | Readonly<{ kind: "guest_list_full"; room: number }>;
+  | Readonly<{ kind: "invalid"; field: "fields" | "emailDomains" | "tag" }>
+  | Readonly<{ kind: "guest_list_full"; room: number }>
+  | Readonly<{ kind: "field_in_use"; inUse: FieldInUse }>;
 
 /** At most this many join fields an event (FR-129) and guests an event (migration 0028). */
 export const JOIN_FIELD_LIMIT = 5;
@@ -77,6 +93,20 @@ export const GUEST_LIMIT = 10_000;
 export const GUESTS_PER_UPLOAD = 2000;
 export const DOMAIN_LIMIT = 10;
 const LABEL_MAX = 60;
+export const TAG_MAX = 30;
+
+/** A new option's id: eight letters and digits, as migration 0037's shape check takes. */
+export const makeOptionId = (): string =>
+  [...randomBytes(8)].map((byte) => "abcdefghijklmnopqrstuvwxyz0123456789"[byte % 36]).join("");
+
+/** A guest tag trimmed, or null for none; undefined when it is too long or holds control characters. */
+export function cleanTag(raw: string | undefined): string | null | undefined {
+  const tag = raw?.trim() ?? "";
+  if (tag === "") {
+    return null;
+  }
+  return [...tag].length > TAG_MAX || /\p{Cc}/u.test(tag) ? undefined : tag;
+}
 
 const done = <T>(value: T): SetupDone<T> => ({ kind: "done", value });
 
@@ -150,10 +180,25 @@ const labelText = (text: string | undefined): string | null => {
   return trimmed === "" ? null : trimmed;
 };
 
+/** A field's options to save: null for a free-text field, undefined when they break a rule. */
+function optionsOf(
+  field: FieldInput,
+  kept: FieldRecord | undefined,
+  makeId: () => string,
+): readonly JoinOption[] | null | undefined {
+  if (field.options === undefined || field.options === null) {
+    return null;
+  }
+  return field.kind === "custom"
+    ? cleanOptions(field.options, kept?.options ?? [], makeId)
+    : undefined;
+}
+
 /** The fields to save, or undefined when the list breaks a rule the database would also refuse. */
 export function cleanFields(
   input: readonly FieldInput[],
   current: readonly FieldRecord[],
+  makeId: () => string = makeOptionId,
 ): FieldRecord[] | undefined {
   if (input.length > JOIN_FIELD_LIMIT) {
     return undefined;
@@ -167,7 +212,9 @@ export function cleanFields(
       ? { ar: labelText(field.label?.ar), en: labelText(field.label?.en) }
       : { ar: null, en: null };
     const kept = field.id === undefined ? undefined : current.find((row) => row.id === field.id);
+    const options = optionsOf(field, kept, makeId);
     if (
+      options === undefined ||
       (custom && label.ar === null && label.en === null) ||
       [label.ar, label.en].some((text) => text !== null && [...text].length > LABEL_MAX) ||
       (!custom && kinds.has(field.kind)) ||
@@ -179,7 +226,13 @@ export function cleanFields(
     if (field.id !== undefined) {
       ids.add(field.id);
     }
-    cleaned.push({ id: field.id ?? "", kind: field.kind, label, required: field.required });
+    cleaned.push({
+      id: field.id ?? "",
+      kind: field.kind,
+      label,
+      required: field.required,
+      options,
+    });
   }
   return cleaned;
 }
@@ -190,11 +243,12 @@ type FieldRow = {
   label_ar: string | null;
   label_en: string | null;
   required: boolean;
+  options: JoinOption[] | null;
 };
 
 async function readFields(client: PoolClient, eventId: string): Promise<FieldRecord[]> {
   const { rows } = await client.query<FieldRow>(
-    `SELECT id, kind, label_ar, label_en, required FROM event_join_field
+    `SELECT id, kind, label_ar, label_en, required, options FROM event_join_field
      WHERE event_id = $1 ORDER BY position, id`,
     [eventId],
   );
@@ -203,6 +257,7 @@ async function readFields(client: PoolClient, eventId: string): Promise<FieldRec
     kind: row.kind,
     label: { ar: row.label_ar, en: row.label_en },
     required: row.required,
+    options: row.options,
   }));
 }
 
@@ -291,6 +346,7 @@ const fieldsView = (fields: readonly FieldRecord[]) =>
     required: field.required,
     labelAr: field.label.ar,
     labelEn: field.label.en,
+    options: field.options?.length ?? null,
   }));
 
 /** The event's join setup for its team: the fields, the locks, the welcome amount and how many guests (T-212). */
@@ -317,9 +373,41 @@ export function readSetup(
   );
 }
 
+/** Deletes the fields left out, then adds and updates the rest in order. */
+async function writeFields(
+  client: PoolClient,
+  eventId: string,
+  fields: readonly FieldRecord[],
+): Promise<void> {
+  const keptIds = fields.map((field) => field.id).filter((id) => id !== "");
+  await client.query(
+    "DELETE FROM event_join_field WHERE event_id = $1 AND NOT (id = ANY ($2::uuid[]))",
+    [eventId, keptIds],
+  );
+  for (const [position, field] of fields.entries()) {
+    const options = field.options === null ? null : JSON.stringify(field.options);
+    const values = [field.label.ar, field.label.en, field.required, position, options];
+    if (field.id === "") {
+      await client.query(
+        `INSERT INTO event_join_field (event_id, kind, label_ar, label_en, required, position, options)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+        [eventId, field.kind, ...values],
+      );
+    } else {
+      await client.query(
+        `UPDATE event_join_field SET label_ar = $3, label_en = $4, required = $5, position = $6,
+                                     options = $7::jsonb
+         WHERE event_id = $1 AND id = $2`,
+        [eventId, field.id, ...values],
+      );
+    }
+  }
+}
+
 /**
  * Saves the event's whole field list in order (FR-129): fields kept by id are updated, new ones added and missing ones
- * deleted with their answers. The page sends the version it read; another save in between is `fields_changed`.
+ * deleted with their answers. The page sends the version it read; another save in between is `fields_changed`. A
+ * field or an option that an answer or a targeting rule still names cannot go (`field_in_use`, ADR-173).
  */
 export function saveFields(
   deps: SetupDeps,
@@ -338,26 +426,15 @@ export function saveFields(
     if (fields === undefined) {
       return { kind: "invalid", field: "fields" };
     }
-    const keptIds = fields.map((field) => field.id).filter((id) => id !== "");
-    await client.query(
-      "DELETE FROM event_join_field WHERE event_id = $1 AND NOT (id = ANY ($2::uuid[]))",
-      [eventId, keptIds],
+    const kept = new Map(
+      fields.filter((field) => field.id !== "").map((field) => [field.id, field.options]),
     );
-    for (const [position, field] of fields.entries()) {
-      if (field.id === "") {
-        await client.query(
-          `INSERT INTO event_join_field (event_id, kind, label_ar, label_en, required, position)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [eventId, field.kind, field.label.ar, field.label.en, field.required, position],
-        );
-      } else {
-        await client.query(
-          `UPDATE event_join_field SET label_ar = $3, label_en = $4, required = $5, position = $6
-           WHERE event_id = $1 AND id = $2`,
-          [eventId, field.id, field.label.ar, field.label.en, field.required, position],
-        );
-      }
+    const use = await readFieldUse(client, eventId);
+    const inUse = fieldsInUse(before, kept, use.answers, use.targeted);
+    if (inUse !== undefined) {
+      return { kind: "field_in_use", inUse };
     }
+    await writeFields(client, eventId, fields);
     const version = input.version + 1;
     await client.query("UPDATE event SET join_fields_version = $2 WHERE id = $1", [
       eventId,
@@ -439,9 +516,10 @@ export function listGuests(
         id: string;
         kind: "phone" | "email";
         value: string;
+        tag: string | null;
         created_at: Date;
       }>(
-        `SELECT id, kind, value, created_at FROM event_guest
+        `SELECT id, kind, value, tag, created_at FROM event_guest
          WHERE event_id = $1 AND ($2::boolean OR (kind = $3 AND value = $4))
          ORDER BY created_at DESC, id LIMIT 200`,
         [eventId, wanted === undefined, wanted?.kind ?? null, wanted?.value ?? null],
@@ -452,6 +530,7 @@ export function listGuests(
           id: row.id,
           kind: row.kind,
           value: maskGuest(row.kind, row.value),
+          tag: row.tag,
           createdAt: row.created_at,
         })),
       });
@@ -462,16 +541,21 @@ export function listGuests(
 
 /**
  * Adds an upload to the guest list (FR-132): each valid line once, the ones already there counted, the invalid ones
- * reported and not added. An upload that would pass 10 000 adds nothing. The audit keeps counts, never a contact.
+ * reported and not added. An upload that would pass 10 000 adds nothing. With a tag (ADR-172), every entry of the
+ * upload carries it, those already listed too (`tagged`). The audit keeps counts, never a contact or a tag.
  */
 export function addGuests(
   deps: SetupDeps,
   actor: Actor,
   eventId: string,
-  lines: readonly string[],
+  upload: Readonly<{ lines: readonly string[]; tag?: string | undefined }>,
   caller: Caller,
 ): Promise<SetupDone<GuestsAdded>> {
-  const { guests, invalid } = parseGuests(lines);
+  const { guests, invalid } = parseGuests(upload.lines);
+  const tag = cleanTag(upload.tag);
+  if (tag === undefined) {
+    return Promise.resolve({ kind: "invalid", field: "tag" });
+  }
   return withSetupEvent(deps, actor, eventId, async (client) => {
     const kinds = guests.map((guest) => guest.kind);
     const values = guests.map((guest) => guest.value);
@@ -486,24 +570,32 @@ export function addGuests(
     if (total + fresh > GUEST_LIMIT) {
       return { kind: "guest_list_full", room: GUEST_LIMIT - total };
     }
-    const { rowCount } = await client.query(
-      `INSERT INTO event_guest (event_id, kind, value)
-       SELECT $1, u.kind, u.value FROM unnest($2::text[], $3::text[]) AS u(kind, value)
-       ON CONFLICT (event_id, kind, value) DO NOTHING`,
-      [eventId, kinds, values],
+    const { rows: written } = await client.query<{ added: number; tagged: number }>(
+      `WITH written AS (
+         INSERT INTO event_guest AS g (event_id, kind, value, tag)
+         SELECT $1, u.kind, u.value, $4 FROM unnest($2::text[], $3::text[]) AS u(kind, value)
+         ON CONFLICT (event_id, kind, value) DO UPDATE SET tag = EXCLUDED.tag
+         WHERE EXCLUDED.tag IS NOT NULL AND g.tag IS DISTINCT FROM EXCLUDED.tag
+         RETURNING xmax = 0 AS inserted
+       )
+       SELECT count(*) FILTER (WHERE inserted)::int AS added,
+              count(*) FILTER (WHERE NOT inserted)::int AS tagged
+       FROM written`,
+      [eventId, kinds, values, tag],
     );
-    const added = rowCount ?? 0;
+    const { added, tagged } = written[0] as { added: number; tagged: number };
     const result: GuestsAdded = {
       added,
       existing: guests.length - added,
+      tagged,
       invalid,
       total: total + added,
     };
-    if (added > 0) {
+    if (added > 0 || tagged > 0) {
       await audit(client, actor, caller, {
         action: "event.guests.add",
         eventId,
-        after: { added, existing: result.existing, total: result.total },
+        after: { added, existing: result.existing, tagged, total: result.total },
       });
     }
     return done(result);

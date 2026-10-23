@@ -30,8 +30,17 @@ const EVENT = {
 const NO_RULES = { fields: [], guestListOnly: false, emailDomains: [], welcomePoints: null };
 const RULES = {
   fields: [
-    { id: "f1", kind: "company", label: { ar: null, en: null }, required: true },
-    { id: "f2", kind: "badge_color", label: { ar: "اللون", en: null }, required: false },
+    { id: "f1", kind: "company", label: { ar: null, en: null }, required: true, options: null },
+    {
+      id: "f2",
+      kind: "custom",
+      label: { ar: "اللون", en: null },
+      required: false,
+      options: [
+        { id: "red", ar: "أحمر", en: "Red" },
+        { id: "blue", ar: null, en: "Blue" },
+      ],
+    },
   ],
   guestListOnly: true,
   emailDomains: ["acme.sa"],
@@ -98,6 +107,17 @@ describe("the join card", () => {
         event: { ...EVENT, join: { ...RULES, fields: [{ id: "f", kind: "company" }] } },
         card: CARD,
       },
+      {
+        event: {
+          ...EVENT,
+          join: { ...RULES, fields: [{ ...RULES.fields[0], options: [{ ar: "x" }] }] },
+        },
+        card: CARD,
+      },
+      {
+        event: { ...EVENT, join: { ...RULES, fields: [{ ...RULES.fields[0], options: "red" }] } },
+        card: CARD,
+      },
       { event: { ...EVENT, join: { ...RULES, guestListOnly: "yes" } }, card: CARD },
       { event: { ...EVENT, join: { ...RULES, emailDomains: [1] } }, card: CARD },
       { event: { ...EVENT, join: { ...RULES, welcomePoints: "5" } }, card: CARD },
@@ -115,6 +135,36 @@ describe("the join card", () => {
 
   it("reads the event's join rules, keeping a field of a kind this build does not know", () => {
     expect(readCard({ event: { ...EVENT, join: RULES }, card: CARD })?.event.join).toEqual(RULES);
+    // An API from before T-220 sends no options, and an option may leave a language out: both read as null.
+    const older = {
+      ...RULES,
+      fields: [
+        { id: "f1", kind: "badge_color", label: { ar: null, en: null }, required: true },
+        {
+          ...RULES.fields[1],
+          options: [
+            { id: "red", en: "Red" },
+            { id: "blue", ar: "أزرق" },
+          ],
+        },
+      ],
+    };
+    expect(readCard({ event: { ...EVENT, join: older }, card: CARD })?.event.join.fields).toEqual([
+      {
+        id: "f1",
+        kind: "badge_color",
+        label: { ar: null, en: null },
+        required: true,
+        options: null,
+      },
+      {
+        ...RULES.fields[1],
+        options: [
+          { id: "red", ar: null, en: "Red" },
+          { id: "blue", ar: "أزرق", en: null },
+        ],
+      },
+    ]);
   });
 
   it("maps a missing code, a busy network and an outage", async () => {

@@ -16,6 +16,7 @@ import {
 } from "#src/auth/http-errors";
 import { registerActivationRoutes } from "#src/activation/routes";
 import type { Activation } from "#src/activation/service";
+import { registerAudienceRoutes } from "#src/audience/routes";
 import { registerRehearsalTeamRoutes } from "#src/rehearsal/routes";
 import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
@@ -223,6 +224,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);
       registerJoinSetupRoutes(scope, { pool: deps.pool });
+      registerAudienceRoutes(scope, { pool: deps.pool });
     },
     { prefix: ORGANIZER_PREFIX },
   );

@@ -681,6 +681,18 @@ export const joinFieldsChanged = make(
   "غيّر شخص آخر حقول الانضمام. حدّث الصفحة ثم احفظ.",
   "Someone else changed the join fields. Reload, then save.",
 );
+export const joinFieldInUse = make(
+  409,
+  "join_field_in_use",
+  'لا يمكن حذف هذا الحقل أو هذا الخيار: إجابات اللاعبين أو قواعد "من يرى ماذا" تستخدمه.',
+  'This field or option cannot go: players\' answers or a "Who sees what" rule use it.',
+);
+export const invalidAudience = make(
+  422,
+  "invalid_audience",
+  "هذه القاعدة غير صالحة. اختر حقلًا بخيارات وخيارًا واحدًا على الأقل، أو وسمًا واحدًا على الأقل.",
+  "This rule is not valid. Choose a field with options and at least one option, or at least one tag.",
+);
 export const guestListFull = make(
   409,
   "guest_list_full",

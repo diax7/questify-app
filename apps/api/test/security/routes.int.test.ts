@@ -168,6 +168,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit, written under row-level security; the audit keeps counts, never a contact (test/join/join-fields, test/db/join-fields)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/join/guests/:guestId":
     "members of that organizer within their event limit; another event's entry answers 404 (test/join/join-fields)",
+  "GET /v1/organizers/:organizerId/events/:eventId/audience":
+    "members of that organizer within their event limit; another event answers 404; reach as counts only, through audience_counts (test/audience/audience, test/db/targeting)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/audience/categories/:itemId":
+    "members of that organizer within their event limit; set_audience checks the scope, the event lock and the options again, and audits ids and counts only (test/audience/audience, test/db/targeting)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/audience/rewards/:itemId":
+    "members of that organizer within their event limit; set_audience checks again (test/audience/audience, test/db/targeting)",
   "GET /v1/me/events":
     "the bearer's own enrollments only, read under row-level security (test/join/join)",
   "POST /v1/events/:eventId/leave":

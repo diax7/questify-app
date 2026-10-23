@@ -29,6 +29,8 @@ export type JoinAnswerView = Readonly<{
   kind: string;
   label: Readonly<{ ar: string | null; en: string | null }>;
   value: string;
+  /** A choice field's answer as its option's labels (ADR-171); null for a free-text answer. */
+  choice: Readonly<{ ar: string | null; en: string | null }> | null;
 }>;
 
 export type BanOutcome = "changed" | "unchanged" | "not_found" | "not_owner" | "not_allowed";
@@ -153,8 +155,11 @@ async function readAnswers(
     label_ar: string | null;
     label_en: string | null;
     value: string;
+    choice: { ar: string | null; en: string | null } | null;
   }>(
-    `SELECT a.enrollment_id, a.field_id, f.kind, f.label_ar, f.label_en, a.value
+    `SELECT a.enrollment_id, a.field_id, f.kind, f.label_ar, f.label_en, a.value,
+            (SELECT jsonb_build_object('ar', o ->> 'ar', 'en', o ->> 'en')
+             FROM jsonb_array_elements(f.options) o WHERE o ->> 'id' = a.value) AS choice
      FROM join_answer a JOIN event_join_field f ON f.id = a.field_id
      WHERE a.event_id = $1 AND a.enrollment_id = ANY ($2::uuid[])
      ORDER BY f.position, f.id`,
@@ -168,6 +173,7 @@ async function readAnswers(
       kind: row.kind,
       label: { ar: row.label_ar, en: row.label_en },
       value: row.value,
+      choice: row.choice,
     });
     byEnrollment.set(row.enrollment_id, list);
   }

@@ -53,6 +53,7 @@ const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
   hidden: "questsTab.notOpen.hidden",
   not_started: "questsTab.notOpen.notStarted",
   ended: "questsTab.notOpen.ended",
+  not_for_you: "questsTab.notOpen.notForYou",
 };
 
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */

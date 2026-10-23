@@ -4,12 +4,13 @@ import {
   eventArchived,
   guestListFull,
   invalidRequest,
+  joinFieldInUse,
   joinFieldsChanged,
   notFound,
   settingLocked,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
-import { JOIN_FIELD_KINDS } from "@questify/shared";
+import { JOIN_FIELD_KINDS, JOIN_OPTION_MAX } from "@questify/shared";
 import {
   DOMAIN_LIMIT,
   GUESTS_PER_UPLOAD,
@@ -41,6 +42,17 @@ const fieldsBody = z.strictObject({
         kind: z.enum(JOIN_FIELD_KINDS),
         label: label.optional(),
         required: z.boolean(),
+        options: z
+          .array(
+            z.strictObject({
+              id: z.string().max(12).optional(),
+              ar: z.string().max(120).optional(),
+              en: z.string().max(120).optional(),
+            }),
+          )
+          .max(JOIN_OPTION_MAX)
+          .nullable()
+          .optional(),
       }),
     )
     .max(JOIN_FIELD_LIMIT),
@@ -55,6 +67,8 @@ const rulesBody = z.strictObject({
 });
 const guestsBody = z.strictObject({
   lines: z.array(z.string().max(300)).min(1).max(GUESTS_PER_UPLOAD),
+  // ADR-172: one tag for the whole upload (targeting); a tagged contact is on the guest list, so it is invited.
+  tag: z.string().max(60).optional(),
 });
 
 const member = { config: { access: "member" }, bodyLimit: 16_384 } as const;
@@ -77,6 +91,8 @@ function answer<T>(result: SetupDone<T>, ok: (value: T) => unknown): unknown {
       throw invalidRequest({ field: result.field });
     case "guest_list_full":
       throw guestListFull({ room: result.room });
+    case "field_in_use":
+      throw joinFieldInUse({ ...result.inUse });
   }
 }
 
@@ -136,7 +152,7 @@ export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps)
         deps,
         organizerContextOf(request),
         eventId,
-        body.lines,
+        body,
         callerOf(request),
       );
       return answer(result, (added) => added);

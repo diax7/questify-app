@@ -7,6 +7,7 @@ import {
   kindsFor,
   moveDraft,
   needsLabel,
+  needsOptions,
   newDraft,
   welcomeOf,
   type FieldDraft,
@@ -15,8 +16,18 @@ import {
 } from "#src/lib/joining.ts";
 
 const VIEWS: JoinFieldView[] = [
-  { id: "f1", kind: "full_name", label: { ar: null, en: null }, required: true },
-  { id: "f2", kind: "custom", label: { ar: "القسم", en: null }, required: false },
+  { id: "f1", kind: "full_name", label: { ar: null, en: null }, required: true, options: null },
+  { id: "f2", kind: "custom", label: { ar: "القسم", en: null }, required: false, options: null },
+  {
+    id: "f3",
+    kind: "custom",
+    label: { ar: null, en: "Section" },
+    required: true,
+    options: [
+      { id: "women", ar: "نساء", en: "Women" },
+      { id: "men", ar: null, en: "Men" },
+    ],
+  },
 ];
 const SAVED = draftsOf(VIEWS);
 
@@ -29,7 +40,12 @@ describe("the field editor", () => {
       labelAr: "القسم",
       labelEn: "",
       required: false,
+      options: null,
     });
+    expect(SAVED[2]?.options).toEqual([
+      { key: "women", id: "women", ar: "نساء", en: "Women" },
+      { key: "men", id: "men", ar: "", en: "Men" },
+    ]);
     expect(kindsFor(SAVED, 0)).toContain("full_name");
     expect(kindsFor(SAVED, 1)).not.toContain("full_name");
     expect(kindsFor(SAVED, 1)).toContain("custom");
@@ -41,28 +57,69 @@ describe("the field editor", () => {
   });
 
   it("moves rows within the list only", () => {
-    expect(moveDraft(SAVED, 1, -1).map((row) => row.key)).toEqual(["f2", "f1"]);
-    expect(moveDraft(SAVED, 0, 1).map((row) => row.key)).toEqual(["f2", "f1"]);
-    expect(moveDraft(SAVED, 0, -1).map((row) => row.key)).toEqual(["f1", "f2"]);
-    expect(moveDraft(SAVED, 1, 1).map((row) => row.key)).toEqual(["f1", "f2"]);
+    expect(moveDraft(SAVED, 1, -1).map((row) => row.key)).toEqual(["f2", "f1", "f3"]);
+    expect(moveDraft(SAVED, 0, 1).map((row) => row.key)).toEqual(["f2", "f1", "f3"]);
+    expect(moveDraft(SAVED, 0, -1).map((row) => row.key)).toEqual(["f1", "f2", "f3"]);
+    expect(moveDraft(SAVED, 2, 1).map((row) => row.key)).toEqual(["f1", "f2", "f3"]);
   });
 
   it("sends a label only for a custom field and an id only for a saved one", () => {
     const rows: FieldDraft[] = [
       ...SAVED,
-      { key: "n", id: undefined, kind: "company", labelAr: "x", labelEn: "", required: true },
+      {
+        key: "n",
+        id: undefined,
+        kind: "company",
+        labelAr: "x",
+        labelEn: "",
+        required: true,
+        options: null,
+      },
     ];
-    expect(fieldsBody(3, rows)).toEqual({
+    const withNew = rows.map((row) =>
+      row.id === "f3"
+        ? {
+            ...row,
+            options: [...(row.options ?? []), { key: "o", id: undefined, ar: "أطفال", en: " " }],
+          }
+        : row,
+    );
+    expect(fieldsBody(3, withNew)).toEqual({
       version: 3,
       fields: [
         { id: "f1", kind: "full_name", required: true },
-        { id: "f2", kind: "custom", label: { ar: "القسم" }, required: false },
+        { id: "f2", kind: "custom", label: { ar: "القسم" }, required: false, options: null },
+        {
+          id: "f3",
+          kind: "custom",
+          label: { en: "Section" },
+          required: true,
+          options: [
+            { id: "women", ar: "نساء", en: "Women" },
+            { id: "men", en: "Men" },
+            { ar: "أطفال" },
+          ],
+        },
         { kind: "company", required: true },
       ],
     });
     expect(needsLabel({ ...SAVED[1], labelAr: " " } as FieldDraft)).toBe(true);
     expect(needsLabel(SAVED[1] as FieldDraft)).toBe(false);
     expect(needsLabel({ ...SAVED[0], labelAr: "" } as FieldDraft)).toBe(false);
+  });
+
+  it("needs two named options on a choice field, and none on another", () => {
+    const choice = SAVED[2] as FieldDraft;
+    expect(needsOptions(choice)).toBe(false);
+    expect(needsOptions({ ...choice, options: choice.options?.slice(0, 1) ?? [] })).toBe(true);
+    expect(
+      needsOptions({
+        ...choice,
+        options: [...(choice.options ?? []), { key: "x", id: undefined, ar: " ", en: "" }],
+      }),
+    ).toBe(true);
+    expect(needsOptions(SAVED[1] as FieldDraft)).toBe(false);
+    expect(needsOptions({ ...choice, kind: "company" })).toBe(false);
   });
 });
 

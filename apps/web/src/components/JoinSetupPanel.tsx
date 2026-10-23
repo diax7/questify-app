@@ -16,6 +16,7 @@ import {
   kindsFor,
   moveDraft,
   needsLabel,
+  needsOptions,
   newDraft,
   welcomeOf,
   type FieldDraft,
@@ -23,6 +24,7 @@ import {
   type JoinRules,
   type JoinSetup,
 } from "#src/lib/joining.ts";
+import { JoinOptionsEditor } from "#src/components/JoinOptionsEditor.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -47,6 +49,51 @@ function useProblem(language: Language) {
     );
   };
   return { problem, setProblem, fail };
+}
+
+/** Move a field up or down, or remove it. */
+function RowActions({
+  language,
+  drafts,
+  index,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  drafts: readonly FieldDraft[];
+  index: number;
+  busy: boolean;
+  change: (next: FieldDraft[]) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <div className={styles.row}>
+      <button
+        type="button"
+        className={styles.quiet}
+        disabled={busy || index === 0}
+        onClick={() => change(moveDraft(drafts, index, -1))}
+      >
+        {t("joinFields.up")}
+      </button>
+      <button
+        type="button"
+        className={styles.quiet}
+        disabled={busy || index === drafts.length - 1}
+        onClick={() => change(moveDraft(drafts, index, 1))}
+      >
+        {t("joinFields.down")}
+      </button>
+      <button
+        type="button"
+        className={styles.quiet}
+        disabled={busy}
+        onClick={() => change(drafts.filter((_, at) => at !== index))}
+      >
+        {t("joinFields.remove")}
+      </button>
+    </div>
+  );
 }
 
 function FieldRow({
@@ -76,7 +123,9 @@ function FieldRow({
             value={draft.kind}
             // A saved field keeps its kind: its answers were given to that question.
             disabled={busy || draft.id !== undefined}
-            onChange={(picked) => set({ kind: picked.target.value as JoinFieldKind })}
+            onChange={(picked) =>
+              set({ kind: picked.target.value as JoinFieldKind, options: null })
+            }
           >
             {kindsFor(drafts, index).map((kind) => (
               <option key={kind} value={kind}>
@@ -112,32 +161,16 @@ function FieldRow({
           ))}
         </div>
       ) : null}
-      <div className={styles.row}>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy || index === 0}
-          onClick={() => change(moveDraft(drafts, index, -1))}
-        >
-          {t("joinFields.up")}
-        </button>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy || index === drafts.length - 1}
-          onClick={() => change(moveDraft(drafts, index, 1))}
-        >
-          {t("joinFields.down")}
-        </button>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy}
-          onClick={() => change(drafts.filter((_, at) => at !== index))}
-        >
-          {t("joinFields.remove")}
-        </button>
-      </div>
+      {draft.kind === "custom" ? (
+        <JoinOptionsEditor
+          language={language}
+          fieldName={draft[language === "ar" ? "labelAr" : "labelEn"]}
+          options={draft.options}
+          busy={busy}
+          change={(options) => set({ options })}
+        />
+      ) : null}
+      <RowActions language={language} drafts={drafts} index={index} busy={busy} change={change} />
     </li>
   );
 }
@@ -243,7 +276,7 @@ function FieldsEditor({
         <button
           type="submit"
           className={styles.button}
-          disabled={busy || drafts.some(needsLabel)}
+          disabled={busy || drafts.some((draft) => needsLabel(draft) || needsOptions(draft))}
           aria-busy={busy}
         >
           {t("joinFields.save")}
