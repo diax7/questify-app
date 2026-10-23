@@ -74,6 +74,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"delete" | "end" | null>(null);
+  const [askAccess, setAskAccess] = useState(false);
   const keyFor = useIdempotencyKey();
   const loaded = useRef(false);
 
@@ -129,6 +130,19 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
       if (handle(result)) {
         window.location.assign(`${pages}/${(result.body as { event: EventView }).event.id}`);
       }
+      return;
+    }
+    // FR-1820: a change of access type is said in words and confirmed before it is saved.
+    if (draft.access !== event.access) {
+      setAskAccess(true);
+      return;
+    }
+    await save();
+  };
+
+  const save = async () => {
+    setAskAccess(false);
+    if (event === null || draft === null) {
       return;
     }
     const result = await run(() =>
@@ -236,11 +250,38 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
             status={status}
           />
           <EventAccessFields language={language} draft={draft} disabled={busy} change={change} />
-          <button type="submit" className={styles.button} disabled={busy}>
+          <button type="submit" className={styles.button} disabled={busy || askAccess}>
             {event === null ? t("events.create") : t("events.save")}
           </button>
         </form>
       )}
+      {askAccess && draft !== null ? (
+        <div role="alertdialog" aria-labelledby="access-confirm" className={styles.card}>
+          <h2 id="access-confirm" className={styles.subtitle}>
+            {t("events.accessTitle", { access: t(`events.access.${draft.access}`) })}
+          </h2>
+          <p>{t(`events.accessEffect.${draft.access}`)}</p>
+          <p className={styles.muted}>{t("events.accessKeeps")}</p>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.quiet}
+              disabled={busy}
+              onClick={() => setAskAccess(false)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className={styles.button}
+              disabled={busy}
+              onClick={() => void save()}
+            >
+              {t("events.accessConfirm")}
+            </button>
+          </div>
+        </div>
+      ) : null}
       {event === null ? null : (
         <RankingSwitch
           language={language}

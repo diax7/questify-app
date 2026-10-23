@@ -54,9 +54,9 @@ export function EventPill() {
             style={styles.row}
           >
             <AppText variant="label">{eventName(event, language)}</AppText>
-            {event.status === "pending" ? (
-              <AppText muted>{t("players.status.pending")}</AppText>
-            ) : null}
+            {event.status === "active" ? null : (
+              <AppText muted>{t(`players.status.${event.status}`)}</AppText>
+            )}
           </Pressable>
         ))}
       </Sheet>

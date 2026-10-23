@@ -274,9 +274,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       const home = await asPlayer(player.token, `/v1/events/${event.id}/home`);
       expect(home.statusCode).toBe(200);
       const body = home.json<Row>();
-      expect(body["standing"]).toEqual({ status: "pending" });
+      expect(body["standing"]).toEqual({ status: "pending", waitlisted: false });
       expect(body["upNext"]).toBeNull();
       expect(body["goal"]).toBeNull();
+    });
+
+    it("tells a declined player so on Home, and nothing else; the quests refuse them (ADR-167)", async () => {
+      const event = await newEvent();
+      await newQuest(event);
+      const player = await newPlayer(event.id, "declined");
+      const home = await asPlayer(player.token, `/v1/events/${event.id}/home`);
+      expect(home.statusCode).toBe(200);
+      expect(home.json<Row>()["standing"]).toEqual({ status: "declined" });
+      expect(home.json<Row>()["upNext"]).toBeNull();
+      const quests = await asPlayer(player.token, `/v1/events/${event.id}/quests`);
+      expect([quests.statusCode, quests.json().code]).toEqual([403, "not_enrolled"]);
     });
 
     it.each(["left", "removed", "banned"])("refuses a %s member", async (status) => {

@@ -19,7 +19,7 @@ type ListedEvent = Readonly<{
   id: string;
   joinCode: string;
   name: Text;
-  status?: "active" | "pending";
+  status?: "active" | "pending" | "declined";
 }>;
 
 const isText = (value: unknown): value is Text =>
@@ -183,8 +183,8 @@ function MyEvents() {
           key={event.id}
           event={event}
           note={
-            event.status === "pending"
-              ? t("players.status.pending")
+            event.status === "pending" || event.status === "declined"
+              ? t(`players.status.${event.status}`)
               : event.id === latest
                 ? t("home.current")
                 : undefined

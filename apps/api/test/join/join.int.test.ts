@@ -328,6 +328,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
         status: "active",
         alreadyMember: false,
         welcome: 0,
+        waitlisted: false,
       });
       expect((await join(player.token, { joinCode: open.code })).json()).toEqual({
         ...first.json<Row>(),
@@ -379,6 +380,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
       expect(
         await owner("SELECT status FROM enrollment WHERE player_id = $1", [player.id]),
       ).toEqual([{ status: "banned" }]);
+    });
+
+    it("answers a full event with the waiting list offered, lists a waitlist join, and refuses a declined player", async () => {
+      const event = await newEvent();
+      await owner("UPDATE event SET player_limit_mode = 'hard', player_limit = 1 WHERE id = $1", [
+        event.id,
+      ]);
+      expect((await join((await newPlayer()).token, { joinCode: event.code })).statusCode).toBe(
+        200,
+      );
+      const late = await newPlayer();
+      const full = await join(late.token, { joinCode: event.code });
+      expect([full.statusCode, full.json<{ code: string }>().code]).toEqual([409, "event_full"]);
+      expect(full.json<{ details: Row }>().details).toEqual({ waitlist: true });
+      const listed = await join(late.token, { joinCode: event.code, waitlist: true });
+      expect(listed.json()).toMatchObject({ status: "pending", waitlisted: true });
+      const mine = await test.app.inject({
+        method: "GET",
+        url: "/v1/me/events",
+        headers: { authorization: `Bearer ${late.token}` },
+      });
+      expect(mine.json<{ events: Row[] }>().events[0]).toMatchObject({
+        status: "pending",
+        waitlisted: true,
+      });
+      await owner("UPDATE enrollment SET status = 'declined' WHERE player_id = $1", [late.id]);
+      const declined = await join(late.token, { joinCode: event.code, waitlist: true });
+      expect([declined.statusCode, declined.json<{ code: string }>().code]).toEqual([
+        403,
+        "join_declined",
+      ]);
+      expect(
+        (
+          await test.app.inject({
+            method: "GET",
+            url: "/v1/me/events",
+            headers: { authorization: `Bearer ${late.token}` },
+          })
+        ).json<{ events: Row[] }>().events[0],
+      ).toMatchObject({ status: "declined", waitlisted: false });
+      expect((await join(late.token, { joinCode: event.code, waitlist: "yes" })).statusCode).toBe(
+        400,
+      );
     });
 
     it("joins by a link or from the public list, which only a listed event takes", async () => {

@@ -150,6 +150,7 @@ describe("joining", () => {
       status: "pending",
       alreadyMember: true,
       welcome: 0,
+      waitlisted: false,
     });
     expect(calls[0]).toEqual({
       method: "POST",
@@ -172,6 +173,7 @@ describe("joining", () => {
       status: "active",
       alreadyMember: false,
       welcome: 40,
+      waitlisted: false,
     });
     for (const welcome of [-5, 0, "40", null]) {
       const read = await joinEvent(
@@ -188,6 +190,42 @@ describe("joining", () => {
       ),
     ).toEqual({
       kind: "network",
+    });
+  });
+
+  it("joins the waiting list when asked, and reads the flag only on a pending join", async () => {
+    const { session, calls } = sessionAnswering({
+      kind: "ok",
+      status: 200,
+      body: { eventId: "e1", status: "pending", waitlisted: true },
+      headers,
+    });
+    expect(await joinEvent(session, JOIN, true)).toMatchObject({
+      kind: "joined",
+      status: "pending",
+      waitlisted: true,
+    });
+    expect(calls[0]?.body).toEqual({ ...JOIN_BODY, waitlist: true });
+    expect(
+      await joinEvent(
+        sessionAnswering({
+          kind: "ok",
+          status: 200,
+          body: { eventId: "e1", status: "active", waitlisted: true },
+          headers,
+        }).session,
+        JOIN,
+      ),
+    ).toMatchObject({ status: "active", waitlisted: false });
+    const invited = sessionAnswering(fail(409, "event_full", { waitlist: true }));
+    expect(
+      await joinInvitation(invited.session, { eventId: "e9", cardVersion: "0.1" }, true),
+    ).toEqual({ kind: "refused", code: "event_full", problem: MESSAGE });
+    expect(invited.calls[0]?.body).toEqual({
+      eventId: "e9",
+      via: "invite",
+      cardVersion: "0.1",
+      waitlist: true,
     });
   });
 

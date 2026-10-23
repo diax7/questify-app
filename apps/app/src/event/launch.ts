@@ -13,7 +13,8 @@ export type MyEvent = Readonly<{
   joinCode: string;
   name: Readonly<{ ar: string | null; en: string | null }>;
   statusNow: string;
-  status: "active" | "pending";
+  /** A declined request stays listed so the player sees the decision (ADR-167); it never opens at launch. */
+  status: "active" | "pending" | "declined";
   /** The event's IANA zone, for its times. */
   timezone?: string;
 }>;
@@ -90,7 +91,7 @@ export function readMyEvents(body: unknown): MyEvent[] | undefined {
       typeof item["id"] === "string" &&
       typeof item["joinCode"] === "string" &&
       typeof item["statusNow"] === "string" &&
-      (item["status"] === "active" || item["status"] === "pending") &&
+      ["active", "pending", "declined"].includes(String(item["status"])) &&
       (item["timezone"] === undefined || typeof item["timezone"] === "string") &&
       isRecord(item["name"]),
   );

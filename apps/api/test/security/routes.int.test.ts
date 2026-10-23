@@ -184,6 +184,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit, through event_players with the join card's columns; another event answers an empty list (test/moderation/moderation, test/db/bans)",
   "PUT /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/ban":
     "the organizer's owner only, for an enrollment of the path's event; set_enrollment_ban checks again and audits (test/moderation/moderation, test/db/bans)",
+  "GET /v1/organizers/:organizerId/events/:eventId/join-requests":
+    "members of that organizer within their event limit, through join_requests (public profile only); another event answers 404 (test/moderation/join-requests, test/db/join-requests)",
+  "POST /v1/organizers/:organizerId/events/:eventId/join-requests/:enrollmentId/accept":
+    "members of that organizer within their event limit; decide_join_request checks the scope, the seat under the seat lock and the event's state again, and audits (test/moderation/join-requests, test/db/join-requests)",
+  "POST /v1/organizers/:organizerId/events/:eventId/join-requests/:enrollmentId/decline":
+    "members of that organizer within their event limit; decide_join_request checks again and audits (test/moderation/join-requests, test/db/join-requests)",
+  "POST /v1/organizers/:organizerId/events/:eventId/join-requests/accept-all":
+    "members of that organizer within their event limit; accept_all_join_requests takes the seat lock once and audits each acceptance (test/moderation/join-requests, test/db/join-requests)",
   "GET /v1/organizers/:organizerId/events/:eventId/exclusions":
     "members of that organizer within their event limit; phones masked for every seat; another event answers 404 (test/moderation/moderation)",
   "POST /v1/organizers/:organizerId/events/:eventId/exclusions":

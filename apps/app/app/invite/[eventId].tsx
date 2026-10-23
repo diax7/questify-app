@@ -44,7 +44,8 @@ function useInvitation(eventId: string) {
 
 /**
  * "You're invited" (FR-133): an event whose guest list holds the player's phone or email, joined without a code and,
- * for a private event, without waiting for approval (FR-1819). The card and the join fields are the event's own.
+ * for a private event, without waiting for approval (FR-1819). The card and the join fields are the event's own. A full
+ * event offers its waiting list (FR-1821).
  */
 export default function InviteScreen() {
   const { t, language } = useI18n();
@@ -55,6 +56,7 @@ export default function InviteScreen() {
   const [problem, setProblem] = useState<LocalizedText | null>(null);
   const [joined, setJoined] = useState<Extract<JoinOutcome, { kind: "joined" }> | undefined>();
   const [busy, setBusy] = useState(false);
+  const [full, setFull] = useState(false);
 
   if (loaded === undefined || loaded === "gone" || loaded === "network") {
     return (
@@ -76,7 +78,7 @@ export default function InviteScreen() {
   }
   const { event, card } = loaded;
 
-  const tapJoin = async () => {
+  const tapJoin = async (waitlist = false) => {
     const missing = firstMissing(event.join.fields, typed);
     setPointed(missing);
     if (missing !== undefined) {
@@ -84,12 +86,17 @@ export default function InviteScreen() {
     }
     setBusy(true);
     setProblem(null);
-    const outcome = await joinInvitation(api.session, {
-      eventId: event.id,
-      cardVersion: card.version,
-      answers: answersFor(event.join.fields, typed),
-    });
+    const outcome = await joinInvitation(
+      api.session,
+      {
+        eventId: event.id,
+        cardVersion: card.version,
+        answers: answersFor(event.join.fields, typed),
+      },
+      waitlist,
+    );
     setBusy(false);
+    setFull(outcome.kind === "refused" && outcome.code === "event_full");
     if (outcome.kind === "joined") {
       setJoined(outcome);
     } else if (outcome.kind === "invalid_answers") {
@@ -128,10 +135,22 @@ export default function InviteScreen() {
         ) : null}
         <Problem problem={problem} />
         {joined === undefined ? (
-          <Button label={t("joinCard.join")} disabled={busy} onPress={() => void tapJoin()} />
+          <Button
+            label={t(full ? "join.waitlistJoin" : "joinCard.join")}
+            disabled={busy}
+            onPress={() => void tapJoin(full)}
+          />
         ) : (
           <>
-            <AppText>{t(joined.alreadyMember ? "join.already" : "join.active")}</AppText>
+            <AppText>
+              {t(
+                joined.alreadyMember
+                  ? "join.already"
+                  : joined.waitlisted
+                    ? "join.waitlisted"
+                    : "join.active",
+              )}
+            </AppText>
             <Button
               label={t("joinCard.openEvent")}
               onPress={() => router.replace(`/event/${joined.eventId}`)}

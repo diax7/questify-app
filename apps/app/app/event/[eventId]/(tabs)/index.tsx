@@ -28,6 +28,9 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** How often a waiting request reads Home again (the decision arrives by push once T-501 lands). */
+const WAITING_REFRESH_MS = 15_000;
+
 /** The phone's clock, ticking each half minute so the countdown's words stay current. */
 function useNow(): number {
   const [now, setNow] = useState(Date.now());
@@ -173,7 +176,24 @@ function Standing({ home }: Readonly<{ home: Home }>) {
   const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   if (home.standing.status === "pending") {
-    return <AppText>{t("eventHome.pending")}</AppText>;
+    return (
+      <View style={styles.card} accessibilityLiveRegion="polite">
+        <AppText variant="title">
+          {t(home.standing.waitlisted ? "eventHome.waitlistTitle" : "eventHome.waitingTitle")}
+        </AppText>
+        <AppText>
+          {t(home.standing.waitlisted ? "eventHome.waitlisted" : "eventHome.pending")}
+        </AppText>
+      </View>
+    );
+  }
+  if (home.standing.status === "declined") {
+    return (
+      <View style={styles.card} accessibilityLiveRegion="polite">
+        <AppText>{t("eventHome.declined")}</AppText>
+        <Button label={t("eventHome.backHome")} onPress={() => router.replace("/home")} />
+      </View>
+    );
   }
   const { score, balance, questsDone, questsTotal } = home.standing;
   const eventId = home.event.id;
@@ -246,6 +266,15 @@ function useHome(eventId: string) {
     });
     return () => watcher.remove();
   }, [load]);
+  // A request waits for the organizer's word (FR-1819): read it again every 15 seconds until it comes (push is T-501's).
+  const waiting = answer?.kind === "home" && answer.home.standing.status === "pending";
+  useEffect(() => {
+    if (!waiting) {
+      return;
+    }
+    const timer = setInterval(() => void load(), WAITING_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [waiting, load]);
   const event = answer?.kind === "home" ? answer.home.event : undefined;
   useEffect(() => {
     const delay = event === undefined ? null : nextBoundary(event, Date.now());

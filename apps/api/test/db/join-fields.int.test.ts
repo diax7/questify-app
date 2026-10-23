@@ -495,7 +495,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
         "INSERT INTO enrollment (organizer_id, event_id, player_id) SELECT organizer_id, id, $2 FROM event WHERE id = $1",
         [event.id, await newPlayer()],
       );
-      await expect(joinInvited(invited, event.id)).rejects.toMatchObject({ code: "QL409" });
+      expect(await joinInvited(invited, event.id)).toMatchObject({ outcome: "full" });
       expect(await enrollmentOf(invited, event.id)).toBeUndefined();
     });
 

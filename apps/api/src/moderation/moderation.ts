@@ -11,7 +11,7 @@ export type EventPlayer = Readonly<{
   enrollmentId: string;
   username: string;
   avatar: string;
-  status: "pending" | "active" | "left" | "removed" | "banned";
+  status: "pending" | "active" | "left" | "removed" | "banned" | "declined";
   score: number;
   joinedAt: Date;
   /** The join answers (FR-131), in the event's field order: for this event's team only. */
@@ -52,7 +52,7 @@ export type RemoveOutcome = "removed" | "not_found" | "not_owner";
 /** Most entries an event's exclusion list holds (migration 0019 enforces it too). */
 export const EXCLUSION_LIMIT = 500;
 
-const asOrganizer = <T>(
+export const asOrganizer = <T>(
   deps: ModerationDeps,
   context: OrganizerContext,
   work: (client: PoolClient) => Promise<T>,
@@ -69,7 +69,7 @@ const asOrganizer = <T>(
  * Whether the event is the caller organizer's and within their event limit. Any organizer can see public events, so
  * both lists below check this, not only whether the event is visible.
  */
-async function ownEvent(
+export async function ownEvent(
   client: PoolClient,
   context: OrganizerContext,
   eventId: string,

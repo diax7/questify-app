@@ -127,11 +127,12 @@ describe("chooseLaunchEvent", () => {
   it("skips pending memberships and events that are not live", () => {
     const events = [
       event("pending", { status: "pending" }),
+      event("declined", { status: "declined" }),
       event("soon", { statusNow: "scheduled" }),
       event("over", { statusNow: "ended" }),
       event("live"),
     ];
-    expect(chooseLaunchEvent(events, { pending: 9, soon: 9, over: 9 })).toBe("live");
+    expect(chooseLaunchEvent(events, { pending: 9, declined: 9, soon: 9, over: 9 })).toBe("live");
   });
 
   it("opens Questify home with nothing live, or for a remembered event no longer listed", () => {
@@ -199,6 +200,8 @@ describe("readMyEvents", () => {
     expect(readMyEvents({ events: [good, { ...good, status: "left" }, { id: 3 }] })).toEqual([
       good,
     ]);
+    const declined = { ...good, id: "e2", status: "declined" };
+    expect(readMyEvents({ events: [declined] })).toEqual([declined]);
     expect(readMyEvents({ events: "nope" })).toBeUndefined();
     expect(readMyEvents(null)).toBeUndefined();
   });
@@ -240,10 +243,19 @@ const error = (status: number, code: string) => ({
 });
 
 describe("homeAnswer", () => {
-  it("reads an active member's Home and a pending member's", () => {
+  it("reads an active member's Home, a pending or waitlisted member's, and a declined one's", () => {
     expect(homeAnswer(ok(HOME))).toEqual({ kind: "home", home: HOME });
-    const pending = { ...HOME, standing: { status: "pending" }, upNext: null };
+    const pending = { ...HOME, standing: { status: "pending", waitlisted: false }, upNext: null };
     expect(homeAnswer(ok(pending))).toEqual({ kind: "home", home: pending });
+    const listed = { ...HOME, standing: { status: "pending", waitlisted: true }, upNext: null };
+    expect(homeAnswer(ok(listed))).toEqual({ kind: "home", home: listed });
+    // An older API sends no flag: an ordinary request.
+    expect(readHome({ ...HOME, standing: { status: "pending" } })?.standing).toEqual({
+      status: "pending",
+      waitlisted: false,
+    });
+    const declined = { ...HOME, standing: { status: "declined" }, upNext: null };
+    expect(homeAnswer(ok(declined))).toEqual({ kind: "home", home: declined });
   });
 
   it("reads a rehearsal account's Home, and an older API's Home as an ordinary member's", () => {

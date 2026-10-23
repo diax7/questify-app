@@ -5,6 +5,7 @@ import {
   cannotLeave,
   eventEnded,
   eventFull,
+  joinDeclined,
   invalidJoinAnswers,
   invalidRequest,
   joinCardStale,
@@ -59,6 +60,8 @@ const joinBody = z.strictObject({
     .record(z.uuid(), z.string().max(400))
     .refine((answers) => Object.keys(answers).length <= MAX_ANSWERS)
     .optional(),
+  // FR-1821: join the waiting list of a full event (asked after an `event_full` answer).
+  waitlist: z.boolean().optional(),
 });
 
 /** The join card in force, in both languages, as the app shows it before Join; with the answers when asked. */
@@ -100,7 +103,10 @@ function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
     case "invalid_answers":
       throw invalidJoinAnswers({ field: result.field });
     case "full":
-      throw eventFull();
+      // The app offers the waiting list (FR-1821): the same join with `waitlist: true`.
+      throw eventFull({ waitlist: true });
+    case "declined":
+      throw joinDeclined();
     case "rehearsing":
       throw rehearsing();
     case "joined":
@@ -111,6 +117,7 @@ function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
         status: result.status,
         alreadyMember: result.kind === "already",
         welcome: result.welcome,
+        waitlisted: result.waitlisted,
       };
   }
 }
@@ -244,6 +251,7 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
           eventId: body.eventId,
           cardVersion: body.cardVersion,
           answers,
+          waitlist: body.waitlist ?? false,
         });
         return joinAnswer(invited, reply);
       }
@@ -260,6 +268,7 @@ export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
         via: body.via,
         cardVersion: body.cardVersion,
         answers,
+        waitlist: body.waitlist ?? false,
       });
       return joinAnswer(result, reply);
     },

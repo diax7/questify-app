@@ -909,3 +909,21 @@ export const prizeRemoved = make(
   "حُذفت هذه الجائزة، فلا يمكن تعديلها.",
   "This prize was removed, so it can't be edited.",
 );
+export const joinDeclined = make(
+  403,
+  "join_declined",
+  "رفض المنظّم طلب انضمامك إلى هذه الفعالية.",
+  "The organizer declined your request to join this event.",
+);
+export const requestEventOver = make(
+  409,
+  "event_over",
+  "الفعالية ليست مجدولة ولا جارية، فلا يمكن البتّ في الطلبات.",
+  "The event is not scheduled or live, so requests cannot be decided.",
+);
+export const notARequest = make(
+  409,
+  "not_a_request",
+  "لا يوجد طلب انضمام لهذا اللاعب.",
+  "This player has no join request.",
+);

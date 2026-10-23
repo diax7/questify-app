@@ -41,7 +41,10 @@ export type Home = Readonly<{
         questsDone: number;
         questsTotal: number;
       }>
-    | Readonly<{ status: "pending" }>;
+    /** Waiting for the organizer (FR-1819), or on a full event's waiting list (FR-1821). */
+    | Readonly<{ status: "pending"; waitlisted: boolean }>
+    /** The organizer declined the request (ADR-167). */
+    | Readonly<{ status: "declined" }>;
   upNext: Readonly<{ questId: string; title: Text; points: number; type: string }> | null;
   goal: Goal | null;
   win: Win | null;
@@ -74,7 +77,10 @@ function readStanding(value: unknown): Home["standing"] | undefined {
     return undefined;
   }
   if (value["status"] === "pending") {
-    return { status: "pending" };
+    return { status: "pending", waitlisted: value["waitlisted"] === true };
+  }
+  if (value["status"] === "declined") {
+    return { status: "declined" };
   }
   const numbers = ["score", "balance", "questsDone", "questsTotal"] as const;
   return value["status"] === "active" && numbers.every((key) => typeof value[key] === "number")

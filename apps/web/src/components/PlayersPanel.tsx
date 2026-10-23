@@ -19,7 +19,7 @@ import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
 
-type Status = "pending" | "active" | "left" | "removed" | "banned";
+type Status = "pending" | "active" | "left" | "removed" | "banned" | "declined";
 
 type Answer = Readonly<{
   fieldId: string;

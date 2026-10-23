@@ -172,6 +172,8 @@ export type JoinOutcome =
       alreadyMember: boolean;
       /** The welcome points this join granted (FR-136): the coin animation plays once when above 0. */
       welcome: number;
+      /** On a full event's waiting list (FR-1821): pending until the organizer lets them in. */
+      waitlisted: boolean;
     }>
   /** The card changed (join answers, a new version): show the new one; a new Join tap is the consent. */
   | Readonly<{ kind: "stale"; card: JoinCard }>
@@ -196,6 +198,7 @@ function joinOutcome(answer: AuthedResult): JoinOutcome {
           status,
           alreadyMember: body["alreadyMember"] === true,
           welcome,
+          waitlisted: status === "pending" && body["waitlisted"] === true,
         }
       : { kind: "network" };
   }
@@ -220,12 +223,14 @@ const answersPart = (answers: Readonly<Record<string, string>> | undefined) =>
   answers === undefined || Object.keys(answers).length === 0 ? {} : { answers };
 
 /**
- * Joins with the card the person saw (FR-121): by its code, saying how they came, with the card's answers. A join is
- * idempotent by event and player, so a retry after a lost answer is safe.
+ * Joins with the card the person saw (FR-121): by its code, saying how they came, with the card's answers; `waitlist`
+ * joins a full event's waiting list (FR-1821). A join is idempotent by event and player, so a retry after a lost answer
+ * is safe.
  */
 export async function joinEvent(
   session: Pick<Session, "request">,
   join: PendingJoin,
+  waitlist = false,
 ): Promise<JoinOutcome> {
   return joinOutcome(
     await session.request({
@@ -236,6 +241,7 @@ export async function joinEvent(
         via: join.via,
         cardVersion: join.cardVersion,
         ...answersPart(join.answers),
+        ...(waitlist ? { waitlist: true } : {}),
       },
     }),
   );
@@ -249,6 +255,7 @@ export async function joinInvitation(
     cardVersion: string;
     answers?: Readonly<Record<string, string>> | undefined;
   }>,
+  waitlist = false,
 ): Promise<JoinOutcome> {
   return joinOutcome(
     await session.request({
@@ -259,6 +266,7 @@ export async function joinInvitation(
         via: "invite",
         cardVersion: join.cardVersion,
         ...answersPart(join.answers),
+        ...(waitlist ? { waitlist: true } : {}),
       },
     }),
   );

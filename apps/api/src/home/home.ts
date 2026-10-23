@@ -53,7 +53,10 @@ export type Home = Readonly<{
         questsDone: number;
         questsTotal: number;
       }>
-    | Readonly<{ status: "pending" }>;
+    /** Waiting for the team's decision (FR-1819), or on a full event's waiting list (FR-1821). */
+    | Readonly<{ status: "pending"; waitlisted: boolean }>
+    /** The team declined the request (ADR-167): Home says so, nothing else. */
+    | Readonly<{ status: "declined" }>;
   upNext: UpNext | null;
   /** The pinned reward or the next reachable one (FR-803, T-213); null with no shop or nothing to reach. */
   goal: Goal | null;
@@ -217,6 +220,7 @@ export async function memberQuests(
 
 type StandingRow = Readonly<{
   status: string;
+  waitlisted: boolean;
   score: string;
   balance: string;
   name_ar: string | null;
@@ -241,7 +245,7 @@ async function standingOf(
   eventId: string,
 ): Promise<StandingRow | undefined> {
   const { rows } = await client.query<StandingRow>(
-    `SELECT n.status, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
+    `SELECT n.status, n.waitlisted, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
             e.timezone, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.focus_quest_id,
             n.goal_reward_id,
             n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal, now() AS now
@@ -293,7 +297,7 @@ export async function readHome(
   const shopOn = config.kind === "ok" && config.config.features["shop"]?.enabled !== false;
   const home = await asPlayer(deps, playerId, async (client) => {
     const row = await standingOf(client, playerId, eventId);
-    if (row === undefined || (row.status !== "active" && row.status !== "pending")) {
+    if (row === undefined || !["active", "pending", "declined"].includes(row.status)) {
       return null;
     }
     const event = {
@@ -306,10 +310,13 @@ export async function readHome(
       statusNow: row.status_now,
       rehearsal: row.rehearsal,
     };
-    if (row.status === "pending") {
+    if (row.status === "pending" || row.status === "declined") {
       return {
         event,
-        standing: { status: "pending" as const },
+        standing:
+          row.status === "pending"
+            ? { status: "pending" as const, waitlisted: row.waitlisted }
+            : { status: "declined" as const },
         upNext: null,
         goal: null,
         win: null,

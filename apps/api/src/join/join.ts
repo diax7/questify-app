@@ -77,6 +77,8 @@ export type JoinOutcome =
       status: "active" | "pending";
       /** The welcome points this join granted (FR-136); 0 when none. */
       welcome: number;
+      /** On the waiting list of a full event (FR-1821, T-218). */
+      waitlisted: boolean;
     }>
   | Readonly<{
       kind:
@@ -86,6 +88,8 @@ export type JoinOutcome =
         | "not_allowed"
         | "invite_only"
         | "full"
+        /** The organizer declined this player's request (ADR-167). */
+        | "declined"
         /** The player holds a rehearsal account in the event (T-211): they join again after it starts. */
         | "rehearsing";
     }>
@@ -97,7 +101,9 @@ export type JoinOutcome =
 export type MyEvent = Omit<PublicEvent, "statusNow"> &
   Readonly<{
     statusNow: PublicEvent["statusNow"] | "draft";
-    status: "active" | "pending";
+    status: "active" | "pending" | "declined";
+    /** On the waiting list of a full event (FR-1821). */
+    waitlisted: boolean;
     score: number;
     balance: number;
     /** A rehearsal account (T-211): erased at go-live. */
@@ -383,11 +389,13 @@ type JoinRow = Readonly<{
     | "invite_only"
     | "domain_required"
     | "full"
+    | "declined"
     | "rehearsing";
   enrollment_id: string | null;
   event_id: string | null;
   status: "active" | "pending" | null;
   welcome: number;
+  waitlisted: boolean;
 }>;
 
 /** The database refused the answers (JA422): its DETAIL names the field (`field:<id>`) or says `shape`. */
@@ -424,7 +432,14 @@ async function runJoin(
   } catch (error) {
     // A hard player limit that is full refuses the seat inside the definer (migration 0027, T-210).
     if (isEventFull(error)) {
-      return { outcome: "full", enrollment_id: null, event_id: null, status: null, welcome: 0 };
+      return {
+        outcome: "full",
+        enrollment_id: null,
+        event_id: null,
+        status: null,
+        welcome: 0,
+        waitlisted: false,
+      };
     }
     const refused = answersRefused(error);
     if (refused === undefined) {
@@ -447,14 +462,21 @@ function outcomeOf(row: JoinRow | AnswersRefused, domains: readonly string[]): J
       if (enrollmentId === null || eventId === null || status === null) {
         throw new Error(`join answered ${row.outcome} without an enrollment; check migration 0028`);
       }
-      return { kind: row.outcome, enrollmentId, eventId, status, welcome: row.welcome };
+      return {
+        kind: row.outcome,
+        enrollmentId,
+        eventId,
+        status,
+        welcome: row.welcome,
+        waitlisted: row.waitlisted,
+      };
     }
     default:
       return { kind: row.outcome };
   }
 }
 
-const JOIN_COLUMNS = "outcome, enrollment_id, event_id, status, welcome";
+const JOIN_COLUMNS = "outcome, enrollment_id, event_id, status, welcome, waitlisted";
 
 /**
  * Joins the player to the event with this code (FR-101 to 105, FR-130, FR-134, FR-135), with the card's answers,
@@ -469,6 +491,8 @@ export async function joinByCode(
     via: JoinVia;
     cardVersion: string;
     answers: JoinAnswers;
+    /** Join the waiting list when the event is full (FR-1821). */
+    waitlist: boolean;
   }>,
 ): Promise<JoinOutcome | Throttled> {
   const budgets = [
@@ -479,8 +503,14 @@ export async function joinByCode(
     const row = await runJoin(
       deps,
       request.playerId,
-      `SELECT ${JOIN_COLUMNS} FROM join_event($1, $2, $3, $4::jsonb)`,
-      [request.code, request.via, request.cardVersion, JSON.stringify(request.answers)],
+      `SELECT ${JOIN_COLUMNS} FROM join_event($1, $2, $3, $4::jsonb, $5)`,
+      [
+        request.code,
+        request.via,
+        request.cardVersion,
+        JSON.stringify(request.answers),
+        request.waitlist,
+      ],
     );
     return row === undefined || row.outcome === "not_found" ? null : row;
   });
@@ -509,13 +539,14 @@ export async function joinInvited(
     eventId: string;
     cardVersion: string;
     answers: JoinAnswers;
+    waitlist: boolean;
   }>,
 ): Promise<JoinOutcome> {
   const row = await runJoin(
     deps,
     request.playerId,
-    `SELECT ${JOIN_COLUMNS} FROM join_invited($1, $2, $3::jsonb)`,
-    [request.eventId, request.cardVersion, JSON.stringify(request.answers)],
+    `SELECT ${JOIN_COLUMNS} FROM join_invited($1, $2, $3::jsonb, $4)`,
+    [request.eventId, request.cardVersion, JSON.stringify(request.answers), request.waitlist],
   );
   // Stryker disable next-line ConditionalExpression: unreachable: join_invited always returns one row
   if (row === undefined) {
@@ -546,7 +577,10 @@ export async function myInvitations(deps: JoinDeps, playerId: string): Promise<I
   );
 }
 
-/** The player's events for the switcher (FR-122): active and pending, newest join first, read under their own rules. */
+/**
+ * The player's events for the switcher (FR-122): active, pending and declined (so the decision shows, ADR-167), newest
+ * join first, read under their own rules.
+ */
 export async function myEvents(deps: JoinDeps, playerId: string): Promise<MyEvent[]> {
   return withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId }, async () => {
@@ -554,16 +588,17 @@ export async function myEvents(deps: JoinDeps, playerId: string): Promise<MyEven
         Omit<EventRow, "status_now"> & {
           status_now: MyEvent["statusNow"];
           status: MyEvent["status"];
+          waitlisted: boolean;
           score: string;
           balance: string;
           rehearsal: boolean;
         }
       >(
         `SELECT e.id, e.join_code, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.kind, e.timezone, e.starts_at,
-                e.ends_at, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, n.status, n.score,
+                e.ends_at, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, n.status, n.waitlisted, n.score,
                 n.balance, n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal
          FROM enrollment n JOIN event e ON e.id = n.event_id
-         WHERE n.player_id = $1 AND n.status IN ('active', 'pending')
+         WHERE n.player_id = $1 AND n.status IN ('active', 'pending', 'declined')
          ORDER BY n.joined_at DESC, n.id`,
         [playerId],
       );
@@ -571,6 +606,7 @@ export async function myEvents(deps: JoinDeps, playerId: string): Promise<MyEven
         ...toEvent({ ...row, status_now: "scheduled" }),
         statusNow: row.status_now,
         status: row.status,
+        waitlisted: row.waitlisted,
         score: Number(row.score),
         balance: Number(row.balance),
         rehearsal: row.rehearsal,

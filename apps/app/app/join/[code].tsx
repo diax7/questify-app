@@ -37,6 +37,8 @@ const VIAS: readonly Via[] = ["code", "qr", "link", "public_list"];
 const OUTCOME_KEY = {
   active: "join.active",
   pending: "join.pending",
+  waitlisted: "join.waitlisted",
+  full: "join.full",
   already: "join.already",
   network: "join.network",
   not_found: "join.notFound",
@@ -53,6 +55,10 @@ const welcomeOf = (value: unknown): number => {
   const points = Number(value);
   return Number.isInteger(points) && points > 0 ? points : 0;
 };
+
+/** The join button: the waiting list once the event said it is full (FR-1821), a request for a Private event (FR-1818). */
+const joinLabel = (full: boolean, isPrivate: boolean): MessageKey =>
+  full ? "join.waitlistJoin" : isPrivate ? "joinCard.request" : "joinCard.join";
 
 /** The card by its code; `card` alone is replaced when a join says it changed. */
 function useCard(code: string) {
@@ -113,7 +119,9 @@ function JoinCardScreen() {
 
   const showOutcome = (outcome: JoinOutcome) => {
     if (outcome.kind === "joined") {
-      setResult(outcome.alreadyMember ? "already" : outcome.status);
+      setResult(
+        outcome.alreadyMember ? "already" : outcome.waitlisted ? "waitlisted" : outcome.status,
+      );
       setWelcome(outcome.welcome);
     } else if (outcome.kind === "stale") {
       setCard(outcome.card);
@@ -123,6 +131,9 @@ function JoinCardScreen() {
     } else if (outcome.kind === "invalid_answers") {
       setPointed(outcome.field ?? undefined);
       setProblem(outcome.problem);
+    } else if (outcome.kind === "refused" && outcome.code === "event_full") {
+      // FR-1821: say it is full and offer the waiting list in place of Join.
+      setResult("full");
     } else if (outcome.kind === "refused") {
       setProblem(outcome.problem);
     } else if (outcome.kind === "signed_out") {
@@ -133,7 +144,7 @@ function JoinCardScreen() {
     }
   };
 
-  const tapJoin = async () => {
+  const tapJoin = async (waitlist: boolean) => {
     if (card === undefined || answer?.kind !== "card") {
       return;
     }
@@ -151,7 +162,9 @@ function JoinCardScreen() {
     }
     setBusy(true);
     setProblem(null);
-    showOutcome(await joinEvent(api.session, { code, via, cardVersion: card.version, answers }));
+    showOutcome(
+      await joinEvent(api.session, { code, via, cardVersion: card.version, answers }, waitlist),
+    );
     setBusy(false);
   };
 
@@ -170,7 +183,8 @@ function JoinCardScreen() {
   }
   const { event } = answer;
   const ended = event.statusNow === "ended";
-  const joined = result === "active" || result === "pending" || result === "already";
+  const joined =
+    result === "active" || result === "pending" || result === "waitlisted" || result === "already";
   return (
     <Screen title={textIn(event.name, language)}>
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -193,9 +207,9 @@ function JoinCardScreen() {
         ) : null}
         {ended || joined ? null : (
           <Button
-            label={t("joinCard.join")}
+            label={t(joinLabel(result === "full", event.access === "private"))}
             disabled={busy || card === undefined || player.status === "loading"}
-            onPress={() => void tapJoin()}
+            onPress={() => void tapJoin(result === "full")}
           />
         )}
       </ScrollView>
