@@ -81,6 +81,12 @@ async function build(minAppVersion = "1.2.0"): Promise<FastifyInstance> {
   instance.get("/too-many-connections", async () => {
     throw Object.assign(new Error("sorry, too many clients already"), { code: "53300" });
   });
+  instance.get("/deadlock", async () => {
+    throw Object.assign(new Error("deadlock detected"), { code: "40P01" });
+  });
+  instance.get("/serialization", async () => {
+    throw Object.assign(new Error("could not serialize access"), { code: "40001" });
+  });
   instance.get("/other-db-error", async () => {
     throw Object.assign(new Error("duplicate key"), { code: "23505" });
   });
@@ -412,16 +418,19 @@ describe("HttpError", () => {
 });
 
 describe("a busy database", () => {
-  it.each(["/lock-timeout", "/statement-timeout", "/too-many-connections"])(
-    "answers %s with 503 busy and a Retry-After, not an internal error",
-    async (url) => {
-      app = await build();
-      const response = await app.inject({ method: "GET", url });
-      expect(response.statusCode).toBe(503);
-      expect(response.headers["retry-after"]).toBe("2");
-      expect(response.json()).toMatchObject({ code: "busy" });
-    },
-  );
+  it.each([
+    "/lock-timeout",
+    "/statement-timeout",
+    "/too-many-connections",
+    "/deadlock",
+    "/serialization",
+  ])("answers %s with 503 busy and a Retry-After, not an internal error", async (url) => {
+    app = await build();
+    const response = await app.inject({ method: "GET", url });
+    expect(response.statusCode).toBe(503);
+    expect(response.headers["retry-after"]).toBe("2");
+    expect(response.json()).toMatchObject({ code: "busy" });
+  });
 
   it("still treats any other database error as an internal error without leaking it", async () => {
     app = await build();

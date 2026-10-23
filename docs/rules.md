@@ -71,7 +71,11 @@ half-applied (NFR-007): the player sees it and can retry. No personal data in er
 
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
-only in ascending key order. A test runs the crossed cases on two connections (`test/db/meet.int.test.ts`).
+only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id
+order (the meet payer pays in player id order). Known exception: `confirm_results` (0041:1043-1049) runs after play
+and pays in quiz-attempt order; a crossing is rare, Postgres aborts one side (40P01), and the API answers a deadlock
+or serialization failure 503 `busy` with Retry-After, so the client retries. A test runs the crossed cases on two
+connections (`test/db/meet.int.test.ts`).
 
 ## Testing
 

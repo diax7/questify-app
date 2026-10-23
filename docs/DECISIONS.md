@@ -2693,3 +2693,4 @@ computed (no coordinates are kept, ADR-206). No new flag kind until real data sh
 review 2026-10-24); a popular player shown
 many times is not a script; comparing two positions would mean keeping coordinates.
 **Build notes (T-303c, 2026-10-23):** the two payments run in player id order, not enrollment id order: Questify XP rows are per player across events, so two meetings of the same two players in two events would otherwise cross (a race test covers it). The rate limiter's lock is `pg_try_advisory_xact_lock` in its own transaction, so it never waits inside a meeting.
+A meeting without an `x-device-id` (a header the client sends, never trusted) skips the same-device refusal and, for that side, the shared-device flag; the pair rule and the daily cap still bound what it earns (CTO code review 2026-10-23, accepted). A deadlock or serialization failure answers 503 `busy` with Retry-After (`conventions.ts`).

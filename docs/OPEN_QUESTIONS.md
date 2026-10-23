@@ -357,3 +357,4 @@ the same-phone check; one phone on both sides is refused; no check of the distan
 needs both positions kept (ADR-206 keeps none); no new flag kind yet. The meet records follow the event's data
 retention (Q-075) and are deleted with either account. Agree, or should a "same small group meeting only each other"
 case be added later?
+Known edges left as they are (CTO code review, 2026-10-23): the per-player limits answer 429 when two of the player's requests contend for the limiter's lock at the same instant (a retry passes); and one Idempotency-Key used for a meeting and for an ordinary completion is not refused as reused (`QK422`): each pays once under its own path, never twice.
