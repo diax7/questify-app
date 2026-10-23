@@ -67,6 +67,7 @@ export default function OperatorHomeScreen() {
           const picked = item.questId === station?.questId;
           const title = textIn(item.title, language);
           const counts = [
+            ...(item.challenge ? [t("operator.station.challenge")] : []),
             t("operator.today", { count: formatNumber(item.doneToday, language) }),
             t("operator.total", { count: formatNumber(item.doneTotal, language) }),
           ].join("  ·  ");

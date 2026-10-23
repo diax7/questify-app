@@ -131,6 +131,8 @@ export type Station = Readonly<{
   points: number;
   doneToday: number;
   doneTotal: number;
+  /** A challenge is a task the operator confirms (ADR-197); a scan quest is the other kind. */
+  challenge: boolean;
 }>;
 
 export async function fetchStations(
@@ -155,6 +157,7 @@ export async function fetchStations(
             points: Number(row["points"]),
             doneToday: Number(row["doneToday"]),
             doneTotal: Number(row["doneTotal"]),
+            challenge: row["type"] === "challenge",
           },
         ]
       : [],

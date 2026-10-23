@@ -103,6 +103,7 @@ export {
   parseQuestConfig,
   QUIZ_GRACE_SECONDS,
   SUBMISSION_TEXT_MAX,
+  SURVEY_TEXT_MAX,
   unavailableSubmissionKind,
 } from "./quests/registry";
 export type { Avatar } from "./players/avatars";

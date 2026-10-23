@@ -2539,6 +2539,62 @@ export const MESSAGES = {
     ar: "انتهى الاختبار دون أن يُحتسب.",
     en: "This quiz ended without counting.",
   },
+  "play.challenge.staff": {
+    ar: "يؤكد أحد المشغّلين هذا التحدي. اعرض عليه رمزك بعد إنجازه.",
+    en: "A staff member confirms this challenge. Show them your code when you finish.",
+  },
+  "play.survey.private": {
+    ar: "تصل إجاباتك إلى منظّم الفعالية فقط، ولا يظهر اسمك معها.",
+    en: "Your answers go only to the event's organizer, with your name not shown.",
+  },
+  "play.survey.ratingLabel": {
+    ar: "{rating} من {max}",
+    en: "{rating} out of {max}",
+  },
+  "play.survey.checkThis": {
+    ar: "راجع إجابتك عن هذا السؤال.",
+    en: "Check your answer to this question.",
+  },
+  "play.survey.missing": {
+    ar: "أجب عن الأسئلة المطلوبة أولًا.",
+    en: "Answer the required questions first.",
+  },
+  "play.survey.send": {
+    ar: "أرسل إجاباتك",
+    en: "Send answers",
+  },
+  "play.survey.thanks": {
+    ar: "شكرًا، وصلت إجاباتك.",
+    en: "Thanks, your answers are in.",
+  },
+  "play.survey.answered": {
+    ar: "أرسلت إجاباتك عن هذا الاستبيان.",
+    en: "You have answered this survey.",
+  },
+  "play.share.message": {
+    ar: "الرسالة التي ستشاركها:",
+    en: "The message you'll share:",
+  },
+  "play.share.send": {
+    ar: "شارك",
+    en: "Share",
+  },
+  "play.share.thanks": {
+    ar: "شكرًا على المشاركة.",
+    en: "Thanks for sharing.",
+  },
+  "play.share.done": {
+    ar: "شاركت هذه الرسالة.",
+    en: "You've shared this.",
+  },
+  "play.share.failed": {
+    ar: "تعذّر فتح المشاركة. حاول مرة أخرى.",
+    en: "Couldn't open sharing. Try again.",
+  },
+  "operator.station.challenge": {
+    ar: "تحدٍّ",
+    en: "Challenge",
+  },
   "quests.choiceAr": {
     ar: "الخيار {number} بالعربية",
     en: "Option {number} in Arabic",

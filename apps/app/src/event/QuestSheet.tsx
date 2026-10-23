@@ -17,7 +17,9 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { completedText } from "#src/event/amount.ts";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
+import { ShareEntry } from "#src/event/ShareEntry.tsx";
 import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
+import { SurveyEntry } from "#src/event/SurveyEntry.tsx";
 import { VoteEntry } from "#src/event/VoteEntry.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import {
@@ -152,14 +154,14 @@ function Verification({
     return <CodeEntry quest={quest} onDone={onDone} />;
   }
   // These types play in their own entry below the sheet's details.
-  if (quest.type === "submission" || quest.type === "vote" || quest.type === "quiz") {
-    return null;
-  }
   const staff = quest.verification.includes("my_qr");
-  // T-205: a quest staff verify shows My QR; with no printed code it offers nothing else.
+  // T-205: a quest staff verify shows My QR; with no printed code it offers nothing else. A challenge is only ever
+  // confirmed by staff (ADR-197).
   const showMyQr = staff ? (
     <>
-      <AppText variant="label">{t("quests.showMyQr")}</AppText>
+      <AppText variant="label">
+        {t(quest.type === "challenge" ? "play.challenge.staff" : "quests.showMyQr")}
+      </AppText>
       <Button
         kind={quest.verification.includes("quest_qr") ? "quiet" : "primary"}
         label={t("myQr.title")}
@@ -200,6 +202,10 @@ function QuestEntry({
       return <VoteEntry key={quest.id} quest={quest} onPaid={onSent} />;
     case "quiz":
       return <QuizEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    case "survey":
+      return <SurveyEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    case "share":
+      return <ShareEntry key={quest.id} quest={quest} onPaid={onSent} />;
     default:
       return <Verification key={quest.id} quest={quest} onDone={onDone} />;
   }
@@ -220,7 +226,7 @@ export function QuestSheet({
   timeZone: string;
   onClose: () => void;
   onCompleted: (answer: CompletionAnswer) => void;
-  /** A submission was sent, a vote cast or a quiz paid: the list behind the sheet reloads. */
+  /** A submission was sent, a vote cast, a quiz, a survey or a share paid: the list behind the sheet reloads. */
   onSent?: () => void;
 }>) {
   const { t, language } = useI18n();
