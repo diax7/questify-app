@@ -315,20 +315,6 @@ pays its points but gives no item (the removed completion still counts, ADR-152)
 its item once for the whole event, missed players be served first when stock returns, or experiences be allowed?
 
 ## Q-170 — Location check-in rules (2026-10-24, T-303b)
-ADR-206: inside means within the radius plus the phone's accuracy; a reading less accurate than 100 m is refused (the
-player scans the QR instead); a mocked reading still completes and only raises a flag. Agree, or should a mocked
-reading be refused outright, or the accuracy not be added?
-
-## Q-171 — When location is read and kept (2026-10-24, T-303b)
-ADR-207: location is read only at a QR or code completion and at check-in (not all the time the app is open, as
-ADR-072 allows), never stored as coordinates (only a distance inside a flag), and asked for at a location quest or once
-after joining an in-person event with a venue pin. Agree, or should the app read it more often?
-
-## Q-172 — Location flag numbers (2026-10-24, T-303b)
-ADR-208: far from the venue = more than the venue radius (default 1 km) + 500 m after the phone's accuracy; impossible
-speed = faster than 12 m/s between quests at least 100 m apart. Agree with these starting numbers?
-
-## Q-170 — Location check-in rules (2026-10-24, T-303b)
 ADR-206: a check-in passes inside the quest's radius plus the phone's accuracy (the allowance at most the radius, the
 fix at most 2 minutes old and 500 m accurate); a fix the phone marks as mocked still pays and raises a flag; no
 coordinates are stored, only rounded distances, accuracy and the mocked mark. Agree, or should a mocked fix be refused,
