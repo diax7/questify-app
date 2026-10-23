@@ -2400,3 +2400,50 @@ Hunter, 21–25 بطل Champion, 26–30 أسطورة Legend. Stored as data (`l
 records each level reached; T-402 grants the item for each (FR-721) and T-404 the gems (ADR-046). Until T-402, the XP
 bar shows the next level without its reward (FR-416).
 **Why:** no speculative switches; the item catalogue does not exist yet.
+
+## ADR-183 — Photo submissions wait for a Questify bucket; text ships now
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-149.
+**Decision:** photos go through a `PhotoStore` port with an S3-compatible adapter. Without `STORAGE_*` settings the
+API refuses photo quests (`QS503 storage_unavailable`) and `/v1/config` turns `photoSubmissions` off; text submissions
+work in full. Sharing `b7r-media` under a prefix is not used.
+**Why:** CranL Pro allows one bucket per account and `b7r-media` uses it (ADR-107 addendum 2), so ADR-109's bucket does
+not exist yet. Plan: `docs/plans/2026-10-24-t-301-submissions.md`.
+
+## ADR-184 — Pending points live on the submission; the ledger holds only points that moved
+**Status:** Proposed (Claude, 2026-10-24; T-301).
+**Decision:** a submission stores the points it will pay, frozen when it is sent. Approval writes the ordinary
+completion (`method = 'submission'`) and `quest` ledger entry (score always; balance only while the shop window is
+open, FR-1710); rejection writes nothing. Auto-approve does both in the submit call. XP follows by ADR-179.
+**Why:** score, balance, ranking, flags and XP need no new path, and the ledger never holds money that did not move.
+
+## ADR-185 — Photos are uploaded through the API and re-encoded
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-151.
+**Decision:** `POST /v1/quests/{id}/photo` takes up to 8 MB (JPEG, PNG, HEIC by magic bytes) and re-encodes it with
+`sharp` to JPEG of at most 2,048 px, which strips EXIF (GPS, device). The team views photos through 5-minute signed URLs
+on the bucket's host, never the API origin. New dependencies: `sharp`, `aws4fetch`.
+**Why:** SECURITY threat 8 (type checks, re-encoding, not served from the API origin) and no location data stored.
+
+## ADR-186 — Retention of submission photos
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-152.
+**Decision:** rejected and removed photos, and those of a deleted account or a wiped rehearsal, are deleted at once
+through a `media_delete` outbox the worker drains (timeout, retry). Approved photos follow event retention (Q-075).
+**Why:** PDPL minimisation: a rejected photo has no further purpose.
+
+## ADR-187 — Auto-approved submissions stay in the queue until seen
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-153.
+**Decision:** an auto-approved submission pays at once and shows in the team's queue as "not yet seen" until a reviewer
+opens it; the team can remove it (FR-328).
+**Why:** ADR-042's accepted risk stays small, and Google's UGC policy asks that points follow moderation.
+
+## ADR-188 — Resubmission
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-154.
+**Decision:** with the quest's resubmit option off, a rejection closes the quest for that player. With it on, a new
+submission is allowed while the quest is open. Always at most one pending submission per player and quest, and pending
+ones count against the repeat cap.
+**Why:** FR-1709 with no double pending points.
+
+## ADR-189 — Who reviews and who removes submissions
+**Status:** Proposed (Claude, 2026-10-24; T-301). Q-155.
+**Decision:** the owner, editors and operators with the `review` ability approve or reject (FR-324); removing an
+approved submission is for the owner and editors only, as removals of awards (ADR-152).
+**Why:** reviewing is daily venue work; taking points back is a manager's act.

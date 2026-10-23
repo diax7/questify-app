@@ -214,3 +214,30 @@ Agree?
 ## Q-148 — Level title names (2026-10-24, T-401)
 ADR-181: مستكشف Explorer, مقتفي الأثر Pathfinder, مغامر Adventurer, صائد الكنوز Treasure Hunter, بطل Champion, أسطورة
 Legend, one per five levels. Keep, or rename?
+
+## Q-149 — Where Questify's photos are stored (2026-10-24, T-301)
+CranL Pro allows one bucket per account and `b7r-media` uses it. Photo quests stay off until a Questify bucket in
+`riyadh-1` exists (ADR-183). Ask CranL for a second bucket (or a plan with more), or use Oracle Object Storage in
+Riyadh? Sharing `b7r-media` is not recommended.
+
+## Q-150 — Submission sizes (2026-10-24, T-301)
+Text up to 1,000 characters; photos up to 8 MB uploaded, stored as JPEG of at most 2,048 px. Agree?
+
+## Q-151 — Two new server dependencies (2026-10-24, T-301)
+`sharp` to re-encode photos (strips location data, refuses disguised files) and `aws4fetch` to sign S3 requests
+(ADR-185). Agree, or upload straight to the bucket with presigned URLs and no re-encoding?
+
+## Q-152 — Photo retention (2026-10-24, T-301)
+Rejected and removed photos deleted at once; approved photos kept for the event's retention period (Q-075, counsel).
+Agree?
+
+## Q-153 — Auto-approved submissions in the queue (2026-10-24, T-301)
+ADR-187: they pay at once but stay in the queue as "not yet seen" until a reviewer opens them. Agree?
+
+## Q-154 — Resubmission rules (2026-10-24, T-301)
+ADR-188: one pending submission per player and quest at a time; pending counts against the repeat cap; with resubmit
+off a rejection closes the quest for that player. Agree?
+
+## Q-155 — Who reviews and who removes (2026-10-24, T-301)
+ADR-189: owner, editors and operators with `review` approve or reject; only owner and editors remove an approved one.
+Agree?

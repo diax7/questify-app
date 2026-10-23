@@ -270,6 +270,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Done when: A submission's points stay pending until approved; submissions are visible only to the organizer team.
   - Note 2026-10-21 (T-109): text submissions are checked with the username word lists (`username_word`): a match marks the item for its reviewer and does not block it (FR-1628).
   - Note 2026-10-21 (T-110): a first submission is refused until `GET /v1/me` `legal.guidelinesAccepted` is true; the submission screen shows the guidelines and records them with `POST /v1/me/acceptances {guidelines}` (FR-1706).
+  - Plan 2026-10-24: `docs/plans/2026-10-24-t-301-submissions.md` (ADR-183 to ADR-189, Q-149 to Q-155 Proposed). **Blocked for photos** on a Questify bucket (Q-149): text ships in full; photo quests switch on when `STORAGE_*` is set.
 - [ ] **T-302** Vote and quiz quests with timers and one try per question; enter-a-code variants — delivers FR 207, 208, 209, 210; depends on: T-105
   - Done when: A quiz question closes at the timer; the right answer shows after answering.
 - [ ] **T-303** Challenge quests (staff confirm), meet-someone quests, survey quests, share quests, location check-in with the QR fallback — delivers FR 203, 212, 213, 214, 215, 216, 219, 220, 1744; depends on: T-205
