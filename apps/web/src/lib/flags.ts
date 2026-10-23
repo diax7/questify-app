@@ -1,10 +1,16 @@
-import { formatNumber, type Language, type MessageKey } from "@questify/shared";
+import {
+  GAME_LEVEL_KEYS,
+  GAME_NAME_KEYS,
+  formatNumber,
+  type Language,
+  type MessageKey,
+} from "@questify/shared";
 import type { Translate } from "#src/lib/language.ts";
 
 /** One case as the list answers it (`GET …/flags`, FR-335). */
 export type FlagLine = Readonly<{
   id: string;
-  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed";
+  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed" | "minigame";
   status: "open" | "cleared" | "confirmed";
   resolution: "cleared" | "points_removed" | "banned" | null;
   raisedAt: string | null;
@@ -36,6 +42,17 @@ export type Scan = Readonly<{
   gapM: number | null;
   seconds: number | null;
 }>;
+/**
+ * One mini-game round of a case (T-305): when, the quest, the game and level, and why it was flagged (the replay's
+ * reason, `clock`, or `unlikely` for a paid round). Never the inputs: the server does not keep them.
+ */
+export type GameRoundLine = Readonly<{
+  at: string | null;
+  quest: string;
+  game: string;
+  level: string;
+  reason: string;
+}>;
 export type WaitingItem = Readonly<{ name: string; reservedUntil: string | null }>;
 export type Removal = Readonly<{
   entryId: string;
@@ -56,6 +73,8 @@ export type FlagDetail = FlagLine &
     phoneAccounts: readonly Account[];
     /** Burst: each scan, oldest first. */
     burstScans: readonly Scan[];
+    /** Mini-game: each flagged round, oldest first (T-305). */
+    gameRounds: readonly GameRoundLine[];
     waitingItems: readonly WaitingItem[];
     removals: readonly Removal[];
   }>;
@@ -76,6 +95,7 @@ const SCAN_KINDS = {
   burst: "flags.kind.burst",
   far_from_venue: "flags.kind.farFromVenue",
   impossible_speed: "flags.kind.impossibleSpeed",
+  minigame: "flags.kind.minigame",
 } as const;
 
 /**
@@ -145,6 +165,7 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
   }
   const evidence = rows(flag["evidence"]);
   const sharedDevice = flag["kind"] === "shared_device";
+  const minigame = flag["kind"] === "minigame";
   return {
     ...(flag as unknown as FlagLine),
     note: text(flag["note"]),
@@ -159,19 +180,29 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
           lastScanAt: text(row["lastScanAt"]),
         }))
       : [],
-    burstScans: sharedDevice
-      ? []
-      : evidence.map((row) => ({
+    gameRounds: minigame
+      ? evidence.map((row) => ({
           at: text(row["at"]),
           quest: named(row["questAr"], row["questEn"], language),
-          operator: text(row["operator"]),
-          method: text(row["method"]),
-          distanceM: num(row["distanceM"]),
-          accuracyM: num(row["accuracyM"]),
-          mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
-          gapM: num(row["gapM"]),
-          seconds: num(row["seconds"]),
-        })),
+          game: String(row["game"] ?? ""),
+          level: String(row["level"] ?? ""),
+          reason: String(row["reason"] ?? ""),
+        }))
+      : [],
+    burstScans:
+      sharedDevice || minigame
+        ? []
+        : evidence.map((row) => ({
+            at: text(row["at"]),
+            quest: named(row["questAr"], row["questEn"], language),
+            operator: text(row["operator"]),
+            method: text(row["method"]),
+            distanceM: num(row["distanceM"]),
+            accuracyM: num(row["accuracyM"]),
+            mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
+            gapM: num(row["gapM"]),
+            seconds: num(row["seconds"]),
+          })),
     waitingItems: rows(flag["waitingItems"]).map((row) => ({
       name: named(row["nameAr"], row["nameEn"], language),
       reservedUntil: text(row["reservedUntil"]),
@@ -193,4 +224,38 @@ export function methodLabel(
     return "flags.method.meetScan";
   }
   return method === "meet_shown" ? "flags.method.meetShown" : null;
+}
+
+const GAME_REASONS: Readonly<Record<string, MessageKey>> = {
+  malformed: "flags.game.reason.malformed",
+  order: "flags.game.reason.order",
+  too_fast: "flags.game.reason.tooFast",
+  late: "flags.game.reason.late",
+  cap: "flags.game.reason.cap",
+  illegal: "flags.game.reason.illegal",
+  claimed: "flags.game.reason.claimed",
+  clock: "flags.game.reason.clock",
+  unlikely: "flags.game.reason.unlikely",
+};
+
+/**
+ * A flagged round in words (T-305): "10:42: Treasure hunt (Memory match, Hard)" and why, when this dashboard knows the
+ * reason; a game, level or reason from a newer server shows as sent.
+ */
+export function gameRoundText(
+  round: GameRoundLine,
+  date: string,
+  t: Translate,
+): Readonly<{ line: string; reason: string | null }> {
+  const game = Object.hasOwn(GAME_NAME_KEYS, round.game)
+    ? t(GAME_NAME_KEYS[round.game as keyof typeof GAME_NAME_KEYS])
+    : round.game;
+  const level = Object.hasOwn(GAME_LEVEL_KEYS, round.level)
+    ? t(GAME_LEVEL_KEYS[round.level as keyof typeof GAME_LEVEL_KEYS])
+    : round.level;
+  const reason = GAME_REASONS[round.reason];
+  return {
+    line: t("flags.game.line", { date, quest: round.quest, game, level }),
+    reason: reason === undefined ? null : t(reason),
+  };
 }

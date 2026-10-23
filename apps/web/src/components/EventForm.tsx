@@ -324,6 +324,16 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
         />
       )}
       {event === null ? null : (
+        <EventFeatureSwitch
+          language={language}
+          feature="miniGames"
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.miniGames}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
         <EventWords
           language={language}
           organizerId={organizerId}

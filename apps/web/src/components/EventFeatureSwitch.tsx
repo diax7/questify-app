@@ -25,6 +25,13 @@ const FEATURES = {
     on: "events.meetSomeone.on",
     off: "events.meetSomeone.off",
   },
+  miniGames: {
+    path: "mini-games",
+    title: "events.miniGames.title",
+    label: "events.miniGames.label",
+    on: "events.miniGames.on",
+    off: "events.miniGames.off",
+  },
 } as const satisfies Record<
   string,
   Readonly<{ path: string; title: MessageKey; label: MessageKey; on: MessageKey; off: MessageKey }>
@@ -41,9 +48,9 @@ type Props = Readonly<{
 }>;
 
 /**
- * An event's share quests or meet-someone switch (FR-219, ADR-199; FR-1009, ADR-210): on by default; off hides every
- * quest of that type from players and stops paying them. The owner changes it; an editor sees which it is. Saved as soon
- * as the box changes.
+ * An event's share quests, meet-someone or mini-games switch (FR-219, ADR-199; FR-1009, ADR-210, ADR-213): on by
+ * default; off hides every quest of that type from players and stops paying them. The owner changes it; an editor sees
+ * which it is. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
   language,

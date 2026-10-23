@@ -8,6 +8,7 @@ import { translatorFor, type Translate } from "#src/lib/language.ts";
 import {
   flagDetailOf,
   flagSummary,
+  gameRoundText,
   locationNotes,
   methodLabel,
   resolutionKey,
@@ -66,6 +67,19 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
             {t("flags.account", { name: account.username, date: at(account.lastScanAt) })}
           </li>
         ))}
+        {flag.gameRounds.map((round, index) => {
+          const words = gameRoundText(round, at(round.at), t);
+          return (
+            <li key={`${round.at ?? ""}-${String(index)}`} dir="auto">
+              {words.line}
+              {words.reason === null ? null : (
+                <ul>
+                  <li dir="auto">{words.reason}</li>
+                </ul>
+              )}
+            </li>
+          );
+        })}
         {flag.burstScans.map((scan, index) => (
           <li key={`${scan.at ?? ""}-${String(index)}`} dir="auto">
             {scan.operator === null

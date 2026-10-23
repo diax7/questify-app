@@ -32,6 +32,8 @@ export type EventView = Readonly<{
   shareQuests: boolean;
   /** The event's meet-someone switch (FR-1009). */
   meetSomeone: boolean;
+  /** The event's mini-games switch (FR-1009, ADR-213). */
+  miniGames: boolean;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

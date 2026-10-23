@@ -14,6 +14,7 @@ import {
   type Item,
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
+import { GameFields } from "#src/components/GameFields.tsx";
 import { NumberField } from "#src/components/NumberField.tsx";
 import { PassportFields } from "#src/components/PassportFields.tsx";
 import {
@@ -303,6 +304,8 @@ export function startingConfig(type: QuestType): Config {
       return { needed: 1, steps: [newItem()] };
     case "meet":
       return { dailyCap: MEET_DAILY_CAP.default };
+    case "game":
+      return { game: "memory_match", level: "easy", attempts: 1, cooldownMinutes: null };
     default:
       return {};
   }
@@ -325,4 +328,5 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     passport: PassportFields,
     location: LocationFields,
     meet: MeetFields,
+    game: GameFields,
   };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   flagDetailOf,
   flagSummary,
+  gameRoundText,
   lengthText,
   locationNotes,
   methodLabel,
@@ -183,6 +184,63 @@ describe("flagDetailOf for location cases", () => {
       { distanceM: 2400, accuracyM: 30, mocked: true, gapM: null, seconds: null },
       { distanceM: null, accuracyM: null, mocked: null, gapM: null, seconds: null },
     ]);
+  });
+});
+
+describe("mini-game cases", () => {
+  const en = translatorFor("en");
+  it("count their rounds and list each with its game, level and reason", () => {
+    expect(flagSummary({ ...LINE, kind: "minigame", scans: 2 })).toEqual({
+      key: "flags.kind.minigame",
+      count: 2,
+    });
+    const detail = flagDetailOf(
+      {
+        flag: {
+          ...LINE,
+          kind: "minigame",
+          enrollmentStatus: "active",
+          evidence: [
+            {
+              at: "2030-01-01T10:00:00Z",
+              roundId: 4,
+              game: "memory_match",
+              level: "hard",
+              reason: "too_fast",
+              verdict: "refused",
+              questAr: null,
+              questEn: "Pairs",
+            },
+          ],
+        },
+      },
+      "en",
+    );
+    expect(detail?.burstScans).toEqual([]);
+    expect(detail?.gameRounds).toEqual([
+      {
+        at: "2030-01-01T10:00:00Z",
+        quest: "Pairs",
+        game: "memory_match",
+        level: "hard",
+        reason: "too_fast",
+      },
+    ]);
+    const round = detail?.gameRounds[0];
+    expect(round === undefined ? null : gameRoundText(round, "10:00", en)).toEqual({
+      line: "10:00: Pairs (Memory match, Hard)",
+      reason: "Taps faster than a person can make",
+    });
+    expect(
+      gameRoundText({ at: null, quest: "Q", game: "darts", level: "pro", reason: "new" }, "", en),
+    ).toEqual({ line: ": Q (darts, pro)", reason: null });
+    expect(
+      gameRoundText(
+        { at: null, quest: "Q", game: "slide_puzzle", level: "easy", reason: "unlikely" },
+        "",
+        en,
+      ).reason,
+    ).toBe("Possible but unusual result (paid)");
   });
 });
 
