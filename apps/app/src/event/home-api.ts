@@ -32,6 +32,8 @@ export type Home = Readonly<{
     statusNow: string;
     /** A rehearsal account (T-211): the strip shows, and the event goes when rehearsal ends. */
     rehearsal: boolean;
+    /** An in-person event with a venue pin (T-303b): location may be explained once after joining. */
+    locationPrompt: boolean;
   }>;
   standing:
     | Readonly<{
@@ -162,7 +164,12 @@ export function readHome(body: unknown): Home | undefined {
     return undefined;
   }
   // An older API sends no rehearsal flag: an ordinary member.
-  const read = { ...(event as Home["event"]), rehearsal: event["rehearsal"] === true };
+  // An older API sends neither flag: an ordinary member, and no location prompt.
+  const read = {
+    ...(event as Home["event"]),
+    rehearsal: event["rehearsal"] === true,
+    locationPrompt: event["locationPrompt"] === true,
+  };
   return {
     event: read,
     standing,

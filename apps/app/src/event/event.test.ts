@@ -217,6 +217,7 @@ const HOME = {
     timezone: "Asia/Riyadh",
     statusNow: "live",
     rehearsal: false,
+    locationPrompt: false,
   },
   standing: {
     status: "active",
@@ -278,6 +279,14 @@ describe("homeAnswer", () => {
     const { rehearsal: _flag, ...older } = HOME.event;
     expect(readHome({ ...HOME, event: older })?.event.rehearsal).toBe(false);
     expect(readHome({ ...HOME, event: { ...HOME.event, rehearsal: "yes" } })).toBeUndefined();
+  });
+
+  it("reads the location prompt flag, and an older API's Home as none (T-303b)", () => {
+    expect(
+      readHome({ ...HOME, event: { ...HOME.event, locationPrompt: true } })?.event.locationPrompt,
+    ).toBe(true);
+    const { locationPrompt: _prompt, ...older } = HOME.event;
+    expect(readHome({ ...HOME, event: older })?.event.locationPrompt).toBe(false);
   });
 
   it("reads the win, and shows none for an older API or one it cannot read (T-214)", () => {

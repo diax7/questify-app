@@ -1,7 +1,8 @@
-import type { LocalizedText } from "@questify/shared";
+import { isQuestType, type LocalizedText } from "@questify/shared";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
+import type { Position } from "#src/event/location.ts";
 
 /**
  * Where a quest stands for this player, decided by the server (`questState` in `apps/api/src/home/home.ts`). A newer
@@ -45,7 +46,16 @@ export type Quest = Readonly<{
   steps: Readonly<{ done: number; needed: number }> | null;
   /** The item its first completion still gives while stock is left (T-304d); null for none or an older API. */
   item: Bilingual | null;
+  /** A location quest's spot (T-303b); null for other types, a malformed one or an older API. */
+  place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
 }>;
+
+/**
+ * Whether a quest of a type this app version does not know still offers its printed QR (F-282): a newer type that
+ * keeps a quest QR (a location quest on an app from before T-303b, ADR-208) completes by scanning it.
+ */
+export const scanFallback = (quest: Pick<Quest, "type" | "state" | "verification">): boolean =>
+  quest.state === "open" && !isQuestType(quest.type) && quest.verification.includes("quest_qr");
 
 /** A category's rules (T-304, FR-231 to FR-235); an older API sends none, read as no rules. */
 export type CategoryRules = Readonly<{
@@ -162,7 +172,18 @@ const withVerification = (quest: Quest): Quest => ({
   lock: LOCKS.includes(String(quest.lock)) ? quest.lock : null,
   steps: progressOf(quest.steps),
   item: isText(quest.item) ? quest.item : null,
+  place: placeOf(quest.place),
 });
+
+/** A location quest's spot as sent, or null for anything missing or not well formed. */
+function placeOf(value: unknown): Quest["place"] {
+  return isRecord(value) &&
+    typeof value["lat"] === "number" &&
+    typeof value["lng"] === "number" &&
+    typeof value["radiusM"] === "number"
+    ? { lat: value["lat"], lng: value["lng"], radiusM: value["radiusM"] }
+    : null;
+}
 
 /** A passport's progress as sent, or null for anything missing or not well formed. */
 function progressOf(value: unknown): Quest["steps"] {
@@ -368,6 +389,14 @@ export type CompletionAnswer =
       /** The quest item this completion gave or missed (T-304d), or null. */
       item: ItemGiven | null;
     }>
+  /** A check-in refused for its position (T-303b); `distanceM` is the player's own rounded distance for not_here. */
+  | Readonly<{
+      kind: "location_refused";
+      reason: LocationReason | undefined;
+      distanceM: number | null;
+    }>
+  /** The platform's location switch is off: the QR is the way in (ADR-208). */
+  | Readonly<{ kind: "location_off" }>
   /** A wrong code, in the API's own words. */
   | Readonly<{ kind: "wrong_code"; problem: LocalizedText | null }>
   | Readonly<{ kind: "not_open"; reason: NotOpenReason | undefined }>
@@ -381,10 +410,32 @@ export type CompletionAnswer =
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
+/** Why the server refused a check-in (API.md `location_refused`). */
+export type LocationReason = "no_position" | "bad_position" | "stale" | "imprecise" | "not_here";
+
+const LOCATION_REASONS: readonly string[] = [
+  "no_position",
+  "bad_position",
+  "stale",
+  "imprecise",
+  "not_here",
+];
+
 function refusal(
   answer: Extract<AuthedResult, { kind: "error" }>,
 ): Exclude<CompletionAnswer, { kind: "completed" | "network" | "signed_out" }> {
   switch (answer.code) {
+    case "location_refused": {
+      const reason = String(answer.details["reason"]);
+      const distance = answer.details["distanceM"];
+      return {
+        kind: "location_refused",
+        reason: LOCATION_REASONS.includes(reason) ? (reason as LocationReason) : undefined,
+        distanceM: typeof distance === "number" ? distance : null,
+      };
+    }
+    case "feature_off":
+      return { kind: "location_off" };
     case "invalid_code":
       return { kind: "wrong_code", problem: answer.message };
     case "quest_not_open": {
@@ -441,10 +492,14 @@ export function keyFor(last: Attempt | undefined, code: string, makeKey: () => s
   return last !== undefined && last.retryable && last.code === code ? last.key : makeKey();
 }
 
-/** How a completion is proven: a typed entry code (FR-202) or a scanned quest QR's token (FR-201). */
+/**
+ * How a completion is proven: a typed entry code (FR-202), a scanned quest QR's token (FR-201) or a location check-in
+ * (FR-215). A scan may carry the last known position (T-303b); a check-in carries its fresh one.
+ */
 export type Proof =
-  | Readonly<{ type: "code"; code: string }>
-  | Readonly<{ type: "qr"; code: string }>;
+  | Readonly<{ type: "code"; code: string; position?: Position }>
+  | Readonly<{ type: "qr"; code: string; position?: Position }>
+  | Readonly<{ type: "location"; position: Position }>;
 
 /**
  * Completes a quest with its proof; the server normalizes a typed code (`normalizeEntryCode`) and verifies a token.

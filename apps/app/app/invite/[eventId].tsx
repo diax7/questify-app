@@ -153,7 +153,7 @@ export default function InviteScreen() {
             </AppText>
             <Button
               label={t("joinCard.openEvent")}
-              onPress={() => router.replace(`/event/${joined.eventId}`)}
+              onPress={() => router.replace(`/event/${joined.eventId}?joined=1`)}
             />
           </>
         )}

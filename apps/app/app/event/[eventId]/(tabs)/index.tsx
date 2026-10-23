@@ -1,5 +1,5 @@
 import { formatNumber, termFor, type Theme } from "@questify/shared";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
 import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
@@ -23,6 +23,8 @@ import {
   type RankingAnswer,
 } from "#src/event/home-api.ts";
 import { forget } from "#src/event/launch.ts";
+import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
+import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -292,11 +294,53 @@ function useHome(eventId: string) {
   return { answer, ranking, load };
 }
 
+/**
+ * The location explanation right after joining (ADR-208): only when Home was opened from a join (`joined=1`, never at
+ * launch), the switch on, an in-person event with a venue pin, the player not asked yet, and once per install.
+ * Continue always opens the system prompt.
+ */
+function useJoinLocationPrompt(home: Home | undefined) {
+  const { joined } = useLocalSearchParams<{ joined?: string }>();
+  const { locationOn } = useEvent();
+  const reader = useLocationReader();
+  const [shown, setShown] = useState(false);
+  const locationPrompt = home?.event.locationPrompt === true;
+  useEffect(() => {
+    if (
+      joined !== "1" ||
+      !locationOn ||
+      !locationPrompt ||
+      reader === undefined ||
+      reader === null
+    ) {
+      return;
+    }
+    let current = true;
+    void (async () => {
+      const explained = (await keyValueStore.getItem(EXPLAINED_KEY).catch(() => null)) !== null;
+      const permission = await reader.permission().catch(() => null);
+      if (current && explainAfterJoin({ locationOn, locationPrompt, explained, permission })) {
+        setShown(true);
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [joined, locationOn, locationPrompt, reader]);
+  const proceed = () => {
+    setShown(false);
+    void keyValueStore.setItem(EXPLAINED_KEY, "1").catch(() => undefined);
+    void reader?.ask().catch(() => undefined);
+  };
+  return { shown, proceed };
+}
+
 /** The event's Home (FR-801, FR-802, FR-803, FR-804; T-113, T-213). */
 export default function EventHomeScreen() {
   const { t, language } = useI18n();
   const { eventId, rememberName } = useEvent();
   const { answer, ranking, load } = useHome(eventId);
+  const prompt = useJoinLocationPrompt(answer?.kind === "home" ? answer.home : undefined);
   const loadedName = answer?.kind === "home" ? textIn(answer.home.event.name, language) : "";
   useEffect(() => {
     if (loadedName !== "") {
@@ -322,6 +366,7 @@ export default function EventHomeScreen() {
   const ended = home.event.statusNow === "ended" || home.event.statusNow === "archived";
   return (
     <Screen title={textIn(home.event.name, language)} header={<EventPill />}>
+      <LocationPrompt visible={prompt.shown} onContinue={prompt.proceed} />
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <RehearsalStrip shown={home.event.rehearsal} />
         <AddEmailCard />

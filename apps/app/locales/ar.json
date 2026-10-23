@@ -1,5 +1,6 @@
 {
   "ios": {
-    "NSCameraUsageDescription": "يستخدم كويستفاي الكاميرا لمسح رموز QR في فعاليتك."
+    "NSCameraUsageDescription": "يستخدم كويستفاي الكاميرا لمسح رموز QR في فعاليتك.",
+    "NSLocationWhenInUseUsageDescription": "يستخدم Questify موقعك أثناء فتح التطبيق لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب في فعاليتك. يمكنك دائمًا مسح رمز QR بدلًا من ذلك."
   }
 }

@@ -15,6 +15,8 @@ import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
 import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
+import { scanReading, type Position } from "#src/event/location.ts";
+import { useLocationReader } from "#src/event/LocationEntry.tsx";
 import { outcomeText } from "#src/event/QuestSheet.tsx";
 import {
   completeQuest,
@@ -44,14 +46,20 @@ const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"
 
 /**
  * Sends a scanned code: `id` is the quest's, a passport step's for a step's code (T-304b), or a hidden category's for
- * its secret code (T-304c); the token's own layout says which.
+ * its secret code (T-304c); the token's own layout says which. A quest's code carries the last known position when
+ * there is one (T-303b): it never delays the scan, and the server drops a bad one.
  */
-const send = (id: string, token: string, key: string) => {
+const send = (id: string, token: string, key: string, position: Position | null) => {
   if (categoryIdOf(token) !== null) {
     return revealCategory(api.session, id, token);
   }
   return stepIdOf(token) === null
-    ? completeQuest(api.session, id, { type: "qr", code: token }, key)
+    ? completeQuest(
+        api.session,
+        id,
+        { type: "qr", code: token, ...(position === null ? {} : { position }) },
+        key,
+      )
     : stampStep(api.session, id, token, key);
 };
 
@@ -137,7 +145,8 @@ function Celebration({
  */
 export default function ScanQuestScreen() {
   const { t, language } = useI18n();
-  const { eventId } = useEvent();
+  const { eventId, locationOn } = useEvent();
+  const reader = useLocationReader();
   const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const active = useCameraActive();
@@ -159,7 +168,8 @@ export default function ScanQuestScreen() {
 
   const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
-    const answer = await send(id, token, key);
+    const position = await scanReading(reader ?? null, locationOn, Date.now);
+    const answer = await send(id, token, key, position);
     attempt.current = { key, code: token, retryable: answer.kind === "network" };
     if (answer.kind === "signed_out") {
       router.replace("/home");

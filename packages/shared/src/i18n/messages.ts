@@ -616,6 +616,41 @@ export const MESSAGES = {
   "quests.type.share": { ar: "مشاركة", en: "Share" },
   "quests.type.passport": { ar: "جواز", en: "Passport" },
   "quests.type.location": { ar: "تسجيل حضور في مكان", en: "Check in at a spot" },
+  "quests.place.title": { ar: "المكان", en: "Place" },
+  "quests.place.help": {
+    ar: "اختياري: نقطة المكان ونصف قطره، لرصد التنقّل السريع بين الأماكن.",
+    en: "Optional: the spot's pin and radius, used to flag impossibly fast moves between spots.",
+  },
+  "quests.place.helpLocation": {
+    ar: "مطلوب: يسجّل اللاعب حضوره داخل هذه الدائرة.",
+    en: "Required: players check in inside this circle.",
+  },
+  "quests.place.lat": { ar: "خط العرض", en: "Latitude" },
+  "quests.place.lng": { ar: "خط الطول", en: "Longitude" },
+  "quests.place.radius": { ar: "نصف القطر (بالأمتار، 20 إلى 2000)", en: "Radius (metres, 20 to 2000)" },
+  "quests.place.invalid": {
+    ar: "أدخل خط عرض بين -90 و90 وخط طول بين -180 و180 ونصف قطر بين 20 و2000.",
+    en: "Enter a latitude from -90 to 90, a longitude from -180 to 180 and a radius from 20 to 2000.",
+  },
+  "quests.location.note": {
+    ar: "يعتمد تسجيل الحضور على الموقع الذي يرسله الجوال. للجوائز المهمة، اطلب من اللاعبين مسح رمز QR في المكان.",
+    en: "A check-in trusts the phone's reported position. For prizes that matter, ask players to scan the QR at the spot.",
+  },
+  "quests.location.qr": {
+    ar: "يستطيع اللاعبون دائمًا مسح رمز QR بدلًا من ذلك. اطبعه من صفحة الرموز وضعه في المكان.",
+    en: "Players can always scan the QR code instead. Print it from the Codes page and put it at the spot.",
+  },
+  "events.venuePin.title": { ar: "موقع مكان الفعالية (اختياري)", en: "Venue pin (optional)" },
+  "events.venuePin.help": {
+    ar: "يُستخدم فقط لرصد عمليات المسح البعيدة عن مكان الفعالية. اتركه فارغًا إن لم تحتجه.",
+    en: "Used only to flag scans far from the venue. Leave it empty to skip.",
+  },
+  "events.venuePin.lat": { ar: "خط العرض", en: "Latitude" },
+  "events.venuePin.lng": { ar: "خط الطول", en: "Longitude" },
+  "events.venuePin.radius": {
+    ar: "نصف قطر المكان (بالأمتار، 100 إلى 20000)",
+    en: "Venue radius (metres, 100 to 20000)",
+  },
   "signIn.consentTitle": { ar: "قبل أن نبدأ", en: "Before we start" },
   "signIn.consentBody": {
     ar: "لتدخل إلى حسابك أو تنشئه، وافق على شروط الاستخدام وسياسة الخصوصية.",
@@ -918,6 +953,48 @@ export const MESSAGES = {
   "questsTab.limit": {
     ar: "وصلت إلى الحد الأقصى لهذه المهمة.",
     en: "You've reached this quest's limit.",
+  },
+  "location.checkIn": { ar: "سجّل حضورك هنا", en: "Check in here" },
+  "location.checking": { ar: "جارٍ تحديد موقعك…", en: "Finding your location…" },
+  "location.orScan": {
+    ar: "أو امسح رمز QR الموجود في هذا المكان.",
+    en: "Or scan the QR code at this spot.",
+  },
+  "location.explainTitle": { ar: "سجّل حضورك بموقعك", en: "Check in with your location" },
+  "location.explainBody": {
+    ar: "يستخدم Questify موقعك أثناء فتح التطبيق فقط، لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب. لا يُحفظ موقعك، ويمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
+    en: "Questify uses your location only while the app is open, to check you in at quest spots and keep the game fair. Your location is not stored, and you can always scan the QR code instead.",
+  },
+  "location.continue": { ar: "متابعة", en: "Continue" },
+  "location.denied": {
+    ar: "الموقع متوقف لتطبيق Questify. امسح رمز QR في هذا المكان، أو فعّل الموقع من الإعدادات.",
+    en: "Location is off for Questify. Scan the QR code at this spot, or turn location on in Settings.",
+  },
+  "location.openSettings": { ar: "افتح الإعدادات", en: "Open Settings" },
+  "location.timeout": {
+    ar: "استغرق تحديد موقعك وقتًا طويلًا. حاول مرة أخرى أو امسح رمز QR.",
+    en: "Finding your location took too long. Try again or scan the QR code.",
+  },
+  "location.unavailable": {
+    ar: "تعذّرت قراءة موقعك. امسح رمز QR في هذا المكان.",
+    en: "We couldn't read your location. Scan the QR code at this spot.",
+  },
+  "location.notHere": {
+    ar: "أنت على بُعد {distance} م تقريبًا من المكان.",
+    en: "You're about {distance} m from the spot.",
+  },
+  "location.notHereYet": { ar: "لم تصل إلى المكان بعد.", en: "You're not at the spot yet." },
+  "location.stale": {
+    ar: "موقعك غير محدّث. حاول مرة أخرى.",
+    en: "Your location was out of date. Try again.",
+  },
+  "location.imprecise": {
+    ar: "فعّل الموقع الدقيق أو امسح رمز QR.",
+    en: "Turn on precise location or scan the QR code.",
+  },
+  "location.off": {
+    ar: "تسجيل الحضور بالموقع غير متاح حاليًا. امسح رمز QR في هذا المكان.",
+    en: "Checking in by location isn't available yet. Scan the QR code at this spot.",
   },
   "questsTab.failed": {
     ar: "تعذّر إكمال المهمة. حاول مرة أخرى.",
@@ -2231,6 +2308,25 @@ export const MESSAGES = {
     en: "Same phone, {count} accounts",
   },
   "flags.kind.burst": { ar: "{count} مسحًا خلال 5 دقائق", en: "{count} scans within 5 minutes" },
+  "flags.kind.farFromVenue": {
+    ar: "بعيد عن مكان الفعالية ({count})",
+    en: "Far from the venue ({count})",
+  },
+  "flags.kind.impossibleSpeed": {
+    ar: "تنقّل أسرع من الممكن ({count})",
+    en: "Moved impossibly fast ({count})",
+  },
+  "flags.far": {
+    ar: "على بُعد {distance} من مكان الفعالية (±{accuracy} م)",
+    en: "{distance} from the venue (±{accuracy} m)",
+  },
+  "flags.mocked": { ar: "أبلغ الجوال عن موقع مزيّف", en: "The phone reported a fake location" },
+  "flags.speed": {
+    ar: "{gap} خلال {seconds} ث من المكان السابق",
+    en: "{gap} in {seconds} s from the previous spot",
+  },
+  "flags.metres": { ar: "{n} م", en: "{n} m" },
+  "flags.kilometres": { ar: "{n} كم", en: "{n} km" },
   "flags.raised": { ar: "رُصدت {date}", en: "Raised {date}" },
   "flags.waiting": {
     ar: "جوائز بانتظار التسليم: {count}",

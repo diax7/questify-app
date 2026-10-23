@@ -9,6 +9,7 @@ import {
   keyFor,
   questsAnswer,
   readQuests,
+  scanFallback,
   type Category,
   type Quest,
 } from "#src/event/quests-api.ts";
@@ -28,6 +29,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   lock: null,
   steps: null,
   item: null,
+  place: null,
   verification: [],
   ...fields,
 });
@@ -477,5 +479,48 @@ describe("readQuests and the verification methods", () => {
     const older = readQuests(body({ verification: undefined }));
     expect(older?.categories[0]?.quests[0]?.verification).toEqual(["quest_qr"]);
     expect(readQuests(body({ verification: "my_qr" }))).toBeUndefined();
+  });
+});
+
+describe("location quests (T-303b)", () => {
+  it("reads a location quest's spot, and none for anything not well formed", () => {
+    const spot = { lat: 24.7136, lng: 46.6753, radiusM: 50 };
+    expect(
+      readQuests(body({ type: "location", place: spot }))?.categories[0]?.quests[0]?.place,
+    ).toEqual(spot);
+    for (const place of [
+      undefined,
+      null,
+      { lat: "24", lng: 46, radiusM: 50 },
+      { lat: 1, lng: 2 },
+    ]) {
+      expect(readQuests(body({ place }))?.categories[0]?.quests[0]?.place).toBeNull();
+    }
+  });
+
+  it("reads a refused check-in with its reason and the player's own distance", () => {
+    expect(
+      completionAnswer(error(422, "location_refused", { reason: "not_here", distanceM: 140 })),
+    ).toEqual({ kind: "location_refused", reason: "not_here", distanceM: 140 });
+    expect(completionAnswer(error(422, "location_refused", { reason: "stale" }))).toEqual({
+      kind: "location_refused",
+      reason: "stale",
+      distanceM: null,
+    });
+    expect(completionAnswer(error(422, "location_refused", { reason: "newer" }))).toEqual({
+      kind: "location_refused",
+      reason: undefined,
+      distanceM: null,
+    });
+    expect(completionAnswer(error(403, "feature_off"))).toEqual({ kind: "location_off" });
+  });
+
+  it("offers the printed QR for a type this version does not know, only while it is open and has one", () => {
+    const future = quest("q1", { type: "teleport", verification: ["quest_qr"] });
+    expect(scanFallback(future)).toBe(true);
+    expect(scanFallback({ ...future, state: "done" })).toBe(false);
+    expect(scanFallback({ ...future, verification: ["my_qr"] })).toBe(false);
+    expect(scanFallback(quest("q2", { type: "scan_qr", verification: ["quest_qr"] }))).toBe(false);
+    expect(scanFallback(quest("q3", { type: "location", verification: ["quest_qr"] }))).toBe(false);
   });
 });

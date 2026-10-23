@@ -16,6 +16,8 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { paidText } from "#src/event/amount.ts";
+import { scanReading } from "#src/event/location.ts";
+import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { PassportEntry } from "#src/event/PassportEntry.tsx";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { ShareEntry } from "#src/event/ShareEntry.tsx";
@@ -31,6 +33,7 @@ import {
   type NotOpenReason,
   type Quest,
   type QuestLock,
+  scanFallback,
 } from "#src/event/quests-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -72,6 +75,27 @@ const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
   ...LOCK_TEXT,
 };
 
+const LOCATION_TEXT = {
+  no_position: "location.unavailable",
+  bad_position: "location.unavailable",
+  stale: "location.stale",
+  imprecise: "location.imprecise",
+} as const;
+
+/** The words for a refused check-in: the player's own distance for not_here, when the server gave it. */
+function locationText(
+  answer: Extract<CompletionAnswer, { kind: "location_refused" }>,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+): string {
+  if (answer.reason === "not_here") {
+    return answer.distanceM === null
+      ? t("location.notHereYet")
+      : t("location.notHere", { distance: formatNumber(answer.distanceM, language) });
+  }
+  return t(answer.reason === undefined ? "location.unavailable" : LOCATION_TEXT[answer.reason]);
+}
+
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */
 const typedCode = (text: string) => text.replace(/[^A-Za-z0-9٠-٩۰-۹]/g, "").slice(0, 32);
 
@@ -91,6 +115,10 @@ export function outcomeText(
     }
     case "wrong_code":
       return answer.problem?.[language] ?? t("questsTab.failed");
+    case "location_refused":
+      return locationText(answer, t, language);
+    case "location_off":
+      return t("location.off");
     case "not_open":
       return answer.reason === undefined ? t("questsTab.notLive") : t(NOT_OPEN_TEXT[answer.reason]);
     case "limit":
@@ -115,13 +143,21 @@ function CodeEntry({
   onDone,
 }: Readonly<{ quest: Quest; onDone: (answer: CompletionAnswer) => void }>) {
   const { t } = useI18n();
+  const { locationOn } = useEvent();
+  const reader = useLocationReader();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<Attempt | undefined>(undefined);
   const submit = async () => {
     const key = keyFor(last, code, randomUuid);
     setBusy(true);
-    const answer = await completeQuest(api.session, quest.id, { type: "code", code }, key);
+    const position = await scanReading(reader ?? null, locationOn, Date.now);
+    const answer = await completeQuest(
+      api.session,
+      quest.id,
+      { type: "code", code, ...(position === null ? {} : { position }) },
+      key,
+    );
     setBusy(false);
     setLast({ key, code, retryable: answer.kind === "network" });
     // A repeatable quest starts again from an empty field.
@@ -158,6 +194,20 @@ function Verification({
 }: Readonly<{ quest: Quest; onDone: (answer: CompletionAnswer) => void }>) {
   const { t } = useI18n();
   const { eventId } = useEvent();
+  const scanButton = (
+    <Button
+      label={t("questsTab.scan")}
+      onPress={() =>
+        router.push({
+          pathname: "/event/[eventId]/scan-quest",
+          params: { eventId, quest: quest.id },
+        })
+      }
+    />
+  );
+  if (scanFallback(quest)) {
+    return scanButton;
+  }
   if (quest.state !== "open" || !isQuestType(quest.type)) {
     return null;
   }
@@ -187,15 +237,7 @@ function Verification({
     <>
       {showMyQr}
       <AppText variant="label">{t("questsTab.verifyScan")}</AppText>
-      <Button
-        label={t("questsTab.scan")}
-        onPress={() =>
-          router.push({
-            pathname: "/event/[eventId]/scan-quest",
-            params: { eventId, quest: quest.id },
-          })
-        }
-      />
+      {scanButton}
     </>
   );
 }
@@ -219,6 +261,8 @@ function QuestEntry({
       return <ShareEntry key={quest.id} quest={quest} onPaid={onSent} />;
     case "passport":
       return <PassportEntry key={quest.id} quest={quest} />;
+    case "location":
+      return <LocationEntry key={quest.id} quest={quest} onDone={onDone} />;
     default:
       return <Verification key={quest.id} quest={quest} onDone={onDone} />;
   }

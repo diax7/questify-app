@@ -1,9 +1,4 @@
-import {
-  parseComposedConfig,
-  type ComposedConfig,
-  type EventTerms,
-  type SignupAcceptance,
-} from "@questify/shared";
+import { parseComposedConfig, type ComposedConfig, type SignupAcceptance } from "@questify/shared";
 import type { ApiRequest, Client } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
 
@@ -81,23 +76,28 @@ export async function loadConfig(
 }
 
 /**
- * The event's words for the screens (FR-404, FR-940): the event's cached copy first, so nothing flashes, then the fresh
- * one. With neither, `show` is never called and the screens keep Questify's defaults.
+ * The event's configuration for the screens (its words, FR-404, FR-940; its switches): the event's cached copy first,
+ * so nothing flashes, then the fresh one. With neither, `show` is never called and the screens keep Questify's
+ * defaults (every switch read as off where off is the safe side, such as location).
  */
-export async function loadEventTerms(
+export async function loadEventConfig(
   deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
   event: string,
-  show: (terms: EventTerms) => void,
+  show: (config: ComposedConfig) => void,
 ): Promise<void> {
   const cached = usable(await readCached(deps.store, configKeyOf(event)));
   if (cached !== undefined) {
-    show(cached.terms);
+    show(cached);
   }
   const fresh = await loadConfig(deps, { event });
   if (fresh !== undefined) {
-    show(fresh.terms);
+    show(fresh);
   }
 }
+
+/** Whether the platform's location switch is on in a composed configuration (ADR-208); off when unknown. */
+export const locationQuestsOn = (config: ComposedConfig | undefined): boolean =>
+  config?.features["locationQuests"]?.enabled === true;
 
 /** The terms and privacy versions in force, from the documents the config names (unknown ids are ignored). */
 export function signupVersions(config: ComposedConfig | undefined): SignupAcceptance | undefined {

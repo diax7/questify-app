@@ -220,7 +220,7 @@ function JoinCardScreen() {
         {joined ? (
           <Button
             label={t("joinCard.openEvent")}
-            onPress={() => router.replace(`/event/${event.id}`)}
+            onPress={() => router.replace(`/event/${event.id}?joined=1`)}
           />
         ) : null}
         {ended || joined ? null : (

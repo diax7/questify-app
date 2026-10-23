@@ -6,7 +6,7 @@ import {
   configKeyOf,
   consentVersions,
   loadConfig,
-  loadEventTerms,
+  loadEventConfig,
   signupVersions,
 } from "#src/config/remote.ts";
 
@@ -187,7 +187,7 @@ describe("an event's configuration", () => {
   });
 });
 
-describe("loadEventTerms", () => {
+describe("loadEventConfig", () => {
   it("shows the cached words first, then the fresh ones", async () => {
     const store = memoryStore();
     store.data.set(
@@ -196,15 +196,15 @@ describe("loadEventTerms", () => {
     );
     const shown: EventTerms[] = [];
     const { client, calls } = fake([ok({ ...CONFIG, terms: LEAVES }, '"a2"')]);
-    await loadEventTerms({ client, store }, "a", (terms) => shown.push(terms));
+    await loadEventConfig({ client, store }, "a", (config) => shown.push(config.terms));
     expect(shown).toStrictEqual([GEMS, LEAVES]);
     expect(calls[0]?.headers).toEqual({ "if-none-match": '"a1"' });
   });
 
   it("shows nothing with no copy and no answer, so the screens keep the defaults", async () => {
     const shown: EventTerms[] = [];
-    await loadEventTerms({ client: fake([]).client, store: memoryStore() }, "a", (terms) =>
-      shown.push(terms),
+    await loadEventConfig({ client: fake([]).client, store: memoryStore() }, "a", (config) =>
+      shown.push(config.terms),
     );
     expect(shown).toStrictEqual([]);
   });
@@ -212,7 +212,9 @@ describe("loadEventTerms", () => {
   it("shows the fresh words when nothing was cached", async () => {
     const shown: EventTerms[] = [];
     const client = fake([ok({ ...CONFIG, terms: GEMS })]).client;
-    await loadEventTerms({ client, store: memoryStore() }, "a", (terms) => shown.push(terms));
+    await loadEventConfig({ client, store: memoryStore() }, "a", (config) =>
+      shown.push(config.terms),
+    );
     expect(shown).toStrictEqual([GEMS]);
   });
 });
