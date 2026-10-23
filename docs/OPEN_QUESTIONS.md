@@ -176,3 +176,24 @@ person (a tag list per entry, or a "contact, tag" line format)?
 FR-1708 targets categories and rewards; the plan follows it. Should a single quest inside an open category be
 targetable too, or is moving it to a targeted category enough? (The CTO plan review kept FR-1708 as written:
 categories and rewards only; built so.)
+
+## Q-140 — Deleted points: anonymised, not erased (2026-10-24, T-217)
+ADR-175 keeps a deleted player's ledger entries and enrollments, naming no one, so event totals and frozen results stay
+right; the player disappears from every profile and board. The privacy policy would say "your points are removed from
+your profile and rankings". Agree (this closes Q-086 and Q-092), or must the rows be removed too?
+
+## Q-141 — Fingerprint key and retention (2026-10-24, T-217, with Q-075)
+ADR-176 keeps ban and welcome marks until the event's data goes (platform-ban marks: indefinitely). The key can never
+be rotated without losing the marks. Agree, or should marks expire after a set time (for example 2 years)?
+
+## Q-142 — Handed-over prize records after deletion (2026-10-24, T-217, with Q-051)
+ADR-178 keeps handed-over records attached to the anonymised enrollment, so they hold nothing personal. Counsel: is
+that enough for FR-128, or must they be deleted after a set period (which would need a ledger exception)?
+
+## Q-143 — Acceptance records and the username after deletion (2026-10-24, T-217, with Q-095)
+The plan erases the player's acceptance records and username history, and frees the username for anyone at once.
+Agree, or should acceptances be kept as proof of consent (counsel) and the name held back for some days?
+
+## Q-144 — Bulk award reasons (2026-10-24, T-217)
+The T-207 note asked to clear `bulk_award.reason` on deletion. A bulk award's reason is about a group, not one player,
+so the plan keeps it and clears only the player's own `ledger_note.reason`. Agree?

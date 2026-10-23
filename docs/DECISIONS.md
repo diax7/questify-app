@@ -2332,3 +2332,40 @@ organizer most; refusing with the names lets them change the rule first.
 4. It never runs on the developer PC.
 **Why:** a local run takes about 18 GB and can crash Dhia's PC; batching and changed-file scope keep GitHub minutes
 low, and 90% is the core target ADR-111 already set.
+
+## ADR-175 — A deleted account becomes a tombstone; its records stay, naming no one
+**Status:** Proposed (Claude, 2026-10-24; T-217).
+**Decision:** account deletion keeps the `player` row as a tombstone (id, `status = 'deleted'`, `deleted_at`; username,
+birth year and avatar cleared) and keeps the player's enrollments, ledger entries, completions, handed-over prizes and
+frozen result places, which then name no one. Contacts, sessions, username history, acceptances, join answers, flags,
+device ids, ledger-note reasons and operator assignments are deleted or cleared. The player leaves every board; a
+frozen result shows "Deleted player". No restore exists.
+**Why:** the ledger is append-only (NFR-019) and the records hold RESTRICT keys; anonymising in place keeps event
+totals and frozen results right (FR-1739) while removing everything personal. Answers Q-086 and Q-092.
+
+## ADR-176 — Deletion fingerprints: a keyed hash, kept only as ban and welcome marks
+**Status:** Proposed (Claude, 2026-10-24; T-217).
+**Decision:** each contact carries an HMAC-SHA256 fingerprint computed by the API with a key derived from the server
+secret. On deletion only marks are kept: (fingerprint, event, banned | welcomed), and (fingerprint, platform, banned)
+for a platform-banned account; no player id. Joining an event with a `banned` mark is refused, the welcome reward is
+skipped with a `welcomed` mark, and sign-up or a contact change is refused with a platform mark. An account with no
+ban and no welcome leaves nothing. A mark goes with its event's data.
+**Why:** FR-1704 needs bans and one-time rewards to survive a re-sign-up, and a plain hash of a Saudi mobile number can
+be reversed by trying every number. The key cannot be rotated without losing the marks (Q-141).
+
+## ADR-177 — Deletion always takes a fresh code, in the app and on the web page
+**Status:** Proposed (Claude, 2026-10-24; T-217).
+**Decision:** one flow for both: a one-time code to the account's phone or email (purpose `deletion`, never usable to
+sign in), then a short-lived single-use deletion token that lists pending handovers, then the confirmation. The public
+code request answers the same whether or not an account uses the contact. Deletion is immediate. A platform-banned
+account may delete.
+**Why:** re-authentication for a destructive action (ASVS L2), one path to test instead of two, and the web page
+(FR-127) needs a way to prove ownership without the app.
+
+## ADR-178 — Pending handovers are forfeited with consent; handed-over records stay anonymised
+**Status:** Proposed (Claude, 2026-10-24; T-217).
+**Decision:** a player with a reserved prize or a desk item waiting sees the list and must tick that they give them
+up; the deletion then cancels them through the normal cancel path (stock returns) before erasing. Handed-over records
+stay, attached to the anonymised enrollment.
+**Why:** FR-128 and the T-217 done-condition ("a pending handover is explained before deletion"); once the record names
+no one it is no longer personal data, so no purge job is needed now (Q-142 for counsel).
