@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canInput, judge, replay } from "#src/games/engine";
+import { judge, replay } from "#src/games/engine";
 import { GAME_LEVELS, LEVELS } from "#src/games/levels";
 import { prng } from "#src/games/prng";
 import {
@@ -10,6 +10,7 @@ import {
   shuffled,
   slidePuzzleV1 as engine,
 } from "#src/games/slide-puzzle/v1";
+import { expectGateAgreesWithReplay } from "#src/games/testing/gate";
 
 const easy = LEVELS.slide_puzzle.easy;
 
@@ -234,28 +235,20 @@ describe("slide puzzle: impossible rounds", () => {
   });
 });
 
-describe("slide puzzle: properties over many seeds", () => {
+describe("slide puzzle: properties over a few seeds (the full run is in v1.calibration.test.ts)", () => {
   it("lets random taps through the app's gate into a legal round, the gate agreeing with the replay", () => {
-    for (let seed = 0; seed < 500; seed += 1) {
+    for (let seed = 0; seed < 20; seed += 1) {
       const level = LEVELS.slide_puzzle[GAME_LEVELS[seed % 3] as "easy"];
       const random = prng(seed ^ 0x5bd1e995);
-      let state = engine.start(seed, level);
-      const inputs: SlideInput[] = [];
-      let t = random.below(400);
-      for (let tap = 0; tap < 200; tap += 1) {
-        const input = { t, tile: random.below(level.size * level.size + 1) };
-        const allowed = canInput(engine, state, input);
-        const next = allowed ? engine.apply(state, input) : state;
-        expect(replay(engine, seed, level, [...inputs, input]), `seed ${seed}`).toEqual(
-          allowed ? { result: engine.resultOf(next) } : { impossible: expect.any(String) },
-        );
-        if (allowed) {
-          state = next;
-          inputs.push(input);
-        }
-        t += random.below(1500);
-      }
-      expect(replay(engine, seed, level, inputs)).toEqual({ result: engine.resultOf(state) });
+      expectGateAgreesWithReplay(engine, {
+        seed,
+        level,
+        random,
+        taps: 80,
+        firstGap: 400,
+        gap: 1500,
+        inputAt: (t) => ({ t, tile: random.below(level.size * level.size + 1) }),
+      });
     }
   });
 });

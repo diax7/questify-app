@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canInput, judge, replay } from "#src/games/engine";
+import { judge, replay } from "#src/games/engine";
 import { GAME_LEVELS, LEVELS } from "#src/games/levels";
 import {
   MEMORY_FLIP_CAP,
@@ -10,6 +10,8 @@ import {
   memoryMatchV1 as engine,
 } from "#src/games/memory-match/v1";
 import { prng } from "#src/games/prng";
+import { expectGateAgreesWithReplay } from "#src/games/testing/gate";
+import { rememberingPlayer } from "#src/games/testing/memory-players";
 
 const easy = LEVELS.memory_match.easy;
 const medium = LEVELS.memory_match.medium;
@@ -36,58 +38,6 @@ function seeingPlayer(seed: number, level: MemoryParams, gap = 150): MemoryInput
     inputs.push({ t: (inputs.length + 1) * gap, card: second });
   }
   return inputs;
-}
-
-/** Plays `choose` through the app's own gate until the round ends; returns the recorded inputs and last state. */
-function play(
-  seed: number,
-  level: MemoryParams,
-  choose: (state: MemoryState, t: number) => MemoryInput | undefined,
-): { inputs: MemoryInput[]; state: MemoryState } {
-  let state = engine.start(seed, level);
-  const inputs: MemoryInput[] = [];
-  let t = 0;
-  while (state.found < level.pairs && inputs.length < MEMORY_FLIP_CAP) {
-    t = Math.max(t + 150, state.pauseUntil);
-    const input = choose(state, t);
-    if (input === undefined || t > level.timeLimitSeconds * 1000) {
-      break;
-    }
-    if (canInput(engine, state, input)) {
-      state = engine.apply(state, input);
-      inputs.push(input);
-    }
-  }
-  return { inputs, state };
-}
-
-/** A player who never forgets a card and never peeks: flips unseen cards in a random order. */
-function rememberingPlayer(seed: number, level: MemoryParams, luck: number) {
-  const random = prng(luck);
-  return play(seed, level, (state, t) => {
-    const faceDown = (card: number) => state.matched[card] === false && card !== state.open;
-    const known = (picture: number, besides: number) =>
-      state.deck.findIndex(
-        (other, card) => other === picture && card !== besides && state.seen[card] === true,
-      );
-    if (state.open !== null) {
-      const partner = known(state.deck[state.open] as number, state.open);
-      if (partner >= 0) {
-        return { t, card: partner };
-      }
-    } else {
-      const knownPair = state.deck.findIndex(
-        (picture, card) => faceDown(card) && state.seen[card] === true && known(picture, card) >= 0,
-      );
-      if (knownPair >= 0) {
-        return { t, card: knownPair };
-      }
-    }
-    const unseen = state.deck
-      .map((_, card) => card)
-      .filter((card) => faceDown(card) && state.seen[card] === false);
-    return { t, card: unseen[random.below(unseen.length)] as number };
-  });
 }
 
 describe("memory match: the board", () => {
@@ -367,9 +317,9 @@ describe("memory match: the server's judgement", () => {
   });
 });
 
-describe("memory match: properties over many seeds", () => {
+describe("memory match: properties over a few seeds (the full runs are in v1.calibration.test.ts)", () => {
   it("replays the app's own recorded inputs to its claimed result, and an honest app is never impossible", () => {
-    for (let seed = 0; seed < 500; seed += 1) {
+    for (let seed = 0; seed < 60; seed += 1) {
       const level = LEVELS.memory_match[GAME_LEVELS[seed % 3] as "easy"];
       const { inputs, state } = rememberingPlayer(seed * 7919 - 1_000_000, level, seed);
       expect(replay(engine, seed * 7919 - 1_000_000, level, inputs)).toEqual({
@@ -379,39 +329,18 @@ describe("memory match: properties over many seeds", () => {
   });
 
   it("passes random taps through the app's gate into a legal round, and the gate agrees with the replay", () => {
-    for (let seed = 0; seed < 500; seed += 1) {
+    for (let seed = 0; seed < 20; seed += 1) {
       const level = LEVELS.memory_match[GAME_LEVELS[seed % 3] as "easy"];
       const random = prng(seed + 1);
-      let state = engine.start(seed, level);
-      const inputs: MemoryInput[] = [];
-      let t = random.below(300);
-      for (let tap = 0; tap < 300; tap += 1) {
-        const input = { t, card: random.below(level.pairs * 2 + 2) };
-        const allowed = canInput(engine, state, input);
-        expect(replay(engine, seed, level, [...inputs, input]), `seed ${seed}`).toEqual(
-          allowed
-            ? { result: engine.resultOf(engine.apply(state, input)) }
-            : expect.objectContaining({ impossible: expect.any(String) }),
-        );
-        if (allowed) {
-          state = engine.apply(state, input);
-          inputs.push(input);
-        }
-        t += random.below(900);
-      }
-      expect(replay(engine, seed, level, inputs)).toEqual({ result: engine.resultOf(state) });
-    }
-  });
-
-  it("flags fewer than 1% of rounds of a player who remembers every card but never peeks", () => {
-    for (const level of GAME_LEVELS) {
-      const params = LEVELS.memory_match[level];
-      let flagged = 0;
-      for (let seed = 0; seed < 5000; seed += 1) {
-        const { state } = rememberingPlayer(seed, params, seed + 99_991);
-        flagged += engine.unlikely(engine.resultOf(state), params) ? 1 : 0;
-      }
-      expect(flagged / 5000, level).toBeLessThan(0.01);
+      expectGateAgreesWithReplay(engine, {
+        seed,
+        level,
+        random,
+        taps: 80,
+        firstGap: 300,
+        gap: 900,
+        inputAt: (t) => ({ t, card: random.below(level.pairs * 2 + 2) }),
+      });
     }
   });
 });
