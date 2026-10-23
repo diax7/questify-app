@@ -24,6 +24,7 @@ const EVENT: EventView = {
   statusNow: "draft",
   ranking: true,
   rankingToday: true,
+  shareQuests: true,
 };
 
 describe("nameFor", () => {

@@ -23,6 +23,7 @@ const STORED: EventRecord = {
   createdAt: new Date("2030-01-01T00:00:00Z"),
   rankingOn: true,
   rankingTodayOn: true,
+  shareQuestsOn: true,
   terms: DEFAULT_TERMS,
 };
 

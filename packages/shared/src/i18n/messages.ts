@@ -365,6 +365,19 @@ export const MESSAGES = {
     ar: "للفعاليات التي تمتد أكثر من يوم: ترتيب بنقاط اليوم وحده، يبدأ من جديد عند بداية كل يوم في الفعالية.",
     en: "For events longer than one day: a ranking of today's points only, starting over when each event day begins.",
   },
+  "events.shareQuests.title": { ar: "مهام المشاركة", en: "Share quests" },
+  "events.shareQuests.label": {
+    ar: "إظهار مهام المشاركة للاعبين",
+    en: "Show share quests to players",
+  },
+  "events.shareQuests.on": {
+    ar: "مهام المشاركة ظاهرة، ويحصل اللاعب على النقاط بعد مشاركة رسالتك.",
+    en: "Share quests show, and players earn points after sharing your message.",
+  },
+  "events.shareQuests.off": {
+    ar: "مهام المشاركة مخفية عن اللاعبين ولا تمنح نقاطًا.",
+    en: "Share quests are hidden from players and earn nothing.",
+  },
   "events.ranking.ownerOnly": {
     ar: "يغيّر المالك وحده هذا الإعداد.",
     en: "Only the owner can change this.",
@@ -2594,6 +2607,40 @@ export const MESSAGES = {
   "operator.station.challenge": {
     ar: "تحدٍّ",
     en: "Challenge",
+  },
+  "quests.challenge.note": {
+    ar: "يؤكد المشغّل هذا التحدي بمسح رمز اللاعب في محطته، أو تمنحه أنت يدويًا. اكتب في الوصف ما على اللاعب فعله.",
+    en: "An operator confirms this challenge by scanning the player's code at their station, or you award it by hand. Say in the description what players do.",
+  },
+  "quests.survey.note": {
+    ar: "أسئلة بلا إجابة صحيحة. يجيب كل لاعب مرة واحدة، وتصل الإجابات إليك دون أسماء اللاعبين.",
+    en: "Questions with no right answer. Each player answers once; the answers reach you with names not shown.",
+  },
+  "quests.survey.kind": { ar: "نوع السؤال", en: "Question type" },
+  "quests.survey.kind.choice": { ar: "اختيار من متعدد", en: "Multiple choice" },
+  "quests.survey.kind.rating": { ar: "تقييم من 1 إلى 5", en: "Rating from 1 to 5" },
+  "quests.survey.kind.text": { ar: "إجابة قصيرة", en: "Short answer" },
+  "quests.survey.required": { ar: "سؤال مطلوب", en: "Required" },
+  "quests.survey.results": { ar: "نتائج الاستبيان", en: "Survey results" },
+  "quests.survey.total": { ar: "عدد الإجابات: {total}.", en: "{total} responses." },
+  "quests.survey.namesNotShown": {
+    ar: "لا تظهر أسماء اللاعبين مع الإجابات.",
+    en: "Players' names are not shown.",
+  },
+  "quests.survey.answeredCount": { ar: "أجاب {count}", en: "{count} answered" },
+  "quests.survey.average": {
+    ar: "متوسط التقييم: {average} من 5",
+    en: "Average: {average} out of 5",
+  },
+  "quests.share.note": {
+    ar: "يشارك اللاعب رسالتك من هاتفه ويحصل على النقاط مرة واحدة دون إثبات. إن أوقفت مهام المشاركة في إعدادات الفعالية فلن يراها اللاعبون.",
+    en: "Players share your message from their phone and earn the points once, with no proof. If you switch share quests off in the event's settings, players won't see them.",
+  },
+  "quests.share.messageAr": { ar: "الرسالة بالعربية", en: "Message in Arabic" },
+  "quests.share.messageEn": { ar: "الرسالة بالإنجليزية", en: "Message in English" },
+  "quests.share.link": {
+    ar: "رابط (اختياري، يبدأ بـ https://)",
+    en: "Link (optional, starts with https://)",
   },
   "quests.choiceAr": {
     ar: "الخيار {number} بالعربية",

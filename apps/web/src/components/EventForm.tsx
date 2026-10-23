@@ -21,6 +21,7 @@ import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
+import { ShareQuestsSwitch } from "#src/components/ShareQuestsSwitch.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -291,6 +292,15 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           organizerId={organizerId}
           eventId={event.id}
           initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <ShareQuestsSwitch
+          language={language}
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.shareQuests}
           myRole={myRole}
         />
       )}

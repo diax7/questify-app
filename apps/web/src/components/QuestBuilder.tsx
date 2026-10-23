@@ -221,6 +221,11 @@ export function QuestBuilder({
               ? `/v1/organizers/${organizerId}/events/${eventId}/quests/${editing.quest.id}/votes`
               : null
           }
+          surveyUrl={
+            editing.quest?.type === "survey"
+              ? `/v1/organizers/${organizerId}/events/${eventId}/quests/${editing.quest.id}/survey`
+              : null
+          }
           busy={b.busy}
           save={save}
           cancel={closeEditing}

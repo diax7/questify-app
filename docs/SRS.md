@@ -933,7 +933,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-138 | F-82 | Should | pending |
 | FR-201 | F-03 | Must | pending |
 | FR-202 | F-03, F-92 | Must | pending |
-| FR-203 | F-04 | Must | pending |
+| FR-203 | F-04 | Must | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int` (T-303) |
 | FR-204 | F-05 | Must | pending (T-301b: photos) |
 | FR-205 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
 | FR-206 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/submissions.test.ts` (T-301) |
@@ -944,13 +944,13 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-211 | F-83 | Must | pending |
 | FR-212 | F-84 | Should | pending |
 | FR-213 | F-84 | Should | pending |
-| FR-214 | F-85 | Should | pending |
+| FR-214 | F-85 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303); the results page and export are T-508 |
 | FR-215 | F-86 | Could | pending |
 | FR-216 | F-86 | Could | pending |
 | FR-217 | F-87 | Should | pending |
 | FR-218 | F-87 | Should | pending |
-| FR-219 | F-88 | Should | pending |
-| FR-220 | F-88 | Should | pending |
+| FR-219 | F-88 | Should | `test/plays/survey-share.int` (every player read), `src/quests/switched-off.test.ts`, `test/db/challenge-survey-share.int` (T-303) |
+| FR-220 | F-88 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303) |
 | FR-221 | F-02 | Must | pending |
 | FR-222 | F-52 | Must | pending |
 | FR-223 | F-52 | Must | pending |

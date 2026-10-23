@@ -55,6 +55,12 @@ for an event.
 - **Still to come:** the admin screens and routes that call these saves (T-703, T-602), the translation bundle (T-008),
   maintenance mode and the banner (T-703).
 
+## As built (T-303): share quests switch
+
+- `shareQuests` (not an add-on) joins the registry. The owner turns it off per event (`PUT …/share-quests`); off hides
+  every share quest from every player read through one helper (`src/quests/switched-off.ts`) and refuses paying one.
+  The database also checks the event's own switch in `share_quest`.
+
 ## As built (T-008): texts
 
 - **Shipped texts** are `MESSAGES` in `packages/shared/src/i18n/messages.ts`: every key in Arabic and English, the same

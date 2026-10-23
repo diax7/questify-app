@@ -13,6 +13,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
+import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
@@ -30,6 +31,8 @@ type Props = Readonly<{
   isNew: boolean;
   /** Where an existing vote quest's counts are read (ADR-195); null for anything else. */
   votesUrl: string | null;
+  /** A survey quest's results, for the team (T-303). */
+  surveyUrl: string | null;
   busy: boolean;
   save: (draft: QuestDraft) => void;
   cancel: () => void;
@@ -44,6 +47,7 @@ export function QuestForm({
   initial,
   isNew,
   votesUrl,
+  surveyUrl,
   busy,
   save,
   cancel,
@@ -191,6 +195,7 @@ export function QuestForm({
       />
       <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
       {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
+      {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}
@@ -268,7 +273,8 @@ function QuestVerificationField({
 }>) {
   const t = translatorFor(language);
   const offered: readonly QuestVerification[] = QUEST_TYPES[draft.type].verifications;
-  if (offered.length === 0) {
+  // Nothing to choose: no method, or a challenge's one fixed method (ADR-197).
+  if (offered.length < 2) {
     return null;
   }
   const toggle = (method: QuestVerification, on: boolean) =>

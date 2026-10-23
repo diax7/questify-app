@@ -468,6 +468,21 @@ system audit entry `event.quiz_voided` (its error code only), so the sweep moves
 `member_vote`, `quest_vote_counts`, `quiz_start`, `quiz_next`, `quiz_answer`, `member_quiz`, `finish_one_due_quiz`.
 **PII:** a player's choices (store forms: "quiz answers, votes"); counts only for the team.
 
+### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
+**Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
+created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method
+`survey`); `answers` holds only the answered questions (`{questionId: choice id | rating | text}`), each checked by
+`submit_survey` against the quest's config. Quest `type` gains `challenge` (`type_config {}`, `verification` always
+`['my_qr']`: only an operator's station scan or a manual award completes it), `survey` (`{questions: [{id, text, kind
+choice|rating|text, required, choices}]}`, 1 to 20) and `share` (`{message: {ar, en}, link?}`, an https link);
+`survey` and `share` have `repeat_cap = 1`. `quest_completion.method` gains `survey` and `share`. A survey's structure
+locks after its first response (`QL409`). Share quests follow the event's `config.features.shareQuests` (on unless
+false): `share_quest` refuses (`QF403`) and `member_share` hides while it is off; the API also applies the platform's
+switch. Account deletion and the rehearsal wipe delete the responses (completions stay). No grant on the table:
+`submit_survey`, `member_survey`, `survey_summary` (owners and editors: counts, averages, newest 50 texts, names not
+shown), `share_quest`, `member_share`.
+**PII:** a player's survey answers (deleted with the account); the team never sees who answered.
+
 ### flag, ticket, audit_log
 `flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst, device_id (shared_device only),
 evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,

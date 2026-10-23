@@ -298,6 +298,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
       ]);
     });
 
+    it("lets the owner switch share quests off, which hides them at once", async () => {
+      const event = await newEvent();
+      const share = await newQuest(event.id, "share", SHARE);
+      const { token } = await newPlayer(event.id);
+      expect((await app("GET", `/v1/quests/${share}/share`, token)).statusCode).toBe(200);
+      const off = await test.app.inject({
+        method: "PUT",
+        url: `/v1/organizers/${organizer}/events/${event.id}/share-quests`,
+        headers: withSession(ownerCookie, { "idempotency-key": randomUUID() }),
+        payload: { enabled: false },
+      });
+      expect([off.statusCode, off.json()]).toEqual([200, { shareQuests: false }]);
+      expect((await dashboard("GET", `/events/${event.id}`)).json()).toMatchObject({
+        event: { shareQuests: false },
+      });
+      expect(ids((await app("GET", `/v1/events/${event.id}/quests`, token)).json())).toEqual([]);
+      expect(codeOf(await app("POST", `/v1/quests/${share}/share`, token, {}))).toEqual([
+        403,
+        "feature_off",
+      ]);
+    });
+
     it("shows a share quest in every player read while the switch is on", async () => {
       const event = await newEvent();
       const share = await newQuest(event.id, "share", SHARE);

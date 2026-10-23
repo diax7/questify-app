@@ -74,6 +74,7 @@ const view = (event: EventRecord) => ({
   createdAt: event.createdAt.toISOString(),
   ranking: event.rankingOn,
   rankingToday: event.rankingTodayOn,
+  shareQuests: event.shareQuestsOn,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {
@@ -204,11 +205,12 @@ export function registerEventRoutes(
     }
   });
 
-  // FR-607 and FR-608: the owner turns the event's ranking, and today's ranking, off and on; the event's other
-  // switches stay as they are.
+  // FR-607, FR-608 and FR-219: the owner turns the event's ranking, today's ranking and share quests off and on; the
+  // event's other switches stay as they are.
   const switches = [
     ["/events/:eventId/ranking", "ranking"],
     ["/events/:eventId/ranking-today", "rankingToday"],
+    ["/events/:eventId/share-quests", "shareQuests"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

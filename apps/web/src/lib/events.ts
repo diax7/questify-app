@@ -24,6 +24,8 @@ export type EventView = Readonly<{
   ranking: boolean;
   /** Today's ranking switch for a multi-day event (FR-608). */
   rankingToday: boolean;
+  /** The event's share quests switch (FR-219). */
+  shareQuests: boolean;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

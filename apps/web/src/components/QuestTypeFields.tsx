@@ -3,18 +3,24 @@
 import type { Language, MessageKey, QuestType } from "@questify/shared";
 import type { ReactNode } from "react";
 import { translatorFor } from "#src/lib/language.ts";
+import {
+  OptionList,
+  TextPair,
+  itemsOf,
+  newId,
+  newItem,
+  str,
+  type Config,
+  type Item,
+  type TypeFieldProps,
+} from "#src/components/QuestTextFields.tsx";
+import {
+  ChallengeFields,
+  ShareFields,
+  SurveyFields,
+  newSurveyQuestion,
+} from "#src/components/SurveyShareFields.tsx";
 import styles from "#src/components/layout.module.css";
-
-type Config = Readonly<Record<string, unknown>>;
-
-type TypeFieldProps = Readonly<{
-  language: Language;
-  config: Config;
-  disabled: boolean;
-  change: (config: Config) => void;
-}>;
-
-const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
 function ScanQrFields({ language }: TypeFieldProps) {
   return <p className={styles.muted}>{translatorFor(language)("quests.scanQrNote")}</p>;
@@ -90,115 +96,7 @@ function SubmissionFields({ language, config, disabled, change }: TypeFieldProps
   );
 }
 
-type Text = Readonly<{ ar?: string; en?: string }>;
-type Item = Readonly<{ id: string; text: Text }>;
 type Question = Item & Readonly<{ choices: readonly Item[]; right: string }>;
-
-const newId = () => crypto.randomUUID();
-const newItem = (): Item => ({ id: newId(), text: {} });
-const itemsOf = (value: unknown, least: number): readonly Item[] =>
-  Array.isArray(value) ? (value as Item[]) : Array.from({ length: least }, newItem);
-/** A text with an emptied language left out, as the API wants it (at least one language, FR-1008). */
-const withText = (text: Text, key: "ar" | "en", value: string): Text => {
-  const next: Record<string, string> = {};
-  for (const name of ["ar", "en"] as const) {
-    const kept = name === key ? value : text[name];
-    if (kept !== undefined && kept !== "") {
-      next[name] = kept;
-    }
-  }
-  return next;
-};
-
-/** Two inputs, Arabic and English, for one option, choice or question. */
-function TextPair({
-  labels,
-  text,
-  max,
-  disabled,
-  change,
-}: Readonly<{
-  labels: Readonly<{ ar: string; en: string }>;
-  text: Text;
-  max: number;
-  disabled: boolean;
-  change: (text: Text) => void;
-}>) {
-  return (
-    <>
-      {(["ar", "en"] as const).map((key) => (
-        <label key={key} className={styles.field}>
-          {labels[key]}
-          <input
-            className={styles.input}
-            dir={key === "ar" ? "rtl" : "ltr"}
-            maxLength={max}
-            value={str(text[key])}
-            disabled={disabled}
-            onChange={(event) => change(withText(text, key, event.target.value))}
-          />
-        </label>
-      ))}
-    </>
-  );
-}
-
-/** A list of options (a vote's, or one quiz question's choices): at least 2, each in both languages. */
-function OptionList({
-  language,
-  items,
-  most,
-  disabled,
-  change,
-}: Readonly<{
-  language: Language;
-  items: readonly Item[];
-  most: number;
-  disabled: boolean;
-  change: (items: readonly Item[]) => void;
-}>) {
-  const t = translatorFor(language);
-  const edit = (id: string, text: Text) =>
-    change(items.map((one) => (one.id === id ? { ...one, text } : one)));
-  return (
-    <>
-      {items.map((item, index) => (
-        <div key={item.id} className={styles.field}>
-          <TextPair
-            labels={{
-              ar: t("quests.choiceAr", { number: index + 1 }),
-              en: t("quests.choiceEn", { number: index + 1 }),
-            }}
-            text={item.text}
-            max={120}
-            disabled={disabled}
-            change={(text) => edit(item.id, text)}
-          />
-          {items.length > 2 ? (
-            <button
-              type="button"
-              className={styles.quiet}
-              disabled={disabled}
-              onClick={() => change(items.filter((one) => one.id !== item.id))}
-            >
-              {t("quests.vote.removeOption", { number: index + 1 })}
-            </button>
-          ) : null}
-        </div>
-      ))}
-      {items.length < most ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={disabled}
-          onClick={() => change([...items, newItem()])}
-        >
-          {t("quests.vote.addOption")}
-        </button>
-      ) : null}
-    </>
-  );
-}
 
 /** A vote (T-302): 2 to 10 options the organizer writes (FR-1629: never a player's submission). */
 function VoteFields({ language, config, disabled, change }: TypeFieldProps) {
@@ -355,13 +253,17 @@ function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
   );
 }
 
-/** The config a new quest of this type starts from: a vote's two options, a quiz's first question. */
+/** The config a new quest of this type starts from: a vote's two options, a quiz's or a survey's first question. */
 export function startingConfig(type: QuestType): Config {
   switch (type) {
     case "vote":
       return { options: [newItem(), newItem()] };
     case "quiz":
       return { questions: [newQuestion()], timerSeconds: null };
+    case "survey":
+      return { questions: [newSurveyQuestion()] };
+    case "share":
+      return { message: {} };
     default:
       return {};
   }
@@ -378,4 +280,7 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     submission: SubmissionFields,
     vote: VoteFields,
     quiz: QuizFields,
+    challenge: ChallengeFields,
+    survey: SurveyFields,
+    share: ShareFields,
   };

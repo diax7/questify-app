@@ -134,6 +134,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
   "PUT /v1/organizers/:organizerId/events/:eventId/ranking-today":
     "the organizer's owner only, for an event of that organizer (the same handler as the ranking switch); an editor answers 403 (test/ranking/ranking)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/share-quests":
+    "the organizer's owner only, for an event of that organizer (the same handler as the ranking switch) (test/plays/survey-share, test/ranking/ranking)",
   "GET /v1/me":
     "the bearer's own profile only; the player comes from the session (test/players/profile)",
   "GET /v1/public/events":
