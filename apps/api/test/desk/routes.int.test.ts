@@ -526,6 +526,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
         });
       }
       expect((await find(desk.token, event, "nobody_here")).json()).toEqual({ result: "none" });
+      // Only a leading @ is dropped: an @ inside the name is searched as typed.
+      const inside = `${named?.username.slice(0, 2) ?? ""}@${named?.username.slice(2) ?? ""}`;
+      expect((await find(desk.token, event, inside)).json()).toEqual({ result: "none" });
       expect((await find(desk.token, event, "")).statusCode).toBe(400);
     });
 

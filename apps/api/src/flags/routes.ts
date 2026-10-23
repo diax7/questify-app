@@ -56,7 +56,7 @@ function switched(outcome: SwitchOutcome): void {
   if (outcome === "not_found") {
     throw notFound();
   }
-  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the scope's hook refuses an editor first
+  // Stryker disable next-line ConditionalExpression,BlockStatement,StringLiteral: unreachable: the scope's hook refuses an editor first
   if (outcome === "not_owner") {
     throw ownerOnly();
   }
@@ -100,6 +100,7 @@ export function registerFlagRoutes(scope: FastifyInstance, deps: FlagsDeps): voi
     return {
       hold: done.hold,
       flags: done.flags,
+      // Stryker disable next-line ConditionalExpression: a full page always has a last line
       nextCursor:
         done.flags.length === limit && last !== undefined ? encodeCursor({ id: last.id }) : null,
     };

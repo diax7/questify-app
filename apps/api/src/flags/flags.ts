@@ -175,7 +175,6 @@ export function resolveFlag(
       [request.eventId, request.flagId, request.resolution, request.note, request.requestId],
     );
     const row = rows[0];
-    // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: resolve_flag answers one row or raises
     if (row === undefined) {
       throw new Error("resolve_flag answered no row");
     }

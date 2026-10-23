@@ -305,8 +305,10 @@ describe("findAtDesk (FR-1848)", () => {
     const full = findPool(30, []);
     expect(await findAtDesk(full.deps, FIND)).toMatchObject({ kind: "throttled" });
     expect(full.statements.some((s) => s.sql.includes("desk_find"))).toBe(false);
+    expect(full.statements.some((s) => s.sql.includes("INSERT INTO auth_throttle"))).toBe(false);
     const last = findPool(29, []);
     expect(await findAtDesk(last.deps, FIND)).toEqual({ kind: "done", value: null });
+    expect(last.statements.some((s) => s.sql.includes("INSERT INTO auth_throttle"))).toBe(true);
   });
 });
 

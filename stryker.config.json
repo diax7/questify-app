@@ -21,6 +21,7 @@
     "apps/api/src/operators/**/*.ts",
     "apps/api/src/awards/**/*.ts",
     "apps/api/src/desk/**/*.ts",
+    "apps/api/src/flags/**/*.ts",
     "apps/api/src/activation/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",

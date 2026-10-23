@@ -209,6 +209,11 @@ Notes:
 - The desk sees no price, score or balance.
 - Cancel opens a confirm screen: "Cancel this reservation? {player} gets the points back." with Cancel reservation and Keep (FR-513, F-196).
 - Nothing waiting: "Nothing to hand over for Sara_88." with Scan next.
+- Held (T-209, FR-1815, FR-1747): while the player has an open flag (and the event's hold is on) or is banned, each row
+  reads "Held, ask the owner." with the pickup time left, no Handed over, and Cancel kept. The desk is never told
+  whether it is a flag or a ban.
+- Find by name or phone (FR-1848, ADR-156): under the camera, a field takes an exact username or mobile number and
+  shows the same card as a scan; the player still confirms in their own app. 30 finds per operator in 10 minutes.
 - Paused {player} state (FR-518, FR-1604: a pause blocks both new redemptions and handover of existing reservations):
 
 ```

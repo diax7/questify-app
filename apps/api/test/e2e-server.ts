@@ -130,7 +130,9 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
             [body.eventId, body.usernames ?? []],
           )
           .then((result) => {
-            response.writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404).end();
+            response
+              .writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404)
+              .end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

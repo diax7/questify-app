@@ -318,8 +318,11 @@ ADR-151):
   null, created_at)` (**secret**, organizer-uploaded; T-203): the API's AES-256-GCM cipher bound to the reward and an
   HMAC for finding repeats, unique per event. Organizers read only `id, reward_id, redemption_id, created_at`; players
   and outsiders nothing; `add_reward_codes` writes and `reserve_reward` gives the oldest unused code.
-  A player with an open flag cannot be handed items (ADR-100; T-209 adds the check to `finish_handover`, the one
-  handover body).
+  The desk's hold (0031, T-209): `desk_hold(enrollment, event)` answers `paused` (the owner's pause), then `held` (a
+  banned player, or an open flag while `event.flag_hold` is on), and `finish_handover` and the desk's offer refuse
+  either (`RH409`) **before** the status check, so the desk never learns of a ban. `desk_items` (the lookup and the
+  find) shows only `active` and `hold`, never the status. `enrollment.redeem_paused_at` (0031) also refuses new
+  reservations and Collect (`RP403`, after the replay check).
 
 ### submission
 `id, completion_id, kind photo|text|video_later, media_key, text, review_status, reviewer, note`.
@@ -327,8 +330,16 @@ ADR-151):
 PD-29.
 
 ### flag, ticket, audit_log
-`flag(id, event_id, enrollment_id, type, evidence jsonb, status open|cleared|confirmed, raised_by,
-cleared_by)`. `ticket(id, event_id, player_id, text, status, answers)`.
+`flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst, device_id (shared_device only),
+evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,
+resolved_at, resolved_by staff_user)` (migration 0031, T-209, ADR-153 to ADR-155): raised by a trigger on every new
+`quest_completion` (not `manual`), inside its transaction. Same phone: one case per account and install id, ever, for
+every account of the event seen on it (under a lock on the event and device); burst: 10 scans within 5 minutes
+(`flag_tuning()`), one open case per account, counting again only after its last resolved one. No grant to the API
+role: the team reads and closes cases through `event_flags`, `flag_detail` and `resolve_flag`; a ban
+(`set_enrollment_ban`) closes the player's open cases. `event.flag_hold` (default on) and `enrollment.redeem_paused_at`
+are written only by `set_flag_hold` and `set_redeem_pause` (owner, audited). **PII:** `device_id` and `evidence` go
+with the account (T-217). `ticket(id, event_id, player_id, text, status, answers)`.
 `audit_log(id bigint identity, at, actor_type admin|staff|system, actor_id, organizer_id, event_id, action,
 target_type, target_id, before jsonb, after jsonb, request_id)` (migration 0006, T-004): append-only for every
 role, the database owner included (triggers set to fire always). No foreign keys, so an entry outlives the event it

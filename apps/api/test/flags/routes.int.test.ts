@@ -200,6 +200,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flags over HTTP", () => {
     expect(
       (await dashboard(ownerCookie, "GET", `/events/${event}/flags?cursor=nonsense`)).statusCode,
     ).toBe(400);
+    expect(
+      (await dashboard(ownerCookie, "GET", `/events/${event}/flags?limit=abc`)).statusCode,
+    ).toBe(400);
+    expect(
+      (await dashboard(ownerCookie, "GET", `/events/${event}/flags?status=open`)).json(),
+    ).toMatchObject({ flags: [] });
     const { flag } = await flagged(event);
     const long = await dashboard(ownerCookie, "POST", `/events/${event}/flags/${flag}/resolve`, {
       resolution: "cleared",
