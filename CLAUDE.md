@@ -17,6 +17,7 @@ any organizer anywhere; Saudi Arabia is the first market (Arabic + English, RTL)
 ## How work runs: coordinator mode (Dhia, 2026-10-24; replaces "one task per session" of 2026-10-21)
 
 The main session is the **coordinator**. It does not build tasks itself; it runs them one after another:
+
 1. **A fresh worker per task** (Agent tool, Opus; Sonnet for small mechanical work), pointed at
    `docs/agents/WORKER_BRIEF.md` and the task id. Prompts stay short: point at files, don't restate them.
    Workers reply in ≤15 lines. A worker is resumed only for quick fixes right after its review; the next task
