@@ -2191,13 +2191,17 @@ its partner FR-1617; shop sections (FR-516) were already built in T-201.
 handover for an item outside the shop, which T-304 brings.
 
 ## ADR-162 — Rank prizes: their own table, collected as desk items with no price
-**Status:** Proposed (Claude, 2026-10-23; T-214; Q-130 asks Dhia).
+**Status:** Proposed (Claude, 2026-10-23; T-214; amended after the CTO plan review; Q-130 asks Dhia).
 **Decision:** a rank prize is a `rank_prize` row (a rank range 1–100, item or experience, names and description),
 never a `reward`, so no shop read can ever list or sell it. At the reveal each winner gets a `redemption` with
 `rank_prize_id` and price 0, picked up through the same desk flow as shop items (FR-521): the flag hold, ban hold and
 pause apply; the handover writes the usual 0/0 `handover` entry. The player cannot cancel it; an operator's cancel or
-the timeout ends it with no ledger entry. The claim deadline is the end of the desk's last open window, or the shop's
-closing when the desk has no hours; the reveal is refused when that is less than an hour away.
+the timeout ends it with no ledger entry. The owner sets the claim deadline at the reveal (default: the end of the
+desk's last open window, or the shop's closing when the desk has no hours), between 1 hour and 60 days away; the
+reveal is refused when the desk has hours and none fall before the deadline. Prize ranges, kinds and the switch lock
+once the event is live; names and descriptions stay editable until results are confirmed. The reveal is idempotent
+through the place's stored redemption and a unique (prize, enrollment) key; the redemption's key contains a space, so
+no player request can collide with it.
 **Why:** a separate table fails closed (a rank prize cannot leak into the shop for free) while reusing the whole
 handover path the desk already enforces.
 
@@ -2206,8 +2210,10 @@ handover path the desk already enforces.
 **Decision:** only the owner confirms, only once the event has ended. The confirmation carries the ranked enrollment
 ids the owner saw and is refused if the places changed since. Open flags are shown and named in the dialog but never
 block. Confirming stores the top places (`result_place`, at least 10) and freezes them: removals are refused from
-then on, and a later ban, flag or cancel return changes no place (a banned winner's prize is held at the desk). There
-is no undo. Rehearsal cannot confirm, since it never ends.
+then on (a removal locks the event before the enrollment, so it and a confirm serialize), and a later ban, flag or
+cancel return changes no place. No undo, no pass-down and no re-issue in v1: a banned winner's prize is held at the
+desk and the owner may cancel it; a winner who left keeps the place with an uncollectable item; an unclaimed prize
+expires. Rehearsal cannot confirm, since it never ends.
 **Why:** the final score only settles at the end (manual awards close with the live event, ADR-135 freezes spending's
 effect); checking against what the owner saw means the owner confirms exactly the list they reviewed.
 
@@ -2219,10 +2225,15 @@ push of FR-1718 is sent by T-501 from the revealed places; until then the Home c
 **Why:** FR-520 reveals only after confirmation, and an organizer may confirm early and reveal on stage (T-307's
 big-screen scene calls the same reveal). There is no push infrastructure yet.
 
-## ADR-165 — Each event's official rules: organizer text on a public page
-**Status:** Proposed (Claude, 2026-10-23; T-214).
-**Decision:** the event gains `rules_ar` and `rules_en` (plain text, up to 10,000 characters), written on the Prizes
-and results page and shown at `/[lang]/e/[code]/rules` as plain text, linked from the app's info page. No template is
-filled in for the organizer.
-**Why:** FR-1707 wants a rules page for every event with prizes, and T-110 and T-113 left it here; plain text keeps the
-public page free of injected markup. What the rules must say is for counsel (Q-041).
+## ADR-165 — Each event's official rules: a fixed block from data, then the organizer's text
+**Status:** Proposed (Claude, 2026-10-23; T-214; amended after the CTO plan review: store gate).
+**Decision:** for an event with active rank prizes the server builds a fixed rules block from data, in Arabic and
+English: Questify administers the contest and the organizer provides the prizes (wording for counsel, Q-040/Q-041);
+Apple and Google are not sponsors; how winners are picked (final score, ties to whoever reached it first, the team,
+operators, banned players and the exclusion list cannot win); the number of winners and each rank's prize; the end
+time and the claim-deadline rule. The organizer's `rules_ar`/`rules_en` (plain text, up to 10,000 characters) go
+below it. The app shows the rules natively on the info page; `/[lang]/e/[code]/rules` shows the same as plain text,
+never empty while prizes exist, with the event read's visibility (404 for draft and archived).
+**Why:** STORE_COMPLIANCE §1.12 (Apple 5.3.1/5.3.2, Google §2.9) requires official rules stating the sponsor and that
+Apple and Google are not involved; building them from data means no event with prizes can lack them. FR-1707 wants a
+rules page per event, which T-110 and T-113 left here.

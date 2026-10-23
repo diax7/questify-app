@@ -131,6 +131,5 @@ Built: the place stays, the prize is held at the desk and the owner may cancel i
 player. Should it pass down instead?
 
 ## Q-130 — Rank prize limits and the claim deadline (2026-10-23, T-214)
-ADR-162 allows ranks 1–100, item and experience prizes only (no digital codes), and sets the claim deadline to the
-desk's last closing time (or the shop's closing when the desk has no hours). Agree, or should the organizer set the
-deadline?
+ADR-162 allows ranks 1–100, item and experience prizes only (no digital codes), and lets the owner pick the claim
+deadline at the reveal (default: the desk's last closing, or the shop's closing; 1 hour to 60 days). Agree?
