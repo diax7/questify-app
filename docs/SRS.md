@@ -954,7 +954,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-221 | F-02 | Must | pending |
 | FR-222 | F-52 | Must | pending |
 | FR-223 | F-52 | Must | pending |
-| FR-224 | F-90 | Must | pending |
+| FR-224 | F-90 | Must | `test/db/passport.int`, `test/plays/passport.int`, `apps/app/src/event/passport.test.ts`, `e2e/passport.spec` (T-304b) |
 | FR-225 | F-91 | Must | pending |
 | FR-226 | F-91 | Must | pending |
 | FR-227 | F-92 | Must | pending |

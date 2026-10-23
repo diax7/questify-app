@@ -314,6 +314,15 @@ submission is not done). A quest is done with a completion or a quiz finished wi
 entry_id → ledger_entry, created_at)`, PK (enrollment_id, category_id): one per player and category, written by
 `pay_category_bonus` (ON CONFLICT DO NOTHING, under the enrollment lock of the paying definer), never deleted by a
 removal; deleted by the rehearsal wipe and on account erasure. No grant.
+Passport quests (T-304b, migration 0045, ADR-203): `type = 'passport'`, `type_config = {needed: 1..30}`,
+`repeat_cap = 1`. `passport_step (id, organizer_id, event_id, quest_id, name_ar, name_en, position, qr_version,
+created_at)`: 1 to 30 per passport, written by the team under row-level security (column grants as quests; the
+organizer comes from the event), each with its own signed code (format 0x04). A deferred check keeps at least `needed`
+steps; once stamped, `needed` never falls and a stamped step stays (`quest_lock_passport`, the stamp's RESTRICT key).
+`passport_stamp (organizer_id, event_id, enrollment_id, quest_id, step_id, idempotency_key, device_id, completion_id,
+created_at)`, PK (enrollment_id, step_id): written only by `stamp_step`; `completion_id` is set on the stamp that paid
+the passport (`pay_completion` with the key `pass:{quest id}`, method `passport`). Deleted by the rehearsal wipe and on
+account erasure. No grant.
 `type_config` is validated per quest type by the shared schema. Editing a live quest asks
 "future only or also past" (ADR-063) and writes the audit log.
 
@@ -527,7 +536,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
-| item, player_item, achievement, player_achievement, passport_stamp, streak | Questify layer collectibles and progress | Linked to player |
+| item, player_item, achievement, player_achievement, event_stamp, streak | Questify layer collectibles and progress | Linked to player |
 | minigame_round | Seed, issue time, replayed inputs, result | Linked to player |
 | daily_word, word_bank | Daily word and valid guesses per language (ADR-097) | No |
 | announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
@@ -563,7 +572,8 @@ secret or contact detail (refused in code, which rolls back the change too).
   and many ledger entries.
 - A completion belongs to exactly one enrollment and one quest.
 - A reward has many redemptions; a redemption belongs to one enrollment.
-- XP, gems, items, achievements and passport stamps belong to the **player**, not the enrollment, so
+- XP, gems, items, achievements and Event Passport stamps (`event_stamp`; a passport quest's step stamp is
+  `passport_stamp`, T-304b) belong to the **player**, not the enrollment, so
   they follow the player across events (ADR-044).
 - Staff users belong to organizers through memberships; operators are players with an assignment.
 

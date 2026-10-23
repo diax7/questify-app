@@ -156,3 +156,19 @@ steps in this task (Q-167).
 CTO 84. Folded in: step binding (`wrong_step`), the fixed `pass:{quest}` key and the prefix reserved everywhere, the
 database triggers, `QT422` for a non-passport, the `≥ needed` check, the paying replay, the cleanup paths, the check
 order, the device id, the named `old` test. Re-check owed.
+
+## Build notes (2026-10-24)
+
+- Plan re-check 93 GO. Its fold-in: the step-count check is a **deferred constraint trigger** (at commit), not a
+  guard with a local setting. A quest's or category's delete removes the steps first and the check passes because the
+  quest is gone; a draft event's cascade passes the same way. A test deletes a visible passport with steps and no
+  stamps.
+- The builder takes a passport's steps inside the quest's create and edit (`steps`, the full list) instead of separate
+  step routes: one transaction, so the deferred check sees the whole change. Regenerating a step's code has its own
+  route (`POST …/steps/{stepId}/qr/regenerate`).
+- A stamp on a step whose quest is not a passport answers `422 not_passport_quest` (the plays' pattern), not
+  `invalid_quest` (a builder error).
+- `stamp_step` also returns `points` (the paying stamp's, read back on a replay), so the API answers with the plays'
+  `paidOf`. The HTTP replay of a paying stamp comes from the idempotency store; the database replay is tested apart.
+- The quests read and the scanner: a step's code (format 0x04) goes to the stamp route; a stamp that does not finish
+  the passport shows "Stamped: {done} of {needed}". The web `/q/{token}` page needed no change (shape only).
