@@ -2251,3 +2251,31 @@ trigger change: the after-scan write, the repair job and the backstop each keep 
 `{event}/{day}`), so the day start empties the board with nothing to delete.
 **Why:** reading the append-only ledger keeps the points core untouched and leaves one source of truth; a key per day
 gives the reset for free and reuses the whole Redis store, its rebuilds and its PostgreSQL fallback.
+
+## ADR-167 — A declined join request is a status of its own
+**Status:** Proposed (Claude, 2026-10-23; T-218; Q-133 asks Dhia).
+**Decision:** declining a Private event's join request sets the enrollment to a new status `declined`: no seat, not
+ranked, cannot score. The player sees "Your request was declined" and cannot ask again, unless the organizer puts
+them on the guest list (then they go in as an invited person). The owner or an editor can still accept a declined
+request later. Accept and decline are audited with the enrollment id only.
+**Why:** a separate status keeps the decision visible to both sides and stops repeat requests from reaching the
+queue, without reusing `removed` (an organizer's sanction) or `left` (the player's own choice).
+
+## ADR-168 — Seats count accepted players; the waiting list is a flagged pending join
+**Status:** Proposed (Claude, 2026-10-23; T-218; amends ADR-141; Q-134 asks Dhia).
+**Decision:** a seat under the player limit is an `active` or `banned` enrollment (FR-1821: accepted players only);
+`pending` and `declined` take none, and the limit is checked on every move into `active`, so accepting a request
+can be refused as full while asking never is. A hard-limited event at its limit answers a join with `full`; the
+player may then join the waiting list, which is the same join with `waitlist: true` making a `pending` enrollment
+with `waitlisted = true`. Releasing someone is accepting them, oldest first. The limit itself stays Questify's
+(console, ADR-141) until an owner ceiling exists.
+**Why:** one pending state with one accept path serves both requests and the waiting list, so there is one
+definer, one audit action and one seat check; counting pending rows would let unanswered requests fill the event.
+
+## ADR-169 — Changing an event's access type keeps everyone where they are
+**Status:** Proposed (Claude, 2026-10-23; T-218; Q-135 asks Dhia).
+**Decision:** the owner or an editor changes the access type on the event form at any time, after a confirmation
+that names the effect. Members keep their status; pending requests stay pending after a switch to Public or
+Unlisted, and the owner still accepts or declines them (the queue shows while any exist).
+**Why:** FR-1820 keeps every current player; letting waiting requests in automatically on a switch would admit
+people the owner never looked at.

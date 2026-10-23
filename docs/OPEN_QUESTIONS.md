@@ -144,3 +144,17 @@ contest's official rules in Saudi Arabia and for Apple 5.3 (with Q-040).
 ADR-166 shows today's ranking only while a multi-day event is live (not before the start or after the end), turns it
 on by default for every multi-day event, and counts every points change of the day (a removal or a rank-lowering
 spend today lowers today's points, even for points earned earlier; welcome points given today count toward today too). Agree, or should it count only points earned from quests?
+
+## Q-133 — A declined request: final, or may the player ask again? (2026-10-23, T-218)
+ADR-167 makes a decline final for that event (the player sees it was declined and cannot ask again) unless the
+organizer lists them as a guest or accepts the declined request later. Agree, or should a declined player be able to
+ask again (for example after a day)?
+
+## Q-134 — Can an owner raise the player limit? (2026-10-23, T-218)
+FR-1821 lets "the owner (within the limit Questify set)" raise the limit, but no owner ceiling exists: the limit is
+set only by Questify (ADR-141). ADR-168 keeps it that way for now: the owner releases people from the waiting list,
+Questify raises the limit. Should Questify set a ceiling per event (or per plan) up to which the owner may raise it?
+
+## Q-135 — Pending requests after a switch away from Private (2026-10-23, T-218)
+ADR-169 leaves pending requests pending when a Private event becomes Public or Unlisted, for the owner to decide.
+Agree, or should the switch accept every waiting request at once (the confirmation would say so)?
