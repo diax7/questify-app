@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language, QuestType } from "@questify/shared";
+import type { Language, MessageKey, QuestType } from "@questify/shared";
 import type { ReactNode } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
@@ -64,6 +64,33 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
 }
 
 /**
+ * A submission quest (T-301): text only for now (FR-1006; photos are T-301b), approved by the team or at once, and
+ * whether a rejected player may send again (FR-1709).
+ */
+function SubmissionFields({ language, config, disabled, change }: TypeFieldProps) {
+  const t = translatorFor(language);
+  const toggle = (name: "autoApprove" | "resubmit", label: MessageKey) => (
+    <label className={styles.check}>
+      <input
+        type="checkbox"
+        checked={config[name] === true}
+        disabled={disabled}
+        onChange={(event) => change({ ...config, accepts: ["text"], [name]: event.target.checked })}
+      />
+      {t(label)}
+    </label>
+  );
+  return (
+    <>
+      <p className={styles.muted}>{t("quests.submission.textOnly")}</p>
+      {toggle("autoApprove", "quests.submission.autoApprove")}
+      <p className={styles.muted}>{t("quests.submission.autoApproveHint")}</p>
+      {toggle("resubmit", "quests.submission.resubmit")}
+    </>
+  );
+}
+
+/**
  * The form fields each quest type adds (FR-1505). Typed by the registry's keys, so a type added to the registry
  * without its fields here fails the type check.
  */
@@ -71,4 +98,5 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
   {
     scan_qr: ScanQrFields,
     enter_code: EnterCodeFields,
+    submission: SubmissionFields,
   };

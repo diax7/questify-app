@@ -147,7 +147,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("categories and quests (databas
     it.each([
       [
         "a type the app does not ship",
-        "INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'submission', 'x', 1)",
+        "INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'vote', 'x', 1)",
       ],
       [
         "no title",

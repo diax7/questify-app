@@ -12,6 +12,7 @@ import {
   notFound,
   orderStale,
   rehearsalData,
+  submissionKindUnavailable,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
@@ -121,6 +122,8 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
       throw hasCompletions();
     case "rehearsal_data":
       throw rehearsalData();
+    case "submission_kind_unavailable":
+      throw submissionKindUnavailable({ asked: result.asked });
   }
 }
 

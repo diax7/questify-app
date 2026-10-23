@@ -38,6 +38,8 @@ export type Home = Readonly<{
         status: "active";
         score: number;
         balance: number;
+        /** Points waiting on the team's review (FR-409); 0 from a server before T-301. */
+        pendingPoints: number;
         questsDone: number;
         questsTotal: number;
       }>
@@ -83,9 +85,18 @@ function readStanding(value: unknown): Home["standing"] | undefined {
     return { status: "declined" };
   }
   const numbers = ["score", "balance", "questsDone", "questsTotal"] as const;
-  return value["status"] === "active" && numbers.every((key) => typeof value[key] === "number")
-    ? (value as Home["standing"])
-    : undefined;
+  if (value["status"] !== "active" || !numbers.every((key) => typeof value[key] === "number")) {
+    return undefined;
+  }
+  const pending = value["pendingPoints"];
+  return {
+    status: "active",
+    score: value["score"] as number,
+    balance: value["balance"] as number,
+    pendingPoints: typeof pending === "number" && pending > 0 ? pending : 0,
+    questsDone: value["questsDone"] as number,
+    questsTotal: value["questsTotal"] as number,
+  };
 }
 
 function readUpNext(value: unknown): Home["upNext"] | undefined {

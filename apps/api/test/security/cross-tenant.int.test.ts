@@ -834,6 +834,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide curve; no right for the API role, read inside the XP definers (test/db/xp)",
   level_title:
     "platform-wide titles; no right for the API role, read through own_level (test/db/xp)",
+  submission:
+    "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

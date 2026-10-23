@@ -951,3 +951,63 @@ export const handoverPending = make(
   "لديك جوائز لم تستلمها بعد. وافق على التنازل عنها لحذف الحساب.",
   "You have prizes not collected yet. Agree to give them up to delete the account.",
 );
+export const guidelinesRequired = make(
+  403,
+  "guidelines_required",
+  "اقرأ إرشادات المجتمع ووافق عليها قبل أول مشاركة.",
+  "Read and accept the community guidelines before your first submission.",
+);
+export const notSubmissionQuest = make(
+  422,
+  "not_submission_quest",
+  "هذه المهمة لا تستقبل مشاركات.",
+  "This quest does not take submissions.",
+);
+export const submissionText = make(
+  422,
+  "submission_text",
+  "اكتب نصًا من 1 إلى 1000 حرف بلا رموز خفية.",
+  "Write 1 to 1000 characters, with no hidden characters.",
+);
+export const submissionPending = make(
+  409,
+  "submission_pending",
+  "مشاركتك السابقة في هذه المهمة بانتظار المراجعة.",
+  "Your earlier submission for this quest is still waiting for review.",
+);
+export const submissionClosed = make(
+  409,
+  "submission_closed",
+  "رُفضت مشاركتك، ولا تقبل هذه المهمة مشاركة أخرى.",
+  "Your submission was rejected and this quest does not take another one.",
+);
+export const submissionKindUnavailable = make(
+  422,
+  "submission_kind_unavailable",
+  "إرسال الصور أو الفيديو غير متاح بعد. المتاح الآن هو النص.",
+  "Photo and video submissions are not available yet. Text is available now.",
+);
+export const alreadyReviewed = make(
+  409,
+  "already_reviewed",
+  "راجع أحد أعضاء الفريق هذه المشاركة من قبل.",
+  "Someone on the team already reviewed this submission.",
+);
+export const notApprovable = make(
+  409,
+  "not_approvable",
+  "لا يمكن قبول هذه المشاركة الآن: اللاعب غادر الفعالية أو أُغلقت الفعالية.",
+  "This submission can't be approved now: the player left or the event is closed.",
+);
+export const selfReview = make(
+  403,
+  "self_review",
+  "لا يمكنك مراجعة مشاركتك.",
+  "You cannot review your own submission.",
+);
+export const notApproved = make(
+  409,
+  "not_approved",
+  "يمكن إزالة المشاركات المقبولة فقط.",
+  "Only an approved submission can be removed.",
+);

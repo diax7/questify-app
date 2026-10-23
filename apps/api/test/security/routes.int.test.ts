@@ -297,6 +297,22 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; matches only that event's members (test/awards/routes, test/db/awards)",
   "POST /v1/organizers/:organizerId/events/:eventId/bulk-awards":
     "members inside their event limit; ids outside the event are skipped; an editor inside the per-award cap (test/awards/routes, test/db/awards)",
+  "POST /v1/quests/:questId/submit":
+    "the calling player's own active enrollment in the quest's event only; guidelines, cap and one pending checked by submit_quest (test/submissions/routes, test/db/submissions)",
+  "GET /v1/events/:eventId/submissions/mine":
+    "the calling player's own submissions only, through own_submissions; never another player's (test/submissions/routes, test/db/submissions)",
+  "GET /v1/operator/events/:eventId/submissions":
+    "only an operator of that event with the review ability; pending ones inside their quest limit, never their own (test/submissions/routes, test/db/submissions)",
+  "POST /v1/operator/events/:eventId/submissions/:submissionId/review":
+    "only an operator of that event with the review ability, inside their quest limit, never their own (test/submissions/routes, test/db/submissions)",
+  "GET /v1/organizers/:organizerId/events/:eventId/submissions":
+    "members inside their event limit, through event_submissions (test/submissions/routes, test/db/submissions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/submissions/:submissionId/review":
+    "members inside their event limit; only a submission of that event, once (test/submissions/routes, test/db/submissions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/submissions/:submissionId/remove":
+    "members inside their event limit; only an approved submission of that event, through remove_award (test/submissions/routes, test/db/submissions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/submissions/seen":
+    "members inside their event limit; only that event's submissions are marked (test/submissions/routes, test/db/submissions)",
   "POST /v1/operator/scan":
     "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":

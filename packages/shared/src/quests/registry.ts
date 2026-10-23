@@ -40,7 +40,42 @@ export const QUEST_TYPES = {
       hint: bilingualHint,
     }),
   },
+  /**
+   * The player sends text; the team reviews it, or it is approved at once (T-301, ADR-184). Photos are T-301b and
+   * video is never in v1 (FR-1006): `accepts` holds text only, and `unavailableSubmissionKind` names what was asked for.
+   */
+  submission: {
+    label: "quests.type.submission",
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      accepts: z.tuple([z.literal("text")]).default(["text"]),
+      autoApprove: z.boolean().default(false),
+      resubmit: z.boolean().default(false),
+    }),
+  },
 } as const;
+
+/** The longest text a player may send for a submission quest (Q-150). */
+export const SUBMISSION_TEXT_MAX = 1000;
+
+/**
+ * The submission kind a config asks for that this version cannot take (FR-1006): `video` (never in v1) or `photo`
+ * (T-301b); undefined when it asks for neither.
+ */
+export function unavailableSubmissionKind(config: unknown): "photo" | "video" | undefined {
+  const accepts =
+    typeof config === "object" && config !== null
+      ? (config as { accepts?: unknown }).accepts
+      : undefined;
+  if (!Array.isArray(accepts)) {
+    return undefined;
+  }
+  if (accepts.includes("video")) {
+    return "video";
+  }
+  return accepts.includes("photo") ? "photo" : undefined;
+}
 
 export type QuestType = keyof typeof QUEST_TYPES;
 

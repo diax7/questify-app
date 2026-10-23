@@ -234,6 +234,7 @@ export default function QuestsScreen() {
           timeZone={answer.view.event.timezone}
           onClose={closeSheet}
           onCompleted={completed}
+          onSent={() => void load()}
         />
       ) : null}
     </Screen>

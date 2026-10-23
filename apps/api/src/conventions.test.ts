@@ -293,12 +293,15 @@ describe("idempotency key", () => {
     expect(calls).toBe(2);
   });
 
-  it.each(["", "x".repeat(256), "has space", "tab\there"])("rejects the key %j", async (key) => {
-    app = await build();
-    const response = await post("/pay", { "idempotency-key": key }, {});
-    expect(response.statusCode).toBe(400);
-    expect(response.json().code).toBe("idempotency_key_invalid");
-  });
+  it.each(["", "x".repeat(256), "has space", "tab\there", "sub:12"])(
+    "rejects the key %j",
+    async (key) => {
+      app = await build();
+      const response = await post("/pay", { "idempotency-key": key }, {});
+      expect(response.statusCode).toBe(400);
+      expect(response.json().code).toBe("idempotency_key_invalid");
+    },
+  );
 });
 
 const BILINGUAL = { ar: expect.stringMatching(/\S/), en: expect.stringMatching(/\S/) };

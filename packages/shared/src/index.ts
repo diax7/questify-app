@@ -101,6 +101,8 @@ export {
   parseVerification,
   QUEST_CODE_HOSTS,
   parseQuestConfig,
+  SUBMISSION_TEXT_MAX,
+  unavailableSubmissionKind,
 } from "./quests/registry";
 export type { Avatar } from "./players/avatars";
 export { AVATARS } from "./players/avatars";

@@ -2416,7 +2416,7 @@ sent. Approval re-checks only the player (active) and the event (live or ended),
 (`method = 'submission'`, key `'sub:' || id`) and `quest` ledger entry (score always; balance only while the shop window
 is open, FR-1710); rejection writes nothing. Auto-approve does both in the submit call. XP follows by ADR-179. A player
 leaving the event (ban, removal, leave, deletion) closes their pending submissions with a system reason. One removal
-path: `remove_award` marks the linked submission removed.
+path: `remove_award` marks the linked submission removed. The `sub:` key prefix is reserved (refused at the API and in SQL), and a reviewer's own key is unique per reviewer and event.
 **Why:** score, balance, ranking, flags and XP need no new path, and the ledger never holds points that did not move.
 
 ## ADR-185 — Photos are uploaded through the API and re-encoded (T-301b)

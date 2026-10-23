@@ -307,11 +307,11 @@ its own field T-603). Show or hide is `visible`, not a status.
 
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the
-quest's cap), method (qr|code; later tasks add my_qr, nfc, manual, submission…), idempotency_key, device_id, created_at`.
+quest's cap), method (qr|code|my_qr|manual|submission; later tasks add nfc…), idempotency_key, device_id, created_at`.
 **Unique (enrollment_id, quest_id, occurrence)** (one row per time a player completed a quest) and **unique
 (enrollment_id, idempotency_key)** (a retry finds the first completion). Composite foreign keys keep the event, the
 enrollment and the quest of one tenant; all RESTRICT. `device_id` (an app install id, personal data) lives here, not on
-the ledger, so account deletion can clear it. Pending and approved states arrive with submissions (T-301).
+the ledger, so account deletion can clear it. Pending submissions live on `submission`, outside this table, until approved (T-301).
 
 ### ledger_entry (event layer; append-only)
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, kind (quest; then welcome, redeem, redeem_return, handover; award and removal since T-207), score_delta, balance_delta,
@@ -430,9 +430,24 @@ ADR-151):
   `event_rules(event)` (active members) return the data the API's fixed block is written from (ADR-165).
 
 ### submission
-`id, completion_id, kind photo|text|video_later, media_key, text, review_status, reviewer, note`.
-**PII:** photos and free text may show people; no AI moderation (ADR-071); reports and takedown per
-PD-29.
+**Built (T-301, migration 0040, ADR-184):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, kind (text;
+photo is T-301b), body (1–1000 characters, NFC, trimmed), points (fixed when sent), status
+pending|approved|rejected|removed, auto, marked (word-list hit, FR-1628), reason, reason_system (closed by the system:
+the player left, code `left_event`), reviewed_by_staff | reviewed_by_operator, review_key, reviewed_at, seen_at,
+removed_at, completion_id → quest_completion, idempotency_key, erased_at, created_at`. One pending per (enrollment,
+quest); unique (enrollment, idempotency_key); a reviewer's `review_key` unique per reviewer and event. A pending
+submission is **not** in the ledger: approval writes the ordinary `quest_completion` (method `submission`, key
+`sub:<id>`, reserved: no caller can use the prefix) and `quest` entry, so score, balance (only while the shop is open,
+FR-1710), ranking and XP follow; rejection writes nothing. A member who stops being active has their pending ones
+rejected by a trigger on `enrollment`; account deletion clears `body` and reviewer reasons (`erased_at`); the rehearsal
+wipe deletes them. A reviewer's approval neither raises nor counts toward a burst flag (an auto-approved one does).
+`remove_award` on a submission's quest entry marks it removed (one removal path). No grant: `submit_quest`,
+`own_submissions`, `event_submissions`, `operator_submissions`, `staff_review_submission`,
+`operator_review_submission`, `remove_submission`, `mark_submissions_seen` and `submitters_of` (the quest builder's
+delete guard). Quest `type` gains `submission` with `type_config {accepts: ["text"], autoApprove, resubmit}` (CHECKed:
+text only).
+**PII:** free text may name people; no AI moderation (ADR-071); visible only to the player and the event's team
+(FR-205).
 
 ### flag, ticket, audit_log
 `flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst, device_id (shared_device only),

@@ -1,4 +1,10 @@
-import { parseQuestConfig, parseVerification, toInstant, type QuestType } from "@questify/shared";
+import {
+  parseQuestConfig,
+  parseVerification,
+  toInstant,
+  unavailableSubmissionKind,
+  type QuestType,
+} from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { recordAudit } from "#src/audit/record";
 import type { Caller } from "#src/auth/sign-in";
@@ -60,7 +66,9 @@ export type Refused =
   /** Players completed it: its points are history (T-105); hide it instead, until T-604 offers keep or remove. */
   | Readonly<{ kind: "has_completions" }>
   /** Only rehearsal accounts completed it: erase the rehearsal first (T-211). */
-  | Readonly<{ kind: "rehearsal_data" }>;
+  | Readonly<{ kind: "rehearsal_data" }>
+  /** A submission quest asked for photos (T-301b) or video (never in v1, FR-1006). */
+  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -122,7 +130,14 @@ export function mergeQuest(
   type: QuestType,
   input: QuestInput,
   timeZone: string,
-): QuestFields | Readonly<{ kind: "invalid"; field: QuestField }> {
+):
+  | QuestFields
+  | Readonly<{ kind: "invalid"; field: QuestField }>
+  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }> {
+  const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
+  if (asked !== undefined) {
+    return { kind: "submission_kind_unavailable", asked };
+  }
   const title = bilingual(input.title, current?.title ?? NO_TEXT);
   if (title.ar === null && title.en === null) {
     return { kind: "invalid", field: "title" };
@@ -167,7 +182,9 @@ export function mergeQuest(
 
 export const isInvalid = (
   value: object,
-): value is Readonly<{ kind: "invalid"; field: QuestField }> => "kind" in value;
+): value is
+  | Readonly<{ kind: "invalid"; field: QuestField }>
+  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }> => "kind" in value;
 
 /**
  * What an audit entry keeps of a quest. An entry code is a secret, and the audit refuses any `code` key: the entry
@@ -264,7 +281,7 @@ export async function withEvent<T>(
     // Stryker restore all
     // A player completed the quest between the check and the delete: its points are history (migration 0012).
     const pg = error as { code?: string; table?: string };
-    if (pg.code === "23503" && pg.table === "quest_completion") {
+    if (pg.code === "23503" && (pg.table === "quest_completion" || pg.table === "submission")) {
       return { kind: "has_completions" };
     }
     throw error;
@@ -335,25 +352,26 @@ export function readBuilder(
 }
 
 /**
- * Who completed any of these quests: `real` when a player did (their points are history, migration 0012), `rehearsal`
- * when only rehearsal accounts did (erased with the rehearsal, T-211), `none` otherwise.
+ * Who completed any of these quests, or sent a submission for one: `real` when a player did (their points are history,
+ * migration 0012; a submission is kept with its review, migration 0040), `rehearsal` when only rehearsal accounts did
+ * (erased with the rehearsal, T-211), `none` otherwise.
  */
 export async function completionsOf(
   client: PoolClient,
   where: Readonly<{ questId: string } | { categoryId: string }>,
 ): Promise<"none" | "rehearsal" | "real"> {
-  const filter =
+  const quests =
     "questId" in where
-      ? { sql: "c.quest_id = $1", value: where.questId }
-      : {
-          sql: "c.quest_id IN (SELECT q.id FROM quest q WHERE q.category_id = $1)",
-          value: where.categoryId,
-        };
+      ? { sql: "q.id = $1", value: where.questId }
+      : { sql: "q.category_id = $1", value: where.categoryId };
   const { rows } = await client.query<{ real: boolean | null }>(
-    `SELECT bool_or(n.joined_via IS DISTINCT FROM 'rehearsal') AS real
-     FROM quest_completion c JOIN enrollment n ON n.id = c.enrollment_id
-     WHERE ${filter.sql}`,
-    [filter.value],
+    `WITH chosen AS (SELECT q.id FROM quest q WHERE ${quests.sql})
+     SELECT bool_or(n.joined_via IS DISTINCT FROM 'rehearsal') AS real
+     FROM (SELECT c.enrollment_id FROM quest_completion c WHERE c.quest_id IN (SELECT id FROM chosen)
+           UNION ALL
+           SELECT s.enrollment_id FROM submitters_of(ARRAY(SELECT id FROM chosen)) s) c
+     JOIN enrollment n ON n.id = c.enrollment_id`,
+    [quests.value],
   );
   const real = rows[0]?.real ?? null;
   return real === null ? "none" : real ? "real" : "rehearsal";

@@ -999,6 +999,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "redemption.result_place",
         // A rehearsal entry never pays XP (T-401, ledger_xp skips it), so no XP row points at what the wipe deletes.
         "ledger_entry.xp_entry",
+        // Submissions are deleted before the completions they point at (T-301).
+        "enrollment.submission",
+        "quest_completion.submission",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

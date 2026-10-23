@@ -7,6 +7,7 @@ import {
   QUEST_TYPE_NAMES,
   isQuestType,
   parseQuestConfig,
+  unavailableSubmissionKind,
 } from "#src/quests/registry";
 
 describe("the quest-type registry", () => {
@@ -24,10 +25,38 @@ describe("the quest-type registry", () => {
   });
 
   it("knows its own types and nothing else", () => {
-    expect(QUEST_TYPE_NAMES).toEqual(["scan_qr", "enter_code"]);
+    expect(QUEST_TYPE_NAMES).toEqual(["scan_qr", "enter_code", "submission"]);
     expect(isQuestType("scan_qr")).toBe(true);
-    expect(isQuestType("submission")).toBe(false);
+    expect(isQuestType("submission")).toBe(true);
+    expect(isQuestType("photo")).toBe(false);
     expect(isQuestType("toString")).toBe(false);
+  });
+});
+
+describe("submission quests", () => {
+  it("default to text, reviewed, no resubmission", () => {
+    expect(parseQuestConfig("submission", {})).toEqual({
+      accepts: ["text"],
+      autoApprove: false,
+      resubmit: false,
+    });
+    expect(parseQuestConfig("submission", { autoApprove: true, resubmit: true })).toMatchObject({
+      autoApprove: true,
+      resubmit: true,
+    });
+  });
+
+  it("refuse photo and video, and name which one was asked for", () => {
+    expect(parseQuestConfig("submission", { accepts: ["photo"] })).toBeUndefined();
+    expect(parseQuestConfig("submission", { accepts: ["text", "video"] })).toBeUndefined();
+    expect(parseQuestConfig("submission", { accepts: [] })).toBeUndefined();
+    expect(unavailableSubmissionKind({ accepts: ["text", "video"] })).toBe("video");
+    expect(unavailableSubmissionKind({ accepts: ["photo", "video"] })).toBe("video");
+    expect(unavailableSubmissionKind({ accepts: ["photo"] })).toBe("photo");
+    expect(unavailableSubmissionKind({ accepts: ["text"] })).toBeUndefined();
+    expect(unavailableSubmissionKind({ accepts: "photo" })).toBeUndefined();
+    expect(unavailableSubmissionKind(null)).toBeUndefined();
+    expect(unavailableSubmissionKind("x")).toBeUndefined();
   });
 });
 

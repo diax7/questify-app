@@ -20,7 +20,8 @@ const LATER: readonly MessageKey[] = [
 ];
 
 /**
- * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); the switch to
+ * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); Review
+ * submissions with the `review` ability (T-301); the switch to
  * Player mode, shown only to an operator the owner allows to play (FR-906, FR-907); the other tools are listed as coming.
  */
 export default function OperatorToolsScreen() {
@@ -53,6 +54,12 @@ export default function OperatorToolsScreen() {
           <Button
             label={t("operator.award.title")}
             onPress={() => router.push(`/operator/${eventId}/award`)}
+          />
+        ) : null}
+        {event?.abilities.includes("review") === true ? (
+          <Button
+            label={t("operators.ability.review")}
+            onPress={() => router.push(`/operator/${eventId}/review`)}
           />
         ) : null}
         {event?.canPlay === true ? (

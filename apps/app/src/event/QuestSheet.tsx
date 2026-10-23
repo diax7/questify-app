@@ -16,6 +16,7 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { completedText } from "#src/event/amount.ts";
+import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import {
   completeQuest,
@@ -148,6 +149,9 @@ function Verification({
   if (quest.type === "enter_code") {
     return <CodeEntry quest={quest} onDone={onDone} />;
   }
+  if (quest.type === "submission") {
+    return null;
+  }
   const staff = quest.verification.includes("my_qr");
   // T-205: a quest staff verify shows My QR; with no printed code it offers nothing else.
   const showMyQr = staff ? (
@@ -189,11 +193,14 @@ export function QuestSheet({
   timeZone,
   onClose,
   onCompleted,
+  onSent = () => undefined,
 }: Readonly<{
   quest: Quest | undefined;
   timeZone: string;
   onClose: () => void;
   onCompleted: (answer: CompletionAnswer) => void;
+  /** A submission was sent: the list behind the sheet reloads (its points or its pending state). */
+  onSent?: () => void;
 }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
@@ -226,7 +233,11 @@ export function QuestSheet({
       {when(quest.closesAt, "quests.closes")}
       {line === null ? null : <AppText variant="label">{t(line)}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
-      <Verification key={quest.id} quest={quest} onDone={done} />
+      {quest.type === "submission" ? (
+        <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />
+      ) : (
+        <Verification key={quest.id} quest={quest} onDone={done} />
+      )}
     </Sheet>
   );
 }

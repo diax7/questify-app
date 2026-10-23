@@ -934,9 +934,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-201 | F-03 | Must | pending |
 | FR-202 | F-03, F-92 | Must | pending |
 | FR-203 | F-04 | Must | pending |
-| FR-204 | F-05 | Must | pending |
-| FR-205 | F-05 | Must | pending |
-| FR-206 | F-05 | Must | pending |
+| FR-204 | F-05 | Must | pending (T-301b: photos) |
+| FR-205 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
+| FR-206 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/submissions.test.ts` (T-301) |
 | FR-207 | F-06 | Must | pending |
 | FR-208 | F-07 | Must | pending |
 | FR-209 | F-07 | Must | pending |
@@ -1008,11 +1008,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-321 | F-117 | Must | pending |
 | FR-322 | F-113 | Must | pending |
 | FR-323 | F-113 | Must | pending |
-| FR-324 | F-119 | Must | pending |
-| FR-325 | F-119 | Must | pending |
-| FR-326 | F-119 | Must | pending |
-| FR-327 | F-120 | Should | pending |
-| FR-328 | F-120 | Should | pending |
+| FR-324 | F-119 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/operator/review.test.ts`, `e2e/submissions.spec` (T-301) |
+| FR-325 | F-119 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `e2e/submissions.spec` (T-301) |
+| FR-326 | F-119 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
+| FR-327 | F-120 | Should | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
+| FR-328 | F-120 | Should | `test/db/submissions.int`, `test/submissions/routes.int`, `e2e/submissions.spec` (T-301) |
 | FR-329 | F-114, F-115 | Should | pending |
 | FR-330 | F-114 | Should | pending |
 | FR-331 | F-114 | Should | pending |
@@ -1032,7 +1032,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-406 | F-56 | Must | pending |
 | FR-407 | F-11 | Must | pending |
 | FR-408 | F-11 | Must | pending |
-| FR-409 | F-122 | Must | pending |
+| FR-409 | F-122 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/event.test.ts` (T-301) |
 | FR-410 | F-60 | Must | pending |
 | FR-411 | F-123 | Must | pending |
 | FR-412 | F-123 | Must | pending |
@@ -1175,7 +1175,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1003 | F-20, F-196 | Must | pending |
 | FR-1004 | F-21 | Must | pending |
 | FR-1005 | F-21 | Must | pending |
-| FR-1006 | F-21 | Must | pending |
+| FR-1006 | F-21 | Must | `packages/shared/src/quests/registry.test.ts`, `test/db/submissions.int`, `test/submissions/routes.int` (T-301; photos T-301b) |
 | FR-1007 | F-21, F-196 | Must | pending |
 | FR-1008 | F-68 | Must | pending |
 | FR-1009 | F-25 | Must | pending |
@@ -1291,18 +1291,18 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1624 | F-209 | Should | pending |
 | FR-1625 | F-65 | Must | pending |
 | FR-1626 | F-214 | Should | pending |
-| FR-1628 | F-221 | Must | pending |
-| FR-1629 | F-06 | Must | pending |
+| FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301; help desk later) |
+| FR-1629 | F-06 | Must | pending (T-302) |
 | FR-1701 | F-228 | Must | pending |
 | FR-1702 | F-228, F-262 | Must | pending |
 | FR-1703 | F-229 | Must | pending |
 | FR-1704 | F-231 | Must | pending |
 | FR-1705 | F-232 | Must | pending |
-| FR-1706 | F-232 | Must | pending |
+| FR-1706 | F-232 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
 | FR-1707 | F-232, F-259, F-153 | Must | pending |
 | FR-1708 | F-233 | Should | pending |
-| FR-1709 | F-234 | Should | pending |
-| FR-1710 | F-234, F-142 | Should | pending |
+| FR-1709 | F-234 | Should | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/submissions.test.ts` (T-301) |
+| FR-1710 | F-234, F-142 | Should | `test/db/submissions.int` (T-301) |
 | FR-1711 | F-236 | Must | pending |
 | FR-1712 | F-237 | Must | pending |
 | FR-1713 | F-238 | Must | pending |

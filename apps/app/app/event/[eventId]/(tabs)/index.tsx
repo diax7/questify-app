@@ -195,7 +195,7 @@ function Standing({ home }: Readonly<{ home: Home }>) {
       </View>
     );
   }
-  const { score, balance, questsDone, questsTotal } = home.standing;
+  const { score, balance, pendingPoints, questsDone, questsTotal } = home.standing;
   const eventId = home.event.id;
   return (
     <View style={styles.card}>
@@ -210,6 +210,11 @@ function Standing({ home }: Readonly<{ home: Home }>) {
         <AppText style={styles.grow}>{t("eventHome.balance")}</AppText>
         <Counter id={`${eventId}:balance`} value={balance} />
       </View>
+      {pendingPoints > 0 ? (
+        <AppText muted>
+          {t("eventHome.pendingPoints", { points: formatNumber(pendingPoints, language) })}
+        </AppText>
+      ) : null}
       <AppText muted>{t("eventHome.progress", { done: questsDone, total: questsTotal })}</AppText>
     </View>
   );

@@ -4,6 +4,7 @@ import { withRequestContext } from "#src/db/context";
 import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
 import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
+import { pendingPoints, readOwnSubmissions } from "#src/submissions/submissions";
 
 export type HomeDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
 
@@ -50,6 +51,8 @@ export type Home = Readonly<{
         status: "active";
         score: number;
         balance: number;
+        /** Points waiting on the team's review, shown apart from the balance (FR-409, T-301). */
+        pendingPoints: number;
         questsDone: number;
         questsTotal: number;
       }>
@@ -330,6 +333,7 @@ export async function readHome(
         status: "active" as const,
         score: Number(row.score),
         balance,
+        pendingPoints: pendingPoints(await readOwnSubmissions(client, eventId)),
         questsDone: quests.filter(finished).length,
         questsTotal: quests.length,
       },

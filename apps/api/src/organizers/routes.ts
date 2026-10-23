@@ -26,6 +26,7 @@ import type { Events } from "#src/events/events";
 import { registerEventRoutes } from "#src/events/routes";
 import { registerJoinSetupRoutes } from "#src/join/setup-routes";
 import { registerAwardRoutes } from "#src/awards/routes";
+import { registerSubmissionTeamRoutes } from "#src/submissions/routes";
 import { registerFlagRoutes } from "#src/flags/routes";
 import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
@@ -220,6 +221,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
+      registerSubmissionTeamRoutes(scope, { pool: deps.pool });
       registerFlagRoutes(scope, { pool: deps.pool });
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);

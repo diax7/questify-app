@@ -536,6 +536,7 @@ export const MESSAGES = {
   },
   "quests.type.scanQr": { ar: "مسح رمز QR", en: "Scan a QR code" },
   "quests.type.enterCode": { ar: "إدخال رمز", en: "Enter a code" },
+  "quests.type.submission": { ar: "إرسال إجابة", en: "Send an answer" },
   "signIn.consentTitle": { ar: "قبل أن نبدأ", en: "Before we start" },
   "signIn.consentBody": {
     ar: "لتدخل إلى حسابك أو تنشئه، وافق على شروط الاستخدام وسياسة الخصوصية.",
@@ -2336,6 +2337,115 @@ export const MESSAGES = {
   "level.next": { ar: "التالي: المستوى {next}", en: "Next: level {next}" },
   "level.top": { ar: "بلغت أعلى مستوى", en: "Top level reached" },
   "level.progress": { ar: "تقدّمك نحو المستوى التالي", en: "Progress to the next level" },
+  // T-301: submission quests (text). The player's sheet, the operator's review, the dashboard's queue and builder.
+  "eventHome.pendingPoints": { ar: "+{points} بانتظار المراجعة", en: "+{points} pending" },
+  "submission.private": {
+    ar: "لا يرى ما ترسله إلا فريق الفعالية.",
+    en: "Only the event team sees what you send.",
+  },
+  "submission.label": { ar: "إجابتك", en: "Your answer" },
+  "submission.counter": { ar: "{count} من {max}", en: "{count} of {max}" },
+  "submission.send": { ar: "أرسل", en: "Send" },
+  "submission.sentPending": {
+    ar: "وصلت إجابتك، ونقاطها بانتظار المراجعة.",
+    en: "Sent. Its points are waiting for review.",
+  },
+  "submission.sentApproved": { ar: "وصلت إجابتك وقُبلت.", en: "Sent and approved." },
+  "submission.pending": {
+    ar: "إجابتك بانتظار المراجعة: +{points}",
+    en: "Waiting for review: +{points}",
+  },
+  "submission.rejected": { ar: "لم تُقبل إجابتك: {reason}", en: "Not accepted: {reason}" },
+  "submission.left": {
+    ar: "أُغلقت إجابتك السابقة لأنك غادرت الفعالية.",
+    en: "Your earlier answer was closed because you left the event.",
+  },
+  "submission.sendAgain": { ar: "أرسل إجابة جديدة", en: "Send a new answer" },
+  "submission.closed": {
+    ar: "لا تقبل هذه المهمة إجابة أخرى.",
+    en: "This quest doesn't take another answer.",
+  },
+  "submission.removed": {
+    ar: "أزال فريق الفعالية إجابتك ونقاطها: {reason}",
+    en: "The event team removed your answer and its points: {reason}",
+  },
+  "submission.guidelinesTitle": { ar: "قبل إجابتك الأولى", en: "Before your first answer" },
+  "submission.guidelinesBody": {
+    ar: "اقرأ إرشادات المجتمع وشروط الاستخدام. يُرفض أي محتوى مسيء، وقد يُستبعد مرسله من الفعالية.",
+    en: "Read the community guidelines and the terms of use. Offensive content is rejected, and its sender may be removed from the event.",
+  },
+  "submission.guidelines": { ar: "إرشادات المجتمع", en: "Community guidelines" },
+  "submission.loadFailed": {
+    ar: "تعذّر تحميل إجاباتك. أعد المحاولة.",
+    en: "Couldn't load your answers. Try again.",
+  },
+  "operator.review.empty": {
+    ar: "لا توجد مشاركات بانتظار المراجعة.",
+    en: "Nothing is waiting for review.",
+  },
+  "operator.review.from": { ar: "من {player}", en: "From {player}" },
+  "operator.review.marked": {
+    ar: "فيها كلمة من قائمة الكلمات الممنوعة، فاقرأها بعناية.",
+    en: "It contains a listed word. Read it carefully.",
+  },
+  "operator.review.approve": { ar: "اقبل", en: "Approve" },
+  "operator.review.reject": { ar: "ارفض", en: "Reject" },
+  "operator.review.reason": { ar: "سبب الرفض", en: "Reason for rejecting" },
+  "operator.review.done": { ar: "تمت المراجعة.", en: "Reviewed." },
+  "operator.review.loadFailed": {
+    ar: "تعذّر تحميل المشاركات. أعد المحاولة.",
+    en: "Couldn't load the submissions. Try again.",
+  },
+  "submissions.link": { ar: "المشاركات", en: "Submissions" },
+  "submissions.title": { ar: "المشاركات", en: "Submissions" },
+  "submissions.filter.pending": { ar: "بانتظار المراجعة", en: "Waiting" },
+  "submissions.filter.unseen": { ar: "قُبلت تلقائيًا ولم تُقرأ", en: "Auto-approved, not read" },
+  "submissions.filter.marked": { ar: "فيها كلمة ممنوعة", en: "Listed words" },
+  "submissions.filter.done": { ar: "تمت مراجعتها", en: "Reviewed" },
+  "submissions.empty": { ar: "لا شيء هنا.", en: "Nothing here." },
+  "submissions.from": { ar: "{player} · {quest}", en: "{player} · {quest}" },
+  "submissions.deletedPlayer": { ar: "حساب محذوف", en: "Deleted account" },
+  "submissions.erased": { ar: "حُذف النص مع الحساب.", en: "The text was deleted with the account." },
+  "submissions.auto": { ar: "قُبلت تلقائيًا", en: "Auto-approved" },
+  "submissions.marked": { ar: "كلمة ممنوعة", en: "Listed word" },
+  "submissions.status.pending": { ar: "بانتظار المراجعة", en: "Waiting" },
+  "submissions.status.approved": { ar: "مقبولة", en: "Approved" },
+  "submissions.status.rejected": { ar: "مرفوضة", en: "Rejected" },
+  "submissions.status.removed": { ar: "أُزيلت", en: "Removed" },
+  "submissions.left": {
+    ar: "أُغلقت لأن اللاعب غادر الفعالية.",
+    en: "Closed because the player left the event.",
+  },
+  "submissions.reasonShown": { ar: "السبب: {reason}", en: "Reason: {reason}" },
+  "submissions.approve": { ar: "اقبل", en: "Approve" },
+  "submissions.reject": { ar: "ارفض", en: "Reject" },
+  "submissions.rejectReason": {
+    ar: "سبب الرفض (يراه اللاعب)",
+    en: "Reason for rejecting (the player sees it)",
+  },
+  "submissions.remove": { ar: "أزل المشاركة ونقاطها", en: "Remove it and its points" },
+  "submissions.removeReason": {
+    ar: "سبب الإزالة (يراه اللاعب)",
+    en: "Reason for removing (the player sees it)",
+  },
+  "submissions.markSeen": { ar: "علّم الظاهرة كمقروءة", en: "Mark these as read" },
+  "submissions.more": { ar: "المزيد", en: "More" },
+  "quests.submission.autoApprove": {
+    ar: "اقبل الإجابات تلقائيًا",
+    en: "Approve answers automatically",
+  },
+  "quests.submission.autoApproveHint": {
+    ar: "تُضاف النقاط فورًا، ويستطيع الفريق إزالتها لاحقًا.",
+    en: "Points land at once; the team can remove them later.",
+  },
+  "quests.submission.resubmit": {
+    ar: "اسمح بإجابة جديدة بعد الرفض",
+    en: "Allow a new answer after a rejection",
+  },
+  "quests.submission.textOnly": {
+    ar: "يرسل اللاعبون نصًا. إرسال الصور قريبًا.",
+    en: "Players send text. Photos are coming.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

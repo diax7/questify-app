@@ -65,6 +65,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot send, read or review submissions (T-301)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.submit_quest(gen_random_uuid(), 'x', '1.0', 'k')",
+        "SELECT * FROM public.own_submissions(gen_random_uuid())",
+        "SELECT * FROM public.event_submissions(gen_random_uuid(), 'pending', NULL, 1)",
+        "SELECT * FROM public.operator_submissions(gen_random_uuid(), NULL, 1)",
+        "SELECT * FROM public.staff_review_submission(gen_random_uuid(), 1, 'approve', NULL, 'k', NULL)",
+        "SELECT * FROM public.operator_review_submission(gen_random_uuid(), 1, 'approve', NULL, 'k')",
+        "SELECT * FROM public.remove_submission(gen_random_uuid(), 1, 'x', 'k', NULL)",
+        "SELECT public.mark_submissions_seen(gen_random_uuid(), '{}')",
+        "SELECT * FROM public.submitters_of('{}')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

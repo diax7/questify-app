@@ -40,7 +40,7 @@ with no new path. Rejection writes nothing (FR-206/FR-326).
 | Table | Columns | Notes |
 |---|---|---|
 | `submission` | `id` bigint, `organizer_id`, `event_id`, `enrollment_id`, `quest_id`, `kind` (`text`; `photo` reserved for T-301b, refused by CHECK now), `text` (1–1,000 chars), `points` bigint ≥ 0, `status` (`pending`, `approved`, `rejected`, `removed`), `auto` bool, `marked` bool (FR-1628), `reason`, `reason_system` bool (closed by the system, not a reviewer), `reviewed_by_staff` / `reviewed_by_operator`, `reviewed_at`, `review_key`, `seen_at`, `completion_id` → `quest_completion`, `idempotency_key`, `created_at` | Composite tenant foreign keys, RESTRICT. Unique (enrollment_id, idempotency_key). **One pending per (enrollment, quest):** partial unique index WHERE status = 'pending'. CHECKs: approved ↔ completion_id; rejected/removed ↔ reason |
-| `quest` | gains `type = 'submission'`, `type_config {accepts: ["text"], autoApprove, resubmit, prompt {ar,en}}` | `quest_type_known` widens; `accepts` refuses `photo` and `video` with "not available yet". `quest_completion.method` gains `submission` |
+| `quest` | gains `type = 'submission'`, `type_config {accepts: ["text"], autoApprove, resubmit}` (built: the quest's description is the prompt) | `quest_type_known` widens; `accepts` refuses `photo` and `video` with "not available yet". `quest_completion.method` gains `submission` |
 
 ## Functions (each REVOKEd from PUBLIC; only entry points granted to `questify_app`; each new definer calls `ensure_rehearsal_wiped` first)
 

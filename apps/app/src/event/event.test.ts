@@ -218,7 +218,14 @@ const HOME = {
     statusNow: "live",
     rehearsal: false,
   },
-  standing: { status: "active", score: 25, balance: 20, questsDone: 1, questsTotal: 3 },
+  standing: {
+    status: "active",
+    score: 25,
+    balance: 20,
+    pendingPoints: 150,
+    questsDone: 1,
+    questsTotal: 3,
+  },
   upNext: { questId: "q1", title: { ar: null, en: "Big one" }, points: 40, type: "enter_code" },
   goal: {
     rewardId: "r1",
@@ -256,6 +263,13 @@ describe("homeAnswer", () => {
     });
     const declined = { ...HOME, standing: { status: "declined" }, upNext: null };
     expect(homeAnswer(ok(declined))).toEqual({ kind: "home", home: declined });
+  });
+
+  it("reads pending points as 0 from a server before T-301, or when malformed", () => {
+    const older = { ...HOME, standing: { ...HOME.standing, pendingPoints: undefined } };
+    expect(readHome(older)?.standing).toMatchObject({ pendingPoints: 0 });
+    const odd = { ...HOME, standing: { ...HOME.standing, pendingPoints: -5 } };
+    expect(readHome(odd)?.standing).toMatchObject({ pendingPoints: 0 });
   });
 
   it("reads a rehearsal account's Home, and an older API's Home as an ordinary member's", () => {

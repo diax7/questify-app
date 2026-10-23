@@ -112,6 +112,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         points?: number[];
         flagged?: string[];
         email?: string;
+        texts?: string[];
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -171,6 +172,36 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           )
           .then(() => {
             response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /submitted: a text submission quest worth 150, and one pending submission per username with its text, in order
+      // (the dashboard's submissions page, T-301).
+      if (request.url === "/submitted") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username)
+                           SELECT unnest($2::text[]) RETURNING id, username),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1
+                             RETURNING id, organizer_id, event_id, player_id),
+                  quest AS (INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, type_config)
+                            SELECT $1, c.id, 'submission', 'Tell us', 'أخبرنا', 150,
+                                   '{"accepts": ["text"], "autoApprove": false, "resubmit": false}'
+                            FROM (SELECT id FROM category WHERE event_id = $1 LIMIT 1) c
+                            RETURNING id)
+             INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, body, points, status,
+                                     idempotency_key)
+             SELECT j.organizer_id, j.event_id, j.id, q.id, 'text', p.body, 150, 'pending', gen_random_uuid()::text
+             FROM joined j JOIN made m ON m.id = j.player_id
+             JOIN unnest($2::text[], $3::text[]) AS p(username, body) ON p.username = m.username, quest q`,
+            [body.eventId, body.usernames ?? [], body.texts ?? []],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === (body.usernames ?? []).length ? 204 : 404).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

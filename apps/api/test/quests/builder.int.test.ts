@@ -360,7 +360,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
     });
 
     it.each([
-      ["type", { type: "submission" }],
+      ["type", { type: "vote" }],
       ["type", { type: "constructor" }],
       ["config", { type: "enter_code", config: { code: "ab" } }],
       ["config", { config: { code: "NAJD2030" } }],

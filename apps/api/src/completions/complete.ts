@@ -205,7 +205,10 @@ async function callEngine(
 }
 
 /** The level this completion's XP credit reached first, with its title (own_level, migration 0039). */
-async function levelReached(client: PoolClient, completionId: string): Promise<LevelUp | null> {
+export async function levelReached(
+  client: PoolClient,
+  completionId: string,
+): Promise<LevelUp | null> {
   const { rows } = await client.query<{
     level_up: number | null;
     up_title_ar: string;
