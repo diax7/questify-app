@@ -2651,3 +2651,36 @@ CranL's database is confirmed not to log query parameters; while
 off the app never asks or reads, the builder refuses the type, and existing location quests complete by QR. **Older builds** (made before `expo-location`, which needs a new EAS build): the API sends a location quest with `verification: ["quest_qr"]`; an older app does not know the type, shows it with its "update the app" line and no action, and its scanner completes it from the printed QR (the scanner reads any quest code). This build also offers the QR on any open quest of a type it does not know that keeps a quest QR (`scanFallback`), and loads the location module on demand, so a build without it reads location as unavailable and offers the QR, never crashes.
 **Why:** FR-1744, Apple 5.1.1(iv) and 5.1.5, Google's minimum-scope rule; reading per request rather than continuously
 keeps ADR-072's "while open" with less data and battery.
+
+## ADR-209 — Meet-someone proof: a one-minute meet code, not My QR
+**Status:** Proposed (Claude, 2026-10-24; T-303c). Q-173. Amends FR-212 and FR-306.
+**Decision:** a meet quest is proved by its own code, not My QR. The shown player taps "Show my code"; the API makes a
+128-bit random token for that quest, keeps only its SHA-256 hash with the player's enrollment and device, and it lives
+one minute. The first meeting that pays uses it up; a new code ends the player's earlier open one. Issuing checks the
+shown player's caps first. The code names its quest, so any scanner in the app can read it. Both players are paid
+together (the quest's points, its item on a first completion, any category bonus) or neither. FR-212 reads "scans the
+other's meet code"; FR-306 no longer lists meet-someone.
+**Why:** ADR-137 made My QR fixed; a fixed code posted in a group chat would pay its owner a meeting with everyone who
+has it. A one-minute single-use code cannot be reused from a screenshot; two friends relaying it live are bounded by
+the pair rule and the daily cap (ADR-210).
+
+## ADR-210 — Meet-someone rules
+**Status:** Proposed (Claude, 2026-10-24; T-303c). Q-174.
+**Decision:** one meeting per pair of players per quest, in either direction. A daily cap per player (organizer-set, 1
+to 50, default 5) counts meetings on either side since the start of the event's day. The quest's repeat cap is the most
+meetings it pays a player. If either player is at a cap or cannot play the quest (audience, category lock, ban), neither
+is paid; the scanner is told only "not for them" when the other player cannot play it. A manual award pays one player
+and counts towards the repeat cap. The event switch `meetSomeone` (FR-1009) is on by default; off, meet quests are
+hidden and refused. Allowed in every event kind.
+**Why:** FR-212, FR-213; all-or-nothing keeps the two ledgers in step; the other player's audience or ban is theirs.
+
+## ADR-211 — Meet-someone locks and collusion signals
+**Status:** Proposed (Claude, 2026-10-24; T-303c). Q-175.
+**Decision:** whoever locks more than one enrollment takes them all in one statement in id order, before item,
+redemption and advisory locks. The meet payer does so; `reveal_results` (0034, which locked in rank order) is changed to
+the same rule. The scanner's side of a meeting counts in every flag (shared device, burst, far from the venue with its
+optional reading); the shown side carries the device that showed the code for the shared-device check only, not the
+burst. The same device on both sides is refused. The shown player's position is never sent and no pair distance is
+computed (no coordinates are kept, ADR-206). No new flag kind until real data shows a pattern.
+**Why:** two enrollments per transaction would deadlock against any locker using another order; a popular player shown
+many times is not a script; comparing two positions would mean keeping coordinates.

@@ -291,6 +291,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Gains FR-331 (far from the venue) and FR-332 (impossible speed) from T-209 (ADR-153): add the venue pin, quest places and the app's location reading (ADR-072), then raise both as new `flag.kind`s from the same completion trigger (`raise_completion_flags`, migration 0031); the Flags page reads any kind's evidence through `flag_detail`.
 - [ ] **T-303c** Meet-someone quests: both players paid, repeat pairs refused, a daily cap — delivers FR 212, 213; depends on: T-303
   - Split from T-303 2026-10-24 (ADR-196).
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-303c-meet-someone.md`, migration 0049, ADR-209 to ADR-211 and Q-173 to Q-175 Proposed. A one-minute single-use meet code (not My QR); both paid or neither; both enrollments locked in one id-ordered statement (`reveal_results` moved to the same rule).
   - Note 2026-10-22 (ADR-137): My QR is fixed, so a meet-someone scan can be shared in a group chat; this task needs its own proof of meeting.
 - [x] **T-304** Category rules: collapse, completion bonus, in order or any order, timed open, unlock after another — delivers FR 231, 232, 233, 234, 235; depends on: T-103
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-304-category-rules.md`, migration 0044, ADR-200 to ADR-202 and Q-164 to Q-166 Proposed. Split (ADR-200): passport to T-304b, refresh and hidden categories to T-304c, item rewards (FR-522, FR-1617) to T-304d, FR-238 to T-501.

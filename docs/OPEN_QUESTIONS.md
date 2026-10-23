@@ -338,3 +338,20 @@ Forums, 2026; HIG Privacy). Location quests stay behind a platform switch that i
 privacy label and Play's Data safety form for location, and CranL's database is confirmed not to log query
 parameters. Agree, or ask only from a location quest, or turn the switch on now?
 Sources (checked 2026-10-23): the App Review reply is quoted in the Apple Developer Forums thread "App Rejected – Guideline 5.1.1(iv) – Location Permission Pre-Prompt With “Not Now” Button" (March 2026), listed at https://developer.apple.com/forums/tags/maps-and-location?page=2 (the thread's own address was not found); the rule itself: https://developer.apple.com/app-store/review/guidelines/#5.1.1 and https://developer.apple.com/app-store/review/guidelines/#5.1.5 ; Apple HIG, Privacy: https://developer.apple.com/design/human-interface-guidelines/privacy ; a second report of the same rejection (an "Allow" button and "Not now" both refused): https://dev.to/hokagedemehin/shipping-to-both-stores-the-release-runbook-29ma
+
+## Q-173 — Meet-someone proof (2026-10-24, T-303c)
+ADR-209: since My QR is fixed (ADR-137), a meet quest uses its own code: shown from the meet quest in the app, alive for
+one minute, used up by the first meeting, and both players are paid together or not at all. Meeting needs a connection
+on both phones. Agree, or a longer life, a typed fallback, or the shown player confirming each meeting in their app?
+
+## Q-174 — Meet-someone rules (2026-10-24, T-303c)
+ADR-210: one meeting per pair per quest; a daily cap per player (default 5, 1 to 50) counting both sides; if either
+player is at a cap or cannot play the quest, neither is paid; the event's meet-someone switch is on by default; allowed
+in virtual events too (meeting over video). Agree, or a different default cap, or no meet quests in virtual events?
+
+## Q-175 — Meet-someone cheating signals (2026-10-24, T-303c)
+ADR-211: the scanner's side counts in the usual flags (same phone, burst, far from the venue); the shown side only in
+the same-phone check; one phone on both sides is refused; no check of the distance between the two players, since that
+needs both positions kept (ADR-206 keeps none); no new flag kind yet. The meet records follow the event's data
+retention (Q-075) and are deleted with either account. Agree, or should a "same small group meeting only each other"
+case be added later?
