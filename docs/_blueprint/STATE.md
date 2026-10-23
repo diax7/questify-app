@@ -722,6 +722,24 @@ other docs feed it and stay as its detailed appendices.
 - 2026-10-24 **T-304b done** (core; CTO plan 84 → 93 GO; code 92 GO; minor folded: a re-scan pays a player left at `needed` unpaid by a `needed` lowered under a stamp in flight; 0045 edited in place), not yet run on a phone. Migration 0045: passport steps and stamps, `stamp_step` pays the quest once on the needed-th stamp through `pay_completion` (key `pass:{quest}`, reserved in every player key check), a deferred step-count check (a quest's delete with its steps passes), `needed` never falls once stamped. API: `POST /v1/steps/{id}/stamp`, `GET /v1/quests/{id}/passport`, `steps` on the quests read and in the builder, a code per step (format 0x04, own key) and its regeneration. App: scanner, progress line, passport list. Dashboard: passport fields, step codes. Tests: 17 database, 5 route, unit, security, browser (passport, codes, quests, survey-share; desktop and phone), the full API suite (2956), `expo export`. Mutation owed on GitHub (`apps/api/src/quests/qr.ts`, `apps/api/src/passport/**`, `apps/api/src/quests/passports.ts`, `apps/api/src/quests/codes.ts`, `apps/api/src/quests/store.ts`, `apps/api/src/quests/quests.ts`, `apps/api/src/plays/run.ts`, `apps/api/src/home/home.ts`). Not pushed.
 - 2026-10-24 **T-304c planned** (core; Opus plan review owed): `docs/plans/2026-10-24-t-304c-refresh-hidden-categories.md`. Refresh counts the repeat cap, done, gates and bonus inside the event's day or 7-day block (nothing paid is touched; scan, code and challenge only); hidden categories open per player by a signed secret code (0x05). Migration 0046. ADR-204, Q-168 Proposed. Also: deletion and idempotency-store mutation survivors from run 39960854772 killed (`deletion.int.test.ts`, `idempotency-store.test.ts`; re-run owed). Not pushed.
 
+## Coordinator handoff (2026-10-24, for the next session)
+
+Work runs in **coordinator mode** (CLAUDE.md "How work runs"; brief: `docs/agents/WORKER_BRIEF.md`). The session
+of 2026-10-23/24 closed T-207, T-209, T-211, T-213, T-214, T-216, T-218, T-220, T-217, T-401, T-301, T-302, T-303,
+T-304 and T-304b with a CTO GO each; everything is on `main` and pushed. Progress: 55 of 143 tasks.
+- **CranL** (the only environment, fake data) runs migrations through **0041**; 0042 onward are not deployed
+  (frozen-migration rule applies only to ≤0041). Demo event "Questify Demo Day", join code **77XBUB**. The release
+  APK (preview profile) works on Dhia's Android phone (confirmed 2026-10-24). Msegat allows CranL's outbound IP
+  130.94.119.140.
+- **Queue for the coordinator:**
+  1. T-304c: its plan is written (`docs/plans/2026-10-24-t-304c-refresh-hidden-categories.md`); the Opus plan
+     review is owed, then the build.
+  2. Mutation: read GitHub run 39977094679 (plays, switched-off, categories, qr, passports, passport, home). Then
+     dispatch, one at a time, a re-run for `apps/api/src/deletion/**` and `apps/api/src/idempotency-store.ts`
+     (new tests added), and later the T-304c globs. Chase survivors only while a file is under 90%.
+  3. Then T-304d, T-303b, T-303c, and onward through TASKS.md (Phase 3, then Phase 4).
+- **Parked by Dhia:** Q-149, a storage bucket for photos (T-301b), "revisit later".
+
 ## Next
 
 1. **Now:** Dhia decides whether to merge branch `t-206-prize-desk` into `main` and push (Full checks and mutation are green on it), then the next unchecked task in `docs/TASKS.md` (T-207, T-209, T-211, T-213, T-214, T-216, T-217, T-218 and T-220 are done on `batch-2026-10-23`; T-207, T-209, T-211, T-214, T-216 and T-218 reviewed GO, T-220 reviewed GO (mutation on GitHub run 39936502814), T-213 reviewed (Sonnet 86 → fixed); T-217 reviewed GO (92), its mutation run on GitHub owed; T-401 reviewed GO (94), mutation on GitHub run 39945083260; T-301 reviewed GO (93), minors folded, mutation on GitHub run 39949844007; T-302 done, awaiting its Opus code review and its mutation run on GitHub; T-303 done (challenge, survey, share), reviewed GO (94), nits folded; T-304 (category rules and bonus) done, reviewed GO (92), minors folded, mutation run owed, T-304b (passport) done, reviewed GO (92), minor folded, mutation run owed, T-304c planned (Opus plan review owed), then T-304d; T-303b (location) and T-303c (meet-someone) are next in that area), then T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations

@@ -1,0 +1,48 @@
+# Worker brief
+
+Read by every worker the coordinator starts (CLAUDE.md, "How work runs"). You build ONE task end to end, alone,
+then reply and stop.
+
+## Ground rules
+- Repo: this folder, branch `main` (already checked out). Never switch branches, never push (the coordinator
+  pushes), never open PRs. Commit locally on main.
+- Follow `CLAUDE.md` and its read order, but read only what your task needs. Standards: `docs/rules.md`,
+  `docs/QUALITY_BASELINE.md`. Copy patterns from the nearest finished task (latest plans in `docs/plans/`,
+  latest migrations in `apps/api/migrations/`).
+- **No questions to Dhia.** Where the cto-cycle would interview him, take the option you would mark
+  "Recommended", write it as a **Proposed** ADR in `docs/DECISIONS.md` (next free number) and an entry in
+  `docs/OPEN_QUESTIONS.md` (next free Q number) so he can overturn it. If a task truly cannot proceed without
+  him (accounts, money, legal, external services), skip it, write why in STATE.md "Waiting on Dhia", and stop.
+- **Core tasks** (CLAUDE.md, Quality bar): write the plan (`docs/plans/<date>-<task>.md`), commit it, then stop
+  and reply so the coordinator can run the CTO plan review. Non-core tasks: a short plan, then build.
+- A task too big for one worker: split it in `docs/TASKS.md` (T-xxx, T-xxxb…) with a recorded reason.
+- Test first where practical. Migrations: deny by default, outsider and cross-tenant suites updated
+  (`apps/api/test/security/*`), DB tests for every refusal and race. Arabic and English for every string
+  (`packages/shared/src/i18n/messages.ts`), RTL, Western digits.
+- Functions ≤100 lines. Absolute imports. No commented-out code.
+- **Deployed migrations are frozen.** Never edit a migration CranL has run (see STATE.md for the deployed
+  number); write a new one. Only undeployed migrations may be edited in place.
+- **Release-safety:** never use JS built-ins missing in release Hermes (`toSorted`, `toReversed`,
+  `Object.groupBy`, the new Set methods, `structuredClone`); `apps/app/src/hermes-runtime.test.ts` enforces it.
+
+## Local checks (Docker is running)
+- `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`
+- `TEST_REDIS_URL=redis://127.0.0.1:56379`
+- Lint, format, types: `npx oxfmt <paths>`, `npx oxlint --deny-warnings <dirs>`, `npx tsc --noEmit -p apps/<x>`.
+- Tests: `npx vitest run <paths>` from the repo root. Run only the suites your change touches, plus
+  `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
+  only the specs you touched. `npx expo export` when app screens change.
+- **Never run Stryker or any mutation testing locally** (ADR-174: about 18 GB, can crash the PC). It runs on
+  GitHub (`.github/workflows/mutation.yml`), started by the coordinator. In your reply list the mutation target
+  globs: core code only, only files this task changed. When results come back, kill survivors only while a file
+  is under 90%.
+- Avoid heredocs with nested quotes in Bash (they break here); write scripts to files instead.
+
+## Finishing
+1. All checks green. Tick the task in `docs/TASKS.md` with a short "Done <date>" note; update the docs the task
+   touches (API.md, DATA_MODEL.md, SRS amendments, notes on later tasks).
+2. Add one dated bullet to `docs/_blueprint/STATE.md` (same style as the others) and fix its "Next" list.
+3. Commit (imperative subject ≤72 chars, no AI attribution lines). Several commits are fine.
+4. Reply to the coordinator in ≤15 lines: what shipped, tests run and results, ADRs/Qs added, mutation globs,
+   anything left. When a CTO review comes back to you, fix BLOCKER/MAJOR findings (and cheap minors), commit,
+   reply briefly.

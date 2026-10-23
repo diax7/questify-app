@@ -9,25 +9,31 @@ any organizer anywhere; Saudi Arabia is the first market (Arabic + English, RTL)
 
 - The plan is approved (`docs/_blueprint/STATE.md`). Build in the order of `docs/TASKS.md`; pick up the
   next unchecked task. Never build what `docs/SCOPE.md` excludes.
-- Process: `docs/TASKS.md` + the Superpowers skills (test-first, small steps) + the `cto-cycle` skill for
-  core phases. GitHub Spec Kit is not used. Standards: `docs/QUALITY_BASELINE.md`; code rules: `docs/rules.md`.
+- Process: `docs/TASKS.md`, run in coordinator mode (below) with the `cto-cycle` reviews. GitHub Spec Kit is not used. Standards: `docs/QUALITY_BASELINE.md`; code rules: `docs/rules.md`.
 - Docs stay alive: any idea, change or discovery lands in a doc in the same session. A disagreement
   between code and docs goes to `docs/OPEN_QUESTIONS.md`, never a silent override. Tick finished tasks in
   `docs/TASKS.md`.
 
-## Token budget (Dhia, 2026-10-21: all five rules approved)
+## How work runs: coordinator mode (Dhia, 2026-10-24; replaces "one task per session" of 2026-10-21)
 
-1. **One task per session.** Finish the task, commit, update `docs/_blueprint/STATE.md`, then stop and tell
-   Dhia to start a fresh session (`/clear`). Never carry several tasks in one conversation.
-2. **One CTO review per task.** Core tasks (see Quality bar) get one plan review and one code review. Every
-   other task gets one code review only, with no plan review. Re-review only when a BLOCKER or MAJOR finding
-   was fixed; fold minor findings in without asking again.
-3. **The reviewer's model:** Opus for core tasks. Sonnet (`model: "sonnet"`) for every other review: screens,
-   copy, docs, config.
-4. **Mutation testing only on core code** (QUALITY_BASELINE, ADR-111), never on screens or app UI modules.
-5. **Short messages.** Brief prompts to subagents (point at files; don't restate them), brief status to Dhia,
-   no long recaps. Read only the part of a file that is needed; avoid full-size image reads unless new art
-   is being adopted.
+The main session is the **coordinator**. It does not build tasks itself; it runs them one after another:
+1. **A fresh worker per task** (Agent tool, Opus; Sonnet for small mechanical work), pointed at
+   `docs/agents/WORKER_BRIEF.md` and the task id. Prompts stay short: point at files, don't restate them.
+   Workers reply in ≤15 lines. A worker is resumed only for quick fixes right after its review; the next task
+   gets a new worker (a large context is costly to resume).
+2. **One CTO review per task.** Core tasks (see Quality bar) get a plan review and a code review; every other task
+   gets one code review. Opus reviews core work and plans; Sonnet reviews non-core work (screens, copy, docs,
+   config). Re-review only after a BLOCKER, or several MAJOR findings, were fixed; fold minor findings in without
+   asking again.
+3. **Mutation testing batched on GitHub, core code only** (ADR-174): never locally; only the files a task
+   changed; one `mutation.yml` run per 2–3 core tasks, dispatched one at a time (a new dispatch cancels the
+   running one); survivors chased only while a file is under 90%.
+4. **The coordinator pushes `main`** after each finished task (workers commit, never push) and keeps CranL and
+   demo builds in step when Dhia asks.
+5. **Short messages.** Brief status to Dhia; read only the part of a file that is needed. When the coordinator's
+   own context gets long it is summarized automatically and the work carries on; no `/clear` between tasks.
+6. **Dhia is not interrupted for decisions inside a task:** workers take the recommended option and record it
+   as a Proposed ADR and an OPEN_QUESTIONS entry for him to review.
 
 ## Read order at the start of every session
 
