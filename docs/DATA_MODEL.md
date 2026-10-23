@@ -314,6 +314,19 @@ submission is not done). A quest is done with a completion or a quiz finished wi
 entry_id → ledger_entry, created_at)`, PK (enrollment_id, category_id): one per player and category, written by
 `pay_category_bonus` (ON CONFLICT DO NOTHING, under the enrollment lock of the paying definer), never deleted by a
 removal; deleted by the rehearsal wipe and on account erasure. No grant.
+**Refresh and hidden categories (T-304c, migration 0046, ADR-204):** `category.refresh (none|daily|weekly)`,
+`hidden`, `reveal_version` (column grants). `category_period_start(category, event)` is `-infinity` for none, today's
+event-day start for daily, the start of the 7-day block counted from the event's first day for weekly
+(`category_resets_at` the next one). `period_count` counts a member's completions of a quest from that start: the
+repeat cap, `quest_done` (so the gates and the bonus) and the player's `done` read it; the occurrence stays lifetime
+(`quest_completion.occurrence >= 1`, no upper bound). `category_bonus` gains `period_start` (PK now (enrollment_id,
+category_id, period_start); the ledger's bonus unique index is gone): paid once per period, never while a row of this or
+a later period exists (a switch back to none never repays). A refreshing category holds only `scan_qr`, `enter_code`,
+`challenge` (triggers on both tables, QT422 `refresh`). `category_reveal (organizer_id, event_id, enrollment_id,
+category_id, created_at)`, PK (enrollment_id, category_id): written by `reveal_category` (the secret code, format 0x05)
+and by a staff manual award of one of its quests (fresh payment only); `sees_category` (audience and, if hidden,
+revealed) gates every player reader and `quest_open_check`; an unfound hidden unlock category never locks. Deleted
+with its category, by the rehearsal wipe (counted as `reveals`) and on account erasure. No grant.
 Passport quests (T-304b, migration 0045, ADR-203): `type = 'passport'`, `type_config = {needed: 1..30}`,
 `repeat_cap = 1`. `passport_step (id, organizer_id, event_id, quest_id, name_ar, name_en, position, qr_version,
 created_at)`: 1 to 30 per passport, written by the team under row-level security (column grants as quests; the

@@ -966,8 +966,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-233 | F-53 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
 | FR-234 | F-97 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
 | FR-235 | F-98 | Should | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
-| FR-236 | F-51 | Should | pending |
-| FR-237 | F-99 | Could | pending |
+| FR-236 | F-51 | Should | built (T-304c) |
+| FR-237 | F-99 | Could | built (T-304c) |
 | FR-238 | F-99 | Could | pending (T-501, ADR-200) |
 | FR-239 | F-100 | Should | pending |
 | FR-240 | F-100 | Should | pending |
@@ -1283,7 +1283,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1616 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-1617 | F-150 | Should | pending |
 | FR-1618 | F-62 | Should | pending |
-| FR-1619 | F-51 | Should | pending |
+| FR-1619 | F-51 | Should | built (T-304c) |
 | FR-1620 | F-101 | Should | pending |
 | FR-1621 | F-103 | Should | pending |
 | FR-1622 | F-134 | Should | pending |
