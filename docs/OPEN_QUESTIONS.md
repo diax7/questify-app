@@ -114,5 +114,5 @@ ADR-159 treats the event and its shop and desk as open in rehearsal, but keeps e
 opening times. A reward that opens at 14:00 on the day cannot be tried earlier. Should rehearsal ignore those too?
 
 ## Q-126 — The goal's rules and FR-522's move (2026-10-23, T-213)
-ADR-161 keeps a pinned goal on Home even when it sells out (it says "sold out, pick another"), counts a reward that
+ADR-161 keeps a pinned goal on Home even when it sells out (but not once it closes or the player is at its limit) (it says "sold out, pick another"), counts a reward that
 opens later as the next reachable one, and moves FR-522 (items as quest or category rewards) to T-304. Agree?

@@ -283,6 +283,11 @@ export async function readHome(
   playerId: string,
   eventId: string,
 ): Promise<Home | null> {
+  // Read first, so an event whose shop is off skips the shop's read. Safe before the membership check: it answers only
+  // what the caller may see (as GET /config does), and nothing from it is returned to a non-member.
+  const config = await deps.settings.forEvent(eventId, playerId);
+  const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
+  const shopOn = config.kind === "ok" && config.config.features["shop"]?.enabled !== false;
   const home = await asPlayer(deps, playerId, async (client) => {
     const row = await standingOf(client, playerId, eventId);
     if (row === undefined || (row.status !== "active" && row.status !== "pending")) {
@@ -318,16 +323,12 @@ export async function readHome(
         playStatus(row.status_now, row.rehearsal),
         row.now,
       ),
-      goal: pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now),
+      goal: shopOn
+        ? pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now)
+        : null,
     };
   });
-  if (home === null) {
-    return null;
-  }
-  const config = await deps.settings.forEvent(eventId, playerId);
-  const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
-  const shopOn = config.kind === "ok" && config.config.features["shop"]?.enabled !== false;
-  return { ...home, goal: shopOn ? home.goal : null, rankingOn };
+  return home === null ? null : { ...home, rankingOn };
 }
 
 /** One line of a player's points record (FR-410), as `member_activity` gives it (migration 0023). */

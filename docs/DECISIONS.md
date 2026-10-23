@@ -2181,8 +2181,8 @@ the start against the clock, so none commits after the erase. Events that never 
 ## ADR-161 — The goal: one pin per event, and FR-522 moves to T-304
 **Status:** Proposed (Claude, 2026-10-23; T-213).
 **Decision:** a member pins at most one reward per event as their goal, stored on their enrollment
-(`goal_reward_id`, written only by `set_goal`). Home shows the pinned reward while it is in the shop, whatever its
-stock or window, with what is left to earn (0: "redeem it now"; sold out says so). With no pin, Home shows the
+(`goal_reward_id`, written only by `set_goal`). Home shows the pinned reward while it is in the shop, not closed and
+under the player's limit, whatever its stock, with what is left to earn (0: "you have enough"; sold out says so). With no pin, Home shows the
 cheapest reward the player cannot yet afford that is in stock, not past its closing time and not at their limit
 (the first in shop order on a tie; a reward not yet open counts); none when everything is affordable. No goal when
 the event's shop is switched off. FR-522 (an item as a quest's or category's reward) moves from T-213 to T-304 with

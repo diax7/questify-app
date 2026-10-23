@@ -121,13 +121,18 @@ function UpNextCard({ eventId, upNext }: Readonly<{ eventId: string; upNext: Hom
 }
 
 /** The pinned reward or the next one in reach, and what is left to earn (FR-803, FR-422); a tap opens Rewards. */
-function GoalCard({ eventId, goal }: Readonly<{ eventId: string; goal: Home["goal"] }>) {
+function GoalCard({
+  eventId,
+  goal,
+  ended,
+}: Readonly<{ eventId: string; goal: Home["goal"]; ended: boolean }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   if (goal === null) {
     return null;
   }
+  const message = goalMessage(goal, ended);
   return (
     <Pressable
       accessibilityRole="button"
@@ -137,12 +142,14 @@ function GoalCard({ eventId, goal }: Readonly<{ eventId: string; goal: Home["goa
     >
       <AppText variant="title">{t(goal.pinned ? "goal.title" : "goal.next")}</AppText>
       <AppText variant="label">{textIn(goal.name, language)}</AppText>
-      <AppText muted>
-        {t(goalMessage(goal), {
-          count: formatNumber(goal.left, language),
-          currency: termFor(terms.currency, language),
-        })}
-      </AppText>
+      {message === null ? null : (
+        <AppText muted>
+          {t(message, {
+            count: formatNumber(goal.left, language),
+            currency: termFor(terms.currency, language, goal.left),
+          })}
+        </AppText>
+      )}
     </Pressable>
   );
 }
@@ -285,7 +292,9 @@ export default function EventHomeScreen() {
         <AddEmailCard />
         <CountdownLine event={home.event} />
         <Standing home={home} />
-        {home.standing.status === "active" ? <GoalCard eventId={eventId} goal={home.goal} /> : null}
+        {home.standing.status === "active" ? (
+          <GoalCard eventId={eventId} goal={home.goal} ended={ended} />
+        ) : null}
         {home.standing.status === "active" && ranking !== undefined ? (
           <RankingCard eventId={eventId} ranking={ranking} />
         ) : null}

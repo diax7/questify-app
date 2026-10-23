@@ -1045,7 +1045,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-419 | F-125 | Should | pending |
 | FR-420 | F-125 | Should | pending |
 | FR-421 | F-125 | Should | pending |
-| FR-422 | F-126, F-151 | Should | pending |
+| FR-422 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-501 | F-10 | Must | pending |
 | FR-502 | F-10 | Must | pending |
 | FR-503 | F-10 | Must | pending |
@@ -1062,12 +1062,12 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-514 | F-148 | Must | pending |
 | FR-515 | F-153 | Must | pending |
 | FR-516 | F-62 | Should | pending |
-| FR-517 | F-151 | Should | pending |
+| FR-517 | F-151 | Should | `test/db/goal.int`, `test/rewards/routes.int` (T-213) |
 | FR-518 | F-152 | Should | pending |
 | FR-519 | F-149 | Should | pending |
 | FR-520 | F-149, F-111 | Should | pending |
 | FR-521 | F-149 | Should | pending |
-| FR-522 | F-150 | Should | pending |
+| FR-522 | F-150 | Should | pending (T-304, ADR-161) |
 | FR-601 | F-09 | Must | pending |
 | FR-602 | F-09 | Must | pending |
 | FR-603 | F-09 | Must | pending |
@@ -1128,7 +1128,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-752 | F-141 | Should | pending |
 | FR-801 | F-50 | Must | pending |
 | FR-802 | F-50, F-09 | Must | pending |
-| FR-803 | F-50, F-126, F-151 | Must | pending |
+| FR-803 | F-50, F-126, F-151 | Must | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-804 | F-165 | Must | pending |
 | FR-805 | F-168 | Must | pending |
 | FR-806 | F-166 | Should | pending |
@@ -1280,7 +1280,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1613 | F-100, F-158 | Should | pending |
 | FR-1614 | F-171 | Must | pending |
 | FR-1615 | F-59 | Should | pending |
-| FR-1616 | F-126, F-151 | Should | pending |
+| FR-1616 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-1617 | F-150 | Should | pending |
 | FR-1618 | F-62 | Should | pending |
 | FR-1619 | F-51 | Should | pending |

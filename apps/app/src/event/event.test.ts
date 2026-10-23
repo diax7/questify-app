@@ -265,11 +265,14 @@ describe("homeAnswer", () => {
     expect(readHome({ ...HOME, goal: { ...HOME.goal, price: null } })?.goal).toBeNull();
   });
 
-  it("names the goal's line: sold out, redeem now, or what is left", () => {
-    expect(goalMessage(HOME.goal)).toBe("goal.left");
-    expect(goalMessage({ ...HOME.goal, left: 0 })).toBe("goal.ready");
-    expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true })).toBe("goal.soldOut");
-    expect(goalMessage({ ...HOME.goal, soldOut: true })).toBe("goal.soldOut");
+  it("names the goal's line: sold out, enough, or what is left, and nothing left to count once ended", () => {
+    expect(goalMessage(HOME.goal, false)).toBe("goal.left");
+    expect(goalMessage(HOME.goal, true)).toBeNull();
+    expect(goalMessage({ ...HOME.goal, left: 0 }, false)).toBe("goal.ready");
+    expect(goalMessage({ ...HOME.goal, left: 0 }, true)).toBe("goal.ready");
+    expect(goalMessage({ ...HOME.goal, left: -5 }, false)).toBe("goal.ready");
+    expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true }, false)).toBe("goal.soldOut");
+    expect(goalMessage({ ...HOME.goal, soldOut: true }, true)).toBe("goal.soldOut");
   });
 
   it("forgets the event only on the server's definite answer", () => {

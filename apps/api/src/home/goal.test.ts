@@ -29,13 +29,28 @@ describe("pickGoal", () => {
     expect(pickGoal(shop, "hoodie", 500, NOW)).toMatchObject({ left: 0 });
   });
 
-  it("keeps a pinned reward that sold out or closed, and says sold out", () => {
-    const shop = [reward("a", 50, { stockLeft: 0, closesAt: new Date("2026-11-01T11:00:00Z") })];
+  it("keeps a pinned reward that sold out, and says sold out", () => {
+    const shop = [reward("a", 50, { stockLeft: 0 })];
     expect(pickGoal(shop, "a", 0, NOW)).toMatchObject({
       rewardId: "a",
       soldOut: true,
       pinned: true,
     });
+  });
+
+  it("drops a pin at the player's limit for the next reachable reward", () => {
+    const shop = [reward("a", 50, { perPlayerLimit: 1, heldByMe: 1 }), reward("b", 80)];
+    expect(pickGoal(shop, "a", 0, NOW)).toMatchObject({ rewardId: "b", pinned: false });
+    const under = [reward("a", 50, { perPlayerLimit: 2, heldByMe: 1 })];
+    expect(pickGoal(under, "a", 0, NOW)).toMatchObject({ rewardId: "a", pinned: true });
+  });
+
+  it("drops a pin that has closed for the next reachable reward", () => {
+    const shop = [reward("a", 50, { closesAt: NOW }), reward("b", 80)];
+    expect(pickGoal(shop, "a", 0, NOW)).toMatchObject({ rewardId: "b", pinned: false });
+    expect(pickGoal([reward("a", 50, { closesAt: NOW })], "a", 0, NOW)).toBeNull();
+    const later = [reward("a", 50, { closesAt: new Date("2026-11-01T12:00:01Z") })];
+    expect(pickGoal(later, "a", 0, NOW)).toMatchObject({ rewardId: "a", pinned: true });
   });
 
   it("falls back to the next reward when the pin is not in the shop", () => {

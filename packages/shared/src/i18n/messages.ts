@@ -967,10 +967,10 @@ export const MESSAGES = {
   "shop.all": { ar: "الكل", en: "All" },
   "goal.title": { ar: "هدفك", en: "Your goal" },
   "goal.next": { ar: "جائزتك التالية", en: "Next reward" },
-  "goal.left": { ar: "بقي لك {count} من {currency}", en: "{count} more {currency} to go" },
-  "goal.ready": { ar: "رصيدك يكفي، استبدلها الآن.", en: "You have enough. Redeem it now." },
+  "goal.left": { ar: "المتبقي من {currency}: {count}", en: "{count} more {currency} to go" },
+  "goal.ready": { ar: "لديك ما يكفي من {currency}.", en: "You have enough {currency}." },
   "goal.soldOut": {
-    ar: "نفدت هذه الجائزة. اختر هدفًا آخر.",
+    ar: "نفدت الجائزة. اختر هدفًا آخر.",
     en: "This reward sold out. Pick another goal.",
   },
   "goal.open": { ar: "افتح الجوائز", en: "Open rewards" },

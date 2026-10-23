@@ -31,15 +31,19 @@ const goalOf = (reward: GoalReward, balance: number, pinned: boolean): Goal => (
   soldOut: reward.stockLeft <= 0,
 });
 
-/** Still within reach later: in stock, not past its closing time, and not at the player's limit. */
-const reachable = (reward: GoalReward, now: Date): boolean =>
-  reward.stockLeft > 0 &&
+/** Still open to this player: not past its closing time and not at their limit (stock aside). */
+const stillOpen = (reward: GoalReward, now: Date): boolean =>
   (reward.closesAt === null || reward.closesAt > now) &&
   (reward.perPlayerLimit === null || reward.heldByMe < reward.perPlayerLimit);
 
+/** Still within reach later: in stock and still open to this player. */
+const reachable = (reward: GoalReward, now: Date): boolean =>
+  reward.stockLeft > 0 && stillOpen(reward, now);
+
 /**
- * The goal (FR-803, FR-1616, ADR-161): the pinned reward while it is in the shop, whatever its stock; otherwise the
- * cheapest reachable reward the player cannot yet afford, the first in shop order on a tie; otherwise none.
+ * The goal (FR-803, FR-1616, ADR-161): the pinned reward while it is in the shop, not closed and under the player's
+ * limit, whatever its stock (a sold-out pin says so); otherwise the cheapest reachable reward the player cannot yet
+ * afford, the first in shop order on a tie; otherwise none.
  */
 export function pickGoal(
   rewards: readonly GoalReward[],
@@ -47,7 +51,7 @@ export function pickGoal(
   balance: number,
   now: Date,
 ): Goal | null {
-  const pinned = rewards.find((reward) => reward.id === pinnedId);
+  const pinned = rewards.find((reward) => reward.id === pinnedId && stillOpen(reward, now));
   if (pinned !== undefined) {
     return goalOf(pinned, balance, true);
   }
