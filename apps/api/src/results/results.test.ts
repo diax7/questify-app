@@ -396,6 +396,10 @@ describe("results", () => {
     await expect(
       revealResults(notOwner.deps, ACTOR, { eventId: EVENT, claimUntil: claim, requestId: "r" }),
     ).resolves.toEqual({ kind: "owner_only" });
+    const moved = fakePool(() => [{ outcome: "results_changed" }]);
+    await expect(
+      confirmResults(moved.deps, ACTOR, { eventId: EVENT, expected: [], requestId: "r" }),
+    ).resolves.toEqual({ kind: "results_changed" });
   });
 });
 

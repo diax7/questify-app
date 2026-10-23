@@ -90,6 +90,283 @@ function SubmissionFields({ language, config, disabled, change }: TypeFieldProps
   );
 }
 
+type Text = Readonly<{ ar?: string; en?: string }>;
+type Item = Readonly<{ id: string; text: Text }>;
+type Question = Item & Readonly<{ choices: readonly Item[]; right: string }>;
+
+const newId = () => crypto.randomUUID();
+const newItem = (): Item => ({ id: newId(), text: {} });
+const itemsOf = (value: unknown, least: number): readonly Item[] =>
+  Array.isArray(value) ? (value as Item[]) : Array.from({ length: least }, newItem);
+/** A text with an emptied language left out, as the API wants it (at least one language, FR-1008). */
+const withText = (text: Text, key: "ar" | "en", value: string): Text => {
+  const next: Record<string, string> = {};
+  for (const name of ["ar", "en"] as const) {
+    const kept = name === key ? value : text[name];
+    if (kept !== undefined && kept !== "") {
+      next[name] = kept;
+    }
+  }
+  return next;
+};
+
+/** Two inputs, Arabic and English, for one option, choice or question. */
+function TextPair({
+  labels,
+  text,
+  max,
+  disabled,
+  change,
+}: Readonly<{
+  labels: Readonly<{ ar: string; en: string }>;
+  text: Text;
+  max: number;
+  disabled: boolean;
+  change: (text: Text) => void;
+}>) {
+  return (
+    <>
+      {(["ar", "en"] as const).map((key) => (
+        <label key={key} className={styles.field}>
+          {labels[key]}
+          <input
+            className={styles.input}
+            dir={key === "ar" ? "rtl" : "ltr"}
+            maxLength={max}
+            value={str(text[key])}
+            disabled={disabled}
+            onChange={(event) => change(withText(text, key, event.target.value))}
+          />
+        </label>
+      ))}
+    </>
+  );
+}
+
+/** A list of options (a vote's, or one quiz question's choices): at least 2, each in both languages. */
+function OptionList({
+  language,
+  items,
+  most,
+  disabled,
+  change,
+}: Readonly<{
+  language: Language;
+  items: readonly Item[];
+  most: number;
+  disabled: boolean;
+  change: (items: readonly Item[]) => void;
+}>) {
+  const t = translatorFor(language);
+  const edit = (id: string, text: Text) =>
+    change(items.map((one) => (one.id === id ? { ...one, text } : one)));
+  return (
+    <>
+      {items.map((item, index) => (
+        <div key={item.id} className={styles.field}>
+          <TextPair
+            labels={{
+              ar: t("quests.choiceAr", { number: index + 1 }),
+              en: t("quests.choiceEn", { number: index + 1 }),
+            }}
+            text={item.text}
+            max={120}
+            disabled={disabled}
+            change={(text) => edit(item.id, text)}
+          />
+          {items.length > 2 ? (
+            <button
+              type="button"
+              className={styles.quiet}
+              disabled={disabled}
+              onClick={() => change(items.filter((one) => one.id !== item.id))}
+            >
+              {t("quests.vote.removeOption", { number: index + 1 })}
+            </button>
+          ) : null}
+        </div>
+      ))}
+      {items.length < most ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={disabled}
+          onClick={() => change([...items, newItem()])}
+        >
+          {t("quests.vote.addOption")}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/** A vote (T-302): 2 to 10 options the organizer writes (FR-1629: never a player's submission). */
+function VoteFields({ language, config, disabled, change }: TypeFieldProps) {
+  const t = translatorFor(language);
+  return (
+    <fieldset className={styles.field}>
+      <legend>{t("quests.vote.options")}</legend>
+      <p className={styles.muted}>{t("quests.vote.note")}</p>
+      <OptionList
+        language={language}
+        items={itemsOf(config["options"], 2)}
+        most={10}
+        disabled={disabled}
+        change={(options) => change({ ...config, options })}
+      />
+    </fieldset>
+  );
+}
+
+const newQuestion = (): Question => {
+  const choices = [newItem(), newItem()];
+  return { id: newId(), text: {}, choices, right: choices[0]?.id ?? "" };
+};
+
+/** One quiz question: its words, its choices, and which one is right. */
+function QuestionFields({
+  language,
+  question,
+  number,
+  disabled,
+  change,
+  remove,
+}: Readonly<{
+  language: Language;
+  question: Question;
+  number: number;
+  disabled: boolean;
+  change: (question: Question) => void;
+  remove: (() => void) | null;
+}>) {
+  const t = translatorFor(language);
+  const setChoices = (choices: readonly Item[]) =>
+    change({
+      ...question,
+      choices,
+      right: choices.some((choice) => choice.id === question.right)
+        ? question.right
+        : (choices[0]?.id ?? ""),
+    });
+  return (
+    <fieldset className={styles.field}>
+      <legend>{t("quests.quiz.question", { number })}</legend>
+      <TextPair
+        labels={{ ar: t("quests.quiz.questionAr"), en: t("quests.quiz.questionEn") }}
+        text={question.text}
+        max={300}
+        disabled={disabled}
+        change={(text) => change({ ...question, text })}
+      />
+      <OptionList
+        language={language}
+        items={question.choices}
+        most={6}
+        disabled={disabled}
+        change={setChoices}
+      />
+      <label className={styles.field}>
+        {t("quests.quiz.right")}
+        <select
+          className={styles.input}
+          value={question.right}
+          disabled={disabled}
+          onChange={(event) => change({ ...question, right: event.target.value })}
+        >
+          {question.choices.map((choice, index) => (
+            <option key={choice.id} value={choice.id}>
+              {t("quests.quiz.rightChoice", { number: index + 1 })}
+            </option>
+          ))}
+        </select>
+      </label>
+      {remove === null ? null : (
+        <button type="button" className={styles.quiet} disabled={disabled} onClick={remove}>
+          {t("quests.quiz.removeQuestion", { number })}
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/** A quiz (T-302): 1 to 20 questions, 2 to 6 choices each, one right; an optional timer for every question. */
+function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
+  const t = translatorFor(language);
+  const questions = Array.isArray(config["questions"])
+    ? (config["questions"] as Question[])
+    : [newQuestion()];
+  const timer = typeof config["timerSeconds"] === "number" ? config["timerSeconds"] : null;
+  const save = (next: readonly Question[], timerSeconds: number | null) =>
+    change({ ...config, questions: next, timerSeconds });
+  return (
+    <>
+      <p className={styles.muted}>{t("quests.quiz.note")}</p>
+      <label className={styles.field}>
+        {t("quests.quiz.timer")}
+        <input
+          className={styles.input}
+          type="number"
+          dir="ltr"
+          min={5}
+          max={300}
+          value={timer === null ? "" : String(timer)}
+          disabled={disabled}
+          onChange={(event) =>
+            save(questions, event.target.value === "" ? null : Number(event.target.value))
+          }
+        />
+      </label>
+      <h3 className={styles.subtitle}>{t("quests.quiz.questions")}</h3>
+      {questions.map((question, index) => (
+        <QuestionFields
+          key={question.id}
+          language={language}
+          question={question}
+          number={index + 1}
+          disabled={disabled}
+          change={(next) =>
+            save(
+              questions.map((one) => (one.id === question.id ? next : one)),
+              timer,
+            )
+          }
+          remove={
+            questions.length > 1
+              ? () =>
+                  save(
+                    questions.filter((one) => one.id !== question.id),
+                    timer,
+                  )
+              : null
+          }
+        />
+      ))}
+      {questions.length < 20 ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={disabled}
+          onClick={() => save([...questions, newQuestion()], timer)}
+        >
+          {t("quests.quiz.addQuestion")}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/** The config a new quest of this type starts from: a vote's two options, a quiz's first question. */
+export function startingConfig(type: QuestType): Config {
+  switch (type) {
+    case "vote":
+      return { options: [newItem(), newItem()] };
+    case "quiz":
+      return { questions: [newQuestion()], timerSeconds: null };
+    default:
+      return {};
+  }
+}
+
 /**
  * The form fields each quest type adds (FR-1505). Typed by the registry's keys, so a type added to the registry
  * without its fields here fails the type check.
@@ -99,4 +376,6 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     scan_qr: ScanQrFields,
     enter_code: EnterCodeFields,
     submission: SubmissionFields,
+    vote: VoteFields,
+    quiz: QuizFields,
   };

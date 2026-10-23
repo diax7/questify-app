@@ -307,7 +307,7 @@ its own field T-603). Show or hide is `visible`, not a status.
 
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the
-quest's cap), method (qr|code|my_qr|manual|submission; later tasks add nfc…), idempotency_key, device_id, created_at`.
+quest's cap), method (qr|code|my_qr|manual|submission|vote|quiz; later tasks add nfc…), idempotency_key, device_id, created_at`.
 **Unique (enrollment_id, quest_id, occurrence)** (one row per time a player completed a quest) and **unique
 (enrollment_id, idempotency_key)** (a retry finds the first completion). Composite foreign keys keep the event, the
 enrollment and the quest of one tenant; all RESTRICT. `device_id` (an app install id, personal data) lives here, not on
@@ -448,6 +448,24 @@ delete guard). Quest `type` gains `submission` with `type_config {accepts: ["tex
 text only).
 **PII:** free text may name people; no AI moderation (ADR-071); visible only to the player and the event's team
 (FR-205).
+
+### quest_vote, quiz_attempt, quiz_answer (migration 0041, T-302, ADR-190 to ADR-195)
+**Built:** `quest_vote (organizer_id, event_id, enrollment_id, quest_id, option_id, completion_id unique, created_at)`,
+primary key (enrollment, quest): one vote per player, paid as an ordinary completion (method `vote`).
+`quiz_attempt (id bigint, organizer_id, event_id, enrollment_id, quest_id, status open|finished|void, points_each,
+question_count, timer_seconds, right_count, swept, completion_id, started_at, finished_at)`, unique (enrollment, quest):
+one attempt per player; points per right answer, the question count and the timer frozen at start; a finished attempt
+has a completion exactly when it got a right answer (key `quiz:<id>`, reserved like `sub:`). `quiz_answer (attempt_id,
+position, question_id, choice_id, correct, closed, served_at, answered_at)`, primary key (attempt, position): a row per
+question served, `served_at` written once. Quest `type` gains `vote` (`type_config {options: [{id, text}]}`, 2 to 10)
+and `quiz` (`{questions: [{id, text, choices: [{id, text}], right}], timerSeconds}`, 1 to 20 questions, 2 to 6
+choices, timer null or 5 to 300 s); both have `repeat_cap = 1` (CHECKed with the counts). Once anyone voted or
+started, a trigger refuses changes to ids, counts, order, right answers and the timer (`QL409`, ADR-194). A member who
+stops being active has their open attempts voided; the lifecycle tick (`finish_one_due_quiz`) and `confirm_results`
+finish open attempts that are due, with an approval's re-checks. Account deletion deletes the votes and quiz answers
+(attempts stay for the ledger); the rehearsal wipe deletes all three. No grant on the tables: `vote_quest`,
+`member_vote`, `quest_vote_counts`, `quiz_start`, `quiz_next`, `quiz_answer`, `member_quiz`, `finish_one_due_quiz`.
+**PII:** a player's choices (store forms: "quiz answers, votes"); counts only for the team.
 
 ### flag, ticket, audit_log
 `flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst, device_id (shared_device only),

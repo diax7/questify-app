@@ -834,6 +834,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide curve; no right for the API role, read inside the XP definers (test/db/xp)",
   level_title:
     "platform-wide titles; no right for the API role, read through own_level (test/db/xp)",
+  quest_vote:
+    "no right for the API role at all; written by vote_quest, read by the voter through member_vote and by the event's team as counts through quest_vote_counts (test/db/vote-quiz)",
+  quiz_attempt:
+    "no right for the API role at all; written by quiz_start, quiz_next, quiz_answer and the sweep, read by the player through member_quiz (test/db/vote-quiz)",
+  quiz_answer:
+    "no right for the API role at all; written by quiz_next and quiz_answer, read by the player through member_quiz (test/db/vote-quiz)",
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
 };

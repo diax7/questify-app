@@ -12,6 +12,7 @@ function fakePool(
   moved: () => number | Error,
   expiry: () => string | null | Error = () => null,
   rehearsals: { due: string[]; wiped: boolean } = { due: [], wiped: true },
+  quizzes: () => string | null = () => null,
 ) {
   const statements: string[] = [];
   const client = {
@@ -29,6 +30,9 @@ function fakePool(
       }
       if (sql.includes("ensure_rehearsal_wiped")) {
         return { rows: [{ wiped: rehearsals.wiped }] };
+      }
+      if (sql.includes("finish_one_due_quiz")) {
+        return { rows: [{ outcome: quizzes() }] };
       }
       if (sql.includes("expire_one_reservation")) {
         const outcome = expiry();
@@ -132,6 +136,7 @@ describe("startLifecycleTick", () => {
         fields: { event: "event.rehearsal_wipe_failed", reason: "unknown", code: null },
       },
       { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "quiz.sweep_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
   });
@@ -170,10 +175,38 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
-    // The lifecycle call, one look for due rehearsal wipes and one for due reservations; nothing after the stop.
-    expect(connects).toBe(3);
+    // The lifecycle call, one look each for due rehearsal wipes, reservations and quizzes; nothing after the stop.
+    expect(connects).toBe(4);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(3);
+    expect(connects).toBe(4);
+  });
+
+  it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
+    const outcomes: (string | null)[] = ["paid", "void", null];
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => null,
+      { due: [], wiped: true },
+      () => outcomes.shift() ?? null,
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("finish_one_due_quiz"))).toHaveLength(3);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "quiz.attempts_finished", count: 2 } },
+    ]);
+    await tick.stop();
+    const busy = fakePool(
+      () => 0,
+      () => null,
+      { due: [], wiped: true },
+      () => "paid",
+    );
+    const again = start(busy.pool, []);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(busy.statements.filter((sql) => sql.includes("finish_one_due_quiz"))).toHaveLength(50);
+    await again.stop();
   });
 
   it("returns due reservations one call at a time, and logs only the count", async () => {

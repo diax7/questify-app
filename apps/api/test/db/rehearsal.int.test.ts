@@ -1002,6 +1002,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // Submissions are deleted before the completions they point at (T-301).
         "enrollment.submission",
         "quest_completion.submission",
+        // Votes, quiz answers and attempts are deleted before the completions they point at (T-302).
+        "enrollment.quest_vote",
+        "enrollment.quiz_attempt",
+        "quest_completion.quest_vote",
+        "quest_completion.quiz_attempt",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1028,6 +1033,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "wipe_rehearsal",
         "due_rehearsal_wipes",
         "rehearsal_over",
+        "finish_quiz", // internal: play_enter, the quiz sweep and confirm_results wipe before calling it
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

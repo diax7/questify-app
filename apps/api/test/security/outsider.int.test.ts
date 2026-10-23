@@ -82,6 +82,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot vote, play a quiz or read either (T-302)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.vote_quest(gen_random_uuid(), 'a', 'k')",
+        "SELECT * FROM public.member_vote(gen_random_uuid())",
+        "SELECT * FROM public.quest_vote_counts(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.quiz_start(gen_random_uuid())",
+        "SELECT public.quiz_next(gen_random_uuid())",
+        "SELECT public.quiz_answer(gen_random_uuid(), 'q1', 'a')",
+        "SELECT * FROM public.member_quiz(gen_random_uuid())",
+        "SELECT public.finish_one_due_quiz()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

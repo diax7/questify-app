@@ -12,7 +12,8 @@ import {
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
-import { QUEST_TYPE_FIELDS } from "#src/components/QuestTypeFields.tsx";
+import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
+import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
@@ -27,6 +28,8 @@ type Props = Readonly<{
   initial: QuestDraft;
   /** False when editing: a quest's type is fixed once it exists. */
   isNew: boolean;
+  /** Where an existing vote quest's counts are read (ADR-195); null for anything else. */
+  votesUrl: string | null;
   busy: boolean;
   save: (draft: QuestDraft) => void;
   cancel: () => void;
@@ -40,6 +43,7 @@ export function QuestForm({
   categories,
   initial,
   isNew,
+  votesUrl,
   busy,
   save,
   cancel,
@@ -94,7 +98,7 @@ export function QuestForm({
           onChange={(event) =>
             change({
               type: event.target.value as QuestDraft["type"],
-              config: {},
+              config: startingConfig(event.target.value as QuestDraft["type"]),
               verification:
                 parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
             })
@@ -145,13 +149,15 @@ export function QuestForm({
           }}
         />
       </label>
-      <QuestRepeatField
-        language={language}
-        player={terms.player[language].one}
-        draft={draft}
-        busy={busy}
-        change={change}
-      />
+      {QUEST_TYPES[draft.type].oneTry ? null : (
+        <QuestRepeatField
+          language={language}
+          player={terms.player[language].one}
+          draft={draft}
+          busy={busy}
+          change={change}
+        />
+      )}
       {(["opensAt", "closesAt"] as const).map((key) => (
         <label key={key} className={styles.field}>
           {t(`quests.field.${key}`)}
@@ -184,6 +190,7 @@ export function QuestForm({
         change={(config) => change({ config })}
       />
       <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
+      {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}

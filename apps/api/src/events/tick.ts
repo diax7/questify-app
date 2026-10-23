@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { finishDueQuizzes } from "#src/plays/quizzes";
 import { wipeDueRehearsals } from "#src/rehearsal/service";
 import { expireReservations } from "#src/rewards/shop";
 
@@ -23,7 +24,7 @@ const JITTER = 0.2;
 /**
  * Moves events through their lifecycle on time (FR-1608): every interval, one call to `advance_event_lifecycle()` in
  * its own transaction, with no organizer context; then wipes the rehearsals that went live (ADR-160), then returns the
- * reservations whose pickup time passed (FR-508). A
+ * reservations whose pickup time passed (FR-508), then finishes the quizzes left open past their close (ADR-193). A
  * failure is logged and the next run tries again; it never stops the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
  */
 export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
@@ -70,6 +71,13 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
       const returned = await expireReservations(deps.pool);
       if (returned > 0) {
         deps.log("info", { event: "reward.reservations_expired", count: returned });
+      }
+    });
+    // Quizzes left open past their close pay what they earned (ADR-193).
+    await step("quiz.sweep_failed", async () => {
+      const finished = await finishDueQuizzes({ pool: deps.pool });
+      if (finished > 0) {
+        deps.log("info", { event: "quiz.attempts_finished", count: finished });
       }
     });
   };

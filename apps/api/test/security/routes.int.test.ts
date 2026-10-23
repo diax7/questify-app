@@ -313,6 +313,20 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; only an approved submission of that event, through remove_award (test/submissions/routes, test/db/submissions)",
   "POST /v1/organizers/:organizerId/events/:eventId/submissions/seen":
     "members inside their event limit; only that event's submissions are marked (test/submissions/routes, test/db/submissions)",
+  "GET /v1/quests/:questId/vote":
+    "the calling player's own options and choice, through member_vote; only a quest they may play (test/plays/routes, test/db/vote-quiz)",
+  "POST /v1/quests/:questId/vote":
+    "the calling player's own active enrollment in the quest's event only; one vote, checked by vote_quest (test/plays/routes, test/db/vote-quiz)",
+  "GET /v1/quests/:questId/quiz":
+    "the calling player's own attempt only, through member_quiz; never a right answer before it was answered or closed (test/plays/routes, test/db/vote-quiz)",
+  "POST /v1/quests/:questId/quiz/start":
+    "the calling player's own attempt in a quest they may play, through quiz_start (test/plays/routes, test/db/vote-quiz)",
+  "POST /v1/quests/:questId/quiz/next":
+    "the calling player's own attempt only, through quiz_next (test/plays/routes, test/db/vote-quiz)",
+  "POST /v1/quests/:questId/quiz/answer":
+    "the calling player's own attempt only, one try per question, through quiz_answer (test/plays/routes, test/db/vote-quiz)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/votes":
+    "members inside their event limit; counts of a vote quest of that event only, never who voted (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/operator/scan":
     "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":

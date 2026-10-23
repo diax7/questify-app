@@ -537,6 +537,8 @@ export const MESSAGES = {
   "quests.type.scanQr": { ar: "مسح رمز QR", en: "Scan a QR code" },
   "quests.type.enterCode": { ar: "إدخال رمز", en: "Enter a code" },
   "quests.type.submission": { ar: "إرسال إجابة", en: "Send an answer" },
+  "quests.type.vote": { ar: "تصويت", en: "Vote" },
+  "quests.type.quiz": { ar: "اختبار", en: "Quiz" },
   "signIn.consentTitle": { ar: "قبل أن نبدأ", en: "Before we start" },
   "signIn.consentBody": {
     ar: "لتدخل إلى حسابك أو تنشئه، وافق على شروط الاستخدام وسياسة الخصوصية.",
@@ -2445,6 +2447,178 @@ export const MESSAGES = {
   "quests.submission.textOnly": {
     ar: "يرسل اللاعبون نصًا. إرسال الصور قريبًا.",
     en: "Players send text. Photos are coming.",
+  },
+  "play.loadFailed": {
+    ar: "تعذّر تحميل المهمة. حاول مرة أخرى.",
+    en: "Couldn't load this quest. Try again.",
+  },
+  "play.vote.choose": {
+    ar: "اختر خيارًا واحدًا",
+    en: "Choose one option",
+  },
+  "play.vote.send": {
+    ar: "صوّت",
+    en: "Vote",
+  },
+  "play.vote.recorded": {
+    ar: "سُجّل صوتك.",
+    en: "Your vote is in.",
+  },
+  "play.vote.yours": {
+    ar: "صوتك: {option}",
+    en: "Your vote: {option}",
+  },
+  "play.quiz.questions": {
+    ar: "عدد الأسئلة: {count}",
+    en: "{count} questions",
+  },
+  "play.quiz.perRight": {
+    ar: "{currency} لكل إجابة صحيحة: {points}",
+    en: "{points} {currency} for each right answer",
+  },
+  "play.quiz.timer": {
+    ar: "الوقت لكل سؤال بالثواني: {seconds}",
+    en: "{seconds} seconds per question",
+  },
+  "play.quiz.oneTry": {
+    ar: "محاولة واحدة لكل سؤال، وتظهر الإجابة الصحيحة بعد إجابتك.",
+    en: "One try per question. The right answer shows after you answer.",
+  },
+  "play.quiz.start": {
+    ar: "ابدأ الاختبار",
+    en: "Start quiz",
+  },
+  "play.quiz.resume": {
+    ar: "أكمل الاختبار",
+    en: "Resume quiz",
+  },
+  "play.quiz.position": {
+    ar: "السؤال {position} من {total}",
+    en: "Question {position} of {total}",
+  },
+  "play.quiz.secondsLeft": {
+    ar: "الثواني المتبقية: {seconds}",
+    en: "{seconds} seconds left",
+  },
+  "play.quiz.timeUp": {
+    ar: "انتهى الوقت",
+    en: "Time's up",
+  },
+  "play.quiz.right": {
+    ar: "إجابة صحيحة!",
+    en: "Right!",
+  },
+  "play.quiz.wrong": {
+    ar: "إجابة غير صحيحة. الصحيحة: {answer}",
+    en: "Not quite. The right answer: {answer}",
+  },
+  "play.quiz.closed": {
+    ar: "انتهى الوقت. الإجابة الصحيحة: {answer}",
+    en: "Time ran out. The right answer: {answer}",
+  },
+  "play.quiz.next": {
+    ar: "السؤال التالي",
+    en: "Next question",
+  },
+  "play.quiz.finish": {
+    ar: "اعرض النتيجة",
+    en: "See the result",
+  },
+  "play.quiz.result": {
+    ar: "إجاباتك الصحيحة: {right} من {total}",
+    en: "{right} of {total} right",
+  },
+  "play.quiz.noPoints": {
+    ar: "لم تحصل على {currency} هذه المرة.",
+    en: "No {currency} this time.",
+  },
+  "play.quiz.void": {
+    ar: "انتهى الاختبار دون أن يُحتسب.",
+    en: "This quiz ended without counting.",
+  },
+  "quests.choiceAr": {
+    ar: "الخيار {number} بالعربية",
+    en: "Option {number} in Arabic",
+  },
+  "quests.choiceEn": {
+    ar: "الخيار {number} بالإنجليزية",
+    en: "Option {number} in English",
+  },
+  "quests.vote.options": {
+    ar: "الخيارات",
+    en: "Options",
+  },
+  "quests.vote.addOption": {
+    ar: "إضافة خيار",
+    en: "Add option",
+  },
+  "quests.vote.removeOption": {
+    ar: "حذف الخيار {number}",
+    en: "Remove option {number}",
+  },
+  "quests.vote.note": {
+    ar: "تكتب الخيارات بنفسك، ولا تصبح مشاركات اللاعبين خيارات. لكل لاعب صوت واحد.",
+    en: "You write the options; player submissions never become options. One vote per player.",
+  },
+  "quests.vote.results": {
+    ar: "الأصوات",
+    en: "Votes",
+  },
+  "quests.vote.count": {
+    ar: "{option}: {votes}",
+    en: "{option}: {votes}",
+  },
+  "quests.vote.total": {
+    ar: "مجموع الأصوات: {total}",
+    en: "Total votes: {total}",
+  },
+  "quests.quiz.questions": {
+    ar: "الأسئلة",
+    en: "Questions",
+  },
+  "quests.quiz.question": {
+    ar: "السؤال {number}",
+    en: "Question {number}",
+  },
+  "quests.quiz.questionAr": {
+    ar: "نص السؤال بالعربية",
+    en: "Question in Arabic",
+  },
+  "quests.quiz.questionEn": {
+    ar: "نص السؤال بالإنجليزية",
+    en: "Question in English",
+  },
+  "quests.quiz.right": {
+    ar: "الإجابة الصحيحة",
+    en: "Right answer",
+  },
+  "quests.quiz.rightChoice": {
+    ar: "الخيار {number}",
+    en: "Option {number}",
+  },
+  "quests.quiz.addQuestion": {
+    ar: "إضافة سؤال",
+    en: "Add question",
+  },
+  "quests.quiz.removeQuestion": {
+    ar: "حذف السؤال {number}",
+    en: "Remove question {number}",
+  },
+  "quests.quiz.addChoice": {
+    ar: "إضافة خيار",
+    en: "Add option",
+  },
+  "quests.quiz.removeChoice": {
+    ar: "حذف الخيار {number}",
+    en: "Remove option {number}",
+  },
+  "quests.quiz.timer": {
+    ar: "الوقت لكل سؤال بالثواني (اتركه فارغًا لاختبار بلا مؤقت)",
+    en: "Seconds per question (leave empty for no timer)",
+  },
+  "quests.quiz.note": {
+    ar: "النقاط المحددة أعلاه لكل إجابة صحيحة. محاولة واحدة لكل لاعب. بعد أن يبدأ أحدهم يمكن تعديل النصوص فقط.",
+    en: "The points above are for each right answer. One try per player. Once someone starts, only the wording can change.",
   },
 } as const satisfies Messages;
 

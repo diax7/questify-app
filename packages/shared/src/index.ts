@@ -101,6 +101,7 @@ export {
   parseVerification,
   QUEST_CODE_HOSTS,
   parseQuestConfig,
+  QUIZ_GRACE_SECONDS,
   SUBMISSION_TEXT_MAX,
   unavailableSubmissionKind,
 } from "./quests/registry";

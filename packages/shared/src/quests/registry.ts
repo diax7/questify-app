@@ -5,6 +5,33 @@ import { toWesternDigits } from "#src/i18n/digits";
 const ENTRY_CODE = /^[A-Za-z0-9]{4,32}$/;
 
 const hintText = z.string().trim().min(1).max(200).optional();
+/** An id the dashboard makes for an option, a question or a choice; stable once players answered (ADR-194). */
+const itemId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+/** Organizer text of at most `max` characters, in at least one language (FR-1008). */
+const organizerText = (max: number) =>
+  z
+    .strictObject({
+      ar: z.string().trim().min(1).max(max).optional(),
+      en: z.string().trim().min(1).max(max).optional(),
+    })
+    .refine((text) => text.ar !== undefined || text.en !== undefined);
+const distinctIds = (items: readonly Readonly<{ id: string }>[]): boolean =>
+  new Set(items.map((item) => item.id)).size === items.length;
+const quizQuestion = z
+  .strictObject({
+    id: itemId,
+    text: organizerText(300),
+    choices: z
+      .array(z.strictObject({ id: itemId, text: organizerText(120) }))
+      .min(2)
+      .max(6),
+    right: itemId,
+  })
+  .refine(
+    (question) =>
+      distinctIds(question.choices) &&
+      question.choices.some((choice) => choice.id === question.right),
+  );
 /** Organizer text: at least one language when given (FR-1008). */
 const bilingualHint = z
   .strictObject({ ar: hintText, en: hintText })
@@ -21,6 +48,7 @@ export const QUEST_TYPES = {
   /** The player scans the quest's QR code (T-104 signs it; T-105 completes it). */
   scan_qr: {
     label: "quests.type.scanQr",
+    oneTry: false,
     usesQuestQr: true,
     verifications: ["quest_qr", "my_qr"],
     config: z.strictObject({}),
@@ -28,6 +56,7 @@ export const QUEST_TYPES = {
   /** The player types a code shown at the venue (T-105). The code is a secret: never shown to players. */
   enter_code: {
     label: "quests.type.enterCode",
+    oneTry: false,
     usesQuestQr: false,
     verifications: [],
     config: z.strictObject({
@@ -46,6 +75,7 @@ export const QUEST_TYPES = {
    */
   submission: {
     label: "quests.type.submission",
+    oneTry: false,
     usesQuestQr: false,
     verifications: [],
     config: z.strictObject({
@@ -54,7 +84,42 @@ export const QUEST_TYPES = {
       resubmit: z.boolean().default(false),
     }),
   },
+  /**
+   * The player picks one of the organizer's options (T-302, FR-207). Options are the organizer's own text, never a
+   * player's submission (FR-1629); images wait for storage (ADR-190). One vote per player.
+   */
+  vote: {
+    label: "quests.type.vote",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      options: z
+        .array(z.strictObject({ id: itemId, text: organizerText(120) }))
+        .min(2)
+        .max(10)
+        .refine(distinctIds),
+    }),
+  },
+  /**
+   * Multiple-choice questions served one at a time, one try each, points per right answer, an optional timer for every
+   * question (T-302, FR-208 to FR-210, ADR-191, ADR-192). One attempt per player. The right answers never reach a
+   * player before they answer.
+   */
+  quiz: {
+    label: "quests.type.quiz",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      questions: z.array(quizQuestion).min(1).max(20).refine(distinctIds),
+      timerSeconds: z.number().int().min(5).max(300).nullable().default(null),
+    }),
+  },
 } as const;
+
+/** The seconds a quiz answer is still taken after its question's time ran out, for the network (ADR-192, Q-157). */
+export const QUIZ_GRACE_SECONDS = 2;
 
 /** The longest text a player may send for a submission quest (Q-150). */
 export const SUBMISSION_TEXT_MAX = 1000;

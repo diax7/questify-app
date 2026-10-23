@@ -1011,3 +1011,52 @@ export const notApproved = make(
   "يمكن إزالة المشاركات المقبولة فقط.",
   "Only an approved submission can be removed.",
 );
+export const questLocked = make(
+  409,
+  "quest_locked",
+  "بدأ اللاعبون هذه المهمة، فيمكن تعديل النصوص فقط، لا الخيارات ولا الإجابات ولا المؤقت.",
+  "Players have started this quest, so only its text can change, not its options, answers or timer.",
+);
+export const notVoteQuest = make(
+  422,
+  "not_vote_quest",
+  "هذه المهمة ليست تصويتًا.",
+  "This quest is not a vote.",
+);
+export const notQuizQuest = make(
+  422,
+  "not_quiz_quest",
+  "هذه المهمة ليست اختبارًا.",
+  "This quest is not a quiz.",
+);
+export const unknownOption = make(
+  422,
+  "unknown_option",
+  "هذا الخيار غير موجود في المهمة.",
+  "That choice is not in this quest.",
+);
+export const alreadyVoted = make(409, "already_voted", "صوّتَّ من قبل.", "You have already voted.");
+export const quizNotStarted = make(
+  404,
+  "quiz_not_started",
+  "ابدأ الاختبار أولًا.",
+  "Start the quiz first.",
+);
+export const alreadyAnswered = make(
+  409,
+  "already_answered",
+  "أجبت عن هذا السؤال من قبل.",
+  "You already answered this question.",
+);
+export const questionClosed = make(
+  409,
+  "question_closed",
+  "انتهى وقت هذا السؤال.",
+  "Time is up for this question.",
+);
+export const questionNotServed = make(
+  409,
+  "question_not_served",
+  "هذا السؤال لم يُفتح بعد.",
+  "This question is not open yet.",
+);

@@ -25,7 +25,7 @@ describe("the quest-type registry", () => {
   });
 
   it("knows its own types and nothing else", () => {
-    expect(QUEST_TYPE_NAMES).toEqual(["scan_qr", "enter_code", "submission"]);
+    expect(QUEST_TYPE_NAMES).toEqual(["scan_qr", "enter_code", "submission", "vote", "quiz"]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);
     expect(isQuestType("photo")).toBe(false);
@@ -57,6 +57,68 @@ describe("submission quests", () => {
     expect(unavailableSubmissionKind({ accepts: "photo" })).toBeUndefined();
     expect(unavailableSubmissionKind(null)).toBeUndefined();
     expect(unavailableSubmissionKind("x")).toBeUndefined();
+  });
+});
+
+const option = (id: string) => ({ id, text: { en: `Option ${id}` } });
+const question = (id: string, right = "a") => ({
+  id,
+  text: { ar: "سؤال" },
+  choices: [option("a"), option("b")],
+  right,
+});
+
+describe("vote quests", () => {
+  it("take 2 to 10 options of the organizer's text, with distinct ids", () => {
+    expect(parseQuestConfig("vote", { options: [option("a"), option("b")] })).toEqual({
+      options: [option("a"), option("b")],
+    });
+    expect(parseQuestConfig("vote", { options: [option("a")] })).toBeUndefined();
+    expect(
+      parseQuestConfig("vote", { options: Array.from({ length: 11 }, (_, i) => option(`o${i}`)) }),
+    ).toBeUndefined();
+    expect(parseQuestConfig("vote", { options: [option("a"), option("a")] })).toBeUndefined();
+    expect(
+      parseQuestConfig("vote", { options: [option("a"), { id: "b", text: {} }] }),
+    ).toBeUndefined();
+    expect(
+      parseQuestConfig("vote", { options: [option("a"), { id: "b c", text: { en: "x" } }] }),
+    ).toBeUndefined();
+    expect(QUEST_TYPES.vote.oneTry).toBe(true);
+  });
+});
+
+describe("quiz quests", () => {
+  it("take 1 to 20 questions with one right choice each, and no timer by default", () => {
+    expect(parseQuestConfig("quiz", { questions: [question("q1")] })).toEqual({
+      questions: [question("q1")],
+      timerSeconds: null,
+    });
+    expect(
+      parseQuestConfig("quiz", { questions: [question("q1")], timerSeconds: 30 }),
+    ).toMatchObject({ timerSeconds: 30 });
+    expect(QUEST_TYPES.quiz.oneTry).toBe(true);
+    expect(QUEST_TYPES.scan_qr.oneTry).toBe(false);
+  });
+
+  it.each([
+    ["no questions", { questions: [] }],
+    ["21 questions", { questions: Array.from({ length: 21 }, (_, i) => question(`q${i}`)) }],
+    ["a repeated question id", { questions: [question("q1"), question("q1")] }],
+    ["a right answer that is not a choice", { questions: [question("q1", "z")] }],
+    ["one choice", { questions: [{ ...question("q1"), choices: [option("a")] }] }],
+    [
+      "repeated choices",
+      { questions: [{ ...question("q1"), choices: [option("a"), option("a")] }] },
+    ],
+    ["a timer under 5 s", { questions: [question("q1")], timerSeconds: 4 }],
+    ["a timer over 300 s", { questions: [question("q1")], timerSeconds: 301 }],
+    [
+      "question text over 300",
+      { questions: [{ ...question("q1"), text: { en: "x".repeat(301) } }] },
+    ],
+  ])("refuse %s", (_name, config) => {
+    expect(parseQuestConfig("quiz", config)).toBeUndefined();
   });
 });
 

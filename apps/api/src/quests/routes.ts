@@ -11,6 +11,7 @@ import {
   limitReached,
   notFound,
   orderStale,
+  questLocked,
   rehearsalData,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
@@ -124,6 +125,8 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
       throw rehearsalData();
     case "submission_kind_unavailable":
       throw submissionKindUnavailable({ asked: result.asked });
+    case "quest_locked":
+      throw questLocked();
   }
 }
 

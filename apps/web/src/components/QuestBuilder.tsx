@@ -216,6 +216,11 @@ export function QuestBuilder({
           categories={categories}
           initial={editing.initial}
           isNew={editing.quest === undefined}
+          votesUrl={
+            editing.quest?.type === "vote"
+              ? `/v1/organizers/${organizerId}/events/${eventId}/quests/${editing.quest.id}/votes`
+              : null
+          }
           busy={b.busy}
           save={save}
           cancel={closeEditing}

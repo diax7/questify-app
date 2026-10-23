@@ -498,6 +498,10 @@ export function confirmResults(
     if (rows[0]?.outcome === "not_owner") {
       return { kind: "owner_only" };
     }
+    // Open quizzes were paid first and moved the places (T-302): the owner reviews them again.
+    if (rows[0]?.outcome === "results_changed") {
+      return { kind: "results_changed" };
+    }
     return done(await viewOf(client, request.eventId));
   });
 }

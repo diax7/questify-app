@@ -21,8 +21,8 @@ type Claim = Readonly<{ scope: string; key: string }>;
 
 /** PostgreSQL lock_timeout (55P03), statement_timeout (57014) and too many connections (53300): a busy database, not a bug. */
 const DATABASE_BUSY = new Set(["55P03", "57014", "53300"]);
-/** Visible ASCII; `sub:` is reserved for the database's own approval keys (T-301), so no caller can take one. */
-const KEY_FORMAT = /^(?!sub:)[\x21-\x7e]{1,255}$/;
+/** Visible ASCII; `sub:` and `quiz:` are reserved for the database's own completion keys (T-301, T-302). */
+const KEY_FORMAT = /^(?!sub:|quiz:)[\x21-\x7e]{1,255}$/;
 const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
 
 const headerValue = (value: string | string[] | undefined): string | undefined =>

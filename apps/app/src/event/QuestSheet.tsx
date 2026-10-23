@@ -16,7 +16,9 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { completedText } from "#src/event/amount.ts";
+import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
+import { VoteEntry } from "#src/event/VoteEntry.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import {
   completeQuest,
@@ -149,7 +151,8 @@ function Verification({
   if (quest.type === "enter_code") {
     return <CodeEntry quest={quest} onDone={onDone} />;
   }
-  if (quest.type === "submission") {
+  // These types play in their own entry below the sheet's details.
+  if (quest.type === "submission" || quest.type === "vote" || quest.type === "quiz") {
     return null;
   }
   const staff = quest.verification.includes("my_qr");
@@ -184,6 +187,24 @@ function Verification({
   );
 }
 
+/** The part of the sheet where the quest is played, by its type. */
+function QuestEntry({
+  quest,
+  onSent,
+  onDone,
+}: Readonly<{ quest: Quest; onSent: () => void; onDone: (answer: CompletionAnswer) => void }>) {
+  switch (quest.type) {
+    case "submission":
+      return <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />;
+    case "vote":
+      return <VoteEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    case "quiz":
+      return <QuizEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    default:
+      return <Verification key={quest.id} quest={quest} onDone={onDone} />;
+  }
+}
+
 /**
  * A quest's details (FR-222): what to do, the reward, its window in the event's zone, the repeat progress, and how it
  * is verified. Sections the quest does not have (steps, tips, location, time, difficulty: Q-102) are not shown.
@@ -199,7 +220,7 @@ export function QuestSheet({
   timeZone: string;
   onClose: () => void;
   onCompleted: (answer: CompletionAnswer) => void;
-  /** A submission was sent: the list behind the sheet reloads (its points or its pending state). */
+  /** A submission was sent, a vote cast or a quiz paid: the list behind the sheet reloads. */
   onSent?: () => void;
 }>) {
   const { t, language } = useI18n();
@@ -233,11 +254,7 @@ export function QuestSheet({
       {when(quest.closesAt, "quests.closes")}
       {line === null ? null : <AppText variant="label">{t(line)}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
-      {quest.type === "submission" ? (
-        <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />
-      ) : (
-        <Verification key={quest.id} quest={quest} onDone={done} />
-      )}
+      <QuestEntry quest={quest} onSent={onSent} onDone={done} />
     </Sheet>
   );
 }

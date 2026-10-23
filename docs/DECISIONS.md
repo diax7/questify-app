@@ -2463,7 +2463,9 @@ comes with live polls (F-100, T-306).
 **Status:** Proposed (Claude, 2026-10-24; T-302). Q-156.
 **Decision:** multiple-choice questions (1 to 20, 2 to 6 choices, one right); one attempt per player (`repeat_cap = 1`);
 `quest.points` is the points per right answer, frozen on the attempt at start; the server serves one question at a time
-and returns the right answer only after the player answered or the question closed.
+and returns the right answer only after the player answered or the question closed. Start, next and answer are
+idempotent by their natural keys (one attempt per player and quiz, one answer per question). Any paid finish earns the
+quest's full XP, as any completion.
 **Why:** FR-208 and FR-209 with no way to read ahead or retry, and an edit of the quest changes nothing already started.
 
 ## ADR-192 — The quiz timer runs on the server
@@ -2485,7 +2487,8 @@ quest closes or the event leaves live, with the approval's re-checks (ADR-184) a
 ## ADR-194 — Vote and quiz edits after the first answer
 **Status:** Proposed (Claude, 2026-10-24; T-302).
 **Decision:** once anyone has voted or started the quiz, only text may change; ids, the number and order of options,
-questions and choices, the right answers, the timer and the points are locked (`quest_locked`).
+questions and choices, the right answers and the timer are locked (`quest_locked`). Points stay editable for the
+future: an attempt froze its points at start, and a vote pays at once.
 **Why:** a moved right answer or a removed option would make earlier answers and votes mean something else.
 
 ## ADR-195 — Vote counts and erasure

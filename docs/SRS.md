@@ -937,10 +937,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-204 | F-05 | Must | pending (T-301b: photos) |
 | FR-205 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int` (T-301) |
 | FR-206 | F-05 | Must | `test/db/submissions.int`, `test/submissions/routes.int`, `apps/app/src/event/submissions.test.ts` (T-301) |
-| FR-207 | F-06 | Must | pending |
-| FR-208 | F-07 | Must | pending |
-| FR-209 | F-07 | Must | pending |
-| FR-210 | F-07 | Must | pending |
+| FR-207 | F-06 | Must | `test/db/vote-quiz.int`, `test/plays/routes.int`, `apps/app/src/event/plays.test.ts` (T-302) |
+| FR-208 | F-07 | Must | `test/db/vote-quiz.int`, `test/plays/routes.int` (T-302) |
+| FR-209 | F-07 | Must | `test/db/vote-quiz.int`, `test/plays/routes.int`, `apps/app/src/event/plays.test.ts` (T-302) |
+| FR-210 | F-07 | Must | `test/db/vote-quiz.int`, `test/plays/routes.int`, `apps/app/src/event/plays.test.ts` (T-302) |
 | FR-211 | F-83 | Must | pending |
 | FR-212 | F-84 | Should | pending |
 | FR-213 | F-84 | Should | pending |
@@ -1292,7 +1292,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1625 | F-65 | Must | pending |
 | FR-1626 | F-214 | Should | pending |
 | FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301; help desk later) |
-| FR-1629 | F-06 | Must | pending (T-302) |
+| FR-1629 | F-06 | Must | partly: text options only, organizer images wait for storage (ADR-190, Q-149); `test/db/vote-quiz.int`, `packages/shared/src/quests/registry.test.ts` (T-302) |
 | FR-1701 | F-228 | Must | pending |
 | FR-1702 | F-228, F-262 | Must | pending |
 | FR-1703 | F-229 | Must | pending |

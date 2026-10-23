@@ -1,4 +1,5 @@
 import {
+  QUEST_TYPES,
   parseQuestConfig,
   parseVerification,
   toInstant,
@@ -68,7 +69,9 @@ export type Refused =
   /** Only rehearsal accounts completed it: erase the rehearsal first (T-211). */
   | Readonly<{ kind: "rehearsal_data" }>
   /** A submission quest asked for photos (T-301b) or video (never in v1, FR-1006). */
-  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>;
+  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>
+  /** Players voted or started the quiz: only its text may change (ADR-194, migration 0041). */
+  | Readonly<{ kind: "quest_locked" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -89,6 +92,9 @@ export type Change = Readonly<{ confirm?: boolean | undefined }>;
 export type BuilderDeps = Readonly<{ pool: Pool }>;
 
 const CLOSED = "QE409";
+const LOCKED = "QL409";
+/** Rows that keep a played quest: its completions, submissions, votes and quiz attempts. */
+const PLAYED_TABLES = new Set(["quest_completion", "submission", "quest_vote", "quiz_attempt"]);
 
 const blankToNull = (text: string | undefined): string | null => {
   const trimmed = text?.trim() ?? "";
@@ -171,7 +177,8 @@ export function mergeQuest(
     title,
     description: bilingual(input.description, current?.description ?? NO_TEXT),
     points,
-    repeatCap: input.repeatCap ?? current?.repeatCap ?? 1,
+    // A vote or a quiz is played once (ADR-191).
+    repeatCap: QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1),
     opensAt,
     closesAt,
     visible: input.visible ?? current?.visible ?? true,
@@ -279,9 +286,12 @@ export async function withEvent<T>(
       return { kind: "event_closed" };
     }
     // Stryker restore all
-    // A player completed the quest between the check and the delete: its points are history (migration 0012).
     const pg = error as { code?: string; table?: string };
-    if (pg.code === "23503" && (pg.table === "quest_completion" || pg.table === "submission")) {
+    if (pg.code === LOCKED) {
+      return { kind: "quest_locked" };
+    }
+    // A player played the quest between the check and the delete: its points are history (migration 0012).
+    if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {
       return { kind: "has_completions" };
     }
     throw error;

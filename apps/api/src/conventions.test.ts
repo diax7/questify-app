@@ -293,7 +293,7 @@ describe("idempotency key", () => {
     expect(calls).toBe(2);
   });
 
-  it.each(["", "x".repeat(256), "has space", "tab\there", "sub:12"])(
+  it.each(["", "x".repeat(256), "has space", "tab\there", "sub:12", "quiz:12"])(
     "rejects the key %j",
     async (key) => {
       app = await build();
