@@ -288,5 +288,5 @@ ADR-201: opens-at, unlock-after and in-order bind players and station scans; an 
 them. Agree, or should manual awards obey them too?
 
 ## Q-166 — Completion bonus rules (2026-10-24, T-304)
-ADR-202: the bonus is points with no XP; removing a quest's completion takes the bonus back. Agree, or should a bonus
-also give XP, or stay once paid?
+ADR-202: the bonus is points with no XP, and a removable credit of its own (removing a quest leaves it). Agree, or
+should a bonus also give XP, or follow its quests' removal?

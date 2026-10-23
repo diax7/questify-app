@@ -2544,14 +2544,17 @@ share one idea of "done" that the others build on. Push does not exist before T-
 **Decision:** a category may open at a set time, unlock after one other category (no self, no cycle) and require its
 quests in order. The gates bind the player's paths and the operator's station scan; an owner's or editor's manual award
 passes them. A quest is done with a completion, or a quiz finished with no right answers; a category is done when each
-of its visible quests is. A quiz already started finishes and pays under a lock set later.
+of its visible quests is (strict, for the bonus). The gates never leave a dead end: an unlock category outside the
+player's audience counts as met, and in order skips earlier quests that have closed; a pending submission still blocks
+the next quest. A quiz already started finishes and pays under a lock set later.
 **Why:** staff fix problems by hand and already pass the method check; a zero-right quiz is finished play (FR-208).
 
 ## ADR-202 — The completion bonus
 **Status:** Proposed (Claude, 2026-10-24; T-304). Q-166.
-**Decision:** a category's bonus is points (score and balance), paid once per player by the database in the
-transaction whose completion finishes the category (ledger kind `bonus`, actor `system`), at the amount set then, with
-no XP. Removing any of its quests' completions reverses the bonus, and finishing the category again pays it again. A
-quest added later does not take a paid bonus back.
+**Decision:** a category's bonus is points, paid once per player by the database in the transaction whose completion
+(or zero-right quiz finish) finishes the category (ledger kind `bonus`, actor `system`), at the amount set then, with
+no XP. It moves the balance only while the shop is open, as a quest's points do. It is its own removable credit
+(ADR-152): removing a quest's completion leaves the bonus, the owner removes the bonus separately, and a removed bonus
+is not paid again. A quest added, hidden or deleted later neither takes a paid bonus back nor pays one.
 **Why:** FR-231; the ledger is the one source of points (ADR-111) and the database already holds the enrollment lock
 that makes "last quest" safe under races.
