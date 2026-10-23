@@ -54,6 +54,9 @@ export function sessionLimitsFor(platformRole: "none" | "admin"): SessionLimits 
  * event at a time), and per app install. Correct codes are not counted. With codes of 4+ letters and digits, guessing
  * cannot finish inside an event.
  */
+/** An operator's player finds for a manual award (FR-308, T-207): each one can read a phone number's owner. */
+export const AWARD_FIND_LIMIT = { max: 30, windowSeconds: 600 } as const;
+
 export const COMPLETION_LIMITS = {
   wrongCodesPerPlayerQuest: { max: 5, windowSeconds: 600 },
   wrongCodesPerPlayer: { max: 20, windowSeconds: 600 },

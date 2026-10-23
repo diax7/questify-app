@@ -391,7 +391,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completion engine (database)",
           ),
         ).rejects.toThrow(/permission denied/);
       }
-      await expect(db.owner.query("TRUNCATE ledger_entry")).rejects.toThrow(
+      await expect(db.owner.query("TRUNCATE ledger_entry CASCADE")).rejects.toThrow(
         /can never be changed or removed/,
       );
     });

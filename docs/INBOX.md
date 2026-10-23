@@ -681,3 +681,8 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - Processed: plan `docs/plans/2026-10-23-t-206-prize-desk.md`; ADR-150 (Accepted); FR-1716, FR-1717 amended. "All the
   rewards" read as every reward that goes through the desk (items and experiences); digital codes keep FR-1717
   (Claude's reading).
+
+## 2026-10-23 — T-207 interview (manual awards)
+- Caps: "Event caps only". A removed quest: stays used. Bulk award now: an uploaded list and a quest's completers.
+  Who removes: owner and editors.
+- Processed: ADR-152 (Accepted); plan `docs/plans/2026-10-23-t-207-manual-awards.md`.

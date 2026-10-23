@@ -24,6 +24,7 @@ import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
 import { registerHomeRoutes } from "#src/home/routes";
+import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
@@ -229,6 +230,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     ranking,
   });
   registerDeskRoutes(app, { pool: options.pool, myKey: createMyCodeKey(config.qrSecret) });
+  registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
     pool: options.pool,

@@ -9,10 +9,12 @@ import {
   type EventTerms,
   type Language,
 } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { PlayerAwards, type Caps, type QuestOption } from "#src/components/PlayerAwards.tsx";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
+import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
 
@@ -100,6 +102,9 @@ function PlayerRow({
   player,
   canBan,
   ask,
+  open,
+  toggle,
+  children,
 }: Readonly<{
   language: Language;
   /** The event's currency as a label («جواهر»). */
@@ -107,6 +112,10 @@ function PlayerRow({
   player: Player;
   canBan: boolean;
   ask: (player: Player, opener: HTMLButtonElement) => void;
+  /** Whether the player's points record is showing. */
+  open: boolean;
+  toggle: () => void;
+  children: ReactNode;
 }>) {
   const t = translatorFor(language);
   return (
@@ -137,27 +146,66 @@ function PlayerRow({
           {t(player.status === "banned" ? "players.unban" : "players.ban")}
         </button>
       ) : null}
+      <button type="button" className={styles.quiet} aria-expanded={open} onClick={toggle}>
+        {t(open ? "awards.hideRecord" : "awards.record")}
+      </button>
+      {open ? children : null}
     </li>
   );
 }
 
-/** The event's words for the title and the points column (FR-941); the defaults until they arrive or if they fail. */
-function useEventTerms(organizerId: string, eventId: string): EventTerms {
+type EventFacts = Readonly<{
+  terms: EventTerms;
+  timeZone: string;
+  /** The quests an award may name (FR-308). */
+  quests: readonly QuestOption[];
+  caps: Caps | null;
+}>;
+
+/**
+ * The event's words for the title and the points column (FR-941), its zone, its quests and its award caps; the
+ * defaults until they arrive or if they fail.
+ */
+function useEventFacts(eventApi: string, language: Language): EventFacts {
   const loaded = useRef(false);
-  const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
+  const [facts, setFacts] = useState<EventFacts>({
+    terms: DEFAULT_TERMS,
+    timeZone: "Asia/Riyadh",
+    quests: [],
+    caps: null,
+  });
   useEffect(() => {
     if (loaded.current) {
       return;
     }
     loaded.current = true;
-    void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}`).then((result) => {
-      if (result.ok) {
-        setTerms(readEventTerms((result.body as { event?: { terms?: unknown } }).event?.terms));
-      }
+    void Promise.all([
+      requestJson("GET", eventApi),
+      requestJson("GET", `${eventApi}/quests`),
+      requestJson("GET", `${eventApi}/awards?limit=1`),
+    ]).then(([event, quests, awards]) => {
+      const found = event.ok
+        ? (event.body as { event?: { terms?: unknown; timezone?: string } }).event
+        : undefined;
+      const categories = quests.ok
+        ? (quests.body as { categories: CategoryView[] }).categories
+        : [];
+      setFacts({
+        terms: readEventTerms(found?.terms),
+        timeZone: found?.timezone ?? "Asia/Riyadh",
+        quests: categories.flatMap((category) =>
+          category.quests.map((quest) => ({
+            id: quest.id,
+            title: textFor(quest.title, language),
+            points: quest.points,
+          })),
+        ),
+        caps: awards.ok ? (awards.body as { caps: Caps }).caps : null,
+      });
     });
     // Once per page, also under Strict Mode's double effect.
-  }, [organizerId, eventId]);
-  return terms;
+  }, [eventApi, language]);
+  return facts;
 }
 
 /** Loads the event's players page by page; the search that produced the list is kept apart from the box's text. */
@@ -217,8 +265,11 @@ function usePlayers(base: string, onFailure: (body: unknown) => void) {
  */
 export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) {
   const t = translatorFor(language);
-  const terms = useEventTerms(organizerId, eventId);
-  const base = `/v1/organizers/${organizerId}/events/${eventId}/players`;
+  const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
+  const facts = useEventFacts(eventApi, language);
+  const terms = facts.terms;
+  const base = `${eventApi}/players`;
+  const [openId, setOpenId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [asking, setAsking] = useState<Player | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -322,7 +373,19 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
                 opener.current = button;
                 setAsking(chosen);
               }}
-            />
+              open={openId === player.enrollmentId}
+              toggle={() => setOpenId(openId === player.enrollmentId ? null : player.enrollmentId)}
+            >
+              <PlayerAwards
+                language={language}
+                eventApi={eventApi}
+                player={player}
+                quests={facts.quests}
+                timeZone={facts.timeZone}
+                caps={myRole === "owner" ? null : facts.caps}
+                changed={() => list.search(list.applied)}
+              />
+            </PlayerRow>
           ))}
         </ul>
         {list.more === null ? null : (

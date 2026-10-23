@@ -344,6 +344,60 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  bulk_award: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO bulk_award (organizer_id, event_id, staff_user_id, amount, reason, requested, awarded, skipped, idempotency_key) VALUES ($1, $2, gen_random_uuid(), 5, 'forged', 0, 0, 0, 'forged')",
+          values: [f.orgB, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players never read award reasons (T-207); the record names only the kind",
+        forge: (f) => ({
+          sql: "INSERT INTO bulk_award (organizer_id, event_id, staff_user_id, amount, reason, requested, awarded, skipped, idempotency_key) VALUES ($1, $2, gen_random_uuid(), 5, 'forged', 0, 0, 0, 'forged')",
+          values: [f.orgA, f.eventA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  ledger_note: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO ledger_note (entry_id, organizer_id, event_id, reason) SELECT id, $1, $2, 'forged' FROM ledger_entry LIMIT 1",
+          values: [f.orgB, f.eventB],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players never read award reasons (T-207); the record names only the kind",
+        forge: (f) => ({
+          sql: "INSERT INTO ledger_note (entry_id, organizer_id, event_id, reason) SELECT id, $1, $2, 'forged' FROM ledger_entry LIMIT 1",
+          values: [f.orgA, f.eventA],
+        }),
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   ledger_entry: {
     probes: [
       {
@@ -711,6 +765,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; read by the username check inside the definers (test/db/usernames)",
   ranking_repair:
     "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
+  manual_award_key:
+    "no right for the API role at all; written and read only by the award and removal definers (test/db/awards)",
   player_session:
     "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
 };
@@ -940,6 +996,24 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
     await run(
       "INSERT INTO operator_invite (organizer_id, event_id, kind, label, abilities, created_by, expires_at) VALUES ($1, $2, 'personal', 'Crew', '{scan_quests}', $3, now() + interval '1 day')",
       [org, event, staff],
+    );
+  }
+  // One bulk award on each side, with its points and its note (migration 0030).
+  for (const [org, event, staff] of [
+    [f.orgA, f.eventA, f.staffA],
+    [f.orgB, f.eventB, f.staffB],
+  ] as const) {
+    const bulk = await run(
+      "INSERT INTO bulk_award (organizer_id, event_id, staff_user_id, amount, reason, requested, awarded, skipped, idempotency_key) VALUES ($1, $2, $3, 5, 'Seed', 1, 1, 0, 'seed') RETURNING id",
+      [org, event, staff],
+    );
+    const entry = await run(
+      "INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor, staff_user_id) SELECT organizer_id, event_id, id, 'award', 5, 5, 'staff', $2 FROM enrollment WHERE event_id = $1 LIMIT 1 RETURNING id",
+      [event, staff],
+    );
+    await run(
+      "INSERT INTO ledger_note (entry_id, organizer_id, event_id, bulk_id) VALUES ($1, $2, $3, $4)",
+      [entry.rows[0]?.id, org, event, bulk.rows[0]?.id],
     );
   }
   // Rows past their retention, which the sweeps may remove whoever runs them.

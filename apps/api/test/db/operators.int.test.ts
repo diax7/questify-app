@@ -712,7 +712,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
         await failure(
           as(
             seatA(),
-            "SELECT * FROM record_completion(NULL, NULL, 'qr', 1, NULL, 'k', NULL, NULL)",
+            "SELECT * FROM record_completion(NULL, NULL, 'qr', 1, NULL, 'k', NULL, NULL, NULL, NULL)",
           ),
         ),
       ).toMatchObject({ code: "42501" });

@@ -27,6 +27,7 @@ export const BUCKETS = {
   joinCodeMiss: "join_code_miss",
   contactCodePlayer: "contact_code_player",
   contactFailPlayer: "contact_fail_player",
+  awardFind: "award_find",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

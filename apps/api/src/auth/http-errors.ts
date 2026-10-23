@@ -723,3 +723,57 @@ export const offerGone = make(
   "انتهى عرض التسليم. اطلب من المكتب إعادة المحاولة.",
   "The handover offer has ended. Ask the desk to try again.",
 );
+export const overCap = make(
+  409,
+  "over_cap",
+  "هذا أكثر من الحد المسموح للمنح اليدوي.",
+  "This is over the manual award limit.",
+);
+export const selfAward = make(
+  403,
+  "self_award",
+  "لا يمكنك منح النقاط لنفسك.",
+  "You cannot award points to yourself.",
+);
+export const reasonRequired = make(
+  400,
+  "reason_required",
+  "اكتب سببًا من 1 إلى 300 حرف.",
+  "Enter a reason of 1 to 300 characters.",
+);
+export const alreadyRemoved = make(
+  409,
+  "already_removed",
+  "أُزيلت هذه النقاط من قبل.",
+  "These points were already removed.",
+);
+export const openReservation = make(
+  409,
+  "open_reservation",
+  "ألغِ الجائزة المحجوزة لهذا اللاعب أولًا.",
+  "Cancel this player's reserved prize first.",
+);
+export const notRemovable = make(
+  422,
+  "not_removable",
+  "يمكن إزالة النقاط الممنوحة فقط.",
+  "Only awarded points can be removed.",
+);
+export const removalClosed = make(
+  409,
+  "removal_closed",
+  "يمكن إزالة النقاط أثناء الفعالية أو بعد انتهائها فقط.",
+  "Points can be removed only during or after the event.",
+);
+export const tooManyLines = make(
+  400,
+  "too_many_lines",
+  "القائمة أطول من 2000 سطر.",
+  "The list is longer than 2000 lines.",
+);
+export const outsideStation = make(
+  403,
+  "outside_station",
+  "هذه المهمة خارج المهام المسندة إليك.",
+  "This quest is outside the quests you were given.",
+);

@@ -2075,3 +2075,19 @@ applies to all the rewards." Claude read "all the rewards" as every reward that 
 - The desk sees no price, score or balance; the operator's cancel returns the points as the operator in the points
   record.
 **Why:** the CTO plan review (86 → 93): each closes a gap where the desk, the timeout and the player could disagree.
+
+## ADR-152 — Manual awards: caps, removals, bulk targets
+**Status:** Accepted (Dhia, 2026-10-23; T-207).
+**Decision:**
+- Manual-award caps are per event only: a maximum per award and a maximum per person per day, set by the owner and
+  followed by every operator and every editor. The owner's own dashboard awards are uncapped. No per-operator cap.
+- A removed quest award stays used: the completion stays on record and counts toward the quest's repeat cap; only its
+  points come off. A mistaken removal is put right with a new manual award.
+- Bulk award (FR-1712) ships with two targets: an uploaded or pasted list (usernames or phone numbers) and "everyone
+  who completed a chosen quest". Session targets come with T-505; category targets later.
+- Owners and editors may remove an award (the dashboard role table); FR-320 amended.
+- (CTO plan review, Claude's call) An editor's bulk award gives each player at most the per-award cap and does
+  not count toward the daily cap; the owner's bulk is uncapped. Q-118 asks Dhia whether to lift the editor limit.
+**Why:** Dhia's answers to the T-207 interview (2026-10-23): event caps only; the removed quest stays used, so a
+cheater cannot simply scan again; the list and quest-completer targets cover the "code failed" case now; the editor is
+the person on the floor on event day.

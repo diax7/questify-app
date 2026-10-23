@@ -215,6 +215,26 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/redemptions/:redemptionId/decline":
     "only the bearer's own reservation (test/desk/routes, test/desk/desk)",
   "GET /v1/me/desk-items": "only the bearer's own reservations (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/events/:eventId/find-player":
+    "only an operator of that event with the award ability; exact username or phone among that event's members, never the exact status; 30 finds per operator in 10 minutes (test/awards/routes, test/db/awards)",
+  "GET /v1/operator/events/:eventId/award":
+    "only an operator of that event with the award ability; the event's caps and the caller's own total today (test/awards/routes, test/db/awards)",
+  "POST /v1/operator/award":
+    "only an operator of the body's event with the award ability, never to themselves, inside the event's caps under a lock on their assignment (test/awards/routes, test/db/awards)",
+  "GET /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/entries":
+    "members inside their event limit, through member_ledger; a player of another event answers nothing (test/awards/routes, test/db/awards)",
+  "POST /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/awards":
+    "members inside their event limit; an editor inside the event's caps, the owner uncapped (test/awards/routes, test/db/awards)",
+  "POST /v1/organizers/:organizerId/events/:eventId/entries/:entryId/remove":
+    "members inside their event limit; only a credit entry of that event, once (test/awards/routes, test/db/awards)",
+  "GET /v1/organizers/:organizerId/events/:eventId/awards":
+    "members inside their event limit, through manual_awards (test/awards/routes, test/db/awards)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/award-caps":
+    "the owner only (the scope's hook, then set_award_caps) (test/awards/routes, test/db/awards)",
+  "POST /v1/organizers/:organizerId/events/:eventId/bulk-awards/preview":
+    "members inside their event limit; matches only that event's members (test/awards/routes, test/db/awards)",
+  "POST /v1/organizers/:organizerId/events/:eventId/bulk-awards":
+    "members inside their event limit; ids outside the event are skipped; an editor inside the per-award cap (test/awards/routes, test/db/awards)",
   "POST /v1/operator/scan":
     "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":
