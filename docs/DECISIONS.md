@@ -2667,20 +2667,25 @@ the pair rule and the daily cap (ADR-210).
 ## ADR-210 — Meet-someone rules
 **Status:** Proposed (Claude, 2026-10-24; T-303c). Q-174.
 **Decision:** one meeting per pair of players per quest, in either direction. A daily cap per player (organizer-set, 1
-to 50, default 5) counts meetings on either side since the start of the event's day. The quest's repeat cap is the most
-meetings it pays a player. If either player is at a cap or cannot play the quest (audience, category lock, ban), neither
-is paid; the scanner is told only "not for them" when the other player cannot play it. A manual award pays one player
+to 50, default 5) counts the player's own meet completions, on either side, since the start of the event's day (so the
+other player's erasure never lowers it). The quest's repeat cap is the most meetings it pays a player. If either player
+is at a cap or cannot play the quest (account not active, an operator who may not play, audience, category lock, ban),
+neither is paid; the scanner is told only "not for them" when the other player cannot play it. A manual award pays one player
 and counts towards the repeat cap. The event switch `meetSomeone` (FR-1009) is on by default; off, meet quests are
 hidden and refused. Allowed in every event kind.
 **Why:** FR-212, FR-213; all-or-nothing keeps the two ledgers in step; the other player's audience or ban is theirs.
 
 ## ADR-211 — Meet-someone locks and collusion signals
 **Status:** Proposed (Claude, 2026-10-24; T-303c). Q-175.
-**Decision:** whoever locks more than one enrollment takes them all in one statement in id order, before item,
-redemption and advisory locks. The meet payer does so; `reveal_results` (0034, which locked in rank order) is changed to
-the same rule. The scanner's side of a meeting counts in every flag (shared device, burst, far from the venue with its
+**Decision:** a function that runs during play and locks more than one enrollment takes them all in one statement in id
+order, before item, redemption and advisory locks, and takes more than one device advisory key only in ascending key
+order. The meet payer locks both enrollments, then the pass, then the quest's items, then both device keys, and only
+then writes; the meeting row is written after both payments, both completions keyed by the pass, and a duplicate
+request is recognised under the locks as a replay. Lockers that run only after play ends (`reveal_results`,
+`confirm_results`) are left as they are. The scanner's side of a meeting counts in every flag (shared device, burst, far from the venue with its
 optional reading); the shown side carries the device that showed the code for the shared-device check only, not the
 burst. The same device on both sides is refused. The shown player's position is never sent and no pair distance is
 computed (no coordinates are kept, ADR-206). No new flag kind until real data shows a pattern.
-**Why:** two enrollments per transaction would deadlock against any locker using another order; a popular player shown
+**Why:** two enrollments or two devices per transaction would deadlock against a locker using another order (CTO plan
+review 2026-10-24); a popular player shown
 many times is not a script; comparing two positions would mean keeping coordinates.

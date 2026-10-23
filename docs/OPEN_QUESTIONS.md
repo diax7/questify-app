@@ -345,8 +345,9 @@ one minute, used up by the first meeting, and both players are paid together or 
 on both phones. Agree, or a longer life, a typed fallback, or the shown player confirming each meeting in their app?
 
 ## Q-174 — Meet-someone rules (2026-10-24, T-303c)
-ADR-210: one meeting per pair per quest; a daily cap per player (default 5, 1 to 50) counting both sides; if either
-player is at a cap or cannot play the quest, neither is paid; the event's meet-someone switch is on by default; allowed
+ADR-210: one meeting per pair per quest; a daily cap per player (default 5, 1 to 50) counting the meetings they took
+part in on either side; if either player is at a cap or cannot play the quest (a suspended account, an operator who
+may not play, outside the audience), neither is paid; the event's meet-someone switch is on by default; allowed
 in virtual events too (meeting over video). Agree, or a different default cap, or no meet quests in virtual events?
 
 ## Q-175 — Meet-someone cheating signals (2026-10-24, T-303c)
