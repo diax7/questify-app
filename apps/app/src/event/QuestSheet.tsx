@@ -17,6 +17,7 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { paidText } from "#src/event/amount.ts";
 import { scanReading } from "#src/event/location.ts";
+import { GameEntry } from "#src/event/GameEntry.tsx";
 import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { meetRefusalText } from "#src/event/meet.ts";
 import { MeetEntry } from "#src/event/MeetEntry.tsx";
@@ -249,9 +250,15 @@ function Verification({
 /** The part of the sheet where the quest is played, by its type. */
 function QuestEntry({
   quest,
+  timeZone,
   onSent,
   onDone,
-}: Readonly<{ quest: Quest; onSent: () => void; onDone: (answer: CompletionAnswer) => void }>) {
+}: Readonly<{
+  quest: Quest;
+  timeZone: string;
+  onSent: () => void;
+  onDone: (answer: CompletionAnswer) => void;
+}>) {
   switch (quest.type) {
     case "submission":
       return <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />;
@@ -269,6 +276,8 @@ function QuestEntry({
       return <LocationEntry key={quest.id} quest={quest} onDone={onDone} />;
     case "meet":
       return <MeetEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    case "game":
+      return <GameEntry key={quest.id} quest={quest} timeZone={timeZone} onPaid={onSent} />;
     default:
       return <Verification key={quest.id} quest={quest} onDone={onDone} />;
   }
@@ -289,7 +298,7 @@ export function QuestSheet({
   timeZone: string;
   onClose: () => void;
   onCompleted: (answer: CompletionAnswer) => void;
-  /** A submission was sent, a vote cast, a quiz, a survey, a share or a meeting paid: the list behind reloads. */
+  /** A submission was sent, a vote cast, a quiz, a survey, a share, a meeting or a game paid: the list behind reloads. */
   onSent?: () => void;
 }>) {
   const { t, language } = useI18n();
@@ -323,7 +332,7 @@ export function QuestSheet({
       {when(quest.closesAt, "quests.closes")}
       {line === null ? null : <AppText variant="label">{t(line)}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
-      <QuestEntry quest={quest} onSent={onSent} onDone={done} />
+      <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
     </Sheet>
   );
 }

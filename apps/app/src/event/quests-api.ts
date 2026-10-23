@@ -50,6 +50,8 @@ export type Quest = Readonly<{
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
   /** A meet quest's daily cap and this player's meetings today (T-303c); null for other types or an older API. */
   meet: Readonly<{ dailyCap: number; today: number }> | null;
+  /** A game quest's attempts left (null when unlimited) and whether it passed (T-305); null for other types. */
+  game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
 }>;
 
 /**
@@ -176,7 +178,17 @@ const withVerification = (quest: Quest): Quest => ({
   item: isText(quest.item) ? quest.item : null,
   place: placeOf(quest.place),
   meet: meetOf(quest.meet),
+  game: gameOf(quest.game),
 });
+
+/** A game quest's attempts and pass as sent, or null for anything missing or not well formed. */
+function gameOf(value: unknown): Quest["game"] {
+  return isRecord(value) &&
+    typeof value["passed"] === "boolean" &&
+    (value["attemptsLeft"] === null || typeof value["attemptsLeft"] === "number")
+    ? { attemptsLeft: value["attemptsLeft"] as number | null, passed: value["passed"] }
+    : null;
+}
 
 /** A meet quest's caps as sent, or null for anything missing or not well formed. */
 function meetOf(value: unknown): Quest["meet"] {

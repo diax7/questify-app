@@ -31,6 +31,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   item: null,
   place: null,
   meet: null,
+  game: null,
   verification: [],
   ...fields,
 });
@@ -480,6 +481,31 @@ describe("readQuests and the verification methods", () => {
     const older = readQuests(body({ verification: undefined }));
     expect(older?.categories[0]?.quests[0]?.verification).toEqual(["quest_qr"]);
     expect(readQuests(body({ verification: "my_qr" }))).toBeUndefined();
+  });
+});
+
+/** A game quest's state as read from the list. */
+const readGame = (game: unknown) =>
+  readQuests(body({ type: "game", game }))?.categories[0]?.quests[0]?.game;
+
+describe("game quests (T-305)", () => {
+  it("reads a game quest's attempts left and its pass, and none for anything not well formed", () => {
+    expect(readGame({ attemptsLeft: 2, passed: false })).toEqual({
+      attemptsLeft: 2,
+      passed: false,
+    });
+    expect(readGame({ attemptsLeft: null, passed: true })).toEqual({
+      attemptsLeft: null,
+      passed: true,
+    });
+    for (const game of [
+      undefined,
+      null,
+      { attemptsLeft: "2", passed: false },
+      { attemptsLeft: 1 },
+    ]) {
+      expect(readGame(game)).toBeNull();
+    }
   });
 });
 
