@@ -97,7 +97,9 @@ scan-only at the desk.
 ## Q-122 — Rehearsal code or personal passes (2026-10-23, T-211)
 ADR-158 uses one standing rehearsal code per event (as the Overview wireframe shows), at most 25 rehearsal accounts,
 rotate and erase to clean up. A stricter option: each team member makes a single-use pass in the dashboard per phone.
-Dhia may prefer the stricter one, or another cap than 25.
+Dhia may prefer the stricter one, or another cap than 25. The risk with the standing code: an unactivated Draft
+could run a free 25-person event through rehearsal for as long as it likes (nothing is wiped until go-live, and a
+Draft never goes live by itself).
 
 ## Q-123 — Digital rewards in rehearsal (2026-10-23, T-211)
 ADR-159 shows a random test code in rehearsal, so no real code is spent. The team cannot check that real codes reveal
