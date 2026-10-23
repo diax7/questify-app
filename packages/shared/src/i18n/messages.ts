@@ -2327,6 +2327,15 @@ export const MESSAGES = {
     en: "A rank prize can't be cancelled in the app.",
   },
   "info.rules": { ar: "القواعد الرسمية", en: "Official rules" },
+  "level.up": { ar: "ارتقيت مستوى!", en: "Level up!" },
+  "level.number": { ar: "المستوى {level}", en: "Level {level}" },
+  "level.upLine": {
+    ar: "ارتقيت إلى المستوى {level}: {title}",
+    en: "Level up! You're now level {level}: {title}",
+  },
+  "level.next": { ar: "التالي: المستوى {next}", en: "Next: level {next}" },
+  "level.top": { ar: "بلغت أعلى مستوى", en: "Top level reached" },
+  "level.progress": { ar: "تقدّمك نحو المستوى التالي", en: "Progress to the next level" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

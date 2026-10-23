@@ -148,7 +148,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
         score: 40,
         balance: 40,
         replayed: false,
+        levelUp: null,
       });
+    });
+
+    it("answers the Questify level a completion reached first, the same on a replay, and never the XP (T-401)", async () => {
+      await owner("UPDATE platform_setting SET value = '{\"questXp\": 200}' WHERE key = 'xp'");
+      try {
+        const { token } = await newPlayer();
+        const quest = await newQuest();
+        const key = randomUUID();
+        const first = await complete(token, quest, scan(quest), { "idempotency-key": key });
+        const levelUp = { level: 2, title: { ar: "مستكشف", en: "Explorer" } };
+        expect(first.json()).toMatchObject({ levelUp, replayed: false });
+        expect(first.json()).not.toHaveProperty("xp");
+        expect(
+          (await complete(token, quest, scan(quest), { "idempotency-key": key })).json(),
+        ).toMatchObject({
+          levelUp,
+        });
+      } finally {
+        await owner("UPDATE platform_setting SET value = '{\"questXp\": 100}' WHERE key = 'xp'");
+      }
     });
 
     it.each([

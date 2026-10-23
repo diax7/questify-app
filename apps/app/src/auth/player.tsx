@@ -10,6 +10,7 @@ import {
 import { api, deviceId, keyValueStore } from "#src/api/app-session.ts";
 import { ADD_EMAIL_SHOWN_KEY } from "#src/account/add-email.ts";
 import { RECENT_KEY } from "#src/event/launch.ts";
+import { levelOf, type QuestifyLevel } from "#src/questify/level.ts";
 
 /** What the app needs of `GET /v1/me`: held in memory only, never stored (masked contacts included). */
 export type Me = Readonly<{
@@ -18,6 +19,8 @@ export type Me = Readonly<{
   avatar: string;
   legal: Readonly<{ toAccept: readonly string[]; guidelinesAccepted: boolean }>;
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
+  /** The lifetime Questify level (T-401); undefined when the answer has none or a malformed one. */
+  questify: QuestifyLevel | undefined;
 }>;
 
 export type PlayerState =
@@ -69,7 +72,10 @@ export function PlayerProvider({ children }: Readonly<{ children: ReactNode }>) 
     // Offline: still signed in; the profile comes on the next reload.
     setState({
       status: "signed_in",
-      me: answer.kind === "ok" && isMe(answer.body) ? answer.body : undefined,
+      me:
+        answer.kind === "ok" && isMe(answer.body)
+          ? { ...answer.body, questify: levelOf(answer.body.questify) }
+          : undefined,
     });
   }, []);
 

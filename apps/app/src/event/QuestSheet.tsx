@@ -66,8 +66,13 @@ export function outcomeText(
   terms: EventTerms,
 ): string | null {
   switch (answer.kind) {
-    case "completed":
-      return completedText(t, terms, language, answer.points);
+    case "completed": {
+      const paid = completedText(t, terms, language, answer.points);
+      // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
+      return answer.levelUp === null
+        ? paid
+        : `${paid} ${t("level.upLine", { level: answer.levelUp.level, title: answer.levelUp.title[language] })}`;
+    }
     case "wrong_code":
       return answer.problem?.[language] ?? t("questsTab.failed");
     case "not_open":

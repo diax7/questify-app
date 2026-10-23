@@ -7,6 +7,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
+import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -45,6 +46,31 @@ function MyAccount({ me }: Readonly<{ me: Me }>) {
         );
       })}
     </>
+  );
+}
+
+/** The lifetime Questify level (FR-416, FR-706): the number, its title, and a bar towards the next level. */
+function LevelCard({ level }: Readonly<{ level: QuestifyLevel }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const progress = levelProgress(level);
+  return (
+    <View style={styles.level}>
+      <AppText variant="title">{t("level.number", { level: level.level })}</AppText>
+      <AppText variant="label">{level.title[language]}</AppText>
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={t("level.progress")}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+        style={styles.track}
+      >
+        <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+      </View>
+      <AppText muted>
+        {level.nextLevelAt === null ? t("level.top") : t("level.next", { next: level.level + 1 })}
+      </AppText>
+    </View>
   );
 }
 
@@ -97,6 +123,7 @@ export function ProfileScreen({ header }: Readonly<{ header?: ReactNode }>) {
             {state.me === undefined ? null : (
               <>
                 <AppText variant="title">@{state.me.username}</AppText>
+                {state.me.questify === undefined ? null : <LevelCard level={state.me.questify} />}
                 <MyAccount me={state.me} />
               </>
             )}
@@ -133,4 +160,14 @@ const makeStyles = (theme: Theme) => ({
     gap: theme.spacing.md,
   },
   identifierText: { flex: 1, gap: theme.spacing.xs },
+  level: { gap: theme.spacing.xs },
+  // The bar fills from the start of the reading direction: right in Arabic, left in English (RTL layout flips it).
+  track: {
+    height: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.border,
+    overflow: "hidden" as const,
+    flexDirection: "row" as const,
+  },
+  fill: { height: 12, backgroundColor: theme.colors.primaryAction },
 });

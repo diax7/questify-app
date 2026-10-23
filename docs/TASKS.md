@@ -304,14 +304,17 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 
 _XP, levels, items, gems, passport, streaks, achievements, the daily challenge and word, invitations and Questify home._
 
-- [ ] **T-401** Questify XP ledger and levels: fixed hidden XP per quest on first completion only, lifetime level, level titles — delivers FR 414, 415, 416, 706, 721; depends on: T-105
+- [x] **T-401** Questify XP ledger and levels: fixed hidden XP per quest on first completion only, lifetime level, level titles — delivers FR 414, 415, 416, 706, 721; depends on: T-105
   - Done when: Repeating a quest gives no second XP; XP can never be spent.
   - Note 2026-10-23 (T-207, FR-1602): a removal (`ledger_entry.kind = removal`, `reverses`) of a quest entry must reverse that quest's XP; a removed quest stays used (ADR-152), so it never earns first-completion XP again.
+  - Done 2026-10-24 (core; CTO plan 89 → folded; ADR-179 to ADR-182, Q-145 to Q-148 Proposed), not yet run on a phone. Migration 0039: `player_xp`, append-only `xp_entry` and `level_reached`, the seeded curve (`xp_level`) and titles (`level_title`), `questXp` in `platform_setting` key `xp` (CHECKed, server-only); the `ledger_xp` trigger pays one credit per (player, quest) from every writer of a quest entry (scan, typed code, My QR scan, the team's quest award), never for a rehearsal, an award or a repeat, and reverses it once on a removal (FR-1602); the backfill. `GET /v1/me` gains `questify`; a completion answers `levelUp`. App: Profile shows the level, title and XP bar; the scanner plays a medium level-up beat between the points and a finished category (FR-407); a typed code says it in words. **Partly delivered:** FR-721 (the item: T-402 from `level_reached`); FR-416's next-level reward (T-402, Q-147). Plan: `docs/plans/2026-10-24-t-401-xp.md`.
 - [ ] **T-402** Questify profile: character, frame, title, locker, equipping, public profile view — delivers FR 701, 702, 703, 720, 722, 723, 1622; depends on: T-401
   - Done when: Another player sees only the public profile fields.
+  - Note 2026-10-24 (T-401): grant one level-up item per `level_reached` row (backfill the rows written before T-402; a drop never takes an item back, FR-1602), and show the next level's reward on the XP bar (FR-416, Q-147). The public profile shows the level and title from `player_xp`/`level_title`.
 - [ ] **T-403** Achievements (bronze/silver/gold, silhouettes), Event Passport stamps, always-on and seasonal Questify quests — delivers FR 707, 708, 709, 710, 711; depends on: T-401
   - Done when: A finished event adds a stamp; unearned achievements show as silhouettes.
 - [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
+  - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).
   - Done when: Gems cannot be bought or traded and are earned only from Questify activity.
 - [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
@@ -320,6 +323,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Done when: Promotional messages go only to opted-in players and never between 22:00 and 09:00 Saudi time.
 - [ ] **T-408** Questify home and Explore: events grouped live, upcoming and past, Questify-wide ranking (lifetime and monthly), join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614, 1786; depends on: T-401
+  - Note 2026-10-24 (T-401): the lifetime ranking reads `player_xp.xp` (add an index); the monthly one sums `xp_entry.delta` by `created_at` (reversals included). Deleted players (tombstones) keep their rows and must be left out.
   - Done when: Outside an event the center button scans only join QR codes.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Done when: An organizer sees only counts of their invitations, never player lists.
@@ -434,6 +438,7 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: A deletion request removes the profile and anonymizes log entries; a deleted account cannot be restored.
   - Note 2026-10-24 (T-217): `erase_player` does the deletion; the admin path needs a definer that issues a deletion token for a player on a verified request (or calls `erase_marks`/`erase_rows` in the same order), audited with the admin as actor.
 - [ ] **T-709** Platform health view, platform numbers, admin accounts and sessions — delivers FR 1783, 1419, 1785, 1403; depends on: T-004
+  - Note 2026-10-24 (T-401): FR-1403's XP table: edit `platform_setting` key `xp` (`questXp`, CHECKed 1–99999), `xp_level` and `level_title` (admin only, audited). A curve change must recompute `player_xp.level` (`xp_level_of`); `level_reached` rows stay.
   - Done when: An admin can see and end another admin's sessions.
 - [ ] **T-710** Review demo tenant and reviewer login — delivers FR 1406, 1407, 1736; depends on: T-703
   - Note 2026-10-21 (T-115): FR-303's App Review demo QR picker belongs here: offered only in the review demo event, never in any other. The scanner (`apps/app/app/event/[eventId]/scan-quest.tsx`) has no image picker today.

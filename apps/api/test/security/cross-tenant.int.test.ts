@@ -824,6 +824,16 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; holds no player id; written by erase_player, read inside the join, welcome and sign-in definers (test/db/account-deletion)",
   player_deletion_challenge:
     "no right for the API role at all; reached only through definers bound to its token or deletion token (test/db/account-deletion)",
+  player_xp:
+    "no right for the API role at all; Questify-wide, not an organizer's; written by the ledger's XP trigger, read only through own_level for the calling player (test/db/xp)",
+  xp_entry:
+    "no right for the API role at all; append-only, written by the ledger's XP trigger (test/db/xp)",
+  level_reached:
+    "no right for the API role at all; append-only, written by the ledger's XP trigger, read through own_level (test/db/xp)",
+  xp_level:
+    "platform-wide curve; no right for the API role, read inside the XP definers (test/db/xp)",
+  level_title:
+    "platform-wide titles; no right for the API role, read through own_level (test/db/xp)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

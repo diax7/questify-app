@@ -1,4 +1,5 @@
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
+import type { LevelUp } from "#src/questify/level.ts";
 
 /**
  * Where a scan stands (FR-406): scanning; checking (the "Scanned! Checking…" beat, shown within 300 ms of the read);
@@ -12,6 +13,8 @@ export type ScanStep =
       questId: string;
       points: number;
       replayed: boolean;
+      /** The Questify level reached first: a medium celebration after the points (FR-407). */
+      levelUp: LevelUp | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
       details: Details | undefined;
     }>
@@ -67,6 +70,7 @@ function answered(
         questId: step.questId,
         points: answer.points,
         replayed: answer.replayed,
+        levelUp: answer.levelUp,
         details: undefined,
       };
     case "network":
@@ -102,4 +106,21 @@ export function detailsAfter(
     finishedCategory: finished ? category : undefined,
     otherEvent: quest === undefined,
   };
+}
+
+export type Beat = "points" | "level" | "category";
+
+/**
+ * The beats of a celebration in order, growing with rarity (FR-407): the quest's small one, then a level-up's medium
+ * one, then a finished category's full-screen one. A replay (a dropped answer retried) carries the first answer's
+ * level-up, so a player who never saw it still does.
+ */
+export function celebrationBeats(
+  step: Extract<ScanStep, { kind: "celebrating" }>,
+): readonly Beat[] {
+  return [
+    "points",
+    ...(step.levelUp === null ? [] : (["level"] as const)),
+    ...(step.details?.finishedCategory === undefined ? [] : (["category"] as const)),
+  ];
 }

@@ -1,4 +1,5 @@
 import type { LocalizedText } from "@questify/shared";
+import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 
@@ -192,7 +193,14 @@ const NOT_OPEN: readonly string[] = [
  * enrollment, and the tab's own read decides whether the event is still the player's.
  */
 export type CompletionAnswer =
-  | Readonly<{ kind: "completed"; points: number; score: number; replayed: boolean }>
+  | Readonly<{
+      kind: "completed";
+      points: number;
+      score: number;
+      replayed: boolean;
+      /** The Questify level this completion reached first (T-401), or null. */
+      levelUp: LevelUp | null;
+    }>
   /** A wrong code, in the API's own words. */
   | Readonly<{ kind: "wrong_code"; problem: LocalizedText | null }>
   | Readonly<{ kind: "not_open"; reason: NotOpenReason | undefined }>
@@ -247,6 +255,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
         points: body["points"],
         score: body["score"],
         replayed: body["replayed"] === true,
+        levelUp: levelUpOf(body["levelUp"]),
       }
     : { kind: "failed" };
 }

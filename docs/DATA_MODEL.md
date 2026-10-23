@@ -52,8 +52,7 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | interests | text[] | | no | Optional |
 | character_id, frame_item_id, title_item_id | uuid | FK | no | Avatar parts |
 | locale | text | `ar`/`en` | no | |
-| xp | bigint | ≥ 0, cache of `xp_entry` | no | Lifetime |
-| level | int | derived | no | |
+| xp, level | | moved to `player_xp` (migration 0039, T-401) | no | Lifetime; see "Questify XP" below |
 | gems | bigint | ≥ 0, cache | no | |
 | status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084). `deleted` is a tombstone: only `erase_player` makes it (T-217) |
 | created_at, deleted_at | timestamptz | | no | |
@@ -355,9 +354,21 @@ toward the repeat cap).
 then checks the enrollment is active, the event live at this moment, the quest visible and open, the proof fitting the
 quest's type (QR version, typed code), and the cap, and writes the completion and the entry.
 
-### xp_entry and gem entries (Questify layer; append-only)
-`xp_entry(id, player_id, delta, source (quest_first_completion|daily|level|...), ref, created_at)`;
-the gem ledger has the same shape. First completion of a quest earns its fixed XP once (ADR-044).
+### Questify XP (built: T-401, migration 0039, ADR-179 to ADR-182; append-only)
+- `player_xp (player_id PK → player, xp ≥ 0, level ≥ 1, updated_at)`: the running total and its level, a cache of
+  `xp_entry`; made for every player by a trigger on `player`. The XP rows point here, not at `player`, so they never
+  wait on `erase_player`'s player lock. A deleted account keeps its rows on the tombstone (no personal data).
+- `xp_entry (id, player_id → player_xp, delta ≠ 0, source quest|removal, ledger_entry_id → ledger_entry RESTRICT,
+  quest_id, reverses → xp_entry, created_at)`: written only by the `ledger_xp` trigger on `ledger_entry` (`xp_credit`
+  for a non-rehearsal `quest` entry, `xp_reverse` for a `removal` of the credited entry). Unique (player_id, quest_id)
+  and (ledger_entry_id) for credits, (reverses) for reversals: one credit per quest ever, one reversal per credit.
+- `level_reached (player_id, level ≥ 2, xp_entry_id, reached_at; PK player_id, level)`: the first time each level was
+  reached; a drop never removes it and climbing back writes nothing (T-402 grants an item per row, FR-721).
+- `xp_level (level 1–100, xp_from)` (seeded 30 levels, `50·(n−1)·(n+2)`) and `level_title (level_from, name_ar,
+  name_en)` (six titles): data for T-709 to edit. The amount per quest is `platform_setting` key `xp` `{questXp}`
+  (1–99999, CHECKed on write; server-only, never in the public config; read with a fallback of 100).
+- No grant on any of them; `own_level(completion)` is the API role's only door (the caller's xp, level, range, title
+  and the level a completion reached first). The gem ledger (T-404) will have the same shape.
 
 ### reward, reward_code, redemption
 Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,

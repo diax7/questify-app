@@ -42,7 +42,41 @@ export type MyProfile = Readonly<{
    */
   legal: Readonly<{ toAccept: readonly PlayerDocumentId[]; guidelinesAccepted: boolean }>;
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
+  /** The lifetime Questify level (T-401, FR-416, FR-706): the bar runs from `levelFrom` to `nextLevelAt` (null at the top). */
+  questify: QuestifyLevel;
 }>;
+
+export type QuestifyLevel = Readonly<{
+  xp: number;
+  level: number;
+  levelFrom: number;
+  nextLevelAt: number | null;
+  title: Readonly<{ ar: string; en: string }>;
+}>;
+
+/** The caller's level through own_level (migration 0039); a player always has an XP row. */
+async function readLevel(client: PoolClient): Promise<QuestifyLevel> {
+  const { rows } = await client.query<{
+    xp: string;
+    level: number;
+    level_from: string;
+    next_level_at: string | null;
+    title_ar: string;
+    title_en: string;
+  }>("SELECT xp, level, level_from, next_level_at, title_ar, title_en FROM own_level(NULL)");
+  const row = rows[0];
+  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard found this active player
+  if (row === undefined) {
+    throw unauthenticated();
+  }
+  return {
+    xp: Number(row.xp),
+    level: row.level,
+    levelFrom: Number(row.level_from),
+    nextLevelAt: row.next_level_at === null ? null : Number(row.next_level_at),
+    title: { ar: row.title_ar, en: row.title_en },
+  };
+}
 
 /** A phone as its last four digits. */
 export const maskPhone = (phone: string): string => `•••• ${phone.slice(-4)}`;
@@ -100,6 +134,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
     if (row === undefined) {
       throw unauthenticated();
     }
+    const questify = await readLevel(client);
     return {
       id: playerId,
       username: row.username,
@@ -113,6 +148,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
         phone: row.phone === null ? null : maskPhone(row.phone),
         email: row.email === null ? null : maskEmail(row.email),
       },
+      questify,
     };
   });
 }

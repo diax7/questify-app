@@ -163,7 +163,12 @@ describe("completionAnswer", () => {
       points: 10,
       score: 40,
       replayed: false,
+      levelUp: null,
     });
+    const title = { ar: "مقتفي الأثر", en: "Pathfinder" };
+    expect(
+      completionAnswer(ok({ points: 10, score: 40, replayed: true, levelUp: { level: 6, title } })),
+    ).toMatchObject({ kind: "completed", replayed: true, levelUp: { level: 6, title } });
   });
 
   it("maps each refusal, and never to the event being gone", () => {

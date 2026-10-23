@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activityAnswer, readActivity } from "#src/event/activity-api.ts";
-import { detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
+import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
 import { keyFor, type Category, type Quest, type QuestsView } from "#src/event/quests-api.ts";
 
 const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
@@ -32,6 +32,8 @@ const category = (id: string, quests: Quest[]): Category => ({
 
 const fresh = () => "new-key";
 
+const levelUp = { level: 2, title: { ar: "مستكشف", en: "Explorer" } };
+
 const checking: ScanStep = { kind: "checking", questId: "q1", token: "t1" };
 
 describe("scanStep", () => {
@@ -41,13 +43,14 @@ describe("scanStep", () => {
     expect(
       scanStep(read, {
         type: "answered",
-        answer: { kind: "completed", points: 25, score: 40, replayed: false },
+        answer: { kind: "completed", points: 25, score: 40, replayed: false, levelUp },
       }),
     ).toEqual({
       kind: "celebrating",
       questId: "q1",
       points: 25,
       replayed: false,
+      levelUp,
       details: undefined,
     });
   });
@@ -192,5 +195,29 @@ describe("readActivity and activityAnswer", () => {
     expect(activityAnswer(error(403, "not_enrolled"))).toEqual({ kind: "gone" });
     expect(activityAnswer(error(500, "internal"))).toEqual({ kind: "network" });
     expect(activityAnswer({ kind: "network" })).toEqual({ kind: "network" });
+  });
+});
+
+describe("celebrationBeats", () => {
+  const base = {
+    kind: "celebrating",
+    questId: "q1",
+    points: 25,
+    replayed: false,
+    levelUp: null,
+    details: undefined,
+  } as const;
+  const finished = { id: "c1" } as unknown as Category;
+  const details = { quest: undefined, finishedCategory: finished, otherEvent: false };
+
+  it("grows with rarity: the points, a level-up, then a finished category", () => {
+    expect(celebrationBeats(base)).toEqual(["points"]);
+    expect(celebrationBeats({ ...base, levelUp })).toEqual(["points", "level"]);
+    expect(celebrationBeats({ ...base, details })).toEqual(["points", "category"]);
+    expect(celebrationBeats({ ...base, levelUp, details })).toEqual([
+      "points",
+      "level",
+      "category",
+    ]);
   });
 });

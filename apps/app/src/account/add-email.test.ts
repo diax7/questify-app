@@ -8,6 +8,7 @@ const me = (phone: string | null, email: string | null): Me => ({
   avatar: "falcon",
   legal: { toAccept: [], guidelinesAccepted: false },
   identifiers: { phone, email },
+  questify: undefined,
 });
 
 describe("offersAddEmail", () => {

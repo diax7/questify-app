@@ -54,6 +54,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       );
     });
 
+    it("cannot read or move Questify XP (T-401)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.own_level(NULL)",
+        "SELECT public.xp_credit(NULL::public.ledger_entry)",
+        "SELECT public.xp_reverse(NULL::public.ledger_entry)",
+        "SELECT public.xp_backfill()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

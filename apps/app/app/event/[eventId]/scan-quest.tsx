@@ -12,7 +12,7 @@ import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
-import { detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
+import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
 import { completedText } from "#src/event/amount.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { outcomeText } from "#src/event/QuestSheet.tsx";
@@ -49,27 +49,39 @@ function refusalText(
 
 /**
  * Points with the quest's title (which also says which quest a code was for, when the player opened the scanner from
- * another quest), then (when this scan finished its category) the full-screen category celebration (FR-406, FR-407). */
+ * another quest), then a level-up's medium beat, then (when this scan finished its category) the full-screen category
+ * celebration (FR-406, FR-407, `celebrationBeats`). */
 function Celebration({
   step,
   onClaim,
 }: Readonly<{ step: Extract<ScanStep, { kind: "celebrating" }>; onClaim: () => void }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
-  const [categoryShown, setCategoryShown] = useState(false);
-  const category = step.details?.finishedCategory;
-  const claim = () =>
-    category !== undefined && !categoryShown ? setCategoryShown(true) : onClaim();
+  const [shown, setShown] = useState(0);
+  const beats = celebrationBeats(step);
+  const beat = beats[shown] ?? "points";
+  const claim = () => (shown + 1 < beats.length ? setShown(shown + 1) : onClaim());
   // Until the quests are read again, the category step and the title are unknown: Claim waits for them.
   const ready = step.details !== undefined;
-  if (categoryShown && category !== undefined) {
+  const category = step.details?.finishedCategory;
+  if (beat === "category" && category !== undefined) {
     return (
       <PopIn>
         <SpinningCoin size={120} />
         <AppText variant="display">
           {t("scanner.categoryDone", { name: textIn(category.name, language) })}
         </AppText>
-        <Button label={t("scanner.claim")} onPress={onClaim} />
+        <Button label={t("scanner.claim")} onPress={claim} />
+      </PopIn>
+    );
+  }
+  if (beat === "level" && step.levelUp !== null) {
+    return (
+      <PopIn>
+        <AppText variant="title">{t("level.up")}</AppText>
+        <AppText variant="display">{t("level.number", { level: step.levelUp.level })}</AppText>
+        <AppText variant="title">{textIn(step.levelUp.title, language)}</AppText>
+        <Button label={t("common.continue")} onPress={claim} />
       </PopIn>
     );
   }

@@ -997,6 +997,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // Results need an ended event, so no rehearsal account is ever placed or given a rank prize (T-214).
         "enrollment.result_place",
         "redemption.result_place",
+        // A rehearsal entry never pays XP (T-401, ledger_xp skips it), so no XP row points at what the wipe deletes.
+        "ledger_entry.xp_entry",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

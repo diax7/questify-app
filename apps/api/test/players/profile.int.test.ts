@@ -76,6 +76,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       usernameChange: { allowed: true, nextChangeAt: null },
       legal: { toAccept: ["terms_of_use", "privacy_policy"], guidelinesAccepted: false },
       identifiers: { phone: null, email: "p•••@najd.sa" },
+      questify: {
+        xp: 0,
+        level: 1,
+        levelFrom: 0,
+        nextLevelAt: 200,
+        title: { ar: "مستكشف", en: "Explorer" },
+      },
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

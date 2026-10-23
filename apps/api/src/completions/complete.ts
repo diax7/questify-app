@@ -28,7 +28,11 @@ export type Completed = Readonly<{
   score: number;
   balance: number;
   replayed: boolean;
+  /** The Questify level this completion reached for the first time (T-401), or null; the same on a replay. */
+  levelUp: LevelUp | null;
 }>;
+
+export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en: string }> }>;
 
 /** Why a code was refused: one answer to the player, told apart in the log. */
 export type CodeProblem =
@@ -177,6 +181,7 @@ async function callEngine(
       ],
     );
     const row = rows[0] as Row;
+    const levelUp = await levelReached(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -186,6 +191,7 @@ async function callEngine(
         score: Number(row.score),
         balance: Number(row.balance),
         replayed: row.replayed,
+        levelUp,
       },
     };
   } catch (error) {
@@ -196,6 +202,20 @@ async function callEngine(
     }
     return refusal(pg.detail ?? "");
   }
+}
+
+/** The level this completion's XP credit reached first, with its title (own_level, migration 0039). */
+async function levelReached(client: PoolClient, completionId: string): Promise<LevelUp | null> {
+  const { rows } = await client.query<{
+    level_up: number | null;
+    up_title_ar: string;
+    up_title_en: string;
+  }>("SELECT level_up, up_title_ar, up_title_en FROM own_level($1)", [completionId]);
+  const row = rows[0];
+  if (row === undefined || row.level_up === null) {
+    return null;
+  }
+  return { level: row.level_up, title: { ar: row.up_title_ar, en: row.up_title_en } };
 }
 
 /**
