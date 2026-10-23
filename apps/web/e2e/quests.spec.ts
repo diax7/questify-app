@@ -161,3 +161,22 @@ test("sets a category's order, opening time, unlock and bonus, and shows them on
     page.getByText("تُفتح فئات أخرى بعد إكمال هذه الفئة", { exact: false }),
   ).toBeVisible();
 });
+
+test("sets a category's refresh, hides it, and prints its secret code (T-304c)", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await openBuilder(page, info.project.name);
+  await page.getByLabel("اسم الفئة بالعربية", { exact: true }).fill("كنز يومي");
+  await page.getByRole("button", { name: "إضافة فئة" }).click();
+  const daily = page.getByRole("region", { name: "كنز يومي" });
+  await daily.getByRole("button", { name: "تعديل الفئة" }).click();
+  await daily.getByLabel("التجديد").selectOption("daily");
+  await daily.getByLabel("مخفية حتى تُكتشف").check();
+  await daily.getByRole("button", { name: "حفظ الفئة" }).click();
+  await expect(daily.getByText(/تتجدد يوميًا · مخفية حتى تُكتشف/)).toBeVisible();
+
+  await page.goto(page.url().replace(/\/quests$/, "/codes"));
+  await expect(page.getByRole("img", { name: "رمز QR السري للفئة «كنز يومي»" })).toBeVisible();
+  await expect(page.getByText("الرمز السري للفئة")).toBeVisible();
+});

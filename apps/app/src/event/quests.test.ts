@@ -38,6 +38,8 @@ const category = (id: string, quests: Quest[]): Category => ({
   opensAt: null,
   unlockAfter: null,
   bonus: { points: 0, earned: 0, settled: false },
+  refresh: "none",
+  resetsAt: null,
   quests,
 });
 
@@ -268,6 +270,37 @@ describe("category rules (T-304)", () => {
     };
     expect(categoryNotes(open)).toEqual([{ kind: "inOrder" }, { kind: "bonusEarned", points: 50 }]);
     expect(categoryNotes(category("c", [quest("a")]))).toEqual([]);
+  });
+
+  it("reads a category's refresh and notes when it resets (T-304c)", () => {
+    const body = {
+      event: EVENT,
+      categories: [
+        {
+          id: "c",
+          name: { ar: null, en: "c" },
+          refresh: "daily",
+          resetsAt: "2030-01-02T01:00:00.000Z",
+          quests: [quest("q")],
+        },
+        { id: "d", name: { ar: null, en: "d" }, refresh: "hourly", resetsAt: 5, quests: [] },
+      ],
+    };
+    const view = readQuests(body);
+    expect(view?.categories[0]).toMatchObject({
+      refresh: "daily",
+      resetsAt: "2030-01-02T01:00:00.000Z",
+    });
+    expect(view?.categories[1]).toMatchObject({ refresh: "none", resetsAt: null });
+    const weekly = {
+      ...category("c", [quest("a")]),
+      refresh: "weekly" as const,
+      resetsAt: "2030-01-08T01:00:00.000Z",
+    };
+    expect(categoryNotes(weekly)).toEqual([
+      { kind: "resets", refresh: "weekly", at: "2030-01-08T01:00:00.000Z" },
+    ]);
+    expect(categoryNotes({ ...weekly, resetsAt: null })).toEqual([]);
   });
 
   it("promises no bonus that was removed and will never be paid again", () => {

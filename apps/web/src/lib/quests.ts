@@ -80,10 +80,13 @@ export type CategoryView = Readonly<{
   opensAt: string | null;
   unlockAfter: string | null;
   completionBonus: number;
+  /** How often its quests start again, and whether it stays hidden until found (T-304c, FR-236, FR-237). */
+  refresh: "none" | "daily" | "weekly";
+  hidden: boolean;
   quests: readonly QuestView[];
 }>;
 
-/** What the category form sends: the names and the rules, each field read from the form (T-304). */
+/** What the category form sends: the names and the rules, each field read from the form (T-304, T-304c). */
 export function categoryBody(form: FormData): Record<string, unknown> {
   const text = (key: string) => String(form.get(key) ?? "");
   const blankToNull = (key: string) => (text(key) === "" ? null : text(key));
@@ -93,6 +96,8 @@ export function categoryBody(form: FormData): Record<string, unknown> {
     opensAt: blankToNull("opensAt"),
     unlockAfter: blankToNull("unlockAfter"),
     completionBonus: Number(text("completionBonus") || "0"),
+    refresh: text("refresh") === "daily" || text("refresh") === "weekly" ? text("refresh") : "none",
+    hidden: form.get("hidden") === "on",
   };
 }
 
@@ -101,7 +106,9 @@ export type CategoryRuleNote =
   | Readonly<{ kind: "inOrder" }>
   | Readonly<{ kind: "opens"; at: string }>
   | Readonly<{ kind: "unlockAfter"; name: Bilingual }>
-  | Readonly<{ kind: "bonus"; points: number }>;
+  | Readonly<{ kind: "bonus"; points: number }>
+  | Readonly<{ kind: "resets"; refresh: "daily" | "weekly" }>
+  | Readonly<{ kind: "hidden" }>;
 
 export function categoryRuleNotes(
   category: CategoryView,
@@ -120,6 +127,12 @@ export function categoryRuleNotes(
   }
   if (category.completionBonus > 0) {
     notes.push({ kind: "bonus", points: category.completionBonus });
+  }
+  if (category.refresh !== "none") {
+    notes.push({ kind: "resets", refresh: category.refresh });
+  }
+  if (category.hidden) {
+    notes.push({ kind: "hidden" });
   }
   return notes;
 }

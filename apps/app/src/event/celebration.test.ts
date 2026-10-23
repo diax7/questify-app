@@ -33,6 +33,8 @@ const category = (id: string, quests: Quest[]): Category => ({
   opensAt: null,
   unlockAfter: null,
   bonus: { points: 0, earned: 0, settled: false },
+  refresh: "none",
+  resetsAt: null,
   quests,
 });
 
@@ -93,6 +95,17 @@ describe("scanStep", () => {
     ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
     const stamped = { kind: "stamped", done: 1, needed: 2, fresh: false } as const;
     expect(scanStep(stamped, { type: "again" })).toEqual({ kind: "scanning" });
+  });
+
+  it("shows a hidden category found by its secret code (T-304c)", () => {
+    const read = scanStep({ kind: "scanning" }, { type: "read", questId: "cat1", token: "t1" });
+    const name = { ar: "السر", en: null };
+    const found = scanStep(read, {
+      type: "answered",
+      answer: { kind: "revealed", name, fresh: false },
+    });
+    expect(found).toEqual({ kind: "revealed", name, fresh: false });
+    expect(scanStep(found, { type: "again" })).toEqual({ kind: "scanning" });
   });
 
   it("ends a refused scan in its reason, with no celebration", () => {

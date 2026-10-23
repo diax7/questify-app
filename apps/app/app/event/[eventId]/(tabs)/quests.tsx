@@ -11,6 +11,7 @@ import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
+import { resetLabel } from "#src/event/reset.ts";
 import {
   categoryNotes,
   categorySummary,
@@ -99,7 +100,7 @@ function QuestCard({
   );
 }
 
-/** A category header's note in words (T-304): its opening time, its unlock, its order, its bonus. */
+/** A category header's note in words (T-304): its opening time, its unlock, its order, its reset, its bonus. */
 function noteText(
   note: CategoryNote,
   t: ReturnType<typeof useI18n>["t"],
@@ -119,6 +120,10 @@ function noteText(
       return t("questsTab.category.bonus", { points: formatNumber(note.points, language) });
     case "bonusEarned":
       return t("questsTab.category.bonusEarned", { points: formatNumber(note.points, language) });
+    case "resets": {
+      const label = resetLabel(note, Date.now(), language);
+      return t(label.key, label.values);
+    }
   }
 }
 

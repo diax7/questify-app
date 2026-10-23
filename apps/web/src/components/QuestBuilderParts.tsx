@@ -251,10 +251,19 @@ function ruleText(
       return t("quests.category.unlockAfter", { name: textFor(note.name, language) });
     case "bonus":
       return t("quests.category.bonus", { points: formatNumber(note.points, language) });
+    case "resets":
+      return t(
+        note.refresh === "daily" ? "quests.category.resetsDaily" : "quests.category.resetsWeekly",
+      );
+    case "hidden":
+      return t("quests.category.hidden");
   }
 }
 
-/** A category's rules as form fields (T-304): its order, its opening time, its unlock and its completion bonus. */
+/**
+ * A category's rules as form fields (T-304): its order, its opening time, its unlock and its completion bonus; its
+ * refresh and whether it is hidden until found (T-304c).
+ */
 function CategoryRuleFields({
   language,
   timeZone,
@@ -329,6 +338,36 @@ function CategoryRuleFields({
         />
       </label>
       <p className={styles.muted}>{t("quests.field.rulesHint")}</p>
+      <label className={styles.field}>
+        {t("quests.field.refresh")}
+        <select
+          className={styles.input}
+          name="refresh"
+          defaultValue={category.refresh}
+          aria-describedby={`refresh-hint-${category.id}`}
+          disabled={busy}
+        >
+          <option value="none">{t("quests.field.refreshNone")}</option>
+          <option value="daily">{t("quests.field.refreshDaily")}</option>
+          <option value="weekly">{t("quests.field.refreshWeekly")}</option>
+        </select>
+      </label>
+      <p id={`refresh-hint-${category.id}`} className={styles.muted}>
+        {t("quests.field.refreshHint")}
+      </p>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          name="hidden"
+          defaultChecked={category.hidden}
+          aria-describedby={`hidden-hint-${category.id}`}
+          disabled={busy}
+        />
+        <span>{t("quests.field.hidden")}</span>
+      </label>
+      <p id={`hidden-hint-${category.id}`} className={styles.muted}>
+        {t("quests.field.hiddenHint")}
+      </p>
     </>
   );
 }

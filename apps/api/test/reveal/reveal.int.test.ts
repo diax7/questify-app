@@ -173,7 +173,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("refresh and hidden categories 
       expect(vote.statusCode).toBe(422);
       expect(vote.json()).toMatchObject({
         code: "invalid_quest",
-        details: { field: "categoryId" },
+        details: { field: "refresh" },
       });
       expect((await newQuest(event, daily)).statusCode).toBe(201);
     });

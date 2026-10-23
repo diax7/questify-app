@@ -20,7 +20,39 @@ type Code = Readonly<{
   title: Readonly<{ ar: string | null; en: string | null }>;
   version: number;
   url: string;
+  /** A hidden category's secret code (T-304c): the category's id; null for a quest's or a step's code. */
+  secretOf: string | null;
 }>;
+
+/** A hidden category's secret code as `GET …/codes` lists it, apart from the quest codes. */
+type Secret = Readonly<{
+  categoryId: string;
+  category: Readonly<{ ar: string | null; en: string | null }>;
+  version: number;
+  url: string;
+}>;
+
+/** A secret code on the same sheet as the quest codes: titled by its category. */
+const secretCard = (secret: Secret): Code => ({
+  questId: secret.categoryId,
+  stepId: null,
+  step: null,
+  category: secret.category,
+  title: secret.category,
+  version: secret.version,
+  url: secret.url,
+  secretOf: secret.categoryId,
+});
+
+/** Where a card's code is made new: a quest's, a passport step's or a hidden category's. */
+const regeneratePath = (base: string, code: Code): string => {
+  if (code.secretOf !== null) {
+    return `${base}/categories/${code.secretOf}/reveal/regenerate`;
+  }
+  return code.stepId === null
+    ? `${base}/quests/${code.questId}/qr/regenerate`
+    : `${base}/steps/${code.stepId}/qr/regenerate`;
+};
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -53,8 +85,8 @@ function download(code: Code, language: Language): void {
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }
 
-/** One card per code: a quest's own, or each of a passport's steps. */
-const cardId = (code: Code): string => code.stepId ?? code.questId;
+/** One card per code: a quest's own, each of a passport's steps, or a hidden category's secret code. */
+const cardId = (code: Code): string => code.secretOf ?? code.stepId ?? code.questId;
 
 /** A category in every language the event wrote it in, like the titles. */
 const bothLanguages = (text: Code["category"]): string =>
@@ -132,7 +164,11 @@ export function CodesPanel({
     setLoadFailed(false);
     const result = await requestJson("GET", `${base}/codes`);
     if (handle(result.body, result.ok, "codes.loadFailed")) {
-      setCodes((result.body as { codes: Code[] }).codes);
+      const listed = result.body as { codes: Omit<Code, "secretOf">[]; secrets?: Secret[] };
+      setCodes([
+        ...listed.codes.map((code) => ({ ...code, secretOf: null })),
+        ...(listed.secrets ?? []).map(secretCard),
+      ]);
     } else {
       setLoadFailed(true);
     }
@@ -165,11 +201,7 @@ export function CodesPanel({
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    const path =
-      target.stepId === null
-        ? `${base}/quests/${target.questId}/qr/regenerate`
-        : `${base}/steps/${target.stepId}/qr/regenerate`;
-    const result = await requestJson("POST", path);
+    const result = await requestJson("POST", regeneratePath(base, target));
     setBusy(false);
     setRegenerating(null);
     if (handle(result.body, result.ok, "codes.regenerateFailed")) {
@@ -257,12 +289,16 @@ export function CodesPanel({
             >
               <QrImage
                 text={code.url}
-                label={t("codes.codeFor", {
-                  name:
-                    code.step === null
-                      ? textFor(code.title, language)
-                      : `${textFor(code.title, language)} - ${textFor(code.step, language)}`,
-                })}
+                label={
+                  code.secretOf === null
+                    ? t("codes.codeFor", {
+                        name:
+                          code.step === null
+                            ? textFor(code.title, language)
+                            : `${textFor(code.title, language)} - ${textFor(code.step, language)}`,
+                      })
+                    : t("codes.secretFor", { name: textFor(code.title, language) })
+                }
               />
               {code.title.ar === null ? null : (
                 <p className={codeStyles.title} dir="rtl" lang="ar">
@@ -279,7 +315,14 @@ export function CodesPanel({
                   {t("codes.step", { name: bothLanguages(code.step) })}
                 </p>
               )}
-              <p className={codeStyles.small}>{bothLanguages(code.category)}</p>
+              {code.secretOf === null ? (
+                <p className={codeStyles.small}>{bothLanguages(code.category)}</p>
+              ) : (
+                <>
+                  <p className={codeStyles.title}>{t("codes.secret")}</p>
+                  <p className={codeStyles.small}>{t("codes.secretHint")}</p>
+                </>
+              )}
               <p className={codeStyles.small}>{t("codes.version", { version: code.version })}</p>
               <div className={`${styles.actions} ${codeStyles.controls}`}>
                 <button

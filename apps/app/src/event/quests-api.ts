@@ -32,7 +32,7 @@ export type Quest = Readonly<{
   repeatCap: number;
   opensAt: string | null;
   closesAt: string | null;
-  /** How many times this player completed it. */
+  /** How many times this player completed it, in its category's current day or week when it refreshes (T-304c). */
   done: number;
   /** The points this player earned from it, from the ledger. */
   earned: number;
@@ -52,6 +52,9 @@ export type CategoryRules = Readonly<{
   unlockAfter: Readonly<{ id: string; name: Bilingual }> | null;
   /** settled: paid, or since removed or withheld; a settled bonus is never paid again, so it is not promised. */
   bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
+  /** How often its quests start again (T-304c, FR-236); `resetsAt` is the next start, null for none. */
+  refresh: "none" | "daily" | "weekly";
+  resetsAt: string | null;
 }>;
 
 export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
@@ -149,6 +152,11 @@ function rulesOf(category: Record<string, unknown>): CategoryRules {
       earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
       settled: bonus["settled"] === true,
     },
+    refresh:
+      category["refresh"] === "daily" || category["refresh"] === "weekly"
+        ? category["refresh"]
+        : "none",
+    resetsAt: typeof category["resetsAt"] === "string" ? category["resetsAt"] : null,
   };
 }
 
@@ -232,11 +240,13 @@ export type CategoryNote =
   | Readonly<{ kind: "unlockAfter"; name: Bilingual }>
   | Readonly<{ kind: "inOrder" }>
   | Readonly<{ kind: "bonus"; points: number }>
-  | Readonly<{ kind: "bonusEarned"; points: number }>;
+  | Readonly<{ kind: "bonusEarned"; points: number }>
+  | Readonly<{ kind: "resets"; refresh: "daily" | "weekly"; at: string }>;
 
 /**
  * A category header's notes: when it opens and which category unlocks it, while that keeps its quests shut; that it is
- * played in order; and its completion bonus, or the bonus earned; nothing for a bonus settled with nothing kept.
+ * played in order; when it resets (T-304c); and its completion bonus, or the bonus earned; nothing for a bonus settled
+ * with nothing kept.
  */
 export function categoryNotes(category: Category): CategoryNote[] {
   const locks = new Set(category.quests.map((quest) => quest.lock));
@@ -249,6 +259,9 @@ export function categoryNotes(category: Category): CategoryNote[] {
   }
   if (category.orderMode === "in_order") {
     notes.push({ kind: "inOrder" });
+  }
+  if (category.refresh !== "none" && category.resetsAt !== null) {
+    notes.push({ kind: "resets", refresh: category.refresh, at: category.resetsAt });
   }
   if (category.bonus.earned > 0) {
     notes.push({ kind: "bonusEarned", points: category.bonus.earned });

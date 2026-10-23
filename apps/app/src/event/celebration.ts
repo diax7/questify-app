@@ -1,11 +1,13 @@
 import type { Stamped } from "#src/event/passport.ts";
+import type { Revealed } from "#src/event/reveal.ts";
+import type { Bilingual } from "#src/i18n/text.ts";
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
 import type { Bonus } from "#src/event/quests-api.ts";
 import type { LevelUp } from "#src/questify/level.ts";
 
 /**
  * Where a scan stands (FR-406): scanning; checking (the "Scanned! Checking…" beat, shown within 300 ms of the read);
- * then the celebration, a passport's progress after a step's stamp (T-304b), a refusal in clear words, or a lost answer
+ * then the celebration, a passport's progress after a step's stamp (T-304b), a hidden category found (T-304c), a refusal in clear words, or a lost answer
  * that can be retried with the same key. While checking, `questId` is the id the code holds: a quest's, or a passport
  * step's; a payment names its quest.
  */
@@ -13,6 +15,8 @@ export type ScanStep =
   | Readonly<{ kind: "scanning" }>
   | Readonly<{ kind: "checking"; questId: string; token: string }>
   | Readonly<{ kind: "stamped"; done: number; needed: number; fresh: boolean }>
+  /** A hidden category found by its secret code (T-304c); `fresh` is false when found before. */
+  | Readonly<{ kind: "revealed"; name: Bilingual; fresh: boolean }>
   | Readonly<{
       kind: "celebrating";
       questId: string;
@@ -43,7 +47,11 @@ export type ScanEvent =
   | Readonly<{ type: "read"; questId: string; token: string }>
   | Readonly<{
       type: "answered";
-      answer: CompletionAnswer | Stamped | (CompletionAnswer & Readonly<{ questId: string }>);
+      answer:
+        | CompletionAnswer
+        | Stamped
+        | Revealed
+        | (CompletionAnswer & Readonly<{ questId: string }>);
     }>
   | Readonly<{ type: "details"; details: Details }>
   | Readonly<{ type: "retry" }>
@@ -76,6 +84,8 @@ function answered(
   switch (answer.kind) {
     case "stamped":
       return { kind: "stamped", done: answer.done, needed: answer.needed, fresh: answer.fresh };
+    case "revealed":
+      return { kind: "revealed", name: answer.name, fresh: answer.fresh };
     case "completed":
       return {
         kind: "celebrating",

@@ -24,8 +24,10 @@ import {
   type CompletionAnswer,
 } from "#src/event/quests-api.ts";
 import { stampStep } from "#src/event/passport.ts";
+import { revealCategory } from "#src/event/reveal.ts";
 import {
   OPEN_GATE,
+  categoryIdOf,
   passes,
   questCodeOrigin,
   readScan,
@@ -39,6 +41,19 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The one extra web origin this build reads quest codes from (a staging demo, or development). */
 const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
+
+/**
+ * Sends a scanned code: `id` is the quest's, a passport step's for a step's code (T-304b), or a hidden category's for
+ * its secret code (T-304c); the token's own layout says which.
+ */
+const send = (id: string, token: string, key: string) => {
+  if (categoryIdOf(token) !== null) {
+    return revealCategory(api.session, id, token);
+  }
+  return stepIdOf(token) === null
+    ? completeQuest(api.session, id, { type: "qr", code: token }, key)
+    : stampStep(api.session, id, token, key);
+};
 
 /** Haptics never block a scan: a phone without them simply stays still. */
 const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
@@ -139,20 +154,16 @@ export default function ScanQuestScreen() {
     return () => watcher.remove();
   }, [getPermission]);
 
-  // `id` is the quest's, or a passport step's for a step's code (T-304b): the token's own layout says which.
   const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
-    const answer =
-      stepIdOf(token) === null
-        ? await completeQuest(api.session, id, { type: "qr", code: token }, key)
-        : await stampStep(api.session, id, token, key);
+    const answer = await send(id, token, key);
     attempt.current = { key, code: token, retryable: answer.kind === "network" };
     if (answer.kind === "signed_out") {
       router.replace("/home");
       return;
     }
     dispatch({ type: "answered", answer });
-    if (answer.kind === "stamped") {
+    if (answer.kind === "stamped" || answer.kind === "revealed") {
       buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
     } else if (answer.kind === "completed") {
       buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
@@ -195,7 +206,8 @@ export default function ScanQuestScreen() {
       return;
     }
     buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-    const id = scan.kind === "step" ? scan.stepId : scan.questId;
+    const id =
+      scan.kind === "step" ? scan.stepId : scan.kind === "reveal" ? scan.categoryId : scan.questId;
     dispatch({ type: "read", questId: id, token: scan.token });
     void submit(id, scan.token);
   };
@@ -265,6 +277,20 @@ export default function ScanQuestScreen() {
           </PopIn>
           <Button label={t("scanner.again")} onPress={again} />
           <Button kind="quiet" label={t("common.close")} onPress={() => router.back()} />
+        </View>
+      ) : null}
+      {step.kind === "revealed" ? (
+        <View style={styles.result}>
+          <PopIn>
+            <AppText variant="display" accessibilityRole="alert">
+              {t(step.fresh ? "scanner.revealed" : "scanner.revealedBefore", {
+                name: textIn(step.name, language),
+              })}
+            </AppText>
+          </PopIn>
+          {step.fresh ? <AppText>{t("scanner.revealedBody")}</AppText> : null}
+          <Button label={t("common.close")} onPress={() => router.back()} />
+          <Button kind="quiet" label={t("scanner.again")} onPress={again} />
         </View>
       ) : null}
       {step.kind === "refused" ? (

@@ -54,3 +54,18 @@ test("a code scanned by a phone camera lands on a page that says to use the app,
     page.getByRole("heading", { name: "Scan this code in the Questify app" }),
   ).toBeVisible();
 });
+
+test("a hidden category's secret code opens the same page, naming nothing (T-304c)", async ({
+  page,
+}) => {
+  page.on("pageerror", (error) => {
+    throw error;
+  });
+  // The secret code's layout (format 0x05): the page never reads or checks it, so any bytes after the format do.
+  const token = Buffer.concat([Buffer.from([0x05]), Buffer.alloc(36, 9)]).toString("base64url");
+  await page.goto(`/ar/q/${token}`);
+  await expect(
+    page.getByRole("heading", { name: "امسح هذا الرمز من تطبيق Questify" }),
+  ).toBeVisible();
+  await expect(page.getByRole("main")).not.toContainText("فئة");
+});

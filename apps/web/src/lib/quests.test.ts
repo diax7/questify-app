@@ -135,6 +135,8 @@ describe("category rules (T-304)", () => {
           opensAt: "2030-11-01T16:00",
           unlockAfter: "c0",
           completionBonus: "250",
+          refresh: "weekly",
+          hidden: "on",
         }),
       ),
     ).toEqual({
@@ -143,6 +145,8 @@ describe("category rules (T-304)", () => {
       opensAt: "2030-11-01T16:00",
       unlockAfter: "c0",
       completionBonus: 250,
+      refresh: "weekly",
+      hidden: true,
     });
     expect(categoryBody(form({ orderMode: "other" }))).toEqual({
       name: { ar: "", en: "" },
@@ -150,7 +154,11 @@ describe("category rules (T-304)", () => {
       opensAt: null,
       unlockAfter: null,
       completionBonus: 0,
+      refresh: "none",
+      hidden: false,
     });
+    expect(categoryBody(form({ refresh: "hourly" }))).toMatchObject({ refresh: "none" });
+    expect(categoryBody(form({ refresh: "daily" }))).toMatchObject({ refresh: "daily" });
   });
 
   it("notes a category's order, opening, unlock and bonus, and nothing for none", () => {
@@ -162,6 +170,8 @@ describe("category rules (T-304)", () => {
       opensAt: null,
       unlockAfter: null,
       completionBonus: 0,
+      refresh: "none",
+      hidden: false,
       quests: [],
     };
     const one = { ...base, id: "c0", name: { ar: null, en: "One" } };
@@ -180,6 +190,11 @@ describe("category rules (T-304)", () => {
       { kind: "bonus", points: 50 },
     ]);
     expect(categoryRuleNotes({ ...ruled, unlockAfter: "gone" }, [ruled])).toHaveLength(3);
+    const secret = { ...base, refresh: "daily" as const, hidden: true };
+    expect(categoryRuleNotes(secret, [secret])).toEqual([
+      { kind: "resets", refresh: "daily" },
+      { kind: "hidden" },
+    ]);
   });
 });
 

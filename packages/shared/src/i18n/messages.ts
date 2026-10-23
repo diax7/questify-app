@@ -441,6 +441,22 @@ export const MESSAGES = {
   "quests.category.opens": { ar: "تُفتح {time}", en: "Opens {time}" },
   "quests.category.unlockAfter": { ar: "بعد «{name}»", en: "After {name}" },
   "quests.category.bonus": { ar: "مكافأة \u200E+{points}", en: "Bonus +{points}" },
+  "quests.category.resetsDaily": { ar: "تتجدد يوميًا", en: "Resets daily" },
+  "quests.category.resetsWeekly": { ar: "تتجدد أسبوعيًا", en: "Resets weekly" },
+  "quests.category.hidden": { ar: "مخفية حتى تُكتشف", en: "Hidden until found" },
+  "quests.field.refresh": { ar: "التجديد", en: "Refresh" },
+  "quests.field.refreshNone": { ar: "بلا تجديد", en: "Never" },
+  "quests.field.refreshDaily": { ar: "كل يوم", en: "Every day" },
+  "quests.field.refreshWeekly": { ar: "كل أسبوع", en: "Every week" },
+  "quests.field.refreshHint": {
+    ar: "تتجدد مهام المسح والرمز والتحدي فقط: تبدأ من جديد كل يوم أو أسبوع، وتبقى النقاط المكتسبة.",
+    en: "Only scan, code and challenge quests can refresh: they start again each day or week, and points already earned stay.",
+  },
+  "quests.field.hidden": { ar: "مخفية حتى تُكتشف", en: "Hidden until found" },
+  "quests.field.hiddenHint": {
+    ar: "لا يرى اللاعبون هذه الفئة إلا بعد مسح رمزها السري من صفحة الرموز.",
+    en: "Players see this category only after scanning its secret code from the codes page.",
+  },
   "quests.saveCategory": { ar: "حفظ الفئة", en: "Save category" },
   "quests.deleteCategory": { ar: "حذف الفئة", en: "Delete category" },
   "quests.deleteCategoryTitle": { ar: "حذف الفئة؟", en: "Delete this category?" },
@@ -585,6 +601,10 @@ export const MESSAGES = {
   "quests.invalid.to": {
     ar: "اختر فئة أخرى من هذه الفعالية.",
     en: "Choose another category of this event.",
+  },
+  "quests.invalid.refresh": {
+    ar: "لا تقبل الفئة المتجددة إلا مهام المسح والرمز والتحدي.",
+    en: "A category that refreshes holds only scan, code and challenge quests.",
   },
   "quests.type.scanQr": { ar: "مسح رمز QR", en: "Scan a QR code" },
   "quests.type.enterCode": { ar: "إدخال رمز", en: "Enter a code" },
@@ -839,6 +859,22 @@ export const MESSAGES = {
     ar: "أكملت «{category}»: مكافأة ‎+{points}",
     en: "+{points} bonus: {category} complete",
   },
+  "questsTab.category.resetsDaily": {
+    ar: "تتجدد يوميًا، بعد {span}",
+    en: "Resets daily, in {span}",
+  },
+  "questsTab.category.resetsWeekly": {
+    ar: "تتجدد أسبوعيًا، بعد {span}",
+    en: "Resets weekly, in {span}",
+  },
+  "questsTab.category.resetsDailySoon": {
+    ar: "تتجدد يوميًا، بعد أقل من دقيقة",
+    en: "Resets daily, in under a minute",
+  },
+  "questsTab.category.resetsWeeklySoon": {
+    ar: "تتجدد أسبوعيًا، بعد أقل من دقيقة",
+    en: "Resets weekly, in under a minute",
+  },
   "questsTab.category.opens": { ar: "تُفتح {time}", en: "Opens {time}" },
   "questsTab.category.unlockAfter": {
     ar: "تُفتح بعد إكمال «{name}»",
@@ -882,6 +918,12 @@ export const MESSAGES = {
   },
   "scanner.again": { ar: "مسح رمز آخر", en: "Scan another" },
   "scanner.stamped": { ar: "خُتمت الخطوة: {done} من {needed}", en: "Stamped: {done} of {needed}" },
+  "scanner.revealed": {
+    ar: "اكتشفت فئة سرية: «{name}»",
+    en: "You found a secret category: {name}",
+  },
+  "scanner.revealedBefore": { ar: "اكتشفت «{name}» من قبل", en: "You already found {name}" },
+  "scanner.revealedBody": { ar: "مهامها الآن في قائمتك.", en: "Its quests are now in your list." },
   "scanner.stampedBefore": {
     ar: "ختمت هذه الخطوة من قبل: {done} من {needed}",
     en: "Already stamped: {done} of {needed}",
@@ -1597,6 +1639,15 @@ export const MESSAGES = {
   "codes.version": { ar: "النسخة {version}", en: "Version {version}" },
   "codes.step": { ar: "الخطوة: {name}", en: "Step: {name}" },
   "codes.codeFor": { ar: "رمز QR للمهمة «{name}»", en: "QR code for “{name}”" },
+  "codes.secret": { ar: "الرمز السري للفئة", en: "Secret code for the category" },
+  "codes.secretFor": {
+    ar: "رمز QR السري للفئة «{name}»",
+    en: "Secret QR code for the category “{name}”",
+  },
+  "codes.secretHint": {
+    ar: "يكشف هذا الرمز الفئة لمن يمسحه داخل التطبيق، ولا يمنح نقاطًا.",
+    en: "Scanning this code in the app shows the category to that player. It pays nothing.",
+  },
   "codes.printQr": { ar: "طباعة QR", en: "Print QR" },
   "scan.title": {
     ar: "امسح هذا الرمز من تطبيق Questify",

@@ -6,6 +6,7 @@ import {
   questCodeOrigin,
   questIdOf,
   readScan,
+  categoryIdOf,
   stepIdOf,
 } from "#src/event/scan.ts";
 
@@ -86,6 +87,27 @@ describe("stepIdOf (T-304b)", () => {
     });
     expect(readScan(`https://example.com/q/${token(0x04)}`, null)).toEqual({ kind: "other" });
     expect(readScan(`https://questify.nafes.com/q/${token(0x03)}`, null)).toEqual({
+      kind: "other",
+    });
+  });
+});
+
+describe("categoryIdOf (T-304c)", () => {
+  it("reads a hidden category's id from its secret code only", () => {
+    expect(categoryIdOf(token(0x05))).toBe(QUEST_ID);
+    expect(categoryIdOf(token(0x04))).toBeNull();
+    expect(stepIdOf(token(0x05))).toBeNull();
+    expect(questIdOf(token(0x05))).toBeNull();
+  });
+
+  it("makes a secret code on Questify's host a reveal scan", () => {
+    expect(readScan(`https://questify.nafes.com/q/${token(0x05)}`, null)).toEqual({
+      kind: "reveal",
+      categoryId: QUEST_ID,
+      token: token(0x05),
+    });
+    expect(readScan(`https://example.com/q/${token(0x05)}`, null)).toEqual({ kind: "other" });
+    expect(readScan(`https://questify.nafes.com/q/${token(0x06)}`, null)).toEqual({
       kind: "other",
     });
   });

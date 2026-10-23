@@ -33,19 +33,20 @@ import type { PoolClient } from "pg";
 type Target = Readonly<{ eventId: string; id: string }>;
 
 /**
- * A category of this event that may hold a quest of this type: a refreshing one holds only repeatable types (T-304c,
- * ADR-204).
+ * Whether a category of this event may hold a quest of this type: `categoryId` when it is not this event's, `refresh`
+ * when it refreshes and the type is played once (T-304c, ADR-204).
  */
 async function takesQuest(
   client: PoolClient,
   eventId: string,
   categoryId: string,
   type: QuestType,
-): Promise<boolean> {
+): Promise<"yes" | "categoryId" | "refresh"> {
   const category = await readCategory(client, eventId, categoryId);
-  return (
-    category !== undefined && (category.refresh === "none" || REFRESHING_QUEST_TYPES.includes(type))
-  );
+  if (category === undefined) {
+    return "categoryId";
+  }
+  return category.refresh === "none" || REFRESHING_QUEST_TYPES.includes(type) ? "yes" : "refresh";
 }
 
 /**
@@ -63,8 +64,9 @@ export function createQuest(
     if (!isQuestType(input.type)) {
       return { kind: "invalid", field: "type" };
     }
-    if (!(await takesQuest(client, eventId, input.categoryId, input.type))) {
-      return { kind: "invalid", field: "categoryId" };
+    const taken = await takesQuest(client, eventId, input.categoryId, input.type);
+    if (taken !== "yes") {
+      return { kind: "invalid", field: taken };
     }
     const fields = mergeQuest(undefined, input.type, input, event.timezone);
     if (isInvalid(fields)) {
@@ -108,11 +110,12 @@ export function updateQuest(
     if (current === undefined) {
       return { kind: "not_found" };
     }
-    if (
-      input.categoryId !== undefined &&
-      !(await takesQuest(client, target.eventId, input.categoryId, current.type))
-    ) {
-      return { kind: "invalid", field: "categoryId" };
+    const taken =
+      input.categoryId === undefined
+        ? "yes"
+        : await takesQuest(client, target.eventId, input.categoryId, current.type);
+    if (taken !== "yes") {
+      return { kind: "invalid", field: taken };
     }
     const fields = mergeQuest(current, current.type, input, event.timezone);
     if (isInvalid(fields)) {

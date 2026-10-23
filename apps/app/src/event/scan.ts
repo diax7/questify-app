@@ -58,6 +58,8 @@ const TOKEN = /^[A-Za-z0-9_-]{50}$/;
 const FORMAT_QUEST = 0x01;
 /** A printed passport step's code (T-304b, ADR-203): the same layout, the step's id. */
 const FORMAT_STEP = 0x04;
+/** A hidden category's secret code (T-304c, ADR-204): the same layout, the category's id. */
+const FORMAT_REVEAL = 0x05;
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -78,9 +80,13 @@ export const questIdOf = (token: string): string | null => idOf(token, FORMAT_QU
 /** The step id inside a printed passport step's token (T-304b). */
 export const stepIdOf = (token: string): string | null => idOf(token, FORMAT_STEP);
 
+/** The category id inside a hidden category's secret token (T-304c). */
+export const categoryIdOf = (token: string): string | null => idOf(token, FORMAT_REVEAL);
+
 export type Scan =
   | Readonly<{ kind: "quest"; questId: string; token: string }>
   | Readonly<{ kind: "step"; stepId: string; token: string }>
+  | Readonly<{ kind: "reveal"; categoryId: string; token: string }>
   | Readonly<{ kind: "join"; code: string }>
   | Readonly<{ kind: "other" }>;
 
@@ -91,7 +97,7 @@ export type Scan =
 const HTTPS_LINK = /^https:\/\/([A-Za-z0-9.-]+)(\/[^?#\s]*)?(?:[?#]\S*)?$/;
 
 /**
- * What the camera read: a quest or passport step code on a Questify host (`https://{host}/q/{token}`), a join link, or
+ * What the camera read: a quest, passport step or secret category code on a Questify host (`https://{host}/q/{token}`), a join link, or
  * something else.
  * Only whole https links count, never a bare word.
  */
@@ -116,7 +122,11 @@ export function readScan(text: string, extraOrigin: string | null): Scan {
     return { kind: "quest", questId, token };
   }
   const stepId = stepIdOf(token);
-  return stepId === null ? { kind: "other" } : { kind: "step", stepId, token };
+  if (stepId !== null) {
+    return { kind: "step", stepId, token };
+  }
+  const categoryId = categoryIdOf(token);
+  return categoryId === null ? { kind: "other" } : { kind: "reveal", categoryId, token };
 }
 
 /**
