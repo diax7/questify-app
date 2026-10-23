@@ -11,11 +11,12 @@ import {
   type QuestVerification,
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
-import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
+import { ItemPicker, useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
 import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import type { QuestItem } from "#src/lib/quest-items.ts";
 import { textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
 
@@ -26,6 +27,8 @@ type Props = Readonly<{
   /** The event's words: the points field is named after its currency (FR-404). */
   terms: EventTerms;
   categories: readonly CategoryView[];
+  /** The event's quest items, for the item picker (T-304d). */
+  items: readonly QuestItem[];
   initial: QuestDraft;
   /** False when editing: a quest's type is fixed once it exists. */
   isNew: boolean;
@@ -44,6 +47,7 @@ export function QuestForm({
   timeZone,
   terms,
   categories,
+  items,
   initial,
   isNew,
   votesUrl,
@@ -153,6 +157,14 @@ export function QuestForm({
           }}
         />
       </label>
+      <ItemPicker
+        language={language}
+        items={items}
+        hint="questItems.pickerQuest"
+        busy={busy}
+        value={draft.itemId}
+        change={(itemId) => change({ itemId })}
+      />
       {QUEST_TYPES[draft.type].oneTry ? null : (
         <QuestRepeatField
           language={language}

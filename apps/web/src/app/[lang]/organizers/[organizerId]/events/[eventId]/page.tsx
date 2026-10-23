@@ -1,6 +1,7 @@
 import { ActivationCard } from "#src/components/ActivationCard.tsx";
 import { EventForm } from "#src/components/EventForm.tsx";
 import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
+import { QuestItemWarnings } from "#src/components/QuestItemWarnings.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
@@ -20,6 +21,7 @@ export default async function EventPage({ params }: Props) {
             eventId={eventId}
             myRole={page.membership.role}
           />
+          <QuestItemWarnings language={page.language} organizerId={organizerId} eventId={eventId} />
           <RehearsalCard language={page.language} organizerId={organizerId} eventId={eventId} />
           <EventForm
             language={page.language}

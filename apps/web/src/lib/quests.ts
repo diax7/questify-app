@@ -7,6 +7,7 @@ import {
   type QuestType,
   type QuestVerification,
 } from "@questify/shared";
+import { itemChoice } from "#src/lib/quest-items.ts";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -27,6 +28,8 @@ export type QuestView = Readonly<{
   verification: readonly QuestVerification[];
   /** A passport's steps in order (T-304b); absent for other types. */
   steps?: readonly Readonly<{ id: string; name: Bilingual; position: number }>[];
+  /** The quest item its first completion gives (T-304d), or null. */
+  itemId: string | null;
 }>;
 
 /** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
@@ -83,6 +86,8 @@ export type CategoryView = Readonly<{
   /** How often its quests start again, and whether it stays hidden until found (T-304c, FR-236, FR-237). */
   refresh: "none" | "daily" | "weekly";
   hidden: boolean;
+  /** The quest item its bonus gives, once per period (T-304d), or null. */
+  itemId: string | null;
   quests: readonly QuestView[];
 }>;
 
@@ -98,6 +103,7 @@ export function categoryBody(form: FormData): Record<string, unknown> {
     completionBonus: Number(text("completionBonus") || "0"),
     refresh: text("refresh") === "daily" || text("refresh") === "weekly" ? text("refresh") : "none",
     hidden: form.get("hidden") === "on",
+    itemId: blankToNull("itemId"),
   };
 }
 
@@ -170,6 +176,8 @@ export type QuestDraft = Readonly<{
   config: Readonly<Record<string, unknown>>;
   /** How it is verified (FR-301); a type that offers no method has none. */
   verification: readonly QuestVerification[];
+  /** The quest item it gives (T-304d); empty for none. */
+  itemId: string;
 }>;
 
 export function blankQuest(categoryId: string): QuestDraft {
@@ -187,6 +195,7 @@ export function blankQuest(categoryId: string): QuestDraft {
     visible: true,
     config: {},
     verification: ["quest_qr"],
+    itemId: "",
   };
 }
 
@@ -206,6 +215,7 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     visible: quest.visible,
     config: quest.type === "passport" ? { ...quest.config, steps: formSteps(quest) } : quest.config,
     verification: quest.verification,
+    itemId: quest.itemId ?? "",
   };
 }
 
@@ -220,6 +230,7 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   visible: draft.visible,
   ...apiParts(draft),
   verification: draft.verification,
+  itemId: itemChoice(draft.itemId),
 });
 
 /** The body to create a quest: everything, with its type. */

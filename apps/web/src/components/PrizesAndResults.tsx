@@ -3,6 +3,7 @@
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { PrizesPanel } from "#src/components/PrizesPanel.tsx";
+import { QuestItemsPanel } from "#src/components/QuestItemsPanel.tsx";
 import { ResultsPanel } from "#src/components/ResultsPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
@@ -55,6 +56,7 @@ export function PrizesAndResults({ language, organizerId, eventId, myRole }: Pro
         joinCode={event.joinCode}
         live={live}
       />
+      <QuestItemsPanel language={language} organizerId={organizerId} eventId={eventId} />
       <ResultsPanel
         language={language}
         organizerId={organizerId}

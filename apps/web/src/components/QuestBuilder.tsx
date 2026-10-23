@@ -214,6 +214,7 @@ export function QuestBuilder({
           timeZone={timeZone}
           terms={terms}
           categories={categories}
+          items={b.items}
           initial={editing.initial}
           isNew={editing.quest === undefined}
           votesUrl={
@@ -244,6 +245,7 @@ export function QuestBuilder({
             terms={terms}
             category={category}
             categories={categories}
+            items={b.items}
             order={categories.map((item) => item.id)}
             index={index}
             busy={b.busy}

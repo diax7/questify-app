@@ -4,6 +4,7 @@ import { readEventTerms, type EventTerms, type Language } from "@questify/shared
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
+import { questItemsOf, type QuestItem } from "#src/lib/quest-items.ts";
 import type { CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
@@ -53,6 +54,7 @@ function problemText(body: unknown, language: Language): string {
 export function useQuestBuilder(language: Language, organizerId: string, eventId: string) {
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [categories, setCategories] = useState<readonly CategoryView[] | null>(null);
+  const [items, setItems] = useState<readonly QuestItem[]>([]);
   const [focusQuestId, setFocusQuestId] = useState<string | null>(null);
   const [event, setEvent] = useState<BuilderEvent | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +84,9 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
       setFocusQuestId(view.focusQuestId);
       setCategories(view.categories);
     }
+    // The item picker's choices (T-304d); without them the picker offers none and the rest works.
+    const listed = await requestJson("GET", `${base}/quest-items`);
+    setItems((listed.ok ? questItemsOf(listed.body) : undefined) ?? []);
   }, [base, failed]);
 
   useEffect(() => {
@@ -149,6 +154,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
 
   return {
     categories,
+    items,
     focusQuestId,
     event,
     busy,

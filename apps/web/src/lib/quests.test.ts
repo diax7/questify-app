@@ -27,6 +27,7 @@ const QUEST: QuestView = {
   position: 0,
   config: { code: "NAJD2030" },
   verification: [],
+  itemId: "i1",
 };
 
 describe("textFor", () => {
@@ -71,6 +72,7 @@ describe("quest bodies", () => {
       visible: true,
       config: {},
       verification: ["quest_qr"],
+      itemId: null,
     });
   });
 
@@ -84,6 +86,10 @@ describe("quest bodies", () => {
     expect(editQuestBody({ ...before, config: { code: "TABUK31" } }, before)).toEqual({
       config: { code: "TABUK31" },
     });
+    expect(editQuestBody({ ...before, itemId: "" }, { ...before, itemId: "i1" })).toEqual({
+      itemId: null,
+    });
+    expect(editQuestBody({ ...before, itemId: "i2" }, before)).toEqual({ itemId: "i2" });
   });
 });
 
@@ -137,6 +143,7 @@ describe("category rules (T-304)", () => {
           completionBonus: "250",
           refresh: "weekly",
           hidden: "on",
+          itemId: "i1",
         }),
       ),
     ).toEqual({
@@ -147,6 +154,7 @@ describe("category rules (T-304)", () => {
       completionBonus: 250,
       refresh: "weekly",
       hidden: true,
+      itemId: "i1",
     });
     expect(categoryBody(form({ orderMode: "other" }))).toEqual({
       name: { ar: "", en: "" },
@@ -156,6 +164,7 @@ describe("category rules (T-304)", () => {
       completionBonus: 0,
       refresh: "none",
       hidden: false,
+      itemId: null,
     });
     expect(categoryBody(form({ refresh: "hourly" }))).toMatchObject({ refresh: "none" });
     expect(categoryBody(form({ refresh: "daily" }))).toMatchObject({ refresh: "daily" });
@@ -172,6 +181,7 @@ describe("category rules (T-304)", () => {
       completionBonus: 0,
       refresh: "none",
       hidden: false,
+      itemId: null,
       quests: [],
     };
     const one = { ...base, id: "c0", name: { ar: null, en: "One" } };

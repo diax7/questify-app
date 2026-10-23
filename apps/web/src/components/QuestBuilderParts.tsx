@@ -8,9 +8,11 @@ import {
   toLocalInput,
   type EventTerms,
   type Language,
+  type MessageKey,
 } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
+import type { QuestItem } from "#src/lib/quest-items.ts";
 import {
   categoryBody,
   categoryRuleNotes,
@@ -21,6 +23,60 @@ import {
   type QuestView,
 } from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
+
+/** How the picker holds its choice: in the form's state (the quest form), or as a named field (the category form). */
+type PickerBinding =
+  | Readonly<{ value: string; change: (itemId: string) => void }>
+  | Readonly<{ name: string; initial: string }>;
+
+/**
+ * The item a quest or category gives (T-304d, FR-522): none, or one of the event's quest items, with the stock left;
+ * the items themselves are managed on the Prizes page.
+ */
+export function ItemPicker({
+  language,
+  items,
+  hint,
+  busy,
+  ...binding
+}: Readonly<{
+  language: Language;
+  items: readonly QuestItem[];
+  hint: MessageKey;
+  busy: boolean;
+}> &
+  PickerBinding) {
+  const t = translatorFor(language);
+  const hintId = useId();
+  const bound =
+    "change" in binding
+      ? {
+          value: binding.value,
+          onChange: (e: { target: { value: string } }) => binding.change(e.target.value),
+        }
+      : { name: binding.name, defaultValue: binding.initial };
+  return (
+    <>
+      <label className={styles.field}>
+        {t("questItems.picker")}
+        <select className={styles.input} aria-describedby={hintId} disabled={busy} {...bound}>
+          <option value="">{t("questItems.pickerNone")}</option>
+          {items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {`${textFor(item.name, language)} (${t("questItems.left", {
+                left: formatNumber(item.stockLeft, language),
+                total: formatNumber(item.stockTotal, language),
+              })})`}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p id={hintId} className={styles.muted}>
+        {t(hint)}
+      </p>
+    </>
+  );
+}
 
 /** What the builder asks the person to confirm before it deletes. */
 export type Deleting =
@@ -269,12 +325,14 @@ function CategoryRuleFields({
   timeZone,
   category,
   categories,
+  items,
   busy,
 }: Readonly<{
   language: Language;
   timeZone: string;
   category: CategoryView;
   categories: readonly CategoryView[];
+  items: readonly QuestItem[];
   busy: boolean;
 }>) {
   const t = translatorFor(language);
@@ -337,6 +395,14 @@ function CategoryRuleFields({
           disabled={busy}
         />
       </label>
+      <ItemPicker
+        language={language}
+        items={items}
+        hint="questItems.pickerCategory"
+        busy={busy}
+        name="itemId"
+        initial={category.itemId ?? ""}
+      />
       <p className={styles.muted}>{t("quests.field.rulesHint")}</p>
       <label className={styles.field}>
         {t("quests.field.refresh")}
@@ -379,6 +445,7 @@ export function CategoryCard({
   terms,
   category,
   categories,
+  items,
   order,
   index,
   busy,
@@ -393,6 +460,8 @@ export function CategoryCard({
   category: CategoryView;
   /** Every category of the event, for the unlock choice and its name. */
   categories: readonly CategoryView[];
+  /** The event's quest items, for the item picker (T-304d). */
+  items: readonly QuestItem[];
   order: readonly string[];
   index: number;
   busy: boolean;
@@ -424,6 +493,7 @@ export function CategoryCard({
             timeZone={timeZone}
             category={category}
             categories={categories}
+            items={items}
             busy={busy}
           />
           <div className={styles.actions}>
