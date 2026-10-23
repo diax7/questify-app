@@ -66,6 +66,8 @@ export type GameView = Readonly<{
   level: string;
   params: unknown;
   target: GameTarget;
+  /** The engine version a round issued now is played with: an app without it shows the update line (T-305c). */
+  engineVersion: number;
   attempts: number | null;
   cooldownMinutes: number | null;
   used: number;
@@ -136,6 +138,7 @@ function viewOf(row: ViewRow): GameView {
     level: row.level,
     params: row.params,
     target: gameTarget(game, row.params),
+    engineVersion: ENGINE_VERSIONS[game],
     attempts: row.attempts,
     cooldownMinutes: row.cooldown_minutes,
     used: row.used,

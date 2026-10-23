@@ -812,16 +812,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
       ]);
     });
 
-    it("lists a mini-game case with its rounds for the event's team", async () => {
+    it("lists a mini-game case with its rounds, an unlikely one with its result, for the event's team", async () => {
       const { event, quest, a } = await setup({ attempts: 2 });
       const round = await start(a, quest);
       await finish(a, round.round_id, { verdict: "refused", reason: "late" });
+      const lucky = await start(a, quest);
+      const luckyResult = { ...PASS, lucky: 5 };
+      await finish(a, lucky.round_id, { result: luckyResult, unlikely: true });
       const [listed] = await query<{ id: string; kind: string; scans: number }>(
         teamA(),
         "SELECT id, kind, scans FROM event_flags($1, true, NULL, 50)",
         [event],
       );
-      expect(listed).toMatchObject({ kind: "minigame", scans: 1 });
+      expect(listed).toMatchObject({ kind: "minigame", scans: 2 });
       const [detail] = await query<{ evidence: Row[] }>(
         teamA(),
         "SELECT evidence FROM flag_detail($1, $2)",
@@ -842,6 +845,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
           level: "easy",
           reason: "late",
           verdict: "refused",
+          result: null,
+          questAr: null,
+          questEn: "Play",
+        },
+        {
+          at: expect.any(String),
+          roundId: Number(lucky.round_id),
+          game: "memory_match",
+          level: "easy",
+          reason: "unlikely",
+          verdict: "passed",
+          result: luckyResult,
           questAr: null,
           questEn: "Play",
         },

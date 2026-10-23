@@ -816,6 +816,7 @@ BEGIN
            SELECT coalesce(jsonb_agg(jsonb_build_object('at', x.entry ->> 'at', 'roundId', x.entry -> 'round',
                                                         'game', x.entry ->> 'game', 'level', x.entry ->> 'level',
                                                         'reason', x.entry ->> 'reason', 'verdict', r.status,
+                                                        'result', r.result,
                                                         'questAr', q.title_ar, 'questEn', q.title_en)
                                      ORDER BY x.n), '[]')
            FROM jsonb_array_elements(f.evidence -> 'rounds') WITH ORDINALITY AS x(entry, n)

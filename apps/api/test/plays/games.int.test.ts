@@ -231,6 +231,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
       game: "memory_match",
       level: "easy",
       target: { game: "memory_match", pairs: 6, maxMoves: null },
+      engineVersion: 1,
       attempts: 2,
       used: 0,
       attemptsLeft: 2,
