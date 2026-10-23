@@ -317,17 +317,23 @@ its item once for the whole event, missed players be served first when stock ret
 ## Q-170 — Location check-in rules (2026-10-24, T-303b)
 ADR-206: a check-in passes inside the quest's radius plus the phone's accuracy (the allowance at most the radius, the
 fix at most 2 minutes old and 500 m accurate); a fix the phone marks as mocked still pays and raises a flag; no
-coordinates are stored, only rounded distances, accuracy and the mocked mark. Agree, or should a mocked fix be refused,
-the allowance be stricter, or the exact point be kept for the organizer?
+coordinates are stored, only rounded distances, accuracy and the mocked mark. Note: a check-in only proves the phone
+claimed to be there (all values come from the phone); the speed flag and the QR are the real guards. Agree, or should
+a mocked fix be refused, the allowance be stricter, or the exact point be kept for the organizer?
 
 ## Q-171 — Location flag numbers (2026-10-24, T-303b)
 ADR-207: "far from the venue" when the fix is more than the venue radius (default 1 km) plus 1 km away after its
 accuracy; "impossible speed" above 15 m/s (54 km/h) between quest spots at least 300 m apart; one reading is enough to
-raise a case (people decide). The stored distances follow the event's data retention (Q-075). Agree, or other numbers,
-or several far readings before a case?
+raise a case (people decide). The stored distances follow the event's data retention (Q-075). Times are when the
+server received each scan, so a retry delayed by a bad connection can bunch two scans and look fast; the Flags page
+shows the gap and seconds per scan against the player's previous placed scan, and a person decides. Agree, or other
+numbers, or several far readings before a case?
 
 ## Q-172 — Asking for location, and the switch (2026-10-24, T-303b)
-ADR-208: the app asks (explanation first) on first opening a location quest and right after joining an in-person event
-with a venue pin, never at launch; location quests stay behind a platform switch that is off until you update the App
-Store privacy label and Play's Data safety form for location. Agree, or ask only from a location quest, or turn the
-switch on now?
+ADR-208: the app asks when the player taps "Check in" on a location quest and once right after joining an in-person
+event with a venue pin, never at launch. Its explanation sheet has one "Continue" button that always opens the system
+prompt: Apple rejects a pre-permission screen with a "Not now" exit or an "Allow" button under 5.1.1(iv) ("the user
+should always proceed to the permission request after the message", App Review replies quoted on Apple Developer
+Forums, 2026; HIG Privacy). Location quests stay behind a platform switch that is off until you update the App Store
+privacy label and Play's Data safety form for location, and CranL's database is confirmed not to log query
+parameters. Agree, or ask only from a location quest, or turn the switch on now?

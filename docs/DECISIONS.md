@@ -2614,10 +2614,15 @@ over).
 **Decision:** a `location` quest has a required place (pin and radius, 20 to 2000 m) and always its own quest QR at
 the spot (a database check, FR-216). A check-in passes when the phone's fix, no older than 2 minutes and accurate to
 500 m or better, lies within the radius plus its accuracy, the allowance capped at the radius; outside, the player is
-told the rounded distance. A mocked fix inside the area pays (flags never block play) and raises a flag. No
-coordinates are stored: the database turns the position into distances rounded to 10 m and keeps those, the accuracy
-and the mocked mark on the completion, erased with the account. The phone sends a position only with a check-in, a QR
-scan or a typed code, in the request body, redacted from logs.
+told the rounded distance. A mocked fix inside the area pays (flags never block play) and raises a flag. **A
+check-in proves only that the phone claimed to be there**: latitude, longitude, age, accuracy and the mocked mark are
+all reported by the client and can be forged; the speed flag on quest pins is the stronger guard, and for prizes that
+matter the organizer should use the QR at the spot (the quest builder says so). No coordinates are stored: the
+database turns the position into distances rounded to 10 m and keeps those, the accuracy and the mocked mark in
+`completion_position`, a table no API role can read (only its definers), erased with the account. The phone sends a
+position only with a check-in, a QR scan or a typed code, in the request body; a bad or stale position on a QR scan
+or typed code is dropped and never blocks it. Postgres must not log bound parameters (checked by a test and on
+CranL). Amended after the CTO plan review (82/100).
 **Why:** FR-215, FR-216, ADR-015, ADR-072 and hard rule 3: the flag page needs "how far, how sure", not a point on a
 map, so storing less is the safer default; the capped allowance stops a coarse fix passing a far player.
 
@@ -2626,7 +2631,8 @@ map, so storing less is the safer default; the capped allowance stops a coarse f
 **Decision:** `raise_completion_flags` raises two new kinds. `far_from_venue`: the completion's fix, less its
 accuracy, lies beyond the event's venue radius (default 1 km) plus 1 km, or the phone marked the fix as mocked.
 `impossible_speed`: two consecutive counted completions at quests with places are more than 300 m apart edge to edge
-and the pace between them is above 15 m/s (54 km/h); it uses the quests' pins, so it works with location refused. One
+and the pace between them is above 15 m/s (54 km/h), by server receipt time; it uses the quests' pins, so it works
+with location refused. Far from the venue is raised when the position row is written (`raise_position_flags`). One
 open case per account and kind; never in a virtual event (FR-1744), never from a manual or system-paid completion; no
 reading, no far flag. The numbers live in `flag_tuning` until T-703.
 **Why:** FR-331, FR-332, ADR-153; the T-209 trigger covers every completion path, and evidence keeps the
@@ -2634,12 +2640,14 @@ reading, no far flag. The numbers live in `flag_tuning` until T-703.
 
 ## ADR-208 — When the app asks for location, and the platform switch
 **Status:** Proposed (Claude, 2026-10-24; T-303b). Q-172.
-**Decision:** never at launch. The app shows its own explanation sheet first, the first time the player opens a
-location quest or right after joining an in-person event (physical or workplace) that has a venue pin; only "Allow"
-leads to the system prompt. "Not now" after joining is remembered per install; a location quest's sheet asks again
-each time until allowed or permanently denied, and always offers the QR. Location is read only with a request that
+**Decision:** never at launch. The app shows its own explanation sheet with one button, "Continue", that always
+opens the system prompt (no "Not now", no close, no "Allow" wording: Apple rejects those under 5.1.1(iv)). It is shown
+when the player taps "Check in" on a location quest, or once per install right after joining an in-person event
+(physical or workplace) that has a venue pin. After a denial the quest sheet offers the QR and the settings link.
+Location is read only with a request that
 uses it (a fresh fix for a check-in, the last fix up to 2 minutes old for a scan or typed code), never in the
-background. A platform switch `locationQuests` stays off until the store privacy answers are updated (ADR-073); while
+background. A platform switch `locationQuests` stays off until the store privacy answers are updated (ADR-073) and
+CranL's database is confirmed not to log query parameters; while
 off the app never asks or reads, the builder refuses the type, and existing location quests complete by QR.
 **Why:** FR-1744, Apple 5.1.1(iv) and 5.1.5, Google's minimum-scope rule; reading per request rather than continuously
 keeps ADR-072's "while open" with less data and battery.

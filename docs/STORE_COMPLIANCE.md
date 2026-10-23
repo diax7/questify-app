@@ -350,7 +350,7 @@ https://developer.apple.com/library/archive/qa/qa1937/_index.html [verified 2026
 | Key | Needed when | Draft text (EN / AR) |
 |---|---|---|
 | `NSCameraUsageDescription` | QR scanning and photo quests | "Questify uses the camera to scan event QR codes and to take photos you choose to submit for quests." / "يستخدم Questify الكاميرا لمسح رموز QR في الفعالية ولالتقاط الصور التي تختار إرسالها في المهام." |
-| `NSLocationWhenInUseUsageDescription` | Only if location quests ship | "Questify checks your location only when you start a location quest, to confirm you are at the event spot. You can use the QR option instead." / "يتحقق Questify من موقعك فقط عند بدء مهمة موقع، للتأكد من وجودك في مكان الفعالية. يمكنك استخدام رمز QR بدلاً من ذلك." (key name: [NOT verified — check]) |
+| `NSLocationWhenInUseUsageDescription` | Only if location quests ship | "Questify uses your location while the app is open to check you in at quest spots and to keep the game fair at your event. You can always scan the QR code instead." / "يستخدم Questify موقعك أثناء فتح التطبيق لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب في فعاليتك. يمكنك دائمًا مسح رمز QR بدلًا من ذلك." (ADR-072, T-303b; localized through `apps/app/locales/*.json`) (key name: [NOT verified — check]) |
 | `NSPhotoLibraryUsageDescription` | Not needed if the system photo picker (PHPicker) is used | PHPicker gives selected photos without library access (WWDC20 "Handle the Limited Photos Library", https://developer.apple.com/videos/play/wwdc2020/10641/) [verified 2026-10-16] |
 | `NSPhotoLibraryAddUsageDescription` | Only if the app saves images (e.g., a badge) to Photos | [NOT verified — check] |
 
