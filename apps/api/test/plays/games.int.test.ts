@@ -1,6 +1,18 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { memoryMatchV1, replay, type MemoryInput, type MemoryParams } from "@questify/shared";
+import {
+  ENGINE_VERSIONS,
+  catchV1,
+  memoryMatchV1,
+  replay,
+  tapRushV1,
+  tickStartMs,
+  type CatchInput,
+  type CatchParams,
+  type MemoryInput,
+  type MemoryParams,
+  type TapRushParams,
+} from "@questify/shared";
 import type { RankingStore } from "#src/ranking/store";
 import {
   createStaff,
@@ -36,7 +48,44 @@ const codeOf = (response: { statusCode: number; json: () => { code?: string } })
   response.statusCode,
   response.json().code,
 ];
-const ENGINES = { engineVersions: { memory_match: 1, slide_puzzle: 1 } };
+const ENGINES = { engineVersions: ENGINE_VERSIONS };
+/** What a T-305 build sends: no catch or tap rush engine. */
+const T305_ENGINES = { engineVersions: { memory_match: 1, slide_puzzle: 1 } };
+
+/** A catch round's body: the inputs and the result the replay gives them, as an honest app claims. */
+function catchBody(round: { seed: number; params: unknown }, inputs: CatchInput[]) {
+  const params = round.params as CatchParams;
+  const played = replay(catchV1, round.seed, params, inputs);
+  return { inputs, claimed: "result" in played ? played.result : null };
+}
+
+/** A player who knows the seed: aims at each next item the tick the one before lands. */
+function perfectCatch(round: { seed: number; params: unknown }) {
+  const params = round.params as CatchParams;
+  const items = catchV1.start(round.seed, params).items;
+  const inputs = items.map((item, index) => ({
+    t: index === 0 ? 0 : tickStartMs((items[index - 1]?.spawn ?? 0) + params.fallTicks),
+    x: item.x,
+  }));
+  return catchBody(round, inputs);
+}
+
+/** One catch input a tick from tick 0, swinging side to side: the longest round the cap allows, and one more. */
+const swinging = (count: number): CatchInput[] =>
+  Array.from({ length: count }, (_, tick) => ({
+    t: tickStartMs(tick),
+    x: tick % 2 === 0 ? 0 : 1000,
+  }));
+
+/** A tap-rush player who taps every target 300 ms after it appears. */
+function perfectTapRush(round: { seed: number; params: unknown }) {
+  const params = round.params as TapRushParams;
+  const inputs = tapRushV1
+    .start(round.seed, params)
+    .targets.map((target) => ({ t: tickStartMs(target.spawn) + 300, cell: target.cell }));
+  const played = replay(tapRushV1, round.seed, params, inputs);
+  return { inputs, claimed: "result" in played ? played.result : null };
+}
 
 /** The flips of a player who finds every pair in turn, 150 ms apart, and the result the app claims for them. */
 function perfectPlay(round: Issued): { inputs: MemoryInput[]; claimed: unknown } {
@@ -54,7 +103,7 @@ function perfectPlay(round: Issued): { inputs: MemoryInput[]; claimed: unknown }
 /**
  * Mini-games over HTTP (T-305): the sheet, a round issued on Play and its replayed key, the update answer, the result
  * replayed on the server and paid once, every refusal's answer, the reason never sent, the limits, the switch and the
- * builder's games not available yet.
+ * builder's four games.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
   let db: TestDatabase;
@@ -160,6 +209,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
   const issued = async (who: Player, quest: string) => (await play(who, quest)).json<Issued>();
   const send = (who: Player, round: string, body: unknown, headers: Record<string, string> = {}) =>
     call("POST", `/v1/game-rounds/${round}/result`, who, body, headers);
+  /** A real-time round played in full: issued a minute ago, so its inputs fit the server's clock. */
+  const issuedEarlier = async (who: Player, quest: string) => {
+    const round = await issued(who, quest);
+    await owner("UPDATE game_round SET issued_at = issued_at - interval '1 minute' WHERE id = $1", [
+      round.roundId,
+    ]);
+    return round;
+  };
   const roundRow = async (round: string) =>
     (
       await owner<Row>("SELECT status, reason, result_key FROM game_round WHERE id = $1", [round])
@@ -210,6 +267,64 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     expect(codeOf(await play(a, quest))).toEqual([409, "already_completed"]);
     const second = await send(a, round.roundId, perfectPlay(round));
     expect([second.statusCode, second.json().details]).toEqual([409, { reason: "finished" }]);
+  });
+
+  it("pays a passing catch round and a passing tap rush round (T-305c)", async () => {
+    const event = await newEvent();
+    for (const [game, perfect] of [
+      ["catch", perfectCatch],
+      ["tap_rush", perfectTapRush],
+    ] as const) {
+      const quest = await newQuest(event, { game, level: "hard" });
+      const a = await newPlayer(event);
+      const sheet = await call("GET", `/v1/quests/${quest}/game`, a);
+      expect(sheet.json().target, game).toEqual(
+        game === "catch" ? { game, caught: 40, items: 50 } : { game, score: 34, seconds: 30 },
+      );
+      const round = await issuedEarlier(a, quest);
+      const paid = await send(a, round.roundId, perfect(round));
+      expect(paid.statusCode, paid.body).toBe(200);
+      expect(paid.json(), game).toMatchObject({ verdict: "passed", points: 40 });
+    }
+  });
+
+  it("takes a 1,351-input catch body and refuses 1,352 as over the cap, and a passing claim over failing inputs", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event, { game: "catch", level: "hard", attempts: 3 });
+    const a = await newPlayer(event);
+    const full = await issuedEarlier(a, quest);
+    const body = catchBody(full, swinging(1351));
+    expect(JSON.stringify(body).length).toBeLessThan(64 * 1024);
+    const taken = await send(a, full.roundId, body);
+    expect(taken.statusCode, taken.body).toBe(200);
+    expect(taken.json()).toMatchObject({ verdict: "short" });
+
+    const over = await issuedEarlier(a, quest);
+    const refused = await send(a, over.roundId, {
+      inputs: swinging(1352),
+      claimed: body.claimed,
+    });
+    expect([refused.statusCode, refused.json().code]).toEqual([422, "game_refused"]);
+    expect(await roundRow(over.roundId)).toMatchObject({ status: "refused", reason: "cap" });
+
+    const faked = await issuedEarlier(a, quest);
+    const claimed = perfectCatch(faked).claimed;
+    const lying = await send(a, faked.roundId, { inputs: [], claimed });
+    expect([lying.statusCode, lying.json().code]).toEqual([422, "game_refused"]);
+    expect(await roundRow(faked.roundId)).toMatchObject({ status: "refused", reason: "claimed" });
+  });
+
+  it("answers 426 to a T-305 build asked to play catch or tap rush, writing no round", async () => {
+    const event = await newEvent();
+    for (const game of ["catch", "tap_rush"]) {
+      const quest = await newQuest(event, { game });
+      const a = await newPlayer(event);
+      expect(
+        codeOf(await call("POST", `/v1/quests/${quest}/game-rounds`, a, T305_ENGINES)),
+        game,
+      ).toEqual([426, "update_required"]);
+      expect(await owner("SELECT 1 FROM game_round WHERE quest_id = $1", [quest])).toEqual([]);
+    }
   });
 
   it("answers 426 to an app whose engine is older than the server's, writing no round", async () => {
@@ -360,7 +475,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     });
   });
 
-  it("builds a game quest and answers the games not available yet", async () => {
+  it("builds game quests of all four games", async () => {
     const event = await newEvent();
     const [category] = await owner<{ id: string }>(
       "SELECT id FROM category WHERE event_id = $1 LIMIT 1",
@@ -379,11 +494,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
           config,
         },
       });
-    const refused = await create({ game: "tap_rush", level: "easy" });
-    expect([refused.statusCode, refused.json().details]).toEqual([
-      422,
-      { field: "game", reason: "not_available" },
-    ]);
+    for (const game of ["catch", "tap_rush", "memory_match"]) {
+      const quest = await create({ game, level: "easy" });
+      expect(quest.statusCode, quest.body).toBe(201);
+      expect(quest.json()).toMatchObject({ quest: { config: { game, level: "easy" } } });
+    }
     const made = await create({
       game: "slide_puzzle",
       level: "medium",

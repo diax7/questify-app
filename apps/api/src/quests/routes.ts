@@ -175,10 +175,7 @@ function answer<T>(
     case "invalid":
       throw subject === "category"
         ? invalidCategory({ field: result.field })
-        : invalidQuest({
-            field: result.field,
-            ...(result.reason === undefined ? {} : { reason: result.reason }),
-          });
+        : invalidQuest({ field: result.field });
     case "limit_reached":
       throw limitReached({ limit: result.limit });
     case "order_stale":

@@ -42,11 +42,7 @@ describe("mergeQuest", () => {
     for (const game of ["catch", "tap_rush"]) {
       expect(
         mergeQuest(undefined, "game", { ...base, config: { game, level: "easy" } }, ZONE),
-      ).toEqual({
-        kind: "invalid",
-        field: "game",
-        reason: "not_available",
-      });
+      ).toMatchObject({ config: { game, level: "easy", attempts: 1, cooldownMinutes: null } });
     }
     expect(
       mergeQuest(

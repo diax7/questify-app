@@ -4,7 +4,6 @@ import {
   parseQuestConfig,
   parseVerification,
   toInstant,
-  unavailableGame,
   unavailableSubmissionKind,
   type QuestType,
 } from "@questify/shared";
@@ -78,16 +77,14 @@ export type QuestField =
   | "needed"
   | "steps"
   | "place"
-  | "dailyCap"
-  | "game";
+  | "dailyCap";
 
 /** The refusals every builder action may give. */
 export type Refused =
   | Readonly<{ kind: "not_found" }>
   | Readonly<{ kind: "event_closed" }>
   | Readonly<{ kind: "confirm_required" }>
-  /** `reason` is `not_available` for a game this version cannot play yet (catch, tap rush: T-305c). */
-  | Readonly<{ kind: "invalid"; field: QuestField | CategoryField; reason?: "not_available" }>
+  | Readonly<{ kind: "invalid"; field: QuestField | CategoryField }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
   | Readonly<{ kind: "order_stale" }>
   | Readonly<{ kind: "last_category" }>
@@ -184,15 +181,11 @@ export function mergeQuest(
   timeZone: string,
 ):
   | QuestFields
-  | Readonly<{ kind: "invalid"; field: QuestField; reason?: "not_available" }>
+  | Readonly<{ kind: "invalid"; field: QuestField }>
   | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }> {
   const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
   if (asked !== undefined) {
     return { kind: "submission_kind_unavailable", asked };
-  }
-  // Catch and tap rush are named in FR-1804 and built in T-305c (ADR-214), as photo submissions wait (ADR-183).
-  if (type === "game" && unavailableGame(input.config) !== undefined) {
-    return { kind: "invalid", field: "game", reason: "not_available" };
   }
   const title = bilingual(input.title, current?.title ?? NO_TEXT);
   if (title.ar === null && title.en === null) {
