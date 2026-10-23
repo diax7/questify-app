@@ -2257,15 +2257,17 @@ gives the reset for free and reuses the whole Redis store, its rebuilds and its 
 **Decision:** declining a Private event's join request sets the enrollment to a new status `declined`: no seat, not
 ranked, cannot score. The player sees "Your request was declined" and cannot ask again, unless the organizer puts
 them on the guest list (then they go in as an invited person). The owner or an editor can still accept a declined
-request later. Accept and decline are audited with the enrollment id only.
+request later. Declining a waiting-list request on a Public or Unlisted event bars that player the same way: the
+organizer's power over who plays. Accept and decline are audited with the enrollment id only.
 **Why:** a separate status keeps the decision visible to both sides and stops repeat requests from reaching the
 queue, without reusing `removed` (an organizer's sanction) or `left` (the player's own choice).
 
 ## ADR-168 — Seats count accepted players; the waiting list is a flagged pending join
 **Status:** Proposed (Claude, 2026-10-23; T-218; amends ADR-141; Q-134 asks Dhia).
 **Decision:** a seat under the player limit is an `active` or `banned` enrollment (FR-1821: accepted players only);
-`pending` and `declined` take none, and the limit is checked on every move into `active`, so accepting a request
-can be refused as full while asking never is. A hard-limited event at its limit answers a join with `full`; the
+`pending` and `declined` take none, and the limit is checked on every move into `active`: a request already made is
+never dropped for being over the limit, while its acceptance is checked. A hard-limited event at its limit answers a
+join with `full`, whatever its access type (a Private event's request without an invitation is never refused); the
 player may then join the waiting list, which is the same join with `waitlist: true` making a `pending` enrollment
 with `waitlisted = true`. Releasing someone is accepting them, oldest first. The limit itself stays Questify's
 (console, ADR-141) until an owner ceiling exists.

@@ -183,9 +183,13 @@ note, decided_by, decided_at)` and `event_limit_alert(event_id, organizer_id, le
 (event_id, level))` are read by the event's team within their limit and by admins, and written only by definers:
 `request_event_activation` and `withdraw_event_activation` (the owner), `activate_event`, `reject_event_activation` and
 `set_event_player_limit` (an active platform admin, confirmed by `app_admin_id()`), each audited. **Seats** are
-enrollments pending, active or banned; the trigger `enrollment_player_limit` lets a move into pending or active through
-only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
+accepted players, enrollments active or banned (T-218, ADR-168: pending and declined take none); the trigger
+`enrollment_player_limit` lets a move into active through only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
 marks once. `event_seat_count(event)` gives the count to the team and admins.
+**Join requests (T-218, migration 0036).** The join definers, `decide_join_request`, `accept_all_join_requests` and
+`enroll_operator` take the event's seat lock through `free_seats(event)` before the enrollment row and decide on the
+free seats counted under it (`full` is an answer, never a raised error). `join_requests(event, after, page)` lists the
+pending and declined rows for the team in scope; index `(event_id, joined_at, id) WHERE status = 'pending'`.
 
 **Goal (T-213, migration 0033, ADR-161).** `enrollment.goal_reward_id` is the reward a member pinned as their goal
 (FK with the event to `reward`, `ON DELETE SET NULL (goal_reward_id)`); written only by `set_goal(event, reward)`
@@ -208,7 +212,9 @@ by the tick) or on the team's erase before go-live.
 ### enrollment (a player in an event)
 `id`, `event_id`, `player_id`, `joined_at`, `joined_via` (code, qr, link, public_list, operator, invite, rehearsal), answers in
 `join_answer` (below), `score bigint` and `balance bigint` (**caches of the
-ledger**), `status` active/left/removed/banned. **Unique (event_id, player_id).** Score is points
+ledger**), `status` pending/active/left/removed/banned/declined (`declined`: the team declined the request, ADR-167),
+`waitlisted boolean` (a pending row from a full event's waiting list, FR-1821; cleared by a trigger on any move out of
+pending; written by the join definers only). **Unique (event_id, player_id).** Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
 **Ranking (T-106, migration 0015):** `score_version bigint`, the id of the ledger entry that last changed the score
 (set by the ledger trigger; ties go to the lower version, FR-606); index `(event_id, score DESC, score_version)` for

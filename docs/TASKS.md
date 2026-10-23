@@ -248,10 +248,12 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-21 (T-106): `GET /v1/events/{id}/ranking` gains `?scope=today`; today's order needs its own version and points per event day (a separate sorted set per day), the same exclusions and the same repair path.
 - [ ] **T-215** Closed test: ship the Phase 2 build to 12+ testers and start Google's 14-day closed test — delivers no FR (infrastructure or quality gate); depends on: T-214, T-216, T-217
   - Done when: The Play Console shows 12 or more opted-in testers and the 14-day clock running.
-- [ ] **T-218** Event access types: Public, Unlisted, Private; join requests with a waiting screen and push; invited people skip approval; change type any time; hard limit counts accepted players with a waiting list — delivers FR 1818, 1819, 1820, 1821; depends on: T-111, T-102
+- [x] **T-218** Event access types: Public, Unlisted, Private; join requests with a waiting screen and push; invited people skip approval; change type any time; hard limit counts accepted players with a waiting list — delivers FR 1818, 1819, 1820, 1821; depends on: T-111, T-102
   - Done when: A Private event cannot be entered with the code alone; accepting a request lets the player in and sends a push; a full event shows 'Event is full' and offers the waiting list.
   - Note 2026-10-21 (T-111): a private event's join makes a `pending` enrollment (not ranked, cannot score; a rejoin after leaving is pending again); approval turns it `active` through an organizer definer (the enrollment insert policy is admin-only). The hard limit counts in `join_event`.
   - Note 2026-10-22 (T-212): approving a pending member (pending → active) grants the welcome reward through the `enrollment_welcome` trigger; nothing to add. Guests already skip approval, also when listed after asking.
+  - Done 2026-10-23 (CTO plan 84 → revisions folded), not yet run on a phone. Migration 0036 and `src/moderation/requests.ts`: the `declined` status (ADR-167), seats counting accepted players (ADR-168), `full` and the waiting list (`waitlisted` pending rows), `decide_join_request` and `accept_all_join_requests` under the seat lock (lock order: seats, then the row), bans refused for requests, `enroll_operator` answering `full`. Dashboard: Join requests on the Players page (Accept, Decline, Accept all), the access change confirmed in words (ADR-169). App: Request to join, Event is full with Join the waiting list, the waiting card on Home (read every 15 seconds), the declined message. ADR-167 to ADR-169 and Q-133 to Q-135 Proposed. Plan: `docs/plans/2026-10-23-t-218-join-requests.md`.
+  - Note 2026-10-23 (T-218): **the decision push moves to T-501** (note there); the app shows the decision on Home meanwhile. **Partly delivered:** FR-1821's owner raise of the limit (Q-134: no owner ceiling yet; Questify raises it in the console).
 - [ ] **T-220** Targeting by join answer or guest tag: limit a category or a reward to players whose answer matches; other players don't see it (filters the quest and shop reads, `complete_quest` and `reserve_reward`; guest tags need a column) — delivers FR 1708; depends on: T-212
   - Done when: A category limited to one answer is hidden from, and refuses, a player who gave another.
 
@@ -328,6 +330,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Done when: A refused push permission blocks nothing and the center still holds every message.
   - Note 2026-10-21 (T-208): event pushes go to `active` enrollments only: a player who left, was banned or is pending gets none (FR-1703).
   - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.
+  - Note 2026-10-23 (T-218): FR-1819's push is owed here: when `decide_join_request` or `accept_all_join_requests` accepts or declines a request (pending → active or declined, audited as `event.join_accept` / `event.join_decline`), the player gets a personal push saying so (a release from the waiting list is an acceptance); send once per decision, never to a player who left. Home already shows the decision.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
   - Done when: Announcements never go by email or SMS.
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
@@ -391,6 +394,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
   - Done when: Staff-only mode shows usernames to players and full names to operators; Questify-wide pages stay username-only.
 - [ ] **T-616** Owner reports: tickets inbox with counts by type, reported players and content, prize-problems view, join requests queue — delivers FR 1825; depends on: T-312, T-218
   - Done when: Counts by type match the tickets; Accept all accepts every pending request.
+  - Note 2026-10-23 (T-218): the queue's API exists: `GET …/join-requests`, accept, decline and `accept-all` (member access, audited). The Players page shows a Requests section; the reports inbox reuses it.
 - [ ] **T-617** Operator activity view and staff briefing push to operators only — delivers FR 1844; depends on: T-204, T-501
   - Done when: The view shows scans per hour and last activity per operator; a briefing reaches only operators.
 - [ ] **T-618** Go-live readiness checklist (owner dashboard and Questify team view) — delivers FR 1845; depends on: T-211

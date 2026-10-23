@@ -52,8 +52,8 @@ Dhia is away: the open choices are my recommendation, written as **Proposed** AD
 - Every reader that lists statuses is checked for `declined`: leave trigger (not from declined), `my_invitations`
   (a declined invited person is invited again), the players page (`event_players`) and its filter, `me/events`.
 - Definers, revoked from PUBLIC, granted to the API role, organizer-scoped like `set_enrollment_ban`:
-  - `join_requests(event, after, page)` → id, username, avatar, waitlisted, requested_at (joined_at), oldest first,
-    pending and declined (declined last, labelled).
+  - `join_requests(event, after, page)` → id, username, avatar, status, waitlisted, requested_at (joined_at), oldest
+    first, pending and declined (labelled), by a cursor.
   - `decide_join_request(event, enrollment, accept boolean, request uuid)` → `accepted | declined | unchanged |
     not_found | full`. Locks the row; a full event answers `full` (the trigger's QL409 caught in the function).
   - `accept_all_join_requests(event, request uuid)` → `accepted integer, left integer`: oldest first until full.
@@ -68,8 +68,9 @@ Dhia is away: the open choices are my recommendation, written as **Proposed** AD
 - `GET /v1/me/events` and the event read give `status` (`active | pending | declined`) and `waitlisted`.
 - Dashboard (member access, event scope): `GET /v1/organizers/{org}/events/{id}/join-requests?after=`,
   `POST .../join-requests/{enrollment}/accept`, `POST .../join-requests/{enrollment}/decline`,
-  `POST .../join-requests/accept-all` (idempotency key on all three posts). Outcomes map to 200, 404, 409
-  `event_full`.
+  `POST .../join-requests/accept-all`, each audited with the request id (as the ban route). Accept and decline are
+  idempotent by outcome (`unchanged`); accept all accepts only what is still pending. Outcomes map to 200, 404, 409
+  `event_full`, `not_a_request`, `event_over`.
 
 ## Screens
 
@@ -97,3 +98,26 @@ Dhia is away: the open choices are my recommendation, written as **Proposed** AD
 
 The tickets inbox and reports' join queue (T-616), push (T-501), an owner limit ceiling (Q-134), event banners
 (FR-1829's slides; the waiting screen shows the banner once an event has one).
+
+## CTO plan review (84, approve with revisions): folded in
+
+1. **Bans:** `set_enrollment_ban` answers `not_allowed` for pending and declined rows (a ban would take an unchecked
+   seat, a lift would skip acceptance).
+2. **Lock order:** the seat lock (`free_seats`, counting under `lock_event_seats`) before the enrollment row in
+   `join_core`, `enroll_operator`, `decide_join_request` and `accept_all_join_requests`; every decision is made on the
+   free seats counted under the lock, never by catching `QL409` (the trigger stays as the last guard). An invited,
+   waitlisted player rejoining a full event answers `already`.
+3. **Accept all:** one seat lock, `free = cap - seats` (unbounded without a hard limit), the oldest `free` pending rows
+   (never declined) `ORDER BY joined_at, id LIMIT free FOR UPDATE SKIP LOCKED`, one audit row each with the same
+   request id; returns accepted and remaining.
+4. `enroll_operator` lets a declined row in and answers `full` instead of raising.
+5. ADR-168 reworded; `full` applies to every access type.
+6. Any move out of pending clears `waitlisted` (a trigger, so the player's own `left` needs no column grant).
+7. ADR-167: a decline on a Public event bars the player too.
+8. Deciding on an event that is not scheduled or live answers `ended`, with no welcome.
+9. Readers: `my_invitations` (a declined guest is invited again), `desk_hold`, `/me/events` (declined listed so the
+   decision shows; never chosen at launch), the status unions in the API, app and dashboard. Home answers
+   `standing: declined`; the quests answer `not_enrolled`. A declined player cannot leave.
+10. Push: noted on T-218 and T-501.
+11. `questify_app` keeps `UPDATE (status)` only; tested. Nit: the partial index
+    `enrollment (event_id, joined_at, id) WHERE status = 'pending'`.
