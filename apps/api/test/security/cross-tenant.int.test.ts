@@ -193,6 +193,32 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  rank_prize: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO rank_prize (event_id, rank_from, rank_to, kind, name_en) VALUES ($1, 50, 50, 'experience', 'Stolen')",
+          values: [f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players read prizes through event_results and the rules definers (T-214), not this table",
+        forge: (f) => ({
+          sql: "INSERT INTO rank_prize (event_id, rank_from, rank_to, kind, name_en) VALUES ($1, 50, 50, 'experience', 'Mine now')",
+          values: [f.eventA],
+        }),
+      },
+    ],
+  },
   redemption: {
     probes: [
       {
@@ -786,6 +812,10 @@ const SHARED: Readonly<Record<string, string>> = {
   manual_award_key:
     "no right for the API role at all; written and read only by the award and removal definers (test/db/awards)",
   flag: "no right for the API role at all; raised by a trigger on completions, read and closed only through the team's definers inside their events (test/db/flags)",
+  event_result:
+    "no right for the API role at all; written and read only through the owner's confirm and reveal definers and the results reads inside the caller's event (test/db/results)",
+  result_place:
+    "no right for the API role at all; written by confirm_results and reveal_results, read through results_places and event_results (test/db/results)",
   player_session:
     "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
 };
@@ -966,6 +996,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       );
       await run(
         "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Seeded', 1, 5)",
+        [event],
+      );
+      await run(
+        "INSERT INTO rank_prize (event_id, rank_from, rank_to, kind, name_en) VALUES ($1, 1, 1, 'experience', 'Seeded')",
         [event],
       );
     }

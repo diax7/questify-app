@@ -994,6 +994,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "redemption.ledger_entry",
         "redemption.reward_code",
         "bulk_award.ledger_note",
+        // Results need an ended event, so no rehearsal account is ever placed or given a rank prize (T-214).
+        "enrollment.result_place",
+        "redemption.result_place",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
