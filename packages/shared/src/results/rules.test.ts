@@ -22,7 +22,7 @@ describe("officialRules", () => {
       "Questify runs this contest on behalf of the event's organizer, Najd Events, who provides the prizes.",
       "Apple and Google are not sponsors of this contest and are not involved in it in any way.",
       "No purchase or payment is needed to take part or to win.",
-      "Winners are the players with the highest final score when the event ends. A tie goes to whoever reached that score first. The organizer's team, event staff, banned players and anyone on the event's exclusion list cannot win.",
+      "Winners are the players with the highest final score, as confirmed by the organizer after the event ends. A tie goes to whoever reached that score first. The organizer's team, event staff, banned players and anyone on the event's exclusion list cannot win.",
       "Number of winners: 4",
       "Rank 1: Gold cup",
       "Ranks 2 to 4: Hoodie",

@@ -23,6 +23,8 @@ const refusal = async (work: Promise<unknown>): Promise<{ code: string; detail?:
 };
 
 const HOUR = 3600 * 1000;
+const near = (at: Date | null, from: number) =>
+  Math.abs((at?.getTime() ?? 0) - (Date.now() + from)) < 60_000;
 
 /**
  * Rank prizes and final results in the database (T-214, migration 0034): who wins, the owner's confirmation and its
@@ -669,13 +671,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
       expect((await stateOf(event)) as Row).toMatchObject({
         default_claim_until: new Date(ends_at.getTime() + 3 * 24 * HOUR),
       });
+      const [{ closes } = { closes: new Date() }] = await owner<{ closes: Date }>(
+        `UPDATE event SET desk_hours = tstzmultirange(tstzrange(now() + interval '3 days', now() + interval '4 days'))
+         WHERE id = $1 RETURNING upper(desk_hours) AS closes`,
+        [event],
+      );
+      expect((await stateOf(event)) as Row).toMatchObject({ default_claim_until: closes });
+    });
+
+    it("keeps the default deadline 1 to 60 days away, and offers none when the desk closes before that", async () => {
+      const event = await newEvent();
+      const offered = async () =>
+        ((await stateOf(event)) as Row)["default_claim_until"] as Date | null;
+      await owner("UPDATE event SET shop_days_after = 0 WHERE id = $1", [event]);
+      expect(near(await offered(), 24 * HOUR)).toBe(true);
       await owner(
         "UPDATE event SET desk_hours = tstzmultirange(tstzrange('2030-01-01 08:00Z', '2030-01-01 12:00Z')) WHERE id = $1",
         [event],
       );
-      expect((await stateOf(event)) as Row).toMatchObject({
-        default_claim_until: new Date("2030-01-01T12:00:00Z"),
-      });
+      expect(near(await offered(), 60 * 24 * HOUR)).toBe(true);
+      await owner(
+        "UPDATE event SET desk_hours = tstzmultirange(tstzrange(now() - interval '2 hours', now() + interval '2 hours')) WHERE id = $1",
+        [event],
+      );
+      expect(await offered()).toBeNull();
     });
 
     it("gives each prize rank's winner a reserved item with no price, once", async () => {

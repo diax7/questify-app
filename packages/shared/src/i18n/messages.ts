@@ -2003,9 +2003,10 @@ export const MESSAGES = {
     ar: "المشاركة والفوز لا يتطلبان أي شراء أو دفع.",
     en: "No purchase or payment is needed to take part or to win.",
   },
+  // Counsel reviews this wording (Q-131).
   "rules.howWinners": {
-    ar: "الفائزون هم أصحاب أعلى نقاط نهائية عند انتهاء الفعالية. عند التعادل يتقدّم من بلغ النقاط أولًا. لا يحق الفوز لفريق المنظّم وطاقم الفعالية واللاعبين المحظورين ومن في قائمة الاستبعاد.",
-    en: "Winners are the players with the highest final score when the event ends. A tie goes to whoever reached that score first. The organizer's team, event staff, banned players and anyone on the event's exclusion list cannot win.",
+    ar: "الفائزون هم أصحاب أعلى نقاط نهائية، كما يؤكدها المنظّم بعد انتهاء الفعالية. عند التعادل يتقدّم من بلغ النقاط أولًا. لا يحق الفوز لفريق المنظّم وطاقم الفعالية واللاعبين المحظورين ومن في قائمة الاستبعاد.",
+    en: "Winners are the players with the highest final score, as confirmed by the organizer after the event ends. A tie goes to whoever reached that score first. The organizer's team, event staff, banned players and anyone on the event's exclusion list cannot win.",
   },
   "rules.winnerCount": { ar: "عدد الفائزين: {count}", en: "Number of winners: {count}" },
   "rules.prizeOne": { ar: "المركز {rank}: {prize}", en: "Rank {rank}: {prize}" },
@@ -2037,8 +2038,8 @@ export const MESSAGES = {
   "prizes.turnOn": { ar: "تفعيل جوائز الترتيب", en: "Turn rank prizes on" },
   "prizes.turnOff": { ar: "إيقاف جوائز الترتيب", en: "Turn rank prizes off" },
   "prizes.locked": {
-    ar: "بدأت الفعالية، فالمراكز والتفعيل مقفلة. يمكنك تعديل الأسماء والأوصاف.",
-    en: "The event has started, so ranks and the switch are locked. You can still edit names and descriptions.",
+    ar: "بدأت الفعالية، فالمراكز والتفعيل مقفلة وتبقى كذلك بعد انتهائها. يمكنك تعديل الأسماء والأوصاف حتى تأكيد النتائج.",
+    en: "The event has started, so ranks and the switch are locked, and they stay locked after it ends. You can still edit names and descriptions until the results are confirmed.",
   },
   "prizes.empty": { ar: "لا توجد جوائز ترتيب بعد.", en: "No rank prizes yet." },
   "prizes.rankOne": { ar: "المركز {rank}", en: "Rank {rank}" },

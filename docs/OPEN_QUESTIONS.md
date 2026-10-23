@@ -133,3 +133,9 @@ player. Should it pass down instead?
 ## Q-130 — Rank prize limits and the claim deadline (2026-10-23, T-214)
 ADR-162 allows ranks 1–100, item and experience prizes only (no digital codes), and lets the owner pick the claim
 deadline at the reveal (default: the desk's last closing, or the shop's closing; 1 hour to 60 days). Agree?
+
+## Q-131 — The official rules' winner wording (2026-10-23, T-214; counsel)
+The fixed rules block (`rules.howWinners`) says winners are those with the highest final score "as confirmed by the
+organizer after the event ends", ties going to whoever reached the score first, with the team, staff, banned players
+and the exclusion list unable to win. Counsel should confirm this wording (Arabic and English) is enough for a
+contest's official rules in Saudi Arabia and for Apple 5.3 (with Q-040).

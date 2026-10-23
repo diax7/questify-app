@@ -703,11 +703,15 @@ CREATE FUNCTION prize_for_rank(ev event, place integer) RETURNS uuid
 $$;
 REVOKE ALL ON FUNCTION prize_for_rank(event, integer) FROM PUBLIC;
 
--- The claim deadline offered by default (ADR-162): the end of the desk's last open window, else the shop's closing.
+-- The claim deadline offered by default (ADR-162): the end of the desk's last open window, else the shop's closing,
+-- kept between 1 and 60 days from now. NULL when the desk has hours and none remain before that time (the owner picks).
 CREATE FUNCTION default_claim_until(ev event) RETURNS timestamptz
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
-  SELECT CASE WHEN ev.desk_hours IS NOT NULL THEN upper(ev.desk_hours)
-              ELSE ev.ends_at + make_interval(days => ev.shop_days_after) END
+  SELECT CASE WHEN ev.desk_hours IS NOT NULL AND kept.at > upper(ev.desk_hours) THEN NULL ELSE kept.at END
+  FROM (SELECT least(greatest(CASE WHEN ev.desk_hours IS NOT NULL THEN upper(ev.desk_hours)
+                                   ELSE ev.ends_at + make_interval(days => ev.shop_days_after) END,
+                              now() + interval '1 day'),
+                     now() + interval '60 days') AS at) kept
 $$;
 REVOKE ALL ON FUNCTION default_claim_until(event) FROM PUBLIC;
 

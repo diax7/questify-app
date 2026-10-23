@@ -2197,9 +2197,11 @@ never a `reward`, so no shop read can ever list or sell it. At the reveal each w
 `rank_prize_id` and price 0, picked up through the same desk flow as shop items (FR-521): the flag hold, ban hold and
 pause apply; the handover writes the usual 0/0 `handover` entry. The player cannot cancel it; an operator's cancel or
 the timeout ends it with no ledger entry. The owner sets the claim deadline at the reveal (default: the end of the
-desk's last open window, or the shop's closing when the desk has no hours), between 1 hour and 60 days away; the
+desk's last open window, or the shop's closing when the desk has no hours, kept 1 to 60 days away; none when the
+desk's hours end before that), between 1 hour and 60 days away; the
 reveal is refused when the desk has hours and none fall before the deadline. Prize ranges, kinds and the switch lock
-once the event is live; names and descriptions stay editable until results are confirmed. The reveal is idempotent
+once the event is live and stay locked after it ends, before and after confirmation (the dashboard says so); names
+and descriptions stay editable until results are confirmed. The reveal is idempotent
 through the place's stored redemption and a unique (prize, enrollment) key; the redemption's key contains a space, so
 no player request can collide with it.
 **Why:** a separate table fails closed (a rank prize cannot leak into the shop for free) while reusing the whole
