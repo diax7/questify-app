@@ -2496,3 +2496,36 @@ future: an attempt froze its points at start, and a vote pays at once.
 **Decision:** the owner and editors see each option's count; players see only their own choice in T-302. A deleted
 account's votes and quiz answers are deleted (counts drop); its quiz attempts stay for the ledger.
 **Why:** STORE_COMPLIANCE PD-16 lists votes among what deletion removes.
+
+## ADR-196 — T-303 splits into three
+**Status:** Proposed (Claude, 2026-10-24; T-303). Q-160.
+**Decision:** T-303 builds challenge, survey and share quests (FR-203, 214, 219, 220). T-303b builds location check-in
+with the QR fallback, the location prompt's timing and the far-from-venue and impossible-speed flags (FR-215, 216, 1744,
+331, 332). T-303c builds meet-someone quests (FR-212, 213).
+**Why:** the location work is one store story (permission, purpose strings, privacy labels) and meet-someone needs its
+own short-lived proof (ADR-137) and a two-player payment; neither fits one session beside the other three types.
+
+## ADR-197 — A challenge is confirmed at the station
+**Status:** Proposed (Claude, 2026-10-24; T-303). Q-161.
+**Decision:** a `challenge` quest's only verification is My QR: an operator with `scan_quests` (and FR-909's quest
+limits) picks it at the station and scans the player's My QR; an owner or editor may confirm with a manual award. The
+player has no path to complete it, and there is no "request confirmation" queue.
+**Why:** the station scan already carries every check (open window, operator play rule, 10-second guard); a queue
+would be a second review system for the same outcome.
+
+## ADR-198 — Survey quests
+**Status:** Proposed (Claude, 2026-10-24; T-303). Q-162.
+**Decision:** 1 to 20 questions, each a choice (2 to 10), a rating (1 to 5) or short text (up to 500 characters), each
+required unless the organizer says not. One response per player, paid on submit. The owner and editors see counts,
+averages and text answers without player names; operators and players see none. Structure locks after the first
+response (ADR-194); a deleted account's responses are deleted.
+**Why:** FR-214 sends results to the organizer only; names add nothing a survey needs and FR-1210 shares results with
+speakers.
+
+## ADR-199 — Share quests
+**Status:** Proposed (Claude, 2026-10-24; T-303). Q-163.
+**Decision:** a share quest holds the organizer's message and an optional `https://` link; the app opens the system share
+sheet and pays on its `sharedAction` (Android always reports it: the cost ADR-034 accepted). Feature `shareQuests` is on
+by default; creating a share quest is turning it on, and the event's switch off hides every share quest and refuses the
+payment. The API checks the composed config.
+**Why:** ADR-034 (reward on trust, one per player, organizer's switch); features are composed in one place (T-007).

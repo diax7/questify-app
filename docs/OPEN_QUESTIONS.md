@@ -81,7 +81,7 @@ bulk is uncapped; an editor's bulk gives each player at most the per-award cap a
 cap (otherwise a one-player list is an uncapped award). Dhia may lift the editor limit. Raised by the CTO plan review.
 
 ## Q-119 — Which flags ship first (2026-10-23, T-209)
-T-209 builds same-device and burst flags (ADR-153). Far-from-venue and impossible-speed flags move to T-303 (no venue
+T-209 builds same-device and burst flags (ADR-153). Far-from-venue and impossible-speed flags move to T-303b (ADR-196; no venue
 pin, quest places or app location exist yet); device integrity moves to a new T-812 (needs Apple App Attest and Google
 Play Integrity set up on Dhia's accounts). Dhia may want any of them sooner.
 
@@ -262,3 +262,19 @@ their own vote until live polls (T-306). Agree?
 ## Q-159 — An unfinished quiz (2026-10-24, T-302)
 ADR-193: a quiz left half-done is paid for its right answers when the quest closes or the event leaves live. Agree, or
 pay nothing for an unfinished quiz?
+
+## Q-160 — T-303 split (2026-10-24, T-303)
+ADR-196: T-303 = challenge, survey, share; T-303b = location check-in and the location flags; T-303c = meet-someone.
+Agree, or want location or meet-someone first?
+
+## Q-161 — Challenge confirmation (2026-10-24, T-303)
+ADR-197: staff confirm by scanning the player's My QR at the station; no queue where a player asks for confirmation.
+Agree?
+
+## Q-162 — Survey shape and privacy (2026-10-24, T-303)
+ADR-198: choice, rating 1 to 5 and short text questions; the team sees answers without names. Want named answers, more
+question kinds, or a different rating scale?
+
+## Q-163 — Share quests default (2026-10-24, T-303)
+ADR-199: `shareQuests` is on by default (creating a share quest turns it on); the switch hides them. ADR-034 said the
+organizer "turns share quests on"; is on-by-default fine?
