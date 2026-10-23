@@ -158,3 +158,20 @@ Questify raises the limit. Should Questify set a ceiling per event (or per plan)
 ## Q-135 — Pending requests after a switch away from Private (2026-10-23, T-218)
 ADR-169 leaves pending requests pending when a Private event becomes Public or Unlisted, for the owner to decide.
 Agree, or should the switch accept every waiting request at once (the confirmation would say so)?
+
+## Q-136 — A player outside the audience scans a targeted quest (2026-10-23, T-220)
+ADR-170 hides targeted categories and rewards, but a scan of a targeted quest's code answers "This quest is for
+another group of players." rather than "not found", because the code is on a physical booth. Agree, or should the
+refusal look as if the quest did not exist?
+
+## Q-137 — Targeting needs a choice field (2026-10-23, T-220)
+ADR-171 adds options to custom join fields and allows targeting by answer only on such a field (free-text answers
+would match unreliably). Agree, or should targeting also match free-text answers exactly (after trimming and case)?
+
+## Q-138 — One tag per guest entry (2026-10-23, T-220)
+ADR-172 gives each guest entry one optional tag, set for a whole paste. Agree, or do organizers need several tags per
+person (a tag list per entry, or a "contact, tag" line format)?
+
+## Q-139 — Targeting single quests (2026-10-23, T-220)
+FR-1708 targets categories and rewards; the plan follows it. Should a single quest inside an open category be
+targetable too, or is moving it to a targeted category enough?

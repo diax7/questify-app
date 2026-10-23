@@ -2284,3 +2284,36 @@ that names the effect. Members keep their status; pending requests stay pending 
 Unlisted, and the owner still accepts or declines them (the queue shows while any exist).
 **Why:** FR-1820 keeps every current player; letting waiting requests in automatically on a switch would admit
 people the owner never looked at.
+
+## ADR-170 — One targeting rule per category or reward, enforced in the database
+**Status:** Proposed (Claude, 2026-10-23; T-220 plan; Q-136 asks Dhia).
+**Decision:** a category or a reward may carry one rule: *answer* (a join field and chosen options of it) or *tag* (a
+set of guest tags); none means everyone. A player outside the audience does not see the item (quests, Home, the shop,
+the public event page hides every targeted category), cannot complete its quests (`record_completion`: 403
+`quest_not_open`, `reason: not_for_you`, the same for an operator's scan and the team's quest award) and cannot
+reserve or pin the reward (404). A rule can change any time; earlier points and reservations stay. Rehearsal
+enrollments see everything. The owner or an editor in scope sets rules; audited with ids only.
+**Why:** FR-1708 says other players "don't see it"; checking in the shared completion and reservation paths means no
+route can forget it, and a refusal with a reason at the booth beats a silent "not found" for a visible QR code.
+
+## ADR-171 — Only choice fields can target
+**Status:** Proposed (Claude, 2026-10-23; T-220 plan; Q-137 asks Dhia).
+**Decision:** a `custom` join field gains optional options (2 to 20, each with an id and Arabic and English labels);
+the app shows a picker and the join accepts only an option id. Targeting by answer is allowed only on such a field.
+**Why:** join answers are free text today; "Women", "women" and "نساء" would match by luck, and a rule the organizer
+believes in but that silently misses players is worse than none.
+
+## ADR-172 — A guest entry carries one optional tag
+**Status:** Proposed (Claude, 2026-10-23; T-220 plan; Q-138 asks Dhia).
+**Decision:** `event_guest.tag` (1 to 30 characters, matched case-insensitively). The paste box applies one tag to the
+whole paste; pasting a contact already listed with a tag sets its tag. A player's tags are those of every entry that
+matches a verified phone or email.
+**Why:** one tag per entry covers the common cases (VIP, Speaker, Women's section) with no new table and no new paste
+format to learn; several groups are several pastes.
+
+## ADR-173 — Targeting fails closed
+**Status:** Proposed (Claude, 2026-10-23; T-220 plan).
+**Decision:** a join field named by a rule cannot be deleted, nor one of its options in use removed (409
+`join_field_targeted`, naming the categories and rewards); a rule that points at nothing matches nobody.
+**Why:** a deleted field quietly opening a Women-only category to everyone is the failure that would hurt an
+organizer most; refusing with the names lets them change the rule first.

@@ -256,6 +256,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-23 (T-218): **the decision push moves to T-501** (note there); the app shows the decision on Home meanwhile. **Partly delivered:** FR-1821's owner raise of the limit (Q-134: no owner ceiling yet; Questify raises it in the console).
 - [ ] **T-220** Targeting by join answer or guest tag: limit a category or a reward to players whose answer matches; other players don't see it (filters the quest and shop reads, `complete_quest` and `reserve_reward`; guest tags need a column) — delivers FR 1708; depends on: T-212
   - Done when: A category limited to one answer is hidden from, and refuses, a player who gave another.
+  - Plan 2026-10-23: `docs/plans/2026-10-23-t-220-targeting.md` (migration 0037; ADR-170 to ADR-173, Q-136 to Q-139 Proposed), awaiting its CTO plan review. Not started in code.
 
 ## Phase 3 — Quest depth
 
