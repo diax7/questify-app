@@ -729,10 +729,21 @@ other docs feed it and stay as its detailed appendices.
 Work runs in **coordinator mode** (CLAUDE.md "How work runs"; brief: `docs/agents/WORKER_BRIEF.md`). The session
 of 2026-10-23/24 closed T-207, T-209, T-211, T-213, T-214, T-216, T-218, T-220, T-217, T-401, T-301, T-302, T-303,
 T-304 and T-304b with a CTO GO each; everything is on `main` and pushed. Progress: 55 of 143 tasks.
-- **CranL** (the only environment, fake data) runs migrations through **0041**; 0042 onward are not deployed
-  (frozen-migration rule applies only to ≤0041). Demo event "Questify Demo Day", join code **77XBUB**. The release
-  APK (preview profile) works on Dhia's Android phone (confirmed 2026-10-24). Msegat allows CranL's outbound IP
-  130.94.119.140.
+- **CranL** (the only environment, fake data) runs migrations through **0047** (applied 2026-10-23 from green commit
+  9d718f1, `--verify` passed, owner connection removed afterwards); 0048 onward are not deployed (frozen-migration
+  rule applies to ≤0047). API and web redeployed from 9d718f1 the same day: `/healthz`, `/readyz` and
+  `/{en,ar}/sign-in` answer 200. Demo event "Questify Demo Day", join code **77XBUB**. The release APK (preview
+  profile) works on Dhia's Android phone (confirmed 2026-10-24); a new one for T-304c/T-304d phone tests is EAS build
+  0c03f668 (https://expo.dev/accounts/nafess-team/projects/nafes/builds/0c03f668-bd88-459b-beff-50393795a8fa;
+  app code as 9d718f1). Msegat allows CranL's outbound IP 130.94.119.140.
+  - **Phone-test setup on 77XBUB (2026-10-23, fake data):** category "Daily challenges" refreshes daily (typed codes
+    `SUNRISE` 10 pts, `CHECKIN` 5 pts); hidden category "Secret garden" (typed code `ROSE` 25 pts inside) whose secret
+    QR is in the dashboard's printable codes (event, Codes, "Secret garden"; version 1); in "General", "Find the
+    treasure chest" (code `TREASURE`) gives the quest item "Questify sticker" (stock 2) and "Golden pin hunt" (code
+    `GOLD`) gives "Golden pin" (stock 0, the ran-out case). Items show on the Prizes page, Quest items.
+  - CranL Postgres log settings (read 2026-10-23, for T-303b): `log_parameter_max_length` -1,
+    `log_parameter_max_length_on_error` 0, `log_min_duration_statement` -1, `log_statement` none,
+    `log_min_error_statement` error.
 - **Queue for the coordinator:**
   1. T-304c: built; its Opus code review and its mutation run are owed.
   2. Mutation: read GitHub run 39977094679 (plays, switched-off, categories, qr, passports, passport, home). Then
