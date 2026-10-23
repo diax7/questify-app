@@ -14,12 +14,13 @@ import {
   orderStale,
   questLocked,
   rehearsalData,
+  stepInUse,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import { readBuilder, type BuilderDeps, type Done } from "#src/quests/builder";
-import { listCodes, regenerateCode, type CodeDeps } from "#src/quests/codes";
+import { listCodes, regenerateCode, regenerateStepCode, type CodeDeps } from "#src/quests/codes";
 import {
   createCategory,
   deleteCategory,
@@ -61,6 +62,11 @@ const questFields = {
   config: z.record(z.string(), z.unknown()).optional(),
   // Checked against the quest's type by the shared registry (FR-301).
   verification: z.array(z.string().max(20)).max(5).optional(),
+  // A passport's steps, the full list in order (T-304b); checked as a whole by the builder.
+  steps: z
+    .array(z.strictObject({ id: z.uuid().optional(), name: text(120) }))
+    .max(30)
+    .optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -77,6 +83,7 @@ const orderBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_ORDER), confir
 const eventParams = z.object({ eventId: z.uuid() });
 const categoryParams = z.object({ eventId: z.uuid(), categoryId: z.uuid() });
 const questParams = z.object({ eventId: z.uuid(), questId: z.uuid() });
+const stepParams = z.object({ eventId: z.uuid(), stepId: z.uuid() });
 
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
 const creating = { ...member, config: { ...member.config, idempotent: true } } as const;
@@ -106,6 +113,15 @@ const questView = (quest: QuestRecord) => ({
   position: quest.position,
   config: quest.config,
   verification: quest.verification,
+  ...(quest.type === "passport"
+    ? {
+        steps: quest.steps.map((step) => ({
+          id: step.id,
+          name: step.name,
+          position: step.position,
+        })),
+      }
+    : {}),
 });
 
 /**
@@ -148,6 +164,8 @@ function answer<T>(
       throw submissionKindUnavailable({ asked: result.asked });
     case "quest_locked":
       throw questLocked();
+    case "step_in_use":
+      throw stepInUse();
   }
 }
 
@@ -317,6 +335,17 @@ function registerCodeRoutes(scope: FastifyInstance, deps: CodeDeps): void {
       deps,
       organizerContextOf(request),
       { eventId, questId },
+      callerOf(request),
+    );
+    return answer(result, (code) => code);
+  });
+
+  scope.post("/events/:eventId/steps/:stepId/qr/regenerate", member, async (request) => {
+    const { eventId, stepId } = parse(stepParams, request.params);
+    const result = await regenerateStepCode(
+      deps,
+      organizerContextOf(request),
+      { eventId, stepId },
       callerOf(request),
     );
     return answer(result, (code) => code);

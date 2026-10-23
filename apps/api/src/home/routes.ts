@@ -53,6 +53,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   verification: quest.verification,
   state: quest.state,
   lock: quest.lock,
+  steps: quest.steps,
 });
 
 function playerIdOf(request: { player?: { id: string } | undefined }): string {

@@ -4,10 +4,10 @@ import { safeEqual } from "#src/auth/keys";
 const MIN_SECRET_LENGTH = 32;
 /**
  * Layout and purpose of a signed code, its first byte. 0x01: a static printed quest QR (FR-305); 0x02: a player's My
- * QR (ADR-137); 0x03: an operator invite (T-204). A rotating code (FR-314) gets its own. Each purpose also has its
- * own key, so a code of one purpose never opens as another.
+ * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203). A rotating code
+ * (FR-314) gets its own. Each purpose also has its own key, so a code of one purpose never opens as another.
  */
-const FORMAT = { quest: 0x01, my: 0x02, operator: 0x03 } as const;
+const FORMAT = { quest: 0x01, my: 0x02, operator: 0x03, step: 0x04 } as const;
 type Purpose = keyof typeof FORMAT;
 const ID_BYTES = 16;
 const VERSION_BYTES = 4;
@@ -23,6 +23,7 @@ type CodeKey<P extends Purpose> = Readonly<{ key: Buffer; purpose: P }>;
 export type QuestCodeKey = CodeKey<"quest">;
 export type MyCodeKey = CodeKey<"my">;
 export type InviteCodeKey = CodeKey<"operator">;
+export type StepCodeKey = CodeKey<"step">;
 
 function deriveKey<P extends Purpose>(secret: string, purpose: P): CodeKey<P> {
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -118,6 +119,13 @@ function open(key: CodeKey<Purpose>, token: string): Opened {
   };
 }
 
+/**
+ * @throws Error when the secret is shorter than 32 characters.
+ */
+export function createStepCodeKey(secret: string): StepCodeKey {
+  return deriveKey(secret, "step");
+}
+
 /** The token printed in a quest's QR (FR-305): the quest id and its code version. */
 export function questCode(key: QuestCodeKey, questId: string, version: number): string {
   return sign(key, questId, version);
@@ -194,4 +202,35 @@ export type InviteCodeCheck =
 export function verifyInviteCode(key: InviteCodeKey, token: string): InviteCodeCheck {
   const opened = open(key, token);
   return opened.kind === "valid" ? { kind: "valid", inviteId: opened.id } : opened;
+}
+
+/** The token printed in a passport step's QR (T-304b): the step id and its code version. */
+export function stepCode(key: StepCodeKey, stepId: string, version: number): string {
+  return sign(key, stepId, version);
+}
+
+export type StepCodeCheck =
+  | Readonly<{ kind: "valid"; stepId: string; version: number }>
+  | Readonly<{ kind: "not_questify" }>
+  | Readonly<{ kind: "forged" }>
+  /** A real code of another step: never stamps this one. */
+  | Readonly<{ kind: "wrong_step" }>;
+
+/**
+ * Checks a scanned token for the step it is posted for, as `verifyQuestCode` does for a quest. The version is judged by
+ * `stamp_step` against the step's current one.
+ */
+export function verifyStepCode(
+  key: StepCodeKey,
+  token: string,
+  expectedStepId: string,
+): StepCodeCheck {
+  const opened = open(key, token);
+  if (opened.kind !== "valid") {
+    return opened;
+  }
+  if (opened.id !== expectedStepId.toLowerCase()) {
+    return { kind: "wrong_step" };
+  }
+  return { kind: "valid", stepId: opened.id, version: opened.version };
 }

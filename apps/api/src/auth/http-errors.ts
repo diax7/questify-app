@@ -314,6 +314,12 @@ export const hasCompletions = make(
   "أكمل لاعبون هذه المهمة، فنقاطهم محفوظة. أخفِها بدلًا من حذفها.",
   "Players completed this quest, so their points stay. Hide it instead of deleting it.",
 );
+export const stepInUse = make(
+  409,
+  "step_in_use",
+  "ختم لاعبون هذه الخطوة، فلا يمكن حذفها. غيّر اسمها بدلًا من ذلك.",
+  "Players stamped this step, so it can't be deleted. Rename it instead.",
+);
 export const phoneNotSupported = make(
   422,
   "phone_not_supported",
@@ -1046,6 +1052,12 @@ export const notShareQuest = make(
   "not_share_quest",
   "هذه المهمة ليست مهمة مشاركة.",
   "This quest is not a share quest.",
+);
+export const notPassportQuest = make(
+  422,
+  "not_passport_quest",
+  "هذه المهمة ليست جوازًا.",
+  "This quest is not a passport.",
 );
 /** A survey answer its question does not take; `question` names it (never the answer itself). */
 export const badAnswer = make(

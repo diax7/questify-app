@@ -16,6 +16,7 @@ import {
   type Done,
   type QuestInput,
 } from "#src/quests/builder";
+import { passportSteps } from "#src/quests/passports";
 import {
   countRows,
   deleteRow,
@@ -24,6 +25,7 @@ import {
   readQuest,
   reorder,
   updateQuest as writeQuest,
+  writeSteps,
   type QuestRecord,
 } from "#src/quests/store";
 
@@ -54,7 +56,15 @@ export function createQuest(
     if ((await countRows(client, "quest", eventId)) >= BUILDER_LIMITS.quests) {
       return { kind: "limit_reached", limit: BUILDER_LIMITS.quests };
     }
-    const made = await insertQuest(client, eventId, input.type, fields);
+    const checked = await passportSteps(client, undefined, input.type, fields, input.steps);
+    if (checked.kind !== "steps") {
+      return checked;
+    }
+    const inserted = await insertQuest(client, eventId, input.type, fields);
+    const made =
+      checked.steps === undefined
+        ? inserted
+        : await withWrittenSteps(client, inserted, checked.steps);
     await audit(client, actor, caller, {
       action: "quest.create",
       eventId,
@@ -91,7 +101,15 @@ export function updateQuest(
     if (isInvalid(fields)) {
       return fields;
     }
-    const updated = await writeQuest(client, current, fields);
+    const checked = await passportSteps(client, current, current.type, fields, input.steps);
+    if (checked.kind !== "steps") {
+      return checked;
+    }
+    const written = { ...(await writeQuest(client, current, fields)), steps: current.steps };
+    const updated =
+      checked.steps === undefined
+        ? written
+        : await withWrittenSteps(client, written, checked.steps);
     const diff = questChanges(current, updated);
     if (Object.keys(diff.after).length > 0) {
       await audit(client, actor, caller, {
@@ -134,6 +152,16 @@ export function deleteQuest(
     await deleteRow(client, "quest", current.id);
     return done(null);
   });
+}
+
+/** Writes a passport's steps and reads the quest back with them. */
+async function withWrittenSteps(
+  client: Parameters<typeof writeSteps>[0],
+  quest: QuestRecord,
+  steps: Parameters<typeof writeSteps>[2],
+): Promise<QuestRecord> {
+  await writeSteps(client, quest, steps);
+  return (await readQuest(client, quest.eventId, quest.id)) as QuestRecord;
 }
 
 /** Writes a new order from the full list of one category's quests. */

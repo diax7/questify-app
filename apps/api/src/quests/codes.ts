@@ -4,11 +4,18 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { audit, done, withEvent, type BuilderDeps, type Done } from "#src/quests/builder";
-import { questCode, questCodeUrl, type QuestCodeKey } from "#src/quests/qr";
-import { bumpQrVersion, readQuest, type Bilingual } from "#src/quests/store";
+import {
+  questCode,
+  questCodeUrl,
+  stepCode,
+  type QuestCodeKey,
+  type StepCodeKey,
+} from "#src/quests/qr";
+import { bumpQrVersion, bumpStepVersion, readQuest, type Bilingual } from "#src/quests/store";
 
 /** What signs the codes and where they point: the dashboard's `/q/{token}` page. */
-export type CodeDeps = BuilderDeps & Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
+export type CodeDeps = BuilderDeps &
+  Readonly<{ codeKey: QuestCodeKey; stepKey: StepCodeKey; codeOrigin: string }>;
 
 export type QuestCodeView = Readonly<{
   questId: string;
@@ -16,16 +23,49 @@ export type QuestCodeView = Readonly<{
   /** Printed under the title, where the station name will go once stations exist (T-205, T-309). */
   category: Bilingual;
   title: Bilingual;
+  /** A passport step's code (T-304b): the step and its name; null for a quest's own code. */
+  stepId: string | null;
+  step: Bilingual | null;
   version: number;
   url: string;
 }>;
 
+type CodeRow = {
+  id: string;
+  category_id: string;
+  title_ar: string | null;
+  title_en: string | null;
+  qr_version: number;
+  name_ar: string | null;
+  name_en: string | null;
+  step_id: string | null;
+  step_ar: string | null;
+  step_en: string | null;
+};
+
 const urlOf = (deps: CodeDeps, questId: string, version: number) =>
   questCodeUrl(deps.codeOrigin, questCode(deps.codeKey, questId, version));
+const stepUrlOf = (deps: CodeDeps, stepId: string, version: number) =>
+  questCodeUrl(deps.codeOrigin, stepCode(deps.stepKey, stepId, version));
+
+const codeView = (deps: CodeDeps, row: CodeRow): QuestCodeView => ({
+  questId: row.id,
+  categoryId: row.category_id,
+  category: { ar: row.name_ar, en: row.name_en },
+  title: { ar: row.title_ar, en: row.title_en },
+  stepId: row.step_id,
+  step: row.step_id === null ? null : { ar: row.step_ar, en: row.step_en },
+  version: row.qr_version,
+  url:
+    row.step_id === null
+      ? urlOf(deps, row.id, row.qr_version)
+      : stepUrlOf(deps, row.step_id, row.qr_version),
+});
 
 /**
- * The printed codes of an event (FR-305): one per quest whose type carries a quest QR, in the builder's order. Members
- * see them because they print them; any status, since an ended event's codes are still looked at.
+ * The printed codes of an event (FR-305): one per quest whose type carries a quest QR, and one per passport step
+ * (T-304b), in the builder's order. Members see them because they print them; any status, since an ended event's
+ * codes are still looked at.
  */
 export function listCodes(
   deps: CodeDeps,
@@ -44,31 +84,17 @@ export function listCodes(
         if (event.rowCount !== 1) {
           return { kind: "not_found" };
         }
-        const { rows } = await client.query<{
-          id: string;
-          category_id: string;
-          title_ar: string | null;
-          title_en: string | null;
-          qr_version: number;
-          name_ar: string | null;
-          name_en: string | null;
-        }>(
-          `SELECT q.id, q.category_id, q.title_ar, q.title_en, q.qr_version, c.name_ar, c.name_en
+        const { rows } = await client.query<CodeRow>(
+          `SELECT q.id, q.category_id, q.title_ar, q.title_en, coalesce(s.qr_version, q.qr_version) AS qr_version,
+                  c.name_ar, c.name_en, s.id AS step_id, s.name_ar AS step_ar, s.name_en AS step_en
            FROM quest q JOIN category c ON c.id = q.category_id
-           WHERE q.event_id = $1 AND q.type = ANY ($2) AND 'quest_qr' = ANY (q.verification)
-           ORDER BY c.position, c.id, q.position, q.id`,
+           LEFT JOIN passport_step s ON s.quest_id = q.id
+           WHERE q.event_id = $1
+             AND ((q.type = ANY ($2) AND 'quest_qr' = ANY (q.verification)) OR s.id IS NOT NULL)
+           ORDER BY c.position, c.id, q.position, q.id, s.position, s.id`,
           [eventId, QR_QUEST_TYPES],
         );
-        return done(
-          rows.map((row) => ({
-            questId: row.id,
-            categoryId: row.category_id,
-            category: { ar: row.name_ar, en: row.name_en },
-            title: { ar: row.title_ar, en: row.title_en },
-            version: row.qr_version,
-            url: urlOf(deps, row.id, row.qr_version),
-          })),
-        );
+        return done(rows.map((row) => codeView(deps, row)));
       },
     ),
   );
@@ -99,5 +125,28 @@ export function regenerateCode(
       after: { version },
     });
     return done({ version, url: urlOf(deps, quest.id, version) });
+  });
+}
+
+/** Makes a passport step's code new (FR-1711, T-304b), as `regenerateCode` does a quest's. */
+export function regenerateStepCode(
+  deps: CodeDeps,
+  actor: Actor,
+  target: Readonly<{ eventId: string; stepId: string }>,
+  caller: Caller,
+): Promise<Done<Readonly<{ version: number; url: string }>>> {
+  return withEvent(deps, actor, target.eventId, { change: undefined }, async (client) => {
+    const bumped = await bumpStepVersion(client, target.eventId, target.stepId);
+    if (bumped === undefined) {
+      return { kind: "not_found" };
+    }
+    await audit(client, actor, caller, {
+      action: "quest.step_qr_regenerate",
+      eventId: target.eventId,
+      target: { type: "quest", id: bumped.questId },
+      before: { stepId: target.stepId, version: bumped.before },
+      after: { stepId: target.stepId, version: bumped.version },
+    });
+    return done({ version: bumped.version, url: stepUrlOf(deps, target.stepId, bumped.version) });
   });
 }

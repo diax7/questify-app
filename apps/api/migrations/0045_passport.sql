@@ -73,7 +73,7 @@ ALTER TABLE passport_step FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON passport_step FROM PUBLIC;
 GRANT SELECT, DELETE ON passport_step TO questify_app;
 GRANT INSERT (event_id, quest_id, name_ar, name_en, position) ON passport_step TO questify_app;
-GRANT UPDATE (name_ar, name_en, position) ON passport_step TO questify_app;
+GRANT UPDATE (name_ar, name_en, position, qr_version) ON passport_step TO questify_app;
 CREATE POLICY passport_step_member ON passport_step FOR ALL TO questify_app
   USING ((organizer_id = app_organizer_id() AND in_event_scope(event_id, app_event_scope())) OR app_is_admin())
   WITH CHECK ((organizer_id = app_organizer_id() AND in_event_scope(event_id, app_event_scope())) OR app_is_admin());
@@ -175,8 +175,8 @@ GRANT EXECUTE ON FUNCTION stamped_steps(uuid) TO questify_app;
 -- pay_completion with the key 'pass:' || quest id. A step stamped before answers the progress with `stamped` false
 -- and writes nothing. A replayed key answers as the first time, the paying stamp with its completion.
 CREATE FUNCTION stamp_step(target uuid, proof_version integer, request_key text, device uuid)
-  RETURNS TABLE (quest_id uuid, completion_id bigint, stamped boolean, done integer, needed integer, score bigint,
-                 balance bigint, replayed boolean)
+  RETURNS TABLE (quest_id uuid, completion_id bigint, points bigint, stamped boolean, done integer, needed integer,
+                 score bigint, balance bigint, replayed boolean)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   me        uuid := app_player_id();
@@ -216,7 +216,10 @@ BEGIN
     IF earlier.step_id <> target THEN
       RAISE EXCEPTION 'this key was used for another stamp' USING ERRCODE = 'QK422';
     END IF;
-    RETURN QUERY SELECT quest_row.id, earlier.completion_id, true,
+    RETURN QUERY SELECT quest_row.id, earlier.completion_id,
+                        (SELECT l.score_delta FROM ledger_entry l
+                         WHERE l.completion_id = earlier.completion_id AND l.kind = 'quest'),
+                        true,
                         (SELECT count(*)::int FROM passport_stamp p
                          WHERE p.enrollment_id = enrolled.id AND p.quest_id = quest_row.id),
                         wanted, n.score, n.balance, true
@@ -239,7 +242,8 @@ BEGIN
   SELECT count(*)::int INTO have FROM passport_stamp p
   WHERE p.enrollment_id = enrolled.id AND p.quest_id = quest_row.id;
   IF EXISTS (SELECT 1 FROM passport_stamp p WHERE p.enrollment_id = enrolled.id AND p.step_id = target) THEN
-    RETURN QUERY SELECT quest_row.id, NULL::bigint, false, have, wanted, enrolled.score, enrolled.balance, false;
+    RETURN QUERY SELECT quest_row.id, NULL::bigint, NULL::bigint, false, have, wanted, enrolled.score, enrolled.balance,
+                        false;
     RETURN;
   END IF;
 
@@ -250,7 +254,8 @@ BEGIN
   INSERT INTO passport_stamp (organizer_id, event_id, enrollment_id, quest_id, step_id, idempotency_key, device_id,
                               completion_id)
   VALUES (enrolled.organizer_id, enrolled.event_id, enrolled.id, quest_row.id, target, request_key, device, paid);
-  RETURN QUERY SELECT quest_row.id, paid, true, have, wanted, n.score, n.balance, false
+  RETURN QUERY SELECT quest_row.id, paid, CASE WHEN paid IS NOT NULL THEN quest_row.points::bigint END, true, have,
+                      wanted, n.score, n.balance, false
     FROM enrollment n WHERE n.id = enrolled.id;
 END $$;
 REVOKE ALL ON FUNCTION stamp_step(uuid, integer, text, uuid) FROM PUBLIC;

@@ -9,11 +9,13 @@ import {
   featureOff,
   idempotencyKeyReused,
   notFound,
+  notPassportQuest,
   notQuizQuest,
   notShareQuest,
   notSurveyQuest,
   notVoteQuest,
   operatorPlayOff,
+  questCodeInvalid,
   questionClosed,
   questionNotServed,
   questNotOpen,
@@ -86,6 +88,11 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw notSurveyQuest();
     case "not_share_quest":
       throw notShareQuest();
+    case "not_passport_quest":
+      throw notPassportQuest();
+    case "invalid_code":
+      // One answer whatever the problem, as a quest code's (completions/routes.ts); the log keeps the difference.
+      throw questCodeInvalid();
     case "bad_answer":
       throw badAnswer({ question: result.question });
     case "feature_off":

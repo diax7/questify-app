@@ -39,7 +39,20 @@ export type QuestRecord = Readonly<{
   qrVersion: number;
   /** How it may be verified (FR-301): the printed QR, staff scanning My QR, or both. */
   verification: readonly QuestVerification[];
+  /** A passport's steps in order (T-304b); none for every other type. */
+  steps: readonly PassportStep[];
 }>;
+
+/** One step of a passport (T-304b): its name and the version its printed code carries. */
+export type PassportStep = Readonly<{
+  id: string;
+  name: Bilingual;
+  position: number;
+  qrVersion: number;
+}>;
+
+/** A passport step as the builder writes it: an existing step by its id, or a new one without. */
+export type StepInput = Readonly<{ id: string | undefined; name: Bilingual }>;
 
 /** The fields the API writes on a quest (migration 0010's column grants), all known before a write. */
 export type QuestFields = Readonly<{
@@ -121,7 +134,41 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   config: row.type_config,
   qrVersion: row.qr_version,
   verification: row.verification,
+  steps: [],
 });
+
+type StepRow = {
+  id: string;
+  quest_id: string;
+  name_ar: string | null;
+  name_en: string | null;
+  position: number;
+  qr_version: number;
+};
+
+/** The quests with their passport steps read in one query (none for other types). */
+async function withSteps(db: PoolClient, quests: QuestRecord[]): Promise<QuestRecord[]> {
+  const passports = quests.filter((quest) => quest.type === "passport").map((quest) => quest.id);
+  if (passports.length === 0) {
+    return quests;
+  }
+  const { rows } = await db.query<StepRow>(
+    `SELECT id, quest_id, name_ar, name_en, position, qr_version FROM passport_step
+     WHERE quest_id = ANY ($1) ORDER BY position, id`,
+    [passports],
+  );
+  return quests.map((quest) => ({
+    ...quest,
+    steps: rows
+      .filter((row) => row.quest_id === quest.id)
+      .map((row) => ({
+        id: row.id,
+        name: { ar: row.name_ar, en: row.name_en },
+        position: row.position,
+        qrVersion: row.qr_version,
+      })),
+  }));
+}
 
 const lockClause = (lock: boolean) => (lock ? " FOR NO KEY UPDATE" : "");
 
@@ -158,7 +205,7 @@ export async function listQuests(db: PoolClient, eventId: string): Promise<Quest
     `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 ORDER BY position, id`,
     [eventId],
   );
-  return rows.map(toQuest);
+  return withSteps(db, rows.map(toQuest));
 }
 
 /** A category of the path's event only: an id from another event is "not found", never a back door to it. */
@@ -188,7 +235,7 @@ export async function readQuest(
     [eventId, id],
   );
   const row = rows[0];
-  return row === undefined ? undefined : toQuest(row);
+  return row === undefined ? undefined : ((await withSteps(db, [toQuest(row)]))[0] as QuestRecord);
 }
 
 export async function countRows(
@@ -290,8 +337,12 @@ export async function moveQuests(db: PoolClient, from: string, to: string): Prom
   return rowCount ?? 0;
 }
 
-/** Deletes every quest of a category. Returns their ids, for the audit entry. */
+/** Deletes every quest of a category, passport steps first. Returns their ids, for the audit entry. */
 export async function deleteQuestsOf(db: PoolClient, categoryId: string): Promise<string[]> {
+  await db.query(
+    "DELETE FROM passport_step WHERE quest_id IN (SELECT id FROM quest WHERE category_id = $1)",
+    [categoryId],
+  );
   const { rows } = await db.query<{ id: string }>(
     "DELETE FROM quest WHERE category_id = $1 RETURNING id",
     [categoryId],
@@ -304,7 +355,65 @@ export async function deleteRow(
   table: "category" | "quest",
   id: string,
 ): Promise<void> {
+  if (table === "quest") {
+    await db.query("DELETE FROM passport_step WHERE quest_id = $1", [id]);
+  }
   await db.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+}
+
+/** The steps of this passport a player stamped (stamped_steps, migration 0045): they cannot be deleted. */
+export async function stampedSteps(db: PoolClient, questId: string): Promise<Set<string>> {
+  const { rows } = await db.query<{ step_id: string }>("SELECT step_id FROM stamped_steps($1)", [
+    questId,
+  ]);
+  return new Set(rows.map((row) => row.step_id));
+}
+
+/**
+ * Writes a passport's steps as the full list, in its order: steps left out are deleted, named ones renamed and moved,
+ * new ones added. The caller checked that every id is one of this quest's and that no stamped step is left out.
+ */
+export async function writeSteps(
+  db: PoolClient,
+  quest: Readonly<{ id: string; eventId: string; steps: readonly PassportStep[] }>,
+  steps: readonly StepInput[],
+): Promise<void> {
+  const kept = new Set(steps.map((step) => step.id));
+  const gone = quest.steps.filter((step) => !kept.has(step.id)).map((step) => step.id);
+  if (gone.length > 0) {
+    await db.query("DELETE FROM passport_step WHERE id = ANY ($1)", [gone]);
+  }
+  for (const [position, step] of steps.entries()) {
+    if (step.id === undefined) {
+      await db.query(
+        `INSERT INTO passport_step (event_id, quest_id, name_ar, name_en, position)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [quest.eventId, quest.id, step.name.ar, step.name.en, position],
+      );
+    } else {
+      await db.query(
+        "UPDATE passport_step SET name_ar = $2, name_en = $3, position = $4 WHERE id = $1",
+        [step.id, step.name.ar, step.name.en, position],
+      );
+    }
+  }
+}
+
+/** Bumps a passport step's code version (FR-1711), as `bumpQrVersion` does a quest's. Undefined when not found. */
+export async function bumpStepVersion(
+  db: PoolClient,
+  eventId: string,
+  stepId: string,
+): Promise<Readonly<{ questId: string; before: number; version: number }> | undefined> {
+  const { rows } = await db.query<{ quest_id: string; qr_version: number }>(
+    `UPDATE passport_step SET qr_version = qr_version + 1 WHERE event_id = $1 AND id = $2
+     RETURNING quest_id, qr_version`,
+    [eventId, stepId],
+  );
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : { questId: row.quest_id, before: row.qr_version - 1, version: row.qr_version };
 }
 
 export async function insertQuest(

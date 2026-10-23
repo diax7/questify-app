@@ -51,6 +51,8 @@ export type QuestInput = Readonly<{
   visible?: boolean | undefined;
   config?: unknown;
   verification?: unknown;
+  /** A passport's steps as the full list in order (T-304b): an existing step by its id, a new one without. */
+  steps?: readonly Readonly<{ id?: string | undefined; name: Text }>[] | undefined;
 }>;
 
 export type QuestField =
@@ -61,7 +63,9 @@ export type QuestField =
   | "opensAt"
   | "closesAt"
   | "config"
-  | "verification";
+  | "verification"
+  | "needed"
+  | "steps";
 
 /** The refusals every builder action may give. */
 export type Refused =
@@ -82,7 +86,9 @@ export type Refused =
   /** A submission quest asked for photos (T-301b) or video (never in v1, FR-1006). */
   | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>
   /** Players voted or started the quiz: only its text may change (ADR-194, migration 0041). */
-  | Readonly<{ kind: "quest_locked" }>;
+  | Readonly<{ kind: "quest_locked" }>
+  /** Players stamped this passport step (T-304b): it stays. */
+  | Readonly<{ kind: "step_in_use" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -231,6 +237,15 @@ export function auditView(quest: QuestRecord): Record<string, unknown> {
     config,
     verification: quest.verification,
     ...(code === undefined ? {} : { entryCode: "set" }),
+    ...(quest.type === "passport"
+      ? {
+          steps: quest.steps.map((step) => ({
+            id: step.id,
+            nameAr: step.name.ar,
+            nameEn: step.name.en,
+          })),
+        }
+      : {}),
   };
 }
 
@@ -314,6 +329,10 @@ export async function withEvent<T>(
     // A player played the quest between the check and the delete: its points are history (migration 0012).
     if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {
       return { kind: "has_completions" };
+    }
+    // A player stamped a passport step between the check and its delete (migration 0045).
+    if (pg.code === "23503" && pg.table === "passport_stamp") {
+      return { kind: "step_in_use" };
     }
     throw error;
   }

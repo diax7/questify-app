@@ -28,6 +28,7 @@ import { registerHomeRoutes } from "#src/home/routes";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
 import { registerPlayRoutes } from "#src/plays/routes";
+import { registerPassportRoutes } from "#src/passport/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
@@ -39,7 +40,12 @@ import { registerProfileRoutes } from "#src/players/profile";
 import { registerPlayerAuthRoutes } from "#src/players/routes";
 import { createPlayerSignIn } from "#src/players/sign-in";
 import type { SmsSender } from "#src/players/sms";
-import { createInviteCodeKey, createMyCodeKey, createQuestCodeKey } from "#src/quests/qr";
+import {
+  createInviteCodeKey,
+  createMyCodeKey,
+  createQuestCodeKey,
+  createStepCodeKey,
+} from "#src/quests/qr";
 import { createRanking } from "#src/ranking/ranking";
 import { registerRankingRoutes } from "#src/ranking/routes";
 import type { RankingStore } from "#src/ranking/store";
@@ -191,6 +197,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
+  const stepCodeKey = createStepCodeKey(config.qrSecret);
   const operatorDeps = {
     pool: options.pool,
     inviteKey: createInviteCodeKey(config.qrSecret),
@@ -253,6 +260,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
   registerPlayRoutes(app, { pool: options.pool, ranking, settings });
+  registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerResultsPlayerRoutes(app, { pool: options.pool });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
@@ -285,6 +293,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     settings,
     questCodes: {
       codeKey: questCodeKey,
+      stepKey: stepCodeKey,
       codeOrigin: config.auth.dashboardOrigin,
     },
     rewardCodeKey,

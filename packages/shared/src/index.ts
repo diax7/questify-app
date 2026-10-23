@@ -99,6 +99,7 @@ export {
   isQuestType,
   normalizeEntryCode,
   parseVerification,
+  PASSPORT_STEPS_MAX,
   QUEST_CODE_HOSTS,
   parseQuestConfig,
   QUIZ_GRACE_SECONDS,

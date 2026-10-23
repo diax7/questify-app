@@ -1014,6 +1014,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.category_bonus",
         "ledger_entry.category_bonus",
         "quest_completion.category_bonus",
+        // Passport stamps are deleted before the completions they point at (T-304b).
+        "enrollment.passport_stamp",
+        "quest_completion.passport_stamp",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

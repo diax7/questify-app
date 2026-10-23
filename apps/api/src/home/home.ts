@@ -33,6 +33,8 @@ export type MemberQuest = Readonly<{
   verification: readonly string[];
   /** Why its category keeps it shut for this player now, or null (T-304, migration 0044). */
   lock: QuestLock | null;
+  /** A passport's progress (T-304b): the steps this player stamped of those it needs; null for other types. */
+  steps: Readonly<{ done: number; needed: number }> | null;
 }>;
 
 /** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
@@ -181,6 +183,8 @@ type QuestRow = Readonly<{
   bonus_earned: string;
   bonus_settled: boolean;
   lock: QuestLock | null;
+  steps_done: number | null;
+  steps_needed: number | null;
 }>;
 
 const rulesOf = (row: QuestRow): CategoryRules => ({
@@ -228,6 +232,10 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       earned: Number(row.earned),
       verification: row.verification,
       lock: row.lock,
+      steps:
+        row.steps_done === null || row.steps_needed === null
+          ? null
+          : { done: row.steps_done, needed: row.steps_needed },
     });
     categories.set(row.category_id, category);
   }

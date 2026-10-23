@@ -15,6 +15,9 @@ export type PlayRefusal =
   | Readonly<{ kind: "not_quiz_quest" }>
   | Readonly<{ kind: "not_survey_quest" }>
   | Readonly<{ kind: "not_share_quest" }>
+  | Readonly<{ kind: "not_passport_quest" }>
+  /** A step's code that does not stamp this step (T-304b): one answer to the player, told apart in the log. */
+  | Readonly<{ kind: "invalid_code"; problem: string }>
   /** A survey answer the question does not take, or a body that names other questions (`shape`). */
   | Readonly<{ kind: "bad_answer"; question: string }>
   /** The event switched this quest type off (share quests, ADR-199). */
@@ -41,6 +44,7 @@ const NOT_THIS_TYPE: Readonly<Record<string, PlayRefusal>> = {
   quiz: { kind: "not_quiz_quest" },
   survey: { kind: "not_survey_quest" },
   share: { kind: "not_share_quest" },
+  passport: { kind: "not_passport_quest" },
 };
 
 /** The SQLSTATEs of migrations 0041 and 0042's definers (and record_completion under vote_quest). */
@@ -57,6 +61,7 @@ const REFUSALS: Readonly<Record<string, (detail: string) => PlayRefusal | undefi
   VO422: () => ({ kind: "unknown_option" }),
   QO422: () => ({ kind: "unknown_option" }),
   QD409: () => ({ kind: "already_completed" }),
+  QV422: (detail) => ({ kind: "invalid_code", problem: detail }),
   QK422: () => ({ kind: "key_reused" }),
   QA404: () => ({ kind: "quiz_not_started" }),
   QA409: (detail) => QA409[detail],

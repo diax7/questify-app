@@ -34,6 +34,7 @@ describe("the quest-type registry", () => {
       "challenge",
       "survey",
       "share",
+      "passport",
     ]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);
@@ -286,5 +287,18 @@ describe("quest verification methods (FR-301)", () => {
     ["not a list", "scan_qr", "my_qr"],
   ] as const)("refuses %s", (_name, type, value) => {
     expect(parseVerification(type, value)).toBeUndefined();
+  });
+});
+
+describe("passport quests", () => {
+  it("are finished once, need a whole count from 1 to 30, and carry no quest code of their own", () => {
+    expect(QUEST_TYPES.passport.oneTry).toBe(true);
+    expect(QUEST_TYPES.passport.usesQuestQr).toBe(false);
+    expect(parseQuestConfig("passport", { needed: 5 })).toEqual({ needed: 5 });
+    for (const needed of [0, 31, 2.5, "5", undefined]) {
+      expect(parseQuestConfig("passport", { needed }), String(needed)).toBeUndefined();
+    }
+    expect(parseQuestConfig("passport", { needed: 1, steps: [] })).toBeUndefined();
+    expect(parseVerification("passport", undefined, undefined)).toEqual([]);
   });
 });

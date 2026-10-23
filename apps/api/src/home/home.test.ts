@@ -18,6 +18,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   earned: 0,
   verification: ["quest_qr"],
   lock: null,
+  steps: null,
   ...fields,
 });
 

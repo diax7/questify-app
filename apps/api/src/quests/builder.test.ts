@@ -18,6 +18,7 @@ const STORED: QuestRecord = {
   config: { code: "NAJD2030" },
   qrVersion: 1,
   verification: [],
+  steps: [],
 };
 const ZONE = "Asia/Riyadh";
 
@@ -154,5 +155,20 @@ describe("the audit view", () => {
       before: { codeChanged: false },
       after: { codeChanged: true },
     });
+  });
+});
+
+describe("a passport's audit (T-304b)", () => {
+  it("keeps its steps' ids and names, and only for a passport", () => {
+    const passport: QuestRecord = {
+      ...STORED,
+      type: "passport",
+      config: { needed: 1 },
+      steps: [{ id: "s1", name: { ar: null, en: "Booth" }, position: 0, qrVersion: 2 }],
+    };
+    expect(auditView(passport)).toMatchObject({
+      steps: [{ id: "s1", nameAr: null, nameEn: "Booth" }],
+    });
+    expect(auditView(STORED)).not.toHaveProperty("steps");
   });
 });

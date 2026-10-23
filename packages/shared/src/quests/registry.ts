@@ -185,7 +185,23 @@ export const QUEST_TYPES = {
       link: shareLink.optional(),
     }),
   },
+  /**
+   * Steps in any order, each with its own printed code, paid once when the player has stamped `needed` of them (T-304b,
+   * FR-224, ADR-203). The steps live beside the quest (the builder's `steps`), not in its config.
+   */
+  passport: {
+    label: "quests.type.passport",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      needed: z.number().int().min(1).max(30),
+    }),
+  },
 } as const;
+
+/** The most steps a passport may have (ADR-203); the database holds the same cap. */
+export const PASSPORT_STEPS_MAX = 30;
 
 /** The longest text a player may write for one survey answer (ADR-198). */
 export const SURVEY_TEXT_MAX = 500;

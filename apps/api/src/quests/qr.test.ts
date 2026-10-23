@@ -4,14 +4,17 @@ import {
   createInviteCodeKey,
   createMyCodeKey,
   createQuestCodeKey,
+  createStepCodeKey,
   inviteCode,
   inviteCodeUrl,
   myCode,
   questCode,
   questCodeUrl,
+  stepCode,
   verifyInviteCode,
   verifyMyCode,
   verifyQuestCode,
+  verifyStepCode,
 } from "#src/quests/qr";
 
 const KEY = createQuestCodeKey("q".repeat(32));
@@ -192,5 +195,48 @@ describe("My QR and operator invite codes", () => {
     expect(inviteCodeUrl("https://questify.nafes.com", "en", token)).toBe(
       `https://questify.nafes.com/en/op#${token}`,
     );
+  });
+});
+
+describe("passport step codes (T-304b)", () => {
+  const SECRET = "q".repeat(32);
+  const STEP_KEY = createStepCodeKey(SECRET);
+  const STEP = "7c2d0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
+
+  it("refuses a short secret", () => {
+    expect(() => createStepCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens a step code to its step and version, upper or lower case in the path", () => {
+    const token = stepCode(STEP_KEY, STEP, 3);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(verifyStepCode(STEP_KEY, token, STEP)).toEqual({
+      kind: "valid",
+      stepId: STEP,
+      version: 3,
+    });
+    expect(verifyStepCode(STEP_KEY, token, STEP.toUpperCase())).toMatchObject({ kind: "valid" });
+    expect(verifyStepCode(createStepCodeKey("r".repeat(32)), token, STEP)).toEqual({
+      kind: "forged",
+    });
+    expect(verifyStepCode(STEP_KEY, "hello", STEP)).toEqual({ kind: "not_questify" });
+  });
+
+  it("refuses a real code of another step", () => {
+    const token = stepCode(STEP_KEY, randomUUID(), 1);
+    expect(verifyStepCode(STEP_KEY, token, STEP)).toEqual({ kind: "wrong_step" });
+  });
+
+  it("never opens as a quest, My QR or invite code, nor they as a step code", () => {
+    const step = stepCode(STEP_KEY, STEP, 1);
+    const quest = questCode(createQuestCodeKey(SECRET), STEP, 1);
+    const my = myCode(createMyCodeKey(SECRET), STEP, 1);
+    expect(verifyQuestCode(createQuestCodeKey(SECRET), step, STEP)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyMyCode(createMyCodeKey(SECRET), step)).toEqual({ kind: "not_questify" });
+    expect(verifyInviteCode(createInviteCodeKey(SECRET), step)).toEqual({ kind: "not_questify" });
+    expect(verifyStepCode(STEP_KEY, quest, STEP)).toEqual({ kind: "not_questify" });
+    expect(verifyStepCode(STEP_KEY, my, STEP)).toEqual({ kind: "not_questify" });
   });
 });

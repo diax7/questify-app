@@ -576,6 +576,7 @@ export const MESSAGES = {
   "quests.type.challenge": { ar: "تحدٍّ", en: "Challenge" },
   "quests.type.survey": { ar: "استبيان", en: "Survey" },
   "quests.type.share": { ar: "مشاركة", en: "Share" },
+  "quests.type.passport": { ar: "جواز", en: "Passport" },
   "signIn.consentTitle": { ar: "قبل أن نبدأ", en: "Before we start" },
   "signIn.consentBody": {
     ar: "لتدخل إلى حسابك أو تنشئه، وافق على شروط الاستخدام وسياسة الخصوصية.",
