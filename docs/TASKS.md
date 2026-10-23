@@ -321,9 +321,10 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Done 2026-10-24: migration 0050 (`game_round`, issue, replay read, finish, sweep, sheet), the shared engines (`packages/shared/src/games`), three player routes and the `miniGames` switch, the app's sheet and two full-screen games, the dashboard's game type, switch and flag lines. Opus code review and mutation on GitHub owed. T-305c builds on `GameEngine`, `judgeRound` and the registry; a `v<n>.ts` per engine version.
 - [ ] **T-305b** Organizer images on mini-game cards, puzzle pictures and falling items — delivers FR 1808; depends on: T-305, T-305c; **blocked on Q-149** (a Questify bucket in `riyadh-1`)
   - Split from T-305 2026-10-24 (ADR-214): images need an upload and a bucket; until then the default art shows.
-- [ ] **T-305c** Catch and tap rush: fixed-tick replay, reaction-time bounds, app screens — delivers FR 1804 (the last two games); depends on: T-305
+- [x] **T-305c** Catch and tap rush: fixed-tick replay, reaction-time bounds, app screens — delivers FR 1804 (the last two games); depends on: T-305
   - Split from T-305 2026-10-24 (ADR-214): real-time replay is its own problem; the round protocol and verdicts are T-305's.
   - Note 2026-10-24 (T-305 built): add each game to `GAME_NAMES`, `LEVELS`, the registry (`JUDGES`, `ENGINE_VERSIONS`), the app's `BOARDS`, migration's `quest_game_shape`, `game_round.game` and `game_level`, and drop it from `COMING_GAMES`; the builder then takes it.
+  - Done 2026-10-24: plan `docs/plans/2026-10-24-t-305c-catch-tap-rush.md`, migration 0051, ADR-216 to ADR-218 and Q-181, Q-182 Proposed. Shared tick and both engines, the app's paused-aware frame loop and two screens, the sheet's update line for later games, the dashboard's four games. Opus code review and mutation on GitHub owed. Many-seed tests live in `*.calibration.test.ts` (run by `pnpm test`, skipped by Stryker).
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-305c-catch-tap-rush.md`, migration 0051, ADR-216 to ADR-218 and Q-181, Q-182 Proposed.
 - [ ] **T-306** Live polls and community quests with milestones and rewards — delivers FR 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 1620; depends on: T-302
   - Done when: A community goal not reached pays nothing; points-based goals count participation points.

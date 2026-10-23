@@ -92,7 +92,7 @@ anti-cheat) is Area 3.
 | F-84 | Meet someone: scan another player's meet code; both earn | Should | Claude | One scan by either player completes it for both. No repeat pairs; the organizer sets a daily cap per player. Built by T-303c with a one-minute meet code, not My QR (ADR-209) |
 | F-85 | Survey: questions with no right answer (rate a session, feedback) | Should | Claude | Results go to the organizer; speakers' feedback in Area 12 |
 | F-86 | Location check-in: be inside an area | Could | Claude | Foreground location only (PD-09); a QR at the spot always works too (ADR-015) |
-| F-87 | Mini-games as a quest type: four games in v1 (memory match, slide puzzle, catch, tap rush); the reward is points for passing the organizer's target (easy, medium or hard) on the first pass | Should | user / deck | ADR-097. Which games and how they are checked: ADR-097. Built in part (T-305): memory match and slide puzzle; catch and tap rush in T-305c (ADR-214) |
+| F-87 | Mini-games as a quest type: four games in v1 (memory match, slide puzzle, catch, tap rush); the reward is points for passing the organizer's target (easy, medium or hard) on the first pass | Should | user / deck | ADR-097. Which games and how they are checked: ADR-097. Built: memory match and slide puzzle (T-305), catch and tap rush (T-305c, ADR-216 to ADR-218) |
 | F-88 | Share quest: share event content to social apps, rewarded on trust | Should | user / deck | One reward per player per quest; organizer switches it on per event. Breaks Meta's spam policy: risk accepted in ADR-034 |
 
 ### Quest content and rules

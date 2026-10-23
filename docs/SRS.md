@@ -1396,7 +1396,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1801 | F-305 | Must | pending |
 | FR-1802 | F-82, F-306 | Must | pending |
 | FR-1803 | F-307 | Should | pending |
-| FR-1804 | F-87 | Should | partly built (T-305: memory match and slide puzzle; catch and tap rush T-305c, ADR-214) |
+| FR-1804 | F-87 | Should | built (T-305: memory match and slide puzzle; T-305c: catch and tap rush, ADR-216 to ADR-218) |
 | FR-1805 | F-308 | Must | built (T-305, ADR-212) |
 | FR-1806 | F-87 | Should | built (T-305, ADR-213, ADR-215) |
 | FR-1807 | F-309 | Must | built (T-305, ADR-213) |

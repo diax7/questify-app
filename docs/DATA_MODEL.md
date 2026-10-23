@@ -586,7 +586,8 @@ their completions. The shown side counts for the shared-device flag but not the 
 **PII:** who met whom (deleted with either account); a code's device id (deleted with the account).
 
 ### game_round (migration 0050, T-305, ADR-212 to ADR-215)
-**Built:** quest `type` gains `game` (no verification); `type_config {game memory_match|slide_puzzle, level
+**Built:** quest `type` gains `game` (no verification); `type_config {game memory_match|slide_puzzle|catch|tap_rush
+(catch and tap rush added by migration 0051, T-305c, with their six `game_level` rows), level
 easy|medium|hard, attempts 1..10 | null, cooldownMinutes 1..1440 exactly when attempts is null}` by the check
 `quest_game_shape`, `repeat_cap = 1` by `quest_game_once`; `quest_completion.method` gains `game`; `flag.kind` gains
 `minigame` (one open case per account, evidence `{rounds: [{round, game, level, reason, at}]}`, the newest 50).

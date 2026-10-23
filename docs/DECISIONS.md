@@ -2770,6 +2770,12 @@ their first 133 ms from a target not already there, each counted against a level
 tail of reactions included) is flagged in under 1% of seeded rounds.
 **Why:** a share-based refusal could refuse an honest fast player; a gate costs an honest player one ignored tap and
 keeps "an honest player is never refused" (ADR-212).
+**Built (T-305c, 2026-10-24):** a live target in the cell decides first (hit, or dropped by the 120 ms gate); the
+150 ms grace applies only to an empty cell. Thresholds set by the calibration tests (5,000 seeds a level): catch's
+`unlikelyForesight` 10 / 12 / 16 (easy / medium / hard; the honest model, which drags over 100 to 300 ms and so sweeps
+past new items, peaks at 7 / 9 / 13), tap rush's `unlikelyQuick` 8 at every level (honest peak 5). The catch seed
+reader flicks onto each item the tick it spawns and returns to the item landing next (one that only moved at spawn
+would miss most items and so be counted for few).
 
 ## ADR-218 — Catch and tap rush rules and levels
 **Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-182. Extends ADR-215.
