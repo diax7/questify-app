@@ -364,13 +364,17 @@ GRANT EXECUTE ON FUNCTION submit_quest(uuid, text, text, text) TO questify_app;
 
 -- ================================================================ reviewing (FR-324, FR-325)
 -- One review by a staff member (`staff`) or an operator (`operator`), already checked by the entry points. The event
--- first, then the enrollment, then the submission. Approval re-checks the player (active) and the event (live or ended;
+-- first, then the enrollment, then the submission. Approval re-checks the player (active in the event and on the
+-- platform) and the event (live or ended;
 -- draft or scheduled for a rehearsal account): SE409 otherwise; RF409 once the results are final. Refusals: SN404 (no
 -- such submission here), SR409 (already reviewed), SK422 (the key used for another review), AR400 (a rejection without
--- a reason), SS403 (an operator reviewing their own), OS403 (outside the operator's quests).
+-- a reason), SS403 (an operator reviewing their own), OS403 (outside the operator's quests). An approval answers the
+-- completion and its player, so the API can move the player's place. Operators are not audited here: the ledger's
+-- operator_id and the submission's reviewed_by_operator record them (SECURITY.md).
 CREATE FUNCTION review_core(ev event, target bigint, decision text, reason text, request_key text, operator uuid,
                             staff uuid, request uuid)
-  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean)
+  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean, completion_id bigint,
+                 player_id uuid)
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
   earlier  submission%ROWTYPE;
@@ -394,7 +398,8 @@ BEGIN
     IF earlier.id <> target OR (decision = 'approve') <> (earlier.completion_id IS NOT NULL) THEN
       RAISE EXCEPTION 'this key was used for another review' USING ERRCODE = 'SK422';
     END IF;
-    RETURN QUERY SELECT earlier.id, earlier.status, earlier.points, true;
+    RETURN QUERY SELECT earlier.id, earlier.status, earlier.points, true, earlier.completion_id, n.player_id
+                 FROM enrollment n WHERE n.id = earlier.enrollment_id;
     RETURN;
   END IF;
 
@@ -426,6 +431,7 @@ BEGIN
   ELSE
     st := event_status_now(ev.status, ev.starts_at, ev.ends_at);
     IF enrolled.status <> 'active'
+       OR NOT EXISTS (SELECT 1 FROM player p WHERE p.id = enrolled.player_id AND p.status = 'active')
        OR (CASE WHEN enrolled.joined_via = 'rehearsal' THEN st NOT IN ('draft', 'scheduled')
                 ELSE st NOT IN ('live', 'ended') END) THEN
       RAISE EXCEPTION 'this submission can no longer be approved' USING ERRCODE = 'SE409';
@@ -447,7 +453,8 @@ BEGIN
             CASE WHEN decision = 'approve' THEN 'event.submission_approved' ELSE 'event.submission_rejected' END,
             'submission', item.id::text, jsonb_build_object('points', item.points), request);
   END IF;
-  RETURN QUERY SELECT s.id, s.status, s.points, false FROM submission s WHERE s.id = item.id;
+  RETURN QUERY SELECT s.id, s.status, s.points, false, s.completion_id, enrolled.player_id
+               FROM submission s WHERE s.id = item.id;
 END $$;
 REVOKE ALL ON FUNCTION review_core(event, bigint, text, text, text, uuid, uuid, uuid) FROM PUBLIC;
 
@@ -485,7 +492,8 @@ REVOKE ALL ON FUNCTION review_operator(uuid) FROM PUBLIC;
 -- The dashboard's review (owners and editors in the event's scope; AN404 otherwise).
 CREATE FUNCTION staff_review_submission(target_event uuid, target bigint, decision text, reason text,
                                         request_key text, request uuid)
-  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean)
+  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean, completion_id bigint,
+                 player_id uuid)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   RETURN QUERY SELECT * FROM review_core(award_event_of(target_event), target, decision, reason, request_key, NULL,
@@ -497,7 +505,8 @@ GRANT EXECUTE ON FUNCTION staff_review_submission(uuid, bigint, text, text, text
 -- The operator's review in the app (OP403, OA403 first).
 CREATE FUNCTION operator_review_submission(target_event uuid, target bigint, decision text, reason text,
                                            request_key text)
-  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean)
+  RETURNS TABLE (submission_id bigint, status text, points integer, replayed boolean, completion_id bigint,
+                 player_id uuid)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   me uuid := review_operator(target_event);
@@ -734,7 +743,8 @@ BEGIN
            'completions', count(*) FILTER (WHERE l.kind = 'quest'),
            'points', coalesce(sum(l.score_delta) FILTER (WHERE l.kind IN ('quest', 'award', 'removal')), 0),
            'reservations', (SELECT count(*) FROM redemption d WHERE d.enrollment_id = ANY (accounts)),
-           'flags', (SELECT count(*) FROM flag f WHERE f.enrollment_id = ANY (accounts)))
+           'flags', (SELECT count(*) FROM flag f WHERE f.enrollment_id = ANY (accounts)),
+           'submissions', (SELECT count(*) FROM submission s WHERE s.enrollment_id = ANY (accounts)))
   INTO first_at, counts
   FROM ledger_entry l WHERE l.event_id = target AND l.rehearsal;
 
@@ -835,6 +845,19 @@ CREATE FUNCTION own_submissions(target_event uuid)
 $$;
 REVOKE ALL ON FUNCTION own_submissions(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION own_submissions(uuid) TO questify_app;
+
+-- The points the calling player's pending submissions in an event will pay (FR-409), over all of them (the list above
+-- stops at 200). 0 for a non-member.
+CREATE FUNCTION own_pending_points(target_event uuid) RETURNS bigint
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT coalesce(sum(s.points), 0)
+  FROM enrollment n
+  JOIN player p ON p.id = n.player_id AND p.status = 'active'
+  JOIN submission s ON s.enrollment_id = n.id AND s.status = 'pending'
+  WHERE n.event_id = target_event AND n.player_id = app_player_id()
+$$;
+REVOKE ALL ON FUNCTION own_pending_points(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION own_pending_points(uuid) TO questify_app;
 
 -- One queue row, for the team and for operators.
 CREATE FUNCTION queue_rows(target_event uuid, wanted text, cursor_id bigint, page integer, only_operator uuid)

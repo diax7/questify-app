@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { playerDocuments } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { RankingStore } from "#src/ranking/store";
 import {
   createStaff,
   signInFully,
@@ -11,6 +12,18 @@ import {
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 type Row = Record<string, unknown>;
+type Upsert = Readonly<{ event: string; enrollmentId: string; score: bigint }>;
+
+/** A ranking copy that only records what is written to it, so a test can see which completions moved a place. */
+const recordingStore = (upserts: Upsert[]): RankingStore => ({
+  upsert: async (event, entry) => {
+    upserts.push({ event, enrollmentId: entry.enrollmentId, score: entry.score });
+  },
+  remove: async () => undefined,
+  read: async () => ({ top: [], total: 1, place: 1 }),
+  rebuild: async () => "rebuilt",
+  builtAt: async () => undefined,
+});
 
 const GUIDELINES =
   playerDocuments().find((document) => document.id === "community_guidelines")?.version ?? "";
@@ -26,10 +39,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests over HTTP", 
   let organizer = "";
   let ownerCookie = "";
   let counter = 0;
+  const upserts: Upsert[] = [];
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    test = await startApp(db);
+    test = await startApp(db, false, {}, { rankingStore: recordingStore(upserts) });
     organizer =
       (
         await db.owner.query<{ id: string }>(
@@ -152,7 +166,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests over HTTP", 
     const approved = await dashboard("POST", `/events/${event}/submissions/${id}/review`, {
       decision: "approve",
     });
-    expect(approved.json()).toMatchObject({ status: "approved", points: 150, replayed: false });
+    expect(approved.json()).toEqual({
+      submissionId: id,
+      status: "approved",
+      points: 150,
+      replayed: false,
+    });
+    // The reviewer's approval moves the player's place, as a completion does.
+    expect(upserts.filter((write) => write.event === event)).toEqual([
+      { event, enrollmentId: expect.any(String), score: 150n },
+    ]);
     const again = await dashboard("POST", `/events/${event}/submissions/${id}/review`, {
       decision: "approve",
     });
@@ -256,6 +279,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests over HTTP", 
       pendingPoints: 0,
       submissions: [{ status: "rejected", reason: "Please write more", resubmit: false }],
     });
+    expect(upserts.filter((write) => write.event === event)).toEqual([]);
+
+    const second = await send(sara.token, await newQuest(event), "Again");
+    const approved = await app(
+      "POST",
+      `/v1/operator/events/${event}/submissions/${second.json().submissionId}/review`,
+      reviewer.token,
+      { decision: "approve" },
+    );
+    expect(approved.json()).toEqual({
+      submissionId: String(second.json().submissionId),
+      status: "approved",
+      points: 150,
+      replayed: false,
+    });
+    expect(upserts.filter((write) => write.event === event)).toEqual([
+      { event, enrollmentId: expect.any(String), score: 150n },
+    ]);
   });
 
   it("refuses a submission quest that asks for photos or video, with its own message", async () => {

@@ -69,6 +69,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       for (const sql of [
         "SELECT * FROM public.submit_quest(gen_random_uuid(), 'x', '1.0', 'k')",
         "SELECT * FROM public.own_submissions(gen_random_uuid())",
+        "SELECT public.own_pending_points(gen_random_uuid())",
         "SELECT * FROM public.event_submissions(gen_random_uuid(), 'pending', NULL, 1)",
         "SELECT * FROM public.operator_submissions(gen_random_uuid(), NULL, 1)",
         "SELECT * FROM public.staff_review_submission(gen_random_uuid(), 1, 'approve', NULL, 'k', NULL)",

@@ -83,7 +83,8 @@ with no new path. Rejection writes nothing (FR-206/FR-326).
 `POST /v1/quests/{id}/submit {text}` (idempotency key; answers `{status, pendingPoints | points, levelUp}`);
 `GET /v1/events/{id}/submissions/mine`. Team: `GET /v1/organizer/events/{id}/submissions?filter=`, `POST
 …/submissions/{sid}/review`, `POST …/submissions/{sid}/remove`, `POST …/submissions/seen`; operator: `GET
-/v1/operator/events/{id}/submissions`, `POST …/review`. A rate limit on submit per player. Every string in
+/v1/operator/events/{id}/submissions`, `POST …/review`. No separate rate limit on submit (code review, 2026-10-24):
+one pending per quest and the repeat cap already bound it, and a rejection needs a person. Every string in
 `messages.ts` (Arabic via `ux-araby`), RTL checked, Western digits. Text never reaches logs, errors or push text.
 
 ## Screens

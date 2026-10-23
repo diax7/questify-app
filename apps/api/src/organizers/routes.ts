@@ -39,6 +39,7 @@ import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam } from "#src/organizers/store";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
+import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
 
@@ -57,6 +58,8 @@ export type OrganizerRoutesDeps = Readonly<{
   rewardCodeKey: RewardCodeKey;
   /** Operator invites: signed claim addresses and the invite email (T-204). */
   operators: OperatorsDeps;
+  /** Moves a player's place after a reviewer approves their submission (T-301). */
+  ranking: Ranking;
   dashboardOrigin: string;
 }>;
 
@@ -221,7 +224,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
-      registerSubmissionTeamRoutes(scope, { pool: deps.pool });
+      registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });
       registerFlagRoutes(scope, { pool: deps.pool });
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);

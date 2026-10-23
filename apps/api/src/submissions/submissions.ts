@@ -181,11 +181,14 @@ type OwnRow = {
   reviewed_at: Date | null;
 };
 
-/** The points the player's pending submissions will pay (FR-409). */
-export const pendingPoints = (submissions: readonly OwnSubmission[]): number =>
-  submissions
-    .filter((submission) => submission.status === "pending")
-    .reduce((sum, submission) => sum + submission.points, 0);
+/** The points all of the calling player's pending submissions in an event will pay (FR-409). */
+export async function readPendingPoints(client: PoolClient, eventId: string): Promise<number> {
+  const { rows } = await client.query<{ points: string }>(
+    "SELECT own_pending_points($1) AS points",
+    [eventId],
+  );
+  return Number(rows[0]?.points ?? 0);
+}
 
 /** The calling player's own submissions in an event, newest first (FR-205: never anyone else's). */
 export async function readOwnSubmissions(
@@ -207,13 +210,17 @@ export async function readOwnSubmissions(
   }));
 }
 
+/** The player's own submissions (at most 200, newest first) and the points all their pending ones will pay. */
 export function ownSubmissions(
   deps: SubmissionDeps,
   playerId: string,
   eventId: string,
-): Promise<OwnSubmission[]> {
+): Promise<Readonly<{ submissions: OwnSubmission[]; pendingPoints: number }>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(client, { playerId }, () => readOwnSubmissions(client, eventId)),
+    withRequestContext(client, { playerId }, async () => ({
+      submissions: await readOwnSubmissions(client, eventId),
+      pendingPoints: await readPendingPoints(client, eventId),
+    })),
   );
 }
 
@@ -326,20 +333,34 @@ export type Reviewed = Readonly<{
   replayed: boolean;
 }>;
 
+/** A review's answer, with the completion an approval paid and its player (for the ranking; never sent out). */
+export type ReviewOutcome = Readonly<{
+  reviewed: Reviewed;
+  paid: Readonly<{ playerId: string; completionId: string }> | null;
+}>;
+
 type ReviewedRow = {
   submission_id: string;
   status: Reviewed["status"];
   points: number;
   replayed: boolean;
+  completion_id: string | null;
+  player_id: string;
 };
 
-const reviewedOf = (rows: readonly ReviewedRow[]): Reviewed => {
+const reviewedOf = (rows: readonly ReviewedRow[]): ReviewOutcome => {
   const row = rows[0] as ReviewedRow;
   return {
-    submissionId: row.submission_id,
-    status: row.status,
-    points: row.points,
-    replayed: row.replayed,
+    reviewed: {
+      submissionId: row.submission_id,
+      status: row.status,
+      points: row.points,
+      replayed: row.replayed,
+    },
+    paid:
+      row.completion_id === null
+        ? null
+        : { playerId: row.player_id, completionId: row.completion_id },
   };
 };
 
@@ -348,7 +369,7 @@ export function staffReview(
   deps: SubmissionDeps,
   context: OrganizerContext,
   request: ReviewRequest & Readonly<{ requestId: string }>,
-): Promise<Done<Reviewed>> {
+): Promise<Done<ReviewOutcome>> {
   return run(deps, staffSeat(context), async (client) => {
     const { rows } = await client.query<ReviewedRow>(
       "SELECT * FROM staff_review_submission($1, $2, $3, $4, $5, $6)",
@@ -370,7 +391,7 @@ export function operatorReview(
   deps: SubmissionDeps,
   playerId: string,
   request: ReviewRequest,
-): Promise<Done<Reviewed>> {
+): Promise<Done<ReviewOutcome>> {
   return run(deps, { playerId }, async (client) => {
     const { rows } = await client.query<ReviewedRow>(
       "SELECT * FROM operator_review_submission($1, $2, $3, $4, $5)",

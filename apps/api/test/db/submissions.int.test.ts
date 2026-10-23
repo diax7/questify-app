@@ -20,7 +20,14 @@ type Sent = {
   balance: string;
   replayed: boolean;
 };
-type Reviewed = { submission_id: string; status: string; points: number; replayed: boolean };
+type Reviewed = {
+  submission_id: string;
+  status: string;
+  points: number;
+  replayed: boolean;
+  completion_id: string | null;
+  player_id: string;
+};
 type QuestOptions = {
   autoApprove?: boolean;
   resubmit?: boolean;
@@ -307,12 +314,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests (database)",
       const sent = await send(player, quest);
       await owner("UPDATE quest SET points = 999 WHERE id = $1", [quest]);
       const key = randomUUID();
-      expect(await review(event, sent.submission_id, "approve", null, key)).toMatchObject({
+      const approved = await review(event, sent.submission_id, "approve", null, key);
+      expect(approved).toMatchObject({
         status: "approved",
         points: 150,
         replayed: false,
+        completion_id: expect.any(String),
+        player_id: player,
       });
-      expect(await review(event, sent.submission_id, "approve", null, key)).toMatchObject({
+      expect(await review(event, sent.submission_id, "approve", null, key)).toEqual({
+        ...approved,
         replayed: true,
       });
       expect(await refusal(review(event, sent.submission_id, "reject", "late", key))).toBe("SK422");
@@ -472,6 +483,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests (database)",
         expect(await send(player, quest)).toMatchObject({ status: "pending" });
       },
     );
+
+    it("refuses approval while the player is banned from the platform (SE409)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const { player } = await member(event);
+      const sent = await send(player, quest);
+      await owner("UPDATE player SET status = 'banned' WHERE id = $1", [player]);
+      expect(await refusal(review(event, sent.submission_id, "approve"))).toBe("SE409");
+      expect(await statusOf(sent.submission_id)).toMatchObject({ status: "pending" });
+      expect(await review(event, sent.submission_id, "reject", "Banned")).toMatchObject({
+        status: "rejected",
+        completion_id: null,
+      });
+    });
 
     it("refuses approval once the event is archived (SE409), and closes nothing by itself", async () => {
       const event = await newEvent();
@@ -654,7 +679,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests (database)",
       const sent = await send(player, quest);
       await review(event, sent.submission_id, "approve");
       await send(player, quest);
-      await owner("SELECT wipe_rehearsal($1, 'go_live', $2)", [event, randomUUID()]);
+      const [wiped] = await owner<{ counts: Row }>(
+        "SELECT wipe_rehearsal($1, 'go_live', $2) AS counts",
+        [event, randomUUID()],
+      );
+      expect(wiped?.counts).toMatchObject({ accounts: 1, completions: 1, submissions: 2 });
       expect(
         await owner("SELECT count(*)::int AS n FROM submission WHERE enrollment_id = $1", [
           enrollment,
@@ -701,6 +730,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests (database)",
       expect(
         await query({ playerId: randomUUID() }, "SELECT * FROM own_submissions($1)", [event]),
       ).toEqual([]);
+    });
+
+    it("sums every pending submission's points, past the list's 200 rows, and only the caller's", async () => {
+      const event = await newEvent();
+      const me = await member(event);
+      const other = await member(event);
+      await send(other.player, await newQuest(event, { points: 7 }));
+      await owner(
+        `WITH made AS (
+           INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
+           SELECT $2, (SELECT id FROM category WHERE event_id = $2 LIMIT 1), 'submission', 'Q' || i, 10,
+                  '{"accepts": ["text"], "autoApprove": false, "resubmit": false}'
+           FROM generate_series(1, 250) AS i RETURNING id)
+         INSERT INTO submission (organizer_id, event_id, quest_id, enrollment_id, kind, body, points, status,
+                                 idempotency_key)
+         SELECT $1, $2, made.id, $3, 'text', 'Hi', 10, 'pending', 'k-' || made.id FROM made`,
+        [ids.orgA, event, me.enrollment],
+      );
+      const pending = async (player: string) =>
+        (
+          await query<{ points: string }>(
+            { playerId: player },
+            "SELECT own_pending_points($1) AS points",
+            [event],
+          )
+        )[0]?.points;
+      expect(await pending(me.player)).toBe("2500");
+      expect(await pending(other.player)).toBe("7");
+      expect(await pending(randomUUID())).toBe("0");
     });
 
     it("pages the team's queue: pending oldest first, done newest first", async () => {

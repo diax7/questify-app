@@ -35,12 +35,13 @@ import {
   operatorQueue,
   operatorReview,
   ownSubmissions,
-  pendingPoints,
   removeSubmission,
   sendSubmission,
   staffQueue,
   staffReview,
   type Done,
+  type Reviewed,
+  type ReviewOutcome,
   type SubmissionDeps,
   type SubmissionRefusal,
 } from "#src/submissions/submissions";
@@ -146,13 +147,24 @@ const nextCursor = (items: readonly { id: string }[], limit: number): string | n
 const reasonOf = (body: z.infer<typeof reviewBody>): string | null =>
   body.decision === "reject" ? body.reason : null;
 
+type RankingDeps = Readonly<{ ranking: Ranking }>;
+
+/** An approval moves the player's place like any completion; a ranking failure never fails the review. */
+async function answerReview(deps: RankingDeps, result: Done<ReviewOutcome>): Promise<Reviewed> {
+  const { reviewed, paid } = valueOf(result);
+  if (paid !== null) {
+    await deps.ranking.afterCompletion(paid.playerId, paid.completionId);
+  }
+  return reviewed;
+}
+
 /**
  * The player's side (FR-206, FR-327, FR-409, FR-1709) and the operator's review (FR-324, FR-325). Sending needs an
  * Idempotency-Key; an auto-approved submission moves the player's place like a completion.
  */
 export function registerSubmissionPlayerRoutes(
   app: FastifyInstance,
-  deps: SubmissionDeps & Readonly<{ ranking: Ranking }>,
+  deps: SubmissionDeps & RankingDeps,
 ): void {
   app.post("/v1/quests/:questId/submit", playerIdempotent, async (request, reply) => {
     const { questId } = parse(questParams, request.params);
@@ -170,8 +182,7 @@ export function registerSubmissionPlayerRoutes(
 
   app.get("/v1/events/:eventId/submissions/mine", player, async (request) => {
     const { eventId } = parse(eventParams, request.params);
-    const submissions = await ownSubmissions(deps, playerIdOf(request), eventId);
-    return { submissions, pendingPoints: pendingPoints(submissions) };
+    return ownSubmissions(deps, playerIdOf(request), eventId);
   });
 
   app.get("/v1/operator/events/:eventId/submissions", player, async (request) => {
@@ -193,7 +204,8 @@ export function registerSubmissionPlayerRoutes(
     async (request) => {
       const { eventId, submissionId } = parse(itemParams, request.params);
       const body = parse(reviewBody, request.body);
-      return valueOf(
+      return answerReview(
+        deps,
         await operatorReview(deps, playerIdOf(request), {
           eventId,
           submissionId,
@@ -207,7 +219,10 @@ export function registerSubmissionPlayerRoutes(
 }
 
 /** The dashboard's queue, review, removal and seen marks, inside the organizer scope (owners and editors). */
-export function registerSubmissionTeamRoutes(scope: FastifyInstance, deps: SubmissionDeps): void {
+export function registerSubmissionTeamRoutes(
+  scope: FastifyInstance,
+  deps: SubmissionDeps & RankingDeps,
+): void {
   scope.get("/events/:eventId/submissions", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const query = parse(queueQuery, request.query);
@@ -228,7 +243,8 @@ export function registerSubmissionTeamRoutes(scope: FastifyInstance, deps: Submi
     async (request) => {
       const { eventId, submissionId } = parse(itemParams, request.params);
       const body = parse(reviewBody, request.body);
-      return valueOf(
+      return answerReview(
+        deps,
         await staffReview(deps, organizerContextOf(request), {
           eventId,
           submissionId,

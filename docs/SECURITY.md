@@ -85,6 +85,11 @@ must not widen it without a decision.
 Changing the table itself (a migration) is guarded by review only. The only sanctioned future change to past
 entries is the anonymisation path for a deleted player (Q-084).
 
+Operators are players, and `audit_log` has no player actor: their actions are recorded where they happen instead. A
+quest an operator completes or awards carries `operator_id` on its ledger entry; a submission an operator reviews
+carries `reviewed_by_operator`, `reviewed_at` and `review_key`, and its approval's ledger entry carries the
+operator too (`actor = 'operator'`, T-301). The team's reviews are audited (`event.submission_approved` / `event.submission_rejected`).
+
 ### Points ledger and completions (T-105)
 
 | ASVS area | Control | Proof |

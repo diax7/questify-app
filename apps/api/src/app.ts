@@ -287,6 +287,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     },
     rewardCodeKey,
     operators: operatorDeps,
+    ranking,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 
