@@ -92,7 +92,8 @@ Players created before 0017 have no rows and are asked again.
   contact change. No grant.
 - `player_deletion_challenge (id, token_hash, player_id NULL, contact_key, code_hash, attempts ≤ 3, expires_at,
   deletion_hash, deletion_expires_at, erased_at, created_at)`: the deletion code (never a sign-in), then the 10-minute
-  deletion token; `player_id` NULL when no account uses the contact. Swept an hour after it ends. No grant.
+  deletion token; `player_id` NULL when no account uses the contact. Once used (`erased_at`), `player_id` and
+  `contact_key` are cleared, so it names neither the tombstone nor the contact. Swept an hour after it ends. No grant.
 - `erase_player(deletion, forfeit, request)`: player `FOR UPDATE` → enrollments by id `FOR NO KEY UPDATE` →
   `end_reservation(…, 'erasure', 'system', NULL)` per pending item (`redemption.ended_by` gains `erasure`) → the
   writes; audited `player.delete` with counts. The join definers read the caller `FOR KEY SHARE` first, so a join in

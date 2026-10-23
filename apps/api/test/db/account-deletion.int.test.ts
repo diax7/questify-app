@@ -222,8 +222,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
         [enrollment],
       );
 
-      const answer = await deleteAccount(gone);
+      await owner("DELETE FROM ranking_repair WHERE event_id = $1", [event.id]);
+      const signIn = randomUUID();
+      await as({}, "SELECT start_player_challenge($1, $2, 'email', $3, $4, $5, '0.1', '0.1', $6)", [
+        signIn,
+        bytes(),
+        gone.email,
+        sha(gone.email),
+        bytes(),
+        fp(gone.email),
+      ]);
+      const deletion = await tokenFor(gone);
+      const answer = await erase(deletion, true);
       expect(answer).toEqual({ outcome: "erased", events: [event.id] });
+      expect(await count("ranking_repair WHERE event_id = $1", [event.id])).toBe(1);
+      expect(await count("player_login_challenge WHERE id = $1", [signIn])).toBe(0);
+      expect(
+        await owner(
+          "SELECT player_id, contact_key, erased_at IS NOT NULL AS erased FROM player_deletion_challenge WHERE deletion_hash = $1",
+          [sha(deletion)],
+        ),
+      ).toEqual([{ player_id: null, contact_key: null, erased: true }]);
+      expect(
+        await count("player_deletion_challenge WHERE contact_key = $1", [sha(gone.email)]),
+      ).toBe(0);
 
       expect(
         await owner("SELECT username, birth_year, avatar, status FROM player WHERE id = $1", [
@@ -790,7 +812,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
         "SELECT erased_marked(gen_random_uuid(), NULL, 'banned')",
         "SELECT platform_marked('\\x00')",
         "SELECT deletion_holder('\\x00')",
-        "SELECT erase_rows(gen_random_uuid(), '{}')",
+        "SELECT erase_rows(gen_random_uuid(), '{}', NULL)",
       ]) {
         await expect(db.app.query(sql), sql).rejects.toThrow(/permission denied/);
       }

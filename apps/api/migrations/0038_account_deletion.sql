@@ -539,12 +539,13 @@ END $$;
 -- ================================================================ the deletion challenge (ADR-177)
 -- A one-time code for deletion only: it can never sign in. player_id NULL when no account uses the contact (the
 -- request answers the same and sends nothing). The contact itself is never stored. A right code sets the deletion
--- token's hash for 10 minutes; erase_player consumes it (erased_at), and a repeat with it answers 'replayed'.
+-- token's hash for 10 minutes; erase_player consumes it (erased_at, and clears player_id and contact_key so the used
+-- row links the tombstone to no contact), and a repeat with it answers 'replayed'.
 CREATE TABLE player_deletion_challenge (
   id                  uuid PRIMARY KEY,
   token_hash          bytea NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
   player_id           uuid REFERENCES player (id) ON DELETE CASCADE,
-  contact_key         bytea NOT NULL CHECK (octet_length(contact_key) = 32),
+  contact_key         bytea CHECK (octet_length(contact_key) = 32),
   code_hash           bytea NOT NULL CHECK (octet_length(code_hash) = 32),
   attempts            integer NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 3),
   expires_at          timestamptz NOT NULL,
@@ -553,7 +554,8 @@ CREATE TABLE player_deletion_challenge (
   erased_at           timestamptz,
   created_at          timestamptz NOT NULL DEFAULT now(),
   CHECK ((deletion_hash IS NULL) = (deletion_expires_at IS NULL)),
-  CHECK (erased_at IS NULL OR deletion_hash IS NOT NULL)
+  CHECK (erased_at IS NULL OR deletion_hash IS NOT NULL),
+  CHECK ((contact_key IS NULL) = (erased_at IS NOT NULL))
 );
 CREATE INDEX player_deletion_challenge_contact_idx ON player_deletion_challenge (contact_key);
 CREATE INDEX player_deletion_challenge_player_idx ON player_deletion_challenge (player_id);
@@ -697,7 +699,7 @@ REVOKE ALL ON FUNCTION erase_marks(player) FROM PUBLIC;
 
 -- Removes and clears everything personal (the table in the T-217 plan). The ledger, completions, handed-over prizes,
 -- result places, ban rows of the enrollments and the audit log stay; they name only the tombstone's id.
-CREATE FUNCTION erase_rows(me uuid, enrolled uuid[]) RETURNS void
+CREATE FUNCTION erase_rows(me uuid, enrolled uuid[], key bytea) RETURNS void
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   -- The append-only histories let a DELETE through under this flag only, for this transaction.
@@ -706,11 +708,15 @@ BEGIN
   DELETE FROM player_acceptance WHERE player_id = me;
   PERFORM set_config('app.erasure', '', true);
   DELETE FROM player_fingerprint WHERE player_id = me;
+  -- Open sign-in codes for the account's contacts (they hold the contact in clear).
+  DELETE FROM player_login_challenge l
+  WHERE l.contact_key = key
+     OR l.contact IN (SELECT unnest(ARRAY[pc.phone_e164, pc.email]) FROM player_contact pc WHERE pc.player_id = me);
   DELETE FROM player_contact WHERE player_id = me;
   DELETE FROM player_contact_challenge WHERE player_id = me;
   DELETE FROM player_session WHERE player_id = me;
   DELETE FROM player_refresh WHERE player_id = me;
-  DELETE FROM player_deletion_challenge WHERE player_id = me AND deletion_hash IS NULL;
+  DELETE FROM player_deletion_challenge WHERE player_id = me;
   DELETE FROM staff_assignment WHERE player_id = me;
   DELETE FROM join_answer WHERE enrollment_id = ANY (enrolled);
   DELETE FROM flag WHERE enrollment_id = ANY (enrolled);
@@ -726,7 +732,7 @@ BEGIN
       my_qr_version = my_qr_version + 1
   WHERE id = me;
 END $$;
-REVOKE ALL ON FUNCTION erase_rows(uuid, uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION erase_rows(uuid, uuid[], bytea) FROM PUBLIC;
 
 -- Deletes the account behind a live deletion token, in one transaction. Lock order: the player FOR UPDATE, the
 -- player's enrollments by id FOR NO KEY UPDATE, then end_reservation per pending item (enrollment, reward,
@@ -740,6 +746,7 @@ DECLARE
   held     player_deletion_challenge%ROWTYPE;
   me       player%ROWTYPE;
   enrolled uuid[];
+  boards   uuid[];
   pending  uuid[];
   item     uuid;
   marks    integer;
@@ -769,9 +776,15 @@ BEGIN
   FOREACH item IN ARRAY pending LOOP
     PERFORM end_reservation(item, 'cancelled', 'erasure', 'system', NULL);
   END LOOP;
+  -- The boards the player was on, read before erase_rows ends the enrollments: each is rebuilt without them.
+  SELECT coalesce(array_agg(DISTINCT n.event_id), '{}') INTO boards
+  FROM enrollment n WHERE n.id = ANY (enrolled) AND n.status = 'active';
   marks := erase_marks(me);
-  PERFORM erase_rows(me.id, enrolled);
-  UPDATE player_deletion_challenge SET erased_at = now() WHERE id = held.id;
+  -- The used token first lets go of the player and the contact, so erase_rows can drop every other challenge of theirs.
+  UPDATE player_deletion_challenge SET erased_at = now(), player_id = NULL, contact_key = NULL WHERE id = held.id;
+  PERFORM erase_rows(me.id, enrolled, held.contact_key);
+  INSERT INTO ranking_repair (event_id) SELECT unnest(boards)
+  ON CONFLICT (event_id) DO UPDATE SET marked_at = now();
   INSERT INTO audit_log (actor_type, action, target_type, target_id, after, request_id)
   VALUES ('system', 'player.delete', 'player', me.id::text,
           jsonb_build_object('events', cardinality(enrolled), 'forfeited', cardinality(pending), 'marks', marks),
