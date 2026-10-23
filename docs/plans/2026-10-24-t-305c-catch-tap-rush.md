@@ -9,6 +9,14 @@ gate and its retry).
 
 Dhia is away: the open choices are my recommendation, written as **Proposed** ADR-216 to ADR-218 and Q-181, Q-182.
 
+**CTO plan review 2026-10-24: 84/100, findings folded in** (1: the round pauses whenever the app is not active, the
+board covered and paused time taken out of `t`; 2: catch's `foreseen` counts only a first move onto an item inside its
+first 133 ms from a target that was not already there; 3: the app's quest sheet takes an unknown game and shows the
+update line, so an older build reaches 426 instead of "failed"; 4: tap rush stamps `t` at the touch and its checks read
+the seeded schedule at `tickAt(t)`; 5: a 150 ms grace after a target goes; 6: the honest tap model has a fast tail;
+7: calibration in its own file Stryker skips, and a timing test on the worst catch body; 8: the catch cap is 1,351 and
+catch does not use the 100 ms floor).
+
 ## What stays exactly as T-305 built it
 
 The protocol does not change: Play issues a seeded round (an attempt used at issue, idempotent by key, the engine
@@ -49,15 +57,21 @@ moves only on a fixed tick, in integers, and a frame never decides anything.**
   in this order: (1) records the frame's input through the gate, stamped with that `t`; (2) advances the state to
   `tickAt(t)`; (3) draws. Because the input is recorded before the world advances, an input's tick is never behind the
   state, so the app's live state after any frame is exactly the replay's state at that tick. A slow frame (200 ms) runs
-  six ticks at once; a stalled app (background, a 2 s hitch) catches up on the next frame; neither changes a result,
+  six ticks at once; a 2 s hitch catches up on the next frame; neither changes a result,
   only how many inputs the player managed to make. Drawing may interpolate between tick `k` and `k + 1` with floats:
   display only, never fed back.
 - **The round ends on a tick.** Each level has a fixed length (`timeLimitSeconds`, already what the deadline reads);
   `endTick = timeLimitSeconds * 30`. When `tickAt(t) >= endTick` the app stops recording, computes `claimed =
   resultOf(state)` and sends, with no "Done" button. An input after `timeLimitSeconds * 1000` ms is `late`.
-- **Leaving the app does not pause the round** (the server's window does not pause): when the app comes back the loop
-  catches up to the clock, items that landed meanwhile count as missed. The instruction card says so. A pause would
-  need the server to see it, which it cannot.
+- **The round pauses whenever the app is not active** (CTO 1; `AppState` leaves `active`: a call, the app switcher,
+  the lock screen). The board is covered by a "Paused" card, the loop stops, and the paused time is taken out of the
+  game clock: `t = (now − shownAt) − pausedMs`. This is safe against the server's checks: the clock rule
+  (`finish_game_round`, 0050) refuses only phone time **larger** than the server's elapsed time, and a pause makes it
+  smaller. The window caps the pause: the result is still due by `deadlineAt` (time limit + 10 minutes, read against
+  `serverNow`), so on return with under 30 s of the window left the app ends the round at once (`claimed =
+  resultOf(state)`, the remaining items missed or targets gone) and sends it. `performance.now()` (T-305's clock) does
+  not advance while the device sleeps on some phones, which the pause makes irrelevant: the game clock never relies on
+  time passing while the app is away.
 
 **An honest player is never refused** (T-305's CTO 1, kept): every impossible rule below is one the app's gate applies
 before recording, and the frame order above guarantees tick order. Property tests drive the **app's own `frame`
@@ -81,14 +95,17 @@ A basket slides along the bottom; items fall; catch enough of them.
   expressed: a teleporting x is just a far target the basket walks to.
 - **Impossible** (the gate drops each in the app; the replay refuses): two inputs on the same tick (`too_fast`; the
   app keeps the newest x pending and records it on the next tick), `t` below the previous input's (`order`), past the
-  length (`late`), more than 1,800 inputs (`cap`, one per tick of the longest level), a malformed x (`malformed`, zod).
+  length (`late`), more than 1,351 inputs (`cap`: one per tick from tick 0 to tick 1,350 of the 45 s levels), a
+  malformed x (`malformed`, zod). Catch does **not** use `timeRefusal`'s 100 ms floor (CTO 8): a drag is sampled once
+  a tick (33 ms), and its own one-per-tick rule replaces the floor; `order` and `late` are checked in the engine.
   `illegal` does not arise. A claimed result the replay does not reproduce is `claimed`, as for every game.
 - **Result** `{caught, missed, foreseen}`. **Passes**: `caught >= catchTarget`.
-- **Unlikely** (ADR-217): `foreseen >= unlikelyForesight`. A caught item is **foreseen** when the input that put the
-  target over it was recorded before tick `spawnTick + 4` (133 ms after it appeared: under any human reaction) while
-  the basket was more than `basketHalf` away from where it would land: the player started for a spot nothing on screen
-  pointed at. An honest player sweeping about does this now and then; a player reading the seed does it all the time.
-- **Size.** An input is at most `{"t":45000,"x":1000},` (22 bytes); 1,800 of them is 39.6 KB, under the 64 KB body
+- **Unlikely** (ADR-217): `foreseen >= unlikelyForesight`. A caught item is **foreseen** (CTO 2) when the **first**
+  input at or after its `spawnTick` that puts the target within `basketHalf` of the item's x has its tick in
+  `spawnTick .. spawnTick + 3` (under 133 ms after it appeared: under any human reaction), **and** the target before
+  that input was not already within `basketHalf` of it. A player already standing there, or one who drifts over later,
+  is never counted; a player who jumps to the spot the moment the item appears (the seed reader moves at spawn) is.
+- **Size.** An input is at most `{"t":45000,"x":1000},` (22 bytes); 1,351 of them is 29.7 KB, under the 64 KB body
   limit with `claimed` and the JSON around it. The limit stays one number for every game.
 
 ## Tap rush
@@ -101,7 +118,14 @@ Targets pop up on a grid; tap each before it goes; a miss costs a point.
   free cell always exists (a test). Liveness is judged in milliseconds on the tick grid: a target is up for
   `tickStartMs(spawn) <= t < tickStartMs(spawn + lifeTicks)`.
 - **The input is a tap on a cell**: `{t, cell}`, the cell the finger landed in (as memory's card index: no geometry in
-  the replay). On a live target it is a **hit** (the target goes); on an empty cell, a **miss**.
+  the replay). On a live target it is a **hit** (the target goes); on an empty cell, a **miss**. **Grace** (CTO 5): a
+  tap on a cell whose target went (its life ended, not hit) less than 150 ms earlier is neither hit nor miss (recorded,
+  legal, it counts toward the floor and the cap), so a player who was a moment late is not also charged a point.
+- **Time is stamped at the touch, not per frame** (CTO 4): tap rush has no moving world between taps, so the app takes
+  `t` in `onPressIn` from the same paused-aware game clock. `refusal` runs on the state **before** `apply` (T-305's
+  `replay` and `canInput`), so the liveness, 120 ms and grace checks read the seeded schedule at `tickAt(t)` and
+  `tickStartMs` directly; the state holds only what taps change (the hit targets, the last `t`, the counts). The board's
+  frame loop only draws.
 - **Impossible** (the gate drops each; the replay refuses): two taps under T-305's 100 ms floor (`too_fast`; a
   two-finger tap inside 100 ms registers once, as a double flip does in memory), a hit on a target younger than
   **120 ms** (`too_fast`: measured from `tickStartMs(spawn)`, and the target reaches the screen only on the next frame,
@@ -169,6 +193,12 @@ build notes say so.
   miss. Accessible labels on cells ("Row 2, column 3, target"); the instruction card notes that both games need quick
   sight and touch, so an organizer can prefer the others for an accessible event (the builder's helper line too).
 - The result, Retry, window and "Retry instead of Play" are T-305's, unchanged.
+- **An unknown game on the quest sheet** (CTO 3): today `gameSheetOf` (`apps/app/src/event/games.ts:44`) answers
+  `undefined` for a game name the build does not know, and `GameEntry.tsx` then shows "failed", so an older build
+  never reaches the 426 path. The sheet is changed to take any game name: a game outside this build's `BOARDS` (or at
+  an engine version it lacks, `drawable`) shows the quest's name, points and the existing "Update the app to play this
+  game" line, with no Play. Fixed here because T-305 is unreleased, so every released build handles games added later.
+- **The pause card** (CTO 1) covers the board while the app is not active and resumes on return with a 3-2-1 count.
 - **Art**: falling items and targets from the reviewed library (`docs/design/assets/currency`, `rewards`, `icons`), the
   basket from the reviewed set if one reads well at size, otherwise drawn from Views in the brand's wood and gold; each
   checked full size (the asset-review rule); no new generated art.
@@ -180,7 +210,7 @@ build notes say so.
   | target.tapRush | Score {target} points in {seconds} seconds. A miss costs a point. | اجمع {target} نقطة خلال {seconds} ثانية. كل نقرة خاطئة تخصم نقطة. |
   | howTo.catch | Drag the basket to catch what falls. | اسحب السلة لتلتقط ما يسقط. |
   | howTo.tapRush | Tap each treasure before it disappears. | انقر كل كنز قبل أن يختفي. |
-  | keepsRunning | The game keeps running if you leave the app. | تستمر اللعبة إذا غادرت التطبيق. |
+  | paused | Paused. Back to the game? | اللعبة متوقفة مؤقتًا. أتعود إليها؟ |
   | short.catch | So close. You needed {target}; you caught {caught}. | اقتربت! المطلوب {target} والتقطت {caught}. |
   | short.tapRush | So close. You needed {target}; you scored {score}. | اقتربت! المطلوب {target} وجمعت {score}. |
 
@@ -197,23 +227,32 @@ gains the count that tripped it (`foreseen 9`, `quick 11`) from the round's `res
 - **Engines** (`catch/v1.test.ts`, `tap-rush/v1.test.ts`): three seeds' worlds fixed by snapshot; every item
   reachable and every schedule inside its length at every level over 5,000 seeds; a scripted perfect player passes
   every level; poor play is `short`; each impossible reason at its edge (same tick and next tick; 99 and 100 ms; 119
-  and 120 ms on a fresh target; `t` at the length and one past; the caps and one over; cell 11 and 12); `claimed`
-  differs; the unlikely counts at their edges (tick `spawn + 3` and `+ 4`; 199 and 200 ms); `advance` composes
-  (`advance(advance(s, a), b)` equals `advance(s, b)`) and never goes back.
+  and 120 ms on a fresh target; `t` at the length and one past; 1,351 and 1,352 catch inputs, 300 and 301 taps; cell
+  11 and 12); `claimed` differs; the unlikely counts at their edges (tick `spawn + 3` and `+ 4`; a target already over
+  the item is not counted; a first move after `+ 3` then back is not counted; 199 and 200 ms); the grace at 149 and
+  150 ms after a target went; `advance` composes (`advance(advance(s, a), b)` equals `advance(s, b)`) and never goes
+  back.
 - **Property: honest play is never refused** (plain seeded loops, no new dependency), 500 seeds × 3 levels × 2 games,
-  through the app's own `frame` and gate: frame gaps drawn from 8 to 250 ms with a 2 s stall in one round in ten; for
-  catch a finger that wanders and chases the lowest visible item; for tap rush taps on random cells and on visible
-  targets after a 230 to 730 ms reaction. Each round's recorded inputs, judged, are never `refused` and reproduce the
-  app's `claimed` exactly. The same inputs replayed on a different frame schedule's state give the same result (frame
-  timing changes nothing).
-- **Property: the unlikely flags** (5,000 seeds per level): the honest models above flagged under 1%; a seed reader
-  (catch: heads to the next landing as soon as the last item is caught; tap rush: taps each target 130 ms after it
-  appears) flagged over 90% (Levels).
+  through the app's own `frame`, tap handler and gate: frame gaps drawn from 8 to 250 ms with a 2 s stall in one round
+  in ten, and a pause of 1 s to 5 minutes in one round in ten (`t` stays below the server's elapsed time); for catch a
+  finger that wanders and chases the lowest visible item; for tap rush taps on random cells and on visible targets.
+  Each round's recorded inputs, judged, are never `refused` and reproduce the app's `claimed` exactly. The same inputs
+  replayed on a different frame schedule's state give the same result (frame timing changes nothing).
+- **Calibration of the unlikely flags** (CTO 7), in its own files (`*.calibration.test.ts`, run by `vitest` in CI and
+  excluded from Stryker's test run, so mutation never repeats 5,000-seed loops): 5,000 seeds × 3 levels × each model.
+  Honest models flagged under 1%: catch reacts to the lowest visible item after 200 to 400 ms; tap rush reacts after
+  230 to 730 ms with a **fast tail** (CTO 6: about 5% of reactions drawn from 150 to 230 ms), so the `quick` threshold
+  is tested against real fast players. Seed readers flagged over 90%: catch **moves to each item's landing at its
+  spawn**; tap rush taps each target 130 ms after it appears.
+- **Replay cost** (CTO 7): a timing test judges the worst-case catch body (1,351 inputs, 1,350 ticks, 50 items, hard)
+  in under 25 ms on the CI runner, the bound on what one result request can cost the server.
 - **Database**: `game_level` equals `LEVELS` for all twelve rows; a catch and a tap rush quest save, issue (deadline =
   length + 10 minutes), pass and pay once; `quest_game_shape` refuses an unknown game.
 - **Route**: the 1,800-input catch body is taken; a body of a passing `claimed` with failing inputs is refused; the
   builder takes `catch` and `tap_rush`.
-- **App**: `frame` (input before advance, one input per tick, the pending x, the end), both boards from a seed, the
+- **App**: `frame` (input before advance, one input per tick, the pending x, the end), the pause (paused time out of
+  `t`, the board covered, the round ended on return with under 30 s of window left), the sheet for an unknown game
+  and for an engine version this build lacks (the update line, no Play, never "failed"), both boards from a seed, the
   instruction cards in Arabic, the result lines; `hermes-runtime.test.ts` over the new files; `expo export`. Web: the
   builder's four games, the flag line's count.
 - **Mutation (GitHub)**: `packages/shared/src/games/ticks.ts`, `packages/shared/src/games/catch/**/*.ts`,
@@ -222,10 +261,11 @@ gains the count that tripped it (`foreseen 9`, `quick 11`) from the round's `res
 
 ## Phases (CTO code review once, at the end)
 
-1. Shared: ticks, the two engines, levels, registry, with the engine and property tests (thresholds set here).
+1. Shared: ticks, the two engines, levels, registry, with the engine, property, calibration and timing tests
+   (thresholds set here).
 2. Migration 0051 + database tests + the security suites run.
 3. API (registry use, builder, `COMING_GAMES` removed) + route tests.
-4. App (`realtime.ts`, two screens, art, strings), dashboard (builder, flag line), docs (API.md game list, DATA_MODEL
+4. App (`realtime.ts` with the pause, two screens, the sheet for an unknown game, art, strings), dashboard (builder, flag line), docs (API.md game list, DATA_MODEL
    game names, SRS status of FR-1804, FEATURES, TASKS, STATE).
 
 ## Proposed decisions and questions
@@ -235,16 +275,18 @@ gains the count that tripped it (`foreseen 9`, `quick 11`) from the round's `res
   engine adds `advance` to T-305's contract so the replay, judge and gate are reused unchanged; the app reads the clock
   once a frame, records the input before advancing, and draws by interpolation only, so frame rate and stalls never
   change a result; catch records the basket's target only when it changes, at most once a tick, and the basket's speed
-  is capped by the world; the round runs on while the app is away. Q-181.
+  is capped by the world; the round pauses while the app is not active (paused time out of `t`, the window still
+  bounding it); an app build shows the update line for a game it does not know. Q-181.
 - **ADR-217** Reaction bounds in the real-time games: a tap on a target younger than 120 ms, or two taps inside 100 ms,
   is dropped by the app and impossible in a replay (a gate, so an honest player is never refused; replaces T-305's
-  "more than a fifth of hits" sketch); fast-but-possible play is an unlikely flag (tap rush: hits under 200 ms; catch:
-  catches started before the item could be seen) with level thresholds set so honest play is flagged in under 1% of
-  seeded rounds. Q-181.
+  "more than a fifth of hits" sketch); a tap within 150 ms after a target went is neither hit nor miss;
+  fast-but-possible play is an unlikely flag (tap rush: hits under 200 ms; catch: a first move onto an item inside its
+  first 133 ms from a target not already there) with level thresholds set so honest play, fast tail included, is
+  flagged in under 1% of seeded rounds. Q-181.
 - **ADR-218** Catch and tap rush rules and levels: fixed lengths (45 s and 30 s), every catch item reachable by a
   perfect player, tap rush scored as hits minus misses, the table above as starting tuning; the 64 KB body limit stays
   one number for every game. Q-182.
-- **Q-181** Agree to fixed-tick replay, the 120 ms tap gate, and flagging (never refusing) fast play? And that leaving
-  the app does not pause a real-time round?
+- **Q-181** Agree to fixed-tick replay, the 120 ms tap gate, and flagging (never refusing) fast play? And that a
+  real-time round pauses while the app is not active, within the result window?
 - **Q-182** The catch and tap rush numbers (lengths, speeds, targets, a miss costing a point in tap rush, the unlikely
   thresholds): keep as a start, to be tuned after a playtest from the rounds' stored counts?

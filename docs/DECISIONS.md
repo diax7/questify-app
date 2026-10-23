@@ -2754,17 +2754,20 @@ board. Inputs keep their time in whole milliseconds; one shared integer function
 engine adds `advance(state, tick)` to the game engine contract, so the replay, the judge and the app's gate are reused
 unchanged. The app reads its clock once a frame, records that frame's input before advancing the world, and only
 interpolates for drawing, so frame rate and stalls never change a result. Catch records the basket's target only when
-it changes, at most once a tick, and the world caps the basket's speed. A real-time round keeps running while the app
-is away.
+it changes, at most once a tick, and the world caps the basket's speed. A real-time round pauses while the app is not
+active: the board is covered and the paused time is taken out of the game clock (the server's clock check only refuses
+more phone time than it saw, and the result window still bounds the pause). The quest sheet takes a game this build
+does not know and shows the update line. CTO plan review 2026-10-24: 84/100, findings folded in.
 **Why:** FR-1804, FR-1805; a replay must give the phone's result exactly on Node and release Hermes whatever the
 phone's frame rate (`docs/plans/2026-10-24-t-305c-catch-tap-rush.md`).
 
 ## ADR-217 — Reaction bounds in the real-time games
 **Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Replaces T-305's sketch of a share of fast hits.
 **Decision:** a tap on a target younger than 120 ms, or a second tap inside 100 ms, is dropped by the app and is
-impossible in a replay. Fast but possible play raises the unlikely flag and is paid: tap rush hits under 200 ms, and
-catch catches started before the item could be seen, each counted against a level threshold set so honest play is
-flagged in under 1% of seeded rounds.
+impossible in a replay; a tap within 150 ms after a target went is neither hit nor miss. Fast but possible play raises
+the unlikely flag and is paid: tap rush hits under 200 ms, and catch items whose first move onto them came inside
+their first 133 ms from a target not already there, each counted against a level threshold set so honest play (a fast
+tail of reactions included) is flagged in under 1% of seeded rounds.
 **Why:** a share-based refusal could refuse an honest fast player; a gate costs an honest player one ignored tap and
 keeps "an honest player is never refused" (ADR-212).
 
