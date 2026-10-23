@@ -438,7 +438,7 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: A deletion request removes the profile and anonymizes log entries; a deleted account cannot be restored.
   - Note 2026-10-24 (T-217): `erase_player` does the deletion; the admin path needs a definer that issues a deletion token for a player on a verified request (or calls `erase_marks`/`erase_rows` in the same order), audited with the admin as actor.
 - [ ] **T-709** Platform health view, platform numbers, admin accounts and sessions — delivers FR 1783, 1419, 1785, 1403; depends on: T-004
-  - Note 2026-10-24 (T-401): FR-1403's XP table: edit `platform_setting` key `xp` (`questXp`, CHECKed 1–99999), `xp_level` and `level_title` (admin only, audited). A curve change must recompute `player_xp.level` (`xp_level_of`); `level_reached` rows stay.
+  - Note 2026-10-24 (T-401): FR-1403's XP table: edit `platform_setting` key `xp` (`questXp`, CHECKed 1–99999), `xp_level` and `level_title` (admin only, audited). A curve change must recompute `player_xp.level` (`xp_level_of`) in the same transaction as the edit, and refuse to delete a level any player holds (`own_level` joins `xp_level` on it, migration 0039 line 266); `level_reached` rows stay.
   - Done when: An admin can see and end another admin's sessions.
 - [ ] **T-710** Review demo tenant and reviewer login — delivers FR 1406, 1407, 1736; depends on: T-703
   - Note 2026-10-21 (T-115): FR-303's App Review demo QR picker belongs here: offered only in the review demo event, never in any other. The scanner (`apps/app/app/event/[eventId]/scan-quest.tsx`) has no image picker today.

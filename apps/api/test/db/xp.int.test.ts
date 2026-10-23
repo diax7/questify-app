@@ -200,6 +200,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify XP (database)", () =>
       expect(await xpOf(player)).toEqual({ xp: "100", level: 1 });
     });
 
+    it("pays a quest an operator completes by scanning the player's My QR once, replay included", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      await owner("UPDATE quest SET type = 'scan_qr', verification = '{my_qr}' WHERE id = $1", [
+        quest,
+      ]);
+      const [player, operator] = [await newPlayer(), await newPlayer()];
+      await enroll(player, event);
+      await owner(
+        `INSERT INTO staff_assignment (organizer_id, event_id, player_id, abilities)
+         VALUES ($1, $2, $3, '{scan_quests}')`,
+        [ids.orgA, event, operator],
+      );
+      const scan = (key: string) =>
+        query({ playerId: operator }, "SELECT * FROM operator_complete_quest($1, $2, 1, $3)", [
+          quest,
+          player,
+          key,
+        ]);
+      const key = randomUUID();
+      await scan(key);
+      await scan(key);
+      await expect(scan(randomUUID())).rejects.toThrow(/already completed/);
+      expect(await xpOf(player)).toEqual({ xp: "100", level: 1 });
+      expect(await xpOf(operator)).toEqual({ xp: "0", level: 1 });
+      expect(
+        await owner("SELECT count(*)::int AS n FROM xp_entry WHERE player_id = $1", [player]),
+      ).toEqual([{ n: 1 }]);
+    });
+
     it("pays nothing for a rehearsal account's quest entry", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
