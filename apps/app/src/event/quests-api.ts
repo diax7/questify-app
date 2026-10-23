@@ -66,7 +66,12 @@ export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly 
  * A quest item a payment gave (FR-522) or missed (FR-1617, T-304d): `pending` waits at the prize desk;
  * `out_of_stock` and `claim_closed` paid the points only.
  */
-export type ItemGiven = Readonly<{ name: Bilingual; outcome: ItemOutcome }>;
+export type ItemGiven = Readonly<{
+  name: Bilingual;
+  outcome: ItemOutcome;
+  /** A pending item's claim deadline and the event's zone; it may be the desk's closing soon (ADR-205). */
+  until: Readonly<{ at: string; timeZone: string }> | null;
+}>;
 
 export type ItemOutcome = "pending" | "out_of_stock" | "claim_closed";
 
@@ -75,7 +80,17 @@ const OUTCOMES: readonly string[] = ["pending", "out_of_stock", "claim_closed"];
 /** The item in a payment's answer, or null when there is none or it is not well formed (a newer outcome too). */
 export function itemGivenOf(value: unknown): ItemGiven | null {
   return isRecord(value) && isText(value["name"]) && OUTCOMES.includes(String(value["outcome"]))
-    ? { name: value["name"], outcome: value["outcome"] as ItemOutcome }
+    ? {
+        name: value["name"],
+        outcome: value["outcome"] as ItemOutcome,
+        until: untilOf(value["until"]),
+      }
+    : null;
+}
+
+function untilOf(value: unknown): ItemGiven["until"] {
+  return isRecord(value) && typeof value["at"] === "string" && typeof value["timeZone"] === "string"
+    ? { at: value["at"], timeZone: value["timeZone"] }
     : null;
 }
 

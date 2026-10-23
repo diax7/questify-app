@@ -1,4 +1,10 @@
-import { DEFAULT_TERMS, MESSAGES, createTranslator, type Language } from "@questify/shared";
+import {
+  DEFAULT_TERMS,
+  MESSAGES,
+  createTranslator,
+  formatEventTime,
+  type Language,
+} from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   amountLabel,
@@ -68,7 +74,7 @@ describe("bonusLine", () => {
     const bonus = {
       points: 0,
       category: { ar: "المرحلة", en: "Stage" },
-      item: { name: { ar: "قميص", en: "T-shirt" }, outcome: "pending" as const },
+      item: { name: { ar: "قميص", en: "T-shirt" }, outcome: "pending" as const, until: null },
     };
     expect(bonusLine(tIn("en"), "en", bonus)).toBe(
       "Stage complete + T-shirt: collect it at the prize desk",
@@ -82,15 +88,30 @@ describe("bonusLine", () => {
 describe("itemLine", () => {
   it("says where to collect the item, or that it ran out or the desk closed (FR-1617)", () => {
     const name = { ar: "قميص", en: "T-shirt" };
-    expect(itemLine(tIn("en"), "en", { name, outcome: "out_of_stock" })).toBe(
+    expect(itemLine(tIn("en"), "en", { name, outcome: "out_of_stock", until: null })).toBe(
       "The T-shirt ran out; you got the points",
     );
-    expect(itemLine(tIn("ar"), "ar", { name, outcome: "out_of_stock" })).toBe(
+    expect(itemLine(tIn("ar"), "ar", { name, outcome: "out_of_stock", until: null })).toBe(
       "نفدت الكمية من «قميص»، وحصلت على النقاط",
     );
-    expect(itemLine(tIn("en"), "en", { name, outcome: "claim_closed" })).toBe(
+    expect(itemLine(tIn("en"), "en", { name, outcome: "claim_closed", until: null })).toBe(
       "The prize desk has closed; you got the points",
     );
+  });
+
+  it("says a pending item's deadline in the event's zone, with Western digits (ADR-205)", () => {
+    const name = { ar: "قميص", en: "T-shirt" };
+    const until = { at: "2030-11-01T15:30:00.000Z", timeZone: "Asia/Riyadh" };
+    const at = new Date(until.at);
+    expect(itemLine(tIn("en"), "en", { name, outcome: "pending", until })).toBe(
+      `+ T-shirt: collect it at the prize desk by ${formatEventTime(at, "Asia/Riyadh", "en")}`,
+    );
+    const ar = itemLine(tIn("ar"), "ar", { name, outcome: "pending", until });
+    expect(ar).toBe(
+      `‎+ قميص: استلم جائزتك من مكتب الجوائز قبل ${formatEventTime(at, "Asia/Riyadh", "ar")}`,
+    );
+    expect(ar).toMatch(/18:30|6:30/);
+    expect(ar).not.toMatch(/[٠-٩]/);
   });
 });
 
@@ -103,7 +124,7 @@ describe("paidText", () => {
     expect(paidText(tIn("en"), GEMS, "en", { points: 10, bonus, item: null })).toBe(
       "+10 gems +50 bonus: Stage complete",
     );
-    const item = { name: { ar: null, en: "Cap" }, outcome: "pending" as const };
+    const item = { name: { ar: null, en: "Cap" }, outcome: "pending" as const, until: null };
     expect(paidText(tIn("en"), GEMS, "en", { points: 0, bonus, item })).toBe(
       "+0 gems + Cap: collect it at the prize desk +50 bonus: Stage complete",
     );

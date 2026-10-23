@@ -59,7 +59,7 @@ describe("scanStep", () => {
           replayed: false,
           levelUp,
           bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
-          item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
+          item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
         },
       }),
     ).toEqual({
@@ -69,7 +69,7 @@ describe("scanStep", () => {
       replayed: false,
       levelUp,
       bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
-      item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
+      item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
       details: undefined,
     });
   });

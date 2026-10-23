@@ -162,7 +162,8 @@ Auth shows who may call. "Rate" notes any special limit.
 
 **Quest items (T-304d, ADR-205).** A quest's and a category's builder bodies take `itemId` (a quest item of this
 event; null clears it; a removed or other event's item answers 422 `invalid_item`) and answer it. Every pay answer that
-carries `bonus` also carries `item: {name: {ar, en}, outcome: pending | out_of_stock | claim_closed} | null` (the item
+carries `bonus` also carries `item: {name: {ar, en}, outcome: pending | out_of_stock | claim_closed, until: {at,
+timeZone} | null} | null` (`until`: a pending item's claim deadline and the event's zone) (the item
 this completion gave on the player's first completion of the quest, or missed), and `bonus` gains `item` the same way
 (a category's item, once per period) with `points` 0 for an item-only bonus. The quests read gains `item: {ar, en} |
 null` per quest (while the player has never completed it and stock is left) and `bonus.item` per category (while stock

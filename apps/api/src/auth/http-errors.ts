@@ -527,8 +527,8 @@ export const settingLocked = make(
 export const stockBelowReserved = make(
   409,
   "stock_below_reserved",
-  "لا يمكن أن تقل الكمية عن المحجوز منها.",
-  "The stock cannot be lower than the units already reserved.",
+  "لا يمكن أن تقل الكمية عن المحجوز منها والمُسلَّم.",
+  "The stock cannot be lower than the units already reserved or handed over.",
 );
 export const shopClosed = make(
   403,

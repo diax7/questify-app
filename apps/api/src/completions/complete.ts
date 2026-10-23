@@ -45,6 +45,8 @@ export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en
 export type ItemGiven = Readonly<{
   name: Readonly<{ ar: string | null; en: string | null }>;
   outcome: ItemOutcome;
+  /** A pending item's claim deadline, with the event's zone to say it in (it may be the desk's closing soon); else null. */
+  until: Readonly<{ at: string; timeZone: string }> | null;
 }>;
 
 export type ItemOutcome = "pending" | "out_of_stock" | "claim_closed";
@@ -68,13 +70,29 @@ type BonusRow = {
   item_ar: string | null;
   item_en: string | null;
   item_outcome: ItemOutcome | null;
+  item_until: Date | null;
+  item_time_zone: string | null;
 };
 
-const itemOf = (
-  ar: string | null,
-  en: string | null,
-  outcome: ItemOutcome | null,
-): ItemGiven | null => (outcome === null ? null : { name: { ar, en }, outcome });
+type ItemFields = Readonly<{
+  ar: string | null;
+  en: string | null;
+  outcome: ItemOutcome | null;
+  until: Date | null | undefined;
+  timeZone: string | null | undefined;
+}>;
+
+const itemOf = (row: ItemFields): ItemGiven | null =>
+  row.outcome === null
+    ? null
+    : {
+        name: { ar: row.ar, en: row.en },
+        outcome: row.outcome,
+        until:
+          row.until instanceof Date && typeof row.timeZone === "string"
+            ? { at: row.until.toISOString(), timeZone: row.timeZone }
+            : null,
+      };
 
 const bonusOf = (rows: readonly BonusRow[]): Bonus | null => {
   const row = rows[0];
@@ -84,7 +102,13 @@ const bonusOf = (rows: readonly BonusRow[]): Bonus | null => {
         categoryId: row.category_id,
         points: Number(row.points),
         category: { ar: row.name_ar, en: row.name_en },
-        item: itemOf(row.item_ar, row.item_en, row.item_outcome ?? null),
+        item: itemOf({
+          ar: row.item_ar,
+          en: row.item_en,
+          outcome: row.item_outcome ?? null,
+          until: row.item_until,
+          timeZone: row.item_time_zone,
+        }),
       };
 };
 
@@ -97,9 +121,19 @@ export async function itemGiven(
     name_ar: string | null;
     name_en: string | null;
     outcome: ItemOutcome;
-  }>("SELECT name_ar, name_en, outcome FROM own_quest_item($1)", [completionId]);
+    until: Date | null;
+    time_zone: string;
+  }>("SELECT name_ar, name_en, outcome, until, time_zone FROM own_quest_item($1)", [completionId]);
   const row = rows[0];
-  return row === undefined ? null : itemOf(row.name_ar, row.name_en, row.outcome);
+  return row === undefined
+    ? null
+    : itemOf({
+        ar: row.name_ar,
+        en: row.name_en,
+        outcome: row.outcome,
+        until: row.until,
+        timeZone: row.time_zone,
+      });
 }
 
 /** The bonus this completion paid, for the calling player (own_bonus, migration 0044). */

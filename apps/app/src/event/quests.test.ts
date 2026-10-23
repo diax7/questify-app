@@ -333,7 +333,7 @@ describe("completionAnswer", () => {
       bonus: null,
       item: null,
     });
-    const shirt = { name: { ar: "قميص", en: null }, outcome: "out_of_stock" };
+    const shirt = { name: { ar: "قميص", en: null }, outcome: "out_of_stock", until: null };
     expect(
       completionAnswer(
         ok({
@@ -344,6 +344,15 @@ describe("completionAnswer", () => {
         }),
       ),
     ).toMatchObject({ item: shirt, bonus: { points: 0, item: null } });
+    const until = { at: "2030-01-01T18:00:00.000Z", timeZone: "Asia/Riyadh" };
+    expect(
+      completionAnswer(ok({ points: 1, score: 1, item: { ...shirt, outcome: "pending", until } })),
+    ).toMatchObject({ item: { outcome: "pending", until } });
+    expect(
+      completionAnswer(
+        ok({ points: 1, score: 1, item: { ...shirt, outcome: "pending", until: { at: 5 } } }),
+      ),
+    ).toMatchObject({ item: { until: null } });
     expect(
       completionAnswer(
         ok({

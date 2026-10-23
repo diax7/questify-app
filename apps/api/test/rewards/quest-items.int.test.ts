@@ -295,11 +295,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest items over HTTP", () => 
       const done = await complete(player.token, quest);
       expect(done.json()).toMatchObject({
         points: 50,
-        item: { name: { en: "T-shirt", ar: "قميص" }, outcome: "pending" },
+        item: {
+          name: { en: "T-shirt", ar: "قميص" },
+          outcome: "pending",
+          until: { timeZone: "Asia/Riyadh" },
+        },
         bonus: {
           categoryId: category,
           points: 0,
-          item: { name: { en: "T-shirt" }, outcome: "out_of_stock" },
+          item: { name: { en: "T-shirt" }, outcome: "out_of_stock", until: null },
         },
       });
       const shop = await asPlayer(player.token, `/v1/events/${event}/shop`);

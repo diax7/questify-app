@@ -864,6 +864,10 @@ export const MESSAGES = {
     ar: "‎+ {item}: استلم جائزتك من مكتب الجوائز",
     en: "+ {item}: collect it at the prize desk",
   },
+  "questsTab.itemPendingBy": {
+    ar: "‎+ {item}: استلم جائزتك من مكتب الجوائز قبل {time}",
+    en: "+ {item}: collect it at the prize desk by {time}",
+  },
   "questsTab.itemOut": {
     ar: "نفدت الكمية من «{item}»، وحصلت على النقاط",
     en: "The {item} ran out; you got the points",
@@ -2404,7 +2408,7 @@ export const MESSAGES = {
   },
   "questItems.ranOut": {
     ar: "نفدت «{item}». عدد من حصلوا على النقاط فقط: {count}",
-    en: "{item} ran out: {count} players got points only",
+    en: "{item} ran out. Players who got points only: {count}",
   },
   "questItems.missed": {
     ar: "عدد من حصلوا على النقاط فقط: {count}",

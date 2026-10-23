@@ -144,11 +144,21 @@ describe("sending", () => {
             item_ar: "قبعة",
             item_en: null,
             item_outcome: "claim_closed",
+            item_until: null,
+            item_time_zone: "Asia/Riyadh",
           },
         ];
       }
       if (sql.includes("own_quest_item")) {
-        return [{ name_ar: null, name_en: "T-shirt", outcome: "pending" }];
+        return [
+          {
+            name_ar: null,
+            name_en: "T-shirt",
+            outcome: "pending",
+            until: new Date("2030-01-01T18:00:00Z"),
+            time_zone: "Asia/Riyadh",
+          },
+        ];
       }
       return [{ ...SENT, status: "approved", completion_id: "77", score: "150", replayed: true }];
     });
@@ -169,9 +179,13 @@ describe("sending", () => {
           categoryId: "c1",
           points: 50,
           category: { ar: null, en: "Stage" },
-          item: { name: { ar: "قبعة", en: null }, outcome: "claim_closed" },
+          item: { name: { ar: "قبعة", en: null }, outcome: "claim_closed", until: null },
         },
-        item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
+        item: {
+          name: { ar: null, en: "T-shirt" },
+          outcome: "pending",
+          until: { at: "2030-01-01T18:00:00.000Z", timeZone: "Asia/Riyadh" },
+        },
       },
     });
     expect(pool.statements[1]?.values).toEqual(["77"]);

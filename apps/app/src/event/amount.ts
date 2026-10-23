@@ -1,5 +1,6 @@
 import {
   CURRENCY_ICONS,
+  formatEventTime,
   formatNumber,
   termFor,
   type CurrencyIcon,
@@ -51,7 +52,14 @@ const ITEM_TEXT: Readonly<Record<ItemOutcome, MessageKey>> = {
  * desk"; when it ran out or the desk closed, that the points were paid.
  */
 export function itemLine(t: Translate, language: Language, item: ItemGiven): string {
-  return t(ITEM_TEXT[item.outcome], { item: textIn(item.name, language) });
+  const name = textIn(item.name, language);
+  // The deadline may be the desk's closing within minutes (ADR-205): say it, in the event's zone.
+  return item.outcome === "pending" && item.until !== null
+    ? t("questsTab.itemPendingBy", {
+        item: name,
+        time: formatEventTime(new Date(item.until.at), item.until.timeZone, language),
+      })
+    : t(ITEM_TEXT[item.outcome], { item: name });
 }
 
 /**

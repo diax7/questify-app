@@ -2604,4 +2604,7 @@ reuses the whole handover path; the first-completion rule stops a repeatable que
 ahead (`default_claim_until` alone answers NULL when the desk closes within a day, which would have missed items while
 the desk was still open); `quest.item_id` and `category.item_id` are NO ACTION, as `category.unlock_after`, so a draft
 event's delete cascades in one statement; the API reuses `desk_needed` and `stock_below_reserved` (the shop's codes)
-rather than new ones.
+rather than new ones. After the CTO code review (M1): a pending item's answer carries its deadline and the event's zone, and the app says
+"collect it at the prize desk by {time}", so a scan just before the desk closes is not a silent minutes-long
+reservation; recording `claim_closed` under a threshold was rejected (it would refuse an item the desk can still hand
+over).

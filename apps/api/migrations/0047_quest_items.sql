@@ -440,13 +440,16 @@ END $$;
 
 -- ================================================================ what the player reads of a payment
 -- The item a completion gave or missed, for the player who made it: pending (a reservation was made, whatever became
--- of it), out_of_stock or claim_closed. No row when the completion gave no item.
+-- of it), out_of_stock or claim_closed, with the claim deadline and the event's zone to say it in (the deadline may be
+-- the desk's closing within minutes, ADR-205). No row when the completion gave no item.
 CREATE FUNCTION own_quest_item(completion bigint)
-  RETURNS TABLE (name_ar text, name_en text, outcome text)
+  RETURNS TABLE (name_ar text, name_en text, outcome text, until timestamptz, time_zone text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-  SELECT i.name_ar, i.name_en, CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END
+  SELECT i.name_ar, i.name_en, CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END, d.reserved_until,
+         e.timezone
   FROM quest_completion c
   JOIN enrollment n ON n.id = c.enrollment_id AND n.player_id = app_player_id()
+  JOIN event e ON e.id = c.event_id
   LEFT JOIN redemption d ON d.source_completion_id = c.id AND d.quest_item_id IS NOT NULL
   LEFT JOIN quest_item_miss m ON m.source_completion_id = c.id
   JOIN quest_item i ON i.id = coalesce(d.quest_item_id, m.quest_item_id)
@@ -460,10 +463,11 @@ GRANT EXECUTE ON FUNCTION own_quest_item(bigint) TO questify_app;
 DROP FUNCTION own_bonus(bigint);
 CREATE FUNCTION own_bonus(completion bigint)
   RETURNS TABLE (category_id uuid, points bigint, name_ar text, name_en text, item_ar text, item_en text,
-                 item_outcome text)
+                 item_outcome text, item_until timestamptz, item_time_zone text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT b.category_id, coalesce(l.score_delta, 0), c.name_ar, c.name_en, i.name_ar, i.name_en,
-         CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END
+         CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END, d.reserved_until,
+         (SELECT x.timezone FROM event x WHERE x.id = b.event_id)
   FROM category_bonus b
   JOIN enrollment n ON n.id = b.enrollment_id AND n.player_id = app_player_id()
   LEFT JOIN ledger_entry l ON l.id = b.entry_id
@@ -482,10 +486,10 @@ GRANT EXECUTE ON FUNCTION own_bonus(bigint) TO questify_app;
 DROP FUNCTION own_category_bonus(uuid);
 CREATE FUNCTION own_category_bonus(target uuid)
   RETURNS TABLE (category_id uuid, points bigint, name_ar text, name_en text, item_ar text, item_en text,
-                 item_outcome text)
+                 item_outcome text, item_until timestamptz, item_time_zone text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT b.category_id, coalesce(l.score_delta, 0), c.name_ar, c.name_en, i.name_ar, i.name_en,
-         CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END
+         CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END, d.reserved_until, e.timezone
   FROM quest q
   JOIN event e ON e.id = q.event_id
   JOIN category c ON c.id = q.category_id
