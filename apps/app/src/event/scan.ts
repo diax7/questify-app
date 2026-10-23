@@ -1,4 +1,4 @@
-import { QUEST_CODE_HOSTS, parseJoinLink } from "@questify/shared";
+import { QUEST_CODE_HOSTS, meetTokenOf, parseJoinLink } from "@questify/shared";
 
 const DEV_QUEST_CODE_ORIGIN = "https://questify-web-staging-4ecphq.cranl.net";
 
@@ -88,6 +88,8 @@ export type Scan =
   | Readonly<{ kind: "step"; stepId: string; token: string }>
   | Readonly<{ kind: "reveal"; categoryId: string; token: string }>
   | Readonly<{ kind: "join"; code: string }>
+  /** Another player's meet code (T-303c): the whole text goes to `POST /v1/meet`. */
+  | Readonly<{ kind: "meet"; code: string }>
   | Readonly<{ kind: "other" }>;
 
 /**
@@ -97,12 +99,15 @@ export type Scan =
 const HTTPS_LINK = /^https:\/\/([A-Za-z0-9.-]+)(\/[^?#\s]*)?(?:[?#]\S*)?$/;
 
 /**
- * What the camera read: a quest, passport step or secret category code on a Questify host (`https://{host}/q/{token}`), a join link, or
- * something else.
+ * What the camera read: a quest, passport step or secret category code on a Questify host (`https://{host}/q/{token}`), a join link,
+ * another player's meet code, or something else.
  * Only whole https links count, never a bare word.
  */
 export function readScan(text: string, extraOrigin: string | null): Scan {
   const trimmed = text.trim();
+  if (meetTokenOf(trimmed) !== undefined) {
+    return { kind: "meet", code: trimmed };
+  }
   const link = HTTPS_LINK.exec(trimmed);
   if (link === null) {
     return { kind: "other" };

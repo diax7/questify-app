@@ -168,3 +168,12 @@ describe("the scan gate", () => {
     expect(passes(gate, "quest")).toBe(true);
   });
 });
+
+describe("meet codes in the scanner", () => {
+  it("reads another player's meet code whole, and a malformed one as something else", () => {
+    const code = `questify/meet/v1/${"A".repeat(22)}`;
+    expect(readScan(code, null)).toEqual({ kind: "meet", code });
+    expect(readScan(` ${code} `, null)).toEqual({ kind: "meet", code });
+    expect(readScan(`questify/meet/v1/${"A".repeat(21)}`, null)).toEqual({ kind: "other" });
+  });
+});

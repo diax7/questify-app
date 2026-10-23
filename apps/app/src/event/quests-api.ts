@@ -48,6 +48,8 @@ export type Quest = Readonly<{
   item: Bilingual | null;
   /** A location quest's spot (T-303b); null for other types, a malformed one or an older API. */
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
+  /** A meet quest's daily cap and this player's meetings today (T-303c); null for other types or an older API. */
+  meet: Readonly<{ dailyCap: number; today: number }> | null;
 }>;
 
 /**
@@ -173,7 +175,17 @@ const withVerification = (quest: Quest): Quest => ({
   steps: progressOf(quest.steps),
   item: isText(quest.item) ? quest.item : null,
   place: placeOf(quest.place),
+  meet: meetOf(quest.meet),
 });
+
+/** A meet quest's caps as sent, or null for anything missing or not well formed. */
+function meetOf(value: unknown): Quest["meet"] {
+  return isRecord(value) &&
+    typeof value["dailyCap"] === "number" &&
+    typeof value["today"] === "number"
+    ? { dailyCap: value["dailyCap"], today: value["today"] }
+    : null;
+}
 
 /** A location quest's spot as sent, or null for anything missing or not well formed. */
 function placeOf(value: unknown): Quest["place"] {
@@ -399,6 +411,16 @@ export type CompletionAnswer =
   | Readonly<{ kind: "location_off" }>
   /** A wrong code, in the API's own words. */
   | Readonly<{ kind: "wrong_code"; problem: LocalizedText | null }>
+  /**
+   * A meeting refused (T-303c): `reason` as the API says it (undefined for one this build does not know), the other's
+   * username for already_met, the cap for daily_cap.
+   */
+  | Readonly<{
+      kind: "meet_refused";
+      reason: MeetReason | undefined;
+      name: string | null;
+      cap: number | null;
+    }>
   | Readonly<{ kind: "not_open"; reason: NotOpenReason | undefined }>
   /** The quest's repeat cap is reached (FR-227). */
   | Readonly<{ kind: "limit" }>
@@ -409,6 +431,37 @@ export type CompletionAnswer =
   | Readonly<{ kind: "failed" }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
+
+/** Why a meeting was refused (API.md `meet_refused`), and `off` while the event's meet quests are switched off. */
+export type MeetReason =
+  | "bad_code"
+  | "expired"
+  | "used"
+  | "self"
+  | "same_device"
+  | "already_met"
+  | "daily_cap"
+  | "their_daily_cap"
+  | "done"
+  | "their_done"
+  | "not_in_event"
+  | "not_for_them"
+  | "off";
+
+const MEET_REASONS: readonly string[] = [
+  "bad_code",
+  "expired",
+  "used",
+  "self",
+  "same_device",
+  "already_met",
+  "daily_cap",
+  "their_daily_cap",
+  "done",
+  "their_done",
+  "not_in_event",
+  "not_for_them",
+];
 
 /** Why the server refused a check-in (API.md `location_refused`). */
 export type LocationReason = "no_position" | "bad_position" | "stale" | "imprecise" | "not_here";
@@ -436,6 +489,17 @@ function refusal(
     }
     case "feature_off":
       return { kind: "location_off" };
+    case "meet_refused": {
+      const reason = String(answer.details["reason"]);
+      const name = answer.details["name"];
+      const cap = answer.details["cap"];
+      return {
+        kind: "meet_refused",
+        reason: MEET_REASONS.includes(reason) ? (reason as MeetReason) : undefined,
+        name: typeof name === "string" ? name : null,
+        cap: typeof cap === "number" ? cap : null,
+      };
+    }
     case "invalid_code":
       return { kind: "wrong_code", problem: answer.message };
     case "quest_not_open": {

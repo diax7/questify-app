@@ -19,6 +19,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   steps: null,
   item: null,
   place: null,
+  meet: null,
   verification: ["quest_qr"],
   ...fields,
 });
@@ -71,8 +72,29 @@ describe("scanStep", () => {
       levelUp,
       bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
       item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
+      met: null,
       details: undefined,
     });
+  });
+
+  it("celebrates a meeting with its quest and whom the player met (T-303c)", () => {
+    const read = scanStep({ kind: "scanning" }, { type: "read", questId: "meet", token: "m" });
+    expect(
+      scanStep(read, {
+        type: "answered",
+        answer: {
+          kind: "completed",
+          points: 50,
+          score: 50,
+          replayed: false,
+          levelUp: null,
+          bonus: null,
+          item: null,
+          questId: "q9",
+          met: { username: "noura", avatar: "owl" },
+        },
+      }),
+    ).toMatchObject({ kind: "celebrating", questId: "q9", points: 50, met: "noura" });
   });
 
   it("shows a passport's progress after a step's stamp, and celebrates its quest when it pays", () => {
@@ -265,6 +287,7 @@ describe("celebrationBeats", () => {
     levelUp: null,
     bonus: null,
     item: null,
+    met: null,
     details: undefined,
   } as const;
   const finished = { id: "c1" } as unknown as Category;

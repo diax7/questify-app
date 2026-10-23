@@ -17,6 +17,7 @@ import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { scanReading, type Position } from "#src/event/location.ts";
 import { useLocationReader } from "#src/event/LocationEntry.tsx";
+import { isMeetCode, scanMeet } from "#src/event/meet.ts";
 import { outcomeText } from "#src/event/QuestSheet.tsx";
 import {
   completeQuest,
@@ -46,10 +47,14 @@ const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"
 
 /**
  * Sends a scanned code: `id` is the quest's, a passport step's for a step's code (T-304b), or a hidden category's for
- * its secret code (T-304c); the token's own layout says which. A quest's code carries the last known position when
+ * its secret code (T-304c); the token's own layout says which. Another player's meet code (T-303c) goes whole to
+ * `POST /v1/meet`, which names its quest. A quest's code carries the last known position when
  * there is one (T-303b): it never delays the scan, and the server drops a bad one.
  */
 const send = (id: string, token: string, key: string, position: Position | null) => {
+  if (isMeetCode(token)) {
+    return scanMeet(api.session, token, key, position);
+  }
   if (categoryIdOf(token) !== null) {
     return revealCategory(api.session, id, token);
   }
@@ -123,6 +128,9 @@ function Celebration({
         {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
         {completedText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step.points)}
       </AppText>
+      {step.met === null ? null : (
+        <AppText variant="title">{t("meet.youMet", { name: step.met })}</AppText>
+      )}
       {step.item === null ? null : (
         <AppText variant="title">{itemLine(t, language, step.item)}</AppText>
       )}
@@ -219,6 +227,11 @@ export default function ScanQuestScreen() {
       return;
     }
     buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    if (scan.kind === "meet") {
+      dispatch({ type: "read", questId: "meet", token: scan.code });
+      void submit("meet", scan.code);
+      return;
+    }
     const id =
       scan.kind === "step" ? scan.stepId : scan.kind === "reveal" ? scan.categoryId : scan.questId;
     dispatch({ type: "read", questId: id, token: scan.token });

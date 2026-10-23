@@ -18,6 +18,8 @@ import { spanText } from "#src/event/countdown.ts";
 import { paidText } from "#src/event/amount.ts";
 import { scanReading } from "#src/event/location.ts";
 import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
+import { meetRefusalText } from "#src/event/meet.ts";
+import { MeetEntry } from "#src/event/MeetEntry.tsx";
 import { PassportEntry } from "#src/event/PassportEntry.tsx";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { ShareEntry } from "#src/event/ShareEntry.tsx";
@@ -119,6 +121,8 @@ export function outcomeText(
       return locationText(answer, t, language);
     case "location_off":
       return t("location.off");
+    case "meet_refused":
+      return meetRefusalText(answer, t);
     case "not_open":
       return answer.reason === undefined ? t("questsTab.notLive") : t(NOT_OPEN_TEXT[answer.reason]);
     case "limit":
@@ -263,6 +267,8 @@ function QuestEntry({
       return <PassportEntry key={quest.id} quest={quest} />;
     case "location":
       return <LocationEntry key={quest.id} quest={quest} onDone={onDone} />;
+    case "meet":
+      return <MeetEntry key={quest.id} quest={quest} onPaid={onSent} />;
     default:
       return <Verification key={quest.id} quest={quest} onDone={onDone} />;
   }
@@ -283,7 +289,7 @@ export function QuestSheet({
   timeZone: string;
   onClose: () => void;
   onCompleted: (answer: CompletionAnswer) => void;
-  /** A submission was sent, a vote cast, a quiz, a survey or a share paid: the list behind the sheet reloads. */
+  /** A submission was sent, a vote cast, a quiz, a survey, a share or a meeting paid: the list behind reloads. */
   onSent?: () => void;
 }>) {
   const { t, language } = useI18n();
@@ -310,7 +316,7 @@ export function QuestSheet({
       {isQuestType(quest.type) ? <AppText muted>{t(QUEST_TYPES[quest.type].label)}</AppText> : null}
       {description === "" ? null : <AppText>{description}</AppText>}
       <Amount amount={formatNumber(quest.points, language)} form="labelled" variant="label" />
-      {quest.repeatCap > 1 ? (
+      {quest.repeatCap > 1 && quest.type !== "meet" ? (
         <AppText>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}
       {when(quest.opensAt, "quests.opens")}

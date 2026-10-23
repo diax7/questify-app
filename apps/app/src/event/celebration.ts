@@ -3,6 +3,7 @@ import type { Revealed } from "#src/event/reveal.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
 import type { Bonus, ItemGiven } from "#src/event/quests-api.ts";
+import type { MetAnswer } from "#src/event/meet.ts";
 import type { LevelUp } from "#src/questify/level.ts";
 
 /**
@@ -28,6 +29,8 @@ export type ScanStep =
       bonus: Bonus | null;
       /** The quest item this scan gave or missed (T-304d), said with the points. */
       item: ItemGiven | null;
+      /** The other player's username when this scan was a meeting (T-303c), else null. */
+      met: string | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
       details: Details | undefined;
     }>
@@ -53,7 +56,8 @@ export type ScanEvent =
         | CompletionAnswer
         | Stamped
         | Revealed
-        | (CompletionAnswer & Readonly<{ questId: string }>);
+        | (CompletionAnswer & Readonly<{ questId: string }>)
+        | MetAnswer;
     }>
   | Readonly<{ type: "details"; details: Details }>
   | Readonly<{ type: "retry" }>
@@ -91,12 +95,14 @@ function answered(
     case "completed":
       return {
         kind: "celebrating",
-        questId: "questId" in answer ? answer.questId : step.questId,
+        questId:
+          "questId" in answer && answer.questId !== undefined ? answer.questId : step.questId,
         points: answer.points,
         replayed: answer.replayed,
         levelUp: answer.levelUp,
         bonus: answer.bonus,
         item: answer.item,
+        met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
         details: undefined,
       };
     case "network":
