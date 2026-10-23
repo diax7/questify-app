@@ -10,7 +10,7 @@ test("the organizer builds the rewards shop", async ({ page }, info) => {
   await openBuilder(page, info.project.name);
   const eventPage = page.url().replace(/\/quests$/, "");
   await page.goto(eventPage);
-  await page.getByRole("link", { name: "الجوائز" }).click();
+  await page.getByRole("link", { name: "الجوائز", exact: true }).click();
 
   const panel = page.getByRole("region", { name: "الجوائز" });
   await expect(panel.getByText("لا جوائز بعد.")).toBeVisible();

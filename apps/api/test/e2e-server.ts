@@ -105,7 +105,13 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
       raw += chunk.toString();
     });
     request.on("end", () => {
-      let body: { eventId?: string; status?: string; usernames?: string[] };
+      let body: {
+        eventId?: string;
+        status?: string;
+        usernames?: string[];
+        points?: number[];
+        flagged?: string[];
+      };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
       } catch (error) {
@@ -133,6 +139,37 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
             response
               .writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404)
               .end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /scored: enrolls new players with these usernames, each holding its points (in order) as a staff award, and
+      // opens a burst case on the `flagged` ones (the results page, T-214).
+      if (request.url === "/scored") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username)
+                           SELECT unnest($2::text[]) RETURNING id, username),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1
+                             RETURNING id, organizer_id, event_id, player_id),
+                  scored AS (
+                    INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta,
+                                              balance_delta, actor, staff_user_id)
+                    SELECT j.organizer_id, j.event_id, j.id, 'award', p.points, p.points, 'staff',
+                           (SELECT m.staff_user_id FROM organizer_member m WHERE m.organizer_id = j.organizer_id LIMIT 1)
+                    FROM joined j JOIN made m ON m.id = j.player_id
+                    JOIN unnest($2::text[], $3::int[]) AS p(username, points) ON p.username = m.username
+                    RETURNING enrollment_id)
+             INSERT INTO flag (organizer_id, event_id, enrollment_id, kind)
+             SELECT j.organizer_id, j.event_id, j.id, 'burst' FROM joined j JOIN made m ON m.id = j.player_id
+             WHERE m.username = ANY ($4::text[]) AND EXISTS (SELECT 1 FROM scored)`,
+            [body.eventId, body.usernames ?? [], body.points ?? [], body.flagged ?? []],
+          )
+          .then(() => {
+            response.writeHead(204).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

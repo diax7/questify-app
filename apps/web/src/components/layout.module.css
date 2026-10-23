@@ -251,3 +251,9 @@
   margin-block-start: 2px;
   accent-color: var(--color-primary-action);
 }
+
+/* Text typed by an organizer, shown as written: its line breaks kept, never markup. */
+.prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

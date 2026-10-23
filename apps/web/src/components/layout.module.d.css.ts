@@ -21,6 +21,7 @@ declare const styles: {
   readonly page: string;
   readonly panel: string;
   readonly passwordRow: string;
+  readonly prose: string;
   readonly quiet: string;
   readonly row: string;
   readonly subtitle: string;
