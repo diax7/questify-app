@@ -32,15 +32,32 @@ export type Completed = Readonly<{
   levelUp: LevelUp | null;
   /** The category bonus this completion paid (T-304), or null; the same on a replay. */
   bonus: Bonus | null;
+  /** The quest item this completion gave or missed (T-304d), or null; the same on a replay. */
+  item: ItemGiven | null;
 }>;
 
 export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en: string }> }>;
 
-/** A category's completion bonus, paid with the completion that finished the category (FR-231, ADR-202). */
+/**
+ * A quest item a payment gave (FR-522) or missed (FR-1617): `pending` waits at the prize desk; `out_of_stock` and
+ * `claim_closed` paid the points only (T-304d, ADR-205).
+ */
+export type ItemGiven = Readonly<{
+  name: Readonly<{ ar: string | null; en: string | null }>;
+  outcome: ItemOutcome;
+}>;
+
+export type ItemOutcome = "pending" | "out_of_stock" | "claim_closed";
+
+/**
+ * A category's completion bonus, paid with the completion that finished the category (FR-231, ADR-202): its points
+ * (0 for an item-only bonus) and its quest item (T-304d), or null.
+ */
 export type Bonus = Readonly<{
   categoryId: string;
   points: number;
   category: Readonly<{ ar: string | null; en: string | null }>;
+  item: ItemGiven | null;
 }>;
 
 type BonusRow = {
@@ -48,7 +65,16 @@ type BonusRow = {
   points: string;
   name_ar: string | null;
   name_en: string | null;
+  item_ar: string | null;
+  item_en: string | null;
+  item_outcome: ItemOutcome | null;
 };
+
+const itemOf = (
+  ar: string | null,
+  en: string | null,
+  outcome: ItemOutcome | null,
+): ItemGiven | null => (outcome === null ? null : { name: { ar, en }, outcome });
 
 const bonusOf = (rows: readonly BonusRow[]): Bonus | null => {
   const row = rows[0];
@@ -58,8 +84,23 @@ const bonusOf = (rows: readonly BonusRow[]): Bonus | null => {
         categoryId: row.category_id,
         points: Number(row.points),
         category: { ar: row.name_ar, en: row.name_en },
+        item: itemOf(row.item_ar, row.item_en, row.item_outcome ?? null),
       };
 };
+
+/** The quest item this completion gave or missed, for the calling player (own_quest_item, migration 0047). */
+export async function itemGiven(
+  client: PoolClient,
+  completionId: string,
+): Promise<ItemGiven | null> {
+  const { rows } = await client.query<{
+    name_ar: string | null;
+    name_en: string | null;
+    outcome: ItemOutcome;
+  }>("SELECT name_ar, name_en, outcome FROM own_quest_item($1)", [completionId]);
+  const row = rows[0];
+  return row === undefined ? null : itemOf(row.name_ar, row.name_en, row.outcome);
+}
 
 /** The bonus this completion paid, for the calling player (own_bonus, migration 0044). */
 export async function bonusPaid(client: PoolClient, completionId: string): Promise<Bonus | null> {
@@ -222,6 +263,7 @@ async function callEngine(
     const row = rows[0] as Row;
     const levelUp = await levelReached(client, row.completion_id);
     const bonus = await bonusPaid(client, row.completion_id);
+    const item = await itemGiven(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -233,6 +275,7 @@ async function callEngine(
         replayed: row.replayed,
         levelUp,
         bonus,
+        item,
       },
     };
   } catch (error) {

@@ -121,6 +121,7 @@ describe("sending", () => {
         replayed: false,
         levelUp: null,
         bonus: null,
+        item: null,
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
@@ -134,7 +135,20 @@ describe("sending", () => {
         return [LEVEL];
       }
       if (sql.includes("own_bonus")) {
-        return [{ category_id: "c1", points: "50", name_ar: null, name_en: "Stage" }];
+        return [
+          {
+            category_id: "c1",
+            points: "50",
+            name_ar: null,
+            name_en: "Stage",
+            item_ar: "قبعة",
+            item_en: null,
+            item_outcome: "claim_closed",
+          },
+        ];
+      }
+      if (sql.includes("own_quest_item")) {
+        return [{ name_ar: null, name_en: "T-shirt", outcome: "pending" }];
       }
       return [{ ...SENT, status: "approved", completion_id: "77", score: "150", replayed: true }];
     });
@@ -151,11 +165,18 @@ describe("sending", () => {
         score: 150,
         replayed: true,
         levelUp: { level: 2, title: { ar: "مستكشف", en: "Explorer" } },
-        bonus: { categoryId: "c1", points: 50, category: { ar: null, en: "Stage" } },
+        bonus: {
+          categoryId: "c1",
+          points: 50,
+          category: { ar: null, en: "Stage" },
+          item: { name: { ar: "قبعة", en: null }, outcome: "claim_closed" },
+        },
+        item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
       },
     });
     expect(pool.statements[1]?.values).toEqual(["77"]);
     expect(pool.statements[2]?.values).toEqual(["77"]);
+    expect(pool.statements[3]?.values).toEqual(["77"]);
   });
 });
 
@@ -210,11 +231,20 @@ describe("the queue, removal and seen marks", () => {
   });
 
   it.each([
-    [true, { entryId: "31", scoreDelta: -150, balanceDelta: -100, replayed: true }],
-    [false, { entryId: "31", scoreDelta: -150, balanceDelta: -100, replayed: false }],
+    [true, { entryId: "31", scoreDelta: -150, balanceDelta: -100, replayed: true, item: null }],
+    [
+      false,
+      { entryId: "31", scoreDelta: -150, balanceDelta: -100, replayed: false, item: "cancelled" },
+    ],
   ])("reads a removal (replayed %s)", async (replayed, expected) => {
     const pool = fakePool(() => [
-      { entry_id: 31, score_delta: "-150", balance_delta: "-100", replayed },
+      {
+        entry_id: 31,
+        score_delta: "-150",
+        balance_delta: "-100",
+        replayed,
+        item: replayed ? null : "cancelled",
+      },
     ]);
     const removed = await removeSubmission(pool.deps, STAFF, {
       eventId: EVENT,

@@ -18,6 +18,7 @@ import {
   type Refused,
 } from "#src/quests/builder";
 import {
+  activeItem,
   bonusesOf,
   countRows,
   deleteQuestsOf,
@@ -49,6 +50,7 @@ const categoryView = (category: CategoryRecord) => ({
   completionBonus: category.completionBonus,
   refresh: category.refresh,
   hidden: category.hidden,
+  itemId: category.itemId,
 });
 
 /**
@@ -78,6 +80,14 @@ async function rulesOf(
   if (refresh !== "none" && (await holdsPlayedOnce(client, current.id))) {
     return { kind: "invalid", field: "refresh" };
   }
+  const itemId = input.itemId === undefined ? current.itemId : input.itemId;
+  if (
+    itemId !== null &&
+    itemId !== current.itemId &&
+    !(await activeItem(client, event.id, itemId))
+  ) {
+    return { kind: "invalid_item" };
+  }
   return {
     orderMode: input.orderMode ?? current.orderMode,
     opensAt,
@@ -85,6 +95,7 @@ async function rulesOf(
     completionBonus: input.completionBonus ?? current.completionBonus,
     refresh,
     hidden: input.hidden ?? current.hidden,
+    itemId,
   };
 }
 

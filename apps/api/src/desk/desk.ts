@@ -132,7 +132,15 @@ export type DeskItem = Readonly<{
   offerUntil: string | null;
   /** The winner's place for a rank prize (T-214); null for a shop item. */
   rank: number | null;
+  /** Where it comes from: the shop, a rank prize or a quest's reward (T-304d). */
+  source: RedemptionSource;
 }>;
+
+/** Where a desk item comes from (migration 0047's redemption_source). */
+export type RedemptionSource = "shop" | "rank" | "quest";
+
+export const sourceOf = (value: unknown): RedemptionSource =>
+  value === "rank" || value === "quest" ? value : "shop";
 
 export type Found = Readonly<{
   kind: "found";
@@ -167,6 +175,7 @@ export function foundOf(rows: readonly Readonly<Record<string, unknown>>[]): Fou
         offered: row["offered"] === true,
         offerUntil: iso(row["offer_until"]),
         rank: typeof row["rank"] === "number" ? row["rank"] : null,
+        source: sourceOf(row["source"]),
       })),
   };
 }
@@ -368,6 +377,7 @@ export type MyDeskItem = Readonly<{
   name: Bilingual;
   state: "collecting" | "offered";
   until: string | null;
+  source: RedemptionSource;
 }>;
 
 /**
@@ -392,6 +402,7 @@ export async function myDeskItems(
         name: text(row["name_ar"], row["name_en"]),
         state: row["state"] as MyDeskItem["state"],
         until: iso(row["until"]),
+        source: sourceOf(row["source"]),
       })),
       watch: watched[0]?.watch === true,
     };

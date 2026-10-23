@@ -7,6 +7,7 @@ import {
   confirmRequired,
   eventClosed,
   invalidCategory,
+  invalidItem,
   invalidQuest,
   lastCategory,
   limitReached,
@@ -53,6 +54,7 @@ const categoryPatch = z.strictObject({
   completionBonus: z.number().int().min(0).max(100_000).optional(),
   refresh: z.enum(["none", "daily", "weekly"]).optional(),
   hidden: z.boolean().optional(),
+  itemId: z.uuid().nullable().optional(),
   confirm,
 });
 const categoryDelete = z
@@ -75,6 +77,8 @@ const questFields = {
     .array(z.strictObject({ id: z.uuid().optional(), name: text(120) }))
     .max(30)
     .optional(),
+  // The quest item its first completion gives (T-304d); null clears it.
+  itemId: z.uuid().nullable().optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -106,6 +110,7 @@ const categoryView = (category: CategoryRecord) => ({
   completionBonus: category.completionBonus,
   refresh: category.refresh,
   hidden: category.hidden,
+  itemId: category.itemId,
 });
 
 /** A quest as the dashboard sees it; members see an entry code, players never will (T-105). */
@@ -123,6 +128,7 @@ const questView = (quest: QuestRecord) => ({
   position: quest.position,
   config: quest.config,
   verification: quest.verification,
+  itemId: quest.itemId,
   ...(quest.type === "passport"
     ? {
         steps: quest.steps.map((step) => ({
@@ -176,6 +182,8 @@ function answer<T>(
       throw questLocked();
     case "step_in_use":
       throw stepInUse();
+    case "invalid_item":
+      throw invalidItem();
   }
 }
 

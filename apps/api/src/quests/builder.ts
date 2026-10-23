@@ -37,6 +37,8 @@ export type CategoryInput = Readonly<{
   completionBonus?: number | undefined;
   refresh?: "none" | "daily" | "weekly" | undefined;
   hidden?: boolean | undefined;
+  /** The quest item its bonus gives (T-304d); null clears it. */
+  itemId?: string | null | undefined;
 }>;
 
 export type CategoryField = "name" | "to" | "opensAt" | "unlockAfter" | "refresh";
@@ -55,6 +57,8 @@ export type QuestInput = Readonly<{
   verification?: unknown;
   /** A passport's steps as the full list in order (T-304b): an existing step by its id, a new one without. */
   steps?: readonly Readonly<{ id?: string | undefined; name: Text }>[] | undefined;
+  /** The quest item its first completion gives (T-304d); null clears it. */
+  itemId?: string | null | undefined;
 }>;
 
 export type QuestField =
@@ -90,7 +94,9 @@ export type Refused =
   /** Players voted or started the quiz: only its text may change (ADR-194, migration 0041). */
   | Readonly<{ kind: "quest_locked" }>
   /** Players stamped this passport step (T-304b): it stays. */
-  | Readonly<{ kind: "step_in_use" }>;
+  | Readonly<{ kind: "step_in_use" }>
+  /** The quest item named is removed or another event's (T-304d). */
+  | Readonly<{ kind: "invalid_item" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -112,13 +118,19 @@ export type BuilderDeps = Readonly<{ pool: Pool }>;
 
 const CLOSED = "QE409";
 const LOCKED = "QL409";
-/** Rows that keep a played quest: its completions, submissions, votes, quiz attempts and survey responses. */
+/**
+ * Rows that keep a played quest or category: its completions, submissions, votes, quiz attempts and survey responses;
+ * a category's bonus rows and the quest items it gave or missed (T-304d: an item-only bonus has no ledger entry).
+ */
 const PLAYED_TABLES = new Set([
   "quest_completion",
   "submission",
   "quest_vote",
   "quiz_attempt",
   "survey_response",
+  "category_bonus",
+  "redemption",
+  "quest_item_miss",
 ]);
 
 const blankToNull = (text: string | undefined): string | null => {
@@ -209,6 +221,7 @@ export function mergeQuest(
     visible: input.visible ?? current?.visible ?? true,
     config,
     verification,
+    itemId: input.itemId === undefined ? (current?.itemId ?? null) : input.itemId,
   };
 }
 
@@ -238,6 +251,7 @@ export function auditView(quest: QuestRecord): Record<string, unknown> {
     visible: quest.visible,
     config,
     verification: quest.verification,
+    itemId: quest.itemId,
     ...(code === undefined ? {} : { entryCode: "set" }),
     ...(quest.type === "passport"
       ? {
@@ -332,6 +346,10 @@ export async function withEvent<T>(
     if (pg.code === "QT422") {
       return { kind: "invalid", field: "refresh" };
     }
+    // The item was removed between the builder's check and the write (migration 0047).
+    if (pg.code === "QI422") {
+      return { kind: "invalid_item" };
+    }
     // A player played the quest between the check and the delete: its points are history (migration 0012).
     if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {
       return { kind: "has_completions" };
@@ -351,7 +369,10 @@ export const audit = (
   entry: Readonly<{
     action: string;
     eventId: string;
-    target: { type: "category" | "quest" | "event" | "reward" | "rank_prize"; id: string };
+    target: {
+      type: "category" | "quest" | "event" | "reward" | "rank_prize" | "quest_item";
+      id: string;
+    };
     before?: Record<string, unknown>;
     after?: Record<string, unknown>;
   }>,

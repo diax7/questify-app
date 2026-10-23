@@ -1,5 +1,12 @@
 import type { PoolClient } from "pg";
-import { levelReached, quizBonus, type Bonus, type LevelUp } from "#src/completions/complete";
+import {
+  itemGiven,
+  levelReached,
+  quizBonus,
+  type Bonus,
+  type ItemGiven,
+  type LevelUp,
+} from "#src/completions/complete";
 import { run, textOf, type Bilingual, type Done, type PlayDeps } from "#src/plays/run";
 
 export type QuizChoice = Readonly<{ id: string; text: Bilingual }>;
@@ -34,7 +41,13 @@ export type QuizView = Readonly<{
 }>;
 
 /** A step's answer: the quiz after it, and the level its payment reached, if it paid. */
-export type QuizPlay = Readonly<{ quiz: QuizView; levelUp: LevelUp | null; bonus: Bonus | null }>;
+export type QuizPlay = Readonly<{
+  quiz: QuizView;
+  levelUp: LevelUp | null;
+  bonus: Bonus | null;
+  /** The quest item a paid finish gave or missed (T-304d), or null. */
+  item: ItemGiven | null;
+}>;
 
 /** A step's answer and whether this very step paid (a replay, or a read after the payment, did not). */
 export type QuizStep = QuizPlay & Readonly<{ paid: boolean }>;
@@ -113,6 +126,7 @@ async function playOf(client: PoolClient, questId: string): Promise<QuizPlay> {
     quiz,
     levelUp: quiz.completionId === null ? null : await levelReached(client, quiz.completionId),
     bonus: quiz.status === "finished" ? await quizBonus(client, questId) : null,
+    item: quiz.completionId === null ? null : await itemGiven(client, quiz.completionId),
   };
 }
 

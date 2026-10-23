@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
-import { deskViewOf, type DeskView } from "#src/desk/desk";
+import { deskViewOf, sourceOf, type DeskView } from "#src/desk/desk";
 import { testCode } from "#src/rehearsal/rehearsal";
 import { openCode, type RewardCodeKey } from "#src/rewards/codes";
 
@@ -258,6 +258,7 @@ export function readShop(
           collectUntil: iso(d["collect_until"]),
           offerUntil: iso(d["offer_until"]),
           rank: d["rank"] ?? null,
+          source: sourceOf(d["source"]),
           ...reveal(
             deps,
             { id: d["id"], rewardId: d["reward_id"], kind: d["kind"], status: d["status"] },

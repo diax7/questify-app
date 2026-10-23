@@ -35,6 +35,8 @@ export type MemberQuest = Readonly<{
   lock: QuestLock | null;
   /** A passport's progress (T-304b): the steps this player stamped of those it needs; null for other types. */
   steps: Readonly<{ done: number; needed: number }> | null;
+  /** The quest item its first completion still gives this player while stock is left (T-304d), or null. */
+  item: Text | null;
 }>;
 
 /** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
@@ -50,7 +52,7 @@ export type CategoryRules = Readonly<{
    * The completion bonus, what this player earned from it (0 before, the bonus after, less a removal), and whether it
    * is settled: paid, or since removed or withheld, so it is never paid again.
    */
-  bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
+  bonus: Readonly<{ points: number; earned: number; settled: boolean; item: Text | null }>;
   /**
    * How often its quests start again (T-304c, FR-236): `done`, the gates and `bonus.settled` count this period only;
    * `earned` stays lifetime. `resetsAt` is the next period's start, null for none.
@@ -193,7 +195,15 @@ type QuestRow = Readonly<{
   steps_needed: number | null;
   refresh: "none" | "daily" | "weekly";
   resets_at: Date | null;
+  item_ar: string | null;
+  item_en: string | null;
+  bonus_item_ar: string | null;
+  bonus_item_en: string | null;
 }>;
+
+/** An item's name, or null when the row names none. */
+const itemName = (ar: string | null, en: string | null): Text | null =>
+  ar === null && en === null ? null : { ar, en };
 
 const rulesOf = (row: QuestRow): CategoryRules => ({
   orderMode: row.order_mode,
@@ -209,6 +219,7 @@ const rulesOf = (row: QuestRow): CategoryRules => ({
     points: row.completion_bonus,
     earned: Number(row.bonus_earned),
     settled: row.bonus_settled,
+    item: itemName(row.bonus_item_ar, row.bonus_item_en),
   },
   refresh: row.refresh,
   resetsAt: row.resets_at,
@@ -246,6 +257,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
         row.steps_done === null || row.steps_needed === null
           ? null
           : { done: row.steps_done, needed: row.steps_needed },
+      item: itemName(row.item_ar, row.item_en),
     });
     categories.set(row.category_id, category);
   }

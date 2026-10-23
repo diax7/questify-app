@@ -260,11 +260,19 @@ export function staffAward(
   );
 }
 
+/** What a removal did to the credit's quest item (T-304d). */
+export type RemovedItem = "cancelled" | "handed_over" | null;
+
+export const removedItemOf = (value: unknown): RemovedItem =>
+  value === "cancelled" || value === "handed_over" ? value : null;
+
 export type Removed = Readonly<{
   entryId: string;
   scoreDelta: number;
   balanceDelta: number;
   replayed: boolean;
+  /** The credit's quest item (T-304d): cancelled by this removal, handed over already (it stays), or null. */
+  item: RemovedItem;
 }>;
 
 /** FR-320, FR-1601: removes a credit entry; neither the score nor the balance goes below zero. */
@@ -293,6 +301,7 @@ export function removeAward(
       scoreDelta: Number(row["score_delta"]),
       balanceDelta: Number(row["balance_delta"]),
       replayed: row["replayed"] === true,
+      item: removedItemOf(row["item"]),
     };
   });
 }

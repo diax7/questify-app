@@ -24,6 +24,8 @@ export type CategoryRuleFields = Readonly<{
   completionBonus: number;
   refresh: CategoryRefresh;
   hidden: boolean;
+  /** The quest item its bonus gives (T-304d), or null. */
+  itemId: string | null;
 }>;
 
 export type CategoryRefresh = "none" | "daily" | "weekly";
@@ -48,6 +50,8 @@ export type QuestRecord = Readonly<{
   verification: readonly QuestVerification[];
   /** A passport's steps in order (T-304b); none for every other type. */
   steps: readonly PassportStep[];
+  /** The quest item its first completion gives (T-304d), or null. */
+  itemId: string | null;
 }>;
 
 /** One step of a passport (T-304b): its name and the version its printed code carries. */
@@ -73,6 +77,7 @@ export type QuestFields = Readonly<{
   visible: boolean;
   config: Readonly<Record<string, unknown>>;
   verification: readonly QuestVerification[];
+  itemId: string | null;
 }>;
 
 /** The event as the builder needs it, read under a lock that serializes builder writes but never blocks joins. */
@@ -90,6 +95,7 @@ type CategoryRow = {
   completion_bonus: number;
   refresh: CategoryRefresh;
   hidden: boolean;
+  item_id: string | null;
 };
 type QuestRow = {
   id: string;
@@ -109,12 +115,13 @@ type QuestRow = {
   type_config: Record<string, unknown>;
   qr_version: number;
   verification: QuestVerification[];
+  item_id: string | null;
 };
 
-const CATEGORY_COLUMNS =
-  "id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus, refresh, hidden";
+const CATEGORY_COLUMNS = `id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus,
+  refresh, hidden, item_id`;
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification`;
+  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -127,6 +134,7 @@ const toCategory = (row: CategoryRow): CategoryRecord => ({
   completionBonus: row.completion_bonus,
   refresh: row.refresh,
   hidden: row.hidden,
+  itemId: row.item_id,
 });
 
 const toQuest = (row: QuestRow): QuestRecord => ({
@@ -146,6 +154,7 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   qrVersion: row.qr_version,
   verification: row.verification,
   steps: [],
+  itemId: row.item_id,
 });
 
 type StepRow = {
@@ -293,7 +302,7 @@ export async function writeCategory(
 ): Promise<CategoryRecord> {
   const { rows } = await db.query<CategoryRow>(
     `UPDATE category SET name_ar = $2, name_en = $3, order_mode = $4, opens_at = $5, unlock_after = $6,
-       completion_bonus = $7, refresh = $8, hidden = $9
+       completion_bonus = $7, refresh = $8, hidden = $9, item_id = $10
      WHERE id = $1 RETURNING ${CATEGORY_COLUMNS}`,
     [
       id,
@@ -305,9 +314,23 @@ export async function writeCategory(
       fields.completionBonus,
       fields.refresh,
       fields.hidden,
+      fields.itemId,
     ],
   );
   return toCategory(rows[0] as CategoryRow);
+}
+
+/** Whether this event has this quest item, not removed: the only kind a quest or category may name (T-304d). */
+export async function activeItem(
+  db: PoolClient,
+  eventId: string,
+  itemId: string,
+): Promise<boolean> {
+  const { rowCount } = await db.query(
+    "SELECT 1 FROM quest_item WHERE event_id = $1 AND id = $2 AND status = 'active'",
+    [eventId, itemId],
+  );
+  return rowCount === 1;
 }
 
 /** The categories of this event that unlock after this one (FR-235): it cannot be deleted while any does. */
@@ -465,8 +488,8 @@ export async function insertQuest(
   );
   const { rows } = await db.query<QuestRow>(
     `INSERT INTO quest (event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-                        repeat_cap, opens_at, closes_at, visible, position, type_config, verification)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                        repeat_cap, opens_at, closes_at, visible, position, type_config, verification, item_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING ${QUEST_COLUMNS}`,
     [
       eventId,
@@ -484,6 +507,7 @@ export async function insertQuest(
       position,
       fields.config,
       fields.verification,
+      fields.itemId,
     ],
   );
   return toQuest(rows[0] as QuestRow);
@@ -506,7 +530,7 @@ export async function updateQuest(
   const { rows } = await db.query<QuestRow>(
     `UPDATE quest SET category_id = $2, title_ar = $3, title_en = $4, description_ar = $5, description_en = $6,
                       points = $7, repeat_cap = $8, opens_at = $9, closes_at = $10, visible = $11, position = $12,
-                      type_config = $13, verification = $14
+                      type_config = $13, verification = $14, item_id = $15
      WHERE id = $1 RETURNING ${QUEST_COLUMNS}`,
     [
       current.id,
@@ -523,6 +547,7 @@ export async function updateQuest(
       position,
       fields.config,
       fields.verification,
+      fields.itemId,
     ],
   );
   return toQuest(rows[0] as QuestRow);

@@ -882,8 +882,8 @@ export const resultsFinal = make(
 export const rankPrizeKept = make(
   409,
   "rank_prize",
-  "جائزة الترتيب لا تُلغى من التطبيق. تواصل مع فريق الفعالية.",
-  "A rank prize can't be cancelled in the app. Ask the event team.",
+  "هذه الجائزة لا تُلغى من التطبيق. تواصل مع فريق الفعالية.",
+  "This prize can't be cancelled in the app. Ask the event team.",
 );
 export const resultsNotEnded = make(
   409,
@@ -1116,4 +1116,18 @@ export const revealCodeInvalid = make(
   "invalid_code",
   "هذا الرمز لا يكشف هذه الفئة.",
   "This code does not open this category.",
+);
+/** A quest or category naming a quest item that is removed or another event's (T-304d). */
+export const invalidItem = make(
+  422,
+  "invalid_item",
+  "اختر هديةً من هدايا هذه الفعالية.",
+  "Choose an item from this event's quest items.",
+);
+/** A quest item a quest or category still gives (T-304d): unlink it first. */
+export const itemInUse = make(
+  409,
+  "item_in_use",
+  "هذه الهدية مرتبطة بمهام أو فئات. ألغِ ربطها أولًا.",
+  "Quests or categories still give this item. Unlink it first.",
 );

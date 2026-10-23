@@ -140,7 +140,7 @@ describe("awards", () => {
 
   it("reads a removal", async () => {
     const pool = fakePool(() => [
-      { entry_id: 12, score_delta: -200, balance_delta: -50, replayed: true },
+      { entry_id: 12, score_delta: -200, balance_delta: -50, replayed: true, item: "cancelled" },
     ]);
     const done = await removeAward(pool.deps, STAFF, {
       eventId: EVENT,
@@ -151,7 +151,13 @@ describe("awards", () => {
     });
     expect(done).toEqual({
       kind: "done",
-      value: { entryId: "12", scoreDelta: -200, balanceDelta: -50, replayed: true },
+      value: {
+        entryId: "12",
+        scoreDelta: -200,
+        balanceDelta: -50,
+        replayed: true,
+        item: "cancelled",
+      },
     });
     expect(pool.statements[0]?.values).toEqual([EVENT, "7", "Cheat", "k", "r"]);
     const fresh = fakePool(() => [
@@ -164,7 +170,29 @@ describe("awards", () => {
       idempotencyKey: "k",
       requestId: "r",
     });
-    expect(first).toMatchObject({ value: { replayed: false } });
+    expect(first).toMatchObject({ value: { replayed: false, item: null } });
+    const kept = fakePool(() => [
+      { entry_id: 2, score_delta: -5, balance_delta: -5, replayed: false, item: "handed_over" },
+    ]);
+    const handed = await removeAward(kept.deps, STAFF, {
+      eventId: EVENT,
+      entryId: "8",
+      reason: "Cheat",
+      idempotencyKey: "k2",
+      requestId: "r",
+    });
+    expect(handed).toMatchObject({ value: { item: "handed_over" } });
+    const odd = fakePool(() => [
+      { entry_id: 3, score_delta: -5, balance_delta: -5, replayed: false, item: "lost" },
+    ]);
+    const unknown = await removeAward(odd.deps, STAFF, {
+      eventId: EVENT,
+      entryId: "9",
+      reason: "Cheat",
+      idempotencyKey: "k3",
+      requestId: "r",
+    });
+    expect(unknown).toMatchObject({ value: { item: null } });
   });
 });
 

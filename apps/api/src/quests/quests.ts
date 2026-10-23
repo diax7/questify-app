@@ -18,6 +18,7 @@ import {
 } from "#src/quests/builder";
 import { passportSteps } from "#src/quests/passports";
 import {
+  activeItem,
   countRows,
   deleteRow,
   insertQuest,
@@ -31,6 +32,16 @@ import {
 import type { PoolClient } from "pg";
 
 type Target = Readonly<{ eventId: string; id: string }>;
+
+/** A newly named item must be this event's and not removed; keeping or clearing the current one is always allowed. */
+async function itemAllowed(
+  client: PoolClient,
+  eventId: string,
+  itemId: string | null,
+  current: string | null,
+): Promise<boolean> {
+  return itemId === null || itemId === current || activeItem(client, eventId, itemId);
+}
 
 /**
  * Whether a category of this event may hold a quest of this type: `categoryId` when it is not this event's, `refresh`
@@ -71,6 +82,9 @@ export function createQuest(
     const fields = mergeQuest(undefined, input.type, input, event.timezone);
     if (isInvalid(fields)) {
       return fields;
+    }
+    if (!(await itemAllowed(client, eventId, fields.itemId, null))) {
+      return { kind: "invalid_item" };
     }
     if ((await countRows(client, "quest", eventId)) >= BUILDER_LIMITS.quests) {
       return { kind: "limit_reached", limit: BUILDER_LIMITS.quests };
@@ -120,6 +134,9 @@ export function updateQuest(
     const fields = mergeQuest(current, current.type, input, event.timezone);
     if (isInvalid(fields)) {
       return fields;
+    }
+    if (!(await itemAllowed(client, target.eventId, fields.itemId, current.itemId))) {
+      return { kind: "invalid_item" };
     }
     const checked = await passportSteps(client, current, current.type, fields, input.steps);
     if (checked.kind !== "steps") {

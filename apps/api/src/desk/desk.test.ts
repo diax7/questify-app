@@ -176,6 +176,7 @@ describe("lookUp (FR-925)", () => {
         offered: "yes",
         offer_until: null,
         rank: 2,
+        source: "rank",
       },
       {
         username: "sara_88",
@@ -191,6 +192,7 @@ describe("lookUp (FR-925)", () => {
         ready: false,
         offered: true,
         offer_until: LATER,
+        source: "quest",
       },
     ]);
     const result = await lookUp(
@@ -219,6 +221,7 @@ describe("lookUp (FR-925)", () => {
             offered: false,
             offerUntil: null,
             rank: 2,
+            source: "rank",
           },
           {
             id: "d2",
@@ -230,6 +233,7 @@ describe("lookUp (FR-925)", () => {
             offered: true,
             offerUntil: LATER.toISOString(),
             rank: null,
+            source: "quest",
           },
         ],
       },
@@ -449,6 +453,7 @@ describe("the poll and the player's calls", () => {
           name: { ar: null, en: "Hoodie" },
           state: "offered",
           until: LATER.toISOString(),
+          source: "shop",
         },
       ],
       watch: true,

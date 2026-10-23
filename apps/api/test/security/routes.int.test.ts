@@ -271,6 +271,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; a prize of another event answers 404; audited (test/results/routes, test/db/results)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/rank-prizes/:prizeId":
     "members inside their event limit; a prize of another event answers 404; audited (test/results/routes, test/db/results)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quest-items":
+    "members inside their event limit, through quest_items (award_event_of); another organizer's event answers 404 (test/rewards/quest-items, test/db/quest-items)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quest-items":
+    "members inside their event limit; quest_item under row-level security and its guard (the desk); audited (test/rewards/quest-items, test/db/quest-items)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/quest-items/:itemId":
+    "members inside their event limit; an item of another event answers 404; stock never below the units out; audited (test/rewards/quest-items, test/db/quest-items)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/quest-items/:itemId":
+    "members inside their event limit; an item a quest or category gives answers 409; audited (test/rewards/quest-items, test/db/quest-items)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quest-items/:itemId/misses":
+    "members inside their event limit, through quest_item_misses (award_event_of) (test/rewards/quest-items, test/db/quest-items)",
   "GET /v1/organizers/:organizerId/events/:eventId/results":
     "members inside their event limit, through results_state and results_places (award_event_of) (test/results/routes, test/db/results)",
   "POST /v1/organizers/:organizerId/events/:eventId/results/confirm":

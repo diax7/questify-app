@@ -1,5 +1,12 @@
 import type { Pool, PoolClient } from "pg";
-import { bonusPaid, levelReached, type Bonus, type LevelUp } from "#src/completions/complete";
+import {
+  bonusPaid,
+  itemGiven,
+  levelReached,
+  type Bonus,
+  type ItemGiven,
+  type LevelUp,
+} from "#src/completions/complete";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 
@@ -109,6 +116,8 @@ export type Paid = Readonly<{
   levelUp: LevelUp | null;
   /** The category bonus this play paid (T-304), or null. */
   bonus: Bonus | null;
+  /** The quest item this play gave or missed (T-304d), or null. */
+  item: ItemGiven | null;
 }>;
 
 /** The row `vote_quest`, `submit_survey` and `share_quest` answer with. */
@@ -131,5 +140,6 @@ export async function paidOf(client: PoolClient, rows: readonly PaidRow[]): Prom
     replayed: row.replayed,
     levelUp: await levelReached(client, row.completion_id),
     bonus: await bonusPaid(client, row.completion_id),
+    item: await itemGiven(client, row.completion_id),
   };
 }

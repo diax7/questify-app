@@ -1,6 +1,14 @@
 import type { Pool, PoolClient } from "pg";
 import { playerDocuments } from "@questify/shared";
-import { bonusPaid, levelReached, type Bonus, type LevelUp } from "#src/completions/complete";
+import { removedItemOf, type RemovedItem } from "#src/awards/awards";
+import {
+  bonusPaid,
+  itemGiven,
+  levelReached,
+  type Bonus,
+  type ItemGiven,
+  type LevelUp,
+} from "#src/completions/complete";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
@@ -114,6 +122,8 @@ export type Sent = Readonly<{
   levelUp: LevelUp | null;
   /** The category bonus an auto-approved send paid (T-304), or null. */
   bonus: Bonus | null;
+  /** The quest item an auto-approved send gave or missed (T-304d), or null. */
+  item: ItemGiven | null;
 }>;
 
 type SentRow = {
@@ -152,6 +162,7 @@ export function sendSubmission(
       replayed: row.replayed,
       levelUp: row.completion_id === null ? null : await levelReached(client, row.completion_id),
       bonus: row.completion_id === null ? null : await bonusPaid(client, row.completion_id),
+      item: row.completion_id === null ? null : await itemGiven(client, row.completion_id),
     };
   });
 }
@@ -415,6 +426,8 @@ export type Removed = Readonly<{
   scoreDelta: number;
   balanceDelta: number;
   replayed: boolean;
+  /** The credit's quest item (T-304d): cancelled by this removal, handed over already (it stays), or null. */
+  item: RemovedItem;
 }>;
 
 /** Removes an approved submission's points (FR-328) through the one removal path, remove_award. */
@@ -446,6 +459,7 @@ export function removeSubmission(
       scoreDelta: Number(row["score_delta"]),
       balanceDelta: Number(row["balance_delta"]),
       replayed: row["replayed"] === true,
+      item: removedItemOf(row["item"]),
     };
   });
 }

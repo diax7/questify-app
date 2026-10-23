@@ -347,6 +347,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
           state: "open",
           lock: null,
           steps: null,
+          item: null,
         },
       ]);
       expect(answer.body).not.toContain("SECRET");

@@ -141,6 +141,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
             completionBonus: 0,
             refresh: "none",
             hidden: false,
+            itemId: null,
             quests: [],
           },
         ],

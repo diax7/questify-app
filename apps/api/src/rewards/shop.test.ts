@@ -281,6 +281,7 @@ describe("readShop", () => {
     ended_at: LATER,
     collect_until: AT,
     offer_until: null,
+    source: "shop",
   };
 
   const shopPool = (shop: Record<string, unknown> | undefined) =>
@@ -345,6 +346,7 @@ describe("readShop", () => {
           collectUntil: "2030-01-01T10:00:00.000Z",
           offerUntil: null,
           rank: null,
+          source: "shop",
         },
       ],
     });

@@ -19,6 +19,7 @@ const STORED: QuestRecord = {
   qrVersion: 1,
   verification: [],
   steps: [],
+  itemId: "44444444-4444-4444-8444-444444444444",
 };
 const ZONE = "Asia/Riyadh";
 
@@ -37,6 +38,7 @@ describe("mergeQuest", () => {
       visible: true,
       config: {},
       verification: ["quest_qr"],
+      itemId: null,
     });
   });
 
@@ -52,6 +54,7 @@ describe("mergeQuest", () => {
       visible: false,
       config: { code: "NAJD2030" },
       verification: [],
+      itemId: STORED.itemId,
     });
   });
 
@@ -70,6 +73,7 @@ describe("mergeQuest", () => {
           closesAt: "2030-11-01T13:00",
           visible: true,
           config: { code: "tabuk31" },
+          itemId: null,
         },
         ZONE,
       ),
@@ -84,6 +88,7 @@ describe("mergeQuest", () => {
       visible: true,
       config: { code: "TABUK31" },
       verification: [],
+      itemId: null,
     });
   });
 
