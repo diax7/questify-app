@@ -10,6 +10,7 @@ export const REHEARSAL_CAP = 25;
 export function newRehearsalCode(pick: (bound: number) => number = randomInt): string {
   const chars = Array.from(
     { length: 8 },
+    // Stryker disable next-line StringLiteral: unreachable fallback: a pick below the length always finds a character
     () => REHEARSAL_ALPHABET[pick(REHEARSAL_ALPHABET.length)] ?? "",
   );
   return `${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
@@ -35,8 +36,8 @@ const REFUSALS: Readonly<Record<string, RehearsalRefusal>> = {
 
 /** The refusal a database error stands for, or undefined when it is not one of ours. */
 export function rehearsalRefusalOf(error: unknown): RehearsalRefusal | undefined {
-  const code = (error as { code?: unknown } | null)?.code;
-  return typeof code === "string" && Object.hasOwn(REFUSALS, code) ? REFUSALS[code] : undefined;
+  const code = String((error as { code?: unknown } | null)?.code);
+  return Object.hasOwn(REFUSALS, code) ? REFUSALS[code] : undefined;
 }
 
 /** What the wipe removed (migration 0032's `erase_counts`). */

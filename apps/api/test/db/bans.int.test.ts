@@ -165,6 +165,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
           "joined_at",
           "open_flag",
           "redeem_paused",
+          "rehearsal",
           "score",
           "status",
           "username",

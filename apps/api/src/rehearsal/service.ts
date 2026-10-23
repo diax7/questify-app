@@ -86,14 +86,20 @@ async function withFreshCode<T>(
   }
 }
 
-async function readCard(client: PoolClient, eventId: string): Promise<CardRow | undefined> {
+async function readCard(client: PoolClient, eventId: string): Promise<CardRow> {
   const { rows } = await client.query<CardRow>(
     `SELECT code, status_now, accounts, completions, points, reservations, flags, first_play_at, erased_at,
             erase_counts, live_wiped_at
      FROM rehearsal_card($1)`,
     [eventId],
   );
-  return rows[0];
+  const row = rows[0];
+  // Stryker disable all: unreachable: rehearsal_card answers one row or raises AN404
+  if (row === undefined) {
+    throw new Error(`rehearsal_card answered no row for event ${eventId}; check migration 0032`);
+  }
+  // Stryker restore all
+  return row;
 }
 
 type EventRow = Readonly<{
@@ -133,10 +139,6 @@ export function createRehearsal(deps: JoinDeps, makeCode: () => string = newRehe
     /** The card; a rehearsal not opened yet is opened with a new code while the event is before go-live. */
     card: async (actor: OrganizerContext, eventId: string): Promise<RehearsalCard | Refused> => {
       const read = await asTeam(deps.pool, actor, (client) => readCard(client, eventId));
-      // Stryker disable next-line ConditionalExpression: unreachable: rehearsal_card answers one row or raises AN404
-      if (read === undefined) {
-        return { kind: "refused", refusal: "not_found" };
-      }
       if ("kind" in read) {
         return read;
       }
@@ -152,10 +154,6 @@ export function createRehearsal(deps: JoinDeps, makeCode: () => string = newRehe
         },
         makeCode,
       );
-      // Stryker disable next-line ConditionalExpression: unreachable: the card was just read under the same rules
-      if (opened === undefined) {
-        return { kind: "refused", refusal: "not_found" };
-      }
       return "kind" in opened ? opened : cardOf(opened);
     },
 
@@ -237,12 +235,13 @@ export function createRehearsal(deps: JoinDeps, makeCode: () => string = newRehe
         return answer;
       }
       if (answer.outcome === "joined" || answer.outcome === "already") {
-        // Stryker disable next-line StringLiteral: unreachable fallbacks: join_rehearsal names both ids when joined
+        // Stryker disable all: unreachable fallbacks: join_rehearsal names both ids when joined
         return {
           kind: answer.outcome,
           enrollmentId: answer.enrollment_id ?? "",
           eventId: answer.event_id ?? "",
         };
+        // Stryker restore all
       }
       return { kind: answer.outcome };
     },

@@ -14,6 +14,10 @@ import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/
 
 type Row = Record<string, unknown>;
 
+/** The n-th well-formed rehearsal code that opens nothing. */
+const guess = (n: number) =>
+  `ZZZZ-${"ABCDEFGHJKLMNPQRSTUVWXYZ"[n % 24] ?? "A"}${"23456789"[n % 8] ?? "2"}ZZ`;
+
 /**
  * Rehearsal over HTTP (T-211): the team's card, rotate and erase; the player's card and join; the refusals in both
  * languages; the test code a digital reward shows; and the builder's "erase rehearsal first".
@@ -227,6 +231,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal over HTTP", () => {
       });
       expect(real.statusCode).toBe(409);
       expect(real.json()).toMatchObject({ code: "rehearsing" });
+    });
+
+    it("answers a wrong code, a malformed one and a banned account, and throttles a guesser", async () => {
+      const event = await newEvent();
+      const code = await codeOf(event);
+      const wrong = await asPlayer(await newPlayer(), "GET", "/v1/rehearsals/ZZZZ-ZZZZ");
+      expect(wrong.statusCode).toBe(404);
+      expect(wrong.json()).toMatchObject({ code: "rehearsal_closed" });
+      const malformed = await joinWith(await newPlayer(), "NAJD1");
+      expect(malformed.statusCode).toBe(404);
+      expect(malformed.json()).toMatchObject({ code: "rehearsal_closed" });
+      const banned = await newPlayer();
+      const joined = (await joinWith(banned, code)).json<{ enrollmentId: string }>();
+      await owner("UPDATE enrollment SET status = 'banned' WHERE id = $1", [joined.enrollmentId]);
+      expect((await joinWith(banned, code)).json()).toMatchObject({ code: "join_not_allowed" });
+
+      const guesser = await newPlayer();
+      let last = await asPlayer(guesser, "GET", `/v1/rehearsals/${guess(0)}`);
+      for (let n = 1; n <= 20 && last.statusCode !== 429; n += 1) {
+        last = await asPlayer(guesser, "GET", `/v1/rehearsals/${guess(n)}`);
+      }
+      expect(last.statusCode).toBe(429);
+      expect(last.headers["retry-after"]).toMatch(/^[0-9]+$/);
+      expect(last.json()).toMatchObject({ details: { retryAfterSeconds: expect.any(Number) } });
+      const blocked = await joinWith(guesser, code);
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.headers["retry-after"]).toMatch(/^[0-9]+$/);
     });
 
     it("says full at the cap", async () => {
