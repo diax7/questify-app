@@ -136,6 +136,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "place_radius_m",
           "daily_cap",
           "met_today",
+          "game_left",
+          "game_passed",
           "title_ar",
           "title_en",
           "type",

@@ -898,6 +898,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by give_item inside the paying definers, read by the player through own_quest_item, own_bonus and own_category_bonus and by the team through quest_items and quest_item_misses (test/db/quest-items)",
   completion_position:
     "no right and no policy for the API role at all; holds rounded distances, accuracy and the mocked mark (never a coordinate), written by keep_position inside record_completion, read by the event's team only as flag_detail's lines (test/db/location)",
+  game_round:
+    "no right and no policy for the API role at all; written by start_game_round and finish_game_round for the calling player, by the sweep and the leave trigger; read by its own player through game_round_for_replay and member_game (another player's round is no row, QC404), and by the event's team only as flag_detail's lines (test/db/games)",
   meet_pass:
     "no right and no policy for the API role at all; holds only a token's SHA-256 hash, written by issue_meet_pass for the calling player, read through meet_pass_state for its own player and by meet_player by hash (test/db/meet)",
   meeting:

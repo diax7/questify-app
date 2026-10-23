@@ -1032,6 +1032,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.meet_pass",
         "enrollment.meeting",
         "quest_completion.meeting",
+        // A rehearsal account's game rounds go before its completions (a passed round names its completion) (T-305).
+        "enrollment.game_round",
+        "quest_completion.game_round",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

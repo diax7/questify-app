@@ -221,6 +221,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot start, read or finish a mini-game round, or reach the game helpers (T-305)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.game_round",
+        "SELECT * FROM public.start_game_round(gen_random_uuid(), 'k', NULL, 1)",
+        "SELECT * FROM public.game_round_for_replay(1)",
+        "SELECT * FROM public.finish_game_round(1, 'k', 'passed', '{}', NULL, false, 0)",
+        "SELECT * FROM public.member_game(gen_random_uuid())",
+        "SELECT public.close_one_due_round()",
+        "SELECT public.games_on(gen_random_uuid())",
+        "SELECT public.game_level('memory_match', 'easy')",
+        "SELECT * FROM public.game_attempts(gen_random_uuid(), NULL::public.quest)",
+        "SELECT public.game_left(gen_random_uuid(), NULL::public.quest)",
+        "SELECT public.game_spent(gen_random_uuid(), NULL::public.quest)",
+        "SELECT public.game_payable(NULL::public.enrollment)",
+        "SELECT public.game_last_attempt(NULL::public.enrollment, NULL::public.quest)",
+        "SELECT public.raise_game_flag(NULL::public.game_round, 'x')",
+        "SELECT * FROM public.game_answer(NULL::public.game_round, false)",
+        "SELECT public.game_issue_replay(gen_random_uuid(), 'k', gen_random_uuid())",
+        "SELECT public.game_issue_check(NULL::public.enrollment, NULL::public.quest)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

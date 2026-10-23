@@ -146,6 +146,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own code only; another player's code answers 404, through meet_pass_state (test/plays/meet, test/db/meet)",
   "POST /v1/meet":
     "the scanner's own enrollment in the code's event only (not_in_event, naming no one, otherwise); the other player is named by username and avatar only, never their id, through meet_player (test/plays/meet, test/db/meet)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/mini-games":
+    "owner of that organizer only (owner route, walked below); changes only the miniGames switch of that event (test/plays/games)",
+  "GET /v1/quests/:questId/game":
+    "the calling player's own enrollment in the quest's event only (QC404 otherwise), through member_game (test/plays/games, test/db/games)",
+  "POST /v1/quests/:questId/game-rounds":
+    "the calling player's own active enrollment in the quest's event only; the round is the caller's, issued by start_game_round (test/plays/games, test/db/games)",
+  "POST /v1/game-rounds/:roundId/result":
+    "the calling player's own round only; another player's round answers 404, through game_round_for_replay and finish_game_round (test/plays/games, test/db/games)",
   "PUT /v1/organizers/:organizerId/events/:eventId/share-quests":
     "the organizer's owner only, for an event of that organizer (the same handler as the ranking switch) (test/plays/survey-share, test/ranking/ranking)",
   "GET /v1/me":
