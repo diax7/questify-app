@@ -16,6 +16,10 @@ export type EventPlayer = Readonly<{
   joinedAt: Date;
   /** The join answers (FR-131), in the event's field order: for this event's team only. */
   answers: readonly JoinAnswerView[];
+  /** The player's oldest open flag case (T-209), for a link to it; null when none is open. */
+  openFlag: string | null;
+  /** The owner paused this player's redemptions (FR-518). */
+  redeemPaused: boolean;
 }>;
 
 export type JoinAnswerView = Readonly<{
@@ -105,6 +109,8 @@ export async function listPlayers(
       status: EventPlayer["status"];
       score: string;
       joined_at: Date;
+      open_flag: string | null;
+      redeem_paused: boolean;
     }>("SELECT * FROM event_players($1, $2, $3, $4)", [
       request.eventId,
       request.afterId,
@@ -124,6 +130,8 @@ export async function listPlayers(
       score: Number(row.score),
       joinedAt: row.joined_at,
       answers: answers.get(row.enrollment_id) ?? [],
+      openFlag: row.open_flag,
+      redeemPaused: row.redeem_paused,
     }));
   });
 }

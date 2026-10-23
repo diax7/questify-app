@@ -1,12 +1,18 @@
 import type { Pool, PoolClient } from "pg";
+import type { AuthKeys } from "#src/auth/keys";
+import { DESK_FIND_LIMIT } from "#src/auth/limits";
 import type { Caller } from "#src/auth/sign-in";
+import { BUCKETS, countRecent, record } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
 import { verifyMyCode, type MyCodeKey } from "#src/quests/qr";
 import { pinOf, windowsOf, type DeskPin, type DeskWindow } from "#src/rewards/builder";
 
-export type DeskDeps = Readonly<{ pool: Pool; myKey: MyCodeKey }>;
+export type DeskDeps = Readonly<{ pool: Pool; myKey: MyCodeKey; keys: AuthKeys }>;
+
+/** What the desk is told about a player it may not serve now: never why (a flag and a ban read the same). */
+export type DeskHold = "held" | "paused";
 
 /** Why a desk or player call was refused; each maps to one HTTP answer in the routes. */
 export type DeskRefusal =
@@ -21,7 +27,9 @@ export type DeskRefusal =
   | Readonly<{ kind: "offer_gone" }>
   | Readonly<{ kind: "not_ready" }>
   | Readonly<{ kind: "old_code" }>
-  | Readonly<{ kind: "not_in_event" }>;
+  | Readonly<{ kind: "not_in_event" }>
+  | Readonly<{ kind: "held"; hold: DeskHold }>
+  | Readonly<{ kind: "redeem_paused" }>;
 
 export type DeskDone<T> = Readonly<{ kind: "done"; value: T }> | DeskRefusal;
 
@@ -39,6 +47,8 @@ const REFUSALS: Readonly<Record<string, (detail: string) => DeskRefusal>> = {
   RC409: () => ({ kind: "not_ready" }),
   OM422: () => ({ kind: "old_code" }),
   QC404: () => ({ kind: "not_in_event" }),
+  RH409: (detail) => ({ kind: "held", hold: detail === "paused" ? "paused" : "held" }),
+  RP403: () => ({ kind: "redeem_paused" }),
 };
 
 /** Runs one call as `playerId`; a refusal the database raises becomes its result, anything else is thrown. */
@@ -122,14 +132,41 @@ export type DeskItem = Readonly<{
   offerUntil: string | null;
 }>;
 
-export type Lookup =
-  | Readonly<{
-      kind: "found";
-      player: Readonly<{ username: string; avatar: string }>;
-      enrollment: string;
-      items: readonly DeskItem[];
-    }>
-  | Readonly<{ kind: "invalid_code" }>;
+export type Found = Readonly<{
+  kind: "found";
+  player: Readonly<{ username: string; avatar: string }>;
+  /** False for a player who left or was removed; true for a banned one, who reads as held. */
+  active: boolean;
+  /** Why nothing can be handed over now (FR-1604, FR-1747, FR-1815), or null. */
+  hold: DeskHold | null;
+  items: readonly DeskItem[];
+}>;
+
+export type Lookup = Found | Readonly<{ kind: "invalid_code" }>;
+
+/** The player and their waiting items, as desk_lookup and desk_find answer them (one row even when none wait). */
+export function foundOf(rows: readonly Readonly<Record<string, unknown>>[]): Found {
+  const first = rows[0] ?? {};
+  const hold = first["hold"];
+  return {
+    kind: "found",
+    player: { username: String(first["username"]), avatar: String(first["avatar"]) },
+    active: first["active"] === true,
+    hold: hold === "held" || hold === "paused" ? hold : null,
+    items: rows
+      .filter((row) => row["redemption_id"] !== null)
+      .map((row) => ({
+        id: String(row["redemption_id"]),
+        kind: row["kind"] as DeskItem["kind"],
+        name: text(row["name_ar"], row["name_en"]),
+        reservedAt: iso(row["reserved_at"]),
+        reservedUntil: iso(row["reserved_until"]),
+        ready: row["ready"] === true,
+        offered: row["offered"] === true,
+        offerUntil: iso(row["offer_until"]),
+      })),
+  };
+}
 
 /**
  * The desk scans My QR (FR-925): the API opens the code, the database checks the operator and the code's version and
@@ -152,24 +189,51 @@ export async function lookUp(
       opened.playerId,
       opened.version,
     ]);
-    const first = rows[0] as Record<string, unknown>;
-    return {
-      kind: "found" as const,
-      player: { username: String(first["username"]), avatar: String(first["avatar"]) },
-      enrollment: String(first["enrollment_status"]),
-      items: rows
-        .filter((row) => row["redemption_id"] !== null)
-        .map((row) => ({
-          id: String(row["redemption_id"]),
-          kind: row["kind"] as DeskItem["kind"],
-          name: text(row["name_ar"], row["name_en"]),
-          reservedAt: iso(row["reserved_at"]),
-          reservedUntil: iso(row["reserved_until"]),
-          ready: row["ready"] === true,
-          offered: row["offered"] === true,
-          offerUntil: iso(row["offer_until"]),
-        })),
-    };
+    return foundOf(rows);
+  });
+}
+
+export type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
+
+/**
+ * The desk finds a member by exact username or exact Saudi mobile when My QR will not scan (FR-1848, ADR-156). Each
+ * find can read a phone number's owner, so an operator has 30 in 10 minutes. Null when nobody matches. The username
+ * and phone never reach a log line.
+ */
+export async function findAtDesk(
+  deps: DeskDeps,
+  request: Readonly<{
+    operatorId: string;
+    eventId: string;
+    username: string | null;
+    phone: string | null;
+  }>,
+): Promise<DeskDone<Found | null> | Throttled> {
+  const key = deps.keys.playerKey(request.operatorId);
+  const window = await withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, async () => {
+      const recent = await countRecent(
+        client,
+        BUCKETS.deskFind,
+        key,
+        DESK_FIND_LIMIT.windowSeconds,
+      );
+      if (recent.count < DESK_FIND_LIMIT.max) {
+        await record(client, BUCKETS.deskFind, key);
+      }
+      return recent;
+    }),
+  );
+  if (window.count >= DESK_FIND_LIMIT.max) {
+    return { kind: "throttled", retryAfterSeconds: window.retryAfterSeconds };
+  }
+  return as(deps, request.operatorId, async (client) => {
+    const { rows } = await client.query("SELECT * FROM desk_find($1, $2, $3)", [
+      request.eventId,
+      request.username,
+      request.phone,
+    ]);
+    return rows.length === 0 ? null : foundOf(rows);
   });
 }
 

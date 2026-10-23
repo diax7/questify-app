@@ -56,6 +56,8 @@ export function sessionLimitsFor(platformRole: "none" | "admin"): SessionLimits 
  */
 /** An operator's player finds for a manual award (FR-308, T-207): each one can read a phone number's owner. */
 export const AWARD_FIND_LIMIT = { max: 30, windowSeconds: 600 } as const;
+/** The desk's finds by username or phone when My QR will not scan (FR-1848, T-209): the award find's limit. */
+export const DESK_FIND_LIMIT = { max: 30, windowSeconds: 600 } as const;
 
 export const COMPLETION_LIMITS = {
   wrongCodesPerPlayerQuest: { max: 5, windowSeconds: 600 },

@@ -135,6 +135,7 @@ describe("reserveReward and cancelRedemption", () => {
     ["RO409", undefined, { kind: "sold_out" }],
     ["RL409", "2", { kind: "limit_reached", limit: 2 }],
     ["RB422", undefined, { kind: "not_enough_balance" }],
+    ["RP403", undefined, { kind: "redeem_paused" }],
     ["RE409", "expired", { kind: "reservation_ended", status: "expired" }],
     ["RS403", undefined, { kind: "shop_closed", reason: "" }],
   ])("turns %s (%s) into its refusal and rolls back", async (code, detail, expected) => {

@@ -777,3 +777,33 @@ export const outsideStation = make(
   "هذه المهمة خارج المهام المسندة إليك.",
   "This quest is outside the quests you were given.",
 );
+export const heldAtDesk = make(
+  409,
+  "held",
+  "هذه الجائزة معلّقة. اطلب من المالك مراجعتها.",
+  "This item is held. Ask the owner.",
+);
+export const pausedAtDesk = make(
+  409,
+  "paused",
+  "الاستبدال موقوف لهذا اللاعب. اطلب من المالك.",
+  "Redeeming is paused for this player. Ask the owner.",
+);
+export const redeemPaused = make(
+  403,
+  "redeem_paused",
+  "الاستبدال موقوف لك في هذه الفعالية. تواصل مع فريق الفعالية.",
+  "Redeeming is paused for you in this event. Ask the event team.",
+);
+export const caseClosed = make(
+  409,
+  "resolved",
+  "أُغلقت هذه الحالة من قبل.",
+  "This case is already closed.",
+);
+export const noRemoval = make(
+  409,
+  "no_removal",
+  "أزِل النقاط من سجل اللاعب أولًا، ثم أغلق الحالة.",
+  "Remove the points from the player's record first, then close the case.",
+);

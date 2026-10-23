@@ -28,6 +28,7 @@ export const BUCKETS = {
   contactCodePlayer: "contact_code_player",
   contactFailPlayer: "contact_fail_player",
   awardFind: "award_find",
+  deskFind: "desk_find",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

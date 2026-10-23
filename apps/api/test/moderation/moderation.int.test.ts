@@ -111,6 +111,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("players, bans and exclusions o
             "avatar",
             "enrollmentId",
             "joinedAt",
+            "openFlag",
+            "redeemPaused",
             "score",
             "status",
             "username",

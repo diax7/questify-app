@@ -229,7 +229,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     myKey: createMyCodeKey(config.qrSecret),
     ranking,
   });
-  registerDeskRoutes(app, { pool: options.pool, myKey: createMyCodeKey(config.qrSecret) });
+  registerDeskRoutes(app, {
+    pool: options.pool,
+    myKey: createMyCodeKey(config.qrSecret),
+    keys: signInDeps.keys,
+  });
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {

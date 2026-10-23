@@ -56,6 +56,7 @@ export type ReserveResult =
   | Readonly<{ kind: "sold_out" }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
   | Readonly<{ kind: "not_enough_balance" }>
+  | Readonly<{ kind: "redeem_paused" }>
   | Readonly<{ kind: "reservation_ended"; status: string }>;
 
 /** The SQLSTATEs of `reserve_reward` and `cancel_redemption` (migration 0024). */
@@ -70,6 +71,7 @@ const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
   RO409: () => ({ kind: "sold_out" }),
   RL409: (detail) => ({ kind: "limit_reached", limit: Number(detail) }),
   RB422: () => ({ kind: "not_enough_balance" }),
+  RP403: () => ({ kind: "redeem_paused" }),
   RE409: (detail) => ({ kind: "reservation_ended", status: detail }),
 };
 

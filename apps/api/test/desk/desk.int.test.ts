@@ -547,8 +547,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       await handOver(desk, closing);
       await owner("UPDATE enrollment SET status = 'banned' WHERE id = $1", [first.enrollment]);
       expect(await refusal(accept(first.player, banned))).toEqual({
-        code: "RA403",
-        detail: "banned",
+        code: "RH409",
+        detail: "held",
       });
       await owner(
         `UPDATE event SET desk_hours = tstzmultirange(tstzrange(now() + interval '1 hour', now() + interval '2 hours'))
@@ -613,14 +613,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       expect(await refusal(opCancel(desk, id))).toEqual({ code: "OY409" });
     });
 
-    it("refuses a banned player's handover", async () => {
+    it("holds a banned player's handover like a flagged one (FR-1747)", async () => {
       const event = await newEvent();
       const desk = await newOperator(event);
       const { player, enrollment } = await newPlayer(event);
       const id = await reserve(player, await newReward(event));
       await collect(player, id);
       await owner("UPDATE enrollment SET status = 'banned' WHERE id = $1", [enrollment]);
-      expect(await refusal(handOver(desk, id))).toEqual({ code: "RA403", detail: "banned" });
+      expect(await refusal(handOver(desk, id))).toEqual({ code: "RH409", detail: "held" });
     });
   });
 
@@ -657,13 +657,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       const event = await newEvent();
       const desk = await newOperator(event);
       const { player } = await newPlayer(event);
-      const rows = await call<{ redemption_id: string | null; enrollment_status: string }>(
-        desk,
-        "SELECT * FROM desk_lookup($1, $2, $3)",
-        [event, player, await myQr(player)],
-      );
+      const rows = await call<{
+        redemption_id: string | null;
+        active: boolean;
+        hold: string | null;
+      }>(desk, "SELECT * FROM desk_lookup($1, $2, $3)", [event, player, await myQr(player)]);
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ redemption_id: null, enrollment_status: "active" });
+      expect(rows[0]).toMatchObject({ redemption_id: null, active: true, hold: null });
     });
 
     it("refuses an old My QR, the operator's own code and a player of another event", async () => {

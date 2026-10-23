@@ -215,6 +215,18 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/redemptions/:redemptionId/decline":
     "only the bearer's own reservation (test/desk/routes, test/desk/desk)",
   "GET /v1/me/desk-items": "only the bearer's own reservations (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/events/:eventId/desk/find":
+    "only an operator of that event with the hand-over ability; exact username or phone among that event's members (never removed ones, never the caller); a ban reads like a flag; 30 finds per operator in 10 minutes; the search never reaches the log (test/desk/routes, test/db/flags, test/flags/routes)",
+  "GET /v1/organizers/:organizerId/events/:eventId/flags":
+    "members inside their event limit, through event_flags (test/flags/routes, test/db/flags)",
+  "GET /v1/organizers/:organizerId/events/:eventId/flags/:flagId":
+    "members inside their event limit; a case of another event answers 404; never the install id (test/flags/routes, test/db/flags)",
+  "POST /v1/organizers/:organizerId/events/:eventId/flags/:flagId/resolve":
+    "members inside their event limit; a case closes once, as points removed only after a removal (test/flags/routes, test/db/flags)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/players/:enrollmentId/redeem-pause":
+    "the owner only (the scope's hook, then set_redeem_pause) (test/flags/routes, test/db/flags)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/flag-hold":
+    "the owner only (the scope's hook, then set_flag_hold) (test/flags/routes, test/db/flags)",
   "POST /v1/operator/events/:eventId/find-player":
     "only an operator of that event with the award ability; exact username or phone among that event's members, never the exact status; 30 finds per operator in 10 minutes (test/awards/routes, test/db/awards)",
   "GET /v1/operator/events/:eventId/award":

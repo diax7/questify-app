@@ -159,7 +159,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
       const all = await list();
       expect(all.map((row) => row["enrollment_id"])).toEqual(made.map((m) => m.enrollment));
       expect(Object.keys(all[0] ?? {}).toSorted()).toEqual(
-        ["avatar", "enrollment_id", "joined_at", "score", "status", "username"].toSorted(),
+        [
+          "avatar",
+          "enrollment_id",
+          "joined_at",
+          "open_flag",
+          "redeem_paused",
+          "score",
+          "status",
+          "username",
+        ].toSorted(),
       );
       expect(JSON.stringify(all)).not.toContain("1990");
       const first = await list(null, 2);

@@ -1,11 +1,14 @@
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
+import { createAuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
 import {
   acceptHandover,
   cancelAtDesk,
   declineHandover,
   deskViewOf,
+  findAtDesk,
+  foundOf,
   handOver,
   lookUp,
   myDeskItems,
@@ -21,6 +24,7 @@ const EVENT = "33333333-3333-4333-8333-333333333333";
 const AT = new Date("2030-01-01T10:00:00Z");
 const LATER = new Date("2030-01-01T10:05:00Z");
 const KEY = createMyCodeKey("q".repeat(40));
+const KEYS = createAuthKeys("k".repeat(40));
 
 type Answer = (sql: string, values: unknown[]) => Record<string, unknown>[] | Error;
 
@@ -42,7 +46,7 @@ function fakePool(answer: Answer) {
     release: vi.fn(),
   };
   return {
-    deps: { pool: { connect: async () => client } as unknown as Pool, myKey: KEY },
+    deps: { pool: { connect: async () => client } as unknown as Pool, myKey: KEY, keys: KEYS },
     statements,
   };
 }
@@ -77,6 +81,10 @@ describe("refusals (migration 0029's SQLSTATEs)", () => {
     ["RC409", undefined, { kind: "not_ready" }],
     ["OM422", undefined, { kind: "old_code" }],
     ["QC404", undefined, { kind: "not_in_event" }],
+    ["RH409", "held", { kind: "held", hold: "held" }],
+    ["RH409", "paused", { kind: "held", hold: "paused" }],
+    ["RH409", undefined, { kind: "held", hold: "held" }],
+    ["RP403", undefined, { kind: "redeem_paused" }],
   ] as const)("answers %s (%s) as its refusal", async (code, detail, expected) => {
     const { deps } = fakePool(() => pgError(code, detail));
     expect(await offerState(deps, REQUEST)).toEqual(expected);
@@ -156,7 +164,8 @@ describe("lookUp (FR-925)", () => {
       {
         username: "sara_88",
         avatar: "fox",
-        enrollment_status: "banned",
+        active: true,
+        hold: "held",
         redemption_id: "d1",
         kind: "experience",
         name_ar: "صالة",
@@ -170,7 +179,8 @@ describe("lookUp (FR-925)", () => {
       {
         username: "sara_88",
         avatar: "fox",
-        enrollment_status: "banned",
+        active: true,
+        hold: "held",
         redemption_id: "d2",
         kind: "item",
         name_ar: null,
@@ -195,7 +205,8 @@ describe("lookUp (FR-925)", () => {
       value: {
         kind: "found",
         player: { username: "sara_88", avatar: "fox" },
-        enrollment: "banned",
+        active: true,
+        hold: "held",
         items: [
           {
             id: "d1",
@@ -224,13 +235,78 @@ describe("lookUp (FR-925)", () => {
 
   it("answers no items when the one row has none", async () => {
     const { deps } = fakePool(() => [
-      { username: "a", avatar: "b", enrollment_status: "active", redemption_id: null },
+      { username: "a", avatar: "b", active: false, hold: null, redemption_id: null },
     ]);
     expect(
       await lookUp(deps, { operatorId: OPERATOR, eventId: EVENT, code }, caller().value),
-    ).toMatchObject({
-      value: { kind: "found", enrollment: "active", items: [] },
+    ).toEqual({
+      kind: "done",
+      value: {
+        kind: "found",
+        player: { username: "a", avatar: "b" },
+        active: false,
+        hold: null,
+        items: [],
+      },
     });
+  });
+});
+
+describe("foundOf", () => {
+  it("reads only a known hold, and an active flag only when it is true", () => {
+    expect(
+      foundOf([{ username: "a", avatar: "b", active: "yes", hold: "paused", redemption_id: null }]),
+    ).toMatchObject({
+      active: false,
+      hold: "paused",
+    });
+    expect(
+      foundOf([{ username: "a", avatar: "b", active: true, hold: "banned", redemption_id: null }]),
+    ).toMatchObject({
+      active: true,
+      hold: null,
+    });
+  });
+});
+
+/** Answers the throttle's count with `recent` attempts, then the find with `rows`. */
+const findPool = (recent: number, rows: Record<string, unknown>[]) =>
+  fakePool((sql) => {
+    if (sql.includes("count(")) {
+      return [{ count: recent, retry_after: 60 }];
+    }
+    return sql.includes("desk_find") ? rows : [];
+  });
+
+describe("findAtDesk (FR-1848)", () => {
+  const FIND = { operatorId: OPERATOR, eventId: EVENT, username: "sara_88", phone: null };
+
+  it("sends the username or the phone and answers the player, or null when nobody matches", async () => {
+    const found = findPool(0, [
+      { username: "sara_88", avatar: "fox", active: true, hold: null, redemption_id: null },
+    ]);
+    expect(await findAtDesk(found.deps, FIND)).toMatchObject({
+      kind: "done",
+      value: { kind: "found", player: { username: "sara_88" }, items: [] },
+    });
+    expect(found.statements.find((s) => s.sql.includes("desk_find"))).toEqual({
+      sql: "SELECT * FROM desk_find($1, $2, $3)",
+      values: [EVENT, "sara_88", null],
+    });
+    expect(
+      await findAtDesk(findPool(0, []).deps, { ...FIND, username: null, phone: "+966512345678" }),
+    ).toEqual({
+      kind: "done",
+      value: null,
+    });
+  });
+
+  it("refuses the 31st find in the window before the database looks", async () => {
+    const full = findPool(30, []);
+    expect(await findAtDesk(full.deps, FIND)).toMatchObject({ kind: "throttled" });
+    expect(full.statements.some((s) => s.sql.includes("desk_find"))).toBe(false);
+    const last = findPool(29, []);
+    expect(await findAtDesk(last.deps, FIND)).toEqual({ kind: "done", value: null });
   });
 });
 

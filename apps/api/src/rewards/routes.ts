@@ -9,6 +9,7 @@ import {
   limitReached,
   notDigital,
   notEnoughBalance,
+  redeemPaused,
   notFound,
   ownerOnly,
   reservationEnded,
@@ -262,6 +263,8 @@ function refusal(result: Exclude<ReserveResult, { kind: "done" }>): never {
       throw rewardLimitReached({ limit: result.limit });
     case "not_enough_balance":
       throw notEnoughBalance();
+    case "redeem_paused":
+      throw redeemPaused();
     case "reservation_ended":
       throw reservationEnded({ status: result.status });
   }

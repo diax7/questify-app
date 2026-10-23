@@ -288,7 +288,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
       expect(looked.json()).toMatchObject({
         result: "found",
         player: { username: expect.stringMatching(/^desk_/) },
-        enrollment: "active",
+        active: true,
+        hold: null,
         items: [{ id, kind: "item", ready: true, offered: false }],
       });
       expect(JSON.stringify(looked.json())).not.toContain("price");
@@ -436,10 +437,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
 
       await owner("UPDATE enrollment SET status = 'banned' WHERE player_id = $1", [fan.id]);
       const banned = await app("POST", `/v1/operator/redemptions/${id}/hand-over`, desk.token);
-      expect(banned.json()).toMatchObject({
-        code: "enrollment_inactive",
-        details: { reason: "banned" },
+      expect(banned.statusCode).toBe(409);
+      expect(banned.json()).toMatchObject({ code: "held" });
+      const held = await app("POST", "/v1/operator/desk/lookup", desk.token, {
+        eventId: event,
+        code: fan.code,
       });
+      expect(held.json()).toMatchObject({ active: true, hold: "held" });
+      for (const answer of [banned, held]) {
+        expect(JSON.stringify(answer.json())).not.toContain("banned");
+      }
+      await owner(
+        "UPDATE enrollment SET status = 'active', redeem_paused_at = now() WHERE player_id = $1",
+        [fan.id],
+      );
+      const paused = await app("POST", `/v1/operator/redemptions/${id}/hand-over`, desk.token);
+      expect(paused.statusCode).toBe(409);
+      expect(paused.json()).toMatchObject({ code: "paused" });
+      const collect = await app(
+        "POST",
+        `/v1/redemptions/${id}/collect`,
+        fan.token,
+        undefined,
+        null,
+      );
+      expect(collect.statusCode).toBe(403);
+      expect(collect.json()).toMatchObject({ code: "redeem_paused" });
+      const reserveAgain = await app(
+        "POST",
+        `/v1/rewards/${await newReward(event)}/reserve`,
+        fan.token,
+      );
+      expect(reserveAgain.statusCode).toBe(403);
+      expect(reserveAgain.json()).toMatchObject({ code: "redeem_paused" });
 
       const cancelled = await app("POST", `/v1/operator/redemptions/${id}/cancel`, desk.token);
       expect(cancelled.json()).toMatchObject({ status: "cancelled", replayed: false });
@@ -466,6 +496,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
       ]) {
         expect((await app("POST", path, desk.token, undefined, null)).statusCode).toBe(400);
       }
+    });
+  });
+
+  const find = (token: string, event: string, query: string) =>
+    app("POST", `/v1/operator/events/${event}/desk/find`, token, { query }, null);
+
+  describe("find by username or phone (FR-1848)", () => {
+    it("finds by username, @username or a local mobile, and answers none for nobody", async () => {
+      const event = await newEvent();
+      const desk = await newOperator(event);
+      const fan = await newPlayer(event);
+      const [named] = await owner<{ username: string }>(
+        "SELECT username FROM player WHERE id = $1",
+        [fan.id],
+      );
+      await owner(
+        "INSERT INTO player_contact (player_id, phone_e164) VALUES ($1, '+966598765432')",
+        [fan.id],
+      );
+      const id = await reserve(fan.token, await newReward(event));
+      for (const query of [named?.username ?? "", `@${named?.username ?? ""}`, "0598765432"]) {
+        expect((await find(desk.token, event, query)).json()).toMatchObject({
+          result: "found",
+          player: { username: named?.username },
+          active: true,
+          hold: null,
+          items: [{ id }],
+        });
+      }
+      expect((await find(desk.token, event, "nobody_here")).json()).toEqual({ result: "none" });
+      expect((await find(desk.token, event, "")).statusCode).toBe(400);
+    });
+
+    it("needs the hand-over ability and stops at 30 finds in 10 minutes", async () => {
+      const event = await newEvent();
+      const awarder = await newOperator(event, ["award"]);
+      const off = await find(awarder.token, event, "someone");
+      expect(off.statusCode).toBe(403);
+      expect(off.json()).toMatchObject({ code: "ability_off" });
+      const desk = await newOperator(event);
+      for (let i = 0; i < 30; i += 1) {
+        expect((await find(desk.token, event, `nobody_${i}`)).statusCode).toBe(200);
+      }
+      const limited = await find(desk.token, event, "nobody");
+      expect(limited.statusCode).toBe(429);
+      expect(limited.headers["retry-after"]).toBeDefined();
     });
   });
 });

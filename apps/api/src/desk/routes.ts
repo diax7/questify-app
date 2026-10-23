@@ -5,12 +5,16 @@ import {
   deskClosed,
   enrollmentInactive,
   handoverMode,
+  heldAtDesk,
   notFound,
   notOperator,
   notReady,
   offerGone,
+  pausedAtDesk,
+  redeemPaused,
   reservationEnded,
   selfHandover,
+  tooManyAttempts,
   unauthenticated,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
@@ -18,6 +22,7 @@ import {
   acceptHandover,
   cancelAtDesk,
   declineHandover,
+  findAtDesk,
   handOver,
   lookUp,
   myDeskItems,
@@ -27,7 +32,9 @@ import {
   type DeskDeps,
   type DeskDone,
   type DeskRefusal,
+  type Found,
 } from "#src/desk/desk";
+import { normalizeSaudiMobile } from "#src/players/phone";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = { ...player, config: { ...player.config, idempotent: true } } as const;
@@ -35,6 +42,16 @@ const playerIdempotent = { ...player, config: { ...player.config, idempotent: tr
 const eventParams = z.object({ eventId: z.uuid() });
 const redemptionParams = z.object({ redemptionId: z.uuid() });
 const lookupBody = z.strictObject({ eventId: z.uuid(), code: z.string().min(1).max(512) });
+const findBody = z.strictObject({ query: z.string().trim().min(1).max(40) });
+
+/** What the desk is told of a player found by My QR or by name: never a status that would name a ban. */
+const foundAnswer = (found: Found) => ({
+  result: "found",
+  player: found.player,
+  active: found.active,
+  hold: found.hold,
+  items: found.items,
+});
 
 const playerIdOf = (request: { player?: { id: string } | undefined }): string => {
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
@@ -68,6 +85,10 @@ function refuse(result: DeskRefusal): never {
       throw offerGone();
     case "not_ready":
       throw notReady();
+    case "held":
+      throw result.hold === "paused" ? pausedAtDesk() : heldAtDesk();
+    case "redeem_paused":
+      throw redeemPaused();
     // Stryker disable next-line ConditionalExpression: only the lookup raises it, and the lookup answers it as a result
     case "old_code":
       throw notFound();
@@ -101,12 +122,7 @@ export function registerDeskRoutes(app: FastifyInstance, deps: DeskDeps): void {
         const found = result.value;
         return found.kind === "invalid_code"
           ? { result: "refused", reason: "invalid_code" }
-          : {
-              result: "found",
-              player: found.player,
-              enrollment: found.enrollment,
-              items: found.items,
-            };
+          : foundAnswer(found);
       }
       case "old_code":
         return { result: "refused", reason: "old_code" };
@@ -119,6 +135,25 @@ export function registerDeskRoutes(app: FastifyInstance, deps: DeskDeps): void {
       default:
         return refuse(result);
     }
+  });
+
+  // FR-1848: by exact username or Saudi mobile when My QR will not scan. Nobody found is a result, not an error.
+  app.post("/v1/operator/events/:eventId/desk/find", player, async (request, reply) => {
+    const { eventId } = parse(eventParams, request.params);
+    const { query } = parse(findBody, request.body);
+    const phone = normalizeSaudiMobile(query) ?? null;
+    const result = await findAtDesk(deps, {
+      operatorId: playerIdOf(request),
+      eventId,
+      username: phone === null ? query.replace(/^@/, "") : null,
+      phone,
+    });
+    if (result.kind === "throttled") {
+      reply.header("retry-after", String(result.retryAfterSeconds));
+      throw tooManyAttempts();
+    }
+    const found = valueOf(result);
+    return found === null ? { result: "none" } : foundAnswer(found);
   });
 
   app.post(

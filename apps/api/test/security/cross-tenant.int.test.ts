@@ -767,6 +767,7 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
   manual_award_key:
     "no right for the API role at all; written and read only by the award and removal definers (test/db/awards)",
+  flag: "no right for the API role at all; raised by a trigger on completions, read and closed only through the team's definers inside their events (test/db/flags)",
   player_session:
     "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
 };
