@@ -12,6 +12,8 @@ export type TypeFieldProps = Readonly<{
   config: Config;
   disabled: boolean;
   change: (config: Config) => void;
+  /** A live poll already sent (T-306): its live setting, choices and minutes stay as they are. */
+  sent?: boolean | undefined;
 }>;
 
 export const str = (value: unknown): string => (typeof value === "string" ? value : "");

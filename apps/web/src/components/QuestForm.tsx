@@ -3,6 +3,7 @@
 import {
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
+  isLivePoll,
   parseVerification,
   termFor,
   zoneLabel,
@@ -182,6 +183,60 @@ export function QuestForm({
           change={change}
         />
       )}
+      {isLivePoll(draft.type, draft.config) ? null : (
+        <QuestWindowFields
+          language={language}
+          timeZone={timeZone}
+          draft={draft}
+          busy={busy}
+          change={change}
+        />
+      )}
+      <TypeFields
+        language={language}
+        config={draft.config}
+        disabled={busy}
+        sent={draft.pollSent}
+        change={(config) => change({ config })}
+      />
+      {hasPlace(draft.type) ? (
+        <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
+      ) : null}
+      <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
+      {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
+      {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
+      <div className={styles.actions}>
+        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+          {t("common.cancel")}
+        </button>
+        <button type="submit" className={styles.button} disabled={busy}>
+          {isNew ? t("quests.create") : t("quests.save")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * When the quest opens and closes, in the event's zone, and whether players see it. A live poll has none of these:
+ * Send and Close set its window (T-306).
+ */
+function QuestWindowFields({
+  language,
+  timeZone,
+  draft,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  draft: QuestDraft;
+  busy: boolean;
+  change: (patch: Partial<QuestDraft>) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
       {(["opensAt", "closesAt"] as const).map((key) => (
         <label key={key} className={styles.field}>
           {t(`quests.field.${key}`)}
@@ -207,27 +262,7 @@ export function QuestForm({
         />
         <span>{t("quests.field.visible")}</span>
       </label>
-      <TypeFields
-        language={language}
-        config={draft.config}
-        disabled={busy}
-        change={(config) => change({ config })}
-      />
-      {hasPlace(draft.type) ? (
-        <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
-      ) : null}
-      <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
-      {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
-      {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {isNew ? t("quests.create") : t("quests.save")}
-        </button>
-      </div>
-    </form>
+    </>
   );
 }
 

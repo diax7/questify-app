@@ -60,10 +60,11 @@ const refused = {
 
 describe("the vote", () => {
   it("reads the options and the player's choice, and refuses anything malformed", () => {
-    expect(voteViewOf({ options: choices, mine: null })).toEqual({ options: choices, mine: null });
-    expect(voteViewOf({ options: choices, mine: "r" })?.mine).toBe("r");
-    expect(voteViewOf({ options: [{ id: 1 }], mine: null })).toBeUndefined();
-    expect(voteViewOf({ options: choices, mine: 3 })).toBeUndefined();
+    expect(voteViewOf({ options: choices, mine: [] })).toEqual({ options: choices, mine: [] });
+    expect(voteViewOf({ options: choices, mine: ["r", "w"] })?.mine).toEqual(["r", "w"]);
+    expect(voteViewOf({ options: [{ id: 1 }], mine: [] })).toBeUndefined();
+    expect(voteViewOf({ options: choices, mine: "r" })).toBeUndefined();
+    expect(voteViewOf({ options: choices, mine: [3] })).toBeUndefined();
     expect(voteViewOf(null)).toBeUndefined();
   });
 

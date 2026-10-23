@@ -1032,8 +1032,8 @@ export const questLocked = make(
 export const pollLocked = make(
   409,
   "poll_locked",
-  "أُرسل هذا التصويت أو صوّت فيه لاعبون، فلا يتغيّر نوعه ولا عدد اختياراته ولا مدته.",
-  "This poll was sent or has votes, so whether it is live, its choices and its minutes stay as they are.",
+  "اجعل التصويت مباشرًا وهو مخفي ولم يُرسَل ولا أصوات فيه. وبعد إرساله لا يتغيّر عدد الاختيارات ولا المدة.",
+  "Make a vote live while it is hidden, unsent and without votes. Once sent, its choices and minutes stay as they are.",
 );
 export const notLivePoll = make(
   422,

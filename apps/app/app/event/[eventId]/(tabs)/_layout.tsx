@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
 import type { MessageKey } from "@questify/shared";
 import { useEvent } from "#src/event/EventContext.tsx";
+import { LivePolls } from "#src/event/LivePolls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ScanButton } from "#src/components/ScanButton.tsx";
 import { useTheme } from "#src/theme/theme.tsx";
@@ -19,42 +20,48 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
 
 /**
  * The event's bar (FR-620, T-113): Home, Quests, Scan in the middle, Rewards, Profile. The tabs keep one order in both
- * languages, even when the app runs right to left (user, ADR-110 note; FR-620's mirroring is Q-100).
+ * languages, even when the app runs right to left (user, ADR-110 note; FR-620's mirroring is Q-100). The live poll card
+ * (T-306) sits over the tabs.
  */
 export default function EventTabsLayout() {
   const { t } = useI18n();
   const { theme, text } = useTheme();
   const { eventId } = useEvent();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.navigationActive,
-        tabBarInactiveTintColor: theme.colors.navigationInactive,
-        tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
-        tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
-      }}
-    >
-      {TABS.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: t(tab.title),
-            tabBarIcon: ({ color, size }) => <Ionicons name={tab.icon} size={size} color={color} />,
-            ...(tab.name === "scan"
-              ? {
-                  tabBarButton: () => (
-                    <ScanButton
-                      label={t(tab.title)}
-                      onPress={() => router.push(`/event/${eventId}/scan-quest`)}
-                    />
-                  ),
-                }
-              : {}),
-          }}
-        />
-      ))}
-    </Tabs>
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: theme.colors.navigationActive,
+          tabBarInactiveTintColor: theme.colors.navigationInactive,
+          tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
+          tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
+        }}
+      >
+        {TABS.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: t(tab.title),
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name={tab.icon} size={size} color={color} />
+              ),
+              ...(tab.name === "scan"
+                ? {
+                    tabBarButton: () => (
+                      <ScanButton
+                        label={t(tab.title)}
+                        onPress={() => router.push(`/event/${eventId}/scan-quest`)}
+                      />
+                    ),
+                  }
+                : {}),
+            }}
+          />
+        ))}
+      </Tabs>
+      <LivePolls />
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  isLivePoll,
   PASSPORT_STEPS_MAX,
   PLACED_QUEST_TYPES,
   PLACE_RADIUS,
@@ -36,6 +37,8 @@ export type QuestView = Readonly<{
   itemId: string | null;
   /** Its place on a spot type (T-303b): a pin and a radius in metres; required for a location quest. */
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
+  /** When a live poll was sent (T-306); null for a draft and every other quest. */
+  pollSentAt: string | null;
 }>;
 
 /** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
@@ -188,6 +191,8 @@ export type QuestDraft = Readonly<{
   placeLat: string;
   placeLng: string;
   placeRadius: string;
+  /** Whether it is a live poll already sent (T-306): its live setting, choices and minutes stay. Never sent to the API. */
+  pollSent: boolean;
 }>;
 
 /** The radius a new place starts with, in metres: a doorway-sized circle. */
@@ -215,6 +220,7 @@ export function blankQuest(categoryId: string): QuestDraft {
     placeLat: "",
     placeLng: "",
     placeRadius: String(DEFAULT_PLACE_RADIUS),
+    pollSent: false,
   };
 }
 
@@ -238,6 +244,7 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     placeLat: quest.place === null ? "" : String(quest.place.lat),
     placeLng: quest.place === null ? "" : String(quest.place.lng),
     placeRadius: String(quest.place?.radiusM ?? DEFAULT_PLACE_RADIUS),
+    pollSent: quest.pollSentAt !== null,
   };
 }
 
@@ -247,9 +254,14 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   description: { ar: draft.descriptionAr, en: draft.descriptionEn },
   points: draft.points,
   repeatCap: draft.repeatCap,
-  opensAt: draft.opensAt === "" ? null : draft.opensAt,
-  closesAt: draft.closesAt === "" ? null : draft.closesAt,
-  visible: draft.visible,
+  // A live poll's window is Send's and Close's (T-306): the API keeps it, so the form never sends one.
+  ...(isLivePoll(draft.type, draft.config)
+    ? {}
+    : {
+        opensAt: draft.opensAt === "" ? null : draft.opensAt,
+        closesAt: draft.closesAt === "" ? null : draft.closesAt,
+        visible: draft.visible,
+      }),
   ...apiParts(draft),
   verification: draft.verification,
   itemId: itemChoice(draft.itemId),

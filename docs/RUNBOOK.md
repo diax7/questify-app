@@ -258,6 +258,11 @@ the client-address count (ADR-113).
   a `v<n>.ts` beside the old one) goes out **before** the app release that draws with it: the server answers an app
   whose engine is older with 426 `update_required`, and replays each round with the version frozen on it, so the old
   version stays until no open round can use it (the longest window after the deploy: the time limit plus 10 minutes).
+- **Live polls (T-306): migration 0052 drops `vote_quest(uuid, text, text)`** for the several-choice signature.
+  Between the migration and the new API instance taking traffic, the old instance's votes fail (500). Deploy in a quiet
+  minute, or migrate and switch over together; the app's retry with the same key recovers a failed vote once the new
+  instance answers. On the day a build goes to store review, send a live poll with 1,440 minutes in the demo event
+  (STORE_COMPLIANCE, review notes).
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.

@@ -230,12 +230,14 @@ REVOKE ALL ON FUNCTION quest_vote_counts(uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION quest_vote_counts(uuid, uuid) TO questify_app;
 
 -- ================================================================ the player's poll (FR-242)
--- A live poll the caller may see (an active member and account, the quest visible, its category seen), with its rules,
+-- A live poll the caller may see (an active member and account, the quest visible, its category seen), with its title
+-- and points for the pop-up card, its rules,
 -- its window (never past the event's end), whether it closed and the caller's own choices. No row otherwise.
 CREATE FUNCTION member_poll(target uuid)
-  RETURNS TABLE (choices text, results text, closes_at timestamptz, closed boolean, mine text[], server_now timestamptz)
+  RETURNS TABLE (title_ar text, title_en text, points integer, choices text, results text, closes_at timestamptz,
+                 closed boolean, mine text[], server_now timestamptz)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-  SELECT q.type_config -> 'live' ->> 'choices', q.type_config -> 'live' ->> 'results',
+  SELECT q.title_ar, q.title_en, q.points, q.type_config -> 'live' ->> 'choices', q.type_config -> 'live' ->> 'results',
          least(q.closes_at, e.ends_at), least(q.closes_at, e.ends_at) <= now(),
          ARRAY(SELECT v.option_id FROM quest_vote v WHERE v.enrollment_id = n.id AND v.quest_id = q.id ORDER BY 1),
          now()

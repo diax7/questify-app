@@ -7,14 +7,14 @@ import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 export type PlayText = Readonly<{ ar: string | null; en: string | null }>;
 export type PlayChoice = Readonly<{ id: string; text: PlayText }>;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 const nullableString = (value: unknown) => value === null || typeof value === "string";
-const isText = (value: unknown): value is PlayText =>
+export const isText = (value: unknown): value is PlayText =>
   isRecord(value) && nullableString(value["ar"]) && nullableString(value["en"]);
 const isChoice = (value: unknown): value is PlayChoice =>
   isRecord(value) && typeof value["id"] === "string" && isText(value["text"]);
-const isChoices = (value: unknown): value is PlayChoice[] =>
+export const isChoices = (value: unknown): value is PlayChoice[] =>
   Array.isArray(value) && value.every(isChoice);
 
 /** The play's outcome in the sheet's words; a refusal carries the server's own message. */
@@ -30,13 +30,17 @@ const failureOf = (answer: Exclude<AuthedResult, { kind: "ok" }>): PlayFailure =
 
 // ================================================================ the vote
 
-export type VoteView = Readonly<{ options: readonly PlayChoice[]; mine: string | null }>;
+/** A vote's options and the player's own choices (several only on a live poll that takes several). */
+export type VoteView = Readonly<{ options: readonly PlayChoice[]; mine: readonly string[] }>;
+
+export const isStrings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
 
 export function voteViewOf(body: unknown): VoteView | undefined {
-  if (!isRecord(body) || !isChoices(body["options"]) || !nullableString(body["mine"])) {
+  if (!isRecord(body) || !isChoices(body["options"]) || !isStrings(body["mine"])) {
     return undefined;
   }
-  return { options: body["options"], mine: body["mine"] as string | null };
+  return { options: body["options"], mine: body["mine"] };
 }
 
 export type Voted = Readonly<{
@@ -77,17 +81,18 @@ export async function fetchVote(
   return answer.kind === "ok" ? voteViewOf(answer.body) : undefined;
 }
 
+/** Casts the vote: one option, or several on a live poll that takes several (FR-240). */
 export async function castVote(
   session: Pick<Session, "request">,
   questId: string,
-  optionId: string,
+  optionIds: readonly string[],
   key: string,
 ): Promise<Voted | PlayFailure> {
   return votedOf(
     await session.request({
       method: "POST",
       path: `/v1/quests/${encodeURIComponent(questId)}/vote`,
-      body: { optionId },
+      body: { optionIds },
       headers: { "idempotency-key": key },
     }),
   );

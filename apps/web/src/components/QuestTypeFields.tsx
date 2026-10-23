@@ -1,6 +1,12 @@
 "use client";
 
-import { MEET_DAILY_CAP, type Language, type MessageKey, type QuestType } from "@questify/shared";
+import {
+  MEET_DAILY_CAP,
+  POLL_MINUTES,
+  type Language,
+  type MessageKey,
+  type QuestType,
+} from "@questify/shared";
 import type { ReactNode } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import {
@@ -16,6 +22,7 @@ import {
 } from "#src/components/QuestTextFields.tsx";
 import { GameFields } from "#src/components/GameFields.tsx";
 import { NumberField } from "#src/components/NumberField.tsx";
+import { NEW_LIVE_BLOCK } from "#src/lib/polls.ts";
 import { PassportFields } from "#src/components/PassportFields.tsx";
 import {
   ChallengeFields,
@@ -134,9 +141,76 @@ function SubmissionFields({ language, config, disabled, change }: TypeFieldProps
 
 type Question = Item & Readonly<{ choices: readonly Item[]; right: string }>;
 
-/** A vote (T-302): 2 to 10 options the organizer writes (FR-1629: never a player's submission). */
-function VoteFields({ language, config, disabled, change }: TypeFieldProps) {
+type LiveBlock = Readonly<{ choices: string; results: string; minutes: number | string }>;
+
+/**
+ * A live poll's settings (T-306, FR-239 to FR-242): one or several choices, when players see the results, and how many
+ * minutes it stays open once sent. Choices and minutes are fixed once it is sent.
+ */
+function LivePollFields({
+  language,
+  live,
+  disabled,
+  sent,
+  change,
+}: Readonly<{
+  language: Language;
+  live: LiveBlock;
+  disabled: boolean;
+  sent: boolean;
+  change: (live: LiveBlock) => void;
+}>) {
   const t = translatorFor(language);
+  const radio = (name: "choices" | "results", value: string, label: MessageKey, fixed: boolean) => (
+    <label key={value} className={styles.check}>
+      <input
+        type="radio"
+        name={`poll-${name}`}
+        checked={live[name] === value}
+        disabled={disabled || fixed}
+        onChange={() => change({ ...live, [name]: value })}
+      />
+      <span>{t(label)}</span>
+    </label>
+  );
+  return (
+    <>
+      <p className={styles.muted}>{t("quests.poll.helper")}</p>
+      <p className={styles.muted}>{t(sent ? "quests.poll.sentLocked" : "quests.poll.window")}</p>
+      <fieldset className={styles.field}>
+        <legend>{t("quests.poll.choices")}</legend>
+        {radio("choices", "one", "quests.poll.one", sent)}
+        {radio("choices", "several", "quests.poll.several", sent)}
+      </fieldset>
+      <fieldset className={styles.field}>
+        <legend>{t("quests.poll.results")}</legend>
+        {radio("results", "after_vote", "quests.poll.afterVote", false)}
+        {radio("results", "at_close", "quests.poll.atClose", false)}
+        {radio("results", "never", "quests.poll.never", false)}
+      </fieldset>
+      <NumberField
+        label={t("quests.poll.minutes")}
+        value={live.minutes}
+        invalid={
+          typeof live.minutes !== "number" ||
+          live.minutes < POLL_MINUTES.min ||
+          live.minutes > POLL_MINUTES.max
+        }
+        disabled={disabled || sent}
+        change={(text) => change({ ...live, minutes: text === "" ? "" : Number(text) })}
+      />
+    </>
+  );
+}
+
+/**
+ * A vote (T-302): 2 to 10 options the organizer writes (FR-1629: never a player's submission); ticked Live poll, it is
+ * sent and closed from the quest list (T-306).
+ */
+function VoteFields({ language, config, disabled, change, sent = false }: TypeFieldProps) {
+  const t = translatorFor(language);
+  const live = config["live"] as LiveBlock | undefined;
+  const plain = Object.fromEntries(Object.entries(config).filter(([name]) => name !== "live"));
   return (
     <fieldset className={styles.field}>
       <legend>{t("quests.vote.options")}</legend>
@@ -148,6 +222,26 @@ function VoteFields({ language, config, disabled, change }: TypeFieldProps) {
         disabled={disabled}
         change={(options) => change({ ...config, options })}
       />
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={live !== undefined}
+          disabled={disabled || sent}
+          onChange={(event) =>
+            change(event.target.checked ? { ...config, live: NEW_LIVE_BLOCK } : plain)
+          }
+        />
+        <span>{t("quests.poll.live")}</span>
+      </label>
+      {live === undefined ? null : (
+        <LivePollFields
+          language={language}
+          live={live}
+          disabled={disabled}
+          sent={sent}
+          change={(next) => change({ ...config, live: next })}
+        />
+      )}
     </fieldset>
   );
 }

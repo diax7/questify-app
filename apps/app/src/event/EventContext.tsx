@@ -4,6 +4,7 @@ import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { loadEventConfig, locationQuestsOn } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
+import { livePollSecondsOf } from "#src/event/polls.ts";
 
 type EventValue = Readonly<{
   eventId: string;
@@ -21,6 +22,8 @@ type EventValue = Readonly<{
    * virtual one, FR-1744; nothing while its kind is unknown).
    */
   scanPositions: boolean;
+  /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
+  livePollSeconds: number;
 }>;
 
 const EventContext = createContext<EventValue | undefined>(undefined);
@@ -34,6 +37,7 @@ export function EventProvider({
   const [knownName, rememberName] = useState<string | undefined>(undefined);
   const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
   const [locationOn, setLocationOn] = useState(false);
+  const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
   const load = useCallback(async () => {
     const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
     setEvents(answer.kind === "ok" ? readMyEvents(answer.body) : undefined);
@@ -51,6 +55,7 @@ export function EventProvider({
       if (current) {
         setTerms(loaded.terms);
         setLocationOn(locationQuestsOn(loaded));
+        setLivePollSeconds(livePollSecondsOf(loaded));
       }
     });
     return () => {
@@ -60,8 +65,17 @@ export function EventProvider({
   const kind = events?.find((event) => event.id === eventId)?.kind;
   const scanPositions = locationOn && (kind === "physical" || kind === "workplace");
   const value = useMemo(
-    () => ({ eventId, events, knownName, rememberName, terms, locationOn, scanPositions }),
-    [eventId, events, knownName, terms, locationOn, scanPositions],
+    () => ({
+      eventId,
+      events,
+      knownName,
+      rememberName,
+      terms,
+      locationOn,
+      scanPositions,
+      livePollSeconds,
+    }),
+    [eventId, events, knownName, terms, locationOn, scanPositions, livePollSeconds],
   );
   return <EventContext.Provider value={value}>{children}</EventContext.Provider>;
 }

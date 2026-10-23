@@ -3,6 +3,7 @@
 import {
   QUEST_TYPES,
   formatEventTime,
+  isLivePoll,
   formatNumber,
   termFor,
   toLocalInput,
@@ -11,6 +12,7 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
 import {
@@ -83,19 +85,20 @@ export type Deleting =
   | Readonly<{ kind: "quest"; quest: QuestView }>
   | Readonly<{ kind: "category"; category: CategoryView }>;
 
-export type CardActions = Readonly<{
-  /** Where a quest's printed code is, for the types that have one. */
-  codeLink: (quest: QuestView) => string | undefined;
-  reorderCategories: (ids: string[]) => void;
-  /** Saves a category's names and rules (T-304). */
-  saveCategory: (category: CategoryView, body: Record<string, unknown>) => void;
-  reorderQuests: (category: CategoryView, ids: string[]) => void;
-  toggle: (quest: QuestView) => void;
-  pin: (quest: QuestView) => void;
-  edit: (quest: QuestView) => void;
-  add: (category: CategoryView) => void;
-  remove: (target: Deleting) => void;
-}>;
+export type CardActions = PollActions &
+  Readonly<{
+    /** Where a quest's printed code is, for the types that have one. */
+    codeLink: (quest: QuestView) => string | undefined;
+    reorderCategories: (ids: string[]) => void;
+    /** Saves a category's names and rules (T-304). */
+    saveCategory: (category: CategoryView, body: Record<string, unknown>) => void;
+    reorderQuests: (category: CategoryView, ids: string[]) => void;
+    toggle: (quest: QuestView) => void;
+    pin: (quest: QuestView) => void;
+    edit: (quest: QuestView) => void;
+    add: (category: CategoryView) => void;
+    remove: (target: Deleting) => void;
+  }>;
 
 /**
  * A heading that takes the focus when it appears, which also scrolls it into view: a dialog or form opened from far
@@ -207,17 +210,26 @@ function QuestRow({
   readOnly: boolean;
 }>) {
   const t = translatorFor(language);
+  const live = isLivePoll(quest.type, quest.config);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
-    iso === null ? null : (
+    iso === null || live ? null : (
       <span className={styles.muted}>
         {t(key, { time: formatEventTime(new Date(iso), timeZone, language) })}
       </span>
     );
   return (
-    <li className={styles.card}>
+    <li className={live ? `${styles.card} ${styles.wrap}` : styles.card}>
       <strong>{textFor(quest.title, language)}</strong>
       <span className={styles.badge}>{t(QUEST_TYPES[quest.type].label)}</span>
-      {quest.visible ? null : <span className={styles.badge}>{t("quests.hidden")}</span>}
+      {quest.visible || live ? null : <span className={styles.badge}>{t("quests.hidden")}</span>}
+      <PollControls
+        language={language}
+        timeZone={timeZone}
+        quest={quest}
+        busy={busy}
+        readOnly={readOnly}
+        actions={actions}
+      />
       {pinned ? <span className={styles.badge}>{t("quests.pinned")}</span> : null}
       {pinned && !quest.visible ? (
         <span className={styles.muted}>{t("quests.pinnedHidden")}</span>
@@ -245,14 +257,16 @@ function QuestRow({
             busy={busy}
             apply={(order) => actions.reorderQuests(category, order)}
           />
-          <button
-            type="button"
-            className={styles.quiet}
-            disabled={busy}
-            onClick={() => actions.toggle(quest)}
-          >
-            {quest.visible ? t("quests.hide") : t("quests.show")}
-          </button>
+          {live ? null : (
+            <button
+              type="button"
+              className={styles.quiet}
+              disabled={busy}
+              onClick={() => actions.toggle(quest)}
+            >
+              {quest.visible ? t("quests.hide") : t("quests.show")}
+            </button>
+          )}
           <button
             type="button"
             className={styles.quiet}

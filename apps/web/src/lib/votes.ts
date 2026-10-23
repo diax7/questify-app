@@ -5,7 +5,12 @@ export type VoteOptionCount = Readonly<{
   votes: number;
 }>;
 
-export type VoteCounts = Readonly<{ options: readonly VoteOptionCount[]; total: number }>;
+/** Every option's count, their sum, and the players who voted (T-306): a share is out of the voters. */
+export type VoteCounts = Readonly<{
+  options: readonly VoteOptionCount[];
+  total: number;
+  voters: number;
+}>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -27,9 +32,15 @@ export function voteCountsOf(body: unknown): VoteCounts | undefined {
     !isRecord(body) ||
     !Array.isArray(body["options"]) ||
     !body["options"].every(isCount) ||
-    typeof body["total"] !== "number"
+    typeof body["total"] !== "number" ||
+    typeof body["voters"] !== "number"
   ) {
     return undefined;
   }
-  return { options: body["options"], total: body["total"] };
+  return { options: body["options"], total: body["total"], voters: body["voters"] };
+}
+
+/** An option's share of the voters as a whole percent; with several choices the shares can add up past 100. */
+export function shareOf(votes: number, voters: number): number {
+  return voters === 0 ? 0 : Math.round((votes * 100) / voters);
 }

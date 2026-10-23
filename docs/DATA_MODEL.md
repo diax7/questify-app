@@ -534,6 +534,21 @@ system audit entry `event.quiz_voided` (its error code only), so the sweep moves
 `member_vote`, `quest_vote_counts`, `quiz_start`, `quiz_next`, `quiz_answer`, `member_quiz`, `finish_one_due_quiz`.
 **PII:** a player's choices (store forms: "quiz answers, votes"); counts only for the team.
 
+### Live polls (migration 0052, T-306, ADR-220)
+**Built:** a live poll is a vote quest whose `type_config` has `live {choices: one|several, results:
+after_vote|at_close|never, minutes 1..1440}` (`quest_vote_shape`; `several` exists only inside `live`). `quest.poll_sent_at`
+(no column grant; `quest_poll_sent_live`: only a live poll has one). `quest_vote` is now one row per chosen option:
+primary key (enrollment, quest, option), `completion_id` indexed, not unique (the rows of one vote share its one
+completion). The window is the quest's own `visible`/`opens_at`/`closes_at`, written by `send_poll` and `close_poll`
+(owners and editors, audited `quest.poll_send` / `quest.poll_close`) to the millisecond; `quest_live_poll_guard` keeps
+the API's seat from showing a draft poll, giving it a window, changing a sent poll's window or adding `live` to a
+visible vote (`PL409`); `quest_lock_played` keeps `live` on a sent or voted vote and its choices and minutes once
+sent. Live polls are left out of `category_done`, `category_cleared` and `category_lock`'s in-order check (a
+category of only live polls is cleared, never done). Readers: `member_poll`, `poll_results` (`PR403` by policy),
+`quest_vote_counts` (with `voters`), `live_state` (the live read; empty for anyone not an active member),
+`event_has_open_poll` (the API's 3 s cache). Index `quest_live_idx ON quest (event_id) WHERE type = 'vote' AND
+type_config ? 'live'`. The rehearsal wipe puts sent polls back to draft and counts `votes` per player and quest.
+
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
 created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method

@@ -35,6 +35,6 @@ test("builds a vote and a quiz, each played once", async ({ page }, info) => {
   const vote = page.getByRole("listitem").filter({ hasText: "أفضل جناح" });
   await vote.getByRole("button", { name: "تعديل" }).click();
   await expect(page.getByRole("heading", { name: "الأصوات" })).toBeVisible();
-  await expect(page.getByText("مجموع الأصوات: 0")).toBeVisible();
+  await expect(page.getByText("عدد المصوّتين: 0")).toBeVisible();
   await expect(page.getByLabel("الخيار 2 بالعربية")).toHaveValue("الفضاء");
 });

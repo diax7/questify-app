@@ -969,10 +969,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-236 | F-51 | Should | built (T-304c) |
 | FR-237 | F-99 | Could | built (T-304c) |
 | FR-238 | F-99 | Could | pending (T-501, ADR-200) |
-| FR-239 | F-100 | Should | pending |
-| FR-240 | F-100 | Should | pending |
-| FR-241 | F-100 | Should | pending |
-| FR-242 | F-100 | Should | pending |
+| FR-239 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts`, `e2e/live-polls.spec.ts` (T-306; the push is T-501's) |
+| FR-240 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
+| FR-241 | F-100 | Should | `test/db/live-polls.int` (a 0-point poll records the vote and pays no points; Questify XP still follows, Q-184) (T-306) |
+| FR-242 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
 | FR-243 | F-101 | Should | pending |
 | FR-244 | F-101 | Should | pending |
 | FR-245 | F-101 | Should | pending |

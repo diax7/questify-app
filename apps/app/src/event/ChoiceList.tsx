@@ -7,8 +7,9 @@ import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
- * A vote's options or a quiz question's choices, one per row, read as a radio group. `marks` paints a choice right or
- * wrong once the answer is shown (FR-209); nothing is pressable then.
+ * A vote's options or a quiz question's choices, one per row, read as a radio group; with `multiple` (a live poll that
+ * takes several, FR-240) as checkboxes, `selected` holding the ticked ones. `marks` paints a choice right or wrong once
+ * the answer is shown (FR-209); nothing is pressable then.
  */
 export function ChoiceList({
   choices,
@@ -16,33 +17,38 @@ export function ChoiceList({
   disabled,
   onChoose,
   marks,
+  multiple = false,
+  selected = [],
 }: Readonly<{
   choices: readonly PlayChoice[];
   chosen: string | null;
   disabled: boolean;
   onChoose: (id: string) => void;
   marks?: Readonly<{ right: string; wrong: string | null }>;
+  multiple?: boolean;
+  selected?: readonly string[];
 }>) {
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
+  const isChosen = (id: string) => (multiple ? selected.includes(id) : chosen === id);
   return (
-    <View accessibilityRole="radiogroup" style={styles.list}>
+    <View accessibilityRole={multiple ? "list" : "radiogroup"} style={styles.list}>
       {choices.map((choice) => {
         const right = marks?.right === choice.id;
         const wrong = marks?.wrong === choice.id;
         return (
           <Pressable
             key={choice.id}
-            accessibilityRole="radio"
+            accessibilityRole={multiple ? "checkbox" : "radio"}
             accessibilityState={{
-              checked: chosen === choice.id,
+              checked: isChosen(choice.id),
               disabled: disabled || marks !== undefined,
             }}
             disabled={disabled || marks !== undefined}
             onPress={() => onChoose(choice.id)}
             style={[
               styles.choice,
-              chosen === choice.id && styles.chosen,
+              isChosen(choice.id) && styles.chosen,
               right && styles.right,
               wrong && styles.wrong,
             ]}

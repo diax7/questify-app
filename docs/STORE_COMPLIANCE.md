@@ -154,6 +154,10 @@ What App Review needs from Questify:
    downloaded code); the server issues each round and checks its result; only data changes remotely (the game
    choice, the level, the attempts and each level's numbers); attempts are never sold; the organizer can switch
    mini-games off for an event.
+   **Live polls (T-306, ADR-220, ADR-221):** the note says a live poll is a vote on the organizer's own written
+   options (never on a person's looks), sent from the dashboard; the app shows it as a card while the event screen is
+   open, from its own polling (no push needed, 4.5.4); results are counts only. The demo event gets a live poll sent
+   with 1,440 minutes on the day the build goes to review (RUNBOOK).
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

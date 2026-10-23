@@ -2813,6 +2813,15 @@ refuses adding or removing `live` on a visible or sent quest and changing its ch
 never stays open past the event end; with several choices, shares are out of voters.
 **Why:** reusing the quest gives points, the ledger, audiences, rehearsal, erasure and removal for free, and the
 quest's own window means no player reader changes.
+**Build notes (T-306, 2026-10-24, migration 0052):** CTO re-review 1: a category of only live polls counts as empty
+for the gates (cleared, so the category after it opens at once) and is never done (no bonus). CTO re-review 2: a
+category holding a live poll cannot switch to refreshing (0046's `category_refresh_type`; a vote is a played-once
+type). The guard (`quest_live_poll_guard`, API seat) and `quest_lock_played` (every seat) answer `PL409 {field}`:
+`window`, `live`, `choices`, `minutes`; the builder answers 409 `poll_locked {field}` and never sends a live poll's
+window. Send and Close write their times to the millisecond, so the builder's read and write back of a sent poll
+leaves the window exactly as it was. A send in a live event runs the go-live wipe first, so every send the wipe sees
+is a rehearsal send (the wipe resets them on either reason). Before go-live a send needs a running rehearsal
+(`event_not_live` otherwise). `GET /v1/quests/{id}/vote` answers `mine` as a list.
 
 ## ADR-221 — Live updates are polled for now
 **Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-185.
@@ -2823,6 +2832,13 @@ event with nothing live answers without the per-player query, and its open-poll 
 growth step if the big screen (T-504) or a load test needs updates faster than polling gives.
 **Why:** polls and a progress bar tolerate a 10 s delay; one small indexed call is cheaper to build and run than a
 stream with its fan-out, reconnects and proxy limits.
+**Build notes (T-306, 2026-10-24):** anyone who is not an active member of the event gets the same empty answer
+(200), so the read names no event; the 3 s cache holds `event_has_open_poll` per event (open now or closed in the
+last 15 minutes), and when it is false the API answers empty without a query. The 30-a-minute limit is counted in
+each API instance's memory (a fixed minute window), not in `auth_throttle`: a database row per poll at 500 calls a
+second would cost more than the read it guards; with several instances a player may get 30 per instance. The API has
+no CORS (the dashboard reaches it through its own proxy and does not read `Server-Now`), so no
+`Access-Control-Expose-Headers` is needed (CTO re-review 4).
 
 ## ADR-222 — Community quest counting
 **Status:** Proposed (Claude, 2026-10-24; T-306 plan, built in T-306b). Q-186.

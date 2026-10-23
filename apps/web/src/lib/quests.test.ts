@@ -31,6 +31,7 @@ const QUEST: QuestView = {
   verification: [],
   itemId: "i1",
   place: null,
+  pollSentAt: null,
 };
 
 describe("textFor", () => {
@@ -78,6 +79,24 @@ describe("quest bodies", () => {
       itemId: null,
       place: null,
     });
+  });
+
+  it("never sends a live poll's window: Send and Close set it (T-306)", () => {
+    const live = {
+      ...blankQuest("c1"),
+      type: "vote" as const,
+      titleEn: "Next?",
+      opensAt: "2030-11-01T10:00",
+      config: { options: [], live: { choices: "one", results: "never", minutes: 5 } },
+    };
+    const body = createQuestBody(live);
+    expect(body).not.toHaveProperty("visible");
+    expect(body).not.toHaveProperty("opensAt");
+    expect(body).not.toHaveProperty("closesAt");
+    expect(
+      questDraftOf({ ...QUEST, pollSentAt: "2030-11-01T07:00:00.000Z" }, "Asia/Riyadh").pollSent,
+    ).toBe(true);
+    expect(before.pollSent).toBe(false);
   });
 
   it("edits with only what changed", () => {

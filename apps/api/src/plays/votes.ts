@@ -108,6 +108,8 @@ export function voteCounts(
 
 /** A live poll as the player's sheet shows it (FR-239 to FR-242). */
 export type PollView = Readonly<{
+  title: Bilingual;
+  points: number;
   options: readonly Readonly<{ id: string; text: Bilingual }>[];
   choices: PollChoices;
   results: PollResults;
@@ -125,6 +127,9 @@ export type PollView = Readonly<{
 }>;
 
 type PollRow = {
+  title_ar: string | null;
+  title_en: string | null;
+  points: number;
   choices: PollChoices;
   results: PollResults;
   closes_at: Date;
@@ -183,6 +188,8 @@ export async function readPoll(
   return {
     kind: "done",
     value: {
+      title: { ar: poll.title_ar, en: poll.title_en },
+      points: poll.points,
       options,
       choices: poll.choices,
       results: poll.results,

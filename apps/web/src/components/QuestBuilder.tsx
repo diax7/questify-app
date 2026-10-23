@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_TERMS, QUEST_TYPES, type Language } from "@questify/shared";
+import { DEFAULT_TERMS, QUEST_TYPES, formatNumber, type Language } from "@questify/shared";
 import { useRef, useState, type FormEvent } from "react";
 import {
   CategoryCard,
@@ -10,9 +10,11 @@ import {
   type CardActions,
   type Deleting,
 } from "#src/components/QuestBuilderParts.tsx";
+import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { translatorFor } from "#src/lib/language.ts";
+import { pollMinutesOf } from "#src/lib/polls.ts";
 import {
   blankQuest,
   createQuestBody,
@@ -27,6 +29,9 @@ import styles from "#src/components/layout.module.css";
 
 /** The quest form while it is open, with its own Idempotency-Key for as long as this draft lives. */
 type Editing = Readonly<{ quest?: QuestView; initial: QuestDraft; key: string }>;
+
+/** A live poll's Send or Close while the page asks for it, with the Idempotency-Key it goes with (T-306). */
+type Polling = Readonly<{ kind: "send" | "close"; quest: QuestView; key: string }>;
 
 /**
  * Remembers the control that opened a dialog or form, and gives it the focus back when that closes, so a keyboard or
@@ -66,6 +71,7 @@ export function QuestBuilder({
   const b = useQuestBuilder(language, organizerId, eventId);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<Deleting | null>(null);
+  const [polling, setPolling] = useState<Polling | null>(null);
   const categoryKey = useRef(crypto.randomUUID());
   const focus = useReturnFocus();
   const categories = b.categories ?? [];
@@ -79,7 +85,22 @@ export function QuestBuilder({
     focus.restore();
   };
   const codesPage = `/${language}/organizers/${organizerId}/events/${eventId}/codes`;
+  const askPoll = (kind: Polling["kind"], quest: QuestView) => {
+    focus.remember();
+    setPolling({ kind, quest, key: crypto.randomUUID() });
+  };
+  const confirmPoll = () => {
+    if (polling === null) {
+      return;
+    }
+    const { kind, quest, key } = polling;
+    setPolling(null);
+    void b.send("POST", `/quests/${quest.id}/${kind}`, {}, { key }).then(() => focus.restore());
+  };
   const actions: CardActions = {
+    sendPoll: (quest) => askPoll("send", quest),
+    closePoll: (quest) => askPoll("close", quest),
+    votesUrl: (quest) => `/v1/organizers/${organizerId}/events/${eventId}/quests/${quest.id}/votes`,
     codeLink: (quest) =>
       QUEST_TYPES[quest.type].usesQuestQr ? `${codesPage}#code-${quest.id}` : undefined,
     reorderCategories: (ids) => void b.send("PUT", "/categories/order", { ids }),
@@ -207,6 +228,27 @@ export function QuestBuilder({
             focus.restore();
           }}
           confirm={confirmDelete}
+        />
+      )}
+      {polling === null ? null : (
+        <ConfirmDialog
+          language={language}
+          title={t(polling.kind === "send" ? "quests.poll.sendTitle" : "quests.poll.closeTitle")}
+          body={
+            polling.kind === "send"
+              ? t("quests.poll.sendBody", {
+                  minutes: formatNumber(pollMinutesOf(polling.quest.config), language),
+                })
+              : t("quests.poll.closeBody")
+          }
+          confirmLabel={t(polling.kind === "send" ? "quests.poll.send" : "quests.poll.close")}
+          noteLabel={null}
+          busy={b.busy}
+          cancel={() => {
+            setPolling(null);
+            focus.restore();
+          }}
+          confirm={confirmPoll}
         />
       )}
       {editing === null ? null : (
