@@ -2608,3 +2608,72 @@ rather than new ones. After the CTO code review (M1): a pending item's answer ca
 "collect it at the prize desk by {time}", so a scan just before the desk closes is not a silent minutes-long
 reservation; recording `claim_closed` under a threshold was rejected (it would refuse an item the desk can still hand
 over).
+
+## ADR-206 — Location check-in quests
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Q-170.
+**Decision:** a `location` quest has a place (latitude and longitude, a new optional pin on every quest, required on
+this type) and a radius of 20 to 1000 m (default 50). Check-in passes when the distance from the reading to the place is
+at most radius + the reading's accuracy; a reading less accurate than 100 m is refused with "turn on Precise Location or
+scan the QR". Its verification always holds the printed quest QR (and may add a station's My QR scan), so the QR
+completes it exactly as a `scan_qr` quest (FR-216). A reading the phone reports as mocked still completes and raises a
+location flag (flags never block play). No rate limit on check-in.
+**Why:** FR-215 and FR-216; adding the accuracy keeps an honest player at the edge from failing, and the 100 m cap stops
+a coarse reading from covering a whole venue; the QR alternative is ADR-015's store requirement.
+
+## ADR-207 — When the app reads location, and what is kept
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Narrows ADR-072's "whenever the app is open". Q-171.
+**Decision:** the app reads a position only at a proof of presence (a quest QR or typed code completion, and check-in),
+only when permission is already given, with a 3-second timeout (10 for check-in) and never prompting there. The server
+keeps no coordinates: a reading becomes a distance from the venue, its accuracy and the mocked mark, stored only inside a
+flag's evidence when it raises or extends a flag, and dropped otherwise. The explanation sheet comes before the system
+prompt and shows at a location quest's "Check in" or once per install after joining an in-person event with a venue
+pin; never at launch, never for a virtual event. `expo-location` is added (a new development build is needed; an older
+build acts as "location unavailable").
+**Why:** FR-1744 and FR-331 with the least data (PDPL minimisation, Google's minimum-scope rule); a vote or survey is
+done from anywhere and a station scan comes from the operator's phone, so a reading there proves nothing.
+
+## ADR-208 — Far-from-venue and impossible-speed flags
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Q-172.
+**Decision:** an event gets a venue pin and a radius (100 to 20000 m, default 1000). A `location` flag is raised when a
+reading is mocked, or when distance − accuracy exceeds the radius + 500 m. A `speed` flag is raised by the completion
+trigger when two consecutive completions of placed quests (quest QR, code, My QR or check-in) at least 100 m apart imply
+more than 12 m/s after both quests' radii (30 m for a quest without one); it uses quest places only. Both are off for
+virtual events and events without a pin, one open case per account and kind, the newest 20 items of evidence. The
+numbers live in `location_tuning()` until T-703.
+**Why:** FR-331 and FR-332; subtracting the accuracy keeps coarse readings from flagging honest players, and 12 m/s is
+well above running yet catches a shared QR photo scanned across a venue.
+
+## ADR-206 — Location check-in: a placed quest with its QR, distances kept, never coordinates
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Q-170.
+**Decision:** a `location` quest has a required place (pin and radius, 20 to 2000 m) and always its own quest QR at
+the spot (a database check, FR-216). A check-in passes when the phone's fix, no older than 2 minutes and accurate to
+500 m or better, lies within the radius plus its accuracy, the allowance capped at the radius; outside, the player is
+told the rounded distance. A mocked fix inside the area pays (flags never block play) and raises a flag. No
+coordinates are stored: the database turns the position into distances rounded to 10 m and keeps those, the accuracy
+and the mocked mark on the completion, erased with the account. The phone sends a position only with a check-in, a QR
+scan or a typed code, in the request body, redacted from logs.
+**Why:** FR-215, FR-216, ADR-015, ADR-072 and hard rule 3: the flag page needs "how far, how sure", not a point on a
+map, so storing less is the safer default; the capped allowance stops a coarse fix passing a far player.
+
+## ADR-207 — Location flags: far from the venue and impossible speed
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Q-171.
+**Decision:** `raise_completion_flags` raises two new kinds. `far_from_venue`: the completion's fix, less its
+accuracy, lies beyond the event's venue radius (default 1 km) plus 1 km, or the phone marked the fix as mocked.
+`impossible_speed`: two consecutive counted completions at quests with places are more than 300 m apart edge to edge
+and the pace between them is above 15 m/s (54 km/h); it uses the quests' pins, so it works with location refused. One
+open case per account and kind; never in a virtual event (FR-1744), never from a manual or system-paid completion; no
+reading, no far flag. The numbers live in `flag_tuning` until T-703.
+**Why:** FR-331, FR-332, ADR-153; the T-209 trigger covers every completion path, and evidence keeps the
+`{completions}` shape so the Flags page reads it through `flag_detail`.
+
+## ADR-208 — When the app asks for location, and the platform switch
+**Status:** Proposed (Claude, 2026-10-24; T-303b). Q-172.
+**Decision:** never at launch. The app shows its own explanation sheet first, the first time the player opens a
+location quest or right after joining an in-person event (physical or workplace) that has a venue pin; only "Allow"
+leads to the system prompt. "Not now" after joining is remembered per install; a location quest's sheet asks again
+each time until allowed or permanently denied, and always offers the QR. Location is read only with a request that
+uses it (a fresh fix for a check-in, the last fix up to 2 minutes old for a scan or typed code), never in the
+background. A platform switch `locationQuests` stays off until the store privacy answers are updated (ADR-073); while
+off the app never asks or reads, the builder refuses the type, and existing location quests complete by QR.
+**Why:** FR-1744, Apple 5.1.1(iv) and 5.1.5, Google's minimum-scope rule; reading per request rather than continuously
+keeps ADR-072's "while open" with less data and battery.
