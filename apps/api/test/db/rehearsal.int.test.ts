@@ -1019,6 +1019,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "quest_completion.passport_stamp",
         // Reveals are deleted before the accounts they point at (T-304c).
         "enrollment.category_reveal",
+        // Item misses go before the completions and accounts they point at; item reservations (redemptions) go
+        // before the completions that gave them (T-304d).
+        "enrollment.quest_item_miss",
+        "quest_completion.quest_item_miss",
+        "quest_completion.redemption",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

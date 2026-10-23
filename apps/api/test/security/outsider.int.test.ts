@@ -157,6 +157,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read quest items or misses, or reach the item helpers (T-304d)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.quest_item",
+        "SELECT * FROM public.quest_item_miss",
+        "SELECT public.give_item(NULL::public.enrollment, NULL, NULL, NULL, NULL)",
+        "SELECT public.lock_quest_items(NULL::public.quest)",
+        "SELECT * FROM public.own_quest_item(1)",
+        "SELECT * FROM public.quest_items(gen_random_uuid())",
+        "SELECT * FROM public.quest_item_misses(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.credit_item(NULL::public.ledger_entry)",
+        "SELECT public.credit_item_state(NULL::public.redemption)",
+        "SELECT public.redemption_source(NULL::public.redemption)",
+        "SELECT * FROM public.remove_award(gen_random_uuid(), 1, 'x', 'k', NULL)",
+        "SELECT * FROM public.my_desk_items()",
+        "SELECT * FROM public.my_redemptions(gen_random_uuid())",
+        "SELECT * FROM public.desk_lookup(gen_random_uuid(), gen_random_uuid(), 1)",
+        "SELECT * FROM public.desk_find(gen_random_uuid(), 'x', NULL)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

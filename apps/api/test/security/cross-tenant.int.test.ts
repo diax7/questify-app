@@ -245,6 +245,32 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  quest_item: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO quest_item (event_id, name_en, stock_total) VALUES ($1, 'Stolen', 1)",
+          values: [f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players learn a quest item through own_quest_item, own_bonus and their redemptions (T-304d), not this table",
+        forge: (f) => ({
+          sql: "INSERT INTO quest_item (event_id, name_en, stock_total) VALUES ($1, 'Mine now', 1)",
+          values: [f.eventA],
+        }),
+      },
+    ],
+  },
   redemption: {
     probes: [
       {
@@ -868,6 +894,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by pay_category_bonus inside the paying definers, read by the player through own_bonus, own_category_bonus and member_event_quests (test/db/category-rules)",
   category_reveal:
     "no right for the API role at all; written by reveal_category for the calling player and by record_completion on a staff manual award, read inside the player's definers through sees_category (test/db/categories-hidden)",
+  quest_item_miss:
+    "no right for the API role at all; written by give_item inside the paying definers, read by the player through own_quest_item, own_bonus and own_category_bonus and by the team through quest_items and quest_item_misses (test/db/quest-items)",
   passport_stamp:
     "no right for the API role at all; written by stamp_step for the calling player, read by the player through member_passport and member_event_quests and by the event's team as step ids through stamped_steps and submitters_of (test/db/passport)",
   quiz_attempt:
@@ -1070,6 +1098,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       );
       await run(
         "INSERT INTO rank_prize (event_id, rank_from, rank_to, kind, name_en) VALUES ($1, 1, 1, 'experience', 'Seeded')",
+        [event],
+      );
+      await run(
+        "INSERT INTO quest_item (event_id, name_en, stock_total) VALUES ($1, 'Seeded', 5)",
         [event],
       );
     }
