@@ -214,28 +214,30 @@ async function fromRedis(
   return viewOf(copy, named, me);
 }
 
-function ownOf(deps: RankingDeps, eventId: string, playerId: string) {
-  return inContext(deps, { playerId }, async (client): Promise<Own | undefined> => {
-    const { rows } = await client.query<{
-      id: string;
-      score: string;
-      username: string;
-      avatar: string;
-    }>(
-      `SELECT e.id, e.score, p.username, p.avatar FROM enrollment e JOIN player p ON p.id = e.player_id
-       WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
-      [eventId, playerId],
-    );
-    const row = rows[0];
-    return row === undefined
-      ? undefined
-      : {
-          enrollmentId: row.id,
-          score: Number(row.score),
-          username: row.username,
-          avatar: row.avatar,
-        };
-  });
+async function ownIn(
+  client: PoolClient,
+  eventId: string,
+  playerId: string,
+): Promise<Own | undefined> {
+  const { rows } = await client.query<{
+    id: string;
+    score: string;
+    username: string;
+    avatar: string;
+  }>(
+    `SELECT e.id, e.score, p.username, p.avatar FROM enrollment e JOIN player p ON p.id = e.player_id
+     WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
+    [eventId, playerId],
+  );
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : {
+        enrollmentId: row.id,
+        score: Number(row.score),
+        username: row.username,
+        avatar: row.avatar,
+      };
 }
 
 type EntryRow = Readonly<{
@@ -348,25 +350,23 @@ async function dayAfter(
 type Today = Readonly<{ day: string; available: boolean; myScore: number }>;
 
 /** The event's day now and whether it has a today's ranking (multi-day and live); undefined for a stranger. */
-function todayOf(deps: RankingDeps, eventId: string, playerId: string | undefined) {
-  return inContext(deps, playerId === undefined ? {} : { playerId }, async (client) => {
-    const { rows } = await client.query<{
-      day: string;
-      multi_day: boolean;
-      live: boolean;
-      my_score: string | null;
-    }>("SELECT day::text AS day, multi_day, live, my_score FROM ranking_today($1)", [eventId]);
-    const row = rows[0];
-    if (row === undefined) {
-      return undefined;
-    }
-    const today: Today = {
-      day: row.day,
-      available: row.multi_day && row.live,
-      myScore: Number(row.my_score ?? 0),
-    };
-    return today;
-  });
+async function todayIn(client: PoolClient, eventId: string): Promise<Today | undefined> {
+  const { rows } = await client.query<{
+    day: string;
+    multi_day: boolean;
+    live: boolean;
+    my_score: string | null;
+  }>("SELECT day::text AS day, multi_day, live, my_score FROM ranking_today($1)", [eventId]);
+  const row = rows[0];
+  if (row === undefined) {
+    return undefined;
+  }
+  const today: Today = {
+    day: row.day,
+    available: row.multi_day && row.live,
+    myScore: Number(row.my_score ?? 0),
+  };
+  return today;
 }
 
 async function boardView(
@@ -394,8 +394,10 @@ async function read(
   playerId: string,
   scope: RankingScope,
 ): Promise<RankingView | "not_enrolled" | "today_off"> {
-  const own = await ownOf(deps, eventId, playerId);
-  const today = own === undefined ? undefined : await todayOf(deps, eventId, playerId);
+  const { own, today } = await inContext(deps, { playerId }, async (client) => {
+    const mine = await ownIn(client, eventId, playerId);
+    return { own: mine, today: mine === undefined ? undefined : await todayIn(client, eventId) };
+  });
   if (own === undefined || today === undefined) {
     return "not_enrolled";
   }
@@ -447,7 +449,7 @@ async function rebuildEvent(
   eventId: string,
 ): Promise<"rebuilt" | "busy"> {
   const whole = await rebuild(deps, store, { eventId, day: undefined });
-  const today = await todayOf(deps, eventId, undefined);
+  const today = await inContext(deps, {}, (client) => todayIn(client, eventId));
   if (today === undefined || !today.available) {
     return whole;
   }

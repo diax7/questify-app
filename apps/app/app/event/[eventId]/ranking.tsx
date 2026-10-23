@@ -26,22 +26,27 @@ type Loaded =
 /**
  * Reads the ranking on focus, on return to the front, and every 15 seconds while it is on screen (until the live stream,
  * T-5xx), one read at a time. A refresh that fails keeps the last good list and says so. Today's ranking (T-216) that
- * is no longer offered falls back to the whole event's.
+ * is no longer offered falls back to the whole event's. A read that answers after the player switched scope is dropped.
  */
 function useRanking(eventId: string) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: "loading" });
   const [scope, setScope] = useState<RankingScope>("event");
-  const inFlight = useRef(false);
+  const [today, setToday] = useState(false);
+  const inFlight = useRef<RankingScope | null>(null);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
   const left = useRef(false);
   const load = useCallback(async () => {
-    if (inFlight.current) {
+    if (inFlight.current === scope) {
       return;
     }
-    inFlight.current = true;
+    inFlight.current = scope;
     const answer = await fetchRanking(api.session, eventId, scope).finally(() => {
-      inFlight.current = false;
+      if (inFlight.current === scope) {
+        inFlight.current = null;
+      }
     });
-    if (left.current) {
+    if (left.current || scopeRef.current !== scope) {
       return;
     }
     if (answer.kind === "gone") {
@@ -56,9 +61,13 @@ function useRanking(eventId: string) {
       return;
     }
     if (answer.kind === "today_off") {
+      setToday(false);
       setLoaded({ kind: "loading" });
       setScope("event");
       return;
+    }
+    if (answer.kind === "ranking") {
+      setToday(answer.ranking.today);
     }
     setLoaded((current) => {
       if (answer.kind === "ranking") {
@@ -96,7 +105,7 @@ function useRanking(eventId: string) {
       setScope(next);
     }
   };
-  return { loaded, load, scope, choose };
+  return { loaded, load, scope, choose, today };
 }
 
 /** Whole event / Today (FR-610): shown while the event has a today's ranking. */
@@ -179,13 +188,15 @@ export default function RankingScreen() {
   const { t } = useI18n();
   const { eventId } = useEvent();
   const styles = useThemedStyles(makeStyles);
-  const { loaded, load, scope, choose } = useRanking(eventId);
+  const { loaded, load, scope, choose, today } = useRanking(eventId);
   const [available, setAvailable] = useState(0);
   const measure = (event: LayoutChangeEvent) => setAvailable(event.nativeEvent.layout.height);
 
+  const tabs = today ? <ScopeTabs scope={scope} onChoose={choose} /> : null;
   if (loaded.kind !== "ranking") {
     return (
       <Screen title={t("nav.ranking")} header={<BackButton />}>
+        {tabs}
         {loaded.kind === "loading" ? <AppText muted>{t("common.loading")}</AppText> : null}
         {loaded.kind === "off" ? <AppText>{t("ranking.off")}</AppText> : null}
         {loaded.kind === "failed" ? (
@@ -201,7 +212,7 @@ export default function RankingScreen() {
   const height = rowHeight(available, rows.length, GAP);
   return (
     <Screen title={t("nav.ranking")} header={<BackButton />}>
-      {loaded.ranking.today ? <ScopeTabs scope={scope} onChoose={choose} /> : null}
+      {tabs}
       {loaded.stale ? <AppText muted>{t("ranking.refreshFailed")}</AppText> : null}
       {rows.length === 0 ? (
         <AppText muted>{t(scope === "today" ? "ranking.todayEmpty" : "ranking.empty")}</AppText>
@@ -244,6 +255,8 @@ const makeStyles = (theme: Theme) => ({
   tab: {
     flex: 1,
     alignItems: "center" as const,
+    justifyContent: "center" as const,
+    minHeight: 44,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.md,
     borderWidth: 2,

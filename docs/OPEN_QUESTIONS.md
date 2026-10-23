@@ -143,4 +143,4 @@ contest's official rules in Saudi Arabia and for Apple 5.3 (with Q-040).
 ## Q-132 — Today's ranking: when it shows and what counts (2026-10-23, T-216)
 ADR-166 shows today's ranking only while a multi-day event is live (not before the start or after the end), turns it
 on by default for every multi-day event, and counts every points change of the day (a removal or a rank-lowering
-spend today lowers today's points, even for points earned earlier). Agree, or should it count only points earned?
+spend today lowers today's points, even for points earned earlier; welcome points given today count toward today too). Agree, or should it count only points earned from quests?

@@ -445,6 +445,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         expect((await today(a.token, event, "week")).statusCode).toBe(400);
         expect((await today(a.token, event, "event")).statusCode).toBe(200);
       });
+
+      it("keeps the overall place when only today's copy cannot be written, and marks the event", async () => {
+        const dayless: RankingStore = {
+          ...store,
+          upsert: (key, entry) =>
+            key.includes("/")
+              ? Promise.reject(new Error("day copy down"))
+              : store.upsert(key, entry),
+        };
+        const broken = await startApp(db, false, {}, { rankingStore: dayless });
+        try {
+          const event = await dayEvent();
+          const a = await newPlayer(event);
+          const answer = await complete(a.token, await newQuest(event, 4), broken);
+          expect([answer.statusCode, answer.json().rank]).toEqual([200, 1]);
+          expect(
+            await owner("SELECT 1 FROM ranking_repair WHERE event_id = $1", [event]),
+          ).toHaveLength(1);
+        } finally {
+          await broken.close();
+        }
+      });
     });
 
     const toggle = (
