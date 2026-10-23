@@ -472,6 +472,8 @@ export type Station = Readonly<{
   visible: boolean;
   doneToday: number;
   doneTotal: number;
+  /** `challenge` for a task staff confirm (ADR-197), `scan_qr` for a scan quest that takes My QR. */
+  type: string;
 }>;
 
 /** FR-921: the caller's stations and their counts; null when the caller is not an operator of the event. */
@@ -490,6 +492,7 @@ export async function operatorStations(
         visible: boolean;
         done_today: string;
         done_total: string;
+        type: string;
       }>("SELECT * FROM operator_stations($1)", [eventId]);
       return rows.map((row) => ({
         questId: row.quest_id,
@@ -498,6 +501,7 @@ export async function operatorStations(
         visible: row.visible,
         doneToday: Number(row.done_today),
         doneTotal: Number(row.done_total),
+        type: row.type,
       }));
     } catch (error) {
       if ((error as { code?: string }).code === "OP403") {

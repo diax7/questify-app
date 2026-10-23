@@ -32,6 +32,37 @@ const quizQuestion = z
       distinctIds(question.choices) &&
       question.choices.some((choice) => choice.id === question.right),
   );
+/** One survey question (ADR-198): a choice (2 to 10), a rating from 1 to 5, or short text; required unless said not. */
+const surveyQuestion = z.discriminatedUnion("kind", [
+  z.strictObject({
+    id: itemId,
+    text: organizerText(300),
+    kind: z.literal("choice"),
+    required: z.boolean().default(true),
+    choices: z
+      .array(z.strictObject({ id: itemId, text: organizerText(120) }))
+      .min(2)
+      .max(10)
+      .refine(distinctIds),
+  }),
+  z.strictObject({
+    id: itemId,
+    text: organizerText(300),
+    kind: z.literal("rating"),
+    required: z.boolean().default(true),
+  }),
+  z.strictObject({
+    id: itemId,
+    text: organizerText(300),
+    kind: z.literal("text"),
+    required: z.boolean().default(true),
+  }),
+]);
+/** A link a share quest adds to its message: https only, so no other scheme reaches the share sheet. */
+const shareLink = z
+  .url({ protocol: /^https$/, normalize: false })
+  .max(300)
+  .regex(/^https:\/\/\S+$/);
 /** Organizer text: at least one language when given (FR-1008). */
 const bilingualHint = z
   .strictObject({ ar: hintText, en: hintText })
@@ -116,7 +147,48 @@ export const QUEST_TYPES = {
       timerSeconds: z.number().int().min(5).max(300).nullable().default(null),
     }),
   },
+  /**
+   * A task done in front of staff (T-303, FR-203, ADR-197): only an operator's station scan of the player's My QR, or a
+   * manual award, completes it. The quest's description says what to do; the player has nothing to scan.
+   */
+  challenge: {
+    label: "quests.type.challenge",
+    oneTry: false,
+    usesQuestQr: false,
+    verifications: ["my_qr"],
+    config: z.strictObject({}),
+  },
+  /**
+   * Questions with no right answer (T-303, FR-214, ADR-198), paid on submit, one response per player. The answers
+   * reach only the event's owners and editors, names not shown.
+   */
+  survey: {
+    label: "quests.type.survey",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      questions: z.array(surveyQuestion).min(1).max(20).refine(distinctIds),
+    }),
+  },
+  /**
+   * The player shares the organizer's message through the phone's share sheet and is paid once, with no proof step
+   * (T-303, FR-219, FR-220, ADR-034, ADR-199). The event's `shareQuests` switch hides them all.
+   */
+  share: {
+    label: "quests.type.share",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z.strictObject({
+      message: organizerText(500),
+      link: shareLink.optional(),
+    }),
+  },
 } as const;
+
+/** The longest text a player may write for one survey answer (ADR-198). */
+export const SURVEY_TEXT_MAX = 500;
 
 /** The seconds a quiz answer is still taken after its question's time ran out, for the network (ADR-192, Q-157). */
 export const QUIZ_GRACE_SECONDS = 2;

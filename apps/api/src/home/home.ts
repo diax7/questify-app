@@ -2,6 +2,11 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
+import {
+  categoriesWithoutSwitchedOff,
+  switchedOffTypes,
+  withoutSwitchedOff,
+} from "#src/quests/switched-off";
 import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
 import { readPendingPoints } from "#src/submissions/submissions";
@@ -198,6 +203,7 @@ export async function memberQuests(
   playerId: string,
   eventId: string,
 ): Promise<QuestsView> {
+  const off = await switchedOffTypes(deps.settings, eventId, playerId);
   return asPlayer(deps, playerId, async (client) => {
     const row = await standingOf(client, playerId, eventId);
     if (row?.status === "pending") {
@@ -206,7 +212,8 @@ export async function memberQuests(
     if (row?.status !== "active") {
       return { kind: "not_member" } as const;
     }
-    const categories = (await questRows(client, eventId)).map((category) => ({
+    const shown = categoriesWithoutSwitchedOff(await questRows(client, eventId), off);
+    const categories = shown.map((category) => ({
       ...category,
       quests: category.quests.map((quest) => ({
         ...quest,
@@ -298,6 +305,7 @@ export async function readHome(
   const config = await deps.settings.forEvent(eventId, playerId);
   const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
   const shopOn = config.kind === "ok" && config.config.features["shop"]?.enabled !== false;
+  const off = await switchedOffTypes(deps.settings, eventId, playerId);
   const home = await asPlayer(deps, playerId, async (client) => {
     const row = await standingOf(client, playerId, eventId);
     if (row === undefined || !["active", "pending", "declined"].includes(row.status)) {
@@ -325,7 +333,10 @@ export async function readHome(
         win: null,
       };
     }
-    const quests = (await questRows(client, eventId)).flatMap((category) => category.quests);
+    const quests = withoutSwitchedOff(
+      (await questRows(client, eventId)).flatMap((category) => category.quests),
+      off,
+    );
     const balance = Number(row.balance);
     return {
       event,

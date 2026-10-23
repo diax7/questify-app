@@ -25,7 +25,16 @@ describe("the quest-type registry", () => {
   });
 
   it("knows its own types and nothing else", () => {
-    expect(QUEST_TYPE_NAMES).toEqual(["scan_qr", "enter_code", "submission", "vote", "quiz"]);
+    expect(QUEST_TYPE_NAMES).toEqual([
+      "scan_qr",
+      "enter_code",
+      "submission",
+      "vote",
+      "quiz",
+      "challenge",
+      "survey",
+      "share",
+    ]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);
     expect(isQuestType("photo")).toBe(false);
@@ -119,6 +128,101 @@ describe("quiz quests", () => {
     ],
   ])("refuse %s", (_name, config) => {
     expect(parseQuestConfig("quiz", config)).toBeUndefined();
+  });
+});
+
+describe("challenge quests", () => {
+  it("hold no config and are verified only by staff scanning My QR", () => {
+    expect(parseQuestConfig("challenge", {})).toEqual({});
+    expect(parseQuestConfig("challenge", { code: "X" })).toBeUndefined();
+    expect(parseVerification("challenge", undefined)).toEqual(["my_qr"]);
+    expect(parseVerification("challenge", ["quest_qr"])).toBeUndefined();
+    expect(parseVerification("challenge", [])).toBeUndefined();
+    expect(QUEST_TYPES.challenge.oneTry).toBe(false);
+  });
+});
+
+const ask = (id: string, kind: string, extra: object = {}) => ({
+  id,
+  text: { en: `Question ${id}` },
+  kind,
+  ...extra,
+});
+
+describe("survey quests", () => {
+  it("take choice, rating and text questions, each required by default", () => {
+    const config = {
+      questions: [
+        ask("c", "choice", { choices: [option("a"), option("b")] }),
+        ask("r", "rating"),
+        ask("t", "text", { required: false }),
+      ],
+    };
+    expect(parseQuestConfig("survey", config)).toEqual({
+      questions: [
+        { ...config.questions[0], required: true },
+        { ...config.questions[1], required: true },
+        config.questions[2],
+      ],
+    });
+    expect(QUEST_TYPES.survey.oneTry).toBe(true);
+  });
+
+  it.each([
+    ["no questions", { questions: [] }],
+    ["21 questions", { questions: Array.from({ length: 21 }, (_, i) => ask(`q${i}`, "rating")) }],
+    ["a repeated question id", { questions: [ask("q", "rating"), ask("q", "text")] }],
+    ["an unknown kind", { questions: [ask("q", "stars")] }],
+    [
+      "a choice question with one choice",
+      { questions: [ask("q", "choice", { choices: [option("a")] })] },
+    ],
+    [
+      "a choice question with 11 choices",
+      {
+        questions: [
+          ask("q", "choice", { choices: Array.from({ length: 11 }, (_, i) => option(`o${i}`)) }),
+        ],
+      },
+    ],
+    [
+      "repeated choices",
+      { questions: [ask("q", "choice", { choices: [option("a"), option("a")] })] },
+    ],
+    [
+      "choices on a rating",
+      { questions: [ask("q", "rating", { choices: [option("a"), option("b")] })] },
+    ],
+    [
+      "question text over 300",
+      { questions: [{ ...ask("q", "text"), text: { en: "x".repeat(301) } }] },
+    ],
+  ])("refuse %s", (_name, config) => {
+    expect(parseQuestConfig("survey", config)).toBeUndefined();
+  });
+});
+
+describe("share quests", () => {
+  it("take the organizer's message and an optional https link", () => {
+    expect(parseQuestConfig("share", { message: { ar: "شارك" } })).toEqual({
+      message: { ar: "شارك" },
+    });
+    expect(
+      parseQuestConfig("share", { message: { en: "Join" }, link: "https://example.com/x" }),
+    ).toMatchObject({ link: "https://example.com/x" });
+    expect(QUEST_TYPES.share.oneTry).toBe(true);
+  });
+
+  it.each([
+    ["no message", {}],
+    ["an empty message", { message: {} }],
+    ["a message over 500", { message: { en: "x".repeat(501) } }],
+    ["an http link", { message: { en: "x" }, link: "http://example.com" }],
+    ["a script link", { message: { en: "x" }, link: "javascript:alert(1)" }],
+    ["a link with a space inside", { message: { en: "x" }, link: "https://example.com/a b" }],
+    ["a link over 300", { message: { en: "x" }, link: `https://example.com/${"a".repeat(290)}` }],
+  ])("refuse %s", (_name, config) => {
+    expect(parseQuestConfig("share", config)).toBeUndefined();
   });
 });
 

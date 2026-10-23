@@ -539,6 +539,9 @@ export const MESSAGES = {
   "quests.type.submission": { ar: "إرسال إجابة", en: "Send an answer" },
   "quests.type.vote": { ar: "تصويت", en: "Vote" },
   "quests.type.quiz": { ar: "اختبار", en: "Quiz" },
+  "quests.type.challenge": { ar: "تحدٍّ", en: "Challenge" },
+  "quests.type.survey": { ar: "استبيان", en: "Survey" },
+  "quests.type.share": { ar: "مشاركة", en: "Share" },
   "signIn.consentTitle": { ar: "قبل أن نبدأ", en: "Before we start" },
   "signIn.consentBody": {
     ar: "لتدخل إلى حسابك أو تنشئه، وافق على شروط الاستخدام وسياسة الخصوصية.",

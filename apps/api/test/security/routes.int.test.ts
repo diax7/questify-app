@@ -325,6 +325,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own attempt only, through quiz_next (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/quests/:questId/quiz/answer":
     "the calling player's own attempt only, one try per question, through quiz_answer (test/plays/routes, test/db/vote-quiz)",
+  "GET /v1/quests/:questId/survey":
+    "the calling player's own view only, through member_survey: the questions and whether they answered; never anyone's answers (test/plays/survey-share, test/db/challenge-survey-share)",
+  "POST /v1/quests/:questId/survey":
+    "the calling player's own active enrollment in the quest's event only; one response, checked by submit_survey (test/plays/survey-share, test/db/challenge-survey-share)",
+  "GET /v1/quests/:questId/share":
+    "the calling player's own view only, through member_share; absent while share quests are off (test/plays/survey-share, test/db/challenge-survey-share)",
+  "POST /v1/quests/:questId/share":
+    "the calling player's own active enrollment in the quest's event only; once, refused while share quests are off, through share_quest (test/plays/survey-share, test/db/challenge-survey-share)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/survey":
+    "members inside their event limit; results of a survey quest of that event only, names not shown, through survey_summary (test/plays/survey-share, test/db/challenge-survey-share)",
   "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/votes":
     "members inside their event limit; counts of a vote quest of that event only, never who voted (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/operator/scan":

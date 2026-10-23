@@ -4,10 +4,14 @@ import {
   alreadyAnswered,
   alreadyCompleted,
   alreadyVoted,
+  badAnswer,
   enrollmentInactive,
+  featureOff,
   idempotencyKeyReused,
   notFound,
   notQuizQuest,
+  notShareQuest,
+  notSurveyQuest,
   notVoteQuest,
   operatorPlayOff,
   questionClosed,
@@ -27,11 +31,16 @@ import {
   type QuizStep,
 } from "#src/plays/quizzes";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
+import { readShare, shareQuest } from "#src/plays/shares";
+import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
 import { castVote, readVote, voteCounts } from "#src/plays/votes";
 import type { Ranking } from "#src/ranking/ranking";
+import type { SettingsService } from "#src/settings/service";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = { ...player, config: { ...player.config, idempotent: true } } as const;
+/** Twenty answers of up to 500 characters each, as JSON with escapes, fit in 64 KiB. */
+const surveyIdempotent = { ...playerIdempotent, bodyLimit: 65_536 } as const;
 const member = { config: { access: "member" } } as const;
 
 const ITEM = /^[A-Za-z0-9_-]{1,40}$/;
@@ -43,6 +52,12 @@ const answerBody = z.strictObject({
   choiceId: z.string().regex(ITEM),
 });
 const emptyBody = z.union([z.strictObject({}), z.undefined(), z.null()]);
+/** A survey's answers by question id: a choice id, a rating, text, or null for unanswered (the database checks each). */
+const surveyBody = z.strictObject({
+  answers: z
+    .record(z.string().regex(ITEM), z.union([z.string().max(2000), z.number(), z.null()]))
+    .refine((answers) => Object.keys(answers).length <= 20),
+});
 
 const playerIdOf = (request: FastifyRequest): string => {
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
@@ -67,6 +82,14 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw notVoteQuest();
     case "not_quiz_quest":
       throw notQuizQuest();
+    case "not_survey_quest":
+      throw notSurveyQuest();
+    case "not_share_quest":
+      throw notShareQuest();
+    case "bad_answer":
+      throw badAnswer({ question: result.question });
+    case "feature_off":
+      throw featureOff();
     case "unknown_option":
       throw unknownOption();
     case "already_completed":
@@ -106,7 +129,10 @@ async function withRank<T extends QuizStep>(deps: RankingDeps, playerId: string,
  * The player's vote (FR-207) and quiz (FR-208 to FR-210). Every write needs an Idempotency-Key; a payment moves the
  * player's place like a completion.
  */
-export function registerPlayRoutes(app: FastifyInstance, deps: PlayDeps & RankingDeps): void {
+export function registerPlayRoutes(
+  app: FastifyInstance,
+  deps: PlayDeps & RankingDeps & Readonly<{ settings: SettingsService }>,
+): void {
   app.get("/v1/quests/:questId/vote", player, async (request) => {
     const { questId } = parse(questParams, request.params);
     return valueOf(await readVote(deps, playerIdOf(request), questId));
@@ -123,6 +149,38 @@ export function registerPlayRoutes(app: FastifyInstance, deps: PlayDeps & Rankin
     );
     const rank = await deps.ranking.afterCompletion(playerId, voted.completionId);
     return reply.code(voted.replayed ? 200 : 201).send({ ...voted, rank });
+  });
+
+  app.get("/v1/quests/:questId/survey", player, async (request) => {
+    const { questId } = parse(questParams, request.params);
+    return valueOf(await readSurvey(deps, playerIdOf(request), questId));
+  });
+
+  app.post("/v1/quests/:questId/survey", surveyIdempotent, async (request, reply) => {
+    const { questId } = parse(questParams, request.params);
+    const { answers } = parse(surveyBody, request.body);
+    const playerId = playerIdOf(request);
+    const key = String(request.headers["idempotency-key"]);
+    const paid = valueOf(
+      await answerSurvey(deps, { playerId, questId, answers, idempotencyKey: key }),
+    );
+    const rank = await deps.ranking.afterCompletion(playerId, paid.completionId);
+    return reply.code(paid.replayed ? 200 : 201).send({ ...paid, rank });
+  });
+
+  app.get("/v1/quests/:questId/share", player, async (request) => {
+    const { questId } = parse(questParams, request.params);
+    return valueOf(await readShare(deps, playerIdOf(request), questId));
+  });
+
+  app.post("/v1/quests/:questId/share", playerIdempotent, async (request, reply) => {
+    const { questId } = parse(questParams, request.params);
+    parse(emptyBody, request.body);
+    const playerId = playerIdOf(request);
+    const key = String(request.headers["idempotency-key"]);
+    const paid = valueOf(await shareQuest(deps, { playerId, questId, idempotencyKey: key }));
+    const rank = await deps.ranking.afterCompletion(playerId, paid.completionId);
+    return reply.code(paid.replayed ? 200 : 201).send({ ...paid, rank });
   });
 
   app.get("/v1/quests/:questId/quiz", player, async (request) => {
@@ -155,10 +213,15 @@ export function registerPlayRoutes(app: FastifyInstance, deps: PlayDeps & Rankin
   });
 }
 
-/** The dashboard's vote counts, inside the organizer scope (owners and editors). */
+/** The dashboard's vote counts and survey results, inside the organizer scope (owners and editors). */
 export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): void {
   scope.get("/events/:eventId/quests/:questId/votes", member, async (request) => {
     const { eventId, questId } = parse(teamParams, request.params);
     return valueOf(await voteCounts(deps, organizerContextOf(request), { eventId, questId }));
+  });
+
+  scope.get("/events/:eventId/quests/:questId/survey", member, async (request) => {
+    const { eventId, questId } = parse(teamParams, request.params);
+    return valueOf(await surveySummary(deps, organizerContextOf(request), { eventId, questId }));
   });
 }

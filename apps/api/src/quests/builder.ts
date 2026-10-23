@@ -93,8 +93,14 @@ export type BuilderDeps = Readonly<{ pool: Pool }>;
 
 const CLOSED = "QE409";
 const LOCKED = "QL409";
-/** Rows that keep a played quest: its completions, submissions, votes and quiz attempts. */
-const PLAYED_TABLES = new Set(["quest_completion", "submission", "quest_vote", "quiz_attempt"]);
+/** Rows that keep a played quest: its completions, submissions, votes, quiz attempts and survey responses. */
+const PLAYED_TABLES = new Set([
+  "quest_completion",
+  "submission",
+  "quest_vote",
+  "quiz_attempt",
+  "survey_response",
+]);
 
 const blankToNull = (text: string | undefined): string | null => {
   const trimmed = text?.trim() ?? "";
@@ -177,7 +183,7 @@ export function mergeQuest(
     title,
     description: bilingual(input.description, current?.description ?? NO_TEXT),
     points,
-    // A vote or a quiz is played once (ADR-191).
+    // A vote, a quiz, a survey or a share is played once (ADR-191, ADR-198, ADR-199).
     repeatCap: QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1),
     opensAt,
     closesAt,

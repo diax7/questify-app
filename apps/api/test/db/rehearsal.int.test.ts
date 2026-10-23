@@ -1007,6 +1007,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.quiz_attempt",
         "quest_completion.quest_vote",
         "quest_completion.quiz_attempt",
+        // Survey responses are deleted before the completions they point at (T-303).
+        "enrollment.survey_response",
+        "quest_completion.survey_response",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

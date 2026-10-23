@@ -339,6 +339,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator refusals over HTTP", 
             visible: true,
             doneToday: 0,
             doneTotal: 0,
+            type: "scan_qr",
           },
         ],
       });

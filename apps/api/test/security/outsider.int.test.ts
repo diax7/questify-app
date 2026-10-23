@@ -97,6 +97,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot answer a survey, share, read either or list stations (T-303)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.submit_survey(gen_random_uuid(), '{}', 'k')",
+        "SELECT public.member_survey(gen_random_uuid())",
+        "SELECT public.survey_summary(gen_random_uuid(), gen_random_uuid())",
+        "SELECT * FROM public.share_quest(gen_random_uuid(), 'k')",
+        "SELECT * FROM public.member_share(gen_random_uuid())",
+        "SELECT * FROM public.operator_stations(gen_random_uuid())",
+        "SELECT public.play_quest(gen_random_uuid(), 'survey')",
+        "SELECT public.survey_answers('{}', '{}')",
+        "SELECT public.share_quests_on(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

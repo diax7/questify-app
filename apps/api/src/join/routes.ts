@@ -35,6 +35,10 @@ import {
   type JoinDeps,
   type JoinOutcome,
 } from "#src/join/join";
+import type { SettingsService } from "#src/settings/service";
+
+/** The join routes' dependencies: the settings hide a switched-off quest type from the public quest list (T-303). */
+type BrowseDeps = JoinDeps & Readonly<{ settings: SettingsService }>;
 
 type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
 
@@ -153,7 +157,7 @@ function afterIdOf(cursor: string | undefined): string | null {
  * Browsing before sign-in (FR-104, FR-105, FR-111): the public list, one event's join card by its code, and a public
  * or unlisted event's quests. Wrong codes count against the address; right ones cost nothing (T-111).
  */
-function registerBrowseRoutes(app: FastifyInstance, deps: JoinDeps): void {
+function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
   app.get("/v1/public/events", { config: { access: "public" } }, async (request) => {
     const query = parse(listQuery, request.query);
     let limit: number;
@@ -225,7 +229,7 @@ function registerBrowseRoutes(app: FastifyInstance, deps: JoinDeps): void {
  * and the join card's version they saw. Idempotent by its natural key: joining again answers the same enrollment.
  * `GET /v1/me/events` (FR-122): the player's events for the switcher.
  */
-export function registerJoinRoutes(app: FastifyInstance, deps: JoinDeps): void {
+export function registerJoinRoutes(app: FastifyInstance, deps: BrowseDeps): void {
   registerBrowseRoutes(app, deps);
 
   app.post(

@@ -236,7 +236,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     idempotencyStore: options.idempotencyStore,
   });
-  registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys, settings });
   const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });
   registerRehearsalPlayerRoutes(app, rehearsal);
   registerHomeRoutes(app, { pool: options.pool, settings });
@@ -252,7 +252,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
-  registerPlayRoutes(app, { pool: options.pool, ranking });
+  registerPlayRoutes(app, { pool: options.pool, ranking, settings });
   registerResultsPlayerRoutes(app, { pool: options.pool });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {

@@ -1,6 +1,13 @@
-import { levelReached, type LevelUp } from "#src/completions/complete";
 import type { OrganizerContext } from "#src/organizers/store";
-import { run, type Bilingual, type Done, type PlayDeps } from "#src/plays/run";
+import {
+  paidOf,
+  run,
+  type Bilingual,
+  type Done,
+  type Paid,
+  type PaidRow,
+  type PlayDeps,
+} from "#src/plays/run";
 
 export type VoteView = Readonly<{
   options: readonly Readonly<{ id: string; text: Bilingual }>[];
@@ -43,22 +50,7 @@ export async function readVote(
   };
 }
 
-export type Voted = Readonly<{
-  completionId: string;
-  points: number;
-  score: number;
-  balance: number;
-  replayed: boolean;
-  levelUp: LevelUp | null;
-}>;
-
-type VotedRow = {
-  completion_id: string;
-  points: string;
-  score: string;
-  balance: string;
-  replayed: boolean;
-};
+export type Voted = Paid;
 
 /** The player votes (FR-207): one vote, paid as a completion by `vote_quest` (migration 0041). */
 export function castVote(
@@ -71,20 +63,12 @@ export function castVote(
   }>,
 ): Promise<Done<Voted>> {
   return run(deps, { playerId: request.playerId }, async (client) => {
-    const { rows } = await client.query<VotedRow>("SELECT * FROM vote_quest($1, $2, $3)", [
+    const { rows } = await client.query<PaidRow>("SELECT * FROM vote_quest($1, $2, $3)", [
       request.questId,
       request.optionId,
       request.idempotencyKey,
     ]);
-    const row = rows[0] as VotedRow;
-    return {
-      completionId: row.completion_id,
-      points: Number(row.points),
-      score: Number(row.score),
-      balance: Number(row.balance),
-      replayed: row.replayed,
-      levelUp: await levelReached(client, row.completion_id),
-    };
+    return paidOf(client, rows);
   });
 }
 

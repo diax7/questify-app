@@ -52,6 +52,8 @@ export const FEATURES: FeatureRegistry = {
   ranking: { gated: false },
   /** Today's ranking for a multi-day event (T-216, FR-608): the owner turns it off and on. */
   rankingToday: { gated: false },
+  /** Share quests (T-303, FR-219, ADR-199): the owner turns them off for an event, which hides every one. */
+  shareQuests: { gated: false },
   shop: { gated: false },
   /** Players may change their username (FR-1702), at most once per `usernameChangeDays`. */
   usernameChanges: { gated: false, level: "platform" },

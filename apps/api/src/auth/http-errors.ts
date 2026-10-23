@@ -1029,6 +1029,31 @@ export const notQuizQuest = make(
   "هذه المهمة ليست اختبارًا.",
   "This quest is not a quiz.",
 );
+export const notSurveyQuest = make(
+  422,
+  "not_survey_quest",
+  "هذه المهمة ليست استبيانًا.",
+  "This quest is not a survey.",
+);
+export const notShareQuest = make(
+  422,
+  "not_share_quest",
+  "هذه المهمة ليست مهمة مشاركة.",
+  "This quest is not a share quest.",
+);
+/** A survey answer its question does not take; `question` names it (never the answer itself). */
+export const badAnswer = make(
+  422,
+  "bad_answer",
+  "راجع إجابتك عن هذا السؤال.",
+  "Check your answer to this question.",
+);
+export const featureOff = make(
+  403,
+  "feature_off",
+  "أوقف المنظّم هذه الميزة في الفعالية.",
+  "The organizer turned this off for the event.",
+);
 export const unknownOption = make(
   422,
   "unknown_option",

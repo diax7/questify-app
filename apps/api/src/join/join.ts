@@ -11,7 +11,9 @@ import type { AuthKeys } from "#src/auth/keys";
 import { BUCKETS, countRecent, forget, record } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { switchedOffTypes, withoutSwitchedOff } from "#src/quests/switched-off";
 import { rulesDataOf } from "#src/results/results";
+import type { SettingsService } from "#src/settings/service";
 
 export type JoinDeps = Readonly<{ pool: Pool; keys: AuthKeys }>;
 
@@ -338,14 +340,15 @@ function groupQuests(rows: readonly QuestRow[]): PublicCategory[] {
 
 /**
  * An event's quests before sign-in (FR-111): `private` when the code names a private event (its quests need
- * membership), null when it names no event, against the address's budget of wrong codes.
+ * membership), null when it names no event, against the address's budget of wrong codes. A quest type the event's
+ * configuration switches off is left out (T-303).
  */
 export async function questsByCode(
-  deps: JoinDeps,
+  deps: JoinDeps & Readonly<{ settings: SettingsService }>,
   address: string,
   code: string,
 ): Promise<PublicCategory[] | "private" | null | Throttled> {
-  return withMissBudget(deps, [addressBudget(deps, address)], () =>
+  const found = await withMissBudget(deps, [addressBudget(deps, address)], () =>
     anonymously(deps.pool, async (client) => {
       const card = await readCard(client, code);
       if (card === null) {
@@ -360,9 +363,14 @@ export async function questsByCode(
          FROM public_event_quests($1)`,
         [code],
       );
-      return groupQuests(rows);
+      return { eventId: card.id, rows };
     }),
   );
+  if (found === null || found === "private" || isThrottled(found)) {
+    return found;
+  }
+  const off = await switchedOffTypes(deps.settings, found.eventId, undefined);
+  return groupQuests(withoutSwitchedOff(found.rows, off));
 }
 
 /**
