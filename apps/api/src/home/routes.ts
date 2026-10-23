@@ -52,6 +52,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   earned: quest.earned,
   verification: quest.verification,
   state: quest.state,
+  lock: quest.lock,
 });
 
 function playerIdOf(request: { player?: { id: string } | undefined }): string {
@@ -112,6 +113,10 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
       categories: view.categories.map((category) => ({
         id: category.id,
         name: category.name,
+        orderMode: category.orderMode,
+        opensAt: category.opensAt?.toISOString() ?? null,
+        unlockAfter: category.unlockAfter,
+        bonus: category.bonus,
         quests: category.quests.map(questView),
       })),
     };

@@ -31,9 +31,25 @@ export type MemberQuest = Readonly<{
   earned: number;
   /** How it is verified (FR-301): `my_qr` alone means the player shows their My QR to staff (migration 0026). */
   verification: readonly string[];
+  /** Why its category keeps it shut for this player now, or null (T-304, migration 0044). */
+  lock: QuestLock | null;
 }>;
 
-export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }>;
+/** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
+export type QuestLock = "category_not_started" | "category_locked" | "order_locked";
+
+/** A category's rules as the player sees them (FR-230 to FR-235). */
+export type CategoryRules = Readonly<{
+  orderMode: "any" | "in_order";
+  opensAt: Date | null;
+  /** The category that unlocks this one, or null. */
+  unlockAfter: Readonly<{ id: string; name: Text }> | null;
+  /** The completion bonus and what this player earned from it (0 before, the bonus after, less a removal). */
+  bonus: Readonly<{ points: number; earned: number }>;
+}>;
+
+export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }> &
+  CategoryRules;
 
 export type UpNext = Readonly<{ questId: string; title: Text; points: number; type: string }>;
 
@@ -84,11 +100,12 @@ export function playStatus(statusNow: EventStatusNow, rehearsal: boolean): Event
 /** Finished means done to its repeat cap: the same rule for progress and for Up next, so they never disagree. */
 export const finished = (quest: MemberQuest): boolean => quest.done >= quest.repeatCap;
 
-export type QuestState = "done" | "not_live" | "not_yet" | "closed" | "open";
+export type QuestState = "done" | "not_live" | "locked" | "not_yet" | "closed" | "open";
 
 /**
  * Where a quest stands for this player now, the one rule for Home's Up next and the Quests tab: finished first, then
- * the event not live, then the quest's window (open from `opensAt`, closed at `closesAt`). `now` is the database's.
+ * the event not live, then its category's lock (T-304), then the quest's window (open from `opensAt`, closed at
+ * `closesAt`). `now` is the database's.
  */
 export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: Date): QuestState {
   if (finished(quest)) {
@@ -96,6 +113,9 @@ export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: D
   }
   if (statusNow !== "live") {
     return "not_live";
+  }
+  if (quest.lock !== null) {
+    return "locked";
   }
   if (quest.opensAt !== null && quest.opensAt > now) {
     return "not_yet";
@@ -148,7 +168,29 @@ type QuestRow = Readonly<{
   /** bigint: pg returns it as text. */
   earned: string;
   verification: string[];
+  order_mode: "any" | "in_order";
+  category_opens_at: Date | null;
+  unlock_after: string | null;
+  unlock_after_name_ar: string | null;
+  unlock_after_name_en: string | null;
+  completion_bonus: number;
+  /** bigint: pg returns it as text. */
+  bonus_earned: string;
+  lock: QuestLock | null;
 }>;
+
+const rulesOf = (row: QuestRow): CategoryRules => ({
+  orderMode: row.order_mode,
+  opensAt: row.category_opens_at,
+  unlockAfter:
+    row.unlock_after === null
+      ? null
+      : {
+          id: row.unlock_after,
+          name: { ar: row.unlock_after_name_ar, en: row.unlock_after_name_en },
+        },
+  bonus: { points: row.completion_bonus, earned: Number(row.bonus_earned) },
+});
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>
   withConnection(deps.pool, (client) =>
@@ -157,11 +199,12 @@ const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient
 
 async function questRows(client: PoolClient, eventId: string): Promise<MemberCategory[]> {
   const { rows } = await client.query<QuestRow>("SELECT * FROM member_event_quests($1)", [eventId]);
-  const categories = new Map<string, { id: string; name: Text; quests: MemberQuest[] }>();
+  const categories = new Map<string, MemberCategory>();
   for (const row of rows) {
     const category = categories.get(row.category_id) ?? {
       id: row.category_id,
       name: { ar: row.category_name_ar, en: row.category_name_en },
+      ...rulesOf(row),
       quests: [],
     };
     category.quests.push({
@@ -176,6 +219,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       done: row.done,
       earned: Number(row.earned),
       verification: row.verification,
+      lock: row.lock,
     });
     categories.set(row.category_id, category);
   }
@@ -186,11 +230,12 @@ export type QuestsView =
   | Readonly<{
       kind: "quests";
       event: Readonly<{ statusNow: EventStatusNow; timezone: string; rehearsal: boolean }>;
-      categories: readonly Readonly<{
-        id: string;
-        name: Text;
-        quests: readonly (MemberQuest & Readonly<{ state: QuestState }>)[];
-      }>[];
+      categories: readonly (CategoryRules &
+        Readonly<{
+          id: string;
+          name: Text;
+          quests: readonly (MemberQuest & Readonly<{ state: QuestState }>)[];
+        }>)[];
     }>
   /** An enrollment waiting for the owner's approval (FR-1819): told so, and shown nothing else. */
   | Readonly<{ kind: "pending" }>

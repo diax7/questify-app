@@ -28,7 +28,16 @@ export const BUILDER_LIMITS = { categories: 30, quests: 300 } as const;
 
 type Text = Readonly<{ ar?: string | undefined; en?: string | undefined }>;
 
-export type CategoryInput = Readonly<{ name?: Text | undefined }>;
+/** A category's name and rules; times as the event's wall clock (`YYYY-MM-DDTHH:mm`), null clears one. */
+export type CategoryInput = Readonly<{
+  name?: Text | undefined;
+  orderMode?: "any" | "in_order" | undefined;
+  opensAt?: string | null | undefined;
+  unlockAfter?: string | null | undefined;
+  completionBonus?: number | undefined;
+}>;
+
+export type CategoryField = "name" | "to" | "opensAt" | "unlockAfter";
 
 /** Times as the event's wall clock (`YYYY-MM-DDTHH:mm`), read in its zone; null clears one. */
 export type QuestInput = Readonly<{
@@ -59,11 +68,13 @@ export type Refused =
   | Readonly<{ kind: "not_found" }>
   | Readonly<{ kind: "event_closed" }>
   | Readonly<{ kind: "confirm_required" }>
-  | Readonly<{ kind: "invalid"; field: QuestField | "name" | "to" }>
+  | Readonly<{ kind: "invalid"; field: QuestField | CategoryField }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
   | Readonly<{ kind: "order_stale" }>
   | Readonly<{ kind: "last_category" }>
   | Readonly<{ kind: "category_not_empty"; quests: number }>
+  /** Other categories unlock after this one (FR-235): change them first. */
+  | Readonly<{ kind: "category_in_use"; categories: readonly Bilingual[] }>
   /** Players completed it: its points are history (T-105); hide it instead, until T-604 offers keep or remove. */
   | Readonly<{ kind: "has_completions" }>
   /** Only rehearsal accounts completed it: erase the rehearsal first (T-211). */
@@ -115,7 +126,7 @@ export const NO_TEXT: Bilingual = { ar: null, en: null };
 export const done = <T>(value: T): Done<T> => ({ kind: "done", value });
 
 /** A time in the event's zone: undefined keeps the current one, null clears it, text that is not a time is refused. */
-function timeOf(
+export function timeOf(
   input: string | null | undefined,
   current: Date | null,
   timeZone: string,
@@ -295,6 +306,10 @@ export async function withEvent<T>(
     const pg = error as { code?: string; table?: string };
     if (pg.code === LOCKED) {
       return { kind: "quest_locked" };
+    }
+    // The categories' unlocks would go round in a circle (migration 0044).
+    if (pg.code === "CU422") {
+      return { kind: "invalid", field: "unlockAfter" };
     }
     // A player played the quest between the check and the delete: its points are history (migration 0012).
     if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {

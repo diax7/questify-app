@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import { playerDocuments } from "@questify/shared";
-import { levelReached, type LevelUp } from "#src/completions/complete";
+import { bonusPaid, levelReached, type Bonus, type LevelUp } from "#src/completions/complete";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
@@ -112,6 +112,8 @@ export type Sent = Readonly<{
   balance: number;
   replayed: boolean;
   levelUp: LevelUp | null;
+  /** The category bonus an auto-approved send paid (T-304), or null. */
+  bonus: Bonus | null;
 }>;
 
 type SentRow = {
@@ -149,6 +151,7 @@ export function sendSubmission(
       balance: Number(row.balance),
       replayed: row.replayed,
       levelUp: row.completion_id === null ? null : await levelReached(client, row.completion_id),
+      bonus: row.completion_id === null ? null : await bonusPaid(client, row.completion_id),
     };
   });
 }

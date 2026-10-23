@@ -195,6 +195,9 @@ const quizDb = (row: Record<string, unknown> | undefined, step: Record<string, u
     if (sql.includes("own_level")) {
       return [{ level_up: 3, up_title_ar: "مستكشف", up_title_en: "Explorer" }];
     }
+    if (sql.includes("own_category_bonus")) {
+      return [{ category_id: "c1", points: "40", name_ar: "المرحلة", name_en: null }];
+    }
     return step;
   });
 
@@ -268,8 +271,14 @@ describe("quiz steps", () => {
     const paid = quizDb(quizRow({ status: "finished", completion_id: "9" }), [{ outcome: "paid" }]);
     expect(await nextQuestion(paid.deps, STEP)).toMatchObject({
       kind: "done",
-      value: { levelUp: { level: 3, title: { ar: "مستكشف", en: "Explorer" } }, paid: true },
+      value: {
+        levelUp: { level: 3, title: { ar: "مستكشف", en: "Explorer" } },
+        bonus: { categoryId: "c1", points: 40, category: { ar: "المرحلة", en: null } },
+        paid: true,
+      },
     });
+    expect(await startQuiz(open.deps, STEP)).toMatchObject({ value: { bonus: null } });
+    expect(open.statements.some((sql) => sql.includes("own_category_bonus"))).toBe(false);
     const served = quizDb(quizRow(), [{ outcome: "served" }]);
     expect(await nextQuestion(served.deps, STEP)).toMatchObject({ value: { paid: false } });
     expect(await nextQuestion(quizDb(quizRow(), []).deps, STEP)).toMatchObject({

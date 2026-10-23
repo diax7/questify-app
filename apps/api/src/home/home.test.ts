@@ -17,6 +17,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   done: 0,
   earned: 0,
   verification: ["quest_qr"],
+  lock: null,
   ...fields,
 });
 
@@ -66,6 +67,23 @@ describe("questState", () => {
     expect(questState(quest("a", { closesAt: NOW }), "live", NOW)).toBe("closed");
     expect(questState(quest("a", { closesAt: after }), "live", NOW)).toBe("open");
     expect(questState(quest("a", { repeatCap: 2, done: 1 }), "live", NOW)).toBe("open");
+  });
+
+  it("is locked by its category after done and not live, before its own window (T-304)", () => {
+    const shut = { lock: "order_locked" } as const;
+    expect(questState(quest("a", { ...shut, done: 1 }), "live", NOW)).toBe("done");
+    expect(questState(quest("a", shut), "ended", NOW)).toBe("not_live");
+    expect(questState(quest("a", { ...shut, opensAt: after }), "live", NOW)).toBe("locked");
+    expect(questState(quest("a", { ...shut, closesAt: before }), "live", NOW)).toBe("locked");
+    expect(isOpen(quest("a", { lock: "category_locked" }), "live", NOW)).toBe(false);
+    expect(
+      pickUpNext(
+        [quest("a", { lock: "category_not_started", points: 99 }), quest("b")],
+        null,
+        "live",
+        NOW,
+      ),
+    ).toMatchObject({ questId: "b" });
   });
 });
 

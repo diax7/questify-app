@@ -8,29 +8,75 @@ import {
   bilingual,
   changes,
   done,
+  timeOf,
   withEvent,
   type BuilderDeps,
   type CategoryDelete,
   type CategoryInput,
   type Change,
   type Done,
+  type Refused,
 } from "#src/quests/builder";
 import {
+  bonusesOf,
   countRows,
   deleteQuestsOf,
   deleteRow,
   insertCategory,
   moveQuests,
   readCategory,
-  renameCategory,
   reorder,
+  unlockedBy,
+  writeCategory,
+  type BuilderEvent,
   type CategoryRecord,
+  type CategoryRuleFields,
 } from "#src/quests/store";
+import type { PoolClient } from "pg";
 
 const nameView = (category: CategoryRecord) => ({
   nameAr: category.name.ar,
   nameEn: category.name.en,
 });
+
+/** What the audit log records of a category: its name and its rules. */
+const categoryView = (category: CategoryRecord) => ({
+  ...nameView(category),
+  orderMode: category.orderMode,
+  opensAt: category.opensAt?.toISOString() ?? null,
+  unlockAfter: category.unlockAfter,
+  completionBonus: category.completionBonus,
+});
+
+/**
+ * A category's rules after this input (T-304): the opening time read in the event's zone, and an unlock that names
+ * another category of this event (a circle is refused by the database, migration 0044).
+ */
+async function rulesOf(
+  client: PoolClient,
+  event: BuilderEvent,
+  current: CategoryRecord,
+  input: CategoryInput,
+): Promise<CategoryRuleFields | Refused> {
+  const opensAt = timeOf(input.opensAt, current.opensAt, event.timezone);
+  if (opensAt === "invalid") {
+    return { kind: "invalid", field: "opensAt" };
+  }
+  const unlockAfter = input.unlockAfter === undefined ? current.unlockAfter : input.unlockAfter;
+  if (
+    unlockAfter !== null &&
+    (unlockAfter === current.id ||
+      (await readCategory(client, event.id, unlockAfter)) === undefined)
+  ) {
+    return { kind: "invalid", field: "unlockAfter" };
+  }
+  return {
+    orderMode: input.orderMode ?? current.orderMode,
+    opensAt,
+    unlockAfter,
+    completionBonus: input.completionBonus ?? current.completionBonus,
+  };
+}
 
 /** Adds a category at the end (FR-1004). Adding needs no confirmation, even while the event is live. */
 export function createCategory(
@@ -59,7 +105,7 @@ export function createCategory(
   });
 }
 
-/** Renames a category; a confirmation while the event is live. */
+/** Renames a category and sets its rules (T-304); a confirmation while the event is live. */
 export function updateCategory(
   deps: BuilderDeps,
   actor: Actor,
@@ -67,7 +113,7 @@ export function updateCategory(
   input: CategoryInput & Change,
   caller: Caller,
 ): Promise<Done<CategoryRecord>> {
-  return withEvent(deps, actor, target.eventId, { change: input }, async (client) => {
+  return withEvent(deps, actor, target.eventId, { change: input }, async (client, event) => {
     const current = await readCategory(client, target.eventId, target.id, true);
     if (current === undefined) {
       return { kind: "not_found" };
@@ -76,8 +122,12 @@ export function updateCategory(
     if (name.ar === null && name.en === null) {
       return { kind: "invalid", field: "name" };
     }
-    const renamed = await renameCategory(client, current.id, name);
-    const diff = changes(nameView(current), nameView(renamed));
+    const rules = await rulesOf(client, event, current, input);
+    if ("kind" in rules) {
+      return rules;
+    }
+    const renamed = await writeCategory(client, current.id, { name, ...rules });
+    const diff = changes(categoryView(current), categoryView(renamed));
     if (Object.keys(diff.after).length > 0) {
       await audit(client, actor, caller, {
         action: "category.update",
@@ -109,6 +159,14 @@ export function deleteCategory(
     }
     if ((await countRows(client, "category", eventId)) <= 1) {
       return { kind: "last_category" };
+    }
+    const unlocking = await unlockedBy(client, current.id);
+    if (unlocking.length > 0) {
+      return { kind: "category_in_use", categories: unlocking };
+    }
+    const bonuses = await bonusesOf(client, current.id);
+    if (bonuses !== "none") {
+      return { kind: bonuses === "real" ? "has_completions" : "rehearsal_data" };
     }
     const held = await client.query<{ count: number }>(
       "SELECT count(*)::int AS count FROM quest WHERE category_id = $1",

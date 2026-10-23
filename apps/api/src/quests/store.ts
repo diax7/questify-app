@@ -4,11 +4,21 @@ import type { EventStatus } from "#src/events/store";
 
 export type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
-export type CategoryRecord = Readonly<{
-  id: string;
-  eventId: string;
-  name: Bilingual;
-  position: number;
+export type CategoryRecord = Readonly<
+  {
+    id: string;
+    eventId: string;
+    name: Bilingual;
+    position: number;
+  } & CategoryRuleFields
+>;
+
+/** A category's rules (T-304, migration 0044): its order, its opening time, its unlock and its completion bonus. */
+export type CategoryRuleFields = Readonly<{
+  orderMode: "any" | "in_order";
+  opensAt: Date | null;
+  unlockAfter: string | null;
+  completionBonus: number;
 }>;
 
 export type QuestRecord = Readonly<{
@@ -54,6 +64,10 @@ type CategoryRow = {
   name_ar: string | null;
   name_en: string | null;
   position: number;
+  order_mode: "any" | "in_order";
+  opens_at: Date | null;
+  unlock_after: string | null;
+  completion_bonus: number;
 };
 type QuestRow = {
   id: string;
@@ -75,7 +89,8 @@ type QuestRow = {
   verification: QuestVerification[];
 };
 
-const CATEGORY_COLUMNS = "id, event_id, name_ar, name_en, position";
+const CATEGORY_COLUMNS =
+  "id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus";
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
   repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification`;
 
@@ -84,6 +99,10 @@ const toCategory = (row: CategoryRow): CategoryRecord => ({
   eventId: row.event_id,
   name: { ar: row.name_ar, en: row.name_en },
   position: row.position,
+  orderMode: row.order_mode,
+  opensAt: row.opens_at,
+  unlockAfter: row.unlock_after,
+  completionBonus: row.completion_bonus,
 });
 
 const toQuest = (row: QuestRow): QuestRecord => ({
@@ -208,16 +227,51 @@ export async function insertCategory(
   return toCategory(rows[0] as CategoryRow);
 }
 
-export async function renameCategory(
+/** Writes a category's name and rules (migration 0044's column grants). */
+export async function writeCategory(
   db: PoolClient,
   id: string,
-  name: Bilingual,
+  fields: Readonly<{ name: Bilingual }> & CategoryRuleFields,
 ): Promise<CategoryRecord> {
   const { rows } = await db.query<CategoryRow>(
-    `UPDATE category SET name_ar = $2, name_en = $3 WHERE id = $1 RETURNING ${CATEGORY_COLUMNS}`,
-    [id, name.ar, name.en],
+    `UPDATE category SET name_ar = $2, name_en = $3, order_mode = $4, opens_at = $5, unlock_after = $6,
+       completion_bonus = $7
+     WHERE id = $1 RETURNING ${CATEGORY_COLUMNS}`,
+    [
+      id,
+      fields.name.ar,
+      fields.name.en,
+      fields.orderMode,
+      fields.opensAt,
+      fields.unlockAfter,
+      fields.completionBonus,
+    ],
   );
   return toCategory(rows[0] as CategoryRow);
+}
+
+/** The categories of this event that unlock after this one (FR-235): it cannot be deleted while any does. */
+export async function unlockedBy(db: PoolClient, categoryId: string): Promise<Bilingual[]> {
+  const { rows } = await db.query<{ name_ar: string | null; name_en: string | null }>(
+    "SELECT name_ar, name_en FROM category WHERE unlock_after = $1 ORDER BY position, id",
+    [categoryId],
+  );
+  return rows.map((row) => ({ ar: row.name_ar, en: row.name_en }));
+}
+
+/** Whose bonus this category paid (T-304): `real`, `rehearsal` (only rehearsal accounts) or `none`. */
+export async function bonusesOf(
+  db: PoolClient,
+  categoryId: string,
+): Promise<"none" | "rehearsal" | "real"> {
+  const { rows } = await db.query<{ real: boolean | null }>(
+    `SELECT bool_or(n.joined_via IS DISTINCT FROM 'rehearsal') AS real
+     FROM ledger_entry l JOIN enrollment n ON n.id = l.enrollment_id
+     WHERE l.category_id = $1`,
+    [categoryId],
+  );
+  const real = rows[0]?.real ?? null;
+  return real === null ? "none" : real ? "real" : "rehearsal";
 }
 
 /** Moves every quest of one category to the end of another, keeping their order. Returns how many moved. */

@@ -30,9 +30,48 @@ export type Completed = Readonly<{
   replayed: boolean;
   /** The Questify level this completion reached for the first time (T-401), or null; the same on a replay. */
   levelUp: LevelUp | null;
+  /** The category bonus this completion paid (T-304), or null; the same on a replay. */
+  bonus: Bonus | null;
 }>;
 
 export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en: string }> }>;
+
+/** A category's completion bonus, paid with the completion that finished the category (FR-231, ADR-202). */
+export type Bonus = Readonly<{
+  categoryId: string;
+  points: number;
+  category: Readonly<{ ar: string | null; en: string | null }>;
+}>;
+
+type BonusRow = {
+  category_id: string;
+  points: string;
+  name_ar: string | null;
+  name_en: string | null;
+};
+
+const bonusOf = (rows: readonly BonusRow[]): Bonus | null => {
+  const row = rows[0];
+  return row === undefined
+    ? null
+    : {
+        categoryId: row.category_id,
+        points: Number(row.points),
+        category: { ar: row.name_ar, en: row.name_en },
+      };
+};
+
+/** The bonus this completion paid, for the calling player (own_bonus, migration 0044). */
+export async function bonusPaid(client: PoolClient, completionId: string): Promise<Bonus | null> {
+  const { rows } = await client.query<BonusRow>("SELECT * FROM own_bonus($1)", [completionId]);
+  return bonusOf(rows);
+}
+
+/** The bonus the calling player's quiz on this quest paid, also when it finished with no right answers. */
+export async function quizBonus(client: PoolClient, questId: string): Promise<Bonus | null> {
+  const { rows } = await client.query<BonusRow>("SELECT * FROM own_category_bonus($1)", [questId]);
+  return bonusOf(rows);
+}
 
 /** Why a code was refused: one answer to the player, told apart in the log. */
 export type CodeProblem =
@@ -182,6 +221,7 @@ async function callEngine(
     );
     const row = rows[0] as Row;
     const levelUp = await levelReached(client, row.completion_id);
+    const bonus = await bonusPaid(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -192,6 +232,7 @@ async function callEngine(
         balance: Number(row.balance),
         replayed: row.replayed,
         levelUp,
+        bonus,
       },
     };
   } catch (error) {

@@ -98,14 +98,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
   const newCategory = async (event: string, rules: CategoryRules = {}) =>
     (
       await owner<{ id: string }>(
-        `INSERT INTO category (event_id, name_en, completion_bonus, order_mode, opens_at, unlock_after)
-         VALUES ($1, 'Chapter', $2, $3, $4, $5) RETURNING id`,
+        `INSERT INTO category (event_id, name_en, completion_bonus, order_mode, opens_at, unlock_after, position)
+         VALUES ($1, 'Chapter', $2, $3, $4, $5, $6) RETURNING id`,
         [
           event,
           rules.bonus ?? 0,
           rules.order ?? "any",
           rules.opensAt ?? null,
           rules.unlockAfter ?? null,
+          (counter += 1),
         ],
       )
     )[0]?.id ?? "";

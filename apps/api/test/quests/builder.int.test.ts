@@ -131,7 +131,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
       expect(await s.builder()).toEqual({
         focusQuestId: null,
         categories: [
-          { id: s.general, name: { ar: "عام", en: "General" }, position: 0, quests: [] },
+          {
+            id: s.general,
+            name: { ar: "عام", en: "General" },
+            position: 0,
+            orderMode: "any",
+            opensAt: null,
+            unlockAfter: null,
+            completionBonus: 0,
+            quests: [],
+          },
         ],
       });
     });

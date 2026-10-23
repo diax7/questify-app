@@ -149,7 +149,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
         balance: 40,
         replayed: false,
         levelUp: null,
+        bonus: null,
       });
+    });
+
+    it("answers the category bonus the last quest paid, the same on a replay (T-304)", async () => {
+      const { token } = await newPlayer();
+      const [group] = await owner<{ id: string }>(
+        "INSERT INTO category (event_id, name_en, completion_bonus) VALUES ($1, 'Stage', 25) RETURNING id",
+        [ids.eventA],
+      );
+      const quest = await newQuest({ points: 5 });
+      await owner("UPDATE quest SET category_id = $2 WHERE id = $1", [quest, group?.id]);
+      const key = randomUUID();
+      const first = await complete(token, quest, scan(quest), { "idempotency-key": key });
+      const bonus = { categoryId: group?.id, points: 25, category: { ar: null, en: "Stage" } };
+      expect(first.json()).toMatchObject({ points: 5, score: 30, bonus });
+      expect(
+        (await complete(token, quest, scan(quest), { "idempotency-key": key })).json(),
+      ).toMatchObject({ bonus });
     });
 
     it("answers the Questify level a completion reached first, the same on a replay, and never the XP (T-401)", async () => {

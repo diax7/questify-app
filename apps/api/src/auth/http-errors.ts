@@ -266,6 +266,12 @@ export const lastCategory = make(
   "تحتاج الفعالية إلى فئة واحدة على الأقل.",
   "An event needs at least one category.",
 );
+export const categoryInUse = make(
+  409,
+  "category_in_use",
+  "تُفتح فئات أخرى بعد إكمال هذه الفئة. غيّر ذلك فيها أولًا.",
+  "Other categories unlock after this one. Change them first.",
+);
 export const categoryNotEmpty = make(
   409,
   "category_not_empty",

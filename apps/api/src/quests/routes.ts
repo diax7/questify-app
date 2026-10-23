@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
+  categoryInUse,
   categoryNotEmpty,
   hasCompletions,
   confirmRequired,
@@ -37,7 +38,14 @@ const text = (max: number) =>
 const confirm = z.boolean().optional();
 
 const categoryBody = z.strictObject({ name: text(120), confirm });
-const categoryPatch = z.strictObject({ name: text(120).optional(), confirm });
+const categoryPatch = z.strictObject({
+  name: text(120).optional(),
+  orderMode: z.enum(["any", "in_order"]).optional(),
+  opensAt: localTime.nullable().optional(),
+  unlockAfter: z.uuid().nullable().optional(),
+  completionBonus: z.number().int().min(0).max(100_000).optional(),
+  confirm,
+});
 const categoryDelete = z
   .strictObject({ quests: z.enum(["move", "delete"]).optional(), to: z.uuid().optional(), confirm })
   .default({});
@@ -77,6 +85,10 @@ const categoryView = (category: CategoryRecord) => ({
   id: category.id,
   name: category.name,
   position: category.position,
+  orderMode: category.orderMode,
+  opensAt: category.opensAt?.toISOString() ?? null,
+  unlockAfter: category.unlockAfter,
+  completionBonus: category.completionBonus,
 });
 
 /** A quest as the dashboard sees it; members see an entry code, players never will (T-105). */
@@ -96,8 +108,15 @@ const questView = (quest: QuestRecord) => ({
   verification: quest.verification,
 });
 
-/** The answer for a result: its value through `ok`, or the error that names the refusal. */
-function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
+/**
+ * The answer for a result: its value through `ok`, or the error that names the refusal. A field is named as the
+ * category's on the category routes and as the quest's elsewhere (both have an `opensAt`).
+ */
+function answer<T>(
+  result: Done<T>,
+  ok: (value: T) => unknown,
+  subject: "quest" | "category" = "quest",
+): unknown {
   switch (result.kind) {
     case "done":
       return ok(result.value);
@@ -108,7 +127,7 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
     case "confirm_required":
       throw confirmRequired();
     case "invalid":
-      throw result.field === "name" || result.field === "to"
+      throw subject === "category"
         ? invalidCategory({ field: result.field })
         : invalidQuest({ field: result.field });
     case "limit_reached":
@@ -119,6 +138,8 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
       throw lastCategory();
     case "category_not_empty":
       throw categoryNotEmpty({ quests: result.quests });
+    case "category_in_use":
+      throw categoryInUse({ categories: result.categories });
     case "has_completions":
       throw hasCompletions();
     case "rehearsal_data":
@@ -143,7 +164,11 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
       body,
       callerOf(request),
     );
-    return answer(result, (category) => reply.code(201).send({ category: categoryView(category) }));
+    return answer(
+      result,
+      (category) => reply.code(201).send({ category: categoryView(category) }),
+      "category",
+    );
   });
 
   scope.put("/events/:eventId/categories/order", member, async (request, reply) => {
@@ -156,7 +181,7 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
       body,
       callerOf(request),
     );
-    return answer(result, empty(reply));
+    return answer(result, empty(reply), "category");
   });
 
   scope.patch("/events/:eventId/categories/:categoryId", member, async (request) => {
@@ -169,7 +194,7 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
       body,
       callerOf(request),
     );
-    return answer(result, (category) => ({ category: categoryView(category) }));
+    return answer(result, (category) => ({ category: categoryView(category) }), "category");
   });
 
   scope.delete("/events/:eventId/categories/:categoryId", member, async (request, reply) => {
@@ -182,7 +207,7 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
       body,
       callerOf(request),
     );
-    return answer(result, empty(reply));
+    return answer(result, empty(reply), "category");
   });
 
   scope.put(
@@ -198,7 +223,7 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
         body,
         callerOf(request),
       );
-      return answer(result, empty(reply));
+      return answer(result, empty(reply), "category");
     },
   );
 }

@@ -120,6 +120,7 @@ describe("sending", () => {
         balance: 0,
         replayed: false,
         levelUp: null,
+        bonus: null,
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
@@ -127,12 +128,16 @@ describe("sending", () => {
     ]);
   });
 
-  it("reads the level an auto-approved send reached", async () => {
-    const pool = fakePool((sql) =>
-      sql.includes("own_level")
-        ? [LEVEL]
-        : [{ ...SENT, status: "approved", completion_id: "77", score: "150", replayed: true }],
-    );
+  it("reads the level and the category bonus an auto-approved send reached", async () => {
+    const pool = fakePool((sql) => {
+      if (sql.includes("own_level")) {
+        return [LEVEL];
+      }
+      if (sql.includes("own_bonus")) {
+        return [{ category_id: "c1", points: "50", name_ar: null, name_en: "Stage" }];
+      }
+      return [{ ...SENT, status: "approved", completion_id: "77", score: "150", replayed: true }];
+    });
     const sent = await sendSubmission(pool.deps, {
       playerId: PLAYER,
       questId: "q1",
@@ -146,9 +151,11 @@ describe("sending", () => {
         score: 150,
         replayed: true,
         levelUp: { level: 2, title: { ar: "مستكشف", en: "Explorer" } },
+        bonus: { categoryId: "c1", points: 50, category: { ar: null, en: "Stage" } },
       },
     });
     expect(pool.statements[1]?.values).toEqual(["77"]);
+    expect(pool.statements[2]?.values).toEqual(["77"]);
   });
 });
 

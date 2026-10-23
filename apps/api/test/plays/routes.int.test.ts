@@ -324,6 +324,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
     expect(upserts.filter((write) => write.event === event)).toEqual([{ event, score: 10n }]);
   });
 
+  it("locks an in-order quest, and pays and shows the bonus of a quiz finished with no right answers (T-304)", async () => {
+    const event = await newEvent();
+    const first = await newQuest(event, "vote", VOTE);
+    const last = await newQuest(event, "quiz", { ...QUIZ, questions: QUIZ.questions.slice(0, 1) });
+    await owner(
+      "UPDATE category SET order_mode = 'in_order', completion_bonus = 30 WHERE event_id = $1",
+      [event],
+    );
+    await owner("UPDATE quest SET position = 1 WHERE id = $1", [last]);
+    const token = await newPlayer(event);
+    const read = async () =>
+      (await app("GET", `/v1/events/${event}/quests`, token)).json<{
+        categories: Record<string, unknown>[];
+      }>().categories[0];
+    expect(await read()).toMatchObject({
+      orderMode: "in_order",
+      bonus: { points: 30, earned: 0 },
+      quests: [
+        { id: first, state: "open", lock: null },
+        { id: last, state: "locked", lock: "order_locked" },
+      ],
+    });
+    const locked = await app("POST", `/v1/quests/${last}/quiz/start`, token, {});
+    expect([...codeOf(locked), locked.json().details]).toEqual([
+      403,
+      "quest_not_open",
+      { reason: "order_locked" },
+    ]);
+    const voted = await app("POST", `/v1/quests/${first}/vote`, token, { optionId: "a" });
+    expect(voted.json()).toMatchObject({ points: 10, bonus: null });
+    await app("POST", `/v1/quests/${last}/quiz/start`, token, {});
+    await app("POST", `/v1/quests/${last}/quiz/next`, token, {});
+    const finished = await app("POST", `/v1/quests/${last}/quiz/answer`, token, {
+      questionId: "q1",
+      choiceId: "w",
+    });
+    expect(finished.json()).toMatchObject({
+      quiz: { status: "finished", completionId: null },
+      bonus: { points: 30, category: { ar: "عام", en: "General" } },
+    });
+    expect(await read()).toMatchObject({ bonus: { points: 30, earned: 30 } });
+  });
+
   it("builds vote and quiz quests played once, and locks a played quest's answers", async () => {
     const event = await newEvent();
     const [category] = await owner<{ id: string }>(
