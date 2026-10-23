@@ -242,3 +242,19 @@ off a rejection closes the quest for that player. Agree?
 ## Q-155 — Who reviews and who removes (2026-10-24, T-301)
 ADR-189: owner, editors and operators with `review` approve or reject; only owner and editors remove an approved one.
 Agree?
+
+## Q-156 — Quiz shape (2026-10-24, T-302)
+ADR-191: multiple choice only (1 to 20 questions, 2 to 6 choices, one right), one attempt per player, `quest.points` per
+right answer. A typed-answer question is not in v1. Agree?
+
+## Q-157 — Quiz timer and grace (2026-10-24, T-302)
+ADR-192: one timer per quiz (5 to 300 seconds, or none), measured by the server from serving, with 2 seconds of grace;
+no clock between questions. Agree?
+
+## Q-158 — Vote options and results (2026-10-24, T-302)
+ADR-190 and ADR-195: text options now, images once a Questify bucket exists (Q-149); the team sees counts, players only
+their own vote until live polls (T-306). Agree?
+
+## Q-159 — An unfinished quiz (2026-10-24, T-302)
+ADR-193: a quiz left half-done is paid for its right answers when the quest closes or the event leaves live. Agree, or
+pay nothing for an unfinished quiz?

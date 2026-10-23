@@ -277,6 +277,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 - [ ] **T-302** Vote and quiz quests with timers and one try per question; enter-a-code variants — delivers FR 207, 208, 209, 210, 1629; depends on: T-105
   - Note 2026-10-24 (T-301): FR-1629 moved here: vote options are organizer text or organizer images only; no definer returns a player's submission to anyone but the player and the event's team (`own_submissions`, `event_submissions`), so options must never be built from them. New open checks go in `quest_open_check` (migration 0040), shared by every completion path.
   - Done when: A quiz question closes at the timer; the right answer shows after answering.
+  - Plan 2026-10-24 (core; CTO plan review owed): `docs/plans/2026-10-24-t-302-vote-quiz.md`, migration 0041, ADR-190 to ADR-195 and Q-156 to Q-159 Proposed. Text vote options only (images wait on Q-149); no new enter-code work (FR-211 shipped in T-105); vote results to players move to T-306.
 - [ ] **T-303** Challenge quests (staff confirm), meet-someone quests, survey quests, share quests, location check-in with the QR fallback — delivers FR 203, 212, 213, 214, 215, 216, 219, 220, 1744; depends on: T-205
   - Done when: A challenge pays only after a staff member confirms; a location quest can always be done by scanning the QR at that spot.
   - Note 2026-10-22 (ADR-137): My QR is fixed, so a meet-someone scan can be shared in a group chat; this task needs its own proof of meeting.

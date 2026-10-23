@@ -2450,3 +2450,46 @@ ones count against the repeat cap.
 **Decision:** the owner, editors and operators with the `review` ability approve or reject (FR-324); removing an
 approved submission is for the owner and editors only, as removals of awards (ADR-152).
 **Why:** reviewing is daily venue work; taking points back is a manager's act.
+
+## ADR-190 — T-302's scope: text vote options, no new enter-code work
+**Status:** Proposed (Claude, 2026-10-24; T-302). Q-158.
+**Decision:** vote options are the organizer's text for now; organizer images wait for a Questify bucket (Q-149). FR-1629
+holds by construction: options live only in the quest's config, typed by the organizer. FR-211 (enter a code) shipped in
+T-105 and its "variants" are the existing `hint`; no typed-answer quiz question in v1. Showing vote results to players
+comes with live polls (F-100, T-306).
+**Why:** ships the two types without waiting on storage, and keeps T-302 to what its FRs ask.
+
+## ADR-191 — Quiz shape
+**Status:** Proposed (Claude, 2026-10-24; T-302). Q-156.
+**Decision:** multiple-choice questions (1 to 20, 2 to 6 choices, one right); one attempt per player (`repeat_cap = 1`);
+`quest.points` is the points per right answer, frozen on the attempt at start; the server serves one question at a time
+and returns the right answer only after the player answered or the question closed.
+**Why:** FR-208 and FR-209 with no way to read ahead or retry, and an edit of the quest changes nothing already started.
+
+## ADR-192 — The quiz timer runs on the server
+**Status:** Proposed (Claude, 2026-10-24; T-302). Q-157.
+**Decision:** one timer for every question of a quiz (5 to 300 seconds, or none). A question's clock starts when the
+server serves it and ends at `served_at + timer + 2 s` of grace; an answer after that is refused and the question closes
+with no points. There is no clock between questions.
+**Why:** the phone's clock cannot be trusted (rule 1); the grace absorbs a slow network; players read the right answer
+before going on.
+
+## ADR-193 — A quiz pays once, at the end
+**Status:** Proposed (Claude, 2026-10-24; T-302). Q-159.
+**Decision:** when the last question is answered or closed, right answers × the frozen points are paid as one completion
+(key `quiz:<attempt>`, reserved) and one ledger entry through the shared payment path; no right answers pays nothing and
+writes no completion, and the quest shows as done. An attempt left unfinished is paid by the lifecycle tick once the
+quest closes or the event leaves live, with the approval's re-checks (ADR-184) and the shop window (FR-1710).
+**Why:** one entry per completion keeps the ledger's shape; a player who walks away still gets what they earned.
+
+## ADR-194 — Vote and quiz edits after the first answer
+**Status:** Proposed (Claude, 2026-10-24; T-302).
+**Decision:** once anyone has voted or started the quiz, only text may change; ids, the number and order of options,
+questions and choices, the right answers, the timer and the points are locked (`quest_locked`).
+**Why:** a moved right answer or a removed option would make earlier answers and votes mean something else.
+
+## ADR-195 — Vote counts and erasure
+**Status:** Proposed (Claude, 2026-10-24; T-302). Q-158.
+**Decision:** the owner and editors see each option's count; players see only their own choice in T-302. A deleted
+account's votes and quiz answers are deleted (counts drop); its quiz attempts stay for the ledger.
+**Why:** STORE_COMPLIANCE PD-16 lists votes among what deletion removes.
