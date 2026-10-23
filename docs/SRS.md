@@ -947,8 +947,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-214 | F-85 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303); the results page and export are T-508 |
 | FR-215 | F-86 | Could | built (T-303b) |
 | FR-216 | F-86 | Could | built (T-303b) |
-| FR-217 | F-87 | Should | pending |
-| FR-218 | F-87 | Should | pending |
+| FR-217 | F-87 | Should | built (T-305, ADR-213) |
+| FR-218 | F-87 | Should | built (T-305, ADR-212) |
 | FR-219 | F-88 | Should | `test/plays/survey-share.int` (every player read), `src/quests/switched-off.test.ts`, `test/db/challenge-survey-share.int` (T-303) |
 | FR-220 | F-88 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303) |
 | FR-221 | F-02 | Must | pending |
@@ -1396,12 +1396,12 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1801 | F-305 | Must | pending |
 | FR-1802 | F-82, F-306 | Must | pending |
 | FR-1803 | F-307 | Should | pending |
-| FR-1804 | F-87 | Should | pending |
-| FR-1805 | F-308 | Must | pending |
-| FR-1806 | F-87 | Should | pending |
-| FR-1807 | F-309 | Must | pending |
-| FR-1808 | F-310 | Should | pending |
-| FR-1809 | F-311 | Should | pending |
+| FR-1804 | F-87 | Should | partly built (T-305: memory match and slide puzzle; catch and tap rush T-305c, ADR-214) |
+| FR-1805 | F-308 | Must | built (T-305, ADR-212) |
+| FR-1806 | F-87 | Should | built (T-305, ADR-213, ADR-215) |
+| FR-1807 | F-309 | Must | built (T-305, ADR-213) |
+| FR-1808 | F-310 | Should | default pictures built (T-305); organizer images T-305b, blocked on Q-149 |
+| FR-1809 | F-311 | Should | built (T-305, ADR-213: the window is the time limit plus 10 minutes, memory only) |
 | FR-1810 | F-312 | Should | pending |
 | FR-1811 | F-313 | Should | pending |
 | FR-1812 | F-314 | Must | pending |

@@ -138,7 +138,9 @@ What App Review needs from Questify:
    that proves the code works for no other number.
 2. **A permanent demo event** ("App Review Demo", always live, no end date) in its own demo tenant,
    containing every quest type the binary supports: QR scan, challenge, photo submission, text
-   submission, vote, quiz, survey, share, and a location quest with its non-location alternative. Seed a
+   submission, vote, quiz, survey, share, a location quest with its non-location alternative, a meet quest, and a
+   mini-game quest of each built game (memory match, slide puzzle; T-305) with unlimited attempts and a 1-minute
+   cooldown so a reviewer can play again. Seed a
    leaderboard with fictional players and a prize catalogue the reviewer can redeem.
 3. **A sample QR code** attached to the review notes as an image (and printable), plus the event
    join code.
@@ -148,6 +150,10 @@ What App Review needs from Questify:
    organizer's prizes) when the player completes the system share sheet with the organizer's
    message; the player picks the app and the recipients, nothing is posted for them, there is no
    proof step, it pays once per player and quest, and the organizer can switch share quests off.
+   **Mini-games (T-305, ADR-212 to ADR-215):** the note says each game is native code in the binary (no WebView, no
+   downloaded code); the server issues each round and checks its result; only data changes remotely (the game
+   choice, the level, the attempts and each level's numbers); attempts are never sold; the organizer can switch
+   mini-games off for an event.
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

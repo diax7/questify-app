@@ -2707,6 +2707,8 @@ The refusal's reason is shown to the organizer, never to the player. An honest p
 engine version is frozen on the round and replayed with that version, an app whose engine is older is told to update
 before an attempt is used, and the app's board drops every tap the replay would call impossible. A refusal of the
 request (past the window, a player who can no longer play) writes nothing; the verdicts are written and returned.
+The app plays every round with the round's `engineVersion` and keeps every `v<n>` engine it may be handed; a server
+deploy carrying a new engine version goes out before the app release that uses it (RUNBOOK, Database and deploy).
 **Why:** FR-218, FR-1805; a refused honest round would cost an attempt and flag an innocent player (CTO plan review
 2026-10-24). The seed reaches the phone, so a modified app can see the layout; the targets sit below
 perfect play, the unlikely checks catch the cheap version, and the reward is one quest's points once. A round trip per
@@ -2740,5 +2742,7 @@ need uploads that are blocked on the bucket (ADR-183).
 **Decision:** each game's easy, medium and hard numbers (board size, time limit, target) are Questify tuning kept on
 the server and sent with every round, so retuning is a deploy, not a store release; the organizer picks only the level.
 The board never mirrors in Arabic (the instructions and the bar do). Motion uses React Native's own `Animated`, so the
-games add no native module and no new EAS build.
+games add no native module and no new EAS build. Built (T-305): the unlikely count of lucky matches is part of each
+memory level's numbers (easy 3, medium and hard 4), because a player who remembers every card but never peeks reached 3
+in 1.2% (medium) and 1.7% (hard) of 5,000 seeded rounds; at 4 it is 0.1% and 0.3% (easy stays 3, at 0.9%).
 **Why:** configuration over code without giving organizers numbers they cannot judge; a picture puzzle cannot mirror.

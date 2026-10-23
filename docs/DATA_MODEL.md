@@ -585,8 +585,28 @@ still counts towards their caps); the rehearsal wipe deletes the rehearsal accou
 their completions. The shown side counts for the shared-device flag but not the burst.
 **PII:** who met whom (deleted with either account); a code's device id (deleted with the account).
 
+### game_round (migration 0050, T-305, ADR-212 to ADR-215)
+**Built:** quest `type` gains `game` (no verification); `type_config {game memory_match|slide_puzzle, level
+easy|medium|hard, attempts 1..10 | null, cooldownMinutes 1..1440 exactly when attempts is null}` by the check
+`quest_game_shape`, `repeat_cap = 1` by `quest_game_once`; `quest_completion.method` gains `game`; `flag.kind` gains
+`minigame` (one open case per account, evidence `{rounds: [{round, game, level, reason, at}]}`, the newest 50).
+`game_round(id, organizer_id, event_id, enrollment_id, quest_id, game, level, seed integer, params jsonb, points,
+device_id, issue_key, engine_version, status open|passed|short|refused|abandoned|expired, issued_at, deadline_at,
+finished_at, result_key, result jsonb, reason, unlikely, completion_id UNIQUE)`: one issued round, everything a replay
+needs frozen at issue (the level's numbers from the database's own `game_level`, equal to `levels.ts`); `deadline_at` is
+the time limit plus 10 minutes; at most one open per player and quest; unique `(enrollment_id, issue_key)` and
+`(enrollment_id, result_key)` (the replays). The inputs are never kept; `result` holds the replayed numbers only. A
+passing round's completion is keyed `game:<round id>` (`record_completion` reserves `game:`). Definers:
+`start_game_round`, `game_round_for_replay` (the caller's own round), `finish_game_round` (the verdict, the clock check,
+one payment), `member_game`, `close_one_due_round` (the sweep); a status trigger on `enrollment` abandons open rounds.
+`quest_done` counts a game quest whose attempts are all used without a pass (an open round past its deadline counts as
+closed); its config is locked once a round exists (`quest_lock_played`). `member_event_quests` adds `game_left` and
+`game_passed`. No grant and no policy. Erasure deletes the account's rounds; the rehearsal wipe deletes the rehearsal
+accounts' rounds (counted as `games`).
+**PII:** the rounds a player played and their results (deleted with the account); a round's device id.
+
 ### flag, ticket, audit_log
-`flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst|far_from_venue|impossible_speed, device_id (shared_device only),
+`flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst|far_from_venue|impossible_speed|minigame, device_id (shared_device only),
 evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,
 resolved_at, resolved_by staff_user)` (migration 0031, T-209, ADR-153 to ADR-155): raised by a trigger on every new
 `quest_completion` (not `manual`), inside its transaction. Same phone: one case per account and install id, ever, for
@@ -613,7 +633,6 @@ secret or contact detail (refused in code, which rolls back the change too).
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
 | item, player_item, achievement, player_achievement, event_stamp, streak | Questify layer collectibles and progress | Linked to player |
-| minigame_round | Seed, issue time, replayed inputs, result | Linked to player |
 | daily_word, word_bank | Daily word and valid guesses per language (ADR-097) | No |
 | announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |
@@ -677,6 +696,7 @@ Derived from the primary flows:
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
 | Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
 | Meetings | Meet-someone quests (FR-212, FR-213) | `meeting` and `meet_pass` have no grant and no policy; a code is kept only as a hash; the scanner sees the other's username and avatar, never their id | Event data (Q-075, Q-175); deleted with either account | Nobody through the API (no team read exists) |
+| Mini-game rounds | Mini-game quests (FR-1805 to FR-1809) | `game_round` has no grant and no policy; the inputs are never stored; the replay's reason reaches only the event's team, as flag lines | Event data (Q-075); deleted with the account | The player (their own sheet); the event's team as flag lines |
 | Photos, free text | Photo and text quests | Private storage, signed URLs; PD-29 report and unpublish | Event retention; Q-075 | Organizer team; reviewers |
 | Password hashes | Staff sign-in | argon2id; never exported | Until account removal | Nobody |
 | Uploaded prize codes | Digital prizes | Encrypted column, shown only at handover | Until used or event end | Prize desk at handover |

@@ -92,7 +92,7 @@ anti-cheat) is Area 3.
 | F-84 | Meet someone: scan another player's meet code; both earn | Should | Claude | One scan by either player completes it for both. No repeat pairs; the organizer sets a daily cap per player. Built by T-303c with a one-minute meet code, not My QR (ADR-209) |
 | F-85 | Survey: questions with no right answer (rate a session, feedback) | Should | Claude | Results go to the organizer; speakers' feedback in Area 12 |
 | F-86 | Location check-in: be inside an area | Could | Claude | Foreground location only (PD-09); a QR at the spot always works too (ADR-015) |
-| F-87 | Mini-games as a quest type: four games in v1 (memory match, slide puzzle, catch, tap rush); the reward is points for passing the organizer's target (easy, medium or hard) on the first pass | Should | user / deck | ADR-097. Which games and how they are checked: ADR-097 |
+| F-87 | Mini-games as a quest type: four games in v1 (memory match, slide puzzle, catch, tap rush); the reward is points for passing the organizer's target (easy, medium or hard) on the first pass | Should | user / deck | ADR-097. Which games and how they are checked: ADR-097. Built in part (T-305): memory match and slide puzzle; catch and tap rush in T-305c (ADR-214) |
 | F-88 | Share quest: share event content to social apps, rewarded on trust | Should | user / deck | One reward per player per quest; organizer switches it on per event. Breaks Meta's spam policy: risk accepted in ADR-034 |
 
 ### Quest content and rules
@@ -735,10 +735,10 @@ first column.
 | F-305 | 1 | A player who arrives from a join QR or link sees the event preview and joins first, then the full intro with a Skip button, then Home | Must | user | ADR-096. Adds up to ~15 s before the first coin unless skipped |
 | F-306 | 1 | Replay: "How Questify works" in Settings reopens the intro | Should | user | |
 | F-307 | 14 | The intro's texts are in the translation matrix; its order and visibility use the layout controls | Should | user | F-277, F-267 |
-| F-308 | 2 | Mini-game rounds are issued by the server with a start time and a random seed; the phone sends its inputs and the server replays them, so a reported score is never trusted | Must | Claude | ADR-097 |
-| F-309 | 2 | Attempts per mini-game quest: default 1, changeable by the organizer (one, a few, or unlimited with a cooldown) | Must | user | ADR-097 |
-| F-310 | 2 | Organizer images (their logo or a sponsor's) can appear on cards, puzzle pictures and falling items | Should | Claude | ADR-097 |
-| F-311 | 2 | A finished round whose result could not be sent is kept on the phone for a short time with a Retry button | Should | Claude | A result retry, not an offline queue (ADR-029) |
+| F-308 | 2 | Mini-game rounds are issued by the server with a start time and a random seed; the phone sends its inputs and the server replays them, so a reported score is never trusted | Must | Claude | ADR-097. Built (T-305, ADR-212) |
+| F-309 | 2 | Attempts per mini-game quest: default 1, changeable by the organizer (one, a few, or unlimited with a cooldown) | Must | user | ADR-097. Built (T-305, ADR-213): 1 to 10, or unlimited with 1 to 1,440 minutes between rounds |
+| F-310 | 2 | Organizer images (their logo or a sponsor's) can appear on cards, puzzle pictures and falling items | Should | Claude | ADR-097. T-305b, blocked on Q-149; the default pictures show until then |
+| F-311 | 2 | A finished round whose result could not be sent is kept on the phone for a short time with a Retry button | Should | Claude | A result retry, not an offline queue (ADR-029). Built (T-305): in memory until the round's window ends |
 | F-312 | 7 | Daily word on Questify home: one hidden word a day for everyone, six guesses, feedback by letter position, in Arabic and English; counts for the daily streak and XP | Should | user | ADR-097 |
 | F-313 | 14 | Word bank in the console: valid and daily words in Arabic and English; a day with no word shows no game | Should | user | Like the daily questions (F-261) |
 | F-314 | 1 | If the SMS login code has not arrived after about 30 seconds, the sign-in screen offers to send the code to an email instead | Must | Claude / user | Stage 5, FR-1812 |

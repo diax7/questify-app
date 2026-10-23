@@ -374,8 +374,9 @@ change the game's points but not its game, level or attempts. Agree?
 ## Q-178 — Mini-game levels (2026-10-24, T-305)
 ADR-215 and the plan's table: memory match 6, 8 or 10 pairs in 120 seconds (medium within 20 moves, hard within 22);
 slide puzzle 3×3 lightly or fully shuffled in 180 seconds, or 4×4 in 300 seconds. A round is flagged as unlikely after
-3 lucky first-sight matches, or a puzzle solved in fewer moves than its shuffle at under 300 ms a move. Keep as a
-start and tune after a playtest?
+3 lucky first-sight matches on easy and 4 on medium and hard (built 2026-10-24: 3 flagged over 1% of honest rounds at
+the larger boards), or a puzzle solved in fewer moves than its shuffle at under 300 ms a move. Keep as a start and tune
+after a playtest?
 
 ## Q-179 — Mini-games in three parts (2026-10-24, T-305)
 ADR-214: memory match and slide puzzle first (T-305), catch and tap rush next (T-305c), organizer images once a

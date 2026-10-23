@@ -254,6 +254,10 @@ the client-address count (ADR-113).
   `log_statement` none, `log_min_duration_statement` -1: the rule holds (statements are never logged, and an
   error logs no parameters). Read them again if CranL changes its Postgres settings.
 
+- **Mini-game engines (T-305, ADR-212):** a server deploy carrying a new engine version (`packages/shared/src/games`,
+  a `v<n>.ts` beside the old one) goes out **before** the app release that draws with it: the server answers an app
+  whose engine is older with 426 `update_required`, and replays each round with the version frozen on it, so the old
+  version stays until no open round can use it (the longest window after the deploy: the time limit plus 10 minutes).
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.
