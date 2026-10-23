@@ -362,13 +362,14 @@ Known edges left as they are (CTO code review, 2026-10-23): the per-player limit
 ## Q-176 — How far mini-game results are checked (2026-10-24, T-305)
 ADR-212: the server replays every round and refuses impossible play, but the round's layout reaches the phone, so a
 modified app could play a perfect game at human speed. The targets sit below perfect play, very lucky rounds are
-flagged for the organizer, and the reward is one quest's points once. Agree, or ask the server for each move (slower
-on a venue network)?
+flagged for the organizer, and the reward is one quest's points once. An app with an older game engine is asked to
+update before it can play. Agree, or ask the server for each move (slower on a venue network)?
 
 ## Q-177 — Mini-game attempts and retry (2026-10-24, T-305)
 ADR-213: an attempt is used when Play is tapped, so quitting a bad round does not give a fresh one; a result that could
 not be sent is kept in the app's memory for the time limit plus 10 minutes (an app closed in between loses it); a round
-already started may finish after the organizer switches mini-games off. Agree?
+already started may finish after the organizer switches mini-games off; once anyone has played, the organizer can
+change the game's points but not its game, level or attempts. Agree?
 
 ## Q-178 — Mini-game levels (2026-10-24, T-305)
 ADR-215 and the plan's table: memory match 6, 8 or 10 pairs in 120 seconds (medium within 20 moves, hard within 22);

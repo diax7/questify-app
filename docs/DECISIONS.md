@@ -2703,8 +2703,12 @@ sends its inputs and the result its engine found; the API replays the inputs wit
 trusts a reported score. Impossible play (an illegal input, inputs out of order, closer than 100 ms, past the time
 limit or over the cap, a reported result the replay does not reproduce, or more play time than the server saw pass)
 refuses the round, which counts as played, and raises a `minigame` flag. Legal but unlikely play is paid and flagged.
-The refusal's reason is shown to the organizer, never to the player.
-**Why:** FR-218, FR-1805. The seed reaches the phone, so a modified app can see the layout; the targets sit below
+The refusal's reason is shown to the organizer, never to the player. An honest player is never refused: each game's
+engine version is frozen on the round and replayed with that version, an app whose engine is older is told to update
+before an attempt is used, and the app's board drops every tap the replay would call impossible. A refusal of the
+request (past the window, a player who can no longer play) writes nothing; the verdicts are written and returned.
+**Why:** FR-218, FR-1805; a refused honest round would cost an attempt and flag an innocent player (CTO plan review
+2026-10-24). The seed reaches the phone, so a modified app can see the layout; the targets sit below
 perfect play, the unlikely checks catch the cheap version, and the reward is one quest's points once. A round trip per
 move (the quiz's model) would make the games unplayable on a venue network.
 
@@ -2716,7 +2720,9 @@ retried request returns the same round). The quest pays its points, frozen at is
 and the category bonus follow as for every payer. All attempts used without a pass counts the quest done for category
 gates and the bonus (as a quiz with no right answers). A result is taken until the time limit plus 10 minutes; the app
 keeps the inputs in memory only. The event switch `miniGames` (FR-1009) is on by default; off, game quests are hidden
-and no round is issued, but a round already issued may still send its result. Allowed in every event kind.
+and no round is issued, but a round already issued may still send its result. Allowed in every event kind. A game
+quest's game, level, attempts and cooldown are locked once a round exists (its points stay editable). While the app
+holds an unsent result, the quest shows Retry instead of Play.
 **Why:** FR-1806, FR-1807, FR-1809, F-309; counting at issue stops quitting a bad layout; no dead end in an in-order
 category.
 
