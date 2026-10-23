@@ -2,7 +2,7 @@ import type { Stamped } from "#src/event/passport.ts";
 import type { Revealed } from "#src/event/reveal.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
-import type { Bonus } from "#src/event/quests-api.ts";
+import type { Bonus, ItemGiven } from "#src/event/quests-api.ts";
 import type { LevelUp } from "#src/questify/level.ts";
 
 /**
@@ -26,6 +26,8 @@ export type ScanStep =
       levelUp: LevelUp | null;
       /** The category bonus this scan paid (T-304), said with the points. */
       bonus: Bonus | null;
+      /** The quest item this scan gave or missed (T-304d), said with the points. */
+      item: ItemGiven | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
       details: Details | undefined;
     }>
@@ -94,6 +96,7 @@ function answered(
         replayed: answer.replayed,
         levelUp: answer.levelUp,
         bonus: answer.bonus,
+        item: answer.item,
         details: undefined,
       };
     case "network":

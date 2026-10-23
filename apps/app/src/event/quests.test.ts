@@ -27,6 +27,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   state: "open",
   lock: null,
   steps: null,
+  item: null,
   verification: [],
   ...fields,
 });
@@ -37,7 +38,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   orderMode: "any",
   opensAt: null,
   unlockAfter: null,
-  bonus: { points: 0, earned: 0, settled: false },
+  bonus: { points: 0, earned: 0, settled: false, item: null },
   refresh: "none",
   resetsAt: null,
   quests,
@@ -248,7 +249,7 @@ describe("category rules (T-304)", () => {
       orderMode: "in_order" as const,
       opensAt: "2030-01-01T10:00:00.000Z",
       unlockAfter: { id: "b", name: { ar: null, en: "One" } },
-      bonus: { points: 50, earned: 0, settled: false },
+      bonus: { points: 50, earned: 0, settled: false, item: null },
     };
     const shut = {
       ...category("c", [
@@ -266,7 +267,7 @@ describe("category rules (T-304)", () => {
     const open = {
       ...category("c", [quest("a")]),
       ...rules,
-      bonus: { points: 50, earned: 50, settled: true },
+      bonus: { points: 50, earned: 50, settled: true, item: null },
     };
     expect(categoryNotes(open)).toEqual([{ kind: "inOrder" }, { kind: "bonusEarned", points: 50 }]);
     expect(categoryNotes(category("c", [quest("a")]))).toEqual([]);
@@ -306,9 +307,18 @@ describe("category rules (T-304)", () => {
   it("promises no bonus that was removed and will never be paid again", () => {
     const removed = {
       ...category("c", [quest("a")]),
-      bonus: { points: 50, earned: 0, settled: true },
+      bonus: { points: 50, earned: 0, settled: true, item: { ar: null, en: "Cap" } },
     };
     expect(categoryNotes(removed)).toEqual([]);
+  });
+
+  it("promises a category's item while its bonus is not settled (T-304d)", () => {
+    const shirt = { ar: "قميص", en: "T-shirt" };
+    const giving = {
+      ...category("c", [quest("a")]),
+      bonus: { points: 0, earned: 0, settled: false, item: shirt },
+    };
+    expect(categoryNotes(giving)).toEqual([{ kind: "bonusItem", name: shirt }]);
   });
 });
 
@@ -321,7 +331,19 @@ describe("completionAnswer", () => {
       replayed: false,
       levelUp: null,
       bonus: null,
+      item: null,
     });
+    const shirt = { name: { ar: "قميص", en: null }, outcome: "out_of_stock" };
+    expect(
+      completionAnswer(
+        ok({
+          points: 10,
+          score: 60,
+          item: shirt,
+          bonus: { points: 0, category: { ar: null, en: "S" }, item: { ...shirt, outcome: "x" } },
+        }),
+      ),
+    ).toMatchObject({ item: shirt, bonus: { points: 0, item: null } });
     expect(
       completionAnswer(
         ok({

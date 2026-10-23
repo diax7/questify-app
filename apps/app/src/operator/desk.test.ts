@@ -34,6 +34,7 @@ const ITEM: DeskItem = {
   offered: false,
   offerUntil: null,
   rank: null,
+  questReward: false,
 };
 
 describe("deskInfoOf", () => {
@@ -98,7 +99,14 @@ describe("lookupOf", () => {
             rank: 3,
           },
           { kind: "item" },
-          { id: "d2", kind: "voucher", name: "x", offered: true, offerUntil: LATER },
+          {
+            id: "d2",
+            kind: "voucher",
+            name: "x",
+            offered: true,
+            offerUntil: LATER,
+            source: "quest",
+          },
         ],
       }),
     ).toEqual({
@@ -116,6 +124,7 @@ describe("lookupOf", () => {
           offered: false,
           offerUntil: null,
           rank: 3,
+          questReward: false,
         },
         {
           id: "d2",
@@ -126,6 +135,7 @@ describe("lookupOf", () => {
           offered: true,
           offerUntil: LATER,
           rank: null,
+          questReward: true,
         },
       ],
     });

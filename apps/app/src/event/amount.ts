@@ -7,7 +7,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import type { Bonus } from "#src/event/quests-api.ts";
+import type { Bonus, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
 import { textIn } from "#src/i18n/text.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
@@ -40,21 +40,46 @@ export function completedText(
   });
 }
 
-/** A category bonus in words: «أكملت «المرحلة»: مكافأة ‎+50», "+50 bonus: Stage complete" (FR-231). */
-export function bonusLine(t: Translate, language: Language, bonus: Bonus): string {
-  return t("questsTab.bonusPaid", {
-    points: formatNumber(bonus.points, language),
-    category: textIn(bonus.category, language),
-  });
+const ITEM_TEXT: Readonly<Record<ItemOutcome, MessageKey>> = {
+  pending: "questsTab.itemPending",
+  out_of_stock: "questsTab.itemOut",
+  claim_closed: "questsTab.itemClosed",
+};
+
+/**
+ * A quest item in words (FR-522, FR-1617): «‎+ قميص: استلم جائزتك من مكتب الجوائز», "+ T-shirt: collect it at the prize
+ * desk"; when it ran out or the desk closed, that the points were paid.
+ */
+export function itemLine(t: Translate, language: Language, item: ItemGiven): string {
+  return t(ITEM_TEXT[item.outcome], { item: textIn(item.name, language) });
 }
 
-/** What a play paid, with the category bonus it paid after it when there is one. */
+/**
+ * A category bonus in words: «أكملت «المرحلة»: مكافأة ‎+50», "+50 bonus: Stage complete" (FR-231); an item-only bonus
+ * says the category is complete; its item follows (T-304d).
+ */
+export function bonusLine(t: Translate, language: Language, bonus: Bonus): string {
+  const category = textIn(bonus.category, language);
+  const text =
+    bonus.points > 0
+      ? t("questsTab.bonusPaid", { points: formatNumber(bonus.points, language), category })
+      : t("questsTab.categoryDone", { category });
+  return bonus.item === null ? text : `${text} ${itemLine(t, language, bonus.item)}`;
+}
+
+/** What a play paid, with its quest item and the category bonus it paid after it when there are. */
 export function paidText(
   t: Translate,
   terms: EventTerms,
   language: Language,
-  paid: Readonly<{ points: number; bonus: Bonus | null }>,
+  paid: Readonly<{ points: number; bonus: Bonus | null; item: ItemGiven | null }>,
 ): string {
-  const text = completedText(t, terms, language, paid.points);
-  return paid.bonus === null ? text : `${text} ${bonusLine(t, language, paid.bonus)}`;
+  const lines = [completedText(t, terms, language, paid.points)];
+  if (paid.item !== null) {
+    lines.push(itemLine(t, language, paid.item));
+  }
+  if (paid.bonus !== null) {
+    lines.push(bonusLine(t, language, paid.bonus));
+  }
+  return lines.join(" ");
 }

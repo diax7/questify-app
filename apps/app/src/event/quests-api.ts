@@ -43,6 +43,8 @@ export type Quest = Readonly<{
   lock: QuestLock | null;
   /** A passport's progress (T-304b): steps stamped of those it needs; null for other types or an older API. */
   steps: Readonly<{ done: number; needed: number }> | null;
+  /** The item its first completion still gives while stock is left (T-304d); null for none or an older API. */
+  item: Bilingual | null;
 }>;
 
 /** A category's rules (T-304, FR-231 to FR-235); an older API sends none, read as no rules. */
@@ -51,7 +53,7 @@ export type CategoryRules = Readonly<{
   opensAt: string | null;
   unlockAfter: Readonly<{ id: string; name: Bilingual }> | null;
   /** settled: paid, or since removed or withheld; a settled bonus is never paid again, so it is not promised. */
-  bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
+  bonus: Readonly<{ points: number; earned: number; settled: boolean; item: Bilingual | null }>;
   /** How often its quests start again (T-304c, FR-236); `resetsAt` is the next start, null for none. */
   refresh: "none" | "daily" | "weekly";
   resetsAt: string | null;
@@ -60,13 +62,30 @@ export type CategoryRules = Readonly<{
 export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
   CategoryRules;
 
-/** A category's completion bonus, paid with the completion that finished it (FR-231). */
-export type Bonus = Readonly<{ points: number; category: Bilingual }>;
+/**
+ * A quest item a payment gave (FR-522) or missed (FR-1617, T-304d): `pending` waits at the prize desk;
+ * `out_of_stock` and `claim_closed` paid the points only.
+ */
+export type ItemGiven = Readonly<{ name: Bilingual; outcome: ItemOutcome }>;
+
+export type ItemOutcome = "pending" | "out_of_stock" | "claim_closed";
+
+const OUTCOMES: readonly string[] = ["pending", "out_of_stock", "claim_closed"];
+
+/** The item in a payment's answer, or null when there is none or it is not well formed (a newer outcome too). */
+export function itemGivenOf(value: unknown): ItemGiven | null {
+  return isRecord(value) && isText(value["name"]) && OUTCOMES.includes(String(value["outcome"]))
+    ? { name: value["name"], outcome: value["outcome"] as ItemOutcome }
+    : null;
+}
+
+/** A category's completion bonus, paid with the completion that finished it (FR-231): points (0 for item only). */
+export type Bonus = Readonly<{ points: number; category: Bilingual; item: ItemGiven | null }>;
 
 /** The bonus in a payment's answer, or null when there is none or it is not well formed. */
 export function bonusOf(value: unknown): Bonus | null {
   return isRecord(value) && typeof value["points"] === "number" && isText(value["category"])
-    ? { points: value["points"], category: value["category"] }
+    ? { points: value["points"], category: value["category"], item: itemGivenOf(value["item"]) }
     : null;
 }
 
@@ -127,6 +146,7 @@ const withVerification = (quest: Quest): Quest => ({
       : quest.verification,
   lock: LOCKS.includes(String(quest.lock)) ? quest.lock : null,
   steps: progressOf(quest.steps),
+  item: isText(quest.item) ? quest.item : null,
 });
 
 /** A passport's progress as sent, or null for anything missing or not well formed. */
@@ -151,6 +171,7 @@ function rulesOf(category: Record<string, unknown>): CategoryRules {
       points: typeof bonus["points"] === "number" ? bonus["points"] : 0,
       earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
       settled: bonus["settled"] === true,
+      item: isText(bonus["item"]) ? bonus["item"] : null,
     },
     refresh:
       category["refresh"] === "daily" || category["refresh"] === "weekly"
@@ -241,6 +262,7 @@ export type CategoryNote =
   | Readonly<{ kind: "inOrder" }>
   | Readonly<{ kind: "bonus"; points: number }>
   | Readonly<{ kind: "bonusEarned"; points: number }>
+  | Readonly<{ kind: "bonusItem"; name: Bilingual }>
   | Readonly<{ kind: "resets"; refresh: "daily" | "weekly"; at: string }>;
 
 /**
@@ -267,6 +289,9 @@ export function categoryNotes(category: Category): CategoryNote[] {
     notes.push({ kind: "bonusEarned", points: category.bonus.earned });
   } else if (category.bonus.points > 0 && !category.bonus.settled) {
     notes.push({ kind: "bonus", points: category.bonus.points });
+  }
+  if (category.bonus.item !== null && !category.bonus.settled) {
+    notes.push({ kind: "bonusItem", name: category.bonus.item });
   }
   return notes;
 }
@@ -325,6 +350,8 @@ export type CompletionAnswer =
       levelUp: LevelUp | null;
       /** The category bonus this completion paid (T-304), or null. */
       bonus: Bonus | null;
+      /** The quest item this completion gave or missed (T-304d), or null. */
+      item: ItemGiven | null;
     }>
   /** A wrong code, in the API's own words. */
   | Readonly<{ kind: "wrong_code"; problem: LocalizedText | null }>
@@ -382,6 +409,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
         replayed: body["replayed"] === true,
         levelUp: levelUpOf(body["levelUp"]),
         bonus: bonusOf(body["bonus"]),
+        item: itemGivenOf(body["item"]),
       }
     : { kind: "failed" };
 }

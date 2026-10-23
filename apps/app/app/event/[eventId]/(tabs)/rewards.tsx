@@ -198,6 +198,7 @@ function MyReservations({
               {t("win.rankPrize", { rank: formatNumber(mine.rank, language) })}
             </AppText>
           )}
+          {mine.source === "quest" ? <AppText muted>{t("win.questReward")}</AppText> : null}
           {mine.status === "delivered" ? (
             mine.code === null ? (
               <AppText muted>
@@ -212,7 +213,7 @@ function MyReservations({
           ) : mine.status === "reserved" ? (
             <>
               <AppText>
-                {mine.rank === null
+                {mine.source === "shop"
                   ? t("shop.minutesLeft", {
                       minutes: formatNumber(minutesLeft(mine.reservedUntil, Date.now()), language),
                     })
@@ -225,7 +226,7 @@ function MyReservations({
                     })}
               </AppText>
               <PickUp mine={mine} view={view} busy={busy} onCollect={onCollect} />
-              {mine.rank === null ? (
+              {mine.source === "shop" ? (
                 <Button
                   kind="quiet"
                   label={t("shop.cancel")}

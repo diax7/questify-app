@@ -11,6 +11,7 @@ import {
   inSection,
   minutesLeft,
   readShop,
+  sourceOf,
   reserveReward,
   rewardAction,
   sectionsOf,
@@ -160,6 +161,7 @@ describe("readShop", () => {
         codeUnavailable: false,
         testCode: false,
         rank: 2,
+        source: "rank",
       },
       {
         id: "d2",
@@ -173,6 +175,7 @@ describe("readShop", () => {
         codeUnavailable: false,
         testCode: false,
         rank: null,
+        source: "shop",
       },
       {
         id: "d3",
@@ -186,6 +189,7 @@ describe("readShop", () => {
         codeUnavailable: true,
         testCode: false,
         rank: null,
+        source: "shop",
       },
       {
         id: "d4",
@@ -199,8 +203,16 @@ describe("readShop", () => {
         codeUnavailable: false,
         testCode: true,
         rank: null,
+        source: "shop",
       },
     ]);
+  });
+
+  it("reads a redemption's source, from its place when an older API sends none (T-304d)", () => {
+    expect(sourceOf("quest", null)).toBe("quest");
+    expect(sourceOf("shop", 2)).toBe("shop");
+    expect(sourceOf(undefined, 2)).toBe("rank");
+    expect(sourceOf("lottery", null)).toBe("shop");
   });
 
   it("refuses what is not a shop", () => {

@@ -35,7 +35,19 @@ export type MyRedemption = Readonly<{
   testCode: boolean;
   /** The winner's place for a rank prize (T-214): no price, no Cancel; null for a shop item. */
   rank: number | null;
+  /** Where it comes from (T-304d): the shop, a rank prize or a quest; only a shop item is the player's to cancel. */
+  source: RedemptionSource;
 }>;
+
+export type RedemptionSource = "shop" | "rank" | "quest";
+
+/** A redemption's source as sent; an older API sends none: a rank prize then has its place. */
+export function sourceOf(value: unknown, rank: number | null): RedemptionSource {
+  if (value === "shop" || value === "rank" || value === "quest") {
+    return value;
+  }
+  return rank === null ? "shop" : "rank";
+}
 
 export type ShopView = Readonly<{
   shop: Readonly<{
@@ -118,6 +130,7 @@ function redemptionOf(value: unknown): MyRedemption | undefined {
     codeUnavailable: value["codeUnavailable"] === true,
     testCode: value["testCode"] === true,
     rank: typeof value["rank"] === "number" ? value["rank"] : null,
+    source: sourceOf(value["source"], typeof value["rank"] === "number" ? value["rank"] : null),
   };
 }
 

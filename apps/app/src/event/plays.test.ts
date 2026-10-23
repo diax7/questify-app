@@ -73,6 +73,7 @@ describe("the vote", () => {
       points: 25,
       levelUp: null,
       bonus: null,
+      item: null,
     });
     const bonus = { points: 40, category: { ar: null, en: "Stage" } };
     expect(votedOf(ok({ points: 25, bonus: { categoryId: "c", ...bonus } }))).toMatchObject({

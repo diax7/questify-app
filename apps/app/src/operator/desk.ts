@@ -78,6 +78,8 @@ export type DeskItem = Readonly<{
   offerUntil: string | null;
   /** The winner's place for a rank prize (T-214); null for a shop item. */
   rank: number | null;
+  /** A quest's reward (T-304d): labelled so at the desk. */
+  questReward: boolean;
 }>;
 
 export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
@@ -121,6 +123,7 @@ function itemOf(value: unknown): DeskItem | undefined {
     offered: value["offered"] === true,
     offerUntil: typeof value["offerUntil"] === "string" ? value["offerUntil"] : null,
     rank: typeof value["rank"] === "number" ? value["rank"] : null,
+    questReward: value["source"] === "quest",
   };
 }
 

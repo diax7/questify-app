@@ -1,6 +1,6 @@
 import { QUIZ_GRACE_SECONDS, type LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
-import { bonusOf, type Bonus } from "#src/event/quests-api.ts";
+import { bonusOf, itemGivenOf, type Bonus, type ItemGiven } from "#src/event/quests-api.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 
 /** Organizer text as the API sends it: null where a language was not written. */
@@ -45,6 +45,8 @@ export type Voted = Readonly<{
   levelUp: LevelUp | null;
   /** The category bonus this vote paid (T-304), or null. */
   bonus: Bonus | null;
+  /** The quest item this play gave or missed (T-304d), or null. */
+  item: ItemGiven | null;
 }>;
 
 export function votedOf(answer: AuthedResult): Voted | PlayFailure {
@@ -60,6 +62,7 @@ export function votedOf(answer: AuthedResult): Voted | PlayFailure {
     points: body["points"],
     levelUp: levelUpOf(body["levelUp"]),
     bonus: bonusOf(body["bonus"]),
+    item: itemGivenOf(body["item"]),
   };
 }
 
@@ -190,6 +193,8 @@ export type QuizStep = Readonly<{
   levelUp: LevelUp | null;
   /** The category bonus the finished quiz paid, also with no right answers (T-304), or null. */
   bonus: Bonus | null;
+  /** The quest item a paid finish gave or missed (T-304d), or null. */
+  item: ItemGiven | null;
   /** Set on an answer: whether it was right and the right choice (FR-209). */
   result: Readonly<{ right: boolean; rightChoiceId: string }> | null;
 }>;
@@ -209,6 +214,7 @@ export function quizStepOf(answer: AuthedResult): QuizStep | PlayFailure {
     quiz,
     levelUp: levelUpOf(body["levelUp"]),
     bonus: bonusOf(body["bonus"]),
+    item: itemGivenOf(body["item"]),
     result:
       isRecord(result) &&
       typeof result["right"] === "boolean" &&

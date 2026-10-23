@@ -47,7 +47,7 @@ describe("stampAnswer (T-304b)", () => {
     const completed = { points: 30, score: 40, replayed: false, levelUp: null, bonus: null };
     expect(
       stampAnswer(ok({ questId: "p", stamped: true, done: 5, needed: 5, completed, rank: 2 })),
-    ).toEqual({ kind: "completed", questId: "p", ...completed });
+    ).toEqual({ kind: "completed", questId: "p", ...completed, item: null });
   });
 
   it("answers a refusal as a completion's, and a broken answer as failed", () => {

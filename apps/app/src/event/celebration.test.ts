@@ -17,6 +17,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   state: "open",
   lock: null,
   steps: null,
+  item: null,
   verification: ["quest_qr"],
   ...fields,
 });
@@ -32,7 +33,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   orderMode: "any",
   opensAt: null,
   unlockAfter: null,
-  bonus: { points: 0, earned: 0, settled: false },
+  bonus: { points: 0, earned: 0, settled: false, item: null },
   refresh: "none",
   resetsAt: null,
   quests,
@@ -57,7 +58,8 @@ describe("scanStep", () => {
           score: 40,
           replayed: false,
           levelUp,
-          bonus: { points: 50, category: { ar: null, en: "Stage" } },
+          bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
+          item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
         },
       }),
     ).toEqual({
@@ -66,7 +68,8 @@ describe("scanStep", () => {
       points: 25,
       replayed: false,
       levelUp,
-      bonus: { points: 50, category: { ar: null, en: "Stage" } },
+      bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
+      item: { name: { ar: null, en: "T-shirt" }, outcome: "pending" },
       details: undefined,
     });
   });
@@ -90,6 +93,7 @@ describe("scanStep", () => {
           replayed: false,
           levelUp: null,
           bonus: null,
+          item: null,
         },
       }),
     ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
@@ -259,6 +263,7 @@ describe("celebrationBeats", () => {
     replayed: false,
     levelUp: null,
     bonus: null,
+    item: null,
     details: undefined,
   } as const;
   const finished = { id: "c1" } as unknown as Category;

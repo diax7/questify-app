@@ -69,6 +69,7 @@ function ItemRow({
       {item.rank === null ? null : (
         <AppText muted>{t("win.rankPrize", { rank: formatNumber(item.rank, language) })}</AppText>
       )}
+      {item.questReward ? <AppText muted>{t("win.questReward")}</AppText> : null}
       {item.kind === "experience" ? <AppText muted>{t("operator.desk.experience")}</AppText> : null}
       {done === "handed_over" ? (
         <AppText accessibilityRole="alert">

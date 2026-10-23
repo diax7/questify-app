@@ -77,6 +77,9 @@ function QuestCard({
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
       <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
+      {quest.item === null ? null : (
+        <AppText muted>{t("questsTab.itemReward", { item: textIn(quest.item, language) })}</AppText>
+      )}
       {quest.repeatCap > 1 ? (
         <AppText muted>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}
@@ -120,6 +123,8 @@ function noteText(
       return t("questsTab.category.bonus", { points: formatNumber(note.points, language) });
     case "bonusEarned":
       return t("questsTab.category.bonusEarned", { points: formatNumber(note.points, language) });
+    case "bonusItem":
+      return t("questsTab.category.bonusItem", { item: textIn(note.name, language) });
     case "resets": {
       const label = resetLabel(note, Date.now(), language);
       return t(label.key, label.values);

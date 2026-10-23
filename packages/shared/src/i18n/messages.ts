@@ -859,6 +859,20 @@ export const MESSAGES = {
     ar: "أكملت «{category}»: مكافأة ‎+{points}",
     en: "+{points} bonus: {category} complete",
   },
+  "questsTab.categoryDone": { ar: "أكملت «{category}»", en: "{category} complete" },
+  "questsTab.itemPending": {
+    ar: "‎+ {item}: استلم جائزتك من مكتب الجوائز",
+    en: "+ {item}: collect it at the prize desk",
+  },
+  "questsTab.itemOut": {
+    ar: "نفدت الكمية من «{item}»، وحصلت على النقاط",
+    en: "The {item} ran out; you got the points",
+  },
+  "questsTab.itemClosed": {
+    ar: "أُغلق مكتب الجوائز، وحصلت على النقاط",
+    en: "The prize desk has closed; you got the points",
+  },
+  "questsTab.itemReward": { ar: "‎+ {item}", en: "+ {item}" },
   "questsTab.category.resetsDaily": {
     ar: "تتجدد يوميًا، بعد {span}",
     en: "Resets daily, in {span}",
@@ -891,6 +905,10 @@ export const MESSAGES = {
   "questsTab.category.bonusEarned": {
     ar: "حصلت على مكافأة الإكمال: ‎+{points}",
     en: "Completion bonus earned: +{points}",
+  },
+  "questsTab.category.bonusItem": {
+    ar: "أكملها واربح: {item}",
+    en: "Complete it to win: {item}",
   },
   "questsTab.limit": {
     ar: "وصلت إلى الحد الأقصى لهذه المهمة.",
@@ -2362,6 +2380,55 @@ export const MESSAGES = {
   },
   "rules.organizerText": { ar: "قواعد المنظّم", en: "The organizer's rules" },
   "prizes.link": { ar: "الجوائز والنتائج", en: "Prizes and results" },
+  "questItems.title": { ar: "هدايا المهام", en: "Quest items" },
+  "questItems.intro": {
+    ar: "هدايا تمنحها مهمة أو فئة مع نقاطها أو بدلًا منها، ويستلمها اللاعب من مكتب الجوائز. إذا نفدت الهدية حصل اللاعب على النقاط فقط.",
+    en: "Items a quest or category gives with its points or instead of them, collected at the prize desk. When an item runs out, players get the points only.",
+  },
+  "questItems.empty": { ar: "لا توجد هدايا بعد.", en: "No quest items yet." },
+  "questItems.add": { ar: "إضافة هدية", en: "Add an item" },
+  "questItems.save": { ar: "حفظ الهدية", en: "Save the item" },
+  "questItems.saved": { ar: "حُفظت الهدية.", en: "The item is saved." },
+  "questItems.removed": { ar: "حُذفت الهدية.", en: "The item is removed." },
+  "questItems.removeTitle": { ar: "حذف هذه الهدية؟", en: "Remove this item?" },
+  "questItems.removeBody": {
+    ar: "تبقى الهدايا المحجوزة للاعبين كما هي. ألغِ ربطها بكل مهمة وفئة قبل حذفها.",
+    en: "Items already reserved for players stay reserved. Unlink it from every quest and category first.",
+  },
+  "questItems.stock": { ar: "الكمية", en: "Stock" },
+  "questItems.left": { ar: "المتبقي: {left} من {total}", en: "{left} of {total} left" },
+  "questItems.givenBy": { ar: "تُمنح عند: {names}", en: "Given by: {names}" },
+  "questItems.notLinked": {
+    ar: "لا تمنحها أي مهمة أو فئة بعد.",
+    en: "No quest or category gives it yet.",
+  },
+  "questItems.ranOut": {
+    ar: "نفدت «{item}». عدد من حصلوا على النقاط فقط: {count}",
+    en: "{item} ran out: {count} players got points only",
+  },
+  "questItems.missed": {
+    ar: "عدد من حصلوا على النقاط فقط: {count}",
+    en: "Players who got points only: {count}",
+  },
+  "questItems.seeMisses": { ar: "عرض الأسماء", en: "See who" },
+  "questItems.reason.outOfStock": { ar: "نفدت الكمية", en: "Out of stock" },
+  "questItems.reason.claimClosed": { ar: "مكتب الجوائز مغلق", en: "Prize desk closed" },
+  "questItems.noMisses": { ar: "لم يفُت أحدًا شيء.", en: "Nobody has missed it." },
+  "questItems.loadFailed": {
+    ar: "تعذّر تحميل هدايا المهام. حاول مرة أخرى.",
+    en: "We couldn't load the quest items. Try again.",
+  },
+  "questItems.picker": { ar: "هدية", en: "Item reward" },
+  "questItems.pickerNone": { ar: "بلا هدية", en: "No item" },
+  "questItems.pickerQuest": {
+    ar: "تُمنح عند أول إكمال للمهمة، ما دامت الكمية متوفرة.",
+    en: "Given on a player's first completion, while stock lasts.",
+  },
+  "questItems.pickerCategory": {
+    ar: "تُمنح مع مكافأة الإكمال، مرة في كل فترة، ما دامت الكمية متوفرة.",
+    en: "Given with the completion bonus, once per period, while stock lasts.",
+  },
+  "questItems.open": { ar: "إدارة هدايا المهام", en: "Manage quest items" },
   "prizes.title": { ar: "جوائز الترتيب", en: "Rank prizes" },
   "prizes.intro": {
     ar: "حدّد جوائز المراكز الأولى. بعد انتهاء الفعالية أكّد الفائزين ثم أعلنهم.",
@@ -2482,9 +2549,10 @@ export const MESSAGES = {
   "win.rankPrize": { ar: "جائزة المركز {rank}", en: "Rank prize · {rank}" },
   "win.collectBy": { ar: "استلمها قبل {deadline}", en: "Collect by {deadline}" },
   "win.noCancel": {
-    ar: "جائزة الترتيب لا تُلغى من التطبيق.",
-    en: "A rank prize can't be cancelled in the app.",
+    ar: "هذه الجائزة لا تُلغى من التطبيق.",
+    en: "This prize can't be cancelled in the app.",
   },
+  "win.questReward": { ar: "جائزة مهمة", en: "Quest reward" },
   "info.rules": { ar: "القواعد الرسمية", en: "Official rules" },
   "level.up": { ar: "ارتقيت مستوى!", en: "Level up!" },
   "level.number": { ar: "المستوى {level}", en: "Level {level}" },
