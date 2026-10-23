@@ -18,7 +18,8 @@ describe("the quest-type registry", () => {
   });
 
   it("says for every type whether its quests carry a printed QR", () => {
-    expect(QR_QUEST_TYPES).toEqual(["scan_qr"]);
+    expect(QR_QUEST_TYPES).toEqual(["scan_qr", "location"]);
+    expect(QUEST_TYPES.location.verifications).toEqual(["quest_qr"]);
     for (const type of QUEST_TYPE_NAMES) {
       expect(typeof QUEST_TYPES[type].usesQuestQr, type).toBe("boolean");
     }
@@ -35,6 +36,7 @@ describe("the quest-type registry", () => {
       "survey",
       "share",
       "passport",
+      "location",
     ]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);

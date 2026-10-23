@@ -252,7 +252,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
       const player = await newPlayer();
       const quest = await newQuest("enter_code");
       await owner(
-        "ALTER FUNCTION complete_quest(uuid, text, integer, text, text, uuid) RENAME TO complete_quest_gone",
+        "ALTER FUNCTION complete_quest(uuid, text, integer, text, text, uuid, jsonb) RENAME TO complete_quest_gone",
       );
       try {
         await expect(run(player, quest, { type: "code", code: "NAJD2030" })).rejects.toMatchObject({
@@ -260,7 +260,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
         });
       } finally {
         await owner(
-          "ALTER FUNCTION complete_quest_gone(uuid, text, integer, text, text, uuid) RENAME TO complete_quest",
+          "ALTER FUNCTION complete_quest_gone(uuid, text, integer, text, text, uuid, jsonb) RENAME TO complete_quest",
         );
       }
       expect(await wrongCodesHeld(player, quest)).toBe(0);

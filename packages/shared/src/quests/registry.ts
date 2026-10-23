@@ -198,7 +198,28 @@ export const QUEST_TYPES = {
       needed: z.number().int().min(1).max(30),
     }),
   },
+  /**
+   * The player checks in at the quest's place with the phone's position, or scans its quest QR there (T-303b, FR-215,
+   * FR-216, ADR-206). A check-in trusts the phone's reported position; the QR is always printed beside it. The place
+   * lives beside the quest (the builder's `place`), not in its config. The platform's `locationQuests` switch gates it.
+   */
+  location: {
+    label: "quests.type.location",
+    oneTry: false,
+    usesQuestQr: true,
+    verifications: ["quest_qr"],
+    config: z.strictObject({}),
+  },
 } as const;
+
+/** The types that may have a place (a pin and a radius, T-303b): the spot types. `location` requires one. */
+export const PLACED_QUEST_TYPES: readonly QuestType[] = ["scan_qr", "challenge", "location"];
+
+/** A quest place's radius bounds in metres (ADR-206); the database holds the same check. */
+export const PLACE_RADIUS = { min: 20, max: 2000 } as const;
+
+/** An event venue's radius bounds in metres and its default (ADR-207); the database holds the same check. */
+export const VENUE_RADIUS = { min: 100, max: 20000, default: 1000 } as const;
 
 /** The most steps a passport may have (ADR-203); the database holds the same cap. */
 export const PASSPORT_STEPS_MAX = 30;
@@ -254,7 +275,12 @@ export const QR_QUEST_TYPES = QUEST_TYPE_NAMES.filter((type) => QUEST_TYPES[type
  * The types a refreshing category may hold (T-304c, ADR-204): played again each day or week. The others are played once
  * by design; migration 0046 refuses the mix too.
  */
-export const REFRESHING_QUEST_TYPES: readonly QuestType[] = ["scan_qr", "enter_code", "challenge"];
+export const REFRESHING_QUEST_TYPES: readonly QuestType[] = [
+  "scan_qr",
+  "enter_code",
+  "challenge",
+  "location",
+];
 
 export function isQuestType(value: string): value is QuestType {
   return Object.hasOwn(QUEST_TYPES, value);

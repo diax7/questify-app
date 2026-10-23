@@ -60,6 +60,22 @@ describe("composeConfig defaults", () => {
     ).toBe(false);
   });
 
+  it("keeps a feature that is off by default off until the platform switches it on (ADR-208)", () => {
+    const withLocation = {
+      features: {
+        ...FEATURES,
+        places: { gated: false, level: "platform" as const, offByDefault: true as const },
+      },
+      tuning: TUNING,
+    };
+    const on = (platform: Parameters<typeof composeConfig>[1]) =>
+      composeConfig(withLocation, platform, {}).features["places"]?.enabled;
+    expect(on({})).toBe(false);
+    expect(on({ features: { places: {} } })).toBe(false);
+    expect(on({ features: { places: { enabled: true } } })).toBe(true);
+    expect(composeConfig(withLocation, {}, {}).features["shop"]?.enabled).toBe(true);
+  });
+
   it("lists features and tuning in a fixed order, so equal settings always give equal documents", () => {
     const a = composeConfig(registries, {}, undefined);
     const reversed: FeatureRegistry = {

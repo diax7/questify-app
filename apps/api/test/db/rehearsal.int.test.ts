@@ -1024,6 +1024,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.quest_item_miss",
         "quest_completion.quest_item_miss",
         "quest_completion.redemption",
+        // Position rows go with their completions (ON DELETE CASCADE), before the accounts (T-303b).
+        "enrollment.completion_position",
+        "quest_completion.completion_position",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

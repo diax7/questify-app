@@ -896,6 +896,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by reveal_category for the calling player and by record_completion on a staff manual award, read inside the player's definers through sees_category (test/db/categories-hidden)",
   quest_item_miss:
     "no right for the API role at all; written by give_item inside the paying definers, read by the player through own_quest_item, own_bonus and own_category_bonus and by the team through quest_items and quest_item_misses (test/db/quest-items)",
+  completion_position:
+    "no right and no policy for the API role at all; holds rounded distances, accuracy and the mocked mark (never a coordinate), written by keep_position inside record_completion, read by the event's team only as flag_detail's lines (test/db/location)",
   passport_stamp:
     "no right for the API role at all; written by stamp_step for the calling player, read by the player through member_passport and member_event_quests and by the event's team as step ids through stamped_steps and submitters_of (test/db/passport)",
   quiz_attempt:

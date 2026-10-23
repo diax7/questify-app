@@ -179,6 +179,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot check in, read a position or reach the location helpers (T-303b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.completion_position",
+        "SELECT * FROM public.complete_quest(gen_random_uuid(), 'location', NULL, NULL, 'k', NULL, '{}')",
+        "SELECT * FROM public.record_completion(gen_random_uuid(), gen_random_uuid(), 'qr', 1, NULL, 'k', NULL, NULL, NULL, NULL, NULL, NULL)",
+        "SELECT * FROM public.position_of('{}')",
+        "SELECT public.distance_m(0, 0, 1, 1)",
+        "SELECT public.rounded_m(1)",
+        "SELECT * FROM public.location_tuning()",
+        "SELECT public.check_in_check(NULL::public.quest, NULL)",
+        "SELECT public.keep_position(1, NULL::public.enrollment, NULL)",
+        "SELECT public.raise_location_flag(NULL::public.quest_completion, 'burst', '[]')",
+        "SELECT * FROM public.previous_placed(NULL::public.quest_completion)",
+        "SELECT public.place_gap_m(0, 0, 1, 0, 0, 1)",
+        "SELECT public.raise_speed_flag(NULL::public.quest_completion)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

@@ -7,6 +7,8 @@ export type FeatureDefinition = Readonly<{
   gated: boolean;
   /** Set by Questify for every event at once; an organizer has no switch for it (FR-1702's username changes). */
   level?: "platform";
+  /** Off until a Questify admin switches it on (the location switch waits for the store privacy answers, ADR-208). */
+  offByDefault?: true;
 }>;
 
 /** A number an admin may tune, with the range that is safe (F-279). Out-of-range values are never used. */
@@ -47,6 +49,12 @@ export type EventConfig = Readonly<{
 export const FEATURES: FeatureRegistry = {
   bigScreen: { gated: true },
   cheers: { gated: false },
+  /**
+   * Location check-in quests and the far-from-venue flag (T-303b, ADR-208): off for every event until the App Store
+   * privacy label, Play's Data safety form and the database's parameter logging are confirmed. Off, the builder refuses
+   * the type, the app never reads location, and existing location quests complete by their QR.
+   */
+  locationQuests: { gated: false, level: "platform", offByDefault: true },
   polls: { gated: false },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },

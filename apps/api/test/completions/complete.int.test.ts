@@ -318,7 +318,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
       // Five calls that fail inside the database (the engine function is renamed for a moment, in this test's own
       // database).
       await owner(
-        "ALTER FUNCTION complete_quest(uuid, text, integer, text, text, uuid) RENAME TO complete_quest_away",
+        "ALTER FUNCTION complete_quest(uuid, text, integer, text, text, uuid, jsonb) RENAME TO complete_quest_away",
       );
       try {
         for (let n = 0; n < 5; n += 1) {
@@ -328,7 +328,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
         }
       } finally {
         await owner(
-          "ALTER FUNCTION complete_quest_away(uuid, text, integer, text, text, uuid) RENAME TO complete_quest",
+          "ALTER FUNCTION complete_quest_away(uuid, text, integer, text, text, uuid, jsonb) RENAME TO complete_quest",
         );
       }
       expect((await complete(token, quest, { type: "code", code: "NAJD2030" })).statusCode).toBe(

@@ -37,7 +37,7 @@ function composeFeatures(
   return Object.fromEntries(
     entries.map(([key, definition]) => {
       const setting = platform.features?.[key];
-      const platformOn = setting?.enabled ?? true;
+      const platformOn = setting?.enabled ?? definition.offByDefault !== true;
       const unlocked = !definition.gated || event?.unlocked?.includes(key) === true;
       const eventOn = definition.level === "platform" || (event?.features?.[key] ?? true);
       const feature: ComposedFeature = {
