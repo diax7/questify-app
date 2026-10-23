@@ -16,6 +16,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   earned: 0,
   state: "open",
   lock: null,
+  steps: null,
   verification: ["quest_qr"],
   ...fields,
 });
@@ -66,6 +67,32 @@ describe("scanStep", () => {
       bonus: { points: 50, category: { ar: null, en: "Stage" } },
       details: undefined,
     });
+  });
+
+  it("shows a passport's progress after a step's stamp, and celebrates its quest when it pays", () => {
+    const read = scanStep({ kind: "scanning" }, { type: "read", questId: "step1", token: "t1" });
+    expect(
+      scanStep(read, {
+        type: "answered",
+        answer: { kind: "stamped", questId: "p1", done: 4, needed: 5, fresh: true },
+      }),
+    ).toEqual({ kind: "stamped", done: 4, needed: 5, fresh: true });
+    expect(
+      scanStep(read, {
+        type: "answered",
+        answer: {
+          kind: "completed",
+          questId: "p1",
+          points: 30,
+          score: 30,
+          replayed: false,
+          levelUp: null,
+          bonus: null,
+        },
+      }),
+    ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
+    const stamped = { kind: "stamped", done: 1, needed: 2, fresh: false } as const;
+    expect(scanStep(stamped, { type: "again" })).toEqual({ kind: "scanning" });
   });
 
   it("ends a refused scan in its reason, with no celebration", () => {

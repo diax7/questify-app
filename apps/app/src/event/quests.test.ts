@@ -26,6 +26,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   earned: 0,
   state: "open",
   lock: null,
+  steps: null,
   verification: [],
   ...fields,
 });
@@ -162,7 +163,27 @@ describe("initiallyOpen and findQuest", () => {
   });
 });
 
+const passportBody = (steps: unknown) => ({
+  event: EVENT,
+  categories: [{ id: "c", name: { ar: null, en: "c" }, quests: [{ ...quest("p"), steps }] }],
+});
+
 describe("category rules (T-304)", () => {
+  it("reads a passport's progress, and none when it is missing or not well formed", () => {
+    expect(
+      readQuests(passportBody({ done: 4, needed: 5 }))?.categories[0]?.quests[0]?.steps,
+    ).toEqual({
+      done: 4,
+      needed: 5,
+    });
+    for (const steps of [null, undefined, { done: "4", needed: 5 }, 3]) {
+      expect(
+        readQuests(passportBody(steps))?.categories[0]?.quests[0]?.steps,
+        String(steps),
+      ).toBeNull();
+    }
+  });
+
   it("reads a category's rules, and none from an older API", () => {
     const body = {
       event: EVENT,

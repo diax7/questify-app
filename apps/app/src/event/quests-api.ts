@@ -41,6 +41,8 @@ export type Quest = Readonly<{
   state: QuestState;
   /** Why its category keeps it shut, when its state is `locked`; null otherwise or from an older API. */
   lock: QuestLock | null;
+  /** A passport's progress (T-304b): steps stamped of those it needs; null for other types or an older API. */
+  steps: Readonly<{ done: number; needed: number }> | null;
 }>;
 
 /** A category's rules (T-304, FR-231 to FR-235); an older API sends none, read as no rules. */
@@ -121,7 +123,15 @@ const withVerification = (quest: Quest): Quest => ({
         : []
       : quest.verification,
   lock: LOCKS.includes(String(quest.lock)) ? quest.lock : null,
+  steps: progressOf(quest.steps),
 });
+
+/** A passport's progress as sent, or null for anything missing or not well formed. */
+function progressOf(value: unknown): Quest["steps"] {
+  return isRecord(value) && typeof value["done"] === "number" && typeof value["needed"] === "number"
+    ? { done: value["done"], needed: value["needed"] }
+    : null;
+}
 
 /** A category's rules as sent, or none for anything missing or not well formed (an older API). */
 function rulesOf(category: Record<string, unknown>): CategoryRules {

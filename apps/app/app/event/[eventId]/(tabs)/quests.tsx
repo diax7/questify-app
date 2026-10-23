@@ -79,6 +79,14 @@ function QuestCard({
       {quest.repeatCap > 1 ? (
         <AppText muted>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}
+      {quest.steps === null || quest.state === "done" ? null : (
+        <AppText muted>
+          {t("questsTab.passport", {
+            done: formatNumber(quest.steps.done, language),
+            needed: formatNumber(quest.steps.needed, language),
+          })}
+        </AppText>
+      )}
       {quest.state === "not_yet" && quest.opensAt !== null ? (
         <AppText muted>
           {t("quests.opens", {

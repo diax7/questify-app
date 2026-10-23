@@ -751,6 +751,14 @@ export const MESSAGES = {
     en: "Couldn't load the quests. Check your connection, then try again.",
   },
   "questsTab.repeat": { ar: "{done} من {cap}", en: "{done} of {cap}" },
+  "questsTab.passport": { ar: "خُتم {done} من {needed}", en: "Stamped {done} of {needed}" },
+  "play.passport.howTo": {
+    ar: "امسح رمز أي خطوة بأي ترتيب. تكسب النقاط حين تختم {needed}.",
+    en: "Scan any step's code, in any order. You earn the points once you stamp {needed}.",
+  },
+  "play.passport.stamped": { ar: "مختومة", en: "Stamped" },
+  "play.passport.open": { ar: "لم تُختم بعد", en: "Not stamped yet" },
+  "play.passport.scan": { ar: "امسح رمز خطوة", en: "Scan a step's code" },
   "questsTab.done": { ar: "أنجزتها", en: "Done" },
   "questsTab.notLive": { ar: "غير متاحة الآن", en: "Not available right now" },
   "questsTab.closed": { ar: "انتهت هذه المهمة", en: "This quest has ended" },
@@ -855,6 +863,11 @@ export const MESSAGES = {
     en: "This quest isn't available to you.",
   },
   "scanner.again": { ar: "مسح رمز آخر", en: "Scan another" },
+  "scanner.stamped": { ar: "خُتمت الخطوة: {done} من {needed}", en: "Stamped: {done} of {needed}" },
+  "scanner.stampedBefore": {
+    ar: "ختمت هذه الخطوة من قبل: {done} من {needed}",
+    en: "Already stamped: {done} of {needed}",
+  },
   "scanner.permissionTitle": { ar: "الكاميرا لمسح الرموز", en: "The camera scans codes" },
   "scanner.permissionBody": {
     ar: "نستخدم الكاميرا لقراءة رموز المهام في الفعالية فقط، ولا نحفظ أي صورة.",

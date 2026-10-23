@@ -56,22 +56,31 @@ export function decodeBase64Url(text: string): Uint8Array | null {
 /** A printed quest code's token (ADR-116): 37 bytes, 50 base64url characters. */
 const TOKEN = /^[A-Za-z0-9_-]{50}$/;
 const FORMAT_QUEST = 0x01;
+/** A printed passport step's code (T-304b, ADR-203): the same layout, the step's id. */
+const FORMAT_STEP = 0x04;
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
-/** The quest id inside a token, read for the request's path only: the server verifies the whole token. */
-export function questIdOf(token: string): string | null {
+/** The id inside a token of this format, read for the request's path only: the server verifies the whole token. */
+function idOf(token: string, format: number): string | null {
   const bytes = TOKEN.test(token) ? decodeBase64Url(token) : null;
-  if (bytes === null || bytes.length !== 37 || bytes[0] !== FORMAT_QUEST) {
+  if (bytes === null || bytes.length !== 37 || bytes[0] !== format) {
     return null;
   }
   const id = hex(bytes.subarray(1, 17));
   return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
 }
 
+/** The quest id inside a printed quest code's token. */
+export const questIdOf = (token: string): string | null => idOf(token, FORMAT_QUEST);
+
+/** The step id inside a printed passport step's token (T-304b). */
+export const stepIdOf = (token: string): string | null => idOf(token, FORMAT_STEP);
+
 export type Scan =
   | Readonly<{ kind: "quest"; questId: string; token: string }>
+  | Readonly<{ kind: "step"; stepId: string; token: string }>
   | Readonly<{ kind: "join"; code: string }>
   | Readonly<{ kind: "other" }>;
 
@@ -82,7 +91,8 @@ export type Scan =
 const HTTPS_LINK = /^https:\/\/([A-Za-z0-9.-]+)(\/[^?#\s]*)?(?:[?#]\S*)?$/;
 
 /**
- * What the camera read: a quest code on a Questify host (`https://{host}/q/{token}`), a join link, or something else.
+ * What the camera read: a quest or passport step code on a Questify host (`https://{host}/q/{token}`), a join link, or
+ * something else.
  * Only whole https links count, never a bare word.
  */
 export function readScan(text: string, extraOrigin: string | null): Scan {
@@ -98,10 +108,15 @@ export function readScan(text: string, extraOrigin: string | null): Scan {
   const host = (link[1] ?? "").toLowerCase();
   const known = QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
   const token = /^\/q\/([^/]+)\/?$/.exec(link[2] ?? "")?.[1];
-  const questId = known && token !== undefined ? questIdOf(token) : null;
-  return questId === null || token === undefined
-    ? { kind: "other" }
-    : { kind: "quest", questId, token };
+  if (!known || token === undefined) {
+    return { kind: "other" };
+  }
+  const questId = questIdOf(token);
+  if (questId !== null) {
+    return { kind: "quest", questId, token };
+  }
+  const stepId = stepIdOf(token);
+  return stepId === null ? { kind: "other" } : { kind: "step", stepId, token };
 }
 
 /**

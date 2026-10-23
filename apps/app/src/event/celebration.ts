@@ -1,14 +1,18 @@
+import type { Stamped } from "#src/event/passport.ts";
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
 import type { Bonus } from "#src/event/quests-api.ts";
 import type { LevelUp } from "#src/questify/level.ts";
 
 /**
  * Where a scan stands (FR-406): scanning; checking (the "Scanned! Checking…" beat, shown within 300 ms of the read);
- * then the celebration, a refusal in clear words, or a lost answer that can be retried with the same key.
+ * then the celebration, a passport's progress after a step's stamp (T-304b), a refusal in clear words, or a lost answer
+ * that can be retried with the same key. While checking, `questId` is the id the code holds: a quest's, or a passport
+ * step's; a payment names its quest.
  */
 export type ScanStep =
   | Readonly<{ kind: "scanning" }>
   | Readonly<{ kind: "checking"; questId: string; token: string }>
+  | Readonly<{ kind: "stamped"; done: number; needed: number; fresh: boolean }>
   | Readonly<{
       kind: "celebrating";
       questId: string;
@@ -37,7 +41,10 @@ export type Details = Readonly<{
 
 export type ScanEvent =
   | Readonly<{ type: "read"; questId: string; token: string }>
-  | Readonly<{ type: "answered"; answer: CompletionAnswer }>
+  | Readonly<{
+      type: "answered";
+      answer: CompletionAnswer | Stamped | (CompletionAnswer & Readonly<{ questId: string }>);
+    }>
   | Readonly<{ type: "details"; details: Details }>
   | Readonly<{ type: "retry" }>
   | Readonly<{ type: "again" }>;
@@ -64,13 +71,15 @@ export function scanStep(step: ScanStep, event: ScanEvent): ScanStep {
 
 function answered(
   step: Extract<ScanStep, { kind: "checking" }>,
-  answer: CompletionAnswer,
+  answer: Extract<ScanEvent, { type: "answered" }>["answer"],
 ): ScanStep {
   switch (answer.kind) {
+    case "stamped":
+      return { kind: "stamped", done: answer.done, needed: answer.needed, fresh: answer.fresh };
     case "completed":
       return {
         kind: "celebrating",
-        questId: step.questId,
+        questId: "questId" in answer ? answer.questId : step.questId,
         points: answer.points,
         replayed: answer.replayed,
         levelUp: answer.levelUp,

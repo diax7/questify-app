@@ -1,4 +1,4 @@
-import { DEFAULT_TERMS, type Theme } from "@questify/shared";
+import { DEFAULT_TERMS, formatNumber, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -23,7 +23,15 @@ import {
   type Attempt,
   type CompletionAnswer,
 } from "#src/event/quests-api.ts";
-import { OPEN_GATE, passes, questCodeOrigin, readScan, type ScanGate } from "#src/event/scan.ts";
+import { stampStep } from "#src/event/passport.ts";
+import {
+  OPEN_GATE,
+  passes,
+  questCodeOrigin,
+  readScan,
+  stepIdOf,
+  type ScanGate,
+} from "#src/event/scan.ts";
 import { inviteTokenOf } from "#src/operator/station.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -131,23 +139,29 @@ export default function ScanQuestScreen() {
     return () => watcher.remove();
   }, [getPermission]);
 
-  const submit = async (questId: string, token: string) => {
+  // `id` is the quest's, or a passport step's for a step's code (T-304b): the token's own layout says which.
+  const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
-    const answer = await completeQuest(api.session, questId, { type: "qr", code: token }, key);
+    const answer =
+      stepIdOf(token) === null
+        ? await completeQuest(api.session, id, { type: "qr", code: token }, key)
+        : await stampStep(api.session, id, token, key);
     attempt.current = { key, code: token, retryable: answer.kind === "network" };
     if (answer.kind === "signed_out") {
       router.replace("/home");
       return;
     }
     dispatch({ type: "answered", answer });
-    if (answer.kind === "completed") {
+    if (answer.kind === "stamped") {
+      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
+    } else if (answer.kind === "completed") {
       buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
       const quests = await fetchQuests(api.session, eventId);
       dispatch({
         type: "details",
         details: detailsAfter(
           quests.kind === "quests" ? quests.view : undefined,
-          questId,
+          "questId" in answer && typeof answer.questId === "string" ? answer.questId : id,
           answer.replayed,
         ),
       });
@@ -181,8 +195,9 @@ export default function ScanQuestScreen() {
       return;
     }
     buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-    dispatch({ type: "read", questId: scan.questId, token: scan.token });
-    void submit(scan.questId, scan.token);
+    const id = scan.kind === "step" ? scan.stepId : scan.questId;
+    dispatch({ type: "read", questId: id, token: scan.token });
+    void submit(id, scan.token);
   };
 
   // The last attempt stays: rescanning the same code after a lost answer reuses its key (`keyFor`), so it never pays
@@ -237,6 +252,20 @@ export default function ScanQuestScreen() {
       ) : null}
       {step.kind === "celebrating" ? (
         <Celebration step={step} onClaim={() => router.back()} />
+      ) : null}
+      {step.kind === "stamped" ? (
+        <View style={styles.result}>
+          <PopIn>
+            <AppText variant="display" accessibilityRole="alert">
+              {t(step.fresh ? "scanner.stamped" : "scanner.stampedBefore", {
+                done: formatNumber(step.done, language),
+                needed: formatNumber(step.needed, language),
+              })}
+            </AppText>
+          </PopIn>
+          <Button label={t("scanner.again")} onPress={again} />
+          <Button kind="quiet" label={t("common.close")} onPress={() => router.back()} />
+        </View>
       ) : null}
       {step.kind === "refused" ? (
         <View style={styles.result}>

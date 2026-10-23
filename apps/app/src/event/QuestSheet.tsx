@@ -16,6 +16,7 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { paidText } from "#src/event/amount.ts";
+import { PassportEntry } from "#src/event/PassportEntry.tsx";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { ShareEntry } from "#src/event/ShareEntry.tsx";
 import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
@@ -216,6 +217,8 @@ function QuestEntry({
       return <SurveyEntry key={quest.id} quest={quest} onPaid={onSent} />;
     case "share":
       return <ShareEntry key={quest.id} quest={quest} onPaid={onSent} />;
+    case "passport":
+      return <PassportEntry key={quest.id} quest={quest} />;
     default:
       return <Verification key={quest.id} quest={quest} onDone={onDone} />;
   }

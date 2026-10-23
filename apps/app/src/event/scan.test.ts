@@ -6,6 +6,7 @@ import {
   questCodeOrigin,
   questIdOf,
   readScan,
+  stepIdOf,
 } from "#src/event/scan.ts";
 
 const QUEST_ID = "5f0c2b1e-8d4a-4c3b-9e7f-0a1b2c3d4e5f";
@@ -66,6 +67,27 @@ describe("questIdOf", () => {
     expect(questIdOf(token(0x02))).toBeNull();
     expect(questIdOf(token().slice(1))).toBeNull();
     expect(questIdOf(`${token().slice(0, 49)}+`)).toBeNull();
+  });
+});
+
+describe("stepIdOf (T-304b)", () => {
+  it("reads a passport step's id from its own layout only", () => {
+    expect(stepIdOf(token(0x04))).toBe(QUEST_ID);
+    expect(stepIdOf(token(0x01))).toBeNull();
+    expect(questIdOf(token(0x04))).toBeNull();
+    expect(stepIdOf(token(0x04).slice(1))).toBeNull();
+  });
+
+  it("makes a step's code on Questify's host a step scan", () => {
+    expect(readScan(`https://questify.nafes.com/q/${token(0x04)}`, null)).toEqual({
+      kind: "step",
+      stepId: QUEST_ID,
+      token: token(0x04),
+    });
+    expect(readScan(`https://example.com/q/${token(0x04)}`, null)).toEqual({ kind: "other" });
+    expect(readScan(`https://questify.nafes.com/q/${token(0x03)}`, null)).toEqual({
+      kind: "other",
+    });
   });
 });
 
