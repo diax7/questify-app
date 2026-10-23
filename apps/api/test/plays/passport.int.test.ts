@@ -293,6 +293,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("passport quests over HTTP", ()
       });
     });
 
+    it("records a well-formed X-Device-Id in lower case and ignores anything else", async () => {
+      const event = await newEvent();
+      const quest = await newPassport(event, 3, ["One", "Two", "Three"]);
+      await goLive(event);
+      const token = await newPlayer(event);
+      const device = randomUUID();
+      const sent = [device.toUpperCase(), "not-a-device", undefined];
+      for (const [index, header] of sent.entries()) {
+        const stepId = quest.steps[index]?.id ?? "";
+        const stamped = await test.app.inject({
+          method: "POST",
+          url: `/v1/steps/${stepId}/stamp`,
+          headers: {
+            authorization: `Bearer ${token}`,
+            "idempotency-key": randomUUID(),
+            ...(header === undefined ? {} : { "x-device-id": header }),
+          },
+          payload: { code: stepCode(STEP_KEY, stepId, 1) },
+        });
+        expect(stamped.statusCode, String(header)).toBe(200);
+      }
+      const stored = await owner<{ device_id: string | null }>(
+        `SELECT p.device_id FROM passport_stamp p JOIN passport_step s ON s.id = p.step_id
+         WHERE p.quest_id = $1 ORDER BY s.position`,
+        [quest.id],
+      );
+      expect(stored.map((row) => row.device_id)).toEqual([device, null, null]);
+    });
+
     it("answers each refusal: another step's code, a forged or old code, a stranger, not live", async () => {
       const event = await newEvent();
       const quest = await newPassport(event, 2, ["One", "Two"]);
