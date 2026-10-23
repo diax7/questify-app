@@ -2189,3 +2189,40 @@ the event's shop is switched off. FR-522 (an item as a quest's or category's rew
 its partner FR-1617; shop sections (FR-516) were already built in T-201.
 **Why:** the goal is the player's own choice and follows them across phones; FR-522 needs category completion and a
 handover for an item outside the shop, which T-304 brings.
+
+## ADR-162 — Rank prizes: their own table, collected as desk items with no price
+**Status:** Proposed (Claude, 2026-10-23; T-214; Q-130 asks Dhia).
+**Decision:** a rank prize is a `rank_prize` row (a rank range 1–100, item or experience, names and description),
+never a `reward`, so no shop read can ever list or sell it. At the reveal each winner gets a `redemption` with
+`rank_prize_id` and price 0, picked up through the same desk flow as shop items (FR-521): the flag hold, ban hold and
+pause apply; the handover writes the usual 0/0 `handover` entry. The player cannot cancel it; an operator's cancel or
+the timeout ends it with no ledger entry. The claim deadline is the end of the desk's last open window, or the shop's
+closing when the desk has no hours; the reveal is refused when that is less than an hour away.
+**Why:** a separate table fails closed (a rank prize cannot leak into the shop for free) while reusing the whole
+handover path the desk already enforces.
+
+## ADR-163 — Confirming results: owner only, after the end, against what the owner saw
+**Status:** Proposed (Claude, 2026-10-23; T-214; Q-127, Q-128 and Q-129 ask Dhia).
+**Decision:** only the owner confirms, only once the event has ended. The confirmation carries the ranked enrollment
+ids the owner saw and is refused if the places changed since. Open flags are shown and named in the dialog but never
+block. Confirming stores the top places (`result_place`, at least 10) and freezes them: removals are refused from
+then on, and a later ban, flag or cancel return changes no place (a banned winner's prize is held at the desk). There
+is no undo. Rehearsal cannot confirm, since it never ends.
+**Why:** the final score only settles at the end (manual awards close with the live event, ADR-135 freezes spending's
+effect); checking against what the owner saw means the owner confirms exactly the list they reviewed.
+
+## ADR-164 — The reveal is a separate owner step; the winner's push waits for T-501
+**Status:** Proposed (Claude, 2026-10-23; T-214).
+**Decision:** after confirming, the owner presses Reveal winners. Only then do winners get their prize item, the
+player app shows the results and a "You won" card on Home, and the event's results become readable by players. The
+push of FR-1718 is sent by T-501 from the revealed places; until then the Home card carries the message.
+**Why:** FR-520 reveals only after confirmation, and an organizer may confirm early and reveal on stage (T-307's
+big-screen scene calls the same reveal). There is no push infrastructure yet.
+
+## ADR-165 — Each event's official rules: organizer text on a public page
+**Status:** Proposed (Claude, 2026-10-23; T-214).
+**Decision:** the event gains `rules_ar` and `rules_en` (plain text, up to 10,000 characters), written on the Prizes
+and results page and shown at `/[lang]/e/[code]/rules` as plain text, linked from the app's info page. No template is
+filled in for the organizer.
+**Why:** FR-1707 wants a rules page for every event with prizes, and T-110 and T-113 left it here; plain text keeps the
+public page free of injected markup. What the rules must say is for counsel (Q-041).

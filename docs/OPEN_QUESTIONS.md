@@ -116,3 +116,21 @@ opening times. A reward that opens at 14:00 on the day cannot be tried earlier. 
 ## Q-126 — The goal's rules and FR-522's move (2026-10-23, T-213)
 ADR-161 keeps a pinned goal on Home even when it sells out (but not once it closes or the player is at its limit) (it says "sold out, pick another"), counts a reward that
 opens later as the next reachable one, and moves FR-522 (items as quest or category rewards) to T-304. Agree?
+
+## Q-127 — Confirming results before the end (2026-10-23, T-214)
+ADR-163 lets the owner confirm only once the event has ended. A finale held before the official end time would need
+the owner to set the end time to the finale. Should confirming also be allowed while live (scans continue, the
+prize places freeze)?
+
+## Q-128 — Undoing a confirmation (2026-10-23, T-214)
+ADR-163 has no undo: a cheat found after confirming keeps their place (their prize is held at the desk if banned).
+Should the owner be able to reopen results before the reveal?
+
+## Q-129 — A winner banned after confirmation (2026-10-23, T-214)
+Built: the place stays, the prize is held at the desk and the owner may cancel it; it does not pass to the next
+player. Should it pass down instead?
+
+## Q-130 — Rank prize limits and the claim deadline (2026-10-23, T-214)
+ADR-162 allows ranks 1–100, item and experience prizes only (no digital codes), and sets the claim deadline to the
+desk's last closing time (or the shop's closing when the desk has no hours). Agree, or should the organizer set the
+deadline?
