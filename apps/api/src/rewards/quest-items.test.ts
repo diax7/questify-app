@@ -7,6 +7,7 @@ describe("refusalOf", () => {
     ["DL409", "", { kind: "desk_needed" }],
     ["QI409", "item_in_use", { kind: "item_in_use" }],
     ["QI409", "removed", undefined],
+    ["23514", "item_in_use", undefined],
     ["23514", "", undefined],
     [undefined, "", undefined],
   ] as const)("maps %s %s", (code, detail, expected) => {
@@ -40,6 +41,13 @@ describe("itemOf", () => {
       missed: 2,
       quests: [{ id: "q1", name: { ar: null, en: "Lion" } }],
       categories: [{ id: "c1", name: { ar: "المرحلة", en: "Stage" } }],
+    });
+  });
+
+  it("reads a missing or non-text name as null, and the Arabic description", () => {
+    expect(itemOf({ id: "i3", name_ar: 5, description_ar: "مقاس واحد" })).toMatchObject({
+      name: { ar: null, en: null },
+      description: { ar: "مقاس واحد", en: null },
     });
   });
 

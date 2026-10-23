@@ -227,6 +227,123 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest items over HTTP", () => 
         expect(response.statusCode).toBe(404);
       }
     });
+
+    it("keeps a one-language name, edits each language on its own, and audits only a real change", async () => {
+      const { id: event } = await newEvent();
+      const path = `/events/${event}/quest-items`;
+      const made = await dashboard(editorCookie, "POST", path, {
+        name: { ar: "قبعة" },
+        stockTotal: 2,
+      });
+      expect(made.statusCode).toBe(201);
+      const item = made.json().item as { id: string };
+      expect(made.json().item).toMatchObject({ name: { ar: "قبعة", en: null } });
+      const mug = (
+        await dashboard(editorCookie, "POST", path, { name: { en: "Mug" }, stockTotal: 1 })
+      ).json().item as { id: string };
+      const edit = (id: string, body: object) =>
+        dashboard(editorCookie, "PATCH", `${path}/${id}`, body);
+
+      expect((await edit(item.id, { name: { en: "Cap" } })).json().item).toMatchObject({
+        name: { ar: "قبعة", en: "Cap" },
+      });
+      expect((await edit(item.id, { name: { ar: null } })).json().item).toMatchObject({
+        name: { ar: null, en: "Cap" },
+      });
+      expect((await edit(item.id, { name: { ar: "قبعة" } })).json().item).toMatchObject({
+        name: { ar: "قبعة", en: "Cap" },
+      });
+      const nameless = await edit(item.id, { name: { ar: " ", en: null } });
+      expect([nameless.statusCode, nameless.json()]).toMatchObject([
+        400,
+        { code: "invalid_request", details: { field: "name" } },
+      ]);
+      const other = await edit(mug.id, { stockTotal: 3 });
+      expect(other.json().item).toMatchObject({ id: mug.id, name: { en: "Mug" }, stockTotal: 3 });
+
+      const updates = async () =>
+        (
+          await owner(
+            "SELECT 1 FROM audit_log WHERE target_id = $1 AND action = 'quest_item.update'",
+            [item.id],
+          )
+        ).length;
+      const before = await updates();
+      expect((await edit(item.id, { stockTotal: 2, name: { en: "Cap" } })).statusCode).toBe(200);
+      expect(await updates()).toBe(before);
+    });
+
+    it("lets the stock come down to exactly what is out", async () => {
+      const { id: event, category } = await newEvent();
+      const item = await newItem(event, 2);
+      const quest = await newQuest(event, category, item);
+      await complete((await newPlayer(event)).token, quest);
+      const lowered = await dashboard(
+        editorCookie,
+        "PATCH",
+        `/events/${event}/quest-items/${item}`,
+        {
+          stockTotal: 1,
+        },
+      );
+      expect(lowered.statusCode).toBe(200);
+      expect(lowered.json().item).toMatchObject({ stockTotal: 1, unitsOut: 1, stockLeft: 0 });
+    });
+
+    it("refuses every write once the event is archived, and an unknown item or event", async () => {
+      const { id: event } = await newEvent();
+      const item = await newItem(event);
+      const path = `/events/${event}/quest-items`;
+      counter += 1;
+      const [foreign] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at, desk_location_en)
+         SELECT id, $1, 'Other Fest', 'live', now() - interval '1 hour', now() + interval '2 days', 'Hall C'
+         FROM organizer WHERE slug = 'item-other' RETURNING id`,
+        [`ITEMH${counter}`],
+      );
+      const foreignPath = `/events/${foreign?.id}/quest-items`;
+      for (const response of [
+        await dashboard(editorCookie, "POST", foreignPath, { name: { en: "Cap" }, stockTotal: 1 }),
+        await dashboard(editorCookie, "PATCH", `${foreignPath}/${item}`, { stockTotal: 9 }),
+        await dashboard(editorCookie, "DELETE", `${foreignPath}/${item}`),
+        await dashboard(editorCookie, "DELETE", `${path}/${randomUUID()}`),
+        await dashboard(editorCookie, "GET", `${path}/${randomUUID()}/misses`),
+      ]) {
+        expect([response.statusCode, response.json().code]).toEqual([404, "not_found"]);
+      }
+      await owner("UPDATE event SET status = 'archived' WHERE id = $1", [event]);
+      for (const response of [
+        await dashboard(editorCookie, "POST", path, { name: { en: "Cap" }, stockTotal: 1 }),
+        await dashboard(editorCookie, "PATCH", `${path}/${item}`, { stockTotal: 9 }),
+        await dashboard(editorCookie, "DELETE", `${path}/${item}`),
+      ]) {
+        expect([response.statusCode, response.json().code]).toEqual([409, "event_archived"]);
+      }
+      expect((await dashboard(editorCookie, "GET", path)).json().items).toMatchObject([
+        { id: item, stockTotal: 5 },
+      ]);
+    });
+
+    it("stops at 100 active items, not counting a removed one", async () => {
+      const { id: event } = await newEvent();
+      await owner(
+        `INSERT INTO quest_item (event_id, name_en, stock_total, status)
+         SELECT $1, 'Item ' || n, 1, CASE WHEN n = 1 THEN 'removed' ELSE 'active' END
+         FROM generate_series(1, 100) n`,
+        [event],
+      );
+      const add = () =>
+        dashboard(editorCookie, "POST", `/events/${event}/quest-items`, {
+          name: { en: "One more" },
+          stockTotal: 1,
+        });
+      expect((await add()).statusCode).toBe(201);
+      const refused = await add();
+      expect([refused.statusCode, refused.json()]).toMatchObject([
+        409,
+        { code: "limit_reached", details: { limit: 100 } },
+      ]);
+    });
   });
 
   describe("the item picker", () => {
@@ -358,6 +475,51 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest items over HTTP", () => 
         { reason: "Played twice" },
       );
       expect(removed.json()).toMatchObject({ scoreDelta: -50, item: "cancelled" });
+    });
+
+    it("lists a category's misses newest first, with the player's name, avatar and why", async () => {
+      const { id: event, category } = await newEvent();
+      const item = await newItem(event, 0);
+      const named = await newPlayer(event);
+      const gone = await newPlayer(event);
+      await owner(
+        `INSERT INTO quest_item_miss (organizer_id, event_id, enrollment_id, quest_item_id, source_category_id,
+                                      source_period, reason, created_at)
+         VALUES ($1, $2, $3, $5, $6, now(), 'claim_closed', now() - interval '1 minute'),
+                ($1, $2, $4, $5, $6, now(), 'out_of_stock', now())`,
+        [organizer, event, named.enrollment, gone.enrollment, item, category],
+      );
+      await owner(
+        "UPDATE player SET status = 'deleted', deleted_at = now(), username = NULL WHERE id = $1",
+        [gone.id],
+      );
+      const [player] = await owner<{ username: string; avatar: string }>(
+        "SELECT username, avatar FROM player WHERE id = $1",
+        [named.id],
+      );
+      const misses = await dashboard(
+        editorCookie,
+        "GET",
+        `/events/${event}/quest-items/${item}/misses`,
+      );
+      expect(misses.json().misses).toEqual([
+        {
+          username: null,
+          avatar: expect.any(String),
+          at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+          source: "category",
+          sourceName: { ar: null, en: "General" },
+          reason: "out_of_stock",
+        },
+        {
+          username: player?.username,
+          avatar: player?.avatar,
+          at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+          source: "category",
+          sourceName: { ar: null, en: "General" },
+          reason: "claim_closed",
+        },
+      ]);
     });
   });
 });

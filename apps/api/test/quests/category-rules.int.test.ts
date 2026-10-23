@@ -162,6 +162,99 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules in the builder 
     }
   });
 
+  /** A passport in the category with these steps, written in one transaction as the builder writes it. */
+  const newPassport = async (eventId: string, category: string, steps: string[]) => {
+    await db.owner.query("BEGIN");
+    const [quest] = await owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, verification, position)
+       VALUES ($1, $2, 'passport', 'Booths', 20, '{"needed": 1}', '{}', $3) RETURNING id`,
+      [eventId, category, steps.length],
+    );
+    for (const [position, name] of steps.entries()) {
+      await owner(
+        "INSERT INTO passport_step (event_id, quest_id, name_en, position) VALUES ($1, $2, $3, $4)",
+        [eventId, quest?.id, name, position],
+      );
+    }
+    await db.owner.query("COMMIT");
+    return quest?.id ?? "";
+  };
+
+  it("keeps an Arabic-only rename, edits a category holding a played-once quest, and clears its item", async () => {
+    const s = await newEvent();
+    const one = await s.add("One");
+    const renamed = await s.patch(one.id, { name: { ar: "واحد", en: " " } });
+    expect(renamed.statusCode, renamed.body).toBe(200);
+    expect(renamed.json()).toMatchObject({ category: { name: { ar: "واحد", en: null } } });
+    await newPassport(s.eventId, one.id, ["Booth"]);
+    const bonus = await s.patch(one.id, { completionBonus: 5 });
+    expect(bonus.statusCode, bonus.body).toBe(200);
+    await owner("UPDATE event SET desk_location_en = 'Hall B' WHERE id = $1", [s.eventId]);
+    const [item] = await owner<{ id: string }>(
+      "INSERT INTO quest_item (event_id, name_en, stock_total) VALUES ($1, 'Cap', 3) RETURNING id",
+      [s.eventId],
+    );
+    expect((await s.patch(one.id, { itemId: item?.id })).json()).toMatchObject({
+      category: { itemId: item?.id },
+    });
+    const cleared = await s.patch(one.id, { itemId: null });
+    expect(cleared.statusCode, cleared.body).toBe(200);
+    expect(cleared.json()).toMatchObject({ category: { itemId: null } });
+  });
+
+  it("lists each passport with its own steps, keeps a quest's place on an edit, and deletes passports with their steps", async () => {
+    const s = await newEvent();
+    const booths = await s.add("Booths");
+    const [code] = await owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, position)
+       VALUES ($1, $2, 'enter_code', 'Code', 10, '{"code": "ABC"}', 0) RETURNING id`,
+      [s.eventId, booths.id],
+    );
+    const first = await newPassport(s.eventId, booths.id, ["A1"]);
+    const second = await newPassport(s.eventId, booths.id, ["B1", "B2"]);
+    type Listed = {
+      categories: { id: string; quests: { id: string; steps?: { name: unknown }[] }[] }[];
+    };
+    const listed = (await call("GET", `${s.base}/quests`, s.cookie)).json<Listed>();
+    const quests = listed.categories.find((category) => category.id === booths.id)?.quests ?? [];
+    const stepsOf = (id: string) => quests.find((quest) => quest.id === id)?.steps;
+    expect(stepsOf(first)).toEqual([
+      { id: expect.any(String), name: { ar: null, en: "A1" }, position: 0 },
+    ]);
+    expect(stepsOf(second)?.map((step) => step.name)).toEqual([
+      { ar: null, en: "B1" },
+      { ar: null, en: "B2" },
+    ]);
+
+    const edited = await call("PATCH", `${s.base}/quests/${code?.id}`, s.cookie, {
+      title: { en: "Renamed" },
+    });
+    expect(edited.statusCode, edited.body).toBe(200);
+    expect(edited.json()).toMatchObject({ quest: { title: { en: "Renamed" }, position: 0 } });
+
+    const gone = await call("DELETE", `${s.base}/categories/${booths.id}`, s.cookie, {
+      quests: "delete",
+    });
+    expect(gone.statusCode, gone.body).toBe(204);
+    expect(
+      await owner("SELECT 1 FROM passport_step WHERE quest_id = ANY ($1)", [[first, second]]),
+    ).toEqual([]);
+  });
+
+  it("deletes an empty category with a delete choice, recording no quests deleted", async () => {
+    const s = await newEvent();
+    const empty = await s.add("Empty");
+    const gone = await call("DELETE", `${s.base}/categories/${empty.id}`, s.cookie, {
+      quests: "delete",
+    });
+    expect(gone.statusCode).toBe(204);
+    const [audit] = await owner<{ after: unknown }>(
+      "SELECT after FROM audit_log WHERE target_id = $1 AND action = 'category.delete'",
+      [empty.id],
+    );
+    expect(audit?.after).toEqual({ quests: 0 });
+  });
+
   it("refuses deleting a category another unlocks after, naming it", async () => {
     const s = await newEvent();
     const one = await s.add("One");

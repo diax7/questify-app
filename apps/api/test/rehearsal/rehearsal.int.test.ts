@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { joinCard } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { testCode } from "#src/rehearsal/rehearsal";
@@ -345,6 +345,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal over HTTP", () => {
       expect(draft.json()).toMatchObject({ code: "rehearsal_data" });
       await staff("POST", `/events/${event}/rehearsal/erase`);
       expect((await staff("DELETE", `/events/${event}/quests/${quest?.id}`)).statusCode).toBe(204);
+    });
+
+    it("asks to erase rehearsal first before deleting a category whose bonus or quests it played", async () => {
+      const event = await newEvent();
+      const token = await newPlayer();
+      await joinWith(token, await codeOf(event));
+      const categoryWith = async (name: string, bonus: number, code: string) => {
+        const [category] = await owner<{ id: string }>(
+          "INSERT INTO category (event_id, name_en, completion_bonus) VALUES ($1, $2, $3) RETURNING id",
+          [event, name, bonus],
+        );
+        const [quest] = await owner<{ id: string }>(
+          `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
+           VALUES ($1, $2, 'enter_code', $3, 10, 1, true, $4) RETURNING id`,
+          [event, category?.id, name, JSON.stringify({ code })],
+        );
+        const scanned = await test.app.inject({
+          method: "POST",
+          url: `/v1/quests/${quest?.id}/complete`,
+          headers: { authorization: `Bearer ${token}`, "idempotency-key": randomUUID() },
+          payload: { proof: { type: "code", code } },
+        });
+        expect(scanned.statusCode, scanned.body).toBe(200);
+        return category?.id ?? "";
+      };
+      for (const category of [
+        await categoryWith("Bonus", 20, "LION"),
+        await categoryWith("Played", 0, "TIGER"),
+      ]) {
+        const refused = await test.app.inject({
+          method: "DELETE",
+          url: `/v1/organizers/${organizer}/events/${event}/categories/${category}`,
+          headers: withSession(ownerCookie, {}),
+          payload: { quests: "delete" },
+        });
+        expect([refused.statusCode, refused.json().code]).toEqual([409, "rehearsal_data"]);
+      }
     });
   });
 });
