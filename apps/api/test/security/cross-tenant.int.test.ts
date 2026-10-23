@@ -67,6 +67,8 @@ const ASSIGNMENT_B = "0be7a000-0000-4000-8000-00000000000b";
 const POLICY = /row-level security/;
 const SIGNUP_A = "new.owner@najd.test";
 const SIGNUP_B = "new.owner@tabuk.test";
+/** Each seeded rehearsal has its own code (codes are unique across events). */
+let rehearsalSeeds = 0;
 const hash = () => `\\x${randomBytes(32).toString("hex")}`;
 
 const OWNED: Readonly<Record<string, Owned>> = {
@@ -492,6 +494,22 @@ const OWNED: Readonly<Record<string, Owned>> = {
           values: [f.publicEventB, f.orgB],
         }),
         // Written only by the limit trigger and set_event_player_limit (T-210).
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
+  event_rehearsal: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, 'ZZZZ-ZZZZ')",
+          values: [f.publicEventB, f.orgB],
+        }),
+        // Written only by open_rehearsal, rotate_rehearsal_code and the wipe (T-211).
         forgeRefusedBy: /permission denied/,
       },
     ],
@@ -924,6 +942,12 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
         "INSERT INTO event_limit_alert (event_id, organizer_id, level, players) VALUES ($1, $2, 80, 8)",
         [event, org],
       );
+      rehearsalSeeds += 1;
+      await run("INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, $3)", [
+        event,
+        org,
+        `SEED-${"ABCDEFGHJK".charAt(rehearsalSeeds)}222`,
+      ]);
       await run(
         "INSERT INTO event_join_field (event_id, kind, label_en, position) VALUES ($1, 'custom', 'Seeded', 0)",
         [event],

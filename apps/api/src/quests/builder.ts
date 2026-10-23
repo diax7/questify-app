@@ -58,7 +58,9 @@ export type Refused =
   | Readonly<{ kind: "last_category" }>
   | Readonly<{ kind: "category_not_empty"; quests: number }>
   /** Players completed it: its points are history (T-105); hide it instead, until T-604 offers keep or remove. */
-  | Readonly<{ kind: "has_completions" }>;
+  | Readonly<{ kind: "has_completions" }>
+  /** Only rehearsal accounts completed it: erase the rehearsal first (T-211). */
+  | Readonly<{ kind: "rehearsal_data" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -332,19 +334,27 @@ export function readBuilder(
   );
 }
 
-/** True when a player completed any of these quests (their points are history, migration 0012). */
-export async function anyCompletions(
+/**
+ * Who completed any of these quests: `real` when a player did (their points are history, migration 0012), `rehearsal`
+ * when only rehearsal accounts did (erased with the rehearsal, T-211), `none` otherwise.
+ */
+export async function completionsOf(
   client: PoolClient,
   where: Readonly<{ questId: string } | { categoryId: string }>,
-): Promise<boolean> {
-  const { rowCount } =
+): Promise<"none" | "rehearsal" | "real"> {
+  const filter =
     "questId" in where
-      ? await client.query("SELECT 1 FROM quest_completion WHERE quest_id = $1 LIMIT 1", [
-          where.questId,
-        ])
-      : await client.query(
-          "SELECT 1 FROM quest_completion c JOIN quest q ON q.id = c.quest_id WHERE q.category_id = $1 LIMIT 1",
-          [where.categoryId],
-        );
-  return rowCount === 1;
+      ? { sql: "c.quest_id = $1", value: where.questId }
+      : {
+          sql: "c.quest_id IN (SELECT q.id FROM quest q WHERE q.category_id = $1)",
+          value: where.categoryId,
+        };
+  const { rows } = await client.query<{ real: boolean | null }>(
+    `SELECT bool_or(n.joined_via IS DISTINCT FROM 'rehearsal') AS real
+     FROM quest_completion c JOIN enrollment n ON n.id = c.enrollment_id
+     WHERE ${filter.sql}`,
+    [filter.value],
+  );
+  const real = rows[0]?.real ?? null;
+  return real === null ? "none" : real ? "real" : "rehearsal";
 }

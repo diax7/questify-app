@@ -507,7 +507,7 @@ export async function operatorStations(
   });
 }
 
-export type PlayOutcome = "joined" | "already" | "not_allowed" | "ended" | "full";
+export type PlayOutcome = "joined" | "already" | "not_allowed" | "ended" | "full" | "rehearsing";
 
 /** FR-907: an operator the owner allows to play joins the event as a player, taking a seat (ADR-141). */
 export async function enrollOperator(

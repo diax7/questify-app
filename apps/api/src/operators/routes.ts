@@ -19,6 +19,7 @@ import {
   operatorInvitesFull,
   operatorPlayOff,
   ownerOnly,
+  rehearsing,
   tooManyResets,
   unauthenticated,
 } from "#src/auth/http-errors";
@@ -318,6 +319,8 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
         throw eventFull();
       case "not_allowed":
         throw operatorPlayOff();
+      case "rehearsing":
+        throw rehearsing();
     }
   });
 

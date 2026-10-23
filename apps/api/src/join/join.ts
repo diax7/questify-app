@@ -78,14 +78,30 @@ export type JoinOutcome =
       welcome: number;
     }>
   | Readonly<{
-      kind: "not_found" | "ended" | "method_off" | "not_allowed" | "invite_only" | "full";
+      kind:
+        | "not_found"
+        | "ended"
+        | "method_off"
+        | "not_allowed"
+        | "invite_only"
+        | "full"
+        /** The player holds a rehearsal account in the event (T-211): they join again after it starts. */
+        | "rehearsing";
     }>
   | Readonly<{ kind: "domain_required"; domains: readonly string[] }>
   /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
   | Readonly<{ kind: "invalid_answers"; field: string | null }>;
 
-export type MyEvent = PublicEvent &
-  Readonly<{ status: "active" | "pending"; score: number; balance: number }>;
+/** A rehearsal account's event may still be a Draft (T-211). */
+export type MyEvent = Omit<PublicEvent, "statusNow"> &
+  Readonly<{
+    statusNow: PublicEvent["statusNow"] | "draft";
+    status: "active" | "pending";
+    score: number;
+    balance: number;
+    /** A rehearsal account (T-211): erased at go-live. */
+    rehearsal: boolean;
+  }>;
 
 /**
  * Wrong join codes allowed in 10 minutes (T-111): per address, wide enough that one person at a venue's shared address
@@ -94,7 +110,7 @@ export type MyEvent = PublicEvent &
  */
 export const JOIN_CODE_MISSES = { perAddress: 60, perPlayer: 20, windowSeconds: 600 } as const;
 
-type Budget = Readonly<{ key: Buffer; max: number }>;
+export type Budget = Readonly<{ key: Buffer; max: number }>;
 
 type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
 
@@ -138,7 +154,7 @@ const anonymously = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>) =>
  * gives its reservation back; once a key is over budget every lookup is refused, real codes too. A lookup that fails
  * (the database is down) keeps its reservation: it fails closed and counts as a miss, on purpose.
  */
-async function withMissBudget<T>(
+export async function withMissBudget<T>(
   deps: JoinDeps,
   budgets: readonly Budget[],
   lookup: () => Promise<T | null>,
@@ -184,7 +200,7 @@ async function withMissBudget<T>(
   return found;
 }
 
-const addressBudget = (deps: JoinDeps, address: string): Budget => ({
+export const addressBudget = (deps: JoinDeps, address: string): Budget => ({
   key: deps.keys.addressKey(addressBucket(address)),
   max: JOIN_CODE_MISSES.perAddress,
 });
@@ -343,7 +359,8 @@ type JoinRow = Readonly<{
     | "not_allowed"
     | "invite_only"
     | "domain_required"
-    | "full";
+    | "full"
+    | "rehearsing";
   enrollment_id: string | null;
   event_id: string | null;
   status: "active" | "pending" | null;
@@ -511,21 +528,29 @@ export async function myEvents(deps: JoinDeps, playerId: string): Promise<MyEven
   return withConnection(deps.pool, (client) =>
     withRequestContext(client, { playerId }, async () => {
       const { rows } = await client.query<
-        EventRow & { status: MyEvent["status"]; score: string; balance: string }
+        Omit<EventRow, "status_now"> & {
+          status_now: MyEvent["statusNow"];
+          status: MyEvent["status"];
+          score: string;
+          balance: string;
+          rehearsal: boolean;
+        }
       >(
         `SELECT e.id, e.join_code, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.kind, e.timezone, e.starts_at,
                 e.ends_at, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, n.status, n.score,
-                n.balance
+                n.balance, n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal
          FROM enrollment n JOIN event e ON e.id = n.event_id
          WHERE n.player_id = $1 AND n.status IN ('active', 'pending')
          ORDER BY n.joined_at DESC, n.id`,
         [playerId],
       );
       return rows.map((row) => ({
-        ...toEvent(row),
+        ...toEvent({ ...row, status_now: "scheduled" }),
+        statusNow: row.status_now,
         status: row.status,
         score: Number(row.score),
         balance: Number(row.balance),
+        rehearsal: row.rehearsal,
       }));
     }),
   );

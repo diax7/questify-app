@@ -16,6 +16,8 @@ import {
 } from "#src/auth/http-errors";
 import { registerActivationRoutes } from "#src/activation/routes";
 import type { Activation } from "#src/activation/service";
+import { registerRehearsalTeamRoutes } from "#src/rehearsal/routes";
+import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
@@ -44,6 +46,8 @@ export type OrganizerRoutesDeps = Readonly<{
   events: Events;
   settings: SettingsService;
   activation: Activation;
+  /** The team's rehearsal card, code and erase (T-211). */
+  rehearsal: Rehearsal;
   /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
   questCodes: Readonly<{ codeKey: QuestCodeKey; codeOrigin: string }>;
   /** Seals and marks digital reward codes before they reach the database (T-203). */
@@ -209,6 +213,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerTeamRoutes(scope, deps);
       registerEventRoutes(scope, deps.events, deps.settings);
       registerActivationRoutes(scope, deps.activation);
+      registerRehearsalTeamRoutes(scope, deps.rehearsal);
       registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });

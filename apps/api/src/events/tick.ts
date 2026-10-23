@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { wipeDueRehearsals } from "#src/rehearsal/service";
 import { expireReservations } from "#src/rewards/shop";
 
 export type LifecycleTickDeps = Readonly<{
@@ -21,7 +22,8 @@ const JITTER = 0.2;
 
 /**
  * Moves events through their lifecycle on time (FR-1608): every interval, one call to `advance_event_lifecycle()` in
- * its own transaction, with no organizer context; then returns the reservations whose pickup time passed (FR-508). A
+ * its own transaction, with no organizer context; then wipes the rehearsals that went live (ADR-160), then returns the
+ * reservations whose pickup time passed (FR-508). A
  * failure is logged and the next run tries again; it never stops the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
  */
 export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
@@ -30,8 +32,21 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
   let running: Promise<void> | undefined;
   let stopped = false;
 
-  const run = async (): Promise<void> => {
+  /** One step of a run: its failure is logged by name and SQLSTATE (no personal data) and never stops the others. */
+  const step = async (failed: string, work: () => Promise<void>): Promise<void> => {
     try {
+      await work();
+    } catch (error) {
+      deps.log("error", {
+        event: failed,
+        reason: error instanceof Error ? error.name : "unknown",
+        code: (error as { code?: unknown } | undefined)?.code ?? null,
+      });
+    }
+  };
+
+  const run = async (): Promise<void> => {
+    await step("event.lifecycle_failed", async () => {
       const moved = await withConnection(deps.pool, (client) =>
         withRequestContext(client, {}, async () => {
           const { rows } = await client.query<{ moved: number }>(
@@ -43,27 +58,20 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
       if (moved > 0) {
         deps.log("info", { event: "event.lifecycle_moved", count: moved });
       }
-    } catch (error) {
-      deps.log("error", {
-        event: "event.lifecycle_failed",
-        reason: error instanceof Error ? error.name : "unknown",
-        // The SQLSTATE says which failure (a lock timeout, a lost connection) and holds no personal data.
-        code: (error as { code?: unknown } | undefined)?.code ?? null,
-      });
-    }
-    // Its own step: a failure returning reservations never holds up the lifecycle, nor the other way round.
-    try {
+    });
+    // The go-live wipe of rehearsal data (ADR-160): one event per transaction, after the events moved to live.
+    await step("event.rehearsal_wipe_failed", async () => {
+      const wiped = await wipeDueRehearsals(deps.pool);
+      if (wiped > 0) {
+        deps.log("info", { event: "event.rehearsals_wiped", count: wiped });
+      }
+    });
+    await step("reward.expiry_failed", async () => {
       const returned = await expireReservations(deps.pool);
       if (returned > 0) {
         deps.log("info", { event: "reward.reservations_expired", count: returned });
       }
-    } catch (error) {
-      deps.log("error", {
-        event: "reward.expiry_failed",
-        reason: error instanceof Error ? error.name : "unknown",
-        code: (error as { code?: unknown } | undefined)?.code ?? null,
-      });
-    }
+    });
   };
 
   const schedule = (): void => {

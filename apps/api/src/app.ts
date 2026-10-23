@@ -28,6 +28,8 @@ import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
+import { registerRehearsalPlayerRoutes } from "#src/rehearsal/routes";
+import { createRehearsal } from "#src/rehearsal/service";
 import { registerContactRoutes } from "#src/players/contact";
 import { registerProfileRoutes } from "#src/players/profile";
 import { registerPlayerAuthRoutes } from "#src/players/routes";
@@ -223,6 +225,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     email: options.emailSender,
   });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });
+  registerRehearsalPlayerRoutes(app, rehearsal);
   registerHomeRoutes(app, { pool: options.pool, settings });
   registerOperatorPlayerRoutes(app, {
     ...operatorDeps,
@@ -260,6 +264,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     pool: options.pool,
     sessions: staffSessions,
     activation,
+    rehearsal,
     team: createTeam(passwordDeps),
     events: createEvents({ pool: options.pool }),
     settings,

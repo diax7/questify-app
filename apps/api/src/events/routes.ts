@@ -9,6 +9,7 @@ import {
   invalidEvent,
   invalidTerms,
   notFound,
+  rehearsalData,
   scopeLimited,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
@@ -109,6 +110,8 @@ function answerGone(reply: FastifyReply, result: RemoveResult | EndResult) {
       throw eventNotDraft();
     case "not_live":
       throw eventNotLive();
+    case "rehearsal_data":
+      throw rehearsalData();
   }
 }
 

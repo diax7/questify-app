@@ -2,7 +2,7 @@ import type { Caller } from "#src/auth/sign-in";
 import type { Actor } from "#src/events/events";
 import {
   BUILDER_LIMITS,
-  anyCompletions,
+  completionsOf,
   NO_TEXT,
   audit,
   bilingual,
@@ -129,8 +129,9 @@ export function deleteCategory(
       outcome["movedTo"] = to.id;
     }
     if (quests > 0 && choice.quests === "delete") {
-      if (await anyCompletions(client, { categoryId: current.id })) {
-        return { kind: "has_completions" };
+      const completed = await completionsOf(client, { categoryId: current.id });
+      if (completed !== "none") {
+        return { kind: completed === "real" ? "has_completions" : "rehearsal_data" };
       }
       outcome["deletedQuests"] = await deleteQuestsOf(client, current.id);
     }

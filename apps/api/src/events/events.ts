@@ -49,7 +49,9 @@ export type UpdateResult =
 export type RemoveResult =
   | Readonly<{ kind: "deleted" }>
   | Missing
-  | Readonly<{ kind: "not_draft" }>;
+  | Readonly<{ kind: "not_draft" }>
+  /** Rehearsal accounts joined it: their data goes with an erase first (T-211). */
+  | Readonly<{ kind: "rehearsal_data" }>;
 export type EndResult = Readonly<{ kind: "ended" }> | Missing | Readonly<{ kind: "not_live" }>;
 
 export type Actor = OrganizerContext & Readonly<{ organizer: OrganizerPrincipal }>;
@@ -283,6 +285,13 @@ async function remove(
     }
     if (current.status !== "draft") {
       return { kind: "not_draft" } as const;
+    }
+    const rehearsed = await client.query(
+      "SELECT 1 FROM enrollment WHERE event_id = $1 AND joined_via = 'rehearsal' LIMIT 1",
+      [id],
+    );
+    if (rehearsed.rowCount === 1) {
+      return { kind: "rehearsal_data" } as const;
     }
     // Written first: the audit rules need the event to exist (migration 0006).
     await audit(

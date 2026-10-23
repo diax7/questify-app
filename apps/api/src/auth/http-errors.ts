@@ -807,3 +807,39 @@ export const noRemoval = make(
   "أزِل النقاط من سجل اللاعب أولًا، ثم أغلق الحالة.",
   "Remove the points from the player's record first, then close the case.",
 );
+export const rehearsalClosed = make(
+  404,
+  "rehearsal_closed",
+  "رمز التجربة هذا لا يعمل. اطلب الرمز الحالي من فريق الفعالية.",
+  "This rehearsal code doesn't work. Ask the event team for the current one.",
+);
+export const rehearsalFull = make(
+  409,
+  "rehearsal_full",
+  "اكتمل عدد حسابات التجربة لهذه الفعالية.",
+  "This event has reached its rehearsal accounts limit.",
+);
+export const alreadyPlayer = make(
+  409,
+  "already_player",
+  "انضممت إلى هذه الفعالية لاعبًا، فلا يمكن لهذا الحساب أن يشارك في التجربة.",
+  "You joined this event as a player, so this account can't rehearse.",
+);
+export const rehearsing = make(
+  409,
+  "rehearsing",
+  "أنت في تجربة هذه الفعالية. انضم من جديد بعد أن تبدأ.",
+  "You're rehearsing this event. Join again after it starts.",
+);
+export const rehearsalOver = make(
+  409,
+  "rehearsal_over",
+  "بدأت الفعالية، فانتهت التجربة.",
+  "The event has started, so rehearsal is over.",
+);
+export const rehearsalData = make(
+  409,
+  "rehearsal_data",
+  "في هذه الفعالية بيانات تجربة. امسحها أولًا.",
+  "This event has rehearsal data. Erase rehearsal first.",
+);

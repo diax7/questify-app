@@ -140,6 +140,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "public and unlisted events' visible quests by named columns, never type_config; a private event answers members_only (test/join/join, test/db/join)",
   "POST /v1/join":
     "enrolls only the bearer, through join_event or join_invited bound to the session; nobody inserts an enrollment directly; an invitation not the bearer's answers 404 (test/join/join, test/join/join-fields, test/db/join, test/db/join-fields)",
+  "GET /v1/rehearsals/:code":
+    "the event a rehearsal code opens, for a signed-in player holding the code (the secret that grants it); no organizer or player data; wrong codes count against the join budget (test/rehearsal/rehearsal, test/db/rehearsal)",
+  "POST /v1/rehearsals/join":
+    "enrolls only the bearer as a rehearsal account, through join_rehearsal bound to the session; wrong codes are throttled (test/rehearsal/rehearsal, test/db/rehearsal)",
+  "GET /v1/organizers/:organizerId/events/:eventId/rehearsal":
+    "owners and editors of that organizer within their event limit, through rehearsal_card and award_event_of; another organizer's event answers 404 (test/rehearsal/rehearsal, test/db/rehearsal)",
+  "POST /v1/organizers/:organizerId/events/:eventId/rehearsal/code":
+    "owners and editors within their event limit, through rotate_rehearsal_code; audited; another organizer's event answers 404 (test/rehearsal/rehearsal, test/db/rehearsal)",
+  "POST /v1/organizers/:organizerId/events/:eventId/rehearsal/erase":
+    "owners and editors within their event limit, through erase_rehearsal; audited; another organizer's event answers 404 (test/rehearsal/rehearsal, test/db/rehearsal)",
   "GET /v1/me/invitations":
     "the bearer's own invitations only, through my_invitations bound to the session's verified contacts; no join code (test/join/join-fields, test/db/join-fields)",
   "GET /v1/organizers/:organizerId/events/:eventId/join":

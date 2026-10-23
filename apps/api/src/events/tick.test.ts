@@ -8,7 +8,11 @@ type Logged = { level: string; fields: Record<string, unknown> };
  * A pool whose connection answers the tick's statements; `moved` is what the lifecycle call returns, `expiry` what each
  * call returning a reservation does (nothing due by default).
  */
-function fakePool(moved: () => number | Error, expiry: () => string | null | Error = () => null) {
+function fakePool(
+  moved: () => number | Error,
+  expiry: () => string | null | Error = () => null,
+  rehearsals: { due: string[]; wiped: boolean } = { due: [], wiped: true },
+) {
   const statements: string[] = [];
   const client = {
     query: vi.fn(async (sql: string) => {
@@ -19,6 +23,12 @@ function fakePool(moved: () => number | Error, expiry: () => string | null | Err
           throw result;
         }
         return { rows: [{ moved: result }] };
+      }
+      if (sql.includes("due_rehearsal_wipes")) {
+        return { rows: rehearsals.due.map((id) => ({ event_id: id })) };
+      }
+      if (sql.includes("ensure_rehearsal_wiped")) {
+        return { rows: [{ wiped: rehearsals.wiped }] };
       }
       if (sql.includes("expire_one_reservation")) {
         const outcome = expiry();
@@ -117,6 +127,10 @@ describe("startLifecycleTick", () => {
         level: "error",
         fields: { event: "event.lifecycle_failed", reason: "unknown", code: null },
       },
+      {
+        level: "error",
+        fields: { event: "event.rehearsal_wipe_failed", reason: "unknown", code: null },
+      },
       { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
@@ -156,10 +170,10 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
-    // The lifecycle call and one look for due reservations; nothing after the stop.
-    expect(connects).toBe(2);
+    // The lifecycle call, one look for due rehearsal wipes and one for due reservations; nothing after the stop.
+    expect(connects).toBe(3);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(2);
+    expect(connects).toBe(3);
   });
 
   it("returns due reservations one call at a time, and logs only the count", async () => {
@@ -201,6 +215,32 @@ describe("startLifecycleTick", () => {
         fields: { event: "reward.expiry_failed", reason: "DatabaseError", code: "40P01" },
       },
     ]);
+    await second.stop();
+  });
+
+  it("wipes each due rehearsal in its own call, and logs only how many it wiped", async () => {
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => null,
+      { due: ["e1", "e2"], wiped: true },
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("ensure_rehearsal_wiped"))).toHaveLength(2);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "event.rehearsals_wiped", count: 2 } },
+    ]);
+    await tick.stop();
+    const quiet = fakePool(
+      () => 0,
+      () => null,
+      { due: ["e1"], wiped: false },
+    );
+    const none: Logged[] = [];
+    const second = start(quiet.pool, none);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(none).toEqual([]);
     await second.stop();
   });
 });

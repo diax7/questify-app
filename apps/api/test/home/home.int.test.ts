@@ -327,7 +327,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       await complete(player.id, finishedQuest);
       const answer = await asPlayer(player.token, `/v1/events/${event.id}/quests`);
       const body = answer.json<{ event: Row; categories: { quests: Row[] }[] }>();
-      expect(body.event).toEqual({ statusNow: "live", timezone: "Asia/Riyadh" });
+      expect(body.event).toEqual({ statusNow: "live", timezone: "Asia/Riyadh", rehearsal: false });
       const stateOf = (id: string) =>
         body.categories[0]?.quests.find((q) => q["id"] === id)?.["state"];
       expect([open, finishedQuest, later, over].map(stateOf)).toEqual([

@@ -14,6 +14,7 @@ import {
   joinNotAllowed,
   membersOnly,
   notFound,
+  rehearsing,
   tooManyAttempts,
   unauthenticated,
 } from "#src/auth/http-errors";
@@ -99,6 +100,8 @@ function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
       throw invalidJoinAnswers({ field: result.field });
     case "full":
       throw eventFull();
+    case "rehearsing":
+      throw rehearsing();
     case "joined":
     case "already":
       return {

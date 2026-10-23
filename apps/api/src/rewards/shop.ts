@@ -3,6 +3,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
 import { deskViewOf, type DeskView } from "#src/desk/desk";
+import { testCode } from "#src/rehearsal/rehearsal";
 import { openCode, type RewardCodeKey } from "#src/rewards/codes";
 
 export type ShopDeps = Readonly<{
@@ -29,7 +30,8 @@ export type ShopView = Readonly<{
 }>;
 
 /** A digital redemption's code (FR-511), or `codeUnavailable` when its sealed value would not open. */
-type Revealed = Readonly<{ code?: string; codeUnavailable?: true }>;
+/** A delivered code; `testCode` marks a rehearsal's test code, which no real code ever is (T-211, ADR-159). */
+type Revealed = Readonly<{ code?: string; codeUnavailable?: true; testCode?: true }>;
 
 export type Reservation = Readonly<{
   redemption: Readonly<
@@ -101,15 +103,20 @@ async function asPlayer(
 
 const iso = (value: unknown): string | null => (value instanceof Date ? value.toISOString() : null);
 
-/** Opens a delivered code for the player who holds it; nothing for any other redemption. */
+/**
+ * Opens a delivered code for the player who holds it; nothing for any other redemption. A delivered digital reward with
+ * no code is a rehearsal's (migration 0032): its test code, derived from the reservation.
+ */
 function reveal(
   deps: ShopDeps,
-  redemptionId: unknown,
-  rewardId: unknown,
+  redemption: Readonly<{ id: unknown; rewardId: unknown; kind: unknown; status: unknown }>,
   sealed: unknown,
 ): Revealed {
+  const { id: redemptionId, rewardId } = redemption;
   if (!(sealed instanceof Buffer)) {
-    return {};
+    return redemption.kind === "digital" && redemption.status === "delivered"
+      ? { code: testCode(String(redemptionId)), testCode: true }
+      : {};
   }
   const code = openCode(deps.codeKey, String(rewardId), sealed);
   if (code === undefined) {
@@ -142,7 +149,16 @@ export function reserveReward(
           status: String(row?.["status"]),
           price: Number(row?.["price"]),
           reservedUntil: iso(row?.["reserved_until"]),
-          ...reveal(deps, row?.["redemption_id"], request.rewardId, row?.["code_cipher"]),
+          ...reveal(
+            deps,
+            {
+              id: row?.["redemption_id"],
+              rewardId: request.rewardId,
+              kind: row?.["kind"],
+              status: row?.["status"],
+            },
+            row?.["code_cipher"],
+          ),
         },
         balance: Number(row?.["balance"]),
         stockLeft: Number(row?.["stock_left"]),
@@ -231,7 +247,11 @@ export function readShop(
           endedAt: iso(d["ended_at"]),
           collectUntil: iso(d["collect_until"]),
           offerUntil: iso(d["offer_until"]),
-          ...reveal(deps, d["id"], d["reward_id"], d["code_cipher"]),
+          ...reveal(
+            deps,
+            { id: d["id"], rewardId: d["reward_id"], kind: d["kind"], status: d["status"] },
+            d["code_cipher"],
+          ),
         })),
       };
     }),

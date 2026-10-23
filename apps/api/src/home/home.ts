@@ -40,6 +40,8 @@ export type Home = Readonly<{
     endsAt: Date | null;
     timezone: string;
     statusNow: EventStatusNow;
+    /** The caller is a rehearsal account (T-211): everything they do is erased at go-live. */
+    rehearsal: boolean;
   }>;
   standing:
     | Readonly<{
@@ -53,6 +55,14 @@ export type Home = Readonly<{
   upNext: UpNext | null;
   rankingOn: boolean;
 }>;
+
+/**
+ * The status a player's play is judged by: a rehearsal account plays a Draft or Scheduled event as if it were live
+ * (ADR-159); everyone else by the event's own status.
+ */
+export function playStatus(statusNow: EventStatusNow, rehearsal: boolean): EventStatusNow {
+  return rehearsal && (statusNow === "draft" || statusNow === "scheduled") ? "live" : statusNow;
+}
 
 /** Finished means done to its repeat cap: the same rule for progress and for Up next, so they never disagree. */
 export const finished = (quest: MemberQuest): boolean => quest.done >= quest.repeatCap;
@@ -158,7 +168,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
 export type QuestsView =
   | Readonly<{
       kind: "quests";
-      event: Readonly<{ statusNow: EventStatusNow; timezone: string }>;
+      event: Readonly<{ statusNow: EventStatusNow; timezone: string; rehearsal: boolean }>;
       categories: readonly Readonly<{
         id: string;
         name: Text;
@@ -188,12 +198,12 @@ export async function memberQuests(
       ...category,
       quests: category.quests.map((quest) => ({
         ...quest,
-        state: questState(quest, row.status_now, row.now),
+        state: questState(quest, playStatus(row.status_now, row.rehearsal), row.now),
       })),
     }));
     return {
       kind: "quests",
-      event: { statusNow: row.status_now, timezone: row.timezone },
+      event: { statusNow: row.status_now, timezone: row.timezone, rehearsal: row.rehearsal },
       categories,
     } as const;
   });
@@ -212,6 +222,7 @@ type StandingRow = Readonly<{
   timezone: string;
   status_now: EventStatusNow;
   focus_quest_id: string | null;
+  rehearsal: boolean;
   /** The database's clock: the same one that decided `status_now`, so "open" has one source. */
   now: Date;
 }>;
@@ -225,7 +236,7 @@ async function standingOf(
   const { rows } = await client.query<StandingRow>(
     `SELECT n.status, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
             e.timezone, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.focus_quest_id,
-            now() AS now
+            n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal, now() AS now
      FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
      WHERE n.event_id = $1 AND n.player_id = $2 AND p.status = 'active'`,
     [eventId, playerId],
@@ -255,6 +266,7 @@ export async function readHome(
       endsAt: row.ends_at,
       timezone: row.timezone,
       statusNow: row.status_now,
+      rehearsal: row.rehearsal,
     };
     if (row.status === "pending") {
       return { event, standing: { status: "pending" as const }, upNext: null };
@@ -269,7 +281,12 @@ export async function readHome(
         questsDone: quests.filter(finished).length,
         questsTotal: quests.length,
       },
-      upNext: pickUpNext(quests, row.focus_quest_id, row.status_now, row.now),
+      upNext: pickUpNext(
+        quests,
+        row.focus_quest_id,
+        playStatus(row.status_now, row.rehearsal),
+        row.now,
+      ),
     };
   });
   if (home === null) {

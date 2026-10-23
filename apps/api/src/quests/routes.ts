@@ -11,6 +11,7 @@ import {
   limitReached,
   notFound,
   orderStale,
+  rehearsalData,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
@@ -118,6 +119,8 @@ function answer<T>(result: Done<T>, ok: (value: T) => unknown): unknown {
       throw categoryNotEmpty({ quests: result.quests });
     case "has_completions":
       throw hasCompletions();
+    case "rehearsal_data":
+      throw rehearsalData();
   }
 }
 
