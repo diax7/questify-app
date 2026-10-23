@@ -290,11 +290,20 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 - [ ] **T-303c** Meet-someone quests: both players paid, repeat pairs refused, a daily cap — delivers FR 212, 213; depends on: T-303
   - Split from T-303 2026-10-24 (ADR-196).
   - Note 2026-10-22 (ADR-137): My QR is fixed, so a meet-someone scan can be shared in a group chat; this task needs its own proof of meeting.
-- [ ] **T-304** Passport quests and category rules: collapse, completion bonus, in order or any order, timed open, unlock after another, daily/weekly refresh, hidden categories — delivers FR 224, 231, 232, 234, 235, 236, 237, 238, 1619, 522, 1617; depends on: T-103
+- [ ] **T-304** Category rules: collapse, completion bonus, in order or any order, timed open, unlock after another — delivers FR 231, 232, 233, 234, 235; depends on: T-103
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-304-category-rules.md`, migration 0044, ADR-200 to ADR-202 and Q-164 to Q-166 Proposed. Split (ADR-200): passport to T-304b, refresh and hidden categories to T-304c, item rewards (FR-522, FR-1617) to T-304d, FR-238 to T-501.
   - Note 2026-10-23 (T-213, ADR-161 Proposed): FR-522 (an item as a quest's or category's reward, with or instead of points, collected through the same handover) moves here with FR-1617 (out of stock: points only, and the organizer is warned).
   - Done when: An in-order category unlocks the next quest only after the previous one; a daily refresh resets completion but keeps points.
   - Note 2026-10-24 (T-302): a quiz finished with no right answers counts as done (`member_event_quests.done`) but has no completion row; a completion bonus or unlock rule must count finished `quiz_attempt`s too.
   - Note 2026-10-21 (T-201): FR-1617 (an item given as a quest or category reward is out of stock: only the points, and the organizer is told) belongs to the completion bonus here; rewards live in `reward` (migration 0024).
+- [ ] **T-304b** Passport quests: steps in any order, each its own signed QR, "4 of 5" progress, paid once on the last needed step — delivers FR 224; depends on: T-304
+  - Done when: A player who did 4 of a "5 of 8" passport sees 4 of 5 and is not paid; the fifth step pays once.
+- [ ] **T-304c** Daily and weekly category refresh and hidden categories (secret QR) — delivers FR 236, 1619, 237; depends on: T-304
+  - Note 2026-10-24 (T-304 plan, ADR-200): count "done" and the repeat cap inside the current period from `event_day_start` (ADR-083); the bonus is once per period; played-once types (vote, quiz, survey, share, submission) cannot sit in a refreshing category.
+  - Done when: A daily refresh resets completion but keeps points; a hidden category appears only for the player who scanned its QR.
+- [ ] **T-304d** Items as quest or category rewards, out of stock pays points only and warns the organizer — delivers FR 522, 1617; depends on: T-304, T-214
+  - Note 2026-10-24 (T-304 plan, ADR-200): a price-0 desk item as T-214's rank prizes (a third `redemption` source), stock taken at completion or at the category bonus.
+  - Done when: A quest whose reward is an item plus 50 points adds 50 points and a pending desk item; an item out of stock pays the points only and the owner sees a warning.
 - [ ] **T-305** Mini-games: server-issued seeded rounds, replay check, four games, attempts, pass target, organizer images, result retry — delivers FR 217, 218, 1804, 1805, 1806, 1807, 1808, 1809; depends on: T-105
   - Done when: Impossible inputs are rejected and a flag raised; a game quest pays once on the first pass.
 - [ ] **T-306** Live polls and community quests with milestones and rewards — delivers FR 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 1620; depends on: T-302
@@ -350,6 +359,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 _Notifications, announcements, big screen, agenda and sessions, maps, sponsors and surveys._
 
 - [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
+  - Note 2026-10-24 (T-304 plan, ADR-200 Proposed): FR-238 moves here: a hidden category (T-304c) appears for the players who receive the organizer's hint push for it.
   - Done when: A refused push permission blocks nothing and the center still holds every message.
   - Note 2026-10-21 (T-208): event pushes go to `active` enrollments only: a player who left, was banned or is pending gets none (FR-1703).
   - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.

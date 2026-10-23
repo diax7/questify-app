@@ -2530,3 +2530,28 @@ sheet and pays on its `sharedAction` (Android always reports it: the cost ADR-03
 by default; creating a share quest is turning it on, and the event's switch off hides every share quest and refuses the
 payment. The API checks the composed config.
 **Why:** ADR-034 (reward on trust, one per player, organizer's switch); features are composed in one place (T-007).
+
+## ADR-200 — T-304 splits into four
+**Status:** Proposed (Claude, 2026-10-24; T-304). Q-164.
+**Decision:** T-304 builds the category rules and the points bonus (FR-231 to FR-235). T-304b builds passport quests
+(FR-224). T-304c builds daily and weekly refresh (FR-236, FR-1619) and hidden categories (FR-237). T-304d builds item
+rewards for a quest or category (FR-522, FR-1617). FR-238 (reveal a hidden category by hint push) moves to T-501.
+**Why:** each part needs its own mechanism (a step proof, a period clock, a desk item source); the rules and the bonus
+share one idea of "done" that the others build on. Push does not exist before T-501.
+
+## ADR-201 — Category gates
+**Status:** Proposed (Claude, 2026-10-24; T-304). Q-165.
+**Decision:** a category may open at a set time, unlock after one other category (no self, no cycle) and require its
+quests in order. The gates bind the player's paths and the operator's station scan; an owner's or editor's manual award
+passes them. A quest is done with a completion, or a quiz finished with no right answers; a category is done when each
+of its visible quests is. A quiz already started finishes and pays under a lock set later.
+**Why:** staff fix problems by hand and already pass the method check; a zero-right quiz is finished play (FR-208).
+
+## ADR-202 — The completion bonus
+**Status:** Proposed (Claude, 2026-10-24; T-304). Q-166.
+**Decision:** a category's bonus is points (score and balance), paid once per player by the database in the
+transaction whose completion finishes the category (ledger kind `bonus`, actor `system`), at the amount set then, with
+no XP. Removing any of its quests' completions reverses the bonus, and finishing the category again pays it again. A
+quest added later does not take a paid bonus back.
+**Why:** FR-231; the ledger is the one source of points (ADR-111) and the database already holds the enrollment lock
+that makes "last quest" safe under races.

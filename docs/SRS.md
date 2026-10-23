@@ -968,7 +968,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-235 | F-98 | Should | pending |
 | FR-236 | F-51 | Should | pending |
 | FR-237 | F-99 | Could | pending |
-| FR-238 | F-99 | Could | pending |
+| FR-238 | F-99 | Could | pending (T-501, ADR-200) |
 | FR-239 | F-100 | Should | pending |
 | FR-240 | F-100 | Should | pending |
 | FR-241 | F-100 | Should | pending |

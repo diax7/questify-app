@@ -278,3 +278,15 @@ question kinds, or a different rating scale?
 ## Q-163 — Share quests default (2026-10-24, T-303)
 ADR-199: `shareQuests` is on by default (creating a share quest turns it on); the switch hides them. ADR-034 said the
 organizer "turns share quests on"; is on-by-default fine?
+
+## Q-164 — T-304 split (2026-10-24, T-304)
+ADR-200: T-304 = category rules and the points bonus; T-304b = passport; T-304c = refresh and hidden categories;
+T-304d = item rewards; the hint-push reveal (FR-238) waits for push (T-501). Agree, or want another part first?
+
+## Q-165 — Who the category gates bind (2026-10-24, T-304)
+ADR-201: opens-at, unlock-after and in-order bind players and station scans; an owner's or editor's manual award passes
+them. Agree, or should manual awards obey them too?
+
+## Q-166 — Completion bonus rules (2026-10-24, T-304)
+ADR-202: the bonus is points with no XP; removing a quest's completion takes the bonus back. Agree, or should a bonus
+also give XP, or stay once paid?
