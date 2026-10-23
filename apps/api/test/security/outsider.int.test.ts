@@ -128,6 +128,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot stamp a passport step or read either table (T-304b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.passport_step",
+        "SELECT * FROM public.passport_stamp",
+        "SELECT * FROM public.stamp_step(gen_random_uuid(), 1, 'k', NULL)",
+        "SELECT * FROM public.member_passport(gen_random_uuid())",
+        "SELECT * FROM public.stamped_steps(gen_random_uuid())",
+        "SELECT public.passport_shape_check(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

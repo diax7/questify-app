@@ -167,6 +167,32 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  passport_step: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO passport_step (event_id, quest_id, name_en) VALUES ($1, gen_random_uuid(), 'Stolen')",
+          values: [f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden:
+          "players read a passport's steps through member_passport (T-304b), not this table",
+        forge: (f) => ({
+          sql: "INSERT INTO passport_step (event_id, quest_id, name_en) VALUES ($1, gen_random_uuid(), 'Mine now')",
+          values: [f.eventA],
+        }),
+      },
+    ],
+  },
   reward: {
     probes: [
       {
@@ -840,6 +866,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by submit_survey, read by the event's team as totals and texts with names not shown through survey_summary; players read only whether they answered, through member_survey (test/db/challenge-survey-share)",
   category_bonus:
     "no right for the API role at all; written by pay_category_bonus inside the paying definers, read by the player through own_bonus, own_category_bonus and member_event_quests (test/db/category-rules)",
+  passport_stamp:
+    "no right for the API role at all; written by stamp_step for the calling player, read by the player through member_passport and member_event_quests and by the event's team as step ids through stamped_steps and submitters_of (test/db/passport)",
   quiz_attempt:
     "no right for the API role at all; written by quiz_start, quiz_next, quiz_answer and the sweep, read by the player through member_quiz (test/db/vote-quiz)",
   quiz_answer:
@@ -1022,6 +1050,18 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
         "INSERT INTO quest (event_id, category_id, type, title_en, points) SELECT $1, id, 'scan_qr', 'Seeded', 5 FROM category WHERE event_id = $1",
         [event],
       );
+      // A passport and its step in one transaction: a passport is never left with fewer steps than it needs.
+      await run("BEGIN", []);
+      await run(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, verification)
+         SELECT $1, id, 'passport', 'Seeded passport', 5, '{"needed":1}', '{}' FROM category WHERE event_id = $1`,
+        [event],
+      );
+      await run(
+        "INSERT INTO passport_step (event_id, quest_id, name_en) SELECT $1, id, 'Seeded' FROM quest WHERE event_id = $1 AND type = 'passport'",
+        [event],
+      );
+      await run("COMMIT", []);
       await run(
         "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Seeded', 1, 5)",
         [event],
