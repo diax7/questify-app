@@ -5,6 +5,7 @@ import {
   abilityOff,
   alreadyCompleted,
   alreadyRemoved,
+  resultsFinal,
   enrollmentInactive,
   idempotencyKeyReused,
   invalidRequest,
@@ -176,6 +177,8 @@ export function refuse(result: AwardRefusal): never {
       throw notRemovable();
     case "removal_closed":
       throw removalClosed();
+    case "results_final":
+      throw resultsFinal();
     case "too_many_lines":
       throw tooManyLines();
   }

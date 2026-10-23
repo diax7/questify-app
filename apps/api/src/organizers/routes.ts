@@ -26,6 +26,7 @@ import { registerEventRoutes } from "#src/events/routes";
 import { registerJoinSetupRoutes } from "#src/join/setup-routes";
 import { registerAwardRoutes } from "#src/awards/routes";
 import { registerFlagRoutes } from "#src/flags/routes";
+import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { OperatorsDeps } from "#src/operators/operators";
 import { registerOperatorRoutes } from "#src/operators/routes";
@@ -219,6 +220,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
       registerFlagRoutes(scope, { pool: deps.pool });
+      registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);
       registerJoinSetupRoutes(scope, { pool: deps.pool });
     },

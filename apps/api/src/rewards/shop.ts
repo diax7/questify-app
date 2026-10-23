@@ -61,7 +61,8 @@ export type ReserveResult =
   | Readonly<{ kind: "limit_reached"; limit: number }>
   | Readonly<{ kind: "not_enough_balance" }>
   | Readonly<{ kind: "redeem_paused" }>
-  | Readonly<{ kind: "reservation_ended"; status: string }>;
+  | Readonly<{ kind: "reservation_ended"; status: string }>
+  | Readonly<{ kind: "rank_prize" }>;
 
 /** The SQLSTATEs of `reserve_reward` and `cancel_redemption` (migration 0024). */
 const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
@@ -77,6 +78,8 @@ const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
   RB422: () => ({ kind: "not_enough_balance" }),
   RP403: () => ({ kind: "redeem_paused" }),
   RE409: (detail) => ({ kind: "reservation_ended", status: detail }),
+  // A rank prize is not its winner's to cancel (migration 0034).
+  RZ409: () => ({ kind: "rank_prize" }),
 };
 
 /** Runs one shop call as the player; a refusal the database raises becomes its result, anything else is thrown. */
@@ -254,6 +257,7 @@ export function readShop(
           endedAt: iso(d["ended_at"]),
           collectUntil: iso(d["collect_until"]),
           offerUntil: iso(d["offer_until"]),
+          rank: d["rank"] ?? null,
           ...reveal(
             deps,
             { id: d["id"], rewardId: d["reward_id"], kind: d["kind"], status: d["status"] },

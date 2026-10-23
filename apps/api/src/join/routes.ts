@@ -29,6 +29,7 @@ import {
   myEvents,
   myInvitations,
   questsByCode,
+  rulesByCode,
   type JoinAnswers,
   type JoinDeps,
   type JoinOutcome,
@@ -175,6 +176,21 @@ function registerBrowseRoutes(app: FastifyInstance, deps: JoinDeps): void {
         throw notFound();
       }
       return { event, card: cardInForce(event.join.fields.length > 0) };
+    },
+  );
+
+  app.get(
+    "/v1/public/events/:joinCode/rules",
+    { config: { access: "public" } },
+    async (request, reply) => {
+      const found = await rulesByCode(deps, request.ip, codeOf(request.params));
+      if (isThrottled(found)) {
+        return throttled(reply, found.retryAfterSeconds);
+      }
+      if (found === null || found.rules === null) {
+        throw notFound();
+      }
+      return { rules: found.rules };
     },
   );
 

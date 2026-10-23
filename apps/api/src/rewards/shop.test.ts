@@ -344,6 +344,7 @@ describe("readShop", () => {
           endedAt: "2030-01-02T10:00:00.000Z",
           collectUntil: "2030-01-01T10:00:00.000Z",
           offerUntil: null,
+          rank: null,
         },
       ],
     });

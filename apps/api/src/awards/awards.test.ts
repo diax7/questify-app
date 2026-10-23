@@ -98,6 +98,7 @@ describe("refusals (migration 0030's SQLSTATEs)", () => {
     ["AO409", undefined, undefined, { kind: "open_reservation" }],
     ["AT422", undefined, undefined, { kind: "not_removable" }],
     ["AS409", undefined, undefined, { kind: "removal_closed" }],
+    ["RF409", "results_final", undefined, { kind: "results_final" }],
     ["AB400", undefined, undefined, { kind: "too_many_lines" }],
   ] as const)("answers %s (%s, %s) as its refusal", async (code, detail, hint, expected) => {
     const { deps } = fakePool(() => pgError(code, detail, hint));

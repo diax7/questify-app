@@ -12,6 +12,7 @@ import {
   redeemPaused,
   notFound,
   ownerOnly,
+  rankPrizeKept,
   reservationEnded,
   rewardLimitReached,
   rewardNotOpen,
@@ -268,6 +269,8 @@ function refusal(result: Exclude<ReserveResult, { kind: "done" }>): never {
       throw redeemPaused();
     case "reservation_ended":
       throw reservationEnded({ status: result.status });
+    case "rank_prize":
+      throw rankPrizeKept();
   }
 }
 

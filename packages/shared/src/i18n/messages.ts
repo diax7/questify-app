@@ -1990,6 +1990,39 @@ export const MESSAGES = {
     ar: "بحثت كثيرًا. انتظر قليلًا ثم حاول.",
     en: "Too many searches. Wait a little, then try again.",
   },
+  "rules.title": { ar: "القواعد الرسمية", en: "Official rules" },
+  "rules.administrator": {
+    ar: "تدير Questify هذه المسابقة نيابةً عن منظّم الفعالية {organizer}، وهو من يقدّم الجوائز.",
+    en: "Questify runs this contest on behalf of the event's organizer, {organizer}, who provides the prizes.",
+  },
+  "rules.notSponsors": {
+    ar: "Apple وGoogle ليستا راعيتين لهذه المسابقة ولا علاقة لهما بها بأي شكل.",
+    en: "Apple and Google are not sponsors of this contest and are not involved in it in any way.",
+  },
+  "rules.free": {
+    ar: "المشاركة والفوز لا يتطلبان أي شراء أو دفع.",
+    en: "No purchase or payment is needed to take part or to win.",
+  },
+  "rules.howWinners": {
+    ar: "الفائزون هم أصحاب أعلى نقاط نهائية عند انتهاء الفعالية. عند التعادل يتقدّم من بلغ النقاط أولًا. لا يحق الفوز لفريق المنظّم وطاقم الفعالية واللاعبين المحظورين ومن في قائمة الاستبعاد.",
+    en: "Winners are the players with the highest final score when the event ends. A tie goes to whoever reached that score first. The organizer's team, event staff, banned players and anyone on the event's exclusion list cannot win.",
+  },
+  "rules.winnerCount": { ar: "عدد الفائزين: {count}", en: "Number of winners: {count}" },
+  "rules.prizeOne": { ar: "المركز {rank}: {prize}", en: "Rank {rank}: {prize}" },
+  "rules.prizeRange": {
+    ar: "المراكز {from} إلى {to}: {prize}",
+    en: "Ranks {from} to {to}: {prize}",
+  },
+  "rules.ends": { ar: "تنتهي الفعالية: {time}", en: "The event ends: {time}" },
+  "rules.claimLater": {
+    ar: "يستلم الفائزون جوائزهم من منصة الجوائز قبل الموعد الذي يعلنه المنظّم مع أسماء الفائزين. الجائزة التي لا تُستلم في موعدها تسقط.",
+    en: "Winners collect their prize at the prize desk before the deadline the organizer announces with the winners. A prize not collected by then is forfeited.",
+  },
+  "rules.claimBy": {
+    ar: "يستلم الفائزون جوائزهم من منصة الجوائز قبل {deadline}. الجائزة التي لا تُستلم في موعدها تسقط.",
+    en: "Winners collect their prize at the prize desk by {deadline}. A prize not collected by then is forfeited.",
+  },
+  "rules.organizerText": { ar: "قواعد المنظّم", en: "The organizer's rules" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

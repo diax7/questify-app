@@ -28,6 +28,7 @@ import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
+import { registerResultsPlayerRoutes } from "#src/results/routes";
 import { registerRehearsalPlayerRoutes } from "#src/rehearsal/routes";
 import { createRehearsal } from "#src/rehearsal/service";
 import { registerContactRoutes } from "#src/players/contact";
@@ -239,6 +240,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     keys: signInDeps.keys,
   });
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  registerResultsPlayerRoutes(app, { pool: options.pool });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
     pool: options.pool,

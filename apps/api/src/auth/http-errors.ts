@@ -843,3 +843,63 @@ export const rehearsalData = make(
   "في هذه الفعالية بيانات تجربة. امسحها أولًا.",
   "This event has rehearsal data. Erase rehearsal first.",
 );
+export const resultsFinal = make(
+  409,
+  "results_final",
+  "النتائج مؤكَّدة، فلا يمكن تغيير النقاط أو الجوائز بعد الآن.",
+  "The results are confirmed, so points and prizes can't change any more.",
+);
+export const rankPrizeKept = make(
+  409,
+  "rank_prize",
+  "جائزة الترتيب لا تُلغى من التطبيق. تواصل مع فريق الفعالية.",
+  "A rank prize can't be cancelled in the app. Ask the event team.",
+);
+export const resultsNotEnded = make(
+  409,
+  "not_ended",
+  "تُؤكَّد النتائج بعد انتهاء الفعالية.",
+  "Results can be confirmed once the event has ended.",
+);
+export const resultsChanged = make(
+  409,
+  "results_changed",
+  "تغيّرت المراكز منذ أن عرضتها. راجعها من جديد ثم أكّد.",
+  "The places changed since you looked. Check them again, then confirm.",
+);
+export const resultsNotConfirmed = make(
+  409,
+  "not_confirmed",
+  "أكّد النتائج أولًا.",
+  "Confirm the results first.",
+);
+export const badDeadline = make(
+  409,
+  "bad_deadline",
+  "اختر موعدًا للاستلام بعد ساعة على الأقل وخلال 60 يومًا.",
+  "Pick a claim deadline at least 1 hour away and within 60 days.",
+);
+export const deskClosedUntilDeadline = make(
+  409,
+  "desk_closed_until_deadline",
+  "منصة الجوائز لا تفتح قبل هذا الموعد. أضف ساعات عمل قبله أو اختر موعدًا أبعد.",
+  "The prize desk doesn't open before this deadline. Add desk hours before it or pick a later one.",
+);
+export const prizesLocked = make(
+  409,
+  "prizes_locked",
+  "بدأت الفعالية، فلا يمكن تغيير مراكز الجوائز. يمكنك تعديل الأسماء والأوصاف فقط.",
+  "The event has started, so prize ranks can't change. You can still edit names and descriptions.",
+);
+export const prizeOverlap = make(
+  409,
+  "overlap",
+  "جائزة أخرى تغطي بعض هذه المراكز.",
+  "Another prize already covers some of these ranks.",
+);
+export const prizeRemoved = make(
+  409,
+  "removed",
+  "حُذفت هذه الجائزة، فلا يمكن تعديلها.",
+  "This prize was removed, so it can't be edited.",
+);

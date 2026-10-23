@@ -112,3 +112,5 @@ export type { JoinFieldKind } from "./join/fields";
 export { JOIN_FIELD_KINDS, joinFieldKindKey, joinFieldLabel } from "./join/fields";
 export { JOIN_LINK_HOSTS, joinLink, parseJoinLink } from "./join/link";
 export { parseRehearsalCode } from "./join/rehearsal";
+export type { OfficialRules, RulesData, RulesPrize } from "./results/rules";
+export { officialRules } from "./results/rules";

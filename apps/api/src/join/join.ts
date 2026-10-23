@@ -1,4 +1,4 @@
-import type { JoinFieldKind } from "@questify/shared";
+import { officialRules, type JoinFieldKind, type OfficialRules } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { isEventFull } from "#src/activation/activation";
 import { addressBucket } from "#src/auth/normalize";
@@ -6,6 +6,7 @@ import type { AuthKeys } from "#src/auth/keys";
 import { BUCKETS, countRecent, forget, record } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { rulesDataOf } from "#src/results/results";
 
 export type JoinDeps = Readonly<{ pool: Pool; keys: AuthKeys }>;
 
@@ -345,6 +346,28 @@ export async function questsByCode(
         [code],
       );
       return groupQuests(rows);
+    }),
+  );
+}
+
+/**
+ * An event's official rules by its code (FR-1707, ADR-165), with the join card's visibility: null when the code names
+ * no visible event (a wrong code, counted against the address like the card's), `rules: null` for an event with no
+ * prizes and no organizer text.
+ */
+export async function rulesByCode(
+  deps: JoinDeps,
+  address: string,
+  code: string,
+): Promise<Readonly<{ rules: OfficialRules | null }> | null | Throttled> {
+  return withMissBudget(deps, [addressBudget(deps, address)], () =>
+    anonymously(deps.pool, async (client) => {
+      const { rows } = await client.query<{ rules: Record<string, unknown> | null }>(
+        "SELECT public_event_rules($1) AS rules",
+        [code],
+      );
+      const json = rows[0]?.rules ?? null;
+      return json === null ? null : { rules: officialRules(rulesDataOf(json)) };
     }),
   );
 }

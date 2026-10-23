@@ -239,6 +239,28 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the owner only (the scope's hook, then set_redeem_pause) (test/flags/routes, test/db/flags)",
   "PUT /v1/organizers/:organizerId/events/:eventId/flag-hold":
     "the owner only (the scope's hook, then set_flag_hold) (test/flags/routes, test/db/flags)",
+  "GET /v1/organizers/:organizerId/events/:eventId/rank-prizes":
+    "members inside their event limit; rank_prize under row-level security; another organizer's event answers 404 (test/results/routes, test/db/results)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/rank-prizes":
+    "members inside their event limit; the switch locks once live; audited (test/results/routes, test/db/results)",
+  "POST /v1/organizers/:organizerId/events/:eventId/rank-prizes":
+    "members inside their event limit; rank_prize under row-level security and its guard (overlap, live lock, frozen results); audited (test/results/routes, test/db/results)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/rank-prizes/:prizeId":
+    "members inside their event limit; a prize of another event answers 404; audited (test/results/routes, test/db/results)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/rank-prizes/:prizeId":
+    "members inside their event limit; a prize of another event answers 404; audited (test/results/routes, test/db/results)",
+  "GET /v1/organizers/:organizerId/events/:eventId/results":
+    "members inside their event limit, through results_state and results_places (award_event_of) (test/results/routes, test/db/results)",
+  "POST /v1/organizers/:organizerId/events/:eventId/results/confirm":
+    "the owner only (the scope's hook, then confirm_results), against the places the owner saw; audited (test/results/routes, test/db/results)",
+  "POST /v1/organizers/:organizerId/events/:eventId/results/reveal":
+    "the owner only (the scope's hook, then reveal_results); audited (test/results/routes, test/db/results)",
+  "GET /v1/events/:eventId/results":
+    "an active member of that event only, through event_results bound to the session; only the bearer's own prize is named; anyone else reads nothing (test/results/routes, test/db/results)",
+  "GET /v1/events/:eventId/rules":
+    "an active member of that event only, through event_rules bound to the session; anyone else 404 (test/results/routes, test/db/results)",
+  "GET /v1/public/events/:joinCode/rules":
+    "one event's official rules by its code, with the join card's visibility (never a draft or archived event); no player data; wrong codes are throttled (test/results/routes, test/db/results)",
   "POST /v1/operator/events/:eventId/find-player":
     "only an operator of that event with the award ability; exact username or phone among that event's members, never the exact status; 30 finds per operator in 10 minutes (test/awards/routes, test/db/awards)",
   "GET /v1/operator/events/:eventId/award":
@@ -308,6 +330,7 @@ const PUBLIC_ROUTES = [
   "GET /v1/public/events",
   "GET /v1/public/events/:joinCode",
   "GET /v1/public/events/:joinCode/quests",
+  "GET /v1/public/events/:joinCode/rules",
   "GET /v1/translations",
   "POST /v1/auth/code",
   "POST /v1/auth/logout",

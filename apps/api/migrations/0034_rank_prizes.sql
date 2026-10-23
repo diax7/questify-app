@@ -912,7 +912,8 @@ GRANT EXECUTE ON FUNCTION event_results(uuid) TO questify_app;
 
 -- ================================================================ official rules (FR-1707, ADR-165)
 -- What the fixed rules block is built from (the API writes the words, packages/shared): the switch, the active
--- prizes in rank order, the end time and zone, the claim deadline once revealed, and the organizer's own text.
+-- prizes in rank order, the organizer's name, the end time and zone, the claim deadline once revealed, and the
+-- organizer's own text.
 -- Internal.
 CREATE FUNCTION rules_of(ev event) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
@@ -923,6 +924,7 @@ CREATE FUNCTION rules_of(ev event) RETURNS jsonb
                                                    'nameAr', p.name_ar, 'nameEn', p.name_en) ORDER BY p.rank_from),
                       '[]')
       FROM rank_prize p WHERE p.event_id = ev.id AND p.status = 'active') ELSE '[]'::jsonb END,
+    'organizer', (SELECT o.name FROM organizer o WHERE o.id = ev.organizer_id),
     'endsAt', ev.ends_at,
     'timezone', ev.timezone,
     'claimUntil', (SELECT x.claim_until FROM event_result x WHERE x.event_id = ev.id),

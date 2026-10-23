@@ -278,7 +278,7 @@ export const audit = (
   entry: Readonly<{
     action: string;
     eventId: string;
-    target: { type: "category" | "quest" | "event" | "reward"; id: string };
+    target: { type: "category" | "quest" | "event" | "reward" | "rank_prize"; id: string };
     before?: Record<string, unknown>;
     after?: Record<string, unknown>;
   }>,

@@ -31,6 +31,7 @@ export type AwardRefusal =
   | Readonly<{ kind: "open_reservation" }>
   | Readonly<{ kind: "not_removable" }>
   | Readonly<{ kind: "removal_closed" }>
+  | Readonly<{ kind: "results_final" }>
   | Readonly<{ kind: "too_many_lines" }>;
 
 export type AwardDone<T> = Readonly<{ kind: "done"; value: T }> | AwardRefusal;
@@ -68,6 +69,8 @@ const REFUSALS: Readonly<Record<string, (detail: string, hint: string) => AwardR
   AO409: () => ({ kind: "open_reservation" }),
   AT422: () => ({ kind: "not_removable" }),
   AS409: () => ({ kind: "removal_closed" }),
+  // The results are confirmed (migration 0034): nothing comes off any more.
+  RF409: () => ({ kind: "results_final" }),
   AB400: () => ({ kind: "too_many_lines" }),
 };
 

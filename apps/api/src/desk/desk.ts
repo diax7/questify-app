@@ -130,6 +130,8 @@ export type DeskItem = Readonly<{
   /** This desk's own offer is live (desk_offer). */
   offered: boolean;
   offerUntil: string | null;
+  /** The winner's place for a rank prize (T-214); null for a shop item. */
+  rank: number | null;
 }>;
 
 export type Found = Readonly<{
@@ -164,6 +166,7 @@ export function foundOf(rows: readonly Readonly<Record<string, unknown>>[]): Fou
         ready: row["ready"] === true,
         offered: row["offered"] === true,
         offerUntil: iso(row["offer_until"]),
+        rank: typeof row["rank"] === "number" ? row["rank"] : null,
       })),
   };
 }

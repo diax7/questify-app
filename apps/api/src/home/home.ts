@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
+import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
 
 export type HomeDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
@@ -56,6 +57,8 @@ export type Home = Readonly<{
   upNext: UpNext | null;
   /** The pinned reward or the next reachable one (FR-803, T-213); null with no shop or nothing to reach. */
   goal: Goal | null;
+  /** The caller's rank prize while it waits at the desk, once the winners are revealed (FR-1718, T-214). */
+  win: MyPrize | null;
   rankingOn: boolean;
 }>;
 
@@ -304,7 +307,13 @@ export async function readHome(
       rehearsal: row.rehearsal,
     };
     if (row.status === "pending") {
-      return { event, standing: { status: "pending" as const }, upNext: null, goal: null };
+      return {
+        event,
+        standing: { status: "pending" as const },
+        upNext: null,
+        goal: null,
+        win: null,
+      };
     }
     const quests = (await questRows(client, eventId)).flatMap((category) => category.quests);
     const balance = Number(row.balance);
@@ -326,9 +335,16 @@ export async function readHome(
       goal: shopOn
         ? pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now)
         : null,
+      win: row.status_now === "ended" ? await waitingPrize(client, eventId) : null,
     };
   });
   return home === null ? null : { ...home, rankingOn };
+}
+
+/** The caller's revealed rank prize while it is still to collect. */
+async function waitingPrize(client: PoolClient, eventId: string): Promise<MyPrize | null> {
+  const { me } = await resultsFor(client, eventId);
+  return me?.status === "reserved" ? me : null;
 }
 
 /** One line of a player's points record (FR-410), as `member_activity` gives it (migration 0023). */

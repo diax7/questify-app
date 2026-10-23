@@ -175,6 +175,7 @@ describe("lookUp (FR-925)", () => {
         ready: true,
         offered: "yes",
         offer_until: null,
+        rank: 2,
       },
       {
         username: "sara_88",
@@ -217,6 +218,7 @@ describe("lookUp (FR-925)", () => {
             ready: true,
             offered: false,
             offerUntil: null,
+            rank: 2,
           },
           {
             id: "d2",
@@ -227,6 +229,7 @@ describe("lookUp (FR-925)", () => {
             ready: false,
             offered: true,
             offerUntil: LATER.toISOString(),
+            rank: null,
           },
         ],
       },
