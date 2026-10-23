@@ -1059,6 +1059,34 @@ export const notPassportQuest = make(
   "هذه المهمة ليست جوازًا.",
   "This quest is not a passport.",
 );
+export const notMeetQuest = make(
+  422,
+  "not_meet_quest",
+  "هذه المهمة ليست مهمة تعارف.",
+  "This quest is not a meet quest.",
+);
+/**
+ * A meeting refused (T-303c): `reason` says why, with `name` for already_met and `cap` for daily_cap. One code, three
+ * statuses: the code itself (422), a limit or the pair (409), who may meet (403).
+ */
+export const meetRefused422 = make(
+  422,
+  "meet_refused",
+  "تعذّر استخدام رمز التعارف هذا.",
+  "This meet code can't be used.",
+);
+export const meetRefused409 = make(
+  409,
+  "meet_refused",
+  "تعذّر التعارف الآن.",
+  "You can't meet right now.",
+);
+export const meetRefused403 = make(
+  403,
+  "meet_refused",
+  "تعذّر التعارف في هذه المهمة.",
+  "This meeting isn't open.",
+);
 /** A survey answer its question does not take; `question` names it (never the answer itself). */
 export const badAnswer = make(
   422,

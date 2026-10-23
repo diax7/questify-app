@@ -25,6 +25,28 @@ const STORED: QuestRecord = {
 const ZONE = "Asia/Riyadh";
 
 describe("mergeQuest", () => {
+  it("refuses a meet quest whose daily cap is above its repeat cap, and keeps one at or below it", () => {
+    const base = { categoryId: "c", title: { en: "Meet" }, points: 5 };
+    expect(mergeQuest(undefined, "meet", { ...base, repeatCap: 4 }, ZONE)).toEqual({
+      kind: "invalid",
+      field: "dailyCap",
+    });
+    expect(
+      mergeQuest(undefined, "meet", { ...base, repeatCap: 5, config: { dailyCap: 5 } }, ZONE),
+    ).toMatchObject({ repeatCap: 5, config: { dailyCap: 5 }, verification: [] });
+    expect(
+      mergeQuest(undefined, "meet", { ...base, repeatCap: 1, config: { dailyCap: 1 } }, ZONE),
+    ).toMatchObject({ repeatCap: 1, config: { dailyCap: 1 } });
+    expect(
+      mergeQuest(undefined, "meet", { ...base, repeatCap: 9, config: { dailyCap: 51 } }, ZONE),
+    ).toEqual({ kind: "invalid", field: "config" });
+    const stored: QuestRecord = { ...STORED, type: "meet", repeatCap: 10, config: { dailyCap: 5 } };
+    expect(mergeQuest(stored, "meet", { repeatCap: 4 }, ZONE)).toEqual({
+      kind: "invalid",
+      field: "dailyCap",
+    });
+  });
+
   it("fills a new quest's defaults", () => {
     expect(
       mergeQuest(undefined, "scan_qr", { categoryId: "c", title: { en: "Find" }, points: 5 }, ZONE),

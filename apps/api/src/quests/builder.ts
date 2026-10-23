@@ -76,7 +76,8 @@ export type QuestField =
   | "verification"
   | "needed"
   | "steps"
-  | "place";
+  | "place"
+  | "dailyCap";
 
 /** The refusals every builder action may give. */
 export type Refused =
@@ -220,14 +221,19 @@ export function mergeQuest(
   ) {
     return { kind: "invalid", field: "place" };
   }
+  // A vote, a quiz, a survey or a share is played once (ADR-191, ADR-198, ADR-199).
+  const repeatCap = QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1);
+  // A meet quest's day can never pay more meetings than its whole life (ADR-210).
+  if (type === "meet" && Number(config["dailyCap"]) > repeatCap) {
+    return { kind: "invalid", field: "dailyCap" };
+  }
   return {
     // Stryker disable next-line StringLiteral: a create always names its category (the route requires it)
     categoryId: input.categoryId ?? current?.categoryId ?? "",
     title,
     description: bilingual(input.description, current?.description ?? NO_TEXT),
     points,
-    // A vote, a quiz, a survey or a share is played once (ADR-191, ADR-198, ADR-199).
-    repeatCap: QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1),
+    repeatCap,
     opensAt,
     closesAt,
     visible: input.visible ?? current?.visible ?? true,

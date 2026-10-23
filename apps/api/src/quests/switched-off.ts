@@ -1,10 +1,14 @@
 import type { SettingsService } from "#src/settings/service";
 
 /** A quest type a feature switch hides, by the feature's key (T-303, FR-219, ADR-199). */
-const SWITCHED_TYPES: Readonly<Record<string, string>> = { share: "shareQuests" };
+const SWITCHED_TYPES: Readonly<Record<string, string>> = {
+  share: "shareQuests",
+  meet: "meetSomeone",
+};
 
 /**
- * The quest types the event's composed configuration switches off: a share quest while `shareQuests` is off. Every
+ * The quest types the event's composed configuration switches off: a share quest while `shareQuests` is off,
+ * a meet quest while `meetSomeone` is off. Every
  * player quest read goes through `withoutSwitchedOff`, so a switched-off quest is never shown, counted or offered.
  */
 export async function switchedOffTypes(

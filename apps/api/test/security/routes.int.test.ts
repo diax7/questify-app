@@ -138,6 +138,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only, for an event of that organizer; another organizer's event answers 404 (test/ranking/ranking)",
   "PUT /v1/organizers/:organizerId/events/:eventId/ranking-today":
     "the organizer's owner only, for an event of that organizer (the same handler as the ranking switch); an editor answers 403 (test/ranking/ranking)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/meet-someone":
+    "owner of that organizer only (owner route, walked below); changes only the meetSomeone switch of that event (test/plays/meet)",
+  "POST /v1/quests/:questId/meet-pass":
+    "the calling player's own active enrollment in the quest's event only; a code for the caller alone, kept as a hash, through issue_meet_pass (test/plays/meet, test/db/meet)",
+  "GET /v1/meet-passes/:passId":
+    "the calling player's own code only; another player's code answers 404, through meet_pass_state (test/plays/meet, test/db/meet)",
+  "POST /v1/meet":
+    "the scanner's own enrollment in the code's event only (not_in_event, naming no one, otherwise); the other player is named by username and avatar only, never their id, through meet_player (test/plays/meet, test/db/meet)",
   "PUT /v1/organizers/:organizerId/events/:eventId/share-quests":
     "the organizer's owner only, for an event of that organizer (the same handler as the ranking switch) (test/plays/survey-share, test/ranking/ranking)",
   "GET /v1/me":

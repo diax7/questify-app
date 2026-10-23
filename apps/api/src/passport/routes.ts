@@ -1,20 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { unauthenticated } from "#src/auth/http-errors";
-import { callerOf, parse } from "#src/auth/request";
+import { callerOf, deviceOf, parse } from "#src/auth/request";
 import { readPassport, stampStep, type PassportDeps } from "#src/passport/stamp";
 import { refuse } from "#src/plays/routes";
 import type { Ranking } from "#src/ranking/ranking";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const stampBody = z.strictObject({ code: z.string().min(1).max(200) });
 const stepParams = z.object({ stepId: z.uuid() });
 const questParams = z.object({ questId: z.uuid() });
-
-/** The app's install id, when it is one; anything else is ignored, never trusted. */
-const deviceOf = (header: unknown): string | undefined =>
-  typeof header === "string" && UUID.test(header) ? header.toLowerCase() : undefined;
 
 /**
  * Passport quests (T-304b, FR-224): `POST /v1/steps/:stepId/stamp` stamps a step with its printed code's token (an

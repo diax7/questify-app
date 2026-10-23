@@ -26,3 +26,9 @@ export function callerOf(request: FastifyRequest): Caller {
     requestId: request.id,
   };
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The app's install id (`x-device-id`), when it is one; anything else is ignored, never trusted. */
+export const deviceOf = (header: unknown): string | undefined =>
+  typeof header === "string" && UUID.test(header) ? header.toLowerCase() : undefined;

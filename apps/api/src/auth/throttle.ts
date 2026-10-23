@@ -30,6 +30,9 @@ export const BUCKETS = {
   contactFailPlayer: "contact_fail_player",
   awardFind: "award_find",
   deskFind: "desk_find",
+  meetPass: "meet_pass",
+  meetState: "meet_state",
+  meetRefused: "meet_refused",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

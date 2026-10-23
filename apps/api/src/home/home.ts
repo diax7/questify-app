@@ -39,6 +39,8 @@ export type MemberQuest = Readonly<{
   item: Text | null;
   /** A location quest's spot (T-303b), so the app can say how far it is; null for every other type. */
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
+  /** A meet quest's daily cap and this player's meetings today, either side (T-303c); null for every other type. */
+  meet: Readonly<{ dailyCap: number; today: number }> | null;
 }>;
 
 /** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
@@ -210,6 +212,8 @@ type QuestRow = Readonly<{
   place_lat: string | null;
   place_lng: string | null;
   place_radius_m: number | null;
+  daily_cap: number | null;
+  met_today: number | null;
 }>;
 
 /** An item's name, or null when the row names none. */
@@ -273,6 +277,10 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
         row.place_lat === null || row.place_lng === null || row.place_radius_m === null
           ? null
           : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
+      meet:
+        row.daily_cap === null || row.met_today === null
+          ? null
+          : { dailyCap: row.daily_cap, today: row.met_today },
     });
     categories.set(row.category_id, category);
   }

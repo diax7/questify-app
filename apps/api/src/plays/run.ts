@@ -23,6 +23,7 @@ export type PlayRefusal =
   | Readonly<{ kind: "not_survey_quest" }>
   | Readonly<{ kind: "not_share_quest" }>
   | Readonly<{ kind: "not_passport_quest" }>
+  | Readonly<{ kind: "not_meet_quest" }>
   /** A secret code posted for a category that is not hidden (T-304c). */
   | Readonly<{ kind: "not_hidden" }>
   /** A step's code that does not stamp this step (T-304b): one answer to the player, told apart in the log. */
@@ -54,6 +55,7 @@ const NOT_THIS_TYPE: Readonly<Record<string, PlayRefusal>> = {
   survey: { kind: "not_survey_quest" },
   share: { kind: "not_share_quest" },
   passport: { kind: "not_passport_quest" },
+  meet: { kind: "not_meet_quest" },
 };
 
 /** The SQLSTATEs of migrations 0041 and 0042's definers (and record_completion under vote_quest). */

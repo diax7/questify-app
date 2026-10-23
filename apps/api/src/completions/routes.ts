@@ -12,7 +12,7 @@ import {
   tooManyAttempts,
   unauthenticated,
 } from "#src/auth/http-errors";
-import { callerOf, parse } from "#src/auth/request";
+import { callerOf, deviceOf, parse } from "#src/auth/request";
 import {
   completeQuest,
   type CompletionDeps,
@@ -20,8 +20,6 @@ import {
   type Position,
 } from "#src/completions/complete";
 import type { Ranking } from "#src/ranking/ranking";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A reading as the database takes it (migration 0048's position_of holds the same rules). */
 const positionShape = z.strictObject({
@@ -43,7 +41,7 @@ const completeBody = z.strictObject({
 });
 
 /** A well-formed reading, or null: never the numbers in an error (the parse's issues are dropped unread). */
-function positionOf(value: unknown): Position | null | "bad" {
+export function positionOf(value: unknown): Position | null | "bad" {
   if (value === undefined || value === null) {
     return null;
   }
@@ -51,10 +49,6 @@ function positionOf(value: unknown): Position | null | "bad" {
   return parsed.success ? parsed.data : "bad";
 }
 const questParams = z.object({ questId: z.uuid() });
-
-/** The app's install id, when it is one; anything else is ignored, never trusted. */
-const deviceOf = (header: unknown): string | undefined =>
-  typeof header === "string" && UUID.test(header) ? header.toLowerCase() : undefined;
 
 function answer(reply: FastifyReply, result: Exclude<CompletionResult, { kind: "completed" }>) {
   switch (result.kind) {

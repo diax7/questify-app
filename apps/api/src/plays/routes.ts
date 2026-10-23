@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   alreadyAnswered,
@@ -9,7 +9,11 @@ import {
   enrollmentInactive,
   featureOff,
   idempotencyKeyReused,
+  meetRefused403,
+  meetRefused409,
+  meetRefused422,
   notFound,
+  notMeetQuest,
   notPassportQuest,
   notQuizQuest,
   notShareQuest,
@@ -21,10 +25,13 @@ import {
   questionNotServed,
   questNotOpen,
   quizNotStarted,
+  tooManyAttempts,
   unauthenticated,
   unknownOption,
 } from "#src/auth/http-errors";
-import { parse } from "#src/auth/request";
+import { callerOf, deviceOf, parse } from "#src/auth/request";
+import { locationQuestsOn } from "#src/completions/complete";
+import { positionOf } from "#src/completions/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import {
   answerQuestion,
@@ -33,6 +40,14 @@ import {
   startQuiz,
   type QuizStep,
 } from "#src/plays/quizzes";
+import {
+  issueMeetPass,
+  meetPassState,
+  meetPlayer,
+  type MeetDeps,
+  type MeetOutcome,
+  type MeetReason,
+} from "#src/plays/meet";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
@@ -91,6 +106,8 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw notShareQuest();
     case "not_passport_quest":
       throw notPassportQuest();
+    case "not_meet_quest":
+      throw notMeetQuest();
     case "not_hidden":
       throw categoryNotHidden();
     case "invalid_code":
@@ -220,6 +237,105 @@ export function registerPlayRoutes(
       await answerQuestion(deps, { playerId, questId, questionId, choiceId }),
     );
     return withRank(deps, playerId, answered);
+  });
+}
+
+const meetBody = z.strictObject({
+  code: z.string().min(1).max(200),
+  position: z.unknown().optional(),
+});
+const passParams = z.object({ passId: z.string().regex(/^[1-9][0-9]{0,17}$/) });
+
+/** Which answer each meet refusal gets: the code itself (422), a limit or the pair (409), who may meet (403). */
+const MEET_STATUS: Readonly<Record<MeetReason, typeof meetRefused422>> = {
+  bad_code: meetRefused422,
+  expired: meetRefused422,
+  used: meetRefused422,
+  self: meetRefused422,
+  same_device: meetRefused422,
+  already_met: meetRefused409,
+  daily_cap: meetRefused409,
+  their_daily_cap: meetRefused409,
+  done: meetRefused409,
+  their_done: meetRefused409,
+  not_in_event: meetRefused403,
+  not_for_them: meetRefused403,
+};
+
+/** A meet call's answer, or its refusal thrown (API.md, meet-someone). */
+function meetValueOf<T>(reply: FastifyReply, result: MeetOutcome<T>): T {
+  switch (result.kind) {
+    case "done":
+      return result.value;
+    case "meet_refused":
+      throw MEET_STATUS[result.reason]({
+        reason: result.reason,
+        ...(result.name === null ? {} : { name: result.name }),
+        ...(result.cap === null ? {} : { cap: result.cap }),
+      });
+    case "too_many_attempts":
+      reply.header("retry-after", String(result.retryAfterSeconds));
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    default:
+      return refuse(result);
+  }
+}
+
+/**
+ * Meet-someone (T-303c, FR-212, FR-213): the shown player asks for a one-minute code and polls its state; the scanner
+ * posts it (Idempotency-Key required) and both are paid. Both players' places move after a paying meeting. The code
+ * travels only in the body; a malformed position is dropped, and passed on only while location quests are on.
+ */
+export function registerMeetRoutes(
+  app: FastifyInstance,
+  deps: MeetDeps & RankingDeps & Readonly<{ settings: SettingsService }>,
+): void {
+  app.post("/v1/quests/:questId/meet-pass", player, async (request, reply) => {
+    const { questId } = parse(questParams, request.params);
+    parse(emptyBody, request.body);
+    const pass = meetValueOf(
+      reply,
+      await issueMeetPass(deps, {
+        playerId: playerIdOf(request),
+        questId,
+        deviceId: deviceOf(request.headers["x-device-id"]),
+      }),
+    );
+    return reply.code(201).send(pass);
+  });
+
+  app.get("/v1/meet-passes/:passId", player, async (request, reply) => {
+    const { passId } = parse(passParams, request.params);
+    return meetValueOf(reply, await meetPassState(deps, { playerId: playerIdOf(request), passId }));
+  });
+
+  app.post("/v1/meet", playerIdempotent, async (request, reply) => {
+    const body = parse(meetBody, request.body);
+    const playerId = playerIdOf(request);
+    const reading = positionOf(body.position);
+    const position =
+      reading === null || reading === "bad" || !(await locationQuestsOn(deps.settings))
+        ? null
+        : reading;
+    const { answer, other } = meetValueOf(
+      reply,
+      await meetPlayer(
+        deps,
+        {
+          playerId,
+          code: body.code,
+          idempotencyKey: String(request.headers["idempotency-key"]),
+          deviceId: deviceOf(request.headers["x-device-id"]),
+          position,
+        },
+        callerOf(request),
+      ),
+    );
+    const rank = await deps.ranking.afterCompletion(playerId, answer.completionId);
+    if (!answer.replayed) {
+      await deps.ranking.afterCompletion(other.playerId, other.completionId);
+    }
+    return { ...answer, rank };
   });
 }
 
