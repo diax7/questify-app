@@ -203,19 +203,25 @@ export type StartRequest = Readonly<{
   engineVersions: Readonly<Record<string, number>>;
 }>;
 
-/** Issues the round, or answers that the app must update first; the engine check runs before an attempt is used. */
+/** The server's engine version for the quest's game, or that the app must update first (no attempt used). */
+async function engineCheck(
+  client: PoolClient,
+  request: StartRequest,
+): Promise<number | "update_required"> {
+  const { rows } = await client.query<{ game: string }>("SELECT game FROM member_game($1)", [
+    request.questId,
+  ]);
+  const game = gameOf(rows[0]?.game ?? "");
+  const server = ENGINE_VERSIONS[game];
+  return (request.engineVersions[game] ?? 0) < server ? "update_required" : server;
+}
+
+/** Issues the round with the server's engine version for its game. */
 async function issue(
   client: PoolClient,
   request: StartRequest,
-): Promise<IssuedRound | "update_required"> {
-  const { rows: named } = await client.query<{ game: string }>("SELECT game FROM member_game($1)", [
-    request.questId,
-  ]);
-  const game = gameOf(named[0]?.game ?? "");
-  const server = ENGINE_VERSIONS[game];
-  if ((request.engineVersions[game] ?? 0) < server) {
-    return "update_required";
-  }
+  server: number,
+): Promise<IssuedRound> {
   const { rows } = await client.query<RoundRow>("SELECT * FROM start_game_round($1, $2, $3, $4)", [
     request.questId,
     request.idempotencyKey,
@@ -236,17 +242,21 @@ export async function startRound(
   if (!(await gamesPlatformOn(deps.settings))) {
     return { kind: "feature_off" };
   }
+  const engine = await run(deps, { playerId: request.playerId }, (client) =>
+    engineCheck(client, request),
+  );
+  if (engine.kind !== "done") {
+    return engine;
+  }
+  const server = engine.value;
+  if (server === "update_required") {
+    return { kind: "update_required" };
+  }
   const wait = await heldBack(deps, request.playerId, ROUND_LIMIT, true);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };
   }
-  const issued = await run(deps, { playerId: request.playerId }, (client) =>
-    issue(client, request),
-  );
-  if (issued.kind === "done" && issued.value === "update_required") {
-    return { kind: "update_required" };
-  }
-  return issued as Done<IssuedRound>;
+  return run(deps, { playerId: request.playerId }, (client) => issue(client, request, server));
 }
 
 type ReplayRow = Readonly<{ game: string; seed: number; params: unknown; engine_version: number }>;
@@ -260,6 +270,7 @@ type FinishRow = Readonly<{
   attempts_left: number | null;
   replayed: boolean;
   result: unknown;
+  reason: string | null;
 }>;
 
 export type ResultRequest = Readonly<{
@@ -285,7 +296,7 @@ async function finishOf(
   request: ResultRequest,
   judgement: Judgement,
   target: GameTarget,
-): Promise<GameResult | Readonly<{ impossible: number | null }>> {
+): Promise<Readonly<{ verdict: string; reason: string | null; answer: GameResult | Refused }>> {
   const [verdict, result, reason, unlikely] = verdictArgs(judgement);
   const { rows } = await client.query<FinishRow>(
     "SELECT * FROM finish_game_round($1, $2, $3, $4, $5, $6, $7)",
@@ -301,10 +312,10 @@ async function finishOf(
   );
   const row = rows[0] as FinishRow;
   if (row.verdict === "refused") {
-    return { impossible: row.attempts_left };
+    return { verdict: row.verdict, reason: row.reason, answer: { impossible: row.attempts_left } };
   }
   const paid = row.completion_id;
-  return {
+  const answer: GameResult = {
     verdict: row.verdict,
     result: row.result,
     target,
@@ -318,7 +329,11 @@ async function finishOf(
     bonus: paid === null ? null : await bonusPaid(client, paid),
     item: paid === null ? null : await itemGiven(client, paid),
   };
+  return { verdict: row.verdict, reason: row.reason, answer };
 }
+
+/** A refused round: it counted as played; the attempts left are the only thing the player is told. */
+type Refused = Readonly<{ impossible: number | null }>;
 
 /**
  * Takes a round's result (ADR-212): reads the frozen round (the caller's own, else not found), replays the phone's
@@ -354,15 +369,19 @@ export async function sendResult(
   const finished = await run(deps, { playerId: request.playerId }, (client) =>
     finishOf(client, request, judgement, target),
   );
+  // The database's own verdict and reason: it may turn a pass into `clock`, or answer a replayed key's first result.
   caller.log("game.result", {
     game,
-    verdict: finished.kind === "done" ? judgement.verdict : finished.kind,
-    reason: judgement.verdict === "refused" ? judgement.reason : "",
+    verdict: finished.kind === "done" ? finished.value.verdict : finished.kind,
+    reason: finished.kind === "done" ? (finished.value.reason ?? "") : "",
   });
-  if (finished.kind === "done" && "impossible" in finished.value) {
-    return { kind: "impossible", attemptsLeft: finished.value.impossible };
+  if (finished.kind !== "done") {
+    return finished;
   }
-  return finished as Done<GameResult>;
+  const { answer } = finished.value;
+  return "impossible" in answer
+    ? { kind: "impossible", attemptsLeft: answer.impossible }
+    : { kind: "done", value: answer };
 }
 
 /** Rounds closed per tick at most; the next tick takes the rest. */

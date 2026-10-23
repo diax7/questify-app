@@ -191,14 +191,15 @@ END $$;
 REVOKE ALL ON FUNCTION raise_game_flag(game_round, text) FROM PUBLIC;
 
 -- What a result is answered: the verdict (`done` for a pass on a quest already completed, which pays nothing), the
--- completion and its points, the member's score and balance, the attempts left, the replay mark and the replayed result.
+-- completion and its points, the member's score and balance, the attempts left, the replay mark, the replayed result,
+-- and the refusal's reason (for the API's log only: never sent to the player).
 CREATE FUNCTION game_answer(played game_round, replay boolean)
   RETURNS TABLE (verdict text, completion_id bigint, points bigint, score bigint, balance bigint,
-                 attempts_left integer, replayed boolean, result jsonb)
+                 attempts_left integer, replayed boolean, result jsonb, reason text)
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT CASE WHEN played.status = 'passed' AND played.completion_id IS NULL THEN 'done' ELSE played.status END,
          played.completion_id, l.score_delta, n.score, n.balance,
-         game_left(n.id, q), replay, played.result
+         game_left(n.id, q), replay, played.result, played.reason
   FROM enrollment n
   JOIN quest q ON q.id = played.quest_id
   LEFT JOIN ledger_entry l ON l.completion_id = played.completion_id AND l.kind = 'quest'
@@ -325,7 +326,7 @@ GRANT EXECUTE ON FUNCTION game_round_for_replay(bigint) TO questify_app;
 CREATE FUNCTION finish_game_round(target bigint, result_key text, given_verdict text, given_result jsonb,
                                   given_reason text, given_unlikely boolean, last_input_ms integer)
   RETURNS TABLE (verdict text, completion_id bigint, points bigint, score bigint, balance bigint,
-                 attempts_left integer, replayed boolean, result jsonb)
+                 attempts_left integer, replayed boolean, result jsonb, reason text)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   me        uuid := app_player_id();
@@ -364,7 +365,14 @@ BEGIN
 
   PERFORM ensure_rehearsal_wiped(played.event_id);
   SELECT * INTO enrolled FROM enrollment n WHERE n.id = played.enrollment_id FOR NO KEY UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'round not found' USING ERRCODE = 'QC404';
+  END IF;
   SELECT * INTO played FROM game_round r WHERE r.id = played.id FOR UPDATE;
+  -- The rehearsal wipe deleted it while this waited on the locks.
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'round not found' USING ERRCODE = 'QC404';
+  END IF;
   -- A duplicate that waited on the first result's locks answers it, never `finished`.
   IF played.result_key IS NOT DISTINCT FROM finish_game_round.result_key THEN
     RETURN QUERY SELECT * FROM game_answer(played, true);
@@ -441,7 +449,8 @@ GRANT EXECUTE ON FUNCTION member_game(uuid) TO questify_app;
 
 -- ================================================================ the sweep and leaving
 -- Closes one round past its window (`expired`), under the event, the enrollment then the round lock (the quiz sweep's
--- order), as the lifecycle tick's system call (nothing for any other caller). When that was the member's last attempt
+-- order), as the lifecycle tick's system call (nothing for any other caller). A round another caller closed (or the
+-- rehearsal wipe deleted) while this waited on its locks is passed over. When that was the member's last attempt
 -- the quest is now done and the category bonus may pay. A round whose closing fails is closed with an audit entry (its
 -- error code only), so one bad round never stalls the sweep. Answers 'expired', or NULL when nothing is due.
 CREATE FUNCTION close_one_due_round() RETURNS text
@@ -459,8 +468,9 @@ BEGIN
     PERFORM ensure_rehearsal_wiped(due.event_id);
     PERFORM 1 FROM event e WHERE e.id = due.event_id FOR KEY SHARE;
     SELECT * INTO enrolled FROM enrollment n WHERE n.id = due.enrollment_id FOR NO KEY UPDATE;
+    CONTINUE WHEN NOT FOUND;
     SELECT * INTO due FROM game_round r WHERE r.id = due.id FOR UPDATE;
-    CONTINUE WHEN due.status <> 'open';
+    CONTINUE WHEN NOT FOUND OR due.status <> 'open';
     UPDATE game_round r SET status = 'expired', finished_at = now() WHERE r.id = due.id;
     BEGIN
       SELECT * INTO quest_row FROM quest q WHERE q.id = due.quest_id;

@@ -7,9 +7,9 @@ import {
   targetWords,
   type Theme,
 } from "@questify/shared";
-import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useEffect, useState } from "react";
+import { Alert, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
@@ -99,6 +99,25 @@ export default function GameScreen() {
   const styles = useThemedStyles(makeStyles);
   const round = games.round(String(roundId));
   const [stage, setStage] = useState<Stage>({ kind: "intro" });
+  const navigation = useNavigation();
+  const playing = stage.kind === "play";
+  // Leaving mid-play (back, a swipe, the system button) asks first: the round already used its attempt.
+  useEffect(() => {
+    if (!playing) {
+      return undefined;
+    }
+    return navigation.addListener("beforeRemove", (leaving) => {
+      leaving.preventDefault();
+      Alert.alert(t("play.game.leaveTitle"), t("play.game.leaveBody"), [
+        { text: t("play.game.keepPlaying"), style: "cancel" },
+        {
+          text: t("play.game.leave"),
+          style: "destructive",
+          onPress: () => navigation.dispatch(leaving.data.action),
+        },
+      ]);
+    });
+  }, [playing, navigation, t]);
 
   const send = async (pending: PendingResult) => {
     setStage({ kind: "sending" });

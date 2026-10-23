@@ -378,6 +378,14 @@ slide puzzle 3×3 lightly or fully shuffled in 180 seconds, or 4×4 in 300 secon
 the larger boards), or a puzzle solved in fewer moves than its shuffle at under 300 ms a move. Keep as a start and tune
 after a playtest?
 
+## Q-180 — A mini-game result sent after the event ends (2026-10-24, T-305 code review)
+A round finished just before the event's end, whose result could not be sent, is refused once the event has ended:
+`finish_game_round` re-checks that the player may still play (`quest_open_check` answers `ended`), writes nothing, and
+the sweep then closes the round as played at its deadline. That cuts FR-1809's 10-minute Retry short at the event's
+end (and at the quest's own close). **Recommended (Proposed):** take a result inside its window when the round was
+issued while the quest was open, re-checking only the account, the membership and that results are not final (the
+quiz's payable rule, `game_payable`), as a quiz finished by the sweep after the event ends still pays. Agree?
+
 ## Q-179 — Mini-games in three parts (2026-10-24, T-305)
 ADR-214: memory match and slide puzzle first (T-305), catch and tap rush next (T-305c), organizer images once a
 Questify bucket exists (T-305b, blocked on Q-149). Agree?

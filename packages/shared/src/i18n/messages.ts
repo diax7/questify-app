@@ -3282,6 +3282,13 @@ export const MESSAGES = {
   "play.game.timeUp": { ar: "انتهى الوقت.", en: "Time's up." },
   "play.game.sending": { ar: "جارٍ إرسال نتيجتك…", en: "Sending your result…" },
   "play.game.back": { ar: "العودة إلى المهام", en: "Back to quests" },
+  "play.game.leaveTitle": { ar: "مغادرة الجولة؟", en: "Leave this round?" },
+  "play.game.leaveBody": {
+    ar: "إن غادرت الآن، تُحتسب هذه الجولة محاولةً.",
+    en: "Leaving now uses this attempt.",
+  },
+  "play.game.keepPlaying": { ar: "تابع اللعب", en: "Keep playing" },
+  "play.game.leave": { ar: "غادر", en: "Leave" },
   "play.game.missing": {
     ar: "تعذّر فتح هذه الجولة. ارجع إلى المهام.",
     en: "This round couldn't be opened. Go back to your quests.",

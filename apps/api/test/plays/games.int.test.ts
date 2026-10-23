@@ -312,15 +312,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     expect(Date.parse(cooling.json().details.retryAt) - Date.now()).toBeGreaterThan(590_000);
   });
 
-  it("holds Play to 30 rounds per player per 10 minutes", async () => {
+  it("holds Play to 30 rounds per player per 10 minutes, never counting an update answer", async () => {
     const event = await newEvent();
-    const quest = await newQuest(event);
+    const quest = await newQuest(event, { attempts: null, cooldownMinutes: 60 });
     const a = await newPlayer(event);
-    for (let index = 0; index < 30; index += 1) {
-      expect(
-        (await call("POST", `/v1/quests/${quest}/game-rounds`, a, { engineVersions: {} }))
-          .statusCode,
-      ).toBe(426);
+    for (let index = 0; index < 40; index += 1) {
+      const old = await call("POST", `/v1/quests/${quest}/game-rounds`, a, { engineVersions: {} });
+      expect(old.statusCode).toBe(426);
+    }
+    expect((await play(a, quest)).statusCode).toBe(201);
+    for (let index = 1; index < 30; index += 1) {
+      expect(codeOf(await play(a, quest))).toEqual([409, "game_refused"]);
     }
     const limited = await play(a, quest);
     expect(codeOf(limited)).toEqual([429, "too_many_attempts"]);
@@ -402,6 +404,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
   it("never logs the inputs or the seed", () => {
     const joined = logs.join("\n");
     expect(joined).toContain("game.result");
+    expect(joined).toMatch(/"verdict":"refused"[^\n]*"reason":"claimed"/);
     expect(joined).not.toMatch(/"inputs"|"seed"/);
   });
 });

@@ -967,6 +967,58 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
     });
   });
 
+  describe("a round gone or closed while a caller waited on its locks", () => {
+    it("lets two sweeps cross over one due round: one closes it, the other closes nothing", async () => {
+      while ((await sweep()) !== null) {
+        // drain every due round of this database
+      }
+      const { quest, a } = await setup();
+      const round = await start(a, quest);
+      await pastDeadline(round.round_id);
+      const outcomes = await Promise.all([sweep(), sweep()]);
+      expect(outcomes.map((outcome) => outcome ?? "none").toSorted()).toEqual(["expired", "none"]);
+      expect(await roundOf(round.round_id)).toMatchObject({ status: "expired" });
+    });
+
+    it("closes nothing, and says so, when the rehearsal wipe deletes the due round the sweep waits on", async () => {
+      while ((await sweep()) !== null) {
+        // drain every due round of this database
+      }
+      const event = await newEvent("draft");
+      await owner(
+        "INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, 'GAME-SWEP')",
+        [event, ids.orgA],
+      );
+      const tester = await member(event, "rehearsal");
+      const round = await start(tester, await newQuest(event));
+      await pastDeadline(round.round_id);
+      await db.owner.query("BEGIN");
+      await db.owner.query("SELECT wipe_rehearsal($1, 'go_live', $2)", [event, randomUUID()]);
+      const waiting = sweep();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await db.owner.query("COMMIT");
+      expect(await waiting).toBeNull();
+    });
+
+    it("answers a result waiting while the rehearsal wipe deletes its round as not found", async () => {
+      const event = await newEvent("draft");
+      await owner(
+        "INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, 'GAME-WAKE')",
+        [event, ids.orgA],
+      );
+      const quest = await newQuest(event);
+      const tester = await member(event, "rehearsal");
+      const round = await start(tester, quest);
+      await db.owner.query("BEGIN");
+      await db.owner.query("SELECT wipe_rehearsal($1, 'go_live', $2)", [event, randomUUID()]);
+      const waiting = refusal(finish(tester, round.round_id));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await db.owner.query("COMMIT");
+      expect(await waiting).toBe("QC404");
+      expect(await owner("SELECT 1 FROM game_round WHERE id = $1", [round.round_id])).toEqual([]);
+    });
+  });
+
   describe("closed doors", () => {
     it("lets the API role run only the five doors", async () => {
       const runnable = await owner<{ proname: string }>(
