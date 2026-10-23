@@ -257,6 +257,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       expect(home.json()).toMatchObject({ rankingOn: false });
     });
 
+    it("asks for the location prompt only for an in-person event with a venue pin, never sending the pin (T-303b)", async () => {
+      const event = await newEvent();
+      const player = await newPlayer(event.id);
+      const read = async () =>
+        (await asPlayer(player.token, `/v1/events/${event.id}/home`)).json<{
+          event: { locationPrompt: boolean };
+        }>().event;
+      expect((await read()).locationPrompt).toBe(false);
+      await owner("UPDATE event SET venue_lat = 24.7136, venue_lng = 46.6753 WHERE id = $1", [
+        event.id,
+      ]);
+      expect((await read()).locationPrompt).toBe(true);
+      expect(JSON.stringify(await read())).not.toMatch(/24\.71|46\.67/);
+      await owner("UPDATE event SET kind = 'virtual' WHERE id = $1", [event.id]);
+      expect((await read()).locationPrompt).toBe(false);
+    });
+
     it("reads the ranking switch of an unlisted or private event the player joined", async () => {
       for (const access of ["unlisted", "private"]) {
         const event = await newEvent();

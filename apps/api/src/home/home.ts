@@ -81,6 +81,11 @@ export type Home = Readonly<{
     statusNow: EventStatusNow;
     /** The caller is a rehearsal account (T-211): everything they do is erased at go-live. */
     rehearsal: boolean;
+    /**
+     * An in-person event with a venue pin (T-303b, ADR-208): the app may explain location once after joining, while
+     * the platform's location switch is on. Never the pin itself.
+     */
+    locationPrompt: boolean;
   }>;
   standing:
     | Readonly<{
@@ -337,6 +342,7 @@ type StandingRow = Readonly<{
   focus_quest_id: string | null;
   goal_reward_id: string | null;
   rehearsal: boolean;
+  location_prompt: boolean;
   /** The database's clock: the same one that decided `status_now`, so "open" has one source. */
   now: Date;
 }>;
@@ -351,7 +357,8 @@ async function standingOf(
     `SELECT n.status, n.waitlisted, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
             e.timezone, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.focus_quest_id,
             n.goal_reward_id,
-            n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal, now() AS now
+            n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal,
+            e.kind <> 'virtual' AND e.venue_lat IS NOT NULL AS location_prompt, now() AS now
      FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
      WHERE n.event_id = $1 AND n.player_id = $2 AND p.status = 'active'`,
     [eventId, playerId],
@@ -413,6 +420,7 @@ export async function readHome(
       timezone: row.timezone,
       statusNow: row.status_now,
       rehearsal: row.rehearsal,
+      locationPrompt: row.location_prompt,
     };
     if (row.status === "pending" || row.status === "declined") {
       return {
