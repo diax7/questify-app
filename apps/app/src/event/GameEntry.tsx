@@ -56,7 +56,7 @@ export function GameEntry({
   const { t, language } = useI18n();
   const { eventId } = useEvent();
   const terms = useTerms();
-  const [sheet, setSheet] = useState<GameSheet | undefined | "failed">(undefined);
+  const [sheet, setSheet] = useState<GameSheet | "update" | undefined | "failed">(undefined);
   const [said, setSaid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A Play whose answer was lost is sent again with the same key, so it never uses a second attempt.
@@ -109,6 +109,9 @@ export function GameEntry({
   }
   if (sheet === "failed") {
     return <AppText>{t("questsTab.failed")}</AppText>;
+  }
+  if (sheet === "update") {
+    return <AppText accessibilityRole="alert">{t("play.game.update")}</AppText>;
   }
   const action = sheetAction(sheet, games.result(quest.id, Date.now()), Date.now());
   const why = actionLine(t, action, language, timeZone);

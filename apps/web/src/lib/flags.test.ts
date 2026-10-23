@@ -6,6 +6,7 @@ import {
   lengthText,
   locationNotes,
   methodLabel,
+  unlikelyCount,
   resolutionKey,
   type FlagLine,
   type Scan,
@@ -224,6 +225,7 @@ describe("mini-game cases", () => {
         game: "memory_match",
         level: "hard",
         reason: "too_fast",
+        count: null,
       },
     ]);
     const round = detail?.gameRounds[0];
@@ -241,6 +243,31 @@ describe("mini-game cases", () => {
         en,
       ).reason,
     ).toBe("Possible but unusual result (paid)");
+    const count = { key: "flags.game.count.foreseen", n: 11 } as const;
+    expect(
+      gameRoundText(
+        { at: null, quest: "Q", game: "catch", level: "hard", reason: "unlikely", count },
+        "",
+        en,
+      ).reason,
+    ).toBe("Possible but unusual result (paid) (foreseen 11)");
+  });
+
+  it("reads the count that made a paid round unlikely (T-305c)", () => {
+    expect(unlikelyCount({ caught: 40, missed: 0, foreseen: 12 })).toEqual({
+      key: "flags.game.count.foreseen",
+      n: 12,
+    });
+    expect(unlikelyCount({ hits: 50, misses: 0, score: 50, quick: 9 })).toEqual({
+      key: "flags.game.count.quick",
+      n: 9,
+    });
+    expect(unlikelyCount({ pairs: 6, moves: 6, ms: 900, lucky: 4 })).toEqual({
+      key: "flags.game.count.lucky",
+      n: 4,
+    });
+    expect(unlikelyCount({ solved: true, moves: 9, ms: 900 })).toBeNull();
+    expect(unlikelyCount(null)).toBeNull();
   });
 });
 

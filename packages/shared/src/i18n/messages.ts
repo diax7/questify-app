@@ -3180,7 +3180,6 @@ export const MESSAGES = {
   "games.picture.hourglass": { ar: "ساعة رملية", en: "Hourglass" },
   "quests.game.game": { ar: "اللعبة", en: "Game" },
   "quests.game.level": { ar: "المستوى", en: "Level" },
-  "quests.game.comingSoon": { ar: "{game} (قريبًا)", en: "{game} (coming soon)" },
   "quests.game.attempts": { ar: "عدد المحاولات (1 إلى 10)", en: "Attempts (1 to 10)" },
   "quests.game.unlimited": {
     ar: "محاولات غير محدودة، مع انتظار بين الجولات",
@@ -3242,6 +3241,13 @@ export const MESSAGES = {
   "flags.game.reason.unlikely": {
     ar: "نتيجة ممكنة لكنها غير معتادة (احتُسبت)",
     en: "Possible but unusual result (paid)",
+  },
+  "flags.game.count.lucky": { ar: "تطابقات محظوظة: {n}", en: "lucky {n}" },
+  "flags.game.count.foreseen": { ar: "التقاط مبكر: {n}", en: "foreseen {n}" },
+  "flags.game.count.quick": { ar: "نقرات سريعة: {n}", en: "quick {n}" },
+  "quests.game.quickNote": {
+    ar: "يتطلب الالتقاط والنقر السريع سرعة في الملاحظة واللمس؛ في فعالية ميسّرة للجميع اختر لعبة الذاكرة أو أحجية الصورة.",
+    en: "Catch and tap rush need quick sight and touch; for an accessible event, prefer memory match or slide puzzle.",
   },
   "play.game.level": { ar: "المستوى: {level}", en: "Level: {level}" },
   "play.game.attemptsLeft": {

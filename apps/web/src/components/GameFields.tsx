@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  COMING_GAMES,
   GAME_ATTEMPTS,
   GAME_LEVEL_KEYS,
   GAME_LEVELS,
@@ -25,9 +24,9 @@ const numberOrEmpty = (value: unknown): number | string =>
   typeof value === "number" || typeof value === "string" ? value : "";
 
 /**
- * A mini-game quest (T-305, FR-1804 to FR-1807): the game (catch and tap rush shown as coming soon, ADR-214), its level
- * with the target in words, and the attempts (1 to 10, or unlimited with minutes between rounds), with the line players
- * will see.
+ * A mini-game quest (T-305, T-305c, FR-1804 to FR-1807): one of the four games (the real-time pair with a note that
+ * they need quick sight and touch), its level with the target in words, and the attempts (1 to 10, or unlimited with
+ * minutes between rounds), with the line players will see.
  */
 export function GameFields({ language, config, disabled, change }: TypeFieldProps) {
   const t = translatorFor(language);
@@ -51,13 +50,11 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
               {t(GAME_NAME_KEYS[name])}
             </option>
           ))}
-          {COMING_GAMES.map((name) => (
-            <option key={name} value={name} disabled>
-              {t("quests.game.comingSoon", { game: t(GAME_NAME_KEYS[name]) })}
-            </option>
-          ))}
         </select>
       </label>
+      {game === "catch" || game === "tap_rush" ? (
+        <p className={styles.muted}>{t("quests.game.quickNote")}</p>
+      ) : null}
       <label className={styles.field}>
         {t("quests.game.level")}
         <select

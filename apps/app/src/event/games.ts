@@ -14,6 +14,7 @@ import {
   type CompletionAnswer,
   type ItemGiven,
 } from "#src/event/quests-api.ts";
+import { drawable } from "#src/games/round.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -40,11 +41,23 @@ export type GameSheet = Readonly<{
   offsetMs: number;
 }>;
 
-export function gameSheetOf(body: unknown, receivedAt: number): GameSheet | undefined {
-  if (!isRecord(body) || !isGameName(body["game"]) || typeof body["serverNow"] !== "string") {
+/**
+ * The sheet, or "update" for a game this build cannot draw: one added after it, or at an engine version it lacks
+ * (CTO 3). The sheet then shows the update line and no Play, never "failed", so every build meets later games well.
+ */
+export function gameSheetOf(body: unknown, receivedAt: number): GameSheet | "update" | undefined {
+  if (
+    !isRecord(body) ||
+    typeof body["game"] !== "string" ||
+    typeof body["serverNow"] !== "string"
+  ) {
     return undefined;
   }
   const game = body["game"];
+  const engineVersion = typeof body["engineVersion"] === "number" ? body["engineVersion"] : 1;
+  if (!isGameName(game) || !drawable(game, engineVersion)) {
+    return "update";
+  }
   return {
     game,
     level: String(body["level"]),
@@ -65,7 +78,7 @@ export async function fetchGameSheet(
   session: Pick<Session, "request">,
   questId: string,
   now: () => number = Date.now,
-): Promise<GameSheet | undefined> {
+): Promise<GameSheet | "update" | undefined> {
   const answer = await session.request({
     method: "GET",
     path: `/v1/quests/${encodeURIComponent(questId)}/game`,

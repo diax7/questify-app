@@ -1,10 +1,14 @@
 import {
   GAME_NAME_KEYS,
+  catchV1,
   formatNumber,
   gameTarget,
   memoryMatchV1,
   slidePuzzleV1,
+  tapRushV1,
   targetWords,
+  type GameName,
+  type MessageKey,
   type Theme,
 } from "@questify/shared";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
@@ -26,10 +30,11 @@ import {
   type PendingResult,
   type ResultAnswer,
 } from "#src/event/games.ts";
-
+import { CatchGame } from "#src/games/CatchGame.tsx";
 import { MemoryGame } from "#src/games/MemoryGame.tsx";
 import { drawable, type Finished } from "#src/games/round.ts";
 import { SlideGame } from "#src/games/SlideGame.tsx";
+import { TapRushGame } from "#src/games/TapRushGame.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -44,38 +49,71 @@ function Board({
   round,
   onFinish,
 }: Readonly<{ round: IssuedRound; onFinish: (done: Finished) => void }>) {
-  return round.game === "memory_match" ? (
-    <MemoryGame
-      seed={round.seed}
-      params={memoryMatchV1.params.parse(round.params)}
-      onFinish={onFinish}
-    />
-  ) : (
-    <SlideGame
-      seed={round.seed}
-      params={slidePuzzleV1.params.parse(round.params)}
-      onFinish={onFinish}
-    />
-  );
+  const realtime = { deadlineAt: round.deadlineAt, offsetMs: round.offsetMs, onFinish };
+  switch (round.game) {
+    case "memory_match":
+      return (
+        <MemoryGame
+          seed={round.seed}
+          params={memoryMatchV1.params.parse(round.params)}
+          onFinish={onFinish}
+        />
+      );
+    case "slide_puzzle":
+      return (
+        <SlideGame
+          seed={round.seed}
+          params={slidePuzzleV1.params.parse(round.params)}
+          onFinish={onFinish}
+        />
+      );
+    case "catch":
+      return (
+        <CatchGame seed={round.seed} params={catchV1.params.parse(round.params)} {...realtime} />
+      );
+    case "tap_rush":
+      return (
+        <TapRushGame
+          seed={round.seed}
+          params={tapRushV1.params.parse(round.params)}
+          {...realtime}
+        />
+      );
+  }
+}
+
+/** How each game is played, in one line. */
+const HOW_TO: Readonly<Record<GameName, MessageKey>> = {
+  memory_match: "play.game.howTo.memoryMatch",
+  slide_puzzle: "play.game.howTo.slidePuzzle",
+  catch: "play.game.howTo.catch",
+  tap_rush: "play.game.howTo.tapRush",
+};
+
+/** The round's time limit in seconds, read by its own engine. */
+function secondsOf(round: IssuedRound): number {
+  switch (round.game) {
+    case "memory_match":
+      return memoryMatchV1.params.parse(round.params).timeLimitSeconds;
+    case "slide_puzzle":
+      return slidePuzzleV1.params.parse(round.params).timeLimitSeconds;
+    case "catch":
+      return catchV1.params.parse(round.params).timeLimitSeconds;
+    case "tap_rush":
+      return tapRushV1.params.parse(round.params).timeLimitSeconds;
+  }
 }
 
 /** The instruction card before the board (Arabic and English, mirrored; the board itself never mirrors). */
 function Intro({ round, onStart }: Readonly<{ round: IssuedRound; onStart: () => void }>) {
   const { t, language } = useI18n();
-  const seconds =
-    round.game === "memory_match"
-      ? memoryMatchV1.params.parse(round.params).timeLimitSeconds
-      : slidePuzzleV1.params.parse(round.params).timeLimitSeconds;
+  const seconds = secondsOf(round);
+  const quick = round.game === "catch" || round.game === "tap_rush";
   return (
     <>
       <AppText muted>{levelLine(t, round.level)}</AppText>
-      <AppText>
-        {t(
-          round.game === "memory_match"
-            ? "play.game.howTo.memoryMatch"
-            : "play.game.howTo.slidePuzzle",
-        )}
-      </AppText>
+      <AppText>{t(HOW_TO[round.game])}</AppText>
+      {quick ? <AppText muted>{t("play.game.quickNote")}</AppText> : null}
       <AppText variant="label">
         {targetWords(t, gameTarget(round.game, round.params), language)}
       </AppText>

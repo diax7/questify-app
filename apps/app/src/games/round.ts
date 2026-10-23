@@ -1,9 +1,10 @@
 import {
   canInput,
+  catchV1,
   memoryMatchV1,
   slidePuzzleV1,
+  tapRushV1,
   type GameEngine,
-  type GameName,
   type MemoryState,
   type TimedInput,
 } from "@questify/shared";
@@ -14,14 +15,20 @@ import { useCallback, useRef, useState } from "react";
  * it, so it keeps every version the server may still hand it; a server deploy carrying a new version goes out before
  * the app release that uses it.
  */
-const BOARDS = {
+const BOARDS: Readonly<Record<string, Readonly<Record<number, unknown>>>> = {
   memory_match: { 1: memoryMatchV1 },
   slide_puzzle: { 1: slidePuzzleV1 },
-} as const;
+  catch: { 1: catchV1 },
+  tap_rush: { 1: tapRushV1 },
+};
 
-/** Whether this build can draw a round of this game at this engine version. */
-export function drawable(game: GameName, engineVersion: number): boolean {
-  return Object.hasOwn(BOARDS[game], engineVersion);
+/**
+ * Whether this build can draw a round of this game at this engine version. Any name is asked about: a game added
+ * after this build, or a newer engine, answers false and the sheet shows the update line (CTO 3).
+ */
+export function drawable(game: string, engineVersion: number): boolean {
+  const versions = Object.hasOwn(BOARDS, game) ? BOARDS[game] : undefined;
+  return versions !== undefined && Object.hasOwn(versions, engineVersion);
 }
 
 /**

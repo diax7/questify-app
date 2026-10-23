@@ -52,6 +52,8 @@ export type GameRoundLine = Readonly<{
   game: string;
   level: string;
   reason: string;
+  /** For an unlikely round, the count that tripped it (T-305c): lucky matches, foreseen catches or quick hits. */
+  count?: Readonly<{ key: MessageKey; n: number }> | null;
 }>;
 export type WaitingItem = Readonly<{ name: string; reservedUntil: string | null }>;
 export type Removal = Readonly<{
@@ -187,6 +189,7 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
           game: String(row["game"] ?? ""),
           level: String(row["level"] ?? ""),
           reason: String(row["reason"] ?? ""),
+          count: row["reason"] === "unlikely" ? unlikelyCount(row["result"]) : null,
         }))
       : [],
     burstScans:
@@ -238,6 +241,27 @@ const GAME_REASONS: Readonly<Record<string, MessageKey>> = {
   unlikely: "flags.game.reason.unlikely",
 };
 
+/** The counts an unlikely round's result may carry, by game: memory's lucky matches, catch's foresight, tap speed. */
+const UNLIKELY_COUNTS: ReadonlyArray<readonly [string, MessageKey]> = [
+  ["lucky", "flags.game.count.lucky"],
+  ["foreseen", "flags.game.count.foreseen"],
+  ["quick", "flags.game.count.quick"],
+];
+
+/** The count that made a paid round unlikely, read from its stored result; null when it has none. */
+export function unlikelyCount(result: unknown): Readonly<{ key: MessageKey; n: number }> | null {
+  if (!isRecord(result)) {
+    return null;
+  }
+  for (const [field, key] of UNLIKELY_COUNTS) {
+    const n = result[field];
+    if (typeof n === "number") {
+      return { key, n };
+    }
+  }
+  return null;
+}
+
 /**
  * A flagged round in words (T-305): "10:42: Treasure hunt (Memory match, Hard)" and why, when this dashboard knows the
  * reason; a game, level or reason from a newer server shows as sent.
@@ -254,8 +278,12 @@ export function gameRoundText(
     ? t(GAME_LEVEL_KEYS[round.level as keyof typeof GAME_LEVEL_KEYS])
     : round.level;
   const reason = GAME_REASONS[round.reason];
+  const count =
+    round.count === undefined || round.count === null
+      ? ""
+      : ` (${t(round.count.key, { n: formatNumber(round.count.n, "en") })})`;
   return {
     line: t("flags.game.line", { date, quest: round.quest, game, level }),
-    reason: reason === undefined ? null : t(reason),
+    reason: reason === undefined ? null : `${t(reason)}${count}`,
   };
 }

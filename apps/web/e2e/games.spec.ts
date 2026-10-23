@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 
 /**
- * Mini-games in the dashboard (T-305), in Arabic, right to left, on the desktop and the phone screen: a game quest
- * with its game (catch and tap rush shown as coming soon), level, attempts and the line players see, and the event's
- * mini-games switch.
+ * Mini-games in the dashboard (T-305, T-305c), in Arabic, right to left, on the desktop and the phone screen: a game
+ * quest with its game (all four, the real-time pair with its note), level, attempts and the line players see, and the
+ * event's mini-games switch.
  */
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {
@@ -26,11 +26,24 @@ test("builds a game quest with its level, unlimited attempts and the players' li
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تحدي الذاكرة");
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
   const game = page.getByRole("combobox", { name: "اللعبة" });
-  await expect(game.locator("option[value=catch]")).toHaveAttribute("disabled", "");
-  await expect(game.locator("option[value=tap_rush]")).toHaveText("النقر السريع (قريبًا)");
+  await expect(game.locator("option")).toHaveText([
+    "لعبة الذاكرة",
+    "أحجية الصورة المنزلقة",
+    "الالتقاط",
+    "النقر السريع",
+  ]);
   await page.getByRole("combobox", { name: "المستوى" }).selectOption("medium");
   await expect(
     page.getByText("يرى اللاعبون: اعثر على جميع الأزواج (8) في 20 حركة أو أقل."),
+  ).toBeVisible();
+  const quickNote = page.getByText(/يتطلب الالتقاط والنقر السريع سرعة في الملاحظة واللمس/);
+  await expect(quickNote).toHaveCount(0);
+  await game.selectOption("catch");
+  await expect(page.getByText("يرى اللاعبون: التقط 30 عنصرًا على الأقل من 40.")).toBeVisible();
+  await expect(quickNote).toBeVisible();
+  await game.selectOption("tap_rush");
+  await expect(
+    page.getByText("يرى اللاعبون: اجمع 28 نقطة خلال 30 ثانية. كل نقرة خاطئة تخصم نقطة."),
   ).toBeVisible();
   await expect(page.getByLabel("عدد المحاولات (1 إلى 10)")).toHaveValue("1");
   await page.getByLabel("محاولات غير محدودة، مع انتظار بين الجولات").check();

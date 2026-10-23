@@ -7,6 +7,7 @@ import {
   memoryMatchV1,
   replay,
   slidePuzzleV1,
+  type GameTarget,
   type Language,
   type MessageKey,
 } from "@questify/shared";
@@ -84,6 +85,10 @@ const PENDING: PendingResult = {
   offsetMs: 0,
 };
 
+/** A short round's answer for the result lines. */
+const short = (result: unknown, target: GameTarget) =>
+  ({ kind: "short", result, target, attemptsLeft: 1 }) as const;
+
 describe("the game sheet", () => {
   it("reads the sheet with the server's clock offset, and nothing malformed", () => {
     expect(gameSheetOf(SHEET_BODY, NOW)).toMatchObject({
@@ -94,13 +99,28 @@ describe("the game sheet", () => {
       target: { pairs: 8, maxMoves: 20 },
       offsetMs: 5000,
     });
-    expect(gameSheetOf({ ...SHEET_BODY, target: undefined }, NOW)?.target).toEqual({
-      game: "memory_match",
-      pairs: 8,
-      maxMoves: 20,
+    expect(gameSheetOf({ ...SHEET_BODY, target: undefined }, NOW)).toMatchObject({
+      target: { game: "memory_match", pairs: 8, maxMoves: 20 },
     });
-    expect(gameSheetOf({ ...SHEET_BODY, game: "catch" }, NOW)).toBeUndefined();
+    expect(gameSheetOf({ ...SHEET_BODY, game: 7 }, NOW)).toBeUndefined();
     expect(gameSheetOf(null, NOW)).toBeUndefined();
+  });
+
+  it("shows the update line, never 'failed', for a game this build cannot draw (CTO 3)", () => {
+    expect(gameSheetOf({ ...SHEET_BODY, game: "snake", params: {} }, NOW)).toBe("update");
+    expect(gameSheetOf({ ...SHEET_BODY, engineVersion: 2 }, NOW)).toBe("update");
+    expect(gameSheetOf({ ...SHEET_BODY, engineVersion: 1 }, NOW)).toMatchObject({
+      game: "memory_match",
+    });
+    expect(
+      gameSheetOf(
+        { ...SHEET_BODY, game: "catch", params: LEVELS.catch.easy, target: undefined },
+        NOW,
+      ),
+    ).toMatchObject({ game: "catch", target: { game: "catch", caught: 20, items: 30 } });
+    expect(
+      gameSheetOf({ ...SHEET_BODY, game: "tap_rush", params: LEVELS.tap_rush.hard }, NOW),
+    ).toMatchObject({ game: "tap_rush" });
     expect(clockOffset("2030-01-01T10:00:00Z", NOW + 2000)).toBe(-2000);
   });
 
@@ -206,6 +226,10 @@ describe("issuing a round", () => {
     ]);
     expect(drawable("memory_match", 1)).toBe(true);
     expect(drawable("slide_puzzle", 2)).toBe(false);
+    expect(drawable("catch", 1)).toBe(true);
+    expect(drawable("tap_rush", 1)).toBe(true);
+    expect(drawable("snake", 1)).toBe(false);
+    expect(drawable("constructor", 1)).toBe(false);
   });
 });
 
@@ -307,6 +331,38 @@ describe("a round's result", () => {
         "ar",
       ),
     ).toBe("اقتربت! حرّكت القطع 31 مرة ولم تكتمل الصورة. المطلوب: أعد ترتيب الصورة خلال 180 ثانية.");
+    expect(
+      resultLine(
+        en,
+        short({ caught: 17 }, { game: "catch", caught: 20, items: 30 }),
+        DEFAULT_TERMS,
+        "en",
+      ),
+    ).toBe("So close. You needed 20; you caught 17.");
+    expect(
+      resultLine(
+        tIn("ar"),
+        short({ caught: 17 }, { game: "catch", caught: 20, items: 30 }),
+        DEFAULT_TERMS,
+        "ar",
+      ),
+    ).toBe("اقتربت! المطلوب 20 والتقطت 17.");
+    expect(
+      resultLine(
+        en,
+        short({ score: 25 }, { game: "tap_rush", score: 28, seconds: 30 }),
+        DEFAULT_TERMS,
+        "en",
+      ),
+    ).toBe("So close. You needed 28; you scored 25.");
+    expect(
+      resultLine(
+        tIn("ar"),
+        short({ score: 25 }, { game: "tap_rush", score: 28, seconds: 30 }),
+        DEFAULT_TERMS,
+        "ar",
+      ),
+    ).toBe("اقتربت! المطلوب 28 وجمعت 25.");
     expect(resultLine(en, { kind: "refused" }, DEFAULT_TERMS, "en")).toBe(
       "This round couldn't be counted.",
     );

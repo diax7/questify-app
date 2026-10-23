@@ -57,22 +57,40 @@ export function actionLine(
   }
 }
 
-/** A short round's result beside its target (FR-217): what was found or moved, then what the level asks. */
+/** A short round's result beside its target (FR-217): what was found, moved, caught or scored, and what the level asks. */
 function shortLines(
   t: Translate,
   answer: Extract<ResultAnswer, { kind: "short" }>,
   language: Language,
 ): string {
   const result = isRecord(answer.result) ? answer.result : {};
-  const said =
-    answer.target.game === "memory_match"
-      ? t("play.game.shortMemory", {
-          pairs: formatNumber(count(result["pairs"]), language),
-          total: formatNumber(answer.target.pairs, language),
-          moves: formatNumber(count(result["moves"]), language),
-        })
-      : t("play.game.shortSlide", { moves: formatNumber(count(result["moves"]), language) });
-  return `${said} ${t("play.game.goal", { target: targetWords(t, answer.target, language) })}`;
+  const number = (value: unknown) => formatNumber(count(value), language);
+  const target = answer.target;
+  switch (target.game) {
+    case "catch":
+      return t("play.game.shortCatch", {
+        target: number(target.caught),
+        caught: number(result["caught"]),
+      });
+    case "tap_rush":
+      return t("play.game.shortTapRush", {
+        target: number(target.score),
+        score: number(result["score"]),
+      });
+    case "memory_match":
+      return `${t("play.game.shortMemory", {
+        pairs: number(result["pairs"]),
+        total: number(target.pairs),
+        moves: number(result["moves"]),
+      })} ${t("play.game.goal", { target: targetWords(t, target, language) })}`;
+    case "slide_puzzle":
+      return `${t("play.game.shortSlide", { moves: number(result["moves"]) })} ${t(
+        "play.game.goal",
+        {
+          target: targetWords(t, target, language),
+        },
+      )}`;
+  }
 }
 
 /** A result's answer in words: paid, already complete, short, not counted, or counted as played; null to retry. */
