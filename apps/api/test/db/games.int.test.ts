@@ -255,6 +255,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
       expect(row).toMatchObject({ status: "open", engine_version: 1 });
     });
 
+    it("issues catch and tap rush rounds with their levels and a window of their length plus 10 minutes, and pays a pass once, closing the quest (T-305c)", async () => {
+      const passes = {
+        catch: { caught: 25, missed: 5, foreseen: 0 },
+        tap_rush: { hits: 30, misses: 2, score: 28, quick: 1 },
+      };
+      for (const game of ["catch", "tap_rush"] as const) {
+        const { quest, a } = await setup({ game, level: "medium", attempts: 2 });
+        const round = await start(a, quest);
+        expect(round, game).toMatchObject({
+          game,
+          level: "medium",
+          params: LEVELS[game].medium,
+          engine_version: 1,
+          attempts_left: 1,
+        });
+        const row = await roundOf(round.round_id);
+        const window =
+          (row["deadline_at"] as Date).getTime() - (row["issued_at"] as Date).getTime();
+        expect(window, game).toBe((LEVELS[game].medium.timeLimitSeconds + 600) * 1000);
+        expect(await finish(a, round.round_id, { result: passes[game] }), game).toMatchObject({
+          verdict: "passed",
+          points: "40",
+        });
+        expect(await refusal(start(a, quest)), game).not.toBe("none");
+        expect(await ledger(a.enrollment), game).toHaveLength(1);
+      }
+    });
+
     it("draws different seeds, signed integers, from round to round", async () => {
       const { event } = await setup();
       const seeds = new Set<number>();
@@ -400,8 +428,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
       expect(await finish(a, round.round_id)).toMatchObject({ verdict: "passed", points: "40" });
     });
 
-    it("keeps the level table equal to the shared one", async () => {
-      for (const game of ["memory_match", "slide_puzzle"] as const) {
+    it("keeps the level table equal to the shared one, all four games", async () => {
+      for (const game of ["memory_match", "slide_puzzle", "catch", "tap_rush"] as const) {
         for (const level of ["easy", "medium", "hard"] as const) {
           const [row] = await owner<{ params: Row }>("SELECT game_level($1, $2) AS params", [
             game,
@@ -722,7 +750,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
       const category = await newCategory(event);
       for (const config of [
         "{}",
-        '{"game": "catch", "level": "easy", "attempts": 1, "cooldownMinutes": null}',
+        '{"game": "snake", "level": "easy", "attempts": 1, "cooldownMinutes": null}',
+        '{"game": "tap_rush", "level": "expert", "attempts": 1, "cooldownMinutes": null}',
         '{"game": "memory_match", "level": "expert", "attempts": 1, "cooldownMinutes": null}',
         '{"game": "memory_match", "level": "easy", "attempts": 0, "cooldownMinutes": null}',
         '{"game": "memory_match", "level": "easy", "attempts": 11, "cooldownMinutes": null}',
