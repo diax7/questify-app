@@ -14,6 +14,7 @@ import { CountingNumber } from "#src/components/motion.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { goalMessage } from "#src/event/goal.ts";
 import {
   fetchHome,
   fetchRanking,
@@ -116,6 +117,33 @@ function UpNextCard({ eventId, upNext }: Readonly<{ eventId: string; upNext: Hom
         }
       />
     </View>
+  );
+}
+
+/** The pinned reward or the next one in reach, and what is left to earn (FR-803, FR-422); a tap opens Rewards. */
+function GoalCard({ eventId, goal }: Readonly<{ eventId: string; goal: Home["goal"] }>) {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  const styles = useThemedStyles(makeStyles);
+  if (goal === null) {
+    return null;
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint={t("goal.open")}
+      onPress={() => router.navigate({ pathname: "/event/[eventId]/rewards", params: { eventId } })}
+      style={styles.card}
+    >
+      <AppText variant="title">{t(goal.pinned ? "goal.title" : "goal.next")}</AppText>
+      <AppText variant="label">{textIn(goal.name, language)}</AppText>
+      <AppText muted>
+        {t(goalMessage(goal), {
+          count: formatNumber(goal.left, language),
+          currency: termFor(terms.currency, language),
+        })}
+      </AppText>
+    </Pressable>
   );
 }
 
@@ -222,7 +250,7 @@ function useHome(eventId: string) {
   return { answer, ranking, load };
 }
 
-/** The event's Home (FR-801, FR-802, FR-804; T-113). */
+/** The event's Home (FR-801, FR-802, FR-803, FR-804; T-113, T-213). */
 export default function EventHomeScreen() {
   const { t, language } = useI18n();
   const { eventId, rememberName } = useEvent();
@@ -257,6 +285,7 @@ export default function EventHomeScreen() {
         <AddEmailCard />
         <CountdownLine event={home.event} />
         <Standing home={home} />
+        {home.standing.status === "active" ? <GoalCard eventId={eventId} goal={home.goal} /> : null}
         {home.standing.status === "active" && ranking !== undefined ? (
           <RankingCard eventId={eventId} ranking={ranking} />
         ) : null}

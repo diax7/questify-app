@@ -199,6 +199,54 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       expect(home.json()).toMatchObject({ event: { statusNow: "scheduled" }, upNext: null });
     });
 
+    it("shows the next reachable reward, then the pinned goal (T-213)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event, { points: 30 });
+      const reward = async (name: string, price: number, stock = 5) =>
+        (
+          await owner<{ id: string }>(
+            `INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', $2, $3, $4)
+             RETURNING id`,
+            [event.id, name, price, stock],
+          )
+        )[0]?.id ?? "";
+      await reward("Sticker", 10);
+      const coffee = await reward("Coffee", 50);
+      await reward("Gone", 40, 0);
+      const hoodie = await reward("Hoodie", 500);
+      const player = await newPlayer(event.id);
+      await complete(player.id, quest);
+      const goalOf = async () =>
+        (await asPlayer(player.token, `/v1/events/${event.id}/home`)).json<{ goal: unknown }>()
+          .goal;
+      expect(await goalOf()).toEqual({
+        rewardId: coffee,
+        name: { ar: null, en: "Coffee" },
+        price: 50,
+        left: 20,
+        pinned: false,
+        soldOut: false,
+      });
+      await withRequestContext(db.app, { playerId: player.id }, () =>
+        db.app.query("SELECT set_goal($1, $2)", [event.id, hoodie]),
+      );
+      expect(await goalOf()).toMatchObject({ rewardId: hoodie, left: 470, pinned: true });
+    });
+
+    it("shows no goal when the event's shop is off", async () => {
+      const event = await newEvent();
+      await owner(
+        `INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Hoodie', 500, 5)`,
+        [event.id],
+      );
+      await owner(`UPDATE event SET config = '{"features": {"shop": false}}' WHERE id = $1`, [
+        event.id,
+      ]);
+      const player = await newPlayer(event.id);
+      const home = await asPlayer(player.token, `/v1/events/${event.id}/home`);
+      expect(home.json<{ goal: unknown }>().goal).toBeNull();
+    });
+
     it("says when the ranking is off", async () => {
       const event = await newEvent();
       await owner(`UPDATE event SET config = '{"features": {"ranking": false}}' WHERE id = $1`, [
@@ -228,6 +276,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       const body = home.json<Row>();
       expect(body["standing"]).toEqual({ status: "pending" });
       expect(body["upNext"]).toBeNull();
+      expect(body["goal"]).toBeNull();
     });
 
     it.each(["left", "removed", "banned"])("refuses a %s member", async (status) => {

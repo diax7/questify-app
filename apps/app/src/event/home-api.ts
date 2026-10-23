@@ -2,6 +2,16 @@ import type { AuthedResult, Session } from "#src/api/session.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
+/** The pinned reward or the next one in reach (FR-803, T-213); `left` 0 means it can be redeemed now. */
+export type Goal = Readonly<{
+  rewardId: string;
+  name: Text;
+  price: number;
+  left: number;
+  pinned: boolean;
+  soldOut: boolean;
+}>;
+
 /** `GET /v1/events/{id}/home` (T-113, API.md). */
 export type Home = Readonly<{
   event: Readonly<{
@@ -25,6 +35,7 @@ export type Home = Readonly<{
       }>
     | Readonly<{ status: "pending" }>;
   upNext: Readonly<{ questId: string; title: Text; points: number; type: string }> | null;
+  goal: Goal | null;
   rankingOn: boolean;
 }>;
 
@@ -75,6 +86,19 @@ function readUpNext(value: unknown): Home["upNext"] | undefined {
     : undefined;
 }
 
+/** The goal, or null: an older API sends none, and a goal this app cannot read is left out rather than break Home. */
+function readGoal(value: unknown): Goal | null {
+  return isRecord(value) &&
+    typeof value["rewardId"] === "string" &&
+    isText(value["name"]) &&
+    typeof value["price"] === "number" &&
+    typeof value["left"] === "number" &&
+    typeof value["pinned"] === "boolean" &&
+    typeof value["soldOut"] === "boolean"
+    ? (value as Goal)
+    : null;
+}
+
 /** Checks Home's shape, so a changed API shows "can't load" instead of a broken screen. */
 export function readHome(body: unknown): Home | undefined {
   if (!isRecord(body) || !isRecord(body["event"])) {
@@ -100,7 +124,13 @@ export function readHome(body: unknown): Home | undefined {
   }
   // An older API sends no rehearsal flag: an ordinary member.
   const read = { ...(event as Home["event"]), rehearsal: event["rehearsal"] === true };
-  return { event: read, standing, upNext, rankingOn: body["rankingOn"] };
+  return {
+    event: read,
+    standing,
+    upNext,
+    goal: readGoal(body["goal"]),
+    rankingOn: body["rankingOn"],
+  };
 }
 
 export function homeAnswer(answer: AuthedResult): HomeAnswer {

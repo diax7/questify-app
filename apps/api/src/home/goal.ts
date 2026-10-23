@@ -1,0 +1,61 @@
+type Text = Readonly<{ ar: string | null; en: string | null }>;
+
+/** A reward of the shop as the goal reads it (`shop_rewards`, in shop order). */
+export type GoalReward = Readonly<{
+  id: string;
+  name: Text;
+  price: number;
+  stockLeft: number;
+  perPlayerLimit: number | null;
+  heldByMe: number;
+  closesAt: Date | null;
+}>;
+
+/** Home's goal (FR-803): the pinned reward, or the next one the player can reach (FR-1616). */
+export type Goal = Readonly<{
+  rewardId: string;
+  name: Text;
+  price: number;
+  /** Points still to earn; 0 means the player can redeem it now. */
+  left: number;
+  pinned: boolean;
+  soldOut: boolean;
+}>;
+
+const goalOf = (reward: GoalReward, balance: number, pinned: boolean): Goal => ({
+  rewardId: reward.id,
+  name: reward.name,
+  price: reward.price,
+  left: Math.max(reward.price - balance, 0),
+  pinned,
+  soldOut: reward.stockLeft <= 0,
+});
+
+/** Still within reach later: in stock, not past its closing time, and not at the player's limit. */
+const reachable = (reward: GoalReward, now: Date): boolean =>
+  reward.stockLeft > 0 &&
+  (reward.closesAt === null || reward.closesAt > now) &&
+  (reward.perPlayerLimit === null || reward.heldByMe < reward.perPlayerLimit);
+
+/**
+ * The goal (FR-803, FR-1616, ADR-161): the pinned reward while it is in the shop, whatever its stock; otherwise the
+ * cheapest reachable reward the player cannot yet afford, the first in shop order on a tie; otherwise none.
+ */
+export function pickGoal(
+  rewards: readonly GoalReward[],
+  pinnedId: string | null,
+  balance: number,
+  now: Date,
+): Goal | null {
+  const pinned = rewards.find((reward) => reward.id === pinnedId);
+  if (pinned !== undefined) {
+    return goalOf(pinned, balance, true);
+  }
+  const next = rewards
+    .filter((reward) => reward.price > balance && reachable(reward, now))
+    .reduce<GoalReward | undefined>(
+      (best, reward) => (best === undefined || reward.price < best.price ? reward : best),
+      undefined,
+    );
+  return next === undefined ? null : goalOf(next, balance, false);
+}

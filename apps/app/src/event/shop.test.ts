@@ -14,6 +14,7 @@ import {
   reserveReward,
   rewardAction,
   sectionsOf,
+  setGoal,
   startCollect,
   type ShopReward,
   type ShopView,
@@ -54,6 +55,7 @@ const VIEW: ShopView = {
     },
   },
   balance: 300,
+  goalRewardId: null,
   rewards: [REWARD],
   redemptions: [],
 };
@@ -71,6 +73,30 @@ function sessionAnswering(answer: AuthedResult) {
   };
 }
 
+describe("setGoal", () => {
+  it("puts the goal, or null to clear it, and answers the API's words on a refusal", async () => {
+    const ok = sessionAnswering({ kind: "ok", status: 200, body: { goalRewardId: "r1" }, headers });
+    expect(await setGoal(ok.session, "e1", "r1")).toMatchObject({ kind: "done" });
+    await setGoal(ok.session, "e1", null);
+    expect(ok.calls).toEqual([
+      { method: "PUT", path: "/v1/events/e1/goal", body: { rewardId: "r1" } },
+      { method: "PUT", path: "/v1/events/e1/goal", body: { rewardId: null } },
+    ]);
+    const gone = sessionAnswering({
+      kind: "error",
+      status: 404,
+      code: "not_found",
+      message: MESSAGE,
+      details: {},
+      headers,
+    });
+    expect(await setGoal(gone.session, "e1", "r1")).toEqual({ kind: "refused", problem: MESSAGE });
+    expect(await setGoal(sessionAnswering({ kind: "network" }).session, "e1", null)).toEqual({
+      kind: "network",
+    });
+  });
+});
+
 describe("readShop", () => {
   it("reads the shop, keeping a newer server's unknown kind and leaving bad rows out", () => {
     const view = readShop({
@@ -83,6 +109,7 @@ describe("readShop", () => {
         desk: { location: { ar: "القاعة ب", en: null }, hours: null, state: "open" },
       },
       balance: 40,
+      goalRewardId: "r1",
       rewards: [{ ...REWARD, kind: "mystery_box", tags: { popular: true } }, { name: "no id" }],
       redemptions: [
         {
@@ -112,6 +139,8 @@ describe("readShop", () => {
         timeZone: "Asia/Riyadh",
       },
     });
+    expect(view?.goalRewardId).toBe("r1");
+    expect(readShop({ shop: {}, rewards: [] })?.goalRewardId).toBeNull();
     expect(view?.rewards).toHaveLength(1);
     expect(view?.rewards[0]).toMatchObject({
       kind: "mystery_box",

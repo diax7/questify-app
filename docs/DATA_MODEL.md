@@ -187,6 +187,11 @@ enrollments pending, active or banned; the trigger `enrollment_player_limit` let
 only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
 marks once. `event_seat_count(event)` gives the count to the team and admins.
 
+**Goal (T-213, migration 0033, ADR-161).** `enrollment.goal_reward_id` is the reward a member pinned as their goal
+(FK with the event to `reward`, `ON DELETE SET NULL (goal_reward_id)`); written only by `set_goal(event, reward)`
+(the caller's active enrollment, a reward active in that event's shop; RN404 otherwise), in no API write grant. A
+view preference: it touches no points, stock or reservation; a rehearsal account's pin goes with its enrollment.
+
 **Rehearsal (T-211, migration 0032, ADR-157 to ADR-160).** `event_rehearsal(event_id PK, organizer_id, code
 XXXX-XXXX unique (capitals and digits without I, O, 0, 1), code_set_at, first_play_at, erased_at, erase_counts jsonb,
 live_wiped_at)`: one row once the team opens the rehearsal card; read by the event's team within their limit and by

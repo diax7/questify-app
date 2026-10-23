@@ -47,6 +47,7 @@ import {
   cancelRedemption,
   readShop,
   reserveReward,
+  setGoal,
   type ReserveResult,
   type ShopDeps,
 } from "#src/rewards/shop";
@@ -273,10 +274,12 @@ function refusal(result: Exclude<ReserveResult, { kind: "done" }>): never {
 const shopParams = z.object({ eventId: z.uuid() });
 const reserveParams = z.object({ rewardId: z.uuid() });
 const cancelParams = z.object({ redemptionId: z.uuid() });
+const goalBody = z.strictObject({ rewardId: z.uuid().nullable() });
 
 /**
  * The player's shop (T-201, T-202): `GET /v1/events/:eventId/shop`, `POST /v1/rewards/:rewardId/reserve` (an
- * Idempotency-Key, a new one per tap) and `POST /v1/redemptions/:redemptionId/cancel` (cancelling twice is harmless).
+ * Idempotency-Key, a new one per tap), `POST /v1/redemptions/:redemptionId/cancel` (cancelling twice is harmless) and
+ * `PUT /v1/events/:eventId/goal` (T-213).
  */
 export function registerShopRoutes(app: FastifyInstance, deps: ShopDeps): void {
   app.get("/v1/events/:eventId/shop", { config: { access: "player" } }, async (request, reply) => {
@@ -329,6 +332,25 @@ export function registerShopRoutes(app: FastifyInstance, deps: ShopDeps): void {
         return refusal(result);
       }
       return result.value;
+    },
+  );
+
+  // FR-517: pin a reward as the goal, or clear it with null. A PUT sets the same value however often it is sent.
+  app.put(
+    "/v1/events/:eventId/goal",
+    { config: { access: "player" }, bodyLimit: 1024 },
+    async (request) => {
+      const { eventId } = parse(shopParams, request.params);
+      const { rewardId } = parse(goalBody, request.body);
+      // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+      if (request.player === undefined) {
+        throw unauthenticated();
+      }
+      const result = await setGoal(deps, { playerId: request.player.id, eventId, rewardId });
+      if (result.kind === "not_found") {
+        throw notFound();
+      }
+      return { goalRewardId: result.goalRewardId };
     },
   );
 }

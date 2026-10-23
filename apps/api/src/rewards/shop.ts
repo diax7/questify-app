@@ -25,6 +25,8 @@ export type ShopView = Readonly<{
     desk: DeskView;
   }>;
   balance: number;
+  /** The reward the player pinned as their goal (FR-517), or null. */
+  goalRewardId: string | null;
   rewards: ReadonlyArray<Readonly<Record<string, unknown>>>;
   redemptions: ReadonlyArray<Readonly<Record<string, unknown>>>;
 }>;
@@ -209,6 +211,10 @@ export function readShop(
       const { rows: mine } = await client.query("SELECT * FROM my_redemptions($1)", [
         request.eventId,
       ]);
+      const { rows: goal } = await client.query<{ goal_reward_id: string | null }>(
+        "SELECT goal_reward_id FROM enrollment WHERE event_id = $1 AND player_id = $2",
+        [request.eventId, request.playerId],
+      );
       const rules = text(shop["rules_ar"], shop["rules_en"]);
       return {
         shop: {
@@ -221,6 +227,7 @@ export function readShop(
           desk: deskViewOf(shop),
         },
         balance: Number(shop["balance"]),
+        goalRewardId: goal[0]?.goal_reward_id ?? null,
         rewards: rewards.map((r) => ({
           id: r["id"],
           kind: r["kind"],
@@ -256,6 +263,35 @@ export function readShop(
       };
     }),
   );
+}
+
+/**
+ * Pins a reward as the player's goal in the event, or clears it with null (FR-517). `not_found` for a stranger, or a
+ * reward that is not in that event's shop (`set_goal`, migration 0033).
+ */
+export async function setGoal(
+  deps: Pick<ShopDeps, "pool">,
+  request: Readonly<{ playerId: string; eventId: string; rewardId: string | null }>,
+): Promise<
+  Readonly<{ kind: "done"; goalRewardId: string | null }> | Readonly<{ kind: "not_found" }>
+> {
+  try {
+    const goalRewardId = await withConnection(deps.pool, (client) =>
+      withRequestContext(client, { playerId: request.playerId }, async () => {
+        const { rows } = await client.query<{ goal: string | null }>(
+          "SELECT set_goal($1, $2) AS goal",
+          [request.eventId, request.rewardId],
+        );
+        return rows[0]?.goal ?? null;
+      }),
+    );
+    return { kind: "done", goalRewardId };
+  } catch (error) {
+    if ((error as { code?: string }).code === "RN404") {
+      return { kind: "not_found" };
+    }
+    throw error;
+  }
 }
 
 /** How many due reservations one tick may return at most; the rest wait for the next tick. */

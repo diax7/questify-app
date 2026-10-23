@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { configKeyOf } from "#src/config/remote.ts";
 import { countdown, nextBoundary, spanText } from "#src/event/countdown.ts";
+import { goalMessage } from "#src/event/goal.ts";
 import { homeAnswer, rankingAnswer, readHome } from "#src/event/home-api.ts";
 import {
   RECENT_KEY,
@@ -216,6 +217,14 @@ const HOME = {
   },
   standing: { status: "active", score: 25, balance: 20, questsDone: 1, questsTotal: 3 },
   upNext: { questId: "q1", title: { ar: null, en: "Big one" }, points: 40, type: "enter_code" },
+  goal: {
+    rewardId: "r1",
+    name: { ar: "قهوة", en: "Coffee" },
+    price: 50,
+    left: 30,
+    pinned: false,
+    soldOut: false,
+  },
   rankingOn: true,
 };
 
@@ -242,6 +251,25 @@ describe("homeAnswer", () => {
     const { rehearsal: _flag, ...older } = HOME.event;
     expect(readHome({ ...HOME, event: older })?.event.rehearsal).toBe(false);
     expect(readHome({ ...HOME, event: { ...HOME.event, rehearsal: "yes" } })).toBeUndefined();
+  });
+
+  it("reads the goal, and shows none for an older API or a goal it cannot read (T-213)", () => {
+    const { goal: _goal, ...older } = HOME;
+    expect(readHome(older)?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: null })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, left: "30" } })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, pinned: 1 } })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, soldOut: undefined } })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, name: "Coffee" } })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, rewardId: 7 } })?.goal).toBeNull();
+    expect(readHome({ ...HOME, goal: { ...HOME.goal, price: null } })?.goal).toBeNull();
+  });
+
+  it("names the goal's line: sold out, redeem now, or what is left", () => {
+    expect(goalMessage(HOME.goal)).toBe("goal.left");
+    expect(goalMessage({ ...HOME.goal, left: 0 })).toBe("goal.ready");
+    expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true })).toBe("goal.soldOut");
+    expect(goalMessage({ ...HOME.goal, soldOut: true })).toBe("goal.soldOut");
   });
 
   it("forgets the event only on the server's definite answer", () => {

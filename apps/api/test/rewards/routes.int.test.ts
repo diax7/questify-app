@@ -80,6 +80,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
     headers: Record<string, string> = {},
   ) => test.app.inject({ method, url, headers: { authorization: `Bearer ${token}`, ...headers } });
 
+  const putGoal = (token: string | undefined, event: string, payload: object) =>
+    test.app.inject({
+      method: "PUT",
+      url: `/v1/events/${event}/goal`,
+      headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+      payload,
+    });
+
   /** A player with a session, enrolled in the event, holding `points` paid through the ledger. */
   const newPlayer = async (points: number, event = eventId): Promise<string> => {
     counter += 1;
@@ -606,6 +614,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         code: "reservation_ended",
         details: { status: "expired" },
       });
+    });
+
+    it("pins a goal, shows it in the shop and clears it (T-213)", async () => {
+      const reward = await newReward({ price: 50 });
+      const token = await newPlayer(10);
+      const pinned = await putGoal(token, eventId, { rewardId: reward.id });
+      expect(pinned.statusCode).toBe(200);
+      expect(pinned.json()).toEqual({ goalRewardId: reward.id });
+      const shop = await asPlayer(token, "GET", `/v1/events/${eventId}/shop`);
+      expect(shop.json<{ goalRewardId: string | null }>().goalRewardId).toBe(reward.id);
+      expect((await putGoal(token, eventId, { rewardId: reward.id })).statusCode).toBe(200);
+      expect((await putGoal(token, eventId, { rewardId: null })).json()).toEqual({
+        goalRewardId: null,
+      });
+      const cleared = await asPlayer(token, "GET", `/v1/events/${eventId}/shop`);
+      expect(cleared.json<{ goalRewardId: string | null }>().goalRewardId).toBeNull();
+    });
+
+    it("refuses a goal without a session, a bad body, a stranger and a reward not in the shop", async () => {
+      const reward = await newReward({ price: 50 });
+      const token = await newPlayer(10);
+      expect((await putGoal(undefined, eventId, { rewardId: reward.id })).statusCode).toBe(401);
+      expect((await putGoal(token, eventId, {})).statusCode).toBe(400);
+      expect((await putGoal(token, eventId, { rewardId: "x" })).statusCode).toBe(400);
+      expect((await putGoal(token, eventId, { rewardId: null, extra: 1 })).statusCode).toBe(400);
+      expect((await putGoal(token, randomUUID(), { rewardId: null })).statusCode).toBe(404);
+      expect((await putGoal(token, eventId, { rewardId: randomUUID() })).statusCode).toBe(404);
+      expect((await call("DELETE", `${base}/rewards/${reward.id}`)).statusCode).toBe(204);
+      const removed = await putGoal(token, eventId, { rewardId: reward.id });
+      expect(removed.statusCode).toBe(404);
+      expect(removed.json()).toMatchObject({ code: "not_found" });
     });
   });
 });

@@ -116,6 +116,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "an active member of that event only, through event_shop, shop_rewards and my_redemptions bound to the session; anyone else 404 (test/rewards/routes, test/rewards/rewards)",
   "POST /v1/rewards/:rewardId/reserve":
     "reserves only for the bearer, through reserve_reward bound to the session; another event's reward answers 404 (test/rewards/routes, test/rewards/rewards)",
+  "PUT /v1/events/:eventId/goal":
+    "pins only the bearer's own goal, through set_goal bound to the session; a stranger or another event's reward answers 404 (test/rewards/routes, test/db/goal)",
   "POST /v1/redemptions/:redemptionId/cancel":
     "cancels only the bearer's own reservation, through cancel_redemption bound to the session; another's answers 404 (test/rewards/routes, test/rewards/rewards)",
   "POST /v1/quests/:questId/complete":

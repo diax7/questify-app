@@ -27,6 +27,7 @@ import {
   reserveReward,
   rewardAction,
   sectionsOf,
+  setGoal,
   startCollect,
   type MyRedemption,
   type RewardAction,
@@ -72,15 +73,26 @@ function Tags({ reward }: Readonly<{ reward: ShopReward }>) {
 function RewardCard({
   reward,
   view,
+  busy,
   onRedeem,
-}: Readonly<{ reward: ShopReward; view: ShopView; onRedeem: () => void }>) {
+  onPin,
+}: Readonly<{
+  reward: ShopReward;
+  view: ShopView;
+  busy: boolean;
+  onRedeem: () => void;
+  /** Pins this reward as the goal, or unpins it when it is the goal (FR-517). */
+  onPin: () => void;
+}>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const terms = useTerms();
   const action = rewardAction(reward, view, Date.now());
   const description = textIn(reward.description, language);
+  const pinned = view.goalRewardId === reward.id;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, pinned && styles.chosen]}>
+      {pinned ? <AppText variant="label">{t("goal.title")}</AppText> : null}
       <AppText variant="title">{textIn(reward.name, language)}</AppText>
       <Tags reward={reward} />
       {description === "" ? null : <AppText>{description}</AppText>}
@@ -99,6 +111,12 @@ function RewardCard({
           {t(ACTION_TEXT[action], { currency: termFor(terms.currency, language) })}
         </AppText>
       )}
+      <Button
+        kind="quiet"
+        label={t(pinned ? "goal.unpin" : "goal.pin")}
+        disabled={busy}
+        onPress={onPin}
+      />
     </View>
   );
 }
@@ -340,6 +358,21 @@ export default function RewardsScreen() {
     );
   };
 
+  const pin = async (rewardId: string | null) => {
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const result = await setGoal(api.session, eventId, rewardId);
+    if (result.kind === "signed_out") {
+      router.replace("/home");
+    } else if (result.kind === "done") {
+      await load();
+    } else {
+      setProblem(result.kind === "network" ? OFFLINE : result.problem);
+    }
+    setBusy(false);
+  };
+
   // Collect (collect first): ready at the desk for 5 minutes, then My QR for the desk to scan.
   const collect = async (id: string) => {
     setBusy(true);
@@ -422,6 +455,8 @@ export default function RewardsScreen() {
             key={reward.id}
             reward={reward}
             view={view}
+            busy={busy}
+            onPin={() => void pin(view.goalRewardId === reward.id ? null : reward.id)}
             onRedeem={() => {
               setProblem(null);
               setNotice(null);

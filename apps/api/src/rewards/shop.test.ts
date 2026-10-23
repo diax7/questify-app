@@ -6,6 +6,7 @@ import {
   expireReservations,
   readShop,
   reserveReward,
+  setGoal,
 } from "#src/rewards/shop";
 import { createRewardCodeKey, sealCode } from "#src/rewards/codes";
 
@@ -287,6 +288,9 @@ describe("readShop", () => {
       if (sql.includes("event_shop")) {
         return shop === undefined ? [] : [shop];
       }
+      if (sql.includes("goal_reward_id")) {
+        return [{ goal_reward_id: "r1" }];
+      }
       return sql.includes("shop_rewards") ? [ROW] : [MINE];
     });
 
@@ -310,6 +314,7 @@ describe("readShop", () => {
         },
       },
       balance: 250,
+      goalRewardId: "r1",
       rewards: [
         {
           id: "r1",
@@ -370,6 +375,36 @@ describe("readShop", () => {
     const { pool, statements } = shopPool(undefined);
     expect(await readShop(deps(pool), { playerId: PLAYER, eventId: EVENT })).toBeUndefined();
     expect(statements.some((sql) => sql.includes("shop_rewards"))).toBe(false);
+  });
+});
+
+describe("setGoal", () => {
+  it("sets the goal as the player and answers it", async () => {
+    const { pool, statements } = fakePool(() => [{ goal: "r1" }]);
+    expect(await setGoal({ pool }, { playerId: PLAYER, eventId: EVENT, rewardId: "r1" })).toEqual({
+      kind: "done",
+      goalRewardId: "r1",
+    });
+    expect(statements).toContain("SELECT set_goal($1, $2) AS goal");
+    const cleared = fakePool(() => [{ goal: null }]);
+    expect(
+      await setGoal({ pool: cleared.pool }, { playerId: PLAYER, eventId: EVENT, rewardId: null }),
+    ).toEqual({ kind: "done", goalRewardId: null });
+    const empty = fakePool(() => []);
+    expect(
+      await setGoal({ pool: empty.pool }, { playerId: PLAYER, eventId: EVENT, rewardId: null }),
+    ).toEqual({ kind: "done", goalRewardId: null });
+  });
+
+  it("answers not found on RN404 and throws anything else", async () => {
+    const refused = fakePool(() => pgError("RN404"));
+    expect(
+      await setGoal({ pool: refused.pool }, { playerId: PLAYER, eventId: EVENT, rewardId: "r1" }),
+    ).toEqual({ kind: "not_found" });
+    const broken = fakePool(() => pgError("57014"));
+    await expect(
+      setGoal({ pool: broken.pool }, { playerId: PLAYER, eventId: EVENT, rewardId: "r1" }),
+    ).rejects.toMatchObject({ code: "57014" });
   });
 });
 

@@ -47,6 +47,8 @@ export type ShopView = Readonly<{
     desk: DeskInfo;
   }>;
   balance: number;
+  /** The reward pinned as the player's goal (FR-517, T-213), or null. */
+  goalRewardId: string | null;
   rewards: readonly ShopReward[];
   redemptions: readonly MyRedemption[];
 }>;
@@ -139,6 +141,7 @@ export function readShop(body: unknown): ShopView | undefined {
       },
     },
     balance: numberOf(body["balance"]),
+    goalRewardId: stringOr(body["goalRewardId"]),
     rewards: body["rewards"].map(rewardOf).filter((r): r is ShopReward => r !== undefined),
     redemptions: (Array.isArray(body["redemptions"]) ? body["redemptions"] : [])
       .map(redemptionOf)
@@ -272,6 +275,21 @@ export async function cancelRedemption(
 ): Promise<ShopCallAnswer> {
   return callAnswer(
     await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/cancel` }),
+  );
+}
+
+/** Pins a reward as the goal, or clears it with null (FR-517). Sending it again sets the same goal. */
+export async function setGoal(
+  session: Pick<Session, "request">,
+  eventId: string,
+  rewardId: string | null,
+): Promise<ShopCallAnswer> {
+  return callAnswer(
+    await session.request({
+      method: "PUT",
+      path: `/v1/events/${eventId}/goal`,
+      body: { rewardId },
+    }),
   );
 }
 

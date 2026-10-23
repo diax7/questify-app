@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
 import type { SettingsService } from "#src/settings/service";
 
 export type HomeDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
@@ -53,6 +54,8 @@ export type Home = Readonly<{
       }>
     | Readonly<{ status: "pending" }>;
   upNext: UpNext | null;
+  /** The pinned reward or the next reachable one (FR-803, T-213); null with no shop or nothing to reach. */
+  goal: Goal | null;
   rankingOn: boolean;
 }>;
 
@@ -222,6 +225,7 @@ type StandingRow = Readonly<{
   timezone: string;
   status_now: EventStatusNow;
   focus_quest_id: string | null;
+  goal_reward_id: string | null;
   rehearsal: boolean;
   /** The database's clock: the same one that decided `status_now`, so "open" has one source. */
   now: Date;
@@ -236,6 +240,7 @@ async function standingOf(
   const { rows } = await client.query<StandingRow>(
     `SELECT n.status, n.score, n.balance, e.name_ar, e.name_en, e.venue_ar, e.venue_en, e.starts_at, e.ends_at,
             e.timezone, event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.focus_quest_id,
+            n.goal_reward_id,
             n.joined_via IS NOT DISTINCT FROM 'rehearsal' AS rehearsal, now() AS now
      FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
      WHERE n.event_id = $1 AND n.player_id = $2 AND p.status = 'active'`,
@@ -244,9 +249,34 @@ async function standingOf(
   return rows[0];
 }
 
+type ShopRewardRow = Readonly<{
+  id: string;
+  name_ar: string | null;
+  name_en: string | null;
+  price: number;
+  stock_left: number;
+  per_player_limit: number | null;
+  held_by_me: number;
+  closes_at: Date | null;
+}>;
+
+/** The shop's rewards for the goal, in shop order (`shop_rewards`: the caller's own view, empty for a non-member). */
+async function goalRewards(client: PoolClient, eventId: string): Promise<GoalReward[]> {
+  const { rows } = await client.query<ShopRewardRow>("SELECT * FROM shop_rewards($1)", [eventId]);
+  return rows.map((row) => ({
+    id: row.id,
+    name: { ar: row.name_ar, en: row.name_en },
+    price: row.price,
+    stockLeft: row.stock_left,
+    perPlayerLimit: row.per_player_limit,
+    heldByMe: row.held_by_me,
+    closesAt: row.closes_at,
+  }));
+}
+
 /**
- * The event Home (FR-801, FR-804): the event, the player's standing and progress, Up next, and whether the ranking is
- * on. A pending member gets the event and "pending" only; anyone not active or pending gets null (403).
+ * The event Home (FR-801, FR-804): the event, the player's standing and progress, Up next, the goal (FR-803), and
+ * whether the ranking is on. A pending member gets the event and "pending" only; anyone not active or pending gets null (403).
  */
 export async function readHome(
   deps: HomeDeps,
@@ -269,15 +299,16 @@ export async function readHome(
       rehearsal: row.rehearsal,
     };
     if (row.status === "pending") {
-      return { event, standing: { status: "pending" as const }, upNext: null };
+      return { event, standing: { status: "pending" as const }, upNext: null, goal: null };
     }
     const quests = (await questRows(client, eventId)).flatMap((category) => category.quests);
+    const balance = Number(row.balance);
     return {
       event,
       standing: {
         status: "active" as const,
         score: Number(row.score),
-        balance: Number(row.balance),
+        balance,
         questsDone: quests.filter(finished).length,
         questsTotal: quests.length,
       },
@@ -287,6 +318,7 @@ export async function readHome(
         playStatus(row.status_now, row.rehearsal),
         row.now,
       ),
+      goal: pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now),
     };
   });
   if (home === null) {
@@ -294,7 +326,8 @@ export async function readHome(
   }
   const config = await deps.settings.forEvent(eventId, playerId);
   const rankingOn = config.kind === "ok" && config.config.features["ranking"]?.enabled !== false;
-  return { ...home, rankingOn };
+  const shopOn = config.kind === "ok" && config.config.features["shop"]?.enabled !== false;
+  return { ...home, goal: shopOn ? home.goal : null, rankingOn };
 }
 
 /** One line of a player's points record (FR-410), as `member_activity` gives it (migration 0023). */
