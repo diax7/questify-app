@@ -159,7 +159,9 @@ export async function startApp(
   db: TestDatabase,
   logger: FastifyServerOptions["logger"] = false,
   auth: Partial<AppConfig["auth"]> = {},
-  extra: Partial<Pick<AppOptions, "settings" | "translations" | "rankingStore">> = {},
+  extra: Partial<
+    Pick<AppOptions, "settings" | "translations" | "rankingStore" | "idempotencyStore">
+  > = {},
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
