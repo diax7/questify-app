@@ -33,7 +33,7 @@ export function fontFor(family: string, weight: FontWeight): FontName {
     FONT_FACES as Record<string, Partial<Record<FontWeight, FontName>>>
   )[family];
   const weights = Object.keys(faces ?? {}).map(Number) as FontWeight[];
-  const closest = weights.toSorted(
+  const closest = [...weights].sort(
     (a, b) => Math.abs(a - weight) - Math.abs(b - weight) || b - a,
   )[0];
   const name = closest === undefined ? undefined : faces?.[closest];

@@ -4,7 +4,7 @@ const PLACEHOLDER = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g;
 
 /** The names inside {braces} in a text, each once, sorted. */
 export function placeholdersOf(text: string): string[] {
-  return [...new Set([...text.matchAll(PLACEHOLDER)].map((match) => match[1] ?? ""))].toSorted();
+  return [...new Set([...text.matchAll(PLACEHOLDER)].map((match) => match[1] ?? ""))].sort();
 }
 
 /**

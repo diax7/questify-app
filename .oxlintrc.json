@@ -8,5 +8,11 @@
     "import/no-relative-parent-imports": "error",
     "no-console": "warn"
   },
+  "overrides": [
+    {
+      "files": ["apps/app/**", "packages/shared/**"],
+      "rules": { "unicorn/no-array-sort": "off" }
+    }
+  ],
   "ignorePatterns": ["node_modules", "dist", "coverage", ".expo", "docs"]
 }

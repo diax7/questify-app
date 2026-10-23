@@ -33,7 +33,7 @@ function composeFeatures(
   platform: PlatformSettings,
   event: EventConfig | undefined,
 ): Record<string, ComposedFeature> {
-  const entries = Object.entries(registries.features).toSorted(byKey);
+  const entries = Object.entries(registries.features).sort(byKey);
   return Object.fromEntries(
     entries.map(([key, definition]) => {
       const setting = platform.features?.[key];
@@ -51,7 +51,7 @@ function composeFeatures(
 }
 
 function composeTuning(registries: Registries, platform: PlatformSettings): Record<string, number> {
-  const entries = Object.entries(registries.tuning).toSorted(byKey);
+  const entries = Object.entries(registries.tuning).sort(byKey);
   return Object.fromEntries(
     entries.map(([key, definition]) => {
       // A missing number counts as NaN, and NaN and infinities fall outside every range.

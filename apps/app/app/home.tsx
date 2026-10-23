@@ -162,7 +162,7 @@ function MyEvents() {
     setFailed(read === undefined);
     setEvents(read);
     const recent = await readRecent(keyValueStore);
-    setLatest(Object.entries(recent).toSorted((a, b) => b[1] - a[1])[0]?.[0]);
+    setLatest(Object.entries(recent).sort((a, b) => b[1] - a[1])[0]?.[0]);
   }, []);
   useEffect(() => {
     void load();

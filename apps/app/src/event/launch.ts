@@ -76,7 +76,7 @@ export function chooseLaunchEvent(events: readonly MyEvent[], recent: Recent): s
   const live = events.filter((event) => event.status === "active" && event.statusNow === "live");
   const ranked = live
     .map((event, order) => ({ id: event.id, order, at: recent[event.id] ?? -1 }))
-    .toSorted((a, b) => b.at - a.at || a.order - b.order);
+    .sort((a, b) => b.at - a.at || a.order - b.order);
   return ranked[0]?.id ?? null;
 }
 

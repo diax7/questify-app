@@ -112,6 +112,11 @@ secret store; a secret scan runs on every change.
 - Limits: at most 100 lines per function, cyclomatic complexity 8, 5 positional parameters, width 100.
 - Zero warnings: fix every warning from every tool, or add an inline ignore with a reason.
 - Expo: development builds only (NFC needs native code); build and submit through EAS.
+- App and shared code run on the release Hermes, which lacks some built-ins Node has (`toSorted`,
+  `Object.groupBy`, Set methods, `structuredClone`, ...). Copy then sort (`[...list].sort()`);
+  `unicorn/no-array-sort` is off for `apps/app` and `packages/shared` for that reason, and
+  `apps/app/src/hermes-runtime.test.ts` fails on any call to a listed built-in (2026-10-23: the
+  preview APK crashed at launch on `toSorted` in `fontFor`).
 
 ## Definition of Done
 
