@@ -36,6 +36,8 @@ export type PlayRefusal =
   /** The event switched this quest type off (share quests, ADR-199). */
   | Readonly<{ kind: "feature_off" }>
   | Readonly<{ kind: "unknown_option" }>
+  /** More than one option on a vote that takes one (T-306). */
+  | Readonly<{ kind: "too_many_choices" }>
   | Readonly<{ kind: "already_completed" }>
   | Readonly<{ kind: "key_reused" }>
   | Readonly<{ kind: "quiz_not_started" }>
@@ -76,6 +78,7 @@ const REFUSALS: Readonly<
   SA422: (detail) => ({ kind: "bad_answer", question: detail }),
   QF403: () => ({ kind: "feature_off" }),
   VO422: () => ({ kind: "unknown_option" }),
+  VC422: () => ({ kind: "too_many_choices" }),
   QO422: () => ({ kind: "unknown_option" }),
   QD409: () => ({ kind: "already_completed" }),
   QV422: (detail) => ({ kind: "invalid_code", problem: detail }),

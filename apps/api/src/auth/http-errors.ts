@@ -1029,6 +1029,42 @@ export const questLocked = make(
   "بدأ اللاعبون هذه المهمة، فيمكن تعديل النصوص فقط، لا الخيارات ولا الإجابات ولا المؤقت.",
   "Players have started this quest, so only its text can change, not its options, answers or timer.",
 );
+export const pollLocked = make(
+  409,
+  "poll_locked",
+  "أُرسل هذا التصويت أو صوّت فيه لاعبون، فلا يتغيّر نوعه ولا عدد اختياراته ولا مدته.",
+  "This poll was sent or has votes, so whether it is live, its choices and its minutes stay as they are.",
+);
+export const notLivePoll = make(
+  422,
+  "not_live_poll",
+  "هذه المهمة ليست تصويتًا مباشرًا.",
+  "This quest is not a live poll.",
+);
+export const pollAlreadySent = make(
+  409,
+  "already_sent",
+  "أُرسل هذا التصويت وأُغلق، فلا يمكن إرساله مرة أخرى.",
+  "This poll was sent and has closed, so it cannot be sent again.",
+);
+export const pollNotSent = make(
+  409,
+  "not_sent",
+  "لم يُرسَل هذا التصويت بعد.",
+  "This poll has not been sent yet.",
+);
+export const pollEventNotLive = make(
+  409,
+  "event_not_live",
+  "أرسل التصويت عندما تكون الفعالية مباشرة أو أثناء التجربة.",
+  "Send the poll while the event is live, or during a rehearsal.",
+);
+export const tooManyChoices = make(
+  422,
+  "too_many_choices",
+  "اختر إجابة واحدة فقط.",
+  "Pick only one choice.",
+);
 export const notVoteQuest = make(
   422,
   "not_vote_quest",

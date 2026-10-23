@@ -74,6 +74,25 @@ const bilingualHint = z
 export const GAME_ATTEMPTS = { min: 1, max: 10, default: 1 } as const;
 export const GAME_COOLDOWN_MINUTES = { min: 1, max: 1440 } as const;
 
+/** How long a live poll stays open once sent, in minutes (ADR-220); the database holds the same check. */
+export const POLL_MINUTES = { min: 1, max: 1440, default: 5 } as const;
+
+/** How many options a live poll may take, and when its results show (FR-240, FR-242). */
+export const POLL_CHOICES = ["one", "several"] as const;
+export const POLL_RESULTS = ["after_vote", "at_close", "never"] as const;
+export type PollChoices = (typeof POLL_CHOICES)[number];
+export type PollResults = (typeof POLL_RESULTS)[number];
+
+/**
+ * A live poll's block (T-306, ADR-220): one or several choices, when its results show, and how long it stays open once
+ * sent. A vote without it is a plain vote, one choice.
+ */
+const livePoll = z.strictObject({
+  choices: z.enum(POLL_CHOICES),
+  results: z.enum(POLL_RESULTS),
+  minutes: z.number().int().min(POLL_MINUTES.min).max(POLL_MINUTES.max),
+});
+
 /** A meet quest's daily cap bounds and default (ADR-210); the database holds the same check. */
 export const MEET_DAILY_CAP = { min: 1, max: 50, default: 5 } as const;
 
@@ -125,7 +144,8 @@ export const QUEST_TYPES = {
   },
   /**
    * The player picks one of the organizer's options (T-302, FR-207). Options are the organizer's own text, never a
-   * player's submission (FR-1629); images wait for storage (ADR-190). One vote per player.
+   * player's submission (FR-1629); images wait for storage (ADR-190). One vote per player. With `live` it is a live
+   * poll (T-306, FR-239 to FR-242): sent and closed from the dashboard, one or several choices.
    */
   vote: {
     label: "quests.type.vote",
@@ -138,6 +158,7 @@ export const QUEST_TYPES = {
         .min(2)
         .max(10)
         .refine(distinctIds),
+      live: livePoll.optional(),
     }),
   },
   /**
@@ -339,6 +360,11 @@ export const REFRESHING_QUEST_TYPES: readonly QuestType[] = [
   "challenge",
   "location",
 ];
+
+/** Whether a quest is a live poll: a vote with a `live` block (T-306). */
+export function isLivePoll(type: string, config: Readonly<Record<string, unknown>>): boolean {
+  return type === "vote" && config["live"] !== undefined;
+}
 
 export function isQuestType(value: string): value is QuestType {
   return Object.hasOwn(QUEST_TYPES, value);

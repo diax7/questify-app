@@ -349,6 +349,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own options and choice, through member_vote; only a quest they may play (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/quests/:questId/vote":
     "the calling player's own active enrollment in the quest's event only; one vote, checked by vote_quest (test/plays/routes, test/db/vote-quiz)",
+  "GET /v1/quests/:questId/poll":
+    "the calling player's own view of a live poll they may see, through member_poll; counts only when its policy allows, through poll_results, never who voted (test/plays/polls, test/db/live-polls)",
+  "GET /v1/events/:eventId/live":
+    "the calling player's own live state, through live_state; anyone not an active member gets the same empty answer, naming no event (test/plays/polls, test/db/live-polls)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/send":
+    "members inside their event limit; a live poll of that event only, through send_poll (test/plays/polls, test/db/live-polls)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/close":
+    "members inside their event limit; a live poll of that event only, through close_poll (test/plays/polls, test/db/live-polls)",
   "GET /v1/quests/:questId/quiz":
     "the calling player's own attempt only, through member_quiz; never a right answer before it was answered or closed (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/quests/:questId/quiz/start":

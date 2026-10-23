@@ -1,6 +1,7 @@
 import {
   PLACED_QUEST_TYPES,
   QUEST_TYPES,
+  isLivePoll,
   parseQuestConfig,
   parseVerification,
   toInstant,
@@ -102,7 +103,12 @@ export type Refused =
   /** Players stamped this passport step (T-304b): it stays. */
   | Readonly<{ kind: "step_in_use" }>
   /** The quest item named is removed or another event's (T-304d). */
-  | Readonly<{ kind: "invalid_item" }>;
+  | Readonly<{ kind: "invalid_item" }>
+  /**
+   * A live poll's `live` setting, choices or minutes once sent or voted on, or `live` added to a vote players can see
+   * (T-306, migration 0052): `field` names which.
+   */
+  | Readonly<{ kind: "poll_locked"; field: string }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -170,6 +176,21 @@ export function timeOf(
   }
 }
 
+type Window = Readonly<{ opensAt: Date | null; closesAt: Date | null; visible: boolean }>;
+
+/**
+ * A live poll's window is Send's and Close's (T-306, ADR-220): a draft stays hidden with no times, a sent poll keeps
+ * the window it was sent with, whatever the input says. Every other quest takes the input's.
+ */
+function windowOf(live: boolean, current: QuestRecord | undefined, asked: Window): Window {
+  if (!live) {
+    return asked;
+  }
+  return current?.pollSentAt === null || current === undefined
+    ? { opensAt: null, closesAt: null, visible: false }
+    : { opensAt: current.opensAt, closesAt: current.closesAt, visible: current.visible };
+}
+
 /**
  * A quest's fields after this input, from what is stored (or nothing, for a new quest), checked as one whole. The
  * config is validated against the quest's type; a config left out keeps the stored one.
@@ -234,9 +255,11 @@ export function mergeQuest(
     description: bilingual(input.description, current?.description ?? NO_TEXT),
     points,
     repeatCap,
-    opensAt,
-    closesAt,
-    visible: input.visible ?? current?.visible ?? true,
+    ...windowOf(isLivePoll(type, config), current, {
+      opensAt,
+      closesAt,
+      visible: input.visible ?? current?.visible ?? true,
+    }),
     config,
     verification,
     itemId: input.itemId === undefined ? (current?.itemId ?? null) : input.itemId,
@@ -354,9 +377,13 @@ export async function withEvent<T>(
       return { kind: "event_closed" };
     }
     // Stryker restore all
-    const pg = error as { code?: string; table?: string };
+    const pg = error as { code?: string; table?: string; detail?: string };
     if (pg.code === LOCKED) {
       return { kind: "quest_locked" };
+    }
+    // A live poll's settings once sent or voted on (migration 0052).
+    if (pg.code === "PL409") {
+      return { kind: "poll_locked", field: pg.detail ?? "live" };
     }
     // The categories' unlocks would go round in a circle (migration 0044).
     if (pg.code === "CU422") {

@@ -91,8 +91,12 @@ export {
   toLocalInput,
   zoneLabel,
 } from "./time/event-time";
-export type { QuestType, QuestVerification } from "./quests/registry";
+export type { PollChoices, PollResults, QuestType, QuestVerification } from "./quests/registry";
 export {
+  isLivePoll,
+  POLL_CHOICES,
+  POLL_MINUTES,
+  POLL_RESULTS,
   QR_QUEST_TYPES,
   QUEST_TYPES,
   QUEST_TYPE_NAMES,

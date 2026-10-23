@@ -57,6 +57,8 @@ export type QuestRecord = Readonly<{
   itemId: string | null;
   /** Its place on the spot types (T-303b), or null; required for a location quest. */
   place: QuestPlace | null;
+  /** When a live poll was sent (T-306), or null for a draft and every other quest. */
+  pollSentAt: Date | null;
 }>;
 
 /** One step of a passport (T-304b): its name and the version its printed code carries. */
@@ -125,13 +127,14 @@ type QuestRow = {
   place_lat: string | null;
   place_lng: string | null;
   place_radius_m: number | null;
+  poll_sent_at: Date | null;
 };
 
 const CATEGORY_COLUMNS = `id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus,
   refresh, hidden, item_id`;
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
   repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id, place_lat, place_lng,
-  place_radius_m`;
+  place_radius_m, poll_sent_at`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -169,6 +172,7 @@ const toQuest = (row: QuestRow): QuestRecord => ({
     row.place_lat === null || row.place_lng === null || row.place_radius_m === null
       ? null
       : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
+  pollSentAt: row.poll_sent_at,
 });
 
 type StepRow = {

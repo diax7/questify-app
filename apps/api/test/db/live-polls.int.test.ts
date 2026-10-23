@@ -175,6 +175,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
       [quest, ago],
     );
 
+  const voters = async (event: string, quest: string) => {
+    for (const options of [["a", "b"], ["a"], ["b", "c"]]) {
+      await vote((await member(event)).player, quest, options);
+    }
+  };
+
+  const bonusOf = async (enrollment: string) =>
+    owner<{ score_delta: string }>(
+      "SELECT score_delta FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'bonus'",
+      [enrollment],
+    );
+
   describe("Send and Close", () => {
     it("sends a draft poll for its minutes, answers a second send, and refuses a send once closed", async () => {
       const event = await newEvent();
@@ -328,7 +340,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
     it("holds the live block's shape in the database", async () => {
       const event = await newEvent();
       const category = await newCategory(event);
-      for (const live of [
+      for (const block of [
         { choices: "many", results: "never", minutes: 5 },
         { choices: "one", results: "later", minutes: 5 },
         { choices: "one", results: "never", minutes: 0 },
@@ -338,8 +350,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
         { results: "never", minutes: 5 },
       ]) {
         await expect(
-          newVote(event, category, { options: OPTIONS, live }),
-          JSON.stringify(live),
+          newVote(event, category, { options: OPTIONS, live: block }),
+          JSON.stringify(block),
         ).rejects.toMatchObject({ code: "23514" });
       }
       await expect(
@@ -449,12 +461,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
   });
 
   describe("results", () => {
-    const voters = async (event: string, quest: string) => {
-      for (const options of [["a", "b"], ["a"], ["b", "c"]]) {
-        await vote((await member(event)).player, quest, options);
-      }
-    };
-
     it("shows results after voting, and counts shares out of voters", async () => {
       const event = await newEvent();
       const quest = await newVote(event, await newCategory(event), poll("several", "after_vote"));
@@ -592,12 +598,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
   });
 
   describe("live polls stay out of the category rules", () => {
-    const bonusOf = async (enrollment: string) =>
-      owner<{ score_delta: string }>(
-        "SELECT score_delta FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'bonus'",
-        [enrollment],
-      );
-
     it("pays the bonus and opens the next category past a closed poll the player missed", async () => {
       const event = await newEvent();
       const first = await newCategory(event, { completion_bonus: 50 });

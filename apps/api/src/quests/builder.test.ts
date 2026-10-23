@@ -21,6 +21,7 @@ const STORED: QuestRecord = {
   steps: [],
   itemId: "44444444-4444-4444-8444-444444444444",
   place: null,
+  pollSentAt: null,
 };
 const ZONE = "Asia/Riyadh";
 
@@ -264,5 +265,68 @@ describe("a passport's audit (T-304b)", () => {
       steps: [{ id: "s1", nameAr: null, nameEn: "Booth" }],
     });
     expect(auditView(STORED)).not.toHaveProperty("steps");
+  });
+});
+
+describe("a live poll's window (T-306)", () => {
+  const options = [
+    { id: "a", text: { en: "A" } },
+    { id: "b", text: { en: "B" } },
+  ];
+  const live = { options, live: { choices: "one", results: "never", minutes: 5 } };
+  const asked = {
+    categoryId: "c",
+    title: { en: "Poll" },
+    points: 5,
+    visible: true,
+    opensAt: "2030-11-01T10:00",
+    closesAt: "2030-11-01T11:00",
+  };
+
+  it("keeps a new or draft poll hidden with no window, whatever is asked", () => {
+    expect(mergeQuest(undefined, "vote", { ...asked, config: live }, ZONE)).toMatchObject({
+      visible: false,
+      opensAt: null,
+      closesAt: null,
+    });
+    const draft: QuestRecord = { ...STORED, type: "vote", config: live, visible: false };
+    expect(mergeQuest(draft, "vote", asked, ZONE)).toMatchObject({
+      visible: false,
+      opensAt: null,
+      closesAt: null,
+    });
+  });
+
+  it("keeps a sent poll's window as sent, and a plain vote's as asked", () => {
+    const sent: QuestRecord = {
+      ...STORED,
+      type: "vote",
+      config: live,
+      visible: true,
+      pollSentAt: STORED.opensAt,
+    };
+    expect(mergeQuest(sent, "vote", { ...asked, visible: false }, ZONE)).toMatchObject({
+      visible: true,
+      opensAt: STORED.opensAt,
+      closesAt: STORED.closesAt,
+    });
+    expect(mergeQuest(undefined, "vote", { ...asked, config: { options } }, ZONE)).toMatchObject({
+      visible: true,
+      opensAt: new Date("2030-11-01T07:00:00Z"),
+    });
+  });
+
+  it("refuses several choices without `live` and a poll of 0 or 1,441 minutes", () => {
+    for (const config of [
+      { options, choices: "several" },
+      { options, live: { choices: "one", results: "never", minutes: 0 } },
+      { options, live: { choices: "one", results: "never", minutes: 1441 } },
+      { options, live: { choices: "all", results: "never", minutes: 5 } },
+    ]) {
+      expect(mergeQuest(undefined, "vote", { ...asked, config }, ZONE)).toEqual({
+        kind: "invalid",
+        field: "config",
+      });
+    }
   });
 });

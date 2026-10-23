@@ -149,19 +149,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
         { id: "a", text: { ar: null, en: "Robots" } },
         { id: "b", text: { ar: null, en: "Space" } },
       ],
-      mine: null,
+      mine: [],
     });
     const key = randomUUID();
-    const voted = await app("POST", `/v1/quests/${quest}/vote`, token, { optionId: "b" }, key);
+    const voted = await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["b"] }, key);
     expect(voted.statusCode).toBe(201);
     expect(voted.json()).toMatchObject({ points: 10, score: 10, replayed: false, rank: 1 });
     expect(
-      (await app("POST", `/v1/quests/${quest}/vote`, token, { optionId: "b" }, key)).json(),
+      (await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["b"] }, key)).json(),
     ).toEqual(voted.json());
-    expect(codeOf(await app("POST", `/v1/quests/${quest}/vote`, token, { optionId: "a" }))).toEqual(
-      [409, "already_voted"],
-    );
-    expect((await app("GET", `/v1/quests/${quest}/vote`, token)).json().mine).toBe("b");
+    expect(
+      codeOf(await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["a"] })),
+    ).toEqual([409, "already_voted"]);
+    expect((await app("GET", `/v1/quests/${quest}/vote`, token)).json().mine).toEqual(["b"]);
     expect(upserts.filter((write) => write.event === event)).toEqual([{ event, score: 10n }]);
     const counts = await dashboard("GET", `/events/${event}/quests/${quest}/votes`);
     expect(counts.json()).toEqual({
@@ -170,6 +170,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
         { id: "b", text: { ar: null, en: "Space" }, votes: 1 },
       ],
       total: 1,
+      voters: 1,
     });
   });
 
@@ -178,20 +179,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
     const quest = await newQuest(event, "vote", VOTE);
     const quiz = await newQuest(event, "quiz", QUIZ);
     const token = await newPlayer(event);
-    expect(codeOf(await app("POST", `/v1/quests/${quest}/vote`, token, { optionId: "z" }))).toEqual(
-      [422, "unknown_option"],
-    );
-    expect(codeOf(await app("POST", `/v1/quests/${quiz}/vote`, token, { optionId: "a" }))).toEqual([
-      422,
-      "not_vote_quest",
-    ]);
+    expect(
+      codeOf(await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["z"] })),
+    ).toEqual([422, "unknown_option"]);
+    expect(
+      codeOf(await app("POST", `/v1/quests/${quiz}/vote`, token, { optionIds: ["a"] })),
+    ).toEqual([422, "not_vote_quest"]);
     expect(codeOf(await app("GET", `/v1/quests/${quiz}/vote`, token))).toEqual([404, "not_found"]);
     expect(codeOf(await dashboard("GET", `/events/${event}/quests/${quiz}/votes`))).toEqual([
       404,
       "not_found",
     ]);
     await owner("UPDATE quest SET closes_at = now() - interval '1 minute' WHERE id = $1", [quest]);
-    const closed = await app("POST", `/v1/quests/${quest}/vote`, token, { optionId: "a" });
+    const closed = await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["a"] });
     expect([...codeOf(closed), closed.json().details]).toEqual([
       403,
       "quest_not_open",
@@ -352,7 +352,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
       "quest_not_open",
       { reason: "order_locked" },
     ]);
-    const voted = await app("POST", `/v1/quests/${first}/vote`, token, { optionId: "a" });
+    const voted = await app("POST", `/v1/quests/${first}/vote`, token, { optionIds: ["a"] });
     expect(voted.json()).toMatchObject({ points: 10, bonus: null });
     await app("POST", `/v1/quests/${last}/quiz/start`, token, {});
     await app("POST", `/v1/quests/${last}/quiz/next`, token, {});

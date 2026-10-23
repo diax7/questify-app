@@ -21,19 +21,25 @@ import {
   notQuizQuest,
   notShareQuest,
   notSurveyQuest,
+  notLivePoll,
   notVoteQuest,
   operatorPlayOff,
+  pollAlreadySent,
+  pollEventNotLive,
+  pollNotSent,
   questCodeInvalid,
   questionClosed,
   questionNotServed,
   questNotOpen,
   quizNotStarted,
   tooManyAttempts,
+  tooManyChoices,
   unauthenticated,
   unknownOption,
   updateRequired,
 } from "#src/auth/http-errors";
 import { callerOf, deviceOf, parse } from "#src/auth/request";
+import { etagMatches } from "#src/etag";
 import { locationQuestsOn } from "#src/completions/complete";
 import { positionOf } from "#src/completions/routes";
 import { organizerContextOf } from "#src/organizers/context";
@@ -59,10 +65,12 @@ import {
   type MeetOutcome,
   type MeetReason,
 } from "#src/plays/meet";
+import { createLiveReader, liveEtagOf } from "#src/plays/live";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
-import { castVote, readVote, voteCounts } from "#src/plays/votes";
+import { castVote, readPoll, readVote, voteCounts } from "#src/plays/votes";
+import { closePoll, sendPoll, type PollDone } from "#src/quests/polls";
 import type { Ranking } from "#src/ranking/ranking";
 import type { SettingsService } from "#src/settings/service";
 
@@ -71,11 +79,14 @@ const playerIdempotent = { ...player, config: { ...player.config, idempotent: tr
 /** Twenty answers of up to 500 characters each, as JSON with escapes, fit in 64 KiB. */
 const surveyIdempotent = { ...playerIdempotent, bodyLimit: 65_536 } as const;
 const member = { config: { access: "member" } } as const;
+const memberIdempotent = { config: { access: "member", idempotent: true } } as const;
 
 const ITEM = /^[A-Za-z0-9_-]{1,40}$/;
 const questParams = z.object({ questId: z.uuid() });
 const teamParams = z.object({ eventId: z.uuid(), questId: z.uuid() });
-const voteBody = z.strictObject({ optionId: z.string().regex(ITEM) });
+const eventParams = z.object({ eventId: z.uuid() });
+/** One option, or several on a live poll that takes several (the database checks which, FR-240). */
+const voteBody = z.strictObject({ optionIds: z.array(z.string().regex(ITEM)).min(1).max(10) });
 const answerBody = z.strictObject({
   questionId: z.string().regex(ITEM),
   choiceId: z.string().regex(ITEM),
@@ -137,6 +148,8 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw featureOff();
     case "unknown_option":
       throw unknownOption();
+    case "too_many_choices":
+      throw tooManyChoices();
     case "already_completed":
       throw voting ? alreadyVoted() : alreadyCompleted();
     case "key_reused":
@@ -185,15 +198,41 @@ export function registerPlayRoutes(
 
   app.post("/v1/quests/:questId/vote", playerIdempotent, async (request, reply) => {
     const { questId } = parse(questParams, request.params);
-    const { optionId } = parse(voteBody, request.body);
+    const { optionIds } = parse(voteBody, request.body);
     const playerId = playerIdOf(request);
     const key = request.headers["idempotency-key"];
     const voted = valueOf(
-      await castVote(deps, { playerId, questId, optionId, idempotencyKey: String(key) }),
+      await castVote(deps, { playerId, questId, optionIds, idempotencyKey: String(key) }),
       true,
     );
     const rank = await deps.ranking.afterCompletion(playerId, voted.completionId);
     return reply.code(voted.replayed ? 200 : 201).send({ ...voted, rank });
+  });
+
+  app.get("/v1/quests/:questId/poll", player, async (request) => {
+    const { questId } = parse(questParams, request.params);
+    return valueOf(await readPoll(deps, playerIdOf(request), questId));
+  });
+
+  const live = createLiveReader(deps);
+  // What is live in the event for the player (ADR-221): polled every few seconds, so a weak ETag over the body without
+  // `serverNow` answers 304 while nothing changed; the server's clock rides in a header on both answers.
+  app.get("/v1/events/:eventId/live", player, async (request, reply) => {
+    const { eventId } = parse(eventParams, request.params);
+    const playerId = playerIdOf(request);
+    const wait = live.allow(playerId);
+    if (wait !== undefined) {
+      reply.header("retry-after", String(wait));
+      throw tooManyAttempts({ retryAfterSeconds: wait });
+    }
+    const state = await live.read(playerId, eventId);
+    const etag = liveEtagOf(state);
+    const serverNow = new Date().toISOString();
+    reply.header("etag", etag).header("server-now", serverNow).header("cache-control", "no-cache");
+    if (etagMatches(request.headers["if-none-match"], etag.slice(2))) {
+      return reply.code(304).send();
+    }
+    return { ...state, serverNow };
   });
 
   app.get("/v1/quests/:questId/survey", player, async (request) => {
@@ -357,8 +396,43 @@ export function registerMeetRoutes(
   });
 }
 
-/** The dashboard's vote counts and survey results, inside the organizer scope (owners and editors). */
+/** Send's and Close's answer, or their refusal thrown (API.md, live polls). */
+function pollValueOf(result: PollDone) {
+  switch (result.kind) {
+    case "done":
+      return result.value;
+    case "not_found":
+      throw notFound();
+    case "not_live_poll":
+      throw notLivePoll();
+    case "already_sent":
+      throw pollAlreadySent();
+    case "not_sent":
+      throw pollNotSent();
+    case "event_not_live":
+      throw pollEventNotLive();
+  }
+}
+
+/**
+ * The dashboard's vote counts and survey results, and Send and Close of a live poll (T-306; Idempotency-Key required),
+ * inside the organizer scope (owners and editors).
+ */
 export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): void {
+  scope.post("/events/:eventId/quests/:questId/send", memberIdempotent, async (request) => {
+    const { eventId, questId } = parse(teamParams, request.params);
+    parse(emptyBody, request.body);
+    const target = { eventId, questId, requestId: request.id };
+    return pollValueOf(await sendPoll(deps, organizerContextOf(request), target));
+  });
+
+  scope.post("/events/:eventId/quests/:questId/close", memberIdempotent, async (request) => {
+    const { eventId, questId } = parse(teamParams, request.params);
+    parse(emptyBody, request.body);
+    const target = { eventId, questId, requestId: request.id };
+    return pollValueOf(await closePoll(deps, organizerContextOf(request), target));
+  });
+
   scope.get("/events/:eventId/quests/:questId/votes", member, async (request) => {
     const { eventId, questId } = parse(teamParams, request.params);
     return valueOf(await voteCounts(deps, organizerContextOf(request), { eventId, questId }));

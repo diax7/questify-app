@@ -5,6 +5,7 @@ import {
   parseVerification,
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
+  isLivePoll,
   isQuestType,
   parseQuestConfig,
   unavailableSubmissionKind,
@@ -99,6 +100,34 @@ describe("vote quests", () => {
       parseQuestConfig("vote", { options: [option("a"), { id: "b c", text: { en: "x" } }] }),
     ).toBeUndefined();
     expect(QUEST_TYPES.vote.oneTry).toBe(true);
+  });
+
+  it("take a live block of choices, results and 1 to 1,440 minutes, and nothing else in it (T-306)", () => {
+    const options = [option("a"), option("b")];
+    const live = { choices: "several", results: "at_close", minutes: 1440 };
+    expect(parseQuestConfig("vote", { options, live })).toEqual({ options, live });
+    for (const changed of [
+      { ...live, minutes: 0 },
+      { ...live, minutes: 1441 },
+      { ...live, minutes: 2.5 },
+      { ...live, choices: "all" },
+      { ...live, results: "later" },
+      { ...live, extra: true },
+      { choices: "one", results: "never" },
+    ]) {
+      expect(
+        parseQuestConfig("vote", { options, live: changed }),
+        JSON.stringify(changed),
+      ).toBeUndefined();
+    }
+    expect(parseQuestConfig("vote", { options, choices: "several" })).toBeUndefined();
+    expect(parseQuestConfig("vote", { options, live: { ...live, minutes: 1 } })).toBeDefined();
+  });
+
+  it("are live polls only with the live block", () => {
+    expect(isLivePoll("vote", { live: { choices: "one" } })).toBe(true);
+    expect(isLivePoll("vote", {})).toBe(false);
+    expect(isLivePoll("quiz", { live: {} })).toBe(false);
   });
 });
 

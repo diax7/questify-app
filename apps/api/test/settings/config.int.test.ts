@@ -77,7 +77,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           shop: { enabled: true, minAppVersion: null, message: null },
           usernameChanges: { enabled: true, minAppVersion: null, message: null },
         },
-        tuning: { myQrGraceSeconds: 5, screenQrRotationSeconds: 45, usernameChangeDays: 30 },
+        tuning: {
+          livePollSeconds: 10,
+          myQrGraceSeconds: 5,
+          screenQrRotationSeconds: 45,
+          usernameChangeDays: 30,
+        },
         legal: {
           documents: [
             { id: "terms_of_use", version: "0.1" },
@@ -436,6 +441,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       });
       expect(config.features).not.toHaveProperty("teleporter");
       expect(config.tuning).toEqual({
+        livePollSeconds: 10,
         myQrGraceSeconds: 5,
         screenQrRotationSeconds: 45,
         usernameChangeDays: 30,

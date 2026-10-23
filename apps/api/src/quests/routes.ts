@@ -15,6 +15,7 @@ import {
   notFound,
   orderStale,
   platformFeatureOff,
+  pollLocked,
   questLocked,
   rehearsalData,
   stepInUse,
@@ -143,6 +144,7 @@ const questView = (quest: QuestRecord) => ({
   verification: quest.verification,
   itemId: quest.itemId,
   place: quest.place,
+  pollSentAt: quest.pollSentAt?.toISOString() ?? null,
   ...(quest.type === "passport"
     ? {
         steps: quest.steps.map((step) => ({
@@ -198,6 +200,8 @@ function answer<T>(
       throw stepInUse();
     case "invalid_item":
       throw invalidItem();
+    case "poll_locked":
+      throw pollLocked({ field: result.field });
   }
 }
 
