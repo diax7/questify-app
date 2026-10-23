@@ -17,6 +17,8 @@ export interface IdempotencyStore {
     contentType: string,
   ): Promise<void>;
   abort(scope: string, key: string): Promise<void>;
+  /** Drops every answer remembered for one principal (a deleted player's, T-217). */
+  forget(scope: string): Promise<void>;
 }
 
 type Entry =
@@ -88,6 +90,16 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
 
   abort(scope: string, key: string): Promise<void> {
     this.entries.delete(`${scope}\u0000${key}`);
+    return Promise.resolve();
+  }
+
+  forget(scope: string): Promise<void> {
+    const prefix = `${scope}\u0000`;
+    for (const id of this.entries.keys()) {
+      if (id.startsWith(prefix)) {
+        this.entries.delete(id);
+      }
+    }
     return Promise.resolve();
   }
 }

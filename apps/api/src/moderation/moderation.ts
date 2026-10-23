@@ -9,7 +9,8 @@ export type ModerationDeps = Readonly<{ pool: Pool }>;
 /** A player as the event's team sees them: what the join card discloses (PD-17), nothing that links them elsewhere. */
 export type EventPlayer = Readonly<{
   enrollmentId: string;
-  username: string;
+  /** Null for a deleted account (T-217): the row stays, with its points and status. */
+  username: string | null;
   avatar: string;
   status: "pending" | "active" | "left" | "removed" | "banned" | "declined";
   score: number;
@@ -108,7 +109,7 @@ export async function listPlayers(
     }
     const { rows } = await client.query<{
       enrollment_id: string;
-      username: string;
+      username: string | null;
       avatar: string;
       status: EventPlayer["status"];
       score: string;

@@ -413,7 +413,8 @@ export type ResultsState = "not_ended" | "open" | "confirmed" | "revealed";
 export type Place = Readonly<{
   rank: number;
   enrollmentId: string;
-  player: Readonly<{ username: string; avatar: string }>;
+  /** `username` is null for a deleted account: the place keeps its rank and score (FR-1739). */
+  player: Readonly<{ username: string | null; avatar: string }>;
   score: number;
   openFlags: number;
   flagKinds: readonly string[];
@@ -433,10 +434,14 @@ export type ResultsView = Readonly<{
   places: readonly Place[];
 }>;
 
+/** A place's name: null for a deleted account (T-217), never the text "null". */
+const usernameOf = (row: Readonly<Record<string, unknown>>): string | null =>
+  row["username"] === null ? null : String(row["username"]);
+
 const placeOf = (row: Readonly<Record<string, unknown>>): Place => ({
   rank: Number(row["rank"]),
   enrollmentId: String(row["enrollment_id"]),
-  player: { username: String(row["username"]), avatar: String(row["avatar"]) },
+  player: { username: usernameOf(row), avatar: String(row["avatar"]) },
   score: Number(row["score"]),
   openFlags: Number(row["open_flags"]),
   flagKinds: (row["flag_kinds"] as string[] | null) ?? [],
@@ -517,7 +522,8 @@ export function revealResults(
 
 export type PlayerPlace = Readonly<{
   rank: number;
-  player: Readonly<{ username: string; avatar: string }>;
+  /** `username` is null for a deleted account (FR-1739). */
+  player: Readonly<{ username: string | null; avatar: string }>;
   score: number;
   prize: Readonly<{ kind: PrizeKind; name: Bilingual }> | null;
   mine: boolean;
@@ -543,7 +549,7 @@ export async function resultsFor(client: PoolClient, eventId: string): Promise<P
   const { rows } = await client.query("SELECT * FROM event_results($1)", [eventId]);
   const places = rows.map((row) => ({
     rank: Number(row["rank"]),
-    player: { username: String(row["username"]), avatar: String(row["avatar"]) },
+    player: { username: usernameOf(row), avatar: String(row["avatar"]) },
     score: Number(row["score"]),
     prize:
       row["prize_kind"] === null

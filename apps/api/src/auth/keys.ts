@@ -57,6 +57,13 @@ export type AuthKeys = Readonly<{
   playerCodeHash: (challengeId: string, code: string) => Buffer;
   /** Hash of a code, bound to its challenge so equal codes differ between challenges. */
   codeHash: (challengeId: string, code: string) => Buffer;
+  /**
+   * The one-way fingerprint of a normalised phone or email that a deleted account leaves behind (T-217, ADR-176). Keyed,
+   * so the contact cannot be found by hashing every Saudi number; the key can never rotate without losing the marks.
+   */
+  deletionFingerprint: (contact: string) => Buffer;
+  /** Hash of a deletion code, bound to its challenge (a deletion code can never match a sign-in code). */
+  deletionCodeHash: (challengeId: string, code: string) => Buffer;
 }>;
 
 /**
@@ -83,6 +90,8 @@ export function createAuthKeys(secret: string): AuthKeys {
   const contactLookup = keyed("contact-lookup");
   const playerCode = derive("player-code");
   const code = derive("code");
+  const deletionFingerprint = keyed("deletion-fingerprint");
+  const deletionCode = derive("deletion-code");
   return {
     emailKey: email,
     addressKey: address,
@@ -97,5 +106,8 @@ export function createAuthKeys(secret: string): AuthKeys {
       createHmac("sha256", playerCode).update(`${challengeId}\n${value}`).digest(),
     codeHash: (challengeId, value) =>
       createHmac("sha256", code).update(`${challengeId}\n${value}`).digest(),
+    deletionFingerprint,
+    deletionCodeHash: (challengeId, value) =>
+      createHmac("sha256", deletionCode).update(`${challengeId}\n${value}`).digest(),
   };
 }

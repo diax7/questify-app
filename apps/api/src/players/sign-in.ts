@@ -257,7 +257,7 @@ async function openChallenge(
     const id = randomUUID();
     const token = generateToken();
     const code = generateCode();
-    await client.query("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8)", [
+    await client.query("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8, $9)", [
       id,
       tokenHash(token.token),
       contact.channel,
@@ -266,6 +266,7 @@ async function openChallenge(
       deps.keys.playerCodeHash(id, code),
       accept.terms,
       accept.privacy,
+      deps.keys.deletionFingerprint(contact.value),
     ]);
     return { kind: "opened", challengeToken: token.token, code } as const;
   });

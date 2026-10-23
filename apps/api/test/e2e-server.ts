@@ -111,6 +111,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         usernames?: string[];
         points?: number[];
         flagged?: string[];
+        email?: string;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -167,6 +168,22 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
              SELECT j.organizer_id, j.event_id, j.id, 'burst' FROM joined j JOIN made m ON m.id = j.player_id
              WHERE m.username = ANY ($4::text[]) AND EXISTS (SELECT 1 FROM scored)`,
             [body.eventId, body.usernames ?? [], body.points ?? [], body.flagged ?? []],
+          )
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /account: makes a player account with this username and email (the deletion page, T-217).
+      if (request.url === "/account") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) VALUES ($1) RETURNING id)
+             INSERT INTO player_contact (player_id, email) SELECT id, $2 FROM made`,
+            [body.usernames?.[0] ?? null, body.email ?? null],
           )
           .then(() => {
             response.writeHead(204).end();

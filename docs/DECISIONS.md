@@ -2338,7 +2338,8 @@ low, and 90% is the core target ADR-111 already set.
 **Decision:** account deletion keeps the `player` row as a tombstone (id, `status = 'deleted'`, `deleted_at`; username,
 birth year and avatar cleared) and keeps the player's enrollments, ledger entries, completions, handed-over prizes and
 frozen result places, which then name no one. Contacts, sessions, username history, acceptances, join answers, flags,
-device ids, ledger-note reasons and operator assignments are deleted or cleared. The player leaves every board; a
+device ids, ledger-note reasons and operator assignments are deleted or cleared. The player's flags go too, so the organizer's
+flag history for them is lost; the audit log keeps the decisions as ids. The player leaves every board; a
 frozen result shows "Deleted player". No restore exists.
 **Why:** the ledger is append-only (NFR-019) and the records hold RESTRICT keys; anonymising in place keeps event
 totals and frozen results right (FR-1739) while removing everything personal. Answers Q-086 and Q-092.

@@ -38,7 +38,8 @@ export type InviteView = Readonly<{
   email: string | null;
   abilities: readonly string[];
   status: "open" | "claimed" | "revoked" | "expired";
-  claimedBy: Readonly<{ username: string }> | null;
+  /** `username` is null for an account deleted since (T-217). */
+  claimedBy: Readonly<{ username: string | null }> | null;
   url?: string;
 }>;
 

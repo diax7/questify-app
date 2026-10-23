@@ -17,6 +17,21 @@ export function signInCodeEmail(input: { code: string; expiresInMinutes: number 
   };
 }
 
+/** The code that confirms an account deletion (T-217): it says what it is for, and that nothing happens without it. */
+export function deletionCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
+  const { code, expiresInMinutes } = input;
+  return {
+    subject: "رمز حذف حسابك في كويستفاي | Your Questify account deletion code",
+    text: [
+      `رمز حذف حسابك: ${code}`,
+      `الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلب حذف حسابك، تجاهل هذه الرسالة ولن يُحذف شيء.`,
+      "",
+      `Your account deletion code: ${code}`,
+      `It is valid for ${expiresInMinutes} minutes. If you did not ask to delete your account, ignore this email and nothing will be deleted.`,
+    ].join("\n"),
+  };
+}
+
 const riyadhTime = (at: Date): string =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Riyadh",

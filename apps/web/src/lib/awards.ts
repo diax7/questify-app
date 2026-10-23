@@ -25,7 +25,8 @@ export type ReportLine = Readonly<{
   at: string;
   kind: "quest" | "award" | "removal";
   points: number;
-  player: Readonly<{ enrollmentId: string; username: string }>;
+  /** `username` is null for a deleted account (T-217). */
+  player: Readonly<{ enrollmentId: string; username: string | null }>;
   quest: Readonly<{ id: string; title: Readonly<{ ar: string | null; en: string | null }> }> | null;
   reason: string | null;
   bulkId: string | null;

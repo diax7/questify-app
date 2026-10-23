@@ -48,7 +48,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player acceptances (database)"
       code: bytes(),
       contact: contact ?? `+9665${String(40_000_000 + counter).slice(-8)}`,
     };
-    await db.app.query("SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, $6, $7)", [
+    await db.app.query("SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, $6, $7, $8)", [
       randomUUID(),
       made.token,
       made.contact,
@@ -56,6 +56,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player acceptances (database)"
       made.code,
       terms,
       privacy,
+      bytes(),
     ]);
     return made;
   };

@@ -75,8 +75,15 @@ describe("prizes", () => {
 
   it("names the flagged players", () => {
     expect(
-      flaggedNames([PLACE, { ...PLACE, openFlags: 2, player: { username: "omar", avatar: "x" } }]),
-    ).toEqual(["@omar"]);
+      flaggedNames(
+        [
+          PLACE,
+          { ...PLACE, openFlags: 2, player: { username: "omar", avatar: "x" } },
+          { ...PLACE, openFlags: 1, player: { username: null, avatar: "falcon" } },
+        ],
+        "en",
+      ),
+    ).toEqual(["@omar", "Deleted player"]);
   });
 
   it("offers the owner the next step only", () => {

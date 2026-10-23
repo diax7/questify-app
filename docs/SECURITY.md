@@ -138,8 +138,16 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   counsel list.
 - Minimisation: no ad networks or tracking SDKs; location only while the app is open; photos only
   through the system picker or camera (NFR-021).
-- Deletion: real deletion on request, anonymising audit rows; the one-way fingerprint keeps bans
-  (ADR-084). No restore after deletion (ADR-094).
+- Deletion (T-217, migration 0038, ADR-175 to ADR-178 Proposed): one transaction (`erase_player`) turns the account into a
+  tombstone (id and status only); contacts, sessions, refresh tokens, username history, acceptances, join answers,
+  flags, device ids, ledger-note reasons and operator assignments go; the ledger, enrollments, frozen results and
+  handed-over prizes stay, naming no one; audit rows hold ids only already. It takes a fresh one-time code (its own
+  challenge, which can never sign in; ASVS re-authentication) and a 10-minute single-use deletion token. The public
+  code request always writes a challenge and sends after the answer, so a known and an unknown contact look the same.
+  The fingerprint is an HMAC under a key derived from `AUTH_SECRET` (`deletionFingerprint`): rotating that secret
+  loses the ban and welcome marks (Q-141); a plain hash would not do, every Saudi number can be hashed in minutes.
+  The deleted player's remembered idempotency answers are dropped (`forget`), so none of their responses replays. No
+  restore after deletion (ADR-094).
 - What an organizer reads about a player (closed in T-208, migration 0019): the join card (FR-121, version 0.1)
   discloses the username and avatar, points and quests in the event, and prizes collected (PD-17). Organizers no
   longer read `player` at all; `event_players` returns those columns only (tested: no birth year, no contact, a

@@ -4,6 +4,7 @@ import type { Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { QrImage } from "#src/components/CodesPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import { nameOf } from "#src/lib/players.ts";
 import {
   ABILITIES,
   PRESETS,
@@ -386,7 +387,9 @@ function InvitesList({
   const t = translatorFor(language);
   const statusOf = (invite: InviteView) =>
     invite.status === "claimed"
-      ? t("operators.status.claimed", { name: invite.claimedBy?.username ?? "" })
+      ? t("operators.status.claimed", {
+          name: nameOf(invite.claimedBy?.username ?? null, language),
+        })
       : t(`operators.status.${invite.status}`);
   return (
     <>

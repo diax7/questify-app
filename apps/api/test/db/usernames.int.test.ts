@@ -298,8 +298,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
       const token = randomBytes(32);
       const code = randomBytes(32);
       await db.app.query(
-        "SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, '0.1', '0.1')",
-        [randomUUID(), token, contact, randomBytes(32), code],
+        "SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, '0.1', '0.1', $6)",
+        [randomUUID(), token, contact, randomBytes(32), code, randomBytes(32)],
       );
       const signup = randomBytes(32);
       await db.app.query("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)", [

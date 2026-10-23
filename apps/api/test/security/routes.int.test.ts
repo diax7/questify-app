@@ -303,6 +303,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "starts a change for the bearer only; start_contact_change is bound to the session and never says whether another account has the contact (test/players/contact, test/db/contact-change)",
   "POST /v1/me/contact/verify":
     "changes the bearer's own contact only, through confirm_contact_change bound to the session (test/players/contact, test/db/contact-change)",
+  "POST /v1/me/deletion/code":
+    "sends a deletion code to the bearer's own contact only, read through own_deletion_contact bound to the session (test/deletion/deletion, test/db/account-deletion)",
   "POST /v1/me/acceptances":
     "records the bearer's own acceptances only, through accept_player_documents bound to the session (test/players/legal, test/db/player-legal)",
   "PATCH /v1/me":
@@ -312,6 +314,12 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/auth/resend": "bound to its own challenge token (test/players/sign-in)",
   "POST /v1/auth/verify":
     "bound to its own challenge token and code; the player comes from the database (test/players/sign-in)",
+  "POST /v1/deletion/code":
+    "answers the same for any contact and sends the code only to the contact's own phone or email; the code is useless without it (test/deletion/deletion, test/db/account-deletion)",
+  "POST /v1/deletion/verify":
+    "bound to its own challenge token and code; the player comes from the database (test/deletion/deletion, test/db/account-deletion)",
+  "POST /v1/deletion/confirm":
+    "bound to the single-use deletion token a right code made; erase_player derives the player from it (test/deletion/deletion, test/db/account-deletion)",
   "POST /v1/auth/signup": "bound to the signup token a verified code made (test/players/sign-in)",
   "POST /v1/auth/refresh": "bound to the refresh token's own family (test/players/sign-in)",
   "POST /v1/auth/logout": "ends only the presented refresh token's family (test/players/sign-in)",
@@ -354,6 +362,9 @@ const PUBLIC_ROUTES = [
   "POST /v1/auth/resend",
   "POST /v1/auth/signup",
   "POST /v1/auth/verify",
+  "POST /v1/deletion/code",
+  "POST /v1/deletion/confirm",
+  "POST /v1/deletion/verify",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",

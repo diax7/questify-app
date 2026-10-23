@@ -17,6 +17,7 @@
     "apps/api/src/join/**/*.ts",
     "apps/api/src/moderation/**/*.ts",
     "apps/api/src/audience/**/*.ts",
+    "apps/api/src/deletion/**/*.ts",
     "apps/api/src/home/**/*.ts",
     "apps/api/src/rewards/**/*.ts",
     "apps/api/src/operators/**/*.ts",

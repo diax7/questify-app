@@ -44,7 +44,7 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | Field | Type | Constraints | PII | Notes |
 |---|---|---|---|---|
 | id | uuid | PK | no | |
-| username | text | unique after folding (`username_fold`: case, أ/إ/آ→ا, ة→ه, ى→ي); CHECK: 3–30 Arabic letters without marks, Latin letters, digits, `_` (migration 0016) | yes (public) | The @username (gamer tag); written only by `create_player` and `rename_player` (the word lists, the change limit and the history), never by the API role directly. Every name kept in `username_history` |
+| username | text | unique after folding (`username_fold`: case, أ/إ/آ→ا, ة→ه, ى→ي); CHECK: 3–30 Arabic letters without marks, Latin letters, digits, `_` (migration 0016) | yes (public) | The @username (gamer tag); written only by `create_player` and `rename_player` (the word lists, the change limit and the history), never by the API role directly. Every name kept in `username_history`. NULL exactly when the account is deleted (`player_tombstone` CHECK, T-217) |
 | avatar | text | one of `falcon`, `fox`, `camel`, `owl`, `lantern`, `explorer-hat` (CHECK, the same list as `AVATARS`) | yes (public) | Questify's default avatars (FR-117); the player changes it freely |
 | phone_e164, email | | moved to `player_contact` (migration 0005) | **yes** | Only the player and Questify admins can read them; organizers cannot (see below) |
 | birth_year | smallint | nullable | yes | Age gate (13+); set only at sign-up, never changed by the API role |
@@ -55,12 +55,12 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | xp | bigint | ≥ 0, cache of `xp_entry` | no | Lifetime |
 | level | int | derived | no | |
 | gems | bigint | ≥ 0, cache | no | |
-| status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084) |
+| status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084). `deleted` is a tombstone: only `erase_player` makes it (T-217) |
 | created_at, deleted_at | timestamptz | | no | |
 
 ### username_history, username_word (migration 0016)
 `username_history (player_id, username, reason signup|rename, changed_at)`: every name a player had, written by a
-trigger on `player`; append-only for every role (deleting needs the erasure flag, T-217); no grant to the API role; the
+trigger on `player`; append-only for every role (`erase_rows` deletes a deleted player's rows under the erasure flag, T-217); no grant to the API role; the
 change limit counts `rename` rows only. `username_word (word, match word|part, language)`: the lists that refuse
 usernames (ADR-119), stored folded and letters only (a CHECK refuses anything else), no grant; read inside
 `create_player` and `rename_player` through `username_blocked(name)`.
@@ -73,8 +73,30 @@ request carried (`player_login_challenge.terms_version` and `privacy_version`, N
 no player, exists without them), at the challenge's time; re-acceptance and the guidelines go through
 `accept_player_documents(documents jsonb, how text)` (`how` is the `method`: `reaccept` or `submission`),
 bound to the calling player. Forced RLS: a player reads only their
-own rows; no write grant to the API role; append-only for every role (deleting needs the erasure flag, T-217).
+own rows; no write grant to the API role; append-only for every role (`erase_rows` deletes them under the erasure flag, T-217).
 Players created before 0017 have no rows and are asked again.
+
+### Account deletion (migration 0038, T-217, ADR-175 to ADR-178)
+- **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
+  `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
+  completions (`device_id` cleared), frozen `result_place` rows and handed-over redemptions; they name no one.
+  Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
+  player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
+- `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
+  under a key only the API holds) of every contact the account ever held, written by `sign_in_player`, `create_player`
+  and `confirm_contact_change` from the challenge's `contact_fp`. No grant; definers only.
+- `erased_mark (fingerprint, event_id NULL, kind banned|welcomed, expires_at, created_at)`: what a deleted account
+  leaves, no player id. `banned` per event it was banned from (until the event's data goes) and with `event_id` NULL
+  for a platform ban; `welcomed` per event whose welcome it got, until the event ends. Read by `erased_marked` in the
+  join definers (`not_allowed`), `grant_welcome` (no second welcome) and `platform_marked` in sign-in, sign-up and the
+  contact change. No grant.
+- `player_deletion_challenge (id, token_hash, player_id NULL, contact_key, code_hash, attempts ≤ 3, expires_at,
+  deletion_hash, deletion_expires_at, erased_at, created_at)`: the deletion code (never a sign-in), then the 10-minute
+  deletion token; `player_id` NULL when no account uses the contact. Swept an hour after it ends. No grant.
+- `erase_player(deletion, forfeit, request)`: player `FOR UPDATE` → enrollments by id `FOR NO KEY UPDATE` →
+  `end_reservation(…, 'erasure', 'system', NULL)` per pending item (`redemption.ended_by` gains `erasure`) → the
+  writes; audited `player.delete` with counts. The join definers read the caller `FOR KEY SHARE` first, so a join in
+  flight waits for a deletion and then refuses.
 
 ### player_contact (migration 0005)
 | Field | Type | Constraints | PII | Notes |
@@ -97,7 +119,7 @@ kind (added or replaced), never the contact.
 ### Who may write what (column rules, migration 0005)
 Row-level security picks rows; column grants and guard triggers close the columns that matter. For the API's role:
 - `enrollment.score` and `balance`: **never written by hand.** They are copies of the points ledger; T-105 adds the ledger and the trigger that keeps them in step. A player may enroll only themselves, only in an event they can see, only as pending or active, and may only change their own status to `left`; the event's organizer or an admin changes any status.
-- `player.status`: only a Questify admin, except that a player may delete their own active account. A new player is always created active.
+- `player.status`: only a Questify admin (since T-217 a player no longer sets their own `deleted`: `erase_player` does, and the tombstone CHECK stops anyone making or reviving one by hand). A new player is always created active.
 - `organizer_member`: only the organizer's owner (or an admin) adds members or changes an editor's event limit; an editor may leave; the owner never removes or demotes themselves. Roles change only inside the invite functions (migration 0008), never through the API's role. The person who creates an organizer becomes its first owner. Owner checks run in the database (`app_is_owner`).
 - `staff_user`: the API may change only `password_hash` (migration 0002).
 

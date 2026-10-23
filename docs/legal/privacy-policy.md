@@ -103,7 +103,7 @@ placeholders: "{{LEGAL_ENTITY_NAME}}, {{CR_NUMBER}}, {{REGISTERED_ADDRESS}}, {{C
 
 ### 8. حذف الحساب
 
-احذف حسابك من الإعدادات، ثم الحساب، أو من صفحة الويب {{DELETION_PAGE_URL}} دون تثبيت التطبيق.
+احذف حسابك من الملف الشخصي، ثم حذف الحساب، أو من صفحة الويب {{DELETION_PAGE_URL}} دون تثبيت التطبيق.
 - **نحذف:** ملفك، ونقاطك، ومشاركاتك، وتصويتك، وعناصرك، وجوالك، وبريدك.
 - **نبقي دون بياناتك الشخصية:** قيود سجل النقاط والسجلات الإدارية بعد إزالة ما يدل عليك، ونتائجك في الترتيبات السابقة باسم مجهول.
 - **نبقي مدة محددة:** سجلات تسليم الجوائز طوال المدة التي يطلبها النظام فقط.
@@ -251,7 +251,7 @@ complain to the Saudi Data and AI Authority (SDAIA).
 
 ### 8. Deleting your account
 
-Delete your account in Settings, then Account, or on the web page {{DELETION_PAGE_URL}} without
+Delete your account in Profile, then Delete account, or on the web page {{DELETION_PAGE_URL}} without
 installing the app.
 - **We delete:** your profile, points, submissions, votes, items, phone and email.
 - **We keep without your personal data:** points-record and admin-log entries with anything that

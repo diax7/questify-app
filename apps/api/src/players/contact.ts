@@ -163,8 +163,15 @@ async function openChange(
     const token = generateToken().token;
     const code = generateCode();
     const { rows } = await client.query<{ outcome: "started" | "unchanged" }>(
-      "SELECT start_contact_change($1, $2, $3, $4, $5) AS outcome",
-      [id, tokenHash(token), contact.channel, contact.value, codeHash(deps, token, code)],
+      "SELECT start_contact_change($1, $2, $3, $4, $5, $6) AS outcome",
+      [
+        id,
+        tokenHash(token),
+        contact.channel,
+        contact.value,
+        codeHash(deps, token, code),
+        deps.keys.deletionFingerprint(contact.value),
+      ],
     );
     // Stryker disable next-line StringLiteral: the name only labels an impossible error
     if (onlyRow(rows, "start_contact_change").outcome === "unchanged") {

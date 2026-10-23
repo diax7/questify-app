@@ -358,7 +358,8 @@ export type ReportLine = Readonly<{
   scoreDelta: number;
   balanceDelta: number;
   reverses: string | null;
-  player: Readonly<{ enrollmentId: string; username: string }>;
+  /** `username` is null for a deleted account (T-217). */
+  player: Readonly<{ enrollmentId: string; username: string | null }>;
   quest: Readonly<{ id: string; title: Bilingual }> | null;
   reason: string | null;
   bulkId: string | null;
@@ -398,7 +399,10 @@ export function report(
         scoreDelta: Number(row["score_delta"]),
         balanceDelta: Number(row["balance_delta"]),
         reverses: row["reverses"] === null ? null : String(row["reverses"]),
-        player: { enrollmentId: String(row["enrollment_id"]), username: String(row["username"]) },
+        player: {
+          enrollmentId: String(row["enrollment_id"]),
+          username: row["username"] === null ? null : String(row["username"]),
+        },
         quest:
           row["quest_id"] === null
             ? null

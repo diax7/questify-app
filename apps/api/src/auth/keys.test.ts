@@ -107,4 +107,19 @@ describe("createAuthKeys", () => {
   it("does not let a challenge id and a code run together to the same hash", () => {
     expect(keys.codeHash("a", "b1").equals(keys.codeHash("a\nb", "1"))).toBe(false);
   });
+
+  it("derives the deletion fingerprint and code hash under purposes of their own (T-217)", () => {
+    const all = createAuthKeys(SECRET);
+    const phone = "+966512345678";
+    expect(all.deletionFingerprint(phone).equals(hmac(subkey("deletion-fingerprint"), phone))).toBe(
+      true,
+    );
+    expect(all.deletionFingerprint(phone).equals(all.contactLookupKey(phone))).toBe(false);
+    expect(
+      all.deletionCodeHash("c1", "123456").equals(hmac(subkey("deletion-code"), "c1\n123456")),
+    ).toBe(true);
+    expect(all.deletionCodeHash("c1", "123456").equals(all.playerCodeHash("c1", "123456"))).toBe(
+      false,
+    );
+  });
 });

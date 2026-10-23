@@ -75,8 +75,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("contact changes (database)", (
     const code = bytes();
     const [row] = await as<{ outcome: string }>(
       player,
-      "SELECT start_contact_change($1, $2, $3, $4, $5) AS outcome",
-      [randomUUID(), sha(token), channel, value, code],
+      "SELECT start_contact_change($1, $2, $3, $4, $5, $6) AS outcome",
+      [randomUUID(), sha(token), channel, value, code, bytes()],
     );
     return { token, code, outcome: row?.outcome };
   };
@@ -246,9 +246,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("contact changes (database)", (
       try {
         const run = (client: typeof db.app) =>
           withRequestContext(client, { playerId: player }, () =>
-            client.query("SELECT start_contact_change($1, $2, 'phone', '+966551110020', $3)", [
+            client.query("SELECT start_contact_change($1, $2, 'phone', '+966551110020', $3, $4)", [
               randomUUID(),
               sha(bytes()),
+              bytes(),
               bytes(),
             ]),
           );
@@ -302,7 +303,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("contact changes (database)", (
     it("is closed to outsiders", async () => {
       for (const sql of [
         "SELECT * FROM public.player_contact_challenge",
-        "SELECT public.start_contact_change(gen_random_uuid(), '\\x00', 'phone', '+966551110017', '\\x00')",
+        "SELECT public.start_contact_change(gen_random_uuid(), '\\x00', 'phone', '+966551110017', '\\x00', '\\x00')",
         "SELECT * FROM public.confirm_contact_change('\\x00', '\\x00', NULL)",
       ]) {
         await expect(db.outsider.query(sql)).rejects.toThrow(/permission denied/);

@@ -183,7 +183,8 @@ right; the player disappears from every profile and board. The privacy policy wo
 your profile and rankings". Agree (this closes Q-086 and Q-092), or must the rows be removed too?
 
 ## Q-141 — Fingerprint key and retention (2026-10-24, T-217, with Q-075)
-ADR-176 keeps ban and welcome marks until the event's data goes (platform-ban marks: indefinitely). The key can never
+ADR-176 keeps ban marks until the event's data goes and welcome marks until the event ends (platform-ban marks:
+indefinitely); the deletion screens and the privacy policy say fingerprints are kept against fraud. The key can never
 be rotated without losing the marks. Agree, or should marks expire after a set time (for example 2 years)?
 
 ## Q-142 — Handed-over prize records after deletion (2026-10-24, T-217, with Q-051)

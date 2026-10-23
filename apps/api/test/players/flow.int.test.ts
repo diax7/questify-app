@@ -108,9 +108,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
     const token = randomBytes(32);
     await owner(
       `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at,
-                                           terms_version, privacy_version)
-       VALUES (gen_random_uuid(), $1, 'phone', $2, $3, $4, now() - interval '2 hours', '0.1', '0.1')`,
-      [token, newPhone(), randomBytes(32), randomBytes(32)],
+                                           terms_version, privacy_version, contact_fp)
+       VALUES (gen_random_uuid(), $1, 'phone', $2, $3, $4, now() - interval '2 hours', '0.1', '0.1', $5)`,
+      [token, newPhone(), randomBytes(32), randomBytes(32), randomBytes(32)],
     );
     return token;
   };

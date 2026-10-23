@@ -12,6 +12,7 @@ import {
   type LedgerLine,
 } from "#src/lib/awards.ts";
 import { translatorFor } from "#src/lib/language.ts";
+import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
@@ -249,7 +250,7 @@ function AskDialog({
   confirm,
 }: Readonly<{
   language: Language;
-  username: string;
+  username: string | null;
   asking: Asking;
   busy: boolean;
   change: (next: Asking) => void;
@@ -257,7 +258,7 @@ function AskDialog({
   confirm: () => void;
 }>) {
   const t = translatorFor(language);
-  const name = `@${username}`;
+  const name = handleOf(username, language);
   if (asking.kind === "award") {
     const points = formatNumber(asking.points, language);
     return (
@@ -372,7 +373,7 @@ type Props = Readonly<{
   language: Language;
   /** `/v1/organizers/{id}/events/{id}`. */
   eventApi: string;
-  player: Readonly<{ enrollmentId: string; username: string }>;
+  player: Readonly<{ enrollmentId: string; username: string | null }>;
   quests: readonly QuestOption[];
   timeZone: string;
   /** The event's caps for an editor; null for the owner, who has none. */
@@ -406,7 +407,7 @@ export function PlayerAwards({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const name = `@${player.username}`;
+  const name = handleOf(player.username, language);
 
   const quest = quests.find((option) => option.id === draft.questId);
   const amount = draft.mode === "points" ? pointsOf(draft.points) : quest?.points;

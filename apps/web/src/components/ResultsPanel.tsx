@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import {
   flaggedNames,
@@ -45,7 +46,7 @@ function PlaceRow({
     <li className={styles.card}>
       <p className={styles.row}>
         <strong>{t("results.place", { rank: formatNumber(place.rank, language) })}</strong>
-        <span dir="auto">@{place.player.username}</span>
+        <span dir="auto">{handleOf(place.player.username, language)}</span>
         <span className={styles.muted}>
           {t("results.points", { points: formatNumber(place.score, language) })}
         </span>
@@ -184,7 +185,7 @@ function StepControls({
       ? ""
       : toLocalInput(new Date(results.defaultClaimUntil), timeZone));
   const claim = claimOf(local, timeZone, language);
-  const flagged = flaggedNames(results.places);
+  const flagged = flaggedNames(results.places, language);
   const confirming = step === "confirm";
   const body = confirming
     ? [

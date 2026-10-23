@@ -15,6 +15,7 @@ import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards, type Caps, type QuestOption } from "#src/components/PlayerAwards.tsx";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import { handleOf, nameOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -33,7 +34,8 @@ type Answer = Readonly<{
 
 type Player = Readonly<{
   enrollmentId: string;
-  username: string;
+  /** Null for a deleted account (T-217). */
+  username: string | null;
   status: Status;
   score: number;
   /** The join answers (FR-131); an older API sends none. */
@@ -91,7 +93,9 @@ function BanDialog({
       }}
     >
       <h2 id="ban-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t(lifting ? "players.unbanTitle" : "players.banTitle", { name: player.username })}
+        {t(lifting ? "players.unbanTitle" : "players.banTitle", {
+          name: nameOf(player.username, language),
+        })}
       </h2>
       <p id="ban-body">{t(lifting ? "players.unbanBody" : "players.banBody")}</p>
       <div className={styles.actions}>
@@ -137,7 +141,7 @@ function PlayerRow({
   return (
     <li className={styles.card}>
       <p className={styles.row}>
-        <strong dir="auto">@{player.username}</strong>
+        <strong dir="auto">{handleOf(player.username, language)}</strong>
         <span className={styles.badge}>{t(`players.status.${player.status}`)}</span>
         {player.rehearsal === true ? (
           <span className={styles.badge}>{t("rehearsal.badge")}</span>
@@ -346,7 +350,7 @@ function useStanding({ base, language, mark, failed, clear, said }: StandingDeps
       return;
     }
     mark(player.enrollmentId, { redeemPaused: paused });
-    said(t(paused ? "flags.paused" : "flags.resumed", { name: player.username }));
+    said(t(paused ? "flags.paused" : "flags.resumed", { name: nameOf(player.username, language) }));
   };
 
   const confirm = async (player: Player) => {
@@ -361,7 +365,11 @@ function useStanding({ base, language, mark, failed, clear, said }: StandingDeps
       return;
     }
     mark(player.enrollmentId, { status: banned ? "banned" : "active" });
-    said(t(banned ? "players.banned" : "players.unbanned", { name: player.username }));
+    said(
+      t(banned ? "players.banned" : "players.unbanned", {
+        name: nameOf(player.username, language),
+      }),
+    );
   };
 
   return {
@@ -406,7 +414,9 @@ function StandingDialogs({
   return (
     <ConfirmDialog
       language={language}
-      title={t(resuming ? "flags.resumeTitle" : "flags.pauseTitle", { name: pausing.username })}
+      title={t(resuming ? "flags.resumeTitle" : "flags.pauseTitle", {
+        name: nameOf(pausing.username, language),
+      })}
       body={t(resuming ? "flags.resumeBody" : "flags.pauseBody")}
       confirmLabel={t(resuming ? "flags.resume" : "flags.pause")}
       noteLabel={null}

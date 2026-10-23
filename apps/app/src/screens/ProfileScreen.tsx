@@ -101,6 +101,11 @@ export function ProfileScreen({ header }: Readonly<{ header?: ReactNode }>) {
               </>
             )}
             <Button kind="quiet" label={t("signOut.confirm")} onPress={confirmSignOut} />
+            <Button
+              kind="quiet"
+              label={t("deletion.title")}
+              onPress={() => router.push("/delete-account")}
+            />
           </>
         ) : null}
         {state.status === "signed_out" ? (

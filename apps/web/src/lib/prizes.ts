@@ -1,4 +1,5 @@
 import type { Language, MessageKey } from "@questify/shared";
+import { handleOf } from "#src/lib/players.ts";
 
 export type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -24,7 +25,8 @@ export type ResultsState = "not_ended" | "open" | "confirmed" | "revealed";
 export type Place = Readonly<{
   rank: number;
   enrollmentId: string;
-  player: Readonly<{ username: string; avatar: string }>;
+  /** `username` is null for a deleted account: the place keeps its rank and score (FR-1739). */
+  player: Readonly<{ username: string | null; avatar: string }>;
   score: number;
   openFlags: number;
   flagKinds: readonly string[];
@@ -90,8 +92,10 @@ export function prizeStatusKey(status: string): MessageKey | null {
 }
 
 /** The places' usernames that carry open flags, for the confirm sheet (FR-1719). */
-export const flaggedNames = (places: readonly Place[]): string[] =>
-  places.filter((place) => place.openFlags > 0).map((place) => `@${place.player.username}`);
+export const flaggedNames = (places: readonly Place[], language: Language): string[] =>
+  places
+    .filter((place) => place.openFlags > 0)
+    .map((place) => handleOf(place.player.username, language));
 
 /** What the page offers next: confirm (the owner, once ended), reveal (the owner, once confirmed), or nothing. */
 export function nextStep(results: Results, owner: boolean): "confirm" | "reveal" | null {

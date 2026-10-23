@@ -10,6 +10,7 @@ import {
 } from "#src/components/PlayerAwards.tsx";
 import { pointsOf, reasonOk, whoOf, kindKey, type ReportLine } from "#src/lib/awards.ts";
 import { translatorFor } from "#src/lib/language.ts";
+import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
@@ -437,7 +438,7 @@ function ReportRow({
   return (
     <li className={styles.card}>
       <p className={styles.row}>
-        <strong dir="auto">@{line.player.username}</strong>
+        <strong dir="auto">{handleOf(line.player.username, language)}</strong>
         <span>{t(kindKey(line.kind))}</span>
         {line.quest === null ? null : <span dir="auto">{textFor(line.quest.title, language)}</span>}
         <span dir="ltr">

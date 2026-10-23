@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { organizerDocuments, playerDocuments } from "@questify/shared";
 import { notFound } from "next/navigation";
 import { TopBar } from "#src/components/TopBar.tsx";
-import { isLanguage } from "#src/lib/language.ts";
+import { isLanguage, translatorFor } from "#src/lib/language.ts";
 import { legalBlocks } from "#src/lib/legal.ts";
 import styles from "#src/components/layout.module.css";
 
@@ -62,6 +62,11 @@ export default async function LegalPage({ params }: Props) {
             }
             return <p key={key}>{block.text}</p>;
           })}
+          {known.id === "privacy_policy" ? (
+            <a className={styles.textLink} href={`/${lang}/delete-account`}>
+              {translatorFor(lang)("deletion.title")}
+            </a>
+          ) : null}
         </article>
       </main>
     </>

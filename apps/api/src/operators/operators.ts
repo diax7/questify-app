@@ -61,7 +61,8 @@ export type Invite = Readonly<{
   abilities: readonly string[];
   batchId: string | null;
   status: InviteStatus;
-  claimedBy: Readonly<{ username: string }> | null;
+  /** Who claimed it; `username` is null for an account deleted since (T-217). */
+  claimedBy: Readonly<{ username: string | null }> | null;
   createdAt: Date;
   expiresAt: Date;
   /** The claim address, for the owner only and only while a personal invite is open (FR-902: show or print again). */
@@ -209,8 +210,8 @@ export async function listOperators(
           abilities: row.abilities,
           batchId: row.batch_id,
           status,
-          claimedBy:
-            row.claimed_by_username === null ? null : { username: row.claimed_by_username },
+          // A claim by an account deleted since keeps its place, with no name (T-217).
+          claimedBy: row.claimed_at === null ? null : { username: row.claimed_by_username },
           createdAt: row.created_at,
           expiresAt: row.expires_at,
           ...(printable ? { url: inviteUrl(deps, row.id, context.lang) } : {}),

@@ -118,3 +118,38 @@ Admin legal-request deletion (FR-1778, its own task; it will call `erase_player`
 jobs for handover records and guest lists (Q-051, Q-115), Sign in with Apple token revocation (not built).
 
 **Mutation targets** (core, GitHub only): `apps/api/src/deletion/**`, `apps/api/src/auth/keys.ts`.
+
+## CTO plan review (86, approve with revisions): folded in
+
+ADR-175 to ADR-178 and Q-140 to Q-144 stay Proposed. These replace the matching lines above where they differ.
+
+1. **Joins in flight (MAJOR):** `join_event`, `join_invited`, `enroll_operator` and `join_rehearsal` read the caller
+   `FOR KEY SHARE` with the `active` filter, before any enrollment lock, so a join waits for a deletion in flight and
+   then refuses. Paths on an existing enrollment (reserve, completion, the operator's My QR scan) lock the enrollment,
+   which the deletion has already set to `left`, and refuse on its status. Race tests: deletion vs a join, a join
+   request, a reserve, an operator My QR scan.
+2. **Lock order (MAJOR):** player `FOR UPDATE` → the player's enrollments by id `FOR NO KEY UPDATE` → `end_reservation`
+   for each pending item (its own order is enrollment → reward → redemption, 0034:198) → the deletes and updates.
+3. **Forfeit (MAJOR):** `end_reservation(id, 'cancelled', 'erasure', 'system', NULL)` directly (`cancel_redemption`
+   needs a player and refuses rank prizes). `redemption_ended_by_check` gains `erasure`; `ledger_entry_system_returns_only`
+   and `redemption_operator_named` already accept it (system return, no operator). A forfeited rank prize stays on
+   `result_place` as cancelled and is not passed down; the forfeit copy says so.
+4. **Laundering through a contact change:** `player_fingerprint (player_id, fingerprint)` keeps the fingerprint of every
+   contact the account ever held (fingerprints only); the checks and the marks use all of them.
+5. **Welcome marks** expire when the event ends (`expires_at = ends_at`); ban marks stay. In Q-141. The deletion
+   screens and the privacy policy name the fingerprints kept against fraud.
+6. **Fingerprint test:** `create_player` and `confirm_contact_change` store exactly `deletionFingerprint(normalised
+   contact)` (phones as `+9665…`).
+7. **Public code:** always creates a challenge; the code is sent after the answer (the deferred queue), only when an
+   account uses the contact. Test: a known and an unknown contact get the same status and body.
+8. **Deletion token:** its hash and expiry sit on the deletion challenge row, consumed in `erase_player`'s transaction.
+   The public routes cannot take Idempotency-Keys (route-access rule), so the token is the key: a confirm repeated
+   with a consumed token answers `204` while the row lives (an hour).
+9. **Null username:** nullable in the types and schemas; every reader that can reach a tombstone (players list, ledger
+   lines, results, operator invites, flags) returns `username: null` and the screens show "Deleted player". One test per
+   surface.
+10. **Idempotency store:** `forget(scope)` drops the player's entries at deletion.
+11. **Nit:** ADR-175 names the loss of flag history (the audit log keeps the decisions as ids).
+
+Also changed while folding: the avatar is reset to the default (one of six pictures, not personal), not NULL; boards
+drop the player through the repair marks the status change already writes (no extra Redis call).

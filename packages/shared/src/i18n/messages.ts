@@ -832,6 +832,49 @@ export const MESSAGES = {
     ar: "الترتيب مخفي في هذه الفعالية.",
     en: "The ranking is hidden for this event.",
   },
+  "deletion.title": { ar: "حذف الحساب", en: "Delete account" },
+  "deletion.intro": {
+    ar: "يُحذف حسابك نهائيًا، ولا يمكن استرجاعه.",
+    en: "Your account is deleted for good. It cannot be restored.",
+  },
+  "deletion.removedTitle": { ar: "ما يُحذف", en: "What is deleted" },
+  "deletion.removed": {
+    ar: "ملفك واسم المستخدم ورقم جوالك وبريدك وإجاباتك، ونقاطك من ملفك ومن كل ترتيب.",
+    en: "Your profile, username, phone, email and answers, and your points from your profile and every ranking.",
+  },
+  "deletion.keptTitle": { ar: "ما يبقى دون اسمك", en: "What is kept, without your name" },
+  "deletion.kept": {
+    ar: "سجل النقاط في الفعاليات والجوائز التي استلمتها، لأن نتائج الفعاليات تعتمد عليها، وتُحفظ سجلات تسليم الجوائز المدة التي يفرضها النظام. ونحتفظ ببصمة لرقمك وبريدك لا يمكن قراءتها، لمنع التحايل: إن كنت محظورًا من فعالية أو حصلت على مكافأة الترحيب، يبقى ذلك ساريًا إن أنشأت حسابًا جديدًا.",
+    en: "The points record of events and the prizes you collected, because event results depend on them; prize handover records are kept as long as the law requires. We also keep a one-way fingerprint of your phone and email that cannot be read, against fraud: a ban from an event or a welcome reward you got still applies if you sign up again.",
+  },
+  "deletion.sendCode": { ar: "أرسل رمز التأكيد", en: "Send a confirmation code" },
+  "deletion.codeHint": {
+    ar: "أدخل الرمز الذي أرسلناه إليك لتأكيد أن الحساب حسابك.",
+    en: "Enter the code we sent you to confirm the account is yours.",
+  },
+  "deletion.useEmail": { ar: "أرسله إلى بريدي بدلًا من ذلك", en: "Send it to my email instead" },
+  "deletion.pendingTitle": { ar: "جوائز لم تستلمها بعد", en: "Prizes you have not collected" },
+  "deletion.pendingBody": {
+    ar: "إن حذفت حسابك تُلغى هذه الجوائز، ولا تنتقل جائزة المركز إلى غيرك.",
+    en: "If you delete your account, these prizes are cancelled, and a rank prize is not passed to anyone else.",
+  },
+  "deletion.rankPrize": { ar: "جائزة مركز", en: "Rank prize" },
+  "deletion.forfeit": { ar: "أتنازل عن هذه الجوائز", en: "I give up these prizes" },
+  "deletion.confirmTitle": { ar: "حذف حسابك نهائيًا؟", en: "Delete your account for good?" },
+  "deletion.confirm": { ar: "احذف حسابي", en: "Delete my account" },
+  "deletion.done": { ar: "حُذف حسابك.", en: "Your account is deleted." },
+  "deletion.webIntro": {
+    ar: "يمكنك حذف حسابك في كويستفاي من هنا دون التطبيق، أو من التطبيق: الملف الشخصي ثم حذف الحساب.",
+    en: "You can delete your Questify account here without the app, or in the app: Profile, then Delete account.",
+  },
+  "deletion.contactHint": {
+    ar: "أدخل رقم الجوال أو البريد المسجّل في حسابك.",
+    en: "Enter the phone number or email on your account.",
+  },
+  "deletion.codeSentMaybe": {
+    ar: "إن كان هذا الرقم أو البريد مسجّلًا في حساب، فقد أرسلنا إليه رمزًا.",
+    en: "If an account uses this phone number or email, we have sent it a code.",
+  },
   "signOut.title": { ar: "تسجيل الخروج؟", en: "Sign out?" },
   "signOut.body": {
     ar: "سيخرج هذا الجوال من حسابك. تبقى نقاطك وفعالياتك، وتعود إليها حين تدخل من جديد.",
@@ -1209,6 +1252,7 @@ export const MESSAGES = {
   "players.status.active": { ar: "يلعب", en: "Playing" },
   "players.status.pending": { ar: "بانتظار الموافقة", en: "Waiting for approval" },
   "players.status.left": { ar: "غادر", en: "Left" },
+  "player.deleted": { ar: "لاعب محذوف", en: "Deleted player" },
   "players.status.removed": { ar: "أُزيل", en: "Removed" },
   "players.status.banned": { ar: "محظور", en: "Banned" },
   "players.status.declined": { ar: "رُفض الطلب", en: "Request declined" },

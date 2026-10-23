@@ -7,6 +7,7 @@ import Fastify, {
 import type { Pool } from "pg";
 import type { BreachCheck } from "#src/auth/breached";
 import { createDeferred, type Deferred } from "#src/auth/deferred";
+import { registerDeletionRoutes } from "#src/deletion/routes";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
@@ -224,6 +225,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
     keys: signInDeps.keys,
     sms: options.smsSender ?? NO_SMS,
     email: options.emailSender,
+  });
+  registerDeletionRoutes(app, {
+    pool: options.pool,
+    keys: signInDeps.keys,
+    sms: options.smsSender ?? NO_SMS,
+    email: options.emailSender,
+    deferred,
+    idempotencyStore: options.idempotencyStore,
   });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });

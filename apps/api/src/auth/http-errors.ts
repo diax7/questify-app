@@ -939,3 +939,15 @@ export const notARequest = make(
   "لا يوجد طلب انضمام لهذا اللاعب.",
   "This player has no join request.",
 );
+export const deletionExpired = make(
+  410,
+  "deletion_expired",
+  "انتهت صلاحية هذه الخطوة. ابدأ حذف الحساب من جديد.",
+  "This step has expired. Start deleting the account again.",
+);
+export const handoverPending = make(
+  409,
+  "handover_pending",
+  "لديك جوائز لم تستلمها بعد. وافق على التنازل عنها لحذف الحساب.",
+  "You have prizes not collected yet. Agree to give them up to delete the account.",
+);

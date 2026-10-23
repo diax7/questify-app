@@ -818,6 +818,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by confirm_results and reveal_results, read through results_places and event_results (test/db/results)",
   player_session:
     "no right for the API role at all; a token is looked up only through player_session_owner(hash) (test/db/completion-engine)",
+  player_fingerprint:
+    "no right for the API role at all; written by the sign-in and contact-change definers, read and cleared by erase_player (test/db/account-deletion)",
+  erased_mark:
+    "no right for the API role at all; holds no player id; written by erase_player, read inside the join, welcome and sign-in definers (test/db/account-deletion)",
+  player_deletion_challenge:
+    "no right for the API role at all; reached only through definers bound to its token or deletion token (test/db/account-deletion)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */
