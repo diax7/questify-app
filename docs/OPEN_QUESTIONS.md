@@ -216,19 +216,20 @@ ADR-181: مستكشف Explorer, مقتفي الأثر Pathfinder, مغامر Adv
 Legend, one per five levels. Keep, or rename?
 
 ## Q-149 — Where Questify's photos are stored (2026-10-24, T-301)
-CranL Pro allows one bucket per account and `b7r-media` uses it. Photo quests stay off until a Questify bucket in
+CranL Pro allows one bucket per account and `b7r-media` uses it. Photos are T-301b, blocked until a Questify bucket in
 `riyadh-1` exists (ADR-183). Ask CranL for a second bucket (or a plan with more), or use Oracle Object Storage in
 Riyadh? Sharing `b7r-media` is not recommended.
 
 ## Q-150 — Submission sizes (2026-10-24, T-301)
-Text up to 1,000 characters; photos up to 8 MB uploaded, stored as JPEG of at most 2,048 px. Agree?
+Text up to 1,000 characters (T-301); for T-301b, photos up to 8 MB uploaded, stored as JPEG of at most
+2,048 px. Agree?
 
-## Q-151 — Two new server dependencies (2026-10-24, T-301)
+## Q-151 — Two new server dependencies (2026-10-24, T-301b)
 `sharp` to re-encode photos (strips location data, refuses disguised files) and `aws4fetch` to sign S3 requests
 (ADR-185). Agree, or upload straight to the bucket with presigned URLs and no re-encoding?
 
-## Q-152 — Photo retention (2026-10-24, T-301)
-Rejected and removed photos deleted at once; approved photos kept for the event's retention period (Q-075, counsel).
+## Q-152 — Submission retention (2026-10-24, T-301)
+A deleted account's submission text is cleared at once (T-301). For T-301b: rejected and removed photos deleted at once; approved photos kept for the event's retention period (Q-075, counsel).
 Agree?
 
 ## Q-153 — Auto-approved submissions in the queue (2026-10-24, T-301)

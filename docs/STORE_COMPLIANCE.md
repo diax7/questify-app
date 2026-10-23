@@ -110,6 +110,11 @@ What Questify must build (both stores, see 2.9 for Google):
 - Contact details (email and in-app contact) on the store listing, in the app and on the website.
 - Voting quests vote on submissions or ideas, never on a person's looks.
 
+Note 2026-10-24 (T-301): submissions are private to the organizer's team (ADR-023) and never shown to other players,
+so the public-UGC controls (report, block) have nothing to act on there; text submissions pass the Arabic and English
+word lists and a hit marks the item for its reviewer (FR-1628). With the guidelines accepted before the first
+submission (FR-1706), this meets §1.2 for submissions. A public gallery (later) needs the full set.
+
 ### 1.3 Guideline 2.1 — App completeness, demo account and demo event
 
 - **2.1(a):** "include demo account info (and turn on your back-end service!) if your app includes

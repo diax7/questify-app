@@ -2401,30 +2401,33 @@ records each level reached; T-402 grants the item for each (FR-721) and T-404 th
 bar shows the next level without its reward (FR-416).
 **Why:** no speculative switches; the item catalogue does not exist yet.
 
-## ADR-183 — Photo submissions wait for a Questify bucket; text ships now
-**Status:** Proposed (Claude, 2026-10-24; T-301). Q-149.
-**Decision:** photos go through a `PhotoStore` port with an S3-compatible adapter. Without `STORAGE_*` settings the
-API refuses photo quests (`QS503 storage_unavailable`) and `/v1/config` turns `photoSubmissions` off; text submissions
-work in full. Sharing `b7r-media` under a prefix is not used.
+## ADR-183 — Photo submissions are a separate task (T-301b)
+**Status:** Proposed (Claude, 2026-10-24; T-301; revised after the CTO plan review). Q-149.
+**Decision:** T-301 ships text submissions from start to finish and builds no photo pipeline. The quest schema refuses
+`photo` with "not available yet", as `video` (FR-1006); `submission.kind` keeps the column. T-301b builds photos once a
+Questify bucket exists; sharing `b7r-media` under a prefix is not used.
 **Why:** CranL Pro allows one bucket per account and `b7r-media` uses it (ADR-107 addendum 2), so ADR-109's bucket does
-not exist yet. Plan: `docs/plans/2026-10-24-t-301-submissions.md`.
+not exist yet; a switch for an unbuilt store is a speculative feature. Plan: `docs/plans/2026-10-24-t-301-submissions.md`.
 
 ## ADR-184 — Pending points live on the submission; the ledger holds only points that moved
-**Status:** Proposed (Claude, 2026-10-24; T-301).
-**Decision:** a submission stores the points it will pay, frozen when it is sent. Approval writes the ordinary
-completion (`method = 'submission'`) and `quest` ledger entry (score always; balance only while the shop window is
-open, FR-1710); rejection writes nothing. Auto-approve does both in the submit call. XP follows by ADR-179.
-**Why:** score, balance, ranking, flags and XP need no new path, and the ledger never holds money that did not move.
+**Status:** Proposed (Claude, 2026-10-24; T-301; revised after the CTO plan review).
+**Decision:** a submission stores the points it will pay; the points and the repeat cap are checked and fixed when it is
+sent. Approval re-checks only the player (active) and the event (live or ended), then writes the ordinary completion
+(`method = 'submission'`, key `'sub:' || id`) and `quest` ledger entry (score always; balance only while the shop window
+is open, FR-1710); rejection writes nothing. Auto-approve does both in the submit call. XP follows by ADR-179. A player
+leaving the event (ban, removal, leave, deletion) closes their pending submissions with a system reason. One removal
+path: `remove_award` marks the linked submission removed.
+**Why:** score, balance, ranking, flags and XP need no new path, and the ledger never holds points that did not move.
 
-## ADR-185 — Photos are uploaded through the API and re-encoded
-**Status:** Proposed (Claude, 2026-10-24; T-301). Q-151.
+## ADR-185 — Photos are uploaded through the API and re-encoded (T-301b)
+**Status:** Proposed (Claude, 2026-10-24; T-301; moved to T-301b). Q-151.
 **Decision:** `POST /v1/quests/{id}/photo` takes up to 8 MB (JPEG, PNG, HEIC by magic bytes) and re-encodes it with
-`sharp` to JPEG of at most 2,048 px, which strips EXIF (GPS, device). The team views photos through 5-minute signed URLs
+`sharp` (with `limitInputPixels`, one image at a time) to JPEG of at most 2,048 px, which strips EXIF (GPS, device). The team views photos through 5-minute signed URLs
 on the bucket's host, never the API origin. New dependencies: `sharp`, `aws4fetch`.
 **Why:** SECURITY threat 8 (type checks, re-encoding, not served from the API origin) and no location data stored.
 
-## ADR-186 — Retention of submission photos
-**Status:** Proposed (Claude, 2026-10-24; T-301). Q-152.
+## ADR-186 — Retention of submission photos (T-301b)
+**Status:** Proposed (Claude, 2026-10-24; T-301; moved to T-301b). Q-152.
 **Decision:** rejected and removed photos, and those of a deleted account or a wiped rehearsal, are deleted at once
 through a `media_delete` outbox the worker drains (timeout, retry). Approved photos follow event retention (Q-075).
 **Why:** PDPL minimisation: a rejected photo has no further purpose.
@@ -2432,7 +2435,7 @@ through a `media_delete` outbox the worker drains (timeout, retry). Approved pho
 ## ADR-187 — Auto-approved submissions stay in the queue until seen
 **Status:** Proposed (Claude, 2026-10-24; T-301). Q-153.
 **Decision:** an auto-approved submission pays at once and shows in the team's queue as "not yet seen" until a reviewer
-opens it; the team can remove it (FR-328).
+opens it (`mark_submissions_seen`; any review sets it too); the team can remove it (FR-328).
 **Why:** ADR-042's accepted risk stays small, and Google's UGC policy asks that points follow moderation.
 
 ## ADR-188 — Resubmission
