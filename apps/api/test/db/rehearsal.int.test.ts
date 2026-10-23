@@ -15,6 +15,9 @@ type Row = Record<string, unknown>;
 
 const noop = (): void => undefined;
 
+/** Waits until a start set a second ahead on the clock has passed. */
+const startPasses = () => new Promise((resolve) => setTimeout(resolve, 1200));
+
 const refusal = async (work: Promise<unknown>): Promise<{ code: string; detail?: string }> => {
   try {
     await work;
@@ -622,6 +625,74 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       expect(due.map((row) => row.due_rehearsal_wipes)).not.toContain(state.event);
     });
 
+    it("leaves no rehearsal account in the ranking rebuild", async () => {
+      const state = await rehearsed();
+      await goLive(state.event);
+      await ensure(state.event);
+      await owner("DELETE FROM ranking_repair WHERE event_id <> $1", [state.event]);
+      const claimed = await run<{ claim_ranking_repairs: string }>(
+        {},
+        "SELECT * FROM claim_ranking_repairs(10)",
+      );
+      expect(claimed.map((row) => row.claim_ranking_repairs)).toEqual([state.event]);
+      const entries = await run<{ enrollment_id: string }>(
+        {},
+        "SELECT enrollment_id FROM ranking_entries($1)",
+        [state.event],
+      );
+      expect(entries.map((row) => row.enrollment_id)).toEqual([state.real.enrollment]);
+    });
+
+    it("keeps a rehearsal bulk award, so its retry after the start replays and awards nothing", async () => {
+      const event = await newEvent("scheduled");
+      const quest = await newQuest(event);
+      const { player } = await rehearser(event);
+      await scan(player, quest);
+      const key = randomUUID();
+      const bulk = (request: string) =>
+        run<{ bulk_id: string; awarded: number; replayed: boolean }>(
+          team(ownerA),
+          "SELECT * FROM bulk_award($1, NULL, $2, 5, 'Test', $3, $4)",
+          [event, quest, key, request],
+        );
+      const [first] = await bulk(randomUUID());
+      expect(first).toMatchObject({ awarded: 1, replayed: false });
+      await goLive(event);
+      const real = await realPlayer(event);
+      await scan(real.player, quest);
+      const [again] = await bulk(randomUUID());
+      expect(again).toEqual({ ...first, replayed: true });
+      const [awards] = await owner<{ n: string }>(
+        "SELECT count(*) AS n FROM ledger_entry WHERE event_id = $1 AND kind = 'award'",
+        [event],
+      );
+      expect(awards?.n).toBe("0");
+      const [kept] = await owner<{ rehearsal: boolean }>(
+        "SELECT rehearsal FROM bulk_award WHERE id = $1",
+        [first?.bulk_id],
+      );
+      expect(kept?.rehearsal).toBe(true);
+    });
+
+    it("lets a quest named by a kept rehearsal bulk award be deleted after an erase", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const { player } = await rehearser(event);
+      await scan(player, quest);
+      const [bulk] = await run<{ bulk_id: string }>(
+        team(ownerA),
+        "SELECT * FROM bulk_award($1, NULL, $2, 5, 'Test', $3, $4)",
+        [event, quest, randomUUID(), randomUUID()],
+      );
+      await run(team(ownerA), "SELECT erase_rehearsal($1, $2)", [event, randomUUID()]);
+      await owner("DELETE FROM quest WHERE id = $1", [quest]);
+      const [kept] = await owner<{ quest_id: string | null; event_id: string }>(
+        "SELECT quest_id, event_id FROM bulk_award WHERE id = $1",
+        [bulk?.bulk_id],
+      );
+      expect(kept).toEqual({ quest_id: null, event_id: event });
+    });
+
     it("lists due events for the tick, and none before go-live", async () => {
       const state = await rehearsed();
       expect(await dueWipes()).not.toContain(state.event);
@@ -741,6 +812,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
    * Runs `first` with its transaction held open, then `between` (outside both), then `second`, which may wait for
    * `first`; then lets `first` commit. Both settle, in that order.
    */
+  /** A Scheduled event whose start is a second away on the clock, with its rehearsal opened. */
+  const startingSoon = async () => {
+    const event = await newEvent("scheduled");
+    const code = await open(event);
+    await owner(
+      "UPDATE event SET starts_at = clock_timestamp() + interval '1 second' WHERE id = $1",
+      [event],
+    );
+    return { event, code };
+  };
+
   const race = async (
     first: [RequestContext, string, unknown[]],
     second: [RequestContext, string, unknown[]],
@@ -848,6 +930,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         [team(ownerA), "SELECT erase_rehearsal($1, $2)", [event, randomUUID()]],
       );
       expect(settled.map((s) => s.status)).toEqual(["fulfilled", "fulfilled"]);
+      expect((await rehearsalRows(event))?.accounts).toBe("0");
+    });
+
+    it("a join just before the start is waited for by the go-live wipe, which then removes it", async () => {
+      const { event, code } = await startingSoon();
+      const settled = await race(
+        [{ playerId: await newPlayer() }, "SELECT * FROM join_rehearsal($1, '1')", [code]],
+        [{}, "SELECT ensure_rehearsal_wiped($1) AS wiped", [event]],
+        startPasses,
+      );
+      const rows = settled.map((s) => (s as PromiseFulfilledResult<{ rows: Row[] }>).value.rows[0]);
+      expect(rows).toEqual([expect.objectContaining({ outcome: "joined" }), { wiped: true }]);
+      expect((await rehearsalRows(event))?.accounts).toBe("0");
+    });
+
+    it("a join racing the go-live wipe once the start has passed is closed", async () => {
+      const { event, code } = await startingSoon();
+      await startPasses();
+      const settled = await race(
+        [{}, "SELECT ensure_rehearsal_wiped($1) AS wiped", [event]],
+        [{ playerId: await newPlayer() }, "SELECT * FROM join_rehearsal($1, '1')", [code]],
+      );
+      const rows = settled.map((s) => (s as PromiseFulfilledResult<{ rows: Row[] }>).value.rows[0]);
+      expect(rows).toEqual([
+        { wiped: true },
+        { outcome: "closed", enrollment_id: null, event_id: null },
+      ]);
       expect((await rehearsalRows(event))?.accounts).toBe("0");
     });
 

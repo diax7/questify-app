@@ -57,6 +57,10 @@ CREATE POLICY event_rehearsal_read ON event_rehearsal FOR SELECT TO questify_app
 -- ================================================================ the ledger's stamp and its one exception (ADR-157)
 ALTER TABLE ledger_entry ADD COLUMN rehearsal boolean NOT NULL DEFAULT false;
 ALTER TABLE bulk_award ADD COLUMN rehearsal boolean NOT NULL DEFAULT false;
+-- The wipe keeps rehearsal bulk awards (a retry with the same key replays instead of running live), so one that
+-- names a quest must not block deleting that quest: the quest is forgotten, the record stays.
+ALTER TABLE bulk_award DROP CONSTRAINT bulk_award_quest_id_event_id_fkey,
+  ADD FOREIGN KEY (quest_id, event_id) REFERENCES quest (id, event_id) ON DELETE SET NULL (quest_id);
 CREATE INDEX ledger_entry_rehearsal_idx ON ledger_entry (event_id) WHERE rehearsal;
 
 -- Set from the enrollment at insert, never by a writer. Named to fire before ledger_operator_play_guard (triggers of
@@ -234,7 +238,7 @@ BEGIN
   DELETE FROM redemption d WHERE d.enrollment_id = ANY (accounts);
   DELETE FROM quest_completion c WHERE c.enrollment_id = ANY (accounts);
   DELETE FROM flag f WHERE f.enrollment_id = ANY (accounts);
-  DELETE FROM bulk_award b WHERE b.event_id = target AND b.rehearsal;
+  -- bulk_award rows stay (their notes are gone): a retried rehearsal bulk award replays from its row, never live.
   DELETE FROM enrollment n WHERE n.id = ANY (accounts);
   -- Stock from what remains (FR-1722): every reservation still holding a unit.
   UPDATE reward r SET units_out = (
@@ -275,7 +279,13 @@ BEGIN
   IF rehearsal_over(ev) THEN
     RETURN wipe_rehearsal(target, 'go_live', NULL) IS NOT NULL;
   END IF;
-  PERFORM 1 FROM event_rehearsal r WHERE r.event_id = target FOR SHARE;
+  SELECT * INTO found_row FROM event_rehearsal r WHERE r.event_id = target FOR SHARE;
+  -- Re-checked under the lock (FOR SHARE reads the latest row): a go-live wipe that committed while this waited has
+  -- already removed the rehearsal, so there is nothing to hold; the writer's own phase check then sees the event live.
+  IF found_row.live_wiped_at IS NOT NULL THEN
+    RETURN false;
+  END IF;
+  -- Not wiped: the shared lock is held to the end of the transaction, so a wipe waits for this writer.
   RETURN false;
 END $$;
 REVOKE ALL ON FUNCTION ensure_rehearsal_wiped(uuid) FROM PUBLIC;
@@ -525,6 +535,10 @@ BEGIN
     RETURNING en.id INTO made;
     IF made IS NULL THEN
       SELECT en.* INTO row_found FROM enrollment en WHERE en.event_id = target.id AND en.player_id = me;
+      IF row_found.joined_via = 'rehearsal' THEN
+        RETURN QUERY SELECT 'rehearsing'::text, NULL::uuid, target.id, NULL::text, 0;
+        RETURN;
+      END IF;
       RETURN QUERY SELECT 'already'::text, row_found.id, target.id, row_found.status, 0;
       RETURN;
     END IF;
@@ -589,7 +603,9 @@ BEGIN
     RETURN;
   END IF;
   SELECT en.* INTO row_found FROM enrollment en WHERE en.event_id = ev.id AND en.player_id = me FOR UPDATE;
-  IF row_found.status = 'active' THEN
+  IF row_found.joined_via = 'rehearsal' THEN
+    RETURN QUERY SELECT 'rehearsing'::text, NULL::uuid;
+  ELSIF row_found.status = 'active' THEN
     RETURN QUERY SELECT 'already'::text, row_found.id;
   ELSIF row_found.status IN ('left', 'pending') THEN
     UPDATE enrollment en SET status = 'active', card_version = card, joined_via = 'operator', joined_at = now()

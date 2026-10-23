@@ -194,7 +194,8 @@ admins, written only by definers (`open_rehearsal`, `rotate_rehearsal_code`, `er
 the event. A rehearsal account is an enrollment with `joined_via = 'rehearsal'` (made only by `join_rehearsal`, at
 most 25 an event, no seat, no welcome; a guard keeps it one and keeps a real one real). `ledger_entry.rehearsal` and
 `bulk_award.rehearsal` mark rehearsal rows. `wipe_rehearsal(event, reason, request)` deletes the rehearsal accounts with
-their completions, ledger entries (with notes and keys), reservations, flags, bulk awards and join answers, recomputes
+their completions, ledger entries (with notes and keys), reservations, flags and join answers (rehearsal `bulk_award` rows stay, with no notes, so a retried key replays
+instead of running live; their quest key is `ON DELETE SET NULL (quest_id)`), recomputes
 each reward's `units_out` from the holds that remain, marks the ranking for repair and audits
 `event.rehearsal_erased` with the counts. It runs at go-live (`ensure_rehearsal_wiped`, called first by every writer and
 by the tick) or on the team's erase before go-live.
