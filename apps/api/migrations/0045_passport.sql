@@ -242,6 +242,16 @@ BEGIN
   SELECT count(*)::int INTO have FROM passport_stamp p
   WHERE p.enrollment_id = enrolled.id AND p.quest_id = quest_row.id;
   IF EXISTS (SELECT 1 FROM passport_stamp p WHERE p.enrollment_id = enrolled.id AND p.step_id = target) THEN
+    -- A `needed` lowered while a stamp was in flight leaves the player at the count, unpaid (no completion: checked
+    -- above). Re-scanning a stamped step pays then, on that stamp, which takes this key so a retry replays the payment.
+    IF have >= wanted THEN
+      paid := pay_completion(enrolled, quest_row.id, quest_row.points, 'passport', 'pass:' || quest_row.id, NULL, NULL);
+      UPDATE passport_stamp p SET completion_id = paid, idempotency_key = request_key
+      WHERE p.enrollment_id = enrolled.id AND p.step_id = target;
+      RETURN QUERY SELECT quest_row.id, paid, quest_row.points::bigint, true, have, wanted, n.score, n.balance, false
+        FROM enrollment n WHERE n.id = enrolled.id;
+      RETURN;
+    END IF;
     RETURN QUERY SELECT quest_row.id, NULL::bigint, NULL::bigint, false, have, wanted, enrolled.score, enrolled.balance,
                         false;
     RETURN;

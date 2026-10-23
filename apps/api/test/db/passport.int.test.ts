@@ -229,6 +229,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("passport quests (database)", (
       expect(await refusal(stamp(player, steps[2] ?? "", "k1"))).toBe("QK422");
     });
 
+    it("pays once on a re-scan when needed fell under a stamp in flight", async () => {
+      const event = await newEvent();
+      const { quest, steps } = await newPassport(event, { steps: 3, needed: 2 });
+      const { player, enrollment } = await member(event);
+      await stamp(player, steps[0] ?? "", "k1");
+      // The race's end state: the lock trigger saw no stamp, the stamp committed under the old `needed`.
+      await db.owner.query("BEGIN");
+      await db.owner.query("SET LOCAL session_replication_role = replica");
+      await db.owner.query(
+        "UPDATE quest SET type_config = jsonb_build_object('needed', 1) WHERE id = $1",
+        [quest],
+      );
+      await db.owner.query("COMMIT");
+      const paid = await stamp(player, steps[0] ?? "", "k2");
+      expect(paid).toMatchObject({
+        stamped: true,
+        done: 1,
+        needed: 1,
+        score: "40",
+        replayed: false,
+      });
+      expect(paid?.completion_id).not.toBeNull();
+      expect(await stamp(player, steps[0] ?? "", "k2")).toEqual({ ...paid, replayed: true });
+      expect(await refusal(stamp(player, steps[0] ?? ""))).toBe("QD409:1");
+      expect(await credits(enrollment)).toEqual([{ kind: "quest", score_delta: "40" }]);
+      expect(
+        await owner(
+          "SELECT completion_id::text AS completion_id FROM passport_stamp WHERE enrollment_id = $1",
+          [enrollment],
+        ),
+      ).toEqual([{ completion_id: paid?.completion_id }]);
+    });
+
     it("pays once for two parallel last stamps", async () => {
       const event = await newEvent();
       const { steps } = await newPassport(event, { steps: 3, needed: 2 });
