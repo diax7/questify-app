@@ -198,3 +198,19 @@ Agree, or should acceptances be kept as proof of consent (counsel) and the name 
 ## Q-144 — Bulk award reasons (2026-10-24, T-217)
 The T-207 note asked to clear `bulk_award.reason` on deletion. A bulk award's reason is about a group, not one player,
 so the plan keeps it and clears only the player's own `ledger_note.reason`. Agree?
+
+## Q-145 — The XP amount and the level curve (2026-10-24, T-401)
+ADR-180: 100 XP per quest, 30 levels, level n from 50·(n−1)·(n+2) XP (level 5 after about 14 quests, level 10 after
+54). Agree, or a faster or slower curve?
+
+## Q-146 — Never show the XP a quest gave (2026-10-24, T-401)
+FR-414 keeps the amount hidden. The plan never sends it: the player sees only the XP bar, the level and a level-up
+celebration. Agree, or show "+100 XP" after a scan?
+
+## Q-147 — The XP bar before items exist (2026-10-24, T-401)
+FR-416 shows the next level's reward; items arrive with T-402. Until then the bar shows only the next level (ADR-182).
+Agree?
+
+## Q-148 — Level title names (2026-10-24, T-401)
+ADR-181: مستكشف Explorer, مقتفي الأثر Pathfinder, مغامر Adventurer, صائد الكنوز Treasure Hunter, بطل Champion, أسطورة
+Legend, one per five levels. Keep, or rename?

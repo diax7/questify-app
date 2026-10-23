@@ -2370,3 +2370,33 @@ up; the deletion then cancels them through the normal cancel path (stock returns
 stay, attached to the anonymised enrollment.
 **Why:** FR-128 and the T-217 done-condition ("a pending handover is explained before deletion"); once the record names
 no one it is no longer personal data, so no purge job is needed now (Q-142 for counsel).
+
+## ADR-179 — Questify XP follows the event ledger by trigger, in its own append-only rows
+**Status:** Proposed (Claude, 2026-10-24; T-401).
+**Decision:** an `AFTER INSERT` trigger on `ledger_entry` writes XP: one credit per (player, quest), ever, on the
+first non-rehearsal `quest` entry; one reversal when a `removal` reverses a credited quest entry (the quest stays used,
+ADR-152). XP lives in `player_xp` (total and level), append-only `xp_entry` and `level_reached` (first time per
+level, never removed). No other ledger kind pays or takes XP. A deleted account keeps its XP rows on the tombstone.
+**Why:** every writer of a quest credit already ends in one ledger insert, so no path can pay points and forget XP;
+the rows point at `player_xp`, not `player`, so they never wait on a deletion's player lock. Plan:
+`docs/plans/2026-10-24-t-401-xp.md`.
+
+## ADR-180 — 100 XP per quest; 30 levels on a gentle curve
+**Status:** Proposed (Claude, 2026-10-24; T-401). Q-145.
+**Decision:** `platform_setting` `xp.questXp` = 100 (server only, never in the public config). Level n starts at
+`50·(n−1)·(n+2)` XP: level 2 at 200, 5 at 1,400, 10 at 5,400, 30 at 46,400. Both seeded; T-709 edits them.
+**Why:** an early level-up comes after two quests; a full event of about 20 quests reaches level 5; levels 20 to 30
+take many events.
+
+## ADR-181 — Level titles, one per five levels
+**Status:** Proposed (Claude, 2026-10-24; T-401). Q-148.
+**Decision:** 1–5 مستكشف Explorer, 6–10 مقتفي الأثر Pathfinder, 11–15 مغامر Adventurer, 16–20 صائد الكنوز Treasure
+Hunter, 21–25 بطل Champion, 26–30 أسطورة Legend. Stored as data (`level_title`); T-709 edits them.
+**Why:** FR-706 and F-128's adventure theme.
+
+## ADR-182 — Not in T-401: XP on repeats, difficulty-based XP, the level-up item and gems
+**Status:** Proposed (Claude, 2026-10-24; T-401). Q-147.
+**Decision:** the platform switches for XP on repeats and by difficulty (ADR-083: "later") are not built. T-401
+records each level reached; T-402 grants the item for each (FR-721) and T-404 the gems (ADR-046). Until T-402, the XP
+bar shows the next level without its reward (FR-416).
+**Why:** no speculative switches; the item catalogue does not exist yet.
