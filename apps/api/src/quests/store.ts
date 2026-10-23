@@ -1,9 +1,9 @@
 import { REFRESHING_QUEST_TYPES, type QuestType, type QuestVerification } from "@questify/shared";
+import type { PoolClient } from "pg";
+import type { EventStatus } from "#src/events/store";
 
 /** A quest's place (T-303b): the organizer's pin and radius in metres. */
 export type QuestPlace = Readonly<{ lat: number; lng: number; radiusM: number }>;
-import type { PoolClient } from "pg";
-import type { EventStatus } from "#src/events/store";
 
 export type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 

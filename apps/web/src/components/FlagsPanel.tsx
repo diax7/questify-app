@@ -50,6 +50,9 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
   return (
     <>
       <h4 className={styles.subtitle}>{t("flags.evidence")}</h4>
+      {flag.kind === "impossible_speed" ? (
+        <p className={styles.muted}>{t("flags.speedNote")}</p>
+      ) : null}
       <ul className={styles.muted}>
         {flag.phoneAccounts.map((account) => (
           <li key={account.enrollmentId} dir="auto">

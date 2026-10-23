@@ -143,7 +143,7 @@ function CodeEntry({
   onDone,
 }: Readonly<{ quest: Quest; onDone: (answer: CompletionAnswer) => void }>) {
   const { t } = useI18n();
-  const { locationOn } = useEvent();
+  const { scanPositions } = useEvent();
   const reader = useLocationReader();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -151,7 +151,7 @@ function CodeEntry({
   const submit = async () => {
     const key = keyFor(last, code, randomUuid);
     setBusy(true);
-    const position = await scanReading(reader ?? null, locationOn, Date.now);
+    const position = await scanReading(reader ?? null, scanPositions, Date.now);
     const answer = await completeQuest(
       api.session,
       quest.id,

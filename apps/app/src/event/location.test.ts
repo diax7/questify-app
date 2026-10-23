@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkInRead,
   explainAfterJoin,
+  permissionOf,
   readingOf,
   scanReading,
   type Fix,
@@ -137,5 +138,16 @@ describe("explainAfterJoin", () => {
     expect(explainAfterJoin({ ...ready, permission: "granted" })).toBe(false);
     expect(explainAfterJoin({ ...ready, permission: "denied" })).toBe(false);
     expect(explainAfterJoin({ ...ready, permission: null })).toBe(false);
+  });
+});
+
+describe("permissionOf", () => {
+  it("reads a denial Android may ask again as undetermined, so Check in explains and asks", () => {
+    expect(permissionOf({ status: "granted" })).toBe("granted");
+    expect(permissionOf({ status: "undetermined", canAskAgain: true })).toBe("undetermined");
+    expect(permissionOf({ status: "denied", canAskAgain: true })).toBe("undetermined");
+    expect(permissionOf({ status: "denied", canAskAgain: false })).toBe("denied");
+    expect(permissionOf({ status: "denied" })).toBe("denied");
+    expect(permissionOf({ status: "odd", canAskAgain: false })).toBe("denied");
   });
 });

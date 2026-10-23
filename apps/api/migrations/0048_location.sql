@@ -188,22 +188,26 @@ END $$;
 REVOKE ALL ON FUNCTION check_in_check(quest, jsonb) FROM PUBLIC;
 
 -- Keeps what a usable reading (well shaped, no older than 2 minutes) says about a completion; a bad, stale or absent
--- one keeps nothing. The venue distance only for an event with a pin that is not virtual.
+-- one keeps nothing, and nothing is kept in a virtual event (FR-1744: no location flag there). The venue distance only
+-- for an event with a pin.
 CREATE FUNCTION keep_position(made bigint, enrolled enrollment, reading jsonb) RETURNS void
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
   fix record;
   ev  event%ROWTYPE;
 BEGIN
+  SELECT * INTO ev FROM event e WHERE e.id = enrolled.event_id;
+  IF ev.kind = 'virtual' THEN
+    RETURN;
+  END IF;
   SELECT * INTO fix FROM position_of(reading);
   IF fix.lat IS NULL OR fix.age_s > 120 THEN
     RETURN;
   END IF;
-  SELECT * INTO ev FROM event e WHERE e.id = enrolled.event_id;
   INSERT INTO completion_position (completion_id, organizer_id, event_id, enrollment_id, accuracy_m, mocked,
                                    venue_distance_m)
   VALUES (made, enrolled.organizer_id, enrolled.event_id, enrolled.id, round(fix.accuracy_m)::integer, fix.mocked,
-          CASE WHEN ev.kind <> 'virtual' AND ev.venue_lat IS NOT NULL
+          CASE WHEN ev.venue_lat IS NOT NULL
                THEN rounded_m(distance_m(fix.lat, fix.lng, ev.venue_lat::double precision,
                                          ev.venue_lng::double precision)) END);
 END $$;

@@ -58,9 +58,20 @@ export function readingOf(fix: Fix, now: number): Position | null {
   };
 }
 
-const PERMISSIONS: readonly string[] = ["granted", "denied", "undetermined"];
-const permissionOf = (status: unknown): Permission =>
-  PERMISSIONS.includes(String(status)) ? (status as Permission) : "denied";
+/**
+ * The permission as the app acts on it: granted, or `undetermined` while the system may still show its prompt (never
+ * asked, or denied where Android can ask again: `canAskAgain`), else denied (the settings link).
+ */
+export function permissionOf(
+  answer: Readonly<{ status: unknown; canAskAgain?: unknown }>,
+): Permission {
+  if (answer.status === "granted") {
+    return "granted";
+  }
+  return answer.status === "undetermined" || answer.canAskAgain === true
+    ? "undetermined"
+    : "denied";
+}
 
 /**
  * The phone's location module, loaded on demand: null when this build has none (a build made before T-303b's native
@@ -70,8 +81,8 @@ export async function nativeReader(): Promise<LocationReader | null> {
   try {
     const Location = await import("expo-location");
     return {
-      permission: async () => permissionOf((await Location.getForegroundPermissionsAsync()).status),
-      ask: async () => permissionOf((await Location.requestForegroundPermissionsAsync()).status),
+      permission: async () => permissionOf(await Location.getForegroundPermissionsAsync()),
+      ask: async () => permissionOf(await Location.requestForegroundPermissionsAsync()),
       current: () => Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
       lastKnown: (maxAgeMs) => Location.getLastKnownPositionAsync({ maxAge: maxAgeMs }),
     };

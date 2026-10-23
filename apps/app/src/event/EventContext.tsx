@@ -16,6 +16,11 @@ type EventValue = Readonly<{
   terms: EventTerms;
   /** The platform's location switch (ADR-208): off until the configuration says on; off, the app never reads location. */
   locationOn: boolean;
+  /**
+   * Whether a QR scan or typed code may carry the last known position: the switch on and the event in person (never a
+   * virtual one, FR-1744; nothing while its kind is unknown).
+   */
+  scanPositions: boolean;
 }>;
 
 const EventContext = createContext<EventValue | undefined>(undefined);
@@ -52,9 +57,11 @@ export function EventProvider({
       current = false;
     };
   }, [eventId]);
+  const kind = events?.find((event) => event.id === eventId)?.kind;
+  const scanPositions = locationOn && (kind === "physical" || kind === "workplace");
   const value = useMemo(
-    () => ({ eventId, events, knownName, rememberName, terms, locationOn }),
-    [eventId, events, knownName, terms, locationOn],
+    () => ({ eventId, events, knownName, rememberName, terms, locationOn, scanPositions }),
+    [eventId, events, knownName, terms, locationOn, scanPositions],
   );
   return <EventContext.Provider value={value}>{children}</EventContext.Provider>;
 }

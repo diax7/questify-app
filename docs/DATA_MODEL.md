@@ -558,8 +558,8 @@ shown), `share_quest`, `member_share`.
 CASCADE, organizer_id, event_id, enrollment_id, accuracy_m, mocked, venue_distance_m, created_at)`: one row per
 completion that came with a usable reading (well formed, at most 2 minutes old), written by `record_completion`
 (`keep_position`). **No coordinate is stored anywhere**: the reading reaches the database only as an argument and
-leaves as the venue distance rounded to 10 m (NULL without a pin or in a virtual event), the reported accuracy and
-the mocked mark; distances live only here and in what `flag_detail` computes, never on `quest_completion`. No grant
+leaves as the venue distance rounded to 10 m (NULL without a pin), the reported accuracy and the mocked mark
+(nothing at all in a virtual event, whose app never sends a scan's reading either); distances live only here and in what `flag_detail` computes, never on `quest_completion`. No grant
 and no policy: only the definers write and read it. Erasure deletes the account's rows; the rehearsal wipe's
 completion deletes cascade to them. Helpers: `position_of`, `distance_m` (haversine, 6371008 m), `check_in_check`,
 `location_tuning()` (far margin 1000 m, 15 m/s, minimum gap 300 m, beside 0031's `flag_tuning`).

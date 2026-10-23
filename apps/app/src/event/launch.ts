@@ -17,6 +17,8 @@ export type MyEvent = Readonly<{
   status: "active" | "pending" | "declined";
   /** The event's IANA zone, for its times. */
   timezone?: string;
+  /** physical, virtual or workplace; a scan never reads location in a virtual event (T-303b, FR-1744). */
+  kind?: string;
 }>;
 
 /** When each event was last opened on this phone (FR-1610): one map, cleared at every sign-out. */

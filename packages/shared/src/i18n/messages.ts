@@ -969,8 +969,8 @@ export const MESSAGES = {
   },
   "location.explainTitle": { ar: "سجّل حضورك بموقعك", en: "Check in with your location" },
   "location.explainBody": {
-    ar: "يستخدم Questify موقعك أثناء فتح التطبيق فقط، لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب. لا يُحفظ موقعك، ويمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
-    en: "Questify uses your location only while the app is open, to check you in at quest spots and keep the game fair. Your location is not stored, and you can always scan the QR code instead.",
+    ar: "يستخدم Questify موقعك أثناء فتح التطبيق فقط، لتسجيل حضورك في أماكن المهام وللحفاظ على عدالة اللعب. لا نحتفظ بموقعك الدقيق، وقد يرى فريق الفعالية بُعدك عن مكانها. يمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
+    en: "Questify uses your location only while the app is open, to check you in at quest spots and keep the game fair. Your exact location is not kept; the event team may see how far you were from the venue. You can always scan the QR code instead.",
   },
   "location.continue": { ar: "متابعة", en: "Continue" },
   "location.denied": {
@@ -2331,6 +2331,10 @@ export const MESSAGES = {
   "flags.speed": {
     ar: "{gap} خلال {seconds} ث من المكان السابق",
     en: "{gap} in {seconds} s from the previous spot",
+  },
+  "flags.speedNote": {
+    ar: "تُحسب الأوقات من لحظة وصول كل مسح إلى الخادم، وقد يُظهر الاتصال البطيء مسحين متقاربين.",
+    en: "Times are when the server received each scan; a slow connection can bunch two scans together.",
   },
   "flags.metres": { ar: "{n} م", en: "{n} m" },
   "flags.kilometres": { ar: "{n} كم", en: "{n} km" },

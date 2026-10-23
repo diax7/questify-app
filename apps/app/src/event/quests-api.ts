@@ -51,8 +51,8 @@ export type Quest = Readonly<{
 }>;
 
 /**
- * Whether a quest of a type this app version does not know still offers its printed QR (F-282): a newer type that
- * keeps a quest QR (a location quest on an app from before T-303b, ADR-208) completes by scanning it.
+ * Whether a quest of a type this app version does not know still offers its printed QR (F-282): a type added after this
+ * build that keeps a quest QR completes by scanning it.
  */
 export const scanFallback = (quest: Pick<Quest, "type" | "state" | "verification">): boolean =>
   quest.state === "open" && !isQuestType(quest.type) && quest.verification.includes("quest_qr");

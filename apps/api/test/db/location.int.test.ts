@@ -490,9 +490,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("location quests (database)", (
       const remote = await member(online);
       await complete(remote.player, onlineScan, "qr", at(9_000, { mocked: true }));
       expect(await flags(remote.enrollment)).toEqual([]);
-      expect(await positions(remote.enrollment)).toEqual([
-        { accuracy_m: 10, mocked: true, venue_distance_m: null },
-      ]);
+      expect(await positions(remote.enrollment)).toEqual([]);
 
       const manual = await newQuest(event, "location");
       const awarded = await member(event);

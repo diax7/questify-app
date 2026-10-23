@@ -145,7 +145,7 @@ function Celebration({
  */
 export default function ScanQuestScreen() {
   const { t, language } = useI18n();
-  const { eventId, locationOn } = useEvent();
+  const { eventId, scanPositions } = useEvent();
   const reader = useLocationReader();
   const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission, getPermission] = useCameraPermissions();
@@ -168,7 +168,7 @@ export default function ScanQuestScreen() {
 
   const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
-    const position = await scanReading(reader ?? null, locationOn, Date.now);
+    const position = await scanReading(reader ?? null, scanPositions, Date.now);
     const answer = await send(id, token, key, position);
     attempt.current = { key, code: token, retryable: answer.kind === "network" };
     if (answer.kind === "signed_out") {
