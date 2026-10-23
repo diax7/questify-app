@@ -138,12 +138,16 @@ What App Review needs from Questify:
    that proves the code works for no other number.
 2. **A permanent demo event** ("App Review Demo", always live, no end date) in its own demo tenant,
    containing every quest type the binary supports: QR scan, challenge, photo submission, text
-   submission, vote, quiz, and a location quest with its non-location alternative. Seed a
+   submission, vote, quiz, survey, share, and a location quest with its non-location alternative. Seed a
    leaderboard with fictional players and a prize catalogue the reviewer can redeem.
 3. **A sample QR code** attached to the review notes as an image (and printable), plus the event
    join code.
 4. **Review notes** that walk through join → quest → points → leaderboard → redeem → report/block
-   → delete account, and that list every feature behind a flag (see 1.5).
+   → delete account, and that list every feature behind a flag (see 1.5). **Share quests (T-303,
+   ADR-034, ADR-199):** the note says a share quest gives event points (redeemable for the
+   organizer's prizes) when the player completes the system share sheet with the organizer's
+   message; the player picks the app and the recipients, nothing is posted for them, there is no
+   proof step, it pays once per player and quest, and the organizer can switch share quests off.
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 
@@ -511,6 +515,7 @@ Use TestFlight external review as a dress rehearsal: it uses the same guidelines
 | 2.5.5 Apps "must be fully functional on IPv6-only networks." | [verified 2026-10-16] |
 | 2.5.4 Background services only for their intended purposes (location, audio, etc.). Questify needs no background location. | [verified 2026-10-16] |
 | 4.10 May not monetize built-in capabilities (push, camera). | [verified 2026-10-16] |
+| Share quests (T-303, ADR-199): 3.2.2(x) forbids forcing a rating or review and allows incentives "to take specific actions within apps"; a share is not a rating, a review or a permission, so it may earn points. Google's Message Spam rule (2.13) is met by the system share sheet: the player sees the message and picks the app and the recipients. Meta's spam rule (rewards for shares) is the organizer's risk, accepted in ADR-034. | Allowed with the review note in 1.3 [quotes verified 2026-10-16; the share-quest reading is ours] |
 | 5.6.2 Developer identity information must be truthful and current. | [verified 2026-10-16] |
 
 ---

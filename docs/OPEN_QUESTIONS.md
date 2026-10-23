@@ -272,7 +272,7 @@ ADR-197: staff confirm by scanning the player's My QR at the station; no queue w
 Agree?
 
 ## Q-162 — Survey shape and privacy (2026-10-24, T-303)
-ADR-198: choice, rating 1 to 5 and short text questions; the team sees answers without names. Want named answers, more
+ADR-198: choice, rating 1 to 5 and short text questions; the team sees answers with names not shown. Want named answers, more
 question kinds, or a different rating scale?
 
 ## Q-163 — Share quests default (2026-10-24, T-303)

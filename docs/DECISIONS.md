@@ -2516,8 +2516,9 @@ would be a second review system for the same outcome.
 ## ADR-198 — Survey quests
 **Status:** Proposed (Claude, 2026-10-24; T-303). Q-162.
 **Decision:** 1 to 20 questions, each a choice (2 to 10), a rating (1 to 5) or short text (up to 500 characters), each
-required unless the organizer says not. One response per player, paid on submit. The owner and editors see counts,
-averages and text answers without player names; operators and players see none. Structure locks after the first
+required unless the organizer says not. One response per player, paid on submit; a manual award also completes the
+quest, so the player cannot send the survey after one. The owner and editors see the total, counts, averages and the
+newest 50 text answers per question, names not shown; operators and players see none. Structure locks after the first
 response (ADR-194); a deleted account's responses are deleted.
 **Why:** FR-214 sends results to the organizer only; names add nothing a survey needs and FR-1210 shares results with
 speakers.

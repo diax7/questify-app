@@ -46,17 +46,22 @@ T-303 as listed is five quest types plus two fair-play flags. It is split by wha
 
 ## Survey (ADR-198)
 
-- `submit_survey(target, answers jsonb, request_key)`: `play_enter(quest, 'survey')` (open checks, enrollment lock,
-  operator `can_play`), one response per player and quest (`409 already_answered`; a replayed key answers the first
-  result), then every answer checked against the config: each question id known and answered at most once, every
-  `required` one answered, a `choice` id in that question's choices, a `rating` an integer 1 to 5, a `text` NFC-trimmed,
-  1 to 500 characters, control and bidi-override characters refused (`SV422`, as submissions). Then the completion
-  (method `survey`, `quest.points`) and the response row in one transaction through `record_completion` (as
-  `vote_quest`). Any refusal names the question id, never echoes the text.
+- `submit_survey(target, answers jsonb, request_key)`: the quest must be a survey (`QT422`), every answer is checked
+  against the config, then the completion (method `survey`, `quest.points`) and the response row are written in one
+  transaction through `record_completion` (as `vote_quest`: open checks, the enrollment lock, the cap, and the ledger's
+  operator-play guard). One response per player and quest (`409 already_completed`). **A replayed key** answers the
+  first result only when the answers are the same; other answers under that key are `QK422` (as `vote_quest`
+  0041:262-266). A manual award also completes the survey, so the player cannot send it afterwards (ADR-198).
+- **Answer rules** (`SA422`, DETAIL the question id, or `shape` for a body that is not an object or names an unknown
+  question): a `choice` answer is a string naming one of that question's choices; a `rating` an integer 1 to 5; a
+  `text` goes through `clean_submission_text` (NFC, trimmed, control and bidi-override characters refused) and is at most
+  500 characters. A missing, null or blank answer to an optional question counts as unanswered; to a required one it is
+  refused. A refusal never echoes the answer.
 - **Who sees answers:** players never read another's answers (no definer returns them). The team (owners and editors;
-  operators not) reads `survey_summary(event, quest)`: per question the choice counts, the rating count and average,
-  and the text answers newest first, **with no player's name** (ADR-198). T-508 builds the full results page, export and
-  speaker sharing on this. **Dashboard in T-303:** the summary on the quest's page, as T-302's vote counts.
+  operators not) reads `survey_summary(event, quest)`: the total of responses, and per question the full choice counts,
+  the rating count and average, and the newest 50 text answers, **names not shown** (ADR-198). T-508 builds the full
+  results page, export and speaker sharing on this. **Dashboard in T-303:** the summary on the quest's page, as T-302's
+  vote counts.
 - **App:** the survey sheet: one scrolling form (choices as cards, five stars for a rating with a numeric label for
   screen readers, a text box with a counter), required marks, send with retry (rule 5), then "Thanks" and the points.
 - **Erasure and rehearsal:** `erase_rows` deletes the player's `survey_response` rows (counts drop, as votes); the
@@ -64,32 +69,41 @@ T-303 as listed is five quest types plus two fair-play flags. It is split by wha
 
 ## Share (ADR-199)
 
-- `share_quest(target, request_key)`: `play_enter(quest, 'share')`, then the completion (method `share`,
-  `quest.points`, `repeat_cap` 1: `409 already_completed`); a replayed key answers the first result.
-- **The switch:** new feature `shareQuests` (`gated: false`) in `FEATURES`. Creating a share quest is turning share
-  quests on; the event's switch off hides every share quest from players and refuses `share_quest` (`403 feature_off`).
-  The API checks the composed config (the one place features are composed, T-007) before calling the definer, in the
-  share route and in the member quest list. The builder offers the share type only while the switch is on.
+- `share_quest(target, request_key)`: the quest must be a share quest, the event's switch not off (`QF403`), then the
+  completion (method `share`, `quest.points`, `repeat_cap` 1: `409 already_completed`) through `record_completion`; a
+  replayed key answers the first result.
+- **The switch:** new feature `shareQuests` (`gated: false`) in `FEATURES`, on by default. The event's switch off hides
+  every share quest from players and refuses the payment (`403 feature_off`). **One API helper**
+  (`withoutSwitchedOffQuests`) drops share quests when the composed config has `shareQuests` off, and every player quest
+  read goes through it: the quests tab, Home (Up next, done and total), the public quests by code, and the share
+  read and pay routes. The database also refuses `share_quest` when the event's own switch is off (the platform's
+  switch lives only in the composed config). The builder always accepts the type; the dashboard says when the switch
+  is off that players will not see it.
 - **The app pays on `sharedAction`** from React Native's `Share.share` with the organizer's message and link. iOS
   reports a dismissed sheet; Android always reports shared, so opening and closing the sheet can earn the points there:
   the cost ADR-034 accepted. The link is shown as text only; the app never opens it itself.
-- Players read the message and link through the member quest list's row for share quests (organizer text, no secret).
+- Players read the message and link through `member_share(quest)` (organizer text, no secret).
+- **Store:** STORE_COMPLIANCE gains a share-quest row (Apple 3.2.2(x) allows incentives for in-app actions; Google's
+  message-spam rule is met by the system share sheet, where the player picks the recipients and sees the message) and
+  an App Review note.
 
 ## Tables (deny by default: no API grant; reads and writes through definers; tenant foreign keys, RESTRICT)
 
 | Table | Columns | Notes |
 |---|---|---|
-| `survey_response` | `organizer_id`, `event_id`, `enrollment_id`, `quest_id`, `answers` jsonb, `completion_id`, `request_key`, `created_at` | PK (enrollment_id, quest_id); `answers` is `{questionId: choiceId \| rating \| text}`, written only by `submit_survey` |
+| `survey_response` | `organizer_id`, `event_id`, `enrollment_id`, `quest_id`, `answers` jsonb, `completion_id`, `created_at` | PK (enrollment_id, quest_id); `answers` is `{questionId: choiceId \| rating \| text}` with only the answered questions, written only by `submit_survey` |
 
 No table for share or challenge: the completion row is the record.
 
 ## Functions (each REVOKEd from PUBLIC; only entry points granted to `questify_app`; each calls `ensure_rehearsal_wiped`)
 
-Player: `submit_survey`, `member_survey(quest)` (the questions and whether I answered), `share_quest`. Team:
-`survey_summary(event, quest)`. Replaced: `record_completion` (the challenge method), `operator_stations`,
-`member_event_quests` (share message and link; survey and challenge done states unchanged), `quest_structure`,
-`erase_rows`, `wipe_rehearsal`, and the type and method CHECKs. `raise_completion_flags` is unchanged: share and survey
-completions are the player's own pace and count toward bursts.
+Player: `submit_survey`, `member_survey(quest)` (the questions and whether I answered), `member_share(quest)`,
+`share_quest`. Team: `survey_summary(event, quest)`. Replaced: `record_completion` (the challenge, survey and share
+methods), `quest_verification_default` (a challenge defaults to `['my_qr']`), `quest_structure` (a survey branch),
+`quest_lock_played` (an EXISTS on `survey_response`) and its trigger (WHEN gains `survey`), `erase_rows`,
+`wipe_rehearsal`, and the type and method CHECKs. `operator_stations` changes its output (a `type` column), so it is
+DROPped and CREATEd with its REVOKE and GRANT repeated; the outsider suite lists it. `raise_completion_flags` is
+unchanged: share and survey completions are the player's own pace and count toward bursts.
 
 ## API (API.md)
 
@@ -97,7 +111,7 @@ completions are the player's own pace and count toward bursts.
 takes the Idempotency-Key header; they answer like a completion: `{completionId, points, score, balance, levelUp, rank,
 replayed}`). Team: `GET /v1/organizers/{org}/events/{id}/quests/{qid}/survey`. The routes call
 `ranking.afterCompletion`. Refusals: 403 `quest_not_open` / `enrollment_inactive` / `operator_play_off` /
-`feature_off`, 404, 409 `already_answered` / `already_completed`, 422 `not_survey_quest` / `not_share_quest` /
+`feature_off`, 404, 409 `already_completed`, 422 `not_survey_quest` / `not_share_quest` /
 `bad_answer` (with the question id) / `idempotency_key_reused`. The builder's three types; `quest_locked` for a survey.
 Every string in `messages.ts` (Arabic via `ux-araby`), RTL checked, Western digits. Answer text never reaches logs,
 errors or push text.
@@ -106,14 +120,19 @@ errors or push text.
 
 - **Database** (`challenge-survey-share.int.test.ts`): a challenge refused by the player's QR and code paths, paid by
   an operator's My QR scan, refused for an operator without `scan_quests` or outside FR-909's quests, listed at the
-  station; `challenge` with any verification but `['my_qr']` refused by CHECK. Survey: one response, the replay, a
-  second refused, each `bad_answer` (unknown question, missing required, unknown choice, rating 0 and 6, empty and
-  501-character text, bidi characters), the open checks, two parallel submits → one row and one completion, the
-  summary's counts and average with no name, an operator and another event's owner refused the summary, the structure
-  lock after the first response, erasure and the rehearsal wipe. Share: pays once, the replay, a second refused.
-- **Security:** outsider and cross-tenant suites list `survey_response` and every new definer; a player never reads
+  station; `challenge` with any verification but `['my_qr']` refused by CHECK, and an insert that names none gets
+  `['my_qr']`. Survey: one response, the replay, the same key with other answers (`QK422`), a manual award using it
+  up, a second refused, each `bad_answer` (unknown question, missing required, unknown choice, rating 0 and 6, empty and
+  501-character text, bidi characters, a number as a choice, 3.5 as a rating; blank optional answers stored as
+  unanswered; the refusal never holds the text), the open checks, two parallel submits → one row and one completion, the
+  summary's total, counts, average and newest 50 texts with no name, an operator and another event's owner refused the summary, the structure
+  lock after the first response, erasure and the rehearsal wipe. Share: pays once, the replay, a second
+  refused, refused while the event's switch is off.
+- **Security:** outsider and cross-tenant suites list `survey_response`, every new definer and the recreated
+  `operator_stations`; a player never reads
   another's answers.
-- **Route/unit:** routes and refusals (including `feature_off` and the hidden share quest), the registry schemas
+- **Route/unit:** routes and refusals (including `feature_off`), and a switched-off share quest hidden from each player
+  read (quests tab, Home's Up next and totals, public quests by code, share read and pay), the registry schemas
   (link must be `https://`), the app's survey form and share flow (`sharedAction` pays, `dismissedAction` does not), a
   browser test for the builder's three types and the survey summary (desktop and phone), `expo export`, the Hermes
   built-ins test (no `toSorted`, `Object.groupBy`, new Set methods or `structuredClone`).
