@@ -2091,3 +2091,47 @@ applies to all the rewards." Claude read "all the rewards" as every reward that 
 **Why:** Dhia's answers to the T-207 interview (2026-10-23): event caps only; the removed quest stays used, so a
 cheater cannot simply scan again; the list and quest-completer targets cover the "code failed" case now; the editor is
 the person on the floor on event day.
+
+## ADR-153 — Flags in v1: same device and bursts; location, speed and integrity later
+**Status:** Proposed (Claude, 2026-10-23; T-209). Q-119, Q-120.
+**Decision:**
+- T-209 builds two detectors, run by a trigger on every new completion inside its transaction: **same device**
+  (FR-330, FR-1745: every account of the event seen on one install id gets a case, once per account and phone) and
+  **bursts** (FR-333: 10 or more scans within 5 minutes, manual awards not counted, counting again after a resolved
+  case). Thresholds live in one function until T-703 makes them console numbers.
+- FR-331 (far from the venue) and FR-332 (impossible speed) move to T-303, which brings the location permission, quest
+  pins and the venue pin. FR-334 (device integrity) moves to a new T-812 (needs Dhia's Apple and Google setup).
+- No separate operator-burst flag: a station scan is the scanned player's completion, so it shows as that player's
+  burst with the operator named.
+**Why:** both detectors use data already stored (`quest_completion.device_id`, times); the other three have no data
+yet. A trigger covers every completion path without copying the completion engine.
+
+## ADR-154 — The desk's hold and the owner's pause
+**Status:** Proposed (Claude, 2026-10-23; T-209). Amends FR-1747 ("release" = lifting the ban). Q-120.
+**Decision:**
+- One check in `finish_handover` (both confirm paths), the desk's offer and the desk lookup: paused (FR-1604) first,
+  then banned (FR-1747), then an open flag while the event's hold is on (FR-1815, default on, owner's switch).
+- The operator sees "Held, ask the owner" for a flag or a ban, never which; a paused player shows the paused screen.
+  The desk's Cancel stays available.
+- A banned player's items are released by lifting the ban; there is no per-item release.
+- A pause also refuses the player's new reservations and Collect, with a message (FR-518). A flag or ban hold tells the
+  player nothing in the app.
+- A held reservation keeps its pickup timeout.
+**Why:** one gate in the one handover body cannot be skipped; not naming the reason keeps flags private to the team.
+
+## ADR-155 — Flag cases: who acts and how a case closes
+**Status:** Proposed (Claude, 2026-10-23; T-209).
+**Decision:**
+- Owners and editors (in their events) read cases, clear them and close them as "points removed" (only after a
+  removal entry for that player since the case was raised; the removal is T-207's). Only the owner bans, pauses and
+  switches the hold. A ban closes the player's open cases as "banned". A closed case is never reopened; a new burst
+  opens a new case.
+- Every action is audited.
+**Why:** FR-1815 lets editors end the hold; FR-518 and the 0019 ban are the owner's.
+
+## ADR-156 — The desk finds a player by username or phone
+**Status:** Proposed (Claude, 2026-10-23; T-209). New FR-1848.
+**Decision:** an operator with the hand-over ability can find an event member by exact username or exact Saudi mobile
+when My QR cannot be read, and sees the same items as after a scan. 30 finds per operator per 10 minutes.
+**Why:** every handover still needs the player's Collect or Accept in their own app (ADR-137), so finding by name
+gives nothing away; it is the same lookup as the manual award's (T-207).

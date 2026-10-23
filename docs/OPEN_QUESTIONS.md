@@ -79,3 +79,17 @@ overlap the ones above were merged into them.
 FR-1712 says bulk awards are "outside operator caps", written before ADR-152 capped editors. T-207 builds: the owner's
 bulk is uncapped; an editor's bulk gives each player at most the per-award cap and does not count toward the daily
 cap (otherwise a one-player list is an uncapped award). Dhia may lift the editor limit. Raised by the CTO plan review.
+
+## Q-119 — Which flags ship first (2026-10-23, T-209)
+T-209 builds same-device and burst flags (ADR-153). Far-from-venue and impossible-speed flags move to T-303 (no venue
+pin, quest places or app location exist yet); device integrity moves to a new T-812 (needs Apple App Attest and Google
+Play Integrity set up on Dhia's accounts). Dhia may want any of them sooner.
+
+## Q-120 — Flag numbers and the held reservation's clock (2026-10-23, T-209)
+Proposed: a burst is 10 or more scans within 5 minutes (Q-074); a same-device case is raised once per account and
+phone, so a cleared "siblings share a phone" case stays cleared. A reservation held at the desk keeps its pickup
+timeout (default 120 minutes): if the owner does not act in time, the points come back. Should the hold stop the clock?
+
+## Q-121 — Find by name at the desk (2026-10-23, T-209)
+ADR-156 lets the desk find a player by exact username or phone when My QR will not scan (new FR-1848). Dhia may prefer
+scan-only at the desk.
