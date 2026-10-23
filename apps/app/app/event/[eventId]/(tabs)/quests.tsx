@@ -12,11 +12,13 @@ import { EventPill } from "#src/event/EventPill.tsx";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
 import {
+  categoryNotes,
   categorySummary,
   fetchQuests,
   findQuest,
   initiallyOpen,
   type Category,
+  type CategoryNote,
   type CompletionAnswer,
   type Quest,
   type QuestsAnswer,
@@ -89,7 +91,30 @@ function QuestCard({
   );
 }
 
-/** One category: a header that opens and closes it, with its summary (FR-230), and its quests. */
+/** A category header's note in words (T-304): its opening time, its unlock, its order, its bonus. */
+function noteText(
+  note: CategoryNote,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+  timeZone: string,
+): string {
+  switch (note.kind) {
+    case "opens":
+      return t("questsTab.category.opens", {
+        time: formatEventTime(new Date(note.at), timeZone, language),
+      });
+    case "unlockAfter":
+      return t("questsTab.category.unlockAfter", { name: textIn(note.name, language) });
+    case "inOrder":
+      return t("questsTab.category.inOrder");
+    case "bonus":
+      return t("questsTab.category.bonus", { points: formatNumber(note.points, language) });
+    case "bonusEarned":
+      return t("questsTab.category.bonusEarned", { points: formatNumber(note.points, language) });
+  }
+}
+
+/** One category: a header that opens and closes it, with its summary (FR-230), its rules (T-304), and its quests. */
 function CategorySection({
   category,
   open,
@@ -117,12 +142,13 @@ function CategorySection({
     total: summary.total,
   });
   const name = textIn(category.name, language);
+  const notes = categoryNotes(category).map((note) => noteText(note, t, language, timeZone));
   return (
     <View style={styles.section}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={`${name}, ${summaryText}`}
+        accessibilityLabel={[name, summaryText, ...notes].join(", ")}
         onPress={onToggle}
         style={styles.header}
       >
@@ -130,6 +156,11 @@ function CategorySection({
           {arrow} {name}
         </AppText>
         {open ? null : <AppText muted>{summaryText}</AppText>}
+        {notes.map((note) => (
+          <AppText key={note} muted>
+            {note}
+          </AppText>
+        ))}
       </Pressable>
       {open
         ? category.quests.map((quest) => (

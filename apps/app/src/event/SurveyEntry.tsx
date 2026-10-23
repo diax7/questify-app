@@ -5,7 +5,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
-import { completedText } from "#src/event/amount.ts";
+import { paidText } from "#src/event/amount.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import type { Quest } from "#src/event/quests-api.ts";
@@ -164,7 +164,7 @@ export function SurveyEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: 
     const answer = await sendSurvey(api.session, quest.id, answers, key);
     setBusy(false);
     if (answer.kind === "voted") {
-      setSaid(`${t("play.survey.thanks")} ${completedText(t, terms, language, answer.points)}`);
+      setSaid(`${t("play.survey.thanks")} ${paidText(t, terms, language, answer)}`);
       onPaid();
       await load();
       return;

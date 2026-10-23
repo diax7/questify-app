@@ -774,6 +774,40 @@ export const MESSAGES = {
     ar: "هذه المهمة لفئة أخرى من اللاعبين.",
     en: "This quest is for another group of players.",
   },
+  "questsTab.notOpen.categoryNotStarted": {
+    ar: "لم تُفتح هذه الفئة بعد.",
+    en: "This category hasn't opened yet.",
+  },
+  "questsTab.notOpen.categoryLocked": {
+    ar: "أكمل الفئة التي تفتح هذه الفئة أولًا.",
+    en: "Finish the category that unlocks this one first.",
+  },
+  "questsTab.notOpen.orderLocked": {
+    ar: "أكمل المهمة السابقة أولًا.",
+    en: "Finish the quest before this one first.",
+  },
+  "questsTab.locked": { ar: "مقفلة الآن", en: "Locked for now" },
+  "questsTab.bonusPaid": {
+    ar: "أكملت «{category}»: مكافأة ‎+{points}",
+    en: "+{points} bonus: {category} complete",
+  },
+  "questsTab.category.opens": { ar: "تُفتح {time}", en: "Opens {time}" },
+  "questsTab.category.unlockAfter": {
+    ar: "تُفتح بعد إكمال «{name}»",
+    en: "Opens after you finish {name}",
+  },
+  "questsTab.category.inOrder": {
+    ar: "بالترتيب: كل مهمة تفتح التي بعدها",
+    en: "In order: each quest opens the next",
+  },
+  "questsTab.category.bonus": {
+    ar: "مكافأة الإكمال: ‎+{points}",
+    en: "Completion bonus: +{points}",
+  },
+  "questsTab.category.bonusEarned": {
+    ar: "حصلت على مكافأة الإكمال: ‎+{points}",
+    en: "Completion bonus earned: +{points}",
+  },
   "questsTab.limit": {
     ar: "وصلت إلى الحد الأقصى لهذه المهمة.",
     en: "You've reached this quest's limit.",
@@ -1952,6 +1986,7 @@ export const MESSAGES = {
   "awards.kind.redeemReturn": { ar: "إرجاع نقاط", en: "Points returned" },
   "awards.kind.handover": { ar: "استلام جائزة", en: "Prize collected" },
   "awards.kind.removal": { ar: "إزالة نقاط", en: "Points removed" },
+  "awards.kind.bonus": { ar: "مكافأة إكمال فئة", en: "Category bonus" },
   "awards.by": { ar: "بواسطة {name}", en: "By {name}" },
   "awards.bulkTag": { ar: "منح جماعي", en: "Bulk award" },
   "awards.removedTag": { ar: "أُزيلت", en: "Removed" },

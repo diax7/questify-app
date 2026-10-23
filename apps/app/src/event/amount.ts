@@ -7,6 +7,8 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
+import type { Bonus } from "#src/event/quests-api.ts";
+import { textIn } from "#src/i18n/text.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
 
@@ -36,4 +38,23 @@ export function completedText(
     currency: termFor(terms.currency, language, points),
     points: formatNumber(points, language),
   });
+}
+
+/** A category bonus in words: «أكملت «المرحلة»: مكافأة ‎+50», "+50 bonus: Stage complete" (FR-231). */
+export function bonusLine(t: Translate, language: Language, bonus: Bonus): string {
+  return t("questsTab.bonusPaid", {
+    points: formatNumber(bonus.points, language),
+    category: textIn(bonus.category, language),
+  });
+}
+
+/** What a play paid, with the category bonus it paid after it when there is one. */
+export function paidText(
+  t: Translate,
+  terms: EventTerms,
+  language: Language,
+  paid: Readonly<{ points: number; bonus: Bonus | null }>,
+): string {
+  const text = completedText(t, terms, language, paid.points);
+  return paid.bonus === null ? text : `${text} ${bonusLine(t, language, paid.bonus)}`;
 }

@@ -76,6 +76,7 @@ describe("the survey form (T-303, FR-214)", () => {
       kind: "voted",
       points: 20,
       levelUp: null,
+      bonus: null,
     });
   });
 });

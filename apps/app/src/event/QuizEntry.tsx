@@ -7,7 +7,7 @@ import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
-import { completedText } from "#src/event/amount.ts";
+import { bonusLine, completedText } from "#src/event/amount.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import {
@@ -303,6 +303,7 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
   }
   const stage = quizStage(view);
   const levelUp = quiz.step?.levelUp ?? null;
+  const bonus = quiz.step?.bonus ?? null;
   return (
     <>
       {quiz.problem === "network" ? (
@@ -343,6 +344,7 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
             </AppText>
           )}
           <Result quiz={view} />
+          {bonus === null ? null : <AppText>{bonusLine(t, language, bonus)}</AppText>}
           {levelUp === null ? null : (
             <AppText>
               {t("level.upLine", { level: levelUp.level, title: levelUp.title[language] })}

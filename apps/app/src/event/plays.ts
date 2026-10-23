@@ -1,5 +1,6 @@
 import { QUIZ_GRACE_SECONDS, type LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { bonusOf, type Bonus } from "#src/event/quests-api.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 
 /** Organizer text as the API sends it: null where a language was not written. */
@@ -38,7 +39,13 @@ export function voteViewOf(body: unknown): VoteView | undefined {
   return { options: body["options"], mine: body["mine"] as string | null };
 }
 
-export type Voted = Readonly<{ kind: "voted"; points: number; levelUp: LevelUp | null }>;
+export type Voted = Readonly<{
+  kind: "voted";
+  points: number;
+  levelUp: LevelUp | null;
+  /** The category bonus this vote paid (T-304), or null. */
+  bonus: Bonus | null;
+}>;
 
 export function votedOf(answer: AuthedResult): Voted | PlayFailure {
   if (answer.kind !== "ok") {
@@ -48,7 +55,12 @@ export function votedOf(answer: AuthedResult): Voted | PlayFailure {
   if (!isRecord(body) || typeof body["points"] !== "number") {
     return { kind: "network" };
   }
-  return { kind: "voted", points: body["points"], levelUp: levelUpOf(body["levelUp"]) };
+  return {
+    kind: "voted",
+    points: body["points"],
+    levelUp: levelUpOf(body["levelUp"]),
+    bonus: bonusOf(body["bonus"]),
+  };
 }
 
 export async function fetchVote(
@@ -176,6 +188,8 @@ export type QuizStep = Readonly<{
   kind: "quiz";
   quiz: QuizView;
   levelUp: LevelUp | null;
+  /** The category bonus the finished quiz paid, also with no right answers (T-304), or null. */
+  bonus: Bonus | null;
   /** Set on an answer: whether it was right and the right choice (FR-209). */
   result: Readonly<{ right: boolean; rightChoiceId: string }> | null;
 }>;
@@ -194,6 +208,7 @@ export function quizStepOf(answer: AuthedResult): QuizStep | PlayFailure {
     kind: "quiz",
     quiz,
     levelUp: levelUpOf(body["levelUp"]),
+    bonus: bonusOf(body["bonus"]),
     result:
       isRecord(result) &&
       typeof result["right"] === "boolean" &&

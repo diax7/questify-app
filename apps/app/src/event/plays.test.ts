@@ -72,6 +72,11 @@ describe("the vote", () => {
       kind: "voted",
       points: 25,
       levelUp: null,
+      bonus: null,
+    });
+    const bonus = { points: 40, category: { ar: null, en: "Stage" } };
+    expect(votedOf(ok({ points: 25, bonus: { categoryId: "c", ...bonus } }))).toMatchObject({
+      bonus,
     });
     expect(votedOf(ok({}))).toEqual({ kind: "network" });
     expect(votedOf(refused)).toEqual({
@@ -108,7 +113,13 @@ describe("the quiz", () => {
       ok({ quiz: quiz(), levelUp: null, result: { right: true, rightChoiceId: "r" }, rank: 1 }),
     );
     expect(step).toMatchObject({ kind: "quiz", result: { right: true, rightChoiceId: "r" } });
-    expect(quizStepOf(ok({ quiz: quiz(), levelUp: null }))).toMatchObject({ result: null });
+    expect(quizStepOf(ok({ quiz: quiz(), levelUp: null }))).toMatchObject({
+      result: null,
+      bonus: null,
+    });
+    expect(
+      quizStepOf(ok({ quiz: quiz(), bonus: { points: 30, category: { ar: "عام", en: null } } })),
+    ).toMatchObject({ bonus: { points: 30, category: { ar: "عام", en: null } } });
     expect(quizStepOf(ok({ quiz: {} }))).toEqual({ kind: "network" });
     expect(quizStepOf(refused)).toMatchObject({ kind: "refused", code: "already_voted" });
   });

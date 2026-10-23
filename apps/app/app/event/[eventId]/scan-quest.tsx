@@ -13,7 +13,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
-import { completedText } from "#src/event/amount.ts";
+import { bonusLine, completedText } from "#src/event/amount.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { outcomeText } from "#src/event/QuestSheet.tsx";
 import {
@@ -92,6 +92,9 @@ function Celebration({
         {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
         {completedText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step.points)}
       </AppText>
+      {step.bonus === null ? null : (
+        <AppText variant="title">{bonusLine(t, language, step.bonus)}</AppText>
+      )}
       {quest === undefined ? null : (
         <AppText variant="title">{textIn(quest.title, language)}</AppText>
       )}

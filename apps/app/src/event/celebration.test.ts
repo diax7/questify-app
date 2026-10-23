@@ -15,6 +15,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   done: 0,
   earned: 0,
   state: "open",
+  lock: null,
   verification: ["quest_qr"],
   ...fields,
 });
@@ -27,6 +28,10 @@ const view = (...categories: Category[]): QuestsView => ({
 const category = (id: string, quests: Quest[]): Category => ({
   id,
   name: { ar: null, en: id },
+  orderMode: "any",
+  opensAt: null,
+  unlockAfter: null,
+  bonus: { points: 0, earned: 0 },
   quests,
 });
 
@@ -43,7 +48,14 @@ describe("scanStep", () => {
     expect(
       scanStep(read, {
         type: "answered",
-        answer: { kind: "completed", points: 25, score: 40, replayed: false, levelUp },
+        answer: {
+          kind: "completed",
+          points: 25,
+          score: 40,
+          replayed: false,
+          levelUp,
+          bonus: { points: 50, category: { ar: null, en: "Stage" } },
+        },
       }),
     ).toEqual({
       kind: "celebrating",
@@ -51,6 +63,7 @@ describe("scanStep", () => {
       points: 25,
       replayed: false,
       levelUp,
+      bonus: { points: 50, category: { ar: null, en: "Stage" } },
       details: undefined,
     });
   });
@@ -205,6 +218,7 @@ describe("celebrationBeats", () => {
     points: 25,
     replayed: false,
     levelUp: null,
+    bonus: null,
     details: undefined,
   } as const;
   const finished = { id: "c1" } as unknown as Category;

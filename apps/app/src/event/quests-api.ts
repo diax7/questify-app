@@ -7,7 +7,19 @@ import type { Bilingual } from "#src/i18n/text.ts";
  * Where a quest stands for this player, decided by the server (`questState` in `apps/api/src/home/home.ts`). A newer
  * server may send a state this app does not know (F-282): it is shown without an action, never refused.
  */
-export type QuestState = "done" | "not_live" | "not_yet" | "closed" | "open" | (string & {});
+export type QuestState =
+  | "done"
+  | "not_live"
+  | "locked"
+  | "not_yet"
+  | "closed"
+  | "open"
+  | (string & {});
+
+/** Why a quest's category keeps it shut (T-304): not opened yet, waiting on another category, or in order. */
+export type QuestLock = "category_not_started" | "category_locked" | "order_locked";
+
+const LOCKS: readonly string[] = ["category_not_started", "category_locked", "order_locked"];
 
 /** A quest as `GET /v1/events/{id}/quests` gives it (T-113, T-114). */
 export type Quest = Readonly<{
@@ -27,9 +39,30 @@ export type Quest = Readonly<{
   /** How it is verified (FR-301): `quest_qr` the printed code, `my_qr` staff scanning My QR. */
   verification: readonly string[];
   state: QuestState;
+  /** Why its category keeps it shut, when its state is `locked`; null otherwise or from an older API. */
+  lock: QuestLock | null;
 }>;
 
-export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }>;
+/** A category's rules (T-304, FR-231 to FR-235); an older API sends none, read as no rules. */
+export type CategoryRules = Readonly<{
+  orderMode: "any" | "in_order";
+  opensAt: string | null;
+  unlockAfter: Readonly<{ id: string; name: Bilingual }> | null;
+  bonus: Readonly<{ points: number; earned: number }>;
+}>;
+
+export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
+  CategoryRules;
+
+/** A category's completion bonus, paid with the completion that finished it (FR-231). */
+export type Bonus = Readonly<{ points: number; category: Bilingual }>;
+
+/** The bonus in a payment's answer, or null when there is none or it is not well formed. */
+export function bonusOf(value: unknown): Bonus | null {
+  return isRecord(value) && typeof value["points"] === "number" && isText(value["category"])
+    ? { points: value["points"], category: value["category"] }
+    : null;
+}
 
 export type QuestsView = Readonly<{
   event: Readonly<{ statusNow: string; timezone: string }>;
@@ -77,12 +110,37 @@ const isCategory = (value: unknown): value is Category =>
   Array.isArray(value["quests"]) &&
   value["quests"].every(isQuest);
 
-/** Checks the answer's shape, so a changed API shows "can't load" instead of a broken screen. */
 /** An API from before T-205 sends no verification: a scan quest then has its printed code only. */
-const withVerification = (quest: Quest): Quest =>
-  (quest.verification as readonly string[] | undefined) === undefined
-    ? { ...quest, verification: quest.type === "scan_qr" ? ["quest_qr"] : [] }
-    : quest;
+const withVerification = (quest: Quest): Quest => ({
+  ...quest,
+  verification:
+    (quest.verification as readonly string[] | undefined) === undefined
+      ? quest.type === "scan_qr"
+        ? ["quest_qr"]
+        : []
+      : quest.verification,
+  lock: LOCKS.includes(String(quest.lock)) ? quest.lock : null,
+});
+
+/** A category's rules as sent, or none for anything missing or not well formed (an older API). */
+function rulesOf(category: Record<string, unknown>): CategoryRules {
+  const unlock = category["unlockAfter"];
+  const bonus = isRecord(category["bonus"]) ? category["bonus"] : {};
+  return {
+    orderMode: category["orderMode"] === "in_order" ? "in_order" : "any",
+    opensAt: typeof category["opensAt"] === "string" ? category["opensAt"] : null,
+    unlockAfter:
+      isRecord(unlock) && typeof unlock["id"] === "string" && isText(unlock["name"])
+        ? { id: unlock["id"], name: unlock["name"] }
+        : null,
+    bonus: {
+      points: typeof bonus["points"] === "number" ? bonus["points"] : 0,
+      earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
+    },
+  };
+}
+
+/** Checks the answer's shape, so a changed API shows "can't load" instead of a broken screen. */
 
 export function readQuests(body: unknown): QuestsView | undefined {
   if (!isRecord(body) || !isRecord(body["event"]) || !Array.isArray(body["categories"])) {
@@ -96,6 +154,7 @@ export function readQuests(body: unknown): QuestsView | undefined {
         event: { statusNow: event["statusNow"], timezone: event["timezone"] },
         categories: (body["categories"] as Category[]).map((category) => ({
           ...category,
+          ...rulesOf(category),
           quests: category.quests.map(withVerification),
         })),
       }
@@ -155,6 +214,38 @@ export function categorySummary(category: Pick<Category, "quests">): CategorySum
   );
 }
 
+/** What a category's header says of its rules (T-304), in this order. */
+export type CategoryNote =
+  | Readonly<{ kind: "opens"; at: string }>
+  | Readonly<{ kind: "unlockAfter"; name: Bilingual }>
+  | Readonly<{ kind: "inOrder" }>
+  | Readonly<{ kind: "bonus"; points: number }>
+  | Readonly<{ kind: "bonusEarned"; points: number }>;
+
+/**
+ * A category header's notes: when it opens and which category unlocks it, while that keeps its quests shut; that it is
+ * played in order; and its completion bonus, or the bonus earned.
+ */
+export function categoryNotes(category: Category): CategoryNote[] {
+  const locks = new Set(category.quests.map((quest) => quest.lock));
+  const notes: CategoryNote[] = [];
+  if (locks.has("category_not_started") && category.opensAt !== null) {
+    notes.push({ kind: "opens", at: category.opensAt });
+  }
+  if (locks.has("category_locked") && category.unlockAfter !== null) {
+    notes.push({ kind: "unlockAfter", name: category.unlockAfter.name });
+  }
+  if (category.orderMode === "in_order") {
+    notes.push({ kind: "inOrder" });
+  }
+  if (category.bonus.earned > 0) {
+    notes.push({ kind: "bonusEarned", points: category.bonus.earned });
+  } else if (category.bonus.points > 0) {
+    notes.push({ kind: "bonus", points: category.bonus.points });
+  }
+  return notes;
+}
+
 /**
  * The categories open when the tab shows: the one holding the quest Home's Go named, else all of a one-category
  * event, else none.
@@ -177,8 +268,14 @@ export function findQuest(categories: readonly Category[], questId: string): Que
   return categories.flatMap((category) => category.quests).find((quest) => quest.id === questId);
 }
 
-/** The reasons `quest_not_open` gives (API.md). */
-export type NotOpenReason = "event_not_live" | "hidden" | "not_started" | "ended" | "not_for_you";
+/** The reasons `quest_not_open` gives (API.md), with a category's locks (T-304). */
+export type NotOpenReason =
+  | "event_not_live"
+  | "hidden"
+  | "not_started"
+  | "ended"
+  | "not_for_you"
+  | QuestLock;
 
 const NOT_OPEN: readonly string[] = [
   "event_not_live",
@@ -186,6 +283,7 @@ const NOT_OPEN: readonly string[] = [
   "not_started",
   "ended",
   "not_for_you",
+  ...LOCKS,
 ];
 
 /**
@@ -200,6 +298,8 @@ export type CompletionAnswer =
       replayed: boolean;
       /** The Questify level this completion reached first (T-401), or null. */
       levelUp: LevelUp | null;
+      /** The category bonus this completion paid (T-304), or null. */
+      bonus: Bonus | null;
     }>
   /** A wrong code, in the API's own words. */
   | Readonly<{ kind: "wrong_code"; problem: LocalizedText | null }>
@@ -256,6 +356,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
         score: body["score"],
         replayed: body["replayed"] === true,
         levelUp: levelUpOf(body["levelUp"]),
+        bonus: bonusOf(body["bonus"]),
       }
     : { kind: "failed" };
 }

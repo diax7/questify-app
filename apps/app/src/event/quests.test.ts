@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { randomUuid } from "#src/api/uuid.ts";
 import {
+  categoryNotes,
   categorySummary,
   completionAnswer,
   findQuest,
@@ -24,6 +25,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   done: 0,
   earned: 0,
   state: "open",
+  lock: null,
   verification: [],
   ...fields,
 });
@@ -31,6 +33,10 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
 const category = (id: string, quests: Quest[]): Category => ({
   id,
   name: { ar: null, en: id },
+  orderMode: "any",
+  opensAt: null,
+  unlockAfter: null,
+  bonus: { points: 0, earned: 0 },
   quests,
 });
 
@@ -156,6 +162,90 @@ describe("initiallyOpen and findQuest", () => {
   });
 });
 
+describe("category rules (T-304)", () => {
+  it("reads a category's rules, and none from an older API", () => {
+    const body = {
+      event: EVENT,
+      categories: [
+        {
+          id: "c",
+          name: { ar: null, en: "c" },
+          orderMode: "in_order",
+          opensAt: "2030-01-01T10:00:00.000Z",
+          unlockAfter: { id: "b", name: { ar: "الأولى", en: null } },
+          bonus: { points: 50, earned: 0 },
+          quests: [{ ...quest("q"), state: "locked", lock: "order_locked" }],
+        },
+        {
+          id: "d",
+          name: { ar: null, en: "d" },
+          quests: [{ ...quest("r"), lock: "something_new" }],
+        },
+      ],
+    };
+    const view = readQuests(body);
+    expect(view?.categories[0]).toMatchObject({
+      orderMode: "in_order",
+      opensAt: "2030-01-01T10:00:00.000Z",
+      unlockAfter: { id: "b", name: { ar: "الأولى", en: null } },
+      bonus: { points: 50, earned: 0 },
+      quests: [{ lock: "order_locked" }],
+    });
+    expect(view?.categories[1]).toMatchObject({
+      orderMode: "any",
+      opensAt: null,
+      unlockAfter: null,
+      bonus: { points: 0, earned: 0 },
+      quests: [{ lock: null }],
+    });
+    const odd = readQuests({
+      event: EVENT,
+      categories: [
+        {
+          id: "e",
+          name: { ar: null, en: "e" },
+          orderMode: "random",
+          opensAt: 5,
+          unlockAfter: { id: 1 },
+          bonus: { points: "5", earned: null },
+          quests: [],
+        },
+      ],
+    });
+    expect(odd?.categories[0]).toMatchObject({
+      orderMode: "any",
+      opensAt: null,
+      unlockAfter: null,
+      bonus: { points: 0, earned: 0 },
+    });
+  });
+
+  it("notes a category's opening and unlock while they shut its quests, its order and its bonus", () => {
+    const rules = {
+      orderMode: "in_order" as const,
+      opensAt: "2030-01-01T10:00:00.000Z",
+      unlockAfter: { id: "b", name: { ar: null, en: "One" } },
+      bonus: { points: 50, earned: 0 },
+    };
+    const shut = {
+      ...category("c", [
+        quest("a", { state: "locked", lock: "category_not_started" }),
+        quest("b", { state: "locked", lock: "category_locked" }),
+      ]),
+      ...rules,
+    };
+    expect(categoryNotes(shut)).toEqual([
+      { kind: "opens", at: "2030-01-01T10:00:00.000Z" },
+      { kind: "unlockAfter", name: { ar: null, en: "One" } },
+      { kind: "inOrder" },
+      { kind: "bonus", points: 50 },
+    ]);
+    const open = { ...category("c", [quest("a")]), ...rules, bonus: { points: 50, earned: 50 } };
+    expect(categoryNotes(open)).toEqual([{ kind: "inOrder" }, { kind: "bonusEarned", points: 50 }]);
+    expect(categoryNotes(category("c", [quest("a")]))).toEqual([]);
+  });
+});
+
 describe("completionAnswer", () => {
   it("reads a completion", () => {
     expect(completionAnswer(ok({ points: 10, score: 40, replayed: false, rank: 3 }))).toEqual({
@@ -164,6 +254,19 @@ describe("completionAnswer", () => {
       score: 40,
       replayed: false,
       levelUp: null,
+      bonus: null,
+    });
+    expect(
+      completionAnswer(
+        ok({
+          points: 10,
+          score: 60,
+          bonus: { categoryId: "c", points: 50, category: { ar: "المرحلة", en: null } },
+        }),
+      ),
+    ).toMatchObject({ bonus: { points: 50, category: { ar: "المرحلة", en: null } } });
+    expect(completionAnswer(ok({ points: 10, score: 60, bonus: { points: "50" } }))).toMatchObject({
+      bonus: null,
     });
     const title = { ar: "مقتفي الأثر", en: "Pathfinder" };
     expect(
@@ -176,7 +279,16 @@ describe("completionAnswer", () => {
       kind: "wrong_code",
       problem: { ar: "خطأ", en: "Error" },
     });
-    for (const reason of ["event_not_live", "hidden", "not_started", "ended", "not_for_you"]) {
+    for (const reason of [
+      "event_not_live",
+      "hidden",
+      "not_started",
+      "ended",
+      "not_for_you",
+      "category_not_started",
+      "category_locked",
+      "order_locked",
+    ]) {
       expect(completionAnswer(error(403, "quest_not_open", { reason }))).toEqual({
         kind: "not_open",
         reason,

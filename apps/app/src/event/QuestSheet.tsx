@@ -15,7 +15,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
-import { completedText } from "#src/event/amount.ts";
+import { paidText } from "#src/event/amount.ts";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { ShareEntry } from "#src/event/ShareEntry.tsx";
 import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
@@ -29,12 +29,19 @@ import {
   type CompletionAnswer,
   type NotOpenReason,
   type Quest,
+  type QuestLock,
 } from "#src/event/quests-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 
+const LOCK_TEXT: Readonly<Record<QuestLock, MessageKey>> = {
+  category_not_started: "questsTab.notOpen.categoryNotStarted",
+  category_locked: "questsTab.notOpen.categoryLocked",
+  order_locked: "questsTab.notOpen.orderLocked",
+};
+
 /** The line under a quest that says why it cannot be played now, or nothing when it is open. */
-export function stateLine(quest: Pick<Quest, "type" | "state">): MessageKey | null {
+export function stateLine(quest: Pick<Quest, "type" | "state" | "lock">): MessageKey | null {
   if (!isQuestType(quest.type)) {
     return "questsTab.unknown";
   }
@@ -43,6 +50,8 @@ export function stateLine(quest: Pick<Quest, "type" | "state">): MessageKey | nu
       return "questsTab.done";
     case "not_live":
       return "questsTab.notLive";
+    case "locked":
+      return quest.lock === null ? "questsTab.locked" : LOCK_TEXT[quest.lock];
     case "closed":
       return "questsTab.closed";
     case "not_yet":
@@ -59,6 +68,7 @@ const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
   not_started: "questsTab.notOpen.notStarted",
   ended: "questsTab.notOpen.ended",
   not_for_you: "questsTab.notOpen.notForYou",
+  ...LOCK_TEXT,
 };
 
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */
@@ -72,7 +82,7 @@ export function outcomeText(
 ): string | null {
   switch (answer.kind) {
     case "completed": {
-      const paid = completedText(t, terms, language, answer.points);
+      const paid = paidText(t, terms, language, answer);
       // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
       return answer.levelUp === null
         ? paid

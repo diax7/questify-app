@@ -1,4 +1,5 @@
 import type { CompletionAnswer, QuestsView, Quest, Category } from "#src/event/quests-api.ts";
+import type { Bonus } from "#src/event/quests-api.ts";
 import type { LevelUp } from "#src/questify/level.ts";
 
 /**
@@ -15,6 +16,8 @@ export type ScanStep =
       replayed: boolean;
       /** The Questify level reached first: a medium celebration after the points (FR-407). */
       levelUp: LevelUp | null;
+      /** The category bonus this scan paid (T-304), said with the points. */
+      bonus: Bonus | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
       details: Details | undefined;
     }>
@@ -71,6 +74,7 @@ function answered(
         points: answer.points,
         replayed: answer.replayed,
         levelUp: answer.levelUp,
+        bonus: answer.bonus,
         details: undefined,
       };
     case "network":

@@ -4,7 +4,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
-import { completedText } from "#src/event/amount.ts";
+import { paidText } from "#src/event/amount.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import { castVote, fetchVote, type VoteView } from "#src/event/plays.ts";
@@ -53,8 +53,7 @@ export function VoteEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
     const answer = await castVote(api.session, quest.id, option, key);
     setBusy(false);
     if (answer.kind === "voted") {
-      const paid = completedText(t, terms, language, answer.points);
-      setSaid(`${t("play.vote.recorded")} ${paid}`);
+      setSaid(`${t("play.vote.recorded")} ${paidText(t, terms, language, answer)}`);
       onPaid();
       await load();
       return;
