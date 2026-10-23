@@ -7,7 +7,6 @@ import {
   QUEST_TYPE_NAMES,
   isQuestType,
   parseQuestConfig,
-  unavailableGame,
   unavailableSubmissionKind,
 } from "#src/quests/registry";
 
@@ -377,15 +376,19 @@ describe("game quests", () => {
     }
   });
 
-  it("refuse an unknown game or level, and name the games not available yet", () => {
-    expect(parseQuestConfig("game", { game: "catch", level: "easy" })).toBeUndefined();
+  it("take all four games and refuse an unknown game or level", () => {
+    for (const game of ["catch", "tap_rush"]) {
+      expect(parseQuestConfig("game", { game, level: "easy" })).toEqual({
+        game,
+        level: "easy",
+        attempts: 1,
+        cooldownMinutes: null,
+      });
+    }
+    expect(parseQuestConfig("game", { game: "snake", level: "easy" })).toBeUndefined();
     expect(parseQuestConfig("game", { game: "memory_match", level: "expert" })).toBeUndefined();
     expect(
       parseQuestConfig("game", { game: "memory_match", level: "easy", extra: 1 }),
     ).toBeUndefined();
-    expect(unavailableGame({ game: "catch" })).toBe("catch");
-    expect(unavailableGame({ game: "tap_rush" })).toBe("tap_rush");
-    expect(unavailableGame({ game: "memory_match" })).toBeUndefined();
-    expect(unavailableGame(null)).toBeUndefined();
   });
 });

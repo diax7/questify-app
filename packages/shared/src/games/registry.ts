@@ -1,7 +1,9 @@
+import { catchV1 } from "#src/games/catch/v1";
 import { type Judgement, judge } from "#src/games/engine";
 import type { GameName } from "#src/games/levels";
 import { memoryMatchV1 } from "#src/games/memory-match/v1";
 import { slidePuzzleV1 } from "#src/games/slide-puzzle/v1";
+import { tapRushV1 } from "#src/games/tap-rush/v1";
 
 /**
  * Every engine version the server can still replay, by game (ADR-212). A round is replayed with the version frozen
@@ -11,12 +13,16 @@ import { slidePuzzleV1 } from "#src/games/slide-puzzle/v1";
 const JUDGES: Record<GameName, Record<number, (round: Round, body: Body) => Judgement>> = {
   memory_match: { 1: (round, body) => judge(memoryMatchV1, round, body) },
   slide_puzzle: { 1: (round, body) => judge(slidePuzzleV1, round, body) },
+  catch: { 1: (round, body) => judge(catchV1, round, body) },
+  tap_rush: { 1: (round, body) => judge(tapRushV1, round, body) },
 };
 
 /** The engine version this build draws each game with: the app sends it at issue, the server freezes its own. */
 export const ENGINE_VERSIONS: Record<GameName, number> = {
   memory_match: memoryMatchV1.engineVersion,
   slide_puzzle: slidePuzzleV1.engineVersion,
+  catch: catchV1.engineVersion,
+  tap_rush: tapRushV1.engineVersion,
 };
 
 type Round = { seed: number; params: unknown };
@@ -41,16 +47,32 @@ export function judgeRound(
   return judgeWith(round, body);
 }
 
-/** What a level asks for, in numbers the app puts in words (FR-1806): memory's pairs and most moves, or the seconds. */
+/**
+ * What a level asks for, in numbers the app puts in words (FR-1806): memory's pairs and most moves, the puzzle's
+ * seconds, the items to catch of how many, or tap rush's score in its seconds.
+ */
 export type GameTarget =
   | Readonly<{ game: "memory_match"; pairs: number; maxMoves: number | null }>
-  | Readonly<{ game: "slide_puzzle"; seconds: number }>;
+  | Readonly<{ game: "slide_puzzle"; seconds: number }>
+  | Readonly<{ game: "catch"; caught: number; items: number }>
+  | Readonly<{ game: "tap_rush"; score: number; seconds: number }>;
 
 /** A level's pass target from a round's frozen numbers. */
 export function gameTarget(game: GameName, params: unknown): GameTarget {
-  if (game === "memory_match") {
-    const level = memoryMatchV1.params.parse(params);
-    return { game, pairs: level.pairs, maxMoves: level.maxMoves };
+  switch (game) {
+    case "memory_match": {
+      const level = memoryMatchV1.params.parse(params);
+      return { game, pairs: level.pairs, maxMoves: level.maxMoves };
+    }
+    case "slide_puzzle":
+      return { game, seconds: slidePuzzleV1.params.parse(params).timeLimitSeconds };
+    case "catch": {
+      const level = catchV1.params.parse(params);
+      return { game, caught: level.catchTarget, items: level.items };
+    }
+    case "tap_rush": {
+      const level = tapRushV1.params.parse(params);
+      return { game, score: level.scoreTarget, seconds: level.timeLimitSeconds };
+    }
   }
-  return { game, seconds: slidePuzzleV1.params.parse(params).timeLimitSeconds };
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COMING_GAMES, GAME_LEVELS, GAME_NAMES } from "#src/games/levels";
+import { GAME_LEVELS, GAME_NAMES } from "#src/games/levels";
 import { toWesternDigits } from "#src/i18n/digits";
 
 /** An entry code: ASCII letters and digits only, so an Arabic or an English keyboard types the same thing. */
@@ -307,13 +307,6 @@ export function unavailableSubmissionKind(config: unknown): "photo" | "video" | 
     return "video";
   }
   return accepts.includes("photo") ? "photo" : undefined;
-}
-
-/** The game a config asks for that this version cannot play yet (catch, tap rush: T-305c); undefined otherwise. */
-export function unavailableGame(config: unknown): string | undefined {
-  const game =
-    typeof config === "object" && config !== null ? (config as { game?: unknown }).game : undefined;
-  return (COMING_GAMES as readonly unknown[]).includes(game) ? (game as string) : undefined;
 }
 
 export type QuestType = keyof typeof QUEST_TYPES;

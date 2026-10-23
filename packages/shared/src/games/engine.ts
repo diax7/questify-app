@@ -43,6 +43,20 @@ export type GameEngine<Params, State, Input extends TimedInput, Result> = {
   unlikely(result: Result, params: Params): boolean;
 };
 
+/**
+ * A real-time game (ADR-216): a `GameEngine` whose world also moves on the fixed tick (`#src/games/ticks`). `advance`
+ * runs the world from the state's tick to `tick` and never back; `apply` advances to the input's tick first and
+ * `resultOf` to the round's end, so `replay`, `judge` and `canInput` work unchanged.
+ */
+export type RealtimeEngine<Params, State, Input extends TimedInput, Result> = GameEngine<
+  Params,
+  State,
+  Input,
+  Result
+> & {
+  advance(state: State, tick: number): State;
+};
+
 /** The checks every game shares: time order, the human floor and the time limit. */
 export function timeRefusal(
   lastT: number | null,

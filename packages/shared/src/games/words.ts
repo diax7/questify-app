@@ -4,7 +4,7 @@ import type { MessageKey } from "#src/i18n/messages";
 
 type Translate = (key: MessageKey, values?: Readonly<Record<string, string | number>>) => string;
 
-/** Every game's name, the ones still to come included (the builder shows them as coming soon, ADR-214). */
+/** Every game's name. */
 export const GAME_NAME_KEYS = {
   memory_match: "games.name.memoryMatch",
   slide_puzzle: "games.name.slidePuzzle",
@@ -22,6 +22,18 @@ export const GAME_LEVEL_KEYS = {
 export function targetWords(t: Translate, target: GameTarget, language: Language): string {
   if (target.game === "slide_puzzle") {
     return t("games.target.slide", { seconds: formatNumber(target.seconds, language) });
+  }
+  if (target.game === "catch") {
+    return t("games.target.catch", {
+      caught: formatNumber(target.caught, language),
+      items: formatNumber(target.items, language),
+    });
+  }
+  if (target.game === "tap_rush") {
+    return t("games.target.tapRush", {
+      score: formatNumber(target.score, language),
+      seconds: formatNumber(target.seconds, language),
+    });
   }
   const pairs = formatNumber(target.pairs, language);
   return target.maxMoves === null

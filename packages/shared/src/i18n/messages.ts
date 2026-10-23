@@ -3160,6 +3160,14 @@ export const MESSAGES = {
     ar: "أعد ترتيب الصورة خلال {seconds} ثانية.",
     en: "Put the picture back together within {seconds} seconds.",
   },
+  "games.target.catch": {
+    ar: "التقط {caught} عنصرًا على الأقل من {items}.",
+    en: "Catch at least {caught} of {items} items.",
+  },
+  "games.target.tapRush": {
+    ar: "اجمع {score} نقطة خلال {seconds} ثانية. كل نقرة خاطئة تخصم نقطة.",
+    en: "Score {score} points in {seconds} seconds. A miss costs a point.",
+  },
   "games.picture.coffee": { ar: "دلّة قهوة", en: "Coffee pot" },
   "games.picture.cap": { ar: "قبعة", en: "Cap" },
   "games.picture.gift": { ar: "هدية", en: "Gift" },
@@ -3274,6 +3282,44 @@ export const MESSAGES = {
   "play.game.howTo.slidePuzzle": {
     ar: "المس قطعة بجوار الفراغ لتنزلق إليه، حتى تكتمل الصورة.",
     en: "Tap a tile next to the gap to slide it in, until the picture is whole.",
+  },
+  "play.game.howTo.catch": {
+    ar: "اسحب السلة لتلتقط ما يسقط.",
+    en: "Drag the basket to catch what falls.",
+  },
+  "play.game.howTo.tapRush": {
+    ar: "انقر كل كنز قبل أن يختفي.",
+    en: "Tap each treasure before it disappears.",
+  },
+  "play.game.quickNote": {
+    ar: "تتطلب هذه اللعبة سرعة في الملاحظة واللمس.",
+    en: "This game needs quick sight and touch.",
+  },
+  "play.game.paused": {
+    ar: "اللعبة متوقفة مؤقتًا. أتعود إليها؟",
+    en: "Paused. Back to the game?",
+  },
+  "play.game.shortCatch": {
+    ar: "اقتربت! المطلوب {target} والتقطت {caught}.",
+    en: "So close. You needed {target}; you caught {caught}.",
+  },
+  "play.game.shortTapRush": {
+    ar: "اقتربت! المطلوب {target} وجمعت {score}.",
+    en: "So close. You needed {target}; you scored {score}.",
+  },
+  "play.game.caught": { ar: "التقطت: {caught}", en: "Caught: {caught}" },
+  "play.game.score": { ar: "النقاط: {score}", en: "Score: {score}" },
+  "play.game.basket": {
+    ar: "السلة. اسحبها يمينًا أو يسارًا.",
+    en: "Basket. Drag it left or right.",
+  },
+  "play.game.cell": {
+    ar: "الصف {row}، العمود {column}",
+    en: "Row {row}, column {column}",
+  },
+  "play.game.cellTarget": {
+    ar: "الصف {row}، العمود {column}، كنز",
+    en: "Row {row}, column {column}, target",
   },
   "play.game.timeLimit": { ar: "لديك {seconds} ثانية.", en: "You have {seconds} seconds." },
   "play.game.start": { ar: "ابدأ", en: "Start" },
