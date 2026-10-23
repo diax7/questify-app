@@ -50,6 +50,8 @@ export const FEATURES: FeatureRegistry = {
   polls: { gated: false },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },
+  /** Today's ranking for a multi-day event (T-216, FR-608): the owner turns it off and on. */
+  rankingToday: { gated: false },
   shop: { gated: false },
   /** Players may change their username (FR-1702), at most once per `usernameChangeDays`. */
   usernameChanges: { gated: false, level: "platform" },

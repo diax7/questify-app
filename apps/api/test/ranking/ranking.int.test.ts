@@ -372,10 +372,91 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
       });
     });
 
-    const toggle = (cookie: string, event: string, enabled: boolean, org = organizer) =>
+    /** A live event whose day starts 12 hours from now; multi-day unless `single` (an hour each side of now). */
+    const dayEvent = async (single = false): Promise<string> => {
+      counter += 1;
+      const span = single
+        ? "now() - interval '1 hour', now() + interval '1 hour'"
+        : "now() - interval '2 days', now() + interval '1 day'";
+      const [event] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at, day_start_hour)
+         VALUES ($1, $2, 'Day Fest', 'live', ${span},
+                 (extract(hour FROM now() AT TIME ZONE 'Asia/Riyadh')::int + 12) % 24) RETURNING id`,
+        [organizer, `TODAY${counter}`],
+      );
+      return event?.id ?? "";
+    };
+    const today = (token: string, event: string, scope = "today", app: TestApp = test) =>
+      app.app.inject({
+        method: "GET",
+        url: `/v1/events/${event}/ranking?scope=${scope}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+    const yesterday = (event: string, enrollment: string, points: number) =>
+      owner(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor,
+                                   created_at)
+         VALUES ($1, $2, $3, 'welcome', $4, $4, 'system', now() - interval '1 day')`,
+        [organizer, event, enrollment, points],
+      );
+
+    describe("today's ranking (T-216, FR-610, FR-1611)", () => {
+      it("shows only today's points, from Redis and from PostgreSQL alike, and leaves the overall order alone", async () => {
+        const event = await dayEvent();
+        const quest = await newQuest(event, 10);
+        const a = await newPlayer(event);
+        const b = await newPlayer(event);
+        await yesterday(event, a.enrollment, 200);
+        await complete(b.token, quest);
+        await complete(b.token, quest);
+        await complete(a.token, quest);
+        const [{ day } = { day: "" }] = await owner<{ day: string }>(
+          "SELECT event_day(now(), e)::text AS day FROM event e WHERE e.id = $1",
+          [event],
+        );
+        const copy = `${event}/${day}`;
+        // Each completion wrote today's copy too, before anyone read it.
+        expect(await redis.hGet(`rank:{${copy}}:member`, b.enrollment)).toMatch(/^v/);
+        const seen = await today(a.token, event);
+        expect(seen.statusCode).toBe(200);
+        const daily = seen.json<View & { today: boolean }>();
+        expect(daily.rows.map((row) => row.score)).toEqual([20, 10]);
+        expect(daily.me).toMatchObject({ rank: 2, score: 10 });
+        expect(daily).toMatchObject({ total: 2, today: true });
+        expect(await view(a.token, event)).toMatchObject({
+          me: { rank: 1, score: 210 },
+          today: true,
+        });
+        expect((await today(a.token, event, "today", down)).json()).toEqual(daily);
+        await redis.del([`rank:{${copy}}`, `rank:{${copy}}:member`, `rank:{${copy}}:built`]);
+        await owner("SELECT mark_ranking_repair($1)", [event]);
+        await repairs.repairDue();
+        expect(await store.builtAt(copy)).toBeDefined();
+        expect((await today(a.token, event)).json()).toEqual(daily);
+      });
+
+      it("says no today's ranking for a single-day event, and refuses a bad scope", async () => {
+        const event = await dayEvent(true);
+        const a = await newPlayer(event);
+        await complete(a.token, await newQuest(event, 3));
+        expect(await view(a.token, event)).toMatchObject({ today: false, me: { score: 3 } });
+        const off = await today(a.token, event);
+        expect([off.statusCode, off.json().code]).toEqual([404, "today_ranking_off"]);
+        expect((await today(a.token, event, "week")).statusCode).toBe(400);
+        expect((await today(a.token, event, "event")).statusCode).toBe(200);
+      });
+    });
+
+    const toggle = (
+      cookie: string,
+      event: string,
+      enabled: boolean,
+      org = organizer,
+      path = "ranking",
+    ) =>
       test.app.inject({
         method: "PUT",
-        url: `/v1/organizers/${org}/events/${event}/ranking`,
+        url: `/v1/organizers/${org}/events/${event}/${path}`,
         headers: withSession(cookie),
         payload: { enabled },
       });
@@ -429,6 +510,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
             [event],
           ),
         ).toHaveLength(2);
+      });
+
+      it("hides today's ranking when the owner turns it off (FR-608), leaving the event's ranking", async () => {
+        const event = await newEvent();
+        const a = await newPlayer(event);
+        await complete(a.token, await newQuest(event, 2));
+        expect(await view(a.token, event)).toMatchObject({ today: true });
+        expect(
+          (await toggle(editorCookie, event, false, organizer, "ranking-today")).statusCode,
+        ).toBe(403);
+        const off = await toggle(ownerCookie, event, false, organizer, "ranking-today");
+        expect([off.statusCode, off.json()]).toEqual([200, { rankingToday: false }]);
+        expect(await view(a.token, event)).toMatchObject({ today: false, me: { score: 2 } });
+        const hidden = await test.app.inject({
+          method: "GET",
+          url: `/v1/events/${event}/ranking?scope=today`,
+          headers: { authorization: `Bearer ${a.token}` },
+        });
+        expect([hidden.statusCode, hidden.json().code]).toEqual([404, "today_ranking_off"]);
+        const read = await test.app.inject({
+          method: "GET",
+          url: `/v1/organizers/${organizer}/events/${event}`,
+          headers: withSession(ownerCookie),
+        });
+        expect(read.json()).toMatchObject({ event: { ranking: true, rankingToday: false } });
       });
 
       it("is the owner's: an editor gets 403, another organizer's event 404, a bad body 400", async () => {

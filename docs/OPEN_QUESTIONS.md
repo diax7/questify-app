@@ -139,3 +139,8 @@ The fixed rules block (`rules.howWinners`) says winners are those with the highe
 organizer after the event ends", ties going to whoever reached the score first, with the team, staff, banned players
 and the exclusion list unable to win. Counsel should confirm this wording (Arabic and English) is enough for a
 contest's official rules in Saudi Arabia and for Apple 5.3 (with Q-040).
+
+## Q-132 — Today's ranking: when it shows and what counts (2026-10-23, T-216)
+ADR-166 shows today's ranking only while a multi-day event is live (not before the start or after the end), turns it
+on by default for every multi-day event, and counts every points change of the day (a removal or a rank-lowering
+spend today lowers today's points, even for points earned earlier). Agree, or should it count only points earned?

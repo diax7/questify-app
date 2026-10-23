@@ -218,6 +218,13 @@ active enrollment and player, and not on the organizer's team by email. `ranking
 the events whose Redis copy may be wrong (no grants; written by definers and by triggers on enrollment and player
 status, contact email and team membership; claimed by the repair job). The Redis copy holds enrollment ids, points
 and versions only, never a name or contact (ADR-118).
+**Today's ranking (T-216, migration 0035, ADR-166):** no table and no ledger change. Today's points are the sum of an
+enrollment's `score_delta` over ledger entries created inside the current event day (`event_day_start(event, day)` to
+the next day's start, FR-1714); the version is the last such entry's id. `ranked_day(event, day)` (internal) applies
+`ranked_enrollments` and today's points above 0. Definers: `ranking_today` (the day now, `multi_day`, `live`, the
+reader's own points today; the system or an active player), `ranking_day_entries` (system), `ranking_day_entry_of`
+(the caller's own completion, multi-day events only), `ranking_day_top`, `ranking_day_position`. The Redis copy of a
+day sits under the key `{event}/{YYYY-MM-DD}`, so a new day starts empty; old days expire with the 30-day lifetime.
 **Joining (T-111, migration 0018):** `card_version` (the join card the player accepted, FR-121; NULL before 0018) and
 `joined_via` (code, qr, link, public_list). Nobody inserts an enrollment directly but the platform admin: players
 join through `join_event(code, via, card)`, which checks the event's state, its join methods and access type (a

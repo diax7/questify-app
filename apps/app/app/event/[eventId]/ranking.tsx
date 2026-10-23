@@ -1,7 +1,7 @@
 import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { AppState, View, type LayoutChangeEvent } from "react-native";
+import { AppState, Pressable, View, type LayoutChangeEvent } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
@@ -10,7 +10,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
-import { fetchRanking, type Ranking } from "#src/event/home-api.ts";
+import { fetchRanking, type Ranking, type RankingScope } from "#src/event/home-api.ts";
 import { forget } from "#src/event/launch.ts";
 import { rankingRows, rowHeight, type ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -25,10 +25,12 @@ type Loaded =
 
 /**
  * Reads the ranking on focus, on return to the front, and every 15 seconds while it is on screen (until the live stream,
- * T-5xx), one read at a time. A refresh that fails keeps the last good list and says so.
+ * T-5xx), one read at a time. A refresh that fails keeps the last good list and says so. Today's ranking (T-216) that
+ * is no longer offered falls back to the whole event's.
  */
 function useRanking(eventId: string) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: "loading" });
+  const [scope, setScope] = useState<RankingScope>("event");
   const inFlight = useRef(false);
   const left = useRef(false);
   const load = useCallback(async () => {
@@ -36,7 +38,7 @@ function useRanking(eventId: string) {
       return;
     }
     inFlight.current = true;
-    const answer = await fetchRanking(api.session, eventId).finally(() => {
+    const answer = await fetchRanking(api.session, eventId, scope).finally(() => {
       inFlight.current = false;
     });
     if (left.current) {
@@ -53,6 +55,11 @@ function useRanking(eventId: string) {
       router.replace("/home");
       return;
     }
+    if (answer.kind === "today_off") {
+      setLoaded({ kind: "loading" });
+      setScope("event");
+      return;
+    }
     setLoaded((current) => {
       if (answer.kind === "ranking") {
         return { kind: "ranking", ranking: answer.ranking, stale: false };
@@ -62,7 +69,7 @@ function useRanking(eventId: string) {
       }
       return current.kind === "ranking" ? { ...current, stale: true } : { kind: "failed" };
     });
-  }, [eventId]);
+  }, [eventId, scope]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,7 +90,39 @@ function useRanking(eventId: string) {
       };
     }, [load]),
   );
-  return { loaded, load };
+  const choose = (next: RankingScope) => {
+    if (next !== scope) {
+      setLoaded({ kind: "loading" });
+      setScope(next);
+    }
+  };
+  return { loaded, load, scope, choose };
+}
+
+/** Whole event / Today (FR-610): shown while the event has a today's ranking. */
+function ScopeTabs({
+  scope,
+  onChoose,
+}: Readonly<{ scope: RankingScope; onChoose: (scope: RankingScope) => void }>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View accessibilityRole="tablist" style={styles.tabs}>
+      {(["event", "today"] as const).map((choice) => (
+        <Pressable
+          key={choice}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: choice === scope }}
+          onPress={() => onChoose(choice)}
+          style={[styles.tab, choice === scope && styles.chosen]}
+        >
+          <AppText variant="label">
+            {t(choice === "event" ? "ranking.scopeEvent" : "ranking.scopeToday")}
+          </AppText>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
 
 function RankBadge({ rank }: Readonly<{ rank: number }>) {
@@ -140,7 +179,7 @@ export default function RankingScreen() {
   const { t } = useI18n();
   const { eventId } = useEvent();
   const styles = useThemedStyles(makeStyles);
-  const { loaded, load } = useRanking(eventId);
+  const { loaded, load, scope, choose } = useRanking(eventId);
   const [available, setAvailable] = useState(0);
   const measure = (event: LayoutChangeEvent) => setAvailable(event.nativeEvent.layout.height);
 
@@ -162,8 +201,11 @@ export default function RankingScreen() {
   const height = rowHeight(available, rows.length, GAP);
   return (
     <Screen title={t("nav.ranking")} header={<BackButton />}>
+      {loaded.ranking.today ? <ScopeTabs scope={scope} onChoose={choose} /> : null}
       {loaded.stale ? <AppText muted>{t("ranking.refreshFailed")}</AppText> : null}
-      {rows.length === 0 ? <AppText muted>{t("ranking.empty")}</AppText> : null}
+      {rows.length === 0 ? (
+        <AppText muted>{t(scope === "today" ? "ranking.todayEmpty" : "ranking.empty")}</AppText>
+      ) : null}
       {loaded.ranking.me === null && rows.length > 0 ? (
         <AppText muted>{t("eventHome.noRank")}</AppText>
       ) : null}
@@ -198,4 +240,14 @@ const makeStyles = (theme: Theme) => ({
   },
   badgeTop: { backgroundColor: theme.colors.highlight },
   grow: { flex: 1 },
+  tabs: { flexDirection: "row" as const, gap: theme.spacing.sm },
+  tab: {
+    flex: 1,
+    alignItems: "center" as const,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  chosen: { borderColor: theme.colors.highlight },
 });

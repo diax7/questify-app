@@ -73,6 +73,7 @@ const view = (event: EventRecord) => ({
   statusNow: event.statusNow,
   createdAt: event.createdAt.toISOString(),
   ranking: event.rankingOn,
+  rankingToday: event.rankingTodayOn,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {
@@ -203,21 +204,28 @@ export function registerEventRoutes(
     }
   });
 
-  // FR-607: the owner turns the event's ranking off and on; the event's other switches stay as they are.
-  scope.put("/events/:eventId/ranking", owner, async (request) => {
-    const { eventId } = parse(eventParams, request.params);
-    const { enabled } = parse(rankingBody, request.body);
-    const context = organizerContextOf(request);
-    const saved = await settings.saveEventSwitch(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      "ranking",
-      enabled,
-      { requestId: request.id },
-    );
-    if (!saved.ok) {
-      throw notFound();
-    }
-    return { ranking: enabled };
-  });
+  // FR-607 and FR-608: the owner turns the event's ranking, and today's ranking, off and on; the event's other
+  // switches stay as they are.
+  const switches = [
+    ["/events/:eventId/ranking", "ranking"],
+    ["/events/:eventId/ranking-today", "rankingToday"],
+  ] as const;
+  for (const [path, feature] of switches) {
+    scope.put(path, owner, async (request) => {
+      const { eventId } = parse(eventParams, request.params);
+      const { enabled } = parse(rankingBody, request.body);
+      const context = organizerContextOf(request);
+      const saved = await settings.saveEventSwitch(
+        { staffUserId: context.staffUserId, organizerId: context.organizerId },
+        eventId,
+        feature,
+        enabled,
+        { requestId: request.id },
+      );
+      if (!saved.ok) {
+        throw notFound();
+      }
+      return { [feature]: enabled };
+    });
+  }
 }

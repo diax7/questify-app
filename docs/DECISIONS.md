@@ -2239,3 +2239,15 @@ never empty while prizes exist, with the event read's visibility (404 for draft 
 **Why:** STORE_COMPLIANCE §1.12 (Apple 5.3.1/5.3.2, Google §2.9) requires official rules stating the sponsor and that
 Apple and Google are not involved; building them from data means no event with prizes can lack them. FR-1707 wants a
 rules page per event, which T-110 and T-113 left here.
+
+## ADR-166 — Today's ranking: read from the ledger, one Redis copy per event day
+**Status:** Proposed (Claude, 2026-10-23; T-216; Q-132 asks Dhia).
+**Decision:** today's points are the sum of the player's ledger entries created inside the current event day (FR-1714's
+day start), so awards, removals and rank-lowering spends of that day count as they do overall; ties go to whoever
+reached today's points first (the last of today's entries, lowest first). Who is ranked is the overall rule plus today's
+points above 0. Today's ranking exists only while the event is live and spans more than one event day, and is on
+unless the owner turns it off (`rankingToday` switch, FR-608); hiding the ranking hides both. No table and no ledger
+trigger change: the after-scan write, the repair job and the backstop each keep a Redis copy per day (key
+`{event}/{day}`), so the day start empties the board with nothing to delete.
+**Why:** reading the append-only ledger keeps the points core untouched and leaves one source of truth; a key per day
+gives the reset for free and reuses the whole Redis store, its rebuilds and its PostgreSQL fallback.

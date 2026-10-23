@@ -26,6 +26,8 @@ export type EventRecord = Readonly<{
   createdAt: Date;
   /** The event's own ranking switch (FR-607); on unless the owner turned it off. */
   rankingOn: boolean;
+  /** Today's ranking for a multi-day event (FR-608); on unless the owner turned it off. */
+  rankingTodayOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
 }>;
@@ -63,12 +65,14 @@ type Row = {
   status_now: EventStatus;
   created_at: Date;
   ranking_on: boolean;
+  ranking_today_on: boolean;
   terms: unknown;
 };
 
 const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods, timezone,
   day_start_hour, starts_at, ends_at, status, event_status_now(status, starts_at, ends_at) AS status_now, created_at,
-  coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on, config -> 'terms' AS terms`;
+  coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on,
+  coalesce((config -> 'features' ->> 'rankingToday')::boolean, true) AS ranking_today_on, config -> 'terms' AS terms`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -86,6 +90,7 @@ const toRecord = (row: Row): EventRecord => ({
   statusNow: row.status_now,
   createdAt: row.created_at,
   rankingOn: row.ranking_on,
+  rankingTodayOn: row.ranking_today_on,
   terms: readEventTerms(row.terms),
 });
 

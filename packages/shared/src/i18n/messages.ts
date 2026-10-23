@@ -339,6 +339,14 @@ export const MESSAGES = {
     ar: "الترتيب مخفي في التطبيق.",
     en: "The ranking is hidden in the app.",
   },
+  "events.ranking.todayLabel": {
+    ar: "إظهار ترتيب اليوم",
+    en: "Show today's ranking",
+  },
+  "events.ranking.todayHint": {
+    ar: "للفعاليات التي تمتد أكثر من يوم: ترتيب بنقاط اليوم وحده، يبدأ من جديد عند بداية كل يوم في الفعالية.",
+    en: "For events longer than one day: a ranking of today's points only, starting over when each event day begins.",
+  },
   "events.ranking.ownerOnly": {
     ar: "يغيّر المالك وحده هذا الإعداد.",
     en: "Only the owner can change this.",
@@ -766,6 +774,12 @@ export const MESSAGES = {
     en: "Rank {rank}, you, {score} {currency}",
   },
   "ranking.you": { ar: "أنت", en: "You" },
+  "ranking.scopeEvent": { ar: "الفعالية كاملة", en: "Whole event" },
+  "ranking.scopeToday": { ar: "اليوم", en: "Today" },
+  "ranking.todayEmpty": {
+    ar: "لا نقاط اليوم بعد. أكمل مهمة لتتصدّر!",
+    en: "No points today yet. Complete a quest to take the lead!",
+  },
   "ranking.empty": {
     ar: "الترتيب فارغ بعد. كن الأول!",
     en: "The ranking is empty so far. Be the first!",

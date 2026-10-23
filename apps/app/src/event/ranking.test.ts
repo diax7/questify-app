@@ -13,7 +13,12 @@ const row = (rank: number, isMe = false): RankRow => ({
 const topTen = (meAt?: number) =>
   Array.from({ length: 10 }, (_, index) => row(index + 1, index + 1 === meAt));
 
-const ranking = (rows: RankRow[], me: Ranking["me"]): Ranking => ({ rows, me, total: 50 });
+const ranking = (rows: RankRow[], me: Ranking["me"]): Ranking => ({
+  rows,
+  me,
+  total: 50,
+  today: false,
+});
 
 describe("rankingRows", () => {
   it("shows the top 10 with the player's own row among them, and no 11th row", () => {

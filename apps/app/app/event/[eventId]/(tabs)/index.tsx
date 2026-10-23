@@ -62,7 +62,7 @@ function RankingCard({ eventId, ranking }: Readonly<{ eventId: string; ranking: 
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   // Gone: Home's own read is the one place that forgets the event, so the card only steps aside.
-  if (ranking.kind === "off" || ranking.kind === "signed_out" || ranking.kind === "gone") {
+  if (ranking.kind !== "ranking" && ranking.kind !== "network") {
     return null;
   }
   return (

@@ -97,4 +97,12 @@ test("the owner hides the ranking and shows it again, in Arabic; it stays as sav
   await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).not.toBeChecked();
   await page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" }).check();
   await expect(page.getByText("الترتيب ظاهر في التطبيق.", { exact: false })).toBeVisible();
+
+  const today = page.getByRole("checkbox", { name: "إظهار ترتيب اليوم" });
+  await expect(today).toBeChecked();
+  await today.uncheck();
+  await expect(today).not.toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("checkbox", { name: "إظهار ترتيب اليوم" })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).toBeChecked();
 });

@@ -188,12 +188,19 @@ export type RankRow = Readonly<{
   isMe: boolean;
 }>;
 
-/** `GET /v1/events/{id}/ranking` (T-106): the top rows and the player's own place. */
+/**
+ * `GET /v1/events/{id}/ranking` (T-106): the top rows and the player's own place. `today` says the event has a today's
+ * ranking now (T-216); an older API without it has none.
+ */
 export type Ranking = Readonly<{
   rows: readonly RankRow[];
   me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
   total: number;
+  today: boolean;
 }>;
+
+/** The whole event's ranking, or today's points only (FR-610). */
+export type RankingScope = "event" | "today";
 
 /**
  * `off` hides the ranking (404 `ranking_off`); any other 403 or 404 is `gone`, the server's word that this is no longer
@@ -202,6 +209,7 @@ export type Ranking = Readonly<{
 export type RankingAnswer =
   | Readonly<{ kind: "ranking"; ranking: Ranking }>
   | Readonly<{ kind: "off" }>
+  | Readonly<{ kind: "today_off" }>
   | Readonly<{ kind: "gone" }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
@@ -229,7 +237,12 @@ export function readRanking(body: unknown): Ranking | undefined {
   if (!meOk || !body["rows"].every(isRow)) {
     return undefined;
   }
-  return { rows: body["rows"], me: me as Ranking["me"], total: body["total"] };
+  return {
+    rows: body["rows"],
+    me: me as Ranking["me"],
+    total: body["total"],
+    today: body["today"] === true,
+  };
 }
 
 export function rankingAnswer(answer: AuthedResult): RankingAnswer {
@@ -241,6 +254,9 @@ export function rankingAnswer(answer: AuthedResult): RankingAnswer {
     if (answer.code === "ranking_off") {
       return { kind: "off" };
     }
+    if (answer.code === "today_ranking_off") {
+      return { kind: "today_off" };
+    }
     return { kind: answer.status === 403 || answer.status === 404 ? "gone" : "network" };
   }
   const ranking = readRanking(answer.body);
@@ -250,11 +266,13 @@ export function rankingAnswer(answer: AuthedResult): RankingAnswer {
 export async function fetchRanking(
   session: Pick<Session, "request">,
   eventId: string,
+  scope: RankingScope = "event",
 ): Promise<RankingAnswer> {
+  const query = scope === "today" ? "?scope=today" : "";
   return rankingAnswer(
     await session.request({
       method: "GET",
-      path: `/v1/events/${encodeURIComponent(eventId)}/ranking`,
+      path: `/v1/events/${encodeURIComponent(eventId)}/ranking${query}`,
     }),
   );
 }

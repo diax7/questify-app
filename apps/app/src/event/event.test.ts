@@ -337,6 +337,17 @@ describe("rankingAnswer", () => {
     expect(rankingAnswer(ok({ ...ranking, me: null }))).toMatchObject({ kind: "ranking" });
   });
 
+  it("reads whether today's ranking is offered (an older server's answer has none)", () => {
+    expect(rankingAnswer(ok({ ...ranking, today: true }))).toMatchObject({
+      ranking: { today: true },
+    });
+    expect(rankingAnswer(ok(ranking))).toMatchObject({ ranking: { today: false } });
+    expect(rankingAnswer(ok({ ...ranking, today: "yes" }))).toMatchObject({
+      ranking: { today: false },
+    });
+    expect(rankingAnswer(error(404, "today_ranking_off"))).toEqual({ kind: "today_off" });
+  });
+
   it("hides the card when the ranking is off, and says so for any other failure", () => {
     expect(rankingAnswer(error(404, "ranking_off"))).toEqual({ kind: "off" });
     expect(rankingAnswer(error(404, "not_found"))).toEqual({ kind: "gone" });

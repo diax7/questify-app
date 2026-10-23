@@ -24,18 +24,29 @@ export type RankingRow = Readonly<{
   isMe: boolean;
 }>;
 
-/** The top 10 and the reader's own place (ADR-052); `me` is null when the reader is not ranked. */
+/**
+ * The top 10 and the reader's own place (ADR-052); `me` is null when the reader is not ranked. `today` says whether the
+ * event has a today's ranking now (multi-day and live, T-216); the route also applies the owner's switch.
+ */
 export type RankingView = Readonly<{
   rows: readonly RankingRow[];
   me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
   total: number;
+  today: boolean;
 }>;
+
+/** The whole event's ranking, or today's: points earned since the event day started (FR-610, ADR-166). */
+export type RankingScope = "event" | "today";
 
 export type Ranking = Readonly<{
   /** Copies the player's place after their completion committed; their rank, or null (not ranked, Redis failed). */
   afterCompletion: (playerId: string, completionId: string) => Promise<number | null>;
-  /** The event's ranking as the player sees it, or `not_enrolled`. */
-  read: (eventId: string, playerId: string) => Promise<RankingView | "not_enrolled">;
+  /** The event's ranking (or today's) as the player sees it; `not_enrolled`; `today_off` when there is no today's. */
+  read: (
+    eventId: string,
+    playerId: string,
+    scope?: RankingScope,
+  ) => Promise<RankingView | "not_enrolled" | "today_off">;
   /** Rebuilds the events marked for repair, and every live event whose copy is older than the backstop interval. */
   repairDue: () => Promise<void>;
 }>;
@@ -46,6 +57,13 @@ const CLAIM = 20;
 const BACKSTOP_MS = 5 * 60 * 1000;
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.name : "unknown");
+
+/** One board: the whole event's, or one event day's (`day` as YYYY-MM-DD in the event's calendar). */
+type Board = Readonly<{ eventId: string; day: string | undefined }>;
+
+/** Each event day's board is a copy of its own in the same store, so a new day starts from an empty board. */
+const keyOf = (board: Board): string =>
+  board.day === undefined ? board.eventId : `${board.eventId}/${board.day}`;
 
 const inContext = <T>(
   deps: RankingDeps,
@@ -64,15 +82,20 @@ async function mark(deps: RankingDeps, eventId: string): Promise<void> {
   }
 }
 
-function rebuild(deps: RankingDeps, store: RankingStore, eventId: string) {
-  return store.rebuild(eventId, () =>
+function rebuild(deps: RankingDeps, store: RankingStore, board: Board) {
+  return store.rebuild(keyOf(board), () =>
     inContext(deps, {}, async (client) => {
       const { rows } = await client.query<{
         enrollment_id: string;
         score: string;
         score_version: string;
         ranked: boolean;
-      }>("SELECT * FROM ranking_entries($1)", [eventId]);
+      }>(
+        board.day === undefined
+          ? "SELECT * FROM ranking_entries($1)"
+          : "SELECT * FROM ranking_day_entries($1, $2::date)",
+        board.day === undefined ? [board.eventId] : [board.eventId, board.day],
+      );
       return rows.map((row) => ({
         enrollmentId: row.enrollment_id,
         score: BigInt(row.score),
@@ -85,20 +108,28 @@ function rebuild(deps: RankingDeps, store: RankingStore, eventId: string) {
 
 function fromPostgres(
   deps: RankingDeps,
-  eventId: string,
+  board: Board,
   playerId: string,
   me: Own,
-): Promise<RankingView> {
+): Promise<BoardView> {
+  const daily = board.day !== undefined;
   return inContext(deps, { playerId }, async (client) => {
     const top = await client.query<{
       enrollment_id: string;
       username: string;
       avatar: string;
       score: string;
-    }>("SELECT enrollment_id, username, avatar, score FROM ranking_top($1, $2)", [eventId, TOP]);
+    }>(
+      daily
+        ? "SELECT enrollment_id, username, avatar, score FROM ranking_day_top($1, $2)"
+        : "SELECT enrollment_id, username, avatar, score FROM ranking_top($1, $2)",
+      [board.eventId, TOP],
+    );
     const { rows } = await client.query<{ place: string | null; total: string }>(
-      "SELECT place, total FROM ranking_position($1)",
-      [eventId],
+      daily
+        ? "SELECT place, total FROM ranking_day_position($1)"
+        : "SELECT place, total FROM ranking_position($1)",
+      [board.eventId],
     );
     const position = rows[0];
     return {
@@ -153,13 +184,15 @@ async function rowsOf(
 async function fromRedis(
   deps: RankingDeps,
   store: RankingStore,
-  asked: Readonly<{ eventId: string; playerId: string; me: Own }>,
-): Promise<RankingView | "not_enrolled" | undefined> {
-  const { eventId, playerId, me } = asked;
-  let copy = await store.read(eventId, TOP, me.enrollmentId);
+  asked: Readonly<{ board: Board; playerId: string; me: Own }>,
+): Promise<BoardView | "not_enrolled" | undefined> {
+  const { board, playerId, me } = asked;
+  const { eventId } = board;
+  const key = keyOf(board);
+  let copy = await store.read(key, TOP, me.enrollmentId);
   if (copy === undefined) {
-    await rebuild(deps, store, eventId);
-    copy = await store.read(eventId, TOP, me.enrollmentId);
+    await rebuild(deps, store, board);
+    copy = await store.read(key, TOP, me.enrollmentId);
   }
   if (copy === undefined) {
     return undefined;
@@ -173,7 +206,7 @@ async function fromRedis(
   if (stale.length > 0) {
     // Someone in the copy is no longer ranked: take them out now and answer this time from PostgreSQL.
     for (const row of stale) {
-      await store.remove(eventId, row.enrollmentId, row.version);
+      await store.remove(key, row.enrollmentId, row.version);
     }
     await mark(deps, eventId);
     return undefined;
@@ -235,7 +268,7 @@ async function placeAfter(
   let copy = await store.read(entry.event_id, 0, entry.enrollment_id);
   if (copy === undefined) {
     // The event's first completion, or a lost copy: build it now so the answer carries the place.
-    await rebuild(deps, store, entry.event_id);
+    await rebuild(deps, store, { eventId: entry.event_id, day: undefined });
     copy = await store.read(entry.event_id, 0, entry.enrollment_id);
   }
   return copy?.place ?? null;
@@ -259,7 +292,9 @@ async function afterCompletion(
       ]);
       return rows[0];
     });
-    return entry === undefined ? null : await placeAfter(deps, store, entry);
+    const place = entry === undefined ? null : await placeAfter(deps, store, entry);
+    await dayAfter(deps, store, playerId, completionId);
+    return place;
   } catch (error) {
     deps.log("warn", { event: "ranking.write_failed", reason: reasonOf(error) });
     if (entry !== undefined) {
@@ -269,28 +304,111 @@ async function afterCompletion(
   }
 }
 
-async function read(
+/**
+ * Copies the completion into its event day's board, for a multi-day event (nothing otherwise). A failure here is
+ * logged and the event marked; it never takes the overall place from the answer.
+ */
+async function dayAfter(
   deps: RankingDeps,
-  eventId: string,
+  store: RankingStore,
   playerId: string,
-): Promise<RankingView | "not_enrolled"> {
-  const me = await ownOf(deps, eventId, playerId);
-  if (me === undefined) {
-    return "not_enrolled";
+  completionId: string,
+): Promise<void> {
+  let entry: (EntryRow & Readonly<{ day: string }>) | undefined;
+  try {
+    entry = await inContext(deps, { playerId }, async (client) => {
+      const { rows } = await client.query<EntryRow & { day: string }>(
+        `SELECT event_id, day::text AS day, enrollment_id, score, score_version, ranked
+         FROM ranking_day_entry_of($1)`,
+        [completionId],
+      );
+      return rows[0];
+    });
+    // Stryker disable next-line ConditionalExpression: equivalent: the function gives a row only with a version
+    if (entry === undefined || entry.score_version === null) {
+      return;
+    }
+    const key = keyOf({ eventId: entry.event_id, day: entry.day });
+    const version = BigInt(entry.score_version);
+    await (entry.ranked
+      ? store.upsert(key, {
+          enrollmentId: entry.enrollment_id,
+          score: BigInt(entry.score),
+          version,
+        })
+      : store.remove(key, entry.enrollment_id, version));
+  } catch (error) {
+    deps.log("warn", { event: "ranking.day_write_failed", reason: reasonOf(error) });
+    if (entry !== undefined) {
+      await mark(deps, entry.event_id);
+    }
   }
+}
+
+type Today = Readonly<{ day: string; available: boolean; myScore: number }>;
+
+/** The event's day now and whether it has a today's ranking (multi-day and live); undefined for a stranger. */
+function todayOf(deps: RankingDeps, eventId: string, playerId: string | undefined) {
+  return inContext(deps, playerId === undefined ? {} : { playerId }, async (client) => {
+    const { rows } = await client.query<{
+      day: string;
+      multi_day: boolean;
+      live: boolean;
+      my_score: string | null;
+    }>("SELECT day::text AS day, multi_day, live, my_score FROM ranking_today($1)", [eventId]);
+    const row = rows[0];
+    if (row === undefined) {
+      return undefined;
+    }
+    const today: Today = {
+      day: row.day,
+      available: row.multi_day && row.live,
+      myScore: Number(row.my_score ?? 0),
+    };
+    return today;
+  });
+}
+
+async function boardView(
+  deps: RankingDeps,
+  asked: Readonly<{ board: Board; playerId: string; me: Own }>,
+): Promise<BoardView | "not_enrolled"> {
   const { store } = deps;
   if (store !== undefined) {
     try {
-      const view = await fromRedis(deps, store, { eventId, playerId, me });
+      const view = await fromRedis(deps, store, asked);
       if (view !== undefined) {
         return view;
       }
     } catch (error) {
       deps.log("warn", { event: "ranking.read_failed", reason: reasonOf(error) });
-      await mark(deps, eventId);
+      await mark(deps, asked.board.eventId);
     }
   }
-  return fromPostgres(deps, eventId, playerId, me);
+  return fromPostgres(deps, asked.board, asked.playerId, asked.me);
+}
+
+async function read(
+  deps: RankingDeps,
+  eventId: string,
+  playerId: string,
+  scope: RankingScope,
+): Promise<RankingView | "not_enrolled" | "today_off"> {
+  const own = await ownOf(deps, eventId, playerId);
+  const today = own === undefined ? undefined : await todayOf(deps, eventId, playerId);
+  if (own === undefined || today === undefined) {
+    return "not_enrolled";
+  }
+  const daily = scope === "today";
+  if (daily && !today.available) {
+    return "today_off";
+  }
+  const view = await boardView(deps, {
+    board: { eventId, day: daily ? today.day : undefined },
+    playerId,
+    me: daily ? { ...own, score: today.myScore } : own,
+  });
+  return view === "not_enrolled" ? view : { ...view, today: today.available };
 }
 
 async function repairDue(deps: RankingDeps, clock: { lastBackstop: number }): Promise<void> {
@@ -311,7 +429,7 @@ async function repairDue(deps: RankingDeps, clock: { lastBackstop: number }): Pr
   }
   for (const eventId of new Set(due)) {
     try {
-      if ((await rebuild(deps, store, eventId)) === "busy") {
+      if ((await rebuildEvent(deps, store, eventId)) === "busy") {
         // Another rebuild holds the lock and may have read PostgreSQL before this event's change: try again next tick.
         await mark(deps, eventId);
       }
@@ -322,25 +440,42 @@ async function repairDue(deps: RankingDeps, clock: { lastBackstop: number }): Pr
   }
 }
 
+/** Rebuilds the event's copy and, while the event is multi-day and live, today's copy with it. */
+async function rebuildEvent(
+  deps: RankingDeps,
+  store: RankingStore,
+  eventId: string,
+): Promise<"rebuilt" | "busy"> {
+  const whole = await rebuild(deps, store, { eventId, day: undefined });
+  const today = await todayOf(deps, eventId, undefined);
+  if (today === undefined || !today.available) {
+    return whole;
+  }
+  const daily = await rebuild(deps, store, { eventId, day: today.day });
+  return whole === "busy" || daily === "busy" ? "busy" : "rebuilt";
+}
+
 /** The ranking of one event, read from Redis when it can and from PostgreSQL (the same order) when it cannot. */
 export function createRanking(deps: RankingDeps): Ranking {
   // Stryker disable next-line ObjectLiteral: equivalent: an undefined start makes the first comparison NaN, which also means 'run the backstop now'
   const clock = { lastBackstop: 0 };
   return {
     afterCompletion: (playerId, completionId) => afterCompletion(deps, playerId, completionId),
-    read: (eventId, playerId) => read(deps, eventId, playerId),
+    read: (eventId, playerId, scope = "event") => read(deps, eventId, playerId, scope),
     repairDue: () => repairDue(deps, clock),
   };
 }
 
 type Own = Readonly<{ enrollmentId: string; score: number; username: string; avatar: string }>;
 
+type BoardView = Omit<RankingView, "today">;
+
 const meOf = (me: Own, place: number | null): RankingView["me"] =>
   place === null
     ? null
     : { rank: place, username: me.username, avatar: me.avatar, score: me.score };
 
-function viewOf(copy: Read, named: Named, me: Own): RankingView {
+function viewOf(copy: Read, named: Named, me: Own): BoardView {
   return {
     rows: copy.top.map((row, index) => ({
       rank: index + 1,

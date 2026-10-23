@@ -246,7 +246,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           language={language}
           organizerId={organizerId}
           eventId={event.id}
-          initial={event.ranking}
+          initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
           myRole={myRole}
         />
       )}

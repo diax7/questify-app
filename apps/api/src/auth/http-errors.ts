@@ -374,6 +374,12 @@ export const rankingOff = make(
   "الترتيب مخفي في هذه الفعالية.",
   "The ranking is hidden for this event.",
 );
+export const todayRankingOff = make(
+  404,
+  "today_ranking_off",
+  "لا يوجد ترتيب اليوم في هذه الفعالية الآن.",
+  "This event has no today's ranking right now.",
+);
 export const usernameBlocked = make(
   422,
   "username_blocked",

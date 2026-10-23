@@ -22,6 +22,7 @@ const STORED: EventRecord = {
   statusNow: "draft",
   createdAt: new Date("2030-01-01T00:00:00Z"),
   rankingOn: true,
+  rankingTodayOn: true,
   terms: DEFAULT_TERMS,
 };
 

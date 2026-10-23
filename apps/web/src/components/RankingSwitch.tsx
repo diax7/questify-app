@@ -9,18 +9,26 @@ import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
+/** The two switches: the event's ranking (FR-607) and today's ranking for a multi-day event (FR-608). */
+const SWITCHES = {
+  ranking: { path: "ranking", label: "events.ranking.label" },
+  rankingToday: { path: "ranking-today", label: "events.ranking.todayLabel" },
+} as const;
+
+type Feature = keyof typeof SWITCHES;
+
 type Props = Readonly<{
   language: Language;
   organizerId: string;
   eventId: string;
-  /** The event's switch as the page last read it. */
-  initial: boolean;
+  /** The event's switches as the page last read them. */
+  initial: Readonly<Record<Feature, boolean>>;
   myRole: "owner" | "editor";
 }>;
 
 /**
- * The event's ranking switch (FR-607): the owner hides the ranking from players and shows it again; an editor sees
- * which it is. The change is saved as soon as the box is ticked or cleared.
+ * The event's ranking switches (FR-607, FR-608): the owner hides the ranking, or only today's ranking, from players and
+ * shows it again; an editor sees which it is. A change is saved as soon as a box is ticked or cleared.
  */
 export function RankingSwitch({ language, organizerId, eventId, initial, myRole }: Props) {
   const t = translatorFor(language);
@@ -28,15 +36,15 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const save = async (enabled: boolean) => {
-    const before = shown;
+  const save = async (feature: Feature, enabled: boolean) => {
+    const before = shown[feature];
     // The box changes at once; a refused save puts it back and says why.
-    setShown(enabled);
+    setShown((now) => ({ ...now, [feature]: enabled }));
     setBusy(true);
     setProblem(null);
     const result = await requestJson(
       "PUT",
-      `/v1/organizers/${organizerId}/events/${eventId}/ranking`,
+      `/v1/organizers/${organizerId}/events/${eventId}/${SWITCHES[feature].path}`,
       { enabled },
     );
     setBusy(false);
@@ -46,11 +54,12 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
       return;
     }
     if (!result.ok) {
-      setShown(before);
+      setShown((now) => ({ ...now, [feature]: before }));
       setProblem(describeProblem(result.body, language, t).text);
       return;
     }
-    setShown((result.body as { ranking?: unknown }).ranking === true);
+    const saved = (result.body as Partial<Record<Feature, unknown>>)[feature] === true;
+    setShown((now) => ({ ...now, [feature]: saved }));
   };
 
   return (
@@ -58,21 +67,24 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
       <h2 id="ranking-title" className={styles.subtitle}>
         {t("events.ranking.title")}
       </h2>
-      {myRole === "owner" ? (
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={shown}
-            disabled={busy}
-            onChange={(changed) => void save(changed.target.checked)}
-          />
-          <span>{t("events.ranking.label")}</span>
-        </label>
-      ) : null}
+      {myRole === "owner"
+        ? (Object.keys(SWITCHES) as Feature[]).map((feature) => (
+            <label key={feature} className={styles.check}>
+              <input
+                type="checkbox"
+                checked={shown[feature]}
+                disabled={busy}
+                onChange={(changed) => void save(feature, changed.target.checked)}
+              />
+              <span>{t(SWITCHES[feature].label)}</span>
+            </label>
+          ))
+        : null}
       <p role="status" className={styles.muted}>
-        {t(shown ? "events.ranking.shown" : "events.ranking.hidden")}{" "}
+        {t(shown.ranking ? "events.ranking.shown" : "events.ranking.hidden")}{" "}
         {myRole === "owner" ? t("events.ranking.hint") : t("events.ranking.ownerOnly")}
       </p>
+      <p className={styles.muted}>{t("events.ranking.todayHint")}</p>
       {problem === null ? null : (
         <p role="alert" className={styles.alert}>
           {problem}
