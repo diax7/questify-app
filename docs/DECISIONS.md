@@ -2135,3 +2135,44 @@ yet. A trigger covers every completion path without copying the completion engin
 when My QR cannot be read, and sees the same items as after a scan. 30 finds per operator per 10 minutes.
 **Why:** every handover still needs the player's Collect or Accept in their own app (ADR-137), so finding by name
 gives nothing away; it is the same lookup as the manual award's (T-207).
+
+## ADR-157 — Rehearsal data is stamped and erased at go-live
+**Status:** Proposed (Claude, 2026-10-23; T-211). Amends NFR-019 (Proposed sentence).
+**Decision:**
+- Every ledger entry carries an immutable `rehearsal` flag, set at insert from the enrollment (a rehearsal account,
+  ADR-158). At go-live one definer deletes the event's rehearsal entries with the completions, reservations, flags,
+  notes and accounts hanging off them, restores stock and repairs the ranking.
+- The ledger's append-only trigger allows exactly one thing more: DELETE of a `rehearsal` row inside that definer
+  (a transaction-local setting naming the event). UPDATE and TRUNCATE stay refused for every row; the API role still
+  has no DELETE grant. The audit log is untouched; the erase is audited with counts.
+- NFR-019 gains: "Rehearsal records (ADR-080) are not part of the record: they are erased at go-live, and the erase is
+  audited with counts."
+**Why:** keeping rehearsal rows and filtering them everywhere (reversing entries) would need a rehearsal filter in
+every rule and read forever, and the team could not complete a one-time quest live; separate tables double the core
+engine; a shadow event breaks the printed QR codes ADR-080 wants tested. Rehearsal rows belong to no real player.
+
+## ADR-158 — Who rehearses: a rehearsal code and separate rehearsal accounts
+**Status:** Proposed (Claude, 2026-10-23; T-211).
+**Decision:**
+- The owner and editors see a rehearsal code (`XXXX-XXXX`) on Overview and may rotate it. Joining with it creates a
+  rehearsal enrollment (`joined_via = 'rehearsal'`) on a Draft or Scheduled event, activated or not; it skips access
+  rules, join fields, welcome points and the player limit. At most 25 per event.
+- A rehearsal account is deleted at go-live with its data; team roles stay. A player with a real enrollment in the
+  event cannot rehearse with that account.
+- Owners and editors can erase all rehearsal data and accounts at any time before go-live.
+**Why:** staff accounts have no phone, so the database cannot tie a phone to a team member; the UX already designs a
+standing code. The cap and the erase stop a leaked code becoming a free unpaid event (F-265).
+
+## ADR-159 — Rehearsal plays like live
+**Status:** Proposed (Claude, 2026-10-23; T-211).
+**Decision:** for a rehearsal account before go-live, the event counts as live: quests, shop (open), prize desk
+(hours ignored), awards, removals, flags and spend-lowers-rank work. Per-quest and per-reward rules apply as written.
+A digital reward shows a random test code and never touches the code pool or its stock.
+**Why:** the team tests what players will see; a real code shown in rehearsal could never be taken back (T-203 note).
+
+## ADR-160 — The go-live moment: wipe at the tick or the first live write
+**Status:** Proposed (Claude, 2026-10-23; T-211).
+**Decision:** the erase runs when the tick moves the event to live, or inline at the first live write if that comes
+first, under a lock on the event's rehearsal row. Rehearsal writes take a shared lock on that row first and re-check
+the start against the clock, so none commits after the erase. Events that never rehearsed pay one key lookup.
+**Why:** live is computed from the start time, so there is no single go-live transaction to hang the erase on.

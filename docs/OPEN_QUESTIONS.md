@@ -93,3 +93,20 @@ timeout (default 120 minutes): if the owner does not act in time, the points com
 ## Q-121 — Find by name at the desk (2026-10-23, T-209)
 ADR-156 lets the desk find a player by exact username or phone when My QR will not scan (new FR-1848). Dhia may prefer
 scan-only at the desk.
+
+## Q-122 — Rehearsal code or personal passes (2026-10-23, T-211)
+ADR-158 uses one standing rehearsal code per event (as the Overview wireframe shows), at most 25 rehearsal accounts,
+rotate and erase to clean up. A stricter option: each team member makes a single-use pass in the dashboard per phone.
+Dhia may prefer the stricter one, or another cap than 25.
+
+## Q-123 — Digital rewards in rehearsal (2026-10-23, T-211)
+ADR-159 shows a random test code in rehearsal, so no real code is spent. The team cannot check that real codes reveal
+correctly until go-live. Acceptable?
+
+## Q-124 — Erasing rehearsal points from the ledger (2026-10-23, T-211)
+ADR-157 adds one exception to the append-only ledger: rehearsal entries are deleted at go-live (audited with counts),
+and amends NFR-019 to say so. Dhia should confirm this reading of NFR-019 and ADR-080.
+
+## Q-125 — Time windows in rehearsal (2026-10-23, T-211)
+ADR-159 treats the event and its shop and desk as open in rehearsal, but keeps each quest's and reward's own
+opening times. A reward that opens at 14:00 on the day cannot be tried earlier. Should rehearsal ignore those too?
