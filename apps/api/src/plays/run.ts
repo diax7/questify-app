@@ -24,6 +24,9 @@ export type PlayRefusal =
   | Readonly<{ kind: "not_share_quest" }>
   | Readonly<{ kind: "not_passport_quest" }>
   | Readonly<{ kind: "not_meet_quest" }>
+  | Readonly<{ kind: "not_game_quest" }>
+  /** A mini-game round the database refused (T-305): attempts_used, cooldown (with its retry time), expired, finished. */
+  | Readonly<{ kind: "game_refused"; reason: string; retryAt: string | null }>
   /** A secret code posted for a category that is not hidden (T-304c). */
   | Readonly<{ kind: "not_hidden" }>
   /** A step's code that does not stamp this step (T-304b): one answer to the player, told apart in the log. */
@@ -56,10 +59,13 @@ const NOT_THIS_TYPE: Readonly<Record<string, PlayRefusal>> = {
   share: { kind: "not_share_quest" },
   passport: { kind: "not_passport_quest" },
   meet: { kind: "not_meet_quest" },
+  game: { kind: "not_game_quest" },
 };
 
-/** The SQLSTATEs of migrations 0041 and 0042's definers (and record_completion under vote_quest). */
-const REFUSALS: Readonly<Record<string, (detail: string) => PlayRefusal | undefined>> = {
+/** The SQLSTATEs of the play definers (0041 on, and record_completion under vote_quest), with HINT where one carries it. */
+const REFUSALS: Readonly<
+  Record<string, (detail: string, hint: string) => PlayRefusal | undefined>
+> = {
   QC404: () => ({ kind: "not_found" }),
   AQ404: () => ({ kind: "not_found" }),
   AN404: () => ({ kind: "not_found" }),
@@ -77,6 +83,11 @@ const REFUSALS: Readonly<Record<string, (detail: string) => PlayRefusal | undefi
   QH422: () => ({ kind: "not_hidden" }),
   QA404: () => ({ kind: "quiz_not_started" }),
   QA409: (detail) => QA409[detail],
+  QG409: (detail, hint) => ({
+    kind: "game_refused",
+    reason: detail,
+    retryAt: hint === "" ? null : hint,
+  }),
 };
 
 /** Runs one call in `context`; a refusal the database raises becomes its result, anything else is thrown. */
@@ -91,8 +102,9 @@ export async function run<T>(
     );
     return { kind: "done", value };
   } catch (error) {
-    const pg = error as { code?: string; detail?: string };
-    const refusal = pg.code === undefined ? undefined : REFUSALS[pg.code]?.(pg.detail ?? "");
+    const pg = error as { code?: string; detail?: string; hint?: string };
+    const refusal =
+      pg.code === undefined ? undefined : REFUSALS[pg.code]?.(pg.detail ?? "", pg.hint ?? "");
     if (refusal === undefined) {
       throw error;
     }

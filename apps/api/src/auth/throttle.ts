@@ -33,6 +33,8 @@ export const BUCKETS = {
   meetPass: "meet_pass",
   meetState: "meet_state",
   meetRefused: "meet_refused",
+  gameRound: "game_round",
+  gameResult: "game_result",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

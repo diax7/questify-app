@@ -3,10 +3,9 @@ import type { PoolClient } from "pg";
 import { meetCodeOf, meetTokenOf } from "@questify/shared";
 import type { AuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
-import { BUCKETS, countRecent, record, tryLock, type Bucket } from "#src/auth/throttle";
+import { BUCKETS } from "#src/auth/throttle";
 import type { Position } from "#src/completions/complete";
-import { withConnection } from "#src/db/connection";
-import { withRequestContext } from "#src/db/context";
+import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { paidOf, run, type Done, type Paid, type PlayDeps } from "#src/plays/run";
 import type { SettingsService } from "#src/settings/service";
 
@@ -130,39 +129,9 @@ export async function meetPlatformOn(
   return config.kind === "ok" && config.config.features["meetSomeone"]?.enabled !== false;
 }
 
-type Limit = Readonly<{ bucket: Bucket; max: number; windowSeconds: number }>;
-
-/**
- * Counts one attempt against a per-player limit in its own short transaction, under a non-waiting lock on the player,
- * or answers how long to wait. Never takes a waiting lock, so it cannot join a meeting's lock order (ADR-211).
- */
-async function held(
-  deps: MeetDeps,
-  playerId: string,
-  limit: Limit,
-  keep: boolean,
-): Promise<number | undefined> {
-  const key = deps.keys.playerKey(playerId);
-  return withConnection(deps.pool, (client) =>
-    withRequestContext(client, {}, async () => {
-      if (!(await tryLock(client, key))) {
-        return 1;
-      }
-      const window = await countRecent(client, limit.bucket, key, limit.windowSeconds);
-      if (window.count >= limit.max) {
-        return window.retryAfterSeconds;
-      }
-      if (keep) {
-        await record(client, limit.bucket, key);
-      }
-      return undefined;
-    }),
-  );
-}
-
-const PASS_LIMIT: Limit = { bucket: BUCKETS.meetPass, ...MEET_LIMITS.passesPerPlayer };
-const STATE_LIMIT: Limit = { bucket: BUCKETS.meetState, ...MEET_LIMITS.stateReadsPerPlayer };
-const REFUSED_LIMIT: Limit = {
+const PASS_LIMIT: PlayerLimit = { bucket: BUCKETS.meetPass, ...MEET_LIMITS.passesPerPlayer };
+const STATE_LIMIT: PlayerLimit = { bucket: BUCKETS.meetState, ...MEET_LIMITS.stateReadsPerPlayer };
+const REFUSED_LIMIT: PlayerLimit = {
   bucket: BUCKETS.meetRefused,
   ...MEET_LIMITS.refusedScansPerPlayer,
 };
@@ -178,7 +147,7 @@ export async function issueMeetPass(
   if (!(await meetPlatformOn(deps.settings))) {
     return { kind: "feature_off" };
   }
-  const wait = await held(deps, request.playerId, PASS_LIMIT, true);
+  const wait = await heldBack(deps, request.playerId, PASS_LIMIT, true);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };
   }
@@ -202,7 +171,7 @@ export async function meetPassState(
   deps: MeetDeps,
   request: Readonly<{ playerId: string; passId: string }>,
 ): Promise<MeetOutcome<MeetPassState>> {
-  const wait = await held(deps, request.playerId, STATE_LIMIT, true);
+  const wait = await heldBack(deps, request.playerId, STATE_LIMIT, true);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };
   }
@@ -274,7 +243,7 @@ export async function meetPlayer(
   if (!(await meetPlatformOn(deps.settings))) {
     return { kind: "feature_off" };
   }
-  const wait = await held(deps, request.playerId, REFUSED_LIMIT, false);
+  const wait = await heldBack(deps, request.playerId, REFUSED_LIMIT, false);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };
   }
@@ -302,7 +271,7 @@ export async function meetPlayer(
           };
         });
   if (counted(result)) {
-    await held(deps, request.playerId, REFUSED_LIMIT, true);
+    await heldBack(deps, request.playerId, REFUSED_LIMIT, true);
   }
   caller.log(result.kind === "done" ? "meet.met" : "meet.refused", {
     refusal: result.kind,

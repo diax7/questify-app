@@ -41,6 +41,8 @@ export type MemberQuest = Readonly<{
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
   /** A meet quest's daily cap and this player's meetings today, either side (T-303c); null for every other type. */
   meet: Readonly<{ dailyCap: number; today: number }> | null;
+  /** A game quest's attempts left (null when unlimited) and whether a round passed (T-305); null for other types. */
+  game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
 }>;
 
 /** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
@@ -214,6 +216,8 @@ type QuestRow = Readonly<{
   place_radius_m: number | null;
   daily_cap: number | null;
   met_today: number | null;
+  game_left: number | null;
+  game_passed: boolean | null;
 }>;
 
 /** An item's name, or null when the row names none. */
@@ -281,6 +285,8 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
         row.daily_cap === null || row.met_today === null
           ? null
           : { dailyCap: row.daily_cap, today: row.met_today },
+      game:
+        row.game_passed === null ? null : { attemptsLeft: row.game_left, passed: row.game_passed },
     });
     categories.set(row.category_id, category);
   }

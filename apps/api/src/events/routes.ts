@@ -82,6 +82,7 @@ const view = (event: EventRecord) => ({
   rankingToday: event.rankingTodayOn,
   shareQuests: event.shareQuestsOn,
   meetSomeone: event.meetSomeoneOn,
+  miniGames: event.miniGamesOn,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
 });
@@ -214,13 +215,14 @@ export function registerEventRoutes(
     }
   });
 
-  // FR-607, FR-608, FR-219 and FR-1009: the owner turns the event's ranking, today's ranking, share and meet quests
-  // off and on; the event's other switches stay as they are.
+  // FR-607, FR-608, FR-219 and FR-1009: the owner turns the event's ranking, today's ranking, share and meet quests and
+  // mini-games off and on; the event's other switches stay as they are.
   const switches = [
     ["/events/:eventId/ranking", "ranking"],
     ["/events/:eventId/ranking-today", "rankingToday"],
     ["/events/:eventId/share-quests", "shareQuests"],
     ["/events/:eventId/meet-someone", "meetSomeone"],
+    ["/events/:eventId/mini-games", "miniGames"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

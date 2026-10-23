@@ -8,11 +8,14 @@ import {
   categoryNotHidden,
   enrollmentInactive,
   featureOff,
+  gameRefused409,
+  gameRefused422,
   idempotencyKeyReused,
   meetRefused403,
   meetRefused409,
   meetRefused422,
   notFound,
+  notGameQuest,
   notMeetQuest,
   notPassportQuest,
   notQuizQuest,
@@ -28,11 +31,19 @@ import {
   tooManyAttempts,
   unauthenticated,
   unknownOption,
+  updateRequired,
 } from "#src/auth/http-errors";
 import { callerOf, deviceOf, parse } from "#src/auth/request";
 import { locationQuestsOn } from "#src/completions/complete";
 import { positionOf } from "#src/completions/routes";
 import { organizerContextOf } from "#src/organizers/context";
+import {
+  readGame,
+  sendResult,
+  startRound,
+  type GameDeps,
+  type GameOutcome,
+} from "#src/plays/games";
 import {
   answerQuestion,
   nextQuestion,
@@ -108,6 +119,13 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw notPassportQuest();
     case "not_meet_quest":
       throw notMeetQuest();
+    case "not_game_quest":
+      throw notGameQuest();
+    case "game_refused":
+      throw gameRefused409({
+        reason: result.reason,
+        ...(result.retryAt === null ? {} : { retryAt: result.retryAt }),
+      });
     case "not_hidden":
       throw categoryNotHidden();
     case "invalid_code":
@@ -349,5 +367,92 @@ export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): 
   scope.get("/events/:eventId/quests/:questId/survey", member, async (request) => {
     const { eventId, questId } = parse(teamParams, request.params);
     return valueOf(await surveySummary(deps, organizerContextOf(request), { eventId, questId }));
+  });
+}
+
+const roundParams = z.object({ roundId: z.string().regex(/^[1-9][0-9]{0,17}$/) });
+/** The engine version the app carries for each game it knows. */
+const roundBody = z.strictObject({
+  engineVersions: z
+    .record(z.string().regex(/^[a-z_]{1,40}$/), z.number().int().min(0).max(1000))
+    .refine((versions) => Object.keys(versions).length <= 20),
+});
+/**
+ * A round's result: shaped by the engine on the server, never here, so a malformed one is a refused round written by
+ * finish_game_round (the attempt counted), not a bare 400 that leaves the round open for a second try.
+ */
+const resultBody = z.strictObject({
+  inputs: z.unknown().optional(),
+  claimed: z.unknown().optional(),
+});
+/** A round's inputs fit far inside 64 KiB: memory match's 400 flips or the slide puzzle's 1,000 taps, as JSON. */
+const resultIdempotent = { ...playerIdempotent, bodyLimit: 65_536 } as const;
+
+/** A game call's answer, or its refusal thrown (API.md, mini-games). */
+function gameValueOf<T>(reply: FastifyReply, result: GameOutcome<T>): T {
+  switch (result.kind) {
+    case "done":
+      return result.value;
+    case "update_required":
+      throw updateRequired();
+    case "impossible":
+      throw gameRefused422({ reason: "impossible", attemptsLeft: result.attemptsLeft });
+    case "too_many_attempts":
+      reply.header("retry-after", String(result.retryAfterSeconds));
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    default:
+      return refuse(result);
+  }
+}
+
+/**
+ * Mini-games (T-305, FR-1804 to FR-1809): the quest sheet's state, a round issued on Play (Idempotency-Key required; an
+ * attempt used), and its result replayed on the server and paid once on the first pass, which moves the player's place.
+ */
+export function registerGameRoutes(app: FastifyInstance, deps: GameDeps & RankingDeps): void {
+  app.get("/v1/quests/:questId/game", player, async (request) => {
+    const { questId } = parse(questParams, request.params);
+    return valueOf(await readGame(deps, playerIdOf(request), questId));
+  });
+
+  app.post("/v1/quests/:questId/game-rounds", playerIdempotent, async (request, reply) => {
+    const { questId } = parse(questParams, request.params);
+    const { engineVersions } = parse(roundBody, request.body);
+    const round = gameValueOf(
+      reply,
+      await startRound(deps, {
+        playerId: playerIdOf(request),
+        questId,
+        idempotencyKey: String(request.headers["idempotency-key"]),
+        deviceId: deviceOf(request.headers["x-device-id"]),
+        engineVersions,
+      }),
+    );
+    return reply.code(round.replayed ? 200 : 201).send(round);
+  });
+
+  app.post("/v1/game-rounds/:roundId/result", resultIdempotent, async (request, reply) => {
+    const { roundId } = parse(roundParams, request.params);
+    const { inputs, claimed } = parse(resultBody, request.body);
+    const playerId = playerIdOf(request);
+    const answer = gameValueOf(
+      reply,
+      await sendResult(
+        deps,
+        {
+          playerId,
+          roundId,
+          idempotencyKey: String(request.headers["idempotency-key"]),
+          inputs,
+          claimed,
+        },
+        callerOf(request),
+      ),
+    );
+    const rank =
+      answer.completionId !== null && !answer.replayed
+        ? await deps.ranking.afterCompletion(playerId, answer.completionId)
+        : null;
+    return { ...answer, rank };
   });
 }

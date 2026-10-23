@@ -13,6 +13,7 @@ function fakePool(
   expiry: () => string | null | Error = () => null,
   rehearsals: { due: string[]; wiped: boolean } = { due: [], wiped: true },
   quizzes: () => string | null = () => null,
+  rounds: () => string | null = () => null,
 ) {
   const statements: string[] = [];
   const client = {
@@ -33,6 +34,9 @@ function fakePool(
       }
       if (sql.includes("finish_one_due_quiz")) {
         return { rows: [{ outcome: quizzes() }] };
+      }
+      if (sql.includes("close_one_due_round")) {
+        return { rows: [{ outcome: rounds() }] };
       }
       if (sql.includes("expire_one_reservation")) {
         const outcome = expiry();
@@ -137,6 +141,7 @@ describe("startLifecycleTick", () => {
       },
       { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "quiz.sweep_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
   });
@@ -175,10 +180,11 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
-    // The lifecycle call, one look each for due rehearsal wipes, reservations and quizzes; nothing after the stop.
-    expect(connects).toBe(4);
+    // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds; nothing after
+    // the stop.
+    expect(connects).toBe(5);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(4);
+    expect(connects).toBe(5);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -206,6 +212,34 @@ describe("startLifecycleTick", () => {
     const again = start(busy.pool, []);
     await vi.advanceTimersByTimeAsync(1000);
     expect(busy.statements.filter((sql) => sql.includes("finish_one_due_quiz"))).toHaveLength(50);
+    await again.stop();
+  });
+
+  it("closes due game rounds one call at a time, up to a batch, and logs only the count", async () => {
+    const outcomes: (string | null)[] = ["expired", "expired", null];
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => null,
+      { due: [], wiped: true },
+      () => null,
+      () => outcomes.shift() ?? null,
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("close_one_due_round"))).toHaveLength(3);
+    expect(logged).toEqual([{ level: "info", fields: { event: "game.rounds_closed", count: 2 } }]);
+    await tick.stop();
+    const busy = fakePool(
+      () => 0,
+      () => null,
+      { due: [], wiped: true },
+      () => null,
+      () => "expired",
+    );
+    const again = start(busy.pool, []);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(busy.statements.filter((sql) => sql.includes("close_one_due_round"))).toHaveLength(50);
     await again.stop();
   });
 

@@ -34,6 +34,8 @@ export type EventRecord = Readonly<{
   /** The event's share quests switch (FR-219, ADR-199). */
   shareQuestsOn: boolean;
   meetSomeoneOn: boolean;
+  /** The event's mini-games switch (FR-1009, ADR-213). */
+  miniGamesOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -79,6 +81,7 @@ type Row = {
   ranking_today_on: boolean;
   share_quests_on: boolean;
   meet_someone_on: boolean;
+  mini_games_on: boolean;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -90,7 +93,8 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on,
   coalesce((config -> 'features' ->> 'rankingToday')::boolean, true) AS ranking_today_on,
   coalesce((config -> 'features' ->> 'shareQuests')::boolean, true) AS share_quests_on,
-  coalesce((config -> 'features' ->> 'meetSomeone')::boolean, true) AS meet_someone_on, config -> 'terms' AS terms,
+  coalesce((config -> 'features' ->> 'meetSomeone')::boolean, true) AS meet_someone_on,
+  coalesce((config -> 'features' ->> 'miniGames')::boolean, true) AS mini_games_on, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -112,6 +116,7 @@ const toRecord = (row: Row): EventRecord => ({
   rankingTodayOn: row.ranking_today_on,
   shareQuestsOn: row.share_quests_on,
   meetSomeoneOn: row.meet_someone_on,
+  miniGamesOn: row.mini_games_on,
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

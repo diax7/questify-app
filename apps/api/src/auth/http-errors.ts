@@ -1176,3 +1176,33 @@ export const itemInUse = make(
   "هذه الهدية مرتبطة بمهام أو فئات. ألغِ ربطها أولًا.",
   "Quests or categories still give this item. Unlink it first.",
 );
+export const notGameQuest = make(
+  422,
+  "not_game_quest",
+  "هذه المهمة ليست لعبة مصغّرة.",
+  "This quest is not a mini-game.",
+);
+/** The app's engine for this game is older than the server's (T-305, ADR-212): checked before an attempt is used. */
+export const updateRequired = make(
+  426,
+  "update_required",
+  "حدّث التطبيق لتلعب هذه اللعبة.",
+  "Update the app to play this game.",
+);
+/**
+ * A mini-game round refused (T-305): `reason` says why. 409 for the round or the attempts (attempts_used, cooldown with
+ * `retryAt`, expired, finished); 422 `impossible` when the replay refused the round, which counts as played. The
+ * replay's own reason never reaches the player.
+ */
+export const gameRefused409 = make(
+  409,
+  "game_refused",
+  "لا يمكن اللعب بهذه الجولة الآن.",
+  "This round can't be played now.",
+);
+export const gameRefused422 = make(
+  422,
+  "game_refused",
+  "تعذّر احتساب هذه الجولة.",
+  "This round couldn't be counted.",
+);

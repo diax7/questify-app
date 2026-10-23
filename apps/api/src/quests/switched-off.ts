@@ -4,11 +4,12 @@ import type { SettingsService } from "#src/settings/service";
 const SWITCHED_TYPES: Readonly<Record<string, string>> = {
   share: "shareQuests",
   meet: "meetSomeone",
+  game: "miniGames",
 };
 
 /**
  * The quest types the event's composed configuration switches off: a share quest while `shareQuests` is off,
- * a meet quest while `meetSomeone` is off. Every
+ * a meet quest while `meetSomeone` is off, a game quest while `miniGames` is off. Every
  * player quest read goes through `withoutSwitchedOff`, so a switched-off quest is never shown, counted or offered.
  */
 export async function switchedOffTypes(

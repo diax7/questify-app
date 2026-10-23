@@ -22,6 +22,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   item: null,
   place: null,
   meet: null,
+  game: null,
   ...fields,
 });
 

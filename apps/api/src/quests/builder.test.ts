@@ -25,6 +25,39 @@ const STORED: QuestRecord = {
 const ZONE = "Asia/Riyadh";
 
 describe("mergeQuest", () => {
+  it("takes a game quest's config, played once, and refuses the games not available yet", () => {
+    const base = { categoryId: "c", title: { en: "Play" }, points: 30 };
+    expect(
+      mergeQuest(
+        undefined,
+        "game",
+        { ...base, repeatCap: 5, config: { game: "slide_puzzle", level: "hard" } },
+        ZONE,
+      ),
+    ).toMatchObject({
+      repeatCap: 1,
+      verification: [],
+      config: { game: "slide_puzzle", level: "hard", attempts: 1, cooldownMinutes: null },
+    });
+    for (const game of ["catch", "tap_rush"]) {
+      expect(
+        mergeQuest(undefined, "game", { ...base, config: { game, level: "easy" } }, ZONE),
+      ).toEqual({
+        kind: "invalid",
+        field: "game",
+        reason: "not_available",
+      });
+    }
+    expect(
+      mergeQuest(
+        undefined,
+        "game",
+        { ...base, config: { game: "memory_match", level: "easy", attempts: null } },
+        ZONE,
+      ),
+    ).toEqual({ kind: "invalid", field: "config" });
+  });
+
   it("refuses a meet quest whose daily cap is above its repeat cap, and keeps one at or below it", () => {
     const base = { categoryId: "c", title: { en: "Meet" }, points: 5 };
     expect(mergeQuest(undefined, "meet", { ...base, repeatCap: 4 }, ZONE)).toEqual({
