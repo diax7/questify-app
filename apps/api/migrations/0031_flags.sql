@@ -54,7 +54,7 @@ REVOKE ALL ON FUNCTION flag_tuning() FROM PUBLIC;
 
 -- Runs inside every completion's transaction, after the row is written, under the enrollment lock record_completion
 -- holds. A manual award is a person's choice and raises nothing. Same device: every account of the event seen on this
--- install gets one case, under a lock on (event, device) so two accounts scanning at once see each other. Burst: the
+-- install (a removed one aside) gets one case, under a lock on (event, device) so two accounts scanning at once see each other. Burst: the
 -- account's scans in the window since its last resolved burst case; only its own row is touched. Never raises.
 CREATE FUNCTION raise_completion_flags() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -71,8 +71,10 @@ BEGIN
     INSERT INTO flag (organizer_id, event_id, enrollment_id, kind, device_id)
     SELECT NEW.organizer_id, NEW.event_id, s.enrollment_id, 'shared_device', NEW.device_id
     FROM (SELECT DISTINCT c.enrollment_id FROM quest_completion c
+          JOIN enrollment n ON n.id = c.enrollment_id AND n.status <> 'removed'
           WHERE c.event_id = NEW.event_id AND c.device_id = NEW.device_id) s
     WHERE EXISTS (SELECT 1 FROM quest_completion c
+                  JOIN enrollment n ON n.id = c.enrollment_id AND n.status <> 'removed'
                   WHERE c.event_id = NEW.event_id AND c.device_id = NEW.device_id
                     AND c.enrollment_id <> NEW.enrollment_id)
     ORDER BY s.enrollment_id
@@ -102,11 +104,13 @@ CREATE TRIGGER quest_completion_flags AFTER INSERT ON quest_completion
   FOR EACH ROW EXECUTE FUNCTION raise_completion_flags();
 
 -- ================================================================ the desk's hold (FR-1604, FR-1747, FR-1815)
--- 'paused' (the owner paused the player), 'held' (banned, or an open flag while the event's hold is on), or NULL.
+-- 'paused' (the owner paused the player), 'held' (banned, or an open flag while the event's hold is on), or NULL. A
+-- player who is not active or banned has no hold: the status check answers them (RA403).
 -- Read under the enrollment's lock wherever a handover is decided. Internal.
 CREATE FUNCTION desk_hold(enrolled enrollment, ev event) RETURNS text
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT CASE
+    WHEN enrolled.status IN ('pending', 'left', 'removed') THEN NULL
     WHEN enrolled.redeem_paused_at IS NOT NULL THEN 'paused'
     WHEN enrolled.status = 'banned' THEN 'held'
     WHEN ev.flag_hold AND EXISTS (SELECT 1 FROM flag f WHERE f.enrollment_id = enrolled.id AND f.status = 'open')

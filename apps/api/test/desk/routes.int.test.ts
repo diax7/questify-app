@@ -502,6 +502,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
   const find = (token: string, event: string, query: string) =>
     app("POST", `/v1/operator/events/${event}/desk/find`, token, { query }, null);
 
+  it("answers a held player's accept as no live offer, and a paused one as paused (ADR-154)", async () => {
+    const event = await newEvent("desk_offer");
+    const desk = await newOperator(event);
+    const fan = await newPlayer(event);
+    const id = await reserve(fan.token, await newReward(event));
+    await app("POST", `/v1/operator/redemptions/${id}/hand-over`, desk.token);
+    await owner("UPDATE enrollment SET status = 'banned' WHERE player_id = $1", [fan.id]);
+    const held = await app("POST", `/v1/redemptions/${id}/accept`, fan.token);
+    expect(held.statusCode).toBe(409);
+    expect(held.json()).toMatchObject({ code: "offer_gone" });
+    await owner(
+      "UPDATE enrollment SET status = 'active', redeem_paused_at = now() WHERE player_id = $1",
+      [fan.id],
+    );
+    const paused = await app("POST", `/v1/redemptions/${id}/accept`, fan.token);
+    expect(paused.statusCode).toBe(409);
+    expect(paused.json()).toMatchObject({ code: "paused" });
+  });
+
   describe("find by username or phone (FR-1848)", () => {
     it("finds by username, @username or a local mobile, and answers none for nobody", async () => {
       const event = await newEvent();

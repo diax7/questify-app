@@ -189,9 +189,14 @@ export function registerDeskRoutes(app: FastifyInstance, deps: DeskDeps): void {
     return valueOf(await startCollect(deps, { playerId: playerIdOf(request), redemptionId }));
   });
 
+  // A flag or ban hold tells the player nothing (ADR-154): it reads as no live offer. A pause is theirs to know.
   app.post("/v1/redemptions/:redemptionId/accept", playerIdempotent, async (request) => {
     const { redemptionId } = parse(redemptionParams, request.params);
-    return valueOf(await acceptHandover(deps, { playerId: playerIdOf(request), redemptionId }));
+    const result = await acceptHandover(deps, { playerId: playerIdOf(request), redemptionId });
+    if (result.kind === "held" && result.hold === "held") {
+      throw offerGone();
+    }
+    return valueOf(result);
   });
 
   app.post("/v1/redemptions/:redemptionId/decline", player, async (request, reply) => {

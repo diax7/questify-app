@@ -286,6 +286,28 @@ describe("the calls", () => {
     });
   });
 
+  it("shows the server's words when the owner paused the player (FR-518), on reserve and on Collect", async () => {
+    const paused = {
+      kind: "error",
+      status: 403,
+      code: "redeem_paused",
+      message: {
+        ar: "الاستبدال موقوف لك في هذه الفعالية. تواصل مع فريق الفعالية.",
+        en: "Redeeming is paused for you in this event. Ask the event team.",
+      },
+      details: {},
+      headers,
+    } as const;
+    expect(await reserveReward(sessionAnswering(paused).session, "r1", "key-4")).toEqual({
+      kind: "refused",
+      problem: paused.message,
+    });
+    expect(await startCollect(sessionAnswering(paused).session, "d1")).toEqual({
+      kind: "refused",
+      problem: paused.message,
+    });
+  });
+
   it("cancels by the reservation's id", async () => {
     const ok = sessionAnswering({ kind: "ok", status: 200, body: { balance: 300 }, headers });
     expect(await cancelRedemption(ok.session, "d1")).toEqual({

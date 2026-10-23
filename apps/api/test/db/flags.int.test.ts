@@ -309,6 +309,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flags and the desk hold (datab
       }
     });
 
+    it("leaves a removed account out of a same-phone case", async () => {
+      const event = await newEvent();
+      const phone = randomUUID();
+      const gone = await newPlayer(event, 0);
+      const here = await newPlayer(event, 0);
+      await scan(gone.player, await newQuest(event), phone);
+      await owner("UPDATE enrollment SET status = 'removed' WHERE id = $1", [gone.enrollment]);
+      await scan(here.player, await newQuest(event), phone);
+      expect([...(await flagsOf(gone.enrollment)), ...(await flagsOf(here.enrollment))]).toEqual(
+        [],
+      );
+    });
+
     it("raises nothing for the same two accounts on one phone in different events", async () => {
       const one = await newEvent();
       const two = await newEvent();
@@ -521,9 +534,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flags and the desk hold (datab
       expect(await statusOf(state.id)).toBe("handed_over");
     });
 
-    it("shows a player who left as not active, with no hold", async () => {
+    it("shows a player who left as not active, with no hold, even when paused", async () => {
       const state = await atDesk();
-      await owner("UPDATE enrollment SET status = 'left' WHERE id = $1", [state.enrollment]);
+      await owner("UPDATE enrollment SET status = 'left', redeem_paused_at = now() WHERE id = $1", [
+        state.enrollment,
+      ]);
       expect((await lookup(state.desk, state.event, state.player))[0]).toMatchObject({
         active: false,
         hold: null,
