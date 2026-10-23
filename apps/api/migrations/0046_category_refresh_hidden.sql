@@ -101,8 +101,15 @@ CREATE TRIGGER category_refresh_type BEFORE INSERT OR UPDATE OF refresh ON categ
 ALTER TABLE category_bonus ADD COLUMN period_start timestamptz NOT NULL DEFAULT '-infinity';
 ALTER TABLE category_bonus DROP CONSTRAINT category_bonus_pkey;
 ALTER TABLE category_bonus ADD PRIMARY KEY (enrollment_id, category_id, period_start);
--- The ledger holds no period: the once-only guard is category_bonus's key and the check in pay_category_bonus.
+-- The ledger's second guard against paying one category twice, now per period: a bonus entry names its period
+-- (-infinity for a category that does not refresh) and is unique per player, category and period. 0044's
+-- per-category index gives way to it. No bonus entry exists before this migration (0044 is not deployed).
 DROP INDEX ledger_entry_bonus_key;
+ALTER TABLE ledger_entry ADD COLUMN bonus_period timestamptz;
+ALTER TABLE ledger_entry ADD CONSTRAINT ledger_entry_bonus_period
+  CHECK ((kind = 'bonus') = (bonus_period IS NOT NULL));
+CREATE UNIQUE INDEX ledger_entry_bonus_key ON ledger_entry (enrollment_id, category_id, bonus_period)
+  WHERE kind = 'bonus';
 
 -- As 0044, once per period: pays only when no bonus row of this period or a later one exists. A later row blocks a
 -- switch from daily back to none (the period becomes -infinity), so the bonus is never repaid on a lifetime count; a
@@ -133,11 +140,12 @@ BEGIN
   IF NOT FOUND THEN
     RETURN NULL;
   END IF;
-  INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, category_id, actor)
+  INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, category_id, actor,
+                            bonus_period)
   VALUES (enrolled.organizer_id, enrolled.event_id, enrolled.id, 'bonus', group_row.completion_bonus,
           CASE WHEN shop_state(ev.status, ev.starts_at, ev.ends_at, ev.shop_days_after) = 'closed' THEN 0
                ELSE group_row.completion_bonus END,
-          group_row.id, 'system')
+          group_row.id, 'system', period)
   RETURNING id INTO entry;
   UPDATE category_bonus b SET entry_id = entry
   WHERE b.enrollment_id = enrolled.id AND b.category_id = group_row.id AND b.period_start = period;

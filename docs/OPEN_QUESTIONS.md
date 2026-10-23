@@ -301,3 +301,5 @@ follower again each day; a scan of a hidden category's quest before its secret c
 manual award of a hidden quest pays and reveals the category to that player; switching a category from daily to none
 keeps its bonus paid once (not paid again). Agree, or should weeks follow the calendar, an unlock stay open once
 earned, a quest scan reveal its category, or a manual award be refused until the player finds the code?
+Note (T-304c code review): the weekly anchor is the event's `starts_at`, so editing the start mid-event moves the
+weekly blocks from then on (counts already made stay; the current week may grow, shrink or restart).

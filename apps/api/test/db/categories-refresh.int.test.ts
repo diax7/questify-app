@@ -386,32 +386,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category refresh (database)", 
 
   describe("the bonus per period", () => {
     it("pays the bonus once a day and again the next, the earlier row untouched", async () => {
+      // Yesterday as it was paid (the ledger is append-only, so the day before is written, not moved): a completion and
+      // its bonus, the bonus row and its ledger entry in yesterday's period.
       const event = await newEvent();
       const group = await newCategory(event, { bonus: 25 });
       const quest = await newQuest(event, group);
       const { player, enrollment } = await member(event);
-      await code(player, quest);
-      expect(await bonuses(enrollment)).toEqual([{ score_delta: "25" }]);
-      const [before] = await owner<{ entry_id: string }>(
-        "SELECT entry_id FROM category_bonus WHERE enrollment_id = $1",
-        [enrollment],
+      const yesterday = await dayStart(event, -1);
+      await owner(
+        `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
+                                       idempotency_key, created_at)
+         VALUES ($1, $2, $3, $4, 1, 'code', 'yesterday', $5::timestamptz + interval '1 hour')`,
+        [ids.orgA, event, enrollment, quest, yesterday],
       );
-      expect((await readQuest(player, event, quest))?.bonus_settled).toBe(true);
-      await nextDay(enrollment);
+      const [entry] = await owner<{ id: string }>(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                   category_id, actor, bonus_period)
+         VALUES ($1, $2, $3, 'bonus', 25, 25, $4, 'system', $5) RETURNING id`,
+        [ids.orgA, event, enrollment, group, yesterday],
+      );
+      await owner(
+        `INSERT INTO category_bonus (organizer_id, event_id, enrollment_id, category_id, entry_id, period_start)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [ids.orgA, event, enrollment, group, entry?.id, yesterday],
+      );
       expect((await readQuest(player, event, quest))?.bonus_settled).toBe(false);
       await code(player, quest);
+      expect((await readQuest(player, event, quest))?.bonus_settled).toBe(true);
       expect(await bonuses(enrollment)).toHaveLength(2);
       const rows = await owner<{ entry_id: string; period_start: Date }>(
         "SELECT entry_id, period_start FROM category_bonus WHERE enrollment_id = $1 ORDER BY period_start",
         [enrollment],
       );
-      expect(rows.map((row) => row.period_start)).toEqual([
-        await dayStart(event, -1),
-        await dayStart(event),
-      ]);
-      expect(rows[0]?.entry_id).toBe(before?.entry_id);
-      expect(rows[1]?.entry_id).not.toBe(before?.entry_id);
-      expect(await score(enrollment)).toBe("70");
+      expect(rows.map((row) => row.period_start)).toEqual([yesterday, await dayStart(event)]);
+      expect(rows[0]?.entry_id).toBe(entry?.id);
+      expect(rows[1]?.entry_id).not.toBe(entry?.id);
+      expect(await refusal(code(player, quest))).toBe("QD409:1");
+      expect(await bonuses(enrollment)).toHaveLength(2);
+    });
+
+    it("refuses a second bonus entry for the same period in the ledger itself", async () => {
+      const event = await newEvent();
+      const group = await newCategory(event, { bonus: 25 });
+      const quest = await newQuest(event, group);
+      const { player, enrollment } = await member(event);
+      await code(player, quest);
+      const insert = (period: Date | null | undefined) =>
+        owner(
+          `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                     category_id, actor, bonus_period)
+           VALUES ($1, $2, $3, 'bonus', 25, 25, $4, 'system', $5)`,
+          [ids.orgA, event, enrollment, group, period],
+        );
+      await expect(insert(await dayStart(event))).rejects.toMatchObject({ code: "23505" });
+      await expect(insert(null)).rejects.toMatchObject({ code: "23514" });
+      const [paid] = await owner<{ bonus_period: Date }>(
+        "SELECT bonus_period FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'bonus'",
+        [enrollment],
+      );
+      expect(paid?.bonus_period).toEqual(await dayStart(event));
+      await expect(insert(await dayStart(event, 1))).resolves.toEqual([]);
     });
 
     it("does not repay a removed bonus in its period", async () => {

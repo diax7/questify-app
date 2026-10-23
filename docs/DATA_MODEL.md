@@ -320,7 +320,7 @@ event-day start for daily, the start of the 7-day block counted from the event's
 (`category_resets_at` the next one). `period_count` counts a member's completions of a quest from that start: the
 repeat cap, `quest_done` (so the gates and the bonus) and the player's `done` read it; the occurrence stays lifetime
 (`quest_completion.occurrence >= 1`, no upper bound). `category_bonus` gains `period_start` (PK now (enrollment_id,
-category_id, period_start); the ledger's bonus unique index is gone): paid once per period, never while a row of this or
+category_id, period_start); a bonus ledger entry names its `bonus_period`, unique per player, category and period): paid once per period, never while a row of this or
 a later period exists (a switch back to none never repays). A refreshing category holds only `scan_qr`, `enter_code`,
 `challenge` (triggers on both tables, QT422 `refresh`). `category_reveal (organizer_id, event_id, enrollment_id,
 category_id, created_at)`, PK (enrollment_id, category_id): written by `reveal_category` (the secret code, format 0x05)
