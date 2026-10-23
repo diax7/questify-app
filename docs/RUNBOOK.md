@@ -250,7 +250,9 @@ the client-address count (ADR-113).
   `log_parameter_max_length_on_error = 0` and either `log_parameter_max_length = 0` or (`log_statement = none` and
   `log_min_duration_statement = -1`): otherwise a check-in's position could reach the database log. Also update the App
   Store privacy label (location, app functionality, not linked to tracking) and Play's Data safety form first.
-  Values on CranL: not yet recorded.
+  Values on CranL (read 2026-10-23): `log_parameter_max_length` -1, `log_parameter_max_length_on_error` 0,
+  `log_statement` none, `log_min_duration_statement` -1: the rule holds (statements are never logged, and an
+  error logs no parameters). Read them again if CranL changes its Postgres settings.
 
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
