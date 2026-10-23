@@ -144,7 +144,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("vote and quiz quests (database
   };
   const vote = async (player: string, quest: string, option: string, key: string = randomUUID()) =>
     (
-      await query<Paid>(as(player), "SELECT * FROM vote_quest($1, $2, $3)", [quest, option, key])
+      await query<Paid>(as(player), "SELECT * FROM vote_quest($1, $2, $3)", [quest, [option], key])
     )[0] as Paid;
   const start = async (player: string, quest: string) =>
     (await query<{ id: string }>(as(player), "SELECT quiz_start($1) AS id", [quest]))[0]?.id;

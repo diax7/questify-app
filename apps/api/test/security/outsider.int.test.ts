@@ -84,7 +84,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
 
     it("cannot vote, play a quiz or read either (T-302)", async () => {
       for (const sql of [
-        "SELECT * FROM public.vote_quest(gen_random_uuid(), 'a', 'k')",
+        "SELECT * FROM public.vote_quest(gen_random_uuid(), '{a}', 'k')",
         "SELECT * FROM public.member_vote(gen_random_uuid())",
         "SELECT * FROM public.quest_vote_counts(gen_random_uuid(), gen_random_uuid())",
         "SELECT public.quiz_start(gen_random_uuid())",
@@ -92,6 +92,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.quiz_answer(gen_random_uuid(), 'q1', 'a')",
         "SELECT * FROM public.member_quiz(gen_random_uuid())",
         "SELECT public.finish_one_due_quiz()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
+    it("cannot send, close, read or list a live poll (T-306)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.send_poll(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT * FROM public.close_poll(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT * FROM public.member_poll(gen_random_uuid())",
+        "SELECT * FROM public.poll_results(gen_random_uuid())",
+        "SELECT public.live_state(gen_random_uuid())",
+        "SELECT public.event_has_open_poll(gen_random_uuid())",
+        "SELECT public.team_poll(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.is_live_poll('vote', '{}')",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }

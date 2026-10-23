@@ -887,7 +887,7 @@ const SHARED: Readonly<Record<string, string>> = {
   level_title:
     "platform-wide titles; no right for the API role, read through own_level (test/db/xp)",
   quest_vote:
-    "no right for the API role at all; written by vote_quest, read by the voter through member_vote and by the event's team as counts through quest_vote_counts (test/db/vote-quiz)",
+    "no right for the API role at all; written by vote_quest, read by the voter through member_vote and member_poll, as counts by the event's team through quest_vote_counts and by a player the poll's policy allows through poll_results (test/db/vote-quiz, test/db/live-polls)",
   survey_response:
     "no right for the API role at all; written by submit_survey, read by the event's team as totals and texts with names not shown through survey_summary; players read only whether they answered, through member_survey (test/db/challenge-survey-share)",
   category_bonus:
