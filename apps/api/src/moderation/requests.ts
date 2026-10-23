@@ -26,15 +26,18 @@ export type AcceptAllOutcome =
   | Readonly<{ kind: "done"; accepted: number; remaining: number }>
   | Readonly<{ kind: "not_found" | "ended" }>;
 
+/** One page of the queue and how many requests of the whole event still wait for an answer. */
+export type RequestsPage = Readonly<{ requests: JoinRequest[]; pending: number }>;
+
 /**
- * The event's pending and declined requests, oldest first (FR-1819); null when the event is not the caller's to see.
- * The database checks the caller and their event limit again.
+ * The event's pending requests oldest first, then the declined ones (FR-1819), with the count of every pending
+ * request; null when the event is not the caller's to see. The database checks the caller and their event limit again.
  */
 export async function listRequests(
   deps: ModerationDeps,
   context: OrganizerContext,
   request: Readonly<{ eventId: string; afterId: string | null; limit: number }>,
-): Promise<JoinRequest[] | null> {
+): Promise<RequestsPage | null> {
   return asOrganizer(deps, context, async (client) => {
     if (!(await ownEvent(client, context, request.eventId))) {
       return null;
@@ -51,14 +54,21 @@ export async function listRequests(
       request.afterId,
       request.limit,
     ]);
-    return rows.map((row) => ({
-      enrollmentId: row.enrollment_id,
-      username: row.username,
-      avatar: row.avatar,
-      status: row.status,
-      waitlisted: row.waitlisted,
-      requestedAt: row.requested_at,
-    }));
+    const counted = await client.query<{ pending: number }>(
+      "SELECT pending_join_requests($1) AS pending",
+      [request.eventId],
+    );
+    return {
+      requests: rows.map((row) => ({
+        enrollmentId: row.enrollment_id,
+        username: row.username,
+        avatar: row.avatar,
+        status: row.status,
+        waitlisted: row.waitlisted,
+        requestedAt: row.requested_at,
+      })),
+      pending: onlyRow(counted.rows, "pending_join_requests").pending,
+    };
   });
 }
 

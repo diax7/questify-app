@@ -190,17 +190,19 @@ function registerRequestRoutes(scope: FastifyInstance, deps: ModerationDeps): vo
   scope.get("/events/:eventId/join-requests", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const { afterId, limit } = pageOf(parse(requestsQuery, request.query));
-    const requests = await listRequests(deps, organizerContextOf(request), {
+    const page = await listRequests(deps, organizerContextOf(request), {
       eventId,
       afterId,
       limit,
     });
-    if (requests === null) {
+    if (page === null) {
       throw notFound();
     }
+    const { requests, pending } = page;
     const last = requests.at(-1);
     return {
       requests,
+      pending,
       nextCursor:
         requests.length === limit && last !== undefined
           ? encodeCursor({ id: last.enrollmentId })

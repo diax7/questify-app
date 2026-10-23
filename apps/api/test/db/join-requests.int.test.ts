@@ -282,12 +282,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join requests (database)", () 
       expect(await stateOf(enrollment)).toMatchObject({ status: "pending" });
     });
 
-    it("lists pending and declined requests oldest first, by a cursor, public profile only", async () => {
+    it("lists pending requests oldest first, then declined ones, by a cursor, public profile only", async () => {
       const event = await newEvent();
+      const declined = await asked(event);
       const first = await asked(event);
-      const second = await asked(event);
       const third = await asked(event);
-      await decide(event.id, second.enrollment, false);
+      const last = await asked(event);
+      await decide(event.id, declined.enrollment, false);
       await decide(event.id, third.enrollment, true);
       const page = await as<{ enrollment_id: string; status: string }>(
         teamA(editorA),
@@ -306,8 +307,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join requests (database)", () 
         [event.id, first.enrollment],
       );
       expect(next.map((row) => [row.enrollment_id, row.status])).toEqual([
-        [second.enrollment, "declined"],
+        [last.enrollment, "pending"],
+        [declined.enrollment, "declined"],
       ]);
+      expect(
+        await as(teamA(), "SELECT * FROM join_requests($1, $2, 50)", [
+          event.id,
+          declined.enrollment,
+        ]),
+      ).toEqual([]);
+    });
+
+    it("counts the event's pending requests for its own team only", async () => {
+      const event = await newEvent();
+      await asked(event);
+      await asked(event);
+      await decide(event.id, (await asked(event)).enrollment, false);
+      await decide(event.id, (await asked(event)).enrollment, true);
+      const count = async (context: RequestContext) =>
+        (await as<{ n: number }>(context, "SELECT pending_join_requests($1) AS n", [event.id]))[0]
+          ?.n;
+      expect(await count(teamA(editorA))).toBe(2);
+      expect(await count({ organizerId: ids.orgB, staffUserId: ownerB })).toBe(0);
+      expect(await count(teamA(await addMember(db.owner, ids.orgA, "editor", [ids.eventA])))).toBe(
+        0,
+      );
     });
   });
 

@@ -189,7 +189,8 @@ marks once. `event_seat_count(event)` gives the count to the team and admins.
 **Join requests (T-218, migration 0036).** The join definers, `decide_join_request`, `accept_all_join_requests` and
 `enroll_operator` take the event's seat lock through `free_seats(event)` before the enrollment row and decide on the
 free seats counted under it (`full` is an answer, never a raised error). `join_requests(event, after, page)` lists the
-pending and declined rows for the team in scope; index `(event_id, joined_at, id) WHERE status = 'pending'`.
+pending rows, then the declined ones, each oldest first, for the team in scope (cursor over `(declined, joined_at, id)`);
+`pending_join_requests(event)` counts the pending ones; index `(event_id, joined_at, id) WHERE status = 'pending'`.
 
 **Goal (T-213, migration 0033, ADR-161).** `enrollment.goal_reward_id` is the reward a member pinned as their goal
 (FK with the event to `reward`, `ON DELETE SET NULL (goal_reward_id)`); written only by `set_goal(event, reward)`

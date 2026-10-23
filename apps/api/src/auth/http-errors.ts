@@ -443,8 +443,8 @@ export const membersOnly = make(
 export const banNotAllowed = make(
   409,
   "ban_not_allowed",
-  "أُزيل هذا اللاعب من الفعالية، فلا يمكن حظره أو رفع الحظر عنه.",
-  "This player was removed from the event, so they cannot be banned or unbanned.",
+  "هذا اللاعب ليس في الفعالية الآن: أُزيل أو غادر أو ينتظر قبول طلبه، فلا يمكن حظره أو رفع الحظر عنه.",
+  "This player is not in the event now (removed, left, or waiting on a join request), so they cannot be banned or unbanned.",
 );
 export const invalidExclusion = make(
   422,

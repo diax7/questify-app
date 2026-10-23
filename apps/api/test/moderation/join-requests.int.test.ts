@@ -82,16 +82,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join requests over HTTP", () =
       headers: withSession(cookie),
     });
 
-  it("lists the requests page by page for the owner and editors, public profile only", async () => {
+  it("lists pending requests before declined ones, page by page, with the pending total, public profile only", async () => {
     const event = await newEvent();
-    const first = await newRequest(event);
     const second = await newRequest(event, "declined");
+    const first = await newRequest(event);
     await newRequest(event, "active");
     for (const cookie of [ownerCookie, editorCookie]) {
       const page = await call("GET", `/events/${event}/join-requests?limit=1`, cookie);
       expect(page.statusCode).toBe(200);
-      const body = page.json<{ requests: Row[]; nextCursor: string | null }>();
+      const body = page.json<{ requests: Row[]; pending: number; nextCursor: string | null }>();
       expect(body.requests.map((row) => row["enrollmentId"])).toEqual([first]);
+      expect(body.pending).toBe(1);
       expect(Object.keys(body.requests[0] ?? {}).toSorted()).toEqual(
         ["avatar", "enrollmentId", "requestedAt", "status", "username", "waitlisted"].toSorted(),
       );
@@ -104,6 +105,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join requests over HTTP", () =
         "declined",
       ]);
       expect(next.json<{ requests: Row[] }>().requests[0]?.["enrollmentId"]).toBe(second);
+      expect(next.json<{ pending: number }>().pending).toBe(1);
     }
     expect((await call("GET", `/events/${event}/join-requests?cursor=nope`)).statusCode).toBe(400);
   });

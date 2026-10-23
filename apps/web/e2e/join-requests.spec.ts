@@ -3,7 +3,8 @@ import { openBuilder } from "#e2e/builder.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 /**
- * Join requests (T-218) on a live event: the owner accepts one, declines one and accepts the rest after a confirmation,
+ * Join requests (T-218) on a live event: the owner accepts one, declines one and accepts it later, and accepts the rest
+ * after a confirmation (the result stays on screen with the queue empty),
  * then changes the event's access type after a confirmation naming the effect, in both languages.
  */
 test("the owner decides join requests and confirms an access change", async ({
@@ -36,9 +37,14 @@ test("the owner decides join requests and confirms an access change", async ({
   await expect(requests.getByRole("listitem").filter({ hasText: `@hare_${tag}` })).toContainText(
     "رُفض الطلب",
   );
+  await expect(requests.getByRole("listitem").last()).toContainText(`@hare_${tag}`);
+  await requests.getByRole("button", { name: `اقبل @hare_${tag}` }).click();
+  await expect(requests.getByText(`@hare_${tag}`)).toHaveCount(0);
   await requests.getByRole("button", { name: "اقبل الكل" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "اقبل الكل" }).click();
   await expect(requests.getByRole("status")).toHaveText("قُبل: 1. بانتظار القرار: 0.");
+  await expect(requests).toContainText("بانتظار القرار: 0");
+  await expect(requests.getByRole("listitem")).toHaveCount(0);
   await expect(requests.getByRole("button", { name: "اقبل الكل" })).toHaveCount(0);
 
   await page.goto(

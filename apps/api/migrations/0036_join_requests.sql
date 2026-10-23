@@ -370,8 +370,9 @@ CREATE OR REPLACE FUNCTION desk_hold(enrolled enrollment, ev event) RETURNS text
   END
 $$;
 
--- As 0031, plus: a pending or declined row is not_allowed (a ban would take a seat the limit never checked, and a lift
--- would let a request in without acceptance). Requests are accepted or declined instead.
+-- As 0031, plus: a pending, declined or left row is not_allowed (a ban would take a seat the limit never checked, and
+-- a lift would make the row active without an acceptance or the player's own join). Requests are accepted or declined
+-- instead; a player who left is banned after rejoining, or removed (ADR-168).
 CREATE OR REPLACE FUNCTION set_enrollment_ban(target_event uuid, target uuid, banned boolean, request uuid)
   RETURNS text
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -393,7 +394,7 @@ BEGIN
   IF NOT app_is_owner(org) THEN
     RETURN 'not_owner';
   END IF;
-  IF row_found.status IN ('removed', 'pending', 'declined') THEN
+  IF row_found.status IN ('removed', 'pending', 'declined', 'left') THEN
     RETURN 'not_allowed';
   END IF;
   wanted := CASE WHEN banned THEN 'banned' ELSE 'active' END;
@@ -424,8 +425,8 @@ BEGIN
 END $$;
 
 -- ================================================================ the team's requests queue (FR-1819, FR-1821)
--- The event's pending and declined requests for its owner and editors in scope, oldest first, by a cursor over
--- (joined_at, id). Public profile only.
+-- The event's pending requests oldest first, then the declined ones oldest first, for its owner and editors in scope,
+-- by a cursor over (declined, joined_at, id). Public profile only.
 CREATE FUNCTION join_requests(target uuid, after_id uuid, page integer)
   RETURNS TABLE (enrollment_id uuid, username text, avatar text, status text, waitlisted boolean,
                  requested_at timestamptz)
@@ -439,12 +440,28 @@ CREATE FUNCTION join_requests(target uuid, after_id uuid, page integer)
     AND n.status IN ('pending', 'declined') AND n.joined_via IS DISTINCT FROM 'rehearsal'
     AND (after_id IS NULL
          OR NOT EXISTS (SELECT 1 FROM enrollment c WHERE c.id = after_id AND c.event_id = target)
-         OR (n.joined_at, n.id) > (SELECT c.joined_at, c.id FROM enrollment c WHERE c.id = after_id AND c.event_id = target))
-  ORDER BY n.joined_at, n.id
+         OR (n.status = 'declined', n.joined_at, n.id)
+            > (SELECT c.status = 'declined', c.joined_at, c.id FROM enrollment c
+               WHERE c.id = after_id AND c.event_id = target))
+  ORDER BY n.status = 'declined', n.joined_at, n.id
   LIMIT least(greatest(page, 1), 100)
 $$;
 REVOKE ALL ON FUNCTION join_requests(uuid, uuid, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION join_requests(uuid, uuid, integer) TO questify_app;
+
+-- How many requests of the event wait for an answer (the queue's count, not the loaded page); 0 for an event that is
+-- not the caller's to see.
+CREATE FUNCTION pending_join_requests(target uuid) RETURNS integer
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT count(*)::integer
+  FROM event ev
+  JOIN enrollment n ON n.event_id = ev.id
+  WHERE ev.id = target
+    AND ev.organizer_id = app_organizer_id() AND in_event_scope(ev.id, app_event_scope())
+    AND n.status = 'pending' AND n.joined_via IS DISTINCT FROM 'rehearsal'
+$$;
+REVOKE ALL ON FUNCTION pending_join_requests(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pending_join_requests(uuid) TO questify_app;
 
 -- The event of the caller's organizer and scope, read FOR SHARE (a change of its limit or status waits). Internal.
 CREATE FUNCTION team_event(target uuid) RETURNS event

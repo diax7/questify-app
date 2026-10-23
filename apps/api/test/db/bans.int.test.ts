@@ -259,13 +259,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
       await complete(a.player, quest);
     });
 
-    it("bans a player who left, so leaving never dodges a ban, and never a removed one", async () => {
+    it("never bans or lifts a player who left (no seat without the limit, no return without consent), nor a removed one", async () => {
       const event = await newEvent();
       const a = await newPlayer(event);
       await as({ playerId: a.player }, "UPDATE enrollment SET status = 'left' WHERE id = $1", [
         a.enrollment,
       ]);
-      expect(await ban(event, a.enrollment, true)).toBe("changed");
+      expect(await ban(event, a.enrollment, true)).toBe("not_allowed");
+      expect(await ban(event, a.enrollment, false)).toBe("not_allowed");
+      expect(await statusOf(a.enrollment)).toBe("left");
       const [code] = await owner<{ join_code: string }>(
         "SELECT join_code FROM event WHERE id = $1",
         [event],
@@ -278,7 +280,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
             [code?.join_code],
           )
         )[0]?.outcome,
-      ).toBe("not_allowed");
+      ).toBe("joined");
+      expect(await ban(event, a.enrollment, true)).toBe("changed");
       const removed = await newPlayer(event);
       await owner("UPDATE enrollment SET status = 'removed' WHERE id = $1", [removed.enrollment]);
       expect(await ban(event, removed.enrollment, true)).toBe("not_allowed");

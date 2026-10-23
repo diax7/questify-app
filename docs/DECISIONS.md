@@ -2273,6 +2273,9 @@ with `waitlisted = true`. Releasing someone is accepting them, oldest first. The
 (console, ADR-141) until an owner ceiling exists.
 **Why:** one pending state with one accept path serves both requests and the waiting list, so there is one
 definer, one audit action and one seat check; counting pending rows would let unanswered requests fill the event.
+**Amends ADR-141 (T-218 code review):** a player who left can be neither banned nor lifted (`not_allowed`): the ban
+would take a seat the limit never checked, and a lift would make them active without their own join. A player who
+left and rejoins can be banned then; until they do, they hold no seat and cannot score.
 
 ## ADR-169 — Changing an event's access type keeps everyone where they are
 **Status:** Proposed (Claude, 2026-10-23; T-218; Q-135 asks Dhia).

@@ -89,21 +89,28 @@ export default function JoinScreen() {
   return rehearsal === null ? <JoinCardScreen /> : <RehearsalJoin code={rehearsal} />;
 }
 
-/** The join card by an event's join code. */
-function JoinCardScreen() {
-  const { t, language } = useI18n();
+/** What a join that went through says: the waiting list and a request still waiting before "already in". */
+const joinedResult = (outcome: Extract<JoinOutcome, { kind: "joined" }>): Outcome =>
+  outcome.waitlisted
+    ? "waitlisted"
+    : outcome.alreadyMember && outcome.status === "active"
+      ? "already"
+      : outcome.status;
+
+type JoinParams = Readonly<{
+  code: string;
+  via?: string;
+  outcome?: string;
+  problemAr?: string;
+  problemEn?: string;
+  welcome?: string;
+}>;
+
+/** The join's state and the Join tap: answers checked, sign-in first when needed, then the outcome shown. */
+function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typeof useCard>) {
   const { state: player } = usePlayer();
-  const params = useLocalSearchParams<{
-    code: string;
-    via?: string;
-    outcome?: string;
-    problemAr?: string;
-    problemEn?: string;
-    welcome?: string;
-  }>();
-  const code = String(params.code).toUpperCase();
+  const { answer, card, setCard, load } = cardState;
   const via: Via = VIAS.includes(params.via as Via) ? (params.via as Via) : "code";
-  const { answer, card, setCard, load } = useCard(code);
   const [result, setResult] = useState<Outcome | undefined>(
     isOutcome(params.outcome) ? params.outcome : undefined,
   );
@@ -119,9 +126,7 @@ function JoinCardScreen() {
 
   const showOutcome = (outcome: JoinOutcome) => {
     if (outcome.kind === "joined") {
-      setResult(
-        outcome.alreadyMember ? "already" : outcome.waitlisted ? "waitlisted" : outcome.status,
-      );
+      setResult(joinedResult(outcome));
       setWelcome(outcome.welcome);
     } else if (outcome.kind === "stale") {
       setCard(outcome.card);
@@ -167,6 +172,19 @@ function JoinCardScreen() {
     );
     setBusy(false);
   };
+
+  return { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player };
+}
+
+/** The join card by an event's join code. */
+function JoinCardScreen() {
+  const { t, language } = useI18n();
+  const params = useLocalSearchParams<JoinParams>();
+  const code = String(params.code).toUpperCase();
+  const cardState = useCard(code);
+  const { answer, card, load } = cardState;
+  const flow = useJoinFlow(params, code, cardState);
+  const { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player } = flow;
 
   if (answer === undefined) {
     return <Screen title={code}>{<AppText muted>{t("common.loading")}</AppText>}</Screen>;
