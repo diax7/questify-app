@@ -278,6 +278,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
       422,
       "not_quiz_quest",
     ]);
+    for (const step of ["start", "next"]) {
+      expect(
+        codeOf(await app("POST", `/v1/quests/${quest}/quiz/${step}`, token, { extra: 1 })),
+      ).toEqual([400, "invalid_request"]);
+    }
     await app("POST", `/v1/quests/${quest}/quiz/start`, token, {});
     await app("POST", `/v1/quests/${quest}/quiz/next`, token, {});
     await owner("UPDATE quiz_answer SET served_at = now() - interval '1 minute'");

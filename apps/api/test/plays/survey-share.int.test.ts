@@ -258,6 +258,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
         link: "https://example.com/fest",
         done: false,
       });
+      expect(codeOf(await app("POST", `/v1/quests/${quest}/share`, token, { extra: 1 }))).toEqual([
+        400,
+        "invalid_request",
+      ]);
       const key = randomUUID();
       const paid = await app("POST", `/v1/quests/${quest}/share`, token, {}, key);
       expect(paid.statusCode).toBe(201);
