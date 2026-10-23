@@ -28,6 +28,7 @@ const EVENT: EventView = {
   ranking: true,
   rankingToday: true,
   shareQuests: true,
+  meetSomeone: true,
 };
 
 describe("nameFor", () => {

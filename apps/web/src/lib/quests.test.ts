@@ -105,6 +105,15 @@ describe("questProblem", () => {
     expect(
       questProblem({
         ...fine,
+        type: "meet",
+        config: { dailyCap: 5 },
+        repeatCap: 5,
+        verification: [],
+      }),
+    ).toBeUndefined();
+    expect(
+      questProblem({
+        ...fine,
         type: "enter_code",
         config: { code: "NAJD2030" },
         verification: [],
@@ -121,6 +130,9 @@ describe("questProblem", () => {
     ["config", { type: "enter_code", config: { code: "AB" }, verification: [] }],
     ["verification", { verification: [] }],
     ["verification", { type: "enter_code", config: { code: "NAJD2030" } }],
+    ["dailyCap", { type: "meet", config: { dailyCap: 5 }, repeatCap: 4, verification: [] }],
+    ["dailyCap", { type: "meet", config: { dailyCap: 0 }, repeatCap: 4, verification: [] }],
+    ["dailyCap", { type: "meet", config: { dailyCap: "" }, repeatCap: 4, verification: [] }],
   ] as const)("names %s", (field, change) => {
     expect(questProblem({ ...fine, ...change })).toBe(field);
   });

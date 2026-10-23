@@ -28,6 +28,8 @@ export type Scan = Readonly<{
   at: string | null;
   quest: string;
   operator: string | null;
+  /** How it was completed, as the API names it (`meet_scan`, `meet_shown`, …), or null. */
+  method: string | null;
   distanceM: number | null;
   accuracyM: number | null;
   mocked: boolean | null;
@@ -163,6 +165,7 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
           at: text(row["at"]),
           quest: named(row["questAr"], row["questEn"], language),
           operator: text(row["operator"]),
+          method: text(row["method"]),
           distanceM: num(row["distanceM"]),
           accuracyM: num(row["accuracyM"]),
           mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
@@ -180,4 +183,14 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
       reason: text(row["reason"]),
     })),
   };
+}
+
+/** The label a case line gets for a meeting's side (T-303c): scanned or shown; null for every other method. */
+export function methodLabel(
+  method: string | null,
+): "flags.method.meetScan" | "flags.method.meetShown" | null {
+  if (method === "meet_scan") {
+    return "flags.method.meetScan";
+  }
+  return method === "meet_shown" ? "flags.method.meetShown" : null;
 }

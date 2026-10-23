@@ -4,6 +4,7 @@ import {
   flagSummary,
   lengthText,
   locationNotes,
+  methodLabel,
   resolutionKey,
   type FlagLine,
   type Scan,
@@ -66,12 +67,22 @@ describe("lengthText", () => {
   });
 });
 
+describe("methodLabel", () => {
+  it("labels a meeting's two sides and nothing else", () => {
+    expect(methodLabel("meet_scan")).toBe("flags.method.meetScan");
+    expect(methodLabel("meet_shown")).toBe("flags.method.meetShown");
+    expect(methodLabel("qr")).toBeNull();
+    expect(methodLabel(null)).toBeNull();
+  });
+});
+
 describe("locationNotes", () => {
   const en = translatorFor("en");
   const SCAN: Scan = {
     at: null,
     quest: "Gate A",
     operator: null,
+    method: null,
     distanceM: 2400,
     accuracyM: 30,
     mocked: false,
@@ -186,7 +197,13 @@ describe("flagDetailOf", () => {
         enrollmentStatus: "active",
         paused: true,
         evidence: [
-          { at: "2030-01-01T10:00:00Z", questAr: "الأسد", questEn: "Lion", operator: "op_1" },
+          {
+            at: "2030-01-01T10:00:00Z",
+            questAr: "الأسد",
+            questEn: "Lion",
+            operator: "op_1",
+            method: "meet_scan",
+          },
           { at: 5, questAr: null, questEn: "Tiger", operator: null },
           "broken",
         ],
@@ -199,8 +216,8 @@ describe("flagDetailOf", () => {
       note: "fast",
       phoneAccounts: [],
       burstScans: [
-        { at: "2030-01-01T10:00:00Z", quest: "الأسد", operator: "op_1" },
-        { at: null, quest: "Tiger", operator: null },
+        { at: "2030-01-01T10:00:00Z", quest: "الأسد", operator: "op_1", method: "meet_scan" },
+        { at: null, quest: "Tiger", operator: null, method: null },
       ],
       waitingItems: [{ name: "Hoodie", reservedUntil: "2030-01-01T12:00:00Z" }],
       removals: [{ entryId: "9", score: 50, reason: "cheat" }],

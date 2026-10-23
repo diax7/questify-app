@@ -317,6 +317,7 @@ export function questProblem(
   | "steps"
   | "needed"
   | "place"
+  | "dailyCap"
   | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
@@ -342,7 +343,11 @@ export function questProblem(
     }
   }
   if (parseQuestConfig(draft.type, parts.config) === undefined) {
-    return "config";
+    return draft.type === "meet" ? "dailyCap" : "config";
+  }
+  // A meet quest's day can never pay more meetings than its whole life (ADR-210).
+  if (draft.type === "meet" && Number(parts.config["dailyCap"]) > draft.repeatCap) {
+    return "dailyCap";
   }
   return parseVerification(draft.type, draft.verification) === undefined
     ? "verification"

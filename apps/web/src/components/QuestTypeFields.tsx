@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language, MessageKey, QuestType } from "@questify/shared";
+import { MEET_DAILY_CAP, type Language, type MessageKey, type QuestType } from "@questify/shared";
 import type { ReactNode } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import {
@@ -14,6 +14,7 @@ import {
   type Item,
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
+import { NumberField } from "#src/components/NumberField.tsx";
 import { PassportFields } from "#src/components/PassportFields.tsx";
 import {
   ChallengeFields,
@@ -34,6 +35,28 @@ function LocationFields({ language }: TypeFieldProps) {
     <>
       <p className={styles.muted}>{t("quests.location.note")}</p>
       <p className={styles.muted}>{t("quests.location.qr")}</p>
+    </>
+  );
+}
+
+/**
+ * A meet quest (T-303c): its daily cap per player beside the repeat cap (the most people a player meets for points),
+ * and how the one-minute code works.
+ */
+function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
+  const t = translatorFor(language);
+  const value = config["dailyCap"];
+  return (
+    <>
+      <p className={styles.muted}>{t("quests.meet.note")}</p>
+      <NumberField
+        label={t("quests.meet.dailyCap")}
+        value={typeof value === "number" || typeof value === "string" ? value : ""}
+        invalid={false}
+        disabled={disabled}
+        change={(text) => change({ ...config, dailyCap: text === "" ? "" : Number(text) })}
+      />
+      <p className={styles.muted}>{t("quests.meet.repeatCap")}</p>
     </>
   );
 }
@@ -278,6 +301,8 @@ export function startingConfig(type: QuestType): Config {
       return { message: {} };
     case "passport":
       return { needed: 1, steps: [newItem()] };
+    case "meet":
+      return { dailyCap: MEET_DAILY_CAP.default };
     default:
       return {};
   }
@@ -299,4 +324,5 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     share: ShareFields,
     passport: PassportFields,
     location: LocationFields,
+    meet: MeetFields,
   };

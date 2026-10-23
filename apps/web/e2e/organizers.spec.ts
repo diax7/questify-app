@@ -123,9 +123,9 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();
     await expect(editor.getByText("The ranking shows in the app.", { exact: false })).toBeVisible();
-    // The ranking and share-quest switches (T-303) each say so.
+    // The ranking, share-quest (T-303) and meet-someone (T-303c) switches each say so.
     await expect(editor.getByText("Only the owner can change this.", { exact: false })).toHaveCount(
-      2,
+      3,
     );
     await expect(editor.getByRole("checkbox", { name: "Show the ranking in the app" })).toHaveCount(
       0,

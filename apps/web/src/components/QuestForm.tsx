@@ -111,6 +111,8 @@ export function QuestForm({
             change({
               type: event.target.value as QuestDraft["type"],
               config: startingConfig(event.target.value as QuestDraft["type"]),
+              // A meet quest starts able to pay its default daily cap (ADR-210).
+              ...(event.target.value === "meet" ? { repeatCap: 10 } : {}),
               verification:
                 parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
             })

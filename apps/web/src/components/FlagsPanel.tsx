@@ -4,11 +4,12 @@ import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards } from "#src/components/PlayerAwards.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { translatorFor, type Translate } from "#src/lib/language.ts";
 import {
   flagDetailOf,
   flagSummary,
   locationNotes,
+  methodLabel,
   resolutionKey,
   type FlagDetail,
   type FlagLine,
@@ -43,6 +44,12 @@ type Shared = Readonly<{
 const when = (iso: string | null, timeZone: string, language: Language) =>
   iso === null ? "" : formatEventTime(new Date(iso), timeZone, language);
 
+/** A meeting's side on a case line (T-303c): "Meet (scanned)" or "Meet (shown)"; nothing for other methods. */
+function MethodNote({ method, t }: Readonly<{ method: string | null; t: Translate }>) {
+  const label = methodLabel(method);
+  return label === null ? null : <li dir="auto">{t(label)}</li>;
+}
+
 /** What the case shows as its evidence (FR-335): the accounts on the phone, or each scan of the burst. */
 function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared }>) {
   const t = translatorFor(shared.language);
@@ -69,6 +76,7 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
                   operator: scan.operator,
                 })}
             <ul>
+              <MethodNote method={scan.method} t={t} />
               {locationNotes(flag.kind, scan, shared.language, t).map((note) => (
                 <li key={note} dir="auto">
                   {note}
