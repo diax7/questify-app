@@ -34,6 +34,9 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
    own context gets long it is summarized automatically and the work carries on; no `/clear` between tasks.
 6. **Dhia is not interrupted for decisions inside a task:** workers take the recommended option and record it
    as a Proposed ADR and an OPEN_QUESTIONS entry for him to review.
+7. **Whenever Dhia's interaction or input is needed** (an action only he can do, an approval, a choice, a
+   credential, a test on his phone), the coordinator asks with the **AskUserQuestion** tool, never buried in a
+   status message, and makes clear what is needed and why. Work that doesn't depend on the answer keeps going.
 
 ## Read order at the start of every session
 
