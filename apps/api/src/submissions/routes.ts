@@ -141,10 +141,12 @@ export function refuse(result: SubmissionRefusal): never {
 
 const valueOf = <T>(result: Done<T>): T => (result.kind === "done" ? result.value : refuse(result));
 
+/** A full page's last id, where the next page starts; null after a short page. */
 const nextCursor = (items: readonly { id: string }[], limit: number): string | null =>
-  items.length === limit ? (items.at(-1)?.id ?? null) : null;
+  items[limit - 1]?.id ?? null;
 
 const reasonOf = (body: z.infer<typeof reviewBody>): string | null =>
+  // Stryker disable next-line ConditionalExpression: equivalent: an approval has no reason, and undefined reaches the database as null
   body.decision === "reject" ? body.reason : null;
 
 type RankingDeps = Readonly<{ ranking: Ranking }>;
@@ -174,6 +176,7 @@ export function registerSubmissionPlayerRoutes(
       await sendSubmission(deps, { playerId, questId, text, idempotencyKey: keyOf(request) }),
     );
     const rank =
+      // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent: a pending send's null completion has no ranking entry, so the place is null either way
       sent.completionId === null
         ? null
         : await deps.ranking.afterCompletion(playerId, sent.completionId);

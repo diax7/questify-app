@@ -241,7 +241,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests over HTTP", 
     const quest = await newQuest(event, true);
     const sara = await newPlayer(event);
     const sent = await send(sara.token, quest, "Done!");
-    expect(sent.json()).toMatchObject({ status: "approved", score: 150, balance: 150 });
+    expect(sent.json()).toMatchObject({ status: "approved", score: 150, balance: 150, rank: 1 });
     const unseen = await dashboard("GET", `/events/${event}/submissions?filter=unseen`);
     const ids = unseen.json<{ submissions: Row[] }>().submissions.map((row) => String(row["id"]));
     expect(ids).toEqual([String(sent.json().submissionId)]);
@@ -297,6 +297,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("submission quests over HTTP", 
     expect(upserts.filter((write) => write.event === event)).toEqual([
       { event, enrollmentId: expect.any(String), score: 150n },
     ]);
+  });
+
+  it("pages both queues by cursor, and refuses a filter it does not know", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const sent: string[] = [];
+    for (const text of ["One", "Two"]) {
+      const sara = await newPlayer(event);
+      sent.push(String((await send(sara.token, quest, text)).json().submissionId));
+    }
+    const reviewer = await newPlayer(event);
+    await owner(
+      "INSERT INTO staff_assignment (organizer_id, event_id, player_id, abilities) VALUES ($1, $2, $3, $4)",
+      [organizer, event, reviewer.id, ["review"]],
+    );
+    type Page = { submissions: Row[]; nextCursor: string | null };
+    const walk = async (read: (cursor: string) => Promise<Page>) => {
+      const first = await read("");
+      const second = await read(`&cursor=${first.nextCursor}`);
+      const third = await read(`&cursor=${second.nextCursor}`);
+      expect(first.nextCursor).toBe(first.submissions[0]?.["id"]);
+      expect([third.submissions, third.nextCursor]).toEqual([[], null]);
+      return [...first.submissions, ...second.submissions].map((row) => String(row["id"]));
+    };
+    const team = await walk(async (cursor) =>
+      (
+        await dashboard("GET", `/events/${event}/submissions?filter=pending&limit=1${cursor}`)
+      ).json<Page>(),
+    );
+    expect(team.toSorted()).toEqual(sent.toSorted());
+    const operator = await walk(async (cursor) =>
+      (
+        await app(
+          "GET",
+          `/v1/operator/events/${event}/submissions?limit=1${cursor}`,
+          reviewer.token,
+        )
+      ).json<Page>(),
+    );
+    expect(operator).toEqual(team);
+    const listed = await dashboard("GET", `/events/${event}/submissions?filter=done`);
+    expect(listed.json()).toEqual({ submissions: [], nextCursor: null });
+    const unknown = await dashboard("GET", `/events/${event}/submissions?filter=everything`);
+    expect([unknown.statusCode, unknown.json().code]).toEqual([400, "invalid_request"]);
   });
 
   it("refuses a submission quest that asks for photos or video, with its own message", async () => {

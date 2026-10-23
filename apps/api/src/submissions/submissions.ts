@@ -79,7 +79,7 @@ async function run<T>(
     return { kind: "done", value };
   } catch (error) {
     const pg = error as { code?: string; detail?: string };
-    const refusal = pg.code === undefined ? undefined : REFUSALS[pg.code];
+    const refusal = REFUSALS[String(pg.code)];
     if (refusal === undefined) {
       throw error;
     }
