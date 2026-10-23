@@ -63,6 +63,11 @@ export const COMPLETION_LIMITS = {
   wrongCodesPerPlayerQuest: { max: 5, windowSeconds: 600 },
   wrongCodesPerPlayer: { max: 20, windowSeconds: 600 },
   wrongCodesPerDevice: { max: 30, windowSeconds: 600 },
+  /**
+   * Refused location check-ins per player and quest (T-303b): enough for a player walking towards the spot, too few
+   * to map the radius by script. Their own bucket: a check-in never touches the wrong-code counts.
+   */
+  refusedCheckInsPerPlayerQuest: { max: 10, windowSeconds: 600 },
 } as const;
 
 /**

@@ -227,7 +227,11 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerEventRoutes(scope, deps.events, deps.settings);
       registerActivationRoutes(scope, deps.activation);
       registerRehearsalTeamRoutes(scope, deps.rehearsal);
-      registerBuilderRoutes(scope, { pool: deps.pool, ...deps.questCodes });
+      registerBuilderRoutes(scope, {
+        pool: deps.pool,
+        ...deps.questCodes,
+        settings: deps.settings,
+      });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });

@@ -7,6 +7,9 @@ export type EventAccess = "public" | "unlisted" | "private";
 export type JoinMethod = "code" | "qr" | "link" | "public_list";
 export type EventStatus = "draft" | "scheduled" | "live" | "ended" | "archived";
 
+/** The venue's pin (T-303b): optional, for the far-from-venue flag only. */
+export type VenuePin = Readonly<{ lat: number; lng: number }>;
+
 /** An event as the dashboard sees it. Times are instants; the zone says how to show them. */
 export type EventRecord = Readonly<{
   id: string;
@@ -32,6 +35,9 @@ export type EventRecord = Readonly<{
   shareQuestsOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
+  /** The venue's pin, or null (T-303b); with its radius in metres. */
+  venuePin: VenuePin | null;
+  venueRadiusM: number;
 }>;
 
 /** The fields the API may write (the column grants of migration 0009). */
@@ -47,6 +53,8 @@ export type EventFields = Readonly<{
   dayStartHour: number;
   startsAt: Date;
   endsAt: Date;
+  venuePin: VenuePin | null;
+  venueRadiusM: number;
 }>;
 
 type Row = {
@@ -70,13 +78,17 @@ type Row = {
   ranking_today_on: boolean;
   share_quests_on: boolean;
   terms: unknown;
+  venue_lat: string | null;
+  venue_lng: string | null;
+  venue_radius_m: number;
 };
 
 const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods, timezone,
   day_start_hour, starts_at, ends_at, status, event_status_now(status, starts_at, ends_at) AS status_now, created_at,
   coalesce((config -> 'features' ->> 'ranking')::boolean, true) AS ranking_on,
   coalesce((config -> 'features' ->> 'rankingToday')::boolean, true) AS ranking_today_on,
-  coalesce((config -> 'features' ->> 'shareQuests')::boolean, true) AS share_quests_on, config -> 'terms' AS terms`;
+  coalesce((config -> 'features' ->> 'shareQuests')::boolean, true) AS share_quests_on, config -> 'terms' AS terms,
+  venue_lat, venue_lng, venue_radius_m`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -97,6 +109,11 @@ const toRecord = (row: Row): EventRecord => ({
   rankingTodayOn: row.ranking_today_on,
   shareQuestsOn: row.share_quests_on,
   terms: readEventTerms(row.terms),
+  venuePin:
+    row.venue_lat === null || row.venue_lng === null
+      ? null
+      : { lat: Number(row.venue_lat), lng: Number(row.venue_lng) },
+  venueRadiusM: row.venue_radius_m,
 });
 
 /** The events the caller may see in their organizer (the database applies an editor's limit). */
@@ -151,8 +168,8 @@ export async function insertEvent(
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt += 1) {
     const { rows } = await db.query<Row>(
       `INSERT INTO event (organizer_id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods,
-                          timezone, day_start_hour, starts_at, ends_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                          timezone, day_start_hour, starts_at, ends_at, venue_lat, venue_lng, venue_radius_m)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT DO NOTHING
        RETURNING ${COLUMNS}`,
       [
@@ -169,6 +186,9 @@ export async function insertEvent(
         fields.dayStartHour,
         fields.startsAt,
         fields.endsAt,
+        fields.venuePin?.lat ?? null,
+        fields.venuePin?.lng ?? null,
+        fields.venueRadiusM,
       ],
     );
     const row = rows[0];
@@ -191,7 +211,8 @@ export async function updateEvent(
     `UPDATE event SET name_ar = $3, name_en = $4, kind = $5, venue_ar = $6, venue_en = $7, access = $8,
                       join_methods = $9, timezone = $10, day_start_hour = $11,
                       starts_at = CASE WHEN date_trunc('milliseconds', starts_at) = $12 THEN starts_at ELSE $12 END,
-                      ends_at = CASE WHEN date_trunc('milliseconds', ends_at) = $13 THEN ends_at ELSE $13 END
+                      ends_at = CASE WHEN date_trunc('milliseconds', ends_at) = $13 THEN ends_at ELSE $13 END,
+                      venue_lat = $14, venue_lng = $15, venue_radius_m = $16
      WHERE organizer_id = $1 AND id = $2
      RETURNING ${COLUMNS}`,
     [
@@ -208,6 +229,9 @@ export async function updateEvent(
       fields.dayStartHour,
       fields.startsAt,
       fields.endsAt,
+      fields.venuePin?.lat ?? null,
+      fields.venuePin?.lng ?? null,
+      fields.venueRadiusM,
     ],
   );
   const row = rows[0];

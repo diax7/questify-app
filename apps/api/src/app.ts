@@ -227,6 +227,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     pool: options.pool,
     codeKey: questCodeKey,
     keys: signInDeps.keys,
+    settings,
     ranking,
   });
   registerRankingRoutes(app, { ranking, settings });

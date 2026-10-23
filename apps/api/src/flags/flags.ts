@@ -5,7 +5,7 @@ import type { OrganizerContext } from "#src/organizers/store";
 
 export type FlagsDeps = Readonly<{ pool: Pool }>;
 
-export type FlagKind = "shared_device" | "burst";
+export type FlagKind = "shared_device" | "burst" | "far_from_venue" | "impossible_speed";
 export type FlagStatus = "open" | "cleared" | "confirmed";
 export type Resolution = "cleared" | "points_removed" | "banned";
 

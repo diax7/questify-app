@@ -1,4 +1,7 @@
 import { REFRESHING_QUEST_TYPES, type QuestType, type QuestVerification } from "@questify/shared";
+
+/** A quest's place (T-303b): the organizer's pin and radius in metres. */
+export type QuestPlace = Readonly<{ lat: number; lng: number; radiusM: number }>;
 import type { PoolClient } from "pg";
 import type { EventStatus } from "#src/events/store";
 
@@ -52,6 +55,8 @@ export type QuestRecord = Readonly<{
   steps: readonly PassportStep[];
   /** The quest item its first completion gives (T-304d), or null. */
   itemId: string | null;
+  /** Its place on the spot types (T-303b), or null; required for a location quest. */
+  place: QuestPlace | null;
 }>;
 
 /** One step of a passport (T-304b): its name and the version its printed code carries. */
@@ -78,6 +83,7 @@ export type QuestFields = Readonly<{
   config: Readonly<Record<string, unknown>>;
   verification: readonly QuestVerification[];
   itemId: string | null;
+  place: QuestPlace | null;
 }>;
 
 /** The event as the builder needs it, read under a lock that serializes builder writes but never blocks joins. */
@@ -116,12 +122,16 @@ type QuestRow = {
   qr_version: number;
   verification: QuestVerification[];
   item_id: string | null;
+  place_lat: string | null;
+  place_lng: string | null;
+  place_radius_m: number | null;
 };
 
 const CATEGORY_COLUMNS = `id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus,
   refresh, hidden, item_id`;
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id`;
+  repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id, place_lat, place_lng,
+  place_radius_m`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -155,6 +165,10 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   verification: row.verification,
   steps: [],
   itemId: row.item_id,
+  place:
+    row.place_lat === null || row.place_lng === null || row.place_radius_m === null
+      ? null
+      : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
 });
 
 type StepRow = {
@@ -488,8 +502,9 @@ export async function insertQuest(
   );
   const { rows } = await db.query<QuestRow>(
     `INSERT INTO quest (event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
-                        repeat_cap, opens_at, closes_at, visible, position, type_config, verification, item_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        repeat_cap, opens_at, closes_at, visible, position, type_config, verification, item_id,
+                        place_lat, place_lng, place_radius_m)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      RETURNING ${QUEST_COLUMNS}`,
     [
       eventId,
@@ -508,6 +523,9 @@ export async function insertQuest(
       fields.config,
       fields.verification,
       fields.itemId,
+      fields.place?.lat ?? null,
+      fields.place?.lng ?? null,
+      fields.place?.radiusM ?? null,
     ],
   );
   return toQuest(rows[0] as QuestRow);
@@ -530,7 +548,8 @@ export async function updateQuest(
   const { rows } = await db.query<QuestRow>(
     `UPDATE quest SET category_id = $2, title_ar = $3, title_en = $4, description_ar = $5, description_en = $6,
                       points = $7, repeat_cap = $8, opens_at = $9, closes_at = $10, visible = $11, position = $12,
-                      type_config = $13, verification = $14, item_id = $15
+                      type_config = $13, verification = $14, item_id = $15, place_lat = $16, place_lng = $17,
+                      place_radius_m = $18
      WHERE id = $1 RETURNING ${QUEST_COLUMNS}`,
     [
       current.id,
@@ -548,6 +567,9 @@ export async function updateQuest(
       fields.config,
       fields.verification,
       fields.itemId,
+      fields.place?.lat ?? null,
+      fields.place?.lng ?? null,
+      fields.place?.radiusM ?? null,
     ],
   );
   return toQuest(rows[0] as QuestRow);

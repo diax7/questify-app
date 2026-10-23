@@ -1,4 +1,5 @@
 import {
+  PLACED_QUEST_TYPES,
   QUEST_TYPES,
   parseQuestConfig,
   parseVerification,
@@ -20,6 +21,7 @@ import {
   type BuilderEvent,
   type CategoryRecord,
   type QuestFields,
+  type QuestPlace,
   type QuestRecord,
 } from "#src/quests/store";
 
@@ -59,6 +61,8 @@ export type QuestInput = Readonly<{
   steps?: readonly Readonly<{ id?: string | undefined; name: Text }>[] | undefined;
   /** The quest item its first completion gives (T-304d); null clears it. */
   itemId?: string | null | undefined;
+  /** Its place on a spot type (T-303b); null clears it; a location quest must keep one. */
+  place?: QuestPlace | null | undefined;
 }>;
 
 export type QuestField =
@@ -71,7 +75,8 @@ export type QuestField =
   | "config"
   | "verification"
   | "needed"
-  | "steps";
+  | "steps"
+  | "place";
 
 /** The refusals every builder action may give. */
 export type Refused =
@@ -208,6 +213,13 @@ export function mergeQuest(
   if (verification === undefined) {
     return { kind: "invalid", field: "verification" };
   }
+  const place = input.place === undefined ? (current?.place ?? null) : input.place;
+  if (
+    (place !== null && !PLACED_QUEST_TYPES.includes(type)) ||
+    (place === null && type === "location")
+  ) {
+    return { kind: "invalid", field: "place" };
+  }
   return {
     // Stryker disable next-line StringLiteral: a create always names its category (the route requires it)
     categoryId: input.categoryId ?? current?.categoryId ?? "",
@@ -222,6 +234,7 @@ export function mergeQuest(
     config,
     verification,
     itemId: input.itemId === undefined ? (current?.itemId ?? null) : input.itemId,
+    place,
   };
 }
 
@@ -252,6 +265,7 @@ export function auditView(quest: QuestRecord): Record<string, unknown> {
     config,
     verification: quest.verification,
     itemId: quest.itemId,
+    place: quest.place,
     ...(code === undefined ? {} : { entryCode: "set" }),
     ...(quest.type === "passport"
       ? {

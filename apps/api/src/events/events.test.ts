@@ -25,6 +25,8 @@ const STORED: EventRecord = {
   rankingTodayOn: true,
   shareQuestsOn: true,
   terms: DEFAULT_TERMS,
+  venuePin: { lat: 24.7136, lng: 46.6753 },
+  venueRadiusM: 800,
 };
 
 describe("merge", () => {
@@ -41,6 +43,8 @@ describe("merge", () => {
       dayStartHour: 4,
       startsAt: new Date("2030-11-01T06:00:00Z"),
       endsAt: new Date("2030-11-01T14:00:00Z"),
+      venuePin: null,
+      venueRadiusM: 1000,
     });
   });
 
@@ -57,7 +61,17 @@ describe("merge", () => {
       dayStartHour: 6,
       startsAt: STORED.startsAt,
       endsAt: STORED.endsAt,
+      venuePin: STORED.venuePin,
+      venueRadiusM: 800,
     });
+  });
+
+  it("sets, moves and clears the venue pin and its radius (T-303b)", () => {
+    expect(merge(STORED, { venuePin: { lat: 21.5, lng: 39.2 }, venueRadiusM: 300 })).toMatchObject({
+      venuePin: { lat: 21.5, lng: 39.2 },
+      venueRadiusM: 300,
+    });
+    expect(merge(STORED, { venuePin: null })).toMatchObject({ venuePin: null, venueRadiusM: 800 });
   });
 
   it("takes every field the input sends, blanks as none, a name in one language enough", () => {

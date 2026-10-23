@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { PLACE_RADIUS } from "@questify/shared";
 import {
   categoryInUse,
   categoryNotEmpty,
@@ -13,12 +14,14 @@ import {
   limitReached,
   notFound,
   orderStale,
+  platformFeatureOff,
   questLocked,
   rehearsalData,
   stepInUse,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
+import { locationQuestsOn } from "#src/completions/complete";
 import { organizerContextOf } from "#src/organizers/context";
 import { readBuilder, type BuilderDeps, type Done } from "#src/quests/builder";
 import {
@@ -36,6 +39,7 @@ import {
 } from "#src/quests/categories";
 import { createQuest, deleteQuest, reorderQuests, setFocus, updateQuest } from "#src/quests/quests";
 import type { CategoryRecord, QuestRecord } from "#src/quests/store";
+import type { SettingsService } from "#src/settings/service";
 
 const BODY_LIMIT = 16_384;
 const MAX_ORDER = 300;
@@ -79,6 +83,15 @@ const questFields = {
     .optional(),
   // The quest item its first completion gives (T-304d); null clears it.
   itemId: z.uuid().nullable().optional(),
+  // Its place on a spot type (T-303b); null clears it; checked against the type by the builder.
+  place: z
+    .strictObject({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+      radiusM: z.number().int().min(PLACE_RADIUS.min).max(PLACE_RADIUS.max),
+    })
+    .nullable()
+    .optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -129,6 +142,7 @@ const questView = (quest: QuestRecord) => ({
   config: quest.config,
   verification: quest.verification,
   itemId: quest.itemId,
+  place: quest.place,
   ...(quest.type === "passport"
     ? {
         steps: quest.steps.map((step) => ({
@@ -264,10 +278,14 @@ function registerCategoryRoutes(scope: FastifyInstance, deps: BuilderDeps): void
   );
 }
 
-function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps): void {
+function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchDeps): void {
   scope.post("/events/:eventId/quests", creating, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const body = parse(questBody, request.body);
+    // A location quest only while the platform's switch is on (ADR-208); existing ones stay and complete by QR.
+    if (body.type === "location" && !(await locationQuestsOn(deps.settings))) {
+      throw platformFeatureOff();
+    }
     const result = await createQuest(
       deps,
       organizerContextOf(request),
@@ -309,7 +327,9 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps): void {
  * The quest builder's routes (FR-1004–1008, FR-226–229), inside the organizer scope. Categories and quests are always
  * read under the event in the path, so an id from another event is "not found".
  */
-export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps): void {
+type SwitchDeps = Readonly<{ settings: Pick<SettingsService, "forEvent"> }>;
+
+export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps & SwitchDeps): void {
   scope.get("/events/:eventId/quests", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const result = await readBuilder(deps, organizerContextOf(request), eventId);

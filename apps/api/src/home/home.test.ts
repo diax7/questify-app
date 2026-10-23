@@ -20,6 +20,7 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   lock: null,
   steps: null,
   item: null,
+  place: null,
   ...fields,
 });
 

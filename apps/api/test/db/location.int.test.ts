@@ -182,6 +182,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("location quests (database)", (
       [enrollment, seconds],
     );
 
+  const pair = async (gapMetres: number, seconds: number, kind = "physical") => {
+    const event = await newEvent({ kind });
+    const gate = await newQuest(event, "scan_qr", { north: 0, radius: 50 });
+    const hall = await newQuest(event, "scan_qr", { north: gapMetres + 100, radius: 50 });
+    const { player, enrollment } = await member(event);
+    const first = await complete(player, gate, "qr", undefined);
+    await backdate(enrollment, seconds);
+    const second = await complete(player, hall, "qr", undefined);
+    return { event, enrollment, first, second, hall, gate, player };
+  };
+
+  const setting = async (name: string) =>
+    (await owner<{ value: string }>(`SELECT current_setting('${name}') AS value`))[0]?.value;
+
   describe("checking in (FR-215, FR-216)", () => {
     it("pays a check-in inside the area once, keeping only rounded distances, accuracy and the mocked mark", async () => {
       const event = await newEvent();
@@ -243,12 +257,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("location quests (database)", (
         at(0, { ageS: -1 }),
         at(0, { ageS: 86_401 }),
         at(0, { mocked: "yes" }),
-        at(0, { lat: 1e400 }),
       ]) {
         expect(await refusal(checkIn(player, quest, bad)), JSON.stringify(bad)).toBe(
           "QV422:bad_position",
         );
       }
+      // A number too large for a double reads as a bad shape, never an overflow error.
+      expect(
+        await owner(
+          `SELECT lat FROM position_of('{"lat": 1e400, "lng": 1, "accuracyM": 1, "ageS": 1}'::jsonb)`,
+        ),
+      ).toEqual([{ lat: null }]);
       expect(await refusal(checkIn(player, quest, at(0, { ageS: 121 })))).toBe("QV422:stale");
       expect(await refusal(checkIn(player, quest, at(0, { accuracyM: 501 })))).toBe(
         "QV422:imprecise",
@@ -489,17 +508,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("location quests (database)", (
   });
 
   describe("impossible speed (FR-332)", () => {
-    const pair = async (gapMetres: number, seconds: number, kind = "physical") => {
-      const event = await newEvent({ kind });
-      const gate = await newQuest(event, "scan_qr", { north: 0, radius: 50 });
-      const hall = await newQuest(event, "scan_qr", { north: gapMetres + 100, radius: 50 });
-      const { player, enrollment } = await member(event);
-      const first = await complete(player, gate, "qr", undefined);
-      await backdate(enrollment, seconds);
-      const second = await complete(player, hall, "qr", undefined);
-      return { event, enrollment, first, second, hall, gate, player };
-    };
-
     it("raises for two placed quests 1 km apart 30 s apart, with both completions", async () => {
       const { enrollment, first, second } = await pair(1_000, 30);
       expect(await flags(enrollment)).toEqual([
@@ -708,8 +716,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("location quests (database)", (
     });
 
     it("runs a database that never writes bound parameters (a reading) to its log", async () => {
-      const setting = async (name: string) =>
-        (await owner<{ value: string }>(`SELECT current_setting('${name}') AS value`))[0]?.value;
       expect(await setting("log_parameter_max_length_on_error")).toBe("0");
       const quiet =
         (await setting("log_statement")) === "none" &&

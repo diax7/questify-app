@@ -67,6 +67,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         features: {
           bigScreen: { enabled: false, minAppVersion: null, message: null },
           cheers: { enabled: true, minAppVersion: null, message: null },
+          locationQuests: { enabled: false, minAppVersion: null, message: null },
           polls: { enabled: true, minAppVersion: null, message: null },
           ranking: { enabled: true, minAppVersion: null, message: null },
           rankingToday: { enabled: true, minAppVersion: null, message: null },

@@ -34,6 +34,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
     db = await createTestDatabase();
     test = await startApp(db);
     ids = await seedTwoTenants(db.owner);
+    // The platform's location switch, on for this test's database (it is off by default, ADR-208).
+    await db.owner.query(
+      `INSERT INTO platform_setting (key, value) VALUES ('features', '{"locationQuests": {"enabled": true}}')`,
+    );
   });
   afterAll(async () => {
     await test.close();
@@ -384,6 +388,104 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
         });
         expect(response.json(), url).toMatchObject({ code: "has_completions" });
       }
+    });
+  });
+
+  const kept = (quest: string) =>
+    owner(
+      `SELECT p.accuracy_m FROM completion_position p JOIN quest_completion c ON c.id = p.completion_id
+       WHERE c.quest_id = $1`,
+      [quest],
+    );
+
+  describe("location check-ins and positions (T-303b)", () => {
+    const SPOT = { lat: 24.7136, lng: 46.6753 };
+    const at = (metres: number, extra: object = {}) => ({
+      lat: SPOT.lat + metres / 111_195,
+      lng: SPOT.lng,
+      accuracyM: 10,
+      ageS: 3,
+      ...extra,
+    });
+    const newSpot = async () => {
+      const [general] = await owner<{ id: string }>("SELECT id FROM category WHERE event_id = $1", [
+        ids.eventA,
+      ]);
+      const [quest] = await owner<{ id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, place_lat, place_lng,
+                            place_radius_m)
+         VALUES ($1, $2, 'location', 'Spot', 10, 5, $3, $4, 50) RETURNING id`,
+        [ids.eventA, general?.id, SPOT.lat, SPOT.lng],
+      );
+      return quest?.id ?? "";
+    };
+    it("pays a check-in inside the area, and completes the same quest by its QR", async () => {
+      const { token } = await newPlayer();
+      const quest = await newSpot();
+      const checked = await complete(token, quest, { type: "location", position: at(10) });
+      expect(checked.statusCode).toBe(200);
+      expect(checked.json()).toMatchObject({ points: 10, replayed: false });
+      expect((await complete(token, quest, scan(quest))).statusCode).toBe(200);
+      expect(await kept(quest)).toEqual([{ accuracy_m: 10 }]);
+    });
+
+    it("answers location_refused with the reason and the player's own rounded distance", async () => {
+      const { token } = await newPlayer();
+      const quest = await newSpot();
+      const far = await complete(token, quest, { type: "location", position: at(143) });
+      expect(far.statusCode).toBe(422);
+      expect(far.json()).toMatchObject({
+        code: "location_refused",
+        details: { reason: "not_here", distanceM: 140 },
+      });
+      for (const [position, reason] of [
+        [undefined, "no_position"],
+        [at(0, { ageS: 300 }), "stale"],
+        [at(0, { accuracyM: 900 }), "imprecise"],
+      ] as const) {
+        const response = await complete(token, quest, { type: "location", position });
+        expect(response.json(), reason).toMatchObject({
+          code: "location_refused",
+          details: { reason },
+        });
+        expect(response.json().details).not.toHaveProperty("distanceM");
+      }
+    });
+
+    it("refuses a malformed check-in position without echoing it, and drops a scan's bad one", async () => {
+      const { token } = await newPlayer();
+      const quest = await newSpot();
+      for (const position of [
+        at(0, { lat: 95.123456 }),
+        at(0, { extra: 31.987654 }),
+        "24.713600,46.675300",
+      ]) {
+        const response = await complete(token, quest, { type: "location", position });
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          code: "location_refused",
+          details: { reason: "bad_position" },
+        });
+        expect(response.body).not.toMatch(/95\.12|31\.98|24\.71|46\.67|lat|lng/);
+      }
+      const paid = await complete(token, quest, { ...scan(quest), position: at(0, { lat: 95 }) });
+      expect(paid.statusCode).toBe(200);
+      const code = await newQuest({ type: "enter_code", type_config: { code: "OASIS7" } });
+      const typed = await complete(token, code, {
+        type: "code",
+        code: "OASIS7",
+        position: { lat: "x" },
+      });
+      expect(typed.statusCode).toBe(200);
+      expect(await kept(quest)).toEqual([]);
+    });
+
+    it("refuses a check-in on a quest that is not a location quest as an invalid code", async () => {
+      const { token } = await newPlayer();
+      const quest = await newQuest();
+      const response = await complete(token, quest, { type: "location", position: at(0) });
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ code: "invalid_code" });
     });
   });
 });

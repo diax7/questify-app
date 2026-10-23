@@ -17,6 +17,7 @@ export const BUCKETS = {
   codePlayerQuest: "code_player_quest",
   codePlayer: "code_player",
   codeDevice: "code_device",
+  checkInPlayerQuest: "checkin_player_quest",
   playerCodeContact: "player_code_contact",
   playerCodeDevice: "player_code_device",
   playerCodeAddress: "player_code_address",

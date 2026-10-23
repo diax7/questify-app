@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { readEventTerms } from "@questify/shared";
+import { VENUE_RADIUS, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotLive,
@@ -46,6 +46,12 @@ const eventFields = {
   dayStartHour: z.number().int().min(0).max(23).optional(),
   startsAt: localTime.optional(),
   endsAt: localTime.optional(),
+  // The venue's pin for the far-from-venue flag (T-303b); null clears it.
+  venuePin: z
+    .strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+    .nullable()
+    .optional(),
+  venueRadiusM: z.number().int().min(VENUE_RADIUS.min).max(VENUE_RADIUS.max).optional(),
 };
 const patchBody = z.strictObject(eventFields);
 const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
@@ -75,6 +81,8 @@ const view = (event: EventRecord) => ({
   ranking: event.rankingOn,
   rankingToday: event.rankingTodayOn,
   shareQuests: event.shareQuestsOn,
+  venuePin: event.venuePin,
+  venueRadiusM: event.venueRadiusM,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {

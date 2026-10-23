@@ -3,7 +3,13 @@ import { Client, Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
-import { completeQuest, type CompletionDeps, type Proof } from "#src/completions/complete";
+import {
+  completeQuest,
+  type CompletionDeps,
+  type Position,
+  type Proof,
+} from "#src/completions/complete";
+import type { ConfigResult } from "#src/settings/service";
 import { createQuestCodeKey, questCode } from "#src/quests/qr";
 import { testConfig } from "#test/support/auth-app";
 import {
@@ -29,11 +35,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
   let deps: CompletionDeps;
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
   let counter = 0;
+  let locationOn = true;
 
   beforeAll(async () => {
     db = await createTestDatabase();
     pool = new Pool({ connectionString: db.appUrl, max: 4 });
-    deps = { pool, codeKey: CODE_KEY, keys: KEYS };
+    deps = {
+      pool,
+      codeKey: CODE_KEY,
+      keys: KEYS,
+      settings: {
+        forEvent: async () =>
+          ({
+            kind: "ok",
+            config: { features: { locationQuests: { enabled: locationOn } } },
+          }) as unknown as ConfigResult,
+      },
+    };
     ids = await seedTwoTenants(db.owner);
   });
   afterAll(async () => {
@@ -75,7 +93,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
     return quest?.id ?? "";
   };
 
-  const run = async (player: string, quest: string, proof: Proof, key: string = randomUUID()) => {
+  const run = async (
+    player: string,
+    quest: string,
+    proof: Proof,
+    key: string = randomUUID(),
+    position: Position | null = null,
+  ) => {
     const logged: Logged[] = [];
     const caller: Caller = {
       address: "127.0.0.1",
@@ -85,7 +109,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
     };
     const result = await completeQuest(
       deps,
-      { playerId: player, questId: quest, proof, idempotencyKey: key, deviceId: undefined },
+      {
+        playerId: player,
+        questId: quest,
+        proof,
+        position,
+        idempotencyKey: key,
+        deviceId: undefined,
+      },
       caller,
     );
     return { result, logged };
@@ -151,7 +182,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
       expect(logged).toEqual([
         { event: "quest.refused", fields: { questId: quest, refusal: "invalid_code", reason } },
       ]);
-      expect(JSON.stringify(logged)).not.toContain(proof.code);
+      expect(JSON.stringify(logged)).not.toContain("code" in proof ? proof.code : "none");
     });
 
     it("logs a closed quest and an inactive enrollment with their reasons, and other refusals by kind", async () => {
@@ -264,6 +295,117 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
         );
       }
       expect(await wrongCodesHeld(player, quest)).toBe(0);
+    });
+  });
+
+  const held = async (bucket: string, player: string, quest: string) =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = $1 AND key = $2",
+        [bucket, KEYS.playerQuestKey(player, quest)],
+      )
+    )[0]?.n;
+
+  describe("location check-ins (T-303b)", () => {
+    // The quest's spot, and a reading that many metres north of it.
+    const SPOT = { lat: 24.7136, lng: 46.6753 };
+    const at = (metres: number): Position => ({
+      lat: SPOT.lat + metres / 111_195,
+      lng: SPOT.lng,
+      accuracyM: 10,
+      ageS: 3,
+    });
+    const LOCATION: Proof = { type: "location" };
+
+    const newSpot = async (): Promise<string> => {
+      const [general] = await owner<{ id: string }>("SELECT id FROM category WHERE event_id = $1", [
+        ids.eventA,
+      ]);
+      const [quest] = await owner<{ id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, place_lat, place_lng,
+                            place_radius_m)
+         VALUES ($1, $2, 'location', 'Spot', 7, 5, $3, $4, 50) RETURNING id`,
+        [ids.eventA, general?.id, SPOT.lat, SPOT.lng],
+      );
+      return quest?.id ?? "";
+    };
+    it("pays a check-in inside the area and gives its attempt back", async () => {
+      const player = await newPlayer();
+      const quest = await newSpot();
+      const { result } = await run(player, quest, LOCATION, randomUUID(), at(10));
+      expect(result).toMatchObject({ kind: "completed", value: { points: 7 } });
+      expect(await held("checkin_player_quest", player, quest)).toBe(0);
+    });
+
+    it("keeps a refused check-in counted in its own bucket, never a wrong-code one, and logs no numbers", async () => {
+      const player = await newPlayer();
+      const quest = await newSpot();
+      const { result, logged } = await run(player, quest, LOCATION, randomUUID(), at(143));
+      expect(result).toEqual({ kind: "location_refused", reason: "not_here", distanceM: 140 });
+      expect(logged).toEqual([
+        {
+          event: "quest.refused",
+          fields: { questId: quest, refusal: "location_refused", reason: "not_here" },
+        },
+      ]);
+      expect(JSON.stringify(logged)).not.toMatch(/24\.71|46\.67/);
+      expect(await held("checkin_player_quest", player, quest)).toBe(1);
+      expect(await held("code_player_quest", player, quest)).toBe(0);
+      const missing = await run(player, quest, LOCATION, randomUUID(), null);
+      expect(missing.result).toEqual({
+        kind: "location_refused",
+        reason: "no_position",
+        distanceM: null,
+      });
+    });
+
+    it("stops refused check-ins at 10 per player and quest, also when they arrive in parallel", async () => {
+      const player = await newPlayer();
+      const quest = await newSpot();
+      for (let n = 0; n < 6; n += 1) {
+        await run(player, quest, LOCATION, randomUUID(), at(500));
+      }
+      const burst = await Promise.all(
+        Array.from({ length: 8 }, () => run(player, quest, LOCATION, randomUUID(), at(500))),
+      );
+      const refusedHere = burst.filter((one) => one.result.kind === "location_refused").length;
+      expect(refusedHere).toBeLessThanOrEqual(4);
+      expect(
+        burst.every((one) => ["location_refused", "too_many_attempts"].includes(one.result.kind)),
+      ).toBe(true);
+      expect(await held("checkin_player_quest", player, quest)).toBeLessThanOrEqual(10);
+      for (let n = 0; n < 10; n += 1) {
+        await run(player, quest, LOCATION, randomUUID(), at(500));
+      }
+      const { result } = await run(player, quest, LOCATION, randomUUID(), at(0));
+      expect(result.kind).toBe("too_many_attempts");
+      expect(await held("checkin_player_quest", player, quest)).toBe(10);
+    });
+
+    it("refuses a check-in while the platform switch is off and passes no reading with a scan", async () => {
+      locationOn = false;
+      try {
+        const player = await newPlayer();
+        const quest = await newSpot();
+        const { result } = await run(player, quest, LOCATION, randomUUID(), at(0));
+        expect(result).toEqual({ kind: "feature_off" });
+        const scan = await run(
+          player,
+          quest,
+          { type: "qr", code: questCode(CODE_KEY, quest, 1) },
+          randomUUID(),
+          at(0),
+        );
+        expect(scan.result.kind).toBe("completed");
+        expect(
+          await owner(
+            "SELECT 1 FROM completion_position p JOIN quest_completion c ON c.id = p.completion_id WHERE c.quest_id = $1",
+            [quest],
+          ),
+        ).toEqual([]);
+      } finally {
+        locationOn = true;
+      }
     });
   });
 });

@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { isTimeZone, toInstant } from "@questify/shared";
+import { VENUE_RADIUS, isTimeZone, toInstant } from "@questify/shared";
 import { recordAudit } from "#src/audit/record";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
@@ -16,6 +16,7 @@ import {
   type EventKind,
   type EventRecord,
   type JoinMethod,
+  type VenuePin,
 } from "#src/events/store";
 import type { OrganizerContext, OrganizerPrincipal } from "#src/organizers/store";
 
@@ -30,6 +31,9 @@ export type EventInput = Readonly<{
   dayStartHour?: number | undefined;
   startsAt?: string | undefined;
   endsAt?: string | undefined;
+  /** The venue's pin (T-303b); null clears it. */
+  venuePin?: VenuePin | null | undefined;
+  venueRadiusM?: number | undefined;
 }>;
 
 export type InvalidField = "name" | "timezone" | "startsAt" | "endsAt" | "joinMethods";
@@ -137,6 +141,8 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
     dayStartHour: input.dayStartHour ?? current?.dayStartHour ?? DEFAULTS.dayStartHour,
     startsAt,
     endsAt,
+    venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
+    venueRadiusM: input.venueRadiusM ?? current?.venueRadiusM ?? VENUE_RADIUS.default,
   };
 }
 
@@ -156,6 +162,8 @@ const auditView = (event: EventRecord) => ({
   dayStartHour: event.dayStartHour,
   startsAt: event.startsAt?.toISOString() ?? null,
   endsAt: event.endsAt?.toISOString() ?? null,
+  venuePin: event.venuePin,
+  venueRadiusM: event.venueRadiusM,
 });
 
 /** Only the fields that changed, before and after, so an entry reads as the change it records. */

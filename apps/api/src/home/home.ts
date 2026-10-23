@@ -37,6 +37,8 @@ export type MemberQuest = Readonly<{
   steps: Readonly<{ done: number; needed: number }> | null;
   /** The quest item its first completion still gives this player while stock is left (T-304d), or null. */
   item: Text | null;
+  /** A location quest's spot (T-303b), so the app can say how far it is; null for every other type. */
+  place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
 }>;
 
 /** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
@@ -199,6 +201,10 @@ type QuestRow = Readonly<{
   item_en: string | null;
   bonus_item_ar: string | null;
   bonus_item_en: string | null;
+  /** numeric: pg returns them as text. */
+  place_lat: string | null;
+  place_lng: string | null;
+  place_radius_m: number | null;
 }>;
 
 /** An item's name, or null when the row names none. */
@@ -258,6 +264,10 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
           ? null
           : { done: row.steps_done, needed: row.steps_needed },
       item: itemName(row.item_ar, row.item_en),
+      place:
+        row.place_lat === null || row.place_lng === null || row.place_radius_m === null
+          ? null
+          : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
     });
     categories.set(row.category_id, category);
   }

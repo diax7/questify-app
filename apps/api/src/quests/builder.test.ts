@@ -20,6 +20,7 @@ const STORED: QuestRecord = {
   verification: [],
   steps: [],
   itemId: "44444444-4444-4444-8444-444444444444",
+  place: null,
 };
 const ZONE = "Asia/Riyadh";
 
@@ -39,6 +40,7 @@ describe("mergeQuest", () => {
       config: {},
       verification: ["quest_qr"],
       itemId: null,
+      place: null,
     });
   });
 
@@ -55,7 +57,42 @@ describe("mergeQuest", () => {
       config: { code: "NAJD2030" },
       verification: [],
       itemId: STORED.itemId,
+      place: null,
     });
+  });
+
+  it("takes a place on the spot types only, requires one for a location quest, and keeps or clears it", () => {
+    const place = { lat: 24.7136, lng: 46.6753, radiusM: 50 };
+    const base = { categoryId: "c", title: { en: "Spot" }, points: 5 };
+    expect(mergeQuest(undefined, "location", { ...base, place }, ZONE)).toMatchObject({
+      place,
+      verification: ["quest_qr"],
+    });
+    expect(mergeQuest(undefined, "location", base, ZONE)).toEqual({
+      kind: "invalid",
+      field: "place",
+    });
+    for (const type of ["scan_qr", "challenge"] as const) {
+      expect(mergeQuest(undefined, type, { ...base, place }, ZONE)).toMatchObject({ place });
+    }
+    expect(
+      mergeQuest(undefined, "enter_code", { ...base, place, config: { code: "ABCD" } }, ZONE),
+    ).toEqual({ kind: "invalid", field: "place" });
+    const spot = {
+      ...STORED,
+      type: "location",
+      config: {},
+      verification: ["quest_qr"],
+      place,
+    } as const;
+    expect(mergeQuest(spot, "location", {}, ZONE)).toMatchObject({ place });
+    expect(mergeQuest(spot, "location", { place: null }, ZONE)).toEqual({
+      kind: "invalid",
+      field: "place",
+    });
+    const scan = { ...spot, type: "scan_qr" } as const;
+    expect(mergeQuest(scan, "scan_qr", { place: null }, ZONE)).toMatchObject({ place: null });
+    expect(auditView(spot)).toMatchObject({ place });
   });
 
   it("takes what is sent: blanks as none, null clears a time, the config checked against the type", () => {
@@ -89,6 +126,7 @@ describe("mergeQuest", () => {
       config: { code: "TABUK31" },
       verification: [],
       itemId: null,
+      place: null,
     });
   });
 

@@ -1072,6 +1072,23 @@ export const featureOff = make(
   "أوقف المنظّم هذه الميزة في الفعالية.",
   "The organizer turned this off for the event.",
 );
+/** A platform-wide switch is off (location quests until the store privacy answers are updated, ADR-208). */
+export const platformFeatureOff = make(
+  403,
+  "feature_off",
+  "هذه الميزة غير متاحة حاليًا.",
+  "This is not available yet.",
+);
+/**
+ * A location check-in was refused (T-303b): `reason` is no_position, bad_position, stale, imprecise or not_here, and
+ * `distanceM` the player's own rounded distance for not_here. Never the coordinates sent.
+ */
+export const locationRefused = make(
+  422,
+  "location_refused",
+  "تعذّر تسجيل حضورك هنا. امسح رمز QR الموجود في المكان بدلًا من ذلك.",
+  "We couldn't check you in here. Scan the QR code at the spot instead.",
+);
 export const unknownOption = make(
   422,
   "unknown_option",
