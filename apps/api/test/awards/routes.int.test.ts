@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { encodeCursor } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
@@ -160,6 +161,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("manual awards over HTTP", () =
         sara.enrollment,
       );
       expect((await find("nobody_at_all")).json()).toEqual({ player: null });
+      expect((await find(`  ${sara.username}  `)).json()).toMatchObject({
+        player: { enrollmentId: sara.enrollment },
+      });
+      const inside = `${sara.username.slice(0, 3)}@${sara.username.slice(3)}`;
+      expect((await find(inside)).json()).toEqual({ player: null });
     });
 
     it("limits finds to 30 in 10 minutes", async () => {
@@ -323,39 +329,55 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("manual awards over HTTP", () =
         reason: "x",
       });
       expect(unknown.statusCode).toBe(404);
-      const bad = await dashboard("POST", `/events/${event}/entries/abc/remove`, { reason: "x" });
-      expect(bad.statusCode).toBe(400);
+      for (const entry of ["abc", "12x", "x12", "012"]) {
+        const bad = await dashboard("POST", `/events/${event}/entries/${entry}/remove`, {
+          reason: "x",
+        });
+        expect(bad.statusCode).toBe(400);
+      }
     });
 
     it("pages the report with a cursor", async () => {
       const event = await newEvent();
       const sara = await newPlayer(event);
-      for (let index = 0; index < 3; index += 1) {
+      for (let index = 0; index < 4; index += 1) {
         await dashboard("POST", `/events/${event}/players/${sara.enrollment}/awards`, {
           points: 1,
           reason: "x",
         });
       }
-      const first = (await dashboard("GET", `/events/${event}/awards?limit=2`)).json<{
+      const first = (await dashboard("GET", `/events/${event}/awards?limit=3`)).json<{
         awards: Row[];
         nextCursor: string;
       }>();
-      expect(first.awards).toHaveLength(2);
+      expect(first.awards).toHaveLength(3);
       const second = (
         await dashboard(
           "GET",
-          `/events/${event}/awards?limit=2&cursor=${encodeURIComponent(first.nextCursor)}`,
+          `/events/${event}/awards?limit=3&cursor=${encodeURIComponent(first.nextCursor)}`,
         )
       ).json<{ awards: Row[]; nextCursor: string | null }>();
       expect(second).toMatchObject({ nextCursor: null });
       expect(second.awards).toHaveLength(1);
+      expect(second.awards[0]?.["id"]).not.toBe(first.awards[2]?.["id"]);
       expect((await dashboard("GET", `/events/${event}/awards?cursor=junk`)).statusCode).toBe(400);
+      const cursor = (id: string) =>
+        dashboard(
+          "GET",
+          `/events/${event}/awards?cursor=${encodeURIComponent(encodeCursor({ id }))}`,
+        );
+      expect((await cursor("123456789012")).statusCode).toBe(200);
+      for (const id of ["12x", "x12", "012"]) {
+        expect((await cursor(id)).statusCode).toBe(400);
+      }
     });
 
     it("lets the owner set the caps and refuses an editor or a bad pair", async () => {
       const event = await newEvent();
       const saved = await dashboard("PUT", `/events/${event}/award-caps`, { each: 50, day: 400 });
       expect(saved.json()).toEqual({ each: 50, day: 400 });
+      const equal = await dashboard("PUT", `/events/${event}/award-caps`, { each: 60, day: 60 });
+      expect(equal.json()).toEqual({ each: 60, day: 60 });
       const editor = await dashboard(
         "PUT",
         `/events/${event}/award-caps`,

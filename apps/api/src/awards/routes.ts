@@ -140,7 +140,7 @@ const nextCursor = (lines: readonly { id: string }[], limit: number): string | n
 };
 
 /** One HTTP answer per refusal (API.md, manual awards). */
-function refuse(result: AwardRefusal): never {
+export function refuse(result: AwardRefusal): never {
   switch (result.kind) {
     case "not_found":
       throw notFound();
@@ -295,7 +295,7 @@ export function registerAwardRoutes(scope: FastifyInstance, deps: PoolDeps): voi
     const outcome = valueOf(
       await setCaps(deps, organizerContextOf(request), { eventId, ...caps, requestId: request.id }),
     );
-    // Stryker disable next-line ConditionalExpression: unreachable: the scope's hook refuses an editor first
+    // Stryker disable next-line ConditionalExpression,BlockStatement,StringLiteral: unreachable: the scope's hook refuses an editor first
     if (outcome === "not_owner") {
       throw ownerOnly();
     }

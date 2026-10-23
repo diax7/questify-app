@@ -28,4 +28,16 @@ describe("parseBulkLines", () => {
     expect(parseBulkLines(names(MAX_LINES + 1))).toBe("too_many");
     expect(parseBulkLines(`${names(MAX_LINES)}\nuser_0`)).not.toBe("too_many");
   });
+
+  it("drops only a leading @ from a username", () => {
+    expect(parseBulkLines("sa@ra")).toEqual({ usernames: ["sa@ra"], phones: [] });
+  });
+
+  it("counts phones toward the limit too", () => {
+    const phones = Array.from(
+      { length: MAX_LINES + 1 },
+      (_, index) => `05${String(index).padStart(8, "0")}`,
+    ).join("\n");
+    expect(parseBulkLines(phones)).toBe("too_many");
+  });
 });
