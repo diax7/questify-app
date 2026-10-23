@@ -223,6 +223,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-21 (T-208): rank prizes follow `ranked_enrollments`, which already leaves banned players, the team and the exclusion list out.
   - Note 2026-10-21 (T-106): decide winners from PostgreSQL (`ranking_entries` / the `ranked_enrollments` order: points, then the lower `score_version`), never from Redis; the same rule excludes the organizer's team and banned players.
   - Note 2026-10-23 (T-206): rank prizes join the desk through `desk_lookup` and `finish_handover`; they have no price, so the handover entry (0 points) already fits.
+  - Note 2026-10-23 (T-207): removals (`remove_award`) are allowed while the event is live or ended, so a cheat found at the end comes off before winners. Freezing results must also stop removals (and manual awards) from then on.
 - [ ] **T-217** Account deletion from the app and from a web page: remove the profile and points, anonymize log entries, keep prize-handover records only as the law requires, keep a one-way fingerprint so bans stand — delivers FR 126, 127, 128, 1704, 1739; depends on: T-109, T-206
   - Done when: A deleted account cannot sign in or be found; log entries are anonymized; a ban still applies to the same phone or email; a pending handover is explained before deletion.
   - Note 2026-10-21 (T-108): when the deletion fingerprint lands, `start_contact_change` must refuse a contact whose fingerprint is banned, as sign-up will; `player_contact_challenge` rows go with the account (ON DELETE CASCADE).
@@ -230,6 +231,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-21 (T-110): `player_acceptance` is append-only under the same erasure flag; erase it with the account unless counsel wants it kept as proof of consent (Q-095).
   - Note 2026-10-22 (T-204): deleting a player must decide `staff_assignment.player_id` (remove the assignment) and `ledger_entry.operator_id` (keep the id, it names no one without the player row; or anonymise).
   - Note 2026-10-23 (T-206): `redemption.operator_id` and `offer_by` name the operator who handed over or offered; decide them with `ledger_entry.operator_id`.
+  - Note 2026-10-23 (T-207): clear `ledger_note.reason` and `bulk_award.reason` (staff-typed text that may name a person; only the database owner may update `ledger_note`).
 - [ ] **T-216** Today's ranking for multi-day events, reset at the event day start — delivers FR 608, 610, 1611; depends on: T-106, T-102
   - Done when: Today's ranking shows only points earned since the event day started and resets at the set hour.
   - Note 2026-10-21 (T-106): `GET /v1/events/{id}/ranking` gains `?scope=today`; today's order needs its own version and points per event day (a separate sorted set per day), the same exclusions and the same repair path.
@@ -284,6 +286,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 
 - [ ] **T-401** Questify XP ledger and levels: fixed hidden XP per quest on first completion only, lifetime level, level titles — delivers FR 414, 415, 416, 706, 721; depends on: T-105
   - Done when: Repeating a quest gives no second XP; XP can never be spent.
+  - Note 2026-10-23 (T-207, FR-1602): a removal (`ledger_entry.kind = removal`, `reverses`) of a quest entry must reverse that quest's XP; a removed quest stays used (ADR-152), so it never earns first-completion XP again.
 - [ ] **T-402** Questify profile: character, frame, title, locker, equipping, public profile view — delivers FR 701, 702, 703, 720, 722, 723, 1622; depends on: T-401
   - Done when: Another player sees only the public profile fields.
 - [ ] **T-403** Achievements (bronze/silver/gold, silhouettes), Event Passport stamps, always-on and seasonal Questify quests — delivers FR 707, 708, 709, 710, 711; depends on: T-401
@@ -319,6 +322,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-21 (T-106): the ranking readers allow only the event's active players; the big screen (and any dashboard view of the ranking) needs its own reader rule in `ranking_reader_enrollment`'s place, with its own outsider tests. FR-1612: hide the scene when the `ranking` feature is off.
 - [ ] **T-505** Agenda and sessions with registration, My sessions, door check-in, reminders, overlap warning, import, report, close or reopen, message registrants — delivers FR 808, 809, 810, 1787, 1788, 1789, 1790, 1791, 1792, 1793, 1794, 1795, 1796, 1797; depends on: T-205, T-501
   - Done when: A full session refuses registration; registration records no payment details.
+  - Note 2026-10-23 (T-207, FR-1712): add "everyone checked in to session X" as a bulk-award target beside the list and quest targets (`bulk_award.target`, `apps/api/src/awards`).
 - [ ] **T-506** Maps: any number of maps, pins, quest pins with status, list/map toggle, you-are-here — delivers FR 820, 821, 822, 823, 824, 825, 826, 827; depends on: T-114
   - Done when: A quest pin shows done, open or locked for the viewer.
 - [ ] **T-507** Sponsors: profiles, tags, presented-by labels and category, sponsor strip, no sponsor login — delivers FR 1301, 1302, 1303, 1304, 1305, 1307; depends on: T-103

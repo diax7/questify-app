@@ -1,6 +1,12 @@
 import type { LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
+import {
+  awardFormOf,
+  foundPlayerOf,
+  type AwardForm,
+  type FoundPlayer,
+} from "#src/operator/award.ts";
 import { deskInfoOf, lookupOf, type DeskInfo, type Lookup } from "#src/operator/desk.ts";
 import { stationResult, type StationResult } from "#src/operator/station.ts";
 
@@ -331,4 +337,69 @@ export async function cancelAtDesk(
     headers: { "idempotency-key": idempotencyKey },
   });
   return answer.kind === "ok" ? { kind: "cancelled" } : removedOr(answer);
+}
+
+/** A refused award or find keeps the API's details: an over-cap refusal names the cap and what is left (FR-310). */
+export type AwardRefused = Refused & Readonly<{ details: Readonly<Record<string, unknown>> }>;
+
+const awardRefusedOr = (answer: AuthedResult): AwardRefused | Removed | Common => {
+  if (answer.kind === "error" && answer.code !== "not_operator") {
+    return { kind: "refused", code: answer.code, message: answer.message, details: answer.details };
+  }
+  return removedOr(answer);
+};
+
+/** The award form (FR-310): the caps, what is left today, the quests this operator may award. */
+export async function fetchAwardForm(
+  session: Requester,
+  eventId: string,
+): Promise<Readonly<{ kind: "form"; form: AwardForm }> | AwardRefused | Removed | Common> {
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/operator/events/${encodeURIComponent(eventId)}/award`,
+  });
+  if (answer.kind !== "ok") {
+    return awardRefusedOr(answer);
+  }
+  const form = awardFormOf(answer.body);
+  return form === undefined ? { kind: "network" } : { kind: "form", form };
+}
+
+/** FR-308: one member of the event by exact username or mobile number; `null` when there is no match. */
+export async function findPlayerToAward(
+  session: Requester,
+  eventId: string,
+  query: string,
+): Promise<
+  Readonly<{ kind: "found"; player: FoundPlayer | null }> | AwardRefused | Removed | Common
+> {
+  const answer = await session.request({
+    method: "POST",
+    path: `/v1/operator/events/${encodeURIComponent(eventId)}/find-player`,
+    body: { query },
+  });
+  if (answer.kind !== "ok") {
+    return awardRefusedOr(answer);
+  }
+  const player = foundPlayerOf(answer.body);
+  return player === undefined ? { kind: "network" } : { kind: "found", player };
+}
+
+/** FR-308 to FR-310: the award itself; a retry of the same confirm reuses its key and is answered once. */
+export async function sendAward(
+  session: Requester,
+  body: Readonly<Record<string, string | number>>,
+  idempotencyKey: string,
+): Promise<Readonly<{ kind: "awarded"; points: number }> | AwardRefused | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: "/v1/operator/award",
+    body,
+    headers: { "idempotency-key": idempotencyKey },
+  });
+  if (answer.kind !== "ok") {
+    return awardRefusedOr(answer);
+  }
+  const points = isRecord(answer.body) ? answer.body["points"] : undefined;
+  return typeof points === "number" ? { kind: "awarded", points } : { kind: "network" };
 }

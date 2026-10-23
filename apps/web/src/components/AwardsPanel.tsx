@@ -316,9 +316,12 @@ function BulkCard({
   const key = useRef("");
   const questId = draft.questId === "" ? (quests[0]?.id ?? "") : draft.questId;
   const points = pointsOf(draft.points);
+  // Only a new target needs a new check; the amount and the reason do not.
   const change = (next: BulkDraft) => {
+    if (next.target !== draft.target || next.lines !== draft.lines || next.questId !== questId) {
+      setPreview(null);
+    }
     setDraft(next);
-    setPreview(null);
   };
 
   const check = async (event: FormEvent<HTMLFormElement>) => {
@@ -355,7 +358,8 @@ function BulkCard({
     }
     const outcome = result.body as { awarded: number; skipped: number };
     setMessage({ ok: true, text: t("awards.bulkDone", outcome) });
-    change({ ...draft, lines: "", points: "", reason: "" });
+    setDraft({ ...draft, lines: "", points: "", reason: "" });
+    setPreview(null);
     done();
   };
   const ready =

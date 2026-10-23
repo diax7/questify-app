@@ -29,6 +29,28 @@ const TITLED: Readonly<Record<string, MessageKey>> = {
   redeem_return: "history.redeemReturn",
 };
 
+/** Kinds with a fixed label (migration 0030): the staff's reason is never shown to the player. */
+const PLAIN: Readonly<Record<string, MessageKey>> = {
+  welcome: "history.welcome",
+  award: "history.award",
+  removal: "history.removal",
+};
+
+function entryLabel(
+  entry: ActivityEntry,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+) {
+  const plain = PLAIN[entry.kind];
+  if (plain !== undefined) {
+    return t(plain);
+  }
+  const titled = TITLED[entry.kind];
+  return titled === undefined || entry.title === null
+    ? t("history.other")
+    : t(titled, { title: textIn(entry.title, language) });
+}
+
 function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone: string }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -37,13 +59,7 @@ function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone
   return (
     <View style={styles.row}>
       <View style={styles.grow}>
-        <AppText variant="label">
-          {entry.kind === "welcome"
-            ? t("history.welcome")
-            : entry.title === null || !(entry.kind in TITLED)
-              ? t("history.other")
-              : t(TITLED[entry.kind] ?? "history.other", { title: textIn(entry.title, language) })}
-        </AppText>
+        <AppText variant="label">{entryLabel(entry, t, language)}</AppText>
         <AppText muted>{formatEventTime(new Date(entry.at), timeZone, language)}</AppText>
       </View>
       <Amount amount={signed(amount, language)} form="labelled" variant="label" />

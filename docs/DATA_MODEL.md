@@ -246,13 +246,38 @@ enrollment and the quest of one tenant; all RESTRICT. `device_id` (an app instal
 the ledger, so account deletion can clear it. Pending and approved states arrive with submissions (T-301).
 
 ### ledger_entry (event layer; append-only)
-**Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, kind (quest; later spend,
-manual_award, reversal…), score_delta, balance_delta, completion_id, quest_id, actor (player, system, operator since T-205; later staff),
-operator_id, created_at`. Two deltas so a spend moves only the balance and a removal after spending can move the score
+**Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, kind (quest; then welcome, redeem, redeem_return, handover; award and removal since T-207), score_delta, balance_delta,
+completion_id, quest_id, actor (player, system, operator since T-205, staff since T-207), operator_id, staff_user_id,
+reverses, created_at`. Two deltas so a spend moves only the balance and a removal after spending can move the score
 and the balance by different amounts (FR-1601), while score and balance stay the exact sums of this table. A trigger
 moves the enrollment's caches on every insert. Append-only for every role, the owner included (ALWAYS triggers on
-UPDATE, DELETE, TRUNCATE; NFR-019). Only `complete_quest` writes it; corrections are new entries. A partial unique
+UPDATE, DELETE, TRUNCATE; NFR-019). Only definers write it; corrections are new entries. A partial unique
 index pays a completion once.
+
+**Manual awards (T-207, migration 0030, ADR-152):** kinds `award` (points by hand: `score_delta = balance_delta > 0`,
+no completion, quest or redemption, actor `operator` or `staff`) and `removal` (`reverses` names the credit entry it
+takes back, unique: once per entry; `score_delta` and `balance_delta` ≤ 0, each clamped so neither total goes below 0,
+FR-1601; actor `staff`; it copies the removed entry's `completion_id` and `quest_id`, so per-quest sums net out).
+Actor `staff` with `staff_user_id` (an owner or editor on the dashboard; `(actor = 'staff') = (staff_user_id IS NOT
+NULL)`; staff write only `quest`, `award` and `removal`). Credit kinds that can be removed: `quest` (any method),
+`award`, `welcome`. A manual quest award is a completion with method `manual`. A removed quest stays used (it counts
+toward the repeat cap).
+
+- `ledger_note (entry_id PK → ledger_entry, organizer_id, event_id, reason 1–300 \| null, bulk_id → bulk_award \| null,
+  created_at)`: the staff-typed reason beside each `award`, `removal` and manual quest entry (exactly one of `reason`
+  and `bulk_id`; a bulk award's reason is stored once on `bulk_award`). Kept out of the ledger because it may name a
+  person: insert-only for the API role, and only the database owner may update it (T-217 clears it). Never shown to
+  the player.
+- `manual_award_key (id, event_id, operator_id → player \| staff_user_id → staff_user, idempotency_key, entry_id,
+  enrollment_id, amount, created_at)`, unique per (event, actor, key): the idempotency record of points awards and
+  removals, looked up before any other check (a quest award uses the completion's key).
+- `bulk_award (id, organizer_id, event_id, staff_user_id, amount 1–100 000, reason, target list\|quest, quest_id,
+  count_awarded, count_skipped, idempotency_key, created_at)`, unique per (event, staff user, key) (FR-1712).
+- `event.award_cap_each` (default 200, 1 to 100 000) and `event.award_cap_day` (default 500, at least the per-award
+  cap, at most 1 000 000): the per-award and per-person-per-day caps for operators and editors, the day being the
+  event's day; written only by `set_award_caps` (the owner; audited).
+- All written only by definers (`operator_award`, `staff_award`, `remove_award`, `bulk_award`, `set_award_caps`), with
+  forced row-level security, no direct grants and nothing for PUBLIC.
 
 **`complete_quest` (definer):** the only writer of completions and quest entries. The player is the request's
 `app.player_id`, never an argument; it locks the player's enrollment, answers a repeated key with the first completion,

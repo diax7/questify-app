@@ -25,7 +25,7 @@ How to read the wireframes:
 | Person | What they can do | When they matter most |
 |---|---|---|
 | **Owner** (exactly one per organizer account) | Everything an editor can, plus: the team (invite and remove editors, limit an editor to chosen events), Request activation, ownership transfer, deleting the organizer account | Sign-up, before go-live (activation), and any time the team changes |
-| **Editor** | Build events, operators and caps, exclusions, remove awards, ban players, pause redemption, the live control room, bulk awards, QR regeneration. Cannot: change the team, request activation, transfer ownership, delete the account | Build weeks and the event day. This is the person on the floor with a phone |
+| **Editor** | Build events, operators (not the award caps: only the owner sets them, ADR-152), exclusions, remove awards, ban players, pause redemption, the live control room, bulk awards, QR regeneration. Cannot: change the team, request activation, transfer ownership, delete the account | Build weeks and the event day. This is the person on the floor with a phone |
 | **Questify platform admin** | In the console: activate and suspend organizers and events, set limits and add-ons, edit any organizer's event (support), moderation and reports, content, settings, usage, contact details. One role, every action logged | Activation requests, live-event reports (urgent), support on event day |
 | Operator | Not a dashboard user. Works in the player app's staff mode. The dashboard only invites and manages them | Event day |
 | Sponsor | No login, no report link (FR-1304) | Never |
@@ -575,7 +575,7 @@ Actions (all open a short form, then a confirmation screen where they affect pla
 | Pause a quest | Which quest; players see it as paused |
 | Skip a broken step | Which in-order category and step; players move on |
 | Award by hand | Find the player by username or phone, points or quest, required reason; within owner caps |
-| Award to a group | A session, a category or an uploaded list; points; required reason; outside operator caps (FR-1712) |
+| Award to a group | An uploaded or pasted list, or everyone who completed a quest (sessions with T-505); points; required reason; outside the daily caps, an editor inside the per-award cap (FR-1712) |
 
 Counters are tappable and open the Inbox or the stock list. On a phone the feed shows two lines
 per row; the per-quest table becomes stacked cards. The feed updates without a page reload

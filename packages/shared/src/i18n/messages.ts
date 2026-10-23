@@ -1760,7 +1760,6 @@ export const MESSAGES = {
   },
   "awards.saveFailed": { ar: "تعذّر الحفظ. حاول مرة أخرى.", en: "Could not save. Try again." },
   "history.award": { ar: "منح من المنظّم", en: "Awarded by the organizer" },
-  "history.awardQuest": { ar: "مهمة بمنح يدوي: {title}", en: "Quest awarded by hand: {title}" },
   "history.removal": { ar: "إزالة نقاط", en: "Points removed" },
   "operator.award.title": { ar: "منح يدوي", en: "Manual award" },
   "operator.award.find": { ar: "ابحث عن {player}", en: "Find a {player}" },

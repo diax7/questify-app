@@ -11,16 +11,15 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { playAsPlayer } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
-/** The Tools entries that come with later tasks (FR-922): manual award, rotating QR, NFC. */
+/** The Tools entries that come with later tasks (FR-922): rotating QR, NFC. */
 const LATER: readonly MessageKey[] = [
-  "operators.ability.award",
   "operators.ability.showRotatingQr",
   "operators.ability.writeNfc",
 ];
 
 /**
- * Operator Tools (FR-922): the switch to Player mode, shown only to an operator the owner allows to play (FR-906,
- * FR-907); the other tools are listed as coming.
+ * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); the switch to
+ * Player mode, shown only to an operator the owner allows to play (FR-906, FR-907); the other tools are listed as coming.
  */
 export default function OperatorToolsScreen() {
   const { t, language } = useI18n();
@@ -45,6 +44,12 @@ export default function OperatorToolsScreen() {
   return (
     <Screen title={t("operator.tools")}>
       <View style={{ gap: 12 }}>
+        {event?.abilities.includes("award") === true ? (
+          <Button
+            label={t("operator.award.title")}
+            onPress={() => router.push(`/operator/${eventId}/award`)}
+          />
+        ) : null}
         {event?.canPlay === true ? (
           <Button
             label={t("operator.switchToPlayer")}
