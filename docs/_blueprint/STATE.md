@@ -734,8 +734,7 @@ T-304 and T-304b with a CTO GO each; everything is on `main` and pushed. Progres
   rule applies to ≤0047). API and web redeployed from 9d718f1 the same day: `/healthz`, `/readyz` and
   `/{en,ar}/sign-in` answer 200. Demo event "Questify Demo Day", join code **77XBUB**. The release APK (preview
   profile) works on Dhia's Android phone (confirmed 2026-10-24); a new one for T-304c/T-304d phone tests is EAS build
-  0c03f668 (https://expo.dev/accounts/nafess-team/projects/nafes/builds/0c03f668-bd88-459b-beff-50393795a8fa;
-  app code as 9d718f1). Msegat allows CranL's outbound IP 130.94.119.140.
+  0c03f668, APK https://expo.dev/artifacts/eas/aH-qMT2st4al1N8DtB5HWPqQVXEzT-NGLeeiuKLrqs0.apk (app code as 9d718f1). Msegat allows CranL's outbound IP 130.94.119.140.
   - **Phone-test setup on 77XBUB (2026-10-23, fake data):** category "Daily challenges" refreshes daily (typed codes
     `SUNRISE` 10 pts, `CHECKIN` 5 pts); hidden category "Secret garden" (typed code `ROSE` 25 pts inside) whose secret
     QR is in the dashboard's printable codes (event, Codes, "Secret garden"; version 1); in "General", "Find the
