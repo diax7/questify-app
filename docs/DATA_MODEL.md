@@ -302,6 +302,18 @@ opens_at/closes_at, flash, community_goal, status, qr_version, type_config jsonb
 points, repeat_cap, opens_at, closes_at, visible, position, type_config)`; each later field arrives with its task
 (order mode, bonus and unlocks T-304; verification and QR version T-104; flash T-307; community goal T-306; pause as
 its own field T-603). Show or hide is `visible`, not a status.
+**Category rules (T-304, migration 0044, ADR-201, ADR-202):** `category.order_mode (any|in_order)`, `opens_at`,
+`unlock_after → category (id, event_id)` (NO ACTION; no self and no circle, a trigger walks the chain under the event's
+lock, at most 30 steps; CU422), `completion_bonus` 0 to 100 000 (0 = none); column grants for the API. The gates live in
+`quest_open_check(quest, enrollment, skip_category)` (skipped only for a manual award) through `category_lock`:
+`category_not_started`, `category_locked` (the unlock category is in the member's audience and not cleared: something
+visible and not closed is undone) and `order_locked` (an earlier visible, not closed quest is not done; a pending
+submission is not done). A quest is done with a completion or a quiz finished with no right answers; `category_done`
+(strict, for the bonus) needs a visible quest and every visible quest done.
+`category_bonus (organizer_id, event_id, enrollment_id, category_id, completion_id → quest_completion | null,
+entry_id → ledger_entry, created_at)`, PK (enrollment_id, category_id): one per player and category, written by
+`pay_category_bonus` (ON CONFLICT DO NOTHING, under the enrollment lock of the paying definer), never deleted by a
+removal; deleted by the rehearsal wipe and on account erasure. No grant.
 `type_config` is validated per quest type by the shared schema. Editing a live quest asks
 "future only or also past" (ADR-063) and writes the audit log.
 
@@ -332,6 +344,11 @@ Actor `staff` with `staff_user_id` (an owner or editor on the dashboard; `(actor
 NULL)`; staff write only `quest`, `award` and `removal`). Credit kinds that can be removed: `quest` (any method),
 `award`, `welcome`. A manual quest award is a completion with method `manual`. A removed quest stays used (it counts
 toward the repeat cap).
+
+**Completion bonus (T-304, migration 0044, ADR-202):** kind `bonus` (actor `system`, `category_id` set, no completion,
+quest or redemption; `score_delta > 0`, `balance_delta` the same while the shop is open, else 0); one per enrollment and
+category (a partial unique index). `category_id` is set only on `bonus` and its `removal`. A bonus is its own removable
+credit and earns no XP; removing a quest leaves it.
 
 - `ledger_note (entry_id PK → ledger_entry, organizer_id, event_id, reason 1–300 \| null, bulk_id → bulk_award \| null,
   created_at)`: the staff-typed reason beside each `award`, `removal` and manual quest entry (exactly one of `reason`

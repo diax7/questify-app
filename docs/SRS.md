@@ -961,11 +961,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-228 | F-93 | Must | pending |
 | FR-229 | F-93 | Must | pending |
 | FR-230 | F-94 | Must | pending |
-| FR-231 | F-95 | Must | pending |
-| FR-232 | F-53 | Must | pending |
-| FR-233 | F-53 | Must | pending |
-| FR-234 | F-97 | Must | pending |
-| FR-235 | F-98 | Should | pending |
+| FR-231 | F-95 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
+| FR-232 | F-53 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
+| FR-233 | F-53 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
+| FR-234 | F-97 | Must | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
+| FR-235 | F-98 | Should | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
 | FR-236 | F-51 | Should | pending |
 | FR-237 | F-99 | Could | pending |
 | FR-238 | F-99 | Could | pending (T-501, ADR-200) |

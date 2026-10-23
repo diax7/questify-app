@@ -186,3 +186,17 @@ Home's Up next skips locked quests through `isOpen` unchanged. The public quests
 - **ADR-202** The bonus is points (balance only while the shop is open), paid once by the database with the completion
   that finishes the category, at the bonus set then, no XP; it is its own removable credit (ADR-152), and removing a
   quest leaves it. Q-166.
+
+## Build notes (2026-10-24)
+
+- CTO plan re-check 93 GO; its three notes are in: 0044 starts `wipe_rehearsal` and `erase_rows` from 0042's bodies;
+  the bonus payer is called once per path (`record_completion` never calls `pay_completion`, and the zero-right branch
+  pays nothing else); `own_category_bonus` matches the row with no completion written when the attempt finished.
+- The two-argument `quest_open_check` stays as a wrapper that applies the gates, so every player path that already
+  called it (`play_enter`, the submission send) is gated without being replaced; `record_completion` calls the
+  three-argument form with `skip_category` true only for `manual`.
+- The unlock gate reads `category_cleared` (nothing visible and not closed left undone; an empty category is cleared),
+  so a closed quest in the first chapter never locks the second for good; the bonus keeps the strict `category_done`.
+- The bonus ledger entry names no completion (`completion_id` NULL, so no reader keyed on a completion sees it);
+  `category_bonus.completion_id` records which completion finished the category, and `own_bonus` reads it.
+- Deleting a category whose bonus was paid answers `has_completions` (or `rehearsal_data`), as one with completions.
