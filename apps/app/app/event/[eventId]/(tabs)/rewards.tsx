@@ -2,6 +2,7 @@ import {
   MESSAGES,
   formatNumber,
   termFor,
+  type Language,
   type LocalizedText,
   type MessageKey,
   type Theme,
@@ -259,23 +260,29 @@ type Step =
   | undefined;
 
 /**
- * The event's rewards shop (T-201, T-202): the balance, sections, each reward with its real stock (FR-514), Redeem with
- * a confirmation (the shop's rules first, once, FR-515), and the player's reservations with time left and Cancel.
+ * The notice after a reservation, as a message and its values. A digital reward whose code the server could not open:
+ * the points are spent, so say who helps.
  */
-export default function RewardsScreen() {
-  const { t, language } = useI18n();
-  const { eventId } = useEvent();
-  const terms = useTerms();
-  const styles = useThemedStyles(makeStyles);
-  const [answer, setAnswer] = useState<ShopAnswer | undefined>(undefined);
-  const [section, setSection] = useState<string | null>(null);
-  const [step, setStep] = useState<Step>(undefined);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<LocalizedText | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  // The key of the reservation in flight: a dropped connection retries with it, a new tap makes a new one.
-  const pendingKey = useRef<{ rewardId: string; key: string } | undefined>(undefined);
+function reservedNotice(
+  reward: ShopReward,
+  view: ShopView,
+  result: ShopCallAnswer,
+  language: Language,
+): [MessageKey, Readonly<Record<string, string>>?] {
+  if (reward.kind === "digital") {
+    return [
+      result.kind === "done" && result.code === null ? "shop.codeUnavailable" : "shop.codeKeep",
+    ];
+  }
+  return [
+    reward.kind === "experience" ? "shop.reservedExperience" : "shop.reservedItem",
+    { minutes: formatNumber(view.shop.pickupMinutes, language) },
+  ];
+}
 
+/** Reads the shop on focus; a signed-out session goes home. */
+function useShop(eventId: string) {
+  const [answer, setAnswer] = useState<ShopAnswer | undefined>(undefined);
   const load = useCallback(async () => {
     const next = await fetchShop(api.session, eventId);
     if (next.kind === "signed_out") {
@@ -290,8 +297,25 @@ export default function RewardsScreen() {
       void load();
     }, [load]),
   );
+  return { answer, load };
+}
 
-  const settle = async (result: ShopCallAnswer, done: string): Promise<boolean> => {
+/**
+ * The shop's actions and their state: reserve (one key per tap, kept for a retry), cancel, Collect and the goal's pin.
+ * Each answer settles the same way: home when signed out, the API's words or "offline" on a refusal, else a reload.
+ */
+function useShopActions(eventId: string, load: () => Promise<void>) {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  const [step, setStep] = useState<Step>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<LocalizedText | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // The key of the reservation in flight: a dropped connection retries with it, a new tap makes a new one.
+  const pendingKey = useRef<{ rewardId: string; key: string } | undefined>(undefined);
+
+  /** Settles an answer; `done` is the notice to show on success, or null for none. */
+  const settle = async (result: ShopCallAnswer, done: string | null): Promise<boolean> => {
     if (result.kind === "signed_out") {
       router.replace("/home");
       return false;
@@ -300,7 +324,9 @@ export default function RewardsScreen() {
       setProblem(result.kind === "network" ? OFFLINE : result.problem);
       return false;
     }
-    setNotice(done);
+    if (done !== null) {
+      setNotice(done);
+    }
     await load();
     return true;
   };
@@ -315,18 +341,7 @@ export default function RewardsScreen() {
     if (result.kind !== "network") {
       pendingKey.current = undefined;
     }
-    // A digital reward whose code the server could not open: the points are spent, so say who helps.
-    const reserved =
-      reward.kind === "digital"
-        ? t(
-            result.kind === "done" && result.code === null
-              ? "shop.codeUnavailable"
-              : "shop.codeKeep",
-          )
-        : t(reward.kind === "experience" ? "shop.reservedExperience" : "shop.reservedItem", {
-            minutes: formatNumber(view.shop.pickupMinutes, language),
-          });
-    if (await settle(result, reserved)) {
+    if (await settle(result, t(...reservedNotice(reward, view, result, language)))) {
       // A digital reward's code shows at once; anything else closes the sheet on its notice.
       setStep(
         result.kind === "done" && result.code !== null
@@ -338,39 +353,20 @@ export default function RewardsScreen() {
   };
 
   const cancel = (id: string) => {
+    const confirmed = async () => {
+      setBusy(true);
+      setProblem(null);
+      await settle(await cancelRedemption(api.session, id), t("shop.status.cancelled"));
+      setBusy(false);
+    };
     Alert.alert(
       t("shop.cancelTitle"),
       t("shop.cancelBody", { currency: termFor(terms.currency, language) }),
       [
         { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("shop.cancel"),
-          style: "destructive",
-          onPress: () =>
-            void (async () => {
-              setBusy(true);
-              setProblem(null);
-              await settle(await cancelRedemption(api.session, id), t("shop.status.cancelled"));
-              setBusy(false);
-            })(),
-        },
+        { text: t("shop.cancel"), style: "destructive", onPress: () => void confirmed() },
       ],
     );
-  };
-
-  const pin = async (rewardId: string | null) => {
-    setBusy(true);
-    setProblem(null);
-    setNotice(null);
-    const result = await setGoal(api.session, eventId, rewardId);
-    if (result.kind === "signed_out") {
-      router.replace("/home");
-    } else if (result.kind === "done") {
-      await load();
-    } else {
-      setProblem(result.kind === "network" ? OFFLINE : result.problem);
-    }
-    setBusy(false);
   };
 
   // Collect (collect first): ready at the desk for 5 minutes, then My QR for the desk to scan.
@@ -390,26 +386,183 @@ export default function RewardsScreen() {
     }
   };
 
-  if (answer === undefined || answer.kind !== "shop") {
-    return (
-      <Screen title={t("nav.rewards")} header={<EventPill />}>
-        {answer === undefined ? (
-          <AppText muted>{t("common.loading")}</AppText>
-        ) : (
-          <>
-            <AppText accessibilityRole="alert">
-              {t(answer.kind === "gone" ? "shop.gone" : "shop.failed")}
-            </AppText>
-            <Button label={t("common.retry")} onPress={() => void load()} />
-          </>
-        )}
-      </Screen>
-    );
-  }
+  const pin = async (rewardId: string | null) => {
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    await settle(await setGoal(api.session, eventId, rewardId), null);
+    setBusy(false);
+  };
 
+  const redeem = (reward: ShopReward, view: ShopView) => {
+    setProblem(null);
+    setNotice(null);
+    setStep({ reward, stage: view.shop.firstRedemption ? "rules" : "confirm" });
+  };
+
+  return { step, setStep, busy, problem, notice, reserve, cancel, collect, pin, redeem };
+}
+
+/** The shop could not be shown: still loading, no longer the player's event, or a failed load with Retry. */
+function ShopUnavailable({
+  answer,
+  onRetry,
+}: Readonly<{ answer: Exclude<ShopAnswer, { kind: "shop" }> | undefined; onRetry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <Screen title={t("nav.rewards")} header={<EventPill />}>
+      {answer === undefined ? (
+        <AppText muted>{t("common.loading")}</AppText>
+      ) : (
+        <>
+          <AppText accessibilityRole="alert">
+            {t(answer.kind === "gone" ? "shop.gone" : "shop.failed")}
+          </AppText>
+          <Button label={t("common.retry")} onPress={onRetry} />
+        </>
+      )}
+    </Screen>
+  );
+}
+
+/** The section chips (FR-516): All, then each section with rewards; a newer server's section shows as is. */
+function SectionChips({
+  sections,
+  section,
+  onChoose,
+}: Readonly<{
+  sections: readonly string[];
+  section: string | null;
+  onChoose: (section: string | null) => void;
+}>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  if (sections.length === 0) {
+    return null;
+  }
+  return (
+    <ScrollView
+      horizontal
+      contentContainerStyle={styles.row}
+      showsHorizontalScrollIndicator={false}
+    >
+      {[null, ...sections].map((choice) => (
+        <Pressable
+          key={choice ?? "all"}
+          accessibilityRole="button"
+          accessibilityState={{ selected: choice === section }}
+          onPress={() => onChoose(choice)}
+          style={[styles.chip, choice === section && styles.chosen]}
+        >
+          <AppText variant="label">
+            {choice === null
+              ? t("shop.all")
+              : KNOWN_SECTIONS.has(choice)
+                ? t(`rewards.section.${choice as "featured"}`)
+                : choice}
+          </AppText>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+/** Redeem's sheet: the shop's rules before a first redemption, the confirmation, then a digital reward's code. */
+function RedeemSheet({
+  step,
+  view,
+  busy,
+  problem,
+  onStep,
+  onReserve,
+}: Readonly<{
+  step: Step;
+  view: ShopView;
+  busy: boolean;
+  problem: LocalizedText | null;
+  onStep: (step: Step) => void;
+  onReserve: (reward: ShopReward) => void;
+}>) {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  return (
+    <Sheet
+      visible={step !== undefined}
+      title={t(
+        step?.stage === "rules"
+          ? "shop.rulesTitle"
+          : step?.stage === "code"
+            ? "shop.codeTitle"
+            : step?.reward.kind === "digital"
+              ? "shop.confirmDigitalTitle"
+              : "shop.confirmTitle",
+      )}
+      onClose={() => onStep(undefined)}
+    >
+      {step?.stage === "rules" ? (
+        <>
+          <RulesText view={view} />
+          <Button
+            label={t("common.continue")}
+            onPress={() => onStep({ ...step, stage: "confirm" })}
+          />
+        </>
+      ) : null}
+      {step?.stage === "confirm" ? (
+        <>
+          <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
+          <Amount
+            amount={formatNumber(step.reward.price, language)}
+            form="labelled"
+            variant="label"
+          />
+          <AppText>
+            {step.reward.kind === "digital"
+              ? t("shop.digitalNote")
+              : t(step.reward.kind === "experience" ? "shop.pickupExperience" : "shop.pickupItem", {
+                  minutes: formatNumber(view.shop.pickupMinutes, language),
+                  currency: termFor(terms.currency, language),
+                })}
+          </AppText>
+          {step.reward.kind === "digital" ? null : <DeskLine desk={view.shop.desk} />}
+          {view.shop.spendLowersRank ? <AppText>{t("shop.lowersRank")}</AppText> : null}
+          <Problem problem={problem} />
+          <Button
+            label={t(step.reward.kind === "digital" ? "shop.redeem" : "shop.reserve")}
+            disabled={busy}
+            onPress={() => onReserve(step.reward)}
+          />
+        </>
+      ) : null}
+      {step?.stage === "code" ? (
+        <>
+          <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
+          <CodeText code={step.code} />
+          <AppText muted>{t(step.testCode ? "rehearsal.testCode" : "shop.codeKeep")}</AppText>
+          <Button label={t("common.close")} onPress={() => onStep(undefined)} />
+        </>
+      ) : null}
+    </Sheet>
+  );
+}
+
+/**
+ * The event's rewards shop (T-201, T-202): the balance, sections, each reward with its real stock (FR-514), Redeem with
+ * a confirmation (the shop's rules first, once, FR-515), the goal's pin (FR-517), and the player's reservations with
+ * time left and Cancel.
+ */
+export default function RewardsScreen() {
+  const { t, language } = useI18n();
+  const { eventId } = useEvent();
+  const styles = useThemedStyles(makeStyles);
+  const [section, setSection] = useState<string | null>(null);
+  const { answer, load } = useShop(eventId);
+  const actions = useShopActions(eventId, load);
+
+  if (answer === undefined || answer.kind !== "shop") {
+    return <ShopUnavailable answer={answer} onRetry={() => void load()} />;
+  }
   const { view } = answer;
-  const sections = sectionsOf(view.rewards);
-  const shown = inSection(view.rewards, section);
   return (
     <Screen title={t("nav.rewards")} header={<EventPill />}>
       <ScrollView contentContainerStyle={{ gap: 16 }}>
@@ -422,115 +575,37 @@ export default function RewardsScreen() {
             {t(view.shop.state === "not_open" ? "shop.notOpen" : "shop.closed")}
           </AppText>
         )}
-        {notice === null ? null : <AppText accessibilityRole="alert">{notice}</AppText>}
-        <Problem problem={problem} />
-        {sections.length === 0 ? null : (
-          <ScrollView
-            horizontal
-            contentContainerStyle={styles.row}
-            showsHorizontalScrollIndicator={false}
-          >
-            {[null, ...sections].map((choice) => (
-              <Pressable
-                key={choice ?? "all"}
-                accessibilityRole="button"
-                accessibilityState={{ selected: choice === section }}
-                onPress={() => setSection(choice)}
-                style={[styles.chip, choice === section && styles.chosen]}
-              >
-                <AppText variant="label">
-                  {choice === null
-                    ? t("shop.all")
-                    : KNOWN_SECTIONS.has(choice)
-                      ? t(`rewards.section.${choice as "featured"}`)
-                      : choice}
-                </AppText>
-              </Pressable>
-            ))}
-          </ScrollView>
+        {actions.notice === null ? null : (
+          <AppText accessibilityRole="alert">{actions.notice}</AppText>
         )}
+        <Problem problem={actions.problem} />
+        <SectionChips sections={sectionsOf(view.rewards)} section={section} onChoose={setSection} />
         {view.rewards.length === 0 ? <AppText muted>{t("shop.empty")}</AppText> : null}
-        {shown.map((reward) => (
+        {inSection(view.rewards, section).map((reward) => (
           <RewardCard
             key={reward.id}
             reward={reward}
             view={view}
-            busy={busy}
-            onPin={() => void pin(view.goalRewardId === reward.id ? null : reward.id)}
-            onRedeem={() => {
-              setProblem(null);
-              setNotice(null);
-              setStep({ reward, stage: view.shop.firstRedemption ? "rules" : "confirm" });
-            }}
+            busy={actions.busy}
+            onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}
+            onRedeem={() => actions.redeem(reward, view)}
           />
         ))}
         <MyReservations
           view={view}
-          busy={busy}
-          onCancel={cancel}
-          onCollect={(id) => void collect(id)}
+          busy={actions.busy}
+          onCancel={actions.cancel}
+          onCollect={(id) => void actions.collect(id)}
         />
       </ScrollView>
-      <Sheet
-        visible={step !== undefined}
-        title={t(
-          step?.stage === "rules"
-            ? "shop.rulesTitle"
-            : step?.stage === "code"
-              ? "shop.codeTitle"
-              : step?.reward.kind === "digital"
-                ? "shop.confirmDigitalTitle"
-                : "shop.confirmTitle",
-        )}
-        onClose={() => setStep(undefined)}
-      >
-        {step?.stage === "rules" ? (
-          <>
-            <RulesText view={view} />
-            <Button
-              label={t("common.continue")}
-              onPress={() => setStep({ ...step, stage: "confirm" })}
-            />
-          </>
-        ) : null}
-        {step?.stage === "confirm" ? (
-          <>
-            <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
-            <Amount
-              amount={formatNumber(step.reward.price, language)}
-              form="labelled"
-              variant="label"
-            />
-            <AppText>
-              {step.reward.kind === "digital"
-                ? t("shop.digitalNote")
-                : t(
-                    step.reward.kind === "experience" ? "shop.pickupExperience" : "shop.pickupItem",
-                    {
-                      minutes: formatNumber(view.shop.pickupMinutes, language),
-                      currency: termFor(terms.currency, language),
-                    },
-                  )}
-            </AppText>
-            {step.reward.kind === "digital" ? null : <DeskLine desk={view.shop.desk} />}
-            {view.shop.spendLowersRank ? <AppText>{t("shop.lowersRank")}</AppText> : null}
-            <Problem problem={problem} />
-            <Button
-              label={t(step.reward.kind === "digital" ? "shop.redeem" : "shop.reserve")}
-              disabled={busy}
-              onPress={() => void reserve(step.reward, view)}
-            />
-          </>
-        ) : null}
-        {step?.stage === "code" ? (
-          <>
-            <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
-            <CodeText code={step.code} />
-            <AppText muted>{t(step.testCode ? "rehearsal.testCode" : "shop.codeKeep")}</AppText>
-            <Button label={t("common.close")} onPress={() => setStep(undefined)} />
-          </>
-        ) : null}
-      </Sheet>
+      <RedeemSheet
+        step={actions.step}
+        view={view}
+        busy={actions.busy}
+        problem={actions.problem}
+        onStep={actions.setStep}
+        onReserve={(reward) => void actions.reserve(reward, view)}
+      />
     </Screen>
   );
 }
