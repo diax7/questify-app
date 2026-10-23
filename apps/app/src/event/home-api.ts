@@ -12,6 +12,8 @@ export type Home = Readonly<{
     endsAt: string | null;
     timezone: string;
     statusNow: string;
+    /** A rehearsal account (T-211): the strip shows, and the event goes when rehearsal ends. */
+    rehearsal: boolean;
   }>;
   standing:
     | Readonly<{
@@ -89,13 +91,16 @@ export function readHome(body: unknown): Home | undefined {
     !isTime(event["endsAt"]) ||
     typeof event["timezone"] !== "string" ||
     typeof event["statusNow"] !== "string" ||
+    !(event["rehearsal"] === undefined || typeof event["rehearsal"] === "boolean") ||
     standing === undefined ||
     upNext === undefined ||
     typeof body["rankingOn"] !== "boolean"
   ) {
     return undefined;
   }
-  return { event: event as Home["event"], standing, upNext, rankingOn: body["rankingOn"] };
+  // An older API sends no rehearsal flag: an ordinary member.
+  const read = { ...(event as Home["event"]), rehearsal: event["rehearsal"] === true };
+  return { event: read, standing, upNext, rankingOn: body["rankingOn"] };
 }
 
 export function homeAnswer(answer: AuthedResult): HomeAnswer {

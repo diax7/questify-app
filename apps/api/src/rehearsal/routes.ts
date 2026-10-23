@@ -1,4 +1,4 @@
-import { joinCard } from "@questify/shared";
+import { joinCard, parseRehearsalCode } from "@questify/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -16,7 +16,7 @@ import { callerOf, parse } from "#src/auth/request";
 import { isThrottled } from "#src/join/join";
 import { cardInForce } from "#src/join/routes";
 import { organizerContextOf } from "#src/organizers/context";
-import { rehearsalCodeOf, type RehearsalRefusal } from "#src/rehearsal/rehearsal";
+import type { RehearsalRefusal } from "#src/rehearsal/rehearsal";
 import type { Refused, Rehearsal, RehearsalJoin } from "#src/rehearsal/service";
 
 const eventParams = z.object({ eventId: z.uuid() });
@@ -112,8 +112,8 @@ export function registerRehearsalPlayerRoutes(app: FastifyInstance, rehearsal: R
     if (me === undefined) {
       throw unauthenticated();
     }
-    const code = rehearsalCodeOf(parse(codeParams, request.params).code);
-    if (code === undefined) {
+    const code = parseRehearsalCode(parse(codeParams, request.params).code);
+    if (code === null) {
       throw rehearsalClosed();
     }
     const event = await rehearsal.eventByCode(me.id, request.ip, code);
@@ -136,8 +136,8 @@ export function registerRehearsalPlayerRoutes(app: FastifyInstance, rehearsal: R
     if (body.cardVersion !== joinCard().version) {
       throw joinCardStale({ card: cardInForce() });
     }
-    const code = rehearsalCodeOf(body.code);
-    if (code === undefined) {
+    const code = parseRehearsalCode(body.code);
+    if (code === null) {
       throw rehearsalClosed();
     }
     return joinAnswer(await rehearsal.join(me.id, request.ip, code, body.cardVersion), reply);

@@ -6,6 +6,8 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
+import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { playAsPlayer } from "#src/operator/operator-api.ts";
@@ -42,7 +44,10 @@ export default function OperatorToolsScreen() {
   };
 
   return (
-    <Screen title={t("operator.tools")}>
+    <Screen
+      title={t("operator.tools")}
+      header={<RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />}
+    >
       <View style={{ gap: 12 }}>
         {event?.abilities.includes("award") === true ? (
           <Button

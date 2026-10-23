@@ -184,6 +184,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal over HTTP", () => {
       });
       const home = await asPlayer(token, "GET", `/v1/events/${event}/home`);
       expect(home.json()).toMatchObject({ event: { statusNow: "draft", rehearsal: true } });
+      const players = await staff("GET", `/events/${event}/players`);
+      expect(players.json()).toMatchObject({ players: [{ rehearsal: true }] });
     });
 
     it("answers each refusal in both languages", async () => {

@@ -179,7 +179,10 @@ function MyReservations({
                 {t(mine.codeUnavailable ? "shop.codeUnavailable" : "shop.status.other")}
               </AppText>
             ) : (
-              <CodeText code={mine.code} />
+              <>
+                <CodeText code={mine.code} />
+                {mine.testCode ? <AppText muted>{t("rehearsal.testCode")}</AppText> : null}
+              </>
             )
           ) : mine.status === "reserved" ? (
             <>
@@ -234,7 +237,7 @@ function RulesText({ view }: Readonly<{ view: ShopView }>) {
 
 type Step =
   | Readonly<{ reward: ShopReward; stage: "rules" | "confirm" }>
-  | Readonly<{ reward: ShopReward; stage: "code"; code: string }>
+  | Readonly<{ reward: ShopReward; stage: "code"; code: string; testCode: boolean }>
   | undefined;
 
 /**
@@ -309,7 +312,7 @@ export default function RewardsScreen() {
       // A digital reward's code shows at once; anything else closes the sheet on its notice.
       setStep(
         result.kind === "done" && result.code !== null
-          ? { reward, stage: "code", code: result.code }
+          ? { reward, stage: "code", code: result.code, testCode: result.testCode }
           : undefined,
       );
     }
@@ -488,7 +491,7 @@ export default function RewardsScreen() {
           <>
             <AppText variant="label">{textIn(step.reward.name, language)}</AppText>
             <CodeText code={step.code} />
-            <AppText muted>{t("shop.codeKeep")}</AppText>
+            <AppText muted>{t(step.testCode ? "rehearsal.testCode" : "shop.codeKeep")}</AppText>
             <Button label={t("common.close")} onPress={() => setStep(undefined)} />
           </>
         ) : null}

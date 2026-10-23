@@ -95,6 +95,7 @@ describe("readShop", () => {
         {},
         { id: "d2", kind: "digital", status: "delivered", code: "GIFT-1", reservedUntil: null },
         { id: "d3", kind: "digital", status: "delivered", codeUnavailable: true },
+        { id: "d4", kind: "digital", status: "delivered", code: "TEST-1A2B3C4D", testCode: true },
       ],
     });
     expect(view?.shop).toEqual({
@@ -127,6 +128,7 @@ describe("readShop", () => {
         collectUntil: "2030-01-01T10:05:00Z",
         code: null,
         codeUnavailable: false,
+        testCode: false,
       },
       {
         id: "d2",
@@ -138,6 +140,7 @@ describe("readShop", () => {
         collectUntil: null,
         code: "GIFT-1",
         codeUnavailable: false,
+        testCode: false,
       },
       {
         id: "d3",
@@ -149,6 +152,19 @@ describe("readShop", () => {
         collectUntil: null,
         code: null,
         codeUnavailable: true,
+        testCode: false,
+      },
+      {
+        id: "d4",
+        kind: "digital",
+        name: { ar: null, en: null },
+        price: 0,
+        status: "delivered",
+        reservedUntil: null,
+        collectUntil: null,
+        code: "TEST-1A2B3C4D",
+        codeUnavailable: false,
+        testCode: true,
       },
     ]);
   });
@@ -255,6 +271,7 @@ describe("the calls", () => {
       kind: "done",
       balance: 100,
       code: null,
+      testCode: false,
     });
     const digital = sessionAnswering({
       kind: "ok",
@@ -266,6 +283,20 @@ describe("the calls", () => {
       kind: "done",
       balance: 50,
       code: "GIFT-9",
+      testCode: false,
+    });
+    const rehearsal = sessionAnswering({
+      kind: "ok",
+      status: 201,
+      body: {
+        balance: 45,
+        redemption: { status: "delivered", code: "TEST-1A2B3C4D", testCode: true },
+      },
+      headers,
+    });
+    expect(await reserveReward(rehearsal.session, "r1", "key-5")).toMatchObject({
+      code: "TEST-1A2B3C4D",
+      testCode: true,
     });
     expect(ok.calls[0]).toEqual({
       method: "POST",
@@ -314,6 +345,7 @@ describe("the calls", () => {
       kind: "done",
       balance: 300,
       code: null,
+      testCode: false,
     });
     expect(ok.calls[0]).toEqual({ method: "POST", path: "/v1/redemptions/d1/cancel" });
     expect(await cancelRedemption(sessionAnswering({ kind: "network" }).session, "d1")).toEqual({

@@ -20,6 +20,8 @@ export type EventPlayer = Readonly<{
   openFlag: string | null;
   /** The owner paused this player's redemptions (FR-518). */
   redeemPaused: boolean;
+  /** A rehearsal account (T-211): erased at go-live. */
+  rehearsal: boolean;
 }>;
 
 export type JoinAnswerView = Readonly<{
@@ -111,6 +113,7 @@ export async function listPlayers(
       joined_at: Date;
       open_flag: string | null;
       redeem_paused: boolean;
+      rehearsal: boolean;
     }>("SELECT * FROM event_players($1, $2, $3, $4)", [
       request.eventId,
       request.afterId,
@@ -132,6 +135,7 @@ export async function listPlayers(
       answers: answers.get(row.enrollment_id) ?? [],
       openFlag: row.open_flag,
       redeemPaused: row.redeem_paused,
+      rehearsal: row.rehearsal,
     }));
   });
 }

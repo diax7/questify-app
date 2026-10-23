@@ -1619,6 +1619,73 @@ export const MESSAGES = {
   "activation.addons": { ar: "الإضافات: {list}", en: "Add-ons: {list}" },
   "activation.noAddons": { ar: "لا إضافات.", en: "No add-ons." },
   "addon.bigScreen": { ar: "الشاشة الكبيرة", en: "Big screen" },
+  "rehearsal.title": { ar: "التجربة", en: "Rehearsal" },
+  "rehearsal.intro": {
+    ar: "جرّب فعاليتك مع فريقك على جوالات حقيقية قبل أن تبدأ. يدخل الفريق بهذا الرمز من تطبيق Questify.",
+    en: "Try your event with your team on real phones before it starts. Your team joins with this code in the Questify app.",
+  },
+  "rehearsal.code": { ar: "رمز التجربة: {code}", en: "Rehearsal code: {code}" },
+  "rehearsal.onlyTeam": {
+    ar: "أعطِ الرمز لفريقك فقط.",
+    en: "Give the code to your team only.",
+  },
+  "rehearsal.copy": { ar: "انسخ الرمز", en: "Copy code" },
+  "rehearsal.copied": { ar: "نُسخ الرمز.", en: "Code copied." },
+  "rehearsal.rotate": { ar: "غيّر الرمز", en: "Change code" },
+  "rehearsal.rotateConfirm": {
+    ar: "سيتوقف الرمز القديم فورًا. من دخل التجربة يبقى فيها حتى تمسحها.",
+    en: "The old code stops working at once. People already in the rehearsal stay until you erase it.",
+  },
+  "rehearsal.accounts": {
+    ar: "حسابات التجربة: {count} من {cap}",
+    en: "Rehearsal accounts: {count} of {cap}",
+  },
+  "rehearsal.counts": {
+    ar: "حتى الآن: {completions} مسح، و{points} نقطة، و{reservations} حجز.",
+    en: "So far: {completions} scans, {points} points, {reservations} reservations.",
+  },
+  "rehearsal.notice": {
+    ar: "عند بدء الفعالية تُمسح كل عمليات المسح والنقاط والحجوزات التجريبية ويعود المخزون كاملًا. يبدأ اللاعبون من الصفر.",
+    en: "At go-live, all rehearsal scans, points and reservations are erased and stock is restored. Players start at zero.",
+  },
+  "rehearsal.erase": { ar: "امسح التجربة", en: "Erase rehearsal" },
+  "rehearsal.eraseConfirm": {
+    ar: "ستُمسح الآن كل عمليات المسح والنقاط والحجوزات وحسابات التجربة. يدخل فريقك من جديد بالرمز.",
+    en: "Every rehearsal scan, point, reservation and account is erased now. Your team joins again with the code.",
+  },
+  "rehearsal.erased": {
+    ar: "مُسحت بيانات التجربة: {accounts} حساب، و{completions} مسح، و{reservations} حجز.",
+    en: "Rehearsal data erased: {accounts} accounts, {completions} scans, {reservations} reservations.",
+  },
+  "rehearsal.wiped": {
+    ar: "مُسحت بيانات التجربة عند البدء: {accounts} حساب، و{completions} مسح، و{reservations} حجز.",
+    en: "Rehearsal data erased at go-live: {accounts} accounts, {completions} scans, {reservations} reservations.",
+  },
+  "rehearsal.over": {
+    ar: "بدأت الفعالية، فانتهت التجربة.",
+    en: "The event has started, so rehearsal is over.",
+  },
+  "rehearsal.badge": { ar: "تجربة", en: "Rehearsal" },
+  "rehearsal.strip": {
+    ar: "تجربة: يُمسح كل شيء عند بدء الفعالية.",
+    en: "Rehearsal: everything is erased at go-live.",
+  },
+  "rehearsal.ended": { ar: "انتهت التجربة. انضم لتلعب.", en: "Rehearsal ended. Join to play." },
+  "rehearsal.joinTitle": { ar: "الانضمام إلى التجربة", en: "Join the rehearsal" },
+  "rehearsal.joinIntro": {
+    ar: "تنضم بصفتك من فريق الفعالية. كل ما تفعله يُمسح عند بدء الفعالية.",
+    en: "You're joining as part of the event team. Everything you do is erased at go-live.",
+  },
+  "rehearsal.join": { ar: "انضم إلى التجربة", en: "Join rehearsal" },
+  "rehearsal.signInFirst": {
+    ar: "سجّل الدخول أولًا، ثم أدخل الرمز من جديد.",
+    en: "Sign in first, then enter the code again.",
+  },
+  "rehearsal.notFound": {
+    ar: "رمز التجربة هذا لا يعمل. اطلب الرمز الحالي من فريق الفعالية.",
+    en: "This rehearsal code doesn't work. Ask the event team for the current one.",
+  },
+  "rehearsal.testCode": { ar: "رمز تجريبي، وليس رمزًا حقيقيًا.", en: "Test code, not a real one." },
   "console.title": { ar: "لوحة Questify", en: "Questify console" },
   "console.queue": { ar: "طلبات التفعيل", en: "Activation requests" },
   "console.queueEmpty": { ar: "لا طلبات بانتظار القرار.", en: "No requests waiting." },

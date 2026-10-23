@@ -31,6 +31,8 @@ export type MyRedemption = Readonly<{
   /** A delivered digital reward's code (FR-511); null for anything else, or when the server could not open it. */
   code: string | null;
   codeUnavailable: boolean;
+  /** A rehearsal's test code (T-211): never a real one. */
+  testCode: boolean;
 }>;
 
 export type ShopView = Readonly<{
@@ -110,6 +112,7 @@ function redemptionOf(value: unknown): MyRedemption | undefined {
     collectUntil: stringOr(value["collectUntil"]),
     code: stringOr(value["code"]),
     codeUnavailable: value["codeUnavailable"] === true,
+    testCode: value["testCode"] === true,
   };
 }
 
@@ -220,6 +223,8 @@ export type ShopCallAnswer =
       balance: number;
       /** The code a digital redemption gave, when it gave one the server could open. */
       code: string | null;
+      /** A rehearsal's test code (T-211). */
+      testCode: boolean;
     }>
   | Readonly<{ kind: "refused"; problem: LocalizedText | null }>
   | Readonly<{ kind: "network" }>
@@ -229,7 +234,12 @@ function callAnswer(answer: AuthedResult): ShopCallAnswer {
   if (answer.kind === "ok") {
     const body = isRecord(answer.body) ? answer.body : {};
     const redemption = isRecord(body["redemption"]) ? body["redemption"] : {};
-    return { kind: "done", balance: numberOf(body["balance"]), code: stringOr(redemption["code"]) };
+    return {
+      kind: "done",
+      balance: numberOf(body["balance"]),
+      code: stringOr(redemption["code"]),
+      testCode: redemption["testCode"] === true,
+    };
   }
   if (answer.kind === "error") {
     return { kind: "refused", problem: answer.message };

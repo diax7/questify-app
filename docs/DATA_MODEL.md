@@ -187,8 +187,20 @@ enrollments pending, active or banned; the trigger `enrollment_player_limit` let
 only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
 marks once. `event_seat_count(event)` gives the count to the team and admins.
 
+**Rehearsal (T-211, migration 0032, ADR-157 to ADR-160).** `event_rehearsal(event_id PK, organizer_id, code
+XXXX-XXXX unique (capitals and digits without I, O, 0, 1), code_set_at, first_play_at, erased_at, erase_counts jsonb,
+live_wiped_at)`: one row once the team opens the rehearsal card; read by the event's team within their limit and by
+admins, written only by definers (`open_rehearsal`, `rotate_rehearsal_code`, `erase_rehearsal`, the wipe); deleted with
+the event. A rehearsal account is an enrollment with `joined_via = 'rehearsal'` (made only by `join_rehearsal`, at
+most 25 an event, no seat, no welcome; a guard keeps it one and keeps a real one real). `ledger_entry.rehearsal` and
+`bulk_award.rehearsal` mark rehearsal rows. `wipe_rehearsal(event, reason, request)` deletes the rehearsal accounts with
+their completions, ledger entries (with notes and keys), reservations, flags, bulk awards and join answers, recomputes
+each reward's `units_out` from the holds that remain, marks the ranking for repair and audits
+`event.rehearsal_erased` with the counts. It runs at go-live (`ensure_rehearsal_wiped`, called first by every writer and
+by the tick) or on the team's erase before go-live.
+
 ### enrollment (a player in an event)
-`id`, `event_id`, `player_id`, `joined_at`, `joined_via` (code, qr, link, public_list, operator, invite), answers in
+`id`, `event_id`, `player_id`, `joined_at`, `joined_via` (code, qr, link, public_list, operator, invite, rehearsal), answers in
 `join_answer` (below), `score bigint` and `balance bigint` (**caches of the
 ledger**), `status` active/left/removed/banned. **Unique (event_id, player_id).** Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
@@ -251,7 +263,9 @@ completion_id, quest_id, actor (player, system, operator since T-205, staff sinc
 reverses, created_at`. Two deltas so a spend moves only the balance and a removal after spending can move the score
 and the balance by different amounts (FR-1601), while score and balance stay the exact sums of this table. A trigger
 moves the enrollment's caches on every insert. Append-only for every role, the owner included (ALWAYS triggers on
-UPDATE, DELETE, TRUNCATE; NFR-019). Only definers write it; corrections are new entries. A partial unique
+UPDATE, DELETE, TRUNCATE; NFR-019). Only definers write it; corrections are new entries. The one exception (ADR-157,
+migration 0032): a row with `rehearsal = true` (set at insert from its enrollment, never by a writer) may be deleted by
+the rehearsal wipe of its own event. A partial unique
 index pays a completion once.
 
 **Manual awards (T-207, migration 0030, ADR-152):** kinds `award` (points by hand: `score_delta = balance_delta > 0`,
@@ -366,6 +380,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | platform_setting | One row per block: `features` (per feature: enabled, message, minAppVersion) and `tuning` (numbers). Anyone using the app may read; only a Questify admin writes; never deleted. Records who changed it | No |
 | event_entitlement | Add-ons Questify unlocked for an event (`event_id`, `feature`, `granted_by`). Kept apart from `event.config` because the organizer can edit that column and must not unlock anything for themselves (FR-1729). Visible to whoever can see the event; written only by an admin | No |
 | event_activation_request | The owner's activation request: pending, or rejected with the admin's note (T-210). Written only by definers | No |
+| event_rehearsal | The event's rehearsal: its code, when it was first played, the last erase and its counts (T-211). Written only by definers | No |
 | event_limit_alert | The 80% and 100% player-limit marks reached, once per limit (T-210). Written only by the limit trigger and `set_event_player_limit` | No |
 | wallet_pass, wallet_registration | Serial, auth token, device registrations for pass updates | Linked to player |
 | word_list, deletion_request, data_request | Username filter lists; legal requests and what was done | Requests yes |

@@ -3,9 +3,6 @@ import { createHash, randomInt } from "node:crypto";
 /** The letters and digits a rehearsal code uses: no I, O, 0 or 1, which read alike (ADR-158). */
 export const REHEARSAL_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-/** XXXX-XXXX: the hyphen means no join code (letters and digits only) can ever take this shape. */
-const REHEARSAL_CODE = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
-
 /** The most rehearsal accounts one event may have (`rehearsal_cap()`, migration 0032). */
 export const REHEARSAL_CAP = 25;
 
@@ -16,12 +13,6 @@ export function newRehearsalCode(pick: (bound: number) => number = randomInt): s
     () => REHEARSAL_ALPHABET[pick(REHEARSAL_ALPHABET.length)] ?? "",
   );
   return `${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
-}
-
-/** The code in its stored form (trimmed, capitals), or undefined when it cannot be a rehearsal code. */
-export function rehearsalCodeOf(raw: string): string | undefined {
-  const code = raw.trim().toUpperCase();
-  return REHEARSAL_CODE.test(code) ? code : undefined;
 }
 
 /**

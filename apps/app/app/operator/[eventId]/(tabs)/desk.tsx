@@ -8,6 +8,8 @@ import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
+import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
+import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -471,7 +473,10 @@ export default function DeskTab() {
     );
 
   return (
-    <Screen title={t("operator.desk")}>
+    <Screen
+      title={t("operator.desk")}
+      header={<RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />}
+    >
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         {desk === undefined ? null : (
           <>

@@ -1,4 +1,4 @@
-import { parseJoinLink, type Theme } from "@questify/shared";
+import { parseJoinLink, parseRehearsalCode, type Theme } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -42,7 +42,7 @@ function CodeEntry() {
   const [typed, setTyped] = useState("");
   const [wrong, setWrong] = useState(false);
   const open = () => {
-    const code = parseJoinLink(typed);
+    const code = parseJoinLink(typed) ?? parseRehearsalCode(typed);
     if (code === null) {
       setWrong(true);
       return;
@@ -234,13 +234,16 @@ function Invitations() {
 export default function QuestifyHomeScreen() {
   const { t } = useI18n();
   const { state } = usePlayer();
-  // Operator mode sends people here when the owner removed them (FR-905).
+  // Operator mode sends people here when the owner removed them (FR-905); an event Home when rehearsal ended (T-211).
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   return (
     <Screen title={t("home.title")}>
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         {notice === "operatorRemoved" ? (
           <AppText accessibilityRole="alert">{t("operator.removed")}</AppText>
+        ) : null}
+        {notice === "rehearsalEnded" ? (
+          <AppText accessibilityRole="alert">{t("rehearsal.ended")}</AppText>
         ) : null}
         <CodeEntry />
         {state.status === "signed_in" ? (

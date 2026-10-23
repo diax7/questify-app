@@ -212,6 +212,7 @@ const HOME = {
     endsAt: "2026-11-02T10:00:00.000Z",
     timezone: "Asia/Riyadh",
     statusNow: "live",
+    rehearsal: false,
   },
   standing: { status: "active", score: 25, balance: 20, questsDone: 1, questsTotal: 3 },
   upNext: { questId: "q1", title: { ar: null, en: "Big one" }, points: 40, type: "enter_code" },
@@ -233,6 +234,14 @@ describe("homeAnswer", () => {
     expect(homeAnswer(ok(HOME))).toEqual({ kind: "home", home: HOME });
     const pending = { ...HOME, standing: { status: "pending" }, upNext: null };
     expect(homeAnswer(ok(pending))).toEqual({ kind: "home", home: pending });
+  });
+
+  it("reads a rehearsal account's Home, and an older API's Home as an ordinary member's", () => {
+    const rehearsal = { ...HOME, event: { ...HOME.event, statusNow: "draft", rehearsal: true } };
+    expect(homeAnswer(ok(rehearsal))).toEqual({ kind: "home", home: rehearsal });
+    const { rehearsal: _flag, ...older } = HOME.event;
+    expect(readHome({ ...HOME, event: older })?.event.rehearsal).toBe(false);
+    expect(readHome({ ...HOME, event: { ...HOME.event, rehearsal: "yes" } })).toBeUndefined();
   });
 
   it("forgets the event only on the server's definite answer", () => {

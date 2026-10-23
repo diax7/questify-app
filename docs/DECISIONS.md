@@ -2154,7 +2154,8 @@ engine; a shadow event breaks the printed QR codes ADR-080 wants tested. Rehears
 ## ADR-158 — Who rehearses: a rehearsal code and separate rehearsal accounts
 **Status:** Proposed (Claude, 2026-10-23; T-211).
 **Decision:**
-- The owner and editors see a rehearsal code (`XXXX-XXXX`) on Overview and may rotate it. Joining with it creates a
+- The owner and editors see a rehearsal code (`XXXX-XXXX`, 32 unambiguous capitals and digits) on the event page and
+  may rotate it. Joining with it creates a
   rehearsal enrollment (`joined_via = 'rehearsal'`) on a Draft or Scheduled event, activated or not; it skips access
   rules, join fields, welcome points and the player limit. At most 25 per event.
 - A rehearsal account is deleted at go-live with its data; team roles stay. A player with a real enrollment in the

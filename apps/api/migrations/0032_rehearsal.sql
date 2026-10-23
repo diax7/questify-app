@@ -1423,3 +1423,30 @@ CREATE OR REPLACE FUNCTION event_shop(target uuid)
   FROM enrollment n JOIN event e ON e.id = n.event_id JOIN player p ON p.id = n.player_id
   WHERE n.event_id = target AND n.player_id = app_player_id() AND n.status = 'active' AND p.status = 'active'
 $$;
+
+-- ================================================================ the team's players list marks rehearsal accounts
+-- As 0031, plus `rehearsal`: the Players page badges a rehearsal account (it goes at go-live).
+DROP FUNCTION event_players(uuid, uuid, integer, text);
+CREATE FUNCTION event_players(target uuid, after_id uuid, page integer, prefix text)
+  RETURNS TABLE (enrollment_id uuid, username text, avatar text, status text, score bigint, joined_at timestamptz,
+                 open_flag bigint, redeem_paused boolean, rehearsal boolean)
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT n.id, p.username, p.avatar, n.status, n.score, n.joined_at,
+         (SELECT min(f.id) FROM flag f WHERE f.enrollment_id = n.id AND f.status = 'open'),
+         n.redeem_paused_at IS NOT NULL,
+         n.joined_via IS NOT DISTINCT FROM 'rehearsal'
+  FROM event ev
+  JOIN enrollment n ON n.event_id = ev.id
+  JOIN player p ON p.id = n.player_id
+  WHERE ev.id = target
+    AND ev.organizer_id = app_organizer_id() AND in_event_scope(ev.id, app_event_scope())
+    AND (prefix IS NULL OR username_fold(p.username) LIKE
+         replace(replace(replace(username_fold(left(prefix, 30)), '\', '\'), '%', '\%'), '_', '\_') || '%')
+    AND (after_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM enrollment c WHERE c.id = after_id AND c.event_id = target)
+         OR (n.joined_at, n.id) > (SELECT c.joined_at, c.id FROM enrollment c WHERE c.id = after_id AND c.event_id = target))
+  ORDER BY n.joined_at, n.id
+  LIMIT least(greatest(page, 1), 100)
+$$;
+REVOKE ALL ON FUNCTION event_players(uuid, uuid, integer, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION event_players(uuid, uuid, integer, text) TO questify_app;

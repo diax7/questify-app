@@ -5,6 +5,8 @@ import { Pressable, ScrollView } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
+import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -51,6 +53,7 @@ export default function OperatorHomeScreen() {
   return (
     <Screen title={event === undefined ? t("operator.mode") : textIn(event.name, language)}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
+        <RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />
         <AppText variant="title">{t("operator.pickStation")}</AppText>
         {failed ? (
           <>

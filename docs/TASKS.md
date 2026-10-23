@@ -229,6 +229,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-23 (T-207): removals (`remove_award`) are allowed while the event is live or ended, so a cheat found at the end comes off before winners. Freezing results must also stop removals (and manual awards) from then on.
   - Note 2026-10-23 (T-209): "open flags shown before reveal" reads `event_flags(event, true, …)`; a ban already closes the player's cases.
 - [ ] **T-217** Account deletion from the app and from a web page: remove the profile and points, anonymize log entries, keep prize-handover records only as the law requires, keep a one-way fingerprint so bans stand — delivers FR 126, 127, 128, 1704, 1739; depends on: T-109, T-206
+  - Note 2026-10-23 (T-211): a rehearsal account (`joined_via = 'rehearsal'`) is test data: deletion may remove it outright through `wipe_rehearsal`'s order of deletes rather than anonymizing it.
   - Done when: A deleted account cannot sign in or be found; log entries are anonymized; a ban still applies to the same phone or email; a pending handover is explained before deletion.
   - Note 2026-10-21 (T-108): when the deletion fingerprint lands, `start_contact_change` must refuse a contact whose fingerprint is banned, as sign-up will; `player_contact_challenge` rows go with the account (ON DELETE CASCADE).
   - Note 2026-10-21 (T-109): `username_history` is append-only; the erasure definer sets `app.erasure = on` in its transaction to delete the player's rows (a guard against mistakes, not a security boundary). Also revoke the player's refresh families (T-107).
@@ -324,6 +325,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
   - Done when: A player entering the top 10 gets one push; organizer alert types are switchable per team member.
 - [ ] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community, poll and photo wall scenes — delivers FR 630, 631, 632, 633, 634, 635, 636, 637, 1613; depends on: T-309, T-106
+  - Note 2026-10-23 (T-211): FR-1721 says the team opens the big screen in rehearsal. Pairing must accept a Draft or Scheduled event while its rehearsal is open (`event_rehearsal`, `live_wiped_at` null), and its ranking then shows the rehearsal accounts (they rank through the same cache; the wipe marks the event for repair).
   - Done when: The big-screen link opens only when paired; the photo wall shows only photos the player allowed.
   - Note 2026-10-21 (T-106): the ranking readers allow only the event's active players; the big screen (and any dashboard view of the ranking) needs its own reader rule in `ranking_reader_enrollment`'s place, with its own outsider tests. FR-1612: hide the scene when the `ranking` feature is off.
 - [ ] **T-505** Agenda and sessions with registration, My sessions, door check-in, reminders, overlap warning, import, report, close or reopen, message registrants — delivers FR 808, 809, 810, 1787, 1788, 1789, 1790, 1791, 1792, 1793, 1794, 1795, 1796, 1797; depends on: T-205, T-501
@@ -359,6 +361,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
 - [ ] **T-606** Layout: reorder home blocks, rearrange the bar, hide pages, protected items rejected, layout presets — delivers FR 1749, 1750, 1764; depends on: T-113
   - Done when: A layout that hides the scanner is rejected.
 - [ ] **T-607** Analytics: participation, join source, quests and categories, rewards and economy, active-player rule — delivers FR 1201, 1202, 1203, 1204, 1205, 1625; depends on: T-105
+  - Note 2026-10-23 (T-211): before go-live, figures come only from rehearsal rows (`ledger_entry.rehearsal`, enrollments with `joined_via = 'rehearsal'`) and show "Rehearsal, wiped at go-live" (DASHBOARD_AND_CONSOLE §6); after go-live they are gone, and `event_rehearsal.erase_counts` keeps what was erased.
   - Done when: Analytics use only in-app actions and count an active player as one completed quest.
 - [ ] **T-608** Exports and one-page PDF report; sponsor-filtered totals — delivers FR 1206, 1207, 1208, 1306, 1626; depends on: T-607
   - Done when: An export contains only the fields the join card disclosed.
@@ -382,6 +385,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
 - [ ] **T-617** Operator activity view and staff briefing push to operators only — delivers FR 1844; depends on: T-204, T-501
   - Done when: The view shows scans per hour and last activity per operator; a briefing reaches only operators.
 - [ ] **T-618** Go-live readiness checklist (owner dashboard and Questify team view) — delivers FR 1845; depends on: T-211
+  - Note 2026-10-23 (T-211): "Rehearsed on a phone" is `event_rehearsal.first_play_at` (kept after an erase), or the card's live `firstPlayAt` before any erase.
   - Done when: A missing rehearsal shows as missing; the checklist blocks nothing.
 
 ## Phase 7 — Console and trust
@@ -394,6 +398,7 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
 - [ ] **T-702** Translation matrix editor: edit Arabic or English per key, live, placeholders protected — delivers FR 1765, 1766; depends on: T-008
   - Done when: An edit appears in the app within a minute without a release.
 - [ ] **T-703** Platform switches, tuning numbers, maintenance mode, banner, last-working configuration — delivers FR 1405, 1769, 1770, 1771, 1772, 1773, 1734, 420; depends on: T-007
+  - Note 2026-10-23 (T-211): the rehearsal cap (25 accounts an event, `rehearsal_cap()` and `REHEARSAL_CAP`, Q-122) becomes a tuning number.
   - Done when: A switched-off feature hides with a message; an unreadable config makes the app use its last working copy.
   - Note 2026-10-22 (T-210, Q-111): gains FR-1730 (usage per event and organizer) and FR-1731 (support contact edited in the console); the activation and 80%/100% emails wait for the alert switches (FR-1727).
   - Note 2026-10-23 (T-209): the flag numbers (10 scans in 5 minutes) live in `flag_tuning()` (migration 0031); make them console tuning numbers here (Q-120).

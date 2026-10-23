@@ -39,6 +39,8 @@ type Player = Readonly<{
   openFlag?: string | null;
   /** The owner paused this player's redemptions (FR-518). */
   redeemPaused?: boolean;
+  /** A rehearsal account (T-211): erased at go-live. */
+  rehearsal?: boolean;
 }>;
 
 type Page = Readonly<{ players: Player[]; nextCursor: string | null }>;
@@ -134,6 +136,9 @@ function PlayerRow({
       <p className={styles.row}>
         <strong dir="auto">@{player.username}</strong>
         <span className={styles.badge}>{t(`players.status.${player.status}`)}</span>
+        {player.rehearsal === true ? (
+          <span className={styles.badge}>{t("rehearsal.badge")}</span>
+        ) : null}
         <span>
           {t("players.points", { currency })}: {formatNumber(player.score, language)}
         </span>

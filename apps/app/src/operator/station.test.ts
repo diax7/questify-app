@@ -76,7 +76,10 @@ describe("stationResult", () => {
       "something_new",
     ]) {
       const result = stationResult({ result: "refused", reason, player: null });
-      expect(result?.color === "red" ? MESSAGES[result.reason] : undefined, reason).toBeDefined();
+      // Read through the shape, not the union of every message: the full union is too large for the compiler.
+      const messages: Readonly<Record<string, Readonly<{ ar: string; en: string }>>> = MESSAGES;
+      const message = result?.color === "red" ? messages[result.reason] : undefined;
+      expect(message, reason).toBeDefined();
     }
   });
 

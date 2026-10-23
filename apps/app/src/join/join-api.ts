@@ -62,7 +62,7 @@ const isText = (value: unknown): value is Text =>
   (value["en"] === null || typeof value["en"] === "string");
 
 /** The join card's own fields: its version, the title and what the organizer will see, each in both languages. */
-function readJoinCard(card: unknown): JoinCard | undefined {
+export function readJoinCard(card: unknown): JoinCard | undefined {
   if (
     !isRecord(card) ||
     typeof card["version"] !== "string" ||

@@ -1,4 +1,4 @@
-import type { LocalizedText, MessageKey } from "@questify/shared";
+import { parseRehearsalCode, type LocalizedText, type MessageKey } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView } from "react-native";
@@ -26,6 +26,7 @@ import {
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
 type Via = PendingJoin["via"];
@@ -74,8 +75,16 @@ function useCard(code: string) {
  * The join card (FR-121, FR-111, FR-112, FR-130): the event, what the organizer will see, the event's join fields and
  * locks, one Join button. Anyone can read it; Join asks a signed-out person to sign in first, and the join (with the
  * answers, held in memory) goes through only after that succeeds. A join that grants the welcome reward plays it once.
+ * A rehearsal code (XXXX-XXXX, T-211) opens the rehearsal join instead.
  */
 export default function JoinScreen() {
+  const { code } = useLocalSearchParams<{ code: string }>();
+  const rehearsal = parseRehearsalCode(String(code));
+  return rehearsal === null ? <JoinCardScreen /> : <RehearsalJoin code={rehearsal} />;
+}
+
+/** The join card by an event's join code. */
+function JoinCardScreen() {
   const { t, language } = useI18n();
   const { state: player } = usePlayer();
   const params = useLocalSearchParams<{

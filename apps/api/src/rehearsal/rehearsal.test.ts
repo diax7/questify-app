@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { parseRehearsalCode } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   REHEARSAL_ALPHABET,
@@ -6,7 +7,6 @@ import {
   countsOf,
   isOpen,
   newRehearsalCode,
-  rehearsalCodeOf,
   rehearsalRefusalOf,
   testCode,
   type CardRow,
@@ -40,27 +40,7 @@ describe("newRehearsalCode", () => {
     });
     expect(bounds).toEqual(Array.from({ length: 8 }, () => REHEARSAL_ALPHABET.length));
     expect(REHEARSAL_ALPHABET).not.toMatch(/[IO01]/);
-    expect(rehearsalCodeOf(newRehearsalCode())).toBeDefined();
-  });
-});
-
-describe("rehearsalCodeOf", () => {
-  it("accepts the shape in any case, trimmed", () => {
-    expect(rehearsalCodeOf(" abcd-2345 ")).toBe("ABCD-2345");
-  });
-
-  it("refuses a join code, a missing hyphen, ambiguous letters and extra characters", () => {
-    for (const raw of [
-      "NAJD1",
-      "ABCD2345",
-      "ABCD-234O",
-      "ABCD-2341",
-      "XABCD-2345",
-      "ABCD-23456",
-      "",
-    ]) {
-      expect(rehearsalCodeOf(raw)).toBeUndefined();
-    }
+    expect(parseRehearsalCode(newRehearsalCode())).not.toBeNull();
   });
 });
 

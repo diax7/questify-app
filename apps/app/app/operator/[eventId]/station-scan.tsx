@@ -10,6 +10,8 @@ import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
+import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { scanPlayer } from "#src/operator/operator-api.ts";
@@ -67,7 +69,7 @@ function ResultCover({ result }: Readonly<{ result: StationResult }>) {
 export default function StationScanScreen() {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const { station, removed } = useOperator();
+  const { event, station, removed } = useOperator();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const active = useCameraActive();
   const [result, setResult] = useState<StationResult | null>(null);
@@ -155,7 +157,15 @@ export default function StationScanScreen() {
 
   const granted = permission?.granted === true;
   return (
-    <Screen title={station?.title ?? t("operator.station")} header={<BackButton />}>
+    <Screen
+      title={station?.title ?? t("operator.station")}
+      header={
+        <>
+          <BackButton />
+          <RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />
+        </>
+      }
+    >
       {station === null ? (
         <>
           <AppText accessibilityRole="alert">{t("operator.noStation")}</AppText>

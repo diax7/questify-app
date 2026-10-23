@@ -1,6 +1,6 @@
 import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
 import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -8,6 +8,7 @@ import { Amount, CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
+import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
@@ -164,14 +165,23 @@ function Standing({ home }: Readonly<{ home: Home }>) {
  * network failure forgets nothing.
  */
 function useHome(eventId: string) {
+  const wasRehearsal = useRef(false);
   const [answer, setAnswer] = useState<HomeAnswer | undefined>(undefined);
   const [ranking, setRanking] = useState<RankingAnswer | undefined>(undefined);
   const load = useCallback(async () => {
     const loaded = await fetchHome(api.session, eventId);
     if (loaded.kind === "gone") {
       await forget(keyValueStore, eventId);
-      router.replace("/home");
+      // A rehearsal account is gone once the event went live (T-211): say so, next to the join box.
+      router.replace(
+        wasRehearsal.current
+          ? { pathname: "/home", params: { notice: "rehearsalEnded" } }
+          : "/home",
+      );
       return;
+    }
+    if (loaded.kind === "home") {
+      wasRehearsal.current = loaded.home.event.rehearsal;
     }
     if (loaded.kind === "signed_out") {
       router.replace("/home");
@@ -243,6 +253,7 @@ export default function EventHomeScreen() {
   return (
     <Screen title={textIn(home.event.name, language)} header={<EventPill />}>
       <ScrollView contentContainerStyle={{ gap: 16 }}>
+        <RehearsalStrip shown={home.event.rehearsal} />
         <AddEmailCard />
         <CountdownLine event={home.event} />
         <Standing home={home} />
