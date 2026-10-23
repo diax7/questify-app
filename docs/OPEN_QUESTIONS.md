@@ -308,5 +308,6 @@ weekly blocks from then on (counts already made stay; the current week may grow,
 ADR-205: a quest gives its item on the first completion only (a repeatable quest gives points again but no second
 item); a daily or weekly category gives its item once per period, with its bonus; an item missed because stock ran out
 is not given later when stock is raised (the organizer sees who missed); the player cannot cancel an item they earned;
-items are physical only (no experience or digital code). Agree, or should a repeat give another item, a category give
+items are physical only (no experience or digital code); after a quest award is removed, scanning the quest again
+pays its points but gives no item (the removed completion still counts, ADR-152). Agree, or should a repeat give another item, a category give
 its item once for the whole event, missed players be served first when stock returns, or experiences be allowed?

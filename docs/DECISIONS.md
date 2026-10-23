@@ -2596,6 +2596,7 @@ cannot cancel it, an operator's cancel or the timeout returns the unit with no l
 the player's first completion only; a category gives its item with its bonus, once per period (T-304c), with or
 without bonus points. With no stock left, or the desk's hours over, the player gets the points only, is told so, and a
 miss is recorded that the organizer sees with a warning; nothing is given later when stock is raised. Removing the
-quest or bonus award cancels its pending item; a handed-over item stays.
+quest or bonus award cancels its pending item; a handed-over item stays. The removed completion still counts
+(ADR-152), so a later scan of that quest (occurrence 2) gives no item.
 **Why:** FR-522 and FR-1617; ADR-162's separate table fails closed (an item cannot leak into the shop for free) and
 reuses the whole handover path; the first-completion rule stops a repeatable quest draining the stock.
