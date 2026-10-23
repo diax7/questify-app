@@ -2385,8 +2385,8 @@ the rows point at `player_xp`, not `player`, so they never wait on a deletion's 
 **Status:** Proposed (Claude, 2026-10-24; T-401). Q-145.
 **Decision:** `platform_setting` `xp.questXp` = 100 (server only, never in the public config). Level n starts at
 `50·(n−1)·(n+2)` XP: level 2 at 200, 5 at 1,400, 10 at 5,400, 30 at 46,400. Both seeded; T-709 edits them.
-**Why:** an early level-up comes after two quests; a full event of about 20 quests reaches level 5; levels 20 to 30
-take many events.
+**Why:** an early level-up comes after two quests (levels 2 to 6 after 2, 5, 9, 14 and 20 quests); a full event of
+about 20 quests (2,000 XP) reaches level 6; level 10 takes 54 quests and level 30 464, so many events.
 
 ## ADR-181 — Level titles, one per five levels
 **Status:** Proposed (Claude, 2026-10-24; T-401). Q-148.
