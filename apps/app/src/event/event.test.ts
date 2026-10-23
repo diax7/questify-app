@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { configKeyOf } from "#src/config/remote.ts";
 import { countdown, nextBoundary, spanText } from "#src/event/countdown.ts";
 import { goalMessage } from "#src/event/goal.ts";
-import { homeAnswer, rankingAnswer, readHome } from "#src/event/home-api.ts";
+import { homeAnswer, rankingAnswer, readHome, readWin } from "#src/event/home-api.ts";
 import {
   RECENT_KEY,
   chooseLaunchEvent,
@@ -225,6 +225,7 @@ const HOME = {
     pinned: false,
     soldOut: false,
   },
+  win: null,
   rankingOn: true,
 };
 
@@ -251,6 +252,25 @@ describe("homeAnswer", () => {
     const { rehearsal: _flag, ...older } = HOME.event;
     expect(readHome({ ...HOME, event: older })?.event.rehearsal).toBe(false);
     expect(readHome({ ...HOME, event: { ...HOME.event, rehearsal: "yes" } })).toBeUndefined();
+  });
+
+  it("reads the win, and shows none for an older API or one it cannot read (T-214)", () => {
+    const win = {
+      rank: 1,
+      prize: { kind: "item", name: { ar: "كأس", en: "Cup" } },
+      redemptionId: "d9",
+      claimUntil: "2030-01-03T10:00:00Z",
+    };
+    expect(readHome({ ...HOME, win })?.win).toEqual(win);
+    const { win: _win, ...older } = HOME;
+    expect(readHome(older)?.win).toBeNull();
+    expect(readWin({ ...win, rank: "1" })).toBeNull();
+    expect(readWin({ ...win, redemptionId: 9 })).toBeNull();
+    expect(readWin({ ...win, claimUntil: 5 })).toBeNull();
+    expect(readWin({ ...win, prize: null })).toBeNull();
+    expect(readWin({ ...win, prize: { kind: 1, name: win.prize.name } })).toBeNull();
+    expect(readWin({ ...win, prize: { kind: "item", name: "Cup" } })).toBeNull();
+    expect(readWin({ ...win, claimUntil: null })).toEqual({ ...win, claimUntil: null });
   });
 
   it("reads the goal, and shows none for an older API or a goal it cannot read (T-213)", () => {

@@ -33,6 +33,8 @@ export type MyRedemption = Readonly<{
   codeUnavailable: boolean;
   /** A rehearsal's test code (T-211): never a real one. */
   testCode: boolean;
+  /** The winner's place for a rank prize (T-214): no price, no Cancel; null for a shop item. */
+  rank: number | null;
 }>;
 
 export type ShopView = Readonly<{
@@ -115,6 +117,7 @@ function redemptionOf(value: unknown): MyRedemption | undefined {
     code: stringOr(value["code"]),
     codeUnavailable: value["codeUnavailable"] === true,
     testCode: value["testCode"] === true,
+    rank: typeof value["rank"] === "number" ? value["rank"] : null,
   };
 }
 

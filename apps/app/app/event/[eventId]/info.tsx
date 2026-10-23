@@ -1,4 +1,4 @@
-import { formatEventTime } from "@questify/shared";
+import { formatEventTime, type Language, type OfficialRules } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Platform, ScrollView } from "react-native";
 import { router } from "expo-router";
@@ -9,6 +9,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { fetchHome, type HomeAnswer } from "#src/event/home-api.ts";
+import { fetchRules, type RulesAnswer } from "#src/event/rules-api.ts";
 import { forget } from "#src/event/launch.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -19,12 +20,36 @@ const mapsLink = (venue: string): string =>
     ? `https://maps.apple.com/?q=${encodeURIComponent(venue)}`
     : `geo:0,0?q=${encodeURIComponent(venue)}`;
 
-/** The event's information (FR-805, in part): its venue and dates in the event's own zone. */
+/** The event's official rules, written in the app (FR-1707, ADR-165): Questify's fixed part, then the organizer's. */
+function RulesSection({ rules, language }: Readonly<{ rules: OfficialRules; language: Language }>) {
+  const { t } = useI18n();
+  const own = rules.text[language] ?? rules.text[language === "ar" ? "en" : "ar"];
+  return (
+    <>
+      <AppText variant="title">{t("info.rules")}</AppText>
+      {(rules.block?.[language] ?? []).map((line) => (
+        <AppText key={line}>{line}</AppText>
+      ))}
+      {own === null ? null : (
+        <>
+          <AppText variant="label">{t("rules.organizerText")}</AppText>
+          <AppText>{own}</AppText>
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * The event's information (FR-805, in part): its venue and dates in the event's own zone, and its official rules when
+ * it has any (FR-1707).
+ */
 export default function EventInfoScreen() {
   const { t, language } = useI18n();
   const { eventId } = useEvent();
   const [answer, setAnswer] = useState<HomeAnswer | undefined>(undefined);
   const [mapsFailed, setMapsFailed] = useState(false);
+  const [rules, setRules] = useState<RulesAnswer | undefined>(undefined);
   const load = useCallback(async () => {
     const loaded = await fetchHome(api.session, eventId);
     // As on Home: only the server's definite answer forgets the event.
@@ -41,7 +66,8 @@ export default function EventInfoScreen() {
   }, [eventId]);
   useEffect(() => {
     void load();
-  }, [load]);
+    void fetchRules(api.session, eventId).then(setRules);
+  }, [load, eventId]);
 
   if (answer?.kind !== "home") {
     return (
@@ -88,6 +114,7 @@ export default function EventInfoScreen() {
         <AppText variant="title">{t("eventInfo.when")}</AppText>
         {when(event.startsAt, "eventInfo.starts")}
         {when(event.endsAt, "eventInfo.ends")}
+        {rules?.kind === "rules" ? <RulesSection rules={rules.rules} language={language} /> : null}
       </ScrollView>
     </Screen>
   );

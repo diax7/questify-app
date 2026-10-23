@@ -1,4 +1,4 @@
-import { DEFAULT_TERMS, termFor, type Theme } from "@questify/shared";
+import { DEFAULT_TERMS, formatNumber, termFor, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -66,6 +66,9 @@ function ItemRow({
   return (
     <View style={styles.card}>
       <AppText variant="label">{textIn(item.name, language)}</AppText>
+      {item.rank === null ? null : (
+        <AppText muted>{t("win.rankPrize", { rank: formatNumber(item.rank, language) })}</AppText>
+      )}
       {item.kind === "experience" ? <AppText muted>{t("operator.desk.experience")}</AppText> : null}
       {done === "handed_over" ? (
         <AppText accessibilityRole="alert">

@@ -76,6 +76,8 @@ export type DeskItem = Readonly<{
   /** This desk's own offer is live (desk_offer). */
   offered: boolean;
   offerUntil: string | null;
+  /** The winner's place for a rank prize (T-214); null for a shop item. */
+  rank: number | null;
 }>;
 
 export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
@@ -118,6 +120,7 @@ function itemOf(value: unknown): DeskItem | undefined {
     ready: value["ready"] === true,
     offered: value["offered"] === true,
     offerUntil: typeof value["offerUntil"] === "string" ? value["offerUntil"] : null,
+    rank: typeof value["rank"] === "number" ? value["rank"] : null,
   };
 }
 

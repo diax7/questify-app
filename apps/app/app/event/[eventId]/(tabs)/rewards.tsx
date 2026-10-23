@@ -1,5 +1,6 @@
 import {
   MESSAGES,
+  formatEventTime,
   formatNumber,
   termFor,
   type Language,
@@ -192,6 +193,11 @@ function MyReservations({
       {view.redemptions.map((mine) => (
         <View key={mine.id} style={styles.card}>
           <AppText variant="label">{textIn(mine.name, language)}</AppText>
+          {mine.rank === null ? null : (
+            <AppText muted>
+              {t("win.rankPrize", { rank: formatNumber(mine.rank, language) })}
+            </AppText>
+          )}
           {mine.status === "delivered" ? (
             mine.code === null ? (
               <AppText muted>
@@ -206,17 +212,29 @@ function MyReservations({
           ) : mine.status === "reserved" ? (
             <>
               <AppText>
-                {t("shop.minutesLeft", {
-                  minutes: formatNumber(minutesLeft(mine.reservedUntil, Date.now()), language),
-                })}
+                {mine.rank === null
+                  ? t("shop.minutesLeft", {
+                      minutes: formatNumber(minutesLeft(mine.reservedUntil, Date.now()), language),
+                    })
+                  : t("win.collectBy", {
+                      deadline: formatEventTime(
+                        new Date(mine.reservedUntil ?? Date.now()),
+                        view.shop.desk.timeZone,
+                        language,
+                      ),
+                    })}
               </AppText>
               <PickUp mine={mine} view={view} busy={busy} onCollect={onCollect} />
-              <Button
-                kind="quiet"
-                label={t("shop.cancel")}
-                disabled={busy}
-                onPress={() => onCancel(mine.id)}
-              />
+              {mine.rank === null ? (
+                <Button
+                  kind="quiet"
+                  label={t("shop.cancel")}
+                  disabled={busy}
+                  onPress={() => onCancel(mine.id)}
+                />
+              ) : (
+                <AppText muted>{t("win.noCancel")}</AppText>
+              )}
             </>
           ) : (
             <AppText muted>{t(endedKey(mine))}</AppText>

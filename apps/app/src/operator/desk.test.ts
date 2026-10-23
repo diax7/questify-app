@@ -33,6 +33,7 @@ const ITEM: DeskItem = {
   ready: false,
   offered: false,
   offerUntil: null,
+  rank: null,
 };
 
 describe("deskInfoOf", () => {
@@ -94,6 +95,7 @@ describe("lookupOf", () => {
             name: { ar: null, en: "Lounge" },
             ready: true,
             reservedUntil: LATER,
+            rank: 3,
           },
           { kind: "item" },
           { id: "d2", kind: "voucher", name: "x", offered: true, offerUntil: LATER },
@@ -113,6 +115,7 @@ describe("lookupOf", () => {
           ready: true,
           offered: false,
           offerUntil: null,
+          rank: 3,
         },
         {
           id: "d2",
@@ -122,6 +125,7 @@ describe("lookupOf", () => {
           ready: false,
           offered: true,
           offerUntil: LATER,
+          rank: null,
         },
       ],
     });

@@ -23,6 +23,7 @@ import {
   type RankingAnswer,
 } from "#src/event/home-api.ts";
 import { forget } from "#src/event/launch.ts";
+import { WinCard } from "#src/event/WinCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -292,6 +293,7 @@ export default function EventHomeScreen() {
         <AddEmailCard />
         <CountdownLine event={home.event} />
         <Standing home={home} />
+        <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
         {home.standing.status === "active" ? (
           <GoalCard eventId={eventId} goal={home.goal} ended={ended} />
         ) : null}

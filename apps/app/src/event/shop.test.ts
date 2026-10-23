@@ -118,6 +118,7 @@ describe("readShop", () => {
           price: 200,
           reservedUntil: "2030-01-01T12:00:00Z",
           collectUntil: "2030-01-01T10:05:00Z",
+          rank: 2,
         },
         {},
         { id: "d2", kind: "digital", status: "delivered", code: "GIFT-1", reservedUntil: null },
@@ -158,6 +159,7 @@ describe("readShop", () => {
         code: null,
         codeUnavailable: false,
         testCode: false,
+        rank: 2,
       },
       {
         id: "d2",
@@ -170,6 +172,7 @@ describe("readShop", () => {
         code: "GIFT-1",
         codeUnavailable: false,
         testCode: false,
+        rank: null,
       },
       {
         id: "d3",
@@ -182,6 +185,7 @@ describe("readShop", () => {
         code: null,
         codeUnavailable: true,
         testCode: false,
+        rank: null,
       },
       {
         id: "d4",
@@ -194,6 +198,7 @@ describe("readShop", () => {
         code: "TEST-1A2B3C4D",
         codeUnavailable: false,
         testCode: true,
+        rank: null,
       },
     ]);
   });

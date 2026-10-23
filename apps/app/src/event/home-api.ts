@@ -12,6 +12,14 @@ export type Goal = Readonly<{
   soldOut: boolean;
 }>;
 
+/** The player's revealed rank prize while it waits at the desk (FR-1718, T-214). */
+export type Win = Readonly<{
+  rank: number;
+  prize: Readonly<{ kind: string; name: Text }>;
+  redemptionId: string;
+  claimUntil: string | null;
+}>;
+
 /** `GET /v1/events/{id}/home` (T-113, API.md). */
 export type Home = Readonly<{
   event: Readonly<{
@@ -36,6 +44,7 @@ export type Home = Readonly<{
     | Readonly<{ status: "pending" }>;
   upNext: Readonly<{ questId: string; title: Text; points: number; type: string }> | null;
   goal: Goal | null;
+  win: Win | null;
   rankingOn: boolean;
 }>;
 
@@ -99,6 +108,19 @@ function readGoal(value: unknown): Goal | null {
     : null;
 }
 
+/** The win, or null: an older API sends none, and one this app cannot read is left out. */
+export function readWin(value: unknown): Win | null {
+  return isRecord(value) &&
+    typeof value["rank"] === "number" &&
+    typeof value["redemptionId"] === "string" &&
+    isTime(value["claimUntil"]) &&
+    isRecord(value["prize"]) &&
+    typeof value["prize"]["kind"] === "string" &&
+    isText(value["prize"]["name"])
+    ? (value as Win)
+    : null;
+}
+
 /** Checks Home's shape, so a changed API shows "can't load" instead of a broken screen. */
 export function readHome(body: unknown): Home | undefined {
   if (!isRecord(body) || !isRecord(body["event"])) {
@@ -129,6 +151,7 @@ export function readHome(body: unknown): Home | undefined {
     standing,
     upNext,
     goal: readGoal(body["goal"]),
+    win: readWin(body["win"]),
     rankingOn: body["rankingOn"],
   };
 }
