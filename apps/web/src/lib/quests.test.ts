@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   blankQuest,
+  categoryBody,
+  categoryRuleNotes,
   createQuestBody,
   editQuestBody,
   moved,
   questProblem,
   questDraftOf,
   textFor,
+  type CategoryView,
   type QuestView,
 } from "#src/lib/quests.ts";
 
@@ -110,5 +113,72 @@ describe("questProblem", () => {
     ["verification", { type: "enter_code", config: { code: "NAJD2030" } }],
   ] as const)("names %s", (field, change) => {
     expect(questProblem({ ...fine, ...change })).toBe(field);
+  });
+});
+
+const form = (entries: Record<string, string>) => {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(entries)) {
+    data.set(key, value);
+  }
+  return data;
+};
+
+describe("category rules (T-304)", () => {
+  it("sends the names and rules, an empty time or unlock as none", () => {
+    expect(
+      categoryBody(
+        form({
+          ar: "الأولى",
+          en: "",
+          orderMode: "in_order",
+          opensAt: "2030-11-01T16:00",
+          unlockAfter: "c0",
+          completionBonus: "250",
+        }),
+      ),
+    ).toEqual({
+      name: { ar: "الأولى", en: "" },
+      orderMode: "in_order",
+      opensAt: "2030-11-01T16:00",
+      unlockAfter: "c0",
+      completionBonus: 250,
+    });
+    expect(categoryBody(form({ orderMode: "other" }))).toEqual({
+      name: { ar: "", en: "" },
+      orderMode: "any",
+      opensAt: null,
+      unlockAfter: null,
+      completionBonus: 0,
+    });
+  });
+
+  it("notes a category's order, opening, unlock and bonus, and nothing for none", () => {
+    const base: CategoryView = {
+      id: "c1",
+      name: { ar: null, en: "Two" },
+      position: 1,
+      orderMode: "any",
+      opensAt: null,
+      unlockAfter: null,
+      completionBonus: 0,
+      quests: [],
+    };
+    const one = { ...base, id: "c0", name: { ar: null, en: "One" } };
+    expect(categoryRuleNotes(base, [one, base])).toEqual([]);
+    const ruled = {
+      ...base,
+      orderMode: "in_order" as const,
+      opensAt: "2030-11-01T13:00:00.000Z",
+      unlockAfter: "c0",
+      completionBonus: 50,
+    };
+    expect(categoryRuleNotes(ruled, [one, ruled])).toEqual([
+      { kind: "inOrder" },
+      { kind: "opens", at: "2030-11-01T13:00:00.000Z" },
+      { kind: "unlockAfter", name: { ar: null, en: "One" } },
+      { kind: "bonus", points: 50 },
+    ]);
+    expect(categoryRuleNotes({ ...ruled, unlockAfter: "gone" }, [ruled])).toHaveLength(3);
   });
 });

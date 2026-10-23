@@ -135,3 +135,29 @@ test("pins one quest as Up next, moves the pin, warns while it is hidden, and cl
   await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");
   await expect(general).not.toContainText("مثبّتة كمهمة تالية");
 });
+
+test("sets a category's order, opening time, unlock and bonus, and shows them on its card (T-304)", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await openBuilder(page, info.project.name);
+  await page.getByLabel("اسم الفئة بالعربية", { exact: true }).fill("الفصل الثاني");
+  await page.getByRole("button", { name: "إضافة فئة" }).click();
+  const second = page.getByRole("region", { name: "الفصل الثاني" });
+  await second.getByRole("button", { name: "تعديل الفئة" }).click();
+  await second.getByLabel("ترتيب المهام").selectOption("in_order");
+  await second.getByLabel("تُفتح الفئة").fill("2030-11-01T16:00");
+  await second.getByLabel("تُفتح بعد إكمال").selectOption({ label: "عام" });
+  await second.getByLabel("مكافأة إكمال كل مهام الفئة").fill("250");
+  await second.getByRole("button", { name: "حفظ الفئة" }).click();
+  await expect(second.getByText(/بالترتيب · تُفتح .* · بعد «عام» · مكافأة/)).toBeVisible();
+  await expect(second.getByText(/250/)).toBeVisible();
+  await page
+    .getByRole("region", { name: "عام" })
+    .getByRole("button", { name: "حذف الفئة" })
+    .click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "حذف الفئة" }).click();
+  await expect(
+    page.getByText("تُفتح فئات أخرى بعد إكمال هذه الفئة", { exact: false }),
+  ).toBeVisible();
+});

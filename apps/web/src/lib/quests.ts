@@ -30,8 +30,54 @@ export type CategoryView = Readonly<{
   id: string;
   name: Bilingual;
   position: number;
+  /** A category's rules (T-304, FR-231 to FR-235). */
+  orderMode: "any" | "in_order";
+  opensAt: string | null;
+  unlockAfter: string | null;
+  completionBonus: number;
   quests: readonly QuestView[];
 }>;
+
+/** What the category form sends: the names and the rules, each field read from the form (T-304). */
+export function categoryBody(form: FormData): Record<string, unknown> {
+  const text = (key: string) => String(form.get(key) ?? "");
+  const blankToNull = (key: string) => (text(key) === "" ? null : text(key));
+  return {
+    name: { ar: text("ar"), en: text("en") },
+    orderMode: text("orderMode") === "in_order" ? "in_order" : "any",
+    opensAt: blankToNull("opensAt"),
+    unlockAfter: blankToNull("unlockAfter"),
+    completionBonus: Number(text("completionBonus") || "0"),
+  };
+}
+
+/** A category's rules as short notes for the builder's card, in the order the card shows them. */
+export type CategoryRuleNote =
+  | Readonly<{ kind: "inOrder" }>
+  | Readonly<{ kind: "opens"; at: string }>
+  | Readonly<{ kind: "unlockAfter"; name: Bilingual }>
+  | Readonly<{ kind: "bonus"; points: number }>;
+
+export function categoryRuleNotes(
+  category: CategoryView,
+  categories: readonly CategoryView[],
+): CategoryRuleNote[] {
+  const notes: CategoryRuleNote[] = [];
+  if (category.orderMode === "in_order") {
+    notes.push({ kind: "inOrder" });
+  }
+  if (category.opensAt !== null) {
+    notes.push({ kind: "opens", at: category.opensAt });
+  }
+  const first = categories.find((other) => other.id === category.unlockAfter);
+  if (first !== undefined) {
+    notes.push({ kind: "unlockAfter", name: first.name });
+  }
+  if (category.completionBonus > 0) {
+    notes.push({ kind: "bonus", points: category.completionBonus });
+  }
+  return notes;
+}
 
 /** Organizer text in the page's language, else the other one (FR-1008: one is enough). */
 export function textFor(text: Bilingual, language: Language): string {

@@ -82,7 +82,7 @@ export function QuestBuilder({
     codeLink: (quest) =>
       QUEST_TYPES[quest.type].usesQuestQr ? `${codesPage}#code-${quest.id}` : undefined,
     reorderCategories: (ids) => void b.send("PUT", "/categories/order", { ids }),
-    rename: (category, name) => void b.send("PATCH", `/categories/${category.id}`, { name }),
+    saveCategory: (category, body) => void b.send("PATCH", `/categories/${category.id}`, body),
     reorderQuests: (category, ids) =>
       void b.send("PUT", `/categories/${category.id}/quests/order`, { ids }),
     toggle: (quest) => void b.send("PATCH", `/quests/${quest.id}`, { visible: !quest.visible }),
@@ -243,6 +243,7 @@ export function QuestBuilder({
             timeZone={timeZone}
             terms={terms}
             category={category}
+            categories={categories}
             order={categories.map((item) => item.id)}
             index={index}
             busy={b.busy}

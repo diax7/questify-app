@@ -3,13 +3,23 @@
 import {
   QUEST_TYPES,
   formatEventTime,
+  formatNumber,
   termFor,
+  toLocalInput,
   type EventTerms,
   type Language,
 } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
-import { moved, textFor, type CategoryView, type QuestView } from "#src/lib/quests.ts";
+import {
+  categoryBody,
+  categoryRuleNotes,
+  moved,
+  textFor,
+  type CategoryRuleNote,
+  type CategoryView,
+  type QuestView,
+} from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
 
 /** What the builder asks the person to confirm before it deletes. */
@@ -21,7 +31,8 @@ export type CardActions = Readonly<{
   /** Where a quest's printed code is, for the types that have one. */
   codeLink: (quest: QuestView) => string | undefined;
   reorderCategories: (ids: string[]) => void;
-  rename: (category: CategoryView, name: { ar: string; en: string }) => void;
+  /** Saves a category's names and rules (T-304). */
+  saveCategory: (category: CategoryView, body: Record<string, unknown>) => void;
   reorderQuests: (category: CategoryView, ids: string[]) => void;
   toggle: (quest: QuestView) => void;
   pin: (quest: QuestView) => void;
@@ -222,12 +233,113 @@ function QuestRow({
   );
 }
 
-/** One category: its name and order, and its quests in order (FR-1004, FR-229). */
+/** A rule note in words, for the category card. */
+function ruleText(
+  note: CategoryRuleNote,
+  t: ReturnType<typeof translatorFor>,
+  language: Language,
+  timeZone: string,
+): string {
+  switch (note.kind) {
+    case "inOrder":
+      return t("quests.category.inOrder");
+    case "opens":
+      return t("quests.category.opens", {
+        time: formatEventTime(new Date(note.at), timeZone, language),
+      });
+    case "unlockAfter":
+      return t("quests.category.unlockAfter", { name: textFor(note.name, language) });
+    case "bonus":
+      return t("quests.category.bonus", { points: formatNumber(note.points, language) });
+  }
+}
+
+/** A category's rules as form fields (T-304): its order, its opening time, its unlock and its completion bonus. */
+function CategoryRuleFields({
+  language,
+  timeZone,
+  category,
+  categories,
+  busy,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  category: CategoryView;
+  categories: readonly CategoryView[];
+  busy: boolean;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <label className={styles.field}>
+        {t("quests.field.orderMode")}
+        <select
+          className={styles.input}
+          name="orderMode"
+          defaultValue={category.orderMode}
+          disabled={busy}
+        >
+          <option value="any">{t("quests.field.orderAny")}</option>
+          <option value="in_order">{t("quests.field.orderInOrder")}</option>
+        </select>
+      </label>
+      <label className={styles.field}>
+        {t("quests.field.categoryOpensAt")}
+        <input
+          className={styles.input}
+          type="datetime-local"
+          name="opensAt"
+          dir="ltr"
+          defaultValue={
+            category.opensAt === null ? "" : toLocalInput(new Date(category.opensAt), timeZone)
+          }
+          disabled={busy}
+        />
+      </label>
+      <label className={styles.field}>
+        {t("quests.field.unlockAfter")}
+        <select
+          className={styles.input}
+          name="unlockAfter"
+          defaultValue={category.unlockAfter ?? ""}
+          disabled={busy}
+        >
+          <option value="">{t("quests.field.unlockNone")}</option>
+          {categories
+            .filter((other) => other.id !== category.id)
+            .map((other) => (
+              <option key={other.id} value={other.id}>
+                {textFor(other.name, language)}
+              </option>
+            ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        {t("quests.field.completionBonus")}
+        <input
+          className={styles.input}
+          type="number"
+          name="completionBonus"
+          dir="ltr"
+          min={0}
+          max={100_000}
+          step={1}
+          defaultValue={category.completionBonus}
+          disabled={busy}
+        />
+      </label>
+      <p className={styles.muted}>{t("quests.field.rulesHint")}</p>
+    </>
+  );
+}
+
+/** One category: its name, rules and order, and its quests in order (FR-1004, FR-229, T-304). */
 export function CategoryCard({
   language,
   timeZone,
   terms,
   category,
+  categories,
   order,
   index,
   busy,
@@ -240,6 +352,8 @@ export function CategoryCard({
   timeZone: string;
   terms: EventTerms;
   category: CategoryView;
+  /** Every category of the event, for the unlock choice and its name. */
+  categories: readonly CategoryView[];
   order: readonly string[];
   index: number;
   busy: boolean;
@@ -253,20 +367,26 @@ export function CategoryCard({
   const t = translatorFor(language);
   const [renaming, setRenaming] = useState(false);
   const questIds = category.quests.map((quest) => quest.id);
-  const rename = (event: FormEvent<HTMLFormElement>) => {
+  const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    actions.rename(category, {
-      ar: String(form.get("ar") ?? ""),
-      en: String(form.get("en") ?? ""),
-    });
+    actions.saveCategory(category, categoryBody(new FormData(event.currentTarget)));
     setRenaming(false);
   };
+  const notes = categoryRuleNotes(category, categories).map((note) =>
+    ruleText(note, t, language, timeZone),
+  );
   return (
     <section className={styles.panel} aria-label={textFor(category.name, language)}>
       {renaming ? (
-        <form className={styles.form} onSubmit={rename}>
+        <form className={styles.form} onSubmit={save}>
           <CategoryNameFields language={language} initial={category} busy={busy} />
+          <CategoryRuleFields
+            language={language}
+            timeZone={timeZone}
+            category={category}
+            categories={categories}
+            busy={busy}
+          />
           <div className={styles.actions}>
             <button type="button" className={styles.quiet} onClick={() => setRenaming(false)}>
               {t("common.cancel")}
@@ -295,7 +415,7 @@ export function CategoryCard({
                 disabled={busy}
                 onClick={() => setRenaming(true)}
               >
-                {t("quests.renameCategory")}
+                {t("quests.editCategory")}
               </button>
               {canDelete ? (
                 <button
@@ -311,6 +431,7 @@ export function CategoryCard({
           )}
         </div>
       )}
+      {renaming || notes.length === 0 ? null : <p className={styles.muted}>{notes.join(" · ")}</p>}
       {category.quests.length === 0 ? (
         <p className={styles.muted}>{t("quests.noQuests")}</p>
       ) : (
