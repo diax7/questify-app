@@ -1010,6 +1010,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // Survey responses are deleted before the completions they point at (T-303).
         "enrollment.survey_response",
         "quest_completion.survey_response",
+        // Bonus rows are deleted before the ledger entries and completions they point at (T-304).
+        "enrollment.category_bonus",
+        "ledger_entry.category_bonus",
+        "quest_completion.category_bonus",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

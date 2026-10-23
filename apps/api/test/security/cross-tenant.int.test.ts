@@ -838,6 +838,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by vote_quest, read by the voter through member_vote and by the event's team as counts through quest_vote_counts (test/db/vote-quiz)",
   survey_response:
     "no right for the API role at all; written by submit_survey, read by the event's team as totals and texts with names not shown through survey_summary; players read only whether they answered, through member_survey (test/db/challenge-survey-share)",
+  category_bonus:
+    "no right for the API role at all; written by pay_category_bonus inside the paying definers, read by the player through own_bonus, own_category_bonus and member_event_quests (test/db/category-rules)",
   quiz_attempt:
     "no right for the API role at all; written by quiz_start, quiz_next, quiz_answer and the sweep, read by the player through member_quiz (test/db/vote-quiz)",
   quiz_answer:

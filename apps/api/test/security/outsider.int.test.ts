@@ -113,6 +113,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a category bonus or reach the category rules (T-304)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.category_bonus",
+        "SELECT * FROM public.own_bonus(1)",
+        "SELECT * FROM public.own_category_bonus(gen_random_uuid())",
+        "SELECT public.pay_category_bonus(NULL::public.enrollment, gen_random_uuid(), NULL)",
+        "SELECT public.category_lock(NULL::public.quest, gen_random_uuid())",
+        "SELECT public.category_done(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.category_cleared(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.quest_done(gen_random_uuid(), gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,
