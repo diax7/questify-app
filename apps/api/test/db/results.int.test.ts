@@ -217,6 +217,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
       )
     )[0]?.redemption_id ?? null;
 
+  /** Runs `first` in a transaction held open, starts `second`, then commits `first`. */
+  const holdThen = async (
+    first: (client: PoolClient) => Promise<unknown>,
+    second: () => Promise<unknown>,
+    firstContext: RequestContext,
+  ) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await withRequestContext(client, firstContext, () => first(client));
+      const later = second().then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({
+          ok: false as const,
+          error: error as { code: string; detail?: string },
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await client.query("COMMIT");
+      return await later;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
+  const write = (sql: string, values: unknown[], staff = ownerA) => run(team(staff), sql, values);
+
+  const confirmed = async (withSwitch = true) => {
+    const event = await newEvent();
+    if (!withSwitch) {
+      await owner("UPDATE event SET rank_prizes = false WHERE id = $1", [event]);
+    }
+    const first = await newPlayer(event, 300);
+    const second = await newPlayer(event, 200);
+    const third = await newPlayer(event, 100);
+    const gold = await prize(event, 1, 1, "Gold");
+    const silver = await prize(event, 2, 2, "Silver", "experience");
+    await confirm(event);
+    return { event, first, second, third, gold, silver };
+  };
+
+  const revealed = async () => {
+    const event = await newEvent();
+    const winner = await newPlayer(event, 300);
+    await prize(event, 1, 1, "Gold");
+    await confirm(event);
+    await reveal(event);
+    const redemption = (await winnerRedemption(event, 1)) ?? "";
+    const operator = await newOperator(event);
+    return { event, winner, redemption, operator };
+  };
+
   describe("who wins", () => {
     it("ranks by score, then by who got there first, without operators, banned or excluded players", async () => {
       const event = await newEvent();
@@ -374,34 +429,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
   });
 
   describe("races", () => {
-    /** Runs `first` in a transaction held open, starts `second`, then commits `first`. */
-    const holdThen = async (
-      first: (client: PoolClient) => Promise<unknown>,
-      second: () => Promise<unknown>,
-      firstContext: RequestContext,
-    ) => {
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        await withRequestContext(client, firstContext, () => first(client));
-        const later = second().then(
-          (value) => ({ ok: true as const, value }),
-          (error: unknown) => ({
-            ok: false as const,
-            error: error as { code: string; detail?: string },
-          }),
-        );
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await client.query("COMMIT");
-        return await later;
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
-    };
-
     it("a removal holding the event makes the confirm wait, and the confirm sees the lower score", async () => {
       const event = await newEvent();
       const a = await newPlayer(event, 30);
@@ -448,7 +475,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
       await newPlayer(event, 30);
       const seen = await expectedOf(event);
       const outcomes = await Promise.all([confirm(event, seen), confirm(event, seen)]);
-      expect(outcomes.sort()).toEqual(["confirmed", "replayed"]);
+      expect(outcomes.toSorted()).toEqual(["confirmed", "replayed"]);
       expect(await owner("SELECT 1 FROM result_place WHERE event_id = $1", [event])).toHaveLength(
         1,
       );
@@ -482,13 +509,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
           (error: { detail?: string }) => error.detail,
         );
       const outcomes = await Promise.all([insert(1, 3), insert(3, 5)]);
-      expect(outcomes.sort()).toEqual(["ok", "overlap"]);
+      expect(outcomes.toSorted()).toEqual(["ok", "overlap"]);
     });
   });
 
   describe("prizes", () => {
-    const write = (sql: string, values: unknown[], staff = ownerA) => run(team(staff), sql, values);
-
     it("organizers write prizes in their events; overlaps, a desk-less item and edits of removed ones are refused", async () => {
       const event = await newEvent("draft");
       await write(
@@ -610,20 +635,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
   });
 
   describe("the reveal", () => {
-    const confirmed = async (withSwitch = true) => {
-      const event = await newEvent();
-      if (!withSwitch) {
-        await owner("UPDATE event SET rank_prizes = false WHERE id = $1", [event]);
-      }
-      const first = await newPlayer(event, 300);
-      const second = await newPlayer(event, 200);
-      const third = await newPlayer(event, 100);
-      const gold = await prize(event, 1, 1, "Gold");
-      const silver = await prize(event, 2, 2, "Silver", "experience");
-      await confirm(event);
-      return { event, first, second, third, gold, silver };
-    };
-
     it("needs confirmed results and a deadline from 1 hour to 60 days away with the desk open before it", async () => {
       const event = await newEvent();
       expect(await refusal(reveal(event))).toEqual({ code: "RF409", detail: "not_confirmed" });
@@ -765,17 +776,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
   });
 
   describe("the prize at the desk", () => {
-    const revealed = async () => {
-      const event = await newEvent();
-      const winner = await newPlayer(event, 300);
-      await prize(event, 1, 1, "Gold");
-      await confirm(event);
-      await reveal(event);
-      const redemption = (await winnerRedemption(event, 1)) ?? "";
-      const operator = await newOperator(event);
-      return { event, winner, redemption, operator };
-    };
-
     it("is handed over like any item, with a 0/0 entry and nothing taken", async () => {
       const { event, winner, redemption, operator } = await revealed();
       const [seen] = await call<Row>(operator, "SELECT * FROM desk_lookup($1, $2, 1)", [
