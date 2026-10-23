@@ -89,7 +89,7 @@ anti-cheat) is Area 3.
 | F-06 | Vote among options written by the organizer (text or organizer-uploaded images) | Must | user | Never on people's looks (PD-13). Player submissions are never vote options (ADR-075) |
 | F-07 | Quiz | Must | user | One try per question, points for each right answer, optional timer, the right answer shown after |
 | F-83 | Enter a code (from a slide, a speaker or a push message) | Must | Claude | The check-in that works at virtual events |
-| F-84 | Meet someone: scan another player's personal QR; both earn | Should | Claude | One scan by either player completes it for both. No repeat pairs; the organizer sets a daily cap per player |
+| F-84 | Meet someone: scan another player's meet code; both earn | Should | Claude | One scan by either player completes it for both. No repeat pairs; the organizer sets a daily cap per player. Built by T-303c with a one-minute meet code, not My QR (ADR-209) |
 | F-85 | Survey: questions with no right answer (rate a session, feedback) | Should | Claude | Results go to the organizer; speakers' feedback in Area 12 |
 | F-86 | Location check-in: be inside an area | Could | Claude | Foreground location only (PD-09); a QR at the spot always works too (ADR-015) |
 | F-87 | Mini-games as a quest type: four games in v1 (memory match, slide puzzle, catch, tap rush); the reward is points for passing the organizer's target (easy, medium or hard) on the first pass | Should | user / deck | ADR-097. Which games and how they are checked: ADR-097 |
@@ -183,7 +183,7 @@ Decisions:
 | F-54 | Verification methods per quest: the organizer enables one or more of: the player scans the quest's QR; an operator scans the player's QR; an NFC tag | Must | user | Replaces the deck's easy/hard model (ADR-040) |
 | F-55 | Live camera only (no scanning from the gallery); one completion per player per quest, or up to its repeat cap; a clear "already completed" message | Must | deck / BRD | |
 | F-67 | Printable QR per quest from the dashboard: view, download, print sheet | Must | BRD | |
-| F-104 | My QR: each player's personal code, rotating every 30 seconds in the app | Must | Claude | Used by operator scans, meet-someone (F-84), kiosks (F-107) and prize redemption (Area 5). A screenshot expires within a minute |
+| F-104 | My QR: each player's personal code, rotating every 30 seconds in the app | Must | Claude | Used by operator scans, kiosks (F-107) and prize redemption (Area 5); meet-someone (F-84) uses its own one-minute code (ADR-209). A screenshot expires within a minute |
 | F-108 | Operator manual award: find a player by username or phone and award a quest or points | Must | Claude | When nothing can be scanned. Reason required; logged with the operator's name |
 | F-109 | Caps on manual awards, set by the owner: maximum per award and per operator per day; a report of every manual award | Must | Claude | |
 | F-105 | NFC tags: written from staff mode on a phone ("Write to NFC tag" on the quest), tapped by players in the app; the QR as backup | Should | user | Basic tags; the web dashboard can't write tags. Platform limits: Q-071 |

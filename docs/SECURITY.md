@@ -141,6 +141,12 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer, any foreign email provider (staff mail, and player sign-in codes by email until Q-034 is
   answered: only the address and the code pass through, ADR-117) and the Pwned Passwords range API (5 hex characters of a password's SHA-1, no personal data), each listed in the data map (NFR-020) and on the
   counsel list.
+- Meet codes (T-303c, ADR-209): a 128-bit random token per code, alive one minute, used once; it travels only in a
+  request body and in the QR, and only its SHA-256 hash reaches the database (compared by equality on a unique
+  index: a guess is a lookup miss). Refusals and logs never echo it. `meet_pass` and `meeting` have no grant and no
+  policy; only `issue_meet_pass`, `meet_pass_state` and `meet_player` are executable, by the API role only (outsider
+  suite). The scanner learns the other player's username and avatar only; a refusal for the other player's reasons
+  is one generic `not_for_them`.
 - Location (T-303b, ADR-206): read only while the app is open and only with a request that uses it; it travels in the request body (never a header or query); no coordinate is stored, only rounded distances, accuracy and the mocked mark in `completion_position`, which no API role can read; refusals never echo the numbers; the database must not log bound parameters (a test checks the settings; CranL checked per RUNBOOK before the switch goes on). A check-in proves only what the phone claims.
 - Minimisation: no ad networks or tracking SDKs; location only while the app is open; photos only
   through the system picker or camera (NFR-021).

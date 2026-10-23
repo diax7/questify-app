@@ -69,6 +69,10 @@ Fail fast with a message that says what failed and what to do next. Never swallo
 errors use the one envelope in `API.md`. A failed network action in the app is never silently lost or
 half-applied (NFR-007): the player sees it and can retry. No personal data in error messages.
 
+**Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
+all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
+only in ascending key order. A test runs the crossed cases on two connections (`test/db/meet.int.test.ts`).
+
 ## Testing
 
 - **Unit and integration:** `vitest`, colocated `*.test.ts`. Test behavior, not implementation; test

@@ -2664,6 +2664,8 @@ other's meet code"; FR-306 no longer lists meet-someone.
 has it. A one-minute single-use code cannot be reused from a screenshot; two friends relaying it live are bounded by
 the pair rule and the daily cap (ADR-210).
 
+**Build notes (T-303c, 2026-10-23):** the screen's brightness is not raised while the code shows: that needs `expo-brightness`, a native module and a new EAS build (Q-173 asks whether to add it). The code's minute is a bar that empties; the app reads its state every 2 seconds (5 after a 429), never past its minute, and draws a fresh code when it ends.
+
 ## ADR-210 — Meet-someone rules
 **Status:** Proposed (Claude, 2026-10-24; T-303c). Q-174.
 **Decision:** one meeting per pair of players per quest, in either direction. A daily cap per player (organizer-set, 1
@@ -2674,6 +2676,7 @@ neither is paid; the scanner is told only "not for them" when the other player c
 and counts towards the repeat cap. The event switch `meetSomeone` (FR-1009) is on by default; off, meet quests are
 hidden and refused. Allowed in every event kind.
 **Why:** FR-212, FR-213; all-or-nothing keeps the two ledgers in step; the other player's audience or ban is theirs.
+**Build notes (T-303c, 2026-10-23):** (1) the rehearsal wipe deletes the rehearsal accounts' codes, not every code of the event (a live player's code stays); (2) a meet quest's code rows cascade with a deleted quest; (3) the platform's `meetSomeone` switch is checked by the API, the event's by the database (`meet_on`); (4) the switch route is the owner's, like the share switch, not the editors' too; (5) the daily-cap line says the cap as a number ("today's limit (5)") because the messages have no Arabic plural forms yet.
 
 ## ADR-211 — Meet-someone locks and collusion signals
 **Status:** Proposed (Claude, 2026-10-24; T-303c). Q-175.
@@ -2689,3 +2692,4 @@ computed (no coordinates are kept, ADR-206). No new flag kind until real data sh
 **Why:** two enrollments or two devices per transaction would deadlock against a locker using another order (CTO plan
 review 2026-10-24); a popular player shown
 many times is not a script; comparing two positions would mean keeping coordinates.
+**Build notes (T-303c, 2026-10-23):** the two payments run in player id order, not enrollment id order: Questify XP rows are per player across events, so two meetings of the same two players in two events would otherwise cross (a race test covers it). The rate limiter's lock is `pg_try_advisory_xact_lock` in its own transaction, so it never waits inside a meeting.

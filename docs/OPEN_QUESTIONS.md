@@ -343,6 +343,7 @@ Sources (checked 2026-10-23): the App Review reply is quoted in the Apple Develo
 ADR-209: since My QR is fixed (ADR-137), a meet quest uses its own code: shown from the meet quest in the app, alive for
 one minute, used up by the first meeting, and both players are paid together or not at all. Meeting needs a connection
 on both phones. Agree, or a longer life, a typed fallback, or the shown player confirming each meeting in their app?
+Also (build, 2026-10-23): should the app raise the screen's brightness while the code shows? It needs `expo-brightness`, a native module, so a new EAS build; without it a dim phone may scan slower.
 
 ## Q-174 — Meet-someone rules (2026-10-24, T-303c)
 ADR-210: one meeting per pair per quest; a daily cap per player (default 5, 1 to 50) counting the meetings they took

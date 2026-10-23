@@ -165,6 +165,7 @@ with replay) end in the same `complete` transaction, differing only in the proof
 | The ranking store is lost or down | Readers get the same order straight from PostgreSQL (`ranking_top`, `ranking_position`), and the set is rebuilt from the enrollments' ledger-kept points the moment it is missing, without losing writes that land during the rebuild. A backstop rebuilds every live event every 5 minutes |
 | The database is restored to 5 minutes earlier | Multi-node PostgreSQL with replicas means a node failure loses nothing; only a logical disaster needs a point-in-time restore, which can lose up to 5 minutes (ADR-082). Players confirmed in that window are told their last minutes were rolled back through a banner; the post-event report notes it. Accepted risk, rehearsed before launch (NFR-026) |
 | Two editors change the same record | Last save wins (ADR-088); every change is in the audit log |
+| One request pays two players (a meeting, T-303c) | Lock order (ADR-211): the rehearsal row shared, then every enrollment the request needs in one statement in id order, then the meet code, then the quest's items in id order, then the device advisory keys in ascending key order, all before the first write; the payments then run in player id order (Questify XP rows are per player across events). Single payers keep enrollment, items, then their one device key. Lockers that run only after play ends (`reveal_results`, `confirm_results`) are left as they are |
 
 ## Observability
 

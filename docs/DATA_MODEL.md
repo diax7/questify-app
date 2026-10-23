@@ -565,6 +565,26 @@ completion deletes cascade to them. Helpers: `position_of`, `distance_m` (havers
 `location_tuning()` (far margin 1000 m, 15 m/s, minimum gap 300 m, beside 0031's `flag_tuning`).
 **PII:** the accuracy, mocked mark and rounded venue distance of a player's scans (deleted with the account).
 
+### meet_pass and meeting (migration 0049, T-303c, ADR-209 to ADR-211)
+**Built:** quest `type` gains `meet` (no verification: no quest QR, no My QR; `type_config.dailyCap` 1 to 50 by the
+check `quest_meet_cap`; the builder also refuses a daily cap above the repeat cap); `quest_completion.method` gains
+`meet_scan` (the scanner) and `meet_shown` (the shown player). `meet_pass(id, organizer_id, event_id, quest_id,
+enrollment_id, device_id, token_hash bytea(32) UNIQUE, created_at, expires_at = +60 s, ended_at)`: one shown code, kept
+only as the SHA-256 of its 128-bit token; at most one open per player and quest (a new one ends the old); used or
+replaced sets `ended_at`; a player's codes older than a day that no meeting names are deleted at their next issue; the
+quest FK cascades (a deleted quest takes its unused codes). `meeting(id, organizer_id, event_id, quest_id,
+scanner_enrollment, shown_enrollment, pass_id UNIQUE, request_key, scanner_completion, shown_completion, created_at)`:
+unique per unordered pair and quest (expression index), unique `(scanner_enrollment, request_key)` (the replay), both
+completion FKs `ON DELETE CASCADE`; written after both payments. Both completions are keyed `meet:<pass id>`
+(`record_completion` reserves `meet:`). `pay_completion` takes an 8th argument, the device. The daily cap counts the
+player's own `meet_scan`/`meet_shown` completions since the event day's start (`meet_today`). Definers:
+`issue_meet_pass`, `meet_pass_state` (the code's own player only), `meet_player` (both payments, ADR-211's lock order).
+No grant and no policy on either table. `member_event_quests` adds `daily_cap` and `met_today` for meet quests.
+Erasure deletes every meeting with the player on either side and their codes (the other player's completion stays and
+still counts towards their caps); the rehearsal wipe deletes the rehearsal accounts' codes, and their meetings go with
+their completions. The shown side counts for the shared-device flag but not the burst.
+**PII:** who met whom (deleted with either account); a code's device id (deleted with the account).
+
 ### flag, ticket, audit_log
 `flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst|far_from_venue|impossible_speed, device_id (shared_device only),
 evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,
@@ -656,6 +676,7 @@ Derived from the primary flows:
 | Birth year, city, interests | Age gate, optional personalization | Same | Until deletion | Player; admin |
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
 | Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
+| Meetings | Meet-someone quests (FR-212, FR-213) | `meeting` and `meet_pass` have no grant and no policy; a code is kept only as a hash; the scanner sees the other's username and avatar, never their id | Event data (Q-075, Q-175); deleted with either account | Nobody through the API (no team read exists) |
 | Photos, free text | Photo and text quests | Private storage, signed URLs; PD-29 report and unpublish | Event retention; Q-075 | Organizer team; reviewers |
 | Password hashes | Staff sign-in | argon2id; never exported | Until account removal | Nobody |
 | Uploaded prize codes | Digital prizes | Encrypted column, shown only at handover | Until used or event end | Prize desk at handover |
