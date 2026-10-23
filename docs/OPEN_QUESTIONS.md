@@ -294,3 +294,8 @@ should a bonus also give XP, or follow its quests' removal?
 ## Q-167 — Passport rules (2026-10-24, T-304b)
 ADR-203: steps by printed QR only; a scan after the passport is finished refuses; `needed` never falls once anyone has
 stamped. Agree, or should staff stamp a step from a player's My QR, or extra stamps count for something?
+
+## Q-168 — Refresh and hidden categories (2026-10-24, T-304c)
+ADR-204: weekly blocks start on the event's first day (not a calendar week); a daily unlock category locks its
+follower again each day; a scan of a hidden category's quest before its secret code answers `not_for_you`. Agree, or
+should weeks follow the calendar, an unlock stay open once earned, or a quest scan reveal its category?

@@ -2571,3 +2571,15 @@ database holds these rules in triggers. The device id lives on the stamp row, no
 stamped by printed QR only (no station or My QR path yet).
 **Why:** FR-224; one payer and one lock keep "paid once" safe under races, as T-304's bonus; a step code that cannot
 open as any other code keeps T-104's proof model.
+
+## ADR-204 — Category refresh and hidden categories
+**Status:** Proposed (Claude, 2026-10-24; T-304c). Q-168.
+**Decision:** a category may refresh daily or weekly. The repeat cap, "done", the in-order and unlock gates and the
+completion bonus count inside the current period: the event's day (ADR-083's day-start hour), or 7-day blocks counted
+from the event's first day. Nothing paid is touched at a reset. Only scan, code and challenge quests may sit in a
+refreshing category (the database refuses the mix). A hidden category opens per player by a signed secret code (format
+0x05, its own key, versioned for reprints) that pays nothing and takes no Idempotency-Key (a second scan writes
+nothing); until then it acts as outside the player's audience (play refused `not_for_you`, an unlock gate on it counts
+as met), and the public event page never lists it.
+**Why:** FR-236, FR-1619, FR-237; one period helper used by every payer keeps "how many this period" in one place
+under the enrollment lock; played-once types have no meaning in a refresh.
