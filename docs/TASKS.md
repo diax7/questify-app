@@ -232,6 +232,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Note 2026-10-23 (T-209): "open flags shown before reveal" reads `event_flags(event, true, …)`; a ban already closes the player's cases.
 - [ ] **T-217** Account deletion from the app and from a web page: remove the profile and points, anonymize log entries, keep prize-handover records only as the law requires, keep a one-way fingerprint so bans stand — delivers FR 126, 127, 128, 1704, 1739; depends on: T-109, T-206
   - Note 2026-10-23 (T-211): a rehearsal account (`joined_via = 'rehearsal'`) is test data: deletion may remove it outright through `wipe_rehearsal`'s order of deletes rather than anonymizing it.
+  - Note 2026-10-23 (T-214): `result_place.enrollment_id` and a rank prize's `redemption` point at the account (RESTRICT): decide whether a deleted winner's place stays anonymised (the rank and score kept, the enrollment detached) or the place goes; the frozen results must not reorder.
   - Done when: A deleted account cannot sign in or be found; log entries are anonymized; a ban still applies to the same phone or email; a pending handover is explained before deletion.
   - Note 2026-10-21 (T-108): when the deletion fingerprint lands, `start_contact_change` must refuse a contact whose fingerprint is banned, as sign-up will; `player_contact_challenge` rows go with the account (ON DELETE CASCADE).
   - Note 2026-10-21 (T-109): `username_history` is append-only; the erasure definer sets `app.erasure = on` in its transaction to delete the player's rows (a guard against mistakes, not a security boundary). Also revoke the player's refresh families (T-107).
@@ -277,6 +278,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Done when: A community goal not reached pays nothing; points-based goals count participation points.
 - [ ] **T-307** Flash quests, double-point boosts, live finale — delivers FR 251, 252, 254, 255, 1621; depends on: T-306
   - Done when: A flash quest is available only in its window; a boost applies only to its category or zone.
+  - Note 2026-10-23 (T-214): the finale's winner reveal calls the owner's `POST …/results/reveal` (confirmed results, a claim deadline) and shows `results_places`; it never decides winners itself. Results are confirmed only after the event ends (ADR-163, Q-127): a finale before the end needs the end time moved, or Q-127 answered otherwise.
 - [ ] **T-308** NFC: write a tag from staff mode, tap to complete, signed tags (Q-071 decision first), QR stays as a fallback — delivers FR 312, 313; depends on: T-205
   - Done when: A quest can be completed by tapping its tag; a cloned plain tag is flagged or refused according to Q-071.
 - [ ] **T-309** Rotating screen QR, station pages and kiosks, pairing of stations, kiosks and big screens — delivers FR 314, 315, 1713; depends on: T-205
@@ -323,6 +325,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
   - Done when: A refused push permission blocks nothing and the center still holds every message.
   - Note 2026-10-21 (T-208): event pushes go to `active` enrollments only: a player who left, was banned or is pending gets none (FR-1703).
+  - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
   - Done when: Announcements never go by email or SMS.
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501

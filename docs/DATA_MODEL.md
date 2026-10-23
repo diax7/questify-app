@@ -344,6 +344,29 @@ ADR-151):
   find) shows only `active` and `hold`, never the status. `enrollment.redeem_paused_at` (0031) also refuses new
   reservations and Collect (`RP403`, after the replay check).
 
+### rank_prize, event_result, result_place (migration 0034, T-214)
+- `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description
+  i18n, status active|removed)`: organizers write under row-level security with column grants (`kind` fixed at
+  creation; no DELETE). A guard (`rank_prize_guard`) refuses overlapping active ranges for every writer under the
+  advisory lock `hashtextextended('rank_prize:' || event_id, 0)`; for the API role it also refuses any write once the
+  results are confirmed (`RF409 results_final`), new prizes and range or status changes once the event is live
+  (`prizes_locked`), edits of a removed prize, and an item without the desk's place (`DL409`).
+- `event` gains `rank_prizes boolean` (default true; locked once live) and `rules_ar`/`rules_en` (plain text, 1–10 000).
+- `event_result(event_id pk, organizer_id, confirmed_at, confirmed_by, revealed_at, revealed_by, claim_until)` and
+  `result_place(event_id, rank, enrollment_id, score, score_version, open_flags, rank_prize_id, redemption_id)`: no
+  API grant at all; written by `confirm_results` (owner, ended events, against the ids the owner saw, under the event's
+  FOR UPDATE lock) and `reveal_results`; read through `results_state`, `results_places` (team) and `event_results`
+  (members, after the reveal). A row in `event_result` is the freeze: `remove_award` takes the event FOR KEY SHARE
+  before the enrollment and refuses then (`results_final`).
+- `redemption` gains `rank_prize_id` (exactly one of `reward_id` and `rank_prize_id`; price 0 for a rank prize, never
+  `delivered`; unique per prize and enrollment). Its key is `rank prize <its own id>`: a space, which the API's
+  Idempotency-Key format refuses, so no player request can name it; replays compare `reward_id` with IS DISTINCT FROM.
+  `end_reservation` writes no `redeem_return` and moves no stock for a rank prize; `cancel_redemption` refuses it
+  (`RZ409`). Every reader of a redemption's reward reads the rank prize too: `desk_items` (lookup, find; gains `rank`),
+  `my_desk_items`, `my_redemptions` (gains `rank`), `flag_detail`, `member_activity`.
+- Official rules: `rules_of(event)` (internal), `public_event_rules(code)` (the join card's visibility) and
+  `event_rules(event)` (active members) return the data the API's fixed block is written from (ADR-165).
+
 ### submission
 `id, completion_id, kind photo|text|video_later, media_key, text, review_status, reviewer, note`.
 **PII:** photos and free text may show people; no AI moderation (ADR-071); reports and takedown per

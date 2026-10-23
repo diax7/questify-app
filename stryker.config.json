@@ -24,6 +24,8 @@
     "apps/api/src/flags/**/*.ts",
     "apps/api/src/activation/**/*.ts",
     "apps/api/src/rehearsal/**/*.ts",
+    "apps/api/src/results/**/*.ts",
+    "packages/shared/src/results/**/*.ts",
     "packages/shared/src/quests/**/*.ts",
     "packages/shared/src/players/**/*.ts",
     "packages/shared/src/join/**/*.ts",
