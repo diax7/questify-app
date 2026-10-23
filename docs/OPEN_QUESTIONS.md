@@ -297,5 +297,7 @@ stamped. Agree, or should staff stamp a step from a player's My QR, or extra sta
 
 ## Q-168 — Refresh and hidden categories (2026-10-24, T-304c)
 ADR-204: weekly blocks start on the event's first day (not a calendar week); a daily unlock category locks its
-follower again each day; a scan of a hidden category's quest before its secret code answers `not_for_you`. Agree, or
-should weeks follow the calendar, an unlock stay open once earned, or a quest scan reveal its category?
+follower again each day; a scan of a hidden category's quest before its secret code answers `not_for_you`; a staff
+manual award of a hidden quest pays and reveals the category to that player; switching a category from daily to none
+keeps its bonus paid once (not paid again). Agree, or should weeks follow the calendar, an unlock stay open once
+earned, a quest scan reveal its category, or a manual award be refused until the player finds the code?
