@@ -5,8 +5,8 @@
 ## Local checks
 
 - `pnpm ci:changed`: lint, format check, types and all tests (what the pull-request gate runs).
-- `pnpm ci:full`: `ci:changed` plus the dependency audit and the mutation check (about 20 minutes with the database
-  tests; run it before merging core changes, in the background).
+- `pnpm ci:full`: `ci:changed` plus the dependency audit. The mutation check is not run here (ADR-174): it runs only
+  on GitHub, see below.
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.
@@ -24,9 +24,9 @@
   `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 10 to 15
   minutes) or `gh workflow run mutation.yml --ref <branch> -f mutate="<globs>"` (Stryker with incremental results
   kept between runs; empty `mutate` runs every core module). Read the result with `gh run watch` and the
-  `mutation-report` artifact. The PC keeps the quick loop: single test files while coding. Local mutation on Windows
-  crashes under load; if it must run here, use `--concurrency 4 --dryRunTimeoutMinutes 20`, then end leftover
-  `stryker` node processes and drop `questify_test_*`.
+  `mutation-report` artifact. The PC keeps the quick loop: single test files while coding. **Never run mutation
+  on the PC** (ADR-174: about 18 GB, it can crash it). One `mutation.yml` run per batch of 2 or 3 core tasks, with
+  `mutate` set to the core files those tasks changed; kill survivors only while a file is under 90%.
 
 ## Staff sign-in
 

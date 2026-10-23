@@ -23,7 +23,7 @@ const ruleBody = z.strictObject({
     .nullable(),
 });
 
-const member = { config: { access: "member" } } as const;
+const member = { config: { access: "member" }, bodyLimit: 2048 } as const;
 
 /**
  * Targeting (T-220, FR-1708, ADR-170) for the event's owner and editors in scope: `GET …/events/:eventId/audience`

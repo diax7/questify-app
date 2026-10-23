@@ -2322,3 +2322,13 @@ cleared (409 `join_field_in_use {reason: rules}`, naming the categories and rewa
 name it). A removed reward that still holds a rule is listed in "Who sees what" so its rule can be cleared.
 **Why:** a deleted field quietly opening a Women-only category to everyone is the failure that would hurt an
 organizer most; refusing with the names lets them change the rule first.
+
+## ADR-174 — Mutation testing runs on GitHub, in batches, on the files a task changed
+**Status:** Accepted (Dhia, 2026-10-24). Amends ADR-111 (scope) and ADR-149 (where heavy checks run).
+**Decision:**
+1. Mutation testing covers core code only, and only the files a task changed (the task lists its globs).
+2. One GitHub run (`mutation.yml`) per batch of 2 or 3 core tasks, started by the coordinator.
+3. Survivors are chased only while a file is under 90%; at 90% or more the file is done.
+4. It never runs on the developer PC.
+**Why:** a local run takes about 18 GB and can crash Dhia's PC; batching and changed-file scope keep GitHub minutes
+low, and 90% is the core target ADR-111 already set.

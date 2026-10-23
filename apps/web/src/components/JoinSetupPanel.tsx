@@ -175,6 +175,109 @@ function FieldRow({
   );
 }
 
+/** The save refusal or the saved notice, announced to screen readers. */
+function Feedback({
+  problem,
+  notice,
+}: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
+      {problem === null ? null : (
+        <p role="alert" className={styles.alert}>
+          {problem}
+        </p>
+      )}
+      {notice === null ? null : (
+        <p role="status" className={styles.notice}>
+          {notice}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** The fields save button, or the confirmation shown before a save that removes saved fields. */
+function FieldsFooter({
+  language,
+  busy,
+  confirming,
+  incomplete,
+  cancel,
+}: Readonly<{
+  language: Language;
+  busy: boolean;
+  confirming: boolean;
+  incomplete: boolean;
+  cancel: () => void;
+}>) {
+  const t = translatorFor(language);
+  if (!confirming) {
+    return (
+      <button
+        type="submit"
+        className={styles.button}
+        disabled={busy || incomplete}
+        aria-busy={busy}
+      >
+        {t("joinFields.save")}
+      </button>
+    );
+  }
+  return (
+    <div role="alertdialog" aria-labelledby="remove-fields" className={styles.card}>
+      <p id="remove-fields">{t("joinFields.confirmRemove")}</p>
+      <div className={styles.row}>
+        <button type="submit" className={styles.button} disabled={busy}>
+          {t("joinFields.confirmRemoveYes")}
+        </button>
+        <button type="button" className={styles.quiet} onClick={cancel}>
+          {t("joinFields.confirmRemoveNo")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The welcome reward amount, read-only with the fixed amount once it is locked. */
+function WelcomeField({
+  language,
+  setup,
+  value,
+  busy,
+  invalid,
+  change,
+}: Readonly<{
+  language: Language;
+  setup: JoinSetup;
+  value: string;
+  busy: boolean;
+  invalid: boolean;
+  change: (next: string) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <label className={styles.field}>
+      <span>{t("joinRules.welcome")}</span>
+      <input
+        className={styles.input}
+        dir="ltr"
+        inputMode="numeric"
+        value={value}
+        disabled={busy || setup.welcomeLocked}
+        aria-invalid={invalid}
+        aria-describedby="welcome-hint"
+        onChange={(typed) => change(typed.target.value)}
+      />
+      <span id="welcome-hint" className={styles.muted}>
+        {t(setup.welcomeLocked ? "joinRules.welcomeLocked" : "joinRules.welcomeHint")}
+        {setup.rules.welcomePoints === null || !setup.welcomeLocked
+          ? null
+          : ` (${formatNumber(setup.rules.welcomePoints, language)})`}
+      </span>
+    </label>
+  );
+}
+
 /** The join fields editor (FR-129): up to five, in order, saved as one list against the version read. */
 function FieldsEditor({
   language,
@@ -250,38 +353,14 @@ function FieldsEditor({
       {setup.fields.length > 0 ? (
         <p className={styles.muted}>{t("joinFields.removeWarning")}</p>
       ) : null}
-      {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
-          {problem}
-        </p>
-      )}
-      {notice === null ? null : (
-        <p role="status" className={styles.notice}>
-          {notice}
-        </p>
-      )}
-      {confirming ? (
-        <div role="alertdialog" aria-labelledby="remove-fields" className={styles.card}>
-          <p id="remove-fields">{t("joinFields.confirmRemove")}</p>
-          <div className={styles.row}>
-            <button type="submit" className={styles.button} disabled={busy}>
-              {t("joinFields.confirmRemoveYes")}
-            </button>
-            <button type="button" className={styles.quiet} onClick={() => setConfirming(false)}>
-              {t("joinFields.confirmRemoveNo")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="submit"
-          className={styles.button}
-          disabled={busy || drafts.some((draft) => needsLabel(draft) || needsOptions(draft))}
-          aria-busy={busy}
-        >
-          {t("joinFields.save")}
-        </button>
-      )}
+      <Feedback problem={problem} notice={notice} />
+      <FieldsFooter
+        language={language}
+        busy={busy}
+        confirming={confirming}
+        incomplete={drafts.some((draft) => needsLabel(draft) || needsOptions(draft))}
+        cancel={() => setConfirming(false)}
+      />
     </form>
   );
 }
@@ -353,35 +432,15 @@ function RulesEditor({
           {t("joinRules.domainsHint")}
         </span>
       </label>
-      <label className={styles.field}>
-        <span>{t("joinRules.welcome")}</span>
-        <input
-          className={styles.input}
-          dir="ltr"
-          inputMode="numeric"
-          value={welcome}
-          disabled={busy || setup.welcomeLocked}
-          aria-invalid={amount === "invalid"}
-          aria-describedby="welcome-hint"
-          onChange={(typed) => setWelcome(typed.target.value)}
-        />
-        <span id="welcome-hint" className={styles.muted}>
-          {t(setup.welcomeLocked ? "joinRules.welcomeLocked" : "joinRules.welcomeHint")}
-          {setup.rules.welcomePoints === null || !setup.welcomeLocked
-            ? null
-            : ` (${formatNumber(setup.rules.welcomePoints, language)})`}
-        </span>
-      </label>
-      {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
-          {problem}
-        </p>
-      )}
-      {notice === null ? null : (
-        <p role="status" className={styles.notice}>
-          {notice}
-        </p>
-      )}
+      <WelcomeField
+        language={language}
+        setup={setup}
+        value={welcome}
+        busy={busy}
+        invalid={amount === "invalid"}
+        change={setWelcome}
+      />
+      <Feedback problem={problem} notice={notice} />
       <button
         type="submit"
         className={styles.button}

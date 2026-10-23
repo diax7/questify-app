@@ -1287,8 +1287,8 @@ export const MESSAGES = {
     en: "Players choose the answer from a list",
   },
   "joinFields.choiceHint": {
-    ar: "من {min} إلى {max} خيارات. يمكن قصر فئة أو جائزة على من اختار خيارًا معيّنًا في «من يرى ماذا». بعد أن يجيب اللاعبون يمكنك تعديل الأسماء وإضافة خيارات، لا حذف خيار اختاره أحد.",
-    en: "{min} to {max} options. “Who sees what” can limit a category or a reward to the players who chose an option. Once players answer, you can rename and add options, but not remove one someone chose.",
+    ar: "من {min} إلى {max} خيارات. يمكن قصر فئة أو جائزة على من اختار خيارًا معيّنًا في «من يرى ماذا». بعد أن يجيب اللاعبون يمكنك تعديل الأسماء وإضافة خيارات، لا حذف خيار اختاره أحد. تغيير اسم خيار يغيّره لكل من اختاره.",
+    en: "{min} to {max} options. “Who sees what” can limit a category or a reward to the players who chose an option. Once players answer, you can rename and add options, but not remove one someone chose. Renaming an option changes it for everyone who chose it.",
   },
   "joinFields.optionAr": { ar: "الخيار {number} بالعربية", en: "Option {number} in Arabic" },
   "joinFields.optionEn": { ar: "الخيار {number} بالإنجليزية", en: "Option {number} in English" },
