@@ -25,7 +25,7 @@ export type MemberQuest = Readonly<{
   repeatCap: number;
   opensAt: Date | null;
   closesAt: Date | null;
-  /** How many times the calling player completed it. */
+  /** How many times the calling player completed it, in its category's current period (T-304c). */
   done: number;
   /** The points the calling player earned from it, from the ledger (migration 0022). */
   earned: number;
@@ -51,6 +51,12 @@ export type CategoryRules = Readonly<{
    * is settled: paid, or since removed or withheld, so it is never paid again.
    */
   bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
+  /**
+   * How often its quests start again (T-304c, FR-236): `done`, the gates and `bonus.settled` count this period only;
+   * `earned` stays lifetime. `resetsAt` is the next period's start, null for none.
+   */
+  refresh: "none" | "daily" | "weekly";
+  resetsAt: Date | null;
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }> &
@@ -185,6 +191,8 @@ type QuestRow = Readonly<{
   lock: QuestLock | null;
   steps_done: number | null;
   steps_needed: number | null;
+  refresh: "none" | "daily" | "weekly";
+  resets_at: Date | null;
 }>;
 
 const rulesOf = (row: QuestRow): CategoryRules => ({
@@ -202,6 +210,8 @@ const rulesOf = (row: QuestRow): CategoryRules => ({
     earned: Number(row.bonus_earned),
     settled: row.bonus_settled,
   },
+  refresh: row.refresh,
+  resetsAt: row.resets_at,
 });
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>

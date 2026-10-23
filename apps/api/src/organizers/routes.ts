@@ -33,7 +33,7 @@ import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { OperatorsDeps } from "#src/operators/operators";
 import { registerOperatorRoutes } from "#src/operators/routes";
-import type { QuestCodeKey, StepCodeKey } from "#src/quests/qr";
+import type { QuestCodeKey, RevealCodeKey, StepCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import type { RewardCodeKey } from "#src/rewards/codes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
@@ -54,7 +54,12 @@ export type OrganizerRoutesDeps = Readonly<{
   /** The team's rehearsal card, code and erase (T-211). */
   rehearsal: Rehearsal;
   /** Signs the printed quest codes, which point at the dashboard's `/q/{token}` page. */
-  questCodes: Readonly<{ codeKey: QuestCodeKey; stepKey: StepCodeKey; codeOrigin: string }>;
+  questCodes: Readonly<{
+    codeKey: QuestCodeKey;
+    stepKey: StepCodeKey;
+    revealKey: RevealCodeKey;
+    codeOrigin: string;
+  }>;
   /** Seals and marks digital reward codes before they reach the database (T-203). */
   rewardCodeKey: RewardCodeKey;
   /** Operator invites: signed claim addresses and the invite email (T-204). */

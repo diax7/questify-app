@@ -100,6 +100,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit; another event answers 404 (test/quests/codes)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/qr/regenerate":
     "a quest of the path's event only; another event's quest answers 404 (test/quests/codes)",
+  "POST /v1/organizers/:organizerId/events/:eventId/categories/:categoryId/reveal/regenerate":
+    "a hidden category of the path's event only, under row-level security; another event's or a shown category answers 404 (test/reveal)",
   "POST /v1/organizers/:organizerId/events/:eventId/steps/:stepId/qr/regenerate":
     "a passport step of the path's event only, under row-level security; another event's step answers 404 (test/plays/passport)",
   "GET /v1/organizers/:organizerId/events/:eventId/rewards":
@@ -331,6 +333,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own attempt only, one try per question, through quiz_answer (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/steps/:stepId/stamp":
     "the calling player's own active enrollment in the step's event only; the code is bound to the step in the path, then stamp_step checks the rest (test/plays/passport, test/db/passport)",
+  "POST /v1/categories/:categoryId/reveal":
+    "the calling player's own active enrollment in the category's event only; the code is bound to the category in the path before any read, then reveal_category checks the rest (test/reveal, test/db/categories-hidden)",
   "GET /v1/quests/:questId/passport":
     "the calling player's own view only, through member_passport: the steps and which they stamped; never a step's code (test/plays/passport, test/db/passport)",
   "GET /v1/quests/:questId/survey":

@@ -118,6 +118,8 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
         opensAt: category.opensAt?.toISOString() ?? null,
         unlockAfter: category.unlockAfter,
         bonus: category.bonus,
+        refresh: category.refresh,
+        resetsAt: category.resetsAt?.toISOString() ?? null,
         quests: category.quests.map(questView),
       })),
     };

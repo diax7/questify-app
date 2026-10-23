@@ -20,7 +20,13 @@ import {
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import { readBuilder, type BuilderDeps, type Done } from "#src/quests/builder";
-import { listCodes, regenerateCode, regenerateStepCode, type CodeDeps } from "#src/quests/codes";
+import {
+  listCodes,
+  regenerateCode,
+  regenerateRevealCode,
+  regenerateStepCode,
+  type CodeDeps,
+} from "#src/quests/codes";
 import {
   createCategory,
   deleteCategory,
@@ -45,6 +51,8 @@ const categoryPatch = z.strictObject({
   opensAt: localTime.nullable().optional(),
   unlockAfter: z.uuid().nullable().optional(),
   completionBonus: z.number().int().min(0).max(100_000).optional(),
+  refresh: z.enum(["none", "daily", "weekly"]).optional(),
+  hidden: z.boolean().optional(),
   confirm,
 });
 const categoryDelete = z
@@ -96,6 +104,8 @@ const categoryView = (category: CategoryRecord) => ({
   opensAt: category.opensAt?.toISOString() ?? null,
   unlockAfter: category.unlockAfter,
   completionBonus: category.completionBonus,
+  refresh: category.refresh,
+  hidden: category.hidden,
 });
 
 /** A quest as the dashboard sees it; members see an entry code, players never will (T-105). */
@@ -321,12 +331,12 @@ export function registerBuilderRoutes(scope: FastifyInstance, deps: CodeDeps): v
   registerCodeRoutes(scope, deps);
 }
 
-/** The printed quest codes (FR-305) and regenerating one (FR-1711). */
+/** The printed quest codes (FR-305), the hidden categories' secret codes (T-304c) and regenerating one (FR-1711). */
 function registerCodeRoutes(scope: FastifyInstance, deps: CodeDeps): void {
   scope.get("/events/:eventId/codes", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const result = await listCodes(deps, organizerContextOf(request), eventId);
-    return answer(result, (codes) => ({ codes }));
+    return answer(result, (codes) => codes);
   });
 
   scope.post("/events/:eventId/quests/:questId/qr/regenerate", member, async (request) => {
@@ -339,6 +349,21 @@ function registerCodeRoutes(scope: FastifyInstance, deps: CodeDeps): void {
     );
     return answer(result, (code) => code);
   });
+
+  scope.post(
+    "/events/:eventId/categories/:categoryId/reveal/regenerate",
+    member,
+    async (request) => {
+      const { eventId, categoryId } = parse(categoryParams, request.params);
+      const result = await regenerateRevealCode(
+        deps,
+        organizerContextOf(request),
+        { eventId, categoryId },
+        callerOf(request),
+      );
+      return answer(result, (code) => code, "category");
+    },
+  );
 
   scope.post("/events/:eventId/steps/:stepId/qr/regenerate", member, async (request) => {
     const { eventId, stepId } = parse(stepParams, request.params);

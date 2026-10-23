@@ -22,6 +22,7 @@ import {
   countRows,
   deleteQuestsOf,
   deleteRow,
+  holdsPlayedOnce,
   insertCategory,
   moveQuests,
   readCategory,
@@ -46,11 +47,14 @@ const categoryView = (category: CategoryRecord) => ({
   opensAt: category.opensAt?.toISOString() ?? null,
   unlockAfter: category.unlockAfter,
   completionBonus: category.completionBonus,
+  refresh: category.refresh,
+  hidden: category.hidden,
 });
 
 /**
- * A category's rules after this input (T-304): the opening time read in the event's zone, and an unlock that names
- * another category of this event (a circle is refused by the database, migration 0044).
+ * A category's rules after this input (T-304, T-304c): the opening time read in the event's zone, an unlock that names
+ * another category of this event (a circle is refused by the database, migration 0044), and a refresh only over
+ * repeatable quests (ADR-204).
  */
 async function rulesOf(
   client: PoolClient,
@@ -70,11 +74,17 @@ async function rulesOf(
   ) {
     return { kind: "invalid", field: "unlockAfter" };
   }
+  const refresh = input.refresh ?? current.refresh;
+  if (refresh !== "none" && (await holdsPlayedOnce(client, current.id))) {
+    return { kind: "invalid", field: "refresh" };
+  }
   return {
     orderMode: input.orderMode ?? current.orderMode,
     opensAt,
     unlockAfter,
     completionBonus: input.completionBonus ?? current.completionBonus,
+    refresh,
+    hidden: input.hidden ?? current.hidden,
   };
 }
 

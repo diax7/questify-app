@@ -29,6 +29,7 @@ import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
 import { registerPlayRoutes } from "#src/plays/routes";
 import { registerPassportRoutes } from "#src/passport/routes";
+import { registerRevealRoutes } from "#src/reveal/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
@@ -44,6 +45,7 @@ import {
   createInviteCodeKey,
   createMyCodeKey,
   createQuestCodeKey,
+  createRevealCodeKey,
   createStepCodeKey,
 } from "#src/quests/qr";
 import { createRanking } from "#src/ranking/ranking";
@@ -198,6 +200,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
+  const revealCodeKey = createRevealCodeKey(config.qrSecret);
   const operatorDeps = {
     pool: options.pool,
     inviteKey: createInviteCodeKey(config.qrSecret),
@@ -261,6 +264,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
   registerPlayRoutes(app, { pool: options.pool, ranking, settings });
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
+  registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });
   registerResultsPlayerRoutes(app, { pool: options.pool });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
@@ -294,6 +298,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     questCodes: {
       codeKey: questCodeKey,
       stepKey: stepCodeKey,
+      revealKey: revealCodeKey,
       codeOrigin: config.auth.dashboardOrigin,
     },
     rewardCodeKey,

@@ -1,4 +1,4 @@
-import type { QuestType, QuestVerification } from "@questify/shared";
+import { REFRESHING_QUEST_TYPES, type QuestType, type QuestVerification } from "@questify/shared";
 import type { PoolClient } from "pg";
 import type { EventStatus } from "#src/events/store";
 
@@ -13,13 +13,20 @@ export type CategoryRecord = Readonly<
   } & CategoryRuleFields
 >;
 
-/** A category's rules (T-304, migration 0044): its order, its opening time, its unlock and its completion bonus. */
+/**
+ * A category's rules (T-304, migration 0044): its order, its opening time, its unlock and its completion bonus; and
+ * (T-304c, migration 0046) its refresh period and whether it is hidden until found.
+ */
 export type CategoryRuleFields = Readonly<{
   orderMode: "any" | "in_order";
   opensAt: Date | null;
   unlockAfter: string | null;
   completionBonus: number;
+  refresh: CategoryRefresh;
+  hidden: boolean;
 }>;
+
+export type CategoryRefresh = "none" | "daily" | "weekly";
 
 export type QuestRecord = Readonly<{
   id: string;
@@ -81,6 +88,8 @@ type CategoryRow = {
   opens_at: Date | null;
   unlock_after: string | null;
   completion_bonus: number;
+  refresh: CategoryRefresh;
+  hidden: boolean;
 };
 type QuestRow = {
   id: string;
@@ -103,7 +112,7 @@ type QuestRow = {
 };
 
 const CATEGORY_COLUMNS =
-  "id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus";
+  "id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus, refresh, hidden";
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
   repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification`;
 
@@ -116,6 +125,8 @@ const toCategory = (row: CategoryRow): CategoryRecord => ({
   opensAt: row.opens_at,
   unlockAfter: row.unlock_after,
   completionBonus: row.completion_bonus,
+  refresh: row.refresh,
+  hidden: row.hidden,
 });
 
 const toQuest = (row: QuestRow): QuestRecord => ({
@@ -274,7 +285,7 @@ export async function insertCategory(
   return toCategory(rows[0] as CategoryRow);
 }
 
-/** Writes a category's name and rules (migration 0044's column grants). */
+/** Writes a category's name and rules (migrations 0044 and 0046's column grants). */
 export async function writeCategory(
   db: PoolClient,
   id: string,
@@ -282,7 +293,7 @@ export async function writeCategory(
 ): Promise<CategoryRecord> {
   const { rows } = await db.query<CategoryRow>(
     `UPDATE category SET name_ar = $2, name_en = $3, order_mode = $4, opens_at = $5, unlock_after = $6,
-       completion_bonus = $7
+       completion_bonus = $7, refresh = $8, hidden = $9
      WHERE id = $1 RETURNING ${CATEGORY_COLUMNS}`,
     [
       id,
@@ -292,6 +303,8 @@ export async function writeCategory(
       fields.opensAt,
       fields.unlockAfter,
       fields.completionBonus,
+      fields.refresh,
+      fields.hidden,
     ],
   );
   return toCategory(rows[0] as CategoryRow);
@@ -319,6 +332,15 @@ export async function bonusesOf(
   );
   const real = rows[0]?.real ?? null;
   return real === null ? "none" : real ? "real" : "rehearsal";
+}
+
+/** Whether the category holds a quest of a type played once (T-304c): such a category cannot refresh. */
+export async function holdsPlayedOnce(db: PoolClient, categoryId: string): Promise<boolean> {
+  const { rowCount } = await db.query(
+    "SELECT 1 FROM quest WHERE category_id = $1 AND NOT (type = ANY ($2)) LIMIT 1",
+    [categoryId, REFRESHING_QUEST_TYPES],
+  );
+  return rowCount === 1;
 }
 
 /** Moves every quest of one category to the end of another, keeping their order. Returns how many moved. */
@@ -397,6 +419,20 @@ export async function writeSteps(
       );
     }
   }
+}
+
+/** Bumps a hidden category's secret code version (FR-1711, T-304c). Undefined when not found or not hidden. */
+export async function bumpRevealVersion(
+  db: PoolClient,
+  eventId: string,
+  categoryId: string,
+): Promise<number | undefined> {
+  const { rows } = await db.query<{ reveal_version: number }>(
+    `UPDATE category SET reveal_version = reveal_version + 1 WHERE event_id = $1 AND id = $2 AND hidden
+     RETURNING reveal_version`,
+    [eventId, categoryId],
+  );
+  return rows[0]?.reveal_version;
 }
 
 /** Bumps a passport step's code version (FR-1711), as `bumpQrVersion` does a quest's. Undefined when not found. */

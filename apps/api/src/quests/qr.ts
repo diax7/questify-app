@@ -4,10 +4,11 @@ import { safeEqual } from "#src/auth/keys";
 const MIN_SECRET_LENGTH = 32;
 /**
  * Layout and purpose of a signed code, its first byte. 0x01: a static printed quest QR (FR-305); 0x02: a player's My
- * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203). A rotating code
- * (FR-314) gets its own. Each purpose also has its own key, so a code of one purpose never opens as another.
+ * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203); 0x05: a hidden
+ * category's secret code (T-304c, ADR-204). A rotating code (FR-314) gets its own. Each purpose also has its own key,
+ * so a code of one purpose never opens as another.
  */
-const FORMAT = { quest: 0x01, my: 0x02, operator: 0x03, step: 0x04 } as const;
+const FORMAT = { quest: 0x01, my: 0x02, operator: 0x03, step: 0x04, reveal: 0x05 } as const;
 type Purpose = keyof typeof FORMAT;
 const ID_BYTES = 16;
 const VERSION_BYTES = 4;
@@ -24,6 +25,7 @@ export type QuestCodeKey = CodeKey<"quest">;
 export type MyCodeKey = CodeKey<"my">;
 export type InviteCodeKey = CodeKey<"operator">;
 export type StepCodeKey = CodeKey<"step">;
+export type RevealCodeKey = CodeKey<"reveal">;
 
 function deriveKey<P extends Purpose>(secret: string, purpose: P): CodeKey<P> {
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -233,4 +235,42 @@ export function verifyStepCode(
     return { kind: "wrong_step" };
   }
   return { kind: "valid", stepId: opened.id, version: opened.version };
+}
+
+/**
+ * @throws Error when the secret is shorter than 32 characters.
+ */
+export function createRevealCodeKey(secret: string): RevealCodeKey {
+  return deriveKey(secret, "reveal");
+}
+
+/** The token printed in a hidden category's secret QR (T-304c): the category id and its reveal version. */
+export function revealCode(key: RevealCodeKey, categoryId: string, version: number): string {
+  return sign(key, categoryId, version);
+}
+
+export type RevealCodeCheck =
+  | Readonly<{ kind: "valid"; categoryId: string; version: number }>
+  | Readonly<{ kind: "not_questify" }>
+  | Readonly<{ kind: "forged" }>
+  /** A real secret code of another category: never reveals this one. */
+  | Readonly<{ kind: "wrong_category" }>;
+
+/**
+ * Checks a scanned token for the category it is posted for, as `verifyQuestCode` does for a quest. The version is
+ * judged by `reveal_category` against the category's current one.
+ */
+export function verifyRevealCode(
+  key: RevealCodeKey,
+  token: string,
+  expectedCategoryId: string,
+): RevealCodeCheck {
+  const opened = open(key, token);
+  if (opened.kind !== "valid") {
+    return opened;
+  }
+  if (opened.id !== expectedCategoryId.toLowerCase()) {
+    return { kind: "wrong_category" };
+  }
+  return { kind: "valid", categoryId: opened.id, version: opened.version };
 }

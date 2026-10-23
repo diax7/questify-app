@@ -4,16 +4,19 @@ import {
   createInviteCodeKey,
   createMyCodeKey,
   createQuestCodeKey,
+  createRevealCodeKey,
   createStepCodeKey,
   inviteCode,
   inviteCodeUrl,
   myCode,
   questCode,
   questCodeUrl,
+  revealCode,
   stepCode,
   verifyInviteCode,
   verifyMyCode,
   verifyQuestCode,
+  verifyRevealCode,
   verifyStepCode,
 } from "#src/quests/qr";
 
@@ -238,5 +241,56 @@ describe("passport step codes (T-304b)", () => {
     expect(verifyInviteCode(createInviteCodeKey(SECRET), step)).toEqual({ kind: "not_questify" });
     expect(verifyStepCode(STEP_KEY, quest, STEP)).toEqual({ kind: "not_questify" });
     expect(verifyStepCode(STEP_KEY, my, STEP)).toEqual({ kind: "not_questify" });
+  });
+});
+
+describe("hidden category codes (T-304c)", () => {
+  const SECRET = "q".repeat(32);
+  const REVEAL_KEY = createRevealCodeKey(SECRET);
+  const CATEGORY = "5e1b0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
+
+  it("refuses a short secret", () => {
+    expect(() => createRevealCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens a secret code to its category and version, upper or lower case in the path", () => {
+    const token = revealCode(REVEAL_KEY, CATEGORY, 4);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(Buffer.from(token, "base64url")[0]).toBe(0x05);
+    expect(verifyRevealCode(REVEAL_KEY, token, CATEGORY)).toEqual({
+      kind: "valid",
+      categoryId: CATEGORY,
+      version: 4,
+    });
+    expect(verifyRevealCode(REVEAL_KEY, token, CATEGORY.toUpperCase())).toMatchObject({
+      kind: "valid",
+    });
+    expect(verifyRevealCode(createRevealCodeKey("r".repeat(32)), token, CATEGORY)).toEqual({
+      kind: "forged",
+    });
+    expect(verifyRevealCode(REVEAL_KEY, "hello", CATEGORY)).toEqual({ kind: "not_questify" });
+  });
+
+  it("refuses a real code of another category", () => {
+    const token = revealCode(REVEAL_KEY, randomUUID(), 1);
+    expect(verifyRevealCode(REVEAL_KEY, token, CATEGORY)).toEqual({ kind: "wrong_category" });
+  });
+
+  it("never opens as any other code, nor they as a secret code", () => {
+    const secret = revealCode(REVEAL_KEY, CATEGORY, 1);
+    const quest = questCode(createQuestCodeKey(SECRET), CATEGORY, 1);
+    const step = stepCode(createStepCodeKey(SECRET), CATEGORY, 1);
+    expect(verifyQuestCode(createQuestCodeKey(SECRET), secret, CATEGORY)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyStepCode(createStepCodeKey(SECRET), secret, CATEGORY)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyMyCode(createMyCodeKey(SECRET), secret)).toEqual({ kind: "not_questify" });
+    expect(verifyInviteCode(createInviteCodeKey(SECRET), secret)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyRevealCode(REVEAL_KEY, quest, CATEGORY)).toEqual({ kind: "not_questify" });
+    expect(verifyRevealCode(REVEAL_KEY, step, CATEGORY)).toEqual({ kind: "not_questify" });
   });
 });

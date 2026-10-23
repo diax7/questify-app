@@ -251,7 +251,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category refresh (database)", 
         refusal(code(player, quest)),
         refusal(code(player, quest)),
       ]);
-      expect([...results].sort()).toEqual(["QD409:1", "none"]);
+      expect(results.toSorted()).toEqual(["QD409:1", "none"]);
       expect(await score(enrollment)).toBe("10");
     });
 

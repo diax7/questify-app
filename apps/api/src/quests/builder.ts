@@ -35,9 +35,11 @@ export type CategoryInput = Readonly<{
   opensAt?: string | null | undefined;
   unlockAfter?: string | null | undefined;
   completionBonus?: number | undefined;
+  refresh?: "none" | "daily" | "weekly" | undefined;
+  hidden?: boolean | undefined;
 }>;
 
-export type CategoryField = "name" | "to" | "opensAt" | "unlockAfter";
+export type CategoryField = "name" | "to" | "opensAt" | "unlockAfter" | "refresh";
 
 /** Times as the event's wall clock (`YYYY-MM-DDTHH:mm`), read in its zone; null clears one. */
 export type QuestInput = Readonly<{
@@ -325,6 +327,10 @@ export async function withEvent<T>(
     // The categories' unlocks would go round in a circle (migration 0044).
     if (pg.code === "CU422") {
       return { kind: "invalid", field: "unlockAfter" };
+    }
+    // A played-once quest would sit in a refreshing category (migration 0046); the builder checks first.
+    if (pg.code === "QT422") {
+      return { kind: "invalid", field: "refresh" };
     }
     // A player played the quest between the check and the delete: its points are history (migration 0012).
     if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {

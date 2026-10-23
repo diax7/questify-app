@@ -5,6 +5,7 @@ import {
   alreadyCompleted,
   alreadyVoted,
   badAnswer,
+  categoryNotHidden,
   enrollmentInactive,
   featureOff,
   idempotencyKeyReused,
@@ -90,6 +91,8 @@ export function refuse(result: PlayRefusal, voting = false): never {
       throw notShareQuest();
     case "not_passport_quest":
       throw notPassportQuest();
+    case "not_hidden":
+      throw categoryNotHidden();
     case "invalid_code":
       // One answer whatever the problem, as a quest code's (completions/routes.ts); the log keeps the difference.
       throw questCodeInvalid();

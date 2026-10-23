@@ -16,6 +16,8 @@ export type PlayRefusal =
   | Readonly<{ kind: "not_survey_quest" }>
   | Readonly<{ kind: "not_share_quest" }>
   | Readonly<{ kind: "not_passport_quest" }>
+  /** A secret code posted for a category that is not hidden (T-304c). */
+  | Readonly<{ kind: "not_hidden" }>
   /** A step's code that does not stamp this step (T-304b): one answer to the player, told apart in the log. */
   | Readonly<{ kind: "invalid_code"; problem: string }>
   /** A survey answer the question does not take, or a body that names other questions (`shape`). */
@@ -63,6 +65,7 @@ const REFUSALS: Readonly<Record<string, (detail: string) => PlayRefusal | undefi
   QD409: () => ({ kind: "already_completed" }),
   QV422: (detail) => ({ kind: "invalid_code", problem: detail }),
   QK422: () => ({ kind: "key_reused" }),
+  QH422: () => ({ kind: "not_hidden" }),
   QA404: () => ({ kind: "quiz_not_started" }),
   QA409: (detail) => QA409[detail],
 };

@@ -250,6 +250,12 @@ export const QUEST_CODE_HOSTS: readonly string[] = ["questify.nafes.com"];
 /** The types whose quests carry a printed quest QR (FR-305): scanned to complete, or as a fallback (FR-216). */
 export const QR_QUEST_TYPES = QUEST_TYPE_NAMES.filter((type) => QUEST_TYPES[type].usesQuestQr);
 
+/**
+ * The types a refreshing category may hold (T-304c, ADR-204): played again each day or week. The others are played once
+ * by design; migration 0046 refuses the mix too.
+ */
+export const REFRESHING_QUEST_TYPES: readonly QuestType[] = ["scan_qr", "enter_code", "challenge"];
+
 export function isQuestType(value: string): value is QuestType {
   return Object.hasOwn(QUEST_TYPES, value);
 }

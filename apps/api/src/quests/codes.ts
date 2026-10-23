@@ -7,15 +7,28 @@ import { audit, done, withEvent, type BuilderDeps, type Done } from "#src/quests
 import {
   questCode,
   questCodeUrl,
+  revealCode,
   stepCode,
   type QuestCodeKey,
+  type RevealCodeKey,
   type StepCodeKey,
 } from "#src/quests/qr";
-import { bumpQrVersion, bumpStepVersion, readQuest, type Bilingual } from "#src/quests/store";
+import {
+  bumpQrVersion,
+  bumpRevealVersion,
+  bumpStepVersion,
+  readQuest,
+  type Bilingual,
+} from "#src/quests/store";
 
 /** What signs the codes and where they point: the dashboard's `/q/{token}` page. */
 export type CodeDeps = BuilderDeps &
-  Readonly<{ codeKey: QuestCodeKey; stepKey: StepCodeKey; codeOrigin: string }>;
+  Readonly<{
+    codeKey: QuestCodeKey;
+    stepKey: StepCodeKey;
+    revealKey: RevealCodeKey;
+    codeOrigin: string;
+  }>;
 
 export type QuestCodeView = Readonly<{
   questId: string;
@@ -29,6 +42,16 @@ export type QuestCodeView = Readonly<{
   version: number;
   url: string;
 }>;
+
+/** A hidden category's secret code (T-304c): scanning it in the app shows the category to that player. */
+export type SecretCodeView = Readonly<{
+  categoryId: string;
+  category: Bilingual;
+  version: number;
+  url: string;
+}>;
+
+export type CodesView = Readonly<{ codes: QuestCodeView[]; secrets: SecretCodeView[] }>;
 
 type CodeRow = {
   id: string;
@@ -48,6 +71,9 @@ const urlOf = (deps: CodeDeps, questId: string, version: number) =>
 const stepUrlOf = (deps: CodeDeps, stepId: string, version: number) =>
   questCodeUrl(deps.codeOrigin, stepCode(deps.stepKey, stepId, version));
 
+const revealUrlOf = (deps: CodeDeps, categoryId: string, version: number) =>
+  questCodeUrl(deps.codeOrigin, revealCode(deps.revealKey, categoryId, version));
+
 const codeView = (deps: CodeDeps, row: CodeRow): QuestCodeView => ({
   questId: row.id,
   categoryId: row.category_id,
@@ -64,14 +90,10 @@ const codeView = (deps: CodeDeps, row: CodeRow): QuestCodeView => ({
 
 /**
  * The printed codes of an event (FR-305): one per quest whose type carries a quest QR, and one per passport step
- * (T-304b), in the builder's order. Members see them because they print them; any status, since an ended event's
- * codes are still looked at.
+ * (T-304b), in the builder's order; and apart, one secret code per hidden category (T-304c). Members see them because
+ * they print them; any status, since an ended event's codes are still looked at.
  */
-export function listCodes(
-  deps: CodeDeps,
-  actor: Actor,
-  eventId: string,
-): Promise<Done<QuestCodeView[]>> {
+export function listCodes(deps: CodeDeps, actor: Actor, eventId: string): Promise<Done<CodesView>> {
   return withConnection(deps.pool, (client) =>
     withRequestContext(
       client,
@@ -94,7 +116,25 @@ export function listCodes(
            ORDER BY c.position, c.id, q.position, q.id, s.position, s.id`,
           [eventId, QR_QUEST_TYPES],
         );
-        return done(rows.map((row) => codeView(deps, row)));
+        const hidden = await client.query<{
+          id: string;
+          name_ar: string | null;
+          name_en: string | null;
+          reveal_version: number;
+        }>(
+          `SELECT id, name_ar, name_en, reveal_version FROM category
+           WHERE event_id = $1 AND hidden ORDER BY position, id`,
+          [eventId],
+        );
+        return done({
+          codes: rows.map((row) => codeView(deps, row)),
+          secrets: hidden.rows.map((row) => ({
+            categoryId: row.id,
+            category: { ar: row.name_ar, en: row.name_en },
+            version: row.reveal_version,
+            url: revealUrlOf(deps, row.id, row.reveal_version),
+          })),
+        });
       },
     ),
   );
@@ -148,5 +188,31 @@ export function regenerateStepCode(
       after: { stepId: target.stepId, version: bumped.version },
     });
     return done({ version: bumped.version, url: stepUrlOf(deps, target.stepId, bumped.version) });
+  });
+}
+
+/**
+ * Makes a hidden category's secret code new (FR-1711, T-304c), as `regenerateCode` does a quest's: a code printed
+ * before reveals nothing from then on. Not found for a category that is not hidden.
+ */
+export function regenerateRevealCode(
+  deps: CodeDeps,
+  actor: Actor,
+  target: Readonly<{ eventId: string; categoryId: string }>,
+  caller: Caller,
+): Promise<Done<Readonly<{ version: number; url: string }>>> {
+  return withEvent(deps, actor, target.eventId, { change: undefined }, async (client) => {
+    const version = await bumpRevealVersion(client, target.eventId, target.categoryId);
+    if (version === undefined) {
+      return { kind: "not_found" };
+    }
+    await audit(client, actor, caller, {
+      action: "category.reveal_regenerate",
+      eventId: target.eventId,
+      target: { type: "category", id: target.categoryId },
+      before: { version: version - 1 },
+      after: { version },
+    });
+    return done({ version, url: revealUrlOf(deps, target.categoryId, version) });
   });
 }

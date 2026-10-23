@@ -1103,3 +1103,17 @@ export const questionNotServed = make(
   "هذا السؤال لم يُفتح بعد.",
   "This question is not open yet.",
 );
+/** A secret code posted for a category that is not hidden (T-304c): only ever answered to a holder of its code. */
+export const categoryNotHidden = make(
+  422,
+  "not_hidden",
+  "هذه الفئة ليست مخفية.",
+  "This category is not hidden.",
+);
+/** A secret code that does not open this category (T-304c): one answer whatever the problem; the log tells them apart. */
+export const revealCodeInvalid = make(
+  422,
+  "invalid_code",
+  "هذا الرمز لا يكشف هذه الفئة.",
+  "This code does not open this category.",
+);

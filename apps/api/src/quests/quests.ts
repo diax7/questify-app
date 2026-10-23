@@ -1,4 +1,4 @@
-import { isQuestType } from "@questify/shared";
+import { REFRESHING_QUEST_TYPES, isQuestType, type QuestType } from "@questify/shared";
 import type { Caller } from "#src/auth/sign-in";
 import type { Actor } from "#src/events/events";
 import {
@@ -28,8 +28,25 @@ import {
   writeSteps,
   type QuestRecord,
 } from "#src/quests/store";
+import type { PoolClient } from "pg";
 
 type Target = Readonly<{ eventId: string; id: string }>;
+
+/**
+ * A category of this event that may hold a quest of this type: a refreshing one holds only repeatable types (T-304c,
+ * ADR-204).
+ */
+async function takesQuest(
+  client: PoolClient,
+  eventId: string,
+  categoryId: string,
+  type: QuestType,
+): Promise<boolean> {
+  const category = await readCategory(client, eventId, categoryId);
+  return (
+    category !== undefined && (category.refresh === "none" || REFRESHING_QUEST_TYPES.includes(type))
+  );
+}
 
 /**
  * Adds a quest of a shipped type to a category of this event (FR-1005, FR-228), at the end. Adding needs no
@@ -46,7 +63,7 @@ export function createQuest(
     if (!isQuestType(input.type)) {
       return { kind: "invalid", field: "type" };
     }
-    if ((await readCategory(client, eventId, input.categoryId)) === undefined) {
+    if (!(await takesQuest(client, eventId, input.categoryId, input.type))) {
       return { kind: "invalid", field: "categoryId" };
     }
     const fields = mergeQuest(undefined, input.type, input, event.timezone);
@@ -93,7 +110,7 @@ export function updateQuest(
     }
     if (
       input.categoryId !== undefined &&
-      (await readCategory(client, target.eventId, input.categoryId)) === undefined
+      !(await takesQuest(client, target.eventId, input.categoryId, current.type))
     ) {
       return { kind: "invalid", field: "categoryId" };
     }
