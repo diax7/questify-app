@@ -2558,3 +2558,14 @@ no XP. It moves the balance only while the shop is open, as a quest's points do.
 is not paid again. A quest added, hidden or deleted later neither takes a paid bonus back nor pays one.
 **Why:** FR-231; the ledger is the one source of points (ADR-111) and the database already holds the enrollment lock
 that makes "last quest" safe under races.
+
+## ADR-203 — Passport quests
+**Status:** Proposed (Claude, 2026-10-24; T-304b). Q-167.
+**Decision:** a passport is a quest type with 1 to 30 steps in their own table (`passport_step`), each step its own
+signed code (format byte 0x04, its own derived key, versioned for reprints). The database pays the quest's points once,
+through `pay_completion`, on the `needed`-th distinct stamp, under the enrollment lock; steps pay nothing on their own.
+A passport is finished once (`repeat_cap` 1); a stamp after it is finished refuses. Once anyone has stamped, `needed`
+may rise but never fall and a stamped step cannot be deleted. Steps are stamped by printed QR only (no station or My QR
+path yet).
+**Why:** FR-224; one payer and one lock keep "paid once" safe under races, as T-304's bonus; a step code that cannot
+open as any other code keeps T-104's proof model.

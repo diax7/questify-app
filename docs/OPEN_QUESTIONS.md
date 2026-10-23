@@ -290,3 +290,7 @@ them. Agree, or should manual awards obey them too?
 ## Q-166 — Completion bonus rules (2026-10-24, T-304)
 ADR-202: the bonus is points with no XP, and a removable credit of its own (removing a quest leaves it). Agree, or
 should a bonus also give XP, or follow its quests' removal?
+
+## Q-167 — Passport rules (2026-10-24, T-304b)
+ADR-203: steps by printed QR only; a scan after the passport is finished refuses; `needed` never falls once anyone has
+stamped. Agree, or should staff stamp a step from a player's My QR, or extra stamps count for something?

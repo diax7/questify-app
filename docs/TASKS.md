@@ -299,6 +299,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-21 (T-201): FR-1617 (an item given as a quest or category reward is out of stock: only the points, and the organizer is told) belongs to the completion bonus here; rewards live in `reward` (migration 0024).
 - [ ] **T-304b** Passport quests: steps in any order, each its own signed QR, "4 of 5" progress, paid once on the last needed step — delivers FR 224; depends on: T-304
   - Done when: A player who did 4 of a "5 of 8" passport sees 4 of 5 and is not paid; the fifth step pays once.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-304b-passport-quests.md`, migration 0045, ADR-203 and Q-167 Proposed. Awaiting the Opus plan review.
 - [ ] **T-304c** Daily and weekly category refresh and hidden categories (secret QR) — delivers FR 236, 1619, 237; depends on: T-304
   - Note 2026-10-24 (T-304 plan, ADR-200): count "done" and the repeat cap inside the current period from `event_day_start` (ADR-083); the bonus is once per period; played-once types (vote, quiz, survey, share, submission) cannot sit in a refreshing category.
   - Done when: A daily refresh resets completion but keeps points; a hidden category appears only for the player who scanned its QR.
