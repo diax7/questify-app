@@ -2634,7 +2634,7 @@ accuracy, lies beyond the event's venue radius (default 1 km) plus 1 km, or the 
 and the pace between them is above 15 m/s (54 km/h), by server receipt time; it uses the quests' pins, so it works
 with location refused. Far from the venue is raised when the position row is written (`raise_position_flags`). One
 open case per account and kind; never in a virtual event (FR-1744), never from a manual or system-paid completion; no
-reading, no far flag. The numbers live in `flag_tuning` until T-703.
+reading, no far flag. The numbers live in their own `location_tuning()` until T-703 (built: 0031's `flag_tuning` is left as it is, with its callers and grants, coordinator 2026-10-24).
 **Why:** FR-331, FR-332, ADR-153; the T-209 trigger covers every completion path, and evidence keeps the
 `{completions}` shape so the Flags page reads it through `flag_detail`.
 
@@ -2648,6 +2648,6 @@ Location is read only with a request that
 uses it (a fresh fix for a check-in, the last fix up to 2 minutes old for a scan or typed code), never in the
 background. A platform switch `locationQuests` stays off until the store privacy answers are updated (ADR-073) and
 CranL's database is confirmed not to log query parameters; while
-off the app never asks or reads, the builder refuses the type, and existing location quests complete by QR.
+off the app never asks or reads, the builder refuses the type, and existing location quests complete by QR. **Older builds** (made before `expo-location`, which needs a new EAS build): the API sends a location quest with `verification: ["quest_qr"]`; an older app does not know the type, shows it with its "update the app" line and no action, and its scanner completes it from the printed QR (the scanner reads any quest code). This build also offers the QR on any open quest of a type it does not know that keeps a quest QR (`scanFallback`), and loads the location module on demand, so a build without it reads location as unavailable and offers the QR, never crashes.
 **Why:** FR-1744, Apple 5.1.1(iv) and 5.1.5, Google's minimum-scope rule; reading per request rather than continuously
 keeps ADR-072's "while open" with less data and battery.

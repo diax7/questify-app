@@ -244,6 +244,14 @@ the client-address count (ADR-113).
 
 ## Database and deploy
 
+- **Location switch (T-303b, ADR-208): before turning `locationQuests` on** in the console, run on the CranL database
+  `SHOW log_parameter_max_length; SHOW log_parameter_max_length_on_error; SHOW log_statement;
+  SHOW log_min_duration_statement;` and record the values here. The switch stays off unless
+  `log_parameter_max_length_on_error = 0` and either `log_parameter_max_length = 0` or (`log_statement = none` and
+  `log_min_duration_statement = -1`): otherwise a check-in's position could reach the database log. Also update the App
+  Store privacy label (location, app functionality, not linked to tracking) and Play's Data safety form first.
+  Values on CranL: not yet recorded.
+
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.

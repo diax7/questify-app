@@ -945,8 +945,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-212 | F-84 | Should | pending |
 | FR-213 | F-84 | Should | pending |
 | FR-214 | F-85 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303); the results page and export are T-508 |
-| FR-215 | F-86 | Could | pending |
-| FR-216 | F-86 | Could | pending |
+| FR-215 | F-86 | Could | built (T-303b) |
+| FR-216 | F-86 | Could | built (T-303b) |
 | FR-217 | F-87 | Should | pending |
 | FR-218 | F-87 | Should | pending |
 | FR-219 | F-88 | Should | `test/plays/survey-share.int` (every player read), `src/quests/switched-off.test.ts`, `test/db/challenge-survey-share.int` (T-303) |
@@ -1015,8 +1015,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-328 | F-120 | Should | `test/db/submissions.int`, `test/submissions/routes.int`, `e2e/submissions.spec` (T-301) |
 | FR-329 | F-114, F-115 | Should | pending |
 | FR-330 | F-114 | Should | pending |
-| FR-331 | F-114 | Should | pending |
-| FR-332 | F-114 | Should | pending |
+| FR-331 | F-114 | Should | built (T-303b) |
+| FR-332 | F-114 | Should | built (T-303b) |
 | FR-333 | F-114 | Should | pending |
 | FR-334 | F-115 | Could | pending |
 | FR-335 | F-116 | Should | pending |
@@ -1336,7 +1336,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1741 | F-72 | Should | pending |
 | FR-1742 | F-52, F-54 | Must | pending |
 | FR-1743 | F-45 | Must | pending |
-| FR-1744 | F-86, F-114 | Must | pending |
+| FR-1744 | F-86, F-114 | Must | built (T-303b) |
 | FR-1745 | F-114 | Should | pending |
 | FR-1746 | F-251 | Must | pending |
 | FR-1747 | F-179, F-117 | Must | pending |

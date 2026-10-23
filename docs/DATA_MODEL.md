@@ -549,13 +549,29 @@ switch. Account deletion and the rehearsal wipe delete the responses (completion
 shown), `share_quest`, `member_share`.
 **PII:** a player's survey answers (deleted with the account); the team never sees who answered.
 
+### completion_position; quest places and the venue pin (migration 0048, T-303b, ADR-206 to ADR-208)
+**Built:** `quest.place_lat`, `place_lng` (`numeric(9,6)`) and `place_radius_m` (20 to 2000): all three or none, on
+`scan_qr`, `challenge` and `location` only, required for `location`. `event.venue_lat`, `venue_lng` and
+`venue_radius_m` (100 to 20000, default 1000), optional. Quest `type` gains `location` (verification always
+`['quest_qr']`: its QR is printed and rotated as a scan quest's; it may sit in a refreshing category);
+`quest_completion.method` gains `location`. `completion_position(completion_id PK → quest_completion ON DELETE
+CASCADE, organizer_id, event_id, enrollment_id, accuracy_m, mocked, venue_distance_m, created_at)`: one row per
+completion that came with a usable reading (well formed, at most 2 minutes old), written by `record_completion`
+(`keep_position`). **No coordinate is stored anywhere**: the reading reaches the database only as an argument and
+leaves as the venue distance rounded to 10 m (NULL without a pin or in a virtual event), the reported accuracy and
+the mocked mark; distances live only here and in what `flag_detail` computes, never on `quest_completion`. No grant
+and no policy: only the definers write and read it. Erasure deletes the account's rows; the rehearsal wipe's
+completion deletes cascade to them. Helpers: `position_of`, `distance_m` (haversine, 6371008 m), `check_in_check`,
+`location_tuning()` (far margin 1000 m, 15 m/s, minimum gap 300 m, beside 0031's `flag_tuning`).
+**PII:** the accuracy, mocked mark and rounded venue distance of a player's scans (deleted with the account).
+
 ### flag, ticket, audit_log
-`flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst, device_id (shared_device only),
+`flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst|far_from_venue|impossible_speed, device_id (shared_device only),
 evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,
 resolved_at, resolved_by staff_user)` (migration 0031, T-209, ADR-153 to ADR-155): raised by a trigger on every new
 `quest_completion` (not `manual`), inside its transaction. Same phone: one case per account and install id, ever, for
 every account of the event seen on it (under a lock on the event and device); burst: 10 scans within 5 minutes
-(`flag_tuning()`), one open case per account, counting again only after its last resolved one. No grant to the API
+(`flag_tuning()`), one open case per account, counting again only after its last resolved one. Location kinds (migration 0048, T-303b): `far_from_venue` from a kept reading (mocked, or less its accuracy beyond the venue radius plus 1 km; never in a virtual event), `impossible_speed` from quest places (two counted scans at placed quests at least 300 m apart edge to edge, faster than 15 m/s); one open case per account and kind, evidence `{completions}`. No grant to the API
 role: the team reads and closes cases through `event_flags`, `flag_detail` and `resolve_flag`; a ban
 (`set_enrollment_ban`) closes the player's open cases. `event.flag_hold` (default on) and `enrollment.redeem_paused_at`
 are written only by `set_flag_hold` and `set_redeem_pause` (owner, audited). **PII:** `device_id` and `evidence` go
@@ -639,7 +655,7 @@ Derived from the primary flows:
 | Phone, email | Sign-in, prize contact, consented messages | Encrypted at rest by the managed database; column access limited to the identity module; never in logs or push text | Until deletion; Q-075 | Player; support/admin (read-only, logged, ADR-094) |
 | Birth year, city, interests | Age gate, optional personalization | Same | Until deletion | Player; admin |
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
-| Location readings | Fair-play flags only while the app is open (ADR-072) | Stored with the flag only; no tracking history | Short; Q-075 | Admin; the event's staff for flags |
+| Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
 | Photos, free text | Photo and text quests | Private storage, signed URLs; PD-29 report and unpublish | Event retention; Q-075 | Organizer team; reviewers |
 | Password hashes | Staff sign-in | argon2id; never exported | Until account removal | Nobody |
 | Uploaded prize codes | Digital prizes | Encrypted column, shown only at handover | Until used or event end | Prize desk at handover |
