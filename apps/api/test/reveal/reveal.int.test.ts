@@ -1,6 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { Pool } from "pg";
+import type { Caller } from "#src/auth/sign-in";
 import { createRevealCodeKey, revealCode } from "#src/quests/qr";
+import { revealCategory } from "#src/reveal/reveal";
 import {
   createStaff,
   signInFully,
@@ -16,6 +19,9 @@ type Secret = { categoryId: string; version: number; url: string };
 /** The key the test app signs secret codes with (auth-app's QR secret). */
 const REVEAL_KEY = createRevealCodeKey("q".repeat(40));
 const tokenOf = (url: string) => url.slice(url.lastIndexOf("/") + 1);
+const refusedLog = (categoryId: string, refusal: string, reason: string) => [
+  { event: "category.reveal_refused", fields: { categoryId, refusal, reason } },
+];
 
 /**
  * Category refresh and hidden categories over HTTP (T-304c): the builder's refresh and hidden fields and their refusals,
@@ -84,6 +90,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("refresh and hidden categories 
       id,
     ]);
     return token;
+  };
+  /** An enrolled player without a session, for calls below the route. */
+  const enrolled = async (event: string, status = "active") => {
+    counter += 1;
+    const [player] = await owner<{ id: string }>(
+      "INSERT INTO player (username) VALUES ($1) RETURNING id",
+      [`hide_log_${counter}`],
+    );
+    await owner(
+      "INSERT INTO enrollment (organizer_id, event_id, player_id, status) VALUES ($1, $2, $3, $4)",
+      [organizer, event, player?.id, status],
+    );
+    return player?.id ?? "";
   };
   const reveal = (token: string, categoryId: string, code: string) =>
     test.app.inject({
@@ -247,6 +266,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("refresh and hidden categories 
         await answer(secret, revealCode(createRevealCodeKey("r".repeat(40)), secret, 1)),
       ).toEqual([422, "invalid_code"]);
       expect(await answer(secret, "not-a-code")).toEqual([422, "invalid_code"]);
+      const wrong = await reveal(token, secret, "not-a-code");
+      expect(wrong.json().message).toEqual({
+        ar: "هذا الرمز لا يكشف هذه الفئة.",
+        en: "This code does not open this category.",
+      });
       expect(await answer(nowhere, revealCode(REVEAL_KEY, nowhere, 1))).toEqual([404, "not_found"]);
       expect(await answer(open, revealCode(REVEAL_KEY, open, 1))).toEqual([422, "not_hidden"]);
       const logged = await owner("SELECT 1 FROM category_reveal WHERE category_id = $1", [secret]);
@@ -275,6 +299,79 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("refresh and hidden categories 
         payload: { code: revealCode(REVEAL_KEY, secret, 1) },
       });
       expect(stranger.statusCode).toBe(401);
+    });
+  });
+
+  describe("what it logs (never the token)", () => {
+    let pool: Pool;
+    beforeAll(() => {
+      pool = new Pool({ connectionString: db.appUrl, max: 2 });
+    });
+    afterAll(() => pool.end());
+
+    const logsOf = async (playerId: string, categoryId: string, code: string) => {
+      const logged: { event: string; fields: Record<string, unknown> }[] = [];
+      const caller: Caller = {
+        address: "127.0.0.1",
+        userAgent: null,
+        log: (event, fields) => logged.push({ event, fields: { ...fields } }),
+      };
+      const result = await revealCategory(
+        { pool, revealKey: REVEAL_KEY },
+        { playerId, categoryId, code },
+        caller,
+      );
+      return { kind: result.kind, logged };
+    };
+    const refusal = async (player: string, categoryId: string, token: string) => {
+      const { logged } = await logsOf(player, categoryId, token);
+      expect(JSON.stringify(logged)).not.toContain(token);
+      return logged;
+    };
+
+    it("logs a find, and whether it was the first", async () => {
+      const event = await newEvent();
+      const secret = await newCategory(event, { hidden: true });
+      await goLive(event);
+      const player = await enrolled(event);
+      const code = revealCode(REVEAL_KEY, secret, 1);
+      const first = await logsOf(player, secret, code);
+      expect(first).toEqual({
+        kind: "done",
+        logged: [{ event: "category.revealed", fields: { categoryId: secret, revealed: "true" } }],
+      });
+      expect((await logsOf(player, secret, code)).logged).toEqual([
+        { event: "category.revealed", fields: { categoryId: secret, revealed: "false" } },
+      ]);
+    });
+
+    it("logs each refusal with its reason", async () => {
+      const event = await newEvent();
+      const secret = await newCategory(event, { hidden: true });
+      const open = await newCategory(event);
+      const active = await enrolled(event);
+      const banned = await enrolled(event, "banned");
+      const code = revealCode(REVEAL_KEY, secret, 1);
+      expect(await refusal(active, open, code)).toEqual(
+        refusedLog(open, "invalid_code", "wrong_category"),
+      );
+      expect(await refusal(active, secret, code)).toEqual(
+        refusedLog(secret, "quest_not_open", "event_not_live"),
+      );
+      expect(await refusal(banned, secret, code)).toEqual(
+        refusedLog(secret, "enrollment_inactive", "banned"),
+      );
+      await goLive(event);
+      expect(await refusal(active, secret, revealCode(REVEAL_KEY, secret, 2))).toEqual(
+        refusedLog(secret, "invalid_code", "old"),
+      );
+      expect(await refusal(active, open, revealCode(REVEAL_KEY, open, 1))).toEqual(
+        refusedLog(open, "not_hidden", "not_hidden"),
+      );
+      const nowhere = randomUUID();
+      expect(await refusal(active, nowhere, revealCode(REVEAL_KEY, nowhere, 1))).toEqual(
+        refusedLog(nowhere, "not_found", "not_found"),
+      );
     });
   });
 

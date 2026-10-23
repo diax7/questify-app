@@ -1,6 +1,13 @@
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createQuestCodeKey, verifyQuestCode } from "#src/quests/qr";
+import {
+  createQuestCodeKey,
+  createRevealCodeKey,
+  createStepCodeKey,
+  verifyQuestCode,
+  verifyRevealCode,
+  verifyStepCode,
+} from "#src/quests/qr";
 import {
   DASHBOARD_ORIGIN,
   createStaff,
@@ -26,7 +33,11 @@ const EVENT = {
   startsAt: "2030-11-01T09:00",
   endsAt: "2030-11-01T17:00",
 };
+type Secret = { categoryId: string; category: Code["title"]; version: number; url: string };
+
 const KEY = createQuestCodeKey(testConfig().qrSecret);
+const STEP_KEY = createStepCodeKey(testConfig().qrSecret);
+const REVEAL_KEY = createRevealCodeKey(testConfig().qrSecret);
 const key = () => ({ "idempotency-key": `k-${Math.random()}` });
 const tokenOf = (url: string) => url.slice(`${DASHBOARD_ORIGIN}/q/`.length);
 
@@ -103,6 +114,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest QR codes (T-104)", () =>
     expect(response.statusCode, response.body).toBe(201);
     return response.json<{ quest: { id: string } }>().quest.id;
   };
+  const addHiddenCategory = async (s: Setup, name: string): Promise<string> => {
+    const made = await call(
+      "POST",
+      `${s.base}/categories`,
+      s.cookie,
+      { name: { en: name } },
+      key(),
+    );
+    expect(made.statusCode, made.body).toBe(201);
+    const id = made.json<{ category: { id: string } }>().category.id;
+    const patched = await call(
+      "PATCH",
+      `${s.base}/categories/${id}`,
+      s.cookie,
+      { hidden: true },
+      key(),
+    );
+    expect(patched.statusCode, patched.body).toBe(200);
+    return id;
+  };
   const codes = async (s: Setup) =>
     (await call("GET", `${s.base}/codes`, s.cookie)).json<{ codes: Code[] }>().codes;
   const currentVersion = async (questId: string) =>
@@ -126,6 +157,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest QR codes (T-104)", () =>
         categoryId: s.general,
         category: { ar: "عام", en: "General" },
         title: { ar: "المسرح", en: null },
+        stepId: null,
+        step: null,
         version: 1,
       });
       for (const code of list) {
@@ -136,6 +169,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest QR codes (T-104)", () =>
           version: 1,
         });
       }
+    });
+
+    it("signs a passport step's code for the step, and a hidden category's secret for the category", async () => {
+      const s = await newEvent();
+      const passport = await addQuest(s, {
+        type: "passport",
+        title: { en: "Booths" },
+        config: { needed: 1 },
+        steps: [{ name: { en: "Booth A" } }],
+      });
+      const [step] = await owner<{ id: string }>(
+        "SELECT id FROM passport_step WHERE quest_id = $1",
+        [passport],
+      );
+      const hidden = await addHiddenCategory(s, "Vault");
+      const listed = await call("GET", `${s.base}/codes`, s.cookie);
+      const { codes: list, secrets } = listed.json<{ codes: Code[]; secrets: Secret[] }>();
+      expect(list).toHaveLength(1);
+      expect(verifyStepCode(STEP_KEY, tokenOf(list[0]?.url ?? ""), step?.id ?? "")).toEqual({
+        kind: "valid",
+        stepId: step?.id,
+        version: 1,
+      });
+      expect(secrets).toEqual([
+        {
+          categoryId: hidden,
+          category: { ar: null, en: "Vault" },
+          version: 1,
+          url: expect.any(String),
+        },
+      ]);
+      expect(verifyRevealCode(REVEAL_KEY, tokenOf(secrets[0]?.url ?? ""), hidden)).toEqual({
+        kind: "valid",
+        categoryId: hidden,
+        version: 1,
+      });
     });
 
     it("lists nothing for an event without QR quests, and 404 for another organizer's event", async () => {
@@ -172,6 +241,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("quest QR codes (T-104)", () =>
       );
       expect(audits).toEqual([{ before: { version: 1 }, after: { version: 2 } }]);
       expect(JSON.stringify(audits)).not.toContain(tokenOf(fresh.url));
+    });
+
+    it("audits a step's and a secret's regeneration with their versions, never a code", async () => {
+      const s = await newEvent();
+      const passport = await addQuest(s, {
+        type: "passport",
+        title: { en: "Booths" },
+        config: { needed: 1 },
+        steps: [{ name: { en: "Booth A" } }],
+      });
+      const [step] = await owner<{ id: string }>(
+        "SELECT id FROM passport_step WHERE quest_id = $1",
+        [passport],
+      );
+      const stepId = step?.id ?? "";
+      const hidden = await addHiddenCategory(s, "Vault");
+      for (const path of [`steps/${stepId}/qr`, `categories/${hidden}/reveal`]) {
+        const response = await call("POST", `${s.base}/${path}/regenerate`, s.cookie);
+        expect(response.json(), path).toMatchObject({ version: 2 });
+      }
+      const audits = await owner<{ action: string; before: unknown; after: unknown }>(
+        `SELECT action, before, after FROM audit_log
+         WHERE target_id = ANY ($1) AND action IN ('quest.step_qr_regenerate', 'category.reveal_regenerate')
+         ORDER BY action`,
+        [[passport, hidden]],
+      );
+      expect(audits).toEqual([
+        { action: "category.reveal_regenerate", before: { version: 1 }, after: { version: 2 } },
+        {
+          action: "quest.step_qr_regenerate",
+          before: { stepId, version: 1 },
+          after: { stepId, version: 2 },
+        },
+      ]);
     });
 
     it("needs no second confirmation in a live event, and refuses in an ended one", async () => {
