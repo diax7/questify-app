@@ -2807,6 +2807,10 @@ minutes`, Close moves `closes_at` to now; the API role cannot set those columns 
 choices are one row per option in `quest_vote`, one completion and one payment. Points are the quest's (0 = none);
 XP follows the quest rule unchanged. Players read counts only when the policy allows; the team always. A poll sent
 in rehearsal goes back to draft at go-live.
+**CTO plan review (2026-10-24):** live polls are left out of every category rule (done, cleared, the in-order
+check both ways), so a short poll never blocks a bonus or the next quest; the guard checks the new row's values and
+refuses adding or removing `live` on a visible or sent quest and changing its choices or minutes once sent; a poll
+never stays open past the event end; with several choices, shares are out of voters.
 **Why:** reusing the quest gives points, the ledger, audiences, rehearsal, erasure and removal for free, and the
 quest's own window means no player reader changes.
 
@@ -2814,7 +2818,8 @@ quest's own window means no player reader changes.
 **Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-185.
 **Decision:** the app reads `GET /v1/events/{id}/live` (open live polls the player has not voted in, recently closed
 polls with results, and T-306b's community progress) every `livePollSeconds` (tuning, 10) while an event screen is
-open and the app is active, with an ETag and 304. The server-sent stream described in API.md is not built; it is the
+open and the app is active, with an ETag over the body without `serverNow` (sent in a header too) and 304; an
+event with nothing live answers without the per-player query, and its open-poll list is cached 3 s. The server-sent stream described in API.md is not built; it is the
 growth step if the big screen (T-504) or a load test needs updates faster than polling gives.
 **Why:** polls and a progress bar tolerate a 10 s delay; one small indexed call is cheaper to build and run than a
 stream with its fan-out, reconnects and proxy limits.
@@ -2823,7 +2828,8 @@ stream with its fan-out, reconnects and proxy limits.
 **Status:** Proposed (Claude, 2026-10-24; T-306 plan, built in T-306b). Q-186.
 **Decision:** nothing in the scan transaction touches a community goal. A community tick (every 5 s, `FOR UPDATE SKIP
 LOCKED` per goal) keeps a settled tally: it adds the slice older than 30 s to a settled value and shows settled plus
-the open tail. Points count `quest`, `bonus` and their removals inside the window; completions count the chosen quest
+the open tail; it settles only up to the oldest open transaction's start (and the API's connections end an idle
+transaction after 10 s), and closes a goal only once the settled point passed its end. Points count `quest`, `bonus` and their removals inside the window; completions count the chosen quest
 or category minus removals; players count contributors, kept as rows, who are also the default reward list. When a
 step is reached its payee list is frozen (contributors, or every active player then). A goal closes at its end (or
 the event's) plus 15 s: reached or missed; a missed goal pays nothing. One running goal per event; no rehearsal run.
@@ -2838,6 +2844,9 @@ enrollment order with SKIP LOCKED, then the batch's enrollments locked in one st
 lock, one entry each, a partial unique index on (step, enrollment) so the database refuses a second payment, one
 ranking repair mark per batch. A failed batch rolls back and is retried on the next tick; a player request that
 waits past the lock timeout gets `503 busy` and retries with its key. `confirm_results` waits (`409
-community_paying`) until every goal of the event is closed and paid.
+community_paying`) until every goal of the event is closed and paid; the owner's "Settle and pay now" does that
+inline, due rows older than 2 minutes raise an alert, and switching community quests off closes running goals.
+The five community tables are closed (RLS, no grant, PUBLIC revoked) with outsider tests, and a two-connection test
+crosses the payer with a meet payment.
 **Why:** one transaction for thousands of players would hold their rows for seconds and block their scans; batches
 in id order keep the ADR-211 lock order and bound any wait to one batch.

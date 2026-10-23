@@ -407,7 +407,8 @@ community goal after that (T-306c). The pushes wait for T-501 and the big-screen
 
 ## Q-184 — Live poll rules (2026-10-24, T-306 plan)
 ADR-220: a live poll takes one choice or several (several still count as one vote and one payment), shows results
-after voting, at close or never, and stays open 1 minute to 24 hours once sent. A poll without points still gives
+after voting, at close or never, and stays open 1 minute to 24 hours once sent (never past the event's end). A poll
+never counts toward a category's bonus or order, so missing one blocks nothing. A poll without points still gives
 Questify XP like any quest. Agree, or no XP for a poll without points?
 
 ## Q-185 — Polling instead of a live stream (2026-10-24, T-306 plan)
@@ -421,4 +422,5 @@ quests do not run in rehearsal (the dashboard shows a preview). Agree?
 
 ## Q-187 — Community payout numbers (2026-10-24, T-306 plan)
 ADR-223: rewards paid in batches of 500 players, up to 2 seconds of work every 5 seconds (10,000 players paid within
-about 30 seconds); final results wait until every community reward is paid. Keep as a start?
+about 30 seconds); final results wait until every community reward is paid, and the owner can press "Settle and pay now" instead of
+waiting. Keep as a start?
