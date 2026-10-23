@@ -107,9 +107,12 @@ jobs:
 
       - name: Browser tests (sign-in on desktop and phone, both languages)
         if: steps.scope.outputs.e2e == 'true'
+        # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
+        # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).
+        timeout-minutes: 8
         run: |
           set -euo pipefail
-          pnpm --filter @questify/web exec playwright install --with-deps chromium
+          pnpm --filter @questify/web exec playwright install chromium
           pnpm --filter @questify/web e2e
         env:
           NEXT_TELEMETRY_DISABLED: "1"
