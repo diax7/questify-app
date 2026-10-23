@@ -160,6 +160,19 @@ Auth shows who may call. "Rate" notes any special limit.
 | `GET /v1/quests/{id}/share` | player (active member who may play it) | → `{message: {ar, en}, link, done}` (T-303, FR-220); 404 while the event's share quests are off (FR-219) | 401, 404 |
 | `POST /v1/quests/{id}/share` | player | `{}`, **Idempotency-Key** → `201 {completionId, points, score, balance, replayed, levelUp, rank}`: the app calls it when the share sheet reports `sharedAction` (ADR-034, ADR-199). Once per player | 401, 403 `feature_off` / `quest_not_open` / `enrollment_inactive` / `operator_play_off`, 404, 409 `already_completed`, 422 `not_share_quest` |
 
+**Quest items (T-304d, ADR-205).** A quest's and a category's builder bodies take `itemId` (a quest item of this
+event; null clears it; a removed or other event's item answers 422 `invalid_item`) and answer it. Every pay answer that
+carries `bonus` also carries `item: {name: {ar, en}, outcome: pending | out_of_stock | claim_closed} | null` (the item
+this completion gave on the player's first completion of the quest, or missed), and `bonus` gains `item` the same way
+(a category's item, once per period) with `points` 0 for an item-only bonus. The quests read gains `item: {ar, en} |
+null` per quest (while the player has never completed it and stock is left) and `bonus.item` per category (while stock
+is left). The player's redemptions (`GET /v1/events/{id}/shop`), `GET /v1/me/desk-items` and the desk's lookup and
+find gain `source: shop | rank | quest`; a quest item has price 0, is collected through the same handover, and its
+player cancel answers 409 `rank_prize` ("This prize can't be cancelled in the app"). The award removal
+(`POST …/entries/{entryId}/remove`, and the submission removal) answers `item: cancelled | handed_over | null`: a
+pending item of that credit is cancelled and its unit returned; a handed-over one stays; a replay answers the item's
+current state.
+
 ### Rewards and handover
 
 | Operation | Auth | Request → Response | Errors |
@@ -288,6 +301,10 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `POST …/events/{eventId}/operators/invites` | owner | **Idempotency-Key**; `{kind: "personal", label, preset?}` \| `{kind: "batch", label, count (1–100), preset}` \| `{kind: "email", email, preset?, lang}` → `201 {ids}`. Presets: `full` (default), `scanner`, `prize_desk`, `moderator` (FR-1720). An email invite is sent at once and cancelled again when no email can go out | 403 `owner_only`, 404, 409 `event_closed` / `operator_invites_full` (500 open), 422 `invalid_operator {field: email}`, 503 `email_unavailable`, 429 `mail_cap` |
 | `DELETE …/operators/invites/{inviteId}` | owner | cancels an open invite → 204 | 403, 404, 409 `invite_used` |
 | `PUT …/operators/{operatorId}`, `DELETE …/operators/{operatorId}` | owner | `{abilities, canPlay, questIds}` (an empty `questIds` is every quest; the quests must be this event's) → `{operator}`; delete removes at once, a scan in flight finishes first (FR-905) → 204. Audited | 403 `owner_only`, 404, 422 `invalid_operator {field: questIds}` |
+| `GET …/events/{eventId}/quest-items` | owner, editor | → `{items: [{id, name, description, stockTotal, unitsOut, stockLeft, missed, quests: [{id, name}], categories: [{id, name}]}]}` (T-304d, FR-522, FR-1617): the active items, what gives each, and how many players got points only because it ran out or the desk had closed | 404 |
+| `POST …/events/{eventId}/quest-items` | owner, editor | **Idempotency-Key**; `{name: {ar?, en?}, description?, stockTotal (0–100 000)}` → `201 {item}`. Needs the desk's place. Audited (`quest_item.create`) | 400 `{field: name}`, 404, 409 `desk_needed` / `event_archived` / `limit_reached` (100 items) |
+| `PATCH …/quest-items/{itemId}`, `DELETE …/quest-items/{itemId}` | owner, editor | Edit (`name?, description?, stockTotal?`) → `{item}`, any time (raising the stock gives nothing to those who missed it); remove → 204 once no quest or category names it (what is reserved stays reserved). Audited (`quest_item.update`, `quest_item.remove`) | 404, 409 `item_in_use` / `stock_below_reserved {unitsOut}` |
+| `GET …/quest-items/{itemId}/misses` | owner, editor | → `{misses: [{username, avatar, at, source: quest\|category, sourceName, reason: out_of_stock\|claim_closed}]}`, newest first, at most 200 (FR-1617: the team can make it up to them by hand) | 404 |
 | `GET …/events/{eventId}/rank-prizes` | owner, editor | → `{rankPrizes, rules: {ar, en}, prizes: [{id, rankFrom, rankTo, kind: item\|experience, name, description}]}` (T-214, FR-519) | 404 |
 | `PUT …/events/{eventId}/rank-prizes` | owner, editor | `{rankPrizes?, rules?: {ar?, en?}}` → `{rankPrizes, rules}`. The switch locks once the event is live; the rules text (plain text, up to 10 000 characters a language) stays editable. Each change audited (`event.rank_prizes`, `event.rules`) | 404, 409 `event_archived` / `prizes_locked` |
 | `POST …/events/{eventId}/rank-prizes` | owner, editor | **Idempotency-Key**; `{kind, rankFrom, rankTo (1–100), name: {ar?, en?}, description?}` → `201 {prize}`. Ranges never overlap; an item needs the desk's place; refused once the event is live or the results are confirmed. Audited (`rank_prize.create`) | 400 `{field: rankTo\|name}`, 404, 409 `overlap` / `prizes_locked` / `results_final` / `desk_needed` / `limit_reached` |

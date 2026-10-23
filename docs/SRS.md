@@ -1067,7 +1067,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-519 | F-149 | Should | pending |
 | FR-520 | F-149, F-111 | Should | pending |
 | FR-521 | F-149 | Should | pending |
-| FR-522 | F-150 | Should | pending (T-304, ADR-161) |
+| FR-522 | F-150 | Should | `test/db/quest-items.int`, `test/rewards/quest-items.int` (T-304d, ADR-205) |
 | FR-601 | F-09 | Must | pending |
 | FR-602 | F-09 | Must | pending |
 | FR-603 | F-09 | Must | pending |
@@ -1281,7 +1281,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1614 | F-171 | Must | pending |
 | FR-1615 | F-59 | Should | pending |
 | FR-1616 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
-| FR-1617 | F-150 | Should | pending |
+| FR-1617 | F-150 | Should | `test/db/quest-items.int`, `test/rewards/quest-items.int` (T-304d, ADR-205) |
 | FR-1618 | F-62 | Should | pending |
 | FR-1619 | F-51 | Should | built (T-304c) |
 | FR-1620 | F-101 | Should | pending |

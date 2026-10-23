@@ -2600,3 +2600,8 @@ quest or bonus award cancels its pending item; a handed-over item stays. The rem
 (ADR-152), so a later scan of that quest (occurrence 2) gives no item.
 **Why:** FR-522 and FR-1617; ADR-162's separate table fails closed (an item cannot leak into the shop for free) and
 reuses the whole handover path; the first-completion rule stops a repeatable quest draining the stock.
+**Build notes (2026-10-24):** the claim deadline is `default_claim_until`, else the desk's last window while it is still
+ahead (`default_claim_until` alone answers NULL when the desk closes within a day, which would have missed items while
+the desk was still open); `quest.item_id` and `category.item_id` are NO ACTION, as `category.unlock_after`, so a draft
+event's delete cascades in one statement; the API reuses `desk_needed` and `stock_below_reserved` (the shop's codes)
+rather than new ones.

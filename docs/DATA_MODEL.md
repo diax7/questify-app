@@ -468,6 +468,33 @@ ADR-151):
 - Official rules: `rules_of(event)` (internal), `public_event_rules(code)` (the join card's visibility) and
   `event_rules(event)` (active members) return the data the API's fixed block is written from (ADR-165).
 
+### quest_item, quest_item_miss (migration 0047, T-304d, ADR-205)
+- `quest_item(id, organizer_id, event_id, name i18n, description i18n, stock_total 0–100 000, units_out, status
+  active|removed)`: organizers write under row-level security with column grants (no grant on `units_out`, no DELETE).
+  `quest_item_guard` refuses a new item without the desk's place (`DL409`, the API role only), a removed item coming
+  back (`QI409 removed`) and removing one a quest or category still names (`QI409 item_in_use`); `event_desk_guard`
+  keeps the desk's place while an active item exists. `quest.item_id` and `category.item_id` (FK `(item_id, event_id)`,
+  NO ACTION so a draft's delete cascades) name it; `item_link_guard` (triggers `quest_item_link`, `category_item_link`,
+  named to fire before `*_refresh_type`) refuses a removed or other event's item (`QI422 invalid_item`). A link and a
+  removal of one event serialize on `pg_advisory_xact_lock(hashtextextended('quest_item:' || event_id, 0))`.
+- `redemption` gains `quest_item_id` (exactly one of `reward_id`, `rank_prize_id`, `quest_item_id`; price 0 unless a
+  shop reward; never `delivered` unless a shop reward) and its source: `source_completion_id` (a quest's item) or
+  `source_category_id` + `source_period` (a category bonus's item, T-304c's period). Unique once per source
+  (`redemption_item_completion_once`, `redemption_item_category_once`). Key `quest item <its own id>` (a space: no
+  player request can name it). `ended_by` gains `removal`.
+- `quest_item_miss(id, organizer_id, event_id, enrollment_id, quest_item_id, source…, reason out_of_stock|claim_closed,
+  created_at)`: the same source shape and unique keys; no API grant; written by `give_item` only, read through
+  `own_quest_item`, `own_bonus`, `own_category_bonus` (player) and `quest_items`, `quest_item_misses` (team).
+- `give_item(enrollment, item, completion, category, period)` (internal): out of stock or removed → a miss; the desk's
+  hours over (`default_claim_until`, else the desk's last window while still ahead) → a miss; else a price-0
+  reservation and `units_out + 1` after the insert. `record_completion` and `pay_completion` lock the quest's and the
+  category's items in id order (`lock_quest_items`) before the completion, on every completion, and give the quest's
+  item when the lifetime occurrence is 1; `pay_category_bonus` writes the bonus row for points, an item or both, the
+  ledger entry only for points, then the item. `end_reservation` locks the item before the redemption and returns its
+  unit with no ledger entry; `cancel_redemption` refuses any price-0 item (`RZ409`); `remove_award` cancels the
+  credit's pending item through `end_reservation` and counts only priced reservations for `AO409`. The rehearsal wipe
+  deletes misses before the completions and recounts `units_out`; erasure deletes the account's misses.
+
 ### submission
 **Built (T-301, migration 0040, ADR-184):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, kind (text;
 photo is T-301b), body (1–1000 characters, NFC, trimmed), points (fixed when sent), status
