@@ -5,3 +5,5 @@ bd0175284bfa4ca04ac613b641ebf352febe464e:apps/api/test/auth/sessions.int.test.ts
 # Fixed test UUIDs sent as idempotency-key headers (apps/api/test/rehearsal/rehearsal.int.test.ts), flagged as API keys; not secrets.
 758a7fb92101a543e95222751c979f1a2d60dd7f:apps/api/test/rehearsal/rehearsal.int.test.ts:generic-api-key:270
 758a7fb92101a543e95222751c979f1a2d60dd7f:apps/api/test/rehearsal/rehearsal.int.test.ts:generic-api-key:302
+# A made-up meet-code token in the meet-code parser test (packages/shared/src/quests/meet-code.test.ts), flagged as an API key; not a secret.
+a1669b80a9663a2e4ce7b88fe4e383b2000062b4:packages/shared/src/quests/meet-code.test.ts:generic-api-key:4
