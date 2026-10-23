@@ -866,6 +866,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by submit_survey, read by the event's team as totals and texts with names not shown through survey_summary; players read only whether they answered, through member_survey (test/db/challenge-survey-share)",
   category_bonus:
     "no right for the API role at all; written by pay_category_bonus inside the paying definers, read by the player through own_bonus, own_category_bonus and member_event_quests (test/db/category-rules)",
+  category_reveal:
+    "no right for the API role at all; written by reveal_category for the calling player and by record_completion on a staff manual award, read inside the player's definers through sees_category (test/db/categories-hidden)",
   passport_stamp:
     "no right for the API role at all; written by stamp_step for the calling player, read by the player through member_passport and member_event_quests and by the event's team as step ids through stamped_steps and submitters_of (test/db/passport)",
   quiz_attempt:

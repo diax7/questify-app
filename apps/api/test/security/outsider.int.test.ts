@@ -141,6 +141,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot find a hidden category, read the reveals or reach the period helpers (T-304c)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.category_reveal",
+        "SELECT * FROM public.reveal_category(gen_random_uuid(), 1)",
+        "SELECT public.sees_category(gen_random_uuid(), NULL::public.category)",
+        "SELECT public.category_period_start(NULL::public.category, NULL::public.event)",
+        "SELECT public.category_resets_at(NULL::public.category, NULL::public.event)",
+        "SELECT public.period_count(gen_random_uuid(), NULL::public.quest)",
+        "SELECT * FROM public.member_event_quests(gen_random_uuid())",
+        "SELECT * FROM public.member_vote(gen_random_uuid())",
+        "SELECT * FROM public.member_quiz(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

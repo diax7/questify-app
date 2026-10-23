@@ -125,6 +125,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "lock",
           "steps_done",
           "steps_needed",
+          "refresh",
+          "resets_at",
           "title_ar",
           "title_en",
           "type",
