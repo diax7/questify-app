@@ -324,6 +324,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 - [ ] **T-305c** Catch and tap rush: fixed-tick replay, reaction-time bounds, app screens — delivers FR 1804 (the last two games); depends on: T-305
   - Split from T-305 2026-10-24 (ADR-214): real-time replay is its own problem; the round protocol and verdicts are T-305's.
   - Note 2026-10-24 (T-305 built): add each game to `GAME_NAMES`, `LEVELS`, the registry (`JUDGES`, `ENGINE_VERSIONS`), the app's `BOARDS`, migration's `quest_game_shape`, `game_round.game` and `game_level`, and drop it from `COMING_GAMES`; the builder then takes it.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-305c-catch-tap-rush.md`, migration 0051, ADR-216 to ADR-218 and Q-181, Q-182 Proposed.
 - [ ] **T-306** Live polls and community quests with milestones and rewards — delivers FR 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 1620; depends on: T-302
   - Done when: A community goal not reached pays nothing; points-based goals count participation points.
 - [ ] **T-307** Flash quests, double-point boosts, live finale — delivers FR 251, 252, 254, 255, 1621; depends on: T-306

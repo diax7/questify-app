@@ -2746,3 +2746,31 @@ games add no native module and no new EAS build. Built (T-305): the unlikely cou
 memory level's numbers (easy 3, medium and hard 4), because a player who remembers every card but never peeks reached 3
 in 1.2% (medium) and 1.7% (hard) of 5,000 seeded rounds; at 4 it is 0.1% and 0.3% (easy stays 3, at 0.9%).
 **Why:** configuration over code without giving organizers numbers they cannot judge; a picture puzzle cannot mirror.
+
+## ADR-216 — Real-time mini-game replay
+**Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Extends ADR-212.
+**Decision:** catch and tap rush move their world only on a fixed 30 Hz tick, in integers, on a 1,000 × 1,000-unit
+board. Inputs keep their time in whole milliseconds; one shared integer function maps a time to its tick. A real-time
+engine adds `advance(state, tick)` to the game engine contract, so the replay, the judge and the app's gate are reused
+unchanged. The app reads its clock once a frame, records that frame's input before advancing the world, and only
+interpolates for drawing, so frame rate and stalls never change a result. Catch records the basket's target only when
+it changes, at most once a tick, and the world caps the basket's speed. A real-time round keeps running while the app
+is away.
+**Why:** FR-1804, FR-1805; a replay must give the phone's result exactly on Node and release Hermes whatever the
+phone's frame rate (`docs/plans/2026-10-24-t-305c-catch-tap-rush.md`).
+
+## ADR-217 — Reaction bounds in the real-time games
+**Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Replaces T-305's sketch of a share of fast hits.
+**Decision:** a tap on a target younger than 120 ms, or a second tap inside 100 ms, is dropped by the app and is
+impossible in a replay. Fast but possible play raises the unlikely flag and is paid: tap rush hits under 200 ms, and
+catch catches started before the item could be seen, each counted against a level threshold set so honest play is
+flagged in under 1% of seeded rounds.
+**Why:** a share-based refusal could refuse an honest fast player; a gate costs an honest player one ignored tap and
+keeps "an honest player is never refused" (ADR-212).
+
+## ADR-218 — Catch and tap rush rules and levels
+**Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-182. Extends ADR-215.
+**Decision:** catch runs 45 s and every item can be caught by a perfect player; tap rush runs 30 s on a 3 × 4 grid
+and scores hits minus misses. The level numbers in the T-305c plan are starting tuning, sent with each round. The
+64 KB result body limit stays one number for every game (a full catch round is under 40 KB).
+**Why:** pass targets below perfect play (ADR-212); a miss penalty stops tapping everywhere from passing.
