@@ -69,7 +69,7 @@ describe("catch: calibration of the unlikely flag (ADR-217)", () => {
 });
 
 describe("catch: what one result request can cost the server", () => {
-  it("judges the worst-case body (1,351 inputs, the hard level) well inside 150 ms", () => {
+  it("judges the worst-case body (1,351 inputs, the hard level) inside 50 ms", () => {
     const inputs = Array.from({ length: CATCH_INPUT_CAP }, (_, tick) => ({
       t: tickStartMs(tick),
       x: tick % 2 === 0 ? 0 : 1000,
@@ -80,6 +80,6 @@ describe("catch: what one result request can cost the server", () => {
     judge(engine, round, { inputs, claimed });
     const started = performance.now();
     expect(judge(engine, round, { inputs, claimed })).toHaveProperty("verdict", "short");
-    expect(performance.now() - started).toBeLessThan(150);
+    expect(performance.now() - started).toBeLessThan(50);
   });
 });

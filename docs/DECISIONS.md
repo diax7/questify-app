@@ -2775,7 +2775,12 @@ keeps "an honest player is never refused" (ADR-212).
 `unlikelyForesight` 10 / 12 / 16 (easy / medium / hard; the honest model, which drags over 100 to 300 ms and so sweeps
 past new items, peaks at 7 / 9 / 13), tap rush's `unlikelyQuick` 8 at every level (honest peak 5). The catch seed
 reader flicks onto each item the tick it spawns and returns to the item landing next (one that only moved at spawn
-would miss most items and so be counted for few).
+would miss most items and so be counted for few). **Limit (CTO code review):** catch's `foreseen` flag only catches a
+naive seed reader. One that waits 4 ticks or more before moving onto an item, or is already in position when it
+spawns, is never counted. The flag is advisory only (the round is paid) and is not a defence against a careful bot.
+Replay cost: the worst-case catch body (1,351 inputs, hard) is judged in about 17 ms; the bound is 50 ms in the
+calibration file and 150 ms in the unit file, which Stryker also runs. The plan said 25 ms; 50 ms leaves room for CI's
+2-core runner.
 
 ## ADR-218 — Catch and tap rush rules and levels
 **Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-182. Extends ADR-215.

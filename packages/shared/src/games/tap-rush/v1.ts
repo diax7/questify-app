@@ -51,7 +51,8 @@ const count = z.number().int().nonnegative();
 
 const params = z
   .strictObject({
-    timeLimitSeconds: z.number().int().min(10).max(60),
+    // At most 30 s: the 300-tap cap is 30 s of taps at the 100 ms floor.
+    timeLimitSeconds: z.number().int().min(10).max(30),
     columns: z.number().int().min(2).max(5),
     rows: z.number().int().min(2).max(6),
     lifeTicks: z.number().int().min(6).max(150),

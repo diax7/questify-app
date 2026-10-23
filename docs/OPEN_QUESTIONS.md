@@ -393,7 +393,9 @@ Questify bucket exists (T-305b, blocked on Q-149). Agree?
 ## Q-181 — How catch and tap rush are checked (2026-10-24, T-305c plan)
 ADR-216 and ADR-217: the two real-time games move on a fixed tick so the server replays them exactly; a tap on a
 target in its first 120 ms is ignored by the app (no person reacts that fast); fast but possible play is flagged for
-the organizer and still paid; a round pauses while the app is not active, within its result window. Agree?
+the organizer and still paid; a round pauses while the app is not active, within its result window. Note: catch's
+"foreseen" flag only catches a naive seed reader; one that waits 133 ms or more, or is already in position, is never
+counted, so the flag is advisory only. Agree?
 
 ## Q-182 — Catch and tap rush levels (2026-10-24, T-305c plan)
 ADR-218 and the plan's table: catch 45 s with 30, 40 or 50 items (pass at 20, 30 or 40 caught); tap rush 30 s with a

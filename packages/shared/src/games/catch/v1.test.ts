@@ -292,6 +292,21 @@ describe("catch: impossible rounds", () => {
   });
 });
 
+describe("catch: what one result request can cost the server", () => {
+  // One run, loose enough for Stryker's instrumented code; the calibration file holds the tight 50 ms bound.
+  it("judges the worst-case body (1,351 inputs, the hard level) inside 150 ms", () => {
+    const inputs = swinging(CATCH_INPUT_CAP);
+    const played = replay(engine, 77, hard, inputs);
+    const claimed = "result" in played ? played.result : null;
+    const started = performance.now();
+    expect(judge(engine, { seed: 77, params: hard }, { inputs, claimed })).toHaveProperty(
+      "verdict",
+      "short",
+    );
+    expect(performance.now() - started).toBeLessThan(150);
+  });
+});
+
 describe("catch: the server's judgement", () => {
   const round = { seed: 8, params: easy };
   const claim = (inputs: CatchInput[]) => {

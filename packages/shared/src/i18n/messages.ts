@@ -3302,8 +3302,8 @@ export const MESSAGES = {
     en: "This game needs quick sight and touch.",
   },
   "play.game.paused": {
-    ar: "اللعبة متوقفة مؤقتًا. أتعود إليها؟",
-    en: "Paused. Back to the game?",
+    ar: "اللعبة متوقفة مؤقتًا.",
+    en: "Paused.",
   },
   "play.game.shortCatch": {
     ar: "اقتربت! المطلوب {target} والتقطت {caught}.",
