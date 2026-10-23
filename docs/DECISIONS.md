@@ -2586,3 +2586,16 @@ as met), and the public event page never lists it. An owner's or editor's manual
 audience still applies) and reveals the category to that player; an operator scan does not.
 **Why:** FR-236, FR-1619, FR-237; one period helper used by every payer keeps "how many this period" in one place
 under the enrollment lock; played-once types have no meaning in a refresh.
+
+## ADR-205 — Items as quest or category rewards: their own stock, a price-0 desk item, points only when out
+**Status:** Proposed (Claude, 2026-10-24; T-304d). Q-169.
+**Decision:** an item given by a quest or a category is a `quest_item` row (its own table and stock, shared by every
+quest and category that names it, never a shop `reward`). Earning it makes a price-0 `redemption` (a third source after
+shop rewards and rank prizes) collected through the desk's handover, with `default_claim_until`'s deadline; the player
+cannot cancel it, an operator's cancel or the timeout returns the unit with no ledger entry. A quest gives its item on
+the player's first completion only; a category gives its item with its bonus, once per period (T-304c), with or
+without bonus points. With no stock left, or the desk's hours over, the player gets the points only, is told so, and a
+miss is recorded that the organizer sees with a warning; nothing is given later when stock is raised. Removing the
+quest or bonus award cancels its pending item; a handed-over item stays.
+**Why:** FR-522 and FR-1617; ADR-162's separate table fails closed (an item cannot leak into the shop for free) and
+reuses the whole handover path; the first-completion rule stops a repeatable quest draining the stock.

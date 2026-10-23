@@ -303,3 +303,10 @@ keeps its bonus paid once (not paid again). Agree, or should weeks follow the ca
 earned, a quest scan reveal its category, or a manual award be refused until the player finds the code?
 Note (T-304c code review): the weekly anchor is the event's `starts_at`, so editing the start mid-event moves the
 weekly blocks from then on (counts already made stay; the current week may grow, shrink or restart).
+
+## Q-169 — Items as quest or category rewards (2026-10-24, T-304d)
+ADR-205: a quest gives its item on the first completion only (a repeatable quest gives points again but no second
+item); a daily or weekly category gives its item once per period, with its bonus; an item missed because stock ran out
+is not given later when stock is raised (the organizer sees who missed); the player cannot cancel an item they earned;
+items are physical only (no experience or digital code). Agree, or should a repeat give another item, a category give
+its item once for the whole event, missed players be served first when stock returns, or experiences be allowed?
