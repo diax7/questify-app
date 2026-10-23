@@ -48,7 +48,8 @@ export type CategoryRules = Readonly<{
   orderMode: "any" | "in_order";
   opensAt: string | null;
   unlockAfter: Readonly<{ id: string; name: Bilingual }> | null;
-  bonus: Readonly<{ points: number; earned: number }>;
+  /** settled: paid, or since removed or withheld; a settled bonus is never paid again, so it is not promised. */
+  bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
 }>;
 
 export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
@@ -136,6 +137,7 @@ function rulesOf(category: Record<string, unknown>): CategoryRules {
     bonus: {
       points: typeof bonus["points"] === "number" ? bonus["points"] : 0,
       earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
+      settled: bonus["settled"] === true,
     },
   };
 }
@@ -224,7 +226,7 @@ export type CategoryNote =
 
 /**
  * A category header's notes: when it opens and which category unlocks it, while that keeps its quests shut; that it is
- * played in order; and its completion bonus, or the bonus earned.
+ * played in order; and its completion bonus, or the bonus earned; nothing for a bonus settled with nothing kept.
  */
 export function categoryNotes(category: Category): CategoryNote[] {
   const locks = new Set(category.quests.map((quest) => quest.lock));
@@ -240,7 +242,7 @@ export function categoryNotes(category: Category): CategoryNote[] {
   }
   if (category.bonus.earned > 0) {
     notes.push({ kind: "bonusEarned", points: category.bonus.earned });
-  } else if (category.bonus.points > 0) {
+  } else if (category.bonus.points > 0 && !category.bonus.settled) {
     notes.push({ kind: "bonus", points: category.bonus.points });
   }
   return notes;

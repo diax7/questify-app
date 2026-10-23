@@ -31,7 +31,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   orderMode: "any",
   opensAt: null,
   unlockAfter: null,
-  bonus: { points: 0, earned: 0 },
+  bonus: { points: 0, earned: 0, settled: false },
   quests,
 });
 

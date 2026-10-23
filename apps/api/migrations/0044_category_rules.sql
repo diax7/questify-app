@@ -429,7 +429,9 @@ REVOKE ALL ON FUNCTION own_bonus(bigint) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION own_bonus(bigint) TO questify_app;
 
 -- The bonus the caller's quiz attempt on this quest paid: through its completion, or, finished with no right answers,
--- the row with no completion written as the attempt finished.
+-- the row with no completion written as the attempt finished. created_at = finished_at holds because both take now() in
+-- the one transaction that finishes the attempt and pays the bonus (finish_quiz); a bonus row written in any
+-- other transaction would not match.
 CREATE FUNCTION own_category_bonus(target uuid)
   RETURNS TABLE (category_id uuid, points bigint, name_ar text, name_en text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -447,7 +449,9 @@ $$;
 REVOKE ALL ON FUNCTION own_category_bonus(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION own_category_bonus(uuid) TO questify_app;
 
--- As 0041, with each category's rules and the caller's bonus, and each quest's lock. The output changed: DROP and
+-- As 0041, with each category's rules and the caller's bonus, and each quest's lock. bonus_settled: the bonus row
+-- exists (paid, or since removed or withheld), so it is never paid again. An unlock category's name is shown only to a
+-- player in its audience. The output changed: DROP and
 -- CREATE, with the REVOKE and GRANT repeated.
 DROP FUNCTION member_event_quests(uuid);
 CREATE FUNCTION member_event_quests(target uuid)
@@ -456,7 +460,8 @@ CREATE FUNCTION member_event_quests(target uuid)
                  type text, points integer, repeat_cap integer, opens_at timestamptz, closes_at timestamptz,
                  quest_position integer, done integer, earned bigint, verification text[],
                  order_mode text, category_opens_at timestamptz, unlock_after uuid, unlock_after_name_ar text,
-                 unlock_after_name_en text, completion_bonus integer, bonus_earned bigint, lock text)
+                 unlock_after_name_en text, completion_bonus integer, bonus_earned bigint, bonus_settled boolean,
+                 lock text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   WITH me AS (
     SELECT n.id FROM enrollment n JOIN player p ON p.id = n.player_id
@@ -470,9 +475,13 @@ CREATE FUNCTION member_event_quests(target uuid)
          (SELECT coalesce(sum(l.score_delta), 0)::bigint FROM ledger_entry l
           WHERE l.enrollment_id = me.id AND l.quest_id = q.id),
          q.verification,
-         c.order_mode, c.opens_at, c.unlock_after, u.name_ar, u.name_en, c.completion_bonus,
+         c.order_mode, c.opens_at, c.unlock_after,
+         CASE WHEN in_audience(me.id, u.audience_kind, u.audience_field_id, u.audience_values) THEN u.name_ar END,
+         CASE WHEN in_audience(me.id, u.audience_kind, u.audience_field_id, u.audience_values) THEN u.name_en END,
+         c.completion_bonus,
          (SELECT coalesce(sum(l.score_delta), 0)::bigint FROM ledger_entry l
           WHERE l.enrollment_id = me.id AND l.category_id = c.id),
+         EXISTS (SELECT 1 FROM category_bonus b WHERE b.enrollment_id = me.id AND b.category_id = c.id),
          category_lock(q, me.id)
   FROM me
   JOIN category c ON c.event_id = target

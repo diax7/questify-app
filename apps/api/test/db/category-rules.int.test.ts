@@ -283,6 +283,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
       const quest = await newQuest(event, next);
       const { player } = await member(event);
       expect(await code(player, quest)).toMatchObject({ score: "10" });
+      expect(
+        await query(
+          as(player),
+          "SELECT unlock_after, unlock_after_name_ar, unlock_after_name_en FROM member_event_quests($1)",
+          [event],
+        ),
+      ).toEqual([{ unlock_after: vip, unlock_after_name_ar: null, unlock_after_name_en: null }]);
     });
 
     it("lets an owner's manual award pass every gate, and gates the station", async () => {
@@ -509,6 +516,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
       });
       await remove(event, bonus?.id ?? "");
       expect(await standing(enrollment)).toEqual({ score: "0", balance: "0" });
+      expect(
+        await query(
+          as(player),
+          "SELECT completion_bonus, bonus_earned, bonus_settled FROM member_event_quests($1)",
+          [event],
+        ),
+      ).toEqual([{ completion_bonus: 50, bonus_earned: "0", bonus_settled: true }]);
       await code(player, quest);
       expect(await bonuses(enrollment)).toHaveLength(1);
       expect(
@@ -532,7 +546,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
       await code(player, first);
       const rows = await query<Row>(
         as(player),
-        `SELECT quest_id, order_mode, unlock_after, unlock_after_name_en, completion_bonus, bonus_earned, lock
+        `SELECT quest_id, order_mode, unlock_after, unlock_after_name_en, completion_bonus, bonus_earned, bonus_settled,
+                lock
          FROM member_event_quests($1)`,
         [event],
       );
@@ -544,6 +559,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
           unlock_after_name_en: null,
           completion_bonus: 20,
           bonus_earned: "20",
+          bonus_settled: true,
           lock: null,
         },
         {
@@ -553,6 +569,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("category rules and the bonus (
           unlock_after_name_en: "Chapter",
           completion_bonus: 0,
           bonus_earned: "0",
+          bonus_settled: false,
           lock: null,
         },
       ]);

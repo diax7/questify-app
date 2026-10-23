@@ -340,7 +340,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
       }>().categories[0];
     expect(await read()).toMatchObject({
       orderMode: "in_order",
-      bonus: { points: 30, earned: 0 },
+      bonus: { points: 30, earned: 0, settled: false },
       quests: [
         { id: first, state: "open", lock: null },
         { id: last, state: "locked", lock: "order_locked" },
@@ -364,7 +364,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
       quiz: { status: "finished", completionId: null },
       bonus: { points: 30, category: { ar: "عام", en: "General" } },
     });
-    expect(await read()).toMatchObject({ bonus: { points: 30, earned: 30 } });
+    expect(await read()).toMatchObject({ bonus: { points: 30, earned: 30, settled: true } });
   });
 
   it("builds vote and quiz quests played once, and locks a played quest's answers", async () => {

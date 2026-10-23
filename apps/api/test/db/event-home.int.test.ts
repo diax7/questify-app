@@ -121,6 +121,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "unlock_after_name_en",
           "completion_bonus",
           "bonus_earned",
+          "bonus_settled",
           "lock",
           "title_ar",
           "title_en",

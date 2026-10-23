@@ -44,8 +44,11 @@ export type CategoryRules = Readonly<{
   opensAt: Date | null;
   /** The category that unlocks this one, or null. */
   unlockAfter: Readonly<{ id: string; name: Text }> | null;
-  /** The completion bonus and what this player earned from it (0 before, the bonus after, less a removal). */
-  bonus: Readonly<{ points: number; earned: number }>;
+  /**
+   * The completion bonus, what this player earned from it (0 before, the bonus after, less a removal), and whether it
+   * is settled: paid, or since removed or withheld, so it is never paid again.
+   */
+  bonus: Readonly<{ points: number; earned: number; settled: boolean }>;
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }> &
@@ -176,6 +179,7 @@ type QuestRow = Readonly<{
   completion_bonus: number;
   /** bigint: pg returns it as text. */
   bonus_earned: string;
+  bonus_settled: boolean;
   lock: QuestLock | null;
 }>;
 
@@ -189,7 +193,11 @@ const rulesOf = (row: QuestRow): CategoryRules => ({
           id: row.unlock_after,
           name: { ar: row.unlock_after_name_ar, en: row.unlock_after_name_en },
         },
-  bonus: { points: row.completion_bonus, earned: Number(row.bonus_earned) },
+  bonus: {
+    points: row.completion_bonus,
+    earned: Number(row.bonus_earned),
+    settled: row.bonus_settled,
+  },
 });
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>

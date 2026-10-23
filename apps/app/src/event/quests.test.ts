@@ -36,7 +36,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   orderMode: "any",
   opensAt: null,
   unlockAfter: null,
-  bonus: { points: 0, earned: 0 },
+  bonus: { points: 0, earned: 0, settled: false },
   quests,
 });
 
@@ -173,7 +173,7 @@ describe("category rules (T-304)", () => {
           orderMode: "in_order",
           opensAt: "2030-01-01T10:00:00.000Z",
           unlockAfter: { id: "b", name: { ar: "الأولى", en: null } },
-          bonus: { points: 50, earned: 0 },
+          bonus: { points: 50, earned: 0, settled: true },
           quests: [{ ...quest("q"), state: "locked", lock: "order_locked" }],
         },
         {
@@ -188,14 +188,14 @@ describe("category rules (T-304)", () => {
       orderMode: "in_order",
       opensAt: "2030-01-01T10:00:00.000Z",
       unlockAfter: { id: "b", name: { ar: "الأولى", en: null } },
-      bonus: { points: 50, earned: 0 },
+      bonus: { points: 50, earned: 0, settled: true },
       quests: [{ lock: "order_locked" }],
     });
     expect(view?.categories[1]).toMatchObject({
       orderMode: "any",
       opensAt: null,
       unlockAfter: null,
-      bonus: { points: 0, earned: 0 },
+      bonus: { points: 0, earned: 0, settled: false },
       quests: [{ lock: null }],
     });
     const odd = readQuests({
@@ -216,7 +216,7 @@ describe("category rules (T-304)", () => {
       orderMode: "any",
       opensAt: null,
       unlockAfter: null,
-      bonus: { points: 0, earned: 0 },
+      bonus: { points: 0, earned: 0, settled: false },
     });
   });
 
@@ -225,7 +225,7 @@ describe("category rules (T-304)", () => {
       orderMode: "in_order" as const,
       opensAt: "2030-01-01T10:00:00.000Z",
       unlockAfter: { id: "b", name: { ar: null, en: "One" } },
-      bonus: { points: 50, earned: 0 },
+      bonus: { points: 50, earned: 0, settled: false },
     };
     const shut = {
       ...category("c", [
@@ -240,9 +240,21 @@ describe("category rules (T-304)", () => {
       { kind: "inOrder" },
       { kind: "bonus", points: 50 },
     ]);
-    const open = { ...category("c", [quest("a")]), ...rules, bonus: { points: 50, earned: 50 } };
+    const open = {
+      ...category("c", [quest("a")]),
+      ...rules,
+      bonus: { points: 50, earned: 50, settled: true },
+    };
     expect(categoryNotes(open)).toEqual([{ kind: "inOrder" }, { kind: "bonusEarned", points: 50 }]);
     expect(categoryNotes(category("c", [quest("a")]))).toEqual([]);
+  });
+
+  it("promises no bonus that was removed and will never be paid again", () => {
+    const removed = {
+      ...category("c", [quest("a")]),
+      bonus: { points: 50, earned: 0, settled: true },
+    };
+    expect(categoryNotes(removed)).toEqual([]);
   });
 });
 
