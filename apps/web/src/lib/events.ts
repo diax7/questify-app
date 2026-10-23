@@ -1,4 +1,5 @@
-import { toLocalInput, type Language } from "@questify/shared";
+import { VENUE_RADIUS, toLocalInput, type Language } from "@questify/shared";
+import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 
 export const KINDS = ["physical", "virtual", "workplace"] as const;
 export const ACCESS = ["public", "unlisted", "private"] as const;
@@ -12,6 +13,9 @@ export type EventView = Readonly<{
   name: Readonly<{ ar: string | null; en: string | null }>;
   kind: (typeof KINDS)[number];
   venue: Readonly<{ ar: string | null; en: string | null }>;
+  /** The venue's pin and radius, for the far-from-venue flag (T-303b); no pin means no such flag. */
+  venuePin: Readonly<{ lat: number; lng: number }> | null;
+  venueRadiusM: number;
   access: (typeof ACCESS)[number];
   joinMethods: readonly (typeof JOIN_METHODS)[number][];
   timezone: string;
@@ -56,6 +60,10 @@ export type EventDraft = Readonly<{
   kind: EventView["kind"];
   venueAr: string;
   venueEn: string;
+  /** The venue pin and its radius as typed; both pin numbers empty means no pin. */
+  venueLat: string;
+  venueLng: string;
+  venueRadius: string;
   timezone: string;
   startsAt: string;
   endsAt: string;
@@ -71,6 +79,9 @@ export const BLANK_DRAFT: EventDraft = {
   kind: "physical",
   venueAr: "",
   venueEn: "",
+  venueLat: "",
+  venueLng: "",
+  venueRadius: String(VENUE_RADIUS.default),
   timezone: "Asia/Riyadh",
   startsAt: "",
   endsAt: "",
@@ -86,6 +97,9 @@ export function draftOf(event: EventView): EventDraft {
     kind: event.kind,
     venueAr: event.venue.ar ?? "",
     venueEn: event.venue.en ?? "",
+    venueLat: event.venuePin === null ? "" : String(event.venuePin.lat),
+    venueLng: event.venuePin === null ? "" : String(event.venuePin.lng),
+    venueRadius: String(event.venueRadiusM),
     timezone: event.timezone,
     startsAt: toLocalInput(new Date(event.startsAt), event.timezone),
     endsAt: toLocalInput(new Date(event.endsAt), event.timezone),
@@ -99,6 +113,10 @@ const fieldsOf = (draft: EventDraft): Record<string, unknown> => ({
   name: { ar: draft.nameAr, en: draft.nameEn },
   kind: draft.kind,
   venue: { ar: draft.venueAr, en: draft.venueEn },
+  venuePin: pinTyped(draft.venueLat, draft.venueLng)
+    ? { lat: Number(draft.venueLat), lng: Number(draft.venueLng) }
+    : null,
+  venueRadiusM: Number(draft.venueRadius),
   access: draft.access,
   joinMethods: draft.joinMethods,
   dayStartHour: draft.dayStartHour,
@@ -132,3 +150,8 @@ export function editBodyOf(draft: EventDraft, before: EventDraft): Record<string
   }
   return draft.endsAt === before.endsAt ? body : { ...body, endsAt: draft.endsAt };
 }
+
+/** Whether the venue pin and radius are what the API takes: both pin numbers in range or neither, 100 to 20000 m. */
+export const venueIsValid = (draft: EventDraft): boolean =>
+  pinIsValid(draft.venueLat, draft.venueLng) &&
+  isRadius(draft.venueRadius, VENUE_RADIUS.min, VENUE_RADIUS.max);

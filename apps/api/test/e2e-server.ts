@@ -95,6 +95,78 @@ async function main(): Promise<void> {
 }
 
 /**
+ * Two players with an open location case each (T-303b): `usernames[0]` scanned once 2.4 km from the venue with a fake
+ * location reported (far from the venue); `usernames[1]` scanned two placed quests 910 m apart, edge to edge, 40
+ * seconds apart (impossible speed). The cases are written directly, as the completion trigger would.
+ */
+async function seedLocationFlags(
+  db: Awaited<ReturnType<typeof createTestDatabase>>,
+  eventId: string,
+  usernames: readonly string[],
+): Promise<void> {
+  const [far, fast] = usernames;
+  if (far === undefined || fast === undefined) {
+    throw new Error("usernames must hold two names");
+  }
+  const run = async (sql: string, values: unknown[]) => (await db.owner.query(sql, values)).rows;
+  const enroll = async (username: string) => {
+    const [row] = await run(
+      `WITH made AS (INSERT INTO player (username) VALUES ($2) RETURNING id)
+       INSERT INTO enrollment (organizer_id, event_id, player_id)
+       SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1
+       RETURNING id, organizer_id`,
+      [eventId, username],
+    );
+    return row as { id: string; organizer_id: string };
+  };
+  const spot = async (en: string, ar: string, lat: number) => {
+    const [row] = await run(
+      `INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, place_lat, place_lng, place_radius_m)
+       SELECT $1, c.id, 'scan_qr', $2, $3, 10, $4, 46.6753, 100
+       FROM (SELECT id FROM category WHERE event_id = $1 LIMIT 1) c
+       RETURNING id`,
+      [eventId, en, ar, lat],
+    );
+    return (row as { id: string }).id;
+  };
+  const complete = async (
+    who: { id: string; organizer_id: string },
+    quest: string,
+    ago: number,
+  ) => {
+    const [row] = await run(
+      `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
+                                     idempotency_key, created_at)
+       VALUES ($1, $2, $3, $4, 1, 'qr', gen_random_uuid()::text, now() - make_interval(secs => $5))
+       RETURNING id`,
+      [who.organizer_id, eventId, who.id, quest, ago],
+    );
+    return (row as { id: string }).id;
+  };
+  const raise = (who: { id: string; organizer_id: string }, kind: string, completions: string[]) =>
+    run(
+      `INSERT INTO flag (organizer_id, event_id, enrollment_id, kind, evidence)
+       VALUES ($1, $2, $3, $4, jsonb_build_object('completions', $5::jsonb)) ON CONFLICT DO NOTHING`,
+      [who.organizer_id, eventId, who.id, kind, JSON.stringify(completions.map(Number))],
+    );
+  const gateA = await spot("Gate A", "البوابة أ", 24.7136);
+  const hallC = await spot("Hall C", "القاعة ج", 24.7236);
+  const farPlayer = await enroll(far);
+  const farScan = await complete(farPlayer, gateA, 0);
+  await run(
+    `INSERT INTO completion_position (completion_id, organizer_id, event_id, enrollment_id, accuracy_m, mocked,
+                                      venue_distance_m)
+     VALUES ($1, $2, $3, $4, 30, true, 2400)`,
+    [farScan, farPlayer.organizer_id, eventId, farPlayer.id],
+  );
+  await raise(farPlayer, "far_from_venue", [farScan]);
+  const fastPlayer = await enroll(fast);
+  const first = await complete(fastPlayer, gateA, 40);
+  const second = await complete(fastPlayer, hallC, 0);
+  await raise(fastPlayer, "impossible_speed", [first, second]);
+}
+
+/**
  * Test-only control on its own local port: `POST /event-status {eventId, status}` moves an event the way Questify's
  * activation will (T-210), so a browser test can work on a live event. Never part of the API.
  */
@@ -141,6 +213,18 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
             response
               .writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404)
               .end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /location-flagged: two new players, [0] far from the venue (one scan, 2.4 km away, a fake location) and [1]
+      // too fast between two placed quests (910 m in 40 s), each with an open case (T-303b).
+      if (request.url === "/location-flagged") {
+        seedLocationFlags(db, body.eventId ?? "", body.usernames ?? [])
+          .then(() => {
+            response.writeHead(204).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

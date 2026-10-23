@@ -1,11 +1,16 @@
 "use client";
 
-import { readEventTerms, type EventTerms, type Language } from "@questify/shared";
+import {
+  parseComposedConfig,
+  readEventTerms,
+  type EventTerms,
+  type Language,
+} from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { questItemsOf, type QuestItem } from "#src/lib/quest-items.ts";
-import type { CategoryView } from "#src/lib/quests.ts";
+import { invalidQuestKey, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
 type Method = "POST" | "PATCH" | "PUT" | "DELETE";
@@ -41,7 +46,7 @@ function problemText(body: unknown, language: Language): string {
   const field = (body as { details?: { field?: unknown } } | undefined)?.details?.field;
   const code = errorCodeOf(body);
   if (code !== undefined && FIELD_CODES.has(code) && typeof field === "string") {
-    return t(`quests.invalid.${field}` as "quests.invalid.title");
+    return t(invalidQuestKey(field));
   }
   return describeProblem(body, language, t).text;
 }
@@ -57,6 +62,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
   const [items, setItems] = useState<readonly QuestItem[]>([]);
   const [focusQuestId, setFocusQuestId] = useState<string | null>(null);
   const [event, setEvent] = useState<BuilderEvent | null>(null);
+  const [locationQuestsOn, setLocationQuestsOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
@@ -119,6 +125,16 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     });
   }, [organizerId, eventId, language, failed, reload]);
 
+  useEffect(() => {
+    // The platform's location switch (ADR-208); without an answer the type stays hidden and the rest works.
+    void requestJson("GET", "/v1/config").then((result) => {
+      const parsed = result.ok ? parseComposedConfig(result.body) : undefined;
+      setLocationQuestsOn(
+        parsed?.ok === true && parsed.config.features["locationQuests"]?.enabled === true,
+      );
+    });
+  }, []);
+
   const send = async (
     method: Method,
     path: string,
@@ -157,6 +173,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     items,
     focusQuestId,
     event,
+    locationQuestsOn,
     busy,
     problem,
     setProblem,

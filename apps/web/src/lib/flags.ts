@@ -1,9 +1,10 @@
-import type { Language, MessageKey } from "@questify/shared";
+import { formatNumber, type Language, type MessageKey } from "@questify/shared";
+import type { Translate } from "#src/lib/language.ts";
 
 /** One case as the list answers it (`GET …/flags`, FR-335). */
 export type FlagLine = Readonly<{
   id: string;
-  kind: "shared_device" | "burst";
+  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed";
   status: "open" | "cleared" | "confirmed";
   resolution: "cleared" | "points_removed" | "banned" | null;
   raisedAt: string | null;
@@ -18,7 +19,21 @@ export type Account = Readonly<{
   username: string;
   lastScanAt: string | null;
 }>;
-export type Scan = Readonly<{ at: string | null; quest: string; operator: string | null }>;
+/**
+ * One scan of a case. The location fields (T-303b) are rounded distances and the reading's accuracy, never
+ * coordinates: `distanceM` from the venue, `gapM` from the previous placed quest, `seconds` since it (null for the
+ * first).
+ */
+export type Scan = Readonly<{
+  at: string | null;
+  quest: string;
+  operator: string | null;
+  distanceM: number | null;
+  accuracyM: number | null;
+  mocked: boolean | null;
+  gapM: number | null;
+  seconds: number | null;
+}>;
 export type WaitingItem = Readonly<{ name: string; reservedUntil: string | null }>;
 export type Removal = Readonly<{
   entryId: string;
@@ -46,6 +61,8 @@ export type FlagDetail = FlagLine &
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
+const num = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
 const rows = (value: unknown): Record<string, unknown>[] =>
   Array.isArray(value) ? value.filter(isRecord) : [];
 
@@ -53,11 +70,61 @@ const rows = (value: unknown): Record<string, unknown>[] =>
 const named = (ar: unknown, en: unknown, language: Language): string =>
   (language === "ar" ? (text(ar) ?? text(en)) : (text(en) ?? text(ar))) ?? "";
 
-/** What the list row says the case is: "Same phone, 2 accounts" or "10 scans within 5 minutes". */
+const SCAN_KINDS = {
+  burst: "flags.kind.burst",
+  far_from_venue: "flags.kind.farFromVenue",
+  impossible_speed: "flags.kind.impossibleSpeed",
+} as const;
+
+/**
+ * What the list row says the case is: "Same phone, 2 accounts", "10 scans within 5 minutes", "Far from the venue (3)"
+ * or "Moved impossibly fast (2)".
+ */
 export function flagSummary(line: FlagLine): Readonly<{ key: MessageKey; count: number }> {
   return line.kind === "shared_device"
     ? { key: "flags.kind.sharedDevice", count: line.accounts ?? 2 }
-    : { key: "flags.kind.burst", count: line.scans ?? 0 };
+    : { key: SCAN_KINDS[line.kind], count: line.scans ?? 0 };
+}
+
+/** A distance in words: metres under a kilometre, else kilometres to one decimal ("2.4 km"). Western digits. */
+export function lengthText(metres: number, language: Language, t: Translate): string {
+  return metres < 1000
+    ? t("flags.metres", { n: formatNumber(metres, language) })
+    : t("flags.kilometres", { n: formatNumber(Math.round(metres / 100) / 10, language) });
+}
+
+/**
+ * The location lines under a scan of a far-from-venue or impossible-speed case (FR-331, FR-332): how far from the
+ * venue and how precise the reading, whether the phone reported a fake location, or how far apart two spots were and
+ * how fast they were reached. Other kinds and readings without the numbers say nothing.
+ */
+export function locationNotes(
+  kind: FlagLine["kind"],
+  scan: Scan,
+  language: Language,
+  t: Translate,
+): readonly string[] {
+  if (kind === "far_from_venue") {
+    const far =
+      scan.distanceM === null || scan.accuracyM === null
+        ? []
+        : [
+            t("flags.far", {
+              distance: lengthText(scan.distanceM, language, t),
+              accuracy: formatNumber(scan.accuracyM, language),
+            }),
+          ];
+    return scan.mocked === true ? [...far, t("flags.mocked")] : far;
+  }
+  if (kind === "impossible_speed" && scan.gapM !== null && scan.seconds !== null) {
+    return [
+      t("flags.speed", {
+        gap: lengthText(scan.gapM, language, t),
+        seconds: formatNumber(scan.seconds, language),
+      }),
+    ];
+  }
+  return [];
 }
 
 /** How a closed case ended, in words. */
@@ -96,6 +163,11 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
           at: text(row["at"]),
           quest: named(row["questAr"], row["questEn"], language),
           operator: text(row["operator"]),
+          distanceM: num(row["distanceM"]),
+          accuracyM: num(row["accuracyM"]),
+          mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
+          gapM: num(row["gapM"]),
+          seconds: num(row["seconds"]),
         })),
     waitingItems: rows(flag["waitingItems"]).map((row) => ({
       name: named(row["nameAr"], row["nameEn"], language),

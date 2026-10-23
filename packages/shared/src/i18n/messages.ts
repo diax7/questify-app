@@ -333,6 +333,10 @@ export const MESSAGES = {
     ar: "اختر طريقة انضمام واحدة على الأقل. قائمة الفعاليات العامة متاحة للفعاليات المتاحة للجميع فقط.",
     en: "Choose at least one way to join. The public event list is only for events everyone can find.",
   },
+  "events.invalid.venuePin": {
+    ar: "أدخل خط عرض بين -90 و90 وخط طول بين -180 و180 معًا أو اتركهما فارغين، ونصف قطر بين 100 و20000.",
+    en: "Enter a latitude from -90 to 90 and a longitude from -180 to 180 together, or leave both empty, and a radius from 100 to 20000.",
+  },
   "events.delete": { ar: "حذف المسودة", en: "Delete draft" },
   "events.deleteTitle": { ar: "حذف المسودة؟", en: "Delete this draft?" },
   "events.deleteBody": {
@@ -627,7 +631,10 @@ export const MESSAGES = {
   },
   "quests.place.lat": { ar: "خط العرض", en: "Latitude" },
   "quests.place.lng": { ar: "خط الطول", en: "Longitude" },
-  "quests.place.radius": { ar: "نصف القطر (بالأمتار، 20 إلى 2000)", en: "Radius (metres, 20 to 2000)" },
+  "quests.place.radius": {
+    ar: "نصف القطر (بالأمتار، 20 إلى 2000)",
+    en: "Radius (metres, 20 to 2000)",
+  },
   "quests.place.invalid": {
     ar: "أدخل خط عرض بين -90 و90 وخط طول بين -180 و180 ونصف قطر بين 20 و2000.",
     en: "Enter a latitude from -90 to 90, a longitude from -180 to 180 and a radius from 20 to 2000.",

@@ -5,6 +5,8 @@ import {
   categoryRuleNotes,
   createQuestBody,
   editQuestBody,
+  hasPlace,
+  invalidQuestKey,
   moved,
   questProblem,
   questDraftOf,
@@ -28,6 +30,7 @@ const QUEST: QuestView = {
   config: { code: "NAJD2030" },
   verification: [],
   itemId: "i1",
+  place: null,
 };
 
 describe("textFor", () => {
@@ -73,6 +76,7 @@ describe("quest bodies", () => {
       config: {},
       verification: ["quest_qr"],
       itemId: null,
+      place: null,
     });
   });
 
@@ -255,5 +259,76 @@ describe("passport quests (T-304b)", () => {
         withSteps(Array.from({ length: 31 }, (_, i) => ({ id: `${i}`, text: { en: "A" } }))),
       ),
     ).toBe("steps");
+  });
+});
+
+describe("quest places (T-303b)", () => {
+  const SPOT: QuestView = {
+    ...QUEST,
+    type: "scan_qr",
+    config: {},
+    verification: ["quest_qr"],
+    place: { lat: 24.7136, lng: 46.6753, radiusM: 150 },
+  };
+  const LOCATION = { ...blankQuest("c1"), titleEn: "Check in", type: "location" as const };
+
+  it("holds a saved place as typed text and shows the default radius without one", () => {
+    expect(questDraftOf(SPOT, "Asia/Riyadh")).toMatchObject({
+      placeLat: "24.7136",
+      placeLng: "46.6753",
+      placeRadius: "150",
+    });
+    expect(questDraftOf({ ...SPOT, place: null }, "Asia/Riyadh")).toMatchObject({
+      placeLat: "",
+      placeLng: "",
+      placeRadius: "100",
+    });
+  });
+
+  it("sends the place as numbers on a spot type, and null when no pin is typed", () => {
+    const draft = questDraftOf(SPOT, "Asia/Riyadh");
+    expect(createQuestBody(draft)["place"]).toEqual({ lat: 24.7136, lng: 46.6753, radiusM: 150 });
+    expect(createQuestBody({ ...draft, placeLat: "", placeLng: "" })["place"]).toBeNull();
+  });
+
+  it("sends no place for a type that cannot have one", () => {
+    const vote = { ...blankQuest("c1"), type: "vote" as const, placeLat: "24", placeLng: "46" };
+    expect(createQuestBody(vote)).not.toHaveProperty("place");
+    expect(hasPlace("vote")).toBe(false);
+    expect(hasPlace("challenge")).toBe(true);
+  });
+
+  it("edits with the place only when it changed, null when cleared", () => {
+    const before = questDraftOf(SPOT, "Asia/Riyadh");
+    expect(editQuestBody(before, before)).toEqual({});
+    expect(editQuestBody({ ...before, placeRadius: "300" }, before)).toEqual({
+      place: { lat: 24.7136, lng: 46.6753, radiusM: 300 },
+    });
+    expect(editQuestBody({ ...before, placeLat: "", placeLng: "" }, before)).toEqual({
+      place: null,
+    });
+  });
+
+  it("lets a scan or challenge quest go without a place, but not a location quest", () => {
+    expect(questProblem({ ...blankQuest("c1"), titleEn: "Find" })).toBeUndefined();
+    expect(questProblem(LOCATION)).toBe("place");
+    expect(questProblem({ ...LOCATION, placeLat: "24.7", placeLng: "46.6" })).toBeUndefined();
+  });
+
+  it.each([
+    ["half a pin", { placeLat: "24.7" }],
+    ["a latitude out of range", { placeLat: "91", placeLng: "46.6" }],
+    ["a longitude out of range", { placeLat: "24.7", placeLng: "181" }],
+    ["a radius under 20", { placeLat: "24.7", placeLng: "46.6", placeRadius: "19" }],
+    ["a radius over 2000", { placeLat: "24.7", placeLng: "46.6", placeRadius: "2001" }],
+    ["a fractional radius", { placeLat: "24.7", placeLng: "46.6", placeRadius: "50.5" }],
+    ["an empty radius", { placeLat: "24.7", placeLng: "46.6", placeRadius: "" }],
+  ])("refuses %s", (_name, change) => {
+    expect(questProblem({ ...blankQuest("c1"), titleEn: "Find", ...change })).toBe("place");
+  });
+
+  it("names the place's own message, and the usual one for other fields", () => {
+    expect(invalidQuestKey("place")).toBe("quests.place.invalid");
+    expect(invalidQuestKey("title")).toBe("quests.invalid.title");
   });
 });

@@ -12,12 +12,13 @@ import {
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { ItemPicker, useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
+import { QuestPlaceFields } from "#src/components/QuestPlaceFields.tsx";
 import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
 import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
-import { textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
+import { hasPlace, textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
 
 type Props = Readonly<{
@@ -32,6 +33,8 @@ type Props = Readonly<{
   initial: QuestDraft;
   /** False when editing: a quest's type is fixed once it exists. */
   isNew: boolean;
+  /** The platform's location switch (ADR-208): a new quest may be a location quest only while it is on. */
+  locationQuestsOn: boolean;
   /** Where an existing vote quest's counts are read (ADR-195); null for anything else. */
   votesUrl: string | null;
   /** A survey quest's results, for the team (T-303). */
@@ -50,6 +53,7 @@ export function QuestForm({
   items,
   initial,
   isNew,
+  locationQuestsOn,
   votesUrl,
   surveyUrl,
   busy,
@@ -112,7 +116,9 @@ export function QuestForm({
             })
           }
         >
-          {QUEST_TYPE_NAMES.map((type) => (
+          {QUEST_TYPE_NAMES.filter(
+            (type) => type !== "location" || locationQuestsOn || draft.type === "location",
+          ).map((type) => (
             <option key={type} value={type}>
               {t(QUEST_TYPES[type].label)}
             </option>
@@ -205,6 +211,9 @@ export function QuestForm({
         disabled={busy}
         change={(config) => change({ config })}
       />
+      {hasPlace(draft.type) ? (
+        <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
+      ) : null}
       <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
       {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
       {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}

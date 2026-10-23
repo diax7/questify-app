@@ -10,6 +10,7 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { NumberField } from "#src/components/NumberField.tsx";
 import { directionOf, translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import {
@@ -85,33 +86,6 @@ function TextField({
       ) : (
         <input {...shared} maxLength={120} onChange={(e) => change(e.target.value)} />
       )}
-    </label>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  invalid,
-  change,
-}: Readonly<{
-  label: string;
-  value: number | string;
-  invalid: boolean;
-  change: (text: string) => void;
-}>) {
-  return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input
-        className={styles.input}
-        type="number"
-        inputMode="numeric"
-        dir="ltr"
-        value={value}
-        aria-invalid={invalid}
-        onChange={(e) => change(e.target.value)}
-      />
     </label>
   );
 }
@@ -368,12 +342,14 @@ function DeskForm({
       <div className={styles.row}>
         <NumberField
           label={t("rewards.desk.lat")}
+          decimal
           value={draft.lat}
           invalid={invalid === "deskPin"}
           change={(lat) => set({ lat })}
         />
         <NumberField
           label={t("rewards.desk.lng")}
+          decimal
           value={draft.lng}
           invalid={invalid === "deskPin"}
           change={(lng) => set({ lng })}

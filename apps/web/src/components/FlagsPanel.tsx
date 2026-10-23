@@ -8,6 +8,7 @@ import { translatorFor } from "#src/lib/language.ts";
 import {
   flagDetailOf,
   flagSummary,
+  locationNotes,
   resolutionKey,
   type FlagDetail,
   type FlagLine,
@@ -64,6 +65,13 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
                   quest: scan.quest,
                   operator: scan.operator,
                 })}
+            <ul>
+              {locationNotes(flag.kind, scan, shared.language, t).map((note) => (
+                <li key={note} dir="auto">
+                  {note}
+                </li>
+              ))}
+            </ul>
           </li>
         ))}
       </ul>
@@ -320,7 +328,7 @@ function FlagRow({
   const [open, setOpen] = useState(start);
   const summary = flagSummary(line);
   return (
-    <li className={styles.card}>
+    <li className={styles.formCard}>
       <p className={styles.row}>
         <strong dir="auto">@{line.player.username}</strong>
         <span className={styles.badge}>

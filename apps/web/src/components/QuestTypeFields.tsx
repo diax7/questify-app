@@ -27,6 +27,17 @@ function ScanQrFields({ language }: TypeFieldProps) {
   return <p className={styles.muted}>{translatorFor(language)("quests.scanQrNote")}</p>;
 }
 
+/** A location quest: what a check-in trusts, and that the QR always works (the place itself is `QuestPlaceFields`). */
+function LocationFields({ language }: TypeFieldProps) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <p className={styles.muted}>{t("quests.location.note")}</p>
+      <p className={styles.muted}>{t("quests.location.qr")}</p>
+    </>
+  );
+}
+
 /** The code players type, and where the team shows it. Members see the code; players never do. */
 function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps) {
   const t = translatorFor(language);
@@ -287,4 +298,5 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     survey: SurveyFields,
     share: ShareFields,
     passport: PassportFields,
+    location: LocationFields,
   };

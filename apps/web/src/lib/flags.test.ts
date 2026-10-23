@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { flagDetailOf, flagSummary, resolutionKey, type FlagLine } from "#src/lib/flags.ts";
+import {
+  flagDetailOf,
+  flagSummary,
+  lengthText,
+  locationNotes,
+  resolutionKey,
+  type FlagLine,
+  type Scan,
+} from "#src/lib/flags.ts";
+import { translatorFor } from "#src/lib/language.ts";
 
 const LINE: FlagLine = {
   id: "7",
@@ -25,12 +34,144 @@ describe("flagSummary", () => {
   });
 });
 
+describe("flagSummary for location cases", () => {
+  it("names a far-from-venue and an impossible-speed case by their scans", () => {
+    expect(flagSummary({ ...LINE, kind: "far_from_venue", scans: 3 })).toEqual({
+      key: "flags.kind.farFromVenue",
+      count: 3,
+    });
+    expect(flagSummary({ ...LINE, kind: "impossible_speed", scans: null })).toEqual({
+      key: "flags.kind.impossibleSpeed",
+      count: 0,
+    });
+  });
+});
+
+describe("lengthText", () => {
+  const en = translatorFor("en");
+  const ar = translatorFor("ar");
+
+  it("says metres under a kilometre and kilometres to one decimal from there", () => {
+    expect(lengthText(0, "en", en)).toBe("0 m");
+    expect(lengthText(910, "en", en)).toBe("910 m");
+    expect(lengthText(999, "en", en)).toBe("999 m");
+    expect(lengthText(1000, "en", en)).toBe("1 km");
+    expect(lengthText(2430, "en", en)).toBe("2.4 km");
+    expect(lengthText(12_350, "en", en)).toBe("12.4 km");
+  });
+
+  it("uses Western digits in Arabic, with the Arabic unit", () => {
+    expect(lengthText(910, "ar", ar)).toBe("910 م");
+    expect(lengthText(2430, "ar", ar)).toBe("2.4 كم");
+  });
+});
+
+describe("locationNotes", () => {
+  const en = translatorFor("en");
+  const SCAN: Scan = {
+    at: null,
+    quest: "Gate A",
+    operator: null,
+    distanceM: 2400,
+    accuracyM: 30,
+    mocked: false,
+    gapM: 910,
+    seconds: 40,
+  };
+
+  it("says how far from the venue a scan was, and how precise the reading", () => {
+    expect(locationNotes("far_from_venue", SCAN, "en", en)).toEqual([
+      "2.4 km from the venue (±30 m)",
+    ]);
+    expect(locationNotes("far_from_venue", { ...SCAN, distanceM: 850 }, "en", en)).toEqual([
+      "850 m from the venue (±30 m)",
+    ]);
+  });
+
+  it("adds the fake-location line when the phone reported one", () => {
+    expect(locationNotes("far_from_venue", { ...SCAN, mocked: true }, "en", en)).toEqual([
+      "2.4 km from the venue (±30 m)",
+      "The phone reported a fake location",
+    ]);
+    expect(
+      locationNotes("far_from_venue", { ...SCAN, distanceM: null, mocked: true }, "en", en),
+    ).toEqual(["The phone reported a fake location"]);
+  });
+
+  it("says nothing for a far scan without a distance or a mark", () => {
+    expect(
+      locationNotes(
+        "far_from_venue",
+        { ...SCAN, distanceM: null, accuracyM: null, mocked: null },
+        "en",
+        en,
+      ),
+    ).toEqual([]);
+  });
+
+  it("says the gap and the seconds for an impossible-speed scan, nothing for the first", () => {
+    expect(locationNotes("impossible_speed", SCAN, "en", en)).toEqual([
+      "910 m in 40 s from the previous spot",
+    ]);
+    expect(
+      locationNotes("impossible_speed", { ...SCAN, gapM: null, seconds: null }, "en", en),
+    ).toEqual([]);
+  });
+
+  it("says nothing for the other kinds, whatever the scan holds", () => {
+    expect(locationNotes("burst", SCAN, "en", en)).toEqual([]);
+    expect(locationNotes("shared_device", SCAN, "en", en)).toEqual([]);
+  });
+
+  it("writes Arabic lines with Western digits", () => {
+    const ar = translatorFor("ar");
+    expect(locationNotes("far_from_venue", SCAN, "ar", ar)[0]).toBe(
+      "على بُعد 2.4 كم من مكان الفعالية (±30 م)",
+    );
+    expect(locationNotes("impossible_speed", SCAN, "ar", ar)).toEqual([
+      "910 م خلال 40 ث من المكان السابق",
+    ]);
+  });
+});
+
 describe("resolutionKey", () => {
   it("words each ending", () => {
     expect(resolutionKey("cleared")).toBe("flags.resolution.cleared");
     expect(resolutionKey("points_removed")).toBe("flags.resolution.pointsRemoved");
     expect(resolutionKey("banned")).toBe("flags.resolution.banned");
     expect(resolutionKey(null)).toBe("flags.resolution.cleared");
+  });
+});
+
+describe("flagDetailOf for location cases", () => {
+  it("reads each scan's rounded distances and marks, and null for what is missing", () => {
+    const detail = flagDetailOf(
+      {
+        flag: {
+          ...LINE,
+          kind: "far_from_venue",
+          evidence: [
+            {
+              at: "2030-01-01T10:00:00Z",
+              questAr: null,
+              questEn: "Gate A",
+              operator: null,
+              distanceM: 2400,
+              accuracyM: 30,
+              mocked: true,
+              gapM: null,
+              seconds: null,
+            },
+            { at: null, questAr: null, questEn: "Hall C", distanceM: "far", mocked: "yes" },
+          ],
+        },
+      },
+      "en",
+    );
+    expect(detail?.burstScans).toMatchObject([
+      { distanceM: 2400, accuracyM: 30, mocked: true, gapM: null, seconds: null },
+      { distanceM: null, accuracyM: null, mocked: null, gapM: null, seconds: null },
+    ]);
   });
 });
 

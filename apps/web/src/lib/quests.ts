@@ -1,12 +1,16 @@
 import {
   PASSPORT_STEPS_MAX,
+  PLACED_QUEST_TYPES,
+  PLACE_RADIUS,
   parseQuestConfig,
   parseVerification,
   toLocalInput,
   type Language,
+  type MessageKey,
   type QuestType,
   type QuestVerification,
 } from "@questify/shared";
+import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 import { itemChoice } from "#src/lib/quest-items.ts";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
@@ -30,6 +34,8 @@ export type QuestView = Readonly<{
   steps?: readonly Readonly<{ id: string; name: Bilingual; position: number }>[];
   /** The quest item its first completion gives (T-304d), or null. */
   itemId: string | null;
+  /** Its place on a spot type (T-303b): a pin and a radius in metres; required for a location quest. */
+  place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
 }>;
 
 /** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
@@ -178,7 +184,17 @@ export type QuestDraft = Readonly<{
   verification: readonly QuestVerification[];
   /** The quest item it gives (T-304d); empty for none. */
   itemId: string;
+  /** The place as typed (T-303b); both pin numbers empty means no place. The radius starts at its default. */
+  placeLat: string;
+  placeLng: string;
+  placeRadius: string;
 }>;
+
+/** The radius a new place starts with, in metres: a doorway-sized circle. */
+export const DEFAULT_PLACE_RADIUS = 100;
+
+/** Whether this type may carry a place (the spot types, T-303b). */
+export const hasPlace = (type: QuestType): boolean => PLACED_QUEST_TYPES.includes(type);
 
 export function blankQuest(categoryId: string): QuestDraft {
   return {
@@ -196,6 +212,9 @@ export function blankQuest(categoryId: string): QuestDraft {
     config: {},
     verification: ["quest_qr"],
     itemId: "",
+    placeLat: "",
+    placeLng: "",
+    placeRadius: String(DEFAULT_PLACE_RADIUS),
   };
 }
 
@@ -216,6 +235,9 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     config: quest.type === "passport" ? { ...quest.config, steps: formSteps(quest) } : quest.config,
     verification: quest.verification,
     itemId: quest.itemId ?? "",
+    placeLat: quest.place === null ? "" : String(quest.place.lat),
+    placeLng: quest.place === null ? "" : String(quest.place.lng),
+    placeRadius: String(quest.place?.radiusM ?? DEFAULT_PLACE_RADIUS),
   };
 }
 
@@ -231,7 +253,38 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   ...apiParts(draft),
   verification: draft.verification,
   itemId: itemChoice(draft.itemId),
+  ...(hasPlace(draft.type) ? { place: placeOf(draft) } : {}),
 });
+
+/** The place the draft holds: null when no pin is typed (a place is a pin and a radius together). */
+function placeOf(draft: QuestDraft): QuestView["place"] {
+  return pinTyped(draft.placeLat, draft.placeLng)
+    ? {
+        lat: Number(draft.placeLat),
+        lng: Number(draft.placeLng),
+        radiusM: Number(draft.placeRadius),
+      }
+    : null;
+}
+
+/** Whether the place is what the API takes: a whole pin in range and 20 to 2000 m, or none (not for a location). */
+function placeIsValid(draft: QuestDraft): boolean {
+  if (!hasPlace(draft.type)) {
+    return true;
+  }
+  if (!pinTyped(draft.placeLat, draft.placeLng)) {
+    return draft.type !== "location";
+  }
+  return (
+    pinIsValid(draft.placeLat, draft.placeLng) &&
+    isRadius(draft.placeRadius, PLACE_RADIUS.min, PLACE_RADIUS.max)
+  );
+}
+
+/** The words for a builder field the API or this form refused: the place has its own, the rest are `quests.invalid.*`. */
+export function invalidQuestKey(field: string): MessageKey {
+  return field === "place" ? "quests.place.invalid" : (`quests.invalid.${field}` as MessageKey);
+}
 
 /** The body to create a quest: everything, with its type. */
 export function createQuestBody(draft: QuestDraft): Record<string, unknown> {
@@ -255,7 +308,16 @@ export function editQuestBody(draft: QuestDraft, before: QuestDraft): Record<str
  */
 export function questProblem(
   draft: QuestDraft,
-): "title" | "points" | "closesAt" | "config" | "verification" | "steps" | "needed" | undefined {
+):
+  | "title"
+  | "points"
+  | "closesAt"
+  | "config"
+  | "verification"
+  | "steps"
+  | "needed"
+  | "place"
+  | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
   }
@@ -264,6 +326,9 @@ export function questProblem(
   }
   if (draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt) {
     return "closesAt";
+  }
+  if (!placeIsValid(draft)) {
+    return "place";
   }
   const parts = apiParts(draft);
   const steps = parts.steps;

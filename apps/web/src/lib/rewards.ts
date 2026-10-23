@@ -1,4 +1,5 @@
 import { toLocalInput } from "@questify/shared";
+import { pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -284,18 +285,12 @@ export function nextWindow(windows: readonly WindowDraft[]): WindowDraft {
 
 export type DeskField = "deskPin" | "deskHours";
 
-const coordinate = (text: string, limit: number) => {
-  const value = Number(text);
-  return text.trim() !== "" && Number.isFinite(value) && Math.abs(value) <= limit;
-};
-
 /**
  * The first part the API would refuse (API.md): a pin needs both numbers in range; with hours on, 1 to 14 windows,
  * each filled, closing after it opens, in order and not overlapping. Undefined when the draft is fine.
  */
 export function deskProblem(draft: DeskDraft): DeskField | undefined {
-  const pinTyped = draft.lat.trim() !== "" || draft.lng.trim() !== "";
-  if (pinTyped && !(coordinate(draft.lat, 90) && coordinate(draft.lng, 180))) {
+  if (!pinIsValid(draft.lat, draft.lng)) {
     return "deskPin";
   }
   if (!draft.hoursOn) {
@@ -319,11 +314,12 @@ export function deskProblem(draft: DeskDraft): DeskField | undefined {
 
 /** The desk's part of `PUT …/shop`: hours off sends null; an empty name clears it. */
 export function deskRequest(draft: DeskDraft): Record<string, unknown> {
-  const pinTyped = draft.lat.trim() !== "" || draft.lng.trim() !== "";
   return {
     desk: {
       location: { ar: draft.locationAr, en: draft.locationEn },
-      pin: pinTyped ? { lat: Number(draft.lat), lng: Number(draft.lng) } : null,
+      pin: pinTyped(draft.lat, draft.lng)
+        ? { lat: Number(draft.lat), lng: Number(draft.lng) }
+        : null,
       hours: draft.hoursOn
         ? draft.windows.map((w) => ({ opensAt: w.opensAt, closesAt: w.closesAt }))
         : null,

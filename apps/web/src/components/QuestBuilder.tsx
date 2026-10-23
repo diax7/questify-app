@@ -17,6 +17,7 @@ import {
   blankQuest,
   createQuestBody,
   editQuestBody,
+  invalidQuestKey,
   questDraftOf,
   questProblem,
   type QuestDraft,
@@ -110,7 +111,7 @@ export function QuestBuilder({
     // Checked here first with the shared rules, so a live event's confirmation is never asked for a doomed change.
     const field = questProblem(draft);
     if (field !== undefined) {
-      b.setProblem(t(`quests.invalid.${field}`));
+      b.setProblem(t(invalidQuestKey(field)));
       return;
     }
     if (editing.quest === undefined) {
@@ -217,6 +218,7 @@ export function QuestBuilder({
           items={b.items}
           initial={editing.initial}
           isNew={editing.quest === undefined}
+          locationQuestsOn={b.locationQuestsOn}
           votesUrl={
             editing.quest?.type === "vote"
               ? `/v1/organizers/${organizerId}/events/${eventId}/quests/${editing.quest.id}/votes`

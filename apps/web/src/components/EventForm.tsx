@@ -6,6 +6,7 @@ import {
   EventAccessFields,
   EventIdentityFields,
   EventTimeFields,
+  EventVenuePinFields,
 } from "#src/components/EventFields.tsx";
 import {
   BLANK_DRAFT,
@@ -13,6 +14,7 @@ import {
   draftOf,
   editBodyOf,
   nameFor,
+  venueIsValid,
   type EventDraft,
   type EventView,
 } from "#src/lib/events.ts";
@@ -121,6 +123,11 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
   const submit = async (submitted: FormEvent<HTMLFormElement>) => {
     submitted.preventDefault();
     if (draft === null) {
+      return;
+    }
+    if (!venueIsValid(draft)) {
+      setNotice(null);
+      setProblem(t("events.invalid.venuePin"));
       return;
     }
     if (event === null) {
@@ -246,6 +253,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
       ) : (
         <form className={styles.form} onSubmit={(submitted) => void submit(submitted)}>
           <EventIdentityFields language={language} draft={draft} disabled={busy} change={change} />
+          <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
           <EventTimeFields
             language={language}
             draft={draft}

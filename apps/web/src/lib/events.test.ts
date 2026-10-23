@@ -5,6 +5,7 @@ import {
   draftOf,
   editBodyOf,
   nameFor,
+  venueIsValid,
   type EventView,
 } from "#src/lib/events.ts";
 
@@ -14,6 +15,8 @@ const EVENT: EventView = {
   name: { ar: "ملتقى نجد", en: null },
   kind: "physical",
   venue: { ar: null, en: "Riyadh Front" },
+  venuePin: null,
+  venueRadiusM: 1000,
   access: "public",
   joinMethods: ["code", "qr"],
   timezone: "Asia/Riyadh",
@@ -44,6 +47,19 @@ describe("draftOf", () => {
       venueEn: "Riyadh Front",
       startsAt: "2030-11-01T09:00",
       endsAt: "2030-11-01T17:00",
+      venueLat: "",
+      venueLng: "",
+      venueRadius: "1000",
+    });
+  });
+
+  it("shows a saved pin as typed numbers and the radius as text", () => {
+    expect(
+      draftOf({ ...EVENT, venuePin: { lat: 24.7136, lng: 46.6753 }, venueRadiusM: 800 }),
+    ).toMatchObject({
+      venueLat: "24.7136",
+      venueLng: "46.6753",
+      venueRadius: "800",
     });
   });
 });
@@ -61,6 +77,8 @@ describe("createBodyOf", () => {
       name: { ar: "", en: "Meetup" },
       kind: "physical",
       venue: { ar: "", en: "" },
+      venuePin: null,
+      venueRadiusM: 1000,
       access: "public",
       joinMethods: ["code", "qr", "link"],
       dayStartHour: 4,
@@ -68,6 +86,38 @@ describe("createBodyOf", () => {
       startsAt: "2030-01-01T09:00",
       endsAt: "2030-01-01T10:00",
     });
+  });
+});
+
+describe("createBodyOf with a venue pin", () => {
+  it("sends the typed pin as numbers and the radius as a number", () => {
+    const body = createBodyOf({
+      ...BLANK_DRAFT,
+      venueLat: "24.7136",
+      venueLng: "46.6753",
+      venueRadius: "800",
+    });
+    expect(body["venuePin"]).toEqual({ lat: 24.7136, lng: 46.6753 });
+    expect(body["venueRadiusM"]).toBe(800);
+  });
+});
+
+describe("venueIsValid", () => {
+  it("accepts no pin, or a whole pin in range, with a radius from 100 to 20000", () => {
+    expect(venueIsValid(BLANK_DRAFT)).toBe(true);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueLat: "24.7", venueLng: "46.6" })).toBe(true);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "100" })).toBe(true);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "20000" })).toBe(true);
+  });
+
+  it("refuses half a pin, a pin out of range and a radius out of bounds", () => {
+    expect(venueIsValid({ ...BLANK_DRAFT, venueLat: "24.7" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueLng: "46.6" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueLat: "91", venueLng: "46.6" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "99" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "20001" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "" })).toBe(false);
+    expect(venueIsValid({ ...BLANK_DRAFT, venueRadius: "500.5" })).toBe(false);
   });
 });
 
@@ -82,6 +132,17 @@ describe("editBodyOf", () => {
     expect(editBodyOf({ ...before, nameEn: "Najd Meetup", access: "unlisted" }, before)).toEqual({
       name: { ar: "ملتقى نجد", en: "Najd Meetup" },
       access: "unlisted",
+    });
+  });
+
+  it("sends the pin and radius only when they change, and null when the pin is cleared", () => {
+    expect(editBodyOf({ ...before, venueLat: "24.7", venueLng: "46.6" }, before)).toEqual({
+      venuePin: { lat: 24.7, lng: 46.6 },
+    });
+    expect(editBodyOf({ ...before, venueRadius: "500" }, before)).toEqual({ venueRadiusM: 500 });
+    const pinned = { ...before, venueLat: "24.7", venueLng: "46.6" };
+    expect(editBodyOf({ ...pinned, venueLat: "", venueLng: "" }, pinned)).toEqual({
+      venuePin: null,
     });
   });
 

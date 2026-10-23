@@ -1,7 +1,9 @@
 "use client";
 
-import { isTimeZone, zoneLabel, type Language } from "@questify/shared";
+import { VENUE_RADIUS, isTimeZone, zoneLabel, type Language } from "@questify/shared";
 import { useEffect, useMemo, useState } from "react";
+import { NumberField } from "#src/components/NumberField.tsx";
+import { isRadius, pinIsValid } from "#src/lib/coordinates.ts";
 import {
   ACCESS,
   COMMON_ZONES,
@@ -67,6 +69,47 @@ export function EventIdentityFields({ language, draft, disabled, change }: Field
       {text("venueAr", t("events.field.venueAr"), 200)}
       {text("venueEn", t("events.field.venueEn"), 200)}
     </>
+  );
+}
+
+/**
+ * The venue's pin and radius (T-303b): optional, only for the far-from-venue flag. A pin is both numbers or neither;
+ * the form checks them before it sends (`venueIsValid`).
+ */
+export function EventVenuePinFields({ language, draft, disabled, change }: FieldProps) {
+  const t = translatorFor(language);
+  const pinBad = !pinIsValid(draft.venueLat, draft.venueLng);
+  const radiusBad = !isRadius(draft.venueRadius, VENUE_RADIUS.min, VENUE_RADIUS.max);
+  return (
+    <fieldset className={styles.choices}>
+      <legend>{t("events.venuePin.title")}</legend>
+      <p className={styles.muted}>{t("events.venuePin.help")}</p>
+      <div className={styles.row}>
+        <NumberField
+          label={t("events.venuePin.lat")}
+          decimal
+          disabled={disabled}
+          value={draft.venueLat}
+          invalid={pinBad}
+          change={(venueLat) => change({ venueLat })}
+        />
+        <NumberField
+          label={t("events.venuePin.lng")}
+          decimal
+          disabled={disabled}
+          value={draft.venueLng}
+          invalid={pinBad}
+          change={(venueLng) => change({ venueLng })}
+        />
+        <NumberField
+          label={t("events.venuePin.radius")}
+          disabled={disabled}
+          value={draft.venueRadius}
+          invalid={radiusBad}
+          change={(venueRadius) => change({ venueRadius })}
+        />
+      </div>
+    </fieldset>
   );
 }
 
