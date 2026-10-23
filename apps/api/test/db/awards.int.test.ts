@@ -413,6 +413,48 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("manual awards (database)", () 
       expect(await standing(enrollment)).toEqual({ score: "20", balance: "20" });
     });
 
+    it.each([
+      ["another event of the organizer", undefined],
+      ["another organizer's event (cross-tenant)", "orgB"],
+    ] as const)(
+      "refuses a replayed key that names a quest of %s, from both seats, writing nothing",
+      async (_, otherOrganizer) => {
+        const event = await newEvent();
+        const quest = await newQuest(event, 10, 5);
+        const operator = await newOperator(event);
+        const sara = await newPlayer(event);
+        const other = await newEvent(otherOrganizer === undefined ? {} : { organizer: ids.orgB });
+        const foreign = await newQuest(other, 10, 5);
+        const [org] = await owner<{ organizer_id: string }>(
+          "SELECT organizer_id FROM event WHERE id = $1",
+          [other],
+        );
+        const [there] = await owner<{ id: string }>(
+          "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3) RETURNING id",
+          [org?.organizer_id, other, sara.player],
+        );
+        const opKey = randomUUID();
+        const staffKey = randomUUID();
+        await opAward(operator, event, sara.enrollment, { quest, key: opKey });
+        await staffAward(ownerA, event, sara.enrollment, { quest, key: staffKey });
+        expect(
+          await refusal(opAward(operator, event, sara.enrollment, { quest: foreign, key: opKey })),
+        ).toMatchObject({ code: "AQ404" });
+        expect(
+          await refusal(
+            staffAward(ownerA, event, sara.enrollment, { quest: foreign, key: staffKey }),
+          ),
+        ).toMatchObject({ code: "AQ404" });
+        expect(
+          await owner("SELECT 1 FROM quest_completion WHERE enrollment_id = $1", [there?.id]),
+        ).toHaveLength(0);
+        expect(
+          await owner("SELECT 1 FROM ledger_entry WHERE enrollment_id = $1", [there?.id]),
+        ).toHaveLength(0);
+        expect(await standing(sara.enrollment)).toEqual({ score: "20", balance: "20" });
+      },
+    );
+
     it("lets two awards race to the daily cap and pays only one", async () => {
       const event = await newEvent();
       const operator = await newOperator(event);

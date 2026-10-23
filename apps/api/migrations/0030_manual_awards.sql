@@ -179,9 +179,11 @@ REVOKE ALL ON FUNCTION clean_reason(text) FROM PUBLIC;
 -- ================================================================ one completion engine, with manual awards
 -- As 0026, and: `staff` names a dashboard user awarding by hand (actor `staff`); method `manual` skips the proof
 -- checks and keeps every other rule; a manual entry gets its reason in ledger_note. A replay must come from the same
--- operator and staff user.
+-- operator and staff user. `expected_event` is the event the caller checked: a quest of any other event is AQ404
+-- before anything is read or written (defence in depth for the manual award's replay path).
 CREATE FUNCTION record_completion(target uuid, who uuid, proof_method text, proof_version integer, typed_code text,
-                                  request_key text, device uuid, operator uuid, staff uuid, reason text)
+                                  request_key text, device uuid, operator uuid, staff uuid, reason text,
+                                  expected_event uuid)
   RETURNS TABLE (completion_id bigint, points bigint, occurrence integer, score bigint, balance bigint,
                  replayed boolean)
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
@@ -199,6 +201,9 @@ BEGIN
   SELECT * INTO quest_row FROM quest WHERE id = target;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'quest not found' USING ERRCODE = 'QC404';
+  END IF;
+  IF quest_row.event_id IS DISTINCT FROM expected_event THEN
+    RAISE EXCEPTION 'no such quest in this event' USING ERRCODE = 'AQ404';
   END IF;
   SELECT * INTO enrolled FROM enrollment WHERE event_id = quest_row.event_id AND player_id = who FOR NO KEY UPDATE;
   IF NOT FOUND THEN
@@ -285,7 +290,7 @@ BEGIN
   RETURN QUERY SELECT made, quest_row.points::bigint, done_count + 1, e.score, e.balance, false
     FROM enrollment e WHERE e.id = enrolled.id;
 END $$;
-REVOKE ALL ON FUNCTION record_completion(uuid, uuid, text, integer, text, text, uuid, uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_completion(uuid, uuid, text, integer, text, text, uuid, uuid, uuid, text, uuid) FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION complete_quest(target uuid, proof_method text, proof_version integer, typed_code text,
                                           request_key text, device uuid)
@@ -302,8 +307,9 @@ BEGIN
   IF proof_method IS NULL OR proof_method NOT IN ('qr', 'code') THEN
     RAISE EXCEPTION 'bad proof' USING ERRCODE = 'QV422', DETAIL = 'wrong_method';
   END IF;
+  -- The player's own scan names no event: the quest's own is the one expected.
   RETURN QUERY SELECT * FROM record_completion(target, me, proof_method, proof_version, typed_code, request_key, device,
-                                               NULL, NULL, NULL);
+                                               NULL, NULL, NULL, (SELECT q.event_id FROM quest q WHERE q.id = target));
 END $$;
 
 -- As 0026; the station's scan always passes method my_qr.
@@ -347,7 +353,8 @@ BEGIN
   IF current IS DISTINCT FROM scanned_version THEN
     RAISE EXCEPTION 'an earlier My QR' USING ERRCODE = 'OM422';
   END IF;
-  RETURN QUERY SELECT * FROM record_completion(target, scanned, 'my_qr', NULL, NULL, request_key, NULL, me, NULL, NULL);
+  RETURN QUERY SELECT * FROM record_completion(target, scanned, 'my_qr', NULL, NULL, request_key, NULL, me, NULL, NULL,
+                                               quest_row.event_id);
 END $$;
 
 DROP FUNCTION record_completion(uuid, uuid, text, integer, text, text, uuid, uuid);
@@ -393,11 +400,13 @@ BEGIN
       RETURN QUERY SELECT earlier.entry_id, earlier.amount, true;
       RETURN;
     END IF;
+  ELSIF NOT EXISTS (SELECT 1 FROM quest q WHERE q.id = target_quest AND q.event_id = ev.id) THEN
+    RAISE EXCEPTION 'no such quest in this event' USING ERRCODE = 'AQ404';
   ELSIF EXISTS (SELECT 1 FROM quest_completion c
                 WHERE c.enrollment_id = target_enrollment AND c.idempotency_key = request_key) THEN
     SELECT n.* INTO enrolled FROM enrollment n WHERE n.id = target_enrollment AND n.event_id = ev.id;
     SELECT * INTO done FROM record_completion(target_quest, enrolled.player_id, 'manual', NULL, NULL, request_key, NULL,
-                                              operator, staff, reason);
+                                              operator, staff, reason, ev.id);
     RETURN QUERY SELECT l.id, done.points, done.replayed FROM ledger_entry l
       WHERE l.completion_id = done.completion_id AND l.kind = 'quest';
     RETURN;
@@ -446,7 +455,7 @@ BEGIN
   IF target_quest IS NOT NULL THEN
     -- Into a record first: a query that calls record_completion cannot see the rows it writes.
     SELECT * INTO done FROM record_completion(target_quest, enrolled.player_id, 'manual', NULL, NULL, request_key, NULL,
-                                              operator, staff, why);
+                                              operator, staff, why, ev.id);
     RETURN QUERY SELECT l.id, done.points, done.replayed FROM ledger_entry l
       WHERE l.completion_id = done.completion_id AND l.kind = 'quest';
   ELSE
@@ -771,6 +780,7 @@ DECLARE
   earlier   bulk_award%ROWTYPE;
   why       text;
   asked     integer;
+  candidates uuid[];
   targets   uuid[];
   made      uuid;
   got       integer;
@@ -785,7 +795,8 @@ BEGIN
   SELECT b.* INTO earlier FROM bulk_award b
   WHERE b.event_id = ev.id AND b.staff_user_id = me AND b.idempotency_key = request_key;
   IF FOUND THEN
-    IF earlier.amount <> amount OR earlier.quest_id IS DISTINCT FROM target_quest OR earlier.requested <> asked THEN
+    IF earlier.amount IS DISTINCT FROM amount OR earlier.quest_id IS DISTINCT FROM target_quest
+       OR earlier.requested IS DISTINCT FROM asked THEN
       RAISE EXCEPTION 'this key was used for another bulk award' USING ERRCODE = 'AK422';
     END IF;
     RETURN QUERY SELECT earlier.id, earlier.awarded, earlier.skipped, true;
@@ -807,16 +818,23 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM quest q WHERE q.id = target_quest AND q.event_id = ev.id) THEN
       RAISE EXCEPTION 'no such quest in this event' USING ERRCODE = 'AQ404';
     END IF;
-    targets := ARRAY(SELECT quest_bulk_targets(ev, target_quest));
+    candidates := ARRAY(SELECT quest_bulk_targets(ev, target_quest));
     asked := 0;
   ELSE
-    targets := ARRAY(
-      SELECT DISTINCT n.id FROM enrollment n
-      WHERE n.id = ANY (enrollments) AND n.event_id = ev.id AND n.status = 'active'
-        AND NOT EXISTS (SELECT 1 FROM staff_assignment sa WHERE sa.event_id = ev.id AND sa.player_id = n.player_id
-                        AND NOT sa.can_play));
+    candidates := enrollments;
   END IF;
-  PERFORM 1 FROM enrollment n WHERE n.id = ANY (targets) ORDER BY n.id FOR NO KEY UPDATE;
+  -- Lock first, then decide from the locked rows: a ban, a leave or a play switch committed meanwhile is seen.
+  targets := ARRAY(
+    WITH locked AS (
+      SELECT n.id, n.player_id, n.status FROM enrollment n
+      WHERE n.id = ANY (candidates) AND n.event_id = ev.id
+      ORDER BY n.id FOR NO KEY UPDATE
+    )
+    SELECT l.id FROM locked l
+    WHERE l.status = 'active'
+      AND NOT EXISTS (SELECT 1 FROM staff_assignment sa WHERE sa.event_id = ev.id AND sa.player_id = l.player_id
+                      AND NOT sa.can_play)
+    ORDER BY l.id);
 
   INSERT INTO bulk_award (organizer_id, event_id, staff_user_id, amount, reason, quest_id, requested, awarded, skipped,
                           idempotency_key)
