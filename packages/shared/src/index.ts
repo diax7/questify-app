@@ -110,6 +110,9 @@ export {
   REFRESHING_QUEST_TYPES,
   SUBMISSION_TEXT_MAX,
   SURVEY_TEXT_MAX,
+  GAME_ATTEMPTS,
+  GAME_COOLDOWN_MINUTES,
+  unavailableGame,
   unavailableSubmissionKind,
 } from "./quests/registry";
 export { MEET_CODE_PREFIX, meetCodeOf, meetTokenOf } from "./quests/meet-code";
@@ -133,3 +136,21 @@ export {
 export { parseRehearsalCode } from "./join/rehearsal";
 export type { OfficialRules, RulesData, RulesPrize } from "./results/rules";
 export { officialRules } from "./results/rules";
+export type { ImpossibleReason, Judgement, GameEngine, TimedInput } from "./games/engine";
+export { HUMAN_FLOOR_MS, canInput, judge, lastInputMs, replay } from "./games/engine";
+export type { GameLevel, GameName } from "./games/levels";
+export {
+  COMING_GAMES,
+  GAME_LEVELS,
+  GAME_NAMES,
+  LEVELS,
+  isGameLevel,
+  isGameName,
+} from "./games/levels";
+export type { GameTarget } from "./games/registry";
+export { ENGINE_VERSIONS, gameTarget, hasEngine, judgeRound } from "./games/registry";
+export type { MemoryInput, MemoryParams, MemoryResult, MemoryState } from "./games/memory-match/v1";
+export { MISMATCH_MS, memoryMatchV1 } from "./games/memory-match/v1";
+export type { SlideInput, SlideParams, SlideResult, SlideState } from "./games/slide-puzzle/v1";
+export { SLIDE_PICTURES, neighbours, slidePuzzleV1 } from "./games/slide-puzzle/v1";
+export { GAME_LEVEL_KEYS, GAME_NAME_KEYS, targetWords } from "./games/words";

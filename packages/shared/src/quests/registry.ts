@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COMING_GAMES, GAME_LEVELS, GAME_NAMES } from "#src/games/levels";
 import { toWesternDigits } from "#src/i18n/digits";
 
 /** An entry code: ASCII letters and digits only, so an Arabic or an English keyboard types the same thing. */
@@ -68,6 +69,10 @@ const bilingualHint = z
   .strictObject({ ar: hintText, en: hintText })
   .refine((hint) => hint.ar !== undefined || hint.en !== undefined)
   .optional();
+
+/** A game quest's attempts and its cooldown in minutes when they are unlimited (ADR-213); the database holds the same. */
+export const GAME_ATTEMPTS = { min: 1, max: 10, default: 1 } as const;
+export const GAME_COOLDOWN_MINUTES = { min: 1, max: 1440 } as const;
 
 /** A meet quest's daily cap bounds and default (ADR-210); the database holds the same check. */
 export const MEET_DAILY_CAP = { min: 1, max: 50, default: 5 } as const;
@@ -232,6 +237,37 @@ export const QUEST_TYPES = {
         .default(MEET_DAILY_CAP.default),
     }),
   },
+  /**
+   * A mini-game on a server-issued round (T-305, FR-1804 to FR-1809, ADR-212, ADR-213): the organizer picks the game
+   * and its level; the attempts are a number, or unlimited (`null`) with a cooldown between rounds. Paid once, on the
+   * first pass; the server replays every result. The event's `miniGames` switch hides them all.
+   */
+  game: {
+    label: "quests.type.game",
+    oneTry: true,
+    usesQuestQr: false,
+    verifications: [],
+    config: z
+      .strictObject({
+        game: z.enum(GAME_NAMES),
+        level: z.enum(GAME_LEVELS),
+        attempts: z
+          .number()
+          .int()
+          .min(GAME_ATTEMPTS.min)
+          .max(GAME_ATTEMPTS.max)
+          .nullable()
+          .default(GAME_ATTEMPTS.default),
+        cooldownMinutes: z
+          .number()
+          .int()
+          .min(GAME_COOLDOWN_MINUTES.min)
+          .max(GAME_COOLDOWN_MINUTES.max)
+          .nullable()
+          .default(null),
+      })
+      .refine((config) => (config.attempts === null) === (config.cooldownMinutes !== null)),
+  },
 } as const;
 
 /** The types that may have a place (a pin and a radius, T-303b): the spot types. `location` requires one. */
@@ -271,6 +307,13 @@ export function unavailableSubmissionKind(config: unknown): "photo" | "video" | 
     return "video";
   }
   return accepts.includes("photo") ? "photo" : undefined;
+}
+
+/** The game a config asks for that this version cannot play yet (catch, tap rush: T-305c); undefined otherwise. */
+export function unavailableGame(config: unknown): string | undefined {
+  const game =
+    typeof config === "object" && config !== null ? (config as { game?: unknown }).game : undefined;
+  return (COMING_GAMES as readonly unknown[]).includes(game) ? (game as string) : undefined;
 }
 
 export type QuestType = keyof typeof QUEST_TYPES;

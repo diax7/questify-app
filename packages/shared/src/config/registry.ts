@@ -57,6 +57,8 @@ export const FEATURES: FeatureRegistry = {
   locationQuests: { gated: false, level: "platform", offByDefault: true },
   /** Meet-someone quests (T-303c, FR-1009, ADR-210): the owner turns them off for an event, which hides every one. */
   meetSomeone: { gated: false },
+  /** Mini-games (T-305, FR-1009, ADR-213): the owner turns them off for an event, which hides every game quest. */
+  miniGames: { gated: false },
   polls: { gated: false },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },

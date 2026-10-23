@@ -7,6 +7,7 @@ import {
   QUEST_TYPE_NAMES,
   isQuestType,
   parseQuestConfig,
+  unavailableGame,
   unavailableSubmissionKind,
 } from "#src/quests/registry";
 
@@ -38,6 +39,7 @@ describe("the quest-type registry", () => {
       "passport",
       "location",
       "meet",
+      "game",
     ]);
     expect(isQuestType("scan_qr")).toBe(true);
     expect(isQuestType("submission")).toBe(true);
@@ -322,5 +324,68 @@ describe("meet quests", () => {
     expect(QUEST_TYPES.meet.verifications).toEqual([]);
     expect(QUEST_TYPES.meet.oneTry).toBe(false);
     expect(parseVerification("meet", undefined)).toEqual([]);
+  });
+});
+
+describe("game quests", () => {
+  it("take a game and a level, one attempt by default", () => {
+    expect(QUEST_TYPES.game.oneTry).toBe(true);
+    expect(QUEST_TYPES.game.verifications).toEqual([]);
+    expect(parseQuestConfig("game", { game: "memory_match", level: "medium" })).toEqual({
+      game: "memory_match",
+      level: "medium",
+      attempts: 1,
+      cooldownMinutes: null,
+    });
+    expect(
+      parseQuestConfig("game", { game: "slide_puzzle", level: "hard", attempts: 10 }),
+    ).toMatchObject({
+      attempts: 10,
+    });
+  });
+
+  it("take unlimited attempts only with a cooldown, and a cooldown only with unlimited attempts", () => {
+    expect(
+      parseQuestConfig("game", {
+        game: "memory_match",
+        level: "easy",
+        attempts: null,
+        cooldownMinutes: 1,
+      }),
+    ).toMatchObject({ attempts: null, cooldownMinutes: 1 });
+    expect(
+      parseQuestConfig("game", {
+        game: "memory_match",
+        level: "easy",
+        attempts: null,
+        cooldownMinutes: 1440,
+      }),
+    ).toMatchObject({ cooldownMinutes: 1440 });
+    for (const bad of [
+      { attempts: null },
+      { attempts: null, cooldownMinutes: 0 },
+      { attempts: null, cooldownMinutes: 1441 },
+      { attempts: 2, cooldownMinutes: 5 },
+      { attempts: 0 },
+      { attempts: 11 },
+      { attempts: 1.5 },
+    ]) {
+      expect(
+        parseQuestConfig("game", { game: "memory_match", level: "easy", ...bad }),
+        JSON.stringify(bad),
+      ).toBeUndefined();
+    }
+  });
+
+  it("refuse an unknown game or level, and name the games not available yet", () => {
+    expect(parseQuestConfig("game", { game: "catch", level: "easy" })).toBeUndefined();
+    expect(parseQuestConfig("game", { game: "memory_match", level: "expert" })).toBeUndefined();
+    expect(
+      parseQuestConfig("game", { game: "memory_match", level: "easy", extra: 1 }),
+    ).toBeUndefined();
+    expect(unavailableGame({ game: "catch" })).toBe("catch");
+    expect(unavailableGame({ game: "tap_rush" })).toBe("tap_rush");
+    expect(unavailableGame({ game: "memory_match" })).toBeUndefined();
+    expect(unavailableGame(null)).toBeUndefined();
   });
 });
