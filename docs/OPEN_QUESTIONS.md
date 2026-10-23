@@ -296,6 +296,7 @@ ADR-203: steps by printed QR only; a scan after the passport is finished refuses
 stamped. Agree, or should staff stamp a step from a player's My QR, or extra stamps count for something?
 
 ## Q-168 — Refresh and hidden categories (2026-10-24, T-304c)
+**Answered 2026-10-24 (Dhia): agreed as proposed; ADR-204 Accepted.**
 ADR-204: weekly blocks start on the event's first day (not a calendar week); a daily unlock category locks its
 follower again each day; a scan of a hidden category's quest before its secret code answers `not_for_you`; a staff
 manual award of a hidden quest pays and reveals the category to that player; switching a category from daily to none
@@ -305,6 +306,7 @@ Note (T-304c code review): the weekly anchor is the event's `starts_at`, so edit
 weekly blocks from then on (counts already made stay; the current week may grow, shrink or restart).
 
 ## Q-169 — Items as quest or category rewards (2026-10-24, T-304d)
+**Answered 2026-10-24 (Dhia): agreed as proposed; ADR-205 Accepted.**
 ADR-205: a quest gives its item on the first completion only (a repeatable quest gives points again but no second
 item); a daily or weekly category gives its item once per period, with its bonus; an item missed because stock ran out
 is not given later when stock is raised (the organizer sees who missed); the player cannot cancel an item they earned;

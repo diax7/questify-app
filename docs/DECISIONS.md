@@ -2573,7 +2573,7 @@ stamped by printed QR only (no station or My QR path yet).
 open as any other code keeps T-104's proof model.
 
 ## ADR-204 — Category refresh and hidden categories
-**Status:** Proposed (Claude, 2026-10-24; T-304c). Q-168.
+**Status:** Accepted (Dhia, 2026-10-24; T-304c). Q-168.
 **Decision:** a category may refresh daily or weekly. The repeat cap, "done", the in-order and unlock gates and the
 completion bonus count inside the current period: the event's day (ADR-083's day-start hour), or 7-day blocks counted
 from the event's first day. The occurrence number stays lifetime (only the cap counts the period). A bonus is not
@@ -2588,7 +2588,7 @@ audience still applies) and reveals the category to that player; an operator sca
 under the enrollment lock; played-once types have no meaning in a refresh.
 
 ## ADR-205 — Items as quest or category rewards: their own stock, a price-0 desk item, points only when out
-**Status:** Proposed (Claude, 2026-10-24; T-304d). Q-169.
+**Status:** Accepted (Dhia, 2026-10-24; T-304d). Q-169.
 **Decision:** an item given by a quest or a category is a `quest_item` row (its own table and stock, shared by every
 quest and category that names it, never a shop `reward`). Earning it makes a price-0 `redemption` (a third source after
 shop rewards and rank prizes) collected through the desk's handover, with `default_claim_until`'s deadline; the player
