@@ -14,6 +14,7 @@ import {
   type Item,
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
+import { PassportFields } from "#src/components/PassportFields.tsx";
 import {
   ChallengeFields,
   ShareFields,
@@ -264,6 +265,8 @@ export function startingConfig(type: QuestType): Config {
       return { questions: [newSurveyQuestion()] };
     case "share":
       return { message: {} };
+    case "passport":
+      return { needed: 1, steps: [newItem()] };
     default:
       return {};
   }
@@ -283,4 +286,5 @@ export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProp
     challenge: ChallengeFields,
     survey: SurveyFields,
     share: ShareFields,
+    passport: PassportFields,
   };

@@ -1,4 +1,5 @@
 import {
+  PASSPORT_STEPS_MAX,
   parseQuestConfig,
   parseVerification,
   toLocalInput,
@@ -24,7 +25,51 @@ export type QuestView = Readonly<{
   position: number;
   config: Readonly<Record<string, unknown>>;
   verification: readonly QuestVerification[];
+  /** A passport's steps in order (T-304b); absent for other types. */
+  steps?: readonly Readonly<{ id: string; name: Bilingual; position: number }>[];
 }>;
+
+/** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
+type FormStep = Readonly<{
+  id: string;
+  text: Readonly<{ ar?: string; en?: string }>;
+  saved?: boolean;
+}>;
+
+/** A passport's steps from the API, as the form holds them inside its config. */
+const formSteps = (quest: QuestView): FormStep[] =>
+  (quest.steps ?? []).map((step) => ({
+    id: step.id,
+    saved: true,
+    text: {
+      ...(step.name.ar === null ? {} : { ar: step.name.ar }),
+      ...(step.name.en === null ? {} : { en: step.name.en }),
+    },
+  }));
+
+type ApiParts = Readonly<{
+  config: Readonly<Record<string, unknown>>;
+  steps?: readonly Readonly<{ id?: string; name: Readonly<{ ar: string; en: string }> }>[];
+}>;
+
+/**
+ * What the API takes of a draft's config: a passport's steps live in its form config, but the API takes them beside it
+ * (`steps`: a saved step by its id, a new one without).
+ */
+function apiParts(draft: QuestDraft): ApiParts {
+  if (draft.type !== "passport") {
+    return { config: draft.config };
+  }
+  const { steps, ...config } = draft.config;
+  const list = Array.isArray(steps) ? (steps as FormStep[]) : [];
+  return {
+    config,
+    steps: list.map((step) => ({
+      ...(step.saved === true ? { id: step.id } : {}),
+      name: { ar: step.text.ar ?? "", en: step.text.en ?? "" },
+    })),
+  };
+}
 
 export type CategoryView = Readonly<{
   id: string;
@@ -146,7 +191,7 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     opensAt: local(quest.opensAt),
     closesAt: local(quest.closesAt),
     visible: quest.visible,
-    config: quest.config,
+    config: quest.type === "passport" ? { ...quest.config, steps: formSteps(quest) } : quest.config,
     verification: quest.verification,
   };
 }
@@ -160,7 +205,7 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   opensAt: draft.opensAt === "" ? null : draft.opensAt,
   closesAt: draft.closesAt === "" ? null : draft.closesAt,
   visible: draft.visible,
-  config: draft.config,
+  ...apiParts(draft),
   verification: draft.verification,
 });
 
@@ -186,7 +231,7 @@ export function editQuestBody(draft: QuestDraft, before: QuestDraft): Record<str
  */
 export function questProblem(
   draft: QuestDraft,
-): "title" | "points" | "closesAt" | "config" | "verification" | undefined {
+): "title" | "points" | "closesAt" | "config" | "verification" | "steps" | "needed" | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
   }
@@ -196,7 +241,18 @@ export function questProblem(
   if (draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt) {
     return "closesAt";
   }
-  if (parseQuestConfig(draft.type, draft.config) === undefined) {
+  const parts = apiParts(draft);
+  const steps = parts.steps;
+  if (steps !== undefined) {
+    const named = steps.every((step) => step.name.ar.trim() !== "" || step.name.en.trim() !== "");
+    if (steps.length === 0 || steps.length > PASSPORT_STEPS_MAX || !named) {
+      return "steps";
+    }
+    if (Number(parts.config["needed"]) > steps.length) {
+      return "needed";
+    }
+  }
+  if (parseQuestConfig(draft.type, parts.config) === undefined) {
     return "config";
   }
   return parseVerification(draft.type, draft.verification) === undefined

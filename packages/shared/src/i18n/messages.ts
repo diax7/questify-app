@@ -551,6 +551,24 @@ export const MESSAGES = {
     ar: "اجعل وقت الإغلاق بعد وقت الفتح.",
     en: "Make the closing time later than the opening time.",
   },
+  "quests.invalid.steps": {
+    ar: "أضف خطوة واحدة على الأقل، ولكل خطوة اسم، وبحد أقصى 30 خطوة.",
+    en: "Add at least one step, each with a name, and no more than 30.",
+  },
+  "quests.invalid.needed": {
+    ar: "اجعل عدد الخطوات المطلوبة بين 1 وعدد الخطوات. وبعد أن يختم اللاعبون لا يمكن خفضه.",
+    en: "Set the steps needed between 1 and the number of steps. Once players stamp, it can't go down.",
+  },
+  "quests.passport.steps": { ar: "خطوات الجواز", en: "Passport steps" },
+  "quests.passport.note": {
+    ar: "لكل خطوة رمز QR خاص بها في صفحة الرموز. يختم اللاعبون الخطوات بأي ترتيب.",
+    en: "Each step gets its own QR code on the codes page. Players stamp steps in any order.",
+  },
+  "quests.passport.needed": { ar: "الخطوات المطلوبة لإنهاء الجواز", en: "Steps needed to finish" },
+  "quests.passport.stepAr": { ar: "الخطوة {number} بالعربية", en: "Step {number} in Arabic" },
+  "quests.passport.stepEn": { ar: "الخطوة {number} بالإنجليزية", en: "Step {number} in English" },
+  "quests.passport.removeStep": { ar: "حذف الخطوة {number}", en: "Remove step {number}" },
+  "quests.passport.addStep": { ar: "إضافة خطوة", en: "Add step" },
   "quests.invalid.config": {
     ar: "راجع حقول نوع المهمة، مثل الرمز.",
     en: "Check the quest type's fields, such as the code.",
@@ -1577,6 +1595,7 @@ export const MESSAGES = {
   },
   "codes.toBuilder": { ar: "إلى المهام", en: "Go to quests" },
   "codes.version": { ar: "النسخة {version}", en: "Version {version}" },
+  "codes.step": { ar: "الخطوة: {name}", en: "Step: {name}" },
   "codes.codeFor": { ar: "رمز QR للمهمة «{name}»", en: "QR code for “{name}”" },
   "codes.printQr": { ar: "طباعة QR", en: "Print QR" },
   "scan.title": {

@@ -13,6 +13,9 @@ import styles from "#src/components/layout.module.css";
 
 type Code = Readonly<{
   questId: string;
+  /** A passport step's code (T-304b): its step and name; null for a quest's own code. */
+  stepId: string | null;
+  step: Readonly<{ ar: string | null; en: string | null }> | null;
   category: Readonly<{ ar: string | null; en: string | null }>;
   title: Readonly<{ ar: string | null; en: string | null }>;
   version: number;
@@ -43,11 +46,15 @@ function download(code: Code, language: Language): void {
   const blob = new Blob([qrSvgFile(code.url)], { type: "image/svg+xml" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `${textFor(code.title, language) || code.questId}.svg`;
+  const step = code.step === null ? "" : ` - ${textFor(code.step, language)}`;
+  link.download = `${textFor(code.title, language) || code.questId}${step}.svg`;
   link.click();
   // Later, not in the same tick: Safari would cancel the download.
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }
+
+/** One card per code: a quest's own, or each of a passport's steps. */
+const cardId = (code: Code): string => code.stepId ?? code.questId;
 
 /** A category in every language the event wrote it in, like the titles. */
 const bothLanguages = (text: Code["category"]): string =>
@@ -158,14 +165,18 @@ export function CodesPanel({
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    const result = await requestJson("POST", `${base}/quests/${target.questId}/qr/regenerate`);
+    const path =
+      target.stepId === null
+        ? `${base}/quests/${target.questId}/qr/regenerate`
+        : `${base}/steps/${target.stepId}/qr/regenerate`;
+    const result = await requestJson("POST", path);
     setBusy(false);
     setRegenerating(null);
     if (handle(result.body, result.ok, "codes.regenerateFailed")) {
       const fresh = result.body as { version: number; url: string };
       setCodes((current) =>
         (current ?? []).map((code) =>
-          code.questId === target.questId ? { ...code, ...fresh } : code,
+          cardId(code) === cardId(target) ? { ...code, ...fresh } : code,
         ),
       );
       setNotice(t("codes.regenerated"));
@@ -239,14 +250,19 @@ export function CodesPanel({
         <ul className={`${codeStyles.sheet} ${large ? codeStyles.large : ""}`}>
           {codes.map((code) => (
             <li
-              key={code.questId}
-              id={`code-${code.questId}`}
+              key={cardId(code)}
+              id={`code-${cardId(code)}`}
               tabIndex={-1}
               className={codeStyles.card}
             >
               <QrImage
                 text={code.url}
-                label={t("codes.codeFor", { name: textFor(code.title, language) })}
+                label={t("codes.codeFor", {
+                  name:
+                    code.step === null
+                      ? textFor(code.title, language)
+                      : `${textFor(code.title, language)} - ${textFor(code.step, language)}`,
+                })}
               />
               {code.title.ar === null ? null : (
                 <p className={codeStyles.title} dir="rtl" lang="ar">
@@ -256,6 +272,11 @@ export function CodesPanel({
               {code.title.en === null ? null : (
                 <p className={codeStyles.title} dir="ltr" lang="en">
                   {code.title.en}
+                </p>
+              )}
+              {code.step === null ? null : (
+                <p className={codeStyles.title}>
+                  {t("codes.step", { name: bothLanguages(code.step) })}
                 </p>
               )}
               <p className={codeStyles.small}>{bothLanguages(code.category)}</p>

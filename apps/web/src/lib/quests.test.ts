@@ -182,3 +182,53 @@ describe("category rules (T-304)", () => {
     expect(categoryRuleNotes({ ...ruled, unlockAfter: "gone" }, [ruled])).toHaveLength(3);
   });
 });
+
+describe("passport quests (T-304b)", () => {
+  const PASSPORT: QuestView = {
+    ...QUEST,
+    type: "passport",
+    repeatCap: 1,
+    config: { needed: 2 },
+    steps: [
+      { id: "s1", name: { ar: "أ", en: null }, position: 0 },
+      { id: "s2", name: { ar: null, en: "B" }, position: 1 },
+    ],
+  };
+
+  it("holds the steps in the form and sends them beside the config, saved ones by id", () => {
+    const draft = questDraftOf(PASSPORT, "Asia/Riyadh");
+    const steps = draft.config["steps"] as { id: string; text: object; saved?: boolean }[];
+    expect(steps).toEqual([
+      { id: "s1", saved: true, text: { ar: "أ" } },
+      { id: "s2", saved: true, text: { en: "B" } },
+    ]);
+    const added = {
+      ...draft,
+      config: { ...draft.config, steps: [...steps, { id: "new", text: { en: "C" } }] },
+    };
+    expect(editQuestBody(added, draft)).toEqual({
+      steps: [
+        { id: "s1", name: { ar: "أ", en: "" } },
+        { id: "s2", name: { ar: "", en: "B" } },
+        { name: { ar: "", en: "C" } },
+      ],
+    });
+    expect(createQuestBody(draft)).toMatchObject({ type: "passport", config: { needed: 2 } });
+    expect(createQuestBody(draft)["config"]).not.toHaveProperty("steps");
+    expect(questProblem(draft)).toBeUndefined();
+  });
+
+  it("finds a passport's problems before the API does", () => {
+    const draft = questDraftOf(PASSPORT, "Asia/Riyadh");
+    const withSteps = (steps: unknown[], needed = 1) => ({ ...draft, config: { needed, steps } });
+    expect(questProblem(withSteps([]))).toBe("steps");
+    expect(questProblem(withSteps([{ id: "x", text: { en: " " } }]))).toBe("steps");
+    expect(questProblem(withSteps([{ id: "x", text: { en: "A" } }], 2))).toBe("needed");
+    expect(questProblem(withSteps([{ id: "x", text: { en: "A" } }], 0))).toBe("config");
+    expect(
+      questProblem(
+        withSteps(Array.from({ length: 31 }, (_, i) => ({ id: `${i}`, text: { en: "A" } }))),
+      ),
+    ).toBe("steps");
+  });
+});
