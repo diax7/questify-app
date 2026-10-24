@@ -46,6 +46,7 @@
 | `passkit-generator` | MIT | Signs Apple Wallet passes on the server | Building the `.pkpass` zip and signature by hand is possible but needless |
 | Rive and Lottie runtimes | MIT | Playing designer-made animations | Designers keep authoring; no custom animation engine |
 | `react-native-nfc-manager` | MIT | NFC read/write | Native NFC code is hard; the library supports a development build. Built (T-308): 4.1.0, loaded lazily, ADR-237 |
+| `expo-device` | MIT | The phone model of an app problem (T-312, ADR-259) | FR-1822's acceptance names the phone model and iOS gives none without it; no permission, no identifier. 57.0.2 (Expo SDK 57), loaded lazily: a build without it sends no model |
 | `zxing-wasm` | MIT | The kiosk page's QR decoder (`zxing-wasm/reader` only) | Safari has no `BarcodeDetector`, and one decoder everywhere is simpler than two. Built (T-309b): 3.1.5 pinned exactly (3.1.6 was inside the 7-day cooldown), loaded by the kiosk page alone, its wasm self-hosted under `apps/web/public/zxing/` and hash-checked, ADR-245 |
 | Game logic (quests, points, XP, shop, rankings) | n/a | **Built** | It is the product. Open-source gamification engines were old or thin (ADR-086) |
 | Notification layer | n/a | **Built, thin** | Novu needs MongoDB, Redis and workers; our needs are three provider connections (ADR-086) |

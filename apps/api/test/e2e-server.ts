@@ -293,6 +293,24 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
+      // /make-admin: makes the owner of the event's organizer an active platform admin too (the console's Tickets,
+      // T-312), so one browser session holds both the dashboard and the console.
+      if (request.url === "/make-admin") {
+        db.owner
+          .query(
+            `UPDATE staff_user s SET platform_role = 'admin'
+             FROM organizer_member m JOIN event e ON e.organizer_id = m.organizer_id
+             WHERE e.id = $1 AND m.role = 'owner' AND s.id = m.staff_user_id`,
+            [body.eventId],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 1 ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
       // /account: makes a player account with this username and email (the deletion page, T-217).
       if (request.url === "/account") {
         db.owner

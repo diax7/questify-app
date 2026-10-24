@@ -770,6 +770,18 @@ describes. The API may insert only in its own name and cannot set `id` or `at`; 
 (including a Questify admin's support work in its events), an admin reads all. No client address and no email: the
 request id links an entry to the server log. `before`/`after` hold only the top-level keys that changed and never a
 secret or contact detail (refused in code, which rolls back the change too).
+T-312 (migration 0061): kinds `question, problem, prize, report_player` (the event team's, with the event) and
+`app_problem, suggestion` (Questify's, never an event); `queue` `event | questify`; `reported_enrollment_id` (→ the
+reported member of the same event, SET NULL when a rehearsal wipe deletes it); the device facts of an app problem
+(`app_version`, `platform`, `os_version`, `device_model`: no identifier); the latest escalation (`escalated_at`,
+`escalated_by_staff`, `escalation_note`) and send-back (`returned_at`, `returned_by_admin`, `return_note`);
+`answered_by_admin`. CHECKs: the kind fixes the event columns and Questify's kinds stay in its queue; an event ticket
+is in Questify's queue only while its latest hop is an escalation; a return only after an escalation; one answerer;
+Questify answers only in its queue and the team only in the event's. One open report per reporter and reported
+(partial unique index). Retention: 90 days after the latest of the event's end, the sending, the escalation, the
+send-back and the closing; an event-less ticket 90 days after its closing, never by age while open (Q-220). New
+personal data: the reported member, the device facts, the notes (staff writing about a player): never in logs, audit
+rows or push text.
 
 ## Other entities (one line each)
 

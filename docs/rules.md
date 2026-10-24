@@ -81,6 +81,12 @@ an enrollment; the retention sweep skips a
 ticket an answer holds (`SKIP LOCKED`), and erasure deletes ticket rows only. No path takes an enrollment after a
 ticket.
 
+**The ticket center's lock order (T-312).** `open_platform_ticket` takes an advisory lock on `ticket-send:<player>`,
+then the player row `FOR KEY SHARE` while active, then inserts (no enrollment, no ticket lock); erasure takes the
+player row `FOR UPDATE` and then deletes tickets and never the advisory lock, so no cycle, and no send outlives an
+erasure. Escalation, a send-back and every answer take the ticket `FOR UPDATE` (an answer after its key's advisory
+lock) and re-read its status and queue; the loser gets `already_closed`, `not_open` or `moved`.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

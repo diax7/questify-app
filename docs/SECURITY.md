@@ -96,7 +96,7 @@ answers are audited (`event.ticket_answered` / `event.ticket_solved`, ids and th
 (`own_tickets`, never who answered); another player reads nothing on any route; owners and editors in their event
 limit read and answer every ticket of the event (`award_event_of`); an operator with `help_desk` reads and answers
 open tickets that are event-wide or for a quest inside their limit, never their own, and reads a closed one only if
-they answered it; an operator without it, a Questify admin (until T-312), `anon` and `PUBLIC` nothing. `ticket` has RLS
+they answered it; an operator without it, `anon` and `PUBLIC` nothing. **T-312 (ADR-257):** operators never see a `report_player` ticket (HT404 on every door); owners and editors escalate with a note and read their escalated tickets read-only; an active platform admin reads exactly the rows with `queue = 'questify'` through the console (`app_admin_id()` re-read in every function, the request flag alone opens nothing), every read audited per event shown (`console.tickets_read`, `console.ticket_read`, ids only), 120 calls a minute; an event ticket never escalated, or sent back, is the same 404 as a missing one; an admin who is also an organizer member keeps each door to its own rule. Outsider suite: every new function refused to `anon` and `PUBLIC`; test/db/tickets-center crosses organizers A and B and the admin who is also a member. `ticket` has RLS
 forced and no grant; every function is closed to PUBLIC (outsider suite, `purge_ended_tickets` included), the table is
 classified in the cross-tenant suite, and `test/db/tickets.int.test.ts` crosses organizers, events and players. The text
 and the reply never reach a log, an audit row or an error (`test/tickets/routes.int.test.ts` reads the logs).

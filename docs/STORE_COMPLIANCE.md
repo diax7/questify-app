@@ -116,6 +116,7 @@ word lists and a hit marks the item for its reviewer (FR-1628). With the guideli
 submission (FR-1706), this meets §1.2 for submissions. A public gallery (later) needs the full set.
 
 Note 2026-10-24 (T-310): help-desk tickets are private between a player and the event team, never shown to other
+Note 2026-10-25 (T-312): Report a player is an in-app report of another user, sent privately to the event team's owners and editors (never operators, never the reported player); tickets stay private, so no public UGC is added. Blocks remain T-705's (FR-1415).
 players, so §1.2's public-UGC controls (report, block) have nothing to act on there; the word lists mark ticket text
 (FR-1628) and a ban stops sending. Apple 1.5's support contact is the existing web contact page (`/{lang}/contact`),
 which Get help links ("A problem with the app itself? Contact Questify"), and App Store Connect's Support URL; the help
@@ -476,6 +477,7 @@ Likely Questify label (planning estimate, to be confirmed against the final SDK 
 | Identifiers: user ID; push token | Yes | App functionality |
 | Location: coarse or precise (only if location quests ship) | Yes | App functionality |
 | Customer Support: help-desk questions and problem reports (T-310), not tracking | Yes | App functionality |
+| Customer Support: app problems with the phone's model, OS and app version, and suggestions (T-312), sent only inside a request the player writes; **Other Diagnostic Data** is not claimed (nothing is sent automatically) | Yes | App functionality |
 | Usage Data: product interaction (analytics) | Yes or No, depends on SDK | Analytics |
 | Diagnostics: crash data, performance | Usually No | App functionality |
 | Tracking | None in v1 | — |
@@ -619,6 +621,8 @@ registered right after the first upload.
   [verified 2026-10-16]
 
 Fill it from the same data inventory as the Apple label (1.13) so the two never disagree.
+
+Note 2026-10-25 (T-312, `expo-device` 57.0.2): the module's own `PrivacyInfo.xcprivacy` declares no collected data types, no tracking and one required-reason API, `NSPrivacyAccessedAPICategorySystemBootTime` with `35F9.1`, which `app.json`'s `ios.privacyManifests` already declares (the same reason); it adds no Android permission. The App Privacy answer stays Customer Support (above). Google Data safety: "App info and performance → Other" only inside the user's report, user-initiated, deletable with the account. The model is read lazily and never `Constants.deviceName` (unit tests). The new development build (Android and iOS) is Dhia's step.
 
 Note 2026-10-24 (T-310): help-desk tickets are **Other user-generated content**: collected, not shared, used for app
 functionality, deleted with the account (and 90 days after the later of the event's end and the sending, Q-210).

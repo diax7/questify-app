@@ -1414,9 +1414,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1819 | F-321 | Must | pending |
 | FR-1820 | F-322 | Should | pending |
 | FR-1821 | F-323 | Should | pending |
-| FR-1822 | F-324 | Must | pending |
-| FR-1823 | F-325 | Must | pending |
-| FR-1824 | F-326 | Should | pending |
+| FR-1822 | F-324 | Must | built (T-312, 2026-10-25) |
+| FR-1823 | F-325 | Must | built (T-312, 2026-10-25; "take over" = Questify answers a ticket in its queue, Q-218) |
+| FR-1824 | F-326 | Should | partly built (T-312: My tickets; the notification history is T-312b) |
 | FR-1825 | F-327 | Must | pending |
 | FR-1826 | F-328 | Must | pending |
 | FR-1827 | F-329 | Must | pending |
