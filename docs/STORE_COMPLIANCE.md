@@ -115,6 +115,13 @@ so the public-UGC controls (report, block) have nothing to act on there; text su
 word lists and a hit marks the item for its reviewer (FR-1628). With the guidelines accepted before the first
 submission (FR-1706), this meets §1.2 for submissions. A public gallery (later) needs the full set.
 
+Note 2026-10-24 (T-310): help-desk tickets are private between a player and the event team, never shown to other
+players, so §1.2's public-UGC controls (report, block) have nothing to act on there; the word lists mark ticket text
+(FR-1628) and a ban stops sending. Apple 1.5's support contact is the existing web contact page (`/{lang}/contact`),
+which Get help links ("A problem with the app itself? Contact Questify"), and App Store Connect's Support URL; the help
+desk reaches the event team, not Questify. App Review notes: the demo event's help desk is on; the reviewer can send a
+question and see "Waiting for an answer".
+
 ### 1.3 Guideline 2.1 — App completeness, demo account and demo event
 
 - **2.1(a):** "include demo account info (and turn on your back-end service!) if your app includes
@@ -468,6 +475,7 @@ Likely Questify label (planning estimate, to be confirmed against the final SDK 
 | User Content: photos, text submissions, quiz answers, votes | Yes | App functionality |
 | Identifiers: user ID; push token | Yes | App functionality |
 | Location: coarse or precise (only if location quests ship) | Yes | App functionality |
+| Customer Support: help-desk questions and problem reports (T-310), not tracking | Yes | App functionality |
 | Usage Data: product interaction (analytics) | Yes or No, depends on SDK | Analytics |
 | Diagnostics: crash data, performance | Usually No | App functionality |
 | Tracking | None in v1 | — |
@@ -611,6 +619,9 @@ registered right after the first upload.
   [verified 2026-10-16]
 
 Fill it from the same data inventory as the Apple label (1.13) so the two never disagree.
+
+Note 2026-10-24 (T-310): help-desk tickets are **Other user-generated content**: collected, not shared, used for app
+functionality, deleted with the account (and 90 days after the later of the event's end and the sending, Q-210).
 
 ### 2.5 Account deletion (in-app path plus web link)
 

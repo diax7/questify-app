@@ -89,6 +89,17 @@ Operators are players, and `audit_log` has no player actor: their actions are re
 quest an operator completes or awards carries `operator_id` on its ledger entry; a submission an operator reviews
 carries `reviewed_by_operator`, `reviewed_at` and `review_key`, and its approval's ledger entry carries the
 operator too (`actor = 'operator'`, T-301). The team's reviews are audited (`event.submission_approved` / `event.submission_rejected`).
+A help-desk ticket an operator answers carries `answered_by_operator`, `closed_at` and `answer_key` (T-310); the team's
+answers are audited (`event.ticket_answered` / `event.ticket_solved`, ids and the outcome only, never the text).
+
+**Help-desk tickets (T-310, ADR-247).** Who can do what: the sender reads their own tickets in any enrollment status
+(`own_tickets`, never who answered); another player reads nothing on any route; owners and editors in their event
+limit read and answer every ticket of the event (`award_event_of`); an operator with `help_desk` reads and answers
+open tickets that are event-wide or for a quest inside their limit, never their own, and reads a closed one only if
+they answered it; an operator without it, a Questify admin (until T-312), `anon` and `PUBLIC` nothing. `ticket` has RLS
+forced and no grant; every function is closed to PUBLIC (outsider suite, `purge_ended_tickets` included), the table is
+classified in the cross-tenant suite, and `test/db/tickets.int.test.ts` crosses organizers, events and players. The text
+and the reply never reach a log, an audit row or an error (`test/tickets/routes.int.test.ts` reads the logs).
 
 ### Points ledger and completions (T-105)
 

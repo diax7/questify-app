@@ -34,6 +34,7 @@
     "apps/api/src/passport/**/*.ts",
     "apps/api/src/reveal/**/*.ts",
     "apps/api/src/submissions/**/*.ts",
+    "apps/api/src/tickets/**/*.ts",
     "apps/api/src/ranking/**/*.ts",
     "packages/shared/src/results/**/*.ts",
     "packages/shared/src/quests/**/*.ts",

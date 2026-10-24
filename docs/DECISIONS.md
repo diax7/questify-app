@@ -3210,3 +3210,11 @@ optional photo (FR-337) moves to T-301b, which owns the one photo pipeline (bloc
 page (Settings → Legal, T-110), which with App Store Connect's Support URL meets Apple 1.5.
 **CTO plan review 2026-10-24 (86/100):** findings folded into ADR-246 to ADR-248 and the plan.
 **Why:** Bounded spam with no cache; PDPL minimization; one photo pipeline.
+**As built 2026-10-24 (T-310, CTO re-review 93 notes):** `mark_tickets_seen` takes a NULL event (still only the
+caller's own closed tickets), so the profile's Your requests marks every event's answers in one call
+(`POST /v1/me/tickets/seen`). The refusals are named apart: `sending_closed` (HT403) for a draft or archived event or 30
+days after the end, matching `help.sendClosed`; `event_closed` (HT409) for answering in an archived event. Staff accounts
+have no display name, so "Answered by" names the staff member's email (as flag resolutions do). The inbox cursor carries
+`created_at` in microseconds (a JavaScript Date keeps milliseconds). The app has no ban screen (a 403 Home forgets the
+event), so a banned, left or removed player reads their answers in the profile's Your requests. An event with no end
+keeps its tickets until it has one.

@@ -210,7 +210,7 @@ Decisions:
 | F-114 | Automatic flags (no automatic action): several accounts on one device in an event (phone and email accounts alike), location far from the venue or faked, impossible speed between stations, bursts of completions | Should | user / Claude | ADR-041, ADR-084. Location flags are off for virtual events |
 | F-116 | Flagged-activity page: each case with its evidence; clear it, remove points or ban, by hand | Should | user | The admin acts; the system never does |
 | F-115 | Device integrity (Apple App Attest, Google Play Integrity) as one more flag | Could | Claude | Never blocks |
-| F-118 | Help desk: from a quest or the event, "Report a problem" or "Ask a question" (type, text, optional photo); operators reply and mark it solved; the player gets a push | Should | user | Covers broken or missing QR codes. Private between player and event team |
+| F-118 | Help desk: from a quest or the event, "Report a problem" or "Ask a question" (type, text, optional photo); operators reply and mark it solved; the player gets a push | Should | user | Covers broken or missing QR codes. Private between player and event team. Built in T-310 without the photo (T-301b) and the push (T-501) |
 
 **Won't (v1):**
 

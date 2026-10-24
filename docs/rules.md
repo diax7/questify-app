@@ -74,6 +74,12 @@ rehearsal row, then the enrollment (`record_completion`'s `FOR NO KEY UPDATE`), 
 operator's assignment without a lock, never `FOR SHARE`, since the removal trigger locks the assignment before the
 device. A Revoke or removal waits for a scan in flight, and the scan is paid before or refused after (DV401).
 
+**The help desk's lock order (T-310).** `open_ticket` takes the rehearsal row, then the enrollment `FOR NO KEY
+UPDATE`, then inserts (a replay by key is read under the enrollment lock, so two sends with one key are one ticket);
+an answer takes the rehearsal row, then the ticket `FOR UPDATE`, and never an enrollment; the retention sweep skips a
+ticket an answer holds (`SKIP LOCKED`), and erasure deletes ticket rows only. No path takes an enrollment after a
+ticket.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

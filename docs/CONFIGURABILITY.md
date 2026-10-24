@@ -68,6 +68,14 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-310): the help desk switch
+
+- `helpDesk` (not an add-on) joins the registry, on by default. The owner turns it off per event (`PUT …/help-desk`,
+  the event settings' Features list); the platform's switch is read by the API from the composed config. Off, the app
+  hides only the send form (Get help's two buttons and the quest sheet's "Report a problem with this quest") and the
+  server refuses new tickets (`feature_off`); Your requests, Home's "The event team answered you" and the answers stay,
+  and open tickets stay answerable.
+
 ## As built (T-308): the NFC switch
 
 - `nfcTags` (platform level, not an add-on, on by default): off, the app hides NFC, taps and the operator's write

@@ -1021,9 +1021,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-334 | F-115 | Could | pending |
 | FR-335 | F-116 | Should | pending |
 | FR-336 | F-116 | Should | pending |
-| FR-337 | F-118 | Should | pending |
-| FR-338 | F-118 | Should | pending |
-| FR-339 | F-118 | Should | pending |
+| FR-337 | F-118 | Should | partly built (T-310: text, from a quest or the event; the photo is T-301b, ADR-248): `test/db/tickets.int`, `test/tickets/routes.int`, `apps/app/src/event/help.test.ts` |
+| FR-338 | F-118 | Should | partly built (T-310: the reply and Solved, read on Home and in Your requests; the push is T-501's): `test/db/tickets.int`, `test/tickets/routes.int`, `e2e/help-desk.spec` |
+| FR-339 | F-118 | Should | `test/db/tickets.int`, `test/security/outsider.int`, `test/tickets/routes.int` (T-310) |
 | FR-401 | F-121 | Must | pending |
 | FR-402 | F-121 | Must | pending |
 | FR-403 | F-08 | Must | pending |
@@ -1164,7 +1164,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-924 | F-178 | Must | pending |
 | FR-925 | F-179 | Must | pending |
 | FR-926 | F-179 | Must | pending |
-| FR-927 | F-180 | Must | pending |
+| FR-927 | F-180 | Must | `test/db/tickets.int` (the merged list and its count, 3 + 2 = 5), `apps/app/src/operator/inbox.test.ts` (T-310) |
 | FR-928 | F-181 | Should | pending |
 | FR-929 | F-182 | Could | pending |
 | FR-940 | F-186 | Must | pending |
@@ -1291,7 +1291,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1624 | F-209 | Should | pending |
 | FR-1625 | F-65 | Must | pending |
 | FR-1626 | F-214 | Should | pending |
-| FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301; help desk later) |
+| FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301), `test/db/tickets.int` (help-desk tickets, T-310) |
 | FR-1629 | F-06 | Must | partly: text options only, organizer images wait for storage (ADR-190, Q-149); `test/db/vote-quiz.int`, `packages/shared/src/quests/registry.test.ts` (T-302) |
 | FR-1701 | F-228 | Must | pending |
 | FR-1702 | F-228, F-262 | Must | pending |

@@ -741,7 +741,19 @@ every account of the event seen on it (under a lock on the event and device); bu
 role: the team reads and closes cases through `event_flags`, `flag_detail` and `resolve_flag`; a ban
 (`set_enrollment_ban`) closes the player's open cases. `event.flag_hold` (default on) and `enrollment.redeem_paused_at`
 are written only by `set_flag_hold` and `set_redeem_pause` (owner, audited). **PII:** `device_id` and `evidence` go
-with the account (T-217). `ticket(id, event_id, player_id, text, status, answers)`.
+with the account (T-217).
+`ticket(id bigint, player_id, organizer_id, event_id, enrollment_id, quest_id (SET NULL when the quest is deleted), kind
+question|problem, queue event, body (1 to 1,000), marked, status open|closed, outcome answered|solved, reply,
+answered_by_staff | answered_by_operator, answer_key, closed_at, player_seen_at, idempotency_key, created_at)`
+(migration 0059, T-310, ADR-246 to ADR-248): one request and at most one answer (ADR-105); `queue` and the nullable
+event columns are laid out for T-312's Questify queue. Sent by `open_ticket` (an active member; 3 open and 10 in 24
+hours per player and event, under the enrollment lock; closed 30 days after the event's end), answered by
+`staff_answer_ticket` (audited, no text) and `operator_answer_ticket` (recorded on the row), read by the sender through
+`own_tickets` / `own_unread_tickets` (never who answered), by the team through `event_tickets` and by operators through
+`operator_ticket` and `operator_inbox` (inside their quest limit, never their own). RLS forced, no grant and no policy.
+**PII:** the text and the reply. Deleted with the sender's account (`erase_rows`), by the rehearsal wipe (counted as
+`tickets`), and 90 days after the later of the event's end and the sending (`purge_ended_tickets`, the lifecycle tick,
+1,000 a run; Q-210).
 `audit_log(id bigint identity, at, actor_type admin|staff|system, actor_id, organizer_id, event_id, action,
 target_type, target_id, before jsonb, after jsonb, request_id)` (migration 0006, T-004): append-only for every
 role, the database owner included (triggers set to fire always). No foreign keys, so an entry outlives the event it
