@@ -3027,7 +3027,9 @@ that sign each tap" (Q-198). Q-199.
 **Decision:** two kinds of tag. A **basic tag** (any NTAG21x sticker) holds a signed Questify URL of its own
 (`/t/{token}`, code purpose 0x06: the tag's id and version; the quest is looked up on the server, so a tag can be moved
 to another quest of the event). It is as strong as the printed quest QR; a tap whose tag id (told by the phone) is not
-the one registered at writing, or is missing, is flagged `nfc_copy` and still paid (ADR-041). A **secure tag** (NTAG 424
+the one registered at writing, or is missing, counts on the tag's copy count and is still paid (ADR-041); the account
+is flagged `nfc_copy` from its second such tap in the event; an iPhone that cannot read the id (on-phone gate) and a
+future background read send a reason and are never flagged. A retry after a Revoke or Move replays the paid tap. A **secure tag** (NTAG 424
 DNA with SUN) signs every tap with a counter, verified on the server; a copied or reused tap is refused (T-308b,
 ADR-236). NFC is offered on scan quests only and always with the quest QR on (phones without NFC, a torn-off tag). Tags
 are written from staff mode on a phone (the `write_nfc` ability), never from the web dashboard; "Lock the tag" is on by
