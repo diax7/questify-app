@@ -397,6 +397,10 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 - [ ] **T-312** Ticket center: four types, routing by type, one reply then closed, escalate to Questify, My tickets and notification history in the profile — delivers FR 1822, 1823, 1824; depends on: T-310
   - Done when: An app-problem ticket reaches only the Questify queue; a prize question reaches only the event team; the reply closes the ticket and the player sees it in My tickets.
   - Note 2026-10-24 (T-310): builds on `ticket` (migration 0059): widen `kind` (Q-209) and `queue` (`questify`), allow the event columns NULL for a ticket outside an event (the CHECK already applies only to `queue = 'event'`), add escalation columns and the Questify queue's read (Q-211). `own_tickets(NULL)`, `GET /v1/me/tickets` and the profile's Your requests already exist: My tickets grows from that screen; Get help's two buttons become the type picker, the quest sheet's entry stays as a shortcut. Report a player is where FR-1415's blocks meet tickets.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-312-ticket-center.md`, migration 0061, ADR-255 to ADR-259 and Q-218 to Q-222 Proposed. Split (ADR-255): the notification history (FR-1824's second half) moves to T-312b, after T-501. A platform admin reads exactly `queue = 'questify'` (Q-211 answered); new dependency `expo-device` for the phone model (ADR-259).
+- [ ] **T-312b** Notification history in the profile: every notification received, read and unread, newest first, on T-501's notification center — delivers FR 1824 (second half); depends on: T-501, T-312
+  - Split from T-312 2026-10-24 (ADR-255): no notification is stored before T-501; this is the profile row and the full list on T-501's table, not a second store. Standard bar.
+  - Done when: A player with 30 earlier notifications sees all 30, newest first, from Profile.
 - [ ] **T-313** First-N bonus on a quest, counted inside the completion transaction, with a live 'bonuses left' count — delivers FR 1840; depends on: T-105
   - Done when: Two simultaneous completions at the Nth place pay exactly one bonus.
 

@@ -3302,3 +3302,49 @@ screens use the event's currency (the review queue's amount, the desk's cancel t
 names the player. Questify home and Questify-level texts keep the defaults (FR-942). The dashboard builder's headings
 and labels keep Questify's words until T-311c.
 **Why:** one source for the words, so the two apps cannot disagree; it fixes the FR-941 gap Q-214.
+
+## ADR-255 — T-312 splits off the notification history
+**Status:** Proposed (Claude, 2026-10-24; T-312 plan, `docs/plans/2026-10-24-t-312-ticket-center.md`).
+**Decision:** FR-1824's notification history moves to T-312b (depends on T-501): no notification is stored anywhere
+yet, and T-501 builds the notification center (FR-1104). T-312b is the profile row and the full list on T-501's table,
+not a second store. T-312 delivers My tickets (the profile's Your requests).
+**Why:** nothing to list until T-501; building a store first would duplicate T-501's.
+
+## ADR-256 — Ticket types and routing
+**Status:** Proposed (Claude, 2026-10-24; T-312 plan). Answers Q-209 as recommended.
+**Decision:** Four cards, six stored kinds: `question`, `problem` (T-310's), `prize` and `report_player` go to the event
+team; `app_problem` and `suggestion` go to the Questify team and never carry an event, even when sent from inside one.
+The routing is fixed by the kind in the table's CHECKs; an event kind reaches Questify only by escalation. Reports of a
+player go to owners and editors only, never to operators. Report a player names a member of the same event by
+username; one open report per reporter and reported; the reported player is never told.
+**Why:** FR-1822; operators are often players, and a report names someone.
+**Trade-offs:** an app problem sent from an event does not show the event to its team (the text can name it).
+
+## ADR-257 — Who sees a ticket after T-312
+**Status:** Proposed (Claude, 2026-10-24; T-312 plan). Replaces ADR-247's visibility table; answers Q-211.
+**Decision:** A platform admin reads exactly the tickets with `queue = 'questify'` (app problems, suggestions, and event
+tickets while escalated or after Questify closed them), only through the console's definers, each re-reading
+`app_admin_id()`; a ticket sent back leaves the console. Every console read and action is audited with ids (and the
+event's ids for an event ticket), never text. The event team reads its escalated tickets read-only. The player sees
+which team answered ("The event team" / "The Questify team"), never a person or a note. The event cards' privacy line
+says Questify may read the ticket if the team asks for help.
+**Why:** FR-1823 needs Questify to read escalated tickets; a single rule keeps the new cross-tenant reader narrow.
+
+## ADR-258 — Escalation to Questify
+**Status:** Proposed (Claude, 2026-10-24; T-312 plan).
+**Decision:** Owners and editors in scope escalate an open event ticket with a required note; the ticket moves whole to
+the Questify queue (it leaves every operator's inbox and the team's answer doors) and stays one of the sender's open
+tickets. Questify answers or solves it (one reply closes it, whatever the event's state) or sends it back with a
+required note; app problems and suggestions are never sent back; a returned ticket can be escalated again. FR-1823's
+"take over" is Questify's own answer. Audit: `event.ticket_escalated`, `console.ticket_answered`,
+`console.ticket_solved`, `console.ticket_returned`, `console.tickets_read`, `console.ticket_read`.
+**Why:** FR-1823 with the smallest door: no claims, no assignment, one queue column.
+
+## ADR-259 — Sending outside an event and the device facts
+**Status:** Proposed (Claude, 2026-10-24; T-312 plan).
+**Decision:** `open_platform_ticket` sends app problems and suggestions with no enrollment, under a per-player advisory
+lock: 3 open and 5 in 24 hours in the Questify queue per player, replays by key. An app problem carries the app version,
+platform, OS version and phone model; the model comes from `expo-device` (new dependency: iOS gives no model without
+it; no permission, no identifier), loaded lazily so an older binary sends `null`; never the phone's own name.
+**Why:** FR-1822's acceptance names the app version and phone model.
+**Trade-offs:** a new native module needs a new development build.

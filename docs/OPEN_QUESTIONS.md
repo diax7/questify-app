@@ -572,3 +572,24 @@ operators in a migration with an outsider test.
 The lines most worth a read are in ADR-253: «{questOne} للجميع» (community quest), «{questOne} بوقت محدود!» (flash
 quest), «المحطة غير متاحة الآن» (operator cards), «انتهى الوقت المحدد», «المستلم» (manual award search), «لا شيء في نطاق
 عملك يعرض رمز QR على شاشة», «بالترتيب: كل واحد يفتح ما بعده». Several Arabic lines no longer name the quest at all.
+
+## Q-218 — What "take over any ticket" means (2026-10-24, T-312 plan)
+ADR-258 reads FR-1823's "the Questify team shall be able to ... take over any ticket" as "answer any ticket in
+Questify's queue", never a ticket that was not routed or escalated to it (otherwise Questify reads every event's
+tickets). Agree, or should Questify see every ticket?
+
+## Q-219 — Where a report of a player goes (2026-10-24, T-312 plan)
+FR-1411 sends a report to the event team and Questify's moderation queue; FR-1822's acceptance says a Report a player
+ticket reaches the event team and not the Questify queue. Built: the event team only; T-705's moderation queue (reports
+of content and usernames) is where Questify sees reports. Agree?
+
+## Q-220 — Keeping tickets with no event (2026-10-24, T-312 plan)
+App problems and suggestions are deleted 90 days after the later of their sending and closing, answered or not.
+Agree, or keep app problems longer for bug history (without the text)?
+
+## Q-221 — Counsel: Questify reading an escalated ticket (2026-10-24, T-312 plan, with Q-075 and Q-210)
+T-310 told players "Only you and the event team can see this". With escalation the line becomes "... If they ask
+Questify for help, the Questify team can see it too", shown before sending. Does the privacy policy need more?
+
+## Q-222 — Operators escalating (2026-10-24, T-312 plan)
+ADR-258: only owners and editors escalate; an operator asks them. Agree, or let operators with `help_desk` escalate?
