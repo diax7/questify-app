@@ -64,6 +64,8 @@ export type QuestInput = Readonly<{
   itemId?: string | null | undefined;
   /** Its place on a spot type (T-303b); null clears it; a location quest must keep one. */
   place?: QuestPlace | null | undefined;
+  /** Shown to players only inside its window (T-307): launched from a draft, or scheduled with both times. */
+  flash?: boolean | undefined;
 }>;
 
 export type QuestField =
@@ -78,7 +80,13 @@ export type QuestField =
   | "needed"
   | "steps"
   | "place"
-  | "dailyCap";
+  | "dailyCap"
+  /** A live poll can never be a flash quest (T-307). */
+  | "flash"
+  /** A shown flash quest needs both times, 1 to 1,440 minutes apart (T-307, CTO 1). */
+  | "flashWindow"
+  /** A launched flash quest stays one (T-307, CTO 10). */
+  | "flashLaunched";
 
 /** The refusals every builder action may give. */
 export type Refused =
@@ -104,6 +112,8 @@ export type Refused =
   | Readonly<{ kind: "step_in_use" }>
   /** A community goal counts this quest or category (T-306b): change or delete the goal first. */
   | Readonly<{ kind: "goal_in_use" }>
+  /** A boost doubles this category (T-307): it stays while the boost does. */
+  | Readonly<{ kind: "boost_in_use" }>
   /** The quest item named is removed or another event's (T-304d). */
   | Readonly<{ kind: "invalid_item" }>
   /**
@@ -193,6 +203,48 @@ function windowOf(live: boolean, current: QuestRecord | undefined, asked: Window
     : { opensAt: current.opensAt, closesAt: current.closesAt, visible: current.visible };
 }
 
+/** A flash quest's shortest and longest shown window (T-307, ADR-231). */
+export const FLASH_WINDOW_MS = { min: 60_000, max: 1440 * 60_000 } as const;
+
+/**
+ * A flash quest's window (T-307, ADR-231): once launched, or once a scheduled window has started, it is Launch's and
+ * End now's, whatever the input says; otherwise a shown one needs both times, 1 to 1,440 minutes apart.
+ */
+export function flashWindowOf(
+  current: QuestRecord | undefined,
+  asked: Window,
+  now: Date,
+): Window | "flashWindow" {
+  const running =
+    current?.flash === true &&
+    (current.flashLaunchedAt !== null ||
+      (current.visible && current.opensAt !== null && current.opensAt <= now));
+  if (running) {
+    return { opensAt: current.opensAt, closesAt: current.closesAt, visible: current.visible };
+  }
+  if (!asked.visible) {
+    return asked;
+  }
+  const length =
+    asked.opensAt === null || asked.closesAt === null
+      ? 0
+      : asked.closesAt.getTime() - asked.opensAt.getTime();
+  return length >= FLASH_WINDOW_MS.min && length <= FLASH_WINDOW_MS.max ? asked : "flashWindow";
+}
+
+/** Whether the quest is flash after this input, or the field that refuses it. */
+function flashOf(
+  current: QuestRecord | undefined,
+  input: QuestInput,
+  live: boolean,
+): boolean | "flash" | "flashLaunched" {
+  const flash = input.flash ?? current?.flash ?? false;
+  if (flash && live) {
+    return "flash";
+  }
+  return !flash && current?.flashLaunchedAt != null ? "flashLaunched" : flash;
+}
+
 /**
  * A quest's fields after this input, from what is stored (or nothing, for a new quest), checked as one whole. The
  * config is validated against the quest's type; a config left out keeps the stored one.
@@ -202,6 +254,7 @@ export function mergeQuest(
   type: QuestType,
   input: QuestInput,
   timeZone: string,
+  now: Date = new Date(),
 ):
   | QuestFields
   | Readonly<{ kind: "invalid"; field: QuestField }>
@@ -244,6 +297,22 @@ export function mergeQuest(
   ) {
     return { kind: "invalid", field: "place" };
   }
+  const live = isLivePoll(type, config);
+  const flash = flashOf(current, input, live);
+  if (typeof flash === "string") {
+    return { kind: "invalid", field: flash };
+  }
+  const wanted = {
+    opensAt,
+    closesAt,
+    // A new flash quest without both times is a draft, launched later.
+    visible:
+      input.visible ?? current?.visible ?? (!flash || (opensAt !== null && closesAt !== null)),
+  };
+  const window = flash ? flashWindowOf(current, wanted, now) : windowOf(live, current, wanted);
+  if (window === "flashWindow") {
+    return { kind: "invalid", field: "flashWindow" };
+  }
   // A vote, a quiz, a survey or a share is played once (ADR-191, ADR-198, ADR-199).
   const repeatCap = QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1);
   // A meet quest's day can never pay more meetings than its whole life (ADR-210).
@@ -257,15 +326,12 @@ export function mergeQuest(
     description: bilingual(input.description, current?.description ?? NO_TEXT),
     points,
     repeatCap,
-    ...windowOf(isLivePoll(type, config), current, {
-      opensAt,
-      closesAt,
-      visible: input.visible ?? current?.visible ?? true,
-    }),
+    ...window,
     config,
     verification,
     itemId: input.itemId === undefined ? (current?.itemId ?? null) : input.itemId,
     place,
+    flash,
   };
 }
 
@@ -297,6 +363,7 @@ export function auditView(quest: QuestRecord): Record<string, unknown> {
     verification: quest.verification,
     itemId: quest.itemId,
     place: quest.place,
+    flash: quest.flash,
     ...(code === undefined ? {} : { entryCode: "set" }),
     ...(quest.type === "passport"
       ? {
@@ -387,6 +454,10 @@ export async function withEvent<T>(
     if (pg.code === "PL409") {
       return { kind: "poll_locked", field: pg.detail ?? "live" };
     }
+    // A flash quest launched, or its window started, between the read and the write (migration 0055).
+    if (pg.code === "FL409") {
+      return { kind: "invalid", field: "flashWindow" };
+    }
     // The categories' unlocks would go round in a circle (migration 0044).
     if (pg.code === "CU422") {
       return { kind: "invalid", field: "unlockAfter" };
@@ -410,6 +481,10 @@ export async function withEvent<T>(
     // A community goal counts the quest or category (migration 0053), or a step unlocks it (migration 0054).
     if (pg.code === "23503" && (pg.table === "community_goal" || pg.table === "community_step")) {
       return { kind: "goal_in_use" };
+    }
+    // A boost doubles the category (migration 0055).
+    if (pg.code === "23503" && pg.table === "boost") {
+      return { kind: "boost_in_use" };
     }
     throw error;
   }

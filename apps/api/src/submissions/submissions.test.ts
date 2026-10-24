@@ -122,6 +122,7 @@ describe("sending", () => {
         levelUp: null,
         bonus: null,
         item: null,
+        boost: null,
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([

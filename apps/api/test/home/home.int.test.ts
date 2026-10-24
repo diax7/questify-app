@@ -370,6 +370,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
           communityLock: null,
           meet: null,
           game: null,
+          flash: null,
+          boost: null,
         },
       ]);
       expect(answer.body).not.toContain("SECRET");

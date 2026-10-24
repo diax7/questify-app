@@ -2,9 +2,11 @@ import type { Pool, PoolClient } from "pg";
 import { playerDocuments } from "@questify/shared";
 import { removedItemOf, type RemovedItem } from "#src/awards/awards";
 import {
+  boostApplied,
   bonusPaid,
   itemGiven,
   levelReached,
+  type Boosted,
   type Bonus,
   type ItemGiven,
   type LevelUp,
@@ -124,6 +126,8 @@ export type Sent = Readonly<{
   bonus: Bonus | null;
   /** The quest item an auto-approved send gave or missed (T-304d), or null. */
   item: ItemGiven | null;
+  /** The boost that doubled an auto-approved send (T-307), or null; `points` is then what it paid. */
+  boost: Boosted | null;
 }>;
 
 type SentRow = {
@@ -152,10 +156,11 @@ export function sendSubmission(
       request.idempotencyKey,
     ]);
     const row = rows[0] as SentRow;
+    const boost = row.completion_id === null ? null : await boostApplied(client, row.completion_id);
     return {
       submissionId: row.submission_id,
       status: row.status,
-      points: row.points,
+      points: row.points * (boost?.multiplier ?? 1),
       completionId: row.completion_id,
       score: Number(row.score),
       balance: Number(row.balance),
@@ -163,6 +168,7 @@ export function sendSubmission(
       levelUp: row.completion_id === null ? null : await levelReached(client, row.completion_id),
       bonus: row.completion_id === null ? null : await bonusPaid(client, row.completion_id),
       item: row.completion_id === null ? null : await itemGiven(client, row.completion_id),
+      boost,
     };
   });
 }

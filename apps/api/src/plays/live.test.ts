@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Pool } from "pg";
-import { EMPTY_LIVE, LIVE_LIMIT, createLiveReader, liveEtagOf } from "#src/plays/live";
+import {
+  EMPTY_LIVE,
+  LIVE_CACHE_MS,
+  LIVE_LIMIT,
+  createLiveReader,
+  liveEtagOf,
+} from "#src/plays/live";
+import { fakePool } from "#test/support/fake-pool";
 
 const unusedPool = {} as Pool;
 const unusedSettings = { forEvent: () => Promise.reject(new Error("unused")) };
@@ -32,5 +39,51 @@ describe("the live ETag", () => {
         polls: [{ questId: "q", closesAt: "2030-01-01T00:00:00.000Z" }],
       }),
     ).not.toBe(tag);
+  });
+});
+
+describe("the live read's flash quests and boosts (T-307)", () => {
+  it("passes them on with their ends as ISO times, and nothing when nothing is live", async () => {
+    let anything = true;
+    const fake = fakePool((sql) => {
+      if (sql.includes("event_has_live")) {
+        return { rows: [{ open: anything }] };
+      }
+      return {
+        rows: [
+          {
+            state: {
+              polls: [],
+              closed: [],
+              community: null,
+              flash: [{ questId: "q1", closesAt: "2030-11-01T07:10:00+00:00" }],
+              boosts: [
+                {
+                  boostId: "b1",
+                  categoryId: "c1",
+                  multiplier: 2,
+                  endsAt: "2030-11-01T07:30:00+00:00",
+                },
+              ],
+            },
+          },
+        ],
+      };
+    });
+    let at = 0;
+    const reader = createLiveReader({ pool: fake.pool, settings: unusedSettings }, () => at);
+    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e1")).toEqual({
+      polls: [],
+      closed: [],
+      community: null,
+      flash: [{ questId: "q1", closesAt: "2030-11-01T07:10:00.000Z" }],
+      boosts: [
+        { boostId: "b1", categoryId: "c1", multiplier: 2, endsAt: "2030-11-01T07:30:00.000Z" },
+      ],
+    });
+    anything = false;
+    at += LIVE_CACHE_MS + 1;
+    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e2")).toEqual(EMPTY_LIVE);
+    expect(EMPTY_LIVE).toEqual({ polls: [], closed: [], community: null, flash: [], boosts: [] });
   });
 });

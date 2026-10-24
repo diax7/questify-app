@@ -8,6 +8,12 @@ import {
   categoryNotHidden,
   enrollmentInactive,
   featureOff,
+  flashAlreadyLaunched,
+  flashCommunityLocked,
+  flashEventNotLive,
+  flashNotStarted,
+  flashScheduled,
+  flashTooLate,
   gameRefused409,
   gameRefused422,
   idempotencyKeyReused,
@@ -16,6 +22,7 @@ import {
   meetRefused422,
   notFound,
   notGameQuest,
+  notFlashQuest,
   notMeetQuest,
   notPassportQuest,
   notQuizQuest,
@@ -27,6 +34,7 @@ import {
   pollAlreadySent,
   pollCommunityLocked,
   pollEventNotLive,
+  platformFeatureOff,
   pollNotSent,
   questCodeInvalid,
   questionClosed,
@@ -71,6 +79,7 @@ import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
 import { castVote, readPoll, readVote, voteCounts } from "#src/plays/votes";
+import { FLASH_MINUTES, endFlash, launchFlash, type FlashDone } from "#src/quests/flash";
 import { closePoll, sendPoll, type PollDone } from "#src/quests/polls";
 import type { Ranking } from "#src/ranking/ranking";
 import type { SettingsService } from "#src/settings/service";
@@ -417,9 +426,39 @@ function pollValueOf(result: PollDone) {
   }
 }
 
+/** Launch's and End now's answer, or their refusal thrown (API.md, flash quests). */
+function flashValueOf(result: FlashDone) {
+  switch (result.kind) {
+    case "done":
+      return result.value;
+    case "not_found":
+      throw notFound();
+    case "not_flash":
+      throw notFlashQuest();
+    case "event_not_live":
+      throw flashEventNotLive();
+    case "feature_off":
+      throw platformFeatureOff();
+    case "already_launched":
+      throw flashAlreadyLaunched();
+    case "scheduled":
+      throw flashScheduled();
+    case "community_locked":
+      throw flashCommunityLocked();
+    case "too_late":
+      throw flashTooLate();
+    case "not_started":
+      throw flashNotStarted();
+  }
+}
+
+const launchBody = z.strictObject({
+  minutes: z.number().int().min(FLASH_MINUTES.min).max(FLASH_MINUTES.max),
+});
+
 /**
- * The dashboard's vote counts and survey results, and Send and Close of a live poll (T-306; Idempotency-Key required),
- * inside the organizer scope (owners and editors).
+ * The dashboard's vote counts and survey results, Send and Close of a live poll (T-306), and Launch and End now of a
+ * flash quest (T-307), inside the organizer scope (owners and editors; the writes need an Idempotency-Key).
  */
 export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): void {
   scope.post("/events/:eventId/quests/:questId/send", memberIdempotent, async (request) => {
@@ -434,6 +473,20 @@ export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): 
     parse(emptyBody, request.body);
     const target = { eventId, questId, requestId: request.id };
     return pollValueOf(await closePoll(deps, organizerContextOf(request), target));
+  });
+
+  scope.post("/events/:eventId/quests/:questId/launch", memberIdempotent, async (request) => {
+    const { eventId, questId } = parse(teamParams, request.params);
+    const { minutes } = parse(launchBody, request.body);
+    const target = { eventId, questId, minutes, requestId: request.id };
+    return flashValueOf(await launchFlash(deps, organizerContextOf(request), target));
+  });
+
+  scope.post("/events/:eventId/quests/:questId/end", memberIdempotent, async (request) => {
+    const { eventId, questId } = parse(teamParams, request.params);
+    parse(emptyBody, request.body);
+    const target = { eventId, questId, requestId: request.id };
+    return flashValueOf(await endFlash(deps, organizerContextOf(request), target));
   });
 
   scope.get("/events/:eventId/quests/:questId/votes", member, async (request) => {

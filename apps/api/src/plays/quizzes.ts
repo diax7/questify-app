@@ -1,8 +1,10 @@
 import type { PoolClient } from "pg";
 import {
   itemGiven,
+  boostApplied,
   levelReached,
   quizBonus,
+  type Boosted,
   type Bonus,
   type ItemGiven,
   type LevelUp,
@@ -47,6 +49,8 @@ export type QuizPlay = Readonly<{
   bonus: Bonus | null;
   /** The quest item a paid finish gave or missed (T-304d), or null. */
   item: ItemGiven | null;
+  /** The boost that doubled a paid finish (T-307), judged at the quiz's start; or null. */
+  boost: Boosted | null;
 }>;
 
 /** A step's answer and whether this very step paid (a replay, or a read after the payment, did not). */
@@ -127,6 +131,7 @@ async function playOf(client: PoolClient, questId: string): Promise<QuizPlay> {
     levelUp: quiz.completionId === null ? null : await levelReached(client, quiz.completionId),
     bonus: quiz.status === "finished" ? await quizBonus(client, questId) : null,
     item: quiz.completionId === null ? null : await itemGiven(client, quiz.completionId),
+    boost: quiz.completionId === null ? null : await boostApplied(client, quiz.completionId),
   };
 }
 

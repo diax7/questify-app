@@ -321,6 +321,8 @@ export type LedgerLine = Readonly<{
   reverses: string | null;
   removable: boolean;
   removed: boolean;
+  /** The boost that doubled the entry or its removal (T-307), shown as "×2"; null when none. */
+  multiplier: number | null;
 }>;
 
 /** One member's points record for the dashboard, newest first (owners and editors). */
@@ -354,6 +356,7 @@ export function memberLedger(
       reverses: row["reverses"] === null ? null : String(row["reverses"]),
       removable: row["removable"] === true,
       removed: row["removed"] === true,
+      multiplier: typeof row["multiplier"] === "number" ? row["multiplier"] : null,
     }));
   });
 }

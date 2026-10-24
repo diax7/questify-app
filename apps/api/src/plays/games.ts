@@ -13,9 +13,11 @@ import type { AuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
 import { BUCKETS } from "#src/auth/throttle";
 import {
+  boostApplied,
   bonusPaid,
   itemGiven,
   levelReached,
+  type Boosted,
   type Bonus,
   type ItemGiven,
   type LevelUp,
@@ -94,6 +96,8 @@ export type GameResult = Readonly<{
   levelUp: LevelUp | null;
   bonus: Bonus | null;
   item: ItemGiven | null;
+  /** The boost that doubled this round's pay (T-307), or null. */
+  boost: Boosted | null;
 }>;
 
 /** Whether the platform's `miniGames` switch is on; the event's own switch is the database's (`games_on`). */
@@ -331,6 +335,7 @@ async function finishOf(
     levelUp: paid === null ? null : await levelReached(client, paid),
     bonus: paid === null ? null : await bonusPaid(client, paid),
     item: paid === null ? null : await itemGiven(client, paid),
+    boost: paid === null ? null : await boostApplied(client, paid),
   };
   return { verdict: row.verdict, reason: row.reason, answer };
 }

@@ -1312,3 +1312,94 @@ export const communityPaying = make(
   "ما زالت المكافآت الجماعية قيد الصرف.",
   "Community rewards are still being paid.",
 );
+/** A boost's body broke a rule (T-307): `issues` names the fields (category, startsAt, minutes, outside_event). */
+export const invalidBoost = make(
+  422,
+  "invalid_boost",
+  "راجع بيانات مضاعفة النقاط: الفئة أو وقت البدء أو المدة.",
+  "Check the boost's details: its category, start or length.",
+);
+/** Another boost runs on the same category at that time (T-307): one at a time. */
+export const boostOverlap = make(
+  409,
+  "boost_overlap",
+  "تعمل مضاعفة أخرى على هذه الفئة في الوقت نفسه.",
+  "Another boost runs on this category at that time.",
+);
+/** A boost less than a minute before its start, or one that paid, can only be stopped (T-307, ADR-232). */
+export const boostStarted = make(
+  409,
+  "boost_started",
+  "بدأت المضاعفة أو أوشكت أن تبدأ، فيمكن إيقافها فقط.",
+  "This boost has started or is about to, so it can only be stopped.",
+);
+/** Stop before a boost's start (T-307): delete it instead, until a minute before the start. */
+export const boostNotStarted = make(
+  409,
+  "not_started",
+  "لم تبدأ المضاعفة بعد. احذفها بدلًا من إيقافها.",
+  "This boost hasn't started yet. Delete it instead.",
+);
+/** No boost once the event ended or its results exist (T-307). */
+export const boostEventEnded = make(
+  409,
+  "event_ended",
+  "انتهت الفعالية، فلا تُضاف إليها مضاعفات.",
+  "The event has ended, so no boost can be added.",
+);
+/** A category with a boost cannot be deleted (T-307, the boost's key). */
+export const boostInUse = make(
+  409,
+  "boost_in_use",
+  "لهذه الفئة مضاعفة نقاط، فلا يمكن حذفها.",
+  "This category has a boost, so it can't be deleted.",
+);
+/** Launch or End now on a quest that is not a flash quest (T-307). */
+export const notFlashQuest = make(
+  422,
+  "not_flash",
+  "هذه المهمة ليست مهمة خاطفة.",
+  "This quest is not a flash quest.",
+);
+/** A flash quest runs once (T-307, ADR-231): launched and ended, it can't be launched again. */
+export const flashAlreadyLaunched = make(
+  409,
+  "already_launched",
+  "انطلقت هذه المهمة الخاطفة وانتهت، فلا يمكن إطلاقها مرة أخرى.",
+  "This flash quest ran and has ended, so it can't be launched again.",
+);
+/** A scheduled flash quest runs at its own times (T-307): hide it to launch it by hand. */
+export const flashScheduled = make(
+  409,
+  "flash_scheduled",
+  "لهذه المهمة الخاطفة موعد محدد. أخفها أولًا لتطلقها يدويًا.",
+  "This flash quest has its own times. Hide it first to launch it by hand.",
+);
+/** A flash quest a community goal still locks is not launched (T-307, as Send, ADR-228). */
+export const flashCommunityLocked = make(
+  409,
+  "community_locked",
+  "يفتح هدفٌ جماعي هذه المهمة أو فئتها، فلا تنطلق قبل تحقيقه.",
+  "A community goal unlocks this quest or its category, so it can't be launched until the goal is reached.",
+);
+/** Less than a minute is left before the event's end (T-307). */
+export const flashTooLate = make(
+  409,
+  "too_late",
+  "بقي على نهاية الفعالية أقل من دقيقة.",
+  "Less than a minute is left before the event ends.",
+);
+/** End now on a flash quest whose window has not started (T-307, CTO 10): edit or hide it instead. */
+export const flashNotStarted = make(
+  409,
+  "not_started",
+  "لم تبدأ هذه المهمة الخاطفة بعد. عدّلها أو أخفها بدلًا من ذلك.",
+  "This flash quest hasn't started yet. Edit or hide it instead.",
+);
+/** Launch outside a live event or a rehearsal (T-307). */
+export const flashEventNotLive = make(
+  409,
+  "event_not_live",
+  "أطلق المهمة الخاطفة عندما تكون الفعالية مباشرة أو أثناء التجربة.",
+  "Launch the flash quest while the event is live, or during a rehearsal.",
+);

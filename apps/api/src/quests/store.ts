@@ -59,6 +59,10 @@ export type QuestRecord = Readonly<{
   place: QuestPlace | null;
   /** When a live poll was sent (T-306), or null for a draft and every other quest. */
   pollSentAt: Date | null;
+  /** Shown to players only inside its window (T-307, FR-251). */
+  flash: boolean;
+  /** When a flash quest was launched by hand, or null (scheduled, a draft, or not flash). */
+  flashLaunchedAt: Date | null;
 }>;
 
 /** One step of a passport (T-304b): its name and the version its printed code carries. */
@@ -86,6 +90,7 @@ export type QuestFields = Readonly<{
   verification: readonly QuestVerification[];
   itemId: string | null;
   place: QuestPlace | null;
+  flash: boolean;
 }>;
 
 /** The event as the builder needs it, read under a lock that serializes builder writes but never blocks joins. */
@@ -128,13 +133,15 @@ type QuestRow = {
   place_lng: string | null;
   place_radius_m: number | null;
   poll_sent_at: Date | null;
+  flash: boolean;
+  flash_launched_at: Date | null;
 };
 
 const CATEGORY_COLUMNS = `id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus,
   refresh, hidden, item_id`;
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
   repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id, place_lat, place_lng,
-  place_radius_m, poll_sent_at`;
+  place_radius_m, poll_sent_at, flash, flash_launched_at`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -173,6 +180,8 @@ const toQuest = (row: QuestRow): QuestRecord => ({
       ? null
       : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
   pollSentAt: row.poll_sent_at,
+  flash: row.flash,
+  flashLaunchedAt: row.flash_launched_at,
 });
 
 type StepRow = {
@@ -507,8 +516,8 @@ export async function insertQuest(
   const { rows } = await db.query<QuestRow>(
     `INSERT INTO quest (event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
                         repeat_cap, opens_at, closes_at, visible, position, type_config, verification, item_id,
-                        place_lat, place_lng, place_radius_m)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                        place_lat, place_lng, place_radius_m, flash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      RETURNING ${QUEST_COLUMNS}`,
     [
       eventId,
@@ -530,6 +539,7 @@ export async function insertQuest(
       fields.place?.lat ?? null,
       fields.place?.lng ?? null,
       fields.place?.radiusM ?? null,
+      fields.flash,
     ],
   );
   return toQuest(rows[0] as QuestRow);
@@ -553,7 +563,7 @@ export async function updateQuest(
     `UPDATE quest SET category_id = $2, title_ar = $3, title_en = $4, description_ar = $5, description_en = $6,
                       points = $7, repeat_cap = $8, opens_at = $9, closes_at = $10, visible = $11, position = $12,
                       type_config = $13, verification = $14, item_id = $15, place_lat = $16, place_lng = $17,
-                      place_radius_m = $18
+                      place_radius_m = $18, flash = $19
      WHERE id = $1 RETURNING ${QUEST_COLUMNS}`,
     [
       current.id,
@@ -574,6 +584,7 @@ export async function updateQuest(
       fields.place?.lat ?? null,
       fields.place?.lng ?? null,
       fields.place?.radiusM ?? null,
+      fields.flash,
     ],
   );
   return toQuest(rows[0] as QuestRow);

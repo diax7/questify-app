@@ -228,6 +228,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
       [
         "balance",
         "bonus",
+        "boost",
         "completionId",
         "item",
         "levelUp",

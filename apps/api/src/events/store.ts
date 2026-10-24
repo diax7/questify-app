@@ -38,6 +38,10 @@ export type EventRecord = Readonly<{
   miniGamesOn: boolean;
   /** The event's community quests switch (T-306b, ADR-226): off finishes its running goals. */
   communityOn: boolean;
+  /** The event's flash quests switch (T-307, ADR-231): off hides and refuses every flash quest at once. */
+  flashQuestsOn: boolean;
+  /** The event's boosts switch (T-307, ADR-233): off stops every boost paying at once. */
+  boostsOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -85,6 +89,8 @@ type Row = {
   meet_someone_on: boolean;
   mini_games_on: boolean;
   community_on: boolean;
+  flash_quests_on: boolean;
+  boosts_on: boolean;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -98,7 +104,9 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'shareQuests')::boolean, true) AS share_quests_on,
   coalesce((config -> 'features' ->> 'meetSomeone')::boolean, true) AS meet_someone_on,
   coalesce((config -> 'features' ->> 'miniGames')::boolean, true) AS mini_games_on,
-  coalesce((config -> 'features' ->> 'community')::boolean, true) AS community_on, config -> 'terms' AS terms,
+  coalesce((config -> 'features' ->> 'community')::boolean, true) AS community_on,
+  coalesce((config -> 'features' ->> 'flashQuests')::boolean, true) AS flash_quests_on,
+  coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -122,6 +130,8 @@ const toRecord = (row: Row): EventRecord => ({
   meetSomeoneOn: row.meet_someone_on,
   miniGamesOn: row.mini_games_on,
   communityOn: row.community_on,
+  flashQuestsOn: row.flash_quests_on,
+  boostsOn: row.boosts_on,
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

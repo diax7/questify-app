@@ -19,6 +19,7 @@ import {
   questLocked,
   rehearsalData,
   stepInUse,
+  boostInUse,
   goalInUse,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
@@ -94,6 +95,8 @@ const questFields = {
     })
     .nullable()
     .optional(),
+  // A flash quest (T-307): shown to players only inside its window.
+  flash: z.boolean().optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -146,6 +149,8 @@ const questView = (quest: QuestRecord) => ({
   itemId: quest.itemId,
   place: quest.place,
   pollSentAt: quest.pollSentAt?.toISOString() ?? null,
+  flash: quest.flash,
+  flashLaunchedAt: quest.flashLaunchedAt?.toISOString() ?? null,
   ...(quest.type === "passport"
     ? {
         steps: quest.steps.map((step) => ({
@@ -201,6 +206,8 @@ function answer<T>(
       throw stepInUse();
     case "goal_in_use":
       throw goalInUse();
+    case "boost_in_use":
+      throw boostInUse();
     case "invalid_item":
       throw invalidItem();
     case "poll_locked":

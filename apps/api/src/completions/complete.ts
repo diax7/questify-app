@@ -50,7 +50,12 @@ export type Completed = Readonly<{
   bonus: Bonus | null;
   /** The quest item this completion gave or missed (T-304d), or null; the same on a replay. */
   item: ItemGiven | null;
+  /** The boost that doubled this completion (T-307), or null; the same on a replay. */
+  boost: Boosted | null;
 }>;
+
+/** A boost a payment was made with (T-307, ADR-233): `points` already holds the multiplied amount. */
+export type Boosted = Readonly<{ multiplier: number }>;
 
 export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en: string }> }>;
 
@@ -150,6 +155,19 @@ export async function itemGiven(
         until: row.until,
         timeZone: row.time_zone,
       });
+}
+
+/** The boost this completion was paid with, for the calling player (completion_boost, migration 0055), or null. */
+export async function boostApplied(
+  client: PoolClient,
+  completionId: string,
+): Promise<Boosted | null> {
+  const { rows } = await client.query<{ multiplier: number | null }>(
+    "SELECT completion_boost($1) AS multiplier",
+    [completionId],
+  );
+  const multiplier = rows[0]?.multiplier ?? null;
+  return multiplier === null ? null : { multiplier };
 }
 
 /** The bonus this completion paid, for the calling player (own_bonus, migration 0044). */
@@ -367,6 +385,7 @@ async function callEngine(
     const levelUp = await levelReached(client, row.completion_id);
     const bonus = await bonusPaid(client, row.completion_id);
     const item = await itemGiven(client, row.completion_id);
+    const boost = await boostApplied(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -379,6 +398,7 @@ async function callEngine(
         levelUp,
         bonus,
         item,
+        boost,
       },
     };
   } catch (error) {

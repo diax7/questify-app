@@ -27,6 +27,8 @@ const STORED: EventRecord = {
   meetSomeoneOn: true,
   miniGamesOn: true,
   communityOn: true,
+  flashQuestsOn: true,
+  boostsOn: true,
   terms: DEFAULT_TERMS,
   venuePin: { lat: 24.7136, lng: 46.6753 },
   venueRadiusM: 800,

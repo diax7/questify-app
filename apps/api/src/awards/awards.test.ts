@@ -304,6 +304,7 @@ describe("memberLedger and report", () => {
         reverses: 4,
         removable: false,
         removed: true,
+        multiplier: 2,
       },
     ]);
     const done = await memberLedger(pool.deps, STAFF, {
@@ -328,6 +329,7 @@ describe("memberLedger and report", () => {
           reverses: null,
           removable: true,
           removed: false,
+          multiplier: null,
         },
         {
           id: "6",
@@ -342,6 +344,7 @@ describe("memberLedger and report", () => {
           reverses: "4",
           removable: false,
           removed: true,
+          multiplier: 2,
         },
       ],
     });

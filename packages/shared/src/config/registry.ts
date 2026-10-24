@@ -48,12 +48,22 @@ export type EventConfig = Readonly<{
  */
 export const FEATURES: FeatureRegistry = {
   bigScreen: { gated: true },
+  /**
+   * Double-point boosts (T-307, FR-252, ADR-233): the owner turns them off for an event, which stops every boost paying
+   * at once; off for the platform, no new boost is saved while running ones finish.
+   */
+  boosts: { gated: false },
   cheers: { gated: false },
   /**
    * Community quests (T-306b, F-101, ADR-226): the owner turns them off for an event, which finishes its running
    * goals; off for the platform, the bar and the builder are hidden while running goals still finish and pay.
    */
   community: { gated: false },
+  /**
+   * Flash quests (T-307, FR-251, ADR-231): off for an event or the platform, every flash quest is hidden and refused at
+   * once, and none can be launched.
+   */
+  flashQuests: { gated: false },
   /**
    * Location check-in quests and the far-from-venue flag (T-303b, ADR-208): off for every event until the App Store
    * privacy label, Play's Data safety form and the database's parameter logging are confirmed. Off, the builder refuses

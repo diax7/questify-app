@@ -84,6 +84,8 @@ const view = (event: EventRecord) => ({
   meetSomeone: event.meetSomeoneOn,
   miniGames: event.miniGamesOn,
   community: event.communityOn,
+  flashQuests: event.flashQuestsOn,
+  boosts: event.boostsOn,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
 });
@@ -218,7 +220,8 @@ export function registerEventRoutes(
 
   // FR-607, FR-608, FR-219, FR-1009 and F-101: the owner turns the event's ranking, today's ranking, share and meet
   // quests, mini-games and community quests off and on; the event's other switches stay as they are. Community off
-  // finishes the event's running goals (migration 0053's trigger, ADR-226).
+  // finishes the event's running goals (migration 0053's trigger, ADR-226). Flash quests off hides every one at once;
+  // boosts off stops every boost paying at once (T-307, migration 0055).
   const switches = [
     ["/events/:eventId/ranking", "ranking"],
     ["/events/:eventId/ranking-today", "rankingToday"],
@@ -226,6 +229,8 @@ export function registerEventRoutes(
     ["/events/:eventId/meet-someone", "meetSomeone"],
     ["/events/:eventId/mini-games", "miniGames"],
     ["/events/:eventId/community", "community"],
+    ["/events/:eventId/flash-quests", "flashQuests"],
+    ["/events/:eventId/double-points", "boosts"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

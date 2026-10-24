@@ -39,15 +39,36 @@ export type LiveCommunity = Readonly<{
   contributed: boolean;
 }>;
 
-/** What is live in an event for one player now (ADR-221): the polls to show and the at_close results just in. */
+/** A boost running on a category this player sees (T-307). */
+export type LiveBoost = Readonly<{
+  boostId: string;
+  categoryId: string;
+  multiplier: number;
+  endsAt: string;
+}>;
+
+/**
+ * What is live in an event for one player now (ADR-221): the polls to show and the at_close results just in, the
+ * community goal, the flash quests open now and the boosts running (T-307). The event's 3-second "anything live" check
+ * stops answering a flash quest or a boost 15 minutes after it starts (CTO 8), so the app takes these as one-time
+ * cards only: what runs now is read from the quests read (each quest's `flash` and `boost`).
+ */
 export type LiveState = Readonly<{
   polls: readonly Readonly<{ questId: string; closesAt: string }>[];
   closed: readonly Readonly<{ questId: string }>[];
   /** The community goal (T-306b); null when none is shown or the platform switch is off. */
   community: LiveCommunity | null;
+  flash: readonly Readonly<{ questId: string; closesAt: string }>[];
+  boosts: readonly LiveBoost[];
 }>;
 
-export const EMPTY_LIVE: LiveState = { polls: [], closed: [], community: null };
+export const EMPTY_LIVE: LiveState = {
+  polls: [],
+  closed: [],
+  community: null,
+  flash: [],
+  boosts: [],
+};
 
 /** How long an event's "anything live" answer is kept (CTO 7), and the per-player limit on the live read. */
 export const LIVE_CACHE_MS = 3000;
@@ -136,6 +157,14 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
         })),
         closed: state.closed,
         community,
+        flash: state.flash.map((quest) => ({
+          questId: quest.questId,
+          closesAt: new Date(quest.closesAt).toISOString(),
+        })),
+        boosts: state.boosts.map((boost) => ({
+          ...boost,
+          endsAt: new Date(boost.endsAt).toISOString(),
+        })),
       };
     },
   };

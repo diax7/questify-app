@@ -76,6 +76,8 @@ const questRow = (fields: Record<string, unknown> = {}) => ({
   met_today: null,
   game_left: null,
   game_passed: null,
+  flash_closes_at: null,
+  boost: null,
   ...fields,
 });
 
@@ -236,12 +238,19 @@ describe("the event home's switches and prize", () => {
 
 describe("a member's points record", () => {
   it("names the quest of a quest's line, and only the kind of any other line", async () => {
-    const line = { at: NOW, score_delta: "5", balance_delta: "5", title_ar: null, title_en: null };
+    const line = {
+      at: NOW,
+      score_delta: "5",
+      balance_delta: "5",
+      title_ar: null,
+      title_en: null,
+      multiplier: null,
+    };
     const view = await memberActivity(
       homeDeps({
         activity: [
           { ...line, id: "2", kind: "award", quest_id: null },
-          { ...line, id: "1", kind: "quest", quest_id: "q1", title_en: "Quest" },
+          { ...line, id: "1", kind: "quest", quest_id: "q1", title_en: "Quest", multiplier: 2 },
         ],
       }),
       PLAYER,
@@ -250,8 +259,12 @@ describe("a member's points record", () => {
     expect(view).toMatchObject({
       kind: "entries",
       entries: [
-        { id: "2", reason: { type: "award" } },
-        { id: "1", reason: { type: "quest", questId: "q1", title: { ar: null, en: "Quest" } } },
+        { id: "2", reason: { type: "award" }, multiplier: null },
+        {
+          id: "1",
+          reason: { type: "quest", questId: "q1", title: { ar: null, en: "Quest" } },
+          multiplier: 2,
+        },
       ],
     });
   });

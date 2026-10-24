@@ -158,6 +158,24 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the organizer's owner only (owner route, walked below; CO403 in settle_community for an editor); another organizer's event answers 404; the payer then runs for that event only (test/community/routes, test/db/community)",
   "PUT /v1/organizers/:organizerId/events/:eventId/community":
     "owner of that organizer only (owner route, walked below); changes only the community switch of that event (test/community/routes)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/flash-quests":
+    "owner of that organizer only (owner route, walked below); changes only the flashQuests switch of that event (test/quests/flash)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/double-points":
+    "owner of that organizer only (owner route, walked below); changes only the boosts switch of that event (test/boosts/routes)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/launch":
+    "members inside their event limit; a flash quest of that event only, through launch_flash (test/quests/flash, test/db/flash-boosts)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/end":
+    "members inside their event limit; a flash quest of that event only, through end_flash (test/quests/flash, test/db/flash-boosts)",
+  "GET /v1/organizers/:organizerId/events/:eventId/boosts":
+    "members of that organizer only, inside their event limit; another organizer's event answers 404 (AN404 in event_boosts) (test/boosts/routes, test/db/flash-boosts)",
+  "POST /v1/organizers/:organizerId/events/:eventId/boosts":
+    "members inside their event limit; a category of that event only (BO422 category), through save_boost (test/boosts/routes, test/db/flash-boosts)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/boosts/:boostId":
+    "members inside their event limit; a boost of another event answers 404 (BN404 in save_boost) (test/boosts/routes, test/db/flash-boosts)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/boosts/:boostId":
+    "members inside their event limit; a boost of another event answers 404 (BN404 in delete_boost) (test/boosts/routes, test/db/flash-boosts)",
+  "POST /v1/organizers/:organizerId/events/:eventId/boosts/:boostId/end":
+    "members inside their event limit; a boost of another event answers 404 (BN404 in end_boost) (test/boosts/routes, test/db/flash-boosts)",
   "PUT /v1/organizers/:organizerId/events/:eventId/mini-games":
     "owner of that organizer only (owner route, walked below); changes only the miniGames switch of that event (test/plays/games)",
   "GET /v1/quests/:questId/game":

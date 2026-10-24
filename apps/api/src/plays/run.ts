@@ -1,8 +1,10 @@
 import type { Pool, PoolClient } from "pg";
 import {
+  boostApplied,
   bonusPaid,
   itemGiven,
   levelReached,
+  type Boosted,
   type Bonus,
   type ItemGiven,
   type LevelUp,
@@ -135,6 +137,8 @@ export type Paid = Readonly<{
   bonus: Bonus | null;
   /** The quest item this play gave or missed (T-304d), or null. */
   item: ItemGiven | null;
+  /** The boost that doubled this play (T-307), or null. */
+  boost: Boosted | null;
 }>;
 
 /** The row `vote_quest`, `submit_survey` and `share_quest` answer with. */
@@ -158,5 +162,6 @@ export async function paidOf(client: PoolClient, rows: readonly PaidRow[]): Prom
     levelUp: await levelReached(client, row.completion_id),
     bonus: await bonusPaid(client, row.completion_id),
     item: await itemGiven(client, row.completion_id),
+    boost: await boostApplied(client, row.completion_id),
   };
 }

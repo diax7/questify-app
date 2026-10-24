@@ -15,6 +15,7 @@ import {
   type HomeDeps,
   type MemberQuest,
   type QuestState,
+  type RunningBoost,
 } from "#src/home/home";
 
 const eventParams = z.object({ eventId: z.uuid() });
@@ -39,6 +40,10 @@ function activityPage(query: z.infer<typeof activityQuery>): {
   }
 }
 
+/** A running boost as the app reads it (T-307). */
+const boostView = (boost: RunningBoost | null) =>
+  boost === null ? null : { multiplier: boost.multiplier, endsAt: boost.endsAt.toISOString() };
+
 const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   id: quest.id,
   title: quest.title,
@@ -59,6 +64,8 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   communityLock: quest.communityLock,
   meet: quest.meet,
   game: quest.game,
+  flash: quest.flash === null ? null : { closesAt: quest.flash.closesAt.toISOString() },
+  boost: boostView(quest.boost),
 });
 
 function playerIdOf(request: { player?: { id: string } | undefined }): string {
@@ -126,6 +133,7 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
         refresh: category.refresh,
         resetsAt: category.resetsAt?.toISOString() ?? null,
         communityLock: category.communityLock,
+        boost: boostView(category.boost),
         quests: category.quests.map(questView),
       })),
     };

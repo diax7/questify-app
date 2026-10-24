@@ -46,7 +46,14 @@ export type MemberQuest = Readonly<{
   game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
   /** The community goal holding it shut, its category's included (T-306c, ADR-228); null when free. */
   communityLock: CommunityLock | null;
+  /** A flash quest's end (T-307, FR-251): listed only inside its window; null for every other quest. */
+  flash: Readonly<{ closesAt: Date }> | null;
+  /** The boost doubling its category for this player now (T-307, FR-252), or null. */
+  boost: RunningBoost | null;
 }>;
+
+/** A boost in force for this player (T-307): what the quest pays is its points times `multiplier` until `endsAt`. */
+export type RunningBoost = Readonly<{ multiplier: number; endsAt: Date }>;
 
 /**
  * Why a quest is shut (ADR-201): a community goal not yet reached (T-306c, checked first), or its category's gates:
@@ -77,6 +84,8 @@ export type CategoryRules = Readonly<{
   resetsAt: Date | null;
   /** The community goal locking the category as a whole (T-306c), shown once as a category note; null when free. */
   communityLock: CommunityLock | null;
+  /** The boost doubling the category for this player now (T-307), or null. */
+  boost: RunningBoost | null;
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }> &
@@ -232,7 +241,16 @@ type QuestRow = Readonly<{
   game_passed: boolean | null;
   community_lock: unknown;
   category_community_lock: unknown;
+  flash_closes_at: Date | null;
+  /** jsonb: `{boostId, multiplier, endsAt}` or null. */
+  boost: Readonly<{ multiplier: number; endsAt: string }> | null;
 }>;
+
+/** The running boost a row names, with its end as a time. */
+const boostOf = (row: QuestRow): RunningBoost | null =>
+  row.boost === null
+    ? null
+    : { multiplier: row.boost.multiplier, endsAt: new Date(row.boost.endsAt) };
 
 /** An item's name, or null when the row names none. */
 const itemName = (ar: string | null, en: string | null): Text | null =>
@@ -257,6 +275,7 @@ const rulesOf = (row: QuestRow): CategoryRules => ({
   refresh: row.refresh,
   resetsAt: row.resets_at,
   communityLock: lockNoteOf(row.category_community_lock),
+  boost: boostOf(row),
 });
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>
@@ -303,6 +322,8 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       game:
         row.game_passed === null ? null : { attemptsLeft: row.game_left, passed: row.game_passed },
       communityLock: lockNoteOf(row.community_lock),
+      flash: row.flash_closes_at === null ? null : { closesAt: row.flash_closes_at },
+      boost: boostOf(row),
     });
     categories.set(row.category_id, category);
   }
@@ -510,6 +531,8 @@ export type ActivityEntry = Readonly<{
   scoreDelta: number;
   balanceDelta: number;
   reason: Readonly<{ type: "quest"; questId: string; title: Text }> | Readonly<{ type: string }>;
+  /** The boost that doubled this entry or its removal (T-307), shown as "×2"; null when none. */
+  multiplier: number | null;
 }>;
 
 type ActivityRow = Readonly<{
@@ -521,6 +544,7 @@ type ActivityRow = Readonly<{
   quest_id: string | null;
   title_ar: string | null;
   title_en: string | null;
+  multiplier: number | null;
 }>;
 
 export type ActivityView =
@@ -561,6 +585,7 @@ export async function memberActivity(
               questId: entry.quest_id,
               title: { ar: entry.title_ar, en: entry.title_en },
             },
+      multiplier: entry.multiplier,
     }));
     return { kind: "entries", entries } as const;
   });

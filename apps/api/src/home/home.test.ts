@@ -24,6 +24,8 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   meet: null,
   game: null,
   communityLock: null,
+  flash: null,
+  boost: null,
   ...fields,
 });
 

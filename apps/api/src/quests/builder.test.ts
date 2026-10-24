@@ -22,6 +22,8 @@ const STORED: QuestRecord = {
   itemId: "44444444-4444-4444-8444-444444444444",
   place: null,
   pollSentAt: null,
+  flash: false,
+  flashLaunchedAt: null,
 };
 const ZONE = "Asia/Riyadh";
 
@@ -106,6 +108,7 @@ describe("mergeQuest", () => {
       verification: ["quest_qr"],
       itemId: null,
       place: null,
+      flash: false,
     });
   });
 
@@ -123,6 +126,7 @@ describe("mergeQuest", () => {
       verification: [],
       itemId: STORED.itemId,
       place: null,
+      flash: false,
     });
   });
 
@@ -192,6 +196,7 @@ describe("mergeQuest", () => {
       verification: [],
       itemId: null,
       place: null,
+      flash: false,
     });
   });
 
@@ -346,5 +351,105 @@ describe("a live poll's window (T-306)", () => {
         field: "config",
       });
     }
+  });
+});
+
+describe("a flash quest (T-307, ADR-231)", () => {
+  const NOW = new Date("2030-11-01T08:00:00Z");
+  const base = { categoryId: "c", title: { en: "Drop" }, points: 20, flash: true };
+  const flash: QuestRecord = {
+    ...STORED,
+    type: "scan_qr",
+    config: {},
+    verification: ["quest_qr"],
+    flash: true,
+    visible: false,
+    opensAt: null,
+    closesAt: null,
+  };
+
+  it("is a hidden draft when saved without both times, and shown with a window of 1 to 1,440 minutes", () => {
+    expect(mergeQuest(undefined, "scan_qr", base, ZONE, NOW)).toMatchObject({
+      flash: true,
+      visible: false,
+      opensAt: null,
+      closesAt: null,
+    });
+    expect(
+      mergeQuest(
+        undefined,
+        "scan_qr",
+        { ...base, opensAt: "2030-11-01T12:00", closesAt: "2030-11-01T12:01" },
+        ZONE,
+        NOW,
+      ),
+    ).toMatchObject({ flash: true, visible: true });
+    expect(
+      mergeQuest(
+        undefined,
+        "scan_qr",
+        { ...base, opensAt: "2030-11-01T12:00", closesAt: "2030-11-02T12:00" },
+        ZONE,
+        NOW,
+      ),
+    ).toMatchObject({ visible: true });
+    for (const window of [
+      { visible: true },
+      { visible: true, opensAt: "2030-11-01T12:00" },
+      { opensAt: "2030-11-01T12:00", closesAt: "2030-11-02T12:01" },
+    ]) {
+      expect(mergeQuest(undefined, "scan_qr", { ...base, ...window }, ZONE, NOW)).toEqual({
+        kind: "invalid",
+        field: "flashWindow",
+      });
+    }
+    expect(
+      mergeQuest(
+        undefined,
+        "scan_qr",
+        { ...base, visible: false, opensAt: "2030-11-01T12:00" },
+        ZONE,
+      ),
+    ).toMatchObject({ visible: false });
+  });
+
+  it("is never a live poll", () => {
+    const poll = {
+      options: [
+        { id: "a", text: { en: "A" } },
+        { id: "b", text: { en: "B" } },
+      ],
+      live: { choices: "one", results: "after_vote", minutes: 5 },
+    };
+    expect(mergeQuest(undefined, "vote", { ...base, config: poll }, ZONE, NOW)).toEqual({
+      kind: "invalid",
+      field: "flash",
+    });
+  });
+
+  it("keeps a launched or started window whatever is asked, and stays flash once launched", () => {
+    const opensAt = new Date("2030-11-01T07:55:00Z");
+    const closesAt = new Date("2030-11-01T08:05:00Z");
+    const launched = { ...flash, visible: true, opensAt, closesAt, flashLaunchedAt: opensAt };
+    const asked = { visible: false, opensAt: null, closesAt: "2030-11-01T15:00" };
+    expect(mergeQuest(launched, "scan_qr", asked, ZONE, NOW)).toMatchObject({
+      visible: true,
+      opensAt,
+      closesAt,
+    });
+    expect(mergeQuest(launched, "scan_qr", { flash: false }, ZONE, NOW)).toEqual({
+      kind: "invalid",
+      field: "flashLaunched",
+    });
+    const started = { ...flash, visible: true, opensAt, closesAt };
+    expect(mergeQuest(started, "scan_qr", asked, ZONE, NOW)).toMatchObject({ opensAt, closesAt });
+    const later = { ...started, opensAt: new Date("2030-11-01T08:01:00Z") };
+    expect(mergeQuest(later, "scan_qr", { visible: false }, ZONE, NOW)).toMatchObject({
+      visible: false,
+    });
+    expect(mergeQuest(later, "scan_qr", { flash: false }, ZONE, NOW)).toMatchObject({
+      flash: false,
+    });
+    expect(auditView(launched)).toMatchObject({ flash: true });
   });
 });
