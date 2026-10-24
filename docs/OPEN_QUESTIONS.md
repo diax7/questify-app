@@ -438,3 +438,16 @@ is left to count); a finished goal stays on the event home for 30 minutes. Agree
 ADR-226: off for one event ends a running goal at once (rewards already reached are still paid); off for the whole
 platform only hides community quests and lets running goals finish and pay. Agree? Note (CTO plan review 4): ending it
 at once means a player whose scan was still being saved at that second is not added to a reward already reached.
+
+## Q-191 — When an unlock locks its item (2026-10-24, T-306c plan)
+ADR-227: a community goal's unlock locks its quest, category or shop reward as soon as the goal is saved, even before
+the goal starts; staff with an award limit cannot hand it out while locked, owners and editors can. Agree?
+
+## Q-192 — Showing a locked item (2026-10-24, T-306c plan)
+ADR-228: a locked quest or shop reward is shown as locked with "Unlocks at 5000 community points" (a teaser), not
+hidden until it unlocks; the public event page hides it. Agree, or hide it everywhere until unlocked?
+
+## Q-193 — A missed unlock (2026-10-24, T-306c plan)
+ADR-229: if the community misses the step, the item stays locked for the rest of the event, with no "Unlock now"
+button; switching community quests off for the event ends its running goal as missed, so what it would unlock stays
+locked for good (the switch warns); during a rehearsal locked items stay locked. Agree, or add an owner's "Unlock now"?

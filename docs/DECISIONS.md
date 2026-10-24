@@ -2918,3 +2918,34 @@ not cancel rewards already promised; the owner's settle must be quick but never 
 contributor whose first counted row was still in an open transaction at that moment is not paid for a step already
 reached. Accepted: the owner chose to stop the goal; the window between a row's transaction and its commit is under
 the 5 s statement limit.
+
+## ADR-227 — The community unlock
+**Status:** Proposed (Claude, 2026-10-24; T-306c plan, CTO plan review 84 folded in). Q-191.
+**Decision:** a community step's `unlock` reward names one quest, category or shop reward of its event. The target is
+locked from the moment the goal is saved until the step is reached (`community_reach`), the same for every player, and
+a target can be locked once in the event's life. A live poll, a removed reward, another event's item, or the quest or
+category the goal counts (or the counted quest's category) cannot be a target. An owner's or editor's manual award
+passes the lock like every category rule; an operator's capped award does not. A missed lock never blocks another
+quest or category (left out of the in-order, cleared and done checks; a missed whole-category lock counts as met). A
+completion racing the goal's save may be paid; a reservation cannot (the reward row serialises them).
+**Why:** one gate read by every door, with no per-player state, keeps the lock simple to check everywhere; locking at
+save keeps a target from being played before its goal opens.
+
+## ADR-228 — How a locked item shows
+**Status:** Proposed (Claude, 2026-10-24; T-306c plan). Q-192.
+**Decision:** a locked quest or reward stays listed where the player already saw it, with a line naming the goal and
+its threshold (or when the goal starts, or that it was missed), never the target; its sheet's content is not served;
+the public event page leaves it out until unlocked; a closed live poll's results are not shown and Send is refused
+while its poll is locked. The bar names the target only to a player who sees it ("a surprise" otherwise). A pinned
+locked reward shows its lock on the Home goal card; the automatic pick skips locked rewards. The app refetches on the
+reach and shows a one-time card.
+**Why:** the lock is a teaser for the community goal, but must never reveal a hidden category or an item outside the
+player's audience.
+
+## ADR-229 — Missed unlocks and rehearsal
+**Status:** Proposed (Claude, 2026-10-24; T-306c plan). Q-193.
+**Decision:** a step missed, or ended by the event's community switch, leaves its target locked for the rest of the
+event, with no owner override; the switch's confirm and the builder form say so. In rehearsal targets stay locked
+(goals do not run there, Q-186). The gate only reads reach rows, all written after the go-live wipe, so nothing
+unlocks in rehearsal or re-locks at go-live.
+**Why:** an unlock given on a miss is not a reward; an override is a feature nobody has asked for yet.

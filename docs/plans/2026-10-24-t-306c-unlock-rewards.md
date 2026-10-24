@@ -10,6 +10,12 @@ functions are changed here by restating them, never by editing 0053). Depends on
 
 Dhia is away: open choices are my recommendation, written as **Proposed** ADR-227 to ADR-229 and Q-191 to Q-193.
 
+**CTO plan review 2026-10-24: 84/100, findings folded in** (operators no longer pass the lock; a missed lock no longer
+blocks other quests or categories; the completeness test covers every granted reader; the counted quest's category
+refused; Arabic wording without the counted noun and a "starts" note; the switch-off warning; closed poll results and
+Send; the Home goal card; one lock computed per row; the ADRs and Qs written to DECISIONS and OPEN_QUESTIONS). Each is
+marked "(CTO n)" below.
+
 ## What T-306b built that this plan builds on
 
 - `community_step.reward` is `points | moment | nothing` (0053:73); the builder writes steps wholesale before the start
@@ -39,15 +45,27 @@ for 0053's `RESTRICT` goal keys, and if it fails there a change to `NO ACTION` f
   or not), so a target unlocked once can never be locked again by a later goal (`GL409 unlock_taken`).
 - **Refused targets** (`CG422`, DETAIL `unlock`, HINT the reason; the API's `422 invalid_goal {issues}`): not in this
   event (`unlock_target`), a live poll (Send and Close own its window, ADR-220), a removed reward, the quest or category
-  the goal itself counts (`unlock_counted`: a `completions`/`players` goal on quest X could never count past 0 if its
-  step locks X). A `points` or "every quest" goal may lock any other quest.
+  the goal itself counts, or the category of the quest it counts (`unlock_counted`, CTO 4: a `completions`/`players`
+  goal on quest X could never count past 0 if its step locks X or X's category). A `points` or "every quest" goal may
+  lock any other quest.
 - **A missed step stays locked** for the rest of the event (ADR-229): the goal was missed, so its reward is not given.
-  The event switch off ends running goals as `missed` (ADR-226), so their unreached unlocks stay locked too. The
-  platform switch off lets running goals finish (ADR-226), and a reach there still unlocks.
-- **What passes the lock**: an owner's or editor's manual award (`skip_category`), exactly as it passes every category
-  rule (0046:277); a replayed request (same key, first answer); the desk handing over a redemption made before the goal
-  was saved; a submission sent before the lock appeared and approved after (approval does not re-check the window,
-  as today for a closed quest).
+  The event switch off ends running goals as `missed` (ADR-226), so their unreached unlocks stay locked too; the
+  switch's confirm dialog and the builder form say so ("Turning this off ends the running goal; what it would unlock
+  stays locked", CTO 6). The platform switch off lets running goals finish (ADR-226), and a reach there still unlocks.
+- **A missed lock never blocks anything else** (CTO 2). A quest whose own lock is missed can never be done, so
+  `category_cleared`, `category_done` and the in-order check of `category_lock` leave it out, as they leave out live
+  polls (0052:62-105); a category locked as a whole whose lock is missed counts as met for a category that unlocks
+  after it, as an unrevealed hidden one does (0046:251). A lock still **waiting** counts as today (its quests are not
+  done): leaving it out would open the later quest or category and then shut it again at the reach, since these checks
+  are evaluated live. Tests: in-order successor of a missed quest opens; `unlock_after` successor of a missed category
+  opens; the category of a missed quest still pays its bonus once the rest is done; a waiting lock holds all three.
+- **What passes the lock**: an owner's or editor's manual award (`skip_category` with no operator), exactly as it
+  passes every category rule (0046:277). **An operator's capped award does not** (CTO 1): `operator_award` (0030:502)
+  reaches `record_completion` with `proof_method = 'manual'` too (0032:819), so `record_completion` checks
+  `quest_community_lock` itself when `proof_method = 'manual' AND operator IS NOT NULL` (`QN403 community_locked`), and
+  `operator_award_quests` (0030:550) leaves locked quests out. Also passing: a replayed request (same key, first
+  answer); the desk handing over a redemption made before the goal was saved; a submission sent before the lock
+  appeared and approved after (approval does not re-check the window, as today for a closed quest).
 - **Builder body**: a step's `reward` gains `{kind: 'unlock', target: {kind: 'quest' | 'category' | 'reward', id}}`.
   `community_body_steps` returns the three target columns; `community_locked_field`'s step comparison includes them
   (a started goal's unlock is `goal_locked`, field `steps`); `community_goals` returns each target with its names and
@@ -61,9 +79,12 @@ for 0053's `RESTRICT` goal keys, and if it fails there a change to `NO ACTION` f
 - `quest_community_lock(quest_row quest) RETURNS uuid`: the step holding the quest shut, the quest's own first, then its
   category's; NULL when free. Two primary-key-sized lookups by the partial unique indexes, then the reach by its key.
 - `reward_community_lock(reward_row reward) RETURNS uuid`: the same for a reward.
-- `community_lock_note(step uuid, enrolled uuid) RETURNS jsonb`: what a player is told, NULL for a NULL step:
-  `{goalId, title: {ar, en}, measure, threshold, state: 'waiting' | 'missed'}` (`missed` once the goal is final, or
-  `missed`, without reaching the step). It names the goal and its numbers only, never the target.
+- `community_lock_missed(step uuid) RETURNS boolean`: the step's goal is final (or `missed`) without a reach. Used by
+  the CTO 2 rules above.
+- `community_lock_note(step uuid) RETURNS jsonb` (no member, CTO 11): what a player is told, NULL for a NULL step:
+  `{goalId, title: {ar, en}, measure, threshold, state: 'scheduled' | 'waiting' | 'missed', startsAt}` (`scheduled`
+  while the goal's `settled_until` is NULL, so the note can say when it starts, CTO 5; `missed` as above). It names the
+  goal and its numbers only, never the target.
 
 ## Every door and reader the gate reaches
 
@@ -72,15 +93,18 @@ through the one it calls.
 
 | Path (latest file) | How the gate reaches it | Test (`test/db/community-unlocks.int.test.ts` unless said) |
 |---|---|---|
-| `category_lock` (0052:82), restated | `community_locked` checked **first** (`quest_community_lock(quest_row) IS NOT NULL`), then 0052's `category_not_started`, `category_locked`, `order_locked` | each reason's precedence with a lock present |
-| `quest_open_check` (0046:279) | via `category_lock`: `QN403 community_locked`; `skip_category` (manual award) passes, as for every category rule | manual award of a locked quest pays |
+| `category_lock` (0052:82), restated | `community_locked` checked **first** (`quest_community_lock(quest_row) IS NOT NULL`), then 0052's `category_not_started`, `category_locked` (a missed whole-category lock counts as met), `order_locked` (missed-locked quests left out) | each reason's precedence with a lock present; the missed cases (CTO 2) |
+| `category_cleared`, `category_done` (0052:62-78), restated | missed-locked quests left out (CTO 2) | successor and bonus tests above |
+| `quest_open_check` (0046:279) | via `category_lock`: `QN403 community_locked`; `skip_category` (manual award) passes, as for every category rule | an owner's manual award of a locked quest pays |
+| `record_completion` (0050), restated | `proof_method = 'manual' AND operator IS NOT NULL` → `quest_community_lock` checked (CTO 1) | door table: operator award refused |
+| `operator_award_quests` (0030:550), restated | `AND quest_community_lock(q) IS NULL` (CTO 1) | locked quest absent, present after the reach |
 | `record_completion` (0050) and its callers `complete_quest` (0048: scan, typed code, location), the operator's scan (`operators/scan.ts`), `vote_quest` (0052) | via `quest_open_check` | **door table** (below) |
 | `stamp_step`, `submit_quest` (0045) | via `quest_open_check` | door table |
 | `play_enter` (0041): quiz start and answer (0041), survey and share (0042), `start_game_round` (0050) | via `quest_open_check` | door table; a quiz started before the lock appeared is refused on its next answer |
 | `meet_may_play` (0049): `meet_player`, `issue_meet_pass`, `finish_game_round` (0050) | via `quest_open_check` | door table; a game round open when the lock appeared is refused at finish |
-| `live_state` polls (0053:1105) | via `category_lock(q, …) IS NULL` (already there); not restated | a live poll in a locked category is not offered |
-| `category_cleared` / `category_done` (0052) | unchanged: a locked category's quests are not done, so a category that unlocks after it stays shut and no bonus is paid | the chain A (community-locked) → B stays `category_locked` |
-| `member_event_quests` (0050:699), DROP and CREATE | `lock` can read `community_locked`; new column `community_lock jsonb` (`community_lock_note` of the quest's step, the category's included) | listed with the note, `waiting` then gone after the reach; `missed` |
+| `live_state` (0053:1105), restated | `polls` via `category_lock(q, …) IS NULL` (already there); `closed` gains `AND quest_community_lock(q) IS NULL` (CTO 7: it read `sees_category` only) | a live poll in a locked category is neither offered nor its results shown |
+| `send_poll` (0052:321), restated | refuses a poll whose quest or category is community-locked (`PL409 community_locked`; the dashboard says why) (CTO 7) | Send refused while locked, sends after the reach |
+| `member_event_quests` (0050:699), DROP and CREATE | `lock` can read `community_locked`; new column `community_lock jsonb` (`community_lock_note` of the quest's step, the category's included). The step is computed **once per row** in a `LATERAL` and both columns read it (CTO 10) | listed with the note: `scheduled`, `waiting`, gone after the reach; `missed` |
 | `member_vote`, `member_quiz`, `member_survey`, `member_share`, `member_passport` (0046), `member_game` (0050:421), `member_poll` (0052:249), restated | `AND quest_community_lock(q) IS NULL`: no row (the sheet's content is part of the reward) | each answers nothing while locked, its content after the reach |
 | `public_event_quests` (0046:483), restated | leaves out a quest whose quest or category is community-locked, as it leaves out hidden categories | public page omits, then lists after the reach |
 | `member_community` (0053:1077), restated (feeds `live_state.community`) | a step's reward `{kind: 'unlock', target?: {kind, id, name: {ar, en}}}`; `target` only when the player sees it (below) | hidden unrevealed, revealed, out of audience, removed reward |
@@ -88,16 +112,24 @@ through the one it calls.
 | `reserve_reward` (0037:423), restated | after the reward `FOR UPDATE` and the audience check, before the shop state: `RW403 community_locked` | refused while locked, reserves after the reach; replayed key still answers |
 | `event_shop`, `my_redemptions`, the desk readers | unchanged: no per-reward offer; a redemption made before the lock is handed over as usual | handover of an earlier redemption |
 | `reveal_category` (0046) | unchanged: revealing a hidden, community-locked category shows it, locked | reveal then list with `community_locked` |
+| `set_goal` (0037:284) and the Home goal card (`home/goal.ts` `pickGoal` over `shop_rewards`) | a player may still pin a locked reward (it is a thing to aim for); the card shows its lock note instead of "{n} to go"; the automatic pick skips locked rewards (CTO 8) | DB: pin a locked reward; route: the card's `communityLock`; unit: `pickGoal` skips locked |
 | Home (`home/home.ts`) | reads `member_event_quests` and `shop_rewards`: covered | route test: Home's quest and shop rows carry `communityLock` |
 | `/live` (`plays/live.ts`) | `live_state` above | route test: the step reward and the ETag moving at the reach |
 | Public event page (`join/join.ts` → `public_event_quests`) | SQL above | route test |
 
-**The door table**: one table-driven test, one row per door above (scan, typed code, location, operator scan, manual
-award, vote, live poll vote, quiz start, quiz answer, survey, share, passport stamp, submission, game start, game finish,
-meet code, meet pass), each run twice: the quest locked itself and its category locked. While locked each answers
-`QN403 community_locked` (manual award: pays); after `settle_goal` reaches the step each succeeds. A test also asserts
-that every function calling `quest_open_check` or `category_lock` (read from `pg_proc.prosrc`) is a door in the table
-or in the readers above, so a later door cannot skip the list unseen.
+**The door table**: one table-driven test, one row per door above (scan, typed code, location, operator scan, owner's
+manual award, operator's award, vote, live poll vote, quiz start, quiz answer, survey, share, passport stamp,
+submission, game start, game finish, meet code, meet pass, reserve), each run twice: the quest (or reward) locked itself
+and its category locked. While locked each answers `QN403 community_locked` (`RW403` for reserve; the owner's manual
+award pays); after `settle_goal` reaches the step each succeeds.
+
+**The completeness test** (CTO 3): it lists every function `questify_app` may execute
+(`has_function_privilege('questify_app', oid, 'EXECUTE')`) whose source (`pg_proc.prosrc`) reads `quest`, `category`
+or `reward` (`\m(quest|category|reward)\M` after a FROM or JOIN), and checks each against a map checked into the test:
+`gated` (a door or reader above, each with its test), `staff` (a team or console door that authorizes an owner, editor
+or operator first; operator doors that offer quests are gated, above), or `exempt` with a one-line reason (for example
+`my_redemptions`: a redemption already made). A function missing from the map, or mapped to a name that no longer
+exists, fails the test, so a later reader or door cannot skip the gate unseen.
 
 ## How the app shows a locked item (ADR-228)
 
@@ -128,9 +160,10 @@ Strings (Arabic via `ux-araby` at build, Western digits, RTL checked; drafts):
 
 | Key | English | Arabic |
 |---|---|---|
-| community.unlock.points | Unlocks at {threshold} community points | يُفتح عند بلوغ {threshold} نقطة جماعية |
-| community.unlock.completions | Unlocks when everyone completes {threshold} quests | يُفتح عندما يُنجز الجميع {threshold} مهمة |
-| community.unlock.players | Unlocks when {threshold} players take part | يُفتح عند مشاركة {threshold} لاعبًا |
+| community.unlock.points | Unlocks at {threshold} community points | يُفتح حين تبلغ النقاط الجماعية {threshold} |
+| community.unlock.completions | Unlocks at {threshold} community completions | يُفتح حين تبلغ المهام المنجزة جماعيًا {threshold} |
+| community.unlock.players | Unlocks at {threshold} players taking part | يُفتح حين يبلغ عدد المشاركين {threshold} |
+| community.unlock.starts | Unlocks with a community goal that starts {time} | يُفتح مع هدف جماعي يبدأ {time} |
 | community.unlock.missed | Not unlocked: the community goal was missed | لم يُفتح: لم يتحقّق الهدف الجماعي |
 | community.reward.unlock | Unlocks {name} | يفتح {name} |
 | community.reward.surprise | Unlocks a surprise | يفتح مفاجأة |
@@ -139,8 +172,14 @@ Strings (Arabic via `ux-araby` at build, Western digits, RTL checked; drafts):
 | questsTab.notOpen.communityLocked | Opens when the community goal is reached | يُفتح عند تحقيق الهدف الجماعي |
 | shop.communityLocked | Unlocks with the community goal | يُفتح مع الهدف الجماعي |
 
-Plus the builder's labels ("Unlock", "What it unlocks", "A quest", "A category", "A shop reward", the title hint) and
-refusals (`unlock_taken`, `unlock_counted`, `unlock_target`).
+The Arabic keeps the number after its noun phrase (no counted noun), so it reads right for every number (CTO 5); the
+`ux-araby` pass at build keeps that rule. A `scheduled` note uses `community.unlock.starts`; the waiting ones are
+shown once the goal runs.
+
+Plus the builder's labels ("Unlock", "What it unlocks", "A quest", "A category", "A shop reward", the title hint), the
+switch-off warning (CTO 6: "Turning this off ends the running goal; what it would unlock stays locked" / "إيقافها
+يُنهي الهدف الجاري، ويبقى ما كان سيفتحه مقفلًا"), Send's `community_locked` refusal, and the builder's refusals
+(`unlock_taken`, `unlock_counted`, `unlock_target`).
 
 ## Rehearsal and the go-live wipe (ADR-229)
 
@@ -186,9 +225,11 @@ indexes, usually empty). There is no quest-list timing test today; the database 
   1))` and no target on another kind; unique partial indexes on each target column. No new table, no grant change (the
   table stays closed, RLS forced).
 - Functions (each `REVOKE ALL … FROM PUBLIC` here; grants unchanged on the restated doors): new internal
-  `quest_community_lock`, `reward_community_lock`, `community_lock_note`; restated `category_lock`, `reserve_reward`,
+  `quest_community_lock`, `reward_community_lock`, `community_lock_missed`, `community_lock_note`; restated
+  `category_lock`, `category_cleared`, `category_done`, `record_completion`, `operator_award_quests`, `reserve_reward`,
   `member_vote`, `member_quiz`, `member_survey`, `member_share`, `member_passport`, `member_game`, `member_poll`,
-  `public_event_quests`, `member_community`, `community_locked_field`, `save_community_goal`, `community_goals`;
+  `live_state`, `send_poll`, `public_event_quests`, `member_community`, `community_locked_field`,
+  `save_community_goal`, `community_goals`;
   DROP and CREATE `community_body_steps`, `member_event_quests`, `shop_rewards` (their outputs change; every grant
   re-issued).
 - `wipe_rehearsal` and `erase_rows` are not restated: no new row names a player.
@@ -206,7 +247,9 @@ notes gain one line; the demo event's running goal gets an unlock milestone.
   delete before the start frees the target; target deletes `goal_in_use` (quest, category); the draft event delete with
   an unlock goal; reached stays reached after a removal lowers progress; missed stays locked (`state: 'missed'`); the
   event switch off; the platform switch off still unlocks; manual award passes; the rehearsal case; `category_lock`
-  precedence; the `pg_proc` completeness check.
+  precedence; the missed-lock rules (CTO 2); operator award refused and `operator_award_quests` (CTO 1); closed poll
+  results and Send (CTO 7); pinning a locked reward (CTO 8); the `unlock_counted` category case (CTO 4); the
+  completeness check (CTO 3).
 - **Crossed locks** (two connections): goal save and reserve of its target reward, both orders: either the reserve
   happened before the lock, or it is refused; never both a reservation and a lock that predates it.
 - **Security**: outsider (the three new functions, `anon` and `PUBLIC`); cross-tenant: a goal of organizer A naming
@@ -234,7 +277,8 @@ notes gain one line; the demo event's running goal gets an unlock milestone.
 - **ADR-227** The unlock: one target per step (quest, category or shop reward) in its own column; one lock per target
   for the event's life; locked from the goal's save until its step's reach, the same for every player; a live poll,
   the goal's own counted quest or category, a removed reward or another event's item cannot be a target; a manual
-  award passes it like every category rule; a completion racing the save may be paid (a reservation cannot). Q-191.
+  award by an owner or editor passes it like every category rule, an operator's award does not; a missed lock never
+  blocks another quest or category; a completion racing the save may be paid (a reservation cannot). Q-191.
 - **ADR-228** Showing it: a locked item stays listed where the player already saw it, with a line naming the goal and
   its threshold, never the target; its sheet's content is not served; the public page leaves it out until unlocked;
   the bar names the target only to a player who sees it ("a surprise" otherwise); the app refetches on the reach and
@@ -247,4 +291,6 @@ notes gain one line; the demo event's running goal gets an unlock milestone.
 - **Q-192** A locked quest or shop reward is shown as locked with "Unlocks at 5,000 community points" (a teaser), not
   hidden until it unlocks; the public event page hides it. Agree, or hide it everywhere until unlocked?
 - **Q-193** If the community misses the step, the item stays locked for the rest of the event and there is no "Unlock
-  now" button; during a rehearsal locked items stay locked. Agree, or add an owner's "Unlock now"?
+  now" button; switching community quests off for the event ends its running goal as missed, so what it would unlock
+  stays locked for good (the switch warns); during a rehearsal locked items stay locked. Agree, or add an owner's
+  "Unlock now"?
