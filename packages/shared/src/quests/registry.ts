@@ -108,7 +108,7 @@ export const QUEST_TYPES = {
     label: "quests.type.scanQr",
     oneTry: false,
     usesQuestQr: true,
-    verifications: ["quest_qr", "my_qr"],
+    verifications: ["quest_qr", "my_qr", "nfc"],
     config: z.strictObject({}),
   },
   /** The player types a code shown at the venue (T-105). The code is a secret: never shown to players. */
@@ -333,11 +333,12 @@ export function unavailableSubmissionKind(config: unknown): "photo" | "video" | 
 export type QuestType = keyof typeof QUEST_TYPES;
 
 /**
- * How a quest may be verified (FR-301): the player scans the quest's printed QR, or staff scan the player's My QR
- * (T-205). A type lists the methods it offers; a quest keeps at least one of them (none for a type that offers none,
- * such as a typed code). The database's `quest_verification_known` check holds the same rule.
+ * How a quest may be verified (FR-301): the player scans the quest's printed QR, staff scan the player's My QR
+ * (T-205), or the player taps the quest's NFC tag (T-308). A type lists the methods it offers; a quest keeps at least
+ * one of them (none for a type that offers none, such as a typed code), and NFC only beside the quest QR, its backup
+ * (FR-313). The database's `quest_verification_known` check holds the same rule.
  */
-export type QuestVerification = "quest_qr" | "my_qr";
+export type QuestVerification = "quest_qr" | "my_qr" | "nfc";
 
 export const QUEST_TYPE_NAMES = Object.keys(QUEST_TYPES) as QuestType[];
 
@@ -408,5 +409,8 @@ export function parseVerification(
     return undefined;
   }
   const chosen = offered.filter((method) => value.includes(method));
+  if (chosen.includes("nfc") && !chosen.includes("quest_qr")) {
+    return undefined;
+  }
   return offered.length > 0 && chosen.length === 0 ? undefined : chosen;
 }

@@ -1619,4 +1619,9 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   save_boost: "staff: the team's Boosts page",
   event_boosts: "staff: the team's Boosts page",
   own_pending_points: "exempt: submissions already sent",
+  operator_nfc_tags:
+    "staff: the operator's tag writes (a tap itself is gated through record_completion)",
+  register_nfc_tag: "staff: an operator registers a tag; it pays nothing",
+  move_nfc_tag: "staff: the team's Tags panel",
+  revoke_quest_nfc_tags: "staff: the team's Tags panel",
 };

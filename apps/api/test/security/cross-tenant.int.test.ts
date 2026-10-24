@@ -924,6 +924,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by the settling definers and pay_community_batch in the system context, read as counts by the event's team through community_goals and community_paying and as the calling member's own `mine` in live_state (test/db/community)",
   boost:
     "no right for the API role at all; written by save_boost, delete_boost and end_boost inside the caller's event (award_event_of) and deleted by the rehearsal wipe; read by the event's team through event_boosts and by its active members through boost_in_force in member_event_quests, live_state and the payers (test/db/flash-boosts)",
+  nfc_tag:
+    "no right for the API role at all; written by register_nfc_tag for an operator of the tag's event (nfc_writer), and by move_nfc_tag, revoke_nfc_tag and revoke_quest_nfc_tags inside the caller's event (award_event_of); read by tap_quest only for a member of the tag's event, by operator_nfc_tags for the calling operator's own writes and by quest_nfc_tags for the event's team (test/db/nfc-tags)",
+  nfc_tap:
+    "no right for the API role at all; written by tap_quest beside the calling player's own completion and removed with it; read as counts by the event's team through quest_nfc_tags and by raise_nfc_flag for the tapping member (test/db/nfc-tags)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

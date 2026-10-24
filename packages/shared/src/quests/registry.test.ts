@@ -165,6 +165,21 @@ describe("quiz quests", () => {
   });
 });
 
+describe("NFC tags (T-308)", () => {
+  it("are offered on scan quests only, always beside the quest QR (FR-313)", () => {
+    expect(parseVerification("scan_qr", ["nfc", "quest_qr"])).toEqual(["quest_qr", "nfc"]);
+    expect(parseVerification("scan_qr", ["quest_qr", "my_qr", "nfc"])).toEqual([
+      "quest_qr",
+      "my_qr",
+      "nfc",
+    ]);
+    expect(parseVerification("scan_qr", ["nfc"])).toBeUndefined();
+    expect(parseVerification("scan_qr", ["my_qr", "nfc"])).toBeUndefined();
+    expect(parseVerification("location", ["quest_qr", "nfc"])).toBeUndefined();
+    expect(parseVerification("challenge", ["my_qr", "nfc"])).toBeUndefined();
+  });
+});
+
 describe("challenge quests", () => {
   it("hold no config and are verified only by staff scanning My QR", () => {
     expect(parseQuestConfig("challenge", {})).toEqual({});

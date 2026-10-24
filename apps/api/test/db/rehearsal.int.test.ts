@@ -1040,6 +1040,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.community_contributor",
         "enrollment.community_payout",
         "ledger_entry.community_payout",
+        // A tap row goes with its completion (ON DELETE CASCADE); the tag stays (T-308, test/db/nfc-tags).
+        "quest_completion.nfc_tap",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1068,6 +1070,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "rehearsal_over",
         "finish_quiz", // internal: play_enter, the quiz sweep and confirm_results wipe before calling it
         "settle_goal_at", // internal: settle_goal and settle_community wipe before calling it (T-306b)
+        "nfc_writer", // an operator writing a tag: organizer data the wipe never touches (T-308)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

@@ -335,6 +335,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a tag or a tap or reach the NFC doors and helpers (T-308)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.nfc_tag",
+        "SELECT * FROM public.nfc_tap",
+        "SELECT public.prepare_nfc_tag(gen_random_uuid(), gen_random_uuid())",
+        "SELECT * FROM public.register_nfc_tag(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), '\x01020304', '', true, NULL)",
+        "SELECT public.operator_nfc_tags(gen_random_uuid())",
+        "SELECT * FROM public.tap_quest(gen_random_uuid(), 1, NULL, false, 'k', NULL, NULL)",
+        "SELECT public.quest_nfc_tags(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.move_nfc_tag(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.revoke_nfc_tag(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.revoke_quest_nfc_tags(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.nfc_writer(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.raise_nfc_flag(NULL::public.quest_completion)",
+        "SELECT public.team_nfc_tag(NULL::public.event, gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,
