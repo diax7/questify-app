@@ -1,6 +1,6 @@
 import { formatNumber, type Theme } from "@questify/shared";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import {
   MEASURE_KEYS,
@@ -89,10 +89,21 @@ export function CommunityBar({ card }: Readonly<{ card: CommunityCard }>) {
       {card.steps.map((step) => {
         const reward = rewardText(step, card.paidTo === "everyone", t, language);
         return reward === null ? null : (
-          <AppText key={step.threshold} muted={step.reachedAt === null}>
-            {t("community.step", { threshold: formatNumber(step.threshold, language), reward })}
-            {step.reachedAt === null ? "" : " ✓"}
-          </AppText>
+          <View key={step.threshold} style={styles.stepRow}>
+            {step.reward.kind === "unlock" ? (
+              <Image
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+                source={PADLOCK}
+                resizeMode="contain"
+                style={styles.padlock}
+              />
+            ) : null}
+            <AppText muted={step.reachedAt === null}>
+              {t("community.step", { threshold: formatNumber(step.threshold, language), reward })}
+              {step.reachedAt === null ? "" : " ✓"}
+            </AppText>
+          </View>
         );
       })}
       {card.contributed ? <AppText variant="label">{t("community.contributed")}</AppText> : null}
@@ -100,7 +111,12 @@ export function CommunityBar({ card }: Readonly<{ card: CommunityCard }>) {
   );
 }
 
+/** The brand's padlock (icon-padlock, 128 px), beside an unlock step; decorative, the words say "Unlocks". */
+const PADLOCK = require("#assets/icons/padlock.png");
+
 const makeStyles = (theme: Theme) => ({
+  stepRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: theme.spacing.xs },
+  padlock: { width: 20, height: 20 },
   card: {
     gap: theme.spacing.sm,
     padding: theme.spacing.lg,

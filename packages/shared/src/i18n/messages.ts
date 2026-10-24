@@ -3606,12 +3606,12 @@ export const MESSAGES = {
     en: "Community quests run on time and their bar shows to players.",
   },
   "events.community.off": {
-    ar: "المهام الجماعية متوقفة: تنتهي الجارية الآن وتُصرف مكافآت المحطات التي تحقّقت، ولا تبدأ المجدولة.",
-    en: "Community quests are off: a running one ends now and pays the steps already reached, and scheduled ones don't start.",
+    ar: "المهام الجماعية متوقفة: تنتهي الجارية والمجدولة الآن وتُصرف مكافآت المحطات التي تحقّقت.",
+    en: "Community quests are off: running and scheduled ones end now, and the steps already reached still pay.",
   },
   "events.community.offWarning": {
-    ar: "إيقافها يُنهي الهدف الجاري، ويبقى ما كان سيفتحه مقفلًا.",
-    en: "Turning this off ends the running goal; what it would unlock stays locked.",
+    ar: "إيقافها يُنهي الهدف الجاري والأهداف المجدولة، ويبقى ما كانت ستفتحه مقفلًا.",
+    en: "Turning this off ends the running and scheduled goals; what they would unlock stays locked.",
   },
 } as const satisfies Messages;
 

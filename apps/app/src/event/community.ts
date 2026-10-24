@@ -179,8 +179,8 @@ export function rewardText(
       return t("community.nothing");
     case "unlock":
       return step.reward.target === undefined
-        ? `🔒 ${t("community.reward.surprise")}`
-        : `🔒 ${t("community.reward.unlock", { name: textIn(step.reward.target.name, language) })}`;
+        ? t("community.reward.surprise")
+        : t("community.reward.unlock", { name: textIn(step.reward.target.name, language) });
     default:
       return null;
   }

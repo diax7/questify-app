@@ -375,7 +375,7 @@ function BarPreview({
         </div>
       ))}
       {unlocks.map((name) => (
-        <span key={name}>🔒 {t("community.reward.unlock", { name })}</span>
+        <span key={name}>{t("community.reward.unlock", { name })}</span>
       ))}
     </div>
   );

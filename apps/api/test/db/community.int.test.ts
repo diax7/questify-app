@@ -1158,7 +1158,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
   });
 
   describe("the switches (ADR-226)", () => {
-    it("finishes running goals when the event switch turns off and keeps scheduled ones from starting", async () => {
+    it("finishes running and scheduled goals when the event switch turns off; one saved while off never starts", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
       const reached = await goalIn(
@@ -1194,18 +1194,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       }
       expect(await state(reached)).toMatchObject({ status: "reached", final_at: expect.any(Date) });
       expect(await state(running)).toMatchObject({ status: "missed", final_at: expect.any(Date) });
-      expect((await state(scheduled)).status).toBe("scheduled");
+      // T-306c (CTO code review 3): a scheduled goal ends missed too, so its unlocks never wait on a start.
+      expect(await state(scheduled)).toMatchObject({
+        status: "missed",
+        final_at: expect.any(Date),
+      });
+      const later = await save(
+        off,
+        body({
+          startsAt: new Date(Date.now() + 10_000_000).toISOString(),
+          endsAt: new Date(Date.now() + 12_000_000).toISOString(),
+        }),
+      );
       await owner(
         "UPDATE community_goal SET starts_at = now() - interval '1 minute' WHERE id = $1",
-        [scheduled],
+        [later],
       );
-      expect(await settle(scheduled)).toBe("scheduled");
-      expect(await settle(scheduled, false)).toBe("scheduled");
+      expect(await settle(later)).toBe("scheduled");
+      expect(await settle(later, false)).toBe("scheduled");
       await owner(
         "UPDATE community_goal SET ends_at = now() - interval '1 second', starts_at = now() - interval '2 minutes' WHERE id = $1",
-        [scheduled],
+        [later],
       );
-      expect(await settle(scheduled)).toBe("missed");
+      expect(await settle(later)).toBe("missed");
       expect(await paidTo(reached)).toEqual([who.enrollment]);
     });
 

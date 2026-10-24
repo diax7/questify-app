@@ -83,6 +83,11 @@ const body = (over: Row = {}): Row => ({
 });
 const unlock = (target: Target) => ({ kind: "unlock", target });
 const noop = (): void => undefined;
+/** A window starting `hours` from now, 10 minutes long. */
+const windowIn = (hours: number) => ({
+  startsAt: new Date(Date.now() + hours * 3_600_000).toISOString(),
+  endsAt: new Date(Date.now() + hours * 3_600_000 + 600_000).toISOString(),
+});
 
 /**
  * Unlock rewards in the database (T-306c, migration 0054, ADR-227 to ADR-229): every door refuses a community-locked
@@ -1174,6 +1179,54 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
     });
   });
 
+  describe("goals never hold each other back (CTO code review 1)", () => {
+    it("refuses an unlock of what another goal not yet final counts, by quest, category or its quest's category", async () => {
+      const event = await newEvent();
+      const category = await newCategory(event);
+      const quest = await newQuest(event, { category });
+      await save(event, body({ measure: "completions", questId: quest, ...windowIn(2) }));
+      expect(await refusal(lockWith(event, { kind: "quest", id: quest }))).toBe(
+        "CG422:unlock:unlock_counted",
+      );
+      expect(await refusal(lockWith(event, { kind: "category", id: category }))).toBe(
+        "CG422:unlock:unlock_counted",
+      );
+      const other = await newCategory(event);
+      await save(event, body({ measure: "players", categoryId: other, ...windowIn(4) }));
+      expect(await refusal(lockWith(event, { kind: "category", id: other }))).toBe(
+        "CG422:unlock:unlock_counted",
+      );
+    });
+
+    it("refuses a goal counting what another goal's step still locks, and allows it once that step is reached", async () => {
+      const event = await newEvent();
+      const category = await newCategory(event);
+      const quest = await newQuest(event, { category });
+      const goal = await lockWith(event, { kind: "category", id: category });
+      for (const counted of [{ questId: quest }, { categoryId: category }]) {
+        expect(
+          await refusal(save(event, body({ measure: "completions", ...counted, ...windowIn(2) }))),
+        ).toBe("CG422:unlock:unlock_counted");
+      }
+      await reach(event, goal);
+      expect(
+        await refusal(
+          save(event, body({ measure: "completions", questId: quest, ...windowIn(2) })),
+        ),
+      ).toBe("none");
+    });
+
+    it("lets a goal unlock what a final goal counted", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const counting = await save(event, body({ measure: "completions", questId: quest }));
+      await miss(event, counting);
+      expect(await refusal(lockWith(event, { kind: "quest", id: quest }, windowIn(2)))).toBe(
+        "none",
+      );
+    });
+  });
+
   describe("missed, switched off and reached for good (ADR-229)", () => {
     it("a missed step stays locked with state missed", async () => {
       const event = await newEvent();
@@ -1234,6 +1287,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       );
       expect(await goalOf(goal)).toMatchObject({ status: "missed" });
       expect((await lockOf(who.player, event, quest))?.community_lock?.state).toBe("missed");
+    });
+
+    it("the event switch off ends a scheduled goal missed too: its lock reads missed and holds nothing back (CTO code review 3)", async () => {
+      const event = await newEvent();
+      const category = await newCategory(event, { order_mode: "in_order" });
+      const first = await newQuest(event, { category, position: 0 });
+      const second = await newQuest(event, { category, position: 1 });
+      const who = await member(event);
+      const start = new Date(Date.now() + 7_200_000);
+      const goal = await lockWith(
+        event,
+        { kind: "quest", id: first },
+        {
+          startsAt: start.toISOString(),
+          endsAt: new Date(start.getTime() + 600_000).toISOString(),
+        },
+      );
+      expect((await lockOf(who.player, event, first))?.community_lock?.state).toBe("scheduled");
+      expect((await lockOf(who.player, event, second))?.lock).toBe("order_locked");
+      await owner(
+        `UPDATE event SET config = config || '{"features": {"community": false}}' WHERE id = $1`,
+        [event],
+      );
+      expect(await goalOf(goal)).toMatchObject({ status: "missed", final_at: expect.any(Date) });
+      expect((await lockOf(who.player, event, first))?.community_lock?.state).toBe("missed");
+      expect((await lockOf(who.player, event, second))?.lock).toBeNull();
     });
 
     it("with the platform switch off a running goal still settles, and its reach unlocks", async () => {
@@ -1459,7 +1538,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       const found = await owner<{ name: string }>(
         `SELECT DISTINCT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND has_function_privilege('questify_app', p.oid, 'EXECUTE')
-           AND p.prosrc ~* '(from|join)\\s+(quest|category|reward)\\M'
+           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll)\\()'
          ORDER BY 1`,
       );
       const names = found.map((row) => row.name);
@@ -1477,6 +1556,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
  * until it is placed here.
  */
 const GATE_MAP: Readonly<Record<string, string>> = {
+  member_game: "gated: answers QN403 community_locked (the sheets test)",
+  send_poll: "gated: Send refused while locked (the live poll test)",
+  share_quest: "gated: share (door table)",
+  start_game_round: "gated: game start (door table)",
+  submit_survey: "gated: survey (door table)",
+  close_poll: "staff: closes a poll already sent; it pays nothing",
   complete_quest: "gated: scan, typed code and location (door table)",
   finish_game_round: "gated: game finish (door table)",
   issue_meet_pass: "gated: meet pass (door table)",

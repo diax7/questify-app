@@ -587,7 +587,7 @@ an operator's); `category_done`, `category_cleared` and the in-order rule leave 
 nothing (`member_game` QN403); `member_event_quests` and `shop_rewards` carry `community_lock` notes;
 `public_event_quests` and `operator_award_quests` leave locked quests out; `member_community` names a step's target only
 to a member who sees it. A `BEFORE DELETE` trigger on `event` deletes its goals first, so a draft event holding goals
-can be deleted. No new table, no grant change.
+can be deleted. `event_community_off` (restated) ends scheduled goals missed too. No new table, no grant change.
 
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,

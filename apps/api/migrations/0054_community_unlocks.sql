@@ -768,7 +768,12 @@ CREATE FUNCTION member_event_quests(target uuid)
   JOIN category c ON c.event_id = target AND sees_category(me.id, c)
   LEFT JOIN category u ON u.id = c.unlock_after
   JOIN quest q ON q.category_id = c.id AND q.event_id = target AND q.visible
-  CROSS JOIN LATERAL (SELECT quest_community_lock(q) AS step, category_community_lock(c.id) AS category_step) k
+  CROSS JOIN LATERAL (SELECT category_community_lock(c.id) AS category_step) kc
+  CROSS JOIN LATERAL (SELECT coalesce(
+                        (SELECT s.id FROM community_step s
+                         WHERE s.unlock_quest_id = q.id
+                           AND NOT EXISTS (SELECT 1 FROM community_reach r WHERE r.step_id = s.id)),
+                        kc.category_step) AS step, kc.category_step) k
   LEFT JOIN quest_item qi ON qi.id = q.item_id AND qi.status = 'active'
   LEFT JOIN quest_item ci ON ci.id = c.item_id AND ci.status = 'active'
   ORDER BY c.position, c.id, q.position, q.id
@@ -941,9 +946,11 @@ END $$;
 -- The unlock rules a new or not-yet-started goal's steps must meet (ADR-227). CG422 DETAIL unlock, HINT the reason:
 -- `unlock_target` when a step does not name exactly one quest, category or active reward of this event, or names a
 -- live poll (Send and Close own its window); `unlock_counted` when it names the quest or category the goal counts, or
--- the category of the quest it counts (it could never count past 0). GL409 unlock_taken when a target is named twice,
--- or already by another goal of the event (reached or not: a target is locked once). Goal writes of one event
--- serialise on the builder's advisory lock, so the unique indexes are only the backstop. Internal.
+-- the category of the quest it counts (it could never count past 0), or what another goal not yet final counts, and
+-- when the goal would count what another goal's step still locks (CTO code review 1: two goals must not hold each
+-- other back). GL409 unlock_taken when a target is named twice, or already by another goal of the event (reached or
+-- not: a target is locked once). Goal writes of one event serialise on the builder's advisory lock, so the unique
+-- indexes are only the backstop. Internal.
 CREATE FUNCTION community_check_unlocks(ev event, target_goal uuid, body jsonb) RETURNS void
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
@@ -968,8 +975,19 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM community_body_steps(body) b
              WHERE b.reward = 'unlock'
-               AND (b.unlock_quest_id = counted_quest OR b.unlock_category_id = counted_category)) THEN
-    RAISE EXCEPTION 'a goal can not lock what it counts' USING ERRCODE = 'CG422', DETAIL = 'unlock',
+               AND (b.unlock_quest_id = counted_quest OR b.unlock_category_id = counted_category))
+     OR EXISTS (SELECT 1 FROM community_body_steps(body) b
+                JOIN community_goal g ON g.event_id = ev.id AND g.id IS DISTINCT FROM target_goal
+                                     AND g.final_at IS NULL
+                LEFT JOIN quest gq ON gq.id = g.quest_id
+                WHERE b.reward = 'unlock'
+                  AND (b.unlock_quest_id = g.quest_id
+                       OR b.unlock_category_id = coalesce(g.category_id, gq.category_id)))
+     OR EXISTS (SELECT 1 FROM community_step s
+                WHERE s.event_id = ev.id AND s.goal_id IS DISTINCT FROM target_goal
+                  AND NOT EXISTS (SELECT 1 FROM community_reach r WHERE r.step_id = s.id)
+                  AND (s.unlock_quest_id = counted_quest OR s.unlock_category_id = counted_category)) THEN
+    RAISE EXCEPTION 'a goal can not lock what a goal counts' USING ERRCODE = 'CG422', DETAIL = 'unlock',
       HINT = 'unlock_counted';
   END IF;
   IF EXISTS (SELECT 1 FROM community_body_steps(body) b WHERE b.reward = 'unlock'
@@ -1102,4 +1120,19 @@ BEGIN
                 FROM community_step s LEFT JOIN community_reach r ON r.step_id = s.id WHERE s.goal_id = g.id))
       ORDER BY g.starts_at, g.id)
     FROM community_goal g WHERE g.event_id = ev.id), '[]'::jsonb);
+END $$;
+
+-- ================================================================ the event switch ends scheduled goals too (CTO code review 3)
+-- As 0053, plus: turning the event's switch off finishes its scheduled goals as `missed` too, so their unlocks read
+-- "missed" (never "starts …" for a goal that will not start) and stop holding in-order quests and the category bonus.
+-- A goal saved while the switch is off is scheduled and missed at its window's end by the tick, as in 0053.
+CREATE OR REPLACE FUNCTION event_community_off() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  UPDATE community_goal g
+  SET status = CASE WHEN EXISTS (SELECT 1 FROM community_step s JOIN community_reach r ON r.step_id = s.id
+                                 WHERE s.goal_id = g.id AND s.is_goal) THEN 'reached' ELSE 'missed' END,
+      final_at = now(), progress_at = now()
+  WHERE g.event_id = NEW.id AND g.final_at IS NULL;
+  RETURN NULL;
 END $$;

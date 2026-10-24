@@ -247,11 +247,11 @@ describe("the bar's unlock step", () => {
       id: "q",
       name: { ar: "البرج", en: "Tower" },
     });
-    expect(rewardText(named ?? ({} as never), false, tIn("en"), "en")).toBe("🔒 Unlocks Tower");
-    expect(rewardText(named ?? ({} as never), false, tIn("ar"), "ar")).toBe("🔒 يفتح البرج");
+    expect(rewardText(named ?? ({} as never), false, tIn("en"), "en")).toBe("Unlocks Tower");
+    expect(rewardText(named ?? ({} as never), false, tIn("ar"), "ar")).toBe("يفتح البرج");
     const surprise = step({ kind: "unlock" });
     expect(rewardText(surprise ?? ({} as never), false, tIn("en"), "en")).toBe(
-      "🔒 Unlocks a surprise",
+      "Unlocks a surprise",
     );
     const unknown = step({ kind: "teleport" });
     expect(unknown?.reward.kind).toBe("teleport");

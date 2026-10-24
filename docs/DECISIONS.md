@@ -2941,7 +2941,10 @@ trap; NO ACTION keys do not help, each cascade checks at its own statement's end
 event deletes its goals first, and 0053's keys stay `RESTRICT`. `category_lock` is split into the community check and
 `category_rule_lock` (the old rules), so the quest list reads the lock once a row. `member_game` answers QN403
 `community_locked` instead of no row (its reader expects one row). The category gets its own `communityLock` in the
-quests answer, shown once as the category's note.
+quests answer, shown once as the category's note. CTO code review (91 GO): an unlock is also refused (`unlock_counted`)
+for what another goal not yet final counts, and a goal may not count what another goal's waiting step locks, so two
+goals never hold each other back; the event switch off now ends scheduled goals missed too (their locks read "missed",
+not "starts …"); the bar's padlock is the brand icon (`icon-padlock`), not an emoji.
 
 ## ADR-228 — How a locked item shows
 **Status:** Proposed (Claude, 2026-10-24; T-306c plan). Q-192.
