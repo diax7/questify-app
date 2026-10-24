@@ -12,6 +12,14 @@ completeness test this extends), T-304/T-304c (category rules, periods), T-304d 
 Dhia is away: open choices are my recommendation, written as **Proposed** ADR-230 to ADR-233 and Q-195 to Q-197, also
 entered in `docs/DECISIONS.md` and `docs/OPEN_QUESTIONS.md` with this plan.
 
+**CTO plan review 2026-10-24: 84/100, findings folded in** (the flash CHECK no longer forces a 1-minute window, the
+minimum moves into launch and the builder; `fixed_at` is required at every `pay_completion` call and the completeness
+map covers every function and every caller; the rehearsal boost's exception to the event window and one shared
+boost-visibility helper for the payers and the readers; the pending-points read; DROP and CREATE of the activity
+readers; the edit freeze under the boost row's lock; `event_has_live`'s tail; the frozen lookup's category; the
+ledger's rehearsal stamp; switching flash off and End now on a scheduled flash; the nits). Each is marked "(CTO n)"
+below.
+
 ## What exists that this plan builds on
 
 - **Points are written once.** Every quest payment is one `ledger_entry` of kind `quest` (`score_delta`, and
@@ -44,15 +52,22 @@ A flash quest is **any quest but a live poll** with `flash = true`. It has two w
 
 - **Launch now**: a draft flash quest (`visible = false`, no window) is launched by an owner or editor for 1 to 1,440
   minutes: `launch_flash` writes `visible = true`, `opens_at = now`, `closes_at = least(now + minutes, event end)`,
-  `flash_launched_at = now`, audited `quest.flash_launch`. As `send_poll`: in a live event it runs
+  `flash_launched_at = now`, audited `quest.flash_launch`. With less than a minute left before the event's end it is
+  refused (`FL409 too_late`, CTO 1). As `send_poll`: in a live event it runs
   `ensure_rehearsal_wiped` first; before go-live it is allowed only while a rehearsal is open (a rehearsal launch);
   otherwise `FE409 event_not_live`. A second launch while open answers the first (`replayed`); once closed `FL409
   already_launched` (a flash quest runs once). Launching a community-locked quest is refused (`FL409
   community_locked`, as Send, ADR-228).
-- **Scheduled**: the builder sets `visible = true` with both `opens_at` and `closes_at` (1 to 1,440 minutes apart).
-- **End now**: `end_flash` sets `closes_at = now` on a running flash quest (as `close_poll`); ending an ended one
-  changes nothing. After launch or once a scheduled window started, the API's seat keeps the window as it is (the
-  builder's write-back rule for sent polls, `quests/store.ts`), so only `end_flash` moves it.
+- **Scheduled**: the builder sets `visible = true` with both `opens_at` and `closes_at`, 1 to 1,440 minutes apart
+  (the minimum is the builder's refusal `422 invalid_quest {issues: flash_window}`, not the table's, CTO 1).
+- **End now**: `end_flash` sets `closes_at = now` on a running flash quest (as `close_poll`), whatever is left (the
+  table only asks `closes_at > opens_at`, so ending one 10 s after launch is fine, CTO 1); ending an ended one changes
+  nothing (`replayed`). On a scheduled flash quest **not yet started**, End now is refused (`FL409 not_started`: the
+  builder edits or hides it instead, CTO 10). After launch or once a scheduled window started, the API's seat keeps the
+  window as it is (the builder's write-back rule for sent polls, `quests/store.ts`), so only `end_flash` moves it.
+- **Switching the flag off**: the builder refuses `flash = false` on a quest once launched (`422 invalid_quest
+  {issues: flash_launched}`, the table's `CHECK (flash_launched_at IS NULL OR flash)` is the second wall, CTO 10); a
+  never-launched draft or a scheduled one not yet started may be turned into a normal quest.
 
 Rules:
 
@@ -73,6 +88,8 @@ Rules:
 - **Items (0047)**: a flash quest's item is given on the first completion, as today.
 - **Community (0053/0054)**: a goal may count a flash quest (the finale's push will); an unlock may target one (its
   window still applies). No change.
+- **A category of only flash quests** is never done (no bonus) and is cleared at once (it never holds a successor),
+  as a category of only live polls (tested, CTO nit).
 
 ## Double-point boosts (FR-252; ADR-232, ADR-233)
 
@@ -85,16 +102,26 @@ event. Closed table (RLS forced, PUBLIC revoked, no grant); written only by its 
 
 - **Fire now or schedule** (`save_boost`, owners and editors): a start of now (up to 60 s ago is taken as now, as
   goals) or later; no two boosts of one category overlap (`BO409 boost_overlap`, checked under an advisory lock per
-  event, as rank-prize ranges); inside the event's window (`BO422 outside_event`); not after results exist
-  (`BO409 event_ended`). Audited `boost.create` / `boost.update` / `boost.end` / `boost.delete`.
+  event, as rank-prize ranges); inside the event's window (`BO422 outside_event`), except a rehearsal boost (below);
+  not after results exist (`BO409 event_ended`). Audited `boost.create` / `boost.update` / `boost.end` /
+  `boost.delete`.
 - **A window never covers a past moment it did not cover**: a scheduled boost may be edited or deleted only until 1
   minute before its start (`BO409 boost_started`); a started one can only be **stopped** (`end_boost`: `ends_at =
   now`). So looking a boost up by a past time always gives the same answer (the rule ADR-233 rests on), and a delete
-  never meets a payer inserting the boost's key (no transaction lives a minute: the pool's 10 s idle limit).
-- **Rehearsal**: a boost saved while the rehearsal is open whose start is before the event's start is a rehearsal boost
-  (`rehearsal = true`, the form says "Removed at go-live"); it pays only rehearsal accounts, and `wipe_rehearsal`
-  deletes it **after** the rehearsal ledger entries that name it. Every payer runs `ensure_rehearsal_wiped` before it
-  reads a boost, so no live entry ever names one.
+  never meets a payer inserting the boost's key (no transaction lives a minute: the pool's 10 s idle limit). The
+  freeze is checked **under the boost row's lock** (`save_boost` and `delete_boost` take it `FOR UPDATE` first), against
+  `clock_timestamp()` (not the transaction's start), and both also refuse (`boost_started`) if any `ledger_entry.boost_id`
+  names the boost, whatever the clock says (CTO 7).
+- **Rehearsal** (CTO 3): while the rehearsal is open (draft or scheduled, `live_wiped_at` NULL), a boost whose start is
+  before the event's start (or any boost when the event has no start yet) is a **rehearsal boost** (`rehearsal = true`;
+  the form says "Removed at go-live"). It is the one exception to `outside_event`: it must end by the event's start when
+  there is one (`BO422 outside_event` otherwise), so it never runs into the live event. Rehearsal and real boosts are
+  checked for overlap **separately** (a rehearsal boost never overlaps a real one in time anyway, since it ends by the
+  start and a real one starts at or after it). It pays only rehearsal accounts and is shown only to them (the shared
+  helper below). `wipe_rehearsal` deletes rehearsal boosts **after** the rehearsal ledger entries that name them, at
+  go-live and on the team's manual "Erase test data" (reason `erase`) mid-rehearsal (the form says so). Every payer runs
+  `ensure_rehearsal_wiped` before it reads a boost, so no live entry ever names one; as a second wall
+  `ledger_stamp_rehearsal` (0032:75) is restated to refuse a non-rehearsal entry naming a rehearsal boost (`LB500`), CTO 9.
 - **Switches**: the event's `features.boosts` off stops every boost paying at once (the lookup reads it; turning it
   back on resumes what is still in its window); the platform's is the API's: no new boost is saved, running ones
   finish (as ADR-226).
@@ -116,7 +143,10 @@ event. Closed table (RLS forced, PUBLIC revoked, no grant); written only by its 
 
 The **time a boost is judged** is the time the quest's points were fixed (ADR-233): what the player saw when they
 acted is what they get, whatever the review or finish delay. Nothing new is stored on submissions, attempts or rounds:
-the lookup by that time is stable (rule above).
+the lookup by that time is stable (rule above). The lookup reads the quest's category **at payment**, not at the
+frozen time (`pay_submission` 0041:190 reads the quest then): a quest moved to another category between a send and its
+approval is judged by its new category's boosts at the send time. Accepted (moving a quest live is rare and the
+builder already allows it); a test pins it (CTO 8).
 
 ### Recorded on the ledger entry
 
@@ -128,34 +158,54 @@ the lookup by that time is stable (rule above).
   today, so removing a boosted completion takes back exactly the doubled points (and its XP once, as 0039).
 - A **community points goal** counts the boosted amount (it counts points earned, `score_delta`); a completions or
   players goal counts one as before. Stated in ADR-233.
-- `member_activity`, `member_ledger` (0053) restated: each row gains `multiplier` (from the boost) for "×2" in the
-  history and the team's player record.
+- `member_activity`, `member_ledger` (0053): each row gains `multiplier` (from the boost) for "×2" in the history and
+  the team's player record. Their `RETURNS TABLE` changes, so DROP and CREATE, grants re-issued (CTO 6).
+- **Pending points** (FR-409, `own_pending_points` 0040:849, and `own_submissions`' per-row points): restated to show
+  what approval will pay, `s.points × the multiplier of quest_boost at s.created_at` (CTO 4), so the pending total and
+  the paid amount agree; added to the reader table.
 
-### The payers (internal helper and restated functions)
+### The payers (internal helpers and restated functions)
 
-- `quest_boost(quest_row quest, enrolled enrollment, at timestamptz) RETURNS boost`: the boost of the quest's
-  category with `starts_at <= at < ends_at`, the event's switch on, and `NOT rehearsal OR` the enrollment is a
-  rehearsal account; NULL otherwise. One index probe (`boost (category_id, starts_at)`), no lock.
+- `boost_in_force(category uuid, enrolled enrollment, at timestamptz) RETURNS boost`: **the one rule** (CTO 3) for
+  which boost applies to a member at a time: the category's boost with `starts_at <= at < ends_at`, the event's switch
+  on, and `rehearsal = (enrolled.joined_via = 'rehearsal')` (a rehearsal boost only for rehearsal accounts, a real
+  one only for real accounts); NULL otherwise. One index probe (`boost (category_id, starts_at)`), no lock. The payers
+  (through `quest_boost(quest_row, enrolled, at)`, which passes the quest's category) **and** the readers
+  (`member_event_quests`, `live_state`, the pending points) call it, so a player never sees a ×2 that will not pay.
+  Test: a real player sees no ×2 and is paid ×1 while a rehearsal boost runs, and a rehearsal account sees and gets it.
 - `record_completion` (0054) restated: after the cap checks, `b := CASE WHEN proof_method = 'manual' THEN NULL ELSE
-  quest_boost(quest_row, enrolled, now()) END`; the entry and the answer's `points` carry the multiplied amount. Its
-  output is unchanged (the API reads `boost` with `completion_boost(completion)`, below).
-- `pay_completion` DROP and CREATE with a 9th parameter `fixed_at timestamptz DEFAULT NULL` (now when NULL): the
-  boost lookup and the multiplied entry. `pay_submission`, `finish_quiz`, `finish_game_round` restated to pass their
-  frozen time; `stamp_step` and `pay_meeting` keep calling with 7 or 8 arguments (now).
+  quest_boost(quest_row, enrolled, now()) END`; the entry's `score_delta` and `balance_delta` and the answer's `points`
+  carry the multiplied amount. `record_completion` writes `balance_delta = points` unconditionally today (0054:273,
+  unlike `pay_completion`'s shop check); the restatement keeps that behaviour and only multiplies (CTO nit; any
+  shop-window difference stays out of this task, noted in OPEN_QUESTIONS if the build finds it wrong). Its output is
+  unchanged (the API reads `boost` with `completion_boost(completion)`, below).
+- `pay_completion` DROP and CREATE with a 9th parameter `fixed_at timestamptz` **with no default** (CTO 2), so every
+  caller must say when the points were fixed and a forgotten one fails at its first run and in the tests. The six call
+  sites are all restated: `stamp_step` (0045:248, 0045:262) and `pay_meeting` (0049:400-407, both sides) pass `now()`;
+  `pay_submission` (0041:190) `sub.created_at`; `finish_quiz` (0044:410) `attempt.started_at`; `finish_game_round`
+  (0050:395) `played.issued_at`. `device` loses its default too (each caller passes it or NULL).
 - `completion_boost(completion bigint) RETURNS integer` (granted): the multiplier of the caller's own completion's
-  entry, NULL when none or not the caller's; the API adds `boost: {multiplier} | null` to every completion answer
-  (scan, code, location, vote, survey, share, quiz finish, game finish, meet).
-- **The payer completeness test** (new, beside T-306c's reader map): it lists every function whose `prosrc` inserts
-  into `ledger_entry` and checks each against a map checked into the test: `boosted` (with its test row above) or
-  `never` (with its one-line reason). A new payer missing from the map fails the test.
+  entry, NULL when none or not the caller's (so NULL for an operator scanning a player's QR: the player's answer, not
+  the operator's, carries it, CTO nit); the API adds `boost: {multiplier} | null` to every completion answer (scan,
+  code, location, vote, survey, share, quiz finish, game finish, meet).
+- **The payer completeness test** (new, beside T-306c's reader map; CTO 2): it scans **every** function in the
+  `public` schema (`pg_proc` joined to `pg_namespace`, granted or not, unlike `community-unlocks.int.test.ts:1540`
+  which lists only granted ones), with case-insensitive patterns that also match a `public.` prefix:
+  `insert\s+into\s+(public\.)?ledger_entry`, `(public\.)?pay_completion\s*\(` and `(public\.)?record_completion\s*\(`.
+  Each hit is checked against a map checked into the test: a ledger writer is `boosted` (with its payer-table row) or
+  `never` (one-line reason); a caller of `pay_completion` or `record_completion` names the time it passes (`now`, or
+  its frozen column) or `manual`. A function missing from the map, or mapped to a name that no longer exists, fails.
 
 ## Announcing (until T-501's push)
 
 - `live_state` restated: `flash: [{questId, closesAt}]`, the flash quests open now that the member may play (as
   `polls`: `sees_category`, `category_lock` IS NULL, not done this period; an operator who may not play gets none);
-  `boosts: [{boostId, categoryId, multiplier, endsAt}]`, running boosts of categories the member sees (never a hidden
-  category's name to a player who has not revealed it). `event_has_live` restated: also true while a flash quest is
-  open or a boost runs. The ETag moves with them.
+  `boosts: [{boostId, categoryId, multiplier, endsAt}]`, running boosts of categories the member sees, by
+  `boost_in_force` (never a hidden category's name to a player who has not revealed it, never a rehearsal boost to a
+  real player). `event_has_live` restated (CTO 8): also true for **15 minutes after** a flash quest opens or a boost
+  starts (as the polls' 15-minute tail, 0053:1151), not for their whole window, so the 3 s shortcut still answers empty
+  for most of a long boost; the app learns a boost in that tail, and the quests list carries its badge anyway. The
+  ETag moves with them. The `EXPLAIN` test covers `live_state`'s flash and boost parts too.
 - App: `LiveProvider` queues a one-time card per flash quest ("Flash quest!", its title, "Ends {time}", Open) and per
   boost ("Double points", the category, "until {time}"), remembered as the poll cards are; the quests tab and Home
   refetch when a new one appears. The "Happening now" strip (FR-806) is T-502's and reads the same fields.
@@ -167,14 +217,16 @@ the lookup by that time is stable (rule above).
 | `quest_open_check` (0046:279), restated | flash quest with the event switch off: `QN403 switched_off` | door table (flash) |
 | `category_done`, `category_cleared`, `category_rule_lock` (0054), restated | flash quests left out both ways | missed flash: bonus still paid, successor opens, in-order next opens; done flash adds nothing |
 | `record_completion` (0054), restated | boost now, never for `manual` | payer table |
-| `pay_completion` (0049), DROP and CREATE; `pay_submission` (0041), `finish_quiz` (0044), `finish_game_round` (0050), restated | boost at the frozen time | payer table, the frozen rows both ways |
+| `pay_completion` (0049), DROP and CREATE (`fixed_at` required); `pay_submission` (0041), `finish_quiz` (0044), `finish_game_round` (0050), `stamp_step` (0045), `pay_meeting` (0049), restated | boost at the frozen time, or now | payer table, the frozen rows both ways; payer completeness map |
+| `own_pending_points`, `own_submissions` (0040), restated | pending points × the boost at the send | pending total equals the approval's payment (CTO 4) |
+| `ledger_stamp_rehearsal` (0032:75), restated | refuses a real entry naming a rehearsal boost (`LB500`) | direct insert refused (CTO 9) |
 | `remove_award` (0053), restated | copies `boost_id` | removal reverses the doubled amount; ranking rebuild equals the cache |
-| `member_event_quests` (0054), DROP and CREATE | `flash_shown` filter; new columns `flash_closes_at`, `boost jsonb` (`{boostId, multiplier, endsAt}` of the category's running boost) | listed only in the window; boost on its category only (Done when) |
+| `member_event_quests` (0054), DROP and CREATE | `flash_shown` filter; new columns `flash_closes_at`, `boost jsonb` (`{boostId, multiplier, endsAt}` of the category's boost by `boost_in_force` now) | listed only in the window; boost on its category only (Done when); no ×2 for a real player during a rehearsal boost |
 | `member_vote`, `member_quiz`, `member_survey`, `member_share`, `member_passport`, `member_game`, `member_poll` (0054), restated | `flash_shown` (no row; `member_game` QN403 `hidden`, as its lock) | each answers nothing before and after the window |
 | `public_event_quests` (0054), restated | never a flash quest | public page omits it |
 | `operator_award_quests` (0054), restated | a flash quest only while shown | absent outside the window |
 | `live_state` (0054), `event_has_live` (0053), restated | `flash`, `boosts` | route test: shapes and ETag |
-| `member_activity`, `member_ledger` (0053), restated | `multiplier` | ×2 row and its removal |
+| `member_activity`, `member_ledger` (0053), DROP and CREATE, grants re-issued | `multiplier` | ×2 row and its removal |
 | `wipe_rehearsal` (0052), restated | after the ledger rows: delete rehearsal boosts; put rehearsal-launched flash quests back to draft (`visible = false`, window and `flash_launched_at` NULL) | rehearsal case below |
 | `send_poll` | unchanged: a live poll can never be flash (CHECK) | builder refusal |
 | New: `launch_flash`, `end_flash`, `save_boost`, `delete_boost`, `end_boost`, `event_boosts`, `completion_boost` (granted); `flash_on`, `flash_shown`, `quest_boost` (internal) | | outsider and cross-tenant suites |
@@ -196,8 +248,9 @@ category bonus and its item, a quest item, a community payout, manual quest awar
 - **Order**: `ensure_rehearsal_wiped` first in every payer and in `launch_flash`/`save_boost` for a live event; the
   boost lookup and the flash window are read after it. So the wipe has deleted rehearsal boosts and reset rehearsal
   launches before any live entry is written.
-- In `wipe_rehearsal`: rehearsal ledger rows first (they name the boosts), then submissions, attempts, rounds (as
-  today), then `DELETE FROM boost WHERE event_id = target AND rehearsal`, then the flash reset (beside the poll reset).
+- In `wipe_rehearsal` (go-live and the team's erase alike): rehearsal ledger rows first (they name the boosts), then
+  submissions, attempts, rounds (as today), then `DELETE FROM boost WHERE event_id = target AND rehearsal`, then the
+  flash reset (beside the poll reset).
   Real boosts and scheduled flash quests are organizer data and stay.
 - Test: a rehearsal boost doubles a rehearsal account's scan; the event goes live; the first live scan runs the wipe,
   the rehearsal entry and boost are gone, the live scan pays ×1; a real boost scheduled during rehearsal survives and
@@ -209,9 +262,9 @@ category bonus and its item, a quest item, a community payout, manual quest awar
 |---|---|
 | `end_boost` while a player scans | the scan reads the boost without a lock; its entry's key takes `KEY SHARE` on the boost row, the stop's `UPDATE ends_at` takes `FOR NO KEY UPDATE`: no conflict. The scan is ×2 iff its `now()` is before the committed end it saw. Crossed test, both orders. |
 | Two saves of overlapping boosts | the event's advisory lock serialises them; the second is `boost_overlap`. Crossed test. |
-| `delete_boost` vs a payer | impossible inside a minute of the start (rule above); tested by the refusal. |
+| `delete_boost` vs a payer | impossible inside a minute of the start (rule above, checked under the boost row's `FOR UPDATE` with `clock_timestamp()`, and refused if any entry names it); tested by the refusal. A payer that read the boost and inserts after the delete committed would fail its key (23503, the API's 503 `busy`, a retry pays ×1); the minute makes it unreachable. |
 | `launch_flash` while players read | the launch updates the quest row (`FOR NO KEY UPDATE`); completions only read it and take `KEY SHARE` through their keys: no conflict. |
-| Lock order | `save_boost`: rehearsal row → event advisory lock → boost rows; never an enrollment. `launch_flash`/`end_flash`: rehearsal row → quest row. Payers unchanged (ADR-211) plus an unlocked boost read. rules.md's lock-order paragraph gains these two lines. |
+| Lock order | `save_boost`: rehearsal row → event advisory lock → the boost row `FOR UPDATE` (an edit) → other boost rows read; `delete_boost`: rehearsal row → boost row `FOR UPDATE`; never an enrollment. `launch_flash`/`end_flash`: rehearsal row → quest row. Payers unchanged (ADR-211) plus an unlocked boost read. rules.md's lock-order paragraph gains these two lines. |
 
 Cost: one more index probe per completion (`quest_boost`) and per quest row in `member_event_quests` (the running
 boost of each category, computed once per category in a `LATERAL`). The database test reads `EXPLAIN` of the probe
@@ -221,8 +274,8 @@ once (as T-306c).
 
 - Team: quest body `flash: boolean` (422 `invalid_quest {issues: flash_live_poll | flash_window}`); `POST
   …/events/{eventId}/quests/{questId}/launch` `{minutes}` and `…/end`, **Idempotency-Key**, → `{opensAt, closesAt,
-  replayed}` (404, 403 `feature_off`, 409 `already_launched` / `event_not_live` / `community_locked`, 422
-  `not_flash`). `GET/POST …/events/{eventId}/boosts`, `PATCH/DELETE …/boosts/{boostId}`, `POST …/boosts/{boostId}/end`
+  replayed}` (404, 403 `feature_off`, 409 `already_launched` / `event_not_live` / `community_locked` / `too_late` /
+  `not_started` (End now before a scheduled start), 422 `not_flash`); the builder's `flash_launched` issue. `GET/POST …/events/{eventId}/boosts`, `PATCH/DELETE …/boosts/{boostId}`, `POST …/boosts/{boostId}/end`
   (403 `feature_off`, 404, 409 `boost_overlap` / `boost_started` / `event_ended` / `limit_reached`, 422
   `invalid_boost {issues}`). Category delete: `409 boost_in_use`.
 - Player: quests (and Home): each quest `flash: {closesAt} | null`, `boost: {multiplier, endsAt} | null`; each
@@ -249,13 +302,13 @@ Strings (Arabic via `ux-araby` at build, Western digits, RTL checked; drafts):
 |---|---|---|
 | quests.flash.badge | Flash | خاطفة |
 | quests.flash.endsAt | Ends {time} | تنتهي {time} |
-| quests.boost.badge | ×2 | ×2 |
+| quests.boost.badge | ×2 | ×2 (an isolated run, `⁨×2⁩`, so RTL never reorders it, CTO nit) |
 | quests.boost.until | Double points until {time} | نقاط مضاعفة حتى {time} |
 | completion.boosted | Double points! | نقاط مضاعفة! |
 | live.flash.title | Flash quest! | مهمة خاطفة! |
 | live.boost.title | Double points | نقاط مضاعفة |
 | live.boost.body | {category} until {time} | {category} حتى {time} |
-| activity.boosted | ×2 | ×2 |
+| activity.boosted | ×2 | ×2 (isolated, as the badge) |
 
 Plus the dashboard's labels ("Flash quest", "Launch now", "Minutes", "End now", "Boosts", "Double points on",
 "Starts", "Stop", "Removed at go-live"), the refusals (`boost_overlap`: "Another boost runs on this category at that
@@ -266,8 +319,9 @@ labels.
 
 - `quest`: `flash boolean NOT NULL DEFAULT false` (column grant to the API with the other builder columns),
   `flash_launched_at timestamptz` (no grant); `CHECK (NOT flash OR NOT is_live_poll(type, type_config))`; `CHECK (NOT
-  flash OR NOT visible OR (opens_at IS NOT NULL AND closes_at IS NOT NULL AND closes_at - opens_at BETWEEN 1 minute
-  AND 1440 minutes))`; `CHECK (flash_launched_at IS NULL OR flash)`; index `quest_flash_idx (event_id) WHERE flash`.
+  flash OR NOT visible OR (opens_at IS NOT NULL AND closes_at IS NOT NULL AND closes_at > opens_at
+  AND closes_at - opens_at <= interval '1440 minutes'))` (no minimum here: End now and a launch clamped to the event's
+  end may leave less than a minute; the minimum is launch's and the builder's refusal, CTO 1); `CHECK (flash_launched_at IS NULL OR flash)`; index `quest_flash_idx (event_id) WHERE flash`.
 - `boost` table as above, index `(category_id, starts_at)` and `(event_id, starts_at)`; RLS forced, PUBLIC revoked.
 - `ledger_entry.boost_id` and its CHECK; index `WHERE boost_id IS NOT NULL`.
 - Functions: each new one `REVOKE ALL … FROM PUBLIC`; restated doors keep their grants; DROP and CREATE
@@ -285,8 +339,11 @@ review notes gain one line; the demo event gets a scheduled flash quest and a bo
 - **Database** (`test/db/flash-boosts.int.test.ts`): the door table; the payer table; the readers above (in and out
   of the window, switch off, rehearsal launch hidden between go-live and the wipe); the category rules with flash
   quests; periods; items; the builder checks (live poll, window length, scheduled without both times); launch, replay,
-  `already_launched`, `community_locked`, End now; boosts: overlap, outside the event, edit and delete until a minute
-  before, `boost_started`, stop, limit, `event_ended`, category delete `boost_in_use`, rehearsal boost; removal
+  `already_launched`, `community_locked`, `too_late`, End now 10 s after launch, End now on a scheduled flash not yet
+  started (`not_started`), turning the flag off after launch refused; a category of only flash quests; boosts: overlap, outside the event, edit and delete until a minute
+  before, `boost_started` (also when an entry names it), stop, limit, `event_ended`, category delete `boost_in_use`,
+  rehearsal boost (before the start, ending by it, separate overlap, removed by an erase mid-rehearsal, invisible and
+  ×1 for real players), a quest moved between categories between send and approval, pending points; removal
   reverses exactly; ranking rebuild from the ledger equals the cache with boosted entries; today's ranking and a
   community points goal count the doubled amount; the payer completeness map; T-306c's reader completeness map extended
   with every function here.
@@ -331,17 +388,23 @@ tests). Shape to build then:
   (FR-254, FR-255, FR-1621) after T-504, since it is a big-screen scene and the screen, its pairing and its reader rule
   do not exist yet. A finale page of its own on the dashboard was rejected: it would duplicate T-504's scene player.
 - **ADR-231** Flash quests: a flag on any quest but a live poll; launched now for 1 to 1,440 minutes (once) or
-  scheduled with both times; shown to players only inside the window (never on the public page); End now; out of every
-  category rule; a rehearsal launch goes back to draft at go-live; the event switch hides them. Q-195.
+  scheduled with both times; shown to players only inside the window (never on the public page); End now (not before
+  a scheduled start); out of every category rule; never turned back into a normal quest once launched; a rehearsal
+  launch goes back to draft at go-live; the event switch hides them; the 1-minute minimum is a refusal, not a CHECK.
+  Q-195.
 - **ADR-232** Boosts: ×2 on one category (a "zone" is a category) for 1 to 1,440 minutes, now or scheduled, no overlap
-  on a category, at most 100 an event; edits and deletes until a minute before the start, then only Stop; written into
+  on a category, at most 100 an event; edits and deletes until a minute before the start (under the row's lock, never
+  once an entry names it), then only Stop; a rehearsal boost is the one exception to the event's window (it ends by
+  the start, overlap checked apart); written into
   the quest's ledger entry (`boost_id`, the doubled amount) so the score, ranking rebuild, removal and results need no
   change. Boosted: every quest payment from a player's own act. Never: the category bonus, items, community rewards,
   manual quest awards and point awards, welcome points, XP. Q-196.
 - **ADR-233** Boost timing and switches: a boost is judged at the time the quest's points were fixed (the completion;
   a submission's send, a quiz's start, a game round's issue), looked up by that time; the event switch off stops every
   boost paying at once; the platform switch lets running ones finish; a community points goal counts the doubled
-  points; a rehearsal boost pays only rehearsal accounts and is removed at go-live. Q-197.
+  points and pending points show them; one rule (`boost_in_force`) for payers and readers, so a rehearsal boost is paid
+  to and shown to rehearsal accounts only, and is removed at go-live or by an erase; the quest's category at payment;
+  `fixed_at` required at every `pay_completion` call. Q-197.
 - **Q-195** Flash quests: hidden from players before and after their window (and never on the public event page), at
   most 24 hours long, launched once; a missed flash quest never blocks a category's bonus or what unlocks after it,
   and doing one does not count toward the bonus. Agree?

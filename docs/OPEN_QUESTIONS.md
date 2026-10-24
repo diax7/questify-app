@@ -471,4 +471,6 @@ boost). Agree, or should a staff award of a quest during a boost be doubled too?
 ## Q-197 — When a boost applies (2026-10-24, T-307 plan)
 ADR-233: a submission sent, a quiz started or a game begun during a boost gets double points even if it is approved or
 finished after the boost ends; turning boosts off for the event stops doubling at once, including for submissions
-still waiting for review; a community points goal counts the doubled points. Agree?
+still waiting for review; a community points goal counts the doubled points; the player's pending points already show
+the doubled amount. A test boost set up during the rehearsal doubles only the test accounts and is removed at go-live.
+Agree?

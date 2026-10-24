@@ -2978,8 +2978,10 @@ payer and need their own review.
 **Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-195.
 **Decision:** a flash quest is any quest but a live poll with `flash` set. It is launched now for 1 to 1,440 minutes
 (once; a rehearsal launch goes back to draft at go-live) or scheduled with both an opening and a closing time; End now
-closes it early. Players see it only inside its window (never on the public event page). It stays out of every
-category rule, as live polls do. The event's `flashQuests` switch hides it and its doors refuse it.
+closes it early (any time left, but not before a scheduled one starts). Players see it only inside its window (never
+on the public event page). It stays out of every category rule, as live polls do. Once launched it cannot be turned
+back into a normal quest. The event's `flashQuests` switch hides it and its doors refuse it. The 1-minute minimum is a
+refusal of the launch and the builder, not a table check (CTO plan review 1).
 **Why:** a "drop" that shows only while it runs; leaving it out of the category rules means a missed flash quest
 never holds back a bonus or an unlock.
 
@@ -2987,7 +2989,9 @@ never holds back a bonus or an unlock.
 **Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-196.
 **Decision:** a boost doubles (×2) the quest payments of one category (a "zone" is a category under the event's own
 word, F-187) for 1 to 1,440 minutes, started now or scheduled; two boosts of one category never overlap; at most 100 an
-event; a scheduled boost can be edited or deleted until a minute before it starts, a started one only stopped. The
+event; a scheduled boost can be edited or deleted until a minute before it starts (and never once an entry names it),
+a started one only stopped. A rehearsal boost (saved before go-live, starting before the event) is the one boost
+outside the event's window: it ends by the event's start and is checked for overlap apart from real ones. The
 doubled amount is written into the quest's own ledger entry with `boost_id`, so the score, the ranking rebuild,
 removals, today's ranking and results need no change. Boosted: every quest payment from a player's own act (scan,
 code, location, my-QR, vote, live poll, survey, share, passport, meet, submission, quiz, game). Never: the category
@@ -2999,7 +3003,11 @@ bonus, items, community rewards, manual quest awards and point awards, welcome p
 **Decision:** a boost is judged at the time the quest's points were fixed: the completion, a submission's send, a
 quiz's start, a game round's issue. It is looked up by that time; since a window never moves once it starts (only Stop
 shortens it to now), the answer never changes. The event's `boosts` switch off stops every boost paying at once; the
-platform switch only stops new ones. A community points goal counts the doubled points. A rehearsal boost pays only
-rehearsal accounts and the go-live wipe deletes it after the rehearsal entries.
+platform switch only stops new ones. A community points goal counts the doubled points, and a player's pending
+submission points show what approval will pay. One rule (`boost_in_force`) decides for the payers and the readers: a
+rehearsal boost applies to and is shown to rehearsal accounts only, a real one to real accounts only; the go-live wipe
+(and the team's erase) deletes rehearsal boosts after the rehearsal entries. The lookup reads the quest's category at
+payment (a quest moved between a send and its approval follows its new category). Every `pay_completion` caller
+passes the time explicitly (no default), held by a completeness test over every function.
 **Why:** what the player saw when they acted is what they get, whatever the review or finish delay, with nothing new
 stored on submissions, quizzes or rounds.
