@@ -1042,6 +1042,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "ledger_entry.community_payout",
         // A tap row goes with its completion (ON DELETE CASCADE); the tag stays (T-308, test/db/nfc-tags).
         "quest_completion.nfc_tap",
+        // A kiosk scan row goes with its completion (ON DELETE CASCADE) (T-309b, test/db/kiosks).
+        "quest_completion.kiosk_scan",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
