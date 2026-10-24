@@ -23,7 +23,16 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   place: null,
   meet: null,
   game: null,
+  communityLock: null,
   ...fields,
+});
+
+describe("a community lock (T-306c)", () => {
+  it("keeps a community-locked quest locked and out of Up next", () => {
+    const locked = quest("a", { lock: "community_locked", points: 50 });
+    expect(questState(locked, "live", NOW)).toBe("locked");
+    expect(pickUpNext([locked, quest("b")], "a", "live", NOW)).toMatchObject({ questId: "b" });
+  });
 });
 
 describe("finished", () => {

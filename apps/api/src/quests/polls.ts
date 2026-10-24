@@ -10,7 +10,14 @@ export type PollWindow = Readonly<{ opensAt: string; closesAt: string; replayed:
 
 /** Why Send or Close was refused (migration 0052); each maps to one HTTP answer in the routes. */
 export type PollRefusal = Readonly<{
-  kind: "not_found" | "not_live_poll" | "already_sent" | "not_sent" | "event_not_live";
+  kind:
+    | "not_found"
+    | "not_live_poll"
+    | "already_sent"
+    | "not_sent"
+    | "event_not_live"
+    /** The poll or its category waits on a community goal (T-306c, CTO 7). */
+    | "community_locked";
 }>;
 
 export type PollDone = Readonly<{ kind: "done"; value: PollWindow }> | PollRefusal;
@@ -21,6 +28,7 @@ const REFUSALS: Readonly<Record<string, (detail: string) => PollRefusal | undefi
   PE409: () => ({ kind: "event_not_live" }),
   PS409: (detail) =>
     detail === "already_sent" || detail === "not_sent" ? { kind: detail } : undefined,
+  PL409: (detail) => (detail === "community_locked" ? { kind: "community_locked" } : undefined),
 };
 
 type WindowRow = { opens_at: Date; closes_at: Date; replayed: boolean };

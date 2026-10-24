@@ -25,6 +25,7 @@ import {
   notVoteQuest,
   operatorPlayOff,
   pollAlreadySent,
+  pollCommunityLocked,
   pollEventNotLive,
   pollNotSent,
   questCodeInvalid,
@@ -411,6 +412,8 @@ function pollValueOf(result: PollDone) {
       throw pollNotSent();
     case "event_not_live":
       throw pollEventNotLive();
+    case "community_locked":
+      throw pollCommunityLocked();
   }
 }
 

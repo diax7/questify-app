@@ -9,7 +9,7 @@ import {
   type Theme,
 } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
@@ -21,6 +21,7 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { unlockLine } from "#src/event/unlock.ts";
 import {
   cancelRedemption,
   fetchShop,
@@ -51,6 +52,7 @@ const ACTION_TEXT: Readonly<Record<Exclude<RewardAction, "redeem">, MessageKey>>
   too_dear: "shop.tooDear",
   shop_closed: "shop.closed",
   desk_finished: "shop.deskFinished",
+  community_locked: "shop.communityLocked",
 };
 
 const KNOWN_SECTIONS: ReadonlySet<string> = new Set(["featured", "merch", "food", "experiences"]);
@@ -90,6 +92,11 @@ function RewardCard({
   const styles = useThemedStyles(makeStyles);
   const terms = useTerms();
   const action = rewardAction(reward, view, Date.now());
+  // A reward a community goal still locks names the goal's numbers instead of a price button (T-306c).
+  const unlock =
+    action === "community_locked" && reward.communityLock !== null
+      ? unlockLine(reward.communityLock, language, view.shop.desk.timeZone)
+      : null;
   const description = textIn(reward.description, language);
   const pinned = view.goalRewardId === reward.id;
   return (
@@ -110,7 +117,9 @@ function RewardCard({
         <Button label={t("shop.redeem")} onPress={onRedeem} />
       ) : (
         <AppText muted accessibilityRole="text">
-          {t(ACTION_TEXT[action], { currency: termFor(terms.currency, language) })}
+          {unlock === null
+            ? t(ACTION_TEXT[action], { currency: termFor(terms.currency, language) })
+            : t(unlock.key, unlock.values)}
         </AppText>
       )}
       <Button
@@ -299,8 +308,9 @@ function reservedNotice(
   ];
 }
 
-/** Reads the shop on focus; a signed-out session goes home. */
+/** Reads the shop on focus, and again when a community goal unlocks something (T-306c); signed out goes home. */
 function useShop(eventId: string) {
+  const { paidCount } = useEvent();
   const [answer, setAnswer] = useState<ShopAnswer | undefined>(undefined);
   const load = useCallback(async () => {
     const next = await fetchShop(api.session, eventId);
@@ -316,6 +326,11 @@ function useShop(eventId: string) {
       void load();
     }, [load]),
   );
+  useEffect(() => {
+    if (paidCount > 0) {
+      void load();
+    }
+  }, [paidCount, load]);
   return { answer, load };
 }
 

@@ -915,6 +915,10 @@ export const MESSAGES = {
     ar: "أكمل المهمة السابقة أولًا.",
     en: "Finish the quest before this one first.",
   },
+  "questsTab.notOpen.communityLocked": {
+    ar: "يُفتح عند تحقيق الهدف الجماعي.",
+    en: "Opens when the community goal is reached.",
+  },
   "questsTab.locked": { ar: "مقفلة الآن", en: "Locked for now" },
   "questsTab.bonusPaid": {
     ar: "أكملت «{category}»: مكافأة ‎+{points}",
@@ -1426,6 +1430,7 @@ export const MESSAGES = {
   "shop.deskAlwaysOpen": { ar: "المكتب مفتوح طوال الوقت.", en: "The desk is open the whole time." },
   "shop.deskClosed": { ar: "المكتب مغلق الآن.", en: "The desk is closed right now." },
   "shop.deskFinished": { ar: "انتهت ساعات مكتب الجوائز", en: "The prize desk's hours have ended" },
+  "shop.communityLocked": { ar: "يُفتح مع الهدف الجماعي", en: "Unlocks with the community goal" },
   "shop.collect": { ar: "استلام", en: "Collect" },
   "shop.collectHint": {
     ar: "اضغط «استلام» عند وصولك إلى المكتب، ثم اعرض رمزك.",
@@ -3446,6 +3451,34 @@ export const MESSAGES = {
   "community.bar": { ar: "تقدّم المهمة الجماعية", en: "Community quest progress" },
   "community.momentTitle": { ar: "تحقّق هدف جماعي", en: "A community goal is reached" },
   "community.paidTitle": { ar: "وصلت مكافأتك الجماعية", en: "Your community reward is in" },
+  "community.unlock.points": {
+    ar: "يُفتح حين تبلغ النقاط الجماعية {threshold}",
+    en: "Unlocks at {threshold} community points",
+  },
+  "community.unlock.completions": {
+    ar: "يُفتح حين تبلغ المهام المنجزة جماعيًا {threshold}",
+    en: "Unlocks at {threshold} community completions",
+  },
+  "community.unlock.players": {
+    ar: "يُفتح حين يبلغ عدد المشاركين {threshold}",
+    en: "Unlocks at {threshold} players taking part",
+  },
+  "community.unlock.starts": {
+    ar: "يُفتح مع هدف جماعي يبدأ {time}",
+    en: "Unlocks with a community goal that starts {time}",
+  },
+  "community.unlock.missed": {
+    ar: "لم يُفتح: لم يتحقّق الهدف الجماعي",
+    en: "Not unlocked: the community goal was missed",
+  },
+  "community.reward.unlock": { ar: "يفتح {name}", en: "Unlocks {name}" },
+  "community.reward.surprise": { ar: "يفتح مفاجأة", en: "Unlocks a surprise" },
+  "community.unlocked": { ar: "فُتح: {name}", en: "Unlocked: {name}" },
+  "community.unlockedSurprise": { ar: "فُتح شيء جديد", en: "Something new is unlocked" },
+  "community.unlockedTitle": {
+    ar: "فتح المجتمع شيئًا جديدًا",
+    en: "The community unlocked something",
+  },
   "history.community": { ar: "مكافأة جماعية", en: "Community reward" },
   "awards.kind.community": { ar: "مكافأة جماعية", en: "Community reward" },
   "results.communityPaying": {
@@ -3507,6 +3540,32 @@ export const MESSAGES = {
   "community.page.reward.points": { ar: "نقاط", en: "Points" },
   "community.page.reward.moment": { ar: "لحظة في الفعالية", en: "A real-world moment" },
   "community.page.reward.nothing": { ar: "بلا مكافأة", en: "Nothing" },
+  "community.page.reward.unlock": { ar: "فتح عنصر", en: "Unlock" },
+  "community.page.unlock.target": { ar: "ما الذي يُفتح", en: "What it unlocks" },
+  "community.page.unlock.quest": { ar: "مهمة", en: "A quest" },
+  "community.page.unlock.category": { ar: "فئة", en: "A category" },
+  "community.page.unlock.reward": { ar: "جائزة من المتجر", en: "A shop reward" },
+  "community.page.unlock.taken": {
+    ar: "{name} (تفتحه مهمة جماعية أخرى)",
+    en: "{name} (another community quest unlocks it)",
+  },
+  "community.page.unlock.note": {
+    ar: "يبقى مقفلًا للاعبين من لحظة الحفظ حتى تحقيق هذه المحطة، ويبقى مقفلًا إن لم تتحقّق.",
+    en: "Players see it locked from the moment you save until this step is reached, and it stays locked if it isn't.",
+  },
+  "community.page.titleHint": {
+    ar: "يرى كل اللاعبين عنوان الهدف، فلا تذكر فيه فئة مخفية.",
+    en: "Every player sees the goal's title, so don't name a hidden category in it.",
+  },
+  "community.page.unlocks": { ar: "يفتح: {name}", en: "Unlocks: {name}" },
+  "community.page.issue.unlockTarget": {
+    ar: "اختر مهمة أو فئة أو جائزة متاحة من هذه الفعالية.",
+    en: "Pick a quest, category or active shop reward of this event.",
+  },
+  "community.page.issue.unlockCounted": {
+    ar: "لا يفتح الهدف ما يحتسبه: اختر مهمة أو فئة أخرى.",
+    en: "A goal can't unlock what it counts: pick another quest or category.",
+  },
   "community.page.points": { ar: "النقاط (1 إلى 100000)", en: "Points (1 to 100000)" },
   "community.page.momentAr": { ar: "اللحظة بالعربية", en: "The moment in Arabic" },
   "community.page.momentEn": { ar: "اللحظة بالإنجليزية", en: "The moment in English" },
@@ -3549,6 +3608,10 @@ export const MESSAGES = {
   "events.community.off": {
     ar: "المهام الجماعية متوقفة: تنتهي الجارية الآن وتُصرف مكافآت المحطات التي تحقّقت، ولا تبدأ المجدولة.",
     en: "Community quests are off: a running one ends now and pays the steps already reached, and scheduled ones don't start.",
+  },
+  "events.community.offWarning": {
+    ar: "إيقافها يُنهي الهدف الجاري، ويبقى ما كان سيفتحه مقفلًا.",
+    en: "Turning this off ends the running goal; what it would unlock stays locked.",
   },
 } as const satisfies Messages;
 

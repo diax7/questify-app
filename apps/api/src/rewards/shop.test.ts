@@ -330,6 +330,7 @@ describe("readShop", () => {
           closesAt: "2030-01-02T10:00:00.000Z",
           section: "merch",
           tags: { new: true, limited: false, popular: true },
+          communityLock: null,
         },
       ],
       redemptions: [

@@ -7,8 +7,8 @@ import {
   fillOf,
   lineOf,
   markerOf,
+  rewardText,
   type CommunityCard,
-  type CommunityStep,
 } from "#src/event/community.ts";
 import { clockText } from "#src/event/polls.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -26,23 +26,6 @@ function useSecondClock(running: boolean): number {
     return () => clearInterval(timer);
   }, [running]);
   return now;
-}
-
-/** What a step gives, in the player's words. */
-function rewardText(
-  step: CommunityStep,
-  everyone: boolean,
-  t: ReturnType<typeof useI18n>["t"],
-  language: "ar" | "en",
-): string {
-  if (step.reward.kind === "points") {
-    const points = formatNumber(step.reward.points ?? 0, language);
-    return t(everyone ? "community.forEveryone" : "community.forContributors", { points });
-  }
-  if (step.reward.kind === "moment" && step.reward.moment !== undefined) {
-    return textIn(step.reward.moment, language);
-  }
-  return t("community.nothing");
 }
 
 /**
@@ -103,15 +86,15 @@ export function CommunityBar({ card }: Readonly<{ card: CommunityCard }>) {
                   : "community.notReached",
             )}
       </AppText>
-      {card.steps.map((step) => (
-        <AppText key={step.threshold} muted={step.reachedAt === null}>
-          {t("community.step", {
-            threshold: formatNumber(step.threshold, language),
-            reward: rewardText(step, card.paidTo === "everyone", t, language),
-          })}
-          {step.reachedAt === null ? "" : " ✓"}
-        </AppText>
-      ))}
+      {card.steps.map((step) => {
+        const reward = rewardText(step, card.paidTo === "everyone", t, language);
+        return reward === null ? null : (
+          <AppText key={step.threshold} muted={step.reachedAt === null}>
+            {t("community.step", { threshold: formatNumber(step.threshold, language), reward })}
+            {step.reachedAt === null ? "" : " ✓"}
+          </AppText>
+        );
+      })}
       {card.contributed ? <AppText variant="label">{t("community.contributed")}</AppText> : null}
     </View>
   );

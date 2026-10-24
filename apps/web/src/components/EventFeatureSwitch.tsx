@@ -57,8 +57,8 @@ type Props = Readonly<{
 /**
  * An event's share quests, meet-someone, mini-games or community quests switch (FR-219, ADR-199; FR-1009, ADR-210,
  * ADR-213; T-306b, ADR-226): on by default; off hides every quest of that type from players and stops paying them (off
- * for community quests finishes a running goal, whose reached steps still pay). The owner changes it; an editor sees
- * which it is. Saved as soon as the box changes.
+ * for community quests finishes a running goal, whose reached steps still pay, and warns that what it would unlock stays
+ * locked, T-306c). The owner changes it; an editor sees which it is. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
   language,
@@ -103,6 +103,9 @@ export function EventFeatureSwitch({
       <h2 id={`${words.path}-title`} className={styles.subtitle}>
         {t(words.title)}
       </h2>
+      {myRole === "owner" && on && feature === "community" ? (
+        <p className={styles.muted}>{t("events.community.offWarning")}</p>
+      ) : null}
       {myRole === "owner" ? (
         <label className={styles.check}>
           <input

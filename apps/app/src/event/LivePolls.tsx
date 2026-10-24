@@ -49,7 +49,29 @@ function useShownResults(eventId: string) {
   return { shown, remember };
 }
 
-/** A one-time community card (T-306b, FR-247): a reached moment step, or the points a step paid the player. */
+/** The one-time card's title: the points paid, a reached moment, or something unlocked (T-306c). */
+const NEWS_TITLE = {
+  paid: "community.paidTitle",
+  moment: "community.momentTitle",
+  unlocked: "community.unlockedTitle",
+} as const;
+
+/** What a reached unlock opened: its name when the player sees it, else "Something new is unlocked". */
+function unlockedText(
+  news: CommunityNews,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+): string {
+  const target = news.step.reward.target;
+  return target === undefined
+    ? t("community.unlockedSurprise")
+    : t("community.unlocked", { name: textIn(target.name, language) });
+}
+
+/**
+ * A one-time community card (T-306b, FR-247): a reached moment step, the points a step paid the player, or what a
+ * reached step unlocked (T-306c).
+ */
 function CommunityNewsBody({ news, goal }: Readonly<{ news: CommunityNews; goal: CommunityCard }>) {
   const { t, language } = useI18n();
   const moment = news.step.reward.moment;
@@ -61,9 +83,11 @@ function CommunityNewsBody({ news, goal }: Readonly<{ news: CommunityNews; goal:
       <AppText variant="title">
         {news.kind === "paid"
           ? t("community.paid", { points: formatNumber(news.step.reward.points ?? 0, language) })
-          : moment === undefined
-            ? t("community.reached")
-            : textIn(moment, language)}
+          : news.kind === "unlocked"
+            ? unlockedText(news, t, language)
+            : moment === undefined
+              ? t("community.reached")
+              : textIn(moment, language)}
       </AppText>
     </View>
   );
@@ -110,9 +134,7 @@ export function LivePolls() {
       if (news.kind === "paid") {
         notePaid();
       }
-      AccessibilityInfo.announceForAccessibility(
-        t(news.kind === "paid" ? "community.paidTitle" : "community.momentTitle"),
-      );
+      AccessibilityInfo.announceForAccessibility(t(NEWS_TITLE[news.kind]));
     }
   }, [card, calm, live, putOff, shown, remember, t, notePaid]);
 
@@ -121,11 +143,7 @@ export function LivePolls() {
   }
   if (card.kind === "community") {
     return (
-      <Sheet
-        visible
-        title={t(card.news.kind === "paid" ? "community.paidTitle" : "community.momentTitle")}
-        onClose={() => setCard(null)}
-      >
+      <Sheet visible title={t(NEWS_TITLE[card.news.kind])} onClose={() => setCard(null)}>
         <CommunityNewsBody news={card.news} goal={card.goal} />
       </Sheet>
     );

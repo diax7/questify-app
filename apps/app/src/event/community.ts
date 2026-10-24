@@ -1,12 +1,20 @@
-import type { MessageKey } from "@questify/shared";
+import { formatNumber, type Language, type MessageKey } from "@questify/shared";
 import { isRecord, type PlayText } from "#src/event/plays.ts";
+import { textIn } from "#src/i18n/text.ts";
+
+type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
 
 // ================================================================ the community goal (T-306b, FR-243 to FR-250)
 
+/** What an unlock step opens, sent only when the player sees it (T-306c); without it the step is "a surprise". */
+export type UnlockTarget = Readonly<{ kind: string; id: string; name: PlayText }>;
+
+/** A step's reward. A kind this build does not know (F-282) keeps its step on the bar, with no words. */
 export type CommunityReward = Readonly<{
-  kind: "points" | "moment" | "nothing";
+  kind: "points" | "moment" | "nothing" | "unlock" | (string & {});
   points?: number;
   moment?: PlayText;
+  target?: UnlockTarget;
 }>;
 
 export type CommunityStep = Readonly<{
@@ -35,7 +43,6 @@ export type CommunityCard = Readonly<{
 
 const MEASURES = ["points", "completions", "players"] as const;
 const STATUSES = ["running", "reached", "missed"] as const;
-const KINDS = ["points", "moment", "nothing"] as const;
 const MINE = ["due", "paid", "skipped"] as const;
 
 const oneOf = <T extends string>(list: readonly T[], value: unknown): value is T =>
@@ -49,14 +56,22 @@ const textOf = (value: unknown): PlayText => {
   };
 };
 
+function targetOf(value: unknown): UnlockTarget | undefined {
+  return isRecord(value) && typeof value["kind"] === "string" && typeof value["id"] === "string"
+    ? { kind: value["kind"], id: value["id"], name: textOf(value["name"]) }
+    : undefined;
+}
+
 function rewardOf(value: unknown): CommunityReward | undefined {
-  if (!isRecord(value) || !oneOf(KINDS, value["kind"])) {
+  if (!isRecord(value) || typeof value["kind"] !== "string") {
     return undefined;
   }
+  const target = targetOf(value["target"]);
   return {
     kind: value["kind"],
     ...(typeof value["points"] === "number" ? { points: value["points"] } : {}),
     ...(isRecord(value["moment"]) ? { moment: textOf(value["moment"]) } : {}),
+    ...(target === undefined ? {} : { target }),
   };
 }
 
@@ -141,10 +156,40 @@ export const MEASURE_KEYS: Readonly<Record<CommunityCard["measure"], MessageKey>
   players: "community.measure.players",
 };
 
-/** A one-time card for this phone: a reached moment step, or a step that paid the player. */
+/**
+ * What a step gives, in the player's words; null for a reward kind this build does not know (F-282), whose marker
+ * stays on the bar without words. An unlock names its target only when the server sent it (the player sees it).
+ */
+export function rewardText(
+  step: CommunityStep,
+  everyone: boolean,
+  t: Translate,
+  language: Language,
+): string | null {
+  switch (step.reward.kind) {
+    case "points": {
+      const points = formatNumber(step.reward.points ?? 0, language);
+      return t(everyone ? "community.forEveryone" : "community.forContributors", { points });
+    }
+    case "moment":
+      return step.reward.moment === undefined
+        ? t("community.nothing")
+        : textIn(step.reward.moment, language);
+    case "nothing":
+      return t("community.nothing");
+    case "unlock":
+      return step.reward.target === undefined
+        ? `🔒 ${t("community.reward.surprise")}`
+        : `🔒 ${t("community.reward.unlock", { name: textIn(step.reward.target.name, language) })}`;
+    default:
+      return null;
+  }
+}
+
+/** A one-time card for this phone: a reached moment step, a reached unlock (T-306c), or a step that paid the player. */
 export type CommunityNews = Readonly<{
   key: string;
-  kind: "moment" | "paid";
+  kind: "moment" | "unlocked" | "paid";
   step: CommunityStep;
 }>;
 
@@ -161,9 +206,36 @@ export function communityNews(
     if (step.reward.kind === "moment" && step.reachedAt !== null) {
       news.push({ key: `community:${card.goalId}:${step.threshold}:moment`, kind: "moment", step });
     }
+    if (step.reward.kind === "unlock" && step.reachedAt !== null) {
+      news.push({
+        key: `community:${card.goalId}:${step.threshold}:unlocked`,
+        kind: "unlocked",
+        step,
+      });
+    }
     if (step.mine === "paid") {
       news.push({ key: `community:${card.goalId}:${step.threshold}:paid`, kind: "paid", step });
     }
   }
   return news.filter((item) => !shown.includes(item.key));
+}
+
+/** The unlock steps reached on this card, by goal and threshold. */
+export function reachedUnlocks(card: CommunityCard | null): readonly string[] {
+  return card === null
+    ? []
+    : card.steps
+        .filter((step) => step.reward.kind === "unlock" && step.reachedAt !== null)
+        .map((step) => `${card.goalId}:${step.threshold}`);
+}
+
+/**
+ * Whether the live read just reached an unlock this phone had seen waiting (T-306c): the quests and shop it shows are
+ * then out of date and read again. The first read of the event (`before` undefined) has nothing older to replace.
+ */
+export function unlockedSince(
+  before: readonly string[] | undefined,
+  card: CommunityCard | null,
+): boolean {
+  return before !== undefined && reachedUnlocks(card).some((key) => !before.includes(key));
 }

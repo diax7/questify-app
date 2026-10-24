@@ -8,6 +8,8 @@ import {
   type GoalDraft,
   type Measure,
   type RewardDraft,
+  type TargetChoice,
+  type UnlockKind,
 } from "#src/lib/community.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
@@ -16,6 +18,8 @@ import styles from "#src/components/layout.module.css";
 export type Choice = Readonly<{ id: string; name: string }>;
 
 type Change = (next: GoalDraft) => void;
+/** The picker's choices for a kind of target, for this draft (`targetChoices`). */
+export type Targets = (kind: UnlockKind) => readonly TargetChoice[];
 
 function TextField({
   label,
@@ -47,19 +51,81 @@ function TextField({
   );
 }
 
-/** A reward's kind and its points or moment texts; once started only the moment texts stay editable. */
-function RewardFields({
+/**
+ * An unlock's target (T-306c, ADR-227): a quest, a category or a shop reward, from what the goal may unlock; one
+ * another goal unlocks is shown but cannot be picked. The note says it is locked from the save.
+ */
+function UnlockFields({
   language,
   reward,
   locked,
   busy,
   change,
+  targets,
 }: Readonly<{
   language: Language;
   reward: RewardDraft;
   locked: boolean;
   busy: boolean;
   change: (next: RewardDraft) => void;
+  targets: Targets;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <select
+        className={styles.input}
+        value={reward.targetKind}
+        disabled={busy || locked}
+        aria-label={t("community.page.unlock.target")}
+        onChange={(event) =>
+          change({ ...reward, targetKind: event.target.value as UnlockKind, targetId: "" })
+        }
+      >
+        {(["quest", "category", "reward"] as const).map((kind) => (
+          <option key={kind} value={kind}>
+            {t(`community.page.unlock.${kind}`)}
+          </option>
+        ))}
+      </select>
+      <select
+        className={styles.input}
+        value={reward.targetId}
+        disabled={busy || locked}
+        aria-label={t(`community.page.unlock.${reward.targetKind}`)}
+        onChange={(event) => change({ ...reward, targetId: event.target.value })}
+      >
+        <option value="" />
+        {targets(reward.targetKind).map((choice) => (
+          <option
+            key={choice.id}
+            value={choice.id}
+            disabled={choice.taken && choice.id !== reward.targetId}
+          >
+            {choice.taken ? t("community.page.unlock.taken", { name: choice.name }) : choice.name}
+          </option>
+        ))}
+      </select>
+      <span className={styles.muted}>{t("community.page.unlock.note")}</span>
+    </>
+  );
+}
+
+/** A reward's kind and its points, moment texts or unlock; once started only the moment texts stay editable. */
+function RewardFields({
+  language,
+  reward,
+  locked,
+  busy,
+  change,
+  targets,
+}: Readonly<{
+  language: Language;
+  reward: RewardDraft;
+  locked: boolean;
+  busy: boolean;
+  change: (next: RewardDraft) => void;
+  targets: Targets;
 }>) {
   const t = translatorFor(language);
   return (
@@ -71,7 +137,7 @@ function RewardFields({
         aria-label={t("community.page.goalReward")}
         onChange={(event) => change({ ...reward, kind: event.target.value as RewardDraft["kind"] })}
       >
-        {(["points", "moment", "nothing"] as const).map((kind) => (
+        {(["points", "moment", "nothing", "unlock"] as const).map((kind) => (
           <option key={kind} value={kind}>
             {t(`community.page.reward.${kind}`)}
           </option>
@@ -106,6 +172,16 @@ function RewardFields({
             maxLength={280}
           />
         </>
+      ) : null}
+      {reward.kind === "unlock" ? (
+        <UnlockFields
+          language={language}
+          reward={reward}
+          locked={locked}
+          busy={busy}
+          change={change}
+          targets={targets}
+        />
       ) : null}
     </>
   );
@@ -200,12 +276,14 @@ function MilestoneFields({
   locked,
   busy,
   change,
+  targets,
 }: Readonly<{
   language: Language;
   draft: GoalDraft;
   locked: boolean;
   busy: boolean;
   change: Change;
+  targets: Targets;
 }>) {
   const t = translatorFor(language);
   const set = (index: number, next: GoalDraft["milestones"][number]) =>
@@ -232,6 +310,7 @@ function MilestoneFields({
             locked={locked}
             busy={busy}
             change={(reward) => set(index, { ...step, ...reward })}
+            targets={targets}
           />
           {locked ? null : (
             <button
@@ -269,9 +348,23 @@ function MilestoneFields({
   );
 }
 
-/** The bar as players see it at the start and at the first milestone (goals never run in rehearsal, Q-186). */
-function BarPreview({ language, draft }: Readonly<{ language: Language; draft: GoalDraft }>) {
+/**
+ * The bar as players see it at the start and at the first milestone (goals never run in rehearsal, Q-186), with each
+ * unlock marker as a player who sees its target reads it.
+ */
+function BarPreview({
+  language,
+  draft,
+  targets,
+}: Readonly<{ language: Language; draft: GoalDraft; targets: Targets }>) {
   const t = translatorFor(language);
+  const unlocks = [draft.reward, ...draft.milestones]
+    .filter((reward) => reward.kind === "unlock" && reward.targetId !== "")
+    .map(
+      (reward) =>
+        targets(reward.targetKind).find((choice) => choice.id === reward.targetId)?.name ?? "",
+    )
+    .filter((name) => name !== "");
   return (
     <div className={styles.form}>
       <strong>{t("community.page.preview")}</strong>
@@ -280,6 +373,9 @@ function BarPreview({ language, draft }: Readonly<{ language: Language; draft: G
         <div key={fill} className={styles.meter} aria-hidden="true">
           <div className={styles.meterFill} style={{ inlineSize: `${fill * 100}%` }} />
         </div>
+      ))}
+      {unlocks.map((name) => (
+        <span key={name}>🔒 {t("community.reward.unlock", { name })}</span>
       ))}
     </div>
   );
@@ -292,6 +388,7 @@ export function CommunityGoalForm({
   change,
   quests,
   categories,
+  targets,
   busy,
   save,
   cancel,
@@ -301,6 +398,7 @@ export function CommunityGoalForm({
   change: Change;
   quests: readonly Choice[];
   categories: readonly Choice[];
+  targets: Targets;
   busy: boolean;
   save: () => void;
   cancel: () => void;
@@ -345,6 +443,7 @@ export function CommunityGoalForm({
         dir="ltr"
         maxLength={80}
       />
+      <p className={styles.muted}>{t("community.page.titleHint")}</p>
       <ScopeFields
         language={language}
         draft={draft}
@@ -386,6 +485,7 @@ export function CommunityGoalForm({
           locked={locked}
           busy={busy}
           change={(reward) => change({ ...draft, reward })}
+          targets={targets}
         />
       </fieldset>
       <MilestoneFields
@@ -394,8 +494,9 @@ export function CommunityGoalForm({
         locked={locked}
         busy={busy}
         change={change}
+        targets={targets}
       />
-      <BarPreview language={language} draft={draft} />
+      <BarPreview language={language} draft={draft} targets={targets} />
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}

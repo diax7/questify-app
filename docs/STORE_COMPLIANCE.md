@@ -161,7 +161,10 @@ What App Review needs from Questify:
    **Community quests (T-306b, ADR-222 to ADR-226):** the note says every player works toward one shared goal by
    playing the event; nothing is bought or deducted; a reached step pays event points (never real money) or names a
    moment at the venue; the bar comes from the app's own polling (no push needed, 4.5.4). The organizer can switch it
-   off for an event. The demo event gets a running goal on the day the build goes to review (RUNBOOK).
+   off for an event. The demo event gets a running goal on the day the build goes to review (RUNBOOK). A step may
+   unlock a quest, category or shop reward already in the event's data, decided by the server (T-306c, 2.5.2: data
+   only, no code downloaded); a locked shop reward is bought with event points like any other once open, never with
+   money or chance. The demo goal gets an unlock milestone.
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

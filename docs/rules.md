@@ -79,7 +79,11 @@ connections (`test/db/meet.int.test.ts`). The community payer (T-306b, ADR-223) 
 event `FOR KEY SHARE`, then its payout rows `SKIP LOCKED`, then the batch's enrollments in one statement in id order,
 and no item, advisory or XP lock; settling a goal locks only the goal (its contributor, reach and payout inserts take
 `KEY SHARE` on the enrollments, steps and event through their foreign keys and wait only for a `FOR UPDATE` whose
-holder never waits for a goal). Crossed cases: `test/db/community-locks.int.test.ts`.
+holder never waits for a goal). Crossed cases: `test/db/community-locks.int.test.ts`. A goal's save (T-306c) takes the
+rehearsal row, the builder's advisory lock, the goal, then its steps, whose inserts take `KEY SHARE` on each unlock
+target (quest, category, reward) through their keys; `reserve_reward` takes the enrollment then the reward `FOR UPDATE`
+and reads the gate in a later statement; the save never locks an enrollment, so the two never cycle (crossed both ways
+in `test/db/community-unlocks.int.test.ts`).
 
 ## Testing
 

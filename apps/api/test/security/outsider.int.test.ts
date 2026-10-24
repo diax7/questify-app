@@ -297,6 +297,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot reach the unlock gate or its notes (T-306c)", async () => {
+      for (const sql of [
+        "SELECT public.quest_community_lock(NULL::public.quest)",
+        "SELECT public.category_community_lock(gen_random_uuid())",
+        "SELECT public.reward_community_lock(NULL::public.reward)",
+        "SELECT public.community_lock_missed(gen_random_uuid())",
+        "SELECT public.quest_lock_missed(NULL::public.quest)",
+        "SELECT public.community_lock_note(gen_random_uuid())",
+        "SELECT public.category_rule_lock(NULL::public.quest, gen_random_uuid())",
+        "SELECT public.community_unlock_target(NULL::public.community_step, gen_random_uuid())",
+        "SELECT public.community_check_unlocks(NULL::public.event, NULL, '{}')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

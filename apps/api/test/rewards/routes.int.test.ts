@@ -552,6 +552,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         closesAt: null,
         section: "merch",
         tags: { new: true, limited: false, popular: false },
+        communityLock: null,
       });
     });
 

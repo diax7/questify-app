@@ -3,6 +3,7 @@ import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import type { Position } from "#src/event/location.ts";
+import { lockNoteOf, sameLock, type CommunityLock } from "#src/event/unlock.ts";
 
 /**
  * Where a quest stands for this player, decided by the server (`questState` in `apps/api/src/home/home.ts`). A newer
@@ -17,10 +18,22 @@ export type QuestState =
   | "open"
   | (string & {});
 
-/** Why a quest's category keeps it shut (T-304): not opened yet, waiting on another category, or in order. */
-export type QuestLock = "category_not_started" | "category_locked" | "order_locked";
+/**
+ * Why a quest is shut: a community goal not yet reached (T-306c), or its category (T-304): not opened yet, waiting on
+ * another category, or in order. A lock this build does not know is read as none and shows "Locked" (F-282).
+ */
+export type QuestLock =
+  | "community_locked"
+  | "category_not_started"
+  | "category_locked"
+  | "order_locked";
 
-const LOCKS: readonly string[] = ["category_not_started", "category_locked", "order_locked"];
+const LOCKS: readonly string[] = [
+  "community_locked",
+  "category_not_started",
+  "category_locked",
+  "order_locked",
+];
 
 /** A quest as `GET /v1/events/{id}/quests` gives it (T-113, T-114). */
 export type Quest = Readonly<{
@@ -52,6 +65,8 @@ export type Quest = Readonly<{
   meet: Readonly<{ dailyCap: number; today: number }> | null;
   /** A game quest's attempts left (null when unlimited) and whether it passed (T-305); null for other types. */
   game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
+  /** The community goal holding it shut, its category's included (T-306c); null when free or from an older API. */
+  communityLock: CommunityLock | null;
 }>;
 
 /**
@@ -71,6 +86,8 @@ export type CategoryRules = Readonly<{
   /** How often its quests start again (T-304c, FR-236); `resetsAt` is the next start, null for none. */
   refresh: "none" | "daily" | "weekly";
   resetsAt: string | null;
+  /** The community goal locking the category as a whole (T-306c), shown once as its note; null when free. */
+  communityLock: CommunityLock | null;
 }>;
 
 export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
@@ -179,6 +196,7 @@ const withVerification = (quest: Quest): Quest => ({
   place: placeOf(quest.place),
   meet: meetOf(quest.meet),
   game: gameOf(quest.game),
+  communityLock: lockNoteOf(quest.communityLock),
 });
 
 /** A game quest's attempts and pass as sent, or null for anything missing or not well formed. */
@@ -238,6 +256,7 @@ function rulesOf(category: Record<string, unknown>): CategoryRules {
         ? category["refresh"]
         : "none",
     resetsAt: typeof category["resetsAt"] === "string" ? category["resetsAt"] : null,
+    communityLock: lockNoteOf(category["communityLock"]),
   };
 }
 
@@ -317,6 +336,7 @@ export function categorySummary(category: Pick<Category, "quests">): CategorySum
 
 /** What a category's header says of its rules (T-304), in this order. */
 export type CategoryNote =
+  | Readonly<{ kind: "community"; note: CommunityLock }>
   | Readonly<{ kind: "opens"; at: string }>
   | Readonly<{ kind: "unlockAfter"; name: Bilingual }>
   | Readonly<{ kind: "inOrder" }>
@@ -326,13 +346,14 @@ export type CategoryNote =
   | Readonly<{ kind: "resets"; refresh: "daily" | "weekly"; at: string }>;
 
 /**
- * A category header's notes: when it opens and which category unlocks it, while that keeps its quests shut; that it is
- * played in order; when it resets (T-304c); and its completion bonus, or the bonus earned; nothing for a bonus settled
- * with nothing kept.
+ * A category header's notes: the community goal locking it as a whole (T-306c), first; when it opens and which
+ * category unlocks it, while that keeps its quests shut; that it is played in order; when it resets (T-304c); and its
+ * completion bonus, or the bonus earned; nothing for a bonus settled with nothing kept.
  */
 export function categoryNotes(category: Category): CategoryNote[] {
   const locks = new Set(category.quests.map((quest) => quest.lock));
-  const notes: CategoryNote[] = [];
+  const notes: CategoryNote[] =
+    category.communityLock === null ? [] : [{ kind: "community", note: category.communityLock }];
   if (locks.has("category_not_started") && category.opensAt !== null) {
     notes.push({ kind: "opens", at: category.opensAt });
   }
@@ -371,6 +392,19 @@ export function initiallyOpen(
     return [holder.id];
   }
   return categories.length === 1 && categories[0] !== undefined ? [categories[0].id] : [];
+}
+
+/**
+ * The community lock a quest's own line names: its own, not its category's (that one is the category's note, said
+ * once); null otherwise.
+ */
+export function ownCommunityLock(
+  quest: Pick<Quest, "communityLock">,
+  category: Pick<Category, "communityLock">,
+): CommunityLock | null {
+  return quest.communityLock === null || sameLock(quest.communityLock, category.communityLock)
+    ? null
+    : quest.communityLock;
 }
 
 /** A quest by id in the latest data, so an open sheet shows the newest state, or nothing once it is gone. */

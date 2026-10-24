@@ -226,6 +226,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
         left: 20,
         pinned: false,
         soldOut: false,
+        communityLock: null,
       });
       await withRequestContext(db.app, { playerId: player.id }, () =>
         db.app.query("SELECT set_goal($1, $2)", [event.id, hoodie]),
@@ -366,6 +367,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
           steps: null,
           item: null,
           place: null,
+          communityLock: null,
         },
       ]);
       expect(answer.body).not.toContain("SECRET");

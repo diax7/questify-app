@@ -235,6 +235,7 @@ const HOME = {
     left: 30,
     pinned: false,
     soldOut: false,
+    communityLock: null,
   },
   win: null,
   rankingOn: true,

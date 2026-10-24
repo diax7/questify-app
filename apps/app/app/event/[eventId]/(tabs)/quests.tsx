@@ -12,12 +12,14 @@ import { EventPill } from "#src/event/EventPill.tsx";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
 import { resetLabel } from "#src/event/reset.ts";
+import { unlockLine, type CommunityLock } from "#src/event/unlock.ts";
 import {
   categoryNotes,
   categorySummary,
   fetchQuests,
   findQuest,
   initiallyOpen,
+  ownCommunityLock,
   type Category,
   type CategoryNote,
   type CompletionAnswer,
@@ -72,14 +74,30 @@ function useQuests(eventId: string) {
   return { answer, load };
 }
 
+/**
+ * A quest in its category. A quest a community goal locks on its own says which goal opens it (T-306c); one locked
+ * with its whole category says only that it opens with the goal, the category's note naming the goal once.
+ */
 function QuestCard({
   quest,
+  communityLock,
   timeZone,
   onOpen,
-}: Readonly<{ quest: Quest; timeZone: string; onOpen: () => void }>) {
+}: Readonly<{
+  quest: Quest;
+  communityLock: CommunityLock | null;
+  timeZone: string;
+  onOpen: () => void;
+}>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const line = stateLine(quest);
+  const stateKey = stateLine(quest);
+  const unlock =
+    quest.state === "locked" && communityLock !== null
+      ? unlockLine(communityLock, language, timeZone)
+      : null;
+  const line =
+    unlock === null ? (stateKey === null ? null : t(stateKey)) : t(unlock.key, unlock.values);
   return (
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
@@ -105,7 +123,7 @@ function QuestCard({
           })}
         </AppText>
       ) : null}
-      {line === null ? null : <AppText>{t(line)}</AppText>}
+      {line === null ? null : <AppText>{line}</AppText>}
     </Pressable>
   );
 }
@@ -118,6 +136,10 @@ function noteText(
   timeZone: string,
 ): string {
   switch (note.kind) {
+    case "community": {
+      const unlock = unlockLine(note.note, language, timeZone);
+      return t(unlock.key, unlock.values);
+    }
     case "opens":
       return t("questsTab.category.opens", {
         time: formatEventTime(new Date(note.at), timeZone, language),
@@ -192,6 +214,7 @@ function CategorySection({
             <QuestCard
               key={quest.id}
               quest={quest}
+              communityLock={ownCommunityLock(quest, category)}
               timeZone={timeZone}
               onOpen={() => onOpenQuest(quest.id)}
             />

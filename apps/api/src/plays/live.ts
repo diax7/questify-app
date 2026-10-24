@@ -10,9 +10,15 @@ export type LiveStep = Readonly<{
   threshold: number;
   isGoal: boolean;
   reward: Readonly<{
-    kind: "points" | "moment" | "nothing";
+    kind: "points" | "moment" | "nothing" | "unlock";
     points?: number;
     moment?: Readonly<{ ar?: string; en?: string }>;
+    /** What an unlock opens, only when the player sees it; absent means "a surprise" (T-306c, ADR-228). */
+    target?: Readonly<{
+      kind: "quest" | "category" | "reward";
+      id: string;
+      name: Readonly<{ ar?: string; en?: string }>;
+    }>;
   }>;
   reachedAt: string | null;
   mine: "due" | "paid" | "skipped" | null;

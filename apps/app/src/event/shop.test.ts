@@ -38,6 +38,7 @@ const REWARD: ShopReward = {
   closesAt: null,
   section: "merch",
   tags: { new: false, limited: false, popular: false },
+  communityLock: null,
 };
 
 const VIEW: ShopView = {

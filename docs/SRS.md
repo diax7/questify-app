@@ -977,7 +977,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-244 | F-101 | Should | `test/db/community.int` (participation points; nothing deducted) (T-306b) |
 | FR-245 | F-101 | Should | `test/db/community.int` (window edges, removals of counted entries only) (T-306b) |
 | FR-246 | F-101 | Should | `test/db/community.int` (milestones reached and paid, kept on a miss; the push is T-501's) (T-306b) |
-| FR-247 | F-101 | Should | `test/db/community.int` (points, moment, nothing; unlocks are T-306c) (T-306b) |
+| FR-247 | F-101 | Should | `test/db/community.int` (points, moment, nothing) (T-306b); `test/db/community-unlocks.int`, `test/community/unlocks.int` (unlocks) (T-306c) |
 | FR-248 | F-101 | Should | `test/db/community.int` (contributors with the top-up, everyone at the reach) (T-306b) |
 | FR-249 | F-101 | Should | `test/db/community.int` (a miss pays nothing for the goal) (T-306b) |
 | FR-250 | F-101 | Should | `test/db/community.int`, `test/community/routes.int`, `apps/app/src/event/community.test.ts` (the Home bar; the big screen is T-504's) (T-306b) |

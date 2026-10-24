@@ -4,12 +4,20 @@ import { toInstant, toLocalInput, type MessageKey } from "@questify/shared";
 
 export type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 export type Measure = "points" | "completions" | "players";
-export type RewardKind = "points" | "moment" | "nothing";
+export type RewardKind = "points" | "moment" | "nothing" | "unlock";
+export type UnlockKind = "quest" | "category" | "reward";
+/** What an unlock step opens (T-306c), with its names. */
+export type UnlockTarget = Readonly<{ kind: UnlockKind; id: string; name: Bilingual }>;
 
 export type GoalStep = Readonly<{
   threshold: number;
   isGoal: boolean;
-  reward: Readonly<{ kind: RewardKind; points: number | null; moment: Bilingual | null }>;
+  reward: Readonly<{
+    kind: RewardKind;
+    points: number | null;
+    moment: Bilingual | null;
+    unlock: UnlockTarget | null;
+  }>;
   reachedAt: string | null;
   due: number;
   paid: number;
@@ -59,8 +67,15 @@ export function goalsOf(body: unknown): readonly Goal[] | undefined {
   return body["goals"] as Goal[];
 }
 
-/** One milestone or the goal's reward on the form, every field as typed. */
-export type RewardDraft = { kind: RewardKind; points: string; momentAr: string; momentEn: string };
+/** One milestone or the goal's reward on the form, every field as typed; an unlock's target by kind and id. */
+export type RewardDraft = {
+  kind: RewardKind;
+  points: string;
+  momentAr: string;
+  momentEn: string;
+  targetKind: UnlockKind;
+  targetId: string;
+};
 export type MilestoneDraft = RewardDraft & { threshold: string };
 
 /** The form's fields, as typed; times in the event's zone (`datetime-local`). */
@@ -88,6 +103,8 @@ export const blankReward = (): RewardDraft => ({
   points: "",
   momentAr: "",
   momentEn: "",
+  targetKind: "quest",
+  targetId: "",
 });
 
 /** A new goal: it starts in 10 minutes and runs an hour. */
@@ -115,6 +132,8 @@ const rewardDraftOf = (step: GoalStep): RewardDraft => ({
   points: step.reward.points === null ? "" : String(step.reward.points),
   momentAr: step.reward.moment?.ar ?? "",
   momentEn: step.reward.moment?.en ?? "",
+  targetKind: step.reward.unlock?.kind ?? "quest",
+  targetId: step.reward.unlock?.id ?? "",
 });
 
 /** The form for an existing goal; a started one keeps its window as it is stored. */
@@ -151,6 +170,9 @@ function rewardBody(reward: RewardDraft): Record<string, unknown> {
   }
   if (reward.kind === "moment") {
     return { kind: "moment", moment: { ar: text(reward.momentAr), en: text(reward.momentEn) } };
+  }
+  if (reward.kind === "unlock") {
+    return { kind: "unlock", target: { kind: reward.targetKind, id: reward.targetId } };
   }
   return { kind: "nothing" };
 }
@@ -199,6 +221,58 @@ export function previewFills(draft: Pick<GoalDraft, "target" | "milestones">): r
     return [0];
   }
   return [0, first / target];
+}
+
+/** A quest, category or reward the form may pick, and whether another goal already unlocks it. */
+export type TargetChoice = Readonly<{ id: string; name: string; taken: boolean }>;
+
+/** What the event offers to unlock, with each item's kind and what the picker must know of it. */
+export type UnlockOptions = Readonly<{
+  quests: readonly Readonly<{ id: string; name: string; categoryId: string; livePoll: boolean }>[];
+  categories: readonly Readonly<{ id: string; name: string }>[];
+  rewards: readonly Readonly<{ id: string; name: string }>[];
+}>;
+
+/** The targets other goals of the event unlock (`kind:id`): each target is unlocked once (unlock_taken). */
+export function takenTargets(goals: readonly Goal[], editing: string | null): ReadonlySet<string> {
+  return new Set(
+    goals
+      .filter((goal) => goal.id !== editing)
+      .flatMap((goal) => goal.steps)
+      .flatMap((step) =>
+        step.reward.unlock === null ? [] : [`${step.reward.unlock.kind}:${step.reward.unlock.id}`],
+      ),
+  );
+}
+
+/**
+ * The picker's choices for one kind (T-306c, ADR-227): never a live poll (Send and Close own its window), never the
+ * quest or category the goal counts nor the counted quest's category (it could never count past 0, unlock_counted);
+ * a target another goal unlocks is listed but taken (disabled).
+ */
+export function targetChoices(
+  kind: UnlockKind,
+  options: UnlockOptions,
+  draft: Pick<GoalDraft, "measure" | "scope" | "questId" | "categoryId">,
+  taken: ReadonlySet<string>,
+): readonly TargetChoice[] {
+  const counted = draft.measure !== "points";
+  const countedQuest = counted && draft.scope === "quest" ? draft.questId : "";
+  const countedCategory =
+    counted && draft.scope === "category"
+      ? draft.categoryId
+      : (options.quests.find((quest) => quest.id === countedQuest)?.categoryId ?? "");
+  const listed =
+    kind === "quest"
+      ? options.quests.filter((quest) => !quest.livePoll && quest.id !== countedQuest)
+      : kind === "category"
+        ? options.categories.filter((category) => category.id !== countedCategory)
+        : options.rewards;
+  return listed.map((item) => ({
+    id: item.id,
+    name: item.name,
+    taken: taken.has(`${kind}:${item.id}`),
+  }));
 }
 
 /** The fields an `invalid_goal` answer named, from its details. */

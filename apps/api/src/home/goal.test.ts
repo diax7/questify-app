@@ -11,6 +11,7 @@ const reward = (id: string, price: number, fields: Partial<GoalReward> = {}): Go
   perPlayerLimit: null,
   heldByMe: 0,
   closesAt: null,
+  communityLock: null,
   ...fields,
 });
 
@@ -24,6 +25,7 @@ describe("pickGoal", () => {
       left: 120,
       pinned: true,
       soldOut: false,
+      communityLock: null,
     });
     expect(pickGoal(shop, "hoodie", 600, NOW)).toMatchObject({ left: 0, pinned: true });
     expect(pickGoal(shop, "hoodie", 500, NOW)).toMatchObject({ left: 0 });
@@ -69,6 +71,7 @@ describe("pickGoal", () => {
       left: 30,
       pinned: false,
       soldOut: false,
+      communityLock: null,
     });
   });
 
@@ -99,5 +102,27 @@ describe("pickGoal", () => {
     expect(pickGoal([reward("a", 10), reward("b", 20)], null, 20, NOW)).toBeNull();
     expect(pickGoal([], null, 0, NOW)).toBeNull();
     expect(pickGoal([], "gone", 0, NOW)).toBeNull();
+  });
+});
+
+describe("pickGoal and a community lock (T-306c, CTO 8)", () => {
+  const note = {
+    goalId: "g",
+    title: { ar: null, en: "Light the tower" },
+    measure: "points" as const,
+    threshold: 500,
+    state: "waiting" as const,
+    startsAt: NOW.toISOString(),
+  };
+
+  it("never picks a locked reward on its own, but keeps a pinned one with its note", () => {
+    const shop = [reward("locked", 50, { communityLock: note }), reward("open", 80)];
+    expect(pickGoal(shop, null, 10, NOW)).toMatchObject({ rewardId: "open", communityLock: null });
+    expect(pickGoal(shop, "locked", 10, NOW)).toMatchObject({
+      rewardId: "locked",
+      pinned: true,
+      communityLock: note,
+    });
+    expect(pickGoal([reward("locked", 50, { communityLock: note })], null, 10, NOW)).toBeNull();
   });
 });

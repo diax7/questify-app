@@ -345,7 +345,13 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
     tick with its health logs, the payer, the owner's settle route), the confirm refusal `community_paying`, the
     pool's 10 s idle-transaction limit; the app's community bar on Home and its one-time cards; the dashboard's
     Community page, the event switch and Settle and pay now on the results page. As built: the plan's "As built".
-- [ ] **T-306c** Unlock rewards: a quest, category or shop reward locked until a community step is reached — delivers FR 247 (unlocks); depends on: T-306b
+- [x] **T-306c** Unlock rewards: a quest, category or shop reward locked until a community step is reached — delivers FR 247 (unlocks); depends on: T-306b
+  - Done 2026-10-24 (core; CTO plan 84, re-review 92 GO, its two notes folded in; Opus code review owed): migration 0054
+    (the step's three target columns and unique indexes, the gate functions, every door and reader restated, the
+    builder's unlock rules, the draft event's delete trigger); API `communityLock` on quests, categories, the shop and
+    Home's goal, the unlock body and refusals, `/live`'s target; the app's lock lines, category note, shop line, bar
+    marker, unlocked card and refetch; the dashboard's target picker and preview. Plan:
+    `docs/plans/2026-10-24-t-306c-unlock-rewards.md`; deviations in ADR-227's build notes, Q-194.
   - Split from T-306 2026-10-24 (ADR-219): a gate in `quest_open_check`, `category_lock`, `reserve_reward` and every quest and shop reader; its own review, as T-304 split its gates from its bonus.
   - Note 2026-10-24 (T-306b done): `community_step.reward` gains `unlock` (0053 checks `points | moment | nothing`);
     the gate reads `community_reach` (a step reached stays reached). The builder's `goal_locked` already freezes a

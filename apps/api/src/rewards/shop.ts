@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { lockNoteOf } from "#src/community/lock-note";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
@@ -244,6 +245,7 @@ export function readShop(
           closesAt: iso(r["closes_at"]),
           section: r["section"],
           tags: { new: r["tag_new"], limited: r["tag_limited"], popular: r["popular"] },
+          communityLock: lockNoteOf(r["community_lock"]),
         })),
         redemptions: mine.map((d) => ({
           id: d["id"],

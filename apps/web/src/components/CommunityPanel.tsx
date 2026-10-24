@@ -4,7 +4,11 @@ import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
-import { CommunityGoalForm, type Choice } from "#src/components/CommunityGoalForm.tsx";
+import {
+  CommunityGoalForm,
+  type Choice,
+  type Targets,
+} from "#src/components/CommunityGoalForm.tsx";
 import {
   MEASURE_KEYS,
   STATUS_KEYS,
@@ -14,8 +18,12 @@ import {
   goalsOf,
   isLive,
   issuesOf,
+  takenTargets,
+  targetChoices,
+  type Bilingual,
   type Goal,
   type GoalDraft,
+  type UnlockOptions,
 } from "#src/lib/community.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
@@ -24,39 +32,55 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
+/** An unlock the API refused, in words (T-306c). */
+const UNLOCK_ISSUES = {
+  unlock_target: "community.page.issue.unlockTarget",
+  unlock_counted: "community.page.issue.unlockCounted",
+} as const;
+const NO_OPTIONS: UnlockOptions = { quests: [], categories: [], rewards: [] };
 /** How often a running goal's progress and payouts are read again. */
 const REFRESH_MS = 5000;
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
-/** The event's zone and its quests and categories, for the form's selects. */
+/** The event's zone, its quests and categories for the form's selects, and what a step may unlock (T-306c). */
 function useEventChoices(eventApi: string, language: Language) {
   const [timeZone, setTimeZone] = useState("Asia/Riyadh");
-  const [quests, setQuests] = useState<readonly Choice[]>([]);
-  const [categories, setCategories] = useState<readonly Choice[]>([]);
+  const [options, setOptions] = useState<UnlockOptions>(NO_OPTIONS);
   useEffect(() => {
-    void Promise.all([requestJson("GET", eventApi), requestJson("GET", `${eventApi}/quests`)]).then(
-      ([event, found]) => {
-        const zone = event.ok
-          ? (event.body as { event?: { timezone?: string } }).event?.timezone
-          : undefined;
-        setTimeZone(zone ?? "Asia/Riyadh");
-        const list = found.ok ? (found.body as { categories: CategoryView[] }).categories : [];
-        setCategories(
-          list.map((category) => ({ id: category.id, name: textFor(category.name, language) })),
-        );
-        setQuests(
-          list.flatMap((category) =>
-            category.quests.map((quest) => ({
-              id: quest.id,
-              name: textFor(quest.title, language),
-            })),
-          ),
-        );
-      },
-    );
+    void Promise.all([
+      requestJson("GET", eventApi),
+      requestJson("GET", `${eventApi}/quests`),
+      requestJson("GET", `${eventApi}/rewards`),
+    ]).then(([event, found, shop]) => {
+      const zone = event.ok
+        ? (event.body as { event?: { timezone?: string } }).event?.timezone
+        : undefined;
+      setTimeZone(zone ?? "Asia/Riyadh");
+      const list = found.ok ? (found.body as { categories: CategoryView[] }).categories : [];
+      const rewards = shop.ok
+        ? ((shop.body as { rewards?: { id: string; name: Bilingual }[] }).rewards ?? [])
+        : [];
+      setOptions({
+        categories: list.map((category) => ({
+          id: category.id,
+          name: textFor(category.name, language),
+        })),
+        quests: list.flatMap((category) =>
+          category.quests.map((quest) => ({
+            id: quest.id,
+            name: textFor(quest.title, language),
+            categoryId: category.id,
+            livePoll: quest.type === "vote" && "live" in quest.config,
+          })),
+        ),
+        rewards: rewards.map((reward) => ({ id: reward.id, name: textFor(reward.name, language) })),
+      });
+    });
   }, [eventApi, language]);
-  return { timeZone, quests, categories };
+  const quests: readonly Choice[] = options.quests;
+  const categories: readonly Choice[] = options.categories;
+  return { timeZone, quests, categories, options };
 }
 
 /** The goals, read again every 5 s while one is running. */
@@ -72,7 +96,13 @@ function useGoals(eventApi: string, language: Language) {
         return;
       }
       if (code === "invalid_goal") {
-        setProblem(t("community.page.invalid", { fields: issuesOf(body).join("، ") }));
+        const issues = issuesOf(body);
+        const unlock = issues.find((issue) => issue in UNLOCK_ISSUES);
+        setProblem(
+          unlock === undefined
+            ? t("community.page.invalid", { fields: issues.join("، ") })
+            : t(UNLOCK_ISSUES[unlock as keyof typeof UNLOCK_ISSUES]),
+        );
         return;
       }
       setProblem(
@@ -156,6 +186,11 @@ function GoalCard({
           <li key={step.threshold} className={styles.row}>
             <span>{formatNumber(step.threshold, language)}</span>
             <span>{t(`community.page.reward.${step.reward.kind}`)}</span>
+            {step.reward.unlock === null ? null : (
+              <span dir="auto">
+                {t("community.page.unlocks", { name: textFor(step.reward.unlock.name, language) })}
+              </span>
+            )}
             {step.reward.points === null ? null : (
               <span>{formatNumber(step.reward.points, language)}</span>
             )}
@@ -196,12 +231,17 @@ function GoalCard({
 export function CommunityPanel({ language, organizerId, eventId }: Props) {
   const t = translatorFor(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
-  const { timeZone, quests, categories } = useEventChoices(eventApi, language);
+  const { timeZone, quests, categories, options } = useEventChoices(eventApi, language);
   const { goals, problem, setProblem, failed, load } = useGoals(eventApi, language);
   const [draft, setDraft] = useState<GoalDraft | null>(null);
   const [deleting, setDeleting] = useState<Goal | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const targetsFor =
+    (current: GoalDraft): Targets =>
+    (kind) =>
+      targetChoices(kind, options, current, takenTargets(goals ?? [], current.id));
 
   const save = async () => {
     if (draft === null) {
@@ -301,6 +341,7 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
             change={setDraft}
             quests={quests}
             categories={categories}
+            targets={targetsFor(draft)}
             busy={busy}
             save={() => void save()}
             cancel={() => setDraft(null)}

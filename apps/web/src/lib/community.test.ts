@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   blankGoal,
+  blankReward,
   goalBodyOf,
   goalDraftOf,
   goalsOf,
@@ -8,6 +9,8 @@ import {
   issuesOf,
   previewFills,
   settleAnswerOf,
+  takenTargets,
+  targetChoices,
   type Goal,
 } from "#src/lib/community.ts";
 
@@ -31,7 +34,7 @@ const goal: Goal = {
     {
       threshold: 50,
       isGoal: false,
-      reward: { kind: "moment", points: null, moment: { ar: null, en: "Drums" } },
+      reward: { kind: "moment", points: null, moment: { ar: null, en: "Drums" }, unlock: null },
       reachedAt: "2030-01-01T07:30:00.000Z",
       due: 0,
       paid: 0,
@@ -40,7 +43,7 @@ const goal: Goal = {
     {
       threshold: 200,
       isGoal: true,
-      reward: { kind: "points", points: 20, moment: null },
+      reward: { kind: "points", points: 20, moment: null, unlock: null },
       reachedAt: null,
       due: 0,
       paid: 0,
@@ -101,7 +104,7 @@ describe("community goals on the dashboard (T-306b)", () => {
       {
         ...draft,
         measure: "points",
-        reward: { kind: "nothing", points: "", momentAr: "", momentEn: "" },
+        reward: { ...blankReward(), kind: "nothing" },
       },
       ZONE,
     );
@@ -140,5 +143,82 @@ describe("community goals on the dashboard (T-306b)", () => {
     expect(isLive({ status: "reached", finalAt: null })).toBe(true);
     expect(isLive({ status: "reached", finalAt: "x" })).toBe(false);
     expect(isLive({ status: "scheduled", finalAt: null })).toBe(false);
+  });
+});
+
+describe("unlock steps on the dashboard (T-306c)", () => {
+  const options = {
+    quests: [
+      { id: "q1", name: "Tower", categoryId: "c1", livePoll: false },
+      { id: "q2", name: "Poll", categoryId: "c1", livePoll: true },
+      { id: "q3", name: "Lantern walk", categoryId: "c2", livePoll: false },
+    ],
+    categories: [
+      { id: "c1", name: "Stage" },
+      { id: "c2", name: "Garden" },
+    ],
+    rewards: [{ id: "r1", name: "Hoodie" }],
+  };
+  const unlockGoal: Goal = {
+    ...goal,
+    id: "g2",
+    steps: [
+      {
+        ...goal.steps[1],
+        threshold: 200,
+        isGoal: true,
+        reward: {
+          kind: "unlock",
+          points: null,
+          moment: null,
+          unlock: { kind: "reward", id: "r1", name: { ar: null, en: "Hoodie" } },
+        },
+        reachedAt: null,
+        due: 0,
+        paid: 0,
+        skipped: 0,
+      },
+    ],
+  };
+
+  it("reads an unlock into the form and back into the body", () => {
+    const draft = goalDraftOf(unlockGoal, ZONE);
+    expect(draft.reward).toMatchObject({ kind: "unlock", targetKind: "reward", targetId: "r1" });
+    expect(goalBodyOf(draft, ZONE, unlockGoal)["reward"]).toEqual({
+      kind: "unlock",
+      target: { kind: "reward", id: "r1" },
+    });
+    expect(blankReward()).toMatchObject({ targetKind: "quest", targetId: "" });
+  });
+
+  it("offers no live poll and nothing the goal counts, and marks targets another goal unlocks", () => {
+    const taken = takenTargets([goal, unlockGoal], null);
+    expect([...taken]).toEqual(["reward:r1"]);
+    expect(takenTargets([unlockGoal], "g2").size).toBe(0);
+    const draft = {
+      measure: "completions" as const,
+      scope: "quest" as const,
+      questId: "q1",
+      categoryId: "",
+    };
+    expect(targetChoices("quest", options, draft, taken).map((choice) => choice.id)).toEqual([
+      "q3",
+    ]);
+    expect(targetChoices("category", options, draft, taken).map((choice) => choice.id)).toEqual([
+      "c2",
+    ]);
+    expect(targetChoices("reward", options, draft, taken)).toEqual([
+      { id: "r1", name: "Hoodie", taken: true },
+    ]);
+    const byCategory = { ...draft, scope: "category" as const, categoryId: "c2" };
+    expect(
+      targetChoices("category", options, byCategory, taken).map((choice) => choice.id),
+    ).toEqual(["c1"]);
+    const points = { ...draft, measure: "points" as const };
+    expect(targetChoices("quest", options, points, taken).map((choice) => choice.id)).toEqual([
+      "q1",
+      "q3",
+    ]);
+    expect(targetChoices("category", options, points, taken)).toHaveLength(2);
   });
 });

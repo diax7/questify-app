@@ -574,6 +574,20 @@ trigger `event_community_off` finishes running goals when the event's `features.
 row names a rehearsal account (rehearsal rows never count; `everyone` leaves them out), so the wipe is not restated.
 **PII:** who took part in a goal and was paid (rows stay as the enrollment's tombstone after erasure; an erased
 player's due row is skipped `inactive`).
+**Unlocks (migration 0054, T-306c, ADR-227 to ADR-229):** `community_step.reward` takes `unlock`, with exactly one of
+`unlock_quest_id`, `unlock_category_id`, `unlock_reward_id` (composite keys to the step's own event, NO ACTION; none on
+another kind), each under a partial unique index across every step (a target is locked once). A target is locked while
+a step names it and that step has no reach row. Internal gate: `quest_community_lock` (the quest's own step, then its
+category's), `category_community_lock`, `reward_community_lock`, `community_lock_missed` (no reach and the goal final
+or missed), `quest_lock_missed`, `community_lock_note` (what a player is told, never the target), `category_rule_lock`
+(the category rules without the community check). `category_lock` checks the community lock first, so
+`quest_open_check` refuses it at every door (an owner's or editor's manual award skips it; `record_completion` refuses
+an operator's); `category_done`, `category_cleared` and the in-order rule leave missed-locked quests out;
+`reserve_reward` answers `RW403 community_locked`; `send_poll` `PL409 community_locked`; the member sheets serve
+nothing (`member_game` QN403); `member_event_quests` and `shop_rewards` carry `community_lock` notes;
+`public_event_quests` and `operator_award_quests` leave locked quests out; `member_community` names a step's target only
+to a member who sees it. A `BEFORE DELETE` trigger on `event` deletes its goals first, so a draft event holding goals
+can be deleted. No new table, no grant change.
 
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,

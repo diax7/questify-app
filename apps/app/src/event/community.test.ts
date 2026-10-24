@@ -62,9 +62,7 @@ describe("the community card (T-306b)", () => {
     expect(communityOf(null)).toBeNull();
     expect(communityOf({ ...card, status: "paused" })).toBeNull();
     expect(communityOf({ ...card, measure: "likes" })).toBeNull();
-    expect(
-      communityOf({ ...card, steps: [{ threshold: 1, reward: { kind: "unlock" } }] }),
-    ).toBeNull();
+    expect(communityOf({ ...card, steps: [{ threshold: 1, reward: { kind: 1 } }] })).toBeNull();
     expect(communityOf({ ...card, steps: [{ reward: { kind: "nothing" } }] })).toBeNull();
     expect(communityOf({ ...card, target: "200" })).toBeNull();
     expect(liveStateOf({ polls: [], closed: [], community: card })?.community?.goalId).toBe("g1");

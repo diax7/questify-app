@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { lockNoteOf, type CommunityLock } from "#src/community/lock-note";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
@@ -43,10 +44,19 @@ export type MemberQuest = Readonly<{
   meet: Readonly<{ dailyCap: number; today: number }> | null;
   /** A game quest's attempts left (null when unlimited) and whether a round passed (T-305); null for other types. */
   game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
+  /** The community goal holding it shut, its category's included (T-306c, ADR-228); null when free. */
+  communityLock: CommunityLock | null;
 }>;
 
-/** A category's gates (ADR-201): not opened yet, waiting on another category, or an earlier quest in order. */
-export type QuestLock = "category_not_started" | "category_locked" | "order_locked";
+/**
+ * Why a quest is shut (ADR-201): a community goal not yet reached (T-306c, checked first), or its category's gates:
+ * not opened yet, waiting on another category, or an earlier quest in order.
+ */
+export type QuestLock =
+  | "community_locked"
+  | "category_not_started"
+  | "category_locked"
+  | "order_locked";
 
 /** A category's rules as the player sees them (FR-230 to FR-235). */
 export type CategoryRules = Readonly<{
@@ -65,6 +75,8 @@ export type CategoryRules = Readonly<{
    */
   refresh: "none" | "daily" | "weekly";
   resetsAt: Date | null;
+  /** The community goal locking the category as a whole (T-306c), shown once as a category note; null when free. */
+  communityLock: CommunityLock | null;
 }>;
 
 export type MemberCategory = Readonly<{ id: string; name: Text; quests: MemberQuest[] }> &
@@ -218,6 +230,8 @@ type QuestRow = Readonly<{
   met_today: number | null;
   game_left: number | null;
   game_passed: boolean | null;
+  community_lock: unknown;
+  category_community_lock: unknown;
 }>;
 
 /** An item's name, or null when the row names none. */
@@ -242,6 +256,7 @@ const rulesOf = (row: QuestRow): CategoryRules => ({
   },
   refresh: row.refresh,
   resetsAt: row.resets_at,
+  communityLock: lockNoteOf(row.category_community_lock),
 });
 
 const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient) => Promise<T>) =>
@@ -287,6 +302,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
           : { dailyCap: row.daily_cap, today: row.met_today },
       game:
         row.game_passed === null ? null : { attemptsLeft: row.game_left, passed: row.game_passed },
+      communityLock: lockNoteOf(row.community_lock),
     });
     categories.set(row.category_id, category);
   }
@@ -389,6 +405,7 @@ type ShopRewardRow = Readonly<{
   per_player_limit: number | null;
   held_by_me: number;
   closes_at: Date | null;
+  community_lock: unknown;
 }>;
 
 /** The shop's rewards for the goal, in shop order (`shop_rewards`: the caller's own view, empty for a non-member). */
@@ -402,6 +419,7 @@ async function goalRewards(client: PoolClient, eventId: string): Promise<GoalRew
     perPlayerLimit: row.per_player_limit,
     heldByMe: row.held_by_me,
     closesAt: row.closes_at,
+    communityLock: lockNoteOf(row.community_lock),
   }));
 }
 

@@ -70,7 +70,34 @@ describe("goalBody", () => {
     expect(
       issuesOf({ ...valid, reward: { kind: "moment", moment: { ar: "x".repeat(281) } } }),
     ).toEqual(["reward.moment.ar"]);
-    expect(issuesOf({ ...valid, reward: { kind: "unlock" } })).toEqual(["reward.kind"]);
+    expect(issuesOf({ ...valid, reward: { kind: "teleport" } })).toEqual(["reward.kind"]);
+    expect(issuesOf({ ...valid, reward: { kind: "unlock" } })).toEqual(["reward.target"]);
+  });
+
+  it("takes an unlock of one quest, category or shop reward (T-306c)", () => {
+    for (const kind of ["quest", "category", "reward"]) {
+      expect(
+        issuesOf({
+          ...valid,
+          reward: { kind: "unlock", target: { kind, id: crypto.randomUUID() } },
+        }),
+      ).toEqual([]);
+    }
+    expect(
+      issuesOf({
+        ...valid,
+        reward: { kind: "unlock", target: { kind: "badge", id: crypto.randomUUID() } },
+      }),
+    ).toEqual(["reward.target.kind"]);
+    expect(
+      issuesOf({ ...valid, reward: { kind: "unlock", target: { kind: "quest", id: "nope" } } }),
+    ).toEqual(["reward.target.id"]);
+    expect(
+      issuesOf({
+        ...valid,
+        reward: { kind: "unlock", target: { kind: "quest", id: crypto.randomUUID(), more: 1 } },
+      }),
+    ).toEqual(["reward.target"]);
     expect(issuesOf({ ...valid, extra: true })).toEqual([""]);
   });
 });
@@ -84,6 +111,20 @@ describe("refusalOf", () => {
       { kind: "invalid", issues: ["startsAt"] },
     ],
     [{ code: "CG422" }, { kind: "invalid", issues: ["goal"] }],
+    [
+      { code: "CG422", detail: "unlock", hint: "unlock_counted" },
+      { kind: "invalid", issues: ["unlock_counted"] },
+    ],
+    [
+      { code: "CG422", detail: "unlock" },
+      { kind: "invalid", issues: ["unlock"] },
+    ],
+    [{ code: "GL409", detail: "unlock_taken" }, { kind: "unlock_taken" }],
+    [{ code: "23505", constraint: "community_step_unlock_quest_key" }, { kind: "unlock_taken" }],
+    [
+      { code: "23503", constraint: "community_step_unlock_reward_fkey" },
+      { kind: "invalid", issues: ["unlock_target"] },
+    ],
     [{ code: "GL409", detail: "goal_overlap" }, { kind: "overlap" }],
     [
       { code: "GL409", detail: "goal_locked", hint: "target" },

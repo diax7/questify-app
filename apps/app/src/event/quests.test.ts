@@ -33,6 +33,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   meet: null,
   game: null,
   verification: [],
+  communityLock: null,
   ...fields,
 });
 
@@ -45,6 +46,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   bonus: { points: 0, earned: 0, settled: false, item: null },
   refresh: "none",
   resetsAt: null,
+  communityLock: null,
   quests,
 });
 

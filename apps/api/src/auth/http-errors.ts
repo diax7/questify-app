@@ -1041,6 +1041,13 @@ export const notLivePoll = make(
   "هذه المهمة ليست تصويتًا مباشرًا.",
   "This quest is not a live poll.",
 );
+/** A live poll whose quest or category a community goal still locks is not sent (T-306c, CTO 7). */
+export const pollCommunityLocked = make(
+  409,
+  "community_locked",
+  "يفتح هدفٌ جماعي هذا التصويت أو فئته، فلا يُرسل قبل تحقيقه.",
+  "A community goal unlocks this poll or its category, so it can't be sent until the goal is reached.",
+);
 export const pollAlreadySent = make(
   409,
   "already_sent",
@@ -1277,12 +1284,19 @@ export const goalEventEnded = make(
   "انتهت الفعالية، فلا تُضاف إليها مهام جماعية.",
   "The event has ended, so no community quest can be added.",
 );
-/** A quest or category a community goal counts cannot be deleted (T-306b). */
+/** A quest or category a community goal counts (T-306b) or unlocks (T-306c) cannot be deleted. */
 export const goalInUse = make(
   409,
   "goal_in_use",
-  "تحتسب مهمة جماعية هذا العنصر. عدّلها أو احذفها أولًا.",
-  "A community quest counts this. Change or delete it first.",
+  "تحتسب مهمة جماعية هذا العنصر أو تفتحه. عدّلها أو احذفها أولًا.",
+  "A community quest counts or unlocks this. Change or delete it first.",
+);
+/** A community goal already unlocks this quest, category or shop reward (T-306c): each is unlocked once. */
+export const unlockTaken = make(
+  409,
+  "unlock_taken",
+  "تفتح مهمة جماعية أخرى هذا العنصر. اختر غيره.",
+  "Another community quest already unlocks this. Pick something else.",
 );
 /** A transaction from a goal's window is still open (T-306b): settle again after `Retry-After`. */
 export const communitySettling = make(

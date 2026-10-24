@@ -1,4 +1,5 @@
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -10,6 +11,8 @@ export type Goal = Readonly<{
   left: number;
   pinned: boolean;
   soldOut: boolean;
+  /** A pinned reward a community goal still locks (T-306c): the card names the goal instead of what is left. */
+  communityLock: CommunityLock | null;
 }>;
 
 /** The player's revealed rank prize while it waits at the desk (FR-1718, T-214). */
@@ -123,7 +126,15 @@ function readGoal(value: unknown): Goal | null {
     typeof value["left"] === "number" &&
     typeof value["pinned"] === "boolean" &&
     typeof value["soldOut"] === "boolean"
-    ? (value as Goal)
+    ? {
+        rewardId: value["rewardId"],
+        name: value["name"],
+        price: value["price"],
+        left: value["left"],
+        pinned: value["pinned"],
+        soldOut: value["soldOut"],
+        communityLock: lockNoteOf(value["communityLock"]),
+      }
     : null;
 }
 

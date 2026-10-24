@@ -451,3 +451,9 @@ hidden until it unlocks; the public event page hides it. Agree, or hide it every
 ADR-229: if the community misses the step, the item stays locked for the rest of the event, with no "Unlock now"
 button; switching community quests off for the event ends its running goal as missed, so what it would unlock stays
 locked for good (the switch warns); during a rehearsal locked items stay locked. Agree, or add an owner's "Unlock now"?
+
+## Q-194 — The category bonus when a lock is missed (2026-10-24, T-306c build)
+ADR-227 build note: when a community goal misses a step that locks one quest of a category, that quest no longer
+counts toward the category's bonus. A player who already finished every other quest of the category gets the bonus
+with their next completion there, and not at all if nothing is left to complete (the bonus is paid by a completion,
+never by the goal). Agree, or should the goal pay those bonuses when it is missed?

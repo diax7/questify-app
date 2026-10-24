@@ -180,12 +180,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
         expect.objectContaining({
           threshold: 50,
           isGoal: false,
-          reward: { kind: "moment", points: null, moment: { ar: null, en: "The band plays" } },
+          reward: {
+            kind: "moment",
+            points: null,
+            moment: { ar: null, en: "The band plays" },
+            unlock: null,
+          },
         }),
         expect.objectContaining({
           threshold: 100,
           isGoal: true,
-          reward: { kind: "points", points: 20, moment: null },
+          reward: { kind: "points", points: 20, moment: null, unlock: null },
         }),
       ]);
       const listed = await dashboard("GET", `/events/${event}/community-goals`);

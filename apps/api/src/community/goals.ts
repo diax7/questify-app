@@ -24,6 +24,11 @@ const reward = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("points"), points: z.number().int().min(1).max(100_000) }),
   z.strictObject({ kind: z.literal("moment"), moment: bilingual(280) }),
   z.strictObject({ kind: z.literal("nothing") }),
+  /** Unlocks one quest, category or shop reward of the event (T-306c, ADR-227). */
+  z.strictObject({
+    kind: z.literal("unlock"),
+    target: z.strictObject({ kind: z.enum(["quest", "category", "reward"]), id: z.uuid() }),
+  }),
 ]);
 
 /**
@@ -73,7 +78,14 @@ export const goalBody = z
 export type GoalBody = z.infer<typeof goalBody>;
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
-type Reward = Readonly<{ kind: string; points: number | null; moment: Bilingual | null }>;
+/** What an unlock step opens, with its names for the Community page. */
+export type UnlockTarget = Readonly<{ kind: string; id: string; name: Bilingual }>;
+type Reward = Readonly<{
+  kind: string;
+  points: number | null;
+  moment: Bilingual | null;
+  unlock: UnlockTarget | null;
+}>;
 
 /** A goal for its event's team: its window, steps with their reach and payout counts, progress and status. */
 export type GoalView = Readonly<{
@@ -109,6 +121,7 @@ export type CommunityRefusal =
   | Readonly<{ kind: "not_found" }>
   | Readonly<{ kind: "invalid"; issues: readonly string[] }>
   | Readonly<{ kind: "overlap" }>
+  | Readonly<{ kind: "unlock_taken" }>
   | Readonly<{ kind: "locked"; field: string }>
   | Readonly<{ kind: "started" }>
   | Readonly<{ kind: "event_ended" }>
@@ -127,11 +140,16 @@ const GL409: Readonly<Record<string, (pg: PgError) => CommunityRefusal>> = {
   goal_started: () => ({ kind: "started" }),
   event_ended: () => ({ kind: "event_ended" }),
   goal_limit: () => ({ kind: "limit_reached", limit: MAX_GOALS }),
+  unlock_taken: () => ({ kind: "unlock_taken" }),
 };
 
 /** The field a constraint or key the database refused names, for `invalid_goal`. */
 const fieldOf = (pg: PgError): string => {
   const constraint = pg.constraint ?? "";
+  // A step's unlock target removed or deleted between the check and the write (migration 0054's keys).
+  if (constraint.startsWith("community_step_unlock")) {
+    return "unlock_target";
+  }
   if (constraint.includes("quest")) {
     return "questId";
   }
@@ -141,22 +159,30 @@ const fieldOf = (pg: PgError): string => {
   return "milestones";
 };
 
-/** The SQLSTATEs of migration 0053 (and the keys behind them) as refusals; undefined for anything else. */
+/** The SQLSTATEs of migrations 0053 and 0054 (and the keys behind them) as refusals; undefined for anything else. */
 export function refusalOf(pg: PgError): CommunityRefusal | undefined {
   switch (pg.code) {
     case "AN404":
     case "GN404":
       return { kind: "not_found" };
     case "CG422":
-      return { kind: "invalid", issues: [pg.detail ?? "goal"] };
+      // An unlock's refusal names its reason in HINT: unlock_target or unlock_counted (migration 0054).
+      return {
+        kind: "invalid",
+        issues: [pg.detail === "unlock" ? (pg.hint ?? "unlock") : (pg.detail ?? "goal")],
+      };
     case "GL409":
       return GL409[pg.detail ?? ""]?.(pg);
     case "CO403":
       return { kind: "owner_only" };
     case "CS409":
       return { kind: "settling" };
-    case "23503":
     case "23505":
+      // The unique index on a target, the backstop behind the builder's unlock_taken check.
+      return pg.constraint?.startsWith("community_step_unlock") === true
+        ? { kind: "unlock_taken" }
+        : { kind: "invalid", issues: [fieldOf(pg)] };
+    case "23503":
     case "23514":
       return { kind: "invalid", issues: [fieldOf(pg)] };
     default:
@@ -203,6 +229,18 @@ const bilingualOf = (value: unknown): Bilingual => {
   return { ar: both.ar ?? null, en: both.en ?? null };
 };
 
+const unlockOf = (value: unknown): UnlockTarget | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const target = value as Record<string, unknown>;
+  return {
+    kind: String(target["kind"]),
+    id: String(target["id"]),
+    name: bilingualOf(target["name"]),
+  };
+};
+
 const viewOf = (goal: GoalJson): GoalView => ({
   id: String(goal["id"]),
   title: bilingualOf(goal["title"]),
@@ -226,6 +264,7 @@ const viewOf = (goal: GoalJson): GoalView => ({
       kind: String(step["reward"]),
       points: step["points"] === null ? null : Number(step["points"]),
       moment: step["moment"] === null ? null : bilingualOf(step["moment"]),
+      unlock: unlockOf(step["unlock"]),
     },
     reachedAt: iso(step["reachedAt"]),
     due: Number(step["due"]),

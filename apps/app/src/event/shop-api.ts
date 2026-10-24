@@ -1,6 +1,7 @@
 import type { LocalizedText } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
+import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
 import { deskInfoOf, type DeskInfo } from "#src/operator/desk.ts";
 
 /** A reward as `GET /v1/events/{id}/shop` gives it (T-201). A newer server's unknown kind or section shows as is. */
@@ -17,6 +18,8 @@ export type ShopReward = Readonly<{
   closesAt: string | null;
   section: string | null;
   tags: Readonly<{ new: boolean; limited: boolean; popular: boolean }>;
+  /** The community goal still locking it (T-306c); null when open or from an older API. */
+  communityLock: CommunityLock | null;
 }>;
 
 export type MyRedemption = Readonly<{
@@ -111,6 +114,7 @@ function rewardOf(value: unknown): ShopReward | undefined {
       limited: tags["limited"] === true,
       popular: tags["popular"] === true,
     },
+    communityLock: lockNoteOf(value["communityLock"]),
   };
 }
 
@@ -189,11 +193,16 @@ export type RewardAction =
   | "limit"
   | "too_dear"
   | "shop_closed"
-  | "desk_finished";
+  | "desk_finished"
+  /** A community goal still locks it (T-306c): the card names the goal; Redeem would answer reward_not_open. */
+  | "community_locked";
 
 export function rewardAction(reward: ShopReward, view: ShopView, now: number): RewardAction {
   if (view.shop.state !== "open") {
     return "shop_closed";
+  }
+  if (reward.communityLock !== null) {
+    return "community_locked";
   }
   // FR-1717, ADR-150: after the desk's last hours, only digital rewards stay redeemable.
   if (reward.kind !== "digital" && view.shop.desk.state === "finished") {

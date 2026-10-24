@@ -16,6 +16,7 @@ import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { goalMessage } from "#src/event/goal.ts";
+import { unlockLine } from "#src/event/unlock.ts";
 import {
   fetchHome,
   fetchRanking,
@@ -133,7 +134,8 @@ function GoalCard({
   eventId,
   goal,
   ended,
-}: Readonly<{ eventId: string; goal: Home["goal"]; ended: boolean }>) {
+  timeZone,
+}: Readonly<{ eventId: string; goal: Home["goal"]; ended: boolean; timeZone: string }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
@@ -141,6 +143,9 @@ function GoalCard({
     return null;
   }
   const message = goalMessage(goal, ended);
+  // A pinned reward a community goal still locks names the goal, not the points to go (T-306c, CTO 8).
+  const unlock =
+    goal.communityLock === null ? null : unlockLine(goal.communityLock, language, timeZone);
   return (
     <Pressable
       accessibilityRole="button"
@@ -150,7 +155,9 @@ function GoalCard({
     >
       <AppText variant="title">{t(goal.pinned ? "goal.title" : "goal.next")}</AppText>
       <AppText variant="label">{textIn(goal.name, language)}</AppText>
-      {message === null ? null : (
+      {unlock !== null ? (
+        <AppText muted>{t(unlock.key, unlock.values)}</AppText>
+      ) : message === null ? null : (
         <AppText muted>
           {t(message, {
             count: formatNumber(goal.left, language),
@@ -387,7 +394,12 @@ export default function EventHomeScreen() {
           <CommunityBar card={community} />
         )}
         {home.standing.status === "active" ? (
-          <GoalCard eventId={eventId} goal={home.goal} ended={ended} />
+          <GoalCard
+            eventId={eventId}
+            goal={home.goal}
+            ended={ended}
+            timeZone={home.event.timezone}
+          />
         ) : null}
         {home.standing.status === "active" && ranking !== undefined ? (
           <RankingCard eventId={eventId} ranking={ranking} />

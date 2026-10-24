@@ -2930,6 +2930,18 @@ quest or category (left out of the in-order, cleared and done checks; a missed w
 completion racing the goal's save may be paid; a reservation cannot (the reward row serialises them).
 **Why:** one gate read by every door, with no per-player state, keeps the lock simple to check everywhere; locking at
 save keeps a target from being played before its goal opens.
+**Build notes (2026-10-24, T-306c):** the category bonus is paid only by a completion (`pay_category_bonus`, as
+before): a player who finished every other quest of a category while one of its quests waited on a lock is paid the
+bonus by their next completion in that category once the lock is missed, and not at all when none is left. Accepted
+(CTO plan re-review note 1, Q-194); the goal's settle does not pay these bonuses, since it would lock and pay every
+player of the event inside the tick's transaction. `community_lock_missed` also counts a milestone left unreached on
+a goal that ended `reached` (CTO note 2; the builder's rules make that state unreachable, the rule holds anyway). A
+draft event's delete cascaded to its quests before its goals and was refused (0053's counted-quest key had the same
+trap; NO ACTION keys do not help, each cascade checks at its own statement's end): a `BEFORE DELETE` trigger on the
+event deletes its goals first, and 0053's keys stay `RESTRICT`. `category_lock` is split into the community check and
+`category_rule_lock` (the old rules), so the quest list reads the lock once a row. `member_game` answers QN403
+`community_locked` instead of no row (its reader expects one row). The category gets its own `communityLock` in the
+quests answer, shown once as the category's note.
 
 ## ADR-228 — How a locked item shows
 **Status:** Proposed (Claude, 2026-10-24; T-306c plan). Q-192.

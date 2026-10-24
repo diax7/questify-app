@@ -38,10 +38,12 @@ import {
   type QuestLock,
   scanFallback,
 } from "#src/event/quests-api.ts";
+import { unlockLine } from "#src/event/unlock.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 
 const LOCK_TEXT: Readonly<Record<QuestLock, MessageKey>> = {
+  community_locked: "questsTab.notOpen.communityLocked",
   category_not_started: "questsTab.notOpen.categoryNotStarted",
   category_locked: "questsTab.notOpen.categoryLocked",
   order_locked: "questsTab.notOpen.orderLocked",
@@ -313,7 +315,14 @@ export function QuestSheet({
     onCompleted(answer);
   };
   const description = textIn(quest.description, language);
-  const line = stateLine(quest);
+  const stateKey = stateLine(quest);
+  // A community lock names its goal's numbers (T-306c, ADR-228); the target itself stays shut, no entry below.
+  const unlock =
+    quest.state === "locked" && quest.communityLock !== null
+      ? unlockLine(quest.communityLock, language, timeZone)
+      : null;
+  const line =
+    unlock === null ? (stateKey === null ? null : t(stateKey)) : t(unlock.key, unlock.values);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
     iso === null ? null : (
       <AppText muted>
@@ -330,7 +339,7 @@ export function QuestSheet({
       ) : null}
       {when(quest.opensAt, "quests.opens")}
       {when(quest.closesAt, "quests.closes")}
-      {line === null ? null : <AppText variant="label">{t(line)}</AppText>}
+      {line === null ? null : <AppText variant="label">{line}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
     </Sheet>

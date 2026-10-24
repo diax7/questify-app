@@ -156,6 +156,10 @@ anti-cheat) is Area 3.
   milestone.
 - **Built (T-306b, 2026-10-24):** every part but the unlock reward (T-306c), the milestone push (T-501) and the
   big-screen bar (T-504); one goal runs at a time, none in rehearsal (Q-186).
+- **Built (T-306c, 2026-10-24):** the unlock reward. A step unlocks one quest, category or shop reward, locked from the
+  goal's save until the step is reached and shown locked with the goal's numbers ("Unlocks at 5,000 community points"),
+  never the target; the bar names the target only to players who see it; a missed step leaves it locked (ADR-227 to
+  ADR-229).
 
 **Experience ideas not chosen for v1:**
 

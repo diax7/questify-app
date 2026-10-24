@@ -11,6 +11,7 @@ import {
   notFound,
   ownerOnly,
   platformFeatureOff,
+  unlockTaken,
 } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import {
@@ -44,6 +45,8 @@ function refuse(reply: FastifyReply, result: CommunityRefusal): never {
       throw invalidGoal({ issues: result.issues });
     case "overlap":
       throw goalOverlap();
+    case "unlock_taken":
+      throw unlockTaken();
     case "locked":
       throw goalLocked({ field: result.field });
     case "started":

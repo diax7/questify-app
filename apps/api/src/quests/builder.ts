@@ -407,8 +407,8 @@ export async function withEvent<T>(
     if (pg.code === "23503" && pg.table === "passport_stamp") {
       return { kind: "step_in_use" };
     }
-    // A community goal counts the quest or category (migration 0053's RESTRICT).
-    if (pg.code === "23503" && pg.table === "community_goal") {
+    // A community goal counts the quest or category (migration 0053), or a step unlocks it (migration 0054).
+    if (pg.code === "23503" && (pg.table === "community_goal" || pg.table === "community_step")) {
       return { kind: "goal_in_use" };
     }
     throw error;

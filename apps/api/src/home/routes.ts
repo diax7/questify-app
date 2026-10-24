@@ -56,6 +56,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   steps: quest.steps,
   item: quest.item,
   place: quest.place,
+  communityLock: quest.communityLock,
 });
 
 function playerIdOf(request: { player?: { id: string } | undefined }): string {
@@ -122,6 +123,7 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
         bonus: category.bonus,
         refresh: category.refresh,
         resetsAt: category.resetsAt?.toISOString() ?? null,
+        communityLock: category.communityLock,
         quests: category.quests.map(questView),
       })),
     };
