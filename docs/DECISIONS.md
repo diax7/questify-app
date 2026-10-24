@@ -3253,7 +3253,8 @@ practised. Before doors open, a green is practised with a rehearsal account (T-2
 **Why:** the strip's promise stays true and no operator hands over a prize or awards points believing it is a test.
 **Build note (2026-10-24, T-311):** the strip renders from the shared screen frame whenever staff mode's practice is
 on, so every staff screen has it; the operator's ticket screen is locked too (it answers tickets). The result line
-comes from the server's `practice: true`, and a mode change forgets the last code and key (MAJOR-1).
+comes from the server's `practice: true`, and a mode change forgets the last code (MAJOR-1) but keeps a real scan's
+pending key, which practice scans never send or clear, so a retry after a lost reply replays (code review MINOR-1).
 
 ## ADR-251 — My station today counts the station's quest for everyone; waiting is the Inbox count
 **Status:** Proposed (Claude, 2026-10-24; T-311 plan).

@@ -8,6 +8,8 @@ import {
   playerOfCode,
   isPlayerCode,
   isRepeat,
+  answered,
+  attemptFor,
   memoryIn,
   stationResult,
   type ScanMemory,
@@ -153,7 +155,9 @@ describe("playerOfCode", () => {
   });
 });
 
-describe("memoryIn (CTO plan review, MAJOR-1)", () => {
+const fresh = () => "new";
+
+describe("memoryIn (CTO reviews: plan MAJOR-1, code MINOR-1)", () => {
   const CODE = "B".repeat(50);
   const practised: ScanMemory = {
     practice: true,
@@ -165,14 +169,39 @@ describe("memoryIn (CTO plan review, MAJOR-1)", () => {
     expect(memoryIn(practised, true)).toBe(practised);
   });
 
-  it("forgets them when practice is left, so the code still in the camera is scanned for real", () => {
+  it("forgets the code when practice is left, so the code still in the camera is scanned for real", () => {
     const real = memoryIn(practised, false);
-    expect(real).toEqual({ practice: false, last: null, attempt: null });
+    expect(real).toEqual({ ...practised, practice: false, last: null });
     expect(isRepeat(real.last, CODE, "q1", 1500)).toBe(false);
   });
 
-  it("forgets a real scan's code when practice is turned on, so it is practised", () => {
-    const afterReal: ScanMemory = { ...practised, practice: false };
-    expect(memoryIn(afterReal, true)).toEqual({ practice: true, last: null, attempt: null });
+  it("keeps a real scan's key across a toggle and a practice answer after a lost reply, so the retry replays it", () => {
+    const scan = { code: CODE, questId: "q1" };
+    // A real scan is sent with k1 and its reply is lost: the key stays pending.
+    const lost = attemptFor(
+      { practice: false, last: null, attempt: null },
+      scan,
+      () => "k1",
+    ).memory;
+    // Practice on: the same code is practised with no key and a definite answer; the real key is untouched.
+    const inPractice = memoryIn(lost, true);
+    const practisedScan = attemptFor(inPractice, scan, fresh);
+    expect(practisedScan.key).toBe("");
+    const afterPractice = answered(practisedScan.memory);
+    // Practice off: the retry sends k1 again, so the server replays the first answer.
+    const back = memoryIn(afterPractice, false);
+    expect(back.last).toBeNull();
+    expect(attemptFor(back, scan, fresh).key).toBe("k1");
+    expect(answered(attemptFor(back, scan, fresh).memory).attempt).toBeNull();
+  });
+
+  it("makes a new key for another code, and reuses it for the same code and station", () => {
+    const start: ScanMemory = { practice: false, last: null, attempt: null };
+    const first = attemptFor(start, { code: CODE, questId: "q1" }, () => "a");
+    expect(attemptFor(first.memory, { code: CODE, questId: "q1" }, () => "b").key).toBe("a");
+    expect(attemptFor(first.memory, { code: CODE, questId: "q2" }, () => "b").key).toBe("b");
+    expect(attemptFor(first.memory, { code: "C".repeat(50), questId: "q1" }, () => "b").key).toBe(
+      "b",
+    );
   });
 });

@@ -17,6 +17,8 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { scanFor } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import {
+  answered,
+  attemptFor,
   held,
   isPlayerCode,
   isRepeat,
@@ -145,17 +147,15 @@ export default function StationScanScreen() {
       return;
     }
     setProblem(null);
-    const prior = memory.current.attempt;
-    const same = prior?.code === code && prior.questId === station.questId;
-    const key = same && prior !== null ? prior.key : randomUuid();
-    memory.current = { ...memory.current, attempt: { code, questId: station.questId, key } };
+    const sent = attemptFor(memory.current, { code, questId: station.questId }, randomUuid);
+    memory.current = sent.memory;
     const answer = await scanFor(practice)(api.session, {
       questId: station.questId,
       code,
-      idempotencyKey: key,
+      idempotencyKey: sent.key,
     });
     if (answer.kind !== "network") {
-      memory.current = { ...memory.current, attempt: null };
+      memory.current = answered(memory.current);
     }
     if (answer.kind === "result") {
       show({ result: answer.result, practice: answer.practice });

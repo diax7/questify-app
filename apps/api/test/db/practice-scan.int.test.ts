@@ -276,7 +276,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         (error: { code?: string }) => error.code,
       );
 
+    /** A running community goal counting the quest's completions; its goal step pays points or unlocks a quest. */
+    const goal = async (event: string, quest: string, unlocks: string | null) => {
+      const [made] = await owner<{ id: string }>(
+        `INSERT INTO community_goal (organizer_id, event_id, title_en, measure, quest_id, target, starts_at, ends_at,
+                                   status)
+       VALUES ($1, $2, 'Together', 'completions', $3, 1, now() - interval '10 minutes', now() + interval '1 hour',
+               'running') RETURNING id`,
+        [ids.orgA, event, quest],
+      );
+      await owner(
+        `INSERT INTO community_step (event_id, goal_id, threshold, is_goal, reward, points, unlock_quest_id)
+       VALUES ($1, $2, 1, true, $3, $4, $5)`,
+        [
+          event,
+          made?.id,
+          unlocks === null ? "points" : "unlock",
+          unlocks === null ? 5 : null,
+          unlocks,
+        ],
+      );
+    };
+
     describe("green, and nothing is written", () => {
+      it("fingerprints only as a superuser (CTO code review, MINOR-3)", async () => {
+        await expect(fingerprint(db.app)).rejects.toThrow(/superuser/);
+      });
+
       it("shows a scan station's points, and a real scan afterwards pays them (the positive control)", async () => {
         const event = await newEvent();
         const quest = await newQuest(event);
@@ -438,6 +464,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(await practisedAsReal(operator, quest, colleague)).toMatchObject({
           refusal: "QP403",
         });
+      });
+    });
+
+    describe("community and passport effects (CTO code review, MINOR-2)", () => {
+      it("practises a scan a running community goal counts, and writes no step, reach or contributor", async () => {
+        const event = await newEvent();
+        const quest = await newQuest(event);
+        await goal(event, quest, null);
+        const operator = await newOperator(event);
+        const { player } = await member(event);
+        expect(await practisedAsReal(operator, quest, player)).toMatchObject({
+          outcome: "completed",
+        });
+      });
+
+      it("refuses a community-locked station (QN403 community_locked), as the real door does", async () => {
+        const event = await newEvent();
+        const counted = await newQuest(event);
+        const locked = await newQuest(event);
+        await goal(event, counted, locked);
+        const operator = await newOperator(event);
+        const { player } = await member(event);
+        expect(await practisedAsReal(operator, locked, player)).toEqual({
+          outcome: "refused",
+          refusal: "QN403",
+          detail: "community_locked",
+        });
+      });
+
+      it("refuses a passport quest (QV422): it cannot take My QR, so a station never stamps, and no stamp is written", async () => {
+        const event = await newEvent();
+        const category = await newCategory(event);
+        // A passport and its step in one transaction: its step count is checked at the commit.
+        await owner("BEGIN");
+        const [made] = await owner<{ id: string }>(
+          `INSERT INTO quest (event_id, category_id, type, title_en, points, visible, type_config, verification)
+         VALUES ($1, $2, 'passport', 'Booths', 15, true, '{"needed":1}', '{}') RETURNING id`,
+          [event, category],
+        );
+        const passport = made?.id ?? "";
+        await owner(
+          "INSERT INTO passport_step (event_id, quest_id, name_en) VALUES ($1, $2, 'Gate')",
+          [event, passport],
+        );
+        await owner("COMMIT");
+        const operator = await newOperator(event);
+        const { enrollment, player } = await member(event);
+        expect(await practisedAsReal(operator, passport, player)).toMatchObject({
+          refusal: "QV422",
+        });
+        expect(
+          await owner("SELECT 1 FROM passport_stamp WHERE enrollment_id = $1", [enrollment]),
+        ).toEqual([]);
       });
     });
 

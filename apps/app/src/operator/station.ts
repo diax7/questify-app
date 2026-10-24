@@ -113,12 +113,35 @@ export type Attempt = Readonly<{ code: string; questId: string; key: string }> |
 export type ScanMemory = Readonly<{ practice: boolean; last: LastScan; attempt: Attempt }>;
 
 /**
- * The memory for a read in this mode. A mode change forgets the last code and its key (CTO plan review, MAJOR-1): a
- * code still in front of the camera after leaving practice is scanned again, for real, and paid; one practised after
- * a real scan is practised.
+ * The memory for a read in this mode. A mode change forgets the last code (CTO plan review, MAJOR-1): a code still in
+ * front of the camera after leaving practice is scanned again, for real, and paid; one practised after a real scan is
+ * practised. The pending key stays (CTO code review, MINOR-1): a real scan whose reply was lost keeps its key across a
+ * toggle, so its retry replays rather than pays twice; a key made in practice never reached the server.
  */
 export function memoryIn(memory: ScanMemory, practice: boolean): ScanMemory {
-  return memory.practice === practice ? memory : { practice, last: null, attempt: null };
+  return memory.practice === practice ? memory : { ...memory, practice, last: null };
+}
+
+/**
+ * The key a scan of this code sends, and the memory after sending it. A real scan reuses its pending key for the same
+ * code and station; a practice scan sends no key and leaves a real scan's pending key alone (CTO code review, MINOR-1).
+ */
+export function attemptFor(
+  memory: ScanMemory,
+  scan: Readonly<{ code: string; questId: string }>,
+  fresh: () => string,
+): Readonly<{ memory: ScanMemory; key: string }> {
+  if (memory.practice) {
+    return { memory, key: "" };
+  }
+  const prior = memory.attempt;
+  const key = prior?.code === scan.code && prior.questId === scan.questId ? prior.key : fresh();
+  return { memory: { ...memory, attempt: { ...scan, key } }, key };
+}
+
+/** The memory after a definite answer: a real scan's key is done; a practice answer settles no real key. */
+export function answered(memory: ScanMemory): ScanMemory {
+  return memory.practice ? memory : { ...memory, attempt: null };
 }
 
 /** The last scan after a repeat read: the same scan, seen again now (the window slides). */
