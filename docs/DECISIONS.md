@@ -3235,6 +3235,12 @@ never a red result.
 drift, and no single bug may write points: the database wall alone, the API wall alone and the separate route each
 prevent it, and each is tested alone (a whole-database fingerprint before and after).
 **Cost:** a practice scan costs a real scan's work; identity numbers it used are skipped (gaps only).
+**Build note (2026-10-24, T-311, CTO plan review 92 GO):** a third function, `practice_wipe_owed` (definer, granted,
+true only for an operator of the quest's event), lets the practice answer `PW409` (red `going_live`, "try again in a
+minute") while the event's go-live wipe is owed, instead of running the whole wipe under the rehearsal row's lock and
+throwing it away on every practice scan (MINOR-3). The invoker wrapper sets `search_path = public, pg_temp`. A failed
+outer ROLLBACK destroys the pooled connection (MINOR-8). The station-today refusal outside the quest limit reuses the
+existing `403 outside_quests` (the plan said `outside_station`).
 
 ## ADR-250 — Practice mode covers station scans only and locks the writing tools
 **Status:** Proposed (Claude, 2026-10-24; T-311 plan).
@@ -3245,6 +3251,9 @@ Inbox tabs, Manual award, Review, Write NFC tag, Rotating QR, Pair a device and 
 practice. NFC taps, screen QR and kiosk scans are made by players or devices, not the operator, so they are not
 practised. Before doors open, a green is practised with a rehearsal account (T-211). Q-212 asks about practising more.
 **Why:** the strip's promise stays true and no operator hands over a prize or awards points believing it is a test.
+**Build note (2026-10-24, T-311):** the strip renders from the shared screen frame whenever staff mode's practice is
+on, so every staff screen has it; the operator's ticket screen is locked too (it answers tickets). The result line
+comes from the server's `practice: true`, and a mode change forgets the last code and key (MAJOR-1).
 
 ## ADR-251 — My station today counts the station's quest for everyone; waiting is the Inbox count
 **Status:** Proposed (Claude, 2026-10-24; T-311 plan).

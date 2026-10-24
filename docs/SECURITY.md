@@ -145,6 +145,20 @@ carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 | A flood of pairing requests (CTO 9) | At 5,000 open requests new pairings answer 503 `busy` (logged `device.request_flood`, which the error tracker alerts on) for up to 10 minutes; paired devices are never touched |
 | An operator who lost the ability or the quest keeps a station running (CTO 3) | The station shows "Paused by the event team" and no code until the ability or the quest comes back |
 
+### Practice scans (T-311, ADR-249, ADR-250)
+
+A practice scan must never write points. Three walls, each tested alone:
+
+| Wall | Control | Proof |
+|---|---|---|
+| Database | `operator_practice_scan` runs the real door in a block that always raises (`PX000`), so the subtransaction undoes every row and lock; it is `SECURITY INVOKER` and gains no privilege; a fresh `practice:` key never meets a real one | `test/db/practice-scan` (a whole-database fingerprint before and after, with the transaction around it committing; no advisory or row lock left; keys; crossed scans) |
+| API | `withRolledBackContext` always sends `ROLLBACK`, never `COMMIT`; a failed rollback destroys the connection | `src/db/context.test.ts` |
+| Route | `POST /v1/operator/scan/practice` is its own route with no ranking and no idempotency store; the real route has no practice flag | `test/operators/practice` (a ranking spy untouched, score unchanged), `practice.test.ts` |
+
+In the app, practice mode lives in memory only; the writing tools (desk, inbox, tickets, manual award, review, NFC
+write, rotating QR, pairing) are locked while it is on, and the "Practice · not saved" line comes from the server's
+`practice: true`, never from the switch. Outsider: none of the three functions runs for `questify_outsider` or PUBLIC.
+
 ### Kiosks and the live code (T-309b, ADR-242, ADR-244, ADR-245)
 
 | ASVS area | Control | Proof |

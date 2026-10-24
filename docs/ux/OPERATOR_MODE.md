@@ -82,6 +82,8 @@ The {operator} bar and icons differ from the {player} bar, so the two modes are 
 
 ### 3.1 Home
 
+As built (T-311, ADR-251): the "Today at this station" block sits under the station list: "Station today" and "Last hour" count the picked station's quest for everyone; "Waiting" is the Inbox count (hidden without review or the help desk) and opens Inbox; no station: "Pick your station to see today's numbers."; a failed read: "No signal. Numbers cannot load." with Retry. The station list's own line reads "You today" (this operator's scans, Q-213).
+
 Primary action: **Start scanning** (opens Station mode at the picked station).
 
 ```
@@ -359,6 +361,8 @@ Show rotating QR: opens a full-screen code for the picked quest, with the quest 
 Write NFC tag: pick a quest with NFC on, tap "Hold a tag to the back of your phone", then the screen shows "Tag written for {quest}" or a clear failure (see Edge cases).
 
 Practice mode: a switch. While on, every screen shows a strip "Practice: nothing is saved". Scans show the real result screens but award and record nothing (FR-929). The scan screen footer in 3.2 shows the state.
+
+As built (T-311, ADR-250): the switch shows with the scan ability, with the hint "Scans show the real result. Nothing is saved. Before the event opens, scan a rehearsal account's My QR." It is held in memory only: leaving staff mode, player mode or a restart turns it off. The strip sits at the top of every staff screen. Desk, Inbox, a ticket, Manual award, Review, Write NFC tag, Rotating QR, Pair a device and My devices show "Practice mode is on. Leave it to use this." with Leave practice. A practice result shows the real cover with "Practice · not saved" under it (from the server's answer); the scanner footer reads "Practice". Changing the mode forgets the last code, so a code still in front of the camera after leaving practice is scanned for real. While the event's go-live wipe is owed, a practice scan answers red "The event is opening. Try again in a minute".
 
 Switch to {player} mode: shown only to allowed {operator}s (see 2.3).
 

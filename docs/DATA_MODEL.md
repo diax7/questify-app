@@ -731,6 +731,15 @@ closed); its config is locked once a round exists (`quest_lock_played`). `member
 accounts' rounds (counted as `games`).
 **PII:** the rounds a player played and their results (deleted with the account); a round's device id.
 
+### Operator tools: practice scans and station today (migration 0060, T-311, ADR-249 to ADR-251)
+No table. `operator_practice_scan(quest, player, version)` (`SECURITY INVOKER`, granted) runs `operator_complete_quest`
+with a fresh `practice:` key inside a PL/pgSQL block that then always raises, so the subtransaction undoes every row
+and lock the door took; it returns `(outcome, points, occurrence, refusal, refusal_detail)` and writes nothing of its
+own. `practice_wipe_owed(quest)` (definer, granted) is true only for an operator of the quest's event whose go-live
+wipe is owed; the practice then answers `PW409` instead of running and discarding the wipe. Identity numbers a
+practice used are skipped (gaps). `operator_station_today(event, quest)` (definer, granted) counts `quest_completion`
+rows of one station quest in the event's day and the last hour on `quest_completion_quest_idx`; OP403, OQ404, OS403.
+
 ### flag, ticket, audit_log
 `flag(id bigint, organizer_id, event_id, enrollment_id, kind shared_device|burst|far_from_venue|impossible_speed|minigame, device_id (shared_device only),
 evidence jsonb, status open|cleared|confirmed, resolution cleared|points_removed|banned, note, raised_at, last_seen_at,
