@@ -104,7 +104,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.member_poll(gen_random_uuid())",
         "SELECT * FROM public.poll_results(gen_random_uuid())",
         "SELECT public.live_state(gen_random_uuid())",
-        "SELECT public.event_has_open_poll(gen_random_uuid())",
+        "SELECT public.event_has_live(gen_random_uuid())",
         "SELECT public.team_poll(gen_random_uuid(), gen_random_uuid())",
         "SELECT public.is_live_poll('vote', '{}')",
         "SELECT public.polls_shown(NULL::public.event)",
@@ -256,6 +256,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.game_answer(NULL::public.game_round, false)",
         "SELECT public.game_issue_replay(gen_random_uuid(), 'k', gen_random_uuid())",
         "SELECT public.game_issue_check(NULL::public.enrollment, NULL::public.quest)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
+    it("cannot read a community goal or reach the settling, paying and builder doors (T-306b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.community_goal",
+        "SELECT * FROM public.community_step",
+        "SELECT * FROM public.community_reach",
+        "SELECT * FROM public.community_contributor",
+        "SELECT * FROM public.community_payout",
+        "SELECT * FROM public.community_tick_goals()",
+        "SELECT public.settle_goal(gen_random_uuid(), true)",
+        "SELECT * FROM public.pay_community_batch(500, NULL)",
+        "SELECT public.community_health()",
+        "SELECT public.save_community_goal(gen_random_uuid(), NULL, '{}', NULL)",
+        "SELECT public.delete_community_goal(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.community_goals(gen_random_uuid())",
+        "SELECT public.settle_community(gen_random_uuid(), true, NULL)",
+        "SELECT * FROM public.community_paying(gen_random_uuid())",
+        "SELECT * FROM public.community_pending(gen_random_uuid())",
+        "SELECT public.community_settle_point()",
+        "SELECT public.settle_point_of(now(), '{}', 0)",
+        "SELECT public.community_on(NULL::public.event)",
+        "SELECT public.community_close_at(now(), now())",
+        "SELECT public.community_system_only()",
+        "SELECT public.community_read_committed()",
+        "SELECT * FROM public.community_read_slice(NULL::public.community_goal, now(), now(), now(), now())",
+        "SELECT public.community_freeze_payees(NULL::public.community_goal, '{}', now())",
+        "SELECT public.settle_goal_at(NULL::public.community_goal, NULL::public.event, '0', true)",
+        "SELECT public.community_started(NULL::public.community_goal)",
+        "SELECT * FROM public.community_body_steps('{}')",
+        "SELECT public.community_locked_field(NULL::public.community_goal, '{}', now(), now())",
+        "SELECT public.community_check_window(NULL::public.event, NULL, '{}', now(), now())",
+        "SELECT public.member_community(NULL::public.event, gen_random_uuid())",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }

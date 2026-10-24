@@ -49,7 +49,7 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
     const value = await withConnection(deps.pool, (client) =>
       withRequestContext(client, {}, async () => {
         const { rows } = await client.query<{ open: boolean }>(
-          "SELECT event_has_open_poll($1) AS open",
+          "SELECT event_has_live($1) AS open",
           [eventId],
         );
         return rows[0]?.open === true;

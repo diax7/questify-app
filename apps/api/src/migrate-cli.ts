@@ -31,6 +31,14 @@ async function verifyAppRole(): Promise<void> {
     } catch {
       blockedWrite = true;
     }
+    // The community tick's settle point reads the API's own sessions through a definer owned by the migration owner,
+    // which sees them only as a superuser or with questify_app's privileges (ADR-224, migration 0053).
+    const settler = await client.query<{ sees: boolean }>(
+      `SELECT r.rolsuper OR pg_has_role(r.oid, 'questify_app', 'USAGE') AS sees
+       FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
+       WHERE p.oid = 'public.community_settle_point()'::regprocedure`,
+    );
+    const ownerSeesSessions = settler.rows[0]?.sees === true;
     let migrationTableReadable = true;
     try {
       await client.query("SELECT 1 FROM schema_migration");
@@ -42,9 +50,10 @@ async function verifyAppRole(): Promise<void> {
       role.bypass_rls === false &&
       staff.rows[0]?.n === 0 &&
       blockedWrite &&
-      !migrationTableReadable;
+      !migrationTableReadable &&
+      ownerSeesSessions;
     process.stdout.write(
-      `${JSON.stringify({ ok, role: role?.who, superuser: role?.superuser, bypassRls: role?.bypass_rls, staffRowsVisible: staff.rows[0]?.n, eventsVisible: events.rows[0]?.n, unidentifiedInsertBlocked: blockedWrite, migrationTableReadable })}
+      `${JSON.stringify({ ok, role: role?.who, superuser: role?.superuser, bypassRls: role?.bypass_rls, staffRowsVisible: staff.rows[0]?.n, eventsVisible: events.rows[0]?.n, unidentifiedInsertBlocked: blockedWrite, migrationTableReadable, ownerSeesSessions })}
 `,
     );
     if (!ok) {

@@ -912,6 +912,16 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by quiz_next and quiz_answer, read by the player through member_quiz (test/db/vote-quiz)",
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
+  community_goal:
+    "no right for the API role at all; written by save_community_goal and delete_community_goal inside the caller's event, by the settling definers in the system context and by the event switch's trigger; read by the event's team through community_goals and by its active members through live_state (test/db/community)",
+  community_step:
+    "no right for the API role at all; written with its goal by save_community_goal, read through community_goals and live_state (test/db/community)",
+  community_reach:
+    "no right for the API role at all; written by the settling definers in the system context, read through community_goals and live_state (test/db/community)",
+  community_contributor:
+    "no right for the API role at all; written by the settling definers in the system context, read only as the calling member's own `contributed` in live_state (test/db/community)",
+  community_payout:
+    "no right for the API role at all; written by the settling definers and pay_community_batch in the system context, read as counts by the event's team through community_goals and community_paying and as the calling member's own `mine` in live_state (test/db/community)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

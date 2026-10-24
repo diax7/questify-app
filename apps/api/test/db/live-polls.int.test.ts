@@ -618,8 +618,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
       expect(await live(other.player, event)).toEqual(empty);
       expect(await live(randomUUID(), event)).toEqual(empty);
       expect(
-        (await query<{ open: boolean }>({}, "SELECT event_has_open_poll($1) AS open", [event]))[0]
-          ?.open,
+        (await query<{ open: boolean }>({}, "SELECT event_has_live($1) AS open", [event]))[0]?.open,
       ).toBe(true);
     });
   });

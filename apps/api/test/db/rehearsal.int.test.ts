@@ -1035,6 +1035,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // A rehearsal account's game rounds go before its completions (a passed round names its completion) (T-305).
         "enrollment.game_round",
         "quest_completion.game_round",
+        // No community row ever names a rehearsal account: rehearsal rows never count and `everyone` leaves rehearsal
+        // accounts out, and every community writer runs the go-live wipe first (T-306b, test/db/community).
+        "enrollment.community_contributor",
+        "enrollment.community_payout",
+        "ledger_entry.community_payout",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1062,6 +1067,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "due_rehearsal_wipes",
         "rehearsal_over",
         "finish_quiz", // internal: play_enter, the quiz sweep and confirm_results wipe before calling it
+        "settle_goal_at", // internal: settle_goal and settle_community wipe before calling it (T-306b)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls
