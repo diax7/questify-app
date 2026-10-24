@@ -56,7 +56,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    pool = new Pool({ connectionString: db.appUrl, max: 8 });
+    // A lock wait that never ends fails as 55P03 here instead of as a test timeout. The longest wait measured under two
+    // full suites at once was under 1 s.
+    pool = new Pool({ connectionString: db.appUrl, max: 8, options: "-c lock_timeout=5000" });
     ids = await seedTwoTenants(db.owner);
     ownerA = await addMember(db.owner, ids.orgA, "owner");
   });
@@ -139,12 +141,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
     );
     return { player: player?.id ?? "", enrollment: made?.id ?? "" };
   };
-  const enroll = async (event: string, player: string): Promise<Member> => {
-    const [made] = await owner<{ id: string }>(
-      "INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via) VALUES ($1, $2, $3, 'code') RETURNING id",
-      [ids.orgA, event, player],
+  /** `count` new players in the event, written in one statement so a race test's rounds cost no setup round trips. */
+  const members = async (event: string, count: number): Promise<Member[]> => {
+    counter += 1;
+    const rows = await owner<{ player: string; enrollment: string }>(
+      `WITH made AS (
+         INSERT INTO player (username) SELECT 'meet_many_' || $3 || '_' || g FROM generate_series(1, $4) g RETURNING id)
+       INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via)
+       SELECT $1, $2, made.id, 'code' FROM made RETURNING player_id AS player, id AS enrollment`,
+      [ids.orgA, event, counter, count],
     );
-    return { player, enrollment: made?.id ?? "" };
+    expect(rows).toHaveLength(count);
+    return rows;
+  };
+  /** The given players enrolled in another event, in one statement, in the order given. */
+  const enrollAll = async (event: string, players: readonly string[]): Promise<Member[]> => {
+    const rows = await owner<{ player: string; enrollment: string }>(
+      `INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via)
+       SELECT $1, $2, p, 'code' FROM unnest($3::uuid[]) p RETURNING player_id AS player, id AS enrollment`,
+      [ids.orgA, event, players],
+    );
+    return players.map((player) => rows.find((row) => row.player === player) as Member);
   };
   /** A code written straight to the table, for a player who could not ask for one now. */
   const rawPass = async (who: Member, quest: string): Promise<Pass> => {
@@ -190,6 +207,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
   const score = async (enrollment: string) =>
     (await owner<{ score: string }>("SELECT score FROM enrollment WHERE id = $1", [enrollment]))[0]
       ?.score;
+  /** The scores of the given enrollments, in the order given. */
+  const scoresOf = async (enrollments: readonly string[]) =>
+    (
+      await owner<{ score: string }>(
+        "SELECT n.score FROM unnest($1::uuid[]) WITH ORDINALITY e(id, at) JOIN enrollment n ON n.id = e.id ORDER BY e.at",
+        [enrollments],
+      )
+    ).map((row) => row.score);
   const meetings = (quest: string) =>
     owner("SELECT scanner_enrollment, shown_enrollment FROM meeting WHERE quest_id = $1", [quest]);
   const kinds = async (who: Member) =>
@@ -697,11 +722,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
     });
   });
 
+  // Each race runs 25 rounds on fresh players. Everything a round needs is made before the first round in a few
+  // statements, and a round's codes are shown at once, so a round costs two waits on the database, not thirty: under a
+  // loaded full run the one-row-at-a-time setup took about 1 s a round and timed these tests out (no lock waited long).
+  // With the enrollment and code locks taken out of meet_player, every race here fails in its first rounds.
   describe("races (ADR-211)", () => {
+    const ROUNDS = 25;
+    /** A meet quest of a fresh event and `perRound` fresh players of it for each round. */
+    const raceSetup = async (perRound: number, options: Parameters<typeof newQuest>[1] = {}) => {
+      const event = await newEvent();
+      const quest = await newQuest(event, options);
+      const all = await members(event, ROUNDS * perRound);
+      const rounds = Array.from({ length: ROUNDS }, (_, round) =>
+        all.slice(round * perRound, (round + 1) * perRound),
+      );
+      return { event, quest, rounds };
+    };
+
     it("pays one meeting when two players scan each other at once", async () => {
-      for (let round = 0; round < 50; round += 1) {
-        const { quest, a, b } = await setup();
-        const [codeA, codeB] = [await issue(a, quest), await issue(b, quest)];
+      const { quest, rounds } = await raceSetup(2);
+      for (const round of rounds) {
+        const [a, b] = round as [Member, Member];
+        const [codeA, codeB] = await Promise.all([issue(a, quest), issue(b, quest)]);
         const results = await Promise.allSettled([meet(a, codeB), meet(b, codeA)]);
         expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
         for (const result of results) {
@@ -709,70 +751,78 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
             expect((result.reason as { detail?: string }).detail).toBe("already_met");
           }
         }
-        expect(await meetings(quest)).toHaveLength(1);
-        expect([await score(a.enrollment), await score(b.enrollment)]).toEqual(["50", "50"]);
       }
+      expect(await meetings(quest)).toHaveLength(ROUNDS);
+      const everyone = rounds.flat().map((who) => who.enrollment);
+      expect(await scoresOf(everyone)).toEqual(everyone.map(() => "50"));
     });
 
     it("pays one of two meetings on a daily cap of 1, and one of two scanners of one code", async () => {
-      for (let round = 0; round < 50; round += 1) {
-        const { event, quest, a, b } = await setup({ dailyCap: 1 });
-        const c = await member(event);
-        const results = await Promise.allSettled([
-          meet(a, await issue(b, quest)),
-          meet(a, await issue(c, quest)),
+      const { quest, rounds } = await raceSetup(6, { dailyCap: 1 });
+      for (const round of rounds) {
+        const [a, b, c, shown, d, e] = round as [Member, Member, Member, Member, Member, Member];
+        const [codeB, codeC, shared] = await Promise.all([
+          issue(b, quest),
+          issue(c, quest),
+          issue(shown, quest),
         ]);
+        const results = await Promise.allSettled([meet(a, codeB), meet(a, codeC)]);
         expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-        expect(await score(a.enrollment)).toBe("50");
-        const shared = await issue(await member(event), quest);
-        const [d, e] = [await member(event), await member(event)];
         const scans = await Promise.allSettled([meet(d, shared), meet(e, shared)]);
         expect(scans.filter((result) => result.status === "fulfilled")).toHaveLength(1);
         const lost = scans.find((result) => result.status === "rejected");
         expect((lost as PromiseRejectedResult).reason.detail).toBe("used");
       }
+      const scanners = rounds.map((round) => (round[0] as Member).enrollment);
+      expect(await scoresOf(scanners)).toEqual(scanners.map(() => "50"));
     });
 
     it("answers the same request sent twice at once with one meeting and a replay, never used (CTO 2)", async () => {
-      for (let round = 0; round < 50; round += 1) {
-        const { quest, a, b } = await setup();
+      const { quest, rounds } = await raceSetup(2);
+      for (const round of rounds) {
+        const [a, b] = round as [Member, Member];
         const pass = await issue(b, quest);
         const key = randomUUID();
         const [one, two] = await Promise.all([meet(a, pass, { key }), meet(a, pass, { key })]);
         expect([one.replayed, two.replayed].toSorted()).toEqual([false, true]);
         expect(one.completion_id).toBe(two.completion_id);
-        expect(await score(a.enrollment)).toBe("50");
       }
+      const scanners = rounds.map((round) => (round[0] as Member).enrollment);
+      expect(await scoresOf(scanners)).toEqual(scanners.map(() => "50"));
     });
 
     it("never deadlocks: A–B with B–C, two phones crosswise, a meeting beside a QR scan, and two events", async () => {
-      for (let round = 0; round < 50; round += 1) {
-        const event = await newEvent();
-        const quest = await newQuest(event, { dailyCap: 10 });
-        const scan = await newQuest(event, { type: "scan_qr", repeatCap: 5 });
-        const [a, b, c, d] = [
-          await member(event),
-          await member(event),
-          await member(event),
-          await member(event),
-        ];
+      const { event, quest, rounds } = await raceSetup(5, { dailyCap: 10 });
+      const scan = await newQuest(event, { type: "scan_qr", repeatCap: 5 });
+      const other = await newEvent();
+      const otherQuest = await newQuest(other);
+      const elsewhere = await enrollAll(
+        other,
+        rounds.flatMap((round) => [(round[0] as Member).player, (round[1] as Member).player]),
+      );
+      for (const [index, round] of rounds.entries()) {
+        const [a, b, c, d, e] = round as [Member, Member, Member, Member, Member];
+        const [a2, b2] = elsewhere.slice(index * 2, index * 2 + 2) as [Member, Member];
         const [x, y] = [randomUUID(), randomUUID()];
-        const work = [
-          meet(a, await issue(b, quest)),
-          meet(b, await issue(c, quest)),
-          meet(a, await issue(d, quest, y), { device: x }),
-          meet(c, await issue(await member(event), quest, x), { device: y }),
+        const [codeB, codeC, codeD, codeE, codeA2] = await Promise.all([
+          issue(b, quest),
+          issue(c, quest),
+          issue(d, quest, y),
+          issue(e, quest, x),
+          issue(a2, otherQuest),
+        ]);
+        const results = await Promise.allSettled([
+          meet(a, codeB),
+          meet(b, codeC),
+          meet(a, codeD, { device: x }),
+          meet(c, codeE, { device: y }),
           query(as(d.player), "SELECT * FROM complete_quest($1, 'qr', 1, NULL, $2, $3)", [
             scan,
             randomUUID(),
             y,
           ]),
-        ];
-        const other = await newEvent();
-        const otherQuest = await newQuest(other);
-        const [a2, b2] = [await enroll(other, a.player), await enroll(other, b.player)];
-        work.push(meet(b2, await issue(a2, otherQuest)));
-        const results = await Promise.allSettled(work);
+          meet(b2, codeA2),
+        ]);
         for (const result of results) {
           if (result.status === "rejected") {
             expect(String((result.reason as { code?: string }).code)).not.toBe("40P01");
@@ -780,7 +830,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
         }
         expect(results.every((result) => result.status === "fulfilled")).toBe(true);
       }
-    }, 120_000);
+    });
   });
 
   describe("erasure, the rehearsal wipe and the closed doors", () => {
