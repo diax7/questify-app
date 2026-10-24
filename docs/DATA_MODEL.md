@@ -546,8 +546,34 @@ visible vote (`PL409`); `quest_lock_played` keeps `live` on a sent or voted vote
 sent. Live polls are left out of `category_done`, `category_cleared` and `category_lock`'s in-order check (a
 category of only live polls is cleared, never done). Readers: `member_poll`, `poll_results` (`PR403` by policy),
 `quest_vote_counts` (with `voters`), `live_state` (the live read; empty for anyone not an active member),
-`event_has_open_poll` (the API's 3 s cache). Index `quest_live_idx ON quest (event_id) WHERE type = 'vote' AND
+`event_has_live` (the API's 3 s cache; T-306b replaced `event_has_open_poll`). Index `quest_live_idx ON quest (event_id) WHERE type = 'vote' AND
 type_config ? 'live'`. The rehearsal wipe puts sent polls back to draft and counts `votes` per player and quest.
+
+### community_goal, community_step, community_reach, community_contributor, community_payout (migration 0053, T-306b, ADR-222 to ADR-226)
+**Built:** `community_goal (id, organizer_id, event_id, title_ar/en 1..80, measure points|completions|players,
+quest_id | category_id (not both; only for completions and players; RESTRICT), target (1..1e9 points, 1..1e6
+otherwise), starts_at, ends_at (at least 1 minute), paid_to contributors|everyone, status scheduled|running|reached|
+missed, settled_until, settled_value, progress, progress_at, final_at, created_at)`, cascading with its event;
+`community_step (id, event_id, goal_id, threshold, is_goal, reward points|moment|nothing, points 1..100000,
+moment_ar/en 1..280)`, unique `(goal_id, threshold)` and one goal step, cascading with its goal;
+`community_reach (step_id PK, event_id, reached_at, progress)`; `community_contributor (goal_id, enrollment_id PK,
+event_id, first_at)`; `community_payout (step_id, enrollment_id PK, event_id, status due|paid|skipped, skip_reason
+inactive|no_play|results_final, entry_id, created_at, done_at)` with partial indexes on due rows. The children carry
+`event_id` through composite keys to their goal or step and enrollment (the organizer comes through the goal);
+reach, contributor and payout rows are RESTRICT. Row-level security forced, PUBLIC revoked, no grant on all five.
+`ledger_entry.community_step_id` (RESTRICT), kind `community` (actor `system`, `score_delta > 0`, `balance_delta IN
+(0, score_delta)`, nothing else named; a removal copies the step), `ledger_entry_community_key UNIQUE
+(community_step_id, enrollment_id) WHERE kind = 'community'`. The tick's doors (system context, `CS403` otherwise):
+`community_tick_goals`, `settle_goal` (READ COMMITTED only, `CI500`; VOLATILE), `pay_community_batch`,
+`community_health`; the settle point `community_settle_point` reads `pg_stat_activity` for the API role's and the
+owner's sessions (`CV500 settle_blind` when one is unreadable). Team doors: `save_community_goal`,
+`delete_community_goal`, `community_goals`, `community_paying`, the owner's `settle_community` (`CS409
+community_settling`). `confirm_results` answers `RF409 community_paying` (HINT `{goals, due}`); `remove_award`,
+`member_ledger` and `member_activity` know the kind; `live_state.community` comes from `member_community`; the
+trigger `event_community_off` finishes running goals when the event's `features.community` turns false. No community
+row names a rehearsal account (rehearsal rows never count; `everyone` leaves them out), so the wipe is not restated.
+**PII:** who took part in a goal and was paid (rows stay as the enrollment's tombstone after erasure; an erased
+player's due row is skipped `inactive`).
 
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
@@ -664,7 +690,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076) | No |
 | event_join_field, join_answer, event_guest (built, T-212, migration 0028) | Up to 5 join fields per event; each member's answers (**PII**, written only by the join definers, read by the event's team, the player and admins; a deleted field takes its answers); guest-list phones and emails (at most 10 000, unique per event). `event` gains `join_fields_version`, `guest_list_only`, `email_domains` (≤ 10) and `welcome_points`; the `welcome` ledger kind (one per enrollment, actor `system`) | Yes (answers, guest list) |
 | poll, poll_vote, survey_question, quest_rating | Live polls and their options, one vote per player, survey questions, optional quest ratings | Votes and answers yes |
-| community_quest, milestone | Shared goals with measure, milestones, rewards | No |
+| community_quest, milestone | Shared goals with measure, milestones, rewards | Built (T-306b: `community_goal`, `community_step`) |
 | rank_prize, souvenir_grant | Prizes attached to final ranks with claim deadline; souvenir rules and grants | Grants link to players |
 | questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank | No |
 | ranking_season | Monthly Questify-wide seasons and archives | No |

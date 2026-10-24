@@ -973,14 +973,14 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-240 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
 | FR-241 | F-100 | Should | `test/db/live-polls.int` (a 0-point poll records the vote and pays no points; Questify XP still follows, Q-184) (T-306) |
 | FR-242 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
-| FR-243 | F-101 | Should | pending |
-| FR-244 | F-101 | Should | pending |
-| FR-245 | F-101 | Should | pending |
-| FR-246 | F-101 | Should | pending |
-| FR-247 | F-101 | Should | pending |
-| FR-248 | F-101 | Should | pending |
-| FR-249 | F-101 | Should | pending |
-| FR-250 | F-101 | Should | pending |
+| FR-243 | F-101 | Should | `test/db/community.int`, `test/community/routes.int`, `e2e/community.spec.ts` (T-306b) |
+| FR-244 | F-101 | Should | `test/db/community.int` (participation points; nothing deducted) (T-306b) |
+| FR-245 | F-101 | Should | `test/db/community.int` (window edges, removals of counted entries only) (T-306b) |
+| FR-246 | F-101 | Should | `test/db/community.int` (milestones reached and paid, kept on a miss; the push is T-501's) (T-306b) |
+| FR-247 | F-101 | Should | `test/db/community.int` (points, moment, nothing; unlocks are T-306c) (T-306b) |
+| FR-248 | F-101 | Should | `test/db/community.int` (contributors with the top-up, everyone at the reach) (T-306b) |
+| FR-249 | F-101 | Should | `test/db/community.int` (a miss pays nothing for the goal) (T-306b) |
+| FR-250 | F-101 | Should | `test/db/community.int`, `test/community/routes.int`, `apps/app/src/event/community.test.ts` (the Home bar; the big screen is T-504's) (T-306b) |
 | FR-251 | F-102 | Should | pending |
 | FR-252 | F-102 | Should | pending |
 | FR-254 | F-103 | Should | pending |
@@ -1284,7 +1284,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1617 | F-150 | Should | `test/db/quest-items.int`, `test/rewards/quest-items.int` (T-304d, ADR-205) |
 | FR-1618 | F-62 | Should | pending |
 | FR-1619 | F-51 | Should | built (T-304c) |
-| FR-1620 | F-101 | Should | pending |
+| FR-1620 | F-101 | Should | `test/db/community.int`, `test/db/community-locks.int` (T-306b) |
 | FR-1621 | F-103 | Should | pending |
 | FR-1622 | F-134 | Should | pending |
 | FR-1623 | F-210 | Could | pending |

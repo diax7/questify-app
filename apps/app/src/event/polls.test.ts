@@ -127,6 +127,7 @@ describe("what is live (T-306, ADR-221)", () => {
       { questId: "p2", closesAt: "2030-01-01T10:06:00.000Z" },
     ],
     closed: [{ questId: "c1" }, { questId: "c2" }],
+    community: null,
   };
 
   it("reads the state and drops malformed entries", () => {

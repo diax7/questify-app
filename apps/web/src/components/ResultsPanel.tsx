@@ -8,6 +8,7 @@ import {
   type Language,
 } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
+import { CommunitySettle } from "#src/components/CommunitySettle.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
@@ -248,6 +249,8 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { results, setResults, problem, setProblem, failed, load } = useResults(eventApi, language);
   const [notice, setNotice] = useState<string | null>(null);
+  // The confirm was refused while community rewards are still being paid (T-306b): the owner settles and pays first.
+  const [paying, setPaying] = useState(false);
   if (results === null) {
     return <Notes problem={problem} notice={null} loading={problem === null} language={language} />;
   }
@@ -256,13 +259,20 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
     const result = await requestJson("POST", `${eventApi}${path}`, payload);
     const read = result.ok ? resultsOf(result.body) : undefined;
     if (read === undefined) {
+      setPaying(errorCodeOf(result.body) === "community_paying");
       failed(result.body);
       await load();
       return;
     }
+    setPaying(false);
     setProblem(null);
     setResults(read);
     setNotice(said);
+  };
+  const settled = (paid: boolean) => {
+    setProblem(paid ? null : t("results.communityPaying"));
+    setNotice(paid ? t("results.settled") : null);
+    setPaying(!paid);
   };
   return (
     <section className={styles.panel} aria-labelledby="results-title">
@@ -282,6 +292,9 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
           />
         ))}
       </ol>
+      {paying && owner ? (
+        <CommunitySettle language={language} eventApi={eventApi} done={settled} failed={failed} />
+      ) : null}
       {step === null ? null : (
         <StepControls
           key={results.state}

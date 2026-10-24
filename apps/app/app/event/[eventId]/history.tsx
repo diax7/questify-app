@@ -34,6 +34,7 @@ const PLAIN: Readonly<Record<string, MessageKey>> = {
   welcome: "history.welcome",
   award: "history.award",
   removal: "history.removal",
+  community: "history.community",
 };
 
 function entryLabel(

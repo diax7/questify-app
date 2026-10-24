@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
 import type { MessageKey } from "@questify/shared";
 import { useEvent } from "#src/event/EventContext.tsx";
+import { LiveProvider } from "#src/event/LiveContext.tsx";
 import { LivePolls } from "#src/event/LivePolls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ScanButton } from "#src/components/ScanButton.tsx";
@@ -21,14 +22,14 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
 /**
  * The event's bar (FR-620, T-113): Home, Quests, Scan in the middle, Rewards, Profile. The tabs keep one order in both
  * languages, even when the app runs right to left (user, ADR-110 note; FR-620's mirroring is Q-100). The live poll card
- * (T-306) sits over the tabs.
+ * (T-306) sits over the tabs; one live read serves it and Home's community bar (T-306b).
  */
 export default function EventTabsLayout() {
   const { t } = useI18n();
   const { theme, text } = useTheme();
   const { eventId } = useEvent();
   return (
-    <>
+    <LiveProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -62,6 +63,6 @@ export default function EventTabsLayout() {
         ))}
       </Tabs>
       <LivePolls />
-    </>
+    </LiveProvider>
   );
 }

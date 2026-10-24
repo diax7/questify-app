@@ -154,6 +154,8 @@ anti-cheat) is Area 3.
 - **If the goal is missed:** nothing is awarded, and no pity reward is faked.
 - **Where it shows:** a progress bar on the event home and the big screen, plus a push at each
   milestone.
+- **Built (T-306b, 2026-10-24):** every part but the unlock reward (T-306c), the milestone push (T-501) and the
+  big-screen bar (T-504); one goal runs at a time, none in rehearsal (Q-186).
 
 **Experience ideas not chosen for v1:**
 

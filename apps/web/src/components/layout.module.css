@@ -257,3 +257,18 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* A wooden bar filling with gold from the start of the reading direction (community quests, T-306b). */
+.meter {
+  inline-size: 100%;
+  position: relative;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-navigation-bar);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--color-navigation-active);
+}

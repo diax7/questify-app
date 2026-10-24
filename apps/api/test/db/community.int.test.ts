@@ -1188,6 +1188,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       const card = await live(who.player, event);
       expect(card).toMatchObject({
         goalId: goal,
+        paidTo: "contributors",
         status: "running",
         progress: 15,
         target: 100,

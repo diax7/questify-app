@@ -29,6 +29,6 @@ export async function openBuilder(page: Page, project: string): Promise<void> {
   await page.getByLabel("تبدأ", { exact: true }).fill("2030-11-01T09:00");
   await page.getByLabel("تنتهي", { exact: true }).fill("2030-11-01T17:00");
   await page.getByRole("button", { name: "إنشاء الفعالية" }).click();
-  await page.getByRole("link", { name: "المهام" }).click();
+  await page.getByRole("link", { name: "المهام", exact: true }).click();
   await expect(page.getByRole("heading", { name: "المهام", level: 1 })).toBeVisible();
 }

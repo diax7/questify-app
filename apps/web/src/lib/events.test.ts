@@ -30,6 +30,7 @@ const EVENT: EventView = {
   shareQuests: true,
   meetSomeone: true,
   miniGames: true,
+  community: true,
 };
 
 describe("nameFor", () => {

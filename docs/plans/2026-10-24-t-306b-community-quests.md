@@ -26,11 +26,14 @@ Dhia is away: open choices are my recommendation, written as **Proposed** ADR-22
 ## Changes from the fixed design (each folded into the sections below)
 
 1. **Who the settle point must see** (ADR-224). Only `questify_app` and the owner can write ledger rows, so the settle
-   point is bounded by their open transactions only. The owner is made a member of `questify_app` in 0053, which lets
-   the definer read those sessions' `xact_start` without `pg_read_all_stats`; any of their client backends that still
-   reads `state IS NULL` makes the settle refuse loudly (`CV500 settle_blind`), never "no transaction". Other roles'
-   sessions (the host's monitoring, an admin's `psql`) are ignored: they cannot block settling forever, and they cannot
-   write the ledger through the app.
+   point is bounded by their open transactions only. The owner (the definers' owner) must read those sessions'
+   `xact_start`: it is a superuser on CranL and in CI, so 0053 grants nothing; it asserts the owner is a superuser or
+   `pg_has_role(owner, 'questify_app', 'USAGE')` and fails loudly otherwise, and `--verify` checks the same (CTO plan
+   review 1; no `pg_read_all_stats` fallback). Any of those client backends that still reads `state IS NULL` makes the
+   settle refuse loudly (`CV500 settle_blind`), never "no transaction". Other roles' sessions are ignored: they cannot
+   write the ledger through the app. CranL's own sessions as `admin` (its console, its managed `pg_dump`) are the
+   owner's and can hold the settle point back; `community.settle_behind` names the blocking backend's pid and
+   application_name (CTO 2).
 2. **Tail contributors are not lost** (ADR-225). The fixed design froze the payee list from `community_contributor`,
    filled from settled slices only, while reaching is judged on settled plus tail: a player whose only row sat in the
    tail at the reach would be missed. Contributors are now written from every row read (tail included; they are
@@ -65,6 +68,8 @@ T-306c adds `unlock`.
 
 - **One running goal at a time**: windows of one event never overlap, checked in the builder under
   `pg_advisory_xact_lock(hashtextextended('community_goal:' || event, 0))` (as rank prizes), so the home shows one bar.
+- **Not after the end** (CTO 5): the builder refuses a new goal (`GL409 event_ended`) once the event has ended or its
+  results exist.
 - **Locked at start**: once `starts_at` passes, only the titles and moment texts change (`GL409 goal_locked {field}`);
   a goal is deleted only before it starts (`GL409 goal_started`). A quest or category a goal counts cannot be deleted
   (`RESTRICT`; the builder answers its existing `in_use`).
@@ -82,7 +87,9 @@ lifecycle tick; several instances harmless) asks `community_tick_goals()` for th
 `settle_goal(goal)` for each, each its own transaction:
 
 1. `ensure_rehearsal_wiped(event)` (first statement), then the goal `FOR UPDATE SKIP LOCKED` (none: another instance
-   has it, `'busy'`, skipped).
+   has it, `'busy'`, skipped). `settle_goal` is VOLATILE and refuses any isolation but READ COMMITTED (`CI500`): each
+   statement then takes a fresh snapshot, so the slice is read after `pg_stat_activity` was (CTO 3; a test runs it
+   under REPEATABLE READ and reads `provolatile`).
 2. **The settle point** `p = least(now() − 30 s, community_settle_point(), close_at)`, never below `settled_until`:
    `community_settle_point()` reads `pg_stat_activity` once (its per-transaction snapshot, taken before any slice is
    read) for `datname = current_database()`, `backend_type = 'client backend'`, `pid <> pg_backend_pid()`, `usename IN
@@ -100,6 +107,7 @@ lifecycle tick; several instances harmless) asks `community_tick_goals()` for th
 6. Steps newly at or under `progress`: see "Reaching".
 7. Finished when the goal step is reached, or when `p` reaches `close_at` (`reached` if the goal step was reached,
    else `missed`, FR-249); `final_at` is set once `p` has also passed the goal step's `reached_at` (no top-up is left).
+   Once the goal step is reached, the read is capped at its `reached_at` (CTO 4): later rows never move the bar.
 
 What counts (rehearsal entries never; `close_at = least(ends_at, event end)`):
 
@@ -127,8 +135,8 @@ progress)` once, audits `community.step_reached` (actor `system`) and, for a `po
 `community_payout (step_id, enrollment_id, status 'due', created_at)`, primary key `(step_id, enrollment_id)`:
 
 - `contributors`: every contributor so far (step 5 already wrote the tail's), then each later settle tops up
-  contributors with `first_at < reached_at` not yet listed, until `p` passes `reached_at`.
-- `everyone`: every enrollment then active (`n.status = 'active'`, `p.status = 'active'`, not `joined_via =
+  contributors with `first_at < reached_at` not yet listed, until `p` passes `reached_at` (`ON CONFLICT DO NOTHING`).
+- `everyone` (`ON CONFLICT DO NOTHING`): every enrollment then active (`n.status = 'active'`, `p.status = 'active'`, not `joined_via =
   'rehearsal'`, not an operator who may not play), one `INSERT … SELECT`, no enrollment locked. Later joiners are
   not paid (Q-186).
 
@@ -138,11 +146,12 @@ is T-501's (note there: once per reached step, active members only).
 
 ## The payer (ADR-223)
 
-`pay_community_batch(size, only_event)` (system context only, `CS403` otherwise; granted, as
-`advance_event_lifecycle`), one transaction per call:
+`pay_community_batch(size, only_event)` (system context only, `CS403` otherwise: no player, staff, organizer or admin
+identity set, as `ranking_system()`; granted, as `advance_event_lifecycle`), one transaction per call:
 
-1. Pick the step with the oldest due row (no lock), then `ensure_rehearsal_wiped(event)`, then the event `FOR KEY
-   SHARE`.
+1. With `only_event`, `ensure_rehearsal_wiped(event)` first; otherwise one unlocked read picks the step with the
+   oldest due row and the wipe follows it (harmless: no payout row names a rehearsal account, CTO 7). Then the event
+   `FOR KEY SHARE`.
 2. Up to `size` (500) due rows of that step `ORDER BY enrollment_id FOR UPDATE SKIP LOCKED` (only payers touch payout
    rows, so this never waits and two instances split the work).
 3. The batch's enrollments **in one statement, in id order** (`SELECT … WHERE id = ANY(…) ORDER BY id FOR NO KEY
@@ -178,7 +187,8 @@ and `member_ledger` name it by the goal's title.
   `p = least(community_settle_point(), close_at)` (no 30 s lag): if `p < close_at` a transaction from the window is
   still open → `CS409 community_settling`, `409` with `Retry-After: 5`; else settled to the end and finished. Audited
   `community.settle`. The route then runs `pay_community_batch(500, event)` in a system context until nothing is due
-  or 20 s pass, and answers `{status: 'paid' | 'paying', due}`; the dashboard calls again while `paying`, then the
+  or 20 s pass, after clearing the owner's identity (an empty context, so `CS403` passes; CTO 8), and answers
+  `{status: 'paid' | 'paying', due}`; the dashboard calls again while `paying`, then the
   owner confirms again.
 - Due rows older than 2 minutes alert (`community.payout_stuck`, above).
 
@@ -187,7 +197,8 @@ and `member_ledger` name it by the goal's title.
 - **Event switch off**: trigger `event_community_off` (AFTER UPDATE OF config ON event, when
   `features.community` turns `false`; covers `saveEventSwitch` and `saveEventSwitches`) finishes every running goal at
   once: `reached` if its goal step was reached, else `missed`, `final_at = now()`. Steps already reached still pay;
-  nothing is topped up. Scheduled goals do not start while it is off; if it is still off at their end, the tick
+  nothing is topped up, so a contributor whose row was still in flight at the switch-off is not paid (ADR-226 and
+  Q-190, CTO 4). Scheduled goals do not start while it is off; if it is still off at their end, the tick
   finishes them `missed` with no progress. Lock order: the event row, then the goal rows (the tick never locks the
   event, the payer takes `KEY SHARE`, which an update of `config` does not block).
 - **Platform switch off**: the bar is hidden, the builder refuses (`feature_off`, as `switched-off.ts`), new goals do
@@ -263,8 +274,8 @@ Plus the builder's labels and errors (`goal_overlap`, `goal_locked`, `goal_start
   `(status) WHERE final_at IS NULL`; payout `(step_id, enrollment_id) WHERE status = 'due'` and `(created_at) WHERE
   status = 'due'`; contributor PK `(goal_id, enrollment_id)`.
 - `ledger_entry.community_step_id uuid` (FK `RESTRICT`), the constraints and unique index above.
-- `GRANT questify_app TO <owner>` when `NOT pg_has_role(current_user, 'questify_app', 'USAGE')` (a failure fails the
-  migration, loudly; RUNBOOK deploy note). `--verify` gains the check.
+- No role grant: a `DO` block asserts the owner is a superuser or `pg_has_role(current_user, 'questify_app', 'USAGE')`
+  and raises otherwise; `--verify` reads the same of the owner of `community_settle_point` (CTO 1).
 - Functions (every one `REVOKE ALL … FROM PUBLIC` in this file; only the doors granted to `questify_app`):
   internal `community_on`, `community_close_at`, `settle_point_of`, `community_settle_point`, `community_read_slice`,
   `settle_goal_at`, `community_freeze_payees`; system doors `community_tick_goals`, `settle_goal`,
@@ -280,7 +291,7 @@ Plus the builder's labels and errors (`goal_overlap`, `goal_locked`, `goal_start
 
 | Function | Order |
 |---|---|
-| `settle_goal`, `settle_community` | rehearsal row (shared, or the wipe) → goal `FOR UPDATE` (SKIP LOCKED in the tick); no enrollment lock |
+| `settle_goal`, `settle_community` | rehearsal row (shared, or the wipe) → goal `FOR UPDATE` (SKIP LOCKED in the tick); no enrollment lock taken, but the contributor, reach and payout inserts take `KEY SHARE` on each enrollment, step and the event through their foreign keys: they wait only for a `FOR UPDATE` of those rows (the wipe, `confirm_results`' event lock), whose holders never wait for a goal, so no cycle (CTO 6) |
 | `pay_community_batch` | rehearsal row → event `KEY SHARE` → payout rows SKIP LOCKED → the batch's enrollments, one statement, id order |
 | `confirm_results` | rehearsal row → event `FOR UPDATE` → (quiz sweep) enrollments; reads goals and payouts without locks |
 | `event_community_off` | event (the config update) → goals |
@@ -338,7 +349,8 @@ and the demo event gets a running goal the day a build goes to review (RUNBOOK s
 ## Proposed decisions and questions
 
 - **ADR-224** The settle point reads only the sessions that can write the ledger (`questify_app` and the owner); the
-  owner becomes a member of `questify_app` to read them; an unreadable one stops settling loudly. Q-188.
+  owner must be a superuser or hold `questify_app`'s privileges (asserted, never granted); an unreadable one stops
+  settling loudly. Q-188 closed as moot (CTO 1).
 - **ADR-225** Counting details: contributors are written from every row read and a reached `contributors` step is
   topped up with anyone whose first counted row predates the reach; a removal counts only when it reverses a counted
   entry; a 0-point completion makes no contributor of a points goal; reaching the goal finishes it; a category is
@@ -348,9 +360,34 @@ and the demo event gets a running goal the day a build goes to review (RUNBOOK s
   pay; Settle and pay now settles past the lag but never past an open transaction, and pays for up to 20 s a call.
   Q-190.
 - ADR-222 and ADR-223 gain build notes for changes 2 to 6 and 9.
-- **Q-188** On CranL, may the migration make the owner role a member of the app role (so the server can see which of
-  its own transactions are still open)? If CranL refuses, the fallback is granting the owner `pg_read_all_stats`.
+- **Q-188** closed as moot: the owner is a superuser on CranL and in CI (STATE.md, `test-db.ts`); 0053 asserts it.
 - **Q-189** Community counting: a player who earned 0 points does not count as taking part in a points goal; reaching
   the goal ends it early; it stays on the home screen 30 minutes after it ends. Agree?
 - **Q-190** Switching community quests off for an event ends a running goal at once (rewards already reached are still
   paid); switching them off for the whole platform only hides them and lets running goals finish. Agree?
+
+## As built (2026-10-24)
+
+CTO plan review 91/100 GO; its eight notes are folded in above. Where the build differs from the text above:
+
+- **Child tables' keys.** `community_step`, `community_reach`, `community_contributor` and `community_payout` carry
+  `event_id` through composite keys to their goal or step and to the enrollment; only `community_goal` has
+  `organizer_id` and the event key (no unindexed foreign key for an event delete to scan). A payout row ends with
+  `done_at` (paid or skipped), not `paid_at`.
+- **Finality.** A goal is final once the settle point passes the goal step's reach *or the window's end*, whichever
+  is first: a goal reached by a late settle (after its window) would otherwise never finish.
+- **Platform switch.** `settle_goal(goal, may_start)` and `settle_community(event, may_start, request)` take the
+  platform switch from the API, which owns it; the builder answers the existing `403 feature_off`
+  (`platformFeatureOff`), not 422.
+- **The live card** also carries `paidTo`, so the bar can say "for everyone who took part" or "for every player".
+- **No statement limit change.** The tick runs within the pool's 5 s limit (its client timeout is 6 s): a first
+  settle over 20,000 completions with 10,000 new contributors and payees took 2.25 s on the dev machine, a steady tick
+  73 ms; paying 10,001 players took 5.5 s in 21 batches (slowest 296 ms). The timing file runs by hand
+  (`COMMUNITY_TIMING`), like the ranking's: a timing assertion is flaky on the 2-core runner.
+- **`goal_in_use`.** Deleting a quest or category a goal counts answers `409 goal_in_use` (a new refusal, not
+  `in_use`).
+- **One live read.** The app reads `/live` once for the event's tabs (`LiveProvider`); the poll card and the Home bar
+  share it. The one-time community cards (a reached moment, a step that paid the player) join the poll card's queue
+  and its remembered list.
+- **Browser test.** `e2e/community.spec.ts` covers the switch, the form with a milestone and its preview, edit and
+  delete; Settle and pay now is covered by the route tests (it needs an ended event with rewards due).

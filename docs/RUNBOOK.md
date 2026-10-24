@@ -263,6 +263,26 @@ the client-address count (ADR-113).
   minute, or migrate and switch over together; the app's retry with the same key recovers a failed vote once the new
   instance answers. On the day a build goes to store review, send a live poll with 1,440 minutes in the demo event
   (STORE_COMPLIANCE, review notes).
+- **Community quests (T-306b): migration 0053 checks its owner can read the API's sessions** (a superuser, or one
+  holding `questify_app`'s privileges; CranL's `admin` is a superuser) and stops with "the migration owner … can not
+  read questify_app's sessions" otherwise; `node migrate.cjs --verify` then reports `ownerSeesSessions: true`. Nothing
+  is granted. It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. On the day a build
+  goes to store review, give the demo event a running community goal (STORE_COMPLIANCE, review notes).
+- **Community tick alerts (T-306b, ADR-222 to ADR-224; log lines until T-018 makes them alerts):**
+  - `community.settle_behind {goals, blockerPid, blockerApp}`: a goal's settle point is more than 2 minutes behind.
+    The named backend holds the oldest open transaction of `questify_app` or the owner. CranL's own sessions as
+    `admin` (its web console, its managed `pg_dump`) count as the owner's and hold the settle point back for as long as
+    they stay in a transaction: close the console's transaction, or let the dump finish. An API backend idle in a
+    transaction is ended after 10 s (`idle_in_transaction_session_timeout` on the pool). Results wait meanwhile
+    (`community_paying`); the owner's Settle and pay now answers `community_settling` until it clears.
+  - `community.payout_stuck {steps, rows}`: due rewards older than 2 minutes. Look for `community.pay_failed {code}`
+    (a deadlock or lock timeout retries on the next tick); the owner's Settle and pay now pays the event's at once.
+  - `community.settle_blind {goal}` (`CV500`): an API or owner session could not be read in `pg_stat_activity`;
+    settling stops until it can. The owner lost its superuser or its `questify_app` privileges: restore them.
+- Community timing, by hand (not in CI): `COMMUNITY_TIMING=out.txt pnpm vitest run
+  apps/api/test/perf/community-payer-timing.int.test.ts`. 2026-10-24 on the dev machine: a first settle over 20,000
+  completions with 10,000 new contributors and 10,000 payees frozen 2.25 s (under the pool's 5 s statement limit),
+  a steady 5 s tick 73 ms, 10,001 players paid in 21 batches in 5.5 s (the slowest batch 296 ms).
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.

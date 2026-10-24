@@ -158,6 +158,10 @@ What App Review needs from Questify:
    options (never on a person's looks), sent from the dashboard; the app shows it as a card while the event screen is
    open, from its own polling (no push needed, 4.5.4); results are counts only. The demo event gets a live poll sent
    with 1,440 minutes on the day the build goes to review (RUNBOOK).
+   **Community quests (T-306b, ADR-222 to ADR-226):** the note says every player works toward one shared goal by
+   playing the event; nothing is bought or deducted; a reached step pays event points (never real money) or names a
+   moment at the venue; the bar comes from the app's own polling (no push needed, 4.5.4). The organizer can switch it
+   off for an event. The demo event gets a running goal on the day the build goes to review (RUNBOOK).
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

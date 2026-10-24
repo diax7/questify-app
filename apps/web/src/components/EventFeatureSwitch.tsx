@@ -32,6 +32,13 @@ const FEATURES = {
     on: "events.miniGames.on",
     off: "events.miniGames.off",
   },
+  community: {
+    path: "community",
+    title: "events.community.title",
+    label: "events.community.label",
+    on: "events.community.on",
+    off: "events.community.off",
+  },
 } as const satisfies Record<
   string,
   Readonly<{ path: string; title: MessageKey; label: MessageKey; on: MessageKey; off: MessageKey }>
@@ -48,8 +55,9 @@ type Props = Readonly<{
 }>;
 
 /**
- * An event's share quests, meet-someone or mini-games switch (FR-219, ADR-199; FR-1009, ADR-210, ADR-213): on by
- * default; off hides every quest of that type from players and stops paying them. The owner changes it; an editor sees
+ * An event's share quests, meet-someone, mini-games or community quests switch (FR-219, ADR-199; FR-1009, ADR-210,
+ * ADR-213; T-306b, ADR-226): on by default; off hides every quest of that type from players and stops paying them (off
+ * for community quests finishes a running goal, whose reached steps still pay). The owner changes it; an editor sees
  * which it is. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({

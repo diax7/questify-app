@@ -231,6 +231,9 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           <a className={styles.textLink} href={`${pages}/${event.id}/prizes`}>
             {t("prizes.link")}
           </a>
+          <a className={styles.textLink} href={`${pages}/${event.id}/community`}>
+            {t("community.page.title")}
+          </a>
           <a className={styles.textLink} href={`${pages}/${event.id}/joining`}>
             {t("joining.title")}
           </a>
@@ -330,6 +333,16 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           organizerId={organizerId}
           eventId={event.id}
           initial={event.miniGames}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <EventFeatureSwitch
+          language={language}
+          feature="community"
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.community}
           myRole={myRole}
         />
       )}

@@ -2876,10 +2876,15 @@ least 30 s after; the separate 15 s is dropped).
 ## ADR-224 — The settle point reads the ledger writers' sessions
 **Status:** Proposed (Claude, 2026-10-24; T-306b plan). Q-188.
 **Decision:** `community_settle_point()` reads `pg_stat_activity` for client backends of the current database owned by
-`questify_app` or the owner (its own backend left out) and returns the oldest `xact_start`. Migration 0053 makes the
-owner a member of `questify_app` (when it is not already), so the definer may read those sessions without
-`pg_read_all_stats`. If any of those backends still reads `state IS NULL`, settling stops with `CV500 settle_blind`
-and an error log line; NULL is never read as "no transaction". Other roles' sessions are ignored.
+`questify_app` or the owner (its own backend left out) and returns the oldest `xact_start`. The owner must see those
+sessions: migration 0053 grants nothing (CranL's `admin` and CI's owner are superusers) and asserts the owner is a
+superuser or `pg_has_role(owner, 'questify_app', 'USAGE')`, failing loudly otherwise; `migrate --verify` reports the
+same as `ownerSeesSessions` (CTO plan review 1; no `pg_read_all_stats` fallback). If any of those backends still
+reads `state IS NULL`, settling stops with `CV500 settle_blind` and an error log line; NULL is never read as "no
+transaction". Other roles' sessions are ignored. CranL's own `admin` sessions (its console, its managed `pg_dump`) are
+the owner's and can hold the settle point back; `community.settle_behind` names the blocking backend's pid and
+application name (CTO 2). `settle_goal` and `settle_community` run at READ COMMITTED only (`CI500`) and are VOLATILE,
+so the slice is read in a statement whose snapshot follows the session read (CTO 3).
 **Why:** only those two roles can write ledger rows, so only their transactions can still add rows to a slice; a host's
 monitoring session the owner cannot see would otherwise stop settling for good.
 
@@ -2907,3 +2912,7 @@ transaction from the window (`409 community_settling`, Retry-After 5), and pays 
 the dashboard to call again).
 **Why:** an owner's off switch must end the goal players see; a platform switch is a display kill switch and should
 not cancel rewards already promised; the owner's settle must be quick but never read a slice that can still change.
+**Build notes (T-306b, 2026-10-24, CTO plan review 4):** the off switch sets `final_at = now()` with no top-up, so a
+contributor whose first counted row was still in an open transaction at that moment is not paid for a step already
+reached. Accepted: the owner chose to stop the goal; the window between a row's transaction and its commit is under
+the 5 s statement limit.

@@ -16,6 +16,8 @@ declare const styles: {
   readonly input: string;
   readonly link: string;
   readonly list: string;
+  readonly meter: string;
+  readonly meterFill: string;
   readonly muted: string;
   readonly notice: string;
   readonly page: string;

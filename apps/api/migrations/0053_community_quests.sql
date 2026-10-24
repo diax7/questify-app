@@ -1059,7 +1059,7 @@ CREATE FUNCTION member_community(ev event, enrolled_id uuid) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
     'goalId', g.id, 'title', jsonb_build_object('ar', g.title_ar, 'en', g.title_en), 'measure', g.measure,
-    'target', g.target, 'progress', g.progress, 'status', g.status,
+    'target', g.target, 'progress', g.progress, 'status', g.status, 'paidTo', g.paid_to,
     'endsAt', community_close_at(g.ends_at, ev.ends_at),
     'steps', (SELECT jsonb_agg(jsonb_build_object(
                 'threshold', s.threshold, 'isGoal', s.is_goal,

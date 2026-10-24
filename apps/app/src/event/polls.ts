@@ -7,6 +7,7 @@ import {
   type PollResults,
 } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
+import { communityOf, type CommunityCard } from "#src/event/community.ts";
 import {
   isChoices,
   isRecord,
@@ -129,9 +130,11 @@ export function clockText(seconds: number): string {
 export type LiveState = Readonly<{
   polls: readonly Readonly<{ questId: string; closesAt: string }>[];
   closed: readonly Readonly<{ questId: string }>[];
+  /** The community goal to show (T-306b), or null. */
+  community: CommunityCard | null;
 }>;
 
-export const NOTHING_LIVE: LiveState = { polls: [], closed: [] };
+export const NOTHING_LIVE: LiveState = { polls: [], closed: [], community: null };
 
 export function liveStateOf(body: unknown): LiveState | undefined {
   if (!isRecord(body) || !Array.isArray(body["polls"]) || !Array.isArray(body["closed"])) {
@@ -147,6 +150,7 @@ export function liveStateOf(body: unknown): LiveState | undefined {
   return {
     polls: polls.map((poll) => ({ questId: poll.questId, closesAt: poll.closesAt })),
     closed: closed.map((poll) => ({ questId: poll.questId })),
+    community: communityOf(body["community"]),
   };
 }
 

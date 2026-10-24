@@ -26,6 +26,7 @@ export type LiveCommunity = Readonly<{
   target: number;
   progress: number;
   status: "running" | "reached" | "missed";
+  paidTo: "contributors" | "everyone";
   /** The window's end; between it and the finish the app shows "Counting the last points…". */
   endsAt: string;
   steps: readonly LiveStep[];

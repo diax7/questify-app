@@ -75,7 +75,11 @@ only in ascending key order, and a payer that pays more than one player takes th
 order (the meet payer pays in player id order). Known exception: `confirm_results` (0041:1043-1049) runs after play
 and pays in quiz-attempt order; a crossing is rare, Postgres aborts one side (40P01), and the API answers a deadlock
 or serialization failure 503 `busy` with Retry-After, so the client retries. A test runs the crossed cases on two
-connections (`test/db/meet.int.test.ts`).
+connections (`test/db/meet.int.test.ts`). The community payer (T-306b, ADR-223) takes the rehearsal row, then the
+event `FOR KEY SHARE`, then its payout rows `SKIP LOCKED`, then the batch's enrollments in one statement in id order,
+and no item, advisory or XP lock; settling a goal locks only the goal (its contributor, reach and payout inserts take
+`KEY SHARE` on the enrollments, steps and event through their foreign keys and wait only for a `FOR UPDATE` whose
+holder never waits for a goal). Crossed cases: `test/db/community-locks.int.test.ts`.
 
 ## Testing
 

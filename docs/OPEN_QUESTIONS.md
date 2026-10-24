@@ -425,10 +425,10 @@ ADR-223: rewards paid in batches of 500 players, up to 2 seconds of work every 5
 about 30 seconds); final results wait until every community reward is paid, and the owner can press "Settle and pay now" instead of
 waiting. Keep as a start?
 
-## Q-188 — Seeing the server's own open transactions on CranL (2026-10-24, T-306b plan)
-ADR-224: migration 0053 makes the database owner role a member of the app role, so the community tick can see which of
-the server's own transactions are still open before it counts a slice. If CranL refuses that grant, the migration
-stops with an error; the fallback is granting the owner `pg_read_all_stats`. Agree, and may the deploy try it?
+## Q-188 — Seeing the server's own open transactions on CranL (2026-10-24, T-306b plan) — closed as moot
+Closed 2026-10-24 (CTO plan review 1): CranL's owner `admin` is a superuser (STATE.md, T-003) and so is CI's
+(`test-db.ts`), so it already sees the API's sessions. Migration 0053 grants nothing; it checks the owner can see them
+and stops with an error otherwise (ADR-224).
 
 ## Q-189 — Community counting details (2026-10-24, T-306b plan)
 ADR-225: in a points goal, a player who earned 0 points has not taken part; reaching the goal ends it early (nothing
@@ -436,4 +436,5 @@ is left to count); a finished goal stays on the event home for 30 minutes. Agree
 
 ## Q-190 — Turning community quests off (2026-10-24, T-306b plan)
 ADR-226: off for one event ends a running goal at once (rewards already reached are still paid); off for the whole
-platform only hides community quests and lets running goals finish and pay. Agree?
+platform only hides community quests and lets running goals finish and pay. Agree? Note (CTO plan review 4): ending it
+at once means a player whose scan was still being saved at that second is not added to a reward already reached.

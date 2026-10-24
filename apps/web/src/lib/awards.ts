@@ -43,6 +43,7 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   handover: "awards.kind.handover",
   removal: "awards.kind.removal",
   bonus: "awards.kind.bonus",
+  community: "awards.kind.community",
 };
 
 /** The record's label for an entry kind; a kind this dashboard does not know reads as a balance change. */

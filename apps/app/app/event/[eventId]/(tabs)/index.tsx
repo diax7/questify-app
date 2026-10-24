@@ -11,6 +11,7 @@ import { Avatar } from "#src/components/Avatar.tsx";
 import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
+import { CommunityBar } from "#src/event/CommunityBar.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
@@ -24,6 +25,7 @@ import {
 } from "#src/event/home-api.ts";
 import { forget } from "#src/event/launch.ts";
 import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
+import { useLive } from "#src/event/LiveContext.tsx";
 import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -348,6 +350,7 @@ export default function EventHomeScreen() {
   const { eventId, rememberName } = useEvent();
   const { answer, ranking, load } = useHome(eventId);
   const prompt = useJoinLocationPrompt(answer?.kind === "home" ? answer.home : undefined);
+  const { community } = useLive();
   const loadedName = answer?.kind === "home" ? textIn(answer.home.event.name, language) : "";
   useEffect(() => {
     if (loadedName !== "") {
@@ -380,6 +383,9 @@ export default function EventHomeScreen() {
         <CountdownLine event={home.event} />
         <Standing home={home} />
         <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
+        {community === null || home.standing.status !== "active" ? null : (
+          <CommunityBar card={community} />
+        )}
         {home.standing.status === "active" ? (
           <GoalCard eventId={eventId} goal={home.goal} ended={ended} />
         ) : null}

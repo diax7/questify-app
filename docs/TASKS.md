@@ -63,6 +63,9 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
   - Done when: A fresh environment is created from the scripts alone; a second run changes nothing; no setting exists only in the dashboard.
 - [ ] **T-018** Observability and service levels: OpenTelemetry logs, metrics and traces without personal data; written targets with alerts; a runbook entry for every alert — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A forced error shows in the logs with a request id and no personal data; each alert links to a runbook; the targets in QUALITY_BASELINE are measured on a dashboard.
+  - Note 2026-10-24 (T-306b): turn the community tick's log lines into alerts (ADR-079, phone and email):
+    `community.settle_behind {goals, blockerPid, blockerApp}`, `community.payout_stuck {steps, rows}`,
+    `community.settle_blind {goal}`, and repeated `community.pay_failed`; their RUNBOOK entries exist.
   - Note (T-006, recorded deviation from the core Definition of Done): wire alerts for the sign-in signals `staff.email_failover`, `staff.email_unavailable` (both email senders down: nobody can sign in), `staff.throttled` and failure spikes, and one sign-in address key carrying most sign-in traffic. Until this task is done those signals exist only as log lines; the runbook entries are in `docs/RUNBOOK.md`.
 - [ ] **T-019** (deferred by the user, 2026-10-19: no backup while staging holds only fake data; **must be done before the first real player** and is part of the release gate) Second backup copy: a nightly dump of the database and bucket copied to a second place in Saudi Arabia that we control, and a restore from it (ADR-107 condition) — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore from the second copy into a scratch database works and the time it took is written down.
@@ -331,12 +334,22 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Done 2026-10-24 (core; CTO plan 84 → 93 GO, its four re-review notes applied; Opus code review owed): migration
     0052, `src/plays/votes.ts`, `src/plays/live.ts`, `src/quests/polls.ts`, the app's pop-up card and poll sheet, the
     dashboard's Live poll fields and Send/Close. T-306b's section of the plan carries the `pg_stat_activity` notes.
-- [ ] **T-306b** Community quests: measure, window, milestones, points, a real-world moment or nothing, contributors or everyone, the progress bar — delivers FR 243, 244, 245, 246, 247 (all but unlocks), 248, 249, 250, 1620; depends on: T-306
+- [x] **T-306b** Community quests: measure, window, milestones, points, a real-world moment or nothing, contributors or everyone, the progress bar — delivers FR 243, 244, 245, 246, 247 (all but unlocks), 248, 249, 250, 1620; depends on: T-306
   - Split from T-306 2026-10-24 (ADR-219): the design is fixed in the T-306 plan (ADR-222 settled tally on a 5 s tick, ADR-223 batched payer: kind `community`, no XP, 500 enrollments a batch in id order, unique per step and enrollment, `confirm_results` waits, with the owner's "Settle and pay now"; the settle lag bounded by the oldest open transaction). Migration 0053. Its worker writes its own plan from that section. The milestone push is T-501's, the big-screen bar T-504's.
   - Done when: A community goal not reached pays nothing; points-based goals count participation points.
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-306b-community-quests.md`, migration 0053, ADR-224 to ADR-226 and Q-188 to Q-190 Proposed. Builds ADR-222/223 with nine recorded changes (the settle point reads only the ledger writers' sessions; tail contributors and a payee top-up; the payer takes the event `KEY SHARE`; `event_has_live` replaces `event_has_open_poll`; the idle-transaction timeout on the API's one pool, T-501's worker owes it on its own).
+  - Done 2026-10-24 (core; CTO plan review 91 GO, its eight notes folded in): migration 0053 (five closed tables, kind
+    `community`, the settle point from `pg_stat_activity` with the owner asserted to see the API's sessions, the
+    settling and paying definers, the builder, Settle and pay now, `confirm_results` waiting, the event switch's
+    trigger, `live_state.community`, `event_has_live`); API module `apps/api/src/community/` (builder routes, the 5 s
+    tick with its health logs, the payer, the owner's settle route), the confirm refusal `community_paying`, the
+    pool's 10 s idle-transaction limit; the app's community bar on Home and its one-time cards; the dashboard's
+    Community page, the event switch and Settle and pay now on the results page. As built: the plan's "As built".
 - [ ] **T-306c** Unlock rewards: a quest, category or shop reward locked until a community step is reached — delivers FR 247 (unlocks); depends on: T-306b
   - Split from T-306 2026-10-24 (ADR-219): a gate in `quest_open_check`, `category_lock`, `reserve_reward` and every quest and shop reader; its own review, as T-304 split its gates from its bonus.
+  - Note 2026-10-24 (T-306b done): `community_step.reward` gains `unlock` (0053 checks `points | moment | nothing`);
+    the gate reads `community_reach` (a step reached stays reached). The builder's `goal_locked` already freezes a
+    started goal's steps, so an unlock's target cannot move under players.
 - [ ] **T-307** Flash quests, double-point boosts, live finale — delivers FR 251, 252, 254, 255, 1621; depends on: T-306b
   - Note 2026-10-24 (T-306 plan): the finale's "last community push" reads T-306b's goal; flash quests can be announced through `GET /v1/events/{id}/live` (ADR-221) until T-501's push exists.
   - Done when: A flash quest is available only in its window; a boost applies only to its category or zone.
@@ -391,6 +404,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
   - Note 2026-10-24 (T-306 plan, ADR-219 Proposed): two event pushes are owed here: a live poll's push at `send_poll` (to the active members in the poll's audience who have not voted, once per poll; the in-app card already shows it), and FR-246's push at each reached community step (`community_reach`, T-306b; once per step, active members only).
   - Note 2026-10-24 (T-304 plan, ADR-200 Proposed): FR-238 moves here: a hidden category (T-304c) appears for the players who receive the organizer's hint push for it.
+  - Note 2026-10-24 (T-306b done): the milestone push reads `community_reach` (one per reached step, the audit line
+    `community.step_reached` marks it); a worker process with its own pools sets
+    `idle_in_transaction_session_timeout=10000` on them as `apps/api/src/db/pool-options.ts` does, or the community
+    settle point can be held back by its idle transactions.
   - Done when: A refused push permission blocks nothing and the center still holds every message.
   - Note 2026-10-21 (T-208): event pushes go to `active` enrollments only: a player who left, was banned or is pending gets none (FR-1703).
   - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.
@@ -403,6 +420,8 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-23 (T-211): FR-1721 says the team opens the big screen in rehearsal. Pairing must accept a Draft or Scheduled event while its rehearsal is open (`event_rehearsal`, `live_wiped_at` null), and its ranking then shows the rehearsal accounts (they rank through the same cache; the wipe marks the event for repair).
   - Done when: The big-screen link opens only when paired; the photo wall shows only photos the player allowed.
   - Note 2026-10-24 (T-306 plan, ADR-219): the poll scene reads the counts as `quest_vote_counts` does, only for a poll whose results are not `never` and, for `at_close`, once closed; the community scene reads T-306b's cached progress (never an aggregate per request). If the scenes need updates under a few seconds, this is where the server-sent stream (ADR-221) gets built.
+  - Note 2026-10-24 (T-306b done): the community scene reads `community_goal.progress` and the steps' reach
+    (`community_goals`/`member_community` show the shape), never an aggregate over the ledger per request.
   - Note 2026-10-21 (T-106): the ranking readers allow only the event's active players; the big screen (and any dashboard view of the ranking) needs its own reader rule in `ranking_reader_enrollment`'s place, with its own outsider tests. FR-1612: hide the scene when the `ranking` feature is off.
   - Note 2026-10-23 (T-216): a big-screen "today" scene can read the day board through `ranking_day_entries` and the Redis copy `{event}/{day}` (the event's day from `ranking_today`), as the app does.
 - [ ] **T-505** Agenda and sessions with registration, My sessions, door check-in, reminders, overlap warning, import, report, close or reopen, message registrants — delivers FR 808, 809, 810, 1787, 1788, 1789, 1790, 1791, 1792, 1793, 1794, 1795, 1796, 1797; depends on: T-205, T-501
