@@ -1531,3 +1531,68 @@ export const screenCodeExpired = make(
   "تغيّر هذا الرمز. امسح الشاشة مجددًا.",
   "This code has changed. Scan the screen again.",
 );
+
+// ---------------------------------------------------------------- the help desk (T-310)
+/** Only an active member of the event sends requests; the same answer whether or not the event exists. */
+export const ticketNotMember = make(
+  403,
+  "not_member",
+  "لا يرسل الطلبات إلا الأعضاء النشطون في هذه الفعالية.",
+  "Only active members of this event can send requests.",
+);
+/** The event is a draft, archived, or ended more than 30 days ago: answers already given stay readable. */
+export const ticketSendingClosed = make(
+  403,
+  "sending_closed",
+  "لم يعد بإمكانك إرسال طلبات جديدة في هذه الفعالية، وتبقى الردود هنا.",
+  "You can't send new requests for this event. Your answers stay here.",
+);
+/** The quest named is not one of this event's. */
+export const ticketUnknownQuest = make(
+  404,
+  "unknown_quest",
+  "لم نجد هذه المهمة في الفعالية.",
+  "We couldn't find this quest in the event.",
+);
+/** The text or the reply is empty, too long, or holds hidden characters: `problem` says which. */
+export const ticketText = make(
+  422,
+  "invalid_text",
+  "اكتب نصًا من 1 إلى 1000 حرف بلا رموز خفية.",
+  "Write 1 to 1000 characters, with no hidden characters.",
+);
+/** Three requests already wait for an answer in this event. */
+export const tooManyOpenTickets = make(
+  409,
+  "too_many_open",
+  "لديك 3 طلبات بانتظار الرد. انتظر الرد قبل إرسال طلب آخر.",
+  "You have 3 requests waiting. Wait for an answer before sending another.",
+);
+/** Ten requests in 24 hours in this event: try again after `Retry-After`. */
+export const tooManyTickets = make(
+  429,
+  "too_many_tickets",
+  "أرسلت طلبات كثيرة اليوم. حاول مرة أخرى لاحقًا.",
+  "You've sent many requests today. Try again later.",
+);
+/** Someone on the team answered first: the request is closed. */
+export const ticketAlreadyClosed = make(
+  409,
+  "already_closed",
+  "أجاب أحد أعضاء الفريق عن هذا الطلب.",
+  "Someone on the team already answered this.",
+);
+/** The event is archived, so its requests can no longer be answered. */
+export const ticketEventClosed = make(
+  409,
+  "event_closed",
+  "أُرشفت الفعالية، فلا يمكن الرد على طلباتها.",
+  "The event is archived, so its requests can't be answered.",
+);
+/** An operator who plays the event cannot answer their own request. */
+export const selfAnswer = make(
+  403,
+  "self_answer",
+  "لا يمكنك الرد على طلبك.",
+  "You can't answer your own request.",
+);

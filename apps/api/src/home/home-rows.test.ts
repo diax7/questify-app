@@ -86,6 +86,7 @@ type Rows = Readonly<{
   quests?: readonly Record<string, unknown>[];
   results?: readonly Record<string, unknown>[];
   activity?: readonly Record<string, unknown>[];
+  unread?: number;
 }>;
 
 /** The home's dependencies over a database that answers each read with these rows. */
@@ -99,6 +100,9 @@ function homeDeps(rows: Rows) {
     }
     if (sql.includes("own_pending_points")) {
       return { rows: [{ points: "0" }] };
+    }
+    if (sql.includes("own_unread_tickets")) {
+      return { rows: [{ unread: rows.unread ?? 0 }] };
     }
     if (sql.includes("event_results")) {
       return { rows: rows.results ?? [] };
@@ -233,6 +237,16 @@ describe("the event home's switches and prize", () => {
       EVENT,
     );
     expect(collected?.win).toBeNull();
+  });
+
+  it("carries the count of unseen help-desk answers for every standing (T-310)", async () => {
+    expect((await readHome(homeDeps({ unread: 2 }), PLAYER, EVENT))?.help).toEqual({ unread: 2 });
+    const pending = await readHome(
+      homeDeps({ standing: { status: "pending" }, unread: 1 }),
+      PLAYER,
+      EVENT,
+    );
+    expect(pending).toMatchObject({ standing: { status: "pending" }, help: { unread: 1 } });
   });
 });
 

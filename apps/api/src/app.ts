@@ -27,6 +27,7 @@ import { registerPlayerGuard } from "#src/players/guard";
 import { registerHomeRoutes } from "#src/home/routes";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
+import { registerTicketRoutes } from "#src/tickets/routes";
 import { registerGameRoutes, registerMeetRoutes, registerPlayRoutes } from "#src/plays/routes";
 import { registerPassportRoutes } from "#src/passport/routes";
 import { registerRevealRoutes } from "#src/reveal/routes";
@@ -279,6 +280,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
+  registerTicketRoutes(app, { pool: options.pool, settings });
   registerPlayRoutes(app, { pool: options.pool, ranking, settings });
   registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
   registerGameRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });

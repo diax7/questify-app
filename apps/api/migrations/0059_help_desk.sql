@@ -106,7 +106,7 @@ REVOKE ALL ON FUNCTION help_operator(uuid) FROM PUBLIC;
 -- HT403 sending_closed (a draft or archived event, or 30 days after its end), HQ404 (not a quest of this event),
 -- SV422 (the text), HT409 too_many_open (3 open), HT429 (10 in 24 hours; DETAIL is the seconds to wait).
 CREATE FUNCTION open_ticket(target_event uuid, ticket_kind text, target_quest uuid, body text, request_key text)
-  RETURNS TABLE (ticket_id bigint, status text, created_at timestamptz, replayed boolean)
+  RETURNS TABLE (ticket_id bigint, status text, created_at timestamptz, marked boolean, replayed boolean)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 #variable_conflict use_column
 DECLARE
@@ -140,7 +140,7 @@ BEGIN
        OR earlier.quest_id IS DISTINCT FROM target_quest THEN
       RAISE EXCEPTION 'this key was used for another ticket' USING ERRCODE = 'QK422';
     END IF;
-    RETURN QUERY SELECT earlier.id, earlier.status, earlier.created_at, true;
+    RETURN QUERY SELECT earlier.id, earlier.status, earlier.created_at, earlier.marked, true;
     RETURN;
   END IF;
 
@@ -176,7 +176,7 @@ BEGIN
   VALUES (me, enrolled.organizer_id, target_event, enrolled.id, target_quest, ticket_kind, cleaned,
           text_marked(cleaned), request_key)
   RETURNING * INTO made;
-  RETURN QUERY SELECT made.id, made.status, made.created_at, false;
+  RETURN QUERY SELECT made.id, made.status, made.created_at, made.marked, false;
 END $$;
 REVOKE ALL ON FUNCTION open_ticket(uuid, text, uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION open_ticket(uuid, text, uuid, text, text) TO questify_app;
@@ -439,10 +439,10 @@ REVOKE ALL ON FUNCTION inbox_abilities(uuid) FROM PUBLIC;
 -- What waits for one operator (FR-927): pending submissions (with `review`, inside their limit, never their own) and
 -- open tickets (with `help_desk`, by operator_sees_ticket), as one list, oldest first. Internal.
 CREATE FUNCTION inbox_rows(target_event uuid, me uuid, review boolean, help boolean)
-  RETURNS TABLE (kind text, id bigint, created_at timestamptz, quest_title_ar text, quest_title_en text,
+  RETURNS TABLE (kind text, id bigint, created_at timestamptz, quest_id uuid, quest_title_ar text, quest_title_en text,
                  username text, avatar text, preview text, marked boolean, ticket_kind text)
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
-  SELECT 'submission', s.id, s.created_at, q.title_ar, q.title_en, p.username, p.avatar, left(s.body, 120), s.marked,
+  SELECT 'submission', s.id, s.created_at, s.quest_id, q.title_ar, q.title_en, p.username, p.avatar, left(s.body, 120), s.marked,
          NULL::text
   FROM submission s
   JOIN quest q ON q.id = s.quest_id
@@ -451,7 +451,7 @@ CREATE FUNCTION inbox_rows(target_event uuid, me uuid, review boolean, help bool
   WHERE review AND s.event_id = target_event AND s.status = 'pending' AND n.player_id <> me
     AND operator_reviews_quest(target_event, me, s.quest_id)
   UNION ALL
-  SELECT 'ticket', t.id, t.created_at, q.title_ar, q.title_en, p.username, p.avatar, left(t.body, 120), t.marked,
+  SELECT 'ticket', t.id, t.created_at, t.quest_id, q.title_ar, q.title_en, p.username, p.avatar, left(t.body, 120), t.marked,
          t.kind
   FROM ticket t
   JOIN player p ON p.id = t.player_id
@@ -464,7 +464,7 @@ REVOKE ALL ON FUNCTION inbox_rows(uuid, uuid, boolean, boolean) FROM PUBLIC;
 -- microseconds since the epoch: the cursor keeps the database's full precision (a JavaScript Date keeps milliseconds).
 CREATE FUNCTION operator_inbox(target_event uuid, cursor_position bigint, cursor_kind text, cursor_id bigint,
                                page integer)
-  RETURNS TABLE (kind text, id bigint, created_at timestamptz, quest_title_ar text, quest_title_en text,
+  RETURNS TABLE (kind text, id bigint, created_at timestamptz, quest_id uuid, quest_title_ar text, quest_title_en text,
                  username text, avatar text, preview text, marked boolean, ticket_kind text, "position" bigint)
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 #variable_conflict use_column

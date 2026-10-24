@@ -42,6 +42,8 @@ export type EventRecord = Readonly<{
   flashQuestsOn: boolean;
   /** The event's boosts switch (T-307, ADR-233): off stops every boost paying at once. */
   boostsOn: boolean;
+  /** The event's help desk switch (T-310, ADR-248): off stops new tickets; open ones stay answerable. */
+  helpDeskOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -91,6 +93,7 @@ type Row = {
   community_on: boolean;
   flash_quests_on: boolean;
   boosts_on: boolean;
+  help_desk_on: boolean;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -106,7 +109,8 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'miniGames')::boolean, true) AS mini_games_on,
   coalesce((config -> 'features' ->> 'community')::boolean, true) AS community_on,
   coalesce((config -> 'features' ->> 'flashQuests')::boolean, true) AS flash_quests_on,
-  coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on, config -> 'terms' AS terms,
+  coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on,
+  coalesce((config -> 'features' ->> 'helpDesk')::boolean, true) AS help_desk_on, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -132,6 +136,7 @@ const toRecord = (row: Row): EventRecord => ({
   communityOn: row.community_on,
   flashQuestsOn: row.flash_quests_on,
   boostsOn: row.boosts_on,
+  helpDeskOn: row.help_desk_on,
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

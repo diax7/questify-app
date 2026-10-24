@@ -142,6 +142,7 @@ describe("startLifecycleTick", () => {
       { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "quiz.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "ticket.purge_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
   });
@@ -180,11 +181,11 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
-    // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds; nothing after
-    // the stop.
-    expect(connects).toBe(5);
+    // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, and the ticket
+    // sweep; nothing after the stop.
+    expect(connects).toBe(6);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(5);
+    expect(connects).toBe(6);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -213,6 +214,27 @@ describe("startLifecycleTick", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(busy.statements.filter((sql) => sql.includes("finish_one_due_quiz"))).toHaveLength(50);
     await again.stop();
+  });
+
+  it("purges help-desk tickets past their 90 days once a run, and logs only the count", async () => {
+    const { pool, statements, client } = fakePool(() => 0);
+    const answer = client.query.getMockImplementation();
+    const purged = [4, 0];
+    // The fake's own answers are typed by what it knows; the sweep's row is one more shape.
+    const sweep = async (sql: string) => {
+      if (sql.includes("purge_ended_tickets")) {
+        statements.push(sql);
+        return { rows: [{ purged: purged.shift() ?? 0 }] };
+      }
+      return answer === undefined ? { rows: [] } : answer(sql);
+    };
+    client.query.mockImplementation(sweep as unknown as NonNullable<typeof answer>);
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(statements.filter((sql) => sql.includes("purge_ended_tickets(1000)"))).toHaveLength(2);
+    expect(logged).toEqual([{ level: "info", fields: { event: "ticket.purged", count: 4 } }]);
+    await tick.stop();
   });
 
   it("closes due game rounds one call at a time, up to a batch, and logs only the count", async () => {

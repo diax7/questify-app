@@ -65,6 +65,11 @@ export const FEATURES: FeatureRegistry = {
    */
   flashQuests: { gated: false },
   /**
+   * The help desk (T-310, F-118, ADR-248): off for an event, players can no longer send questions or problem reports
+   * (their answers stay readable) and open tickets stay answerable.
+   */
+  helpDesk: { gated: false },
+  /**
    * Location check-in quests and the far-from-venue flag (T-303b, ADR-208): off for every event until the App Store
    * privacy label, Play's Data safety form and the database's parameter logging are confirmed. Off, the builder refuses
    * the type, the app never reads location, and existing location quests complete by their QR.

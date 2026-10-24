@@ -11,8 +11,30 @@ import {
 } from "#test/support/test-db";
 
 type Row = Record<string, unknown>;
-type Opened = { ticket_id: string; status: string; created_at: Date; replayed: boolean };
+type Opened = {
+  ticket_id: string;
+  status: string;
+  created_at: Date;
+  marked: boolean;
+  replayed: boolean;
+};
 type Answered = { ticket_id: string; outcome: string; replayed: boolean };
+
+const codeOf = (result: PromiseSettledResult<unknown>) =>
+  result.status === "rejected"
+    ? `${(result.reason as { code?: string }).code}:${(result.reason as { detail?: string }).detail ?? ""}`
+    : "ok";
+
+/** A promise and the function that settles it. */
+const signal = () => {
+  const settles: (() => void)[] = [];
+  const promise = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return { promise, resolve: () => settles.forEach((settle) => settle()) };
+};
+
+const ago = (minutes: number) => `now() - interval '${minutes} minutes'`;
 
 const refusal = async (work: Promise<unknown>): Promise<string> => {
   try {
@@ -200,6 +222,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       cursor?.[2] ?? null,
       page,
     ]);
+  const mark = (who: string, event: string | null, list: string[]) =>
+    query<{ n: number }>({ playerId: who }, "SELECT mark_tickets_seen($1, $2::bigint[]) AS n", [
+      event,
+      list,
+    ]);
+  const purge = (batch: number) =>
+    query<{ n: number }>({}, "SELECT purge_ended_tickets($1) AS n", [batch]);
+  /** Waits until some session of this database waits on a lock (at most 5 seconds). */
+  const lockWait = async (): Promise<void> => {
+    for (let tries = 0; tries < 250; tries += 1) {
+      const [row] = await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'",
+      );
+      if ((row?.n ?? 0) > 0) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("No session waited on a lock.");
+  };
   const inboxCount = async (op: string, event: string) =>
     (await query<Row>({ playerId: op }, "SELECT * FROM operator_inbox_count($1)", [event]))[0];
 
@@ -628,11 +670,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       expect(await unread(one)).toBe(1);
       expect(await unread(two)).toBe(1);
       const stranger = await newPlayer();
-      const mark = (who: string, event: string | null, list: string[]) =>
-        query<{ n: number }>({ playerId: who }, "SELECT mark_tickets_seen($1, $2::bigint[]) AS n", [
-          event,
-          list,
-        ]);
       expect(await mark(stranger, null, [a.ticket_id, b.ticket_id])).toEqual([{ n: 0 }]);
       expect(await mark(player, one, [b.ticket_id, c.ticket_id])).toEqual([{ n: 0 }]);
       expect(await mark(player, null, [a.ticket_id, b.ticket_id, c.ticket_id])).toEqual([{ n: 2 }]);
@@ -754,14 +791,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       const { player } = await member(event);
       const both = await operator(event, ["review", "help_desk"]);
       await enroll(both, event);
-      const at = (minutes: number) => `now() - interval '${minutes} minutes'`;
       const subs: string[] = [];
       for (const minutes of [50, 30, 10]) {
         const sender = await member(event);
         const [made] = await owner<{ id: string }>(
           `INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, body, points, status,
                                    idempotency_key, created_at)
-           VALUES ($1, $2, $3, $4, 'text', 'My answer', 10, 'pending', $5, ${at(minutes)}) RETURNING id`,
+           VALUES ($1, $2, $3, $4, 'text', 'My answer', 10, 'pending', $5, ${ago(minutes)}) RETURNING id`,
           [ids.orgA, event, sender.enrollment, subQuest?.id, randomUUID()],
         );
         subs.push(made?.id ?? "");
@@ -769,7 +805,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       const tickets: string[] = [];
       for (const minutes of [40, 20]) {
         const made = await open(player, event, { body: "x".repeat(200) });
-        await owner(`UPDATE ticket SET created_at = ${at(minutes)} WHERE id = $1`, [
+        await owner(`UPDATE ticket SET created_at = ${ago(minutes)} WHERE id = $1`, [
           made.ticket_id,
         ]);
         tickets.push(made.ticket_id);
@@ -930,8 +966,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       const live = await newEvent();
       const current = await member(live);
       const kept = await open(current.player, live);
-      const purge = (batch: number) =>
-        query<{ n: number }>({}, "SELECT purge_ended_tickets($1) AS n", [batch]);
       expect(await purge(2)).toEqual([{ n: 2 }]);
       expect(await purge(1000)).toEqual([{ n: 1 }]);
       expect(await purge(1000)).toEqual([{ n: 0 }]);
@@ -959,60 +993,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
     });
   });
 
-  describe("crossed locks", () => {
-    /** Waits until some session of this database waits on a lock (at most 5 seconds). */
-    const lockWait = async (): Promise<void> => {
-      for (let tries = 0; tries < 250; tries += 1) {
-        const [row] = await owner<{ n: number }>(
-          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'",
-        );
-        if ((row?.n ?? 0) > 0) {
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      throw new Error("No session waited on a lock.");
-    };
-    /** Runs `first` in a transaction and holds it open until `second` waits on a lock, then commits it. */
-    const crossed = async (
-      first: [RequestContext, string, unknown[]],
-      second: () => Promise<unknown>,
-      blocks = true,
-    ): Promise<[PromiseSettledResult<unknown>, PromiseSettledResult<unknown>]> => {
-      const client = await pool.connect();
-      let release = (): void => undefined;
-      const gate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      let ran = (): void => undefined;
-      const started = new Promise<void>((resolve) => {
-        ran = resolve;
-      });
-      const held = withRequestContext(client, first[0], async () => {
-        const rows = (await client.query(first[1], first[2])).rows;
-        ran();
-        await gate;
-        return rows;
-      }).finally(() => client.release());
-      await started;
-      const waiting = second();
-      if (blocks) {
-        await lockWait();
-      } else {
-        await waiting.catch(() => undefined);
-      }
-      release();
-      const settled = await Promise.allSettled([held, waiting]);
-      return [
-        settled[0] as PromiseSettledResult<unknown>,
-        settled[1] as PromiseSettledResult<unknown>,
-      ];
-    };
-    const codeOf = (result: PromiseSettledResult<unknown>) =>
-      result.status === "rejected"
-        ? `${(result.reason as { code?: string }).code}:${(result.reason as { detail?: string }).detail ?? ""}`
-        : "ok";
+  /** Runs `first` in a transaction and holds it open until `second` waits on a lock, then commits it. */
+  const crossed = async (
+    first: [RequestContext, string, unknown[]],
+    second: () => Promise<unknown>,
+    blocks = true,
+  ): Promise<[PromiseSettledResult<unknown>, PromiseSettledResult<unknown>]> => {
+    const client = await pool.connect();
+    const gate = signal();
+    const started = signal();
+    const held = withRequestContext(client, first[0], async () => {
+      const rows = (await client.query(first[1], first[2])).rows;
+      started.resolve();
+      await gate.promise;
+      return rows;
+    }).finally(() => client.release());
+    await started.promise;
+    const waiting = second();
+    if (blocks) {
+      await lockWait();
+    } else {
+      await waiting.catch(() => undefined);
+    }
+    gate.resolve();
+    const settled = await Promise.allSettled([held, waiting]);
+    return [
+      settled[0] as PromiseSettledResult<unknown>,
+      settled[1] as PromiseSettledResult<unknown>,
+    ];
+  };
 
+  describe("crossed locks", () => {
     it("gives two answerers at once one answer; the other is already_closed", async () => {
       const event = await newEvent();
       const { player } = await member(event);

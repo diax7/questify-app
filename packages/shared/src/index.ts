@@ -169,3 +169,5 @@ export { TAP_REACTION_FLOOR_MS, tapRushV1 } from "./games/tap-rush/v1";
 export { TICKS_PER_SECOND, endTickOf, tickAt, tickStartMs } from "./games/ticks";
 export type { Prng } from "./games/prng";
 export { prng } from "./games/prng";
+export type { TicketKind } from "./tickets/tickets";
+export { TICKET_KINDS, TICKET_OPEN_LIMIT, TICKET_TEXT_MAX } from "./tickets/tickets";

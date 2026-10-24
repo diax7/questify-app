@@ -11,6 +11,7 @@ import {
 import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
 import { readPendingPoints } from "#src/submissions/submissions";
+import { readUnreadTickets } from "#src/tickets/tickets";
 
 export type HomeDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
 
@@ -132,6 +133,8 @@ export type Home = Readonly<{
   /** The caller's rank prize while it waits at the desk, once the winners are revealed (FR-1718, T-214). */
   win: MyPrize | null;
   rankingOn: boolean;
+  /** The team answered the player's requests (T-310): Home's strip while any answer is unseen, whatever the switch. */
+  help: Readonly<{ unread: number }>;
 }>;
 
 /**
@@ -475,8 +478,10 @@ export async function readHome(
       rehearsal: row.rehearsal,
       locationPrompt: row.location_prompt,
     };
+    const help = { unread: await readUnreadTickets(client, eventId) };
     if (row.status === "pending" || row.status === "declined") {
       return {
+        help,
         event,
         standing:
           row.status === "pending"
@@ -493,6 +498,7 @@ export async function readHome(
     );
     const balance = Number(row.balance);
     return {
+      help,
       event,
       standing: {
         status: "active" as const,

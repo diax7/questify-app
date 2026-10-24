@@ -5,6 +5,7 @@ import { closeDueRounds } from "#src/plays/games";
 import { finishDueQuizzes } from "#src/plays/quizzes";
 import { wipeDueRehearsals } from "#src/rehearsal/service";
 import { expireReservations } from "#src/rewards/shop";
+import { purgeEndedTickets } from "#src/tickets/tickets";
 
 export type LifecycleTickDeps = Readonly<{
   pool: Pool;
@@ -26,7 +27,7 @@ const JITTER = 0.2;
  * Moves events through their lifecycle on time (FR-1608): every interval, one call to `advance_event_lifecycle()` in
  * its own transaction, with no organizer context; then wipes the rehearsals that went live (ADR-160), then returns the
  * reservations whose pickup time passed (FR-508), then finishes the quizzes left open past their close (ADR-193), then
- * closes the mini-game rounds past their window (ADR-213). A failure is logged and the next run tries again; it never
+ * closes the mini-game rounds past their window (ADR-213), then deletes help-desk tickets past their 90 days (Q-210). A failure is logged and the next run tries again; it never
  * stops the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
  */
 export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
@@ -87,6 +88,13 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
       const closed = await closeDueRounds({ pool: deps.pool });
       if (closed > 0) {
         deps.log("info", { event: "game.rounds_closed", count: closed });
+      }
+    });
+    // Help-desk tickets 90 days after the later of their event's end and their sending (Q-210), 1000 a run.
+    await step("ticket.purge_failed", async () => {
+      const purged = await purgeEndedTickets({ pool: deps.pool });
+      if (purged > 0) {
+        deps.log("info", { event: "ticket.purged", count: purged });
       }
     });
   };

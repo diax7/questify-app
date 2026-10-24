@@ -212,6 +212,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner of that organizer only (owner route, walked below); changes only the flashQuests switch of that event (test/quests/flash)",
   "PUT /v1/organizers/:organizerId/events/:eventId/double-points":
     "owner of that organizer only (owner route, walked below); changes only the boosts switch of that event (test/boosts/routes)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/help-desk":
+    "owner of that organizer only (owner route, walked below); changes only the helpDesk switch of that event (test/tickets/routes)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/launch":
     "members inside their event limit; a flash quest of that event only, through launch_flash (test/quests/flash, test/db/flash-boosts)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/end":
@@ -425,6 +427,28 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; only an approved submission of that event, through remove_award (test/submissions/routes, test/db/submissions)",
   "POST /v1/organizers/:organizerId/events/:eventId/submissions/seen":
     "members inside their event limit; only that event's submissions are marked (test/submissions/routes, test/db/submissions)",
+  "POST /v1/events/:eventId/tickets":
+    "the calling player's own active enrollment in that event only; the switch, the 30 days, the quest of that event and the caps checked by open_ticket (test/tickets/routes, test/db/tickets)",
+  "GET /v1/events/:eventId/tickets/mine":
+    "the calling player's own tickets only, through own_tickets; never another player's, never who answered (test/tickets/routes, test/db/tickets)",
+  "GET /v1/me/tickets":
+    "the calling player's own tickets in every event, through own_tickets(NULL); never another player's, never who answered (test/tickets/routes, test/db/tickets)",
+  "POST /v1/events/:eventId/tickets/seen":
+    "marks only the calling player's own closed tickets of that event (test/tickets/routes, test/db/tickets)",
+  "POST /v1/me/tickets/seen":
+    "marks only the calling player's own closed tickets, in any event (test/tickets/routes, test/db/tickets)",
+  "GET /v1/operator/events/:eventId/inbox":
+    "only an operator of that event with review or help_desk; pending submissions and open tickets inside their quest limit, never their own (test/tickets/routes, test/db/tickets)",
+  "GET /v1/operator/events/:eventId/inbox/count":
+    "only an operator of that event with review or help_desk; counts by the inbox's own rules (test/tickets/routes, test/db/tickets)",
+  "GET /v1/operator/events/:eventId/tickets/:ticketId":
+    "only an operator of that event with help_desk; an open ticket inside their limit and not their own, or one they answered; never who answered (test/tickets/routes, test/db/tickets)",
+  "POST /v1/operator/events/:eventId/tickets/:ticketId/answer":
+    "only an operator of that event with help_desk, inside their quest limit, never their own; once (test/tickets/routes, test/db/tickets)",
+  "GET /v1/organizers/:organizerId/events/:eventId/tickets":
+    "members inside their event limit, through event_tickets and event_ticket_counts (test/tickets/routes, test/db/tickets)",
+  "POST /v1/organizers/:organizerId/events/:eventId/tickets/:ticketId/answer":
+    "members inside their event limit; only a ticket of that event, once; audited without the text (test/tickets/routes, test/db/tickets)",
   "GET /v1/quests/:questId/vote":
     "the calling player's own options and choice, through member_vote; only a quest they may play (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/quests/:questId/vote":
