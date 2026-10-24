@@ -157,6 +157,7 @@ carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 | A kiosk of event A scanning a player of event B | `not_in_event`; the door takes no quest or event argument |
 | A removed or de-abilitied operator's kiosk | `paused` at the next scan and poll; a removal revokes it |
 | A camera feed | Decoded on the tablet; no frame leaves the page; nothing stored |
+| The kiosk's answer kept for retries | The idempotency store keeps each kiosk scan's answer (green or orange, with the @username and avatar; red with the reason only) under the principal `device:{id}` and the scan's key, in the API server's own memory (CranL, `riyadh-1`; never a third party), for 24 hours, then it is gone; no code, player id or score is in it |
 | Personal data on a public screen | The @username and the Questify avatar on green and orange only (public on the boards already, FR-120); never a score, balance, rank, status, ban or name; a red card names no one |
 
 ## Top abuse cases

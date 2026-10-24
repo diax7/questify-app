@@ -3943,6 +3943,14 @@ export const MESSAGES = {
     en: "This quest no longer uses this kiosk",
   },
   "kiosk.slowDown": { ar: "متوقف للحظات", en: "Paused for a moment" },
+  "kiosk.scannerFailed": {
+    ar: "تعذّر تشغيل الماسح. أعد تحميل الصفحة",
+    en: "Scanner unavailable. Reload the page",
+  },
+  "kiosk.received": {
+    ar: "وصل المسح. تظهر نقاطك في التطبيق",
+    en: "Scan received. Your points show in the app",
+  },
   "kiosk.paused": { ar: "أوقفه فريق الفعالية مؤقتًا", en: "Paused by the event team" },
   "kiosk.camera.allow": { ar: "السماح بالكاميرا", en: "Allow the camera" },
   "kiosk.camera.denied": {

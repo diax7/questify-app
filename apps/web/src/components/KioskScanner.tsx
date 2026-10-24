@@ -9,6 +9,7 @@ import {
   KIOSK_CARD_MS,
   KIOSK_FRAME_MS,
   ZXING_WASM_PATH,
+  createDecoder,
   createKioskReader,
   frameSize,
   kioskShutKey,
@@ -85,7 +86,8 @@ function useDecoder(
   video: RefObject<HTMLVideoElement | null>,
   running: boolean,
   onText: (text: string) => void,
-) {
+): boolean {
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!running) {
       return;
@@ -94,18 +96,42 @@ function useDecoder(
     let busy = false;
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
-    const reader = import("zxing-wasm/reader").then((zxing) => {
-      zxing.prepareZXingModule({
-        overrides: {
-          locateFile: (path: string, prefix: string) =>
-            path.endsWith(".wasm") ? ZXING_WASM_PATH : `${prefix}${path}`,
-        },
-      });
-      return zxing.readBarcodes;
-    });
+    const decoder = createDecoder(
+      async () => {
+        const zxing = await import("zxing-wasm/reader");
+        // Instantiated now, so a wasm that cannot load fails here once rather than on every frame.
+        await zxing.prepareZXingModule({
+          overrides: {
+            locateFile: (path: string, prefix: string) =>
+              path.endsWith(".wasm") ? ZXING_WASM_PATH : `${prefix}${path}`,
+          },
+          fireImmediately: true,
+        });
+        return (image: ImageData) =>
+          zxing.readBarcodes(image, { formats: ["QRCode"], maxNumberOfSymbols: 1 });
+      },
+      (error) => {
+        // The browser console is the only log a kiosk page has; the error's name only, no personal data.
+        // oxlint-disable-next-line no-console
+        console.error(
+          "kiosk.decoder_failed",
+          (error as { name?: string } | null)?.name ?? "unknown",
+        );
+        if (!stopped) {
+          setFailed(true);
+        }
+      },
+    );
     const timer = setInterval(() => {
       const frame = video.current;
-      if (busy || stopped || context === null || frame === null || frame.videoWidth === 0) {
+      if (
+        busy ||
+        stopped ||
+        decoder.failed() ||
+        context === null ||
+        frame === null ||
+        frame.videoWidth === 0
+      ) {
         return;
       }
       busy = true;
@@ -114,15 +140,13 @@ function useDecoder(
       canvas.height = size.height;
       context.drawImage(frame, 0, 0, size.width, size.height);
       const image = context.getImageData(0, 0, size.width, size.height);
-      void reader
-        .then((read) => read(image, { formats: ["QRCode"], maxNumberOfSymbols: 1 }))
-        .then((results) => {
-          const text = results.find((result) => result.isValid)?.text;
-          if (!stopped && text !== undefined && text !== "") {
+      void decoder
+        .read(image)
+        .then((text) => {
+          if (!stopped && text !== undefined) {
             onText(text);
           }
         })
-        .catch(() => undefined)
         .finally(() => {
           busy = false;
         });
@@ -132,6 +156,7 @@ function useDecoder(
       clearInterval(timer);
     };
   }, [running, onText, video]);
+  return failed;
 }
 
 /** Whether the browser thinks it is online; offline, the camera keeps running but nothing is sent. */
@@ -183,6 +208,7 @@ function useScans(restart: () => void) {
           requestJson("POST", "/v1/device/kiosk-scans", { code }, { "idempotency-key": key }),
         newKey: () => crypto.randomUUID(),
         now: () => Date.now(),
+        wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         onOutcome,
       }),
     [onOutcome],
@@ -214,6 +240,13 @@ function CardAvatar({ player }: Readonly<{ player: KioskPlayer }>) {
 /** The card for 4 seconds after a scan: green with the points, orange, or red with the reason only. */
 function ResultCard({ card, language }: Readonly<{ card: KioskCard; language: Language }>) {
   const t = translatorFor(language);
+  if (card.kind === "received") {
+    return (
+      <div className={styles.card} role="status" aria-live="assertive">
+        <p className={styles.message}>{t("kiosk.received")}</p>
+      </div>
+    );
+  }
   if (card.kind === "refused") {
     return (
       <div className={`${styles.card} ${styles.cardRed}`} role="status" aria-live="assertive">
@@ -309,7 +342,7 @@ function Kiosk({
   const online = useOnline();
   const { card, banner, read } = useScans(restart);
   const shut = view.shut;
-  useDecoder(video, camera === "live" && online && shut === null, read);
+  const decoderFailed = useDecoder(video, camera === "live" && online && shut === null, read);
   const flip = () => {
     const next: Facing = facing === "user" ? "environment" : "user";
     storeFacing(localStore(), next);
@@ -355,6 +388,11 @@ function Kiosk({
             flip={flip}
             language={language}
           />
+          {decoderFailed ? (
+            <p className={styles.message} role="alert">
+              {t("kiosk.scannerFailed")}
+            </p>
+          ) : null}
           {!online || banner !== null ? (
             <p className={styles.message} role="status">
               {t(

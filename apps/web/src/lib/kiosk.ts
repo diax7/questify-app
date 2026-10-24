@@ -13,6 +13,8 @@ export const KIOSK_FRAME_MS = 250;
 export const KIOSK_FRAME_MAX_PX = 640;
 /** How long "Paused for a moment" stays after a 429 when the answer names no wait. */
 const SLOWED_MS = 5000;
+/** How long a send waits when the API is still answering the same key (409 request_in_progress), before asking again. */
+export const KIOSK_IN_PROGRESS_WAIT_MS = 1000;
 
 /** Whether a decoded string looks like a Questify code (43 to 60 base64url characters); anything else is never sent. */
 export const looksLikeQuestifyCode = (text: string): boolean => /^[A-Za-z0-9_-]{43,60}$/.test(text);
@@ -23,7 +25,9 @@ export type KioskPlayer = Readonly<{ username: string; avatar: string }>;
 export type KioskCard =
   | Readonly<{ kind: "paid"; player: KioskPlayer | null; points: number; boosted: boolean }>
   | Readonly<{ kind: "already"; player: KioskPlayer | null }>
-  | Readonly<{ kind: "refused"; reason: string }>;
+  | Readonly<{ kind: "refused"; reason: string }>
+  /** The API took the scan but had not answered it yet: neutral, never "Reconnecting…" for a player maybe paid. */
+  | Readonly<{ kind: "received" }>;
 
 /** What one scan led to: a card, or the page's state (unpaired starts over; slowed, offline and off are banners). */
 export type KioskOutcome =
@@ -120,6 +124,7 @@ export type KioskReaderDeps = Readonly<{
   send: (code: string, key: string) => Promise<PostResult>;
   newKey: () => string;
   now: () => number;
+  wait: (ms: number) => Promise<void>;
   onOutcome: (outcome: KioskOutcome) => void;
 }>;
 
@@ -127,7 +132,9 @@ export type KioskReaderDeps = Readonly<{
  * What the kiosk does with each string its decoder reads (T-309b): anything not shaped like a Questify code shows
  * "This isn't a Questify code" and is never sent; a string just read is dropped for 5 seconds; one scan is in flight at a
  * time, and the newest string read meanwhile waits for it. A send that fails on the network is retried once with the
- * same key, then the page says "Reconnecting…". Nothing is ever queued past that: a scan not sent is dropped.
+ * same key, then the page says "Reconnecting…". An answer still in progress for that key (the first try reached the API)
+ * is asked once more after a second with the same key, then shown as a neutral "Scan received" card. Nothing is ever
+ * queued past that: a scan not sent is dropped.
  */
 export function createKioskReader(
   deps: KioskReaderDeps,
@@ -156,6 +163,14 @@ export function createKioskReader(
     if (!result.ok && result.body === undefined) {
       result = await deps.send(text, key);
     }
+    if (errorCodeOf(result.body) === "request_in_progress") {
+      await deps.wait(KIOSK_IN_PROGRESS_WAIT_MS);
+      result = await deps.send(text, key);
+      if (errorCodeOf(result.body) === "request_in_progress") {
+        deps.onOutcome({ kind: "card", card: { kind: "received" } });
+        return;
+      }
+    }
     deps.onOutcome(outcomeOf(result));
   };
 
@@ -183,6 +198,37 @@ export function createKioskReader(
   };
 
   return { read };
+}
+
+type Decoded = ReadonlyArray<Readonly<{ text: string; isValid: boolean }>>;
+
+/**
+ * The frame decoder (ADR-245): `load` brings up the reader and its wasm once. A load that fails is reported once
+ * (`onFailed`) and every later frame is skipped, so a live camera never silently stops scanning; a frame the reader
+ * cannot read is just no code.
+ */
+export function createDecoder<I>(
+  load: () => Promise<(image: I) => Promise<Decoded>>,
+  onFailed: (error: unknown) => void,
+): Readonly<{ failed: () => boolean; read: (image: I) => Promise<string | undefined> }> {
+  let failed = false;
+  const reader = load().catch((error: unknown) => {
+    failed = true;
+    onFailed(error);
+    return undefined;
+  });
+  return {
+    failed: () => failed,
+    read: async (image) => {
+      const read = await reader;
+      if (read === undefined) {
+        return undefined;
+      }
+      const results = await read(image).catch((): Decoded => []);
+      const text = results.find((result) => result.isValid)?.text;
+      return text === undefined || text === "" ? undefined : text;
+    },
+  };
 }
 
 /** The size a video frame is drawn at before decoding: its own, scaled so its longest side is at most 640 pixels. */

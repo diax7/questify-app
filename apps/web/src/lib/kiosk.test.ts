@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   KIOSK_DROP_MS,
+  KIOSK_IN_PROGRESS_WAIT_MS,
+  createDecoder,
   createKioskReader,
   frameSize,
   kioskCardOf,
@@ -29,6 +31,7 @@ function harness() {
   const sent: Array<Readonly<{ code: string; key: string }>> = [];
   const outcomes: KioskOutcome[] = [];
   const answers: Array<(result: PostResult) => void> = [];
+  const waited: number[] = [];
   const reader = createKioskReader({
     send: (code, key) => {
       sent.push({ code, key });
@@ -36,6 +39,9 @@ function harness() {
     },
     newKey: () => `key-${(keys += 1)}`,
     now: () => now,
+    wait: async (ms: number) => {
+      waited.push(ms);
+    },
     onOutcome: (outcome) => outcomes.push(outcome),
   });
   const answer = async (result: PostResult) => {
@@ -46,6 +52,7 @@ function harness() {
     reader,
     sent,
     outcomes,
+    waited,
     answer,
     advance: (ms: number) => {
       now += ms;
@@ -115,6 +122,25 @@ describe("the kiosk reader", () => {
     run.advance(KIOSK_DROP_MS);
     run.reader.read(OTHER);
     expect(run.sent.at(-1)).toEqual({ code: OTHER, key: "key-2" });
+  });
+
+  it("asks once more with the same key while the API is still answering it, then shows a neutral card", async () => {
+    const busy: PostResult = { ok: false, body: { code: "request_in_progress" } };
+    const run = harness();
+    run.reader.read(CODE);
+    await run.answer({ ok: false, body: undefined });
+    await run.answer(busy);
+    await run.answer(PAID);
+    expect(run.sent.map((one) => one.key)).toEqual(["key-1", "key-1", "key-1"]);
+    expect(run.waited).toEqual([KIOSK_IN_PROGRESS_WAIT_MS]);
+    expect(run.outcomes).toEqual([outcomeOf(PAID)]);
+
+    const still = harness();
+    still.reader.read(CODE);
+    await still.answer(busy);
+    await still.answer(busy);
+    expect(still.sent).toHaveLength(2);
+    expect(still.outcomes).toEqual([{ kind: "card", card: { kind: "received" } }]);
   });
 
   it("does not retry an answer the API gave", async () => {
@@ -205,5 +231,41 @@ describe("frames and the camera", () => {
     };
     expect(storedFacing(refusing)).toBe("user");
     expect(() => storeFacing(refusing, "user")).not.toThrow();
+  });
+});
+
+describe("the frame decoder", () => {
+  it("reports a reader that cannot load once, and skips every frame after", async () => {
+    const failures: unknown[] = [];
+    const decoder = createDecoder<string>(
+      () => Promise.reject(new Error("wasm 404")),
+      (error) => failures.push(error),
+    );
+    expect(await decoder.read("frame")).toBeUndefined();
+    expect(await decoder.read("frame")).toBeUndefined();
+    expect(decoder.failed()).toBe(true);
+    expect(failures).toHaveLength(1);
+  });
+
+  it("reads the first valid code; a frame it cannot read is no code", async () => {
+    let calls = 0;
+    const decoder = createDecoder<string>(
+      async () => async (image) => {
+        calls += 1;
+        if (image === "bad") {
+          throw new Error("unreadable");
+        }
+        return [
+          { text: "x", isValid: false },
+          { text: image, isValid: true },
+        ];
+      },
+      () => undefined,
+    );
+    expect(await decoder.read(CODE)).toBe(CODE);
+    expect(await decoder.read("bad")).toBeUndefined();
+    expect(await decoder.read("")).toBeUndefined();
+    expect(decoder.failed()).toBe(false);
+    expect(calls).toBe(3);
   });
 });
