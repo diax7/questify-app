@@ -515,3 +515,13 @@ The platform tuning `screenQrRotationSeconds` (default 45, 30 to 60) predates AD
 seconds with 15 seconds' grace on the database clock; the code does not read the knob. Remove it, or make the window
 follow it (the window then has to be read inside the door at judging time)?
 **Answered (CTO code review, 2026-10-24):** removed; ADR-240 fixes the window at 30 seconds.
+
+## Q-207 — The wallet pass at kiosks (2026-10-24, T-309b plan)
+F-274 says stations, kiosks and the prize desk accept the wallet pass's fixed ID code; ADR-242 makes kiosks read only
+the live code (a fixed code works from a screenshot for ever, and no one watches a kiosk). Recommended: kiosks refuse the
+pass's fixed code as they refuse My QR (stations and the prize desk still accept it), and F-274 is amended when the pass
+is built. Or should kiosks accept the pass, with ADR-091's risk and no one watching?
+
+## Q-208 — What a kiosk shows of the player (2026-10-24, T-309b plan)
+ADR-244: a kiosk's green and orange cards show the @username and avatar (both public on the boards already); red names
+no one. Agree, or show only the colour and the points, so a bystander learns nothing?

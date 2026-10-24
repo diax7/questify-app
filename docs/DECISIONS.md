@@ -3135,3 +3135,25 @@ turned the registration off a second later, under a newer session. On Dhia's pho
 `nfc_tag.*` audit entry, so no confirm ever committed): a write that failed after the NDEF write (the fob moved before
 the read-back or the lock) left a signed link on it, and the next tap answered "already holds a Questify quest", which
 reads as success.
+
+## ADR-244 — What a kiosk shows and refuses
+**Status:** Proposed (Claude, 2026-10-24; T-309b plan, `docs/plans/2026-10-24-t-309b-kiosk.md`). Q-208. Builds on ADR-242.
+**Decision:** a kiosk is a public screen. Its green and orange cards show the scanned player's @username and avatar
+only (never a score, balance, rank or status); a red card names no one, and a reason that would describe the person
+(banned, paused, removed, left) reads "This quest isn't open to you now". The operator who paired a kiosk cannot be
+paid by it (`self_scan`). The door namespaces its keys as `kiosk:{device}:{uuid}`, and `record_completion` refuses a
+`kiosk:` key with any other method and the kiosk method with any other key. A kiosk never sets the player's install id
+(so it raises no `shared_device` flag) and never queues a scan offline. The ledger's actor is the player; `kiosk_scan`
+names the kiosk. The door holds the device `FOR SHARE` and never locks the operator's assignment (the removal trigger
+locks the assignment, then the device).
+**Why:** no one watches a kiosk, and anyone standing near it reads the screen.
+
+## ADR-245 — The kiosk page's decoder, headers and limits
+**Status:** Proposed (Claude, 2026-10-24; T-309b plan). Builds on ADR-242.
+**Decision:** `zxing-wasm` 3.1.5 (`zxing-wasm/reader` only), loaded by the kiosk page alone; its wasm file is committed
+as `apps/web/public/zxing/zxing_reader-3.1.5.wasm`, checked by a test against the installed package's file, never
+fetched from the library's CDN; frames are decoded on the tablet at 4 a second (at most 640 px), on the main thread,
+and no frame leaves the page. Only `/ar/kiosk` and `/en/kiosk` get `camera=(self)` and `'wasm-unsafe-eval'`. The
+front camera by default, with a switch. 30 scans a minute per kiosk; 10 unreadable or forged codes in a minute pause it
+until the minute passes. The platform switch `kiosks` (on by default; the paid add-on of ADR-076 gates it later).
+**Why:** Safari has no `BarcodeDetector`; one decoder everywhere, with no third-party origin at run time.
