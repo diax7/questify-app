@@ -384,7 +384,14 @@ const VERIFICATION_LABELS = {
   quest_qr: "quests.verification.questQr",
   my_qr: "quests.verification.myQr",
   nfc: "quests.verification.nfc",
+  screen_qr: "quests.verification.screenQr",
 } as const;
+
+const PRINTED: ReadonlySet<QuestVerification> = new Set(["quest_qr", "nfc"]);
+
+/** Whether ticking `method` must untick `item`: the screen QR against a printed code or its NFC tag (ADR-240). */
+const clashes = (method: QuestVerification, item: QuestVerification): boolean =>
+  (method === "screen_qr" && PRINTED.has(item)) || (PRINTED.has(method) && item === "screen_qr");
 
 /** FR-301: how a scan quest is verified, at least one way; a type with no method shows nothing. */
 function QuestVerificationField({
@@ -405,14 +412,20 @@ function QuestVerificationField({
     return null;
   }
   // NFC keeps the quest QR on as its backup (FR-313): ticking it ticks the QR, which can't be unticked while it stays.
+  // The screen QR never sits beside a printed code (ADR-240): ticking one side unticks the other.
   const nfc = draft.verification.includes("nfc");
+  const screen = draft.verification.includes("screen_qr");
   const toggle = (method: QuestVerification, on: boolean) =>
     change({
-      verification: offered.filter((item) =>
-        item === method
-          ? on
-          : draft.verification.includes(item) || (method === "nfc" && on && item === "quest_qr"),
-      ),
+      verification: offered.filter((item) => {
+        if (item === method) {
+          return on;
+        }
+        if (on && clashes(method, item)) {
+          return false;
+        }
+        return draft.verification.includes(item) || (method === "nfc" && on && item === "quest_qr");
+      }),
     });
   return (
     <fieldset className={styles.field}>
@@ -429,6 +442,7 @@ function QuestVerificationField({
         </label>
       ))}
       {nfc ? <p className={styles.muted}>{t("quests.verification.nfcHint")}</p> : null}
+      {screen ? <p className={styles.muted}>{t("quests.verification.screenQrHint")}</p> : null}
     </fieldset>
   );
 }

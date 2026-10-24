@@ -240,6 +240,9 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           <a className={styles.textLink} href={`${pages}/${event.id}/joining`}>
             {t("joining.title")}
           </a>
+          <a className={styles.textLink} href={`${pages}/${event.id}/devices`}>
+            {t("devices.link")}
+          </a>
         </p>
       )}
       {problem === null ? null : (

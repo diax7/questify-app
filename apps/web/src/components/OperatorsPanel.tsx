@@ -349,6 +349,7 @@ function OperatorRow({
                 {t("operators.removeTitle", { name: operator.username })}
               </p>
               <p>{t("operators.removeBody")}</p>
+              <p>{t("devices.removeNote")}</p>
               <button type="button" className={styles.quiet} onClick={() => setConfirming(false)}>
                 {t("common.cancel")}
               </button>

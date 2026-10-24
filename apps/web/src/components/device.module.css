@@ -1,0 +1,116 @@
+/* Station, kiosk and big-screen pages (T-309): big type for a screen across a room; logical properties only, so
+   `dir="rtl"` mirrors everything. The code itself is black on white in every theme, as the printed codes. */
+
+.screen {
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xl);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  position: relative;
+}
+
+.event {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.5rem, 3.5vw, 3rem);
+}
+
+.title {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 6vw, 5rem);
+  line-height: 1.1;
+}
+
+.points {
+  font-size: clamp(1.25rem, 3vw, 2.5rem);
+  font-weight: 600;
+  color: var(--color-highlight);
+}
+
+.message {
+  font-size: clamp(1.5rem, 4vw, 3.5rem);
+  font-weight: 700;
+  max-inline-size: 28ch;
+}
+
+.muted {
+  font-size: clamp(1rem, 2vw, 1.75rem);
+  opacity: 0.8;
+  max-inline-size: 40ch;
+}
+
+.codeBox {
+  background: white;
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.code {
+  inline-size: min(70vmin, 640px);
+  block-size: auto;
+  background: white;
+}
+
+.pairCode {
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: clamp(2.5rem, 9vw, 7rem);
+  letter-spacing: 0.12em;
+  color: black;
+}
+
+.bar {
+  inline-size: min(70vmin, 640px);
+  block-size: 12px;
+  border-radius: 6px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.barFill {
+  block-size: 100%;
+  inline-size: 100%;
+  background: var(--color-highlight);
+  animation-name: drain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes drain {
+  from {
+    inline-size: 100%;
+  }
+  to {
+    inline-size: 0%;
+  }
+}
+
+.corner {
+  position: absolute;
+  inset-block-end: var(--space-md);
+  inset-inline-end: var(--space-lg);
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.mark {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barFill {
+    animation-name: none;
+  }
+}

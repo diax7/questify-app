@@ -1,0 +1,446 @@
+"use client";
+
+import { formatEventTime, formatNumber, type Language } from "@questify/shared";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { Notes } from "#src/components/PrizesPanel.tsx";
+import { deviceKindKey, type DeviceKind } from "#src/lib/device.ts";
+import {
+  devicesOf,
+  stationQuests,
+  statusOf,
+  type DeviceLine,
+  type DeviceStatus,
+} from "#src/lib/devices.ts";
+import { translatorFor } from "#src/lib/language.ts";
+import { requestJson } from "#src/lib/post-json.ts";
+import { textFor, type Bilingual, type CategoryView } from "#src/lib/quests.ts";
+import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import styles from "#src/components/layout.module.css";
+
+type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+
+const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
+/** The list is read again this often, so last-seen and waiting devices move on their own. */
+const REFRESH_MS = 15_000;
+
+const STATUS_KEYS = {
+  active: "devices.status.active",
+  waiting: "devices.status.waiting",
+  paused: "devices.status.paused",
+  ended: "devices.status.ended",
+  revoked: "devices.status.revoked",
+} as const satisfies Record<DeviceStatus, string>;
+
+type Preview = Readonly<{ code: string; kind: DeviceKind; client: string }>;
+type Confirming = Readonly<{ kind: "one"; line: DeviceLine } | { kind: "all" | "screens" }>;
+
+/** The event's zone and its station quests, for the times and the pair form. */
+function useEventChoices(eventApi: string) {
+  const [timeZone, setTimeZone] = useState("Asia/Riyadh");
+  const [quests, setQuests] = useState<readonly Readonly<{ id: string; title: Bilingual }>[]>([]);
+  useEffect(() => {
+    void Promise.all([requestJson("GET", eventApi), requestJson("GET", `${eventApi}/quests`)]).then(
+      ([event, found]) => {
+        const zone = event.ok
+          ? (event.body as { event?: { timezone?: string } }).event?.timezone
+          : undefined;
+        setTimeZone(zone ?? "Asia/Riyadh");
+        const list = found.ok ? (found.body as { categories: CategoryView[] }).categories : [];
+        setQuests(stationQuests(list));
+      },
+    );
+  }, [eventApi]);
+  return { timeZone, quests };
+}
+
+/** One device: kind, label, quest, what it said it is, who paired it and when, last seen, its state; Revoke. */
+function DeviceCard({
+  line,
+  language,
+  timeZone,
+  busy,
+  revoke,
+}: Readonly<{
+  line: DeviceLine;
+  language: Language;
+  timeZone: string;
+  busy: boolean;
+  revoke: () => void;
+}>) {
+  const t = translatorFor(language);
+  const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
+  const status = statusOf(line);
+  return (
+    <li className={styles.formCard}>
+      <p className={styles.row}>
+        <strong dir="auto">{line.label}</strong>
+        <span className={styles.badge}>{t(deviceKindKey(line.kind))}</span>
+        <span className={styles.badge}>{t(STATUS_KEYS[status])}</span>
+      </p>
+      {line.quest === null ? null : <span dir="auto">{textFor(line.quest, language)}</span>}
+      {line.client === "" ? null : <span className={styles.muted}>{line.client}</span>}
+      {line.pairedBy?.name === null || line.pairedBy === null ? null : (
+        <span className={styles.muted} style={{ overflowWrap: "anywhere" }}>
+          {t("devices.pairedBy", { name: line.pairedBy.name })}
+        </span>
+      )}
+      <span className={styles.muted}>{t("devices.pairedAt", { time: time(line.pairedAt) })}</span>
+      <span className={styles.muted}>{t("devices.lastSeen", { time: time(line.lastSeenAt) })}</span>
+      {line.status === "revoked" ? null : (
+        <div className={styles.actions}>
+          <button type="button" className={styles.button} disabled={busy} onClick={revoke}>
+            {t("devices.revoke")}
+          </button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+type StationQuest = Readonly<{ id: string; title: Bilingual }>;
+
+/** The second step: what the screen said it is, its quest (a station or kiosk) and its label, then Pair. */
+function ConfirmFields({
+  language,
+  preview,
+  quests,
+  busy,
+  back,
+  confirm,
+}: Readonly<{
+  language: Language;
+  preview: Preview;
+  quests: readonly StationQuest[];
+  busy: boolean;
+  back: () => void;
+  confirm: (questId: string | null, label: string) => void;
+}>) {
+  const t = translatorFor(language);
+  const [questId, setQuestId] = useState("");
+  const [label, setLabel] = useState("");
+  const needsQuest = preview.kind !== "screen";
+  const submit = (submitted: FormEvent) => {
+    submitted.preventDefault();
+    confirm(needsQuest ? questId : null, label);
+  };
+  return (
+    <form className={styles.form} onSubmit={submit}>
+      <p className={styles.row}>
+        <span className={styles.badge}>{t(deviceKindKey(preview.kind))}</span>
+        <span>
+          {preview.client === ""
+            ? t("devices.clientUnknown")
+            : t("devices.client", { client: preview.client })}
+        </span>
+      </p>
+      {!needsQuest ? null : quests.length === 0 ? (
+        <p className={styles.muted}>{t("devices.noQuests")}</p>
+      ) : (
+        <label className={styles.field}>
+          {t("devices.quest")}
+          <select
+            className={styles.input}
+            value={questId}
+            onChange={(event) => setQuestId(event.target.value)}
+          >
+            <option value="" />
+            {quests.map((quest) => (
+              <option key={quest.id} value={quest.id}>
+                {textFor(quest.title, language)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label className={styles.field}>
+        {t("devices.label")}
+        <input
+          className={styles.input}
+          dir="auto"
+          maxLength={40}
+          placeholder={t("devices.labelHint")}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+        />
+      </label>
+      <div className={styles.actions}>
+        <button type="button" className={styles.quiet} disabled={busy} onClick={back}>
+          {t("common.cancel")}
+        </button>
+        <button
+          type="submit"
+          className={styles.button}
+          disabled={busy || label.trim() === "" || (needsQuest && questId === "")}
+        >
+          {t("devices.confirm")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** The pair form: type the code, see what the screen said it is, pick its quest (a station) and name it. */
+function PairForm({
+  language,
+  eventApi,
+  quests,
+  paired,
+}: Readonly<{
+  language: Language;
+  eventApi: string;
+  quests: readonly StationQuest[];
+  paired: () => void;
+}>) {
+  const t = translatorFor(language);
+  const [code, setCode] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const call = async (path: string, payload: object, headers: Record<string, string> = {}) => {
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const result = await requestJson("POST", `${eventApi}${path}`, payload, headers);
+    setBusy(false);
+    if (!result.ok) {
+      setProblem(
+        result.body === undefined
+          ? t("devices.loadFailed")
+          : describeProblem(result.body, language, t).text,
+      );
+    }
+    return result;
+  };
+  const check = async (submitted: FormEvent) => {
+    submitted.preventDefault();
+    const result = await call("/devices/preview", { code });
+    const body = result.body as { kind?: DeviceKind; client?: string } | undefined;
+    if (result.ok && body?.kind !== undefined) {
+      setPreview({ code, kind: body.kind, client: body.client ?? "" });
+    }
+  };
+  const confirm = async (questId: string | null, label: string) => {
+    if (preview === null) {
+      return;
+    }
+    const body = { code: preview.code, kind: preview.kind, questId, label };
+    const result = await call("/devices", body, { "idempotency-key": crypto.randomUUID() });
+    if (result.ok) {
+      setNotice(t("devices.done"));
+      setPreview(null);
+      setCode("");
+      paired();
+    }
+  };
+
+  return (
+    <section className={styles.formCard} aria-labelledby="pair-device">
+      <h2 id="pair-device" className={styles.subtitle}>
+        {t("devices.pair")}
+      </h2>
+      <Notes problem={problem} notice={notice} loading={false} language={language} />
+      {preview === null ? (
+        <form className={styles.form} onSubmit={(event) => void check(event)}>
+          <label className={styles.field}>
+            {t("devices.code")}
+            <input
+              className={`${styles.input} ${styles.code}`}
+              dir="ltr"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={12}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </label>
+          <button type="submit" className={styles.button} disabled={busy || code.trim() === ""}>
+            {t("devices.check")}
+          </button>
+        </form>
+      ) : (
+        <ConfirmFields
+          language={language}
+          preview={preview}
+          quests={quests}
+          busy={busy}
+          back={() => setPreview(null)}
+          confirm={(questId, label) => void confirm(questId, label)}
+        />
+      )}
+    </section>
+  );
+}
+
+/** The device list, read now and every 15 seconds; a lost session goes back to sign-in. */
+function useDevices(eventApi: string, language: Language) {
+  const t = translatorFor(language);
+  const [devices, setDevices] = useState<readonly DeviceLine[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    const result = await requestJson("GET", `${eventApi}/devices`);
+    const code = errorCodeOf(result.body);
+    if (code !== undefined && SESSION_LOST.has(code)) {
+      window.location.assign(`/${language}/sign-in?ended=1`);
+      return;
+    }
+    const read = result.ok ? devicesOf(result.body) : undefined;
+    if (read === undefined) {
+      setProblem(t("devices.loadFailed"));
+    } else {
+      setDevices(read);
+    }
+  }, [eventApi, language, t]);
+  useEffect(() => {
+    void load();
+    const timer = setInterval(() => void load(), REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+  return { devices, problem, setProblem, load };
+}
+
+const CONFIRM_TEXT = {
+  all: { title: "devices.revokeAll", body: "devices.revokeAllConfirm" },
+  screens: { title: "devices.revokeScreens", body: "devices.revokeScreensConfirm" },
+} as const;
+
+/** Revoke all big screens and Revoke all, shown while devices are active. */
+function RevokeAllButtons({
+  language,
+  active,
+  busy,
+  ask,
+}: Readonly<{
+  language: Language;
+  active: readonly DeviceLine[];
+  busy: boolean;
+  ask: (target: Confirming) => void;
+}>) {
+  const t = translatorFor(language);
+  if (active.length === 0) {
+    return null;
+  }
+  return (
+    <div className={styles.actions}>
+      {active.some((line) => line.kind === "screen") ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={busy}
+          onClick={() => ask({ kind: "screens" })}
+        >
+          {t("devices.revokeScreens")}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className={styles.quiet}
+        disabled={busy}
+        onClick={() => ask({ kind: "all" })}
+      >
+        {t("devices.revokeAll")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The event's Devices page (T-309, FR-1713): pair a station, kiosk or big screen by the code it shows, the list with
+ * each device's state, Revoke, Revoke all big screens (ADR-241: the big screen's "regenerate the link") and Revoke all.
+ */
+export function DevicesPanel({ language, organizerId, eventId }: Props) {
+  const t = translatorFor(language);
+  const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
+  const { timeZone, quests } = useEventChoices(eventApi);
+  const { devices, problem, setProblem, load } = useDevices(eventApi, language);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<Confirming | null>(null);
+
+  const revoke = async (target: Confirming) => {
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const path = target.kind === "one" ? `/devices/${target.line.id}/revoke` : "/devices/revoke";
+    const payload = target.kind === "screens" ? { kind: "screen" } : {};
+    const result = await requestJson("POST", `${eventApi}${path}`, payload, {
+      "idempotency-key": crypto.randomUUID(),
+    });
+    setBusy(false);
+    setConfirming(null);
+    if (!result.ok) {
+      setProblem(describeProblem(result.body, language, t).text);
+    } else if (target.kind !== "one") {
+      const count = (result.body as { revoked?: number } | undefined)?.revoked ?? 0;
+      setNotice(t("devices.revoked", { count: formatNumber(count, language) }));
+    }
+    await load();
+  };
+
+  return (
+    <section className={styles.panel} aria-labelledby="devices-title">
+      <h1 id="devices-title" className={styles.title}>
+        {t("devices.title")}
+      </h1>
+      <p className={styles.muted}>{t("devices.intro")}</p>
+      <p className={styles.muted} dir="ltr">
+        {t("devices.pages", { station: `/${language}/station`, screen: `/${language}/screen` })}
+      </p>
+      <PairForm
+        language={language}
+        eventApi={eventApi}
+        quests={quests}
+        paired={() => void load()}
+      />
+      <Notes
+        problem={problem}
+        notice={notice}
+        loading={devices === null && problem === null}
+        language={language}
+      />
+      {confirming === null ? null : (
+        <ConfirmDialog
+          language={language}
+          title={t(
+            confirming.kind === "one" ? "devices.revoke" : CONFIRM_TEXT[confirming.kind].title,
+          )}
+          body={
+            confirming.kind === "one"
+              ? t("devices.revokeConfirm", { label: confirming.line.label })
+              : t(CONFIRM_TEXT[confirming.kind].body)
+          }
+          confirmLabel={t("devices.revoke")}
+          noteLabel={null}
+          busy={busy}
+          cancel={() => setConfirming(null)}
+          confirm={() => void revoke(confirming)}
+        />
+      )}
+      <RevokeAllButtons
+        language={language}
+        active={devices?.filter((line) => line.status === "active") ?? []}
+        busy={busy}
+        ask={setConfirming}
+      />
+      {devices === null ? null : devices.length === 0 ? (
+        <p className={styles.muted}>{t("devices.empty")}</p>
+      ) : (
+        <ul className={styles.list} inert={confirming !== null}>
+          {devices.map((line) => (
+            <DeviceCard
+              key={line.id}
+              line={line}
+              language={language}
+              timeZone={timeZone}
+              busy={busy}
+              revoke={() => setConfirming({ kind: "one", line })}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
@@ -302,6 +303,32 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           )
           .then(() => {
             response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /player-token: enrolls a new player with this username and answers a bearer token of theirs, so a browser test
+      // can scan a station's code as that player through the API (T-309).
+      if (request.url === "/player-token") {
+        const token = randomBytes(32).toString("base64url");
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) VALUES ($2) RETURNING id),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1)
+             INSERT INTO player_session (player_id, token_hash, expires_at)
+             SELECT id, $3, now() + interval '1 hour' FROM made`,
+            [
+              body.eventId,
+              body.usernames?.[0] ?? null,
+              createHash("sha256").update(token).digest(),
+            ],
+          )
+          .then(() => {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(JSON.stringify({ token }));
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));
