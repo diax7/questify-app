@@ -2027,6 +2027,17 @@ export const MESSAGES = {
     en: "The owner turned off handing over for you.",
   },
   "myQr.title": { ar: "رمزي", en: "My QR" },
+  "myQr.tab.fixed": { ar: "رمزي", en: "My QR" },
+  "myQr.kioskTab": { ar: "للأكشاك", en: "For kiosks" },
+  "myQr.kioskHint": {
+    ar: "اعرض هذا الرمز أمام كاميرا الكشك. يتغيّر كل 30 ثانية",
+    en: "Hold this up to the kiosk's camera. It changes every 30 seconds",
+  },
+  "myQr.kioskOffline": {
+    ar: "تحتاج الأكشاك إلى الإنترنت. ما زالت محطات الطاقم تقرأ رمزك",
+    en: "Kiosks need the internet. Staffed stations still read your My QR",
+  },
+  "myQr.kioskOff": { ar: "الأكشاك غير متاحة حاليًا", en: "Kiosks aren't available right now" },
   "myQr.hint": {
     ar: "اعرضه على المشغّل ليمسحه. لا تشاركه مع أحد.",
     en: "Show it to an operator to scan. Don't share it.",
@@ -3850,6 +3861,18 @@ export const MESSAGES = {
     ar: "يمكن تصوير الرمز المطبوع ومشاركته، أما رمز الشاشة فيتغير كل 30 ثانية. افتح صفحة المحطة على أي شاشة واربطها من صفحة الأجهزة.",
     en: "A printed code can be photographed and shared; the screen code changes every 30 seconds. Open the station page on any screen and pair it from the Devices page.",
   },
+  "quests.verification.kiosk": {
+    ar: "كشك ذاتي (يعرض اللاعب رمزه المباشر أمام جهاز لوحي)",
+    en: "Kiosk (players show their live code to a tablet)",
+  },
+  "quests.verification.kioskHint": {
+    ar: "يدفع الكشك النقاط دون أن يقف عنده أحد. افتح صفحة الكشك على جهاز لوحي واربطه من صفحة الأجهزة.",
+    en: "A kiosk pays with no one standing by it. Open the kiosk page on a tablet and pair it from the Devices page.",
+  },
+  "quests.action.kiosk": {
+    ar: "اعرض رمزك المباشر عند الكشك",
+    en: "Show your live code at the kiosk",
+  },
   "quests.action.scanScreen": {
     ar: "امسح الرمز الظاهر على الشاشة",
     en: "Scan the code on the screen",
@@ -3892,10 +3915,46 @@ export const MESSAGES = {
   "device.shut.hidden": { ar: "هذه المهمة غير متاحة الآن", en: "This quest isn't available now" },
   "device.shut.eventEnded": { ar: "انتهت الفعالية", en: "This event has ended" },
   "device.notAvailable": { ar: "غير متاح حاليًا", en: "Not available" },
+  "kiosk.show": { ar: "اعرض رمزك المباشر أمام الكاميرا", en: "Show your live code to the camera" },
+  "kiosk.howTo": { ar: "في كويستفاي: رمزي ← للأكشاك", en: "In Questify: My QR → For kiosks" },
+  "kiosk.paid": { ar: "+{points} نقطة", en: "+{points} points" },
+  "kiosk.boosted": { ar: "×2", en: "×2" },
+  "kiosk.already": { ar: "أنجزتها من قبل", en: "Already done" },
+  "kiosk.needsLive": {
+    ar: "يقرأ هذا الكشك رمزك المباشر: رمزي ← للأكشاك",
+    en: "This kiosk reads your live code: My QR → For kiosks",
+  },
+  "kiosk.expired": {
+    ar: "انتهت صلاحية هذا الرمز. اعرض الرمز الجديد",
+    en: "This code has expired. Show the new one",
+  },
+  "kiosk.invalid": { ar: "هذا ليس رمزًا من كويستفاي", en: "This isn't a Questify code" },
+  "kiosk.notInEvent": {
+    ar: "لم ينضم هذا الحساب إلى هذه الفعالية",
+    en: "This account hasn't joined this event",
+  },
+  "kiosk.notOpen": { ar: "هذه المهمة غير متاحة لك الآن", en: "This quest isn't open to you now" },
+  "kiosk.selfScan": {
+    ar: "لا يمكن لهذا الكشك مسح هذا الحساب",
+    en: "This kiosk can't scan this account",
+  },
+  "kiosk.methodOff": {
+    ar: "لم تعد هذه المهمة تستخدم هذا الكشك",
+    en: "This quest no longer uses this kiosk",
+  },
+  "kiosk.slowDown": { ar: "متوقف للحظات", en: "Paused for a moment" },
+  "kiosk.paused": { ar: "أوقفه فريق الفعالية مؤقتًا", en: "Paused by the event team" },
+  "kiosk.camera.allow": { ar: "السماح بالكاميرا", en: "Allow the camera" },
+  "kiosk.camera.denied": {
+    ar: "يحتاج هذا الكشك إلى الكاميرا. اسمح بها من إعدادات المتصفح، ثم أعد تحميل الصفحة",
+    en: "This kiosk needs the camera. Allow it in the browser's settings, then reload the page",
+  },
+  "kiosk.camera.none": { ar: "لا توجد كاميرا في هذا الجهاز", en: "No camera found on this device" },
+  "kiosk.camera.switch": { ar: "تبديل الكاميرا", en: "Switch camera" },
+  "kiosk.camera.label": { ar: "كاميرا الكشك", en: "The kiosk's camera" },
   "station.points": { ar: "{points} نقطة", en: "{points} points" },
   "station.scan": { ar: "امسح الرمز بتطبيق كويستفاي", en: "Scan with the Questify app" },
   "screen.ready": { ar: "تبدأ الشاشة الكبيرة هنا", en: "The big screen starts here" },
-  "kiosk.ready": { ar: "يبدأ الكشك الذاتي هنا", en: "The kiosk starts here" },
   "screen.landing.title": { ar: "رمز شاشة كويستفاي", en: "A Questify screen code" },
   "screen.landing": {
     ar: "امسح هذا الرمز من داخل تطبيق كويستفاي",
@@ -3909,10 +3968,10 @@ export const MESSAGES = {
   "devices.link": { ar: "الأجهزة", en: "Devices" },
   "devices.title": { ar: "الأجهزة", en: "Devices" },
   "devices.intro": {
-    ar: "المحطات والأكشاك والشاشات الكبيرة المرتبطة بهذه الفعالية. افتح على الجهاز صفحة المحطة أو الشاشة الكبيرة، ثم اربطه بالرمز الظاهر عليه.",
-    en: "Stations, kiosks and big screens paired with this event. Open the station or big screen page on the device, then pair it with the code it shows.",
+    ar: "المحطات والأكشاك والشاشات الكبيرة المرتبطة بهذه الفعالية. افتح على الجهاز صفحة المحطة أو الكشك أو الشاشة الكبيرة، ثم اربطه بالرمز الظاهر عليه.",
+    en: "Stations, kiosks and big screens paired with this event. Open the station, kiosk or big screen page on the device, then pair it with the code it shows.",
   },
-  "devices.pages": { ar: "الصفحات: {station} · {screen}", en: "Pages: {station} · {screen}" },
+  "devices.pages": { ar: "الصفحات:", en: "Pages:" },
   "devices.pair": { ar: "ربط جهاز", en: "Pair a device" },
   "devices.code": { ar: "الرمز الظاهر على الشاشة", en: "Code on the screen" },
   "devices.check": { ar: "متابعة", en: "Continue" },
@@ -3926,14 +3985,19 @@ export const MESSAGES = {
     ar: "تم الربط. تظهر المهمة على الشاشة خلال ثوانٍ.",
     en: "Paired. The screen shows it in a few seconds.",
   },
-  "devices.kioskLater": {
-    ar: "لا يمكن ربط الأكشاك الذاتية بعد. افتح على هذا الجهاز صفحة المحطة أو الشاشة الكبيرة.",
-    en: "Kiosks can't be paired yet. Open the station or big screen page on this device instead.",
-  },
   "devices.noQuests": {
     ar: "لا تستخدم أي مهمة رمز QR على شاشة بعد. فعّله في مهمة مسح أولًا.",
     en: "No quest uses a QR on a screen yet. Turn it on in a scan quest first.",
   },
+  "devices.noKioskQuests": {
+    ar: "لا تستخدم أي مهمة كشكًا ذاتيًا بعد. فعّله في مهمة مسح أولًا.",
+    en: "No quest uses a kiosk yet. Turn it on in a scan quest first.",
+  },
+  "devices.kioskTip": {
+    ar: "ثبّت الجهاز اللوحي على هذه الصفحة: «الوصول الموجّه» في iPad أو «تثبيت الشاشة» في Android.",
+    en: "Lock the tablet to this page: Guided Access on iPad, screen pinning on Android.",
+  },
+  "devices.scans": { ar: "المسحات اليوم: {count}", en: "Scans today: {count}" },
   "devices.empty": { ar: "لا توجد أجهزة بعد.", en: "No devices yet." },
   "devices.pairedBy": { ar: "ربطه {name}", en: "Paired by {name}" },
   "devices.pairedAt": { ar: "رُبط {time}", en: "Paired {time}" },
@@ -3974,13 +4038,18 @@ export const MESSAGES = {
   "operator.devices.done": { ar: "تم ربط «{label}».", en: "“{label}” is paired." },
   "operator.devices.none": { ar: "لم تربط أي جهاز بعد.", en: "You haven't paired a device yet." },
   "operator.devices.stationsOnly": {
-    ar: "من وضع الطاقم تُربط المحطات فقط. تُربط الشاشات الكبيرة من لوحة التحكم.",
-    en: "Staff mode pairs stations only. Big screens are paired from the dashboard.",
+    ar: "من وضع الطاقم تُربط المحطات والأكشاك الذاتية. تُربط الشاشات الكبيرة من لوحة التحكم.",
+    en: "Staff mode pairs stations and kiosks. Big screens are paired from the dashboard.",
   },
   "operator.devices.noQuests": {
     ar: "لا تستخدم أي من مهامك رمز QR على شاشة.",
     en: "None of your quests uses a QR on a screen.",
   },
+  "operator.devices.noKioskQuests": {
+    ar: "لا تستخدم أي من مهامك كشكًا ذاتيًا.",
+    en: "None of your quests uses a kiosk.",
+  },
+  "operator.devices.scans": { ar: "المسحات اليوم: {count}", en: "Scans today: {count}" },
   "operator.rotating": { ar: "رمز QR متغيّر", en: "Rotating QR" },
   "operator.rotating.pick": { ar: "اختر المهمة", en: "Pick a quest" },
 } as const satisfies Messages;

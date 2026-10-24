@@ -4,7 +4,7 @@ import type { Bilingual } from "#src/i18n/text.ts";
 
 type Requester = Pick<Session, "request">;
 
-/** The kinds of paired browser (T-309); staff mode pairs stations, the dashboard every kind. */
+/** The kinds of paired browser (T-309); staff mode pairs stations and kiosks (T-309b), the dashboard every kind. */
 export type DeviceKind = "station" | "kiosk" | "screen";
 
 const KINDS: ReadonlySet<unknown> = new Set(["station", "kiosk", "screen"]);
@@ -111,18 +111,33 @@ export type MyDevice = Readonly<{
   quest: Bilingual | null;
   status: "active" | "revoked" | "ended";
   paused: boolean;
+  /** A kiosk's scans in the last 24 hours (T-309b); null for a station or big screen. */
+  scans: number | null;
 }>;
 
 export type StationQuest = Readonly<{ id: string; title: Bilingual; points: number }>;
 
-/** The operator's devices page: what they paired, and the quests they may pair a station for or show themselves. */
+/**
+ * The operator's devices page: what they paired, the quests they may pair a station for or show themselves, and the
+ * quests they may pair a kiosk for (T-309b).
+ */
 export type DevicesPage = Readonly<{
   devices: readonly MyDevice[];
   quests: readonly StationQuest[];
+  kioskQuests: readonly StationQuest[];
 }>;
 
 const rows = (value: unknown): readonly Record<string, unknown>[] =>
   Array.isArray(value) ? value.filter(isRecord) : [];
+
+const questsOf = (value: unknown): readonly StationQuest[] =>
+  rows(value)
+    .filter((row) => typeof row["id"] === "string")
+    .map((row) => ({
+      id: String(row["id"]),
+      title: textOf(row["title"]),
+      points: Number(row["points"] ?? 0),
+    }));
 
 export function devicesPageOf(body: unknown): DevicesPage {
   const page = isRecord(body) ? body : {};
@@ -137,14 +152,10 @@ export function devicesPageOf(body: unknown): DevicesPage {
         status:
           row["status"] === "revoked" ? "revoked" : row["status"] === "ended" ? "ended" : "active",
         paused: row["paused"] === true,
+        scans: typeof row["scans"] === "number" ? row["scans"] : null,
       })),
-    quests: rows(page["quests"])
-      .filter((row) => typeof row["id"] === "string")
-      .map((row) => ({
-        id: String(row["id"]),
-        title: textOf(row["title"]),
-        points: Number(row["points"] ?? 0),
-      })),
+    quests: questsOf(page["quests"]),
+    kioskQuests: questsOf(page["kioskQuests"]),
   };
 }
 

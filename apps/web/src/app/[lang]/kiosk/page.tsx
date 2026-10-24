@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PairedPlaceholder } from "#src/components/PairedPlaceholder.tsx";
+import { KioskScanner } from "#src/components/KioskScanner.tsx";
 import { isLanguage } from "#src/lib/language.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
@@ -12,13 +12,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * A kiosk (T-309's pairing; its camera and scans are T-309b's, FR-315): the plain address shows a pairing code until
- * staff pair it for a quest with the kiosk method.
+ * A kiosk (T-309b, FR-315): the plain address shows a pairing code until staff pair it for a quest with the kiosk
+ * method; then its camera reads players' live codes and pays them with no staff by. This path alone may use the camera
+ * and WebAssembly (proxy.ts); every link here is a full page load.
  */
 export default async function KioskPage({ params }: Props) {
   const { lang } = await params;
   if (!isLanguage(lang)) {
     notFound();
   }
-  return <PairedPlaceholder kind="kiosk" language={lang} />;
+  return <KioskScanner language={lang} />;
 }

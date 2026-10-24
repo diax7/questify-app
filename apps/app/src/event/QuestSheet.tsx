@@ -196,6 +196,18 @@ function CodeEntry({
 }
 
 /** How a quest is verified, with its action (FR-1742); only an open quest of a known type offers it. */
+/** T-309b: a kiosk quest opens My QR on For kiosks, where the live code a kiosk reads is shown. */
+function KioskAction({ primary }: Readonly<{ primary: boolean }>) {
+  const { t } = useI18n();
+  return (
+    <Button
+      kind={primary ? "primary" : "quiet"}
+      label={t("quests.action.kiosk")}
+      onPress={() => router.push({ pathname: "/my-qr", params: { tab: "kiosk" } })}
+    />
+  );
+}
+
 function Verification({
   quest,
   onDone,
@@ -239,6 +251,9 @@ function Verification({
       />
     </>
   ) : null;
+  const kiosk = quest.verification.includes("kiosk") ? (
+    <KioskAction primary={quest.verification.length === 1} />
+  ) : null;
   // T-309: a quest whose code is shown on a station's screen (never with a printed one) is scanned from the scanner.
   if (quest.verification.includes("screen_qr")) {
     return (
@@ -246,11 +261,17 @@ function Verification({
         {showMyQr}
         <AppText variant="label">{t("quests.action.scanScreen")}</AppText>
         {scanButton}
+        {kiosk}
       </>
     );
   }
   if (!quest.verification.includes("quest_qr")) {
-    return showMyQr;
+    return (
+      <>
+        {showMyQr}
+        {kiosk}
+      </>
+    );
   }
   // FR-313: a tag where NFC is on, the phone reads tags and the quest offers one; its QR stays below as the backup.
   const tapButton =
@@ -271,6 +292,7 @@ function Verification({
       {tapButton}
       <AppText variant="label">{t("questsTab.verifyScan")}</AppText>
       {scanButton}
+      {kiosk}
     </>
   );
 }

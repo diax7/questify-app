@@ -4,17 +4,19 @@ import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
-import { deviceKindKey, type DeviceKind } from "#src/lib/device.ts";
+import { deviceKindKey, devicePagePath, type DeviceKind } from "#src/lib/device.ts";
 import {
   devicesOf,
+  kioskQuests,
   stationQuests,
   statusOf,
   type DeviceLine,
+  type DeviceQuest,
   type DeviceStatus,
 } from "#src/lib/devices.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
-import { textFor, type Bilingual, type CategoryView } from "#src/lib/quests.ts";
+import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
 
@@ -33,12 +35,18 @@ const STATUS_KEYS = {
 } as const satisfies Record<DeviceStatus, string>;
 
 type Preview = Readonly<{ code: string; kind: DeviceKind; client: string }>;
+
+/** The device pages staff open on a screen, linked from the Devices page. */
+const DEVICE_PAGES: readonly DeviceKind[] = ["station", "kiosk", "screen"];
 type Confirming = Readonly<{ kind: "one"; line: DeviceLine } | { kind: "all" | "screens" }>;
 
-/** The event's zone and its station quests, for the times and the pair form. */
+/** A station's quests and a kiosk's, for the pair form. */
+type QuestChoices = Readonly<{ station: readonly DeviceQuest[]; kiosk: readonly DeviceQuest[] }>;
+
+/** The event's zone and its station and kiosk quests, for the times and the pair form. */
 function useEventChoices(eventApi: string) {
   const [timeZone, setTimeZone] = useState("Asia/Riyadh");
-  const [quests, setQuests] = useState<readonly Readonly<{ id: string; title: Bilingual }>[]>([]);
+  const [quests, setQuests] = useState<QuestChoices>({ station: [], kiosk: [] });
   useEffect(() => {
     void Promise.all([requestJson("GET", eventApi), requestJson("GET", `${eventApi}/quests`)]).then(
       ([event, found]) => {
@@ -47,7 +55,7 @@ function useEventChoices(eventApi: string) {
           : undefined;
         setTimeZone(zone ?? "Asia/Riyadh");
         const list = found.ok ? (found.body as { categories: CategoryView[] }).categories : [];
-        setQuests(stationQuests(list));
+        setQuests({ station: stationQuests(list), kiosk: kioskQuests(list) });
       },
     );
   }, [eventApi]);
@@ -87,6 +95,11 @@ function DeviceCard({
       )}
       <span className={styles.muted}>{t("devices.pairedAt", { time: time(line.pairedAt) })}</span>
       <span className={styles.muted}>{t("devices.lastSeen", { time: time(line.lastSeenAt) })}</span>
+      {line.scans === null ? null : (
+        <span className={styles.muted}>
+          {t("devices.scans", { count: formatNumber(line.scans, language) })}
+        </span>
+      )}
       {line.status === "revoked" ? null : (
         <div className={styles.actions}>
           <button type="button" className={styles.button} disabled={busy} onClick={revoke}>
@@ -97,8 +110,6 @@ function DeviceCard({
     </li>
   );
 }
-
-type StationQuest = Readonly<{ id: string; title: Bilingual }>;
 
 /** The second step: what the screen said it is, its quest (a station or kiosk) and its label, then Pair. */
 function ConfirmFields({
@@ -111,7 +122,7 @@ function ConfirmFields({
 }: Readonly<{
   language: Language;
   preview: Preview;
-  quests: readonly StationQuest[];
+  quests: QuestChoices;
   busy: boolean;
   back: () => void;
   confirm: (questId: string | null, label: string) => void;
@@ -120,23 +131,11 @@ function ConfirmFields({
   const [questId, setQuestId] = useState("");
   const [label, setLabel] = useState("");
   const needsQuest = preview.kind !== "screen";
+  const choices = preview.kind === "kiosk" ? quests.kiosk : quests.station;
   const submit = (submitted: FormEvent) => {
     submitted.preventDefault();
     confirm(needsQuest ? questId : null, label);
   };
-  // No quest offers the kiosk method until T-309b, so a kiosk is not offered for pairing yet.
-  if (preview.kind === "kiosk") {
-    return (
-      <div className={styles.form}>
-        <p className={styles.muted}>{t("devices.kioskLater")}</p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} onClick={back}>
-            {t("common.cancel")}
-          </button>
-        </div>
-      </div>
-    );
-  }
   return (
     <form className={styles.form} onSubmit={submit}>
       <p className={styles.row}>
@@ -147,8 +146,10 @@ function ConfirmFields({
             : t("devices.client", { client: preview.client })}
         </span>
       </p>
-      {!needsQuest ? null : quests.length === 0 ? (
-        <p className={styles.muted}>{t("devices.noQuests")}</p>
+      {!needsQuest ? null : choices.length === 0 ? (
+        <p className={styles.muted}>
+          {t(preview.kind === "kiosk" ? "devices.noKioskQuests" : "devices.noQuests")}
+        </p>
       ) : (
         <label className={styles.field}>
           {t("devices.quest")}
@@ -158,7 +159,7 @@ function ConfirmFields({
             onChange={(event) => setQuestId(event.target.value)}
           >
             <option value="" />
-            {quests.map((quest) => (
+            {choices.map((quest) => (
               <option key={quest.id} value={quest.id}>
                 {textFor(quest.title, language)}
               </option>
@@ -202,7 +203,7 @@ function PairForm({
 }: Readonly<{
   language: Language;
   eventApi: string;
-  quests: readonly StationQuest[];
+  quests: QuestChoices;
   paired: () => void;
 }>) {
   const t = translatorFor(language);
@@ -242,7 +243,11 @@ function PairForm({
     const body = { code: preview.code, kind: preview.kind, questId, label };
     const result = await call("/devices", body, { "idempotency-key": crypto.randomUUID() });
     if (result.ok) {
-      setNotice(t("devices.done"));
+      setNotice(
+        preview.kind === "kiosk"
+          ? `${t("devices.done")} ${t("devices.kioskTip")}`
+          : t("devices.done"),
+      );
       setPreview(null);
       setCode("");
       paired();
@@ -399,8 +404,17 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
         {t("devices.title")}
       </h1>
       <p className={styles.muted}>{t("devices.intro")}</p>
-      <p className={styles.muted} dir="ltr">
-        {t("devices.pages", { station: `/${language}/station`, screen: `/${language}/screen` })}
+      <p className={styles.muted}>
+        {t("devices.pages")}{" "}
+        {DEVICE_PAGES.map((kind, index) => (
+          <span key={kind}>
+            {index === 0 ? null : " · "}
+            {/* A plain link, a full page load: the kiosk page's camera and wasm headers come with its own load. */}
+            <a href={devicePagePath(kind, language)} dir="ltr">
+              {devicePagePath(kind, language)}
+            </a>
+          </span>
+        ))}
       </p>
       <PairForm
         language={language}

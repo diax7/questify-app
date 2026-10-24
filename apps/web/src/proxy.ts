@@ -5,16 +5,22 @@ import {
   languageCookie,
   negotiateLanguage,
 } from "#src/lib/language.ts";
-import { PAGE_HEADERS, contentSecurityPolicy } from "#src/lib/security-headers.ts";
+import { contentSecurityPolicy, isKioskPath, pageHeaders } from "#src/lib/security-headers.ts";
 
 /**
  * Runs before every page: sends `/` to the right language, remembers the language a page is shown in, and adds the
- * content-security policy (with this request's nonce, which Next stamps on its own scripts) and the page headers.
+ * content-security policy (with this request's nonce, which Next stamps on its own scripts) and the page headers. The
+ * kiosk pages alone may use the camera and compile their decoder's WebAssembly (ADR-245); links to them are full page
+ * loads, so these headers are the ones the page runs under.
  */
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const nonce = btoa(crypto.randomUUID());
-  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === "development");
+  const policy = contentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV === "development",
+    isKioskPath(pathname),
+  );
 
   let response: NextResponse;
   if (pathname === "/") {
@@ -41,7 +47,7 @@ export function proxy(request: NextRequest): NextResponse {
     }
   }
   response.headers.set("content-security-policy", policy);
-  for (const [name, value] of PAGE_HEADERS) {
+  for (const [name, value] of pageHeaders(pathname)) {
     response.headers.set(name, value);
   }
   return response;

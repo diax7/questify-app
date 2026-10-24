@@ -14,6 +14,8 @@ export type DeviceLine = Readonly<{
   activated: boolean;
   status: "active" | "revoked" | "ended";
   paused: boolean;
+  /** A kiosk's scans in the last 24 hours (T-309b); null for a station or big screen. */
+  scans: number | null;
 }>;
 
 /** What the line shows as its state: revoked, ended, paused, waiting for activation, or active. */
@@ -63,6 +65,7 @@ function lineOf(value: unknown): DeviceLine | undefined {
     activated: value["activated"] === true,
     status: value["status"] as DeviceLine["status"],
     paused: value["paused"] === true,
+    scans: typeof value["scans"] === "number" ? value["scans"] : null,
   };
 }
 
@@ -87,13 +90,24 @@ export function statusOf(line: DeviceLine): DeviceStatus {
   return line.paused ? "paused" : "active";
 }
 
-/** The quests a station may show: the event's scan quests with the screen QR on. */
-export function stationQuests(
+/** A quest a station or kiosk may be paired for. */
+export type DeviceQuest = Readonly<{ id: string; title: Bilingual }>;
+
+/** The scan quests with `method` on: the screen QR for a station, the kiosk for a kiosk (T-309b). */
+function questsWith(
   categories: readonly CategoryView[],
-): readonly Readonly<{ id: string; title: Bilingual }>[] {
+  method: "screen_qr" | "kiosk",
+): readonly DeviceQuest[] {
   return categories.flatMap((category) =>
     category.quests
-      .filter((quest) => quest.type === "scan_qr" && quest.verification.includes("screen_qr"))
+      .filter((quest) => quest.type === "scan_qr" && quest.verification.includes(method))
       .map((quest) => ({ id: quest.id, title: quest.title })),
   );
 }
+
+/** The quests a station may show: the event's scan quests with the screen QR on. */
+export const stationQuests = (categories: readonly CategoryView[]) =>
+  questsWith(categories, "screen_qr");
+
+/** The quests a kiosk may be paired for: the event's scan quests with the kiosk on. */
+export const kioskQuests = (categories: readonly CategoryView[]) => questsWith(categories, "kiosk");

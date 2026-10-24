@@ -385,6 +385,7 @@ const VERIFICATION_LABELS = {
   my_qr: "quests.verification.myQr",
   nfc: "quests.verification.nfc",
   screen_qr: "quests.verification.screenQr",
+  kiosk: "quests.verification.kiosk",
 } as const;
 
 const PRINTED: ReadonlySet<QuestVerification> = new Set(["quest_qr", "nfc"]);
@@ -443,6 +444,9 @@ function QuestVerificationField({
       ))}
       {nfc ? <p className={styles.muted}>{t("quests.verification.nfcHint")}</p> : null}
       {screen ? <p className={styles.muted}>{t("quests.verification.screenQrHint")}</p> : null}
+      {draft.verification.includes("kiosk") ? (
+        <p className={styles.muted}>{t("quests.verification.kioskHint")}</p>
+      ) : null}
     </fieldset>
   );
 }

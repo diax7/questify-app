@@ -1,3 +1,4 @@
+import { formatNumber } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -16,7 +17,7 @@ import {
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
 /**
- * Staff mode's My paired devices (T-309): the stations this operator paired, each with its quest and state, and Revoke
+ * Staff mode's My paired devices (T-309): the stations and kiosks this operator paired, each with its quest and state, and Revoke
  * for an active one (an operator revokes only what they paired). The dashboard's Devices page lists every device.
  */
 export default function MyDevicesScreen() {
@@ -57,6 +58,11 @@ export default function MyDevicesScreen() {
             <AppText variant="label">{device.label}</AppText>
             {device.quest === null ? null : <AppText>{textIn(device.quest, language)}</AppText>}
             <AppText muted>{t(deviceStatusKey(device))}</AppText>
+            {device.scans === null ? null : (
+              <AppText muted>
+                {t("operator.devices.scans", { count: formatNumber(device.scans, language) })}
+              </AppText>
+            )}
             {device.status === "active" ? (
               <Button
                 kind="quiet"

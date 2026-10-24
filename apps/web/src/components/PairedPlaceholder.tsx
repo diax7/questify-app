@@ -7,17 +7,14 @@ import { translatorFor } from "#src/lib/language.ts";
 import { textFor } from "#src/lib/quests.ts";
 import styles from "#src/components/device.module.css";
 
-const READY = { screen: "screen.ready", kiosk: "kiosk.ready" } as const;
-
 /**
- * The big-screen page up to "paired" (T-309, ADR-241) and the kiosk page's pairing (its scanner is T-309b): pairing,
- * then the event's name and the label, and nothing read from the ranking or any player. T-504 replaces the big screen's
- * paired state with its scenes; T-309b the kiosk's.
+ * The big-screen page up to "paired" (T-309, ADR-241): pairing, then the event's name and the label, and nothing read
+ * from the ranking or any player. T-504 replaces the paired state with its scenes.
  */
 export function PairedPlaceholder({
   kind,
   language,
-}: Readonly<{ kind: Exclude<DeviceKind, "station">; language: Language }>) {
+}: Readonly<{ kind: Extract<DeviceKind, "screen">; language: Language }>) {
   const t = translatorFor(language);
   return (
     <DevicePairing kind={kind} language={language}>
@@ -31,7 +28,7 @@ export function PairedPlaceholder({
             <p className={styles.title} dir="auto">
               {t("device.paired", { event: textFor(view.event.name, language) })}
             </p>
-            <p className={styles.message}>{t(READY[kind])}</p>
+            <p className={styles.message}>{t("screen.ready")}</p>
             <p className={styles.corner} dir="auto">
               {view.label}
             </p>

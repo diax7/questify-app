@@ -127,12 +127,31 @@ describe("the operator's device calls (T-309)", () => {
           quest: { ar: null, en: "Hall" },
           status: "active",
           paused: true,
+          scans: null,
         },
-        { id: "d3", kind: "screen", label: "", quest: null, status: "revoked", paused: false },
+        {
+          id: "d3",
+          kind: "screen",
+          label: "",
+          quest: null,
+          status: "revoked",
+          paused: false,
+          scans: null,
+        },
       ],
       quests: [{ id: "q1", title: { ar: "قاعة", en: null }, points: 10 }],
+      kioskQuests: [],
     });
-    expect(devicesPageOf(null)).toEqual({ devices: [], quests: [] });
+    expect(devicesPageOf(null)).toEqual({ devices: [], quests: [], kioskQuests: [] });
+    expect(
+      devicesPageOf({
+        devices: [{ id: "k1", kind: "kiosk", label: "Gate", status: "active", scans: 12 }],
+        kioskQuests: [{ id: "q2", title: { en: "Gate" }, points: 5 }],
+      }),
+    ).toMatchObject({
+      devices: [{ id: "k1", kind: "kiosk", scans: 12 }],
+      kioskQuests: [{ id: "q2", title: { ar: null, en: "Gate" }, points: 5 }],
+    });
   });
 
   it("reads a screen code, or why none is shown", async () => {
@@ -171,7 +190,14 @@ describe("the rotating code's timing and words (T-309)", () => {
     expect(shutKey("ended")).toBe("device.shut.ended");
     expect(shutKey("event_ended")).toBe("device.shut.eventEnded");
     expect(shutKey("other")).toBe("device.shut.hidden");
-    const device = { id: "d", kind: "station" as const, label: "", quest: null, paused: false };
+    const device = {
+      id: "d",
+      kind: "station" as const,
+      label: "",
+      quest: null,
+      paused: false,
+      scans: null,
+    };
     expect(deviceStatusKey({ ...device, status: "active" })).toBe("devices.status.active");
     expect(deviceStatusKey({ ...device, status: "active", paused: true })).toBe(
       "devices.status.paused",

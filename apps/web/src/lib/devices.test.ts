@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { devicesOf, stationQuests, statusOf, type DeviceLine } from "#src/lib/devices.ts";
+import {
+  devicesOf,
+  kioskQuests,
+  stationQuests,
+  statusOf,
+  type DeviceLine,
+} from "#src/lib/devices.ts";
 import type { CategoryView } from "#src/lib/quests.ts";
 
 const LINE = {
@@ -40,8 +46,10 @@ describe("the Devices page's list (T-309)", () => {
         activated: true,
         status: "active",
         paused: false,
+        scans: null,
       },
     ]);
+    expect(devicesOf({ devices: [{ ...LINE, kind: "kiosk", scans: 7 }] })?.[0]?.scans).toBe(7);
     expect(devicesOf({ devices: [{ ...LINE, quest: null, pairedBy: null }] })?.[0]).toMatchObject({
       quest: null,
       pairedBy: null,
@@ -72,5 +80,19 @@ describe("the Devices page's list (T-309)", () => {
       },
     ] as unknown as CategoryView[];
     expect(stationQuests(categories).map((item) => item.id)).toEqual(["a", "d"]);
+  });
+
+  it("offers a kiosk only the scan quests with the kiosk (T-309b)", () => {
+    const categories = [
+      {
+        quests: [
+          quest("a", "scan_qr", ["kiosk"]),
+          quest("b", "scan_qr", ["screen_qr"]),
+          quest("c", "location", ["quest_qr"]),
+          quest("d", "scan_qr", ["quest_qr", "kiosk"]),
+        ],
+      },
+    ] as unknown as CategoryView[];
+    expect(kioskQuests(categories).map((item) => item.id)).toEqual(["a", "d"]);
   });
 });

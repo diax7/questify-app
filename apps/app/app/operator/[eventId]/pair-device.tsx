@@ -18,9 +18,9 @@ import {
   pairingCodeOf,
   previewDevice,
   scannedPairingCode,
+  type DevicesPage,
   type Failed,
   type Preview,
-  type StationQuest,
 } from "#src/operator/devices.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
@@ -30,7 +30,7 @@ const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"
 type Step =
   | Readonly<{ kind: "code" }>
   | Readonly<{ kind: "checked"; code: string; preview: Preview; key: string }>
-  | Readonly<{ kind: "done"; label: string }>;
+  | Readonly<{ kind: "done"; label: string; kiosk: boolean }>;
 
 const KIND_KEYS = {
   station: "device.kind.station",
@@ -96,16 +96,18 @@ function ConfirmPairing({
   onPair,
 }: Readonly<{
   step: Extract<Step, { kind: "checked" }>;
-  quests: readonly StationQuest[];
+  quests: DevicesPage;
   busy: boolean;
   onPair: (questId: string, label: string) => void;
 }>) {
   const { t, language } = useI18n();
   const [questId, setQuestId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
-  if (step.preview.kind !== "station") {
+  if (step.preview.kind === "screen") {
     return <AppText accessibilityRole="alert">{t("operator.devices.stationsOnly")}</AppText>;
   }
+  const kiosk = step.preview.kind === "kiosk";
+  const choices = kiosk ? quests.kioskQuests : quests.quests;
   return (
     <>
       <AppText variant="title">{t(KIND_KEYS[step.preview.kind])}</AppText>
@@ -114,9 +116,13 @@ function ConfirmPairing({
           ? t("devices.clientUnknown")
           : t("devices.client", { client: step.preview.client })}
       </AppText>
-      {quests.length === 0 ? <AppText>{t("operator.devices.noQuests")}</AppText> : null}
-      {quests.length === 0 ? null : <AppText variant="label">{t("devices.quest")}</AppText>}
-      {quests.map((quest) => (
+      {choices.length === 0 ? (
+        <AppText>
+          {t(kiosk ? "operator.devices.noKioskQuests" : "operator.devices.noQuests")}
+        </AppText>
+      ) : null}
+      {choices.length === 0 ? null : <AppText variant="label">{t("devices.quest")}</AppText>}
+      {choices.map((quest) => (
         <Button
           key={quest.id}
           kind={quest.id === questId ? "primary" : "quiet"}
@@ -141,23 +147,23 @@ function ConfirmPairing({
 }
 
 /**
- * Staff mode's Pair a device (T-309, FR-1713, ADR-239): scan the QR a station page shows, or type its code; see what the
- * screen said it is, pick the quest (one with the screen QR, inside the operator's limit) and a label, and pair. Big
- * screens are paired from the dashboard only.
+ * Staff mode's Pair a device (T-309, FR-1713, ADR-239): scan the QR a station or kiosk page shows, or type its code; see
+ * what the screen said it is, pick the quest (one with the screen QR for a station, the kiosk for a kiosk, inside the
+ * operator's limit) and a label, and pair. Big screens are paired from the dashboard only.
  */
 export default function PairDeviceScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const [typed, setTyped] = useState("");
   const [step, setStep] = useState<Step>({ kind: "code" });
-  const [quests, setQuests] = useState<readonly StationQuest[]>([]);
+  const [quests, setQuests] = useState<DevicesPage>({ devices: [], quests: [], kioskQuests: [] });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<LocalizedText | "network" | null>(null);
 
   useEffect(() => {
     void fetchDevices(api.session, eventId).then((answer) => {
       if (answer.kind === "page") {
-        setQuests(answer.page.quests);
+        setQuests(answer.page);
       }
     });
   }, [eventId]);
@@ -189,7 +195,7 @@ export default function PairDeviceScreen() {
     const answer = await claimDevice(api.session, eventId, claim, checked.key);
     setBusy(false);
     if (answer.kind === "paired") {
-      setStep({ kind: "done", label: label.trim() });
+      setStep({ kind: "done", label: label.trim(), kiosk: checked.preview.kind === "kiosk" });
     } else {
       failed(answer);
     }
@@ -230,6 +236,7 @@ export default function PairDeviceScreen() {
             <AppText variant="title" accessibilityRole="alert">
               {t("operator.devices.done", { label: step.label })}
             </AppText>
+            {step.kiosk ? <AppText>{t("devices.kioskTip")}</AppText> : null}
             <Button
               kind="quiet"
               label={t("operator.devices.pair")}

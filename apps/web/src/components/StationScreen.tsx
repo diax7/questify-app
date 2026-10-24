@@ -29,7 +29,7 @@ type Shown =
 const RETRY_MS = 3000;
 
 /** Asks the screen to stay on where the browser can (Screen Wake Lock); a refusal changes nothing. */
-function useWakeLock(): void {
+export function useWakeLock(): void {
   useEffect(() => {
     let lock: { release: () => Promise<void> } | undefined;
     const ask = () => {
