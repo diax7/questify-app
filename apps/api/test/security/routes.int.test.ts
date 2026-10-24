@@ -146,6 +146,22 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own code only; another player's code answers 404, through meet_pass_state (test/plays/meet, test/db/meet)",
   "POST /v1/meet":
     "the scanner's own enrollment in the code's event only (not_in_event, naming no one, otherwise); the other player is named by username and avatar only, never their id, through meet_player (test/plays/meet, test/db/meet)",
+  "POST /v1/taps":
+    "the player's own enrollment in the tag's event only: an unknown, revoked or another event's tag answers 404 unknown_tag (NT404 in tap_quest), the quest is the tag's, never the caller's choice; per player at most 60 a minute (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/operator/events/:eventId/quests/:questId/nfc-tags/prepare":
+    "an operator of that event with write_nfc only (OP403, OA403, OS403 in nfc_writer); a quest of another event answers 404; stores nothing; per operator at most 60 a minute (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/operator/events/:eventId/quests/:questId/nfc-tags":
+    "the same operator, event, quest and tag the write ticket was issued for (CTO B), then nfc_writer's checks again in register_nfc_tag; per operator at most 60 a minute (test/nfc/routes, test/db/nfc-tags)",
+  "GET /v1/operator/events/:eventId/nfc-tags":
+    "an operator of that event with write_nfc only; their own writes only (operator_nfc_tags) (test/nfc/routes, test/db/nfc-tags)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/nfc-tags":
+    "members of that organizer only, inside their event limit; another organizer's event answers 404 (AN404 in quest_nfc_tags) (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/organizers/:organizerId/events/:eventId/nfc-tags/:tagId/move":
+    "members inside their event limit; a tag and a quest of that event only (NT404, NT409 not_nfc in move_nfc_tag) (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/organizers/:organizerId/events/:eventId/nfc-tags/:tagId/revoke":
+    "members inside their event limit; a tag of that event only (NT404 in revoke_nfc_tag) (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/nfc-tags/revoke-all":
+    "members inside their event limit; a quest of that event only (AN404 in revoke_quest_nfc_tags) (test/nfc/routes, test/db/nfc-tags)",
   "GET /v1/organizers/:organizerId/events/:eventId/community-goals":
     "members of that organizer only (member route, walked below); another organizer's event answers 404 (AN404 in community_goals) (test/community/routes, test/db/community)",
   "POST /v1/organizers/:organizerId/events/:eventId/community-goals":

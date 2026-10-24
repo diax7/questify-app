@@ -20,6 +20,7 @@ import {
   rehearsalData,
   stepInUse,
   boostInUse,
+  tagsInUse,
   goalInUse,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
@@ -208,6 +209,8 @@ function answer<T>(
       throw goalInUse();
     case "boost_in_use":
       throw boostInUse();
+    case "tags_in_use":
+      throw tagsInUse();
     case "invalid_item":
       throw invalidItem();
     case "poll_locked":

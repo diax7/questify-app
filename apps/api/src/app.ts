@@ -31,6 +31,8 @@ import { registerGameRoutes, registerMeetRoutes, registerPlayRoutes } from "#src
 import { registerPassportRoutes } from "#src/passport/routes";
 import { registerRevealRoutes } from "#src/reveal/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
+import { registerNfcRoutes } from "#src/nfc/routes";
+import { createTicketKey } from "#src/nfc/ticket";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
 import { registerResultsPlayerRoutes } from "#src/results/routes";
@@ -47,6 +49,7 @@ import {
   createQuestCodeKey,
   createRevealCodeKey,
   createStepCodeKey,
+  createTagCodeKey,
 } from "#src/quests/qr";
 import { createRanking } from "#src/ranking/ranking";
 import { registerRankingRoutes } from "#src/ranking/routes";
@@ -269,6 +272,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerPlayRoutes(app, { pool: options.pool, ranking, settings });
   registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
   registerGameRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
+  registerNfcRoutes(app, {
+    pool: options.pool,
+    tagKey: createTagCodeKey(config.qrSecret),
+    ticketKey: createTicketKey(config.qrSecret),
+    keys: signInDeps.keys,
+    settings,
+    dashboardOrigin: config.auth.dashboardOrigin,
+    ranking,
+  });
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });
   registerResultsPlayerRoutes(app, { pool: options.pool });

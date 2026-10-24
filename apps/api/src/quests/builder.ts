@@ -114,6 +114,8 @@ export type Refused =
   | Readonly<{ kind: "goal_in_use" }>
   /** A boost doubles this category (T-307): it stays while the boost does. */
   | Readonly<{ kind: "boost_in_use" }>
+  /** NFC tags are registered for this quest (T-308): revoke them first. */
+  | Readonly<{ kind: "tags_in_use" }>
   /** The quest item named is removed or another event's (T-304d). */
   | Readonly<{ kind: "invalid_item" }>
   /**
@@ -491,6 +493,10 @@ export async function withEvent<T>(
     // A boost doubles the category (migration 0055).
     if (pg.code === "23503" && pg.table === "boost") {
       return { kind: "boost_in_use" };
+    }
+    // NFC tags name the quest (migration 0056).
+    if (pg.code === "23503" && pg.table === "nfc_tag") {
+      return { kind: "tags_in_use" };
     }
     throw error;
   }

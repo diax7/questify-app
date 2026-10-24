@@ -6,6 +6,7 @@ import {
   createQuestCodeKey,
   createRevealCodeKey,
   createStepCodeKey,
+  createTagCodeKey,
   inviteCode,
   inviteCodeUrl,
   myCode,
@@ -13,11 +14,14 @@ import {
   questCodeUrl,
   revealCode,
   stepCode,
+  tagCode,
+  tagCodeUrl,
   verifyInviteCode,
   verifyMyCode,
   verifyQuestCode,
   verifyRevealCode,
   verifyStepCode,
+  verifyTagCode,
 } from "#src/quests/qr";
 
 const KEY = createQuestCodeKey("q".repeat(32));
@@ -292,5 +296,60 @@ describe("hidden category codes (T-304c)", () => {
     });
     expect(verifyRevealCode(REVEAL_KEY, quest, CATEGORY)).toEqual({ kind: "not_questify" });
     expect(verifyRevealCode(REVEAL_KEY, step, CATEGORY)).toEqual({ kind: "not_questify" });
+  });
+});
+
+describe("NFC tag codes (T-308)", () => {
+  const SECRET = "q".repeat(32);
+  const TAG_KEY = createTagCodeKey(SECRET);
+  const TAG = "7c2d0c2e-3b4d-4e5f-8a6b-7c8d9e0f1a2b";
+
+  it("refuses a short secret", () => {
+    expect(() => createTagCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens a tag's token to its id and version, 50 characters of format 0x06", () => {
+    const token = tagCode(TAG_KEY, TAG, 3);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(Buffer.from(token, "base64url")[0]).toBe(0x06);
+    expect(verifyTagCode(TAG_KEY, token)).toEqual({ kind: "valid", tagId: TAG, version: 3 });
+    expect(verifyTagCode(createTagCodeKey("r".repeat(32)), token)).toEqual({ kind: "forged" });
+    expect(verifyTagCode(TAG_KEY, swapped(token, 30, token[30] === "A" ? "B" : "A"))).toEqual({
+      kind: "forged",
+    });
+    expect(verifyTagCode(TAG_KEY, "hello")).toEqual({ kind: "not_questify" });
+    expect(tagCodeUrl("https://questify.nafes.com", token)).toBe(
+      `https://questify.nafes.com/t/${token}`,
+    );
+  });
+
+  it("accepts only the canonical encoding", () => {
+    const token = tagCode(TAG_KEY, TAG, 1);
+    const last = token.at(-1) ?? "A";
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const sibling = alphabet[(alphabet.indexOf(last) ^ 1) % 64] ?? "A";
+    expect(verifyTagCode(TAG_KEY, `${token.slice(0, -1)}${sibling}`)).toEqual({
+      kind: "not_questify",
+    });
+  });
+
+  it("never opens as any other code, nor they as a tag", () => {
+    const tag = tagCode(TAG_KEY, TAG, 1);
+    expect(verifyQuestCode(createQuestCodeKey(SECRET), tag, TAG)).toEqual({ kind: "not_questify" });
+    expect(verifyStepCode(createStepCodeKey(SECRET), tag, TAG)).toEqual({ kind: "not_questify" });
+    expect(verifyRevealCode(createRevealCodeKey(SECRET), tag, TAG)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyMyCode(createMyCodeKey(SECRET), tag)).toEqual({ kind: "not_questify" });
+    expect(verifyInviteCode(createInviteCodeKey(SECRET), tag)).toEqual({ kind: "not_questify" });
+    for (const other of [
+      questCode(createQuestCodeKey(SECRET), TAG, 1),
+      myCode(createMyCodeKey(SECRET), TAG, 1),
+      inviteCode(createInviteCodeKey(SECRET), TAG),
+      stepCode(createStepCodeKey(SECRET), TAG, 1),
+      revealCode(createRevealCodeKey(SECRET), TAG, 1),
+    ]) {
+      expect(verifyTagCode(TAG_KEY, other)).toEqual({ kind: "not_questify" });
+    }
   });
 });

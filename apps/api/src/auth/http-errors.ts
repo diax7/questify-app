@@ -1403,3 +1403,59 @@ export const flashEventNotLive = make(
   "أطلق المهمة الخاطفة عندما تكون الفعالية مباشرة أو أثناء التجربة.",
   "Launch the flash quest while the event is live, or during a rehearsal.",
 );
+/** A tap on a tag that is not registered, was revoked or is not of an event the player is in (T-308). */
+export const unknownTag = make(
+  404,
+  "unknown_tag",
+  "لم نتعرّف على هذه البطاقة. امسح رمز QR الخاص بالمهمة.",
+  "We don't recognize this tag. Scan the quest's QR code instead.",
+);
+/** A tag's address that is not a Questify tag, or not signed by Questify (T-308); logged apart. */
+export const invalidProof = make(
+  422,
+  "invalid_proof",
+  "هذه البطاقة لا تعمل في Questify.",
+  "This tag doesn't work with Questify.",
+);
+/** Writing a tag for a quest that is not a scan quest with NFC on (T-308). */
+export const questNotNfc = make(
+  409,
+  "not_nfc",
+  "هذه المهمة لا تستخدم بطاقة NFC.",
+  "This quest doesn't use an NFC tag.",
+);
+/** A second confirm of one prepared tag (T-308, CTO C): prepare a new one. */
+export const tagAlreadyRegistered = make(
+  409,
+  "already_registered",
+  "سُجّلت هذه البطاقة من قبل. ابدأ كتابة جديدة.",
+  "This tag is already registered. Start a new write.",
+);
+/** A tag write whose details are not valid (T-308): `field` names which (code, ticket, uid, label). */
+export const invalidTag = make(
+  422,
+  "invalid_tag",
+  "تعذّر تسجيل البطاقة. ابدأ كتابة جديدة.",
+  "The tag couldn't be registered. Start a new write.",
+);
+/** A quest with NFC tags cannot be deleted (T-308, the tag's key): revoke them first. */
+export const tagsInUse = make(
+  409,
+  "tags_in_use",
+  "لهذه المهمة بطاقات NFC، فألغِها أولًا.",
+  "This quest has NFC tags. Revoke them first.",
+);
+/** No tag is written once the event ended (T-308). */
+export const tagEventClosed = make(
+  409,
+  "event_closed",
+  "انتهت الفعالية، فلا تُكتب لها بطاقات.",
+  "The event has ended, so no tags can be written.",
+);
+/** An operator limited to some quests writing a tag for another (T-308). */
+export const outsideOperatorQuests = make(
+  403,
+  "outside_quests",
+  "هذه المهمة ليست من مهامك.",
+  "This quest isn't one of yours.",
+);

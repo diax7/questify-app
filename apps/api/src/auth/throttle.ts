@@ -35,6 +35,9 @@ export const BUCKETS = {
   meetRefused: "meet_refused",
   gameRound: "game_round",
   gameResult: "game_result",
+  nfcPrepare: "nfc_prepare",
+  nfcConfirm: "nfc_confirm",
+  nfcTap: "nfc_tap",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

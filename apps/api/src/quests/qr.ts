@@ -5,10 +5,17 @@ const MIN_SECRET_LENGTH = 32;
 /**
  * Layout and purpose of a signed code, its first byte. 0x01: a static printed quest QR (FR-305); 0x02: a player's My
  * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203); 0x05: a hidden
- * category's secret code (T-304c, ADR-204). A rotating code (FR-314) gets its own. Each purpose also has its own key,
+ * category's secret code (T-304c, ADR-204); 0x06: an NFC tag (T-308, ADR-234). A rotating code (FR-314) gets its own. Each purpose also has its own key,
  * so a code of one purpose never opens as another.
  */
-const FORMAT = { quest: 0x01, my: 0x02, operator: 0x03, step: 0x04, reveal: 0x05 } as const;
+const FORMAT = {
+  quest: 0x01,
+  my: 0x02,
+  operator: 0x03,
+  step: 0x04,
+  reveal: 0x05,
+  tag: 0x06,
+} as const;
 type Purpose = keyof typeof FORMAT;
 const ID_BYTES = 16;
 const VERSION_BYTES = 4;
@@ -273,4 +280,36 @@ export function verifyRevealCode(
     return { kind: "wrong_category" };
   }
   return { kind: "valid", categoryId: opened.id, version: opened.version };
+}
+
+export type TagCodeKey = CodeKey<"tag">;
+
+/**
+ * @throws Error when the secret is shorter than 32 characters.
+ */
+export function createTagCodeKey(secret: string): TagCodeKey {
+  return deriveKey(secret, "tag");
+}
+
+/** The token an NFC tag holds (T-308, ADR-234): the tag's id and its version. The quest is found on the server. */
+export function tagCode(key: TagCodeKey, tagId: string, version: number): string {
+  return sign(key, tagId, version);
+}
+
+/** The address a tag holds: the dashboard's `/t/{token}` page, which the app reads from the tag. */
+export function tagCodeUrl(origin: string, token: string): string {
+  return `${origin}/t/${token}`;
+}
+
+export type TagCodeCheck =
+  | Readonly<{ kind: "valid"; tagId: string; version: number }>
+  | Readonly<{ kind: "not_questify" }>
+  | Readonly<{ kind: "forged" }>;
+
+/** Opens a tag's token. Whether the tag is registered, active and of this version is the database's (`tap_quest`). */
+export function verifyTagCode(key: TagCodeKey, token: string): TagCodeCheck {
+  const opened = open(key, token);
+  return opened.kind === "valid"
+    ? { kind: "valid", tagId: opened.id, version: opened.version }
+    : opened;
 }

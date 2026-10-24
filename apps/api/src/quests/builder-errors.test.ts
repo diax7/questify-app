@@ -48,6 +48,9 @@ describe("the builder's answer to a refusal raised mid-write", () => {
     expect(await failingWith(pgError({ code: "23503", table: "passport_stamp" }))).toEqual({
       kind: "step_in_use",
     });
+    expect(await failingWith(pgError({ code: "23503", table: "nfc_tag" }))).toEqual({
+      kind: "tags_in_use",
+    });
   });
 
   it("lets any other error through, as an error", async () => {

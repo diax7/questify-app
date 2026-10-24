@@ -74,6 +74,11 @@ export const FEATURES: FeatureRegistry = {
   meetSomeone: { gated: false },
   /** Mini-games (T-305, FR-1009, ADR-213): the owner turns them off for an event, which hides every game quest. */
   miniGames: { gated: false },
+  /**
+   * NFC tags (T-308, F-105, ADR-234): off for the platform, the app hides NFC, tags can't be written or tapped, and every
+   * NFC quest completes by its QR. No event switch: the quest's own NFC method is the organizer's.
+   */
+  nfcTags: { gated: false, level: "platform" },
   polls: { gated: false },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },
