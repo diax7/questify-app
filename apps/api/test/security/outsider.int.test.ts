@@ -432,6 +432,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot practise a scan or read a station's numbers (T-311)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.operator_practice_scan(gen_random_uuid(), gen_random_uuid(), 1)",
+        "SELECT public.practice_wipe_owed(gen_random_uuid())",
+        "SELECT * FROM public.operator_station_today(gen_random_uuid(), gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      // PUBLIC holds no EXECUTE on them either: the grants name the API's role alone (CTO MINOR-5).
+      const open = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+           AND p.proname IN ('operator_practice_scan', 'practice_wipe_owed', 'operator_station_today')`,
+      );
+      expect(open).toEqual([]);
+      // The same read finds the API role's grants, so an empty answer above is not a query that reads nothing.
+      const granted = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.grantee = 'questify_app'::regrole AND a.privilege_type = 'EXECUTE'
+           AND p.proname IN ('operator_practice_scan', 'practice_wipe_owed', 'operator_station_today')
+         ORDER BY 1`,
+      );
+      expect(granted.map((row) => row.proname)).toEqual([
+        "operator_practice_scan",
+        "operator_station_today",
+        "practice_wipe_owed",
+      ]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

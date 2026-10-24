@@ -18,13 +18,17 @@ import {
   notOperator,
   operatorInvitesFull,
   operatorPlayOff,
+  outsideOperatorQuests,
   ownerOnly,
   rehearsing,
   tooManyResets,
   unauthenticated,
 } from "#src/auth/http-errors";
+import type { AuthKeys } from "#src/auth/keys";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { callerOf, parse } from "#src/auth/request";
+import { BUCKETS } from "#src/auth/throttle";
+import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { cardInForce } from "#src/join/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import {
@@ -45,7 +49,9 @@ import {
   type OperatorsDeps,
 } from "#src/operators/operators";
 import { myQr, resetMyQr } from "#src/operators/my-qr";
+import { practiceScan } from "#src/operators/practice";
 import { operatorScan, type ScanDeps } from "#src/operators/scan";
+import { stationToday } from "#src/operators/station-today";
 import { verifyInviteCode, type MyCodeKey } from "#src/quests/qr";
 import type { Ranking } from "#src/ranking/ranking";
 
@@ -57,6 +63,7 @@ const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = { ...player, config: { ...player.config, idempotent: true } } as const;
 
 const eventParams = z.object({ eventId: z.uuid() });
+const stationParams = z.object({ eventId: z.uuid(), questId: z.uuid() });
 const inviteParams = z.object({ eventId: z.uuid(), inviteId: z.uuid() });
 const operatorParams = z.object({ eventId: z.uuid(), operatorId: z.uuid() });
 const listQuery = z.strictObject({ lang: z.enum(["ar", "en"]).default("ar") });
@@ -250,7 +257,14 @@ const playerIdOf = (request: { player?: { id: string } | undefined }): string =>
 
 export type OperatorPlayerDeps = OperatorsDeps &
   ScanDeps &
-  Readonly<{ myKey: MyCodeKey; ranking: Ranking }>;
+  Readonly<{ myKey: MyCodeKey; ranking: Ranking; keys: Pick<AuthKeys, "playerKey"> }>;
+
+/** My station today's reads per player (T-311): Home reads once every 30 seconds; a loop gets 429 with Retry-After. */
+export const STATION_TODAY_LIMIT = {
+  bucket: BUCKETS.stationToday,
+  max: 60,
+  windowSeconds: 60,
+} as const satisfies DeviceLimit;
 
 /**
  * The person's side (T-204, T-205): claim an invite, list the events they staff, pick a station, scan, join as a player
@@ -334,6 +348,65 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
       throw tooManyResets();
     }
     return { token };
+  });
+
+  // FR-928: the picked station's counts by everyone, today and in the last hour; counts only.
+  app.get(
+    "/v1/operator/events/:eventId/stations/:questId/today",
+    player,
+    async (request, reply) => {
+      const { eventId, questId } = parse(stationParams, request.params);
+      const operatorId = playerIdOf(request);
+      await holdBack(
+        deps.pool,
+        [{ limit: STATION_TODAY_LIMIT, key: deps.keys.playerKey(operatorId) }],
+        true,
+        reply,
+      );
+      const counts = await stationToday(deps, operatorId, { eventId, questId });
+      switch (counts.kind) {
+        case "counts":
+          return { today: counts.today, lastHour: counts.lastHour };
+        case "not_operator":
+          throw notOperator();
+        case "not_station":
+          throw notFound();
+        case "outside_station":
+          throw outsideOperatorQuests();
+      }
+    },
+  );
+
+  // FR-929: a practice scan, on its own route with no ranking and no Idempotency-Key; the real route has no flag.
+  app.post("/v1/operator/scan/practice", player, async (request) => {
+    const body = parse(scanBody, request.body);
+    const result = await practiceScan(
+      { pool: deps.pool, myKey: deps.myKey },
+      { operatorId: playerIdOf(request), questId: body.questId, code: body.code },
+      callerOf(request),
+    );
+    switch (result.kind) {
+      case "not_operator":
+        throw notOperator();
+      case "completed":
+        return {
+          result: "completed",
+          player: result.player,
+          points: result.points,
+          occurrence: result.occurrence,
+          practice: true,
+        };
+      case "already_completed":
+        return { result: "already_completed", player: result.player, practice: true };
+      case "refused":
+        return {
+          result: "refused",
+          reason: result.reason,
+          ...(result.detail === undefined ? {} : { detail: result.detail }),
+          player: result.player,
+          practice: true,
+        };
+    }
   });
 
   // FR-923, FR-924: one result for the three colours; a removed operator gets 403 and leaves operator mode.

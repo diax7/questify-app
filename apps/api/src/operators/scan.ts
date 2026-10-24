@@ -51,7 +51,7 @@ export type ScanResult =
   | Readonly<{ kind: "not_operator" }>
   | Readonly<{ kind: "key_reused" }>;
 
-type Judged =
+export type Judged =
   | Readonly<{ kind: "completed"; row: Row }>
   | Readonly<{ kind: "refused"; reason: RedReason; detail?: string }>
   | Readonly<{ kind: "already_completed" }>
@@ -63,8 +63,8 @@ type Row = { completion_id: string; points: string; occurrence: number; replayed
 const refused = (reason: RedReason, detail?: string): Judged =>
   detail === undefined ? { kind: "refused", reason } : { kind: "refused", reason, detail };
 
-/** The SQLSTATEs of operator_complete_quest and record_completion (migration 0026). */
-const REFUSALS: Readonly<Record<string, (detail: string | undefined) => Judged>> = {
+/** The SQLSTATEs of operator_complete_quest and record_completion (migration 0026); the practice scan maps them too. */
+export const REFUSALS: Readonly<Record<string, (detail: string | undefined) => Judged>> = {
   OP403: () => ({ kind: "not_operator" }),
   OQ404: () => refused("quest_not_found"),
   OA403: () => refused("ability_off"),
@@ -108,7 +108,7 @@ async function judge(
  * Who the station just scanned. The database names only a player of the quest's event, and only to an operator of
  * that event: someone outside it, an unknown quest or a removed operator get no one.
  */
-async function subjectOf(
+export async function subjectOf(
   client: PoolClient,
   questId: string,
   playerId: string,

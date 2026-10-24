@@ -487,6 +487,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; results of a survey quest of that event only, names not shown, through survey_summary (test/plays/survey-share, test/db/challenge-survey-share)",
   "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/votes":
     "members inside their event limit; counts of a vote quest of that event only, never who voted (test/plays/routes, test/db/vote-quiz)",
+  "POST /v1/operator/scan/practice":
+    "only an operator of the quest's event with the scan ability, inside their quest limit; the real door undone in the database and the transaction always rolled back, so nothing is written; names only that event's players (test/operators/practice, test/db/practice-scan)",
+  "GET /v1/operator/events/:eventId/stations/:questId/today":
+    "only an operator of that event, a station quest of that event inside their quest limit; counts only ; 60 a minute per operator (test/operators/practice, test/db/practice-scan)",
   "POST /v1/operator/scan":
     "only an operator of the quest's event with the scan ability, inside their quest limit; names only that event's players; never a score or balance (test/operators/operators, test/db/operators)",
   "POST /v1/me/contact/code":

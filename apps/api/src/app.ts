@@ -272,6 +272,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     ...operatorDeps,
     myKey: createMyCodeKey(config.qrSecret),
     ranking,
+    keys: signInDeps.keys,
   });
   registerDeskRoutes(app, {
     pool: options.pool,

@@ -1616,6 +1616,9 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   manual_awards: "staff: the team's award list",
   operator_scan_subject: "staff: the station's result screen (the scan itself is gated)",
   operator_stations: "staff: the operator's stations (the scan itself is gated)",
+  operator_station_today: "staff: counts of the operator's station, no quest offered (T-311)",
+  practice_wipe_owed:
+    "staff: an operator's practice scan asks whether the go-live wipe is owed; the practice runs the gated scan door (T-311)",
   quest_bulk_count: "staff: the team's bulk award preview",
   quest_item_misses: "staff: the team's quest items",
   quest_items: "staff: the team's quest items",
