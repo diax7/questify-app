@@ -74,12 +74,26 @@ export type Translate = (
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
 
+function buildTranslator(language: Language, terms: EventTerms): Translate {
+  const words = wordParams(terms, language);
+  return (key, params) => translate(key, language, { ...words, ...params });
+}
+
+/**
+ * One translator per language for Questify's own words, built once: panels list `t` in their hook dependencies, and a
+ * new function on every render re-ran their loads in an endless loop (thousands of requests a minute).
+ */
+const DEFAULT_TRANSLATORS: Readonly<Record<Language, Translate>> = {
+  ar: buildTranslator("ar", DEFAULT_TERMS),
+  en: buildTranslator("en", DEFAULT_TERMS),
+};
+
 /**
  * The shipped texts in one language (translation-store overrides join with the first organizer screens). A text that
  * names the quest, category or player word shows Questify's own unless `terms` are given, as the Event words preview
- * does; the rest of the dashboard follows the event's words in T-311c.
+ * does; the rest of the dashboard follows the event's words in T-311c. Without `terms` the same function comes back
+ * every time, so it is safe in hook dependencies.
  */
 export function translatorFor(language: Language, terms: EventTerms = DEFAULT_TERMS): Translate {
-  const words = wordParams(terms, language);
-  return (key, params) => translate(key, language, { ...words, ...params });
+  return terms === DEFAULT_TERMS ? DEFAULT_TRANSLATORS[language] : buildTranslator(language, terms);
 }

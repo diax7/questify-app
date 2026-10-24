@@ -99,6 +99,8 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
   expect(paid.status(), await paid.text()).toBe(200);
   expect(await paid.json()).toMatchObject({ replayed: false });
 
+  // The list is read every 15 seconds; reading it again now shows the screen working without that wait.
+  await page.reload();
   const device = page.getByRole("listitem").filter({ hasText: "شاشة القاعة ب" });
   await expect(device).toContainText("يعمل");
   await device.getByRole("button", { name: "إلغاء الربط" }).click();

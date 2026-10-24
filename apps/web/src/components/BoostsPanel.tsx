@@ -266,6 +266,7 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  /** Sends one change; on success closes the form first, so a list already read again cannot be edited then shut. */
   const call = async (
     method: "POST" | "PATCH" | "DELETE",
     path: string,
@@ -279,12 +280,12 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
     setBusy(false);
     if (!result.ok) {
       failed(result.body);
-      return false;
+      return;
     }
     setProblem(null);
     setNotice(done);
+    setDraft(null);
     await load();
-    return true;
   };
   const save = async () => {
     if (draft === null) {
@@ -295,15 +296,12 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
       setProblem(t("boosts.page.invalid", { fields: field }));
       return;
     }
-    const saved = await call(
+    await call(
       draft.id === null ? "POST" : "PATCH",
       draft.id === null ? "" : `/${draft.id}`,
       boostBodyOf(draft, timeZone),
       t("boosts.page.saved"),
     );
-    if (saved) {
-      setDraft(null);
-    }
   };
   const confirm = async () => {
     if (asking === null) {

@@ -59,4 +59,10 @@ describe("language helpers", () => {
     expect(translatorFor("ar")("staff.attemptsLeft", { count: 3 })).toBe("المحاولات المتبقية: 3");
     expect(translatorFor("en")("staff.signIn")).toBe("Sign in");
   });
+
+  it("hands back the same translator for a language, so hooks that depend on it do not loop", () => {
+    expect(translatorFor("ar")).toBe(translatorFor("ar"));
+    expect(translatorFor("en")).toBe(translatorFor("en"));
+    expect(translatorFor("ar")).not.toBe(translatorFor("en"));
+  });
 });

@@ -10,6 +10,12 @@ test("launches and ends a flash quest, and builds, edits and deletes a boost", a
   page,
 }, info) => {
   test.setTimeout(90_000);
+  let boostReads = 0;
+  page.on("request", (request) => {
+    if (request.method() === "GET" && request.url().endsWith("/boosts")) {
+      boostReads += 1;
+    }
+  });
   await openBuilder(page, info.project.name);
   const builder = page.url();
   // Opening the event's page starts its rehearsal (its code), so a flash quest can be launched before go-live.
@@ -63,4 +69,6 @@ test("launches and ends a flash quest, and builds, edits and deletes a boost", a
   await page.getByRole("alertdialog").getByRole("button", { name: "حذف" }).click();
   await expect(page.getByText("حُذفت المضاعفة.")).toBeVisible();
   await expect(page.getByText("لا توجد مضاعفات بعد.")).toBeVisible();
+  // The page reads its list on open, after each change and every 15 s, never in a loop (it once sent thousands).
+  expect(boostReads).toBeLessThan(20);
 });
