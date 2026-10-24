@@ -3264,3 +3264,37 @@ every method and operator in the event's day (timezone and day start hour) and i
 are T-310's Inbox count, read once for the badge and Home every 30 s. The station list keeps this operator's own counts.
 The read is limited to 60 a minute per player. Q-213 asks whether only this operator's scans should count.
 **Why:** two operators at one booth see one truth; an indexed range count costs a few milliseconds.
+
+## ADR-252 — The event's words reach every text through the translator
+**Status:** Proposed (Claude, 2026-10-24; T-311b).
+**Decision:** The event's quest, category and player words are message placeholders the translator fills in, so a
+screen never passes them: `{questOne}` and `{questMany}` as typed, `{questOneCap}` and `{questCap}` with a capital
+(the same four for `category` and `player`; `wordParams` in `packages/shared/src/config/terms.ts`). The root translator
+fills Questify's own words; inside an event and inside staff mode, `TermsScope` fills the event's. A screen's own value
+for the same name wins. The parity test between Arabic and English ignores these names, because Arabic often cannot
+take a renamed noun where English can (ADR-253); an admin's text override still keeps each language's own set. The
+existing `{player}`, `{quest}` and `{category}` placeholders stay what they were: a username and titles.
+**Why:** about 90 texts name a quest or category; passing the words at each call site would miss some and show
+Questify's word by mistake. A test (`apps/app/src/i18n/words.test.ts`) reads every key the staff and event screens
+name and fails on a hard-coded «مهمة/فئة» or "quest/category".
+
+## ADR-253 — Arabic uses a renamed noun only where it needs no article, agreement or count
+**Status:** Proposed (Claude, 2026-10-24; T-311b; Arabic lines checked with `ux-araby`).
+**Decision:** In Arabic a renamed noun stands only as a label or heading («{questMany}», «{questOne}: {title}»), as an
+indefinite object after a verb («أنجز {questOne} لتدخل الترتيب»), in a construct («جائزة {questOne}», «مكافأة إكمال
+{categoryOne}») or after لا. Every other sentence is rephrased with no noun and no gendered pronoun for it («انتهت المدة
+المحددة»، «هذا غير متاح الآن»، «لم يحن موعد البدء بعد»), while English keeps the noun ("This mission has ended."). Two
+feature names that cannot be a label are rebuilt without an adjective that must agree: community quest «{questOne}
+للجميع», flash quest «{questOne} بوقت محدود!». Staff mode's player word follows the same rules (FR-941): «رمز
+{playerOne}», and the manual award's search no longer names the player («من تمنح؟»).
+**Why:** ADR-058 asks for rephrasing where a sentence cannot absorb a variable noun; a masculine noun such as «تحدٍّ»
+would break «هذه المهمة جماعية»-style agreement.
+
+## ADR-254 — Staff mode reads the event's words from the same cached configuration as the player app
+**Status:** Proposed (Claude, 2026-10-24; T-311b).
+**Decision:** `OperatorProvider` loads `GET /v1/events/{id}/config` through `loadEventConfig` (cached copy at
+`questify.config.<eventId>` first, then the fresh one) and offers `terms` to staff screens (`useOperator().terms`); its
+screens use the event's currency (the review queue's amount, the desk's cancel text), and the award search no longer
+names the player. Questify home and Questify-level texts keep the defaults (FR-942). The dashboard builder's headings
+and labels keep Questify's words until T-311c.
+**Why:** one source for the words, so the two apps cannot disagree; it fixes the FR-941 gap Q-214.

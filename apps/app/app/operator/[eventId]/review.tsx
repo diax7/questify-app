@@ -1,4 +1,4 @@
-import { formatNumber, termFor, DEFAULT_TERMS, type LocalizedText } from "@questify/shared";
+import type { LocalizedText } from "@questify/shared";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -9,6 +9,7 @@ import { Avatar } from "#src/components/Avatar.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { completedText } from "#src/event/amount.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
@@ -28,7 +29,7 @@ import { PracticeLocked } from "#src/operator/Practice.tsx";
  */
 function OperatorReviewScreen() {
   const { t, language } = useI18n();
-  const { eventId } = useOperator();
+  const { eventId, terms } = useOperator();
   const { first } = useLocalSearchParams<{ first?: string }>();
   const [queue, setQueue] = useState<ReviewItem[] | undefined | "failed">(undefined);
   const [reason, setReason] = useState("");
@@ -101,9 +102,7 @@ function OperatorReviewScreen() {
                 })}
               </AppText>
             </View>
-            <AppText muted>
-              {`+${formatNumber(current.points, language)} ${termFor(DEFAULT_TERMS.currency, language)}`}
-            </AppText>
+            <AppText muted>{completedText(t, terms, language, current.points)}</AppText>
             {current.marked ? (
               <AppText accessibilityRole="alert">{t("operator.review.marked")}</AppText>
             ) : null}

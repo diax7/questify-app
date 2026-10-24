@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TERMS, wordParams } from "#src/config/terms";
 import { MESSAGES } from "./messages";
 import { placeholdersOf } from "./placeholders";
 import {
@@ -27,9 +28,24 @@ describe("the shipped messages", () => {
     }
   });
 
-  it("uses the same placeholders in both languages", () => {
+  // The event's words are filled in everywhere (FR-941, FR-942), and Arabic often cannot take a renamed noun where
+  // English can (ADR-252), so a text may name one in a single language.
+  const wordNames = Object.keys(wordParams(DEFAULT_TERMS, "en"));
+  const withoutWords = (text: string): string[] =>
+    placeholdersOf(text).filter((name) => !wordNames.includes(name));
+
+  it("uses the same placeholders in both languages, the event's words aside", () => {
     for (const [key, text] of entries) {
-      expect(placeholdersOf(text.ar), key).toEqual(placeholdersOf(text.en));
+      expect(withoutWords(text.ar), key).toEqual(withoutWords(text.en));
+    }
+  });
+
+  it("names only event words that exist", () => {
+    const wordLike = /^(quest|category|player)[A-Z]/;
+    for (const [key, text] of entries) {
+      for (const name of placeholdersOf(`${text.ar} ${text.en}`).filter((n) => wordLike.test(n))) {
+        expect(wordNames, `${key} {${name}}`).toContain(name);
+      }
     }
   });
 

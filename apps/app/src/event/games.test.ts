@@ -33,12 +33,17 @@ import {
   type GameSheet,
   type PendingResult,
 } from "#src/event/games.ts";
+import { withWords } from "#src/i18n/words.ts";
 import { drawable, faceUp, gateTap, secondsLeftOf } from "#src/games/round.ts";
 
 const translate = createTranslator(MESSAGES);
-const tIn =
-  (language: Language) => (key: MessageKey, values?: Readonly<Record<string, string | number>>) =>
-    translate(key, language, values);
+const tIn = (language: Language) =>
+  withWords(
+    (key: MessageKey, values?: Readonly<Record<string, string | number>>) =>
+      translate(key, language, values),
+    DEFAULT_TERMS,
+    language,
+  );
 const headers = new Headers();
 const ok = (body: unknown, status = 200): AuthedResult => ({ kind: "ok", status, body, headers });
 const refused = (

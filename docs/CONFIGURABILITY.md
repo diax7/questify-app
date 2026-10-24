@@ -133,8 +133,13 @@ for an event.
 - **The app** keeps one copy of the configuration per event (`questify.config.<eventId>`, beside the platform's), shows
   the cached words first and then the fresh ones, and Questify's defaults until either exists. An icon it does not know
   shows the coin. A scan paid in another event names the amount with Questify's words, since that event's are unknown.
-- **Not yet:** renaming "quest" and "category" (ADR-058 names them; they need a requirement first, Q-105), and the big
-  screen (T-5xx) uses these words when it exists.
+- **Quest and category (T-311b, FR-942):** stored and read like the other words (`terms.quest`, `terms.category`, defaults «مهمة /
+  مهام», «فئة / فئات»). Texts name them with placeholders the translator fills (`{questOne}`, `{questMany}`, `{questOneCap}`,
+  `{questCap}`, the same for `category` and `player`; ADR-252), so a screen never passes them. Arabic takes a renamed noun only
+  as a label or heading, an indefinite object or a construct, and is otherwise rephrased with no noun (ADR-253). The player app
+  and staff mode use them (staff mode loads the event's configuration with the player app's cached copy, ADR-254); Questify
+  home keeps the defaults. The dashboard builder's own texts follow in T-311c (Q-215); the big screen (T-5xx) uses the words
+  when it exists.
 
 ## What can be configured
 

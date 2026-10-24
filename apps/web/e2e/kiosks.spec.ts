@@ -116,7 +116,9 @@ test("pairs a kiosk opened from the Devices page; its camera reads a live code a
   await page.goto(`${eventUrl}/devices`);
   await page.getByLabel("الرمز الظاهر على الشاشة").fill(code);
   await page.getByRole("button", { name: "متابعة" }).click();
-  await page.getByRole("combobox", { name: "المهمة" }).selectOption({ label: "كشك البوابة" });
+  await page
+    .getByRole("combobox", { name: "مهمة", exact: true })
+    .selectOption({ label: "كشك البوابة" });
   await page.getByRole("textbox", { name: "الاسم" }).fill("كشك البوابة أ");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
   await expect(page.getByText("ثبّت الجهاز اللوحي على هذه الصفحة")).toBeVisible();

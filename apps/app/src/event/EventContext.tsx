@@ -5,6 +5,7 @@ import { api, keyValueStore } from "#src/api/app-session.ts";
 import { helpDeskOn, loadEventConfig, locationQuestsOn, nfcTagsOn } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
 import { livePollSecondsOf } from "#src/event/polls.ts";
+import { TermsScope } from "#src/i18n/provider.tsx";
 
 type EventValue = Readonly<{
   eventId: string;
@@ -106,7 +107,11 @@ export function EventProvider({
       notePaid,
     ],
   );
-  return <EventContext.Provider value={value}>{children}</EventContext.Provider>;
+  return (
+    <EventContext.Provider value={value}>
+      <TermsScope terms={terms}>{children}</TermsScope>
+    </EventContext.Provider>
+  );
 }
 
 /** The words of the event the screen is inside. */

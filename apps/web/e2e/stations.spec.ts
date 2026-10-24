@@ -64,7 +64,9 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
   await page.getByLabel("الرمز الظاهر على الشاشة").fill(code.toLowerCase());
   await page.getByRole("button", { name: "متابعة" }).click();
   await expect(page.getByText("تقول الشاشة إنها:")).toBeVisible();
-  await page.getByRole("combobox", { name: "المهمة" }).selectOption({ label: "شاشة القاعة" });
+  await page
+    .getByRole("combobox", { name: "مهمة", exact: true })
+    .selectOption({ label: "شاشة القاعة" });
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة القاعة ب");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
   await expect(page.getByText("تم الربط. تظهر المهمة على الشاشة خلال ثوانٍ.")).toBeVisible();

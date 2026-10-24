@@ -67,7 +67,7 @@ overlap the ones above were merged into them.
 | Q-116 | Console reads are not audited yet (T-210 CTO review): `GET /v1/admin/activation-requests`, `/v1/admin/events?code=` and `/v1/admin/events/{id}` show an owner's email and write no audit row, while SECURITY threat 5 promises every admin read is logged. Claude's recommendation: T-701 (console foundation) adds one audit row per console read, with the rest of the console | Until then a misused admin account's reads leave no trail | 7 |
 | Q-117 | Times and kind after activation (T-210 CTO review): an organizer can still change an activated event's start, end and kind (0009's column grants), so ADR-142's checks (times ahead, a venue for a physical event) and any paid window (ADR-076) can be undone after activation. Claude's recommendation: lock the end to at most the activated window and keep a physical event's venue required, in T-701 or when pricing by duration is decided | An event could run longer than what was activated | 7 |
 | Q-106 | Spending after the event (ADR-135): with "spending lowers rank" on, should purchases in the days the shop stays open after the end also lower the score? Built: no, the final score is frozen at the end so rank prizes never move. Claude's recommendation: keep it so | If yes, results would change after the event and T-214 would need a frozen results snapshot | 8 |
-| Q-105 | Renamed words beyond T-117 (FR-404, FR-405, FR-940): (1) the star is one of the five currency icons, and it is also the usual XP symbol (ASSET_INDEX); an event that picks the star could confuse points with XP once XP shows (T-4xx). (2) ADR-058 also names renaming "quest" and "category", but no requirement asks for it yet. Claude's recommendation: keep the star until XP has its own symbol on screen, then decide; write a requirement for quest and category renames only if an organizer asks | The star choice may need a change when XP ships; quest and category stay fixed words | 8 (brand) |
+| Q-105 | Renamed words beyond T-117 (FR-404, FR-405, FR-940): (1) the star is one of the five currency icons, and it is also the usual XP symbol (ASSET_INDEX); an event that picks the star could confuse points with XP once XP shows (T-4xx). (2) ADR-058 also names renaming "quest" and "category" (answered: FR-942, built in T-311b). Claude's recommendation: keep the star until XP has its own symbol on screen, then decide; write a requirement for quest and category renames only if an organizer asks | The star choice may need a change when XP ships; quest and category stay fixed words | 8 (brand) |
 | Q-095 | Player legal steps (T-110): (1) when a new terms or privacy version is published, the app asks on launch but player routes keep working until the player accepts; should every route refuse until then (T-707's forced re-acceptance)? (2) A 13–17-year-old accepts the terms before the birth year is asked (the code screen comes first); does counsel need a guardian step or a different order (Q-042)? (3) Acceptance records are erased with the account (T-217) unless counsel wants them kept as proof (Q-051, Q-075). Claude's recommendation: keep launch-time asking, ask counsel (2) and (3) in the T-807 batch | Proof of consent and minors' consent against friction at sign-up | 7 |
 | Q-093 | Login SMS ceilings (T-107): the whole platform may send at most 5,000 sign-in SMS an hour (a warning in the log at half), and each number 5 an hour and 10 a day. The platform ceiling is a brake on SMS pumping (ADR-099: Questify pays every SMS); a 20,000-player event whose crowd all signs in within an hour would hit it, and players beyond it are offered email. Claude's recommendation: keep 5,000 until the Msegat quote at volume is known, then set it from the largest booked event (about a quarter of its players an hour) | The SMS bill's worst case against a big event's opening rush | 6 |
 | Q-092 | Account deletion and the points ledger (found in T-105): FR-126 and T-217 say deleting an account removes the player's points, but FR-317 and NFR-019 make the ledger append-only for every role. Claude's recommendation (same as Q-086): deletion anonymises the player row, the ledger rows stay (event totals and rankings stay right), the completion's `device_id` is cleared, and the profile and rankings stop showing the player | T-217's design and the privacy policy's wording | 8 (with Q-086 and counsel) |
@@ -551,6 +551,23 @@ ADR-251: the block counts every completion of the station's quest today (all met
 keeps this operator's own counts. Agree, or should the block count only this operator's scans?
 
 ## Q-214 — Staff mode does not use the event's renamed words (2026-10-24, found in the T-311 plan)
-T-117 marked FR-941 delivered, but staff mode (built later in T-205) never loads the event's configuration, so its
-screens use Questify's default player, operator and currency words. Recommended: T-311b loads the event's words in
-`OperatorProvider` with the quest and category words. Agree?
+T-117 marked FR-941 delivered, but staff mode (built later in T-205) never loaded the event's configuration, so its
+screens used Questify's default player, operator and currency words. **Built in T-311b (ADR-254, Proposed):** staff
+mode loads the event's words with the player app's source. Agree?
+
+## Q-215 — The dashboard builder still says "quest" and "category" (2026-10-24, T-311b)
+FR-942 says the renamed words apply "everywhere in that event". T-311b renamed them in the player app and staff mode
+(about 85 texts, with the Event words section and its preview). About 110 organizer-facing texts remain (the quest
+builder, codes, operators, audience, community, flash, boosts, quest items, awards, devices pages), each needing
+ADR-253's rule and a web test. Recommended: T-311c, Standard bar, after Dhia reads the Arabic lines of ADR-253.
+
+## Q-216 — An operator who never joined a private event sees Questify's own words (2026-10-24, T-311b)
+`GET /v1/events/{id}/config` answers a player for a public event, or for an event they joined. An operator of an
+unlisted or private event who never joined it as a player gets 404, so staff mode shows the defaults. Recommended: leave
+it until it happens (operators join through the operator card, T-205); if it does, widen the event read to the event's
+operators in a migration with an outsider test.
+
+## Q-217 — Arabic lines for Dhia's eye (2026-10-24, T-311b)
+The lines most worth a read are in ADR-253: «{questOne} للجميع» (community quest), «{questOne} بوقت محدود!» (flash
+quest), «هذا غير متاح الآن», «انتهت المدة المحددة», «من تمنح؟» (manual award search), «لا شيء مما أُسند إليك يستخدم
+رمز QR على شاشة». Several Arabic lines no longer name the quest at all.

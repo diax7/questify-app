@@ -121,6 +121,7 @@ function IconChoice({
 function Preview({ language, draft }: Readonly<{ language: Language; draft: EventTerms }>) {
   const t = translatorFor(language);
   const shown = previewOf(draft);
+  const shownT = (previewLanguage: Language) => translatorFor(previewLanguage, shown);
   return (
     <div className={styles.card}>
       <h3 className={styles.subtitle}>{t("terms.preview")}</h3>
@@ -138,6 +139,9 @@ function Preview({ language, draft }: Readonly<{ language: Language; draft: Even
             <p>
               {p("quests.repeatShort", { player: shown.player[previewLanguage].one, count: 3 })}
             </p>
+            <p>{shownT(previewLanguage)("nav.quests")}</p>
+            <p>{shownT(previewLanguage)("eventHome.noRank")}</p>
+            <p>{shownT(previewLanguage)("awards.kind.bonus")}</p>
           </div>
         );
       })}
@@ -146,7 +150,8 @@ function Preview({ language, draft }: Readonly<{ language: Language; draft: Even
 }
 
 /**
- * The event's words (FR-404, FR-405, FR-940): the currency's name and icon, and what players and operators are called.
+ * The event's words (FR-404, FR-405, FR-940, FR-942): the currency's name and icon, and what players, operators, quests
+ * and categories are called.
  * The whole set is saved at once; a word left empty keeps Questify's default. A missing form is named before sending.
  */
 export function EventWords({ language, organizerId, eventId, initial, saved }: Props) {

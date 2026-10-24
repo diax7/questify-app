@@ -31,6 +31,7 @@ export {
   readEventTerms,
   termFor,
   validateEventTerms,
+  wordParams,
 } from "./config/terms";
 export type { ConfigIssue, Validation } from "./config/validate";
 export {

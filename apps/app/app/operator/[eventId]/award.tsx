@@ -1,4 +1,4 @@
-import { DEFAULT_TERMS, formatNumber, termFor, type LocalizedText } from "@questify/shared";
+import { formatNumber, type LocalizedText } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -132,12 +132,11 @@ function FindCard({
   onFound: (player: FoundPlayer | null) => void;
   onRemoved: () => void;
 }>) {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<Shown | null>(null);
   const [missed, setMissed] = useState(false);
-  const player = termFor(DEFAULT_TERMS.player, language);
   const search = async () => {
     setBusy(true);
     setProblem(null);
@@ -156,7 +155,7 @@ function FindCard({
   return (
     <View style={{ gap: 12 }}>
       <Field
-        label={t("operator.award.find", { player })}
+        label={t("operator.award.find")}
         placeholder={t("operator.award.findHint")}
         autoCapitalize="none"
         autoCorrect={false}
@@ -170,9 +169,7 @@ function FindCard({
         disabled={busy || query.trim() === ""}
         onPress={() => void search()}
       />
-      {missed ? (
-        <AppText accessibilityRole="alert">{t("operator.award.noMatch", { player })}</AppText>
-      ) : null}
+      {missed ? <AppText accessibilityRole="alert">{t("operator.award.noMatch")}</AppText> : null}
       <ProblemLine shown={problem} />
       {found === null ? null : (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -181,7 +178,7 @@ function FindCard({
         </View>
       )}
       {found !== null && !found.active ? (
-        <AppText accessibilityRole="alert">{t("operator.award.inactive", { player })}</AppText>
+        <AppText accessibilityRole="alert">{t("operator.award.inactive")}</AppText>
       ) : null}
     </View>
   );

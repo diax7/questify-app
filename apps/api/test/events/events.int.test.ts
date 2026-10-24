@@ -491,6 +491,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
       expect(await auditOf(event.id, "event.terms.update")).toHaveLength(1);
     });
 
+    it("saves the quest and category words, and the app's configuration carries them", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie);
+      const quest = {
+        ar: { one: "مغامرة", many: "مغامرات" },
+        en: { one: "mission", many: "missions" },
+      };
+      const category = {
+        ar: { one: "مرحلة", many: "مراحل" },
+        en: { one: "stage", many: "stages" },
+      };
+      const saved = await save(org.id, event.id, org.cookie, { quest, category });
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json()).toStrictEqual({ terms: { ...DEFAULT_TERMS, quest, category } });
+      await owner("UPDATE event SET access = 'public' WHERE id = $1", [event.id]);
+      await setStatus(event.id, "live", "-1 hour", "1 day");
+      const config = await test.app.inject({ method: "GET", url: `/v1/config?event=${event.id}` });
+      expect(config.json<{ terms: unknown }>().terms).toStrictEqual({
+        ...DEFAULT_TERMS,
+        quest,
+        category,
+      });
+      const platform = await test.app.inject({ method: "GET", url: "/v1/config" });
+      expect(platform.json<{ terms: unknown }>().terms).toStrictEqual(DEFAULT_TERMS);
+    });
+
     it("replaces the whole set: a word left out returns to the default, and the icon saves on its own", async () => {
       const org = await newOrganizer();
       const event = await created(org.id, org.cookie);
@@ -553,7 +579,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
       [{ currency: { ar: GEMS.ar } }, "currency.en"],
       [{ currency: { icon: "trophy" } }, "currency.icon"],
       [{ player: { ...STUDENTS, en: { one: "student1", many: "students" } } }, "player.en.one"],
-      [{ quest: GEMS }, ""],
+      [{ prize: GEMS }, ""],
+      [{ quest: { ar: GEMS.ar, en: { one: "mission", many: "mission {1}" } } }, "quest.en.many"],
+      [{ category: { en: GEMS.en } }, "category.ar"],
     ])("names the field it refuses (%j)", async (payload, field) => {
       const org = await newOrganizer();
       const event = await created(org.id, org.cookie);

@@ -4,6 +4,10 @@ import { checkTerms, previewOf, termFieldOf, termsBodyOf } from "#src/lib/terms.
 
 const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
 const STUDENTS = { ar: { one: "طالب", many: "طلاب" }, en: { one: "student", many: "students" } };
+const MISSIONS = {
+  ar: { one: "مغامرة", many: "مغامرات" },
+  en: { one: "mission", many: "missions" },
+};
 const EMPTY = { ar: { one: "", many: "" }, en: { one: " ", many: "" } };
 
 const draft = (patch: Partial<EventTerms>): EventTerms => ({ ...DEFAULT_TERMS, ...patch });
@@ -26,6 +30,26 @@ describe("termsBodyOf", () => {
     ).toStrictEqual({ currency: { icon: "leaf" } });
     const player = { ...DEFAULT_TERMS.player, en: { one: "player", many: "gamers" } };
     expect(termsBodyOf(draft({ player }))).toStrictEqual({ player });
+  });
+});
+
+describe("the quest and category words", () => {
+  it("are carried when renamed and left out when they are Questify's own", () => {
+    expect(termsBodyOf(draft({ quest: MISSIONS }))).toStrictEqual({ quest: MISSIONS });
+    expect(termsBodyOf(draft({ category: EMPTY }))).toStrictEqual({});
+  });
+
+  it("name the empty form of a partly filled word", () => {
+    const quest = { ar: MISSIONS.ar, en: { one: "mission", many: "" } };
+    expect(checkTerms(draft({ quest }))).toStrictEqual({
+      ok: false,
+      field: { word: "quest", language: "en", form: "many" },
+    });
+    expect(termFieldOf("category.ar.one")).toStrictEqual({
+      word: "category",
+      language: "ar",
+      form: "one",
+    });
   });
 });
 
@@ -85,6 +109,15 @@ describe("previewOf", () => {
       currency: { ...DEFAULT_TERMS.currency, icon: "gem" },
       player: STUDENTS,
       operator: DEFAULT_TERMS.operator,
+      quest: DEFAULT_TERMS.quest,
+      category: DEFAULT_TERMS.category,
     });
+  });
+
+  it("shows a renamed quest and category, and the default for a partly filled one", () => {
+    const category = { ar: { one: "مرحلة", many: "" }, en: DEFAULT_TERMS.category.en };
+    const shown = previewOf(draft({ quest: MISSIONS, category }));
+    expect(shown.quest).toStrictEqual(MISSIONS);
+    expect(shown.category).toStrictEqual(DEFAULT_TERMS.category);
   });
 });

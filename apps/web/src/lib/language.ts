@@ -1,7 +1,10 @@
 import {
+  DEFAULT_TERMS,
   MESSAGES,
   NO_OVERRIDES,
   createTranslator,
+  wordParams,
+  type EventTerms,
   type Language,
   type MessageKey,
 } from "@questify/shared";
@@ -71,7 +74,12 @@ export type Translate = (
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
 
-/** The shipped texts in one language (translation-store overrides join with the first organizer screens). */
-export function translatorFor(language: Language): Translate {
-  return (key, params) => translate(key, language, params);
+/**
+ * The shipped texts in one language (translation-store overrides join with the first organizer screens). A text that
+ * names the quest, category or player word shows Questify's own unless `terms` are given, as the Event words preview
+ * does; the rest of the dashboard follows the event's words in T-311c.
+ */
+export function translatorFor(language: Language, terms: EventTerms = DEFAULT_TERMS): Translate {
+  const words = wordParams(terms, language);
+  return (key, params) => translate(key, language, { ...words, ...params });
 }

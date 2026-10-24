@@ -185,8 +185,9 @@ function Row({ row, height }: Readonly<{ row: ShownRow; height: number }>) {
  * details only (FR-604); no player can hide from it (FR-605).
  */
 export default function RankingScreen() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { eventId } = useEvent();
+  const terms = useTerms();
   const styles = useThemedStyles(makeStyles);
   const { loaded, load, scope, choose, today } = useRanking(eventId);
   const [available, setAvailable] = useState(0);
@@ -215,7 +216,11 @@ export default function RankingScreen() {
       {tabs}
       {loaded.stale ? <AppText muted>{t("ranking.refreshFailed")}</AppText> : null}
       {rows.length === 0 ? (
-        <AppText muted>{t(scope === "today" ? "ranking.todayEmpty" : "ranking.empty")}</AppText>
+        <AppText muted>
+          {scope === "today"
+            ? t("ranking.todayEmpty", { currency: termFor(terms.currency, language, 2) })
+            : t("ranking.empty")}
+        </AppText>
       ) : null}
       {loaded.ranking.me === null && rows.length > 0 ? (
         <AppText muted>{t("eventHome.noRank")}</AppText>

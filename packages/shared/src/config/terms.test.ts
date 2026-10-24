@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TERMS, readEventTerms, termFor, validateEventTerms } from "./terms";
+import { DEFAULT_TERMS, readEventTerms, termFor, validateEventTerms, wordParams } from "./terms";
 
 const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
+const MISSIONS = {
+  ar: { one: "مغامرة", many: "مغامرات" },
+  en: { one: "mission", many: "missions" },
+};
+const STAGES = { ar: { one: "مرحلة", many: "مراحل" }, en: { one: "stage", many: "stages" } };
 const STUDENTS = { ar: { one: "طالب", many: "طلاب" }, en: { one: "student", many: "students" } };
 
 describe("validateEventTerms", () => {
@@ -10,6 +15,8 @@ describe("validateEventTerms", () => {
       currency: { icon: "gem", ar: { one: " جوهرة ", many: "جواهر" }, en: GEMS.en },
       player: STUDENTS,
       operator: { ar: { one: "مشرف", many: "مشرفون" }, en: { one: "host", many: "hosts" } },
+      quest: MISSIONS,
+      category: STAGES,
     });
     expect(result).toStrictEqual({
       ok: true,
@@ -17,6 +24,8 @@ describe("validateEventTerms", () => {
         currency: { icon: "gem", ...GEMS },
         player: STUDENTS,
         operator: { ar: { one: "مشرف", many: "مشرفون" }, en: { one: "host", many: "hosts" } },
+        quest: MISSIONS,
+        category: STAGES,
       },
     });
   });
@@ -39,6 +48,9 @@ describe("validateEventTerms", () => {
     [{ player: { ar: STUDENTS.ar } }, "player.en"],
     [{ player: { ar: STUDENTS.ar, en: { one: "student" } } }, "player.en.many"],
     [{ operator: { ar: { many: "مشرفون" }, en: STUDENTS.en } }, "operator.ar.one"],
+    [{ quest: { ar: MISSIONS.ar } }, "quest.en"],
+    [{ category: { en: STAGES.en } }, "category.ar"],
+    [{ quest: { ar: MISSIONS.ar, en: { many: "missions" } } }, "quest.en.one"],
   ])("names the missing form of a partly named word", (input, path) => {
     const result = validateEventTerms(input);
     expect(result.ok).toBe(false);
@@ -95,11 +107,26 @@ describe("readEventTerms", () => {
       currency: { ...DEFAULT_TERMS.currency, icon: "gem" },
       player: STUDENTS,
       operator: DEFAULT_TERMS.operator,
+      quest: DEFAULT_TERMS.quest,
+      category: DEFAULT_TERMS.category,
     });
     expect(readEventTerms({ currency: GEMS })).toStrictEqual({
       ...DEFAULT_TERMS,
       currency: { icon: "coin", ...GEMS },
     });
+  });
+
+  it("reads the quest and category words, each on its own", () => {
+    expect(readEventTerms({ quest: MISSIONS })).toStrictEqual({
+      ...DEFAULT_TERMS,
+      quest: MISSIONS,
+    });
+    const read = readEventTerms({
+      quest: { ar: MISSIONS.ar, en: { one: "mission" } },
+      category: STAGES,
+    });
+    expect(read.quest).toStrictEqual(DEFAULT_TERMS.quest);
+    expect(read.category).toStrictEqual(STAGES);
   });
 
   it("drops one bad word and an unknown icon, and keys it does not know", () => {
@@ -112,6 +139,8 @@ describe("readEventTerms", () => {
       currency: { icon: "coin", ...GEMS },
       player: DEFAULT_TERMS.player,
       operator: STUDENTS,
+      quest: DEFAULT_TERMS.quest,
+      category: DEFAULT_TERMS.category,
     });
   });
 
@@ -145,5 +174,43 @@ describe("termFor", () => {
     expect(termFor(GEMS, "en")).toBe("Gems");
     const typed = { ...GEMS, en: { one: "XP point", many: "XP points" } };
     expect(termFor(typed, "en")).toBe("XP points");
+  });
+});
+
+describe("wordParams", () => {
+  it("is the defaults' four forms of each word in English", () => {
+    expect(wordParams(DEFAULT_TERMS, "en")).toStrictEqual({
+      questOne: "quest",
+      questMany: "quests",
+      questOneCap: "Quest",
+      questCap: "Quests",
+      categoryOne: "category",
+      categoryMany: "categories",
+      categoryOneCap: "Category",
+      categoryCap: "Categories",
+      playerOne: "player",
+      playerMany: "players",
+      playerOneCap: "Player",
+      playerCap: "Players",
+    });
+  });
+
+  it("is the Arabic words as typed, with no capitals", () => {
+    const params = wordParams({ ...DEFAULT_TERMS, quest: MISSIONS }, "ar");
+    expect(params["questOne"]).toBe("مغامرة");
+    expect(params["questMany"]).toBe("مغامرات");
+    expect(params["questOneCap"]).toBe("مغامرة");
+    expect(params["questCap"]).toBe("مغامرات");
+    expect(params["categoryMany"]).toBe("فئات");
+  });
+
+  it("follows the event's words and keeps the rest of the typed English", () => {
+    const params = wordParams(
+      { ...DEFAULT_TERMS, quest: { ...MISSIONS, en: { one: "XP mission", many: "XP missions" } } },
+      "en",
+    );
+    expect(params["questOne"]).toBe("XP mission");
+    expect(params["questCap"]).toBe("XP missions");
+    expect(params["questOneCap"]).toBe("XP mission");
   });
 });

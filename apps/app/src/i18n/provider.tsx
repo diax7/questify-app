@@ -9,11 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import {
+  DEFAULT_TERMS,
   MESSAGES,
   NO_OVERRIDES,
   createTranslator,
+  type EventTerms,
   type Language,
-  type MessageKey,
 } from "@questify/shared";
 import { decideBoot, isRtl, languageOfLayout } from "#src/i18n/language.ts";
 import {
@@ -28,8 +29,7 @@ import {
   saveLanguage,
   saveRestartNote,
 } from "#src/i18n/preference.ts";
-
-type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
+import { withWords, type Translate } from "#src/i18n/words.ts";
 
 type I18n = Readonly<{
   language: Language;
@@ -102,10 +102,11 @@ export function I18nProvider({
       return null;
     }
     const translate = createTranslator(MESSAGES, NO_OVERRIDES);
+    // Outside an event the quest and category words are Questify's own (FR-942); `TermsScope` swaps in an event's.
     return {
       language,
       rtl: isRtl(language),
-      t: (key, params) => translate(key, language, params),
+      t: withWords((key, params) => translate(key, language, params), DEFAULT_TERMS, language),
       switchLanguage,
     };
   }, [language, switchLanguage]);
@@ -122,4 +123,20 @@ export function useI18n(): I18n {
     throw new Error("useI18n must be used inside I18nProvider.");
   }
   return value;
+}
+
+/**
+ * Inside an event, the translator fills the event's quest and category words (FR-942) into every text that names
+ * them, so a screen never passes them and never shows Questify's default by mistake.
+ */
+export function TermsScope({
+  terms,
+  children,
+}: Readonly<{ terms: EventTerms; children: ReactNode }>) {
+  const parent = useI18n();
+  const value = useMemo<I18n>(
+    () => ({ ...parent, t: withWords(parent.t, terms, parent.language) }),
+    [parent, terms],
+  );
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

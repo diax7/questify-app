@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 
-/** The event's words (T-117): rename the currency and the player in Arabic and see them where the dashboard uses them. */
-test("the organizer renames the currency and the player", async ({ page }, info) => {
+/**
+ * The event's words (T-117, T-311b): rename the currency, the player and the quest in Arabic and see them where the
+ * dashboard uses them.
+ */
+test("the organizer renames the currency, the player and the quest", async ({ page }, info) => {
   test.setTimeout(90_000);
   await openBuilder(page, info.project.name);
   const eventPage = page.url().replace(/\/quests$/, "");
@@ -11,6 +14,7 @@ test("the organizer renames the currency and the player", async ({ page }, info)
   const words = page.getByRole("region", { name: "كلمات الفعالية" });
   const currency = words.getByRole("group", { name: "العملة", exact: true });
   const player = words.getByRole("group", { name: "اللاعب", exact: true });
+  const quest = words.getByRole("group", { name: "المهمة", exact: true });
   await currency.getByRole("radio", { name: "جوهرة" }).check();
   await currency.getByLabel("بالعربية، مفرد").fill("جوهرة");
   await currency.getByLabel("بالعربية، جمع").fill("جواهر");
@@ -32,12 +36,19 @@ test("the organizer renames the currency and the player", async ({ page }, info)
   await expect(words.getByText("جواهر: 120")).toBeVisible();
   await expect(words.getByText("عدد المرات لكل طالب: 3")).toBeVisible();
   await expect(words.getByText("Gems: 120")).toBeVisible();
+  await quest.getByLabel("بالعربية، مفرد").fill("مغامرة");
+  await quest.getByLabel("بالعربية، جمع").fill("مغامرات");
+  await quest.getByLabel("بالإنجليزية، مفرد").fill("mission");
+  await quest.getByLabel("بالإنجليزية، جمع").fill("missions");
+  await expect(words.getByText("أنجز مغامرة لتدخل الترتيب.")).toBeVisible();
+  await expect(words.getByText("Missions", { exact: true })).toBeVisible();
   await words.getByRole("button", { name: "حفظ الكلمات" }).click();
   await expect(words.getByRole("status")).toHaveText("حُفظت الكلمات.");
   await expect(page.getByRole("link", { name: "طلاب" })).toBeVisible();
 
   await page.reload();
   await expect(currency.getByRole("radio", { name: "جوهرة" })).toBeChecked();
+  await expect(quest.getByLabel("بالإنجليزية، جمع")).toHaveValue("missions");
   await page.getByRole("link", { name: "طلاب" }).click();
   await expect(page.getByRole("heading", { name: "طلاب", level: 2 })).toBeVisible();
 

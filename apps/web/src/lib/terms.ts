@@ -7,7 +7,7 @@ import {
   type Word,
 } from "@questify/shared";
 
-export const WORDS = ["currency", "player", "operator"] as const;
+export const WORDS = ["currency", "player", "operator", "quest", "category"] as const;
 export type WordKey = (typeof WORDS)[number];
 export const FORMS = ["one", "many"] as const;
 

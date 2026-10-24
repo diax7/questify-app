@@ -1,4 +1,4 @@
-import { DEFAULT_TERMS, formatNumber, termFor, type Theme } from "@questify/shared";
+import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -431,7 +431,7 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
  */
 function DeskTab() {
   const { t, language } = useI18n();
-  const { eventId, event } = useOperator();
+  const { eventId, event, terms } = useOperator();
   const { problem, setProblem, settle } = useOutcome();
   const [desk, setDesk] = useState<DeskInfo | undefined>(undefined);
   const [found, setFound] = useState<Found | null>(null);
@@ -465,7 +465,7 @@ function DeskTab() {
       t("operator.desk.cancelTitle"),
       t("operator.desk.cancelBody", {
         player: found?.player.username ?? "",
-        currency: termFor(DEFAULT_TERMS.currency, language),
+        currency: termFor(terms.currency, language, 2),
       }),
       [
         { text: t("operator.desk.keep"), style: "cancel" },

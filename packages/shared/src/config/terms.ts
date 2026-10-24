@@ -17,6 +17,8 @@ export type EventTerms = Readonly<{
   currency: Word & Readonly<{ icon: CurrencyIcon }>;
   player: Word;
   operator: Word;
+  quest: Word;
+  category: Word;
 }>;
 
 /** Questify's own words, used outside an event and for every word an event leaves unset. */
@@ -31,6 +33,8 @@ export const DEFAULT_TERMS: EventTerms = {
     ar: { one: "مشغّل", many: "مشغّلون" },
     en: { one: "operator", many: "operators" },
   },
+  quest: { ar: { one: "مهمة", many: "مهام" }, en: { one: "quest", many: "quests" } },
+  category: { ar: { one: "فئة", many: "فئات" }, en: { one: "category", many: "categories" } },
 };
 
 // Digits of any script would clash with the number beside the word; control, line-break and bidi override or isolate
@@ -64,6 +68,8 @@ const termsShape = z.strictObject({
   currency: currency.optional(),
   player: word.optional(),
   operator: word.optional(),
+  quest: word.optional(),
+  category: word.optional(),
 });
 
 /** What an organizer saves: a word left out keeps the default, and the icon may be saved on its own. */
@@ -112,6 +118,8 @@ export function readEventTerms(value: unknown): EventTerms {
     },
     player: readWord(stored["player"], DEFAULT_TERMS.player),
     operator: readWord(stored["operator"], DEFAULT_TERMS.operator),
+    quest: readWord(stored["quest"], DEFAULT_TERMS.quest),
+    category: readWord(stored["category"], DEFAULT_TERMS.category),
   };
 }
 
@@ -128,4 +136,32 @@ export function termFor(term: Word, language: Language, count?: number): string 
     return term.en.many.charAt(0).toUpperCase() + term.en.many.slice(1);
   }
   return count === 1 ? term.en.one : term.en.many;
+}
+
+const capitalized = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * The event's quest, category and player words as message placeholders (FR-941, FR-942), in the forms a text needs:
+ * `{questOne}` and `{questMany}` as typed, `{questOneCap}` and `{questCap}` with a capital for the start of a line or a
+ * heading, and the same four for `category` and `player`. Arabic has no capitals, and no text gives a renamed noun an
+ * article, agreement or count (ADR-058): it stands as a label before a colon, as a heading, after a verb or
+ * preposition as an indefinite noun, or after لكل.
+ */
+export function wordParams(
+  terms: EventTerms,
+  language: Language,
+): Readonly<Record<string, string>> {
+  const params: Record<string, string> = {};
+  for (const [name, term] of [
+    ["quest", terms.quest],
+    ["category", terms.category],
+    ["player", terms.player],
+  ] as const) {
+    const { one, many } = term[language];
+    params[`${name}One`] = one;
+    params[`${name}Many`] = many;
+    params[`${name}OneCap`] = capitalized(one);
+    params[`${name}Cap`] = capitalized(many);
+  }
+  return params;
 }
