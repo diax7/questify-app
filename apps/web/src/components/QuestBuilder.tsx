@@ -15,6 +15,7 @@ import { FlashLaunchDialog } from "#src/components/FlashControls.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { translatorFor } from "#src/lib/language.ts";
+import { moveTargets } from "#src/lib/nfc-tags.ts";
 import { pollMinutesOf } from "#src/lib/polls.ts";
 import {
   blankQuest,
@@ -312,6 +313,15 @@ export function QuestBuilder({
           surveyUrl={
             editing.quest?.type === "survey"
               ? `/v1/organizers/${organizerId}/events/${eventId}/quests/${editing.quest.id}/survey`
+              : null
+          }
+          nfcTags={
+            editing.quest?.verification.includes("nfc") === true
+              ? {
+                  eventApi: `/v1/organizers/${organizerId}/events/${eventId}`,
+                  questId: editing.quest.id,
+                  targets: moveTargets(categories, editing.quest.id),
+                }
               : null
           }
           busy={b.busy}

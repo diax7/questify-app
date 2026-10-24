@@ -10,7 +10,7 @@ import type { Translate } from "#src/lib/language.ts";
 /** One case as the list answers it (`GET …/flags`, FR-335). */
 export type FlagLine = Readonly<{
   id: string;
-  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed" | "minigame";
+  kind: "shared_device" | "burst" | "far_from_venue" | "impossible_speed" | "minigame" | "nfc_copy";
   status: "open" | "cleared" | "confirmed";
   resolution: "cleared" | "points_removed" | "banned" | null;
   raisedAt: string | null;
@@ -98,6 +98,7 @@ const SCAN_KINDS = {
   far_from_venue: "flags.kind.farFromVenue",
   impossible_speed: "flags.kind.impossibleSpeed",
   minigame: "flags.kind.minigame",
+  nfc_copy: "flags.kind.nfcCopy",
 } as const;
 
 /**

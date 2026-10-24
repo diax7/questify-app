@@ -37,6 +37,15 @@ describe("flagSummary", () => {
   });
 });
 
+describe("flagSummary for a copied NFC tag (T-308)", () => {
+  it("names the case by its taps whose sticker id did not match", () => {
+    expect(flagSummary({ ...LINE, kind: "nfc_copy", scans: 2 })).toEqual({
+      key: "flags.kind.nfcCopy",
+      count: 2,
+    });
+  });
+});
+
 describe("flagSummary for location cases", () => {
   it("names a far-from-venue and an impossible-speed case by their scans", () => {
     expect(flagSummary({ ...LINE, kind: "far_from_venue", scans: 3 })).toEqual({

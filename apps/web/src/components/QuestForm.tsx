@@ -17,9 +17,16 @@ import { QuestPlaceFields } from "#src/components/QuestPlaceFields.tsx";
 import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
 import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
+import { NfcTagsPanel } from "#src/components/NfcTagsPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
-import { hasPlace, textFor, type CategoryView, type QuestDraft } from "#src/lib/quests.ts";
+import {
+  hasPlace,
+  textFor,
+  type Bilingual,
+  type CategoryView,
+  type QuestDraft,
+} from "#src/lib/quests.ts";
 import styles from "#src/components/layout.module.css";
 
 type Props = Readonly<{
@@ -40,6 +47,12 @@ type Props = Readonly<{
   votesUrl: string | null;
   /** A survey quest's results, for the team (T-303). */
   surveyUrl: string | null;
+  /** An existing NFC quest's Tags panel (T-308): the event's API path and where its tags may move; null otherwise. */
+  nfcTags: Readonly<{
+    eventApi: string;
+    questId: string;
+    targets: readonly Readonly<{ id: string; title: Bilingual }>[];
+  }> | null;
   busy: boolean;
   save: (draft: QuestDraft) => void;
   cancel: () => void;
@@ -57,6 +70,7 @@ export function QuestForm({
   locationQuestsOn,
   votesUrl,
   surveyUrl,
+  nfcTags,
   busy,
   save,
   cancel,
@@ -208,6 +222,9 @@ export function QuestForm({
       <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
       {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
       {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
+      {nfcTags === null ? null : (
+        <NfcTagsPanel language={language} timeZone={timeZone} readOnly={busy} {...nfcTags} />
+      )}
       <div className={styles.actions}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
           {t("common.cancel")}
@@ -359,6 +376,12 @@ function QuestRepeatField({
   );
 }
 
+const VERIFICATION_LABELS = {
+  quest_qr: "quests.verification.questQr",
+  my_qr: "quests.verification.myQr",
+  nfc: "quests.verification.nfc",
+} as const;
+
 /** FR-301: how a scan quest is verified, at least one way; a type with no method shows nothing. */
 function QuestVerificationField({
   language,
@@ -377,10 +400,14 @@ function QuestVerificationField({
   if (offered.length < 2) {
     return null;
   }
+  // NFC keeps the quest QR on as its backup (FR-313): ticking it ticks the QR, which can't be unticked while it stays.
+  const nfc = draft.verification.includes("nfc");
   const toggle = (method: QuestVerification, on: boolean) =>
     change({
       verification: offered.filter((item) =>
-        item === method ? on : draft.verification.includes(item),
+        item === method
+          ? on
+          : draft.verification.includes(item) || (method === "nfc" && on && item === "quest_qr"),
       ),
     });
   return (
@@ -391,14 +418,13 @@ function QuestVerificationField({
           <input
             type="checkbox"
             checked={draft.verification.includes(method)}
-            disabled={busy}
+            disabled={busy || (nfc && method === "quest_qr")}
             onChange={(event) => toggle(method, event.target.checked)}
           />
-          <span>
-            {t(method === "quest_qr" ? "quests.verification.questQr" : "quests.verification.myQr")}
-          </span>
+          <span>{t(VERIFICATION_LABELS[method])}</span>
         </label>
       ))}
+      {nfc ? <p className={styles.muted}>{t("quests.verification.nfcHint")}</p> : null}
     </fieldset>
   );
 }

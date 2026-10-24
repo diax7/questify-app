@@ -15,7 +15,7 @@ import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 import { flashWindowValid } from "#src/lib/flash.ts";
 import { itemChoice } from "#src/lib/quest-items.ts";
 
-type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
+export type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 
 /** A quest as the builder API answers it (apps/api/src/quests/routes.ts). */
 export type QuestView = Readonly<{
