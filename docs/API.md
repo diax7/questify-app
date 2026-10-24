@@ -186,6 +186,34 @@ player cancel answers 409 `rank_prize` ("This prize can't be cancelled in the ap
 pending item of that credit is cancelled and its unit returned; a handed-over one stays; a replay answers the item's
 current state.
 
+### Devices: stations, kiosks and big screens (T-309)
+
+A browser opens `/{lang}/station`, `/{lang}/kiosk` or `/{lang}/screen` (no ids in the address) and shows a pairing code
+until staff claim it (ADR-239). Its credential is the `__Host-qs_device` cookie (HttpOnly, Secure, SameSite=Strict,
+Path=/, 400 days; 32 random bytes, stored as its SHA-256), never in a URL, a log, an audit row or an answer body. Every
+device answer is `no-store`; device writes need the dashboard's `Origin`. A revoked, ended (24 h after its event ends),
+idle (30 days) or unknown device answers **401 `device_unpaired`**, and the page starts over. Access kind `device`
+lives only under `/v1/device` (`/v1/devices` is not one); `GET /v1/device`, renew and activate take a pending or not yet
+activated device, every other device route a paired and activated one.
+
+| Operation | Auth | Request → Response | Errors |
+|---|---|---|---|
+| `POST /v1/device/pairing` | public, `Origin` required | `{kind: station\|kiosk\|screen}` → `201 {state: "pending", kind, code: "ABCD-EFGH", expiresAt}` and `Set-Cookie`: a new request (code of 8 from 31 letters and digits, 10 minutes; its keyed hash stored). A call with a live device cookie answers that device's state (`200`, as `GET /v1/device`) and makes nothing, so a reload never unpairs (CTO 4); a pending cookie of another kind asks afresh. 60 per 10 minutes per address bucket | 403 `csrf_rejected`, 422 `invalid_request`, 429 `too_many_attempts`, 503 `busy` (5,000 open requests, logged `device.request_flood`; or no free code after 3 draws) |
+| `GET /v1/device` | device (any state) | → `{state: "pending", kind, expiresAt}` (no code: a reloaded page renews) \| `{state: "paired", activated: false}` \| `{state: "paired", activated: true, kind, label, shut, event: {name {ar, en}}, quest: {title {ar, en}, points} \| null}`. `shut`: why it shows nothing now: `paused` (its operator lost the ability or the quest, CTO 3), `method_off`, `hidden`, `not_started`, `ended`, `event_ended`, else null. Nothing of an event before activation. 30 a minute per device | 401 `device_unpaired`, 429 |
+| `POST /v1/device/pairing/renew` | device (pending) | `{}` → `{state: "pending", kind, code, expiresAt}`: a new code under the same secret (CTO 11); a paired device gets its state | 401, 503 `busy` |
+| `POST /v1/device/activate` | device (paired) | `{}` → `{state: "paired", activated: true}` and a new `Set-Cookie` (CTO 2): the secret held while the page waited is replaced; the old one opens the device (as not activated) only until the new one is first used or 60 seconds pass, and activating with it again inside those 60 seconds draws another fresh secret without extending them. Already activated under its current secret: no new cookie | 401 `device_unpaired` |
+| `GET /v1/device/screen-code` | device (paired station, activated) | → `{state: "open", code, url ({origin}/s/{code}), changesInMs, quest: {title, points}}` \| `{state: <shut reason or not_station>, quest}`: the quest's code for the 30-second window of the database clock (purpose 0x07, ADR-240); the page asks again after `changesInMs` plus up to 1.5 s of jitter. A read; nothing is written. 6 a minute per device | 401, 403 `feature_off` (platform switch `stations` off), 429 |
+| `POST /v1/operator/events/{eventId}/devices/preview` | operator | `{code}` (case, dashes and spaces ignored) → `{kind, client, expiresAt}`: what the screen told the API ("Chrome on Android"), before confirming | 403 `not_operator`, 404 `unknown_code` (unknown, expired or claimed: one answer), 429 (10 claims and previews a minute per operator; 30 unknown codes an hour per event) |
+| `POST /v1/operator/events/{eventId}/devices` | operator (`show_rotating_qr` for a station, `scan_quests` for a kiosk) | `{code, kind, questId, label (1 to 40)}`, **Idempotency-Key** → `201 {id}`: a station for a quest with the screen QR inside the operator's quest limit; never a big screen. Audited `device.pair` | 403 `not_operator` / `ability_off` / `outside_quests`, 404 `not_found` (quest) / `unknown_code`, 409 `not_screen_qr` / `not_kiosk` / `wrong_kind` (the page is another kind) / `limit_reached` (200 active an event) / `event_closed`, 422 `invalid_device {field: kind\|quest\|label}`, 429 |
+| `GET /v1/operator/events/{eventId}/devices` | operator | → `{devices: [device], quests: [{id, title, points}]}`: the devices this operator paired (the latest 50) and the quests they may show or pair a station for (scan quests with the screen QR, in their limit, while `show_rotating_qr` is on). A device: `{id, kind, label, questId, quest {ar, en} \| null, client, pairedBy {type operator\|staff, name} \| null, pairedAt, lastSeenAt, activated, status active\|revoked\|ended, paused, revokedAt}` | 403 `not_operator` |
+| `POST /v1/operator/events/{eventId}/devices/{deviceId}/revoke` | operator | `{}` → `204`: only a device they paired. Audited `device.revoke` | 404 `unknown_device` |
+| `GET /v1/operator/events/{eventId}/quests/{questId}/screen-code` | operator (`show_rotating_qr`) | → as `GET /v1/device/screen-code`, for the operator's own phone (FR-922). 6 a minute per operator and quest | 403 `ability_off` / `outside_quests` / `feature_off`, 404, 429 |
+
+`POST /v1/quests/{id}/complete` takes the proof `{type: "screen", code}` (the `/s/` token): the window is judged inside
+the door on the database clock (the current one, or the previous one for its first 15 seconds); one pay per player per
+45 seconds on the quest (CTO 6). Errors: 422 `invalid_code` (forged, another quest's, not a screen code), 422
+`code_expired` ("This code has changed. Scan the screen again"), 409 `already_completed`.
+
 ### Rewards and handover
 
 | Operation | Auth | Request → Response | Errors |
@@ -297,6 +325,11 @@ current state.
 | `GET …/events/{eventId}/quests/{questId}/nfc-tags` | owner, editor | → `{tags: [{id, label, locked, status, writtenAt, revokedAt, writtenBy, taps, copies, unchecked, lastTapAt}]}` (T-308): active first; `copies` are taps whose sticker id did not match, `unchecked` taps the phone could not check | 404 |
 | `POST …/events/{eventId}/nfc-tags/{tagId}/move` | owner, editor | `{questId}`, **Idempotency-Key** → `204`: to another scan quest of the event with NFC on, without rewriting the tag. Audited `nfc_tag.move` | 404 `unknown_tag`, 409 `not_nfc` / `limit_reached` |
 | `POST …/events/{eventId}/nfc-tags/{tagId}/revoke`, `POST …/events/{eventId}/quests/{questId}/nfc-tags/revoke-all` | owner, editor | `{}`, **Idempotency-Key** → `204` / `{revoked}`: a revoked tag answers `unknown_tag`; its taps stay. Kept while the platform switch is off. Audited | 404 (`unknown_tag` for one tag) |
+| `GET …/events/{eventId}/devices` | owner, editor | → `{devices: [device]}` (T-309; the shape of the operator's list): the event's devices, active first, newest first, the latest 300; never a secret or a code | 404 (AN404) |
+| `POST …/events/{eventId}/devices/preview` | owner, editor | `{code}` → `{kind, client, expiresAt}` | 404 `unknown_code`, 429 (10 a minute per member; 30 unknown codes an hour per event and per organizer; above 200 an hour on the platform ops are alerted, `device.claim_misses_high`) |
+| `POST …/events/{eventId}/devices` | owner, editor | `{code, kind, questId? (a station or kiosk's; none for a big screen), label (1 to 40)}`, **Idempotency-Key** → `201 {id}`: any kind. Audited `device.pair` | as the operator's claim, and 404 (AN404) |
+| `POST …/events/{eventId}/devices/{deviceId}/revoke` | owner, editor | `{}`, **Idempotency-Key** → `204`: the page goes blank at its next request. Audited `device.revoke` | 404 `unknown_device` |
+| `POST …/events/{eventId}/devices/revoke` | owner, editor | `{kind?: station\|kiosk\|screen}`, **Idempotency-Key** → `{revoked}`: every active device of the event, or of one kind ("Revoke all big screens", ADR-241). Audited once, `device.revoke_all`. Open while the `stations` switch is off | 404 |
 | `POST …/events/{eventId}/boosts/{boostId}/end` | owner, editor | `{}`, **Idempotency-Key** → `{startsAt, endsAt, replayed}`: Stop a running boost now (a stopped or ended one is answered as it is). In the minute before its start a boost can be neither changed nor stopped. Audited `boost.end` | 404, 409 `not_started` |
 | `GET …/events/{eventId}/awards` | owner, editor | `?cursor&limit` → `{caps: {each, day}, awards: [{id, at, kind: quest\|award\|removal, points, scoreDelta, balanceDelta, reverses, player: {enrollmentId, username}, quest, reason, bulkId, by: {operator, staff}, removed}], nextCursor}`: every manual entry of the event, newest first (FR-311); `points` of a removal is the full amount it reversed | 400, 404 |
 | `PUT …/events/{eventId}/award-caps` | owner | `{each (1 to 100 000), day (each to 1 000 000)}` → the caps (FR-310): followed by every operator and editor. Audited | 400, 403 `owner_only`, 404 |

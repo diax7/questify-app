@@ -88,6 +88,10 @@ lock, the boost row `FOR UPDATE` (an edit), then reads other boosts; its delete 
 row `FOR UPDATE`; Stop takes the row `FOR NO KEY UPDATE` only, so a payer holding the boost's key (`KEY SHARE` through
 its entry's foreign key) never waits for it; none locks an enrollment. Launch and End now take the rehearsal row then
 the quest `FOR UPDATE`. Payers read the boost with no lock (crossed both ways in `test/db/flash-boosts.int.test.ts`).
+Devices (T-309): a claim takes the operator's assignment `FOR SHARE` (or the team check), the pairing request `FOR
+UPDATE`, the event's device advisory lock, then the insert; `activate_device` and `revoke_device` take only the device
+row `FOR UPDATE`; a station's code is a read with no lock; the removal triggers update devices under the removed row's
+delete. No device function takes a device after an enrollment, so none cycles (crossed in `test/db/devices.int.test.ts`).
 NFC (T-308): `tap_quest` reads the tag with no lock, then record_completion's order (rehearsal row, enrollment), then
 its tap row takes `KEY SHARE` on the tag, so a Revoke (`FOR NO KEY UPDATE`) neither waits nor blocks. `register_nfc_tag`
 takes the assignment `FOR SHARE`, the quest row `FOR NO KEY UPDATE`, then the event's `nfc:` advisory lock, then the tag

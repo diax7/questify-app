@@ -509,3 +509,8 @@ or pairing from the dashboard only?
 ADR-243: a factory-blank sticker is formatted with the Questify link in one step and trusted on Android's success,
 with no read-back before the server registers it. Agree, or format first and ask the operator to tap again for the
 write and its read-back?
+
+## Q-206 — The screen code's tuning knob (2026-10-24, T-309 build)
+The platform tuning `screenQrRotationSeconds` (default 45, 30 to 60) predates ADR-240, which fixes the window at 30
+seconds with 15 seconds' grace on the database clock; the code does not read the knob. Remove it, or make the window
+follow it (the window then has to be read inside the door at judging time)?

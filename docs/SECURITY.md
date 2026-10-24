@@ -112,6 +112,28 @@ whole venues.
 **Deviation recorded.** The alerts for these signals (email senders down, throttle spikes, one address key
 carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 
+### Paired devices and the screen code (T-309, ADR-239, ADR-240)
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V3 sessions (devices) | a device's credential is 256 random bits in the `__Host-qs_device` cookie (HttpOnly, Secure, SameSite=Strict, Path=/), stored as its SHA-256, never in a URL, a log line, an audit row or a body; replaced once at activation (the old one lives until the new one is first used or 60 s, CTO 2); a device ends when revoked, its quest or event is deleted, its operator or team member is removed, 24 h after its event ends, or after 30 idle days | `test/db/devices`, `test/devices/routes` (cookie flags, activation, the log and audit scan) |
+| V8 authorization | access kind `device` only under `/v1/device`, enforced by its own hook on the route's access kind; device definers read their own row by `app_device_id()` and take no event or quest argument, so a station can never ask for another quest's code; a device cookie opens no player, staff, member, owner or admin route and those credentials open no device route (CTO 11) | `route-access.test.ts`, `test/devices/routes`, `test/security/*` |
+| V2 / V11 anti-automation | pairing requests: 60 per 10 minutes per address bucket (a venue's NAT), a reload with a live cookie makes none; claims and previews: 10 a minute per person; unknown codes: 30 an hour per event and per organizer, and above 200 an hour on the platform ops are alerted (`device.claim_misses_high`); codes are 8 of 31 characters (about 40 bits) and live 10 minutes; screen codes: 6 a minute per device and per operator and quest | `test/devices/routes`, `devices.test.ts` |
+| V11 business logic (screen code) | the 30-second window is issued and judged on the database clock only; the previous window counts for its first 15 s; the door judges it after the enrollment lock, and pays one player once per 45 s on the quest (CTO 6) | `test/db/devices` (the screen door table, the clock's property test) |
+
+| Threat | Answer |
+|---|---|
+| A station link shared on WhatsApp (FR-1713) | The address holds nothing: it opens a fresh pairing page that shows no event, no quest and no code |
+| A photographed pairing code | Useless without the cookie only the showing browser holds; claiming it pairs that screen, not the photographer's |
+| Staff tricked into pairing a stranger's remote browser (social engineering through the type-in) | Its codes still expire within 45 s; its label, client and last seen sit on the Devices page with Revoke |
+| A device cookie copied before pairing | Dead after activation (the secret is replaced) |
+| Racing the activation with a copied pending secret (CTO plan re-review 3) | The attacker's activation wins the fresh secret and the real screen's old secret dies, so the real screen goes blank (`device_unpaired`) and starts over; the answer is that blank screen plus Revoke on the Devices page, where the device shows as paired and active while the screen in front of staff shows a new code |
+| A stolen device cookie | Works until Revoke, the event's end + 24 h, or 30 idle days |
+| Guessing a pairing code | Needs a staff account of an event; held at 10 claims a minute per person and 30 unknown codes an hour per event and organizer, with a platform alarm above 200 an hour, against 40 bits that live 10 minutes |
+| A screen code photographed and sent on | Refused once more than 15 s past its change (`code_expired`); relayed live within its 45 s it still pays its scanner (ADR-240, risk accepted: bounded by the quest's caps, one pay per window and the burst flags) |
+| A flood of pairing requests (CTO 9) | At 5,000 open requests new pairings answer 503 `busy` (logged `device.request_flood`, which the error tracker alerts on) for up to 10 minutes; paired devices are never touched |
+| An operator who lost the ability or the quest keeps a station running (CTO 3) | The station shows "Paused by the event team" and no code until the ability or the quest comes back |
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

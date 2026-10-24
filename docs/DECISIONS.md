@@ -3076,6 +3076,14 @@ until it is revoked, its operator is removed, its quest or event is deleted, 24 
 idle days. Once paired, the device's secret is replaced (`activate`; the old one lives at most 60 more seconds) before it sees anything of the event. A device paired by an operator works only while that operator still has the ability and the quest (else it is paused). Removing an operator or a team member revokes what they paired; who paired stays in the audit. One venue address may open 60 requests in 10 minutes, and a page that already holds a cookie never opens another. A new `device` access kind lives under `/v1/device`. Secrets and codes never appear in a URL, log or audit. (CTO plan review 2026-10-24.)
 **Why:** the TV sign-in pattern: the device types nothing and its credential is never shown, so a shared link or a
 photographed code opens nothing (FR-1713).
+**Build note (T-309, 2026-10-24):** the cookie is looked up by a definer that takes its hash (`device_session`, as
+`player_session_owner` does for players) rather than a new pre-identity setting; the guard then sets `app.device_id`.
+Only hashes of codes are stored, so `GET /v1/device` answers a pending page without its code and a reloaded page asks
+for a fresh one under the same secret (`renew`). Staff see what the screen said it is before confirming (`POST
+…/devices/preview`, counted as a claim), and a claim names the page's kind (`wrong_kind` otherwise). Staff mode pairs
+stations only until T-309b adds the `kiosk` method (a kiosk claim answers `not_kiosk`). The removal triggers do nothing
+without active devices and delete, rather than revoke, the devices of an event being deleted (CTO plan re-review 1).
+The operator's phone shows the hint "Keep your screen on" instead of `expo-keep-awake` (no new dependency).
 
 ## ADR-240 — Rotating screen QR
 **Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-203.
@@ -3086,6 +3094,10 @@ It shows on a paired station page or on an operator's phone (`show_rotating_qr`)
 **Risk accepted:** a code relayed live within its 45 seconds pays its scanner; bounded by the quest's caps and period
 and watched by the burst flags.
 **Why:** FR-314: a photo shared after the code changed must not pay; one clock removes clock skew.
+**Build note (T-309, 2026-10-24):** a station's answer names why it shows no code (`paused`, `method_off`, `hidden`,
+`not_started`, `ended`, `event_ended`); a Draft or Scheduled event shows codes for rehearsal accounts. An expired code
+answers 422 `code_expired` ("This code has changed. Scan the screen again"). The platform tuning
+`screenQrRotationSeconds` is not read (Q-206).
 
 ## ADR-241 — The big-screen link holds nothing
 **Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-202. Amends FR-1713's "regenerate a big-screen link".

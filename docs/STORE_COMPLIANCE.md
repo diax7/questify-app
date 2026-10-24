@@ -175,6 +175,12 @@ What App Review needs from Questify:
    system sheet). Android: `android.permission.NFC` (normal) and the NFC feature not required. The note says NFC is
    optional and every NFC quest also has its QR, so the reviewer needs no tag; the demo event gets an NFC quest. The
    sticker's id is the sticker's, not the player's; Data safety and privacy answers are unchanged.
+   **Stations and the screen QR (T-309):** station, kiosk and big-screen pages are web pages on organizer hardware, in
+   neither store build. The app gains staff-mode screens (Pair a device, Rotating QR, My paired devices) and a scanner
+   case for `/s/` codes: no new permission, entitlement or native module, nothing downloaded (the method is data, the
+   code that reads it ships in the binary). The demo event's screen-QR quest is shown to the reviewer on a station page
+   paired beforehand (the review notes give its link: "open it on any screen and scan it"); stations are optional and
+   every demo quest has another way in.
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

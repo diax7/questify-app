@@ -624,6 +624,27 @@ checked), created_at)`. Both: row-level security forced, PUBLIC revoked, no gran
 not touched by the rehearsal wipe (their taps go with the completions); the event's `BEFORE DELETE` trigger deletes
 its taps and tags first.
 
+### device_request and paired_device (migration 0057, T-309, ADR-239, ADR-240)
+**Built:** `device_request (id, secret_hash bytea 32 unique, code_hash bytea 32 unique, kind station|kiosk|screen,
+client (0 to 60: a browser and system name only), expires_at (10 minutes), created_at)`: a browser waiting to be paired;
+no tenant columns. `paired_device (id, organizer_id, event_id, kind, quest_id (null only for a big screen), label (1 to
+40), client, secret_hash unique, previous_hash unique (the secret replaced at activation, accepted only while
+previous_until is ahead), previous_until, activated_at, status active|revoked, paired_by_operator → staff_assignment SET
+NULL, paired_by_staff → staff_user SET NULL, paired_at, revoked_at, last_seen_at)`; an active device names exactly one
+who paired it; `(event_id, organizer_id)` → event CASCADE, `(quest_id, event_id)` → quest CASCADE (setup, not
+evidence). Both: row-level security forced, PUBLIC revoked, no grant. `BEFORE DELETE` triggers on `staff_assignment`,
+`organizer_member` and `staff_user` revoke what that person paired (audited `device.revoke`, reason `operator_removed` /
+`member_removed`), do nothing when there is nothing, and delete instead when the device's event is already gone (an
+event delete cascading). `quest_verification_known` takes `screen_qr` on scan quests only and never with `quest_qr`;
+`quest_completion.method` takes `screen_qr` (index `quest_completion_screen_idx` for the one-pay-per-window rule).
+`record_completion` and `complete_quest` restated. Doors: `open_device_request`, `renew_device_request`,
+`device_session`, `activate_device`, `device_view`, `screen_code_for_device` (the device), `operator_claim_device`,
+`operator_devices`, `screen_code_for_operator` (operator), `team_claim_device`, `event_devices`, `revoke_devices` (team),
+`preview_device`, `revoke_device` (either); internal `screen_window_of`, `screen_window`, `screen_window_ok`,
+`device_alive`, `current_device`, `screen_quest_state`, `device_paused`, `device_operator`, `device_request_of`,
+`device_claim_check`, `make_device`, `device_json`, `revoke_devices_of`. `app_device_id()` reads `app.device_id`, set only
+by the API's device guard. Devices are kept by the rehearsal wipe.
+
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
 created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method
@@ -744,7 +765,7 @@ secret or contact detail (refused in code, which rolls back the change too).
 | questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank | No |
 | ranking_season | Monthly Questify-wide seasons and archives | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
-| device_pairing | Paired stations, kiosks and big screens, with pairing codes | Device tokens |
+| device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |
 | operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |
 | invitation_campaign | Questify invitations by interest and city, with counts | No (counts only) |
 | organizer_acceptance | Versioned acceptance of organizer terms, DPA and policy with time | Staff user |

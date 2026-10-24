@@ -650,7 +650,7 @@ Added on 2026-10-17 after the second review pass. Rewritten rows elsewhere in th
 | FR-1710 | A submission approved after the event ended shall add its points to score and rank, and to the balance only while the shop window is open. | Should | F-234, F-142 | Given the event ended yesterday and the shop window is open, when a submission is approved, then score, rank and balance rise. Given the shop window has closed, when one is approved, then only score and rank rise. |
 | FR-1711 | The dashboard shall let the organizer regenerate a quest's QR; the old code stops working at once. | Must | F-236 | Given a leaked quest QR, when the organizer regenerates it, then scans of the old code are refused. Given the new code, when a player scans it, then the completion is recorded. |
 | FR-1712 | The owner or an editor shall be able to award points to every player in an uploaded or pasted list, or to everyone who completed a chosen quest, in one action, with a required reason, logged and outside the daily caps; an editor's amount stays inside the per-award cap (ADR-152, Q-118, amended 2026-10-23: sessions come with T-505, categories later). | Must | F-237 | Given a session whose code failed, when an editor awards 50 points to its attendees with a reason, then each receives 50 and the record shows the bulk award. Given no reason, when they try to confirm, then the award is refused. |
-| FR-1713 | Station pages, kiosks and big screens shall work only after being paired from staff mode or the dashboard, and the organizer can revoke a pairing or regenerate a big-screen link at any time. | Must | F-238 | Given a station URL shared on WhatsApp, when it is opened on an unpaired device, then no QR is shown. Given a paired kiosk is revoked, when it next refreshes, then it stops working. |
+| FR-1713 | Station pages, kiosks and big screens shall work only after being paired from staff mode or the dashboard, and the organizer can revoke a pairing or regenerate a big-screen link at any time. | Must | F-238 | Given a station URL shared on WhatsApp, when it is opened on an unpaired device, then no QR is shown. Given a paired kiosk is revoked, when it next refreshes, then it stops working. *(T-309, ADR-241, pending Q-202: the big-screen link is the plain `/{lang}/screen` address and holds nothing; "Revoke all big screens" takes the place of regenerating it.)* |
 | FR-1714 | The organizer shall set the time an event day starts, default 4:00 am in the event's time zone. | Should | F-240 | Given the default, when a player plays at 1:00 am, then it counts toward the previous event day. Given the organizer sets 6:00 am, when 6:00 am passes, then daily features reset. |
 | FR-1715 | Today's ranking, daily category refreshes and streak days shall all use the event day from FR-1714. | Should | F-240, F-51, F-59, F-61 | Given the day starts at 4:00 am, when 4:00 am passes, then today's ranking resets and daily categories refresh together. Given 11:59 pm passes, when nothing else changes, then no reset happens. |
 | FR-1716 | The organizer shall set one prize desk per event with its location (optionally a map pin), optional opening hours (none: open the whole time) and how players confirm a pickup (ADR-150), all shown on every item reservation. | Must | F-241 | Given a desk set for 4–10 pm in Hall B, when a player reserves an item, then the reservation shows Hall B and 4–10 pm. Given no hours are set, when a player reserves, then the desk shows as open the whole time. Given no desk place is set, when the organizer tries to publish item rewards, then the dashboard asks for the desk first. |
@@ -998,7 +998,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-311 | F-109 | Must | pending |
 | FR-312 | F-105 | Should | built (T-308) |
 | FR-313 | F-105 | Should | built (T-308) |
-| FR-314 | F-106 | Should | pending |
+| FR-314 | F-106 | Should | built (T-309) |
 | FR-315 | F-107 | Should | pending |
 | FR-316 | F-110 | Must | pending |
 | FR-317 | F-110 | Must | pending |
@@ -1305,7 +1305,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1710 | F-234, F-142 | Should | `test/db/submissions.int` (T-301) |
 | FR-1711 | F-236 | Must | pending |
 | FR-1712 | F-237 | Must | pending |
-| FR-1713 | F-238 | Must | pending |
+| FR-1713 | F-238 | Must | built (T-309; the link wording pending Q-202) |
 | FR-1714 | F-240 | Should | pending |
 | FR-1715 | F-240, F-51, F-59, F-61 | Should | pending |
 | FR-1716 | F-241 | Must | pending |

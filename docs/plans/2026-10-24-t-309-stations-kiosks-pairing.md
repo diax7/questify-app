@@ -504,3 +504,17 @@ Plus the Devices page's labels (Kind, Label, Quest, Paired by, Last seen, Revoke
 - **Q-204** Pairing from staff mode by operators with `show_rotating_qr` (stations) or `scan_quests` (kiosks), and
   removing an operator revokes what they paired. Agree, or a separate `pair_devices` ability (off by default), or
   pairing from the dashboard only?
+
+## Build notes (2026-10-24)
+
+- CTO plan re-review notes folded: (1) the removal triggers do nothing without active devices, and delete the devices of
+  an event being deleted, so a cascaded delete never fails (tested: an event with operator- and team-paired devices, an
+  operator's account erasure, a team member's removal and a staff user's delete); (2) `previous_hash` is UNIQUE (its
+  index), accepted only while `previous_until > now()`, and a second activation with the old secret inside the 60 s
+  draws a fresh secret without extending it (tested, crossed too); (3) SECURITY.md records the activation race.
+- Deviations, as build notes on ADR-239 and ADR-240: the cookie is looked up by `device_session(hash)` (as
+  `player_session_owner`), not a new pre-identity setting; a pending page's `GET` has no code (only hashes are stored)
+  and a reload renews; a preview step (`POST …/devices/preview`) shows the client line before confirming; claims name
+  the page's kind; staff mode pairs stations only until T-309b; the operator's phone shows "Keep your screen on" instead
+  of `expo-keep-awake`; the app's rotating code has no draining bar (the station page has it).
+- Q-206: the platform tuning `screenQrRotationSeconds` is not read.

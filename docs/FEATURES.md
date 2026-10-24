@@ -193,7 +193,7 @@ Decisions:
 | F-108 | Operator manual award: find a player by username or phone and award a quest or points | Must | Claude | When nothing can be scanned. Reason required; logged with the operator's name |
 | F-109 | Caps on manual awards, set by the owner: maximum per award and per operator per day; a report of every manual award | Must | Claude | |
 | F-105 | NFC tags: written from staff mode on a phone ("Write to NFC tag" on the quest), tapped by players in the app; the QR as backup | Should | user | Basic tags; the web dashboard can't write tags. Platform limits: Q-071. Built (T-308): basic tags only (Dhia, 2026-10-24) |
-| F-106 | Rotating QR on a screen: the quest's QR on an operator's phone or on a station page opened on any tablet or TV, changing every 30–60 s | Should | Claude | The deck's "staff shows a one-time QR" is this, on the operator's phone |
+| F-106 | Rotating QR on a screen: the quest's QR on an operator's phone or on a station page opened on any tablet or TV, changing every 30–60 s | Should | Claude | The deck's "staff shows a one-time QR" is this, on the operator's phone. Built (T-309): every 30 s with 15 s' grace on the database clock (ADR-240) |
 | F-107 | Unattended kiosk: a tablet signed in as a station scans each player's My QR | Should | Claude | No staff needed; the rotating My QR proves the player is there |
 
 ### Fair play
@@ -675,7 +675,7 @@ first column.
 | F-234 | 2 | Resubmission after rejection: allowed or not, set per quest | Should | user | ADR-085 |
 | F-236 | 3 | Regenerate a quest QR: the old code stops working at once | Must | Claude | ADR-085 |
 | F-237 | 3 | Bulk or compensation award: points to everyone in a session or a list, by the owner or an editor, logged, outside operator caps | Must | Claude | ADR-085 |
-| F-238 | 3 | Station pages, kiosks and big screens are paired from staff mode or the dashboard and can be revoked; big-screen links can be regenerated | Must | Claude | Security (NFR-018) |
+| F-238 | 3 | Station pages, kiosks and big screens are paired from staff mode or the dashboard and can be revoked; big-screen links can be regenerated | Must | Claude | Security (NFR-018). Built (T-309): pairing of all three kinds and Revoke; "Revoke all big screens" stands for regenerating the link (ADR-241, pending Q-202); the kiosk's scanner is T-309b |
 | F-240 | 4 | Event day start: an organizer setting, default 4:00 am in the event's time zone; used by today's ranking, daily categories and streaks | Should | Claude / user | ADR-083 |
 | F-241 | 5 | One prize desk per event, with location and opening hours shown on every reservation | Must | user | ADR-083 |
 | F-242 | 5 | After the desk's last opening hours, physical rewards can't be reserved; digital codes stay redeemable until the shop window closes | Must | Claude | ADR-083 |
