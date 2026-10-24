@@ -1,4 +1,4 @@
--- NFC tags, basic kind (T-308, F-105, FR-312, FR-313, FR-621, ADR-234 to ADR-237; plan
+-- NFC tags (T-308, F-105, FR-312, FR-313, FR-621, ADR-234, ADR-237; plan
 -- docs/plans/2026-10-24-t-308-nfc-tags.md). An operator writes a quest's tag from staff mode: the tag holds a signed
 -- Questify URL of its own (the tag's id; the quest is found here, so a tag can be moved), registered with the sticker's
 -- id. A player taps it in the app; the tap is a completion of method `nfc` through the one door, record_completion. A
@@ -40,7 +40,6 @@ CREATE TABLE nfc_tag (
   organizer_id uuid NOT NULL,
   event_id     uuid NOT NULL,
   quest_id     uuid NOT NULL,
-  kind         text NOT NULL DEFAULT 'plain' CHECK (kind = 'plain'),
   uid          bytea NOT NULL CHECK (length(uid) BETWEEN 4 AND 10),
   label        text NOT NULL DEFAULT '' CHECK (char_length(label) <= 40),
   locked       boolean NOT NULL,
