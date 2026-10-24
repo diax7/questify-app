@@ -2,11 +2,15 @@ import type { Theme } from "@questify/shared";
 import { View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import { ticketStatusKey, type MyTicket } from "#src/event/help.ts";
+import { kindLabel, replyFromKey } from "#src/help/center.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-/** One request: its kind, quest, text, where it stands, and the reply signed "The event team" (never a person). */
+/**
+ * One request: its kind, quest, text, where it stands ("With the Questify team" while escalated), the name the player
+ * reported on their own report, and the reply signed by team (never a person).
+ */
 function RequestCard({ ticket, withEvent }: Readonly<{ ticket: MyTicket; withEvent: boolean }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -16,7 +20,7 @@ function RequestCard({ ticket, withEvent }: Readonly<{ ticket: MyTicket; withEve
         {ticket.unread ? (
           <View accessible accessibilityLabel={t("help.unread")} style={styles.dot} />
         ) : null}
-        <AppText variant="label">{t(`help.kind.${ticket.kind}`)}</AppText>
+        <AppText variant="label">{t(kindLabel(ticket.kind))}</AppText>
         <AppText muted>{t(ticketStatusKey(ticket))}</AppText>
       </View>
       {withEvent && ticket.event !== null ? (
@@ -27,10 +31,17 @@ function RequestCard({ ticket, withEvent }: Readonly<{ ticket: MyTicket; withEve
           {t("help.aboutQuest", { quest: textIn(ticket.quest.title, language) })}
         </AppText>
       )}
+      {ticket.kind === "report_player" ? (
+        <AppText muted>
+          {ticket.reportedUsername === null
+            ? t("help.reportedDeleted")
+            : t("help.reportedName", { username: ticket.reportedUsername })}
+        </AppText>
+      ) : null}
       <AppText>{ticket.text}</AppText>
       {ticket.reply === null ? null : (
         <View style={styles.reply}>
-          <AppText variant="label">{t("help.replyFrom")}</AppText>
+          <AppText variant="label">{t(replyFromKey(ticket))}</AppText>
           <AppText>{ticket.reply}</AppText>
         </View>
       )}

@@ -190,6 +190,7 @@ function MyReservations({
   onCollect: (id: string) => void;
 }>) {
   const { t, language } = useI18n();
+  const { eventId, helpOn } = useEvent();
   const styles = useThemedStyles(makeStyles);
   if (view.redemptions.length === 0) {
     return null;
@@ -249,6 +250,18 @@ function MyReservations({
           ) : (
             <AppText muted>{t(endedKey(mine))}</AppText>
           )}
+          {helpOn ? (
+            <Button
+              kind="quiet"
+              label={t("help.prizeProblem")}
+              onPress={() =>
+                router.push({
+                  pathname: "/event/[eventId]/help",
+                  params: { eventId, kind: "prize" },
+                })
+              }
+            />
+          ) : null}
         </View>
       ))}
     </>

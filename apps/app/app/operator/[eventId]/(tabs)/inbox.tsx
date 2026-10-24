@@ -23,7 +23,13 @@ function InboxCard({ eventId, item }: Readonly<{ eventId: string; item: InboxIte
   const badge =
     item.kind === "submission"
       ? t("operator.inbox.submission")
-      : t(item.ticketKind === "problem" ? "operator.inbox.problem" : "operator.inbox.question");
+      : t(
+          item.ticketKind === "problem"
+            ? "operator.inbox.problem"
+            : item.ticketKind === "prize"
+              ? "operator.inbox.prize"
+              : "operator.inbox.question",
+        );
   const open = () =>
     item.kind === "submission"
       ? router.push({ pathname: "/operator/[eventId]/review", params: { eventId, first: item.id } })

@@ -132,7 +132,7 @@ describe("staff mode's Inbox (T-310, FR-927)", () => {
       },
     ]);
     expect(answerResult(error(409, "already_closed"))).toEqual({ kind: "gone" });
-    expect(answerResult(error(404, "not_found"))).toEqual({ kind: "gone" });
+    expect(answerResult(error(404, "not_found"))).toEqual({ kind: "moved" });
     expect(answerResult(error(422, "invalid_text"))).toEqual({
       kind: "refused",
       message: { ar: "م", en: "m" },

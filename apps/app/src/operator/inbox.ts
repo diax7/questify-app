@@ -53,7 +53,8 @@ const isItem = (value: unknown): value is InboxItem =>
   typeof value["marked"] === "boolean" &&
   (value["ticketKind"] === null ||
     value["ticketKind"] === "question" ||
-    value["ticketKind"] === "problem");
+    value["ticketKind"] === "problem" ||
+    value["ticketKind"] === "prize");
 
 /** Reads the Inbox; anything malformed reads as a failure, so the screen offers Retry instead of a guess. */
 export function inboxOf(body: unknown): Inbox | undefined {
@@ -142,7 +143,7 @@ export function ticketOf(body: unknown): OperatorTicket | undefined {
   if (
     !isRecord(ticket) ||
     typeof ticket["id"] !== "string" ||
-    (ticket["kind"] !== "question" && ticket["kind"] !== "problem") ||
+    (ticket["kind"] !== "question" && ticket["kind"] !== "problem" && ticket["kind"] !== "prize") ||
     !(
       ticket["quest"] === null ||
       (isRecord(ticket["quest"]) && isTitle(ticket["quest"]["title"]))
@@ -174,8 +175,10 @@ export async function fetchTicket(
 
 export type AnswerResult =
   | Readonly<{ kind: "done" }>
-  /** Someone on the team answered first, or the request is gone: back to the list. */
+  /** Someone on the team answered first: back to the list. */
   | Readonly<{ kind: "gone" }>
+  /** The request is no longer the operator's (escalated to Questify, T-312) or gone: back to the list. */
+  | Readonly<{ kind: "moved" }>
   | Readonly<{ kind: "refused"; message: LocalizedText | null }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
@@ -185,7 +188,10 @@ export function answerResult(answer: AuthedResult): AnswerResult {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    return answer.code === "already_closed" || answer.code === "not_found"
+    if (answer.code === "not_found") {
+      return { kind: "moved" };
+    }
+    return answer.code === "already_closed"
       ? { kind: "gone" }
       : { kind: "refused", message: answer.message };
   }

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
 import type { MessageKey } from "@questify/shared";
+import { usePlayer } from "#src/auth/player.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { LiveProvider } from "#src/event/LiveContext.tsx";
 import { LivePolls } from "#src/event/LivePolls.tsx";
@@ -28,6 +29,9 @@ export default function EventTabsLayout() {
   const { t } = useI18n();
   const { theme, text } = useTheme();
   const { eventId } = useEvent();
+  const { state } = usePlayer();
+  // An answer unseen in any queue (T-312): a dot on Profile, where Your requests opens.
+  const unread = state.status === "signed_in" && (state.me?.help?.unread ?? 0) > 0;
   return (
     <LiveProvider>
       <Tabs
@@ -48,6 +52,17 @@ export default function EventTabsLayout() {
               tabBarIcon: ({ color, size }) => (
                 <Ionicons name={tab.icon} size={size} color={color} />
               ),
+              ...(tab.name === "profile" && unread
+                ? {
+                    tabBarBadge: "",
+                    tabBarBadgeStyle: {
+                      backgroundColor: theme.colors.primaryAction,
+                      minWidth: 10,
+                      maxHeight: 10,
+                      borderRadius: 5,
+                    },
+                  }
+                : {}),
               ...(tab.name === "scan"
                 ? {
                     tabBarButton: () => (

@@ -10,6 +10,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { canSendTicket, ticketStatusKey } from "#src/event/help.ts";
+import { kindLabel } from "#src/help/center.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import {
@@ -41,7 +42,7 @@ function AnswerForm({
       key,
     });
     setBusy(false);
-    if (result.kind === "done" || result.kind === "gone") {
+    if (result.kind === "done" || result.kind === "gone" || result.kind === "moved") {
       setKey(randomUuid());
       onAnswered(result);
       return;
@@ -102,10 +103,12 @@ function OperatorTicketScreen() {
     void load();
   }, [load]);
   const answered = (result: AnswerResult) => {
-    if (result.kind === "gone") {
-      Alert.alert(t("operator.ticket.alreadyClosed"), undefined, [
-        { text: t("common.continue"), onPress: () => router.back() },
-      ]);
+    if (result.kind === "gone" || result.kind === "moved") {
+      Alert.alert(
+        t(result.kind === "moved" ? "operator.ticket.moved" : "operator.ticket.alreadyClosed"),
+        undefined,
+        [{ text: t("common.continue"), onPress: () => router.back() }],
+      );
       return;
     }
     setSaid(t("operator.ticket.done"));
@@ -129,7 +132,7 @@ function OperatorTicketScreen() {
               <AppText variant="label">
                 {ticket.username === null ? t("submissions.deletedPlayer") : `@${ticket.username}`}
               </AppText>
-              <AppText muted>{t(`help.kind.${ticket.kind}`)}</AppText>
+              <AppText muted>{t(kindLabel(ticket.kind))}</AppText>
             </View>
             <AppText muted>
               {ticket.quest === null

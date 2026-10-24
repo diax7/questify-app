@@ -21,6 +21,8 @@ export type Me = Readonly<{
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
   /** The lifetime Questify level (T-401); undefined when the answer has none or a malformed one. */
   questify: QuestifyLevel | undefined;
+  /** Unseen answers to the player's requests in every queue (T-312): the profile's dot. */
+  help?: Readonly<{ unread: number }> | undefined;
 }>;
 
 export type PlayerState =

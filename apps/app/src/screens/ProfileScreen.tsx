@@ -98,7 +98,8 @@ function useHasRequests(signedIn: boolean): boolean {
 
 /**
  * The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. Inside
- * an event it opens Get help; anywhere, Your requests once the player has sent one.
+ * an event it opens that event's Get help, elsewhere the ticket center (T-312); anywhere, Your requests once the player
+ * has sent one, with a dot while an answer waits unseen in any queue.
  */
 export function ProfileScreen({
   header,
@@ -108,6 +109,7 @@ export function ProfileScreen({
   const { state, signOut } = usePlayer();
   const styles = useThemedStyles(makeStyles);
   const hasRequests = useHasRequests(state.status === "signed_in");
+  const unread = state.status === "signed_in" ? (state.me?.help?.unread ?? 0) : 0;
 
   // FR-124: the confirmation says what signing out does; cancelling keeps the player signed in.
   const confirmSignOut = (): void => {
@@ -156,19 +158,26 @@ export function ProfileScreen({
                 <MyAccount me={state.me} />
               </>
             )}
-            {eventId === undefined ? null : (
-              <Button
-                kind="quiet"
-                label={t("help.open")}
-                onPress={() => router.push(`/event/${eventId}/help`)}
-              />
-            )}
-            {hasRequests ? (
-              <Button
-                kind="quiet"
-                label={t("profile.requests")}
-                onPress={() => router.push("/requests")}
-              />
+            <Button
+              kind="quiet"
+              label={t("help.open")}
+              onPress={() =>
+                router.push(eventId === undefined ? "/help" : `/event/${eventId}/help`)
+              }
+            />
+            {hasRequests || unread > 0 ? (
+              <View style={styles.identifier}>
+                {unread > 0 ? (
+                  <View accessible accessibilityLabel={t("help.unread")} style={styles.dot} />
+                ) : null}
+                <View style={styles.identifierText}>
+                  <Button
+                    kind="quiet"
+                    label={t("profile.requests")}
+                    onPress={() => router.push("/requests")}
+                  />
+                </View>
+              </View>
             ) : null}
             <Button kind="quiet" label={t("signOut.confirm")} onPress={confirmSignOut} />
             <Button
@@ -213,4 +222,5 @@ const makeStyles = (theme: Theme) => ({
     flexDirection: "row" as const,
   },
   fill: { height: 12, backgroundColor: theme.colors.primaryAction },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primaryAction },
 });

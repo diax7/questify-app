@@ -1,5 +1,7 @@
 import {
+  TICKET_KINDS,
   TICKET_TEXT_MAX,
+  type EventTicketKind,
   type LocalizedText,
   type MessageKey,
   type TicketKind,
@@ -9,21 +11,29 @@ import type { Bilingual } from "#src/i18n/text.ts";
 
 type Requester = Pick<Session, "request">;
 
-/** One of the player's own requests (`GET …/tickets/mine` or `GET /v1/me/tickets`, T-310): never who answered. */
+/**
+ * One of the player's own requests (`GET …/tickets/mine` or `GET /v1/me/tickets`, T-310, T-312): never who answered,
+ * only which team; never a note.
+ */
 export type MyTicket = Readonly<{
   id: string;
-  /** Only in the profile's list of every event's requests. */
+  /** In the profile's list of every event's requests; null there for an app problem or a suggestion. */
   event: Readonly<{ id: string; name: Bilingual }> | null;
   kind: TicketKind;
   quest: Readonly<{ id: string; title: Bilingual }> | null;
   text: string;
   status: "open" | "closed";
   outcome: "answered" | "solved" | null;
-  /** The team's reply, shown as from "The event team". */
+  /** The reply, signed "The event team" or "The Questify team" by `answeredBy`. */
   reply: string | null;
   createdAt: string;
   /** An answer the player has not seen yet: a gold dot. */
   unread: boolean;
+  /** Open and waiting with the Questify team. */
+  withQuestify: boolean;
+  answeredBy: "event" | "questify" | null;
+  /** On the player's own report: the username they reported; null once that account is deleted. */
+  reportedUsername: string | null;
 }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -42,7 +52,7 @@ const isNamed = (value: unknown, field: "name" | "title") =>
 const isTicket = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
-  (value["kind"] === "question" || value["kind"] === "problem") &&
+  (TICKET_KINDS as readonly unknown[]).includes(value["kind"]) &&
   isNamed(value["quest"], "title") &&
   isNamed(value["event"], "name") &&
   typeof value["text"] === "string" &&
@@ -50,7 +60,15 @@ const isTicket = (value: unknown): value is Record<string, unknown> =>
   (value["outcome"] === null || value["outcome"] === "answered" || value["outcome"] === "solved") &&
   (value["reply"] === null || typeof value["reply"] === "string") &&
   typeof value["createdAt"] === "string" &&
-  typeof value["unread"] === "boolean";
+  typeof value["unread"] === "boolean" &&
+  (value["withQuestify"] === undefined || typeof value["withQuestify"] === "boolean") &&
+  (value["answeredBy"] === undefined ||
+    value["answeredBy"] === null ||
+    value["answeredBy"] === "event" ||
+    value["answeredBy"] === "questify") &&
+  (value["reportedUsername"] === undefined ||
+    value["reportedUsername"] === null ||
+    typeof value["reportedUsername"] === "string");
 
 /** Reads a list of requests; anything malformed reads as nothing, so the screen shows a load failure, not a guess. */
 export function ticketsOf(body: unknown): MyTicket[] | undefined {
@@ -68,13 +86,18 @@ export function ticketsOf(body: unknown): MyTicket[] | undefined {
     reply: ticket["reply"] as string | null,
     createdAt: ticket["createdAt"] as string,
     unread: ticket["unread"] as boolean,
+    withQuestify: ticket["withQuestify"] === true,
+    answeredBy: (ticket["answeredBy"] ?? null) as MyTicket["answeredBy"],
+    reportedUsername: (ticket["reportedUsername"] ?? null) as string | null,
   }));
 }
 
 /** The words for where a request stands. */
-export function ticketStatusKey(ticket: Pick<MyTicket, "status" | "outcome">): MessageKey {
+export function ticketStatusKey(
+  ticket: Pick<MyTicket, "status" | "outcome"> & Partial<Pick<MyTicket, "withQuestify">>,
+): MessageKey {
   if (ticket.status === "open") {
-    return "help.status.open";
+    return ticket.withQuestify === true ? "help.status.withQuestify" : "help.status.open";
   }
   return ticket.outcome === "solved" ? "help.status.solved" : "help.status.answered";
 }
@@ -131,6 +154,8 @@ export type SendAnswer =
   | Readonly<{ kind: "off"; why: SendingOff }>
   | Readonly<{ kind: "too_many_open" }>
   | Readonly<{ kind: "too_many" }>
+  /** A report's refusals (T-312): no such member here, oneself, reported already, too many names tried. */
+  | Readonly<{ kind: "unknown_player" | "self_report" | "already_reported" | "too_many_lookups" }>
   | Readonly<{ kind: "refused"; message: LocalizedText | null }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
@@ -144,8 +169,14 @@ export function sendAnswer(answer: AuthedResult): SendAnswer {
     if (off !== null) {
       return { kind: "off", why: off };
     }
-    if (answer.code === "too_many_open") {
-      return { kind: "too_many_open" };
+    if (
+      answer.code === "too_many_open" ||
+      answer.code === "unknown_player" ||
+      answer.code === "self_report" ||
+      answer.code === "already_reported" ||
+      answer.code === "too_many_lookups"
+    ) {
+      return { kind: answer.code };
     }
     return answer.code === "too_many_tickets"
       ? { kind: "too_many" }
@@ -179,8 +210,10 @@ export async function sendTicket(
   session: Requester,
   request: Readonly<{
     eventId: string;
-    kind: TicketKind;
+    kind: EventTicketKind;
     questId: string | null;
+    /** Only for a report: the member's @username, without the @. */
+    reportedUsername?: string;
     text: string;
     key: string;
   }>,
@@ -193,6 +226,9 @@ export async function sendTicket(
         kind: request.kind,
         text: request.text,
         ...(request.questId === null ? {} : { questId: request.questId }),
+        ...(request.reportedUsername === undefined
+          ? {}
+          : { reportedUsername: request.reportedUsername }),
       },
       headers: { "idempotency-key": request.key },
     }),

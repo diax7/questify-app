@@ -63,8 +63,35 @@ describe("the player's requests (T-310)", () => {
         reply: "Back in place",
         createdAt: TICKET.createdAt,
         unread: true,
+        withQuestify: false,
+        answeredBy: null,
+        reportedUsername: null,
       },
     ]);
+    const escalated = {
+      ...TICKET,
+      kind: "report_player",
+      status: "open",
+      outcome: null,
+      reply: null,
+      withQuestify: true,
+      answeredBy: null,
+      reportedUsername: "khalid",
+    };
+    expect(ticketsOf({ tickets: [escalated] })?.[0]).toMatchObject({
+      kind: "report_player",
+      withQuestify: true,
+      reportedUsername: "khalid",
+    });
+    expect(ticketStatusKey({ status: "open", outcome: null, withQuestify: true })).toBe(
+      "help.status.withQuestify",
+    );
+    expect(ticketsOf({ tickets: [{ ...TICKET, answeredBy: "questify" }] })?.[0]?.answeredBy).toBe(
+      "questify",
+    );
+    for (const kind of ["question", "prize", "app_problem", "suggestion"]) {
+      expect(ticketsOf({ tickets: [{ ...TICKET, kind }] })?.[0]?.kind).toBe(kind);
+    }
     const withEvent = { ...TICKET, event: { id: "e1", name: { ar: "مهرجان", en: "Fest" } } };
     expect(ticketsOf({ tickets: [withEvent] })?.[0]?.event).toEqual(withEvent.event);
     expect(ticketsOf({ tickets: [{ ...TICKET, quest: null }] })?.[0]?.quest).toBeNull();
@@ -76,6 +103,9 @@ describe("the player's requests (T-310)", () => {
     { ...TICKET, outcome: "done" },
     { ...TICKET, reply: 5 },
     { ...TICKET, unread: "yes" },
+    { ...TICKET, withQuestify: "yes" },
+    { ...TICKET, answeredBy: "staff" },
+    { ...TICKET, reportedUsername: 5 },
     { ...TICKET, quest: { id: "q1", title: "Find" } },
     { ...TICKET, event: { id: 1, name: { ar: null, en: "Fest" } } },
     { ...TICKET, text: null },
@@ -135,6 +165,9 @@ describe("sending", () => {
     });
     expect(sendAnswer(error(409, "too_many_open"))).toEqual({ kind: "too_many_open" });
     expect(sendAnswer(error(429, "too_many_tickets"))).toEqual({ kind: "too_many" });
+    for (const code of ["unknown_player", "self_report", "already_reported", "too_many_lookups"]) {
+      expect(sendAnswer(error(409, code))).toEqual({ kind: code });
+    }
     expect(sendAnswer(error(422, "invalid_text"))).toEqual({
       kind: "refused",
       message: { ar: "م", en: "m" },
@@ -166,6 +199,14 @@ describe("sending", () => {
       text: "No QR",
       key: "k2",
     });
+    await sendTicket(session, {
+      eventId: "e1",
+      kind: "report_player",
+      questId: null,
+      reportedUsername: "khalid",
+      text: "Pushed me",
+      key: "k3",
+    });
     expect(sent).toEqual([
       {
         method: "POST",
@@ -178,6 +219,12 @@ describe("sending", () => {
         path: "/v1/events/e1/tickets",
         body: { kind: "problem", text: "No QR", questId: "q1" },
         headers: { "idempotency-key": "k2" },
+      },
+      {
+        method: "POST",
+        path: "/v1/events/e1/tickets",
+        body: { kind: "report_player", text: "Pushed me", reportedUsername: "khalid" },
+        headers: { "idempotency-key": "k3" },
       },
     ]);
   });
