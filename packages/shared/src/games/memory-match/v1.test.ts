@@ -200,9 +200,9 @@ function seedOne(): { first: number; second: number; third: number } {
   return { first, second, third };
 }
 
-describe("memory match: impossible rounds", () => {
-  const reason = (inputs: MemoryInput[]) => replay(engine, 1, easy, inputs);
+const reason = (inputs: MemoryInput[]) => replay(engine, 1, easy, inputs);
 
+describe("memory match: impossible rounds", () => {
   it("refuses a card that is not there, a matched card and the face-up card", () => {
     const { first, second } = seedOne();
     expect(reason([{ t: 0, card: 12 }])).toEqual({ impossible: "illegal" });
