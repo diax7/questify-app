@@ -7,7 +7,8 @@ type Script = {
   goals: string[];
   settle: (goal: string) => Error | null;
   batches: number;
-  health: Record<string, unknown>;
+  /** null: the health read answers no row. */
+  health: Record<string, unknown> | null;
 };
 
 const pgError = (code: string) => Object.assign(new Error("database refused"), { code });
@@ -34,7 +35,7 @@ function fakePool(script: Script) {
         return { rows: paid <= script.batches ? [{ step_id: "s", paid: 500, skipped: 2 }] : [] };
       }
       if (sql.includes("community_health")) {
-        return { rows: [{ health: script.health }] };
+        return { rows: script.health === null ? [] : [{ health: script.health }] };
       }
       return { rows: [] };
     }),
@@ -207,6 +208,7 @@ describe("startCommunityTick", () => {
       log: (level, fields) => logged.push({ level, fields }),
     });
     await vi.advanceTimersByTimeAsync(1000);
+    expect(logged.map((one) => one.level)).toEqual(["error", "error", "error"]);
     expect(logged.map((one) => one.fields)).toEqual([
       { event: "community.tick_failed", code: "40P01" },
       { event: "community.pay_failed", code: "40P01" },
@@ -214,6 +216,105 @@ describe("startCommunityTick", () => {
     ]);
     await vi.advanceTimersByTimeAsync(1000);
     expect(logged).toHaveLength(6);
+    await tick.stop();
+  });
+
+  it("logs a goal behind with no blocking backend as null, and nothing when the health read has no row", async () => {
+    const logged: Logged[] = [];
+    const { tick } = start({ health: { ...healthy, behind: ["g1"] } }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logged).toEqual([
+      {
+        level: "error",
+        fields: {
+          event: "community.settle_behind",
+          goals: ["g1"],
+          blockerPid: null,
+          blockerApp: null,
+        },
+      },
+    ]);
+    await tick.stop();
+    const quiet: Logged[] = [];
+    const empty = start({ health: null }, quiet);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(quiet).toEqual([]);
+    await empty.tick.stop();
+  });
+
+  it("logs a failure that carries no code as code null", async () => {
+    const logged: Logged[] = [];
+    const tick = startCommunityTick({
+      pool: {
+        connect: async () => ({
+          query: vi.fn(async (sql: string) => {
+            if (sql.includes("community_health")) {
+              throw undefined;
+            }
+            return { rows: [] };
+          }),
+          release: vi.fn(),
+        }),
+      } as unknown as Pool,
+      settings: settingsWith(true) as never,
+      intervalMs: 1000,
+      random: () => 0.5,
+      log: (level, fields) => logged.push({ level, fields }),
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "community.health_failed", code: null } },
+    ]);
+    await tick.stop();
+  });
+
+  it("stopped during a run, waits for it and schedules none after it", async () => {
+    const gate: { open?: () => void } = {};
+    const held = new Promise<void>((resolve) => {
+      gate.open = resolve;
+    });
+    const listings: string[] = [];
+    const tick = startCommunityTick({
+      pool: {
+        connect: async () => ({
+          query: vi.fn(async (sql: string) => {
+            if (sql.includes("community_tick_goals")) {
+              listings.push(sql);
+              return { rows: [{ goal: "g1" }] };
+            }
+            if (sql.includes("settle_goal")) {
+              await held;
+            }
+            return { rows: [] };
+          }),
+          release: vi.fn(),
+        }),
+      } as unknown as Pool,
+      settings: settingsWith(true) as never,
+      intervalMs: 1000,
+      random: () => 0.5,
+      log: () => {},
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(listings).toHaveLength(1);
+    let stopped = false;
+    const stopping = tick.stop().then(() => {
+      stopped = true;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stopped).toBe(false);
+    gate.open?.();
+    await stopping;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(listings).toHaveLength(1);
+  });
+
+  it("does not keep the process alive between runs", async () => {
+    const timeout = vi.spyOn(globalThis, "setTimeout");
+    const { tick } = start({}, []);
+    const timer = timeout.mock.results[0]?.value as NodeJS.Timeout;
+    expect(timer.hasRef()).toBe(false);
+    timeout.mockRestore();
     await tick.stop();
   });
 

@@ -284,6 +284,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
       ]);
     });
 
+    it("names a body that is wrong as a whole as goal, and refuses the event's 21st goal", async () => {
+      const event = await newEvent();
+      const extra = await dashboard("POST", `/events/${event}/community-goals`, {
+        ...goal(),
+        extra: true,
+      });
+      expect([extra.statusCode, extra.json().details]).toEqual([422, { issues: ["goal"] }]);
+      for (let index = 0; index < 20; index += 1) {
+        const made = await dashboard(
+          "POST",
+          `/events/${event}/community-goals`,
+          goal({ startsAt: inMinutes(10 + 2 * index), endsAt: inMinutes(11 + 2 * index) }),
+        );
+        expect(made.statusCode).toBe(201);
+      }
+      const over = await dashboard(
+        "POST",
+        `/events/${event}/community-goals`,
+        goal({ startsAt: inMinutes(60), endsAt: inMinutes(61) }),
+      );
+      expect([over.statusCode, over.json().code, over.json().details]).toEqual([
+        409,
+        "limit_reached",
+        { limit: 20 },
+      ]);
+    });
+
     it("refuses writes while the platform switch is off, and keeps a counted quest from deletion", async () => {
       const event = await newEvent();
       await platform(false);
@@ -355,6 +382,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
       expect(
         codeOf(await dashboard("POST", `/events/${event}/community/settle`, {}, editorCookie)),
       ).toEqual([403, "owner_only"]);
+      expect(
+        codeOf(await dashboard("POST", `/events/${event}/community/settle`, { now: true })),
+      ).toEqual([400, "invalid_request"]);
       const settled = await dashboard("POST", `/events/${event}/community/settle`, {});
       expect([settled.statusCode, settled.json()]).toEqual([
         200,
