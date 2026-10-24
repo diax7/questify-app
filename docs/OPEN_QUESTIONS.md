@@ -556,6 +556,7 @@ screens used Questify's default player, operator and currency words. **Built in 
 mode loads the event's words with the player app's source. Agree?
 
 ## Q-215 — The dashboard builder still says "quest" and "category" (2026-10-24, T-311b)
+**Answered 2026-10-25 (Dhia): split it to T-311c, done later.**
 FR-942 says the renamed words apply "everywhere in that event". T-311b renamed them in the player app and staff mode
 (about 85 texts, with the Event words section and its preview). About 110 organizer-facing texts remain (the quest
 builder, codes, operators, audience, community, flash, boosts, quest items, awards, devices pages), each needing
