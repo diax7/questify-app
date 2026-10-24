@@ -628,11 +628,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
       expect(await refusal(meets(b, a, quest))).toMatch(/^QM409:already_met/);
     });
 
-    it("keeps pay_completion's 7-argument callers working, with no device", async () => {
+    it("pays with no device, and needs every caller to say when the points were fixed (T-307, CTO 2)", async () => {
       const { event, b } = await setup();
       const scan = await newQuest(event, { type: "scan_qr", points: 5 });
+      await expect(
+        owner(
+          "SELECT pay_completion(n, $2, 5, 'qr', 'seven', NULL, NULL) FROM enrollment n WHERE n.id = $1",
+          [b.enrollment, scan],
+        ),
+      ).rejects.toThrow(/does not exist/);
+      await expect(
+        owner(
+          "SELECT pay_completion(n, $2, 5, 'qr', 'seven', NULL, NULL, NULL, NULL) FROM enrollment n WHERE n.id = $1",
+          [b.enrollment, scan],
+        ),
+      ).rejects.toMatchObject({ code: "22004" });
       await owner(
-        "SELECT pay_completion(n, $2, 5, 'qr', 'seven', NULL, NULL) FROM enrollment n WHERE n.id = $1",
+        "SELECT pay_completion(n, $2, 5, 'qr', 'seven', NULL, NULL, NULL, now()) FROM enrollment n WHERE n.id = $1",
         [b.enrollment, scan],
       );
       expect(await completions(b.enrollment)).toEqual([
@@ -873,7 +885,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
         "SELECT * FROM meet_answer(NULL::meeting, false)",
         "SELECT meet_refusal(NULL::meet_pass, NULL::enrollment, NULL::enrollment, NULL::quest)",
         "SELECT pay_meeting(NULL::meet_pass, NULL::enrollment, NULL::enrollment, NULL::quest, 'k', NULL, NULL)",
-        "SELECT pay_completion(NULL::enrollment, gen_random_uuid(), 1, 'qr', 'k', NULL, NULL, NULL)",
+        "SELECT pay_completion(NULL::enrollment, gen_random_uuid(), 1, 'qr', 'k', NULL, NULL, NULL, now())",
       ]) {
         await expect(db.app.query(sql), sql).rejects.toThrow(/permission denied/);
       }

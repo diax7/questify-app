@@ -313,6 +313,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a boost or reach the flash and boost doors and helpers (T-307)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.boost",
+        "SELECT * FROM public.launch_flash(gen_random_uuid(), gen_random_uuid(), 10, NULL)",
+        "SELECT * FROM public.end_flash(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.save_boost(gen_random_uuid(), NULL, gen_random_uuid(), NULL, 30, NULL)",
+        "SELECT public.delete_boost(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT * FROM public.end_boost(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.event_boosts(gen_random_uuid())",
+        "SELECT public.completion_boost(1)",
+        "SELECT public.flash_on(NULL::public.event)",
+        "SELECT public.boosts_on(NULL::public.event)",
+        "SELECT public.flash_shown(NULL::public.quest)",
+        "SELECT public.boost_in_force(gen_random_uuid(), NULL::public.enrollment, now())",
+        "SELECT public.quest_boost(NULL::public.quest, NULL::public.enrollment, now())",
+        "SELECT public.team_flash(NULL::public.event, gen_random_uuid())",
+        "SELECT public.boost_editable(NULL::public.event, gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

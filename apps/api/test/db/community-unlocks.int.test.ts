@@ -1538,7 +1538,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       const found = await owner<{ name: string }>(
         `SELECT DISTINCT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND has_function_privilege('questify_app', p.oid, 'EXECUTE')
-           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll)\\()'
+           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll|team_flash)\\()'
          ORDER BY 1`,
       );
       const names = found.map((row) => row.name);
@@ -1614,4 +1614,9 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   set_audience: "staff: the team's audience rules",
   set_operator: "staff: the team's operator settings",
   survey_summary: "staff: the team's survey results",
+  launch_flash: "gated: Launch refused while locked (flash-boosts.int.test.ts)",
+  end_flash: "staff: ends a flash quest already running; it pays nothing",
+  save_boost: "staff: the team's Boosts page",
+  event_boosts: "staff: the team's Boosts page",
+  own_pending_points: "exempt: submissions already sent",
 };

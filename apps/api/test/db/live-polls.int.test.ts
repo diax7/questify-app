@@ -274,7 +274,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
       await send(event, quest);
       await owner("UPDATE event SET status = 'live' WHERE id = $1", [event]);
       const { player, enrollment } = await member(event);
-      expect(await live(player, event)).toEqual({ polls: [], closed: [], community: null });
+      expect(await live(player, event)).toEqual({
+        polls: [],
+        closed: [],
+        community: null,
+        flash: [],
+        boosts: [],
+      });
       expect(await query(as(player), "SELECT * FROM member_poll($1)", [quest])).toEqual([]);
       expect(await refusal(vote(player, quest, ["a"]))).toBe("QN403:hidden");
       expect(
@@ -614,7 +620,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
       const quest = await newVote(event, await newCategory(event), poll());
       await send(event, quest);
       const other = await member(await newEvent());
-      const empty = { polls: [], closed: [], community: null };
+      const empty = { polls: [], closed: [], community: null, flash: [], boosts: [] };
       expect(await live(other.player, event)).toEqual(empty);
       expect(await live(randomUUID(), event)).toEqual(empty);
       expect(

@@ -745,7 +745,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("vote and quiz quests (database
         "SELECT * FROM quest_vote",
         "SELECT * FROM quiz_attempt",
         "SELECT * FROM quiz_answer",
-        "SELECT pay_completion(NULL::enrollment, NULL, 0, 'quiz', 'k', NULL, NULL)",
+        "SELECT pay_completion(NULL::enrollment, NULL, 0, 'quiz', 'k', NULL, NULL, NULL, now())",
         "SELECT finish_quiz(NULL::quiz_attempt)",
         "SELECT play_enter(NULL::quest, 'quiz')",
         "SELECT quiz_locked(NULL::quest)",

@@ -922,6 +922,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by the settling definers in the system context, read only as the calling member's own `contributed` in live_state (test/db/community)",
   community_payout:
     "no right for the API role at all; written by the settling definers and pay_community_batch in the system context, read as counts by the event's team through community_goals and community_paying and as the calling member's own `mine` in live_state (test/db/community)",
+  boost:
+    "no right for the API role at all; written by save_boost, delete_boost and end_boost inside the caller's event (award_event_of) and deleted by the rehearsal wipe; read by the event's team through event_boosts and by its active members through boost_in_force in member_event_quests, live_state and the payers (test/db/flash-boosts)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */
