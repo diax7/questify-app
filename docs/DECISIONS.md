@@ -3073,7 +3073,7 @@ holds its own secret in an HttpOnly `__Host-qs_device` cookie, stored only as it
 staff claim the code. Operators claim from staff mode (stations with `show_rotating_qr`, kiosks with `scan_quests`,
 within their quest limit); owners and editors from the dashboard (any kind; big screens only there). A device works
 until it is revoked, its operator is removed, its quest or event is deleted, 24 hours after its event ends, or after 30
-idle days. A new `device` access kind lives under `/v1/device/`. Secrets and codes never appear in a URL, log or audit.
+idle days. Once paired, the device's secret is replaced (`activate`; the old one lives at most 60 more seconds) before it sees anything of the event. A device paired by an operator works only while that operator still has the ability and the quest (else it is paused). Removing an operator or a team member revokes what they paired; who paired stays in the audit. One venue address may open 60 requests in 10 minutes, and a page that already holds a cookie never opens another. A new `device` access kind lives under `/v1/device`. Secrets and codes never appear in a URL, log or audit. (CTO plan review 2026-10-24.)
 **Why:** the TV sign-in pattern: the device types nothing and its credential is never shown, so a shared link or a
 photographed code opens nothing (FR-1713).
 
@@ -3082,7 +3082,7 @@ photographed code opens nothing (FR-1713).
 **Decision:** a screen code is purpose 0x07: the quest id and the 30-second window number, both issued and judged on
 the database clock (never the screen's or the phone's). The previous window is accepted for the first 15 seconds of
 the next. Not single-use. The method `screen_qr` is offered on scan quests only and never with the printed quest QR.
-It shows on a paired station page or on an operator's phone (`show_rotating_qr`).
+It shows on a paired station page or on an operator's phone (`show_rotating_qr`). One pay per player per window (45 seconds). Codes are per quest: revoking one station does not stop the quest's codes on other stations or phones.
 **Risk accepted:** a code relayed live within its 45 seconds pays its scanner; bounded by the quest's caps and period
 and watched by the burst flags.
 **Why:** FR-314: a photo shared after the code changed must not pay; one clock removes clock skew.

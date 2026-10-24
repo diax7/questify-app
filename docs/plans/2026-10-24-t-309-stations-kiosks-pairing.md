@@ -13,6 +13,11 @@ station scan), T-105/T-104 (the completion door, signed codes), T-211 (the go-li
 Open choices are my recommendation, written as **Proposed** ADR-238 to ADR-242 and Q-201 to Q-204, entered in
 `docs/DECISIONS.md` and `docs/OPEN_QUESTIONS.md` with this plan.
 
+**CTO plan review 2026-10-24: 84/100, findings folded in** (MAJOR 1: who paired is nullable, so removing an operator or
+team member revokes and never fails; MAJOR 2: the secret is replaced once the device is paired; MAJOR 3: a device paired
+by an operator works only while that operator still could; MAJOR 4: one venue address cannot starve pairing, and a
+reload never unpairs; minors 5 to 11 and the notes). Each is marked "(CTO n)" below.
+
 ## Split (ADR-238)
 
 Three pieces, each core: the device credential, a rotating proof, and a door that pays a player with no staff present.
@@ -56,7 +61,10 @@ One worker cannot build and test all three well, and the kiosk needs both of the
 The device never types anything and its credential is never shown: the TV-sign-in pattern.
 
 1. An unpaired browser opens `/{lang}/station`, `/{lang}/kiosk` or `/{lang}/screen` (one page per kind, no ids in the
-   URL, nothing in it worth sharing). The page calls `POST /v1/device/pairing` (public). The API makes a **device
+   URL, nothing in it worth sharing). The page first calls `GET /v1/device`; only on a 401 does it call `POST
+   /v1/device/pairing` (public, `Origin` checked, CTO 10), so a reload never unpairs or re-requests (CTO 4). A POST
+   that arrives with a valid device cookie answers that device's current state (pending or paired) and makes nothing
+   (CTO 4). Otherwise the API makes a **device
    secret** (32 random bytes, `generateToken()`) and a **pairing code** (8 characters from a 31-letter alphabet without
    0, O, 1, I, L; about 40 bits), stores only their hashes (the secret's SHA-256; the code's HMAC with a key derived
    from `AUTH_SECRET`, `pairingCodeKey`), and answers the code, its expiry (10 minutes) and the kind asked for. The
@@ -77,8 +85,17 @@ The device never types anything and its credential is never shown: the TV-sign-i
    - Before confirming, both show what the device told the API ("Chrome on Android", from its User-Agent reduced to a
      browser and system name, kept only on the request row and the device row) so staff can tell it is the screen in
      front of them; the paired page then shows its label in a corner so staff can check it.
-4. `claim_device(...)` (definer) turns the request into a **paired device** row and deletes the request in one
-   transaction; the device's next poll answers `paired` with its kind, event, quest and label.
+4. `claim_device(...)` (definer) checks the request's `expires_at` (an expired code is `DV404`, as an unknown one),
+   turns the request into a **paired device** row and deletes the request in one transaction. The device's next poll
+   answers `{state: "paired", activated: false}` and **nothing of the event**.
+5. **The secret is replaced once paired (CTO 2)**: the page then calls `POST /v1/device/activate` (device, `Origin`
+   checked), which makes a new secret, stores its hash, keeps the old hash as `previous_hash` and answers it as a new
+   `Set-Cookie` in the same transaction. The old secret stays valid only until the new one is first used or 60
+   seconds pass, whichever comes first (so a lost answer does not strand the screen), then answers `device_unpaired`.
+   Only an activated device gets its event, quest and codes. A secret seen by anyone before pairing (it was in the
+   browser during the wait) is thus worthless after it. Tests: old secret after the new one is used, and after 60
+   seconds, both `device_unpaired`; a `renew` keeps the same secret (CTO 11).
+6. The code's hash is unique; a collision when making one is retried (up to 3 times, then `DV503 busy`).
 
 ### Data (migration 0057)
 
@@ -86,17 +103,27 @@ The device never types anything and its credential is never shown: the TV-sign-i
   client text 0..60, expires_at, created_at)`: no tenant columns (it belongs to no one yet). RLS forced, PUBLIC
   revoked, no grant; written only by `open_device_request` and `claim_device`. `open_device_request` deletes up to 100
   rows expired more than a day ago on each call, and refuses (`DV503 busy`) when 5,000 unexpired requests exist (a
-  flood cannot fill the table).
+  flood cannot fill the table). Reaching the cap writes an ops alert (the log line `device.request_flood`, which the
+  error tracker alerts on, as the other platform alarms) and SECURITY.md records the risk: a flood can delay new
+  pairings for up to 10 minutes, never touch paired devices (CTO 9).
 - `paired_device (id uuid PK, organizer_id, event_id, kind station|kiosk|screen, quest_id uuid NULL, label text 1..40,
-  client text 0..60, secret_hash bytea UNIQUE, status active|revoked, paired_by_operator uuid → staff_assignment ON
-  DELETE SET NULL, paired_by_staff uuid → staff_user, paired_at, revoked_at, last_seen_at)`. CHECKs: `(kind = 'screen')
-  = (quest_id IS NULL)`; exactly one of the two `paired_by_*` set; `revoked_at` set iff revoked. `(quest_id,
+  client text 0..60, secret_hash bytea UNIQUE, previous_hash bytea NULL, previous_until timestamptz NULL, activated_at,
+  status active|revoked, paired_by_operator uuid → staff_assignment ON DELETE SET NULL, paired_by_staff uuid →
+  staff_user ON DELETE SET NULL, paired_at, revoked_at, last_seen_at)`. CHECKs: `(kind = 'screen') = (quest_id IS
+  NULL)`; `num_nonnulls(paired_by_operator, paired_by_staff) <= 1 AND (status = 'revoked' OR
+  num_nonnulls(paired_by_operator, paired_by_staff) = 1)` (CTO 1: an active device always names who paired it; a
+  revoked one may have lost it, and the `device.pair` audit row keeps who it was); `revoked_at` set iff revoked. `(quest_id,
   event_id)` → `quest (id, event_id)` ON DELETE CASCADE (a device is setup, not evidence); `(event_id, organizer_id)` →
   `event` ON DELETE CASCADE. At most 200 active devices an event (`DV409 limit_reached`). RLS forced, PUBLIC revoked,
   no grant. Kept by the rehearsal wipe (setup, as NFC tags).
 - **Operator removal revokes what they paired** (FR-905, "at once"): a `BEFORE DELETE` trigger on `staff_assignment`
   revokes that assignment's active devices (audited `device.revoke`, reason `operator_removed`) before the FK sets
-  `paired_by_operator` NULL. The dashboard's remove dialog says "Devices they paired stop working".
+  `paired_by_operator` NULL; the CHECK then holds because the rows are already revoked, so the operator's delete
+  (0026:675) never fails (CTO 1, tested). The dashboard's remove dialog says "Devices they paired stop working".
+- **Team-member removal likewise (CTO 1)**: removing a member from the organizer (the membership delete) revokes the
+  devices that staff user paired in that organizer's events (reason `member_removed`), by the same kind of trigger; a
+  deleted staff user's rows are revoked first by a `BEFORE DELETE` trigger on `staff_user`, then the FK sets NULL.
+  Tested both.
 - `quest.verification` gains `screen_qr`; `quest_verification_known` widened: `screen_qr` on `scan_qr` only, and
   **never with `quest_qr`** (`NOT ('screen_qr' = ANY (v) AND 'quest_qr' = ANY (v))`): a printed code beside a rotating
   one would undo the rotation. Since T-308 requires `quest_qr` with `nfc`, NFC and the screen QR are not combined (Q-203
@@ -106,10 +133,14 @@ The device never types anything and its credential is never shown: the TV-sign-i
 
 ### How a paired device authenticates
 
-- New access kind **`device`** in `route-access.ts`, allowed only under `/v1/device/`, enforced by its own hook
-  (`apps/api/src/devices/guard.ts`): reads `__Host-qs_device` (43 characters, else 401), finds the device through a new
-  pre-identity lookup kind `device` (`app.device_token_hash`, opening exactly one `paired_device` or `device_request`
-  row), and sets `request.device = {id, kind, eventId, questId}` and the idempotency principal `device:{id}`. A revoked,
+- New access kind **`device`** in `route-access.ts`, allowed only where `url === "/v1/device" ||
+  url.startsWith("/v1/device/")` (CTO 5), enforced by its own hook (`apps/api/src/devices/guard.ts`) that runs on each
+  route's `config.access === "device"`, never on the path: reads `__Host-qs_device` (43 characters, else 401), finds
+  the device through a new pre-identity lookup kind `device` (`app.device_token_hash`, opening exactly one
+  `paired_device` or `device_request` row), and sets `request.device` as a union `{state: "pending", requestId, kind} |
+  {state: "paired", id, kind, eventId, questId, activated}` (CTO 5) and the idempotency principal `device:{id}`. Only
+  `GET /v1/device`, `renew` and `activate` take a pending or unactivated device; every other device route needs
+  `paired` and activated. A revoked,
   unknown or ended device answers **401 `device_unpaired`**, and the page drops everything it showed and starts over at
   step 1. `Cache-Control: no-store` on every device answer. Writes need `Origin` equal to the dashboard origin (the
   staff routes' CSRF rule).
@@ -124,8 +155,16 @@ The device never types anything and its credential is never shown: the TV-sign-i
   nothing; FR-1713's WhatsApp case); a photographed pairing code is useless without the cookie that only the showing
   browser holds; a stranger who gets staff to pair *their* remote browser (social engineering through the dashboard's
   type-in) gets a station whose codes still expire within 45 seconds and whose label, client and last-seen sit on the
-  Devices page with Revoke; a stolen cookie works until Revoke, the event's end + 24 h, or 30 idle days; guessing a
-  code needs a staff account of an event, 10 claims a minute per staff member, against 40 bits that live 10 minutes.
+  Devices page with Revoke; a stolen cookie works until Revoke, the event's end + 24 h, or 30 idle days (and one seen
+  before pairing is dead after activation, CTO 2); guessing a code needs a staff account of an event, 10 claims a
+  minute per staff member, and unknown-code claims are throttled at 30 an hour per event and per organizer, with a
+  platform counter that alerts ops above 200 an hour (CTO 8), against 40 bits that live 10 minutes.
+- **A device paired by an operator works only while that operator could still pair it (CTO 3)**: when
+  `paired_by_operator` is set, `screen_code_for_device` (and T-309b's kiosk door) re-reads that assignment's current
+  abilities and quest limit: `show_rotating_qr` for a station, `scan_quests` for a kiosk, the quest still within the
+  limit. If not, the device answers the state `paused` ("Paused by the event team") and no code; it resumes if the
+  ability or quest comes back. Tests: ability turned off, quest taken out of the limit, each for a station and (T-309b)
+  a kiosk.
 
 ### Revocation and the Devices page
 
@@ -160,15 +199,21 @@ has ended (`DV409 event_closed`).
   judged. Neither the screen's clock nor the player's phone clock is ever used, so a TV whose clock is wrong still shows
   good codes, and API instances whose clocks drift cannot disagree. `screen_window()` answers `(window, ms_to_next)`;
   `screen_window_ok(version integer, at timestamptz)` (IMMUTABLE, tested at fixed instants) accepts the current window,
-  and the previous one only during the first **15 seconds** of the current one (a player who scanned just before the
+  and the previous one only while `at - window_start < interval '15 seconds'` exactly (accepted at 14.999 s, refused at
+  15.000 s, both tested, CTO 7) of the current one (a player who scanned just before the
   change, on a slow network). So a code lives 30 seconds on the screen and dies at most 15 seconds after it changed.
 - **A photographed code**: refused once it is more than 15 seconds past its change (FR-314's second case, `QV422
   expired`; the app says "This code has changed. Scan the screen again"). A code relayed live (a photo sent and scanned
   within those 45 seconds) still pays its scanner: accepted and written down (ADR-240); bounded by the quest's caps and
   period, and watched by T-209's burst flags. An organizer who wants presence proved by a person uses a staffed station
   or the kiosk (T-309b).
-- Not single-use: a TV code is meant to be scanned by many players. Regenerating the quest's printed QR (FR-1711) does
-  not touch screen codes (they carry no `qr_version`).
+- Not single-use across players: a TV code is meant to be scanned by many. **One pay per player per window (CTO 6)**:
+  for `screen_qr`, a completion of this quest by this enrollment with method `screen_qr` in the last 45 seconds
+  answers `QD409` (in `record_completion`, under the enrollment lock), so one code cannot pay a repeatable quest twice;
+  T-309b reuses the same rule for `kiosk`. Regenerating the quest's printed QR (FR-1711) does not touch screen codes
+  (they carry no `qr_version`). Codes are per quest, not per screen: revoking one station stops its own codes, not the
+  quest's codes on other stations or operators' phones (ADR-240 says so; "Revoke all" or turning `screen_qr` off stops
+  them all).
 
 ### Showing it
 
@@ -197,9 +242,9 @@ has ended (`DV409 event_closed`).
   quest (`not_questify`, `forged`, `wrong_quest` answer as a printed QR's do and count in the wrong-proof throttle);
   `complete_quest` admits `screen_qr` and passes the window as `proof_version`.
 - `record_completion` restated (from 0056:106): the method check gains `(quest_row.type = 'scan_qr' AND proof_method =
-  'screen_qr' AND 'screen_qr' = ANY (quest_row.verification))`, and `IF proof_method = 'screen_qr' AND NOT
-  screen_window_ok(proof_version, now()) THEN QV422 'expired'`. The window is judged **inside the door, after the
-  enrollment lock**, so no caller can skip it. `screen_qr` is boosted like a scan. The reserved key prefixes are
+  'screen_qr' AND 'screen_qr' = ANY (quest_row.verification))`, `IF proof_method = 'screen_qr' AND NOT
+  screen_window_ok(proof_version, now()) THEN QV422 'expired'`, and the one-pay-per-window rule (CTO 6). The window is
+  judged **inside the door, after the enrollment lock**, so no caller can skip it. `screen_qr` is boosted like a scan. The reserved key prefixes are
   unchanged.
 
 ## Big screen up to "paired" (T-309; ADR-241)
@@ -223,7 +268,7 @@ name and avatar. A kiosk has no one watching, and FR-315 says an expired screens
 - New purpose **0x08 `live`**: id = the player id, version = the 30-second window, judged by the same
   `screen_window_ok` (one rule for both rotating codes). Stateless: nothing stored per code.
 - The app's My QR screen gets a second tab, **"For kiosks"**, which shows the live code while online (`GET
-  /v1/me/live-code` → `{code, changesInMs}`, the window from the database, 4 a minute per player), with the same
+  /v1/me/live-code` → `{code, changesInMs}`, the window from the database, 6 a minute per player), with the same
   emptying bar; offline it says "Kiosks need the internet. Staffed stations still read your My QR". The first tab (the
   fixed My QR) and every station and prize-desk scan are unchanged.
 - A kiosk shown the fixed My QR (purpose 0x02 opens, 0x08 does not) answers "This kiosk reads your live code: My QR →
@@ -254,17 +299,16 @@ name and avatar. A kiosk has no one watching, and FR-315 says an expired screens
 - `kiosk_complete_quest(scanned uuid, live_window integer, request_key text)` (definer, granted, `app_device_id()`
   required):
   1. reads its device row `FOR SHARE` (a Revoke waits for a scan in flight, or the scan sees `revoked`: either the scan
-     paid before the revoke or is refused after it, never half); not a kiosk, revoked or ended → `DV401`;
+     paid before the revoke or is refused after it, never half); not a kiosk, revoked or ended → `DV401`; paired by an
+     operator who no longer has `scan_quests` or the quest → `paused` (CTO 3);
   2. `ensure_rehearsal_wiped(device.event_id)` before anything is read about the player (T-308 code review 2);
   3. `record_completion(device.quest_id, scanned, 'kiosk', live_window, NULL, request_key, NULL, NULL, NULL, NULL,
      device.event_id)`: the enrollment lock, the quest re-read after the wipe, replay, `quest_open_check`, every cap;
   4. on a fresh completion, `kiosk_scan (completion_id PK → quest_completion ON DELETE CASCADE, device_id →
      paired_device ON DELETE SET NULL, organizer_id, event_id)`: which kiosk paid (the Devices page counts it; the wipe
      and erasure remove it with its completion, no restatement).
-- `record_completion` restated again in 0058: the `kiosk` method row, `screen_window_ok` for `kiosk` too, and **one pay
-  per live code**: for `kiosk`, a completion of this quest by this enrollment with method `kiosk` in the last 45
-  seconds answers `QD409` (under the enrollment lock, as the operator's 10-second rule), so a repeatable quest is not
-  paid twice by one held-up code.
+- `record_completion` restated again in 0058: the `kiosk` method row, `screen_window_ok` for `kiosk` too, and 0057's
+  one-pay-per-window rule extended to `kiosk` (CTO 6), so a repeatable quest is not paid twice by one held-up code.
 - Rate limits: 30 scans a minute per kiosk; 20 unreadable or forged codes in 10 minutes pause the kiosk for a minute
   ("Paused for a moment"); per player, the caps.
 - Rehearsal: a kiosk paired before go-live pays rehearsal accounts in rehearsal; the wipe runs first at go-live.
@@ -280,7 +324,7 @@ name and avatar. A kiosk has no one watching, and FR-315 says an expired screens
 | `member_event_quests` (0055) | unchanged shape; `verification` lists `screen_qr` | the app's quest sheet says "Scan the code on the screen" |
 | `staff_assignment` delete | new trigger revokes the operator's devices | removal test |
 | `wipe_rehearsal`, `erase_rows`, event delete | unchanged (devices kept by the wipe; cascade on event and quest delete; `kiosk_scan` cascades with completions) | rows for each |
-| New granted: `open_device_request`, `renew_device_request`, `device_session`, `claim_device` (operator and team), `revoke_device`, `revoke_devices`, `event_devices`, `operator_devices`, `screen_code_for_device`, `screen_code_for_operator`; internal `screen_window`, `screen_window_ok` | | outsider and cross-tenant suites; the payer map gains `complete_quest → record_completion (screen_qr, now)`; T-306c's reader map gains the readers |
+| New granted: `open_device_request`, `renew_device_request`, `device_session`, `activate_device`, `claim_device` (operator and team), `revoke_device`, `revoke_devices`, `event_devices`, `operator_devices`, `screen_code_for_device`, `screen_code_for_operator`; internal `screen_window`, `screen_window_ok` | | outsider and cross-tenant suites; the payer map gains `complete_quest → record_completion (screen_qr, now)`; T-306c's reader map gains the readers |
 
 **The screen door table** (one table-driven test, a row per case): current window pays (`method = screen_qr`); the
 previous window at 14 s pays and at 16 s is `expired`; two windows back, a future window, a wrong quest's code
@@ -293,8 +337,11 @@ test over random instants (exactly the current window, plus the previous one onl
 **The pairing table**: request → claim → session `paired`; an expired code; a claimed code claimed again (`DV404`); a
 code of 7 or 9 characters; a station for a quest without `screen_qr`, outside the operator's limit, with
 `show_rotating_qr` off; a big screen from staff mode (refused); an editor pairing; a viewer (refused); another
-organizer's event (404); the device limit; an ended event; revoke then poll (`device_unpaired`); operator removal;
-event end + 24 h; 30 idle days; the request flood cap.
+organizer's event (404); the device limit; an ended event; revoke then poll (`device_unpaired`); operator removal and
+team-member removal (revoked, the delete succeeds, CTO 1); activation (old secret refused after the new one is used and
+after 60 s, CTO 2); the pairing operator's ability off or quest taken out of the limit (`paused`, no code; back on,
+codes again, CTO 3); unknown-code claims past 30 an hour per event and per organizer (CTO 8); a code-hash collision
+retried (forced in the test); event end + 24 h; 30 idle days; the request flood cap and its alert line.
 
 ### Races and lock order
 
@@ -302,6 +349,7 @@ event end + 24 h; 30 idle days; the request flood cap.
 |---|---|
 | Two staff claim one code at once | `claim_device` takes the request row `FOR UPDATE`; the second finds none: `DV404`. Crossed test. |
 | A device polls while its code is claimed | the poll reads without locks: `pending` before the commit, `paired` after. |
+| Activate while an old-secret request is in flight | `activate` takes the device `FOR UPDATE`; the old secret is checked against `previous_until` in the same row, so it is accepted or refused, never half. |
 | Revoke while a station fetches a code | the fetch reads the device without a lock; a code fetched just before the revoke lives out its window (at most 45 s). Accepted and tested. |
 | Revoke while a kiosk scans (T-309b) | the scan holds the device `FOR SHARE`, the revoke's update waits: paid before, refused after. Crossed both orders. |
 | Operator removed while their kiosk scans | the removal trigger's update waits for the scan's `FOR SHARE`, as above. |
@@ -309,10 +357,13 @@ event end + 24 h; 30 idle days; the request flood cap.
 
 ## API (T-309)
 
-- Public: `POST /v1/device/pairing {kind}` (sets the cookie; 5 a minute and 20 an hour per address bucket; `503 busy`
-  at the flood cap). It is public but writes only a request row that holds no one's data.
-- Device: `GET /v1/device` (`{state: "pending", kind, code, expiresAt}` or `{state: "paired", kind, label, event:
-  {name}, quest: {title, points} | null}`), `POST /v1/device/pairing/renew` (a new code for a pending device), `GET
+- Public: `POST /v1/device/pairing {kind}` (sets the cookie; `Origin` checked, CTO 10; 60 per 10 minutes per address
+  bucket, since a venue's screens share one address behind its NAT, and a call carrying a valid device cookie answers
+  its state and is not counted, CTO 4; `503 busy` at the flood cap). It is public but writes only a request row that
+  holds no one's data.
+- Device: `GET /v1/device` (`{state: "pending", kind, code, expiresAt}`, `{state: "paired", activated: false}`, or
+  `{state: "paired", activated: true, kind, label, paused, event: {name}, quest: {title, points} | null}`), `POST
+  /v1/device/pairing/renew` (a new code for a pending device, same secret), `POST /v1/device/activate` (CTO 2), `GET
   /v1/device/screen-code`. 30 a minute per device for the poll.
 - Operator: `POST /v1/operator/events/{eventId}/devices {code, kind, questId, label}` (**Idempotency-Key**; 10 a minute
   per operator), `GET …/devices`, `POST …/devices/{deviceId}/revoke`, `GET …/quests/{questId}/screen-code`.
@@ -398,7 +449,11 @@ Plus the Devices page's labels (Kind, Label, Quest, Paired by, Last seen, Revoke
   canonical encoding); the pairing code alphabet and normaliser (case, dash and space ignored; the excluded letters
   refused); the User-Agent reducer (never more than browser and system).
 - **Route**: every new route, `device_unpaired`, `feature_off`, the cookie's flags, the `Origin` check on device
-  writes, the log redaction.
+  writes and on the public pairing POST, the log redaction, the reload case (a page with a valid cookie never makes a
+  second request; a POST with a valid cookie answers the state and is not counted), 60 pairings from one address.
+- **Cross-credential (CTO 11)**: a device cookie on every player, staff, member, owner and admin route → 401; a staff
+  cookie or a player bearer on every `/v1/device` and `/v1/device/*` route → 401; a pending device's cookie on the
+  paired-only routes → 401; the inventory test proves `/v1/devices` (no slash match) is not a device route.
 - **App**: Pair a device (scan, type, kinds, refusals), Rotating QR, My paired devices, the scanner's `/s/` case, RTL
   and Arabic; `expo export`. **Web**: the station page states (unpaired, live, reconnecting, method off, ended), the
   big-screen paired state, the Devices page, the quest form's method; e2e `stations.spec.ts` (desktop and phone):
@@ -414,7 +469,8 @@ Plus the Devices page's labels (Kind, Label, Quest, Paired by, Last seen, Revoke
    proof, the operator and team routes, the switch, refusal mappings + route tests.
 3. App (staff-mode Pair, Rotating QR, My devices; the scanner's `/s/`), web (station, screen, pair and `/s/` pages, the
    Devices page, the method box), strings; docs (API.md, DATA_MODEL.md `device_pairing` row replaced, SECURITY.md
-   threat rows, SRS FR-314/FR-1713 status and FR-1713's amended wording, FEATURES F-106/F-238, CONFIGURABILITY
+   threat rows and the flood risk, SRS FR-314/FR-1713 status and FR-1713's rewording marked "pending Q-202" (FR-315's
+   in T-309b, "pending Q-201"), FEATURES F-106/F-238, CONFIGURABILITY
    switch, rules.md lock order, STORE_COMPLIANCE notes, TASKS notes for T-309b and T-504, STATE).
 
 ## Proposed decisions and questions
@@ -425,10 +481,12 @@ Plus the Devices page's labels (Kind, Label, Quest, Paired by, Last seen, Revoke
   `__Host-qs_device` cookie (stored as its hash); staff claim the code from staff mode (stations with
   `show_rotating_qr`, kiosks with `scan_quests`, within the quest limit) or the dashboard (owners and editors, any
   kind; big screens only there). A device works until revoked, its operator removed, its quest or event deleted, 24
-  hours after its event ends, or 30 idle days. A new `device` access kind under `/v1/device/`.
+  hours after its event ends, or 30 idle days; its secret is replaced at activation; an operator's device pauses
+  when the operator loses the ability or quest (CTO 1 to 4). A new `device` access kind under `/v1/device`.
 - **ADR-240** Rotating screen QR: purpose 0x07, the quest id and the 30-second window, both taken from the database
   clock; the previous window is accepted for 15 seconds; not single-use; method `screen_qr` on scan quests only and
-  never with the printed QR. A code relayed live within its 45 seconds still pays (risk accepted, caps and burst flags).
+  never with the printed QR; one pay per player per window; codes are per quest, so revoking one station does not
+  stop the others. A code relayed live within its 45 seconds still pays (risk accepted, caps and burst flags).
 - **ADR-241** The big-screen link is the plain `/{lang}/screen` address and holds nothing; pairing holds the power, and
   "Revoke all big screens" replaces "regenerate the link" (amends FR-1713's wording).
 - **ADR-242** (T-309b) Kiosks read a **live code** (purpose 0x08: the player id and the 30-second window, from My QR's
