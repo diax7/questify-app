@@ -263,6 +263,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
     });
   });
 
+  describe("go-live with a rehearsal poll still open (CTO code review 1)", () => {
+    it("never shows it to a real player or pays them, and the wipe resets it to draft", async () => {
+      const event = await newEvent("draft");
+      await owner(
+        "INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, 'GPGK-WXYZ')",
+        [event, ids.orgA],
+      );
+      const quest = await newVote(event, await newCategory(event), poll("one", "at_close", 60));
+      await send(event, quest);
+      await owner("UPDATE event SET status = 'live' WHERE id = $1", [event]);
+      const { player, enrollment } = await member(event);
+      expect(await live(player, event)).toEqual({ polls: [], closed: [], community: null });
+      expect(await query(as(player), "SELECT * FROM member_poll($1)", [quest])).toEqual([]);
+      expect(await refusal(vote(player, quest, ["a"]))).toBe("QN403:hidden");
+      expect(
+        await owner("SELECT count(*)::int AS n FROM quest_completion WHERE enrollment_id = $1", [
+          enrollment,
+        ]),
+      ).toEqual([{ n: 0 }]);
+      // The refused vote rolled its wipe back; the tick's wipe leaves the poll a draft to send for real.
+      await owner("SELECT ensure_rehearsal_wiped($1)", [event]);
+      expect(await owner("SELECT visible, poll_sent_at FROM quest WHERE id = $1", [quest])).toEqual(
+        [{ visible: false, poll_sent_at: null }],
+      );
+    });
+  });
+
   describe("the guard on the API's seat", () => {
     it("refuses a live poll made visible, a window, `live` added to a visible vote, and a sent poll's window", async () => {
       const event = await newEvent();
@@ -678,6 +705,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
     it("keeps the internal helpers away from the API role", async () => {
       for (const sql of [
         "SELECT is_live_poll('vote', '{}')",
+        "SELECT polls_shown(NULL::event)",
         "SELECT team_poll(gen_random_uuid(), gen_random_uuid())",
         "SELECT quest_live_poll_guard()",
       ]) {

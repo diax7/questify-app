@@ -50,7 +50,7 @@ function useShownResults(eventId: string) {
  */
 export function LivePolls() {
   const { t } = useI18n();
-  const { eventId, livePollSeconds } = useEvent();
+  const { eventId, livePollSeconds, notePaid } = useEvent();
   const live = useLiveState(eventId, livePollSeconds);
   const segments = useSegments();
   const sheets = useOpenSheets();
@@ -91,7 +91,7 @@ export function LivePolls() {
       onClose={close}
       closeLabel={card.kind === "poll" ? t("poll.later") : undefined}
     >
-      <PollEntry key={card.questId} questId={card.questId} onPaid={() => undefined} card />
+      <PollEntry key={card.questId} questId={card.questId} onPaid={notePaid} card />
     </Sheet>
   );
 }

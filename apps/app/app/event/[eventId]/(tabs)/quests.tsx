@@ -54,6 +54,13 @@ function useQuests(eventId: string) {
       void load();
     }, [load]),
   );
+  // A vote from the live poll card pays over this tab, so focus never changes (T-306).
+  const { paidCount } = useEvent();
+  useEffect(() => {
+    if (paidCount > 0) {
+      void load();
+    }
+  }, [paidCount, load]);
   useEffect(() => {
     const watcher = AppState.addEventListener("change", (state) => {
       if (state === "active") {

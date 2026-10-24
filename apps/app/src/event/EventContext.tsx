@@ -24,6 +24,9 @@ type EventValue = Readonly<{
   scanPositions: boolean;
   /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
   livePollSeconds: number;
+  /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
+  paidCount: number;
+  notePaid: () => void;
 }>;
 
 const EventContext = createContext<EventValue | undefined>(undefined);
@@ -38,6 +41,8 @@ export function EventProvider({
   const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
   const [locationOn, setLocationOn] = useState(false);
   const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
+  const [paidCount, setPaidCount] = useState(0);
+  const notePaid = useCallback(() => setPaidCount((count) => count + 1), []);
   const load = useCallback(async () => {
     const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
     setEvents(answer.kind === "ok" ? readMyEvents(answer.body) : undefined);
@@ -74,8 +79,20 @@ export function EventProvider({
       locationOn,
       scanPositions,
       livePollSeconds,
+      paidCount,
+      notePaid,
     }),
-    [eventId, events, knownName, terms, locationOn, scanPositions, livePollSeconds],
+    [
+      eventId,
+      events,
+      knownName,
+      terms,
+      locationOn,
+      scanPositions,
+      livePollSeconds,
+      paidCount,
+      notePaid,
+    ],
   );
   return <EventContext.Provider value={value}>{children}</EventContext.Provider>;
 }

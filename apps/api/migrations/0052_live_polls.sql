@@ -40,6 +40,16 @@ ALTER TABLE quest_vote ADD PRIMARY KEY (enrollment_id, quest_id, option_id);
 ALTER TABLE quest_vote DROP CONSTRAINT quest_vote_completion_id_key;
 CREATE INDEX quest_vote_completion_idx ON quest_vote (completion_id);
 
+-- Whether the event's sent polls may be shown to players now: before go-live (only rehearsal accounts play then), or
+-- once the go-live wipe ran. A rehearsal poll still open when the event goes live stays hidden until the wipe puts it
+-- back to draft (CTO code review 1). STABLE, so readers may call it; the writers run the wipe first. Internal.
+CREATE FUNCTION polls_shown(ev event) RETURNS boolean
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT event_status_now(ev.status, ev.starts_at, ev.ends_at) IN ('draft', 'scheduled')
+      OR NOT EXISTS (SELECT 1 FROM event_rehearsal r WHERE r.event_id = ev.id AND r.live_wiped_at IS NULL)
+$$;
+REVOKE ALL ON FUNCTION polls_shown(event) FROM PUBLIC;
+
 -- Whether a quest is a live poll. Internal.
 CREATE FUNCTION is_live_poll(kind text, config jsonb) RETURNS boolean
   LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
@@ -158,7 +168,9 @@ END $$;
 -- ================================================================ voting (FR-207, FR-240)
 -- As 0043, with a set of options: non-empty, distinct and each the quest's own (VO422), exactly one unless the poll
 -- takes several (VC422 too_many_choices). One completion and one payment whatever the number chosen. A replayed key
--- answers the first result when the set is the same (in any order), QK422 otherwise.
+-- answers the first result when the set is the same (in any order), QK422 otherwise. The go-live wipe runs before the
+-- quest is read, so a rehearsal poll open across go-live is read back as the draft the wipe made of it (CTO code
+-- review 1); record_completion's own call then finds nothing to do.
 DROP FUNCTION vote_quest(uuid, text, text);
 CREATE FUNCTION vote_quest(target uuid, options text[], request_key text)
   RETURNS TABLE (completion_id bigint, points bigint, occurrence integer, score bigint, balance bigint,
@@ -177,6 +189,7 @@ BEGIN
   IF request_key IS NULL OR length(request_key) NOT BETWEEN 1 AND 255 THEN
     RAISE EXCEPTION 'an idempotency key is required' USING ERRCODE = 'QK422';
   END IF;
+  PERFORM ensure_rehearsal_wiped(q.event_id) FROM quest q WHERE q.id = target;
   quest_row := play_quest(target, 'vote');
   chosen := ARRAY(SELECT DISTINCT o FROM unnest(options) o WHERE o IS NOT NULL ORDER BY o);
   IF coalesce(cardinality(options), 0) = 0 OR cardinality(chosen) <> cardinality(options) OR EXISTS (
@@ -247,6 +260,7 @@ CREATE FUNCTION member_poll(target uuid)
   JOIN enrollment n ON n.event_id = q.event_id AND n.player_id = app_player_id() AND n.status = 'active'
   JOIN player p ON p.id = n.player_id AND p.status = 'active'
   WHERE q.id = target AND is_live_poll(q.type, q.type_config) AND q.visible AND sees_category(n.id, c)
+    AND polls_shown(e)
 $$;
 REVOKE ALL ON FUNCTION member_poll(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION member_poll(uuid) TO questify_app;
@@ -387,6 +401,9 @@ BEGIN
     RETURN jsonb_build_object('polls', '[]'::jsonb, 'closed', '[]'::jsonb, 'community', NULL);
   END IF;
   SELECT * INTO ev FROM event e WHERE e.id = target;
+  IF NOT polls_shown(ev) THEN
+    RETURN jsonb_build_object('polls', '[]'::jsonb, 'closed', '[]'::jsonb, 'community', NULL);
+  END IF;
   playing := play_phase(ev, enrolled) IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM staff_assignment sa WHERE sa.event_id = target AND sa.player_id = enrolled.player_id AND NOT sa.can_play);
   RETURN jsonb_build_object(

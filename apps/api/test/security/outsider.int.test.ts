@@ -107,6 +107,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.event_has_open_poll(gen_random_uuid())",
         "SELECT public.team_poll(gen_random_uuid(), gen_random_uuid())",
         "SELECT public.is_live_poll('vote', '{}')",
+        "SELECT public.polls_shown(NULL::public.event)",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }

@@ -6,6 +6,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { sheetOpened } from "#src/components/sheet-count.ts";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { checkInRead, nativeReader, type LocationReader } from "#src/event/location.ts";
 import { completeQuest, type CompletionAnswer, type Quest } from "#src/event/quests-api.ts";
@@ -56,6 +57,8 @@ export function LocationPrompt({
 }: Readonly<{ visible: boolean; onContinue: () => void }>) {
   const styles = useThemedStyles(makeStyles);
   const { rtl } = useI18n();
+  // A sheet of its own: the live poll card waits while it is open (T-306).
+  useEffect(() => (visible ? sheetOpened() : undefined), [visible]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onContinue}>
       <View style={styles.backdrop}>
