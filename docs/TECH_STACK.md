@@ -45,7 +45,7 @@
 | Redis or Valkey | BSD (Valkey) / mixed (Redis) | Sorted sets for rankings | License of the managed offering is the provider's concern |
 | `passkit-generator` | MIT | Signs Apple Wallet passes on the server | Building the `.pkpass` zip and signature by hand is possible but needless |
 | Rive and Lottie runtimes | MIT | Playing designer-made animations | Designers keep authoring; no custom animation engine |
-| `react-native-nfc-manager` | MIT | NFC read/write | Native NFC code is hard; the library supports a development build |
+| `react-native-nfc-manager` | MIT | NFC read/write | Native NFC code is hard; the library supports a development build. Built (T-308): 4.1.0, loaded lazily, ADR-237 |
 | Game logic (quests, points, XP, shop, rankings) | n/a | **Built** | It is the product. Open-source gamification engines were old or thin (ADR-086) |
 | Notification layer | n/a | **Built, thin** | Novu needs MongoDB, Redis and workers; our needs are three provider connections (ADR-086) |
 

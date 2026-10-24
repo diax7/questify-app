@@ -17,7 +17,7 @@
 | R10 | **A bad live configuration save** reaches every player at once (no draft, rollback or A/B, ADR-093) | Medium | Medium | Validation on save, protected items and placeholders, audit log, the phone's last-working copy (F-282); revisit draft/publish after launch | Dhia |
 | R11 | **Arabic and RTL quality** (React Native restarts on language switch; Arabic text bugs on real devices) | Medium | Medium | Test on real phones from Phase 0; Q-079 decides the switch behaviour; final Arabic copy pass (T-808) | Dhia |
 | R12 | **iPhone one-scan join is imperfect** (Q-070): the iPhone path needs one tap | Medium | Medium | Paste-code button plus typing the short code; Android uses the install referrer; measure install-to-first-coin | Dhia |
-| R13 | **NFC tags can be cloned** (Q-071) | Medium | Medium | Signed per-tap tags if the library supports configuring them, otherwise flags and QR as the main proof | Dhia |
+| R13 | **NFC tags can be cloned** (Q-071) | Medium | Medium | Basic tags only (Dhia, 2026-10-24): a tap whose sticker id differs is flagged and paid (ADR-041, ADR-234); the QR is always on; flags are the proof | Dhia |
 | R14 | **Dependency churn** in Expo and React Native (several SDK releases a year) | Medium | Low to medium | Pin versions, upgrade between phases, keep the dependency list short (rules.md) | Dhia |
 | R15 | **Cloud-build queue or outage** on the free Expo plan before a release | Low | Medium | Upgrade to the $19 plan near a release; a borrowed Mac with Xcode is the fallback | Dhia |
 | R16 | **Mascot and art assets delayed** (Codex image limit, resets 18 Oct; seven mascot images remain; mascot vote Q-069) | Medium | Low | Theme-agnostic UX plan; screens work with placeholder art; design tokens allow later swaps | Dhia |

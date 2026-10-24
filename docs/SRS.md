@@ -996,8 +996,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-309 | F-108 | Must | pending |
 | FR-310 | F-109 | Must | pending |
 | FR-311 | F-109 | Must | pending |
-| FR-312 | F-105 | Should | pending |
-| FR-313 | F-105 | Should | pending |
+| FR-312 | F-105 | Should | built (T-308) |
+| FR-313 | F-105 | Should | built (T-308) |
 | FR-314 | F-106 | Should | pending |
 | FR-315 | F-107 | Should | pending |
 | FR-316 | F-110 | Must | pending |
@@ -1082,7 +1082,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-612 | F-154 | Should | pending |
 | FR-613 | F-160 | Should | pending |
 | FR-620 | F-161 | Must | pending |
-| FR-621 | F-162 | Must | pending |
+| FR-621 | F-162 | Must | built for QR and NFC (T-308) |
 | FR-622 | F-162 | Must | pending |
 | FR-623 | F-163 | Must | pending |
 | FR-624 | F-164 | Must | pending |

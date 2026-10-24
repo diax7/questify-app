@@ -268,6 +268,9 @@ the client-address count (ADR-113).
   read questify_app's sessions" otherwise; `node migrate.cjs --verify` then reports `ownerSeesSessions: true`. Nothing
   is granted. It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. On the day a build
   goes to store review, give the demo event a running community goal with an unlock milestone (STORE_COMPLIANCE, review notes).
+- **Migration 0056 (T-308, NFC tags):** two new closed tables and widened checks; `record_completion` restated. The app
+  needs a new EAS development build (react-native-nfc-manager, a native module) before NFC runs on a phone. On the day a
+  build goes to store review, give the demo event a scan quest with NFC on (its QR works for the reviewer).
 - **Migration 0055 (T-307, flash quests and boosts):** a new column on `quest`, the `boost` table and `ledger_entry.boost_id`
   (nullable, no default: no rewrite of the ledger). `pay_completion` is dropped and created with no defaults: deploy the
   new API with it. On the day a build goes to store review, give the demo event a scheduled flash quest and a boost

@@ -686,3 +686,9 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - Caps: "Event caps only". A removed quest: stays used. Bulk award now: an uploaded list and a quest's completers.
   Who removes: owner and editors.
 - Processed: ADR-152 (Accepted); plan `docs/plans/2026-10-23-t-207-manual-awards.md`.
+
+## 2026-10-24 — NFC tags (T-308)
+- Q-198 (signed tags): "we will go only with [basic tags]. The other option we will not do it at all. So remove it
+  from the plans, remove it from everything."
+- Processed: Q-198 answered; ADR-235 and ADR-236 rejected (titles kept); ADR-234 and ADR-237 cover basic tags only;
+  ADR-040 stands; T-308b deleted from TASKS; the plan's signed-tag section removed; Q-200 closed as moot.

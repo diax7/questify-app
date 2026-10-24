@@ -68,6 +68,12 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-308): the NFC switch
+
+- `nfcTags` (platform level, not an add-on, on by default): off, the app hides NFC, taps and the operator's write
+  routes answer `feature_off`, and every NFC quest completes by its QR. The team's Tags panel stays. No event switch:
+  the quest's own NFC method is the organizer's.
+
 ## As built (T-008): texts
 
 - **Shipped texts** are `MESSAGES` in `packages/shared/src/i18n/messages.ts`: every key in Arabic and English, the same

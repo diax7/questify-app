@@ -610,6 +610,19 @@ category rules leave flash quests out; `member_event_quests` (`flash_closes_at`,
 tail. The wipe deletes rehearsal boosts after the rehearsal entries and puts rehearsal launches back to draft; the
 event's `BEFORE DELETE` trigger deletes its boosts too.
 
+### nfc_tag and nfc_tap (migration 0056, T-308, ADR-234)
+**Built:** `nfc_tag (id, organizer_id, event_id, quest_id, uid bytea (4 to 10), label (0 to 40), locked, version ≥ 1,
+status active|revoked, written_by → staff_assignment SET NULL, written_at, revoked_at)`, `(quest_id, event_id)` →
+quest RESTRICT (the builder answers `tags_in_use`), unique `(event_id, uid) WHERE status = 'active'`. `nfc_tap
+(completion_id PK → quest_completion CASCADE, organizer_id, event_id, tag_id → nfc_tag RESTRICT, uid_ok (NULL: not
+checked), created_at)`. Both: row-level security forced, PUBLIC revoked, no grant. `quest_verification_known` takes
+`nfc` on scan quests only and only with `quest_qr`; `quest_completion.method` takes `nfc`; `flag.kind` takes `nfc_copy`
+(`flag_nfc_open`, evidence `{completions}`). `record_completion` restated with `nfc`; doors `tap_quest` (player),
+`prepare_nfc_tag`, `register_nfc_tag`, `operator_nfc_tags` (operator), `quest_nfc_tags`, `move_nfc_tag`,
+`revoke_nfc_tag`, `revoke_quest_nfc_tags` (team); internal `nfc_writer`, `raise_nfc_flag`, `team_nfc_tag`. Tags are
+not touched by the rehearsal wipe (their taps go with the completions); the event's `BEFORE DELETE` trigger deletes
+its taps and tags first.
+
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
 created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method

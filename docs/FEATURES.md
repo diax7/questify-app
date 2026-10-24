@@ -192,7 +192,7 @@ Decisions:
 | F-104 | My QR: each player's personal code, rotating every 30 seconds in the app | Must | Claude | Used by operator scans, kiosks (F-107) and prize redemption (Area 5); meet-someone (F-84) uses its own one-minute code (ADR-209). A screenshot expires within a minute |
 | F-108 | Operator manual award: find a player by username or phone and award a quest or points | Must | Claude | When nothing can be scanned. Reason required; logged with the operator's name |
 | F-109 | Caps on manual awards, set by the owner: maximum per award and per operator per day; a report of every manual award | Must | Claude | |
-| F-105 | NFC tags: written from staff mode on a phone ("Write to NFC tag" on the quest), tapped by players in the app; the QR as backup | Should | user | Basic tags; the web dashboard can't write tags. Platform limits: Q-071 |
+| F-105 | NFC tags: written from staff mode on a phone ("Write to NFC tag" on the quest), tapped by players in the app; the QR as backup | Should | user | Basic tags; the web dashboard can't write tags. Platform limits: Q-071. Built (T-308): basic tags only (Dhia, 2026-10-24) |
 | F-106 | Rotating QR on a screen: the quest's QR on an operator's phone or on a station page opened on any tablet or TV, changing every 30–60 s | Should | Claude | The deck's "staff shows a one-time QR" is this, on the operator's phone |
 | F-107 | Unattended kiosk: a tablet signed in as a station scans each player's My QR | Should | Claude | No staff needed; the rotating My QR proves the player is there |
 

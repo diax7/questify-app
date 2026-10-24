@@ -170,6 +170,11 @@ What App Review needs from Questify:
    category's quests pay for a while, both decided by the server (2.5.2: data only); boosts are never bought (3.1.1).
    The app learns them from its own polling (no push needed, 4.5.4). The demo event gets a scheduled flash quest and a
    boost on the day the build goes to review (RUNBOOK).
+   **NFC tags (T-308, ADR-234, ADR-237):** tag reading needs no special Apple approval; the entitlement (NDEF, TAG) and
+   `NFCReaderUsageDescription` in Arabic and English, no ISO 7816 select identifier; reading is user-started (the
+   system sheet). Android: `android.permission.NFC` (normal) and the NFC feature not required. The note says NFC is
+   optional and every NFC quest also has its QR, so the reviewer needs no tag; the demo event gets an NFC quest. The
+   sticker's id is the sticker's, not the player's; Data safety and privacy answers are unchanged.
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 
