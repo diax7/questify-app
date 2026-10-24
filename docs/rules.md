@@ -87,6 +87,12 @@ player row `FOR UPDATE` and then deletes tickets and never the advisory lock, so
 erasure. Escalation, a send-back and every answer take the ticket `FOR UPDATE` (an answer after its key's advisory
 lock) and re-read its status and queue; the loser gets `already_closed`, `not_open` or `moved`.
 
+**The first-N bonus's lock order (T-313, ADR-260).** A completion takes the rehearsal row, the enrollment(s), the
+items, the XP row(s), the category bonus, then the bonus's advisory lock `first-bonus:<quest>` shared and one slot `FOR
+UPDATE SKIP LOCKED` per side, last (the meet claims both sides after both are paid). The setter takes the rehearsal
+row, the same advisory lock exclusive, the bonus row, then slots, never an enrollment, an item or an XP row; the quest
+save calls it after its quest write. No claim takes another lock after its slot.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

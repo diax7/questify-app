@@ -3351,6 +3351,57 @@ it; no permission, no identifier), loaded lazily so an older binary sends `null`
 **Why:** FR-1822's acceptance names the app version and phone model.
 **Trade-offs:** a new native module needs a new development build.
 
+## ADR-260 — The first-N count: one row per slot, claimed last with SKIP LOCKED
+**Status:** Proposed (Claude, 2026-10-25; T-313 plan, CTO plan review 84 then 92/100).
+**Decision:** A bonus is `quest_first_bonus` (points 1 to 100,000, N 1 to 1,000) and N rows of `quest_bonus_slot`. The
+claim `pay_first_bonus` is each payer's caller's last write (record_completion, pay_submission, finish_quiz,
+finish_game_round, stamp_step, pay_meeting; never inside pay_completion; the meet claims both sides after both pay, in
+player id order). It costs a quest without a bonus one primary-key probe; a repeat, a manual award, a `practice:` key
+or a used-up bonus takes no lock. Otherwise it takes the bonus's advisory lock shared (the setter takes it exclusive, so
+an edit waits for the claims in flight and is never starved), reads the bonus again, takes the lowest free slot `FOR
+UPDATE SKIP LOCKED`, writes a `first_bonus` ledger entry and the slot's claim (`claimed_at = clock_timestamp()`, so a
+rank shown never moves for a transaction that started earlier and claimed later). The place shown is the claim's rank
+by (claimed_at, place). Stop is a setter call that sets N to the number given, counted under the lock. The API reserves
+`practice:` idempotency keys like the other system prefixes.
+**Why:** a counter row or an exclusive lock queues every claimer of the entrance quest on one lock (NFR-002/003).
+**Measured (2026-10-25, two pools of 10, 300 completions at once, N = 50, six rounds, median p95):** plain 59.7 ms, bonus
+73.2 ms (+22.7%), used-up bonus 60.0 ms; exactly 50 paid each round. The slot claim alone is +7.5%; the rest is the
+bonus's own ledger row (its triggers and indexes) for the first 50. Over the plan's 20% relative budget, by 13 ms in
+absolute terms against NFR-002's 1 s (Q-229).
+**Trade-offs:** a residual rank change is possible only for two claims committing within the same milliseconds.
+
+## ADR-261 — Which completions take a first-N bonus
+**Status:** Proposed (Claude, 2026-10-25; T-313 plan).
+**Decision:** A player's first completion of the quest through any door, at its pay moment: the approval for a
+submission (approval order decides), the finish for a quiz, the result for a game, the stamp that finishes a
+passport, each side of a meet. Never a repeat, a period refresh, a manual award (which, as a first completion, uses up
+that player's chance, Q-225) or a practice scan. A quiz swept by `confirm_results` or by the tick once the event is no
+longer live claims nothing (no slot is taken after the event, and the places check never moves for a bonus); one that
+timed out during play, swept by the tick while the event is live, claims as any finish (CTO note 1). Rehearsal claims
+are given back by the go-live wipe and Erase rehearsal. The bonus is never boosted and pays no XP; a removal never frees
+its slot (Q-223).
+**Why:** FR-1840 rewards being early; the results-time sweep must not change the frozen places.
+
+## ADR-262 — The first-N bonus in the builder
+**Status:** Proposed (Claude, 2026-10-25; T-313 plan).
+**Decision:** The quest save takes `firstBonus: {points, slots} | {stop: true} | null` and calls the setter in its
+transaction after the quest write. Its points and switching it off lock once a real player got it (`first_bonus_paid`);
+N may change to any value at least the number given (`below_given`); lowering deletes free slots from the highest place
+down. The form shows the preview, the locked line and Stop; the list says "First {N}: {left} left"; the team's record
+says "First-{N} bonus, place {place}" and the remove dialog of the quest line hints at the bonus line.
+**Why:** every player of the first N gets the same amount; N stays the most ever paid.
+
+## ADR-263 — "Bonuses left", live
+**Status:** Proposed (Claude, 2026-10-25; T-313 plan).
+**Decision:** `first_bonus_left` counts every bonus of an event (an active member or the team only; nothing for anyone
+else), cached per event for 2 seconds in each API instance (one load in flight per event, a failed load never kept).
+`/live` lists the bonuses of the quests the player may play now and never completed, with `left` from the cache (0
+included), and `event_has_live` stays true while a slot is free and for 15 minutes after the last claim; the quests read
+gives each quest `firstBonus {points, slots, left, mine}`; every completion answer gives `firstBonus {points, place,
+slots}` (place null: all taken). The app's ribbon takes `left` from `/live` and never reads the quests again for it.
+**Why:** `/live` runs every 10 s for every player; a count per player would be thousands a second at the entrance.
+**Trade-offs:** "left" lags by at most 12 seconds; while a bonus has free slots every player's `/live` runs its query.
+
 ## ADR-264 — The dashboard's event pages say the event's quest and category words
 **Status:** Proposed (Claude, 2026-10-25; T-311c; Arabic lines checked with `ux-araby`).
 **Decision:** The layout of `/[lang]/organizers/{o}/events/{e}` reads the event once on the server with the staff

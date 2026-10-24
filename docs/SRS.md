@@ -1432,7 +1432,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1837 | F-339 | Should | pending |
 | FR-1838 | F-340 | Could | pending |
 | FR-1839 | F-341 | Could | pending |
-| FR-1840 | F-342 | Should | pending |
+| FR-1840 | F-342 | Should | built (T-313, 2026-10-25) |
 | FR-1841 | F-343 | Could | pending |
 | FR-1842 | F-344 | Should | pending |
 | FR-1843 | F-345 | Should | pending |

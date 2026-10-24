@@ -403,7 +403,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
 - [ ] **T-312b** Notification history in the profile: every notification received, read and unread, newest first, on T-501's notification center — delivers FR 1824 (second half); depends on: T-501, T-312
   - Split from T-312 2026-10-24 (ADR-255): no notification is stored before T-501; this is the profile row and the full list on T-501's table, not a second store. Standard bar.
   - Done when: A player with 30 earlier notifications sees all 30, newest first, from Profile.
-- [ ] **T-313** First-N bonus on a quest, counted inside the completion transaction, with a live 'bonuses left' count — delivers FR 1840; depends on: T-105
+- [x] **T-313** First-N bonus on a quest, counted inside the completion transaction, with a live 'bonuses left' count — delivers FR 1840; depends on: T-105. Done 2026-10-25 (migration 0062, ADR-260 to ADR-263; Opus code review and mutation owed)
   - Done when: Two simultaneous completions at the Nth place pay exactly one bonus.
 
 ## Phase 4 — The Questify layer

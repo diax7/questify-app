@@ -159,6 +159,20 @@ In the app, practice mode lives in memory only; the writing tools (desk, inbox, 
 write, rotating QR, pairing) are locked while it is on, and the "Practice · not saved" line comes from the server's
 `practice: true`, never from the switch. Outsider: none of the three functions runs for `questify_outsider` or PUBLIC.
 
+### The first-N bonus (T-313, ADR-260 to ADR-263)
+
+No more than N bonuses are ever paid, and nobody outside the event reads or sets one:
+
+| Risk | Control | Proof |
+|---|---|---|
+| Two players take the Nth bonus | One slot row per place, claimed `FOR UPDATE SKIP LOCKED` as the payer's last write; UNIQUE completion, entry and (quest, enrollment) on the slots, and partial UNIQUE indexes on the ledger | `test/db/first-bonus` (the race at the 50th place, 20 rounds at the last place, 40 claimers on 8 connections, a rolled-back claim) |
+| A forged bonus row | `ledger_entry_first_bonus_shape` (a completion and a quest, positive, no boost, actor system), never boosted, no XP | the forged inserts and the never-boosted test |
+| A bonus set or read across tenants | `set_quest_first_bonus` through `award_event_of` (AN404); `first_bonus_left` answers no row unless the caller is an active member or the team in scope; `own_first_bonus` the caller's own completion only | `test/db/first-bonus` (another organizer, an editor out of scope, a stranger, a banned member) |
+| A client skipping or replaying through the practice path | `practice:` keys are reserved at the API (400 `idempotency_key_invalid`); the practice scan's door claims nothing | `src/conventions.test.ts`, `test/quests/first-bonus` |
+
+Both tables keep row-level security forced with no grant to the API role; `pay_first_bonus` and `first_bonus_place` are
+granted to nobody. Outsider suite: every new function refused to `questify_outsider` and PUBLIC.
+
 ### Kiosks and the live code (T-309b, ADR-242, ADR-244, ADR-245)
 
 | ASVS area | Control | Proof |

@@ -330,3 +330,19 @@ account" in the team's record and stays used). No STORE_COMPLIANCE change.
   team award can never get the bonus (a later scan is a repeat), and for submissions the approval order decides who
   is first. Agree, or should a team award count as one of the first N?
 - **Q-226** At most 1,000 players per bonus. Enough, or raise it (the slot rows grow with N; 10,000 is still small)?
+
+## Built (2026-10-25): where the build differs from this plan
+
+- `set_quest_first_bonus(target_event, target_quest, points, slots, request)` takes the event first (`award_event_of`,
+  as every team definer), so another organizer's quest is AN404 and never tells a missing quest from a foreign one.
+- Stop is `points` NULL and `slots` 0 (the API's `{stop: true}`): N becomes the number given, counted under the lock, so
+  a claim in flight is never refused by a Stop sent with a stale count.
+- `pay_first_bonus(enrolled, quest, completion, request_key)` reads the occurrence and method from the completion
+  itself (one primary-key probe, only for a bonus quest), so `pay_completion`'s callers pass nothing new.
+- `event_has_live` is also true while a shown bonus quest has a free slot and for 15 minutes after its last claim,
+  or `/live` would answer the empty state and the ribbon could never read "All taken".
+- The API reserves `practice:` idempotency keys (keys are not UUIDs at the routes, as the plan assumed).
+- The kiosk's and an operator's scan answers carry no `firstBonus` (they go to the device or the operator; the player
+  sees the ribbon's "You got bonus #n"), nor do the shown side of a meet (it learns through the pass state) and the
+  read of an approved submission.
+- The burst cost is over the 20% budget (+22.7%, 13 ms; ADR-260, Q-229); built on, as the coordinator asked.

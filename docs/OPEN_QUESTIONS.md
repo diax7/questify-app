@@ -595,6 +595,21 @@ Questify for help, the Questify team can see it too", shown before sending. Does
 ## Q-222 — Operators escalating (2026-10-24, T-312 plan)
 ADR-258: only owners and editors escalate; an operator asks them. Agree, or let operators with `help_desk` escalate?
 
+## Q-223 — A removed first-N bonus keeps its slot (2026-10-25, T-313 plan)
+A removal (cheating, a mistake) keeps the slot used, so the organizer's N is the most ever paid. Agree, or should
+removing the bonus line give the slot back to the next completer?
+
+## Q-224 — One first-N bonus per player per quest, ever (2026-10-25, T-313 plan)
+Also on repeatable and daily quests. Agree, or should a daily quest have "first N each day"?
+
+## Q-225 — Manual quest awards and the first-N bonus (2026-10-25, T-313 plan)
+A team award takes no slot and pays no bonus (as boosts), so a player whose first completion was a team award can never
+get the bonus (a later scan is a repeat); for submissions the approval order decides who is first. Agree, or should a
+team award count as one of the first N?
+
+## Q-226 — At most 1,000 players per first-N bonus (2026-10-25, T-313 plan)
+Enough, or raise it (the slot rows grow with N; 10,000 is still small)?
+
 ## Q-227 — Pages that cannot read the event's words keep Questify's (2026-10-25, T-311c)
 The public page of a printed code (`/q/{token}`), the kiosk page (`kiosk.notOpen`, `kiosk.methodOff`) and the big
 screen's "closed" lines (`device.shut.*`) do not load an event's configuration, so a renamed event still shows "quest"
@@ -606,3 +621,10 @@ FR-941 asks the dashboard to use an event's renamed "player" word everywhere; T-
 fields. About 100 texts the dashboard names (rewards, prizes, flags, guests, join setup, results) still say "player",
 and the same goes for "operator". T-311c did the quest and category words only, as asked. Recommended: a T-311d that
 turns them into `{playerOne}`/`{playerMany}` placeholders with the same guard test, Standard bar. Agree?
+
+## Q-229 — The first-N bonus's burst cost is over the plan's 20% (2026-10-25, T-313)
+Measured by hand (ADR-260): at 300 completions at once on one quest from two API pools of 10, the median p95 is 59.7 ms
+without a bonus and 73.2 ms with N = 50 (+22.7%, 13 ms); a used-up bonus costs nothing (60.0 ms). The slot claim alone
+is +7.5%; the rest is the bonus's own ledger row for the first 50 players. Recommended: accept it (NFR-002 allows 1 s;
+the extra lasts only for the first N), and keep the bonus as its own ledger kind. The alternative, folding the bonus into
+the quest's entry, would lose its own removal, label and community count. Agree?

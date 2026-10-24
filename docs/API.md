@@ -184,6 +184,20 @@ Auth shows who may call. "Rate" notes any special limit.
 | `GET /v1/meet-passes/{passId}` | player (the code's own player) | → `{state: open \| expired \| used, met: {username, avatar, points} \| null}`; another player's code is 404. The app polls every 2 s while the code is on screen, never past its minute; 60 reads per player per minute (the app then slows to every 5 s) | 401, 404, 429 |
 | `POST /v1/meet` | player | `{code, position?}`, **Idempotency-Key** → `200` as a completion (`completionId, points, occurrence, score, balance, replayed, levelUp, bonus, item, rank`) plus `questId` and `met: {username, avatar}`; never the other player's id or completion (FR-212, FR-213). Both players are paid in one transaction; both places move (the overall and today's boards). `position` lenient as a scan's (dropped when malformed, passed on only while location quests are on). The code travels only in the body and is never echoed or logged. Refused scans: 20 per player per 10 minutes | 400, 401, 403 `feature_off` / `meet_refused {reason: not_in_event \| not_for_them}` / the scanner's own `quest_not_open` / `enrollment_inactive` / `operator_play_off`, 409 `meet_refused {reason: already_met (+ name) \| daily_cap (+ cap) \| their_daily_cap \| done \| their_done}`, 422 `meet_refused {reason: bad_code \| expired \| used \| self \| same_device}` / `idempotency_key_reused`, 429 |
 
+**First-N bonus (T-313, FR-1840, ADR-260 to ADR-263).** The quest save (`POST …/quests`, `PATCH …/quests/{questId}`)
+takes `firstBonus: {points (1 to 100,000), slots (1 to 1,000)} | {stop: true} | null` (left out: unchanged; `stop` sets N
+to the number given; null switches it off) and answers it, as the builder read does, as `firstBonus: {points, slots,
+given, left, locked} | null`. Refusals: 422 `invalid_first_bonus {field: points|slots}`, 409 `first_bonus_paid` (new
+points, or off, once a real player got it), 409 `below_given {given}`; all roll the quest write back. The player's
+quests read gives each quest `firstBonus: {points, slots, left, mine: {place} | null} | null`; `GET /v1/events/{id}/live`
+gains `firstBonus: [{questId, left, slots}]` for the bonus quests the caller may play now and never completed, `left`
+0 included (counts cached per event for 2 seconds). Every completion answer (complete, taps, vote,
+poll, survey, share, passport stamp, meet, game result, quiz steps, submission send; not the kiosk's or an operator's
+scan, whose answer goes to the device or the operator) gains `firstBonus: {points, place,
+slots} | null` (`place` null: the player's first completion found every slot taken), the same on a replay. The
+practice scan answers `bonusPoints` (the bonus a real scan would add, or null). Idempotency keys starting `practice:` are
+refused (400 `idempotency_key_invalid`). Logs: `quest.first_bonus_set {questId, outcome}`.
+
 **Quest items (T-304d, ADR-205).** A quest's and a category's builder bodies take `itemId` (a quest item of this
 event; null clears it; a removed or other event's item answers 422 `invalid_item`) and answer it. Every pay answer that
 carries `bonus` also carries `item: {name: {ar, en}, outcome: pending | out_of_stock | claim_closed, until: {at,

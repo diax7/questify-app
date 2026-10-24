@@ -314,6 +314,15 @@ submission is not done). A quest is done with a completion or a quiz finished wi
 entry_id → ledger_entry, created_at)`, PK (enrollment_id, category_id): one per player and category, written by
 `pay_category_bonus` (ON CONFLICT DO NOTHING, under the enrollment lock of the paying definer), never deleted by a
 removal; deleted by the rehearsal wipe and on account erasure. No grant.
+**First-N bonus (T-313, migration 0062, ADR-260 to ADR-263):** `quest_first_bonus (quest_id PK → quest (id, event_id)
+CASCADE, organizer_id, event_id, points 1..100000, slots 1..1000, updated_at)` and `quest_bonus_slot (quest_id →
+quest_first_bonus CASCADE, place, organizer_id, event_id, completion_id → quest_completion RESTRICT UNIQUE, entry_id →
+ledger_entry RESTRICT UNIQUE, enrollment_id → enrollment (id, event_id) RESTRICT, rehearsal, claimed_at)`, PK (quest_id,
+place), UNIQUE (quest_id, enrollment_id), the four claim columns all set or all NULL; a partial index on the free slots.
+The ledger kind `first_bonus` (completion and quest set, actor system, never boosted, no XP, balance 0 while the shop is
+closed; one per completion and per player and quest). The place shown is the claim's rank by (claimed_at, place). A
+removal never frees a slot; erasure keeps it; the rehearsal wipe frees rehearsal slots first; a draft event's delete
+takes the bonus. No grant.
 **Refresh and hidden categories (T-304c, migration 0046, ADR-204):** `category.refresh (none|daily|weekly)`,
 `hidden`, `reveal_version` (column grants). `category_period_start(category, event)` is `-infinity` for none, today's
 event-day start for daily, the start of the 7-day block counted from the event's first day for weekly
