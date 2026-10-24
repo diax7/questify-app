@@ -76,7 +76,15 @@ describe("withWords", () => {
 });
 
 const ROOT = join(__dirname, "..", "..");
-const SCANNED = ["app/operator", "src/operator", "app/event", "src/event"];
+const SCANNED = [
+  "app/operator",
+  "src/operator",
+  "app/event",
+  "src/event",
+  "src/components",
+  "src/nfc",
+  "src/screens",
+];
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(join(ROOT, directory), { withFileTypes: true, recursive: true })
@@ -109,6 +117,9 @@ const HARD_CODED_EN = /\b(quests?|categor(?:y|ies))\b/i;
 // Questify-level texts that an event's words never reach (FR-942: Questify home keeps the defaults), with why.
 const QUESTIFY_LEVEL = new Set<string>([]);
 
+// "Player mode" is the app's mode beside staff mode, not the event's word for its people.
+const PLAYER_MODE = new Set<string>(["operator.playerMode", "operator.switchToPlayer"]);
+
 describe("texts of staff mode and the event screens", () => {
   const keys = new Set([
     ...keysNamedIn(SCANNED.flatMap(sourceFiles)),
@@ -131,10 +142,9 @@ describe("texts of staff mode and the event screens", () => {
     expect(hardCoded).toEqual([]);
   });
 
-  it("never hard-codes the player word in staff mode (FR-941)", () => {
+  it("never hard-codes the player word where the event's applies (FR-941)", () => {
     const hardCoded = [...keys]
-      .filter((key) => key.startsWith("operator.") && !key.startsWith("operator.playerMode"))
-      .filter((key) => !key.startsWith("operator.switchToPlayer"))
+      .filter((key) => !PLAYER_MODE.has(key))
       .filter((key) => {
         const text = MESSAGES[key as keyof typeof MESSAGES];
         return /لاعب/.test(prose(text.ar)) || /\bplayers?\b/i.test(prose(text.en));

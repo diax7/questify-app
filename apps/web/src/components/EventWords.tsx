@@ -249,6 +249,7 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
           </fieldset>
         ))}
         <p className={styles.muted}>{t("terms.enHint")}</p>
+        <p className={styles.muted}>{t("terms.arHint")}</p>
         <Preview language={language} draft={draft} />
         {problem === null ? null : (
           <p role="alert" className={styles.alert}>

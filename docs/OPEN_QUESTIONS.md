@@ -564,10 +564,11 @@ ADR-253's rule and a web test. Recommended: T-311c, Standard bar, after Dhia rea
 ## Q-216 — An operator who never joined a private event sees Questify's own words (2026-10-24, T-311b)
 `GET /v1/events/{id}/config` answers a player for a public event, or for an event they joined. An operator of an
 unlisted or private event who never joined it as a player gets 404, so staff mode shows the defaults. Recommended: leave
-it until it happens (operators join through the operator card, T-205); if it does, widen the event read to the event's
+it until it happens (operators join through the operator card, T-205; the operator-invite screen, which runs before they
+join, also shows the defaults); if it does, widen the event read to the event's
 operators in a migration with an outsider test.
 
 ## Q-217 — Arabic lines for Dhia's eye (2026-10-24, T-311b)
 The lines most worth a read are in ADR-253: «{questOne} للجميع» (community quest), «{questOne} بوقت محدود!» (flash
-quest), «هذا غير متاح الآن», «انتهت المدة المحددة», «من تمنح؟» (manual award search), «لا شيء مما أُسند إليك يستخدم
-رمز QR على شاشة». Several Arabic lines no longer name the quest at all.
+quest), «المحطة غير متاحة الآن» (operator cards), «انتهى الوقت المحدد», «المستلم» (manual award search), «لا شيء في نطاق
+عملك يعرض رمز QR على شاشة», «بالترتيب: كل واحد يفتح ما بعده». Several Arabic lines no longer name the quest at all.

@@ -3287,6 +3287,10 @@ indefinite object after a verb («أنجز {questOne} لتدخل الترتيب�
 feature names that cannot be a label are rebuilt without an adjective that must agree: community quest «{questOne}
 للجميع», flash quest «{questOne} بوقت محدود!». Staff mode's player word follows the same rules (FR-941): «رمز
 {playerOne}», and the manual award's search no longer names the player («من تمنح؟»).
+Operator cards name the station, a fixed noun («المحطة غير متاحة الآن»). The Event words form tells the organizer to
+write each Arabic word without «ال» (`terms.arHint`); a leading «ال» is **not** stripped on save, because it is not safe:
+it is part of real words («الماس») and a typed definite form is still valid text. The player word is rephrased the same
+way in the event's player texts (meet, community, waitlist).
 **Why:** ADR-058 asks for rephrasing where a sentence cannot absorb a variable noun; a masculine noun such as «تحدٍّ»
 would break «هذه المهمة جماعية»-style agreement.
 

@@ -408,6 +408,10 @@ export const MESSAGES = {
     ar: "بالإنجليزية بأحرف صغيرة، إلا إن كانت اسم علم.",
     en: "English in lower case, unless it is a name.",
   },
+  "terms.arHint": {
+    ar: "بالعربية اكتب الكلمة نكرة، دون «ال» التعريف، لتصلح في كل الجمل.",
+    en: "In Arabic, write each word without «ال», so it fits every sentence.",
+  },
   "terms.icon": { ar: "أيقونة العملة", en: "Currency icon" },
   "terms.icon.coin": { ar: "عملة", en: "Coin" },
   "terms.icon.crownCoin": { ar: "عملة بتاج", en: "Crown coin" },
@@ -807,7 +811,7 @@ export const MESSAGES = {
   "eventHome.waitingTitle": { ar: "بانتظار الموافقة", en: "Waiting for approval" },
   "eventHome.waitlistTitle": { ar: "في قائمة الانتظار", en: "On the waiting list" },
   "eventHome.waitlisted": {
-    ar: "اكتمل عدد اللاعبين. سيُدخلك المنظّم حين يتوفر مكان.",
+    ar: "اكتمل العدد. سيُدخلك المنظّم حين يتوفر مكان.",
     en: "The event is full. The organizer will let you in when a place opens.",
   },
   "eventHome.declined": {
@@ -865,7 +869,7 @@ export const MESSAGES = {
   "play.passport.scan": { ar: "امسح رمز خطوة", en: "Scan a step's code" },
   "questsTab.done": { ar: "أنجزتها", en: "Done" },
   "questsTab.notLive": { ar: "غير متاحة الآن", en: "Not available right now" },
-  "questsTab.closed": { ar: "انتهت المدة", en: "This {questOne} has ended" },
+  "questsTab.closed": { ar: "انتهى الوقت", en: "This {questOne} has ended" },
   "questsTab.unknown": {
     ar: "غير متاحة في هذا الإصدار من التطبيق. حدّث التطبيق لتلعبها.",
     en: "Not available in this version of the app. Update the app to play it.",
@@ -903,7 +907,7 @@ export const MESSAGES = {
     ar: "لم يحن موعد البدء بعد.",
     en: "This {questOne} hasn't started yet.",
   },
-  "questsTab.notOpen.ended": { ar: "انتهت المدة المحددة.", en: "This {questOne} has ended." },
+  "questsTab.notOpen.ended": { ar: "انتهى الوقت المحدد.", en: "This {questOne} has ended." },
   "questsTab.notOpen.notForYou": {
     ar: "هذا مخصّص لمجموعة أخرى.",
     en: "This {questOne} is for another group.",
@@ -969,7 +973,7 @@ export const MESSAGES = {
     en: "Opens after you finish {name}",
   },
   "questsTab.category.inOrder": {
-    ar: "بالترتيب: كل منها يفتح التالي",
+    ar: "بالترتيب: كل واحد يفتح ما بعده",
     en: "In order: each {questOne} opens the next",
   },
   "questsTab.category.bonus": {
@@ -1954,7 +1958,7 @@ export const MESSAGES = {
   "operator.orange": { ar: "سبق إنجاز هذا", en: "Already completed" },
   "operator.red.invalidCode": { ar: "رمز غير معروف", en: "Unknown code" },
   "operator.red.oldCode": {
-    ar: "رمز قديم. اطلب من {playerOne} فتح رمزه",
+    ar: "رمز قديم. اطلب من {playerOne} فتح الرمز من جديد",
     en: "An old code. Ask the {playerOne} to open theirs",
   },
   "operator.red.notInEvent": { ar: "غير مسجّل في هذه الفعالية", en: "Not in this event" },
@@ -1962,11 +1966,14 @@ export const MESSAGES = {
     ar: "لا يمكنه اللعب الآن",
     en: "This {playerOne} can't play now",
   },
-  "operator.red.questNotOpen": { ar: "هذا غير متاح الآن", en: "This {questOne} isn't open now" },
-  "operator.red.questNotFound": { ar: "لم يعد هذا موجودًا", en: "This {questOne} no longer exists" },
+  "operator.red.questNotOpen": { ar: "المحطة غير متاحة الآن", en: "This {questOne} isn't open now" },
+  "operator.red.questNotFound": {
+    ar: "لم تعد المحطة موجودة",
+    en: "This {questOne} no longer exists",
+  },
   "operator.red.abilityOff": { ar: "المسح غير مفعّل لك", en: "Scanning is off for you" },
   "operator.red.outsideStation": {
-    ar: "هذا خارج نطاق عملك",
+    ar: "هذه المحطة خارج نطاق عملك",
     en: "This {questOne} isn't one of yours",
   },
   "operator.red.selfScan": { ar: "لا يمكنك مسح رمزك", en: "You can't scan your own code" },
@@ -1979,7 +1986,7 @@ export const MESSAGES = {
     en: "The event is opening. Try again in a minute",
   },
   "operator.red.wrongMethod": {
-    ar: "هذا لا يقبل رمز {playerOne}",
+    ar: "المحطة لا تقبل رمز {playerOne}",
     en: "This {questOne} doesn't take {playerOne} codes",
   },
   "operator.removed": {
@@ -2499,7 +2506,7 @@ export const MESSAGES = {
   "history.award": { ar: "منح من المنظّم", en: "Awarded by the organizer" },
   "history.removal": { ar: "إزالة نقاط", en: "Points removed" },
   "operator.award.title": { ar: "منح يدوي", en: "Manual award" },
-  "operator.award.find": { ar: "من تمنح؟", en: "Who gets the award?" },
+  "operator.award.find": { ar: "المستلم", en: "Recipient" },
   "operator.award.findHint": { ar: "اسم المستخدم أو رقم الجوال", en: "Username or mobile number" },
   "operator.award.search": { ar: "بحث", en: "Search" },
   "operator.award.noMatch": {
@@ -2996,13 +3003,13 @@ export const MESSAGES = {
     en: "You have answered this survey.",
   },
   "meet.show": { ar: "اعرض رمزي", en: "Show my code" },
-  "meet.scan": { ar: "امسح رمز لاعب", en: "Scan their code" },
+  "meet.scan": { ar: "امسح رمز {playerOne}", en: "Scan their code" },
   "meet.progress": { ar: "تعرّفت على {done} من {cap}", en: "Met {done} of {cap}" },
   "meet.today": { ar: "اليوم: {count} من {cap}", en: "Today: {count} of {cap}" },
   "meet.codeTitle": { ar: "رمز التعارف", en: "Your meet code" },
   "meet.codeHelp": {
-    ar: "اطلب من اللاعب الآخر مسح هذا الرمز. يتجدد كل دقيقة.",
-    en: "Ask the other player to scan this code. It changes every minute.",
+    ar: "اطلب من الطرف الآخر مسح هذا الرمز. يتجدد كل دقيقة.",
+    en: "Ask the other {playerOne} to scan this code. It changes every minute.",
   },
   "meet.youMet": { ar: "تعرّفت على ‎@{name}", en: "You met @{name}" },
   "meet.failed": {
@@ -3018,7 +3025,7 @@ export const MESSAGES = {
     en: "You've reached today's limit ({count}). You can meet more tomorrow.",
   },
   "meet.refused.theirDailyCap": {
-    ar: "بلغ هذا اللاعب حد اليوم. حاول مجددًا غدًا.",
+    ar: "بلغ الطرف الآخر حد اليوم. حاول مجددًا غدًا.",
     en: "They've reached today's limit. Try again tomorrow.",
   },
   "meet.refused.done": {
@@ -3034,12 +3041,12 @@ export const MESSAGES = {
     en: "This code has ended. Ask for a fresh one.",
   },
   "meet.refused.self": {
-    ar: "هذا رمزك. امسح رمز لاعب آخر.",
-    en: "That's your own code. Scan another player's code.",
+    ar: "هذا رمزك. امسح رمز غيرك.",
+    en: "That's your own code. Scan another {playerOne}'s code.",
   },
   "meet.refused.sameDevice": {
-    ar: "هذا الرمز معروض على جوالك. امسح الرمز من جوال اللاعب الآخر.",
-    en: "This code is on your own phone. Scan the code on the other player's phone.",
+    ar: "هذا الرمز معروض على جوالك. امسح الرمز من جوال الطرف الآخر.",
+    en: "This code is on your own phone. Scan the code on the other {playerOne}'s phone.",
   },
   "meet.refused.notInEvent": {
     ar: "هذا الرمز لفعالية لم تنضم إليها.",
@@ -3482,7 +3489,7 @@ export const MESSAGES = {
     ar: "ما أنجزه الجميع من {questMany}",
     en: "{questCap} completed by everyone",
   },
-  "community.measure.players": { ar: "اللاعبون المشاركون", en: "Players taking part" },
+  "community.measure.players": { ar: "عدد المشاركين", en: "{playerCap} taking part" },
   "community.endsIn": { ar: "ينتهي خلال {time}", en: "Ends in {time}" },
   "community.counting": { ar: "نحسب آخر النقاط…", en: "Counting the last points…" },
   "community.reached": { ar: "تحقّق الهدف!", en: "Reached!" },
@@ -3491,7 +3498,10 @@ export const MESSAGES = {
     ar: "+{points} لكل من شارك",
     en: "+{points} for everyone who took part",
   },
-  "community.forEveryone": { ar: "+{points} لكل لاعب", en: "+{points} for every player" },
+  "community.forEveryone": {
+    ar: "+{points} لكل {playerOne}",
+    en: "+{points} for every {playerOne}",
+  },
   "community.paid": { ar: "+{points} مكافأة جماعية", en: "+{points} community reward" },
   "community.contributed": { ar: "ساهمتَ في التقدّم", en: "You helped" },
   "community.step": { ar: "عند {threshold}: {reward}", en: "At {threshold}: {reward}" },
@@ -3509,7 +3519,7 @@ export const MESSAGES = {
   },
   "community.unlock.players": {
     ar: "يُفتح حين يبلغ عدد المشاركين {threshold}",
-    en: "Unlocks at {threshold} players taking part",
+    en: "Unlocks at {threshold} {playerMany} taking part",
   },
   "community.unlock.starts": {
     ar: "يُفتح مع هدف جماعي يبدأ {time}",
@@ -3951,7 +3961,7 @@ export const MESSAGES = {
     ar: "لم يحن موعد البدء بعد",
     en: "This {questOne} hasn't started yet",
   },
-  "device.shut.ended": { ar: "انتهت المدة المحددة", en: "This {questOne} has ended" },
+  "device.shut.ended": { ar: "انتهى الوقت المحدد", en: "This {questOne} has ended" },
   "device.shut.hidden": { ar: "هذا غير متاح الآن", en: "This {questOne} isn't available now" },
   "device.shut.eventEnded": { ar: "انتهت الفعالية", en: "This event has ended" },
   "device.notAvailable": { ar: "غير متاح حاليًا", en: "Not available" },
@@ -4090,11 +4100,11 @@ export const MESSAGES = {
     en: "Staff mode pairs stations and kiosks. Big screens are paired from the dashboard.",
   },
   "operator.devices.noQuests": {
-    ar: "لا شيء مما أُسند إليك يستخدم رمز QR على شاشة.",
+    ar: "لا شيء في نطاق عملك يعرض رمز QR على شاشة.",
     en: "None of your {questMany} uses a QR on a screen.",
   },
   "operator.devices.noKioskQuests": {
-    ar: "لا شيء مما أُسند إليك يستخدم كشكًا ذاتيًا.",
+    ar: "لا شيء في نطاق عملك يستخدم كشكًا ذاتيًا.",
     en: "None of your {questMany} uses a kiosk.",
   },
   "operator.devices.scans": { ar: "المسحات اليوم: {count}", en: "Scans today: {count}" },
