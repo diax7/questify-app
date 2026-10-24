@@ -42,6 +42,9 @@ function entryLabel(
   t: ReturnType<typeof useI18n>["t"],
   language: "ar" | "en",
 ) {
+  if (entry.kind === "first_bonus" && entry.bonusSlots !== null) {
+    return t("history.firstBonus", { slots: formatNumber(entry.bonusSlots, language) });
+  }
   const plain = PLAIN[entry.kind];
   if (plain !== undefined) {
     return t(plain);

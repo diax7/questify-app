@@ -1,3 +1,4 @@
+import type { FirstBonusPaid } from "#src/event/first-bonus.ts";
 import type { Stamped } from "#src/event/passport.ts";
 import type { Revealed } from "#src/event/reveal.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
@@ -31,6 +32,8 @@ export type ScanStep =
       item: ItemGiven | null;
       /** Whether a boost doubled it (T-307): "Double points!" with the points. */
       boosted: boolean;
+      /** The first-N bonus (T-313): won, its own coin beat after the points; missed (`place` null), a line with them. */
+      firstBonus: FirstBonusPaid | null;
       /** The other player's username when this scan was a meeting (T-303c), else null. */
       met: string | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
@@ -105,6 +108,7 @@ function answered(
         bonus: answer.bonus,
         item: answer.item,
         boosted: "boost" in answer && answer.boost != null,
+        firstBonus: answer.firstBonus,
         met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
         details: undefined,
       };
@@ -143,11 +147,11 @@ export function detailsAfter(
   };
 }
 
-export type Beat = "points" | "level" | "category";
+export type Beat = "points" | "firstBonus" | "level" | "category";
 
 /**
- * The beats of a celebration in order, growing with rarity (FR-407): the quest's small one, then a level-up's medium
- * one, then a finished category's full-screen one. A replay (a dropped answer retried) carries the first answer's
+ * The beats of a celebration in order, growing with rarity (FR-407): the quest's small one, a first-N bonus won (its
+ * own coin beat, T-313), then a level-up's medium one, then a finished category's full-screen one. A replay (a dropped answer retried) carries the first answer's
  * level-up, so a player who never saw it still does.
  */
 export function celebrationBeats(
@@ -155,6 +159,9 @@ export function celebrationBeats(
 ): readonly Beat[] {
   return [
     "points",
+    ...(step.firstBonus === null || step.firstBonus.place === null
+      ? []
+      : (["firstBonus"] as const)),
     ...(step.levelUp === null ? [] : (["level"] as const)),
     ...(step.details?.finishedCategory === undefined ? [] : (["category"] as const)),
   ];

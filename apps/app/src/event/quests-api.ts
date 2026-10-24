@@ -4,6 +4,12 @@ import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import type { Position } from "#src/event/location.ts";
 import { lockNoteOf, sameLock, type CommunityLock } from "#src/event/unlock.ts";
+import {
+  firstBonusPaidOf,
+  questFirstBonusOf,
+  type FirstBonusPaid,
+  type QuestFirstBonus,
+} from "#src/event/first-bonus.ts";
 
 /**
  * Where a quest stands for this player, decided by the server (`questState` in `apps/api/src/home/home.ts`). A newer
@@ -71,6 +77,8 @@ export type Quest = Readonly<{
   flash: Readonly<{ closesAt: string }> | null;
   /** The boost doubling its category now (T-307); null when none or from an older API. */
   boost: RunningBoost | null;
+  /** Its first-N bonus (T-313): the ribbon's `left` follows `/live`; null when none or from an older API. */
+  firstBonus: QuestFirstBonus | null;
 }>;
 
 /** A boost in force (T-307): the quest pays its points times `multiplier` until `endsAt`. */
@@ -227,6 +235,7 @@ const withVerification = (quest: Quest): Quest => ({
   communityLock: lockNoteOf(quest.communityLock),
   flash: flashOf(quest.flash),
   boost: runningBoostOf(quest.boost),
+  firstBonus: questFirstBonusOf(quest.firstBonus),
 });
 
 /** A flash quest's end as sent, or null for anything missing or not well formed. */
@@ -486,6 +495,8 @@ export type CompletionAnswer =
       item: ItemGiven | null;
       /** The boost that doubled it (T-307), or null. */
       boost: Boosted | null;
+      /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
+      firstBonus: FirstBonusPaid | null;
     }>
   /** A check-in refused for its position (T-303b); `distanceM` is the player's own rounded distance for not_here. */
   | Readonly<{
@@ -628,6 +639,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
         bonus: bonusOf(body["bonus"]),
         item: itemGivenOf(body["item"]),
         boost: boostedOf(body["boost"]),
+        firstBonus: firstBonusPaidOf(body["firstBonus"]),
       }
     : { kind: "failed" };
 }

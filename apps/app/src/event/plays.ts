@@ -9,6 +9,7 @@ import {
   type ItemGiven,
 } from "#src/event/quests-api.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
+import { firstBonusPaidOf, type FirstBonusPaid } from "#src/event/first-bonus.ts";
 
 /** Organizer text as the API sends it: null where a language was not written. */
 export type PlayText = Readonly<{ ar: string | null; en: string | null }>;
@@ -60,6 +61,8 @@ export type Voted = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled it (T-307), or null. */
   boost: Boosted | null;
+  /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
+  firstBonus: FirstBonusPaid | null;
 }>;
 
 export function votedOf(answer: AuthedResult): Voted | PlayFailure {
@@ -77,6 +80,7 @@ export function votedOf(answer: AuthedResult): Voted | PlayFailure {
     bonus: bonusOf(body["bonus"]),
     item: itemGivenOf(body["item"]),
     boost: boostedOf(body["boost"]),
+    firstBonus: firstBonusPaidOf(body["firstBonus"]),
   };
 }
 
@@ -212,6 +216,8 @@ export type QuizStep = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled a paid finish (T-307), or null. */
   boost: Boosted | null;
+  /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
+  firstBonus: FirstBonusPaid | null;
   /** Set on an answer: whether it was right and the right choice (FR-209). */
   result: Readonly<{ right: boolean; rightChoiceId: string }> | null;
 }>;
@@ -233,6 +239,7 @@ export function quizStepOf(answer: AuthedResult): QuizStep | PlayFailure {
     bonus: bonusOf(body["bonus"]),
     item: itemGivenOf(body["item"]),
     boost: boostedOf(body["boost"]),
+    firstBonus: firstBonusPaidOf(body["firstBonus"]),
     result:
       isRecord(result) &&
       typeof result["right"] === "boolean" &&

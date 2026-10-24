@@ -1,4 +1,5 @@
 import {
+  firstBonusProblem,
   isLivePoll,
   PASSPORT_STEPS_MAX,
   PLACED_QUEST_TYPES,
@@ -44,6 +45,17 @@ export type QuestView = Readonly<{
   flash?: boolean;
   /** When a flash quest was launched by hand, or null. */
   flashLaunchedAt?: string | null;
+  /** Its first-N bonus (T-313), or null; absent from an older API. */
+  firstBonus?: SavedFirstBonus | null;
+}>;
+
+/** A first-N bonus as the builder reads it: `locked` once a real player got it (its points stay, ADR-262). */
+export type SavedFirstBonus = Readonly<{
+  points: number;
+  slots: number;
+  given: number;
+  left: number;
+  locked: boolean;
 }>;
 
 /** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
@@ -202,6 +214,14 @@ export type QuestDraft = Readonly<{
   flash: boolean;
   /** Whether a flash quest was launched or its window started: it stays one and its window is kept. Never sent. */
   flashRunning: boolean;
+  /** The first-N bonus as typed (T-313): on or off, its points and how many players. */
+  firstBonusOn: boolean;
+  firstBonusPoints: number;
+  firstBonusSlots: number;
+  /** What the API holds of it (given, left, locked), or null for none. Never sent. */
+  firstBonusSaved: SavedFirstBonus | null;
+  /** Set by Stop the bonus: the save sends `{stop: true}` (N becomes the number given, counted by the server). */
+  firstBonusStop: boolean;
 }>;
 
 /** The radius a new place starts with, in metres: a doorway-sized circle. */
@@ -232,6 +252,11 @@ export function blankQuest(categoryId: string): QuestDraft {
     pollSent: false,
     flash: false,
     flashRunning: false,
+    firstBonusOn: false,
+    firstBonusPoints: 10,
+    firstBonusSlots: 10,
+    firstBonusSaved: null,
+    firstBonusStop: false,
   };
 }
 
@@ -261,7 +286,23 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
       quest.flash === true &&
       ((quest.flashLaunchedAt ?? null) !== null ||
         (quest.visible && quest.opensAt !== null && Date.parse(quest.opensAt) <= Date.now())),
+    firstBonusOn: (quest.firstBonus ?? null) !== null,
+    firstBonusPoints: quest.firstBonus?.points ?? 10,
+    firstBonusSlots: quest.firstBonus?.slots ?? 10,
+    firstBonusSaved: quest.firstBonus ?? null,
+    firstBonusStop: false,
   };
+}
+
+/** What the save says of the bonus: stop, set, switch off (only one the API holds), or nothing. */
+function firstBonusField(draft: QuestDraft): Record<string, unknown> {
+  if (draft.firstBonusStop) {
+    return { firstBonus: { stop: true } };
+  }
+  if (draft.firstBonusOn) {
+    return { firstBonus: { points: draft.firstBonusPoints, slots: draft.firstBonusSlots } };
+  }
+  return draft.firstBonusSaved === null ? {} : { firstBonus: null };
 }
 
 const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
@@ -284,6 +325,7 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   verification: draft.verification,
   itemId: itemChoice(draft.itemId),
   ...(hasPlace(draft.type) ? { place: placeOf(draft) } : {}),
+  ...firstBonusField(draft),
 });
 
 /** The place the draft holds: null when no pin is typed (a place is a pin and a radius together). */
@@ -350,6 +392,7 @@ export function questProblem(
   | "dailyCap"
   | "flash"
   | "flashWindow"
+  | "firstBonus"
   | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
@@ -368,6 +411,13 @@ export function questProblem(
   }
   if (draft.flash && !draft.flashRunning && !flashWindowValid(draft)) {
     return "flashWindow";
+  }
+  if (
+    draft.firstBonusOn &&
+    (firstBonusProblem({ points: draft.firstBonusPoints, slots: draft.firstBonusSlots }) !== null ||
+      draft.firstBonusSlots < (draft.firstBonusSaved?.given ?? 0))
+  ) {
+    return "firstBonus";
   }
   const parts = apiParts(draft);
   const steps = parts.steps;

@@ -8,6 +8,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
 import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
+import { firstBonusLine } from "#src/event/first-bonus.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import {
@@ -348,6 +349,9 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
           {quiz.step?.boost == null ? null : <AppText>{t("completion.boosted")}</AppText>}
           {item === null ? null : <AppText>{itemLine(t, language, item)}</AppText>}
           {bonus === null ? null : <AppText>{bonusLine(t, language, bonus)}</AppText>}
+          {quiz.step?.firstBonus == null ? null : (
+            <AppText>{firstBonusLine(t, language, quiz.step.firstBonus)}</AppText>
+          )}
           {levelUp === null ? null : (
             <AppText>
               {t("level.upLine", { level: levelUp.level, title: levelUp.title[language] })}

@@ -17,6 +17,11 @@ export type LedgerLine = Readonly<{
   by: Who;
   removable: boolean;
   removed: boolean;
+  /**
+   * The first-N bonus (T-313): on its own line its N and the place shown; on the quest line whose completion earned one
+   * not yet removed, its N alone (the remove dialog's hint). Null, or absent from an older API, elsewhere.
+   */
+  firstBonus?: Readonly<{ slots: number; place: number | null }> | null;
 }>;
 
 /** One line of the event's award report (GET …/awards). */
@@ -44,7 +49,32 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   removal: "awards.kind.removal",
   bonus: "awards.kind.bonus",
   community: "awards.kind.community",
+  first_bonus: "awards.kind.firstBonus",
 };
+
+/** A first-N bonus line's label, "First-50 bonus, place 3"; undefined for any other line. */
+export function firstBonusLabel(
+  t: Translate,
+  line: Pick<LedgerLine, "kind" | "firstBonus">,
+  format: (value: number) => string,
+): string | undefined {
+  const bonus = line.firstBonus ?? null;
+  return line.kind === "first_bonus" && bonus !== null && bonus.place !== null
+    ? t("record.firstBonus", { slots: format(bonus.slots), place: format(bonus.place) })
+    : undefined;
+}
+
+/** The remove dialog's hint on a quest line whose completion also earned the first-N bonus, or undefined. */
+export function removeBonusHint(
+  t: Translate,
+  line: Pick<LedgerLine, "kind" | "firstBonus">,
+  format: (value: number) => string,
+): string | undefined {
+  const bonus = line.firstBonus ?? null;
+  return line.kind === "quest" && bonus !== null
+    ? t("awards.removeBonusHint", { slots: format(bonus.slots) })
+    : undefined;
+}
 
 /** The record's label for an entry kind; a kind this dashboard does not know reads as a balance change. */
 export const kindKey = (kind: string): MessageKey => KINDS[kind] ?? "history.other";

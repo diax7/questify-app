@@ -25,6 +25,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   communityLock: null,
   flash: null,
   boost: null,
+  firstBonus: null,
   ...fields,
 });
 
@@ -69,6 +70,7 @@ describe("scanStep", () => {
           bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
           item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
           boost: { multiplier: 2 },
+          firstBonus: null,
         },
       }),
     ).toEqual({
@@ -80,6 +82,7 @@ describe("scanStep", () => {
       bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
       item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
       boosted: true,
+      firstBonus: null,
       met: null,
       details: undefined,
     });
@@ -99,6 +102,7 @@ describe("scanStep", () => {
           bonus: null,
           item: null,
           boost: null,
+          firstBonus: null,
           questId: "q9",
           met: { username: "noura", avatar: "owl" },
         },
@@ -127,6 +131,7 @@ describe("scanStep", () => {
           bonus: null,
           item: null,
           boost: null,
+          firstBonus: null,
         },
       }),
     ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
@@ -244,7 +249,13 @@ describe("readActivity and activityAnswer", () => {
   it("reads entries and the cursor", () => {
     expect(readActivity({ entries: [ENTRY], nextCursor: "41" })).toEqual({
       entries: [
-        { ...ENTRY, reason: undefined, title: { ar: null, en: "Find the word" }, multiplier: null },
+        {
+          ...ENTRY,
+          reason: undefined,
+          title: { ar: null, en: "Find the word" },
+          multiplier: null,
+          bonusSlots: null,
+        },
       ].map(({ reason: _reason, ...entry }) => entry),
       nextCursor: "41",
     });
@@ -298,6 +309,7 @@ describe("celebrationBeats", () => {
     bonus: null,
     item: null,
     boosted: false,
+    firstBonus: null,
     met: null,
     details: undefined,
   } as const;

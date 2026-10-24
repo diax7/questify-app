@@ -308,6 +308,7 @@ describe("a round's result", () => {
           bonus: null,
           item: null,
           boost: null,
+          firstBonus: null,
         },
         DEFAULT_TERMS,
         "en",

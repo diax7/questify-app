@@ -13,6 +13,8 @@ export type ActivityEntry = Readonly<{
   title: Bilingual | null;
   /** The boost that doubled it or its removal (T-307), shown as "×2"; null when none or from an older API. */
   multiplier: number | null;
+  /** A first-N bonus line's N (T-313), "First-{slots} bonus"; null for any other line or an older API. */
+  bonusSlots: number | null;
 }>;
 
 export type ActivityPage = Readonly<{
@@ -59,6 +61,7 @@ function readEntry(value: unknown): ActivityEntry | undefined {
       typeof value["multiplier"] === "number" && value["multiplier"] > 1
         ? value["multiplier"]
         : null,
+    bonusSlots: typeof value["bonusSlots"] === "number" ? value["bonusSlots"] : null,
   };
 }
 

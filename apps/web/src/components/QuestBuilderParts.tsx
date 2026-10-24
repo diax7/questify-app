@@ -256,6 +256,14 @@ function QuestRow({
           {t("quests.repeatShort", { player: terms.player[language].one, count: quest.repeatCap })}
         </span>
       ) : null}
+      {(quest.firstBonus ?? null) === null ? null : (
+        <span className={styles.badge}>
+          {t("builder.firstBonus.listLeft", {
+            slots: formatNumber(quest.firstBonus?.slots ?? 0, language),
+            left: formatNumber(quest.firstBonus?.left ?? 0, language),
+          })}
+        </span>
+      )}
       {when(quest.opensAt, "quests.opens")}
       {when(quest.closesAt, "quests.closes")}
       {readOnly ? null : (

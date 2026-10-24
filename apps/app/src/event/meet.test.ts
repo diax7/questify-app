@@ -105,6 +105,7 @@ describe("meet answers", () => {
       bonus: null,
       item: null,
       boost: null,
+      firstBonus: null,
       questId: "q1",
       met: { username: "noura", avatar: "owl" },
     });

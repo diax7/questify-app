@@ -22,6 +22,7 @@ import {
   type PlayChoice,
   type PlayText,
 } from "#src/event/plays.ts";
+import { liveFirstBonusOf, type LiveFirstBonus } from "#src/event/first-bonus.ts";
 
 // ================================================================ the poll (FR-239 to FR-242)
 
@@ -142,6 +143,8 @@ export type LiveState = Readonly<{
   flash: readonly LiveFlash[];
   /** Boosts just started on categories the player sees (T-307): one-time cards; none from an older API. */
   boosts: readonly LiveBoost[];
+  /** What is left of the first-N bonuses the player may still earn (T-313); none from an older API. */
+  firstBonus: readonly LiveFirstBonus[];
 }>;
 
 export const NOTHING_LIVE: LiveState = {
@@ -150,6 +153,7 @@ export const NOTHING_LIVE: LiveState = {
   community: null,
   flash: [],
   boosts: [],
+  firstBonus: [],
 };
 
 export function liveStateOf(body: unknown): LiveState | undefined {
@@ -169,6 +173,7 @@ export function liveStateOf(body: unknown): LiveState | undefined {
     community: communityOf(body["community"]),
     flash: liveFlashOf(body["flash"]),
     boosts: liveBoostsOf(body["boosts"]),
+    firstBonus: liveFirstBonusOf(body["firstBonus"]),
   };
 }
 

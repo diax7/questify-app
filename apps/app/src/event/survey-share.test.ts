@@ -79,6 +79,7 @@ describe("the survey form (T-303, FR-214)", () => {
       bonus: null,
       item: null,
       boost: null,
+      firstBonus: null,
     });
   });
 });

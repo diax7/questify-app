@@ -76,6 +76,7 @@ describe("the vote", () => {
       bonus: null,
       item: null,
       boost: null,
+      firstBonus: null,
     });
     expect(votedOf(ok({ points: 50, boost: { multiplier: 2 } }))).toMatchObject({
       boost: { multiplier: 2 },

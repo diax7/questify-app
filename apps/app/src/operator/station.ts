@@ -51,7 +51,13 @@ export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
 
 /** What the full-screen result shows (FR-924): its colour, its words and who was scanned. */
 export type StationResult =
-  | Readonly<{ color: "green"; points: number; player: ScannedPlayer | null }>
+  /** `bonusPoints`: a practice scan would also earn the first-N bonus (T-313); null otherwise. */
+  | Readonly<{
+      color: "green";
+      points: number;
+      player: ScannedPlayer | null;
+      bonusPoints: number | null;
+    }>
   | Readonly<{ color: "orange"; player: ScannedPlayer | null }>
   | Readonly<{ color: "red"; reason: MessageKey; player: ScannedPlayer | null }>;
 
@@ -75,7 +81,12 @@ export function stationResult(body: unknown): StationResult | undefined {
   switch (body["result"]) {
     case "completed":
       return typeof body["points"] === "number"
-        ? { color: "green", points: body["points"], player }
+        ? {
+            color: "green",
+            points: body["points"],
+            player,
+            bonusPoints: typeof body["bonusPoints"] === "number" ? body["bonusPoints"] : null,
+          }
         : undefined;
     case "already_completed":
       return { color: "orange", player };

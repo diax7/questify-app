@@ -36,6 +36,7 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   communityLock: null,
   flash: null,
   boost: null,
+  firstBonus: null,
   ...fields,
 });
 
@@ -342,6 +343,7 @@ describe("completionAnswer", () => {
       bonus: null,
       item: null,
       boost: null,
+      firstBonus: null,
     });
     expect(completionAnswer(ok({ points: 20, score: 40, boost: { multiplier: 2 } }))).toMatchObject(
       { points: 20, boost: { multiplier: 2 } },

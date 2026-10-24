@@ -45,7 +45,7 @@ describe("scanFor (ADR-249: the one place the station picks its door)", () => {
     ]);
     expect(answer).toEqual({
       kind: "result",
-      result: { color: "green", points: 25, player: null },
+      result: { color: "green", points: 25, player: null, bonusPoints: null },
       practice: true,
     });
   });

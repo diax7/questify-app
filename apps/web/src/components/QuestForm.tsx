@@ -12,6 +12,7 @@ import {
   type QuestVerification,
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
+import { FirstBonusFields } from "#src/components/FirstBonusFields.tsx";
 import { ItemPicker, useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { QuestPlaceFields } from "#src/components/QuestPlaceFields.tsx";
 import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFields.tsx";
@@ -201,6 +202,14 @@ export function QuestForm({
           change={change}
         />
       )}
+      <FirstBonusFields
+        language={language}
+        terms={terms}
+        draft={draft}
+        busy={busy}
+        change={change}
+        save={save}
+      />
       {isLivePoll(draft.type, draft.config) ? null : (
         <FlashField language={language} draft={draft} busy={busy} change={change} />
       )}

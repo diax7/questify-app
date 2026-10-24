@@ -17,6 +17,7 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
 import { paidText } from "#src/event/amount.ts";
 import { scanReading } from "#src/event/location.ts";
+import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
 import { GameEntry } from "#src/event/GameEntry.tsx";
 import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { meetRefusalText } from "#src/event/meet.ts";
@@ -383,6 +384,7 @@ export function QuestSheet({
       {isQuestType(quest.type) ? <AppText muted>{t(QUEST_TYPES[quest.type].label)}</AppText> : null}
       {description === "" ? null : <AppText>{description}</AppText>}
       <Amount amount={formatNumber(quest.points, language)} form="labelled" variant="label" />
+      <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
       {quest.repeatCap > 1 && quest.type !== "meet" ? (
         <AppText>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
       ) : null}

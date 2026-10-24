@@ -5,7 +5,9 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import {
   capProblem,
+  firstBonusLabel,
   kindKey,
+  removeBonusHint,
   pointsOf,
   reasonOk,
   whoOf,
@@ -125,7 +127,10 @@ function RecordLine({
   return (
     <li className={styles.card}>
       <p className={styles.row}>
-        <strong>{t(kindKey(line.kind))}</strong>
+        <strong>
+          {firstBonusLabel(t, line, (value) => formatNumber(value, language)) ??
+            t(kindKey(line.kind))}
+        </strong>
         {title === "" ? null : <span dir="auto">{title}</span>}
         <span dir="ltr">
           {line.scoreDelta > 0 ? "+" : ""}
@@ -279,6 +284,7 @@ function AskDialog({
       </ConfirmDialog>
     );
   }
+  const hint = removeBonusHint(t, asking.line, (value) => formatNumber(value, language));
   return (
     <ConfirmDialog
       language={language}
@@ -291,6 +297,7 @@ function AskDialog({
       confirm={confirm}
     >
       <p>{t("awards.removeBody")}</p>
+      {hint === undefined ? null : <p className={styles.muted}>{hint}</p>}
       <label className={styles.field}>
         <span>{t("awards.reason")}</span>
         <textarea

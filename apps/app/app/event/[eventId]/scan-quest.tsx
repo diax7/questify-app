@@ -14,6 +14,7 @@ import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
 import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
+import { firstBonusLine } from "#src/event/first-bonus.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { scanReading, type Position } from "#src/event/location.ts";
 import { useLocationReader } from "#src/event/LocationEntry.tsx";
@@ -120,6 +121,15 @@ function Celebration({
       </PopIn>
     );
   }
+  if (beat === "firstBonus" && step.firstBonus !== null) {
+    return (
+      <PopIn>
+        <SpinningCoin size={120} />
+        <AppText variant="display">{firstBonusLine(t, language, step.firstBonus)}</AppText>
+        <Button label={t("scanner.claim")} onPress={claim} />
+      </PopIn>
+    );
+  }
   if (beat === "level" && step.levelUp !== null) {
     return (
       <PopIn>
@@ -146,6 +156,9 @@ function Celebration({
       )}
       {step.bonus === null ? null : (
         <AppText variant="title">{bonusLine(t, language, step.bonus)}</AppText>
+      )}
+      {step.firstBonus === null || step.firstBonus.place !== null ? null : (
+        <AppText>{firstBonusLine(t, language, step.firstBonus)}</AppText>
       )}
       {quest === undefined ? null : (
         <AppText variant="title">{textIn(quest.title, language)}</AppText>

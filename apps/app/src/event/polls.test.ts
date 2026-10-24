@@ -130,6 +130,7 @@ describe("what is live (T-306, ADR-221)", () => {
     community: null,
     flash: [],
     boosts: [],
+    firstBonus: [],
   };
 
   it("reads the state and drops malformed entries", () => {

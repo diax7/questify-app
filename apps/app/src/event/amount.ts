@@ -8,6 +8,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
+import { firstBonusLine, type FirstBonusPaid } from "#src/event/first-bonus.ts";
 import type { Bonus, Boosted, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
 import { textIn } from "#src/i18n/text.ts";
 
@@ -77,7 +78,8 @@ export function bonusLine(t: Translate, language: Language, bonus: Bonus): strin
 
 /**
  * What a play paid, with its quest item and the category bonus it paid after it when there are; "Double points!"
- * first when a boost doubled it (T-307). An older API sends no boost.
+ * first when a boost doubled it (T-307); the first-N bonus it earned or missed last (T-313). An older API sends
+ * neither.
  */
 export function paidText(
   t: Translate,
@@ -88,6 +90,7 @@ export function paidText(
     bonus: Bonus | null;
     item: ItemGiven | null;
     boost?: Boosted | null | undefined;
+    firstBonus?: FirstBonusPaid | null | undefined;
   }>,
 ): string {
   const lines = [completedText(t, terms, language, paid.points)];
@@ -99,6 +102,9 @@ export function paidText(
   }
   if (paid.bonus !== null) {
     lines.push(bonusLine(t, language, paid.bonus));
+  }
+  if (paid.firstBonus != null) {
+    lines.push(firstBonusLine(t, language, paid.firstBonus));
   }
   return lines.join(" ");
 }

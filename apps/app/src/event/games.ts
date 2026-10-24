@@ -18,6 +18,7 @@ import {
 } from "#src/event/quests-api.ts";
 import { drawable } from "#src/games/round.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
+import { firstBonusPaidOf, type FirstBonusPaid } from "#src/event/first-bonus.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -177,6 +178,8 @@ export type ResultAnswer =
       bonus: Bonus | null;
       item: ItemGiven | null;
       boost: Boosted | null;
+      /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
+      firstBonus: FirstBonusPaid | null;
     }>
   | Readonly<{ kind: "done" }>
   | Readonly<{ kind: "short"; result: unknown; target: GameTarget; attemptsLeft: number | null }>
@@ -199,6 +202,7 @@ function sentOf(body: Record<string, unknown>): ResultAnswer {
         bonus: bonusOf(body["bonus"]),
         item: itemGivenOf(body["item"]),
         boost: boostedOf(body["boost"]),
+        firstBonus: firstBonusPaidOf(body["firstBonus"]),
       };
     case "done":
       return { kind: "done" };

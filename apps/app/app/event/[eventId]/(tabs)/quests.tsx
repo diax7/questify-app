@@ -9,6 +9,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
 import { boostLine, flashLine } from "#src/event/flash-boost.ts";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
@@ -152,6 +153,7 @@ function QuestCard({
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
       <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
       <DropLines quest={quest} boost={quest.boost} timeZone={timeZone} />
+      <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
       {quest.item === null ? null : (
         <AppText muted>{t("questsTab.itemReward", { item: textIn(quest.item, language) })}</AppText>
       )}

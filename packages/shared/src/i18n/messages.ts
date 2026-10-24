@@ -4393,6 +4393,64 @@ export const MESSAGES = {
   "console.tickets.back": { ar: "كل التذاكر", en: "All tickets" },
   "console.tickets.notFound": { ar: "لم نجد هذه التذكرة.", en: "We couldn't find this ticket." },
   "console.tickets.from": { ar: "من @{username}", en: "From @{username}" },
+  // ---------------------------------------------------------------- the first-N bonus (T-313)
+  "quest.firstBonus.ribbon": { ar: "أول {slots}", en: "First {slots}" },
+  "quest.firstBonus.left": { ar: "‎+{points} · بقي {left}", en: "+{points} · {left} left" },
+  "quest.firstBonus.gone": { ar: "نفدت", en: "All taken" },
+  "quest.firstBonus.mine": { ar: "حصلت على المكافأة رقم {place}", en: "You got bonus #{place}" },
+  "play.firstBonus.won": {
+    ar: "مكافأة أول {slots}! ‎+{points}",
+    en: "First {slots} bonus! +{points}",
+  },
+  "play.firstBonus.missed": {
+    ar: "نفدت مكافأة أول {slots}",
+    en: "The first-{slots} bonus is all taken",
+  },
+  "history.firstBonus": { ar: "مكافأة أول {slots}", en: "First-{slots} bonus" },
+  "operator.practice.firstBonus": {
+    ar: "سيحصل هذا المسح أيضًا على مكافأة الأوائل (‎+{points})",
+    en: "This scan would also earn the first {playerMany} bonus (+{points})",
+  },
+  "builder.firstBonus.title": { ar: "مكافأة الأوائل", en: "First {playerMany} bonus" },
+  "builder.firstBonus.points": { ar: "المكافأة ({currency})", en: "Bonus ({currency})" },
+  "builder.firstBonus.slots": {
+    ar: "لأول كم {playerOne}؟",
+    en: "For the first how many {playerMany}?",
+  },
+  "builder.firstBonus.preview": {
+    ar: "أول {slots} يُنهون هذه {questOne} ينال كلٌّ منهم {currency} إضافية: {points}",
+    en: "The first {slots} {playerMany} to finish this {questOne} get {points} extra {currency}",
+  },
+  "builder.firstBonus.locked": {
+    ar: "حصل عليها {given} حتى الآن، فلا تتغيّر قيمتها",
+    en: "{given} {playerMany} already got this bonus, so its value can't change",
+  },
+  "builder.firstBonus.belowGiven": {
+    ar: "{given} على الأقل، فقد حصل عليها هذا العدد",
+    en: "At least {given}: that many {playerMany} already got it",
+  },
+  "builder.firstBonus.range": {
+    ar: "المكافأة من 1 إلى 100,000، والعدد من 1 إلى 1,000",
+    en: "The bonus is 1 to 100,000, and the number 1 to 1,000",
+  },
+  "quests.invalid.firstBonus": {
+    ar: "المكافأة من 1 إلى 100,000، لعدد من 1 إلى 1,000 لا يقل عمّن حصلوا عليها",
+    en: "The bonus is 1 to 100,000, for 1 to 1,000 {playerMany}, no fewer than already got it",
+  },
+  "builder.firstBonus.stop": { ar: "أوقف المكافأة", en: "Stop the bonus" },
+  "builder.firstBonus.listLeft": {
+    ar: "أول {slots}: بقي {left}",
+    en: "First {slots}: {left} left",
+  },
+  "record.firstBonus": {
+    ar: "مكافأة أول {slots}، المركز {place}",
+    en: "First-{slots} bonus, place {place}",
+  },
+  "awards.kind.firstBonus": { ar: "مكافأة الأوائل", en: "First {playerMany} bonus" },
+  "awards.removeBonusHint": {
+    ar: "حصل هذا الإنجاز أيضًا على مكافأة أول {slots}، فاحذف سطرها كذلك إن لزم",
+    en: "This completion also earned the first-{slots} bonus. Remove that line too if it should go",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

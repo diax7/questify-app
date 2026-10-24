@@ -67,6 +67,13 @@ function ResultCover({ shown }: Readonly<{ shown: Shown }>) {
           {result.player.username}
         </AppText>
       )}
+      {shown.practice && result.color === "green" && result.bonusPoints !== null ? (
+        <AppText variant="title" style={styles.coverText}>
+          {t("operator.practice.firstBonus", {
+            points: formatNumber(result.bonusPoints, language),
+          })}
+        </AppText>
+      ) : null}
       {shown.practice ? (
         <AppText variant="label" style={styles.coverText}>
           {t("operator.practice.result")}

@@ -52,6 +52,7 @@ describe("stationResult", () => {
       color: "green",
       points: 25,
       player,
+      bonusPoints: null,
     });
     expect(stationResult({ result: "already_completed", player })).toEqual({
       color: "orange",
