@@ -38,13 +38,15 @@ export function PollControls({
   actions: PollActions;
 }>) {
   const t = translatorFor(language);
-  const [now, setNow] = useState(() => Date.now());
-  const state = pollStateOf(quest, now);
+  // Read against the clock at every render, so a reload after Close shows Closed at once; the timer only makes an
+  // open poll render again when its time runs out on its own.
+  const [, setTick] = useState(0);
+  const state = pollStateOf(quest, Date.now());
   useEffect(() => {
     if (state !== "open") {
       return undefined;
     }
-    const timer = setInterval(() => setNow(Date.now()), REFRESH_MS);
+    const timer = setInterval(() => setTick((tick) => tick + 1), REFRESH_MS);
     return () => clearInterval(timer);
   }, [state]);
   if (state === null) {
