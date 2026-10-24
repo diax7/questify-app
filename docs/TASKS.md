@@ -548,6 +548,8 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: Every look at a player's record is logged.
 - [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109
   - Done when: A reported username goes to the event team and a platform admin can unpublish content.
+  - Note 2026-10-25 (T-312 plan): T-312's Report a player ticket reaches the event team only (FR-1822); FR-1411's
+    Questify half (the moderation queue) is built here, pending Q-219.
   - Note 2026-10-21 (T-109): the word lists live in `username_word` (letters only, folded; the table refuses anything else); the console edits them through definers and shows `username_history` to admins (FR-1702, FR-1779).
 - [ ] **T-706** Messaging tools: templates with CST rules, push to a group, campaigns, support contact details — delivers FR 1777, 1780, 1731; depends on: T-407
   - Done when: A promotional template without an opt-out cannot be saved.

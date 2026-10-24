@@ -9,6 +9,10 @@ ADR-246 to ADR-248, Q-209 to Q-211) without moving data.
 plan review, one Opus code review, mutation on GitHub. Migration **0061** (new file; CranL runs through 0056, 0057 to
 0060 are undeployed; the functions they last stated are restated here, never edited there).
 
+**CTO plan review 2026-10-25: 86/100, findings folded in** (MAJOR 1 a platform send racing erasure; MAJOR 2 the list
+read's audit names the tickets shown; minors 3 to 9 and nit 10 in the sections below, marked "CTO n"). ADR-078
+(email, password and an emailed code for admins) is Accepted and kept.
+
 Dhia is away: open choices are my recommendation, written as **Proposed** ADR-255 to ADR-259 and Q-218 to Q-222.
 
 ## Split (ADR-255)
@@ -54,7 +58,8 @@ pages changed and one added. One worker.
   "A problem with this prize" (`prize`).
 - Routing is fixed by the kind, in the database: `kind IN ('app_problem', 'suggestion')` ⇔ no event columns and
   `queue = 'questify'` for life (never sent back: there is no event team). Event kinds start in `queue = 'event'` and reach
-  `questify` only by escalation (CHECK `queue = 'event' OR escalated_at IS NOT NULL` for event kinds).
+  `questify` only by escalation (CHECK `queue = 'event' OR escalated_at > coalesce(returned_at, '-infinity')` for event
+  kinds: the latest hop is an escalation; CTO 3).
 - **Why report_player skips operators**: operators are often players and friends of players; a report names someone.
   Owners and editors are the accountable seats. Report-only mute/blocks are T-705's (FR-1415); a report never blocks.
 - **App problems and suggestions never carry an event**, even when sent from inside one: the event team never sees them,
@@ -80,13 +85,16 @@ pages changed and one added. One worker.
 | `answered_by_admin` | uuid → `staff_user` | the third answerer; CHECK at most one of the three answerers; the closed ⇔ an answerer CHECK restated with it |
 
 CHECKs restated: `queue <> 'event' OR (event columns NOT NULL)` stays; new `(kind IN ('app_problem','suggestion')) =
-(event_id IS NULL)`; `kind IN ('app_problem','suggestion') OR queue = 'event' OR escalated_at IS NOT NULL`;
+(event_id IS NULL)`; `kind IN ('app_problem','suggestion') OR queue = 'event' OR escalated_at >
+coalesce(returned_at, '-infinity')` (CTO 3); `returned_at IS NULL OR escalated_at IS NOT NULL`;
 `answered_by_admin IS NULL OR queue = 'questify'` (Questify answers only in its queue); device columns NULL unless
 `app_problem`. Indexes: `ticket_questify_open_idx (created_at, id) WHERE status = 'open' AND queue = 'questify'`,
 `ticket_questify_closed_idx (closed_at DESC, id) WHERE status = 'closed' AND queue = 'questify'`,
 `ticket_answer_key_admin UNIQUE (answered_by_admin, answer_key) WHERE answered_by_admin IS NOT NULL` (no event to scope
 by), `ticket_reported_idx (reported_enrollment_id) WHERE reported_enrollment_id IS NOT NULL` (the FK),
-`ticket_platform_player_idx (player_id, created_at DESC) WHERE event_id IS NULL` (the Questify caps). RLS stays forced,
+`ticket_platform_player_idx (player_id, created_at DESC) WHERE event_id IS NULL` (the Questify caps),
+`ticket_open_report_key UNIQUE (player_id, reported_enrollment_id) WHERE kind = 'report_player' AND status = 'open'`
+(the backstop for one open report per reporter and reported; CTO 4). RLS stays forced,
 no grant, no policy.
 
 ## Who sees a ticket (ADR-257, replaces ADR-247's table; Q-211 answered by this)
@@ -96,16 +104,22 @@ no grant, no policy.
 | The sender | their own, every queue, any enrollment status, while the account is active; sees "With the Questify team" while escalated, the reply signed **The event team** or **The Questify team** (never a person, never the notes) | — |
 | Another player | nothing; a reported player never learns of the report | — |
 | Owners, editors in scope | every ticket of their event: `queue = 'event'` to answer; **escalated** ones read-only ("With Questify", their own note, Questify's reply once closed); the return note | answer, solve, **escalate** |
-| Operators with `help_desk` | T-310's rule, minus `report_player` (and `queue = 'event'` already) | answer, solve |
+| Operators with `help_desk` | T-310's rule, minus `report_player` (and `queue = 'event'` already); a sent-back ticket shows them neither the escalation nor the return note (team only; CTO 7) | answer, solve |
 | **A platform admin** | **exactly the rows with `queue = 'questify'`**, open or closed: app problems, suggestions, and event tickets while escalated (and after Questify closed them). A ticket sent back is gone from the console. Never `queue = 'event'`, never by id, never through any other door | answer, solve, send back |
 | An admin who is also an organizer member | the console rule in the console; the organizer rule in the dashboard; neither widens the other | |
 | Anyone else, `anon`, `PUBLIC` | nothing | |
 
-**What Questify sees of a ticket**: the kind, the text, the time, the sender's @username and avatar, for an event ticket
+**States, one meaning everywhere** (CTO 6): *Open* = open in `queue = 'event'`; *With Questify* = open in `queue =
+'questify'`; *Closed* = closed, from either queue (the team's Closed tab lists its own and Questify's answers; the
+console's Closed lists what Questify closed and the app problems and suggestions closed).
+
+**What Questify sees of a ticket**: the kind, the text, the time, the sender's @username (no avatar; CTO 10), for an event ticket
 the organizer's and event's names, the quest's title, the reported member's @username, the escalation note and who
 escalated (the staff member's email, for follow-up); for an app problem the four device facts. Never a contact, full name
-or birth year. **Every console read is audited** (Q-116 for this page now): `console.tickets_read` per list page
-(`target_type ticket`, `after {status, count}`) and `console.ticket_read` per detail (`organizer_id`, `event_id` set, so
+or birth year. **Every console read is audited** (Q-116 for this page now): a list page writes one
+`console.tickets_read` row **per distinct (organizer_id, event_id) among the rows shown** (`target_type ticket`, `after
+{status, ids: [the ticket ids shown for that event]}`; one row with `organizer_id` NULL for the event-less ones), so each
+event's log shows every support look at its tickets, lists included (CTO 2); and `console.ticket_read` per detail (`organizer_id`, `event_id` set, so
 T-701's "every support access appears in that event's log" holds for tickets); ids only, never text.
 
 ## Escalation and the Questify queue (ADR-258)
@@ -139,15 +153,25 @@ T-701's "every support access appears in that event's log" holds for tickets); i
    is gone): T-310's order and rules, kinds `question|problem|prize|report_player`. For `report_player`: a username
    (`HR422 username_required` otherwise) resolved case-folded to an enrollment of **this event** whose player is active
    (`HR404 unknown_player` otherwise: nothing about accounts outside the event), not the sender (`HR403 self_report`),
-   at most **one open report per (sender, reported)** (`HT409 already_reported`). The quest is refused for a report
+   at most **one open report per (sender, reported)** (`HT409 already_reported`; the partial unique index is the
+   backstop, CTO 4). **The lookup can tell a username is in the event** even when the board would not show it (the team
+   and the exclusion list are off the board, the board can be switched off, FR-607, and shows a top only), so failed
+   lookups are capped (CTO 8): the API counts `unknown_player` answers per player and event in the existing Redis
+   limiter, at most **10 an hour** (`429 too_many_lookups` with Retry-After; the counter is a number, no username kept;
+   if Redis is down the send still works and the cap is skipped, logged `ticket.lookup_cap_unavailable`). The quest is refused for a report
    (`HQ422`). The replay compares the reported member too. The event caps (3 open, 10 a day per player and event) cover
    all four event kinds together.
 2. `open_platform_ticket(kind, body, app_version, platform, os_version, device_model, key)` (player): `app_problem |
    suggestion`; an active player account, no enrollment needed (a player in no event can write). Takes a
-   per-player transaction advisory lock (`ticket-send:<player>`), then the replay by `(player_id, key)`, then the text,
+   per-player transaction advisory lock (`ticket-send:<player>`), then **the player row `FOR KEY SHARE` with `status =
+   'active'`** (CTO 1: erasure takes that row `FOR UPDATE`, 0038:763, so a send waits for an erasure in flight and then
+   finds the account deleted, `HT403 not_member`; and an erasure waits for a send in flight, whose row its `DELETE FROM
+   ticket` then removes; without it a send could insert after erasure's delete and outlive the account), then the
+   replay by `(player_id, key)`, then the text,
    the device facts (`HD422 {field}`; required for `app_problem`: version, platform, OS), the caps: **3 open** and
    **5 in 24 hours** in the Questify queue per player (`HT409 too_many_open`, `HT429` with the seconds), the insert.
-   Lock order line in rules.md: the advisory lock, then the insert; no enrollment, no ticket lock, so no cycle.
+   Lock order line in rules.md: the advisory lock, then the player row `FOR KEY SHARE`, then the insert; no enrollment,
+   no ticket lock. Erasure takes the player row and then deletes tickets, never the advisory lock, so no cycle.
 3. **Device facts**: version and build from `expo-constants`, platform and OS from `Platform`; the model from
    **`expo-device`** (`Device.modelName`, e.g. "iPhone 15 Pro"; no permission, no identifier, Expo SDK 57's version, a
    new development build). The app loads it lazily in a try/catch (as `react-native-nfc-manager`), so a binary without
@@ -172,14 +196,16 @@ T-701's "every support access appears in that event's log" holds for tickets); i
 6. `console_tickets(wanted open|closed, wanted_kind, wanted_source direct|escalated, cursor_id, page)` and
    `console_ticket_counts()` (admin): `queue = 'questify'` only; open oldest first, closed newest first, keyset by id,
    at most 100; each row with the preview (first 120 characters), never the full text, plus the facts above. The list
-   writes `console.tickets_read`; the counts do not (numbers only).
+   writes one `console.tickets_read` row per distinct event among the rows shown, with their ids (CTO 2); the counts
+   write none (numbers only).
 7. `console_ticket(target)` (admin): one ticket where `queue = 'questify'`, full text, reply, notes; `HT404` otherwise
    (an event ticket, a returned one, a missing id: one answer); writes `console.ticket_read`.
 8. `admin_answer_ticket(target, reply, key, request)` and `admin_return_ticket(target, note, request)` (admin).
    Each calls `app_admin_id()` first (`insufficient_privilege` when NULL: the request flag alone opens nothing).
 9. `purge_ended_tickets` restated: `LEFT JOIN event`; due at `greatest(coalesce(e.ends_at, t.created_at), t.created_at,
-   t.escalated_at, t.closed_at) + 90 days` (an escalation or a late answer gives the ticket 90 more days; an event-less
-   open ticket goes 90 days after its last change, answered or not: Q-220).
+   t.escalated_at, t.returned_at, t.closed_at) + 90 days` (an escalation, a send-back or a late answer gives the
+   ticket 90 more days; CTO 5). An event-less ticket still **open** is not purged by age: it waits in the console until
+   Questify closes it, and goes 90 days after the closing (CTO 5; Q-220 updated). The console shows its age.
 10. **Erasure**: `erase_rows` unchanged in substance (`DELETE FROM ticket WHERE player_id = me` already takes event-less
     and escalated tickets); a report **about** an erased member keeps the report, the reported name shows "Deleted
     account". An erased admin is a staff account; staff deletion is T-709's (the FK holds, as `answered_by_staff`).
@@ -304,8 +330,8 @@ one push per closed ticket, fixed text by team ("The event team answered you" / 
 - **Who may now read a ticket changes**: escalation lets Questify read an organizer's player's text. The app's privacy
   line says so before sending (above); the privacy policy's help-ticket line (Q-075) adds it; counsel confirms with
   Q-210 (Q-221).
-- Retention (function 9): 90 days after the later of the event's end, the sending, the escalation and the closing; an
-  event-less ticket 90 days after the later of its sending and closing (Q-220). Account deletion takes every ticket the
+- Retention (function 9): 90 days after the later of the event's end, the sending, the escalation, the send-back and
+  the closing; an event-less ticket 90 days after its closing, never while open (Q-220). Account deletion takes every ticket the
   account sent at once, every queue.
 - DATA_MODEL's `ticket` line and PII line grow; SECURITY's who-can-do-what gains the console row and the outsider/
   cross-tenant rows below.
@@ -318,6 +344,9 @@ one push per closed ticket, fixed text by team ("The event team answered you" / 
   inside a support request (App Privacy's **Customer Support**, already declared by T-310, and **Other Diagnostic
   Data** is not claimed since nothing is sent automatically). Google Data safety: "App info and performance → Other"
   only inside the user's report, user-initiated, deletable with the account. STORE_COMPLIANCE's privacy table rows.
+  **At build** (CTO 9): read `expo-device`'s own `PrivacyInfo.xcprivacy` entries (any required-reason API it declares)
+  and record them in STORE_COMPLIANCE; confirm the App Privacy answer above against them; the new development build
+  (Android and iOS) is Dhia's step; the lazy load and the ban on `Constants.deviceName` stay, each with a unit test.
 - **Apple 1.5** unchanged (the contact page stays). Nothing downloaded; the kinds are data in the database, the switch
   is T-310's.
 
@@ -348,7 +377,17 @@ one push per closed ticket, fixed text by team ("The event team answered you" / 
     and a late answer (not a day early), in batches.
   - **Crossed locks**: the team answers while escalating (one wins); two admins answer (one wins); an admin answers
     while sending back; the same platform key twice at once (one row, the second `replayed`); the 3rd and 4th
-    platform send at once (one refused); erasure during an admin answer (HT404).
+    platform send at once (one refused); erasure during an admin answer (HT404); **a platform send during erasure**,
+    both orders (the send waits and is refused `not_member`, or the erasure waits and deletes the new ticket: no
+    ticket outlives the account; CTO 1).
+  - **Added from the CTO review**: a list read writes one audit row per event shown, each holding exactly the ids shown
+    for that event and no text, plus one event-less row (CTO 2); a forged `answered_by_admin` on an event-queue row, a
+    `questify` event ticket whose latest hop is a return, and a second open report for the same pair, each refused by
+    the table (CTO 3, 4); a `report_player` escalated then sent back stays hidden from operators by list, count, id and
+    answer, and no operator read carries either note (CTO 7); `purge_ended_tickets` after a send-back (not a day
+    before `returned_at` + 90 days) and an open event-less ticket never purged by age (CTO 5); the 11th failed username
+    lookup in an hour answers `too_many_lookups`, and a Redis outage lets the send through (CTO 8); the console never
+    returns an avatar (CTO 10).
 - **Security** (the brief's core):
   - **Outsider**: every new function refused to `anon` and `PUBLIC` (`open_platform_ticket`, `staff_escalate_ticket`,
     `console_*`, `admin_*`); `ticket` still closed.
@@ -394,11 +433,12 @@ one push per closed ticket, fixed text by team ("The event team answered you" / 
   reports to owners and editors only; Q-209 answered as recommended.
 - **ADR-257** Who sees a ticket (replaces ADR-247's table): a platform admin reads exactly `queue = 'questify'`;
   the team reads its escalated tickets read-only; the player sees which team answered, never a person or a note; the
-  privacy line names Questify; every console read is audited. Answers Q-211.
+  privacy line names Questify; every console read is audited, a list with the ids shown per event. Answers Q-211.
 - **ADR-258** Escalation: owners and editors only, a note required, the ticket moves whole to the Questify queue;
   Questify answers, solves or sends back (with a note), answers whatever the event's state, never sends back an app
   problem; every hop audited with the event's ids; "take over" = Questify's own answer.
-- **ADR-259** Sending outside an event: `open_platform_ticket` under a per-player advisory lock, 3 open and 5 a day in
+- **ADR-259** Sending outside an event: `open_platform_ticket` under a per-player advisory lock and the player row
+  `FOR KEY SHARE` (no send outlives an erasure), 3 open and 5 a day in
   the Questify queue; one open report per reporter and reported; device facts with `expo-device` (new dependency,
   loaded lazily, never the device's name).
 - **Q-218** FR-1823's "take over any ticket": read as "answer any ticket in Questify's queue", never a ticket that was
@@ -407,8 +447,8 @@ one push per closed ticket, fixed text by team ("The event team answered you" / 
 - **Q-219** FR-1411 sends a report to the event team **and** Questify's moderation queue; FR-1822 says a Report a
   player ticket reaches the event team and not the Questify queue. Built: the event team only; T-705's moderation queue
   (reports of content and usernames) is where Questify sees reports. Agree?
-- **Q-220** Retention of tickets with no event (app problems, suggestions): 90 days after the later of sending and
-  closing, answered or not. Agree, or keep app problems longer for bug history (without the text)?
+- **Q-220** Retention of tickets with no event (app problems, suggestions): 90 days after closing; an open one waits in
+  the console, never purged by age (CTO 5). Agree, or keep app problems longer for bug history (without the text)?
 - **Q-221** Counsel: escalation shows a player's text to Questify, which the T-310 line "Only you and the event team"
   did not say. The new line says it before sending; does the privacy policy need more (with Q-075, Q-210)?
 - **Q-222** Operators cannot escalate (only owners and editors). Agree, or let operators with `help_desk` escalate too?

@@ -3316,7 +3316,8 @@ not a second store. T-312 delivers My tickets (the profile's Your requests).
 team; `app_problem` and `suggestion` go to the Questify team and never carry an event, even when sent from inside one.
 The routing is fixed by the kind in the table's CHECKs; an event kind reaches Questify only by escalation. Reports of a
 player go to owners and editors only, never to operators. Report a player names a member of the same event by
-username; one open report per reporter and reported; the reported player is never told.
+username; one open report per reporter and reported; the reported player is never told. Failed username lookups are
+capped at 10 an hour per player and event (the lookup can reveal a member the board does not show).
 **Why:** FR-1822; operators are often players, and a report names someone.
 **Trade-offs:** an app problem sent from an event does not show the event to its team (the text can name it).
 
@@ -3325,7 +3326,7 @@ username; one open report per reporter and reported; the reported player is neve
 **Decision:** A platform admin reads exactly the tickets with `queue = 'questify'` (app problems, suggestions, and event
 tickets while escalated or after Questify closed them), only through the console's definers, each re-reading
 `app_admin_id()`; a ticket sent back leaves the console. Every console read and action is audited with ids (and the
-event's ids for an event ticket), never text. The event team reads its escalated tickets read-only. The player sees
+event's ids for an event ticket), never text; a list page writes one row per event shown, holding the ids shown. The event team reads its escalated tickets read-only. The player sees
 which team answered ("The event team" / "The Questify team"), never a person or a note. The event cards' privacy line
 says Questify may read the ticket if the team asks for help.
 **Why:** FR-1823 needs Questify to read escalated tickets; a single rule keeps the new cross-tenant reader narrow.
@@ -3343,7 +3344,8 @@ required note; app problems and suggestions are never sent back; a returned tick
 ## ADR-259 — Sending outside an event and the device facts
 **Status:** Proposed (Claude, 2026-10-24; T-312 plan).
 **Decision:** `open_platform_ticket` sends app problems and suggestions with no enrollment, under a per-player advisory
-lock: 3 open and 5 in 24 hours in the Questify queue per player, replays by key. An app problem carries the app version,
+lock and then the player row `FOR KEY SHARE` while active (erasure holds it `FOR UPDATE`, so no send outlives an
+erasure): 3 open and 5 in 24 hours in the Questify queue per player, replays by key. An app problem carries the app version,
 platform, OS version and phone model; the model comes from `expo-device` (new dependency: iOS gives no model without
 it; no permission, no identifier), loaded lazily so an older binary sends `null`; never the phone's own name.
 **Why:** FR-1822's acceptance names the app version and phone model.

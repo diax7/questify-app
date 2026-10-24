@@ -585,8 +585,8 @@ ticket reaches the event team and not the Questify queue. Built: the event team 
 of content and usernames) is where Questify sees reports. Agree?
 
 ## Q-220 — Keeping tickets with no event (2026-10-24, T-312 plan)
-App problems and suggestions are deleted 90 days after the later of their sending and closing, answered or not.
-Agree, or keep app problems longer for bug history (without the text)?
+App problems and suggestions are deleted 90 days after their closing; an open one waits in the console and is never
+deleted by age (CTO plan review, 2026-10-25). Agree, or keep app problems longer for bug history (without the text)?
 
 ## Q-221 — Counsel: Questify reading an escalated ticket (2026-10-24, T-312 plan, with Q-075 and Q-210)
 T-310 told players "Only you and the event team can see this". With escalation the line becomes "... If they ask
