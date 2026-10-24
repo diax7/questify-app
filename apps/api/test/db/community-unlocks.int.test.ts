@@ -1607,6 +1607,9 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   operator_ticket: "staff: a help-desk ticket the operator answers, as the review queue (T-310)",
   operator_inbox: "staff: the operator's Inbox, quest titles through inbox_rows (T-310)",
   operator_inbox_count: "staff: the operator's Inbox badge, through inbox_rows (T-310)",
+  console_tickets:
+    "staff: Questify's ticket queue, a quest's title only for a ticket about it (T-312)",
+  console_ticket: "staff: one ticket of Questify's queue, a quest's title only (T-312)",
   close_one_due_round: "exempt: the system sweep closing a round already open; it pays no quest",
   add_reward_codes: "staff: the team's reward codes",
   audience_counts: "staff: the team's audience preview",

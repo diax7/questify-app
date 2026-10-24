@@ -9,7 +9,7 @@ ADR-246 to ADR-248, Q-209 to Q-211) without moving data.
 plan review, one Opus code review, mutation on GitHub. Migration **0061** (new file; CranL runs through 0056, 0057 to
 0060 are undeployed; the functions they last stated are restated here, never edited there).
 
-**CTO plan review 2026-10-25: 86/100, findings folded in** (MAJOR 1 a platform send racing erasure; MAJOR 2 the list
+**CTO plan review 2026-10-25: 86/100, findings folded in; re-review 91/100, GO with the routing CHECK fixed** (MAJOR 1 a platform send racing erasure; MAJOR 2 the list
 read's audit names the tickets shown; minors 3 to 9 and nit 10 in the sections below, marked "CTO n"). ADR-078
 (email, password and an emailed code for admins) is Accepted and kept.
 
@@ -58,8 +58,9 @@ pages changed and one added. One worker.
   "A problem with this prize" (`prize`).
 - Routing is fixed by the kind, in the database: `kind IN ('app_problem', 'suggestion')` ⇔ no event columns and
   `queue = 'questify'` for life (never sent back: there is no event team). Event kinds start in `queue = 'event'` and reach
-  `questify` only by escalation (CHECK `queue = 'event' OR escalated_at > coalesce(returned_at, '-infinity')` for event
-  kinds: the latest hop is an escalation; CTO 3).
+  `questify` only by escalation (CHECK `queue = 'event' OR (escalated_at IS NOT NULL AND escalated_at >
+  coalesce(returned_at, '-infinity'))` for event kinds: the latest hop is an escalation; CTO 3, re-review: a NULL
+  `escalated_at` must not pass).
 - **Why report_player skips operators**: operators are often players and friends of players; a report names someone.
   Owners and editors are the accountable seats. Report-only mute/blocks are T-705's (FR-1415); a report never blocks.
 - **App problems and suggestions never carry an event**, even when sent from inside one: the event team never sees them,
@@ -85,8 +86,11 @@ pages changed and one added. One worker.
 | `answered_by_admin` | uuid → `staff_user` | the third answerer; CHECK at most one of the three answerers; the closed ⇔ an answerer CHECK restated with it |
 
 CHECKs restated: `queue <> 'event' OR (event columns NOT NULL)` stays; new `(kind IN ('app_problem','suggestion')) =
-(event_id IS NULL)`; `kind IN ('app_problem','suggestion') OR queue = 'event' OR escalated_at >
-coalesce(returned_at, '-infinity')` (CTO 3); `returned_at IS NULL OR escalated_at IS NOT NULL`;
+(event_id IS NULL)`; `kind IN ('app_problem','suggestion') OR queue = 'event' OR (escalated_at IS NOT NULL AND
+escalated_at > coalesce(returned_at, '-infinity'))` (CTO 3; the re-review's fix, with a forged insert of `queue =
+'questify'` and `escalated_at` NULL in the tests); `returned_at IS NULL OR (escalated_at IS NOT NULL AND (queue =
+'questify' OR returned_at >= escalated_at))` (a return only after an escalation, and in the event queue the latest hop
+is the return; re-review nit);
 `answered_by_admin IS NULL OR queue = 'questify'` (Questify answers only in its queue); device columns NULL unless
 `app_problem`. Indexes: `ticket_questify_open_idx (created_at, id) WHERE status = 'open' AND queue = 'questify'`,
 `ticket_questify_closed_idx (closed_at DESC, id) WHERE status = 'closed' AND queue = 'questify'`,

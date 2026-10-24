@@ -167,13 +167,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
     options: { kind?: string; quest?: string | null; body?: string; key?: string } = {},
   ) =>
     (
-      await query<Opened>({ playerId: player }, "SELECT * FROM open_ticket($1, $2, $3, $4, $5)", [
-        event,
-        options.kind ?? "question",
-        options.quest ?? null,
-        options.body ?? "Where is the stage?",
-        options.key ?? randomUUID(),
-      ])
+      await query<Opened>(
+        { playerId: player },
+        "SELECT * FROM open_ticket($1, $2, $3, NULL, $4, $5)",
+        [
+          event,
+          options.kind ?? "question",
+          options.quest ?? null,
+          options.body ?? "Where is the stage?",
+          options.key ?? randomUUID(),
+        ],
+      )
     )[0] as Opened;
   const staffAnswer = async (
     event: string,
@@ -630,6 +634,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
           closed_at: expect.any(Date),
           created_at: expect.any(Date),
           unread: true,
+          with_questify: false,
+          answered_by_team: "event",
+          reported_username: null,
         },
       ]);
       expect((await ownTickets(neighbour.player, event)).map((row) => row["id"])).not.toContain(
@@ -717,7 +724,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       });
       expect(await read("bogus", null, null)).toEqual([]);
       expect(await query(team(), "SELECT * FROM event_ticket_counts($1)", [event])).toEqual([
-        { open: 1, closed: 2 },
+        { open: 1, with_questify: 0, closed: 2, waiting_by_kind: { problem: 1 } },
       ]);
     });
 
@@ -941,10 +948,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         ),
       ).toEqual([
         { ref: "enrollment", action: "c" },
+        { ref: "enrollment", action: "n" },
         { ref: "event", action: "c" },
         { ref: "player", action: "a" },
         { ref: "player", action: "c" },
         { ref: "quest", action: "n" },
+        { ref: "staff_user", action: "a" },
+        { ref: "staff_user", action: "a" },
+        { ref: "staff_user", action: "a" },
         { ref: "staff_user", action: "a" },
       ]);
     });
@@ -1088,7 +1099,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       const [first, second] = await crossed(
         [
           { playerId: player },
-          "SELECT * FROM open_ticket($1, 'question', NULL, 'Third', $2)",
+          "SELECT * FROM open_ticket($1, 'question', NULL, NULL, 'Third', $2)",
           [event, randomUUID()],
         ],
         () => open(player, event, { body: "Fourth" }),
@@ -1104,7 +1115,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       const [first, second] = await crossed(
         [
           { playerId: player },
-          "SELECT * FROM open_ticket($1, 'question', NULL, 'Hello', $2)",
+          "SELECT * FROM open_ticket($1, 'question', NULL, NULL, 'Hello', $2)",
           [event, key],
         ],
         () => open(player, event, { body: "Hello", key }),
@@ -1128,7 +1139,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       expect(await waiting).toBe("HT404");
     });
 
-    it("skips a ticket an answer holds in the sweep", async () => {
+    it("skips a ticket an answer holds in the sweep; the late answer gives it 90 more days", async () => {
       const ended = await newEvent({ endsIn: "-120 days" });
       const { player, enrollment } = await member(ended);
       const [made] = await owner<{ id: string }>(
@@ -1146,6 +1157,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         false,
       );
       expect(swept).toMatchObject({ status: "fulfilled", value: [{ n: 0 }] });
+      // The late answer restarts the clock (T-312, CTO 5): 90 days after the closing.
+      expect(await query<{ n: number }>({}, "SELECT purge_ended_tickets(1000) AS n")).toEqual([
+        { n: 0 },
+      ]);
+      await owner("UPDATE ticket SET closed_at = now() - interval '91 days' WHERE id = $1", [
+        made?.id,
+      ]);
       expect(await query<{ n: number }>({}, "SELECT purge_ended_tickets(1000) AS n")).toEqual([
         { n: 1 },
       ]);
@@ -1178,13 +1196,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
             "operator_inbox",
             "operator_inbox_count",
             "purge_ended_tickets",
+            "open_platform_ticket",
+            "ticket_device_fact",
+            "staff_escalate_ticket",
+            "ticket_admin",
+            "console_tickets",
+            "console_ticket_counts",
+            "console_ticket",
+            "admin_answer_ticket",
+            "admin_return_ticket",
           ],
         ],
       );
       expect(rows.filter((row) => row.app).map((row) => row.proname)).toEqual([
+        "admin_answer_ticket",
+        "admin_return_ticket",
+        "console_ticket",
+        "console_ticket_counts",
+        "console_tickets",
         "event_ticket_counts",
         "event_tickets",
         "mark_tickets_seen",
+        "open_platform_ticket",
         "open_ticket",
         "operator_answer_ticket",
         "operator_inbox",
@@ -1194,8 +1227,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
         "own_unread_tickets",
         "purge_ended_tickets",
         "staff_answer_ticket",
+        "staff_escalate_ticket",
       ]);
-      expect(rows).toHaveLength(18);
+      expect(rows).toHaveLength(27);
     });
   });
 });

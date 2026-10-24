@@ -1075,6 +1075,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "finish_quiz", // internal: play_enter, the quiz sweep and confirm_results wipe before calling it
         "settle_goal_at", // internal: settle_goal and settle_community wipe before calling it (T-306b)
         "nfc_writer", // an operator writing a tag: organizer data the wipe never touches (T-308)
+        "console_ticket", // Questify reads one ticket (an audit row only); the event's status is shown, not judged (T-312)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

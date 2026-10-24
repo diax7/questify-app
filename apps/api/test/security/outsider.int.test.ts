@@ -409,7 +409,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     it("cannot read tickets or reach any help-desk door, the sweep included (T-310)", async () => {
       for (const sql of [
         "SELECT * FROM public.ticket",
-        "SELECT * FROM public.open_ticket(gen_random_uuid(), 'question', NULL, 'x', 'k')",
+        "SELECT * FROM public.open_ticket(gen_random_uuid(), 'question', NULL, NULL, 'x', 'k')",
         "SELECT * FROM public.own_tickets(NULL)",
         "SELECT public.own_unread_tickets(gen_random_uuid())",
         "SELECT public.mark_tickets_seen(NULL, '{}')",
@@ -427,6 +427,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.help_desk_on(NULL::public.event)",
         "SELECT public.operator_sees_ticket(NULL::public.ticket, gen_random_uuid())",
         "SELECT public.purge_ended_tickets(1)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
+    it("cannot send outside an event, escalate, or reach Questify's queue (T-312)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.open_platform_ticket('suggestion', 'x', NULL, NULL, NULL, NULL, 'k')",
+        "SELECT public.ticket_device_fact('x', 'f', '.')",
+        "SELECT * FROM public.staff_escalate_ticket(gen_random_uuid(), 1, 'x', NULL)",
+        "SELECT public.ticket_admin()",
+        "SELECT * FROM public.console_tickets('open', NULL, NULL, NULL, 1, NULL)",
+        "SELECT * FROM public.console_ticket_counts()",
+        "SELECT * FROM public.console_ticket(1, NULL)",
+        "SELECT * FROM public.admin_answer_ticket(1, 'x', 'k', NULL)",
+        "SELECT * FROM public.admin_return_ticket(1, 'x', NULL)",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }
