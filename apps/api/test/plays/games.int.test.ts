@@ -13,11 +13,15 @@ import {
   type MemoryParams,
   type TapRushParams,
 } from "@questify/shared";
+import { Client } from "pg";
+import { createAuthKeys } from "#src/auth/keys";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import type { RankingStore } from "#src/ranking/store";
 import {
   createStaff,
   signInFully,
   startApp,
+  testConfig,
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
@@ -48,6 +52,13 @@ const codeOf = (response: { statusCode: number; json: () => { code?: string } })
   response.statusCode,
   response.json().code,
 ];
+const KEYS = createAuthKeys(testConfig().auth.secret);
+/** Engine versions for this many games: memory match's current one and made-up games' after it. */
+const versions = (count: number) =>
+  Object.fromEntries([
+    ["memory_match", 1],
+    ...Array.from({ length: count - 1 }, (_, index) => [`game_${"x".repeat(index + 1)}`, 1]),
+  ]);
 const ENGINES = { engineVersions: ENGINE_VERSIONS };
 /** What a T-305 build sends: no catch or tap rush engine. */
 const T305_ENGINES = { engineVersions: { memory_match: 1, slide_puzzle: 1 } };
@@ -113,6 +124,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
   let counter = 0;
   const upserts: Upsert[] = [];
   const logs: string[] = [];
+  /** The HTTP replay store's clock: moved past a day, a replayed key reaches the database's own replay. */
+  let clock = Date.now();
 
   beforeAll(async () => {
     db = await createTestDatabase();
@@ -120,7 +133,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
       db,
       { level: "debug", stream: { write: (line: string) => void logs.push(line) } },
       {},
-      { rankingStore: recordingStore(upserts) },
+      {
+        rankingStore: recordingStore(upserts),
+        idempotencyStore: new MemoryIdempotencyStore(() => clock),
+      },
     );
     organizer =
       (
@@ -142,6 +158,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+  /** The game.result log lines written since `from` lines were logged: their game, verdict and reason. */
+  const gameLogs = (from: number) =>
+    logs
+      .slice(from)
+      .map((line) => JSON.parse(line) as Row)
+      .filter((entry) => entry["event"] === "game.result")
+      .map(({ game, verdict, reason }) => ({ game, verdict, reason }));
   const newEvent = async (): Promise<string> => {
     counter += 1;
     const [event] = await owner<{ id: string }>(
@@ -253,7 +276,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     expect(again.json()).toMatchObject({ roundId: round.roundId });
 
     const before = upserts.length;
-    const paid = await send(a, round.roundId, perfectPlay(round));
+    const resultKey = { "idempotency-key": randomUUID() };
+    let logged = logs.length;
+    const paid = await send(a, round.roundId, perfectPlay(round), resultKey);
     expect(paid.statusCode, paid.body).toBe(200);
     expect(paid.json()).toMatchObject({
       verdict: "passed",
@@ -264,10 +289,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
       replayed: false,
       rank: 1,
     });
+    expect(gameLogs(logged)).toEqual([{ game: "memory_match", verdict: "passed", reason: "" }]);
     expect(upserts.length).toBeGreaterThan(before);
+    const listed = await call("GET", `/v1/events/${event}/quests`, a);
+    expect(
+      listed.json<{ categories: { quests: Row[] }[] }>().categories[0]?.quests[0],
+    ).toMatchObject({ id: quest, game: { attemptsLeft: 1, passed: true }, meet: null });
     expect(codeOf(await play(a, quest))).toEqual([409, "already_completed"]);
+    logged = logs.length;
     const second = await send(a, round.roundId, perfectPlay(round));
     expect([second.statusCode, second.json().details]).toEqual([409, { reason: "finished" }]);
+    expect(gameLogs(logged)).toEqual([
+      { game: "memory_match", verdict: "game_refused", reason: "" },
+    ]);
+    clock += 2 * 24 * 60 * 60 * 1000;
+    const replayed = await send(a, round.roundId, perfectPlay(round), resultKey);
+    expect(replayed.json()).toMatchObject({ verdict: "passed", replayed: true, rank: null });
   });
 
   it("pays a passing catch round and a passing tap rush round (T-305c)", async () => {
@@ -347,7 +384,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     const a = await newPlayer(event);
     const round = await issued(a, quest);
     const { inputs, claimed } = perfectPlay(round);
+    const logged = logs.length;
     const refused = await send(a, round.roundId, { inputs: inputs.slice(0, 4), claimed });
+    expect(gameLogs(logged)).toEqual([
+      { game: "memory_match", verdict: "refused", reason: "claimed" },
+    ]);
     expect([refused.statusCode, refused.json().code, refused.json().details]).toEqual([
       422,
       "game_refused",
@@ -451,10 +492,90 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-games over HTTP", () => {
     for (let index = 0; index < 20; index += 1) {
       expect((await send(a, "999999999", { inputs: [], claimed: null })).statusCode).toBe(404);
     }
-    expect(codeOf(await send(a, "999999999", { inputs: [], claimed: null }))).toEqual([
-      429,
-      "too_many_attempts",
+    const limited = await send(a, "999999999", { inputs: [], claimed: null });
+    expect(codeOf(limited)).toEqual([429, "too_many_attempts"]);
+    expect(limited.json().details).toEqual({
+      retryAfterSeconds: Number(limited.headers["retry-after"]),
+    });
+  });
+
+  it("answers wait a second while another call holds the player's limit", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const a = await newPlayer(event);
+    const holder = new Client({ connectionString: db.appUrl });
+    await holder.connect();
+    try {
+      await holder.query("SELECT pg_advisory_lock($1::bigint)", [
+        KEYS.playerKey(a.id).readBigInt64BE(0).toString(),
+      ]);
+      const held = await play(a, quest);
+      expect([...codeOf(held), held.headers["retry-after"]]).toEqual([
+        429,
+        "too_many_attempts",
+        "1",
+      ]);
+    } finally {
+      await holder.end();
+    }
+    expect((await play(a, quest)).statusCode).toBe(201);
+  });
+
+  it("refuses Play on a quest that is not a game, and keeps the phone's install id on the round", async () => {
+    const event = await newEvent();
+    const a = await newPlayer(event);
+    const [scanQuest] = await owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points)
+       SELECT $1, id, 'scan_qr', 'Scan', 5 FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
+      [event],
+    );
+    expect(codeOf(await play(a, scanQuest?.id ?? ""))).toEqual([422, "not_game_quest"]);
+    const device = randomUUID();
+    const round = (await play(a, await newQuest(event), { "x-device-id": device })).json<Issued>();
+    expect(await owner("SELECT device_id FROM game_round WHERE id = $1", [round.roundId])).toEqual([
+      { device_id: device },
     ]);
+  });
+
+  it("takes the engine versions of up to 20 games", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event, { attempts: 3 });
+    const a = await newPlayer(event);
+    expect(
+      (await call("POST", `/v1/quests/${quest}/game-rounds`, a, { engineVersions: versions(20) }))
+        .statusCode,
+    ).toBe(201);
+    expect(
+      codeOf(
+        await call("POST", `/v1/quests/${quest}/game-rounds`, a, { engineVersions: versions(21) }),
+      ),
+    ).toEqual([400, "invalid_request"]);
+  });
+
+  it("answers a pass's level reached, category bonus and quest item", async () => {
+    const event = await newEvent();
+    const [item] = await owner<{ id: string }>(
+      `INSERT INTO quest_item (organizer_id, event_id, name_en, stock_total) VALUES ($1, $2, 'Badge', 5)
+       RETURNING id`,
+      [organizer, event],
+    );
+    const quest = await newQuest(event);
+    await owner("UPDATE quest SET item_id = $2 WHERE id = $1", [quest, item?.id]);
+    await owner("UPDATE category SET completion_bonus = 25 WHERE event_id = $1", [event]);
+    const a = await newPlayer(event);
+    await owner("UPDATE platform_setting SET value = '{\"questXp\": 200}' WHERE key = 'xp'");
+    try {
+      const round = await issued(a, quest);
+      const paid = await send(a, round.roundId, perfectPlay(round));
+      expect(paid.json()).toMatchObject({
+        verdict: "passed",
+        levelUp: { level: 2 },
+        bonus: { points: 25 },
+        item: { name: { en: "Badge" } },
+      });
+    } finally {
+      await owner("UPDATE platform_setting SET value = '{\"questXp\": 100}' WHERE key = 'xp'");
+    }
   });
 
   it("lets the owner switch mini-games off, which hides them and refuses Play, while an issued round still counts", async () => {
