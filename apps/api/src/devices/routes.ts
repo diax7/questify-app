@@ -19,6 +19,7 @@ import {
   deviceScreenCode,
   deviceState,
   holdPoll,
+  holdWrite,
   openPairing,
   operatorScreenCode,
   renewPairing,
@@ -118,15 +119,18 @@ export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceDeps): vo
     return deviceState(deps, device);
   });
 
-  app.post("/v1/device/pairing/renew", anyDevice, async (request) => {
+  app.post("/v1/device/pairing/renew", anyDevice, async (request, reply) => {
     parse(emptyBody, request.body);
     const device = deviceOf(request);
+    await holdWrite(deps, device, reply);
     return device.state === "pending" ? renewPairing(deps, device) : deviceState(deps, device);
   });
 
   app.post("/v1/device/activate", anyDevice, async (request, reply) => {
     parse(emptyBody, request.body);
-    const token = await activateDevice(deps, deviceOf(request));
+    const device = deviceOf(request);
+    await holdWrite(deps, device, reply);
+    const token = await activateDevice(deps, device);
     if (token !== null) {
       reply.header("set-cookie", deviceCookie(token));
     }

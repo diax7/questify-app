@@ -161,6 +161,15 @@ export const holdPoll = (deps: DeviceDeps, device: DeviceIdentity, reply: Reply)
     reply,
   );
 
+/** A device's renews and activations: 10 a minute (CTO code review 1). */
+export const holdWrite = (deps: DeviceDeps, device: DeviceIdentity, reply: Reply) =>
+  holdBack(
+    deps.pool,
+    [{ limit: DEVICE_LIMITS.writesPerDevice, key: deps.keys.pairedDeviceKey(deviceIdOf(device)) }],
+    true,
+    reply,
+  );
+
 type View = {
   kind: DeviceKind;
   label: string;

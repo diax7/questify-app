@@ -3926,6 +3926,10 @@ export const MESSAGES = {
     ar: "تم الربط. تظهر المهمة على الشاشة خلال ثوانٍ.",
     en: "Paired. The screen shows it in a few seconds.",
   },
+  "devices.kioskLater": {
+    ar: "لا يمكن ربط الأكشاك الذاتية بعد. افتح على هذا الجهاز صفحة المحطة أو الشاشة الكبيرة.",
+    en: "Kiosks can't be paired yet. Open the station or big screen page on this device instead.",
+  },
   "devices.noQuests": {
     ar: "لا تستخدم أي مهمة رمز QR على شاشة بعد. فعّله في مهمة مسح أولًا.",
     en: "No quest uses a QR on a screen yet. Turn it on in a scan quest first.",
@@ -3979,7 +3983,6 @@ export const MESSAGES = {
   },
   "operator.rotating": { ar: "رمز QR متغيّر", en: "Rotating QR" },
   "operator.rotating.pick": { ar: "اختر المهمة", en: "Pick a quest" },
-  "operator.rotating.keepOn": { ar: "أبقِ شاشتك مضاءة", en: "Keep your screen on" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

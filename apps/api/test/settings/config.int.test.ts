@@ -85,7 +85,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         tuning: {
           livePollSeconds: 10,
           myQrGraceSeconds: 5,
-          screenQrRotationSeconds: 45,
           usernameChangeDays: 30,
         },
         legal: {
@@ -133,10 +132,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     it("changes the tag when a setting changes, and not when it does not", async () => {
       const before = String((await getConfig()).headers["etag"]);
       expect(String((await getConfig()).headers["etag"])).toBe(before);
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 50 } });
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 50 } });
       const after = String((await getConfig()).headers["etag"]);
       expect(after).not.toBe(before);
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 45 } });
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 30 } });
       expect(String((await getConfig()).headers["etag"])).toBe(before);
     });
   });
@@ -174,14 +173,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       const before = await owner("SELECT * FROM platform_setting ORDER BY key");
       const result = await settings.savePlatformSettings(admin, {
         features: { teleporter: { enabled: true }, shop: { enabled: false } },
-        tuning: { screenQrRotationSeconds: 99 },
+        tuning: { usernameChangeDays: 999 },
       });
       expect(result).toEqual({
         ok: false,
         reason: "invalid",
         issues: [
           { path: "features.teleporter", message: "is not a feature of the app" },
-          { path: "tuning.screenQrRotationSeconds", message: "must be a number from 30 to 60" },
+          { path: "tuning.usernameChangeDays", message: "must be a number from 1 to 365" },
         ],
       });
       expect(await owner("SELECT * FROM platform_setting ORDER BY key")).toEqual(before);
@@ -210,24 +209,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     it("reaches another running copy of the server within the cache time, and not before", async () => {
       const other = createSettingsService({ pool, ttlMs: 15_000, now: () => clock.now });
       expect((await other.forEvent(undefined)).kind).toBe("ok");
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 55 } });
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 55 } });
       const read = async () => {
         const result = await other.forEvent(undefined);
-        return result.kind === "ok" ? result.config.tuning["screenQrRotationSeconds"] : undefined;
+        return result.kind === "ok" ? result.config.tuning["usernameChangeDays"] : undefined;
       };
-      expect(await read()).toBe(45);
+      expect(await read()).toBe(30);
       clock.now += 14_999;
-      expect(await read()).toBe(45);
+      expect(await read()).toBe(30);
       clock.now += 1;
       expect(await read()).toBe(55);
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 45 } });
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 30 } });
     });
 
     it("reaches this copy of the server at once when it was saved here", async () => {
       await getConfig();
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 40 } });
-      expect((await configOf()).tuning["screenQrRotationSeconds"]).toBe(40);
-      await settings.savePlatformSettings(admin, { tuning: { screenQrRotationSeconds: 45 } });
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 40 } });
+      expect((await configOf()).tuning["usernameChangeDays"]).toBe(40);
+      await settings.savePlatformSettings(admin, { tuning: { usernameChangeDays: 30 } });
     });
   });
 
@@ -430,7 +429,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       await owner(
         `INSERT INTO platform_setting (key, value) VALUES
            ('features', '{"shop": 5, "teleporter": {"enabled": true}, "cheers": {"enabled": "no", "minAppVersion": "soon"}}'),
-           ('tuning', '{"screenQrRotationSeconds": "fast", "warp": 9}')
+           ('tuning', '{"usernameChangeDays": "fast", "warp": 9}')
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
       );
       expireCaches();
@@ -448,7 +447,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expect(config.tuning).toEqual({
         livePollSeconds: 10,
         myQrGraceSeconds: 5,
-        screenQrRotationSeconds: 45,
         usernameChangeDays: 30,
       });
       await owner("DELETE FROM platform_setting");

@@ -3083,7 +3083,9 @@ for a fresh one under the same secret (`renew`). Staff see what the screen said 
 …/devices/preview`, counted as a claim), and a claim names the page's kind (`wrong_kind` otherwise). Staff mode pairs
 stations only until T-309b adds the `kiosk` method (a kiosk claim answers `not_kiosk`). The removal triggers do nothing
 without active devices and delete, rather than revoke, the devices of an event being deleted (CTO plan re-review 1).
-The operator's phone shows the hint "Keep your screen on" instead of `expo-keep-awake` (no new dependency).
+The operator's phone keeps its screen on with `expo-keep-awake` (~57.0.2, already in the build through expo@57.0.30, so
+no new native module; CTO code review 6). A pairing request renews for at most an hour after it was made, and renew and
+activate take 10 a minute per device (CTO code review 1).
 
 ## ADR-240 — Rotating screen QR
 **Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-203.
@@ -3097,7 +3099,7 @@ and watched by the burst flags.
 **Build note (T-309, 2026-10-24):** a station's answer names why it shows no code (`paused`, `method_off`, `hidden`,
 `not_started`, `ended`, `event_ended`); a Draft or Scheduled event shows codes for rehearsal accounts. An expired code
 answers 422 `code_expired` ("This code has changed. Scan the screen again"). The platform tuning
-`screenQrRotationSeconds` is not read (Q-206).
+`screenQrRotationSeconds` was removed (Q-206, CTO code review 5).
 
 ## ADR-241 — The big-screen link holds nothing
 **Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-202. Amends FR-1713's "regenerate a big-screen link".

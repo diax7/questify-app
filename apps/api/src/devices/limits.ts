@@ -13,6 +13,8 @@ export const DEVICE_LIMITS = {
   requestsPerAddress: { bucket: BUCKETS.deviceRequest, max: 60, windowSeconds: 600 },
   /** A device's polls of its own state. */
   pollsPerDevice: { bucket: BUCKETS.devicePoll, max: 30, windowSeconds: 60 },
+  /** A device's renews and activations (CTO code review 1): a page needs one of each every 10 minutes at most. */
+  writesPerDevice: { bucket: BUCKETS.deviceWrite, max: 10, windowSeconds: 60 },
   /** A station's code fetches, and an operator's for one quest. */
   codesPerDevice: { bucket: BUCKETS.deviceScreenCode, max: 6, windowSeconds: 60 },
   codesPerOperatorQuest: { bucket: BUCKETS.operatorScreenCode, max: 6, windowSeconds: 60 },

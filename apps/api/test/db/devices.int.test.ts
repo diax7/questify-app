@@ -618,6 +618,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
       ).toBe("DV401");
     });
 
+    it("renews only within an hour of the request; then the cookie opens nothing (CTO code review 1)", async () => {
+      const pending = await openRequest("screen");
+      await owner(
+        "UPDATE device_request SET created_at = now() - interval '59 minutes' WHERE secret_hash = $1",
+        [pending.secret],
+      );
+      expect(
+        await refusal(query({}, "SELECT renew_device_request($1, $2)", [pending.secret, hash()])),
+      ).toBe("none");
+      await owner(
+        "UPDATE device_request SET created_at = now() - interval '61 minutes' WHERE secret_hash = $1",
+        [pending.secret],
+      );
+      expect(
+        await refusal(query({}, "SELECT renew_device_request($1, $2)", [pending.secret, hash()])),
+      ).toBe("DV401");
+      expect(await session(pending.secret)).toBeUndefined();
+    });
+
     it("refuses an unknown kind, a long client name and malformed hashes", async () => {
       expect(
         await refusal(
@@ -1285,6 +1304,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
 
   // ============================================================ crossed locks
   describe("crossed locks", () => {
+    it("two renews racing for one code: the second answers code_taken, never a raw key error (CTO code review 7)", async () => {
+      const one = await openRequest();
+      const two = await openRequest();
+      const code = hash();
+      const held = await hold({}, "SELECT renew_device_request($1, $2)", [one.secret, code]);
+      const second = refusal(query({}, "SELECT renew_device_request($1, $2)", [two.secret, code]));
+      expect(await waitsOnLock("renew_device_request")).toBe(true);
+      held.release();
+      await held.done;
+      expect(await second).toBe("DV409:code_taken");
+    });
+
     it("two claims of one code: the second waits on the request and finds none (DV404)", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);

@@ -124,6 +124,19 @@ function ConfirmFields({
     submitted.preventDefault();
     confirm(needsQuest ? questId : null, label);
   };
+  // No quest offers the kiosk method until T-309b, so a kiosk is not offered for pairing yet.
+  if (preview.kind === "kiosk") {
+    return (
+      <div className={styles.form}>
+        <p className={styles.muted}>{t("devices.kioskLater")}</p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.quiet} onClick={back}>
+            {t("common.cancel")}
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <form className={styles.form} onSubmit={submit}>
       <p className={styles.row}>

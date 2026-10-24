@@ -1,4 +1,5 @@
 import { formatNumber } from "@questify/shared";
+import { useKeepAwake } from "expo-keep-awake";
 import { useEffect, useState } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -80,6 +81,8 @@ function QuestCode({ quest }: Readonly<{ quest: StationQuest }>) {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const { width } = useWindowDimensions();
+  // The screen stays on while a code is shown (expo-keep-awake ships with Expo; no new native module).
+  useKeepAwake();
   const shown = useOperatorCode(eventId, quest.id);
   const size = Math.min(width - 48, 420);
   return (
@@ -87,10 +90,7 @@ function QuestCode({ quest }: Readonly<{ quest: StationQuest }>) {
       <AppText variant="title">{textIn(quest.title, language)}</AppText>
       <AppText>{t("station.points", { points: formatNumber(quest.points, language) })}</AppText>
       {shown.kind === "code" ? (
-        <>
-          <QrCode text={shown.url} size={size} label={t("station.scan")} />
-          <AppText muted>{t("operator.rotating.keepOn")}</AppText>
-        </>
+        <QrCode text={shown.url} size={size} label={t("station.scan")} />
       ) : null}
       {shown.kind === "shut" ? (
         <AppText accessibilityRole="alert">{t(shutKey(shown.shut))}</AppText>

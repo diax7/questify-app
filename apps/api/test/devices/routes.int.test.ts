@@ -253,6 +253,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
     expect(screen.json()).toMatchObject({ kind: "screen" });
   });
 
+  it("holds renews and activations at 10 a minute per device (CTO code review 1)", async () => {
+    const page = await pending("screen");
+    const answers: number[] = [];
+    for (let index = 0; index < 11; index += 1) {
+      answers.push((await device("POST", "/v1/device/pairing/renew", page.cookie, {})).statusCode);
+    }
+    expect(answers.slice(0, 10).every((status) => status === 200)).toBe(true);
+    expect(answers[10]).toBe(429);
+    expect(codeOf(await device("POST", "/v1/device/activate", page.cookie, {}))).toEqual([
+      429,
+      "too_many_attempts",
+    ]);
+  });
+
   it("holds 60 pairing requests per 10 minutes from one address bucket", async () => {
     const address = freshIp();
     for (let index = 0; index < 60; index += 1) {

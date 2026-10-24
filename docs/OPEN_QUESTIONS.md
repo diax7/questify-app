@@ -514,3 +514,4 @@ write and its read-back?
 The platform tuning `screenQrRotationSeconds` (default 45, 30 to 60) predates ADR-240, which fixes the window at 30
 seconds with 15 seconds' grace on the database clock; the code does not read the knob. Remove it, or make the window
 follow it (the window then has to be read inside the door at judging time)?
+**Answered (CTO code review, 2026-10-24):** removed; ADR-240 fixes the window at 30 seconds.

@@ -102,7 +102,6 @@ export const TUNING: TuningRegistry = {
   /** Seconds between the app's reads of what is live in an event (T-306, ADR-221), while an event screen is open. */
   livePollSeconds: { default: 10, min: 5, max: 60 },
   myQrGraceSeconds: { default: 5, min: 0, max: 30 },
-  screenQrRotationSeconds: { default: 45, min: 30, max: 60 },
   /** Days between two username changes (FR-705); sign-up does not count. */
   usernameChangeDays: { default: 30, min: 1, max: 365 },
 };

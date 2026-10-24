@@ -221,7 +221,10 @@ REVOKE ALL ON FUNCTION open_device_request(bytea, bytea, text, text) FROM PUBLIC
 GRANT EXECUTE ON FUNCTION open_device_request(bytea, bytea, text, text) TO questify_app;
 
 -- A fresh code for a pending browser (its code expired, or the page was reloaded and no longer holds it): the same
--- secret, a new code hash and 10 more minutes. DV401 when the secret opens no request, DV409 code_taken as above.
+-- secret, a new code hash and 10 more minutes, for at most an hour after the request was made (CTO code review 1: a
+-- request kept alive for ever would let one address bucket fill the 5,000 cap; with this, one bucket holds at most
+-- 6 × 60 open requests). DV401 when the secret opens no request or its hour is over (the page then asks afresh, against
+-- its address limit), DV409 code_taken as above, also when another renew took the code in between.
 CREATE FUNCTION renew_device_request(secret bytea, code bytea) RETURNS timestamptz
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -233,9 +236,13 @@ BEGIN
   IF EXISTS (SELECT 1 FROM device_request r WHERE r.code_hash = code) THEN
     RAISE EXCEPTION 'this code is taken' USING ERRCODE = 'DV409', DETAIL = 'code_taken';
   END IF;
-  UPDATE device_request r SET code_hash = code, expires_at = now() + interval '10 minutes'
-  WHERE r.secret_hash = secret
-  RETURNING r.expires_at INTO until;
+  BEGIN
+    UPDATE device_request r SET code_hash = code, expires_at = now() + interval '10 minutes'
+    WHERE r.secret_hash = secret AND r.created_at > now() - interval '1 hour'
+    RETURNING r.expires_at INTO until;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'this code is taken' USING ERRCODE = 'DV409', DETAIL = 'code_taken';
+  END;
   IF until IS NULL THEN
     RAISE EXCEPTION 'no such device' USING ERRCODE = 'DV401';
   END IF;
@@ -293,7 +300,9 @@ BEGIN
     RETURN QUERY SELECT 'paired', d.id, d.kind, d.event_id, d.quest_id, false, NULL::timestamptz;
     RETURN;
   END IF;
-  SELECT * INTO req FROM device_request r WHERE r.secret_hash = secret;
+  -- A request past its hour is no longer anyone's (renew_device_request): the page asks afresh.
+  SELECT * INTO req FROM device_request r
+  WHERE r.secret_hash = secret AND r.created_at > now() - interval '1 hour';
   IF FOUND THEN
     RETURN QUERY SELECT 'pending', NULL::uuid, req.kind, NULL::uuid, NULL::uuid, false, req.expires_at;
   END IF;

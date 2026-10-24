@@ -40,6 +40,7 @@ export const BUCKETS = {
   nfcTap: "nfc_tap",
   deviceRequest: "device_request",
   devicePoll: "device_poll",
+  deviceWrite: "device_write",
   deviceScreenCode: "device_screen_code",
   operatorScreenCode: "operator_screen_code",
   deviceClaim: "device_claim",

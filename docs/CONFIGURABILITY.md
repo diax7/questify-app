@@ -79,7 +79,7 @@ for an event.
 - `stations` (platform level, not an add-on, on by default): off, station pages show "Not available" and the
   screen-code routes (the device's and the operator's) answer `feature_off`; pairing, the Devices page and Revoke stay.
   No event switch: the quest's own `screen_qr` method is the organizer's. The window is fixed at 30 seconds with 15
-  seconds' grace (ADR-240); the platform tuning `screenQrRotationSeconds` (30 to 60) is not read by it (Q-206).
+  seconds' grace (ADR-240); the old platform tuning `screenQrRotationSeconds` was removed (Q-206).
 
 ## As built (T-008): texts
 

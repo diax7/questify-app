@@ -515,6 +515,9 @@ Plus the Devices page's labels (Kind, Label, Quest, Paired by, Last seen, Revoke
 - Deviations, as build notes on ADR-239 and ADR-240: the cookie is looked up by `device_session(hash)` (as
   `player_session_owner`), not a new pre-identity setting; a pending page's `GET` has no code (only hashes are stored)
   and a reload renews; a preview step (`POST …/devices/preview`) shows the client line before confirming; claims name
-  the page's kind; staff mode pairs stations only until T-309b; the operator's phone shows "Keep your screen on" instead
-  of `expo-keep-awake`; the app's rotating code has no draining bar (the station page has it).
-- Q-206: the platform tuning `screenQrRotationSeconds` is not read.
+  the page's kind; staff mode pairs stations only until T-309b; the app's rotating code has no draining bar (the station page has it).
+- Q-206: the platform tuning `screenQrRotationSeconds` was removed (CTO code review 5).
+- CTO code review (86): renew and activate take 10 a minute per device and a request renews for at most an hour (MAJOR
+  1; an hour, not 24, since one address bucket at 60 requests per 10 minutes could still hold 8,640 for a day); a renew
+  losing a race for a code answers `code_taken`; the dashboard does not offer kiosks; `expo-keep-awake` on the
+  operator's phone.
