@@ -43,7 +43,7 @@ test("switches community quests, builds a goal with an unlock milestone, edits a
 
   const goal = page.getByRole("listitem").filter({ hasText: "أضيئوا البرج" });
   await expect(goal.getByText("مجدولة", { exact: true })).toBeVisible();
-  await expect(goal.getByRole("progressbar", { name: "تقدّم المهمة الجماعية" })).toBeVisible();
+  await expect(goal.getByRole("progressbar", { name: "تقدّم الجميع" })).toBeVisible();
   await expect(goal.getByText(/^0 من 1.?000$/)).toBeVisible();
   await expect(goal.getByText(/^يفتح: /)).toBeVisible();
 
