@@ -3058,3 +3058,47 @@ identifier). The library's own Android manifest declares the NFC feature not req
 (checked in its manifest). It is loaded lazily, only when a screen asks, so a build without it never crashes. No second
 NFC module. Adding it needs a new EAS build.
 **Why:** one maintained module covers NDEF reading and writing on both phones.
+
+## ADR-238 — T-309 is split in two
+**Status:** Proposed (Claude, 2026-10-24; T-309 plan).
+**Decision:** T-309 builds pairing for stations, kiosks and big screens, the device credential, revocation and the
+rotating screen QR (FR-314, FR-1713). The kiosk and its live code (FR-315) move to T-309b (migration 0058), whose
+design is fixed in `docs/plans/2026-10-24-t-309-stations-kiosks-pairing.md`.
+**Why:** three core pieces (a credential, a rotating proof, a door with no staff present); the kiosk needs both others.
+
+## ADR-239 — Device pairing
+**Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-204.
+**Decision:** an unpaired station, kiosk or big-screen page shows an 8-character code (10 minutes, about 40 bits) and
+holds its own secret in an HttpOnly `__Host-qs_device` cookie, stored only as its hash; nothing of any event shows until
+staff claim the code. Operators claim from staff mode (stations with `show_rotating_qr`, kiosks with `scan_quests`,
+within their quest limit); owners and editors from the dashboard (any kind; big screens only there). A device works
+until it is revoked, its operator is removed, its quest or event is deleted, 24 hours after its event ends, or after 30
+idle days. A new `device` access kind lives under `/v1/device/`. Secrets and codes never appear in a URL, log or audit.
+**Why:** the TV sign-in pattern: the device types nothing and its credential is never shown, so a shared link or a
+photographed code opens nothing (FR-1713).
+
+## ADR-240 — Rotating screen QR
+**Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-203.
+**Decision:** a screen code is purpose 0x07: the quest id and the 30-second window number, both issued and judged on
+the database clock (never the screen's or the phone's). The previous window is accepted for the first 15 seconds of
+the next. Not single-use. The method `screen_qr` is offered on scan quests only and never with the printed quest QR.
+It shows on a paired station page or on an operator's phone (`show_rotating_qr`).
+**Risk accepted:** a code relayed live within its 45 seconds pays its scanner; bounded by the quest's caps and period
+and watched by the burst flags.
+**Why:** FR-314: a photo shared after the code changed must not pay; one clock removes clock skew.
+
+## ADR-241 — The big-screen link holds nothing
+**Status:** Proposed (Claude, 2026-10-24; T-309 plan). Q-202. Amends FR-1713's "regenerate a big-screen link".
+**Decision:** the big-screen link is the plain `/{lang}/screen` address; a screen works only once paired, and the
+dashboard's "Revoke all big screens" takes the place of regenerating the link.
+**Why:** with pairing, a link carries no power, so there is nothing to regenerate.
+
+## ADR-242 — Kiosks read a live code
+**Status:** Proposed (Claude, 2026-10-24; T-309 plan, built in T-309b). Q-201. Amends FR-315 ("live code" for "live My
+QR"); ADR-137 stands for stations and the prize desk.
+**Decision:** a kiosk reads the player's **live code** (purpose 0x08: the player id and the 30-second window, judged
+as screen codes are), shown in My QR's "For kiosks" tab while online; the fixed My QR is refused with a hint. Method
+`kiosk` on scan quests; one pay per live code (45 seconds) under the enrollment lock. The kiosk is a web page on any
+tablet, decoding with `zxing-wasm` 3.1.5 (reader only, wasm self-hosted), with the camera allowed on that route only.
+**Risk accepted:** a live code relayed by video within its 45 seconds pays its owner.
+**Why:** the fixed My QR (ADR-137) works from a screenshot for ever, which only a watching operator mitigates.

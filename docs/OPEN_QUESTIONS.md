@@ -486,3 +486,21 @@ tag be refused, or NFC be allowed on location quests too?
 
 ## Q-200 — Signed tag replay window (2026-10-24, T-308 plan)
 **Closed (moot, 2026-10-24):** signed tags will not be built (Q-198).
+
+## Q-201 — What a kiosk reads (2026-10-24, T-309 plan)
+ADR-242: kiosks read a live code from a "For kiosks" tab in My QR (online only), so an expired screenshot never pays.
+Agree, or should kiosks read the fixed My QR as stations do, accepting ADR-137's risk with no one watching?
+
+## Q-202 — The big-screen link (2026-10-24, T-309 plan)
+ADR-241: the link is a plain address and the screen needs pairing; "Revoke all big screens" replaces "regenerate the
+link". Agree, or a link with a token that pairs the screen by itself (no staff step, but anyone holding the link opens
+it)?
+
+## Q-203 — Screen QR rhythm (2026-10-24, T-309 plan)
+ADR-240: a 30-second code with 15 seconds' grace, never together with the printed QR (so not with NFC, which needs the
+printed QR). Agree, or another rhythm (FR-314 allows 30 to 60 seconds), or allow NFC with the screen QR as its backup?
+
+## Q-204 — Who pairs devices (2026-10-24, T-309 plan)
+ADR-239: operators pair stations with `show_rotating_qr` and kiosks with `scan_quests`; big screens only from the
+dashboard; removing an operator revokes what they paired. Agree, or a separate `pair_devices` ability (off by default),
+or pairing from the dashboard only?
