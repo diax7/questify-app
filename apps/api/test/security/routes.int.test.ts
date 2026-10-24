@@ -146,6 +146,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own code only; another player's code answers 404, through meet_pass_state (test/plays/meet, test/db/meet)",
   "POST /v1/meet":
     "the scanner's own enrollment in the code's event only (not_in_event, naming no one, otherwise); the other player is named by username and avatar only, never their id, through meet_player (test/plays/meet, test/db/meet)",
+  "GET /v1/organizers/:organizerId/events/:eventId/community-goals":
+    "members of that organizer only (member route, walked below); another organizer's event answers 404 (AN404 in community_goals) (test/community/routes, test/db/community)",
+  "POST /v1/organizers/:organizerId/events/:eventId/community-goals":
+    "members of that organizer only, inside their event limit; another organizer's event answers 404 (AN404 in save_community_goal) (test/community/routes, test/db/community)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/community-goals/:goalId":
+    "members of that organizer only; a goal of another event answers 404 (GN404 in save_community_goal) (test/community/routes, test/db/community)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/community-goals/:goalId":
+    "members of that organizer only; a goal of another event answers 404 (GN404 in delete_community_goal) (test/community/routes, test/db/community)",
+  "POST /v1/organizers/:organizerId/events/:eventId/community/settle":
+    "the organizer's owner only (owner route, walked below; CO403 in settle_community for an editor); another organizer's event answers 404; the payer then runs for that event only (test/community/routes, test/db/community)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/community":
+    "owner of that organizer only (owner route, walked below); changes only the community switch of that event (test/community/routes)",
   "PUT /v1/organizers/:organizerId/events/:eventId/mini-games":
     "owner of that organizer only (owner route, walked below); changes only the miniGames switch of that event (test/plays/games)",
   "GET /v1/quests/:questId/game":

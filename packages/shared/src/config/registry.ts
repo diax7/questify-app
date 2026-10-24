@@ -50,6 +50,11 @@ export const FEATURES: FeatureRegistry = {
   bigScreen: { gated: true },
   cheers: { gated: false },
   /**
+   * Community quests (T-306b, F-101, ADR-226): the owner turns them off for an event, which finishes its running
+   * goals; off for the platform, the bar and the builder are hidden while running goals still finish and pay.
+   */
+  community: { gated: false },
+  /**
    * Location check-in quests and the far-from-venue flag (T-303b, ADR-208): off for every event until the App Store
    * privacy label, Play's Data safety form and the database's parameter logging are confirmed. Off, the builder refuses
    * the type, the app never reads location, and existing location quests complete by their QR.

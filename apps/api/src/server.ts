@@ -8,14 +8,14 @@ import { createResendSender } from "#src/auth/email/resend";
 import type { EmailSender } from "#src/auth/email/sender";
 import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
+import { poolOptions } from "#src/db/pool-options";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
 import { createRankingStore } from "#src/ranking/store";
 
-const STATEMENT_TIMEOUT_MS = 5000;
-const LOCK_TIMEOUT_MS = 2000;
-const CONNECT_TIMEOUT_MS = 3000;
 const LIFECYCLE_INTERVAL_MS = 30_000;
+/** The community tick (ADR-222): settles each goal and pays due rewards every 5 s. */
+const COMMUNITY_INTERVAL_MS = 5000;
 const RANKING_REPAIR_INTERVAL_MS = 2000;
 /** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
 const REDIS_COMMAND_TIMEOUT_MS = 250;
@@ -57,14 +57,7 @@ async function checkEviction(
 }
 
 function createPool(config: AppConfig): Pool {
-  return new Pool({
-    connectionString: config.databaseUrl,
-    max: config.databasePoolSize,
-    statement_timeout: STATEMENT_TIMEOUT_MS,
-    query_timeout: STATEMENT_TIMEOUT_MS + 1000,
-    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
-    options: `-c lock_timeout=${LOCK_TIMEOUT_MS}`,
-  });
+  return new Pool(poolOptions(config));
 }
 
 function createEmailSender(config: AppConfig, onFailover: (from: string, to: string) => void) {
@@ -115,6 +108,7 @@ async function main(): Promise<void> {
     lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
     ...(redis === undefined ? {} : { rankingStore: createRankingStore(redis) }),
     rankingRepairIntervalMs: RANKING_REPAIR_INTERVAL_MS,
+    communityIntervalMs: COMMUNITY_INTERVAL_MS,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

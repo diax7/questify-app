@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
   badDeadline,
+  communityPaying,
   deskClosedUntilDeadline,
   deskNeeded,
   eventArchived,
@@ -98,6 +99,8 @@ function refuse(result: ResultsRefusal): never {
       throw badDeadline();
     case "desk_closed_until_deadline":
       throw deskClosedUntilDeadline();
+    case "community_paying":
+      throw communityPaying({ goals: result.goals, due: result.due });
   }
 }
 

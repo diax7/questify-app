@@ -1242,3 +1242,59 @@ export const gameRefused422 = make(
   "تعذّر احتساب هذه الجولة.",
   "This round couldn't be counted.",
 );
+/** A community goal's body broke a rule (T-306b): `issues` names the fields. */
+export const invalidGoal = make(
+  422,
+  "invalid_goal",
+  "راجع بيانات المهمة الجماعية.",
+  "Check the community quest's details.",
+);
+/** Another community goal of the event runs at that time (T-306b): one runs at a time. */
+export const goalOverlap = make(
+  409,
+  "goal_overlap",
+  "تتداخل هذه المدة مع مهمة جماعية أخرى في الفعالية.",
+  "Another community quest runs at that time.",
+);
+/** A started community goal keeps everything but its texts (T-306b): `field` names what would change. */
+export const goalLocked = make(
+  409,
+  "goal_locked",
+  "بدأت المهمة الجماعية، فلا يتغيّر فيها إلا النصوص.",
+  "This community quest has started: only its texts can change.",
+);
+/** A started community goal stays (T-306b). */
+export const goalStarted = make(
+  409,
+  "goal_started",
+  "بدأت المهمة الجماعية، فلا يمكن حذفها.",
+  "This community quest has started, so it can't be deleted.",
+);
+/** No new community goal once the event ended or its results exist (T-306b). */
+export const goalEventEnded = make(
+  409,
+  "event_ended",
+  "انتهت الفعالية، فلا تُضاف إليها مهام جماعية.",
+  "The event has ended, so no community quest can be added.",
+);
+/** A quest or category a community goal counts cannot be deleted (T-306b). */
+export const goalInUse = make(
+  409,
+  "goal_in_use",
+  "تحتسب مهمة جماعية هذا العنصر. عدّلها أو احذفها أولًا.",
+  "A community quest counts this. Change or delete it first.",
+);
+/** A transaction from a goal's window is still open (T-306b): settle again after `Retry-After`. */
+export const communitySettling = make(
+  409,
+  "community_settling",
+  "ما زلنا نحسب آخر النقاط. حاول بعد لحظات.",
+  "The last points are still being counted. Try again in a moment.",
+);
+/** The results wait until every community goal is final and paid (T-306b): `goals` and `due` say what is left. */
+export const communityPaying = make(
+  409,
+  "community_paying",
+  "ما زالت المكافآت الجماعية قيد الصرف.",
+  "Community rewards are still being paid.",
+);

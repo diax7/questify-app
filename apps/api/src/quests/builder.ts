@@ -102,6 +102,8 @@ export type Refused =
   | Readonly<{ kind: "quest_locked" }>
   /** Players stamped this passport step (T-304b): it stays. */
   | Readonly<{ kind: "step_in_use" }>
+  /** A community goal counts this quest or category (T-306b): change or delete the goal first. */
+  | Readonly<{ kind: "goal_in_use" }>
   /** The quest item named is removed or another event's (T-304d). */
   | Readonly<{ kind: "invalid_item" }>
   /**
@@ -404,6 +406,10 @@ export async function withEvent<T>(
     // A player stamped a passport step between the check and its delete (migration 0045).
     if (pg.code === "23503" && pg.table === "passport_stamp") {
       return { kind: "step_in_use" };
+    }
+    // A community goal counts the quest or category (migration 0053's RESTRICT).
+    if (pg.code === "23503" && pg.table === "community_goal") {
+      return { kind: "goal_in_use" };
     }
     throw error;
   }

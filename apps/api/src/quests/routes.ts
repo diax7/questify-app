@@ -19,6 +19,7 @@ import {
   questLocked,
   rehearsalData,
   stepInUse,
+  goalInUse,
   submissionKindUnavailable,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
@@ -198,6 +199,8 @@ function answer<T>(
       throw questLocked();
     case "step_in_use":
       throw stepInUse();
+    case "goal_in_use":
+      throw goalInUse();
     case "invalid_item":
       throw invalidItem();
     case "poll_locked":

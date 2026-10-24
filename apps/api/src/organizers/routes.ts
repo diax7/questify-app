@@ -28,6 +28,7 @@ import { registerJoinSetupRoutes } from "#src/join/setup-routes";
 import { registerAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionTeamRoutes } from "#src/submissions/routes";
 import { registerPlayTeamRoutes } from "#src/plays/routes";
+import { registerCommunityTeamRoutes } from "#src/community/routes";
 import { registerFlagRoutes } from "#src/flags/routes";
 import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerQuestItemRoutes } from "#src/rewards/quest-item-routes";
@@ -237,6 +238,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerAwardRoutes(scope, { pool: deps.pool });
       registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });
       registerPlayTeamRoutes(scope, { pool: deps.pool });
+      registerCommunityTeamRoutes(scope, { pool: deps.pool, settings: deps.settings });
       registerFlagRoutes(scope, { pool: deps.pool });
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerQuestItemRoutes(scope, { pool: deps.pool });

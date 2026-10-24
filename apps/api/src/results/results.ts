@@ -49,7 +49,9 @@ export type ResultsRefusal =
   | Readonly<{ kind: "results_changed" }>
   | Readonly<{ kind: "not_confirmed" }>
   | Readonly<{ kind: "bad_deadline" }>
-  | Readonly<{ kind: "desk_closed_until_deadline" }>;
+  | Readonly<{ kind: "desk_closed_until_deadline" }>
+  /** Community goals not final or rewards still due (T-306b): the owner settles and pays, then confirms. */
+  | Readonly<{ kind: "community_paying"; goals: number; due: number }>;
 
 export type ResultsDone<T> = Readonly<{ kind: "done"; value: T }> | ResultsRefusal;
 
@@ -65,8 +67,22 @@ const RF409_DETAILS = new Set([
   "desk_closed_until_deadline",
 ]);
 
-/** The SQLSTATEs of migration 0034 (and the event guard under a rank prize). */
-export function refusalOf(code: string | undefined, detail: string): ResultsRefusal | undefined {
+/** What confirm_results' community_paying HINT counts (migration 0053); zeros when it cannot be read. */
+function pendingOf(hint: string): Readonly<{ goals: number; due: number }> {
+  try {
+    const counts = JSON.parse(hint) as { goals?: unknown; due?: unknown };
+    return { goals: Number(counts.goals ?? 0), due: Number(counts.due ?? 0) };
+  } catch {
+    return { goals: 0, due: 0 };
+  }
+}
+
+/** The SQLSTATEs of migration 0034 (and the event guard under a rank prize), and 0053's community_paying. */
+export function refusalOf(
+  code: string | undefined,
+  detail: string,
+  hint = "",
+): ResultsRefusal | undefined {
   switch (code) {
     case "AN404":
       return { kind: "not_found" };
@@ -75,6 +91,9 @@ export function refusalOf(code: string | undefined, detail: string): ResultsRefu
     case "22023":
       return { kind: "invalid", field: "expected" };
     case "RF409":
+      if (detail === "community_paying") {
+        return { kind: "community_paying", ...pendingOf(hint) };
+      }
       return RF409_DETAILS.has(detail) ? ({ kind: detail } as ResultsRefusal) : undefined;
     default:
       return undefined;
@@ -96,8 +115,8 @@ async function asTeam<T>(
       ),
     );
   } catch (error) {
-    const pg = error as { code?: string; detail?: string };
-    const refusal = refusalOf(pg.code, pg.detail ?? "");
+    const pg = error as { code?: string; detail?: string; hint?: string };
+    const refusal = refusalOf(pg.code, pg.detail ?? "", pg.hint ?? "");
     if (refusal === undefined) {
       throw error;
     }

@@ -103,6 +103,21 @@ describe("refusalOf", () => {
   });
 
   it("leaves anything else to be thrown", () => {
+    expect(refusalOf("RF409", "community_paying", '{"due": 3, "goals": 1}')).toEqual({
+      kind: "community_paying",
+      goals: 1,
+      due: 3,
+    });
+    expect(refusalOf("RF409", "community_paying", "not json")).toEqual({
+      kind: "community_paying",
+      goals: 0,
+      due: 0,
+    });
+    expect(refusalOf("RF409", "community_paying")).toEqual({
+      kind: "community_paying",
+      goals: 0,
+      due: 0,
+    });
     expect(refusalOf("RF409", "other")).toBeUndefined();
     expect(refusalOf("XX000", "")).toBeUndefined();
     expect(refusalOf(undefined, "")).toBeUndefined();
