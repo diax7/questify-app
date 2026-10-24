@@ -3189,7 +3189,9 @@ escalation, without moving data. FR-338's "reply and mark it solved" reads as th
 **Status:** Proposed (Claude, 2026-10-24; T-310 plan).
 **Decision:** The sender reads their own tickets in any enrollment status while their account is active. Owners and
 editors in the event's scope read and answer every ticket of the event. Operators with `help_desk` read and answer open
-tickets with no quest or a quest inside their limit, never their own. No other player, and no Questify admin, reads a
+tickets where `quest_id IS NULL OR operator_reviews_quest(...)`, never their own, and read a closed one only if they
+answered it, never learning who else did. A deleted quest sets its tickets' quest NULL, so they become visible to
+every `help_desk` operator (accepted). The player's reads never carry who answered. No other player, and no Questify admin, reads a
 ticket until T-312's escalation (Q-211). The team sees the player's @username and avatar, never a contact, name or birth
 year. Staff answers are audited without the text; operator answers are recorded on the row. Text never reaches logs,
 errors, audit rows or push text.
@@ -3197,11 +3199,14 @@ errors, audit rows or push text.
 
 ## ADR-248 — Sending, limits, notice and retention of tickets
 **Status:** Proposed (Claude, 2026-10-24; T-310 plan).
-**Decision:** Active members of a scheduled, live or ended event send tickets while the event switch `helpDesk` (on by
-default) is on; at most 3 open and 10 in 24 hours per player per event, checked in the database; text 1 to 1,000
+**Decision:** Active members of a scheduled, live or ended event send tickets, until 30 days after the end, while the event
+switch `helpDesk` (on by default) is on; only sending stops in any other state: Your requests (per event, and every
+event's in the profile) stays reachable whenever the player has tickets; at most 3 open and 10 in 24 hours per player per event, checked in the database; text 1 to 1,000
 characters, word-list hits mark (FR-1628). No help-desk mute: a ban stops sending. Until T-501 the player learns of an
 answer from a Home strip and a dot in Your requests; T-501's push has fixed text and never the question or reply.
-Tickets are deleted with the account at once and 90 days after the event ends (the lifecycle tick; Q-210). The
-optional photo (FR-337) moves to T-301b, which owns the one photo pipeline (blocked on Q-149). The app gains "Contact
-Questify" (the web contact page) on Get help and the profile, the in-app contact Apple 1.5 asks for.
+Tickets are deleted with the account at once and 90 days after the later of the event's end and the sending (the
+lifecycle tick; Q-210). The
+optional photo (FR-337) moves to T-301b, which owns the one photo pipeline (blocked on Q-149). Get help links the existing web contact
+page (Settings → Legal, T-110), which with App Store Connect's Support URL meets Apple 1.5.
+**CTO plan review 2026-10-24 (86/100):** findings folded into ADR-246 to ADR-248 and the plan.
 **Why:** Bounded spam with no cache; PDPL minimization; one photo pipeline.
