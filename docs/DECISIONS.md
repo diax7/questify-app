@@ -3221,3 +3221,36 @@ can be sent in has an end (`event_times_once_active`), so the 90-day sweep has n
 answerer's key is held under an advisory lock in `answer_core`, so the same key on two tickets at once is `QK422`, not a
 unique violation (the API maps that index's 23505 to `idempotency_key_reused` as a backstop); the ticket reads and seen
 marks take a per-player limit of 60 a minute, the operator's Inbox reads 60 a minute (`too_many_attempts`).
+
+## ADR-249 — A practice scan runs the real door and the database undoes it
+**Status:** Proposed (Claude, 2026-10-24; T-311 plan).
+**Decision:** Practice scans (FR-929) go to their own route, `POST /v1/operator/scan/practice`, which calls
+`operator_practice_scan`, a `SECURITY INVOKER` wrapper around the real `operator_complete_quest`. The wrapper runs the
+real call in a PL/pgSQL block and then raises unconditionally (`PX000`), so the database rolls back everything the call
+wrote and keeps only the would-be points and occurrence; any refusal lands in the same handler. The key is fresh and
+marked `practice:`. The API runs it in a transaction that always rolls back, reads the scan subject there, has no
+ranking dependency and takes no Idempotency-Key. The real route has no practice flag. Unknown SQLSTATEs are a 500,
+never a red result.
+**Why:** the result screens must be the real ones (every rule, boost and refusal) with no second copy of the rules to
+drift, and no single bug may write points: the database wall alone, the API wall alone and the separate route each
+prevent it, and each is tested alone (a whole-database fingerprint before and after).
+**Cost:** a practice scan costs a real scan's work; identity numbers it used are skipped (gaps only).
+
+## ADR-250 — Practice mode covers station scans only and locks the writing tools
+**Status:** Proposed (Claude, 2026-10-24; T-311 plan).
+**Decision:** Tools → Practice mode is a switch held in memory for the staff-mode session (never stored; off after
+leaving staff mode or restarting). While on, every staff screen shows "Practice: nothing is saved", the station scan
+(scan and challenge quests) uses the practice route and its result cover adds "Practice · not saved", and the Desk and
+Inbox tabs, Manual award, Review, Write NFC tag, Rotating QR, Pair a device and My devices show a lock card with Leave
+practice. NFC taps, screen QR and kiosk scans are made by players or devices, not the operator, so they are not
+practised. Before doors open, a green is practised with a rehearsal account (T-211). Q-212 asks about practising more.
+**Why:** the strip's promise stays true and no operator hands over a prize or awards points believing it is a test.
+
+## ADR-251 — My station today counts the station's quest for everyone; waiting is the Inbox count
+**Status:** Proposed (Claude, 2026-10-24; T-311 plan).
+**Decision:** Operator Home's "Today at this station" (FR-928) counts completions of the picked station's quest by
+every method and operator in the event's day (timezone and day start hour) and in the last 60 minutes, through
+`operator_station_today` (operator of the event, a station quest, inside the quest limit; counts only). Waiting items
+are T-310's Inbox count, read once for the badge and Home every 30 s. The station list keeps this operator's own counts.
+The read is limited to 60 a minute per player. Q-213 asks whether only this operator's scans should count.
+**Why:** two operators at one booth see one truth; an indexed range count costs a few milliseconds.

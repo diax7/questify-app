@@ -541,3 +541,16 @@ Closed part (CTO code review, 2026-10-24): no ticket escapes the sweep, since ev
 ## Q-211 — Questify's access to tickets before escalation (2026-10-24, T-310 plan)
 ADR-247: until T-312, no Questify admin can read an event's tickets, even for abuse or a legal request (only the
 database owner can, as for every table). Agree, or add a logged console read now?
+
+## Q-212 — Practising more than station scans (2026-10-24, T-311 plan)
+ADR-250: practice mode covers the station scan only; the desk, manual awards, reviews, ticket answers, NFC writing and
+pairing are locked while it is on. Recommended: keep it so until an organizer asks to train desk or award staff. Agree?
+
+## Q-213 — Whose completions "My station today" counts (2026-10-24, T-311 plan)
+ADR-251: the block counts every completion of the station's quest today (all methods, all operators); the station list
+keeps this operator's own counts. Agree, or should the block count only this operator's scans?
+
+## Q-214 — Staff mode does not use the event's renamed words (2026-10-24, found in the T-311 plan)
+T-117 marked FR-941 delivered, but staff mode (built later in T-205) never loads the event's configuration, so its
+screens use Questify's default player, operator and currency words. Recommended: T-311b loads the event's words in
+`OperatorProvider` with the quest and category words. Agree?
