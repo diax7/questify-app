@@ -55,6 +55,19 @@ describe("mergeQuest", () => {
     ).toEqual({ kind: "invalid", field: "config" });
   });
 
+  it("checks the submission kinds available only on a submission quest", () => {
+    const base = { categoryId: "c", title: { en: "Show us" }, points: 5 };
+    const config = { accepts: ["photo"] };
+    expect(mergeQuest(undefined, "submission", { ...base, config }, ZONE)).toEqual({
+      kind: "submission_kind_unavailable",
+      asked: "photo",
+    });
+    expect(mergeQuest(undefined, "challenge", { ...base, config }, ZONE)).toEqual({
+      kind: "invalid",
+      field: "config",
+    });
+  });
+
   it("refuses a meet quest whose daily cap is above its repeat cap, and keeps one at or below it", () => {
     const base = { categoryId: "c", title: { en: "Meet" }, points: 5 };
     expect(mergeQuest(undefined, "meet", { ...base, repeatCap: 4 }, ZONE)).toEqual({
@@ -236,6 +249,11 @@ describe("the audit view", () => {
       config: {},
       entryCode: "set",
       opensAt: "2030-11-01T07:00:00.000Z",
+      closesAt: "2030-11-01T09:00:00.000Z",
+    });
+    expect(auditView({ ...STORED, opensAt: null, closesAt: null })).toMatchObject({
+      opensAt: null,
+      closesAt: null,
     });
     expect(JSON.stringify(view)).not.toContain("NAJD2030");
     expect(auditView({ ...STORED, type: "scan_qr", config: {} })).not.toHaveProperty("entryCode");
