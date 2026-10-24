@@ -20,6 +20,7 @@ import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
 import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
+import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
 
 const BODY_LIMIT = 8192;
 const eventParams = z.object({ eventId: z.uuid() });
@@ -101,6 +102,8 @@ export type ConsoleRoutesDeps = Readonly<{
   settings: SettingsService;
   sessions: Sessions;
   dashboardOrigin: string;
+  /** Questify's ticket queue (T-312), behind the same hook. */
+  tickets: ConsoleTicketDeps;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -244,6 +247,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       });
 
       registerConsoleWrites(scope, deps);
+      registerConsoleTicketRoutes(scope, deps.tickets);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

@@ -1027,7 +1027,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("ticket center (database)", () 
       );
       const asAdminInA: RequestContext = {
         organizerId: ids.orgA,
-        staffUserId: both?.id,
+        staffUserId: both?.id ?? "",
         isAdmin: true,
       };
       for (const sql of [

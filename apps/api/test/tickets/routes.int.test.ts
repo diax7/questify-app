@@ -149,6 +149,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the help desk over HTTP", () =
           closedAt: null,
           createdAt: expect.any(String),
           unread: false,
+          withQuestify: false,
+          answeredBy: null,
+          reportedUsername: null,
         },
       ],
       open: 1,
@@ -273,8 +276,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the help desk over HTTP", () =
     const mine = await app("GET", `/v1/events/${event}/tickets/mine`, sara.token);
     for (const body of [everywhere.json(), mine.json()]) {
       expect(
-        keysOf(body).filter((field) => /answer|user|staff|email|operator/i.test(field)),
+        keysOf(body).filter(
+          (field) =>
+            /answer|user|staff|email|operator/i.test(field) &&
+            !["answeredBy", "reportedUsername"].includes(field),
+        ),
       ).toEqual([]);
+      expect(JSON.stringify(body)).not.toMatch(/@|help_http_/);
     }
     const seen = await app("POST", "/v1/me/tickets/seen", sara.token, { ids: [id] });
     expect(seen.statusCode).toBe(204);

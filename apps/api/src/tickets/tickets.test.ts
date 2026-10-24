@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   markTicketsSeen,
+  openPlatformTicket,
   openTicket,
   operatorAnswer,
   operatorInbox,
   operatorInboxCount,
   ownTickets,
   purgeEndedTickets,
+  staffEscalate,
   staffTickets,
 } from "#src/tickets/tickets";
 import { fakePool, pgError } from "#test/support/fake-pool";
@@ -23,6 +25,7 @@ const SEND = {
   eventId: EVENT,
   kind: "question",
   questId: null,
+  reportedUsername: null,
   text: "Where?",
   idempotencyKey: "k",
 } as const;
@@ -32,7 +35,7 @@ const refusing = (fields: Record<string, string>) =>
     throw pgError(fields);
   }).pool;
 
-describe("refusals (migration 0059's SQLSTATEs)", () => {
+describe("refusals (migrations 0059 and 0061's SQLSTATEs)", () => {
   it.each([
     [{ code: "HT404" }, { kind: "not_found" }],
     [{ code: "AN404" }, { kind: "not_found" }],
@@ -61,6 +64,20 @@ describe("refusals (migration 0059's SQLSTATEs)", () => {
     ],
     [{ code: "OP403" }, { kind: "not_operator" }],
     [{ code: "OA403" }, { kind: "ability_off" }],
+    [{ code: "HQ422" }, { kind: "invalid_kind" }],
+    [{ code: "HR422", detail: "username_required" }, { kind: "username_required" }],
+    [{ code: "HR422", detail: "username_unexpected" }, { kind: "invalid_kind" }],
+    [{ code: "HR404", detail: "unknown_player" }, { kind: "unknown_player" }],
+    [{ code: "HR403", detail: "self_report" }, { kind: "self_report" }],
+    [
+      { code: "HD422", detail: "os_version" },
+      { kind: "invalid_device", field: "os_version" },
+    ],
+    [{ code: "HT409", detail: "already_reported" }, { kind: "already_reported" }],
+    [{ code: "HT409", detail: "not_open" }, { kind: "not_open" }],
+    [{ code: "HT409", detail: "moved" }, { kind: "moved" }],
+    [{ code: "HT409", detail: "not_escalated" }, { kind: "not_escalated" }],
+    [{ code: "HT409", detail: "anything" }, { kind: "already_closed" }],
   ])("reads %o", async (fields, expected) => {
     expect(await openTicket({ pool: refusing(fields) }, SEND)).toEqual(expected);
   });
@@ -68,6 +85,8 @@ describe("refusals (migration 0059's SQLSTATEs)", () => {
   it("reads the answer key's unique index as a reused key, and any other unique violation as an error", async () => {
     const pool = refusing({ code: "23505", constraint: "ticket_answer_key_operator" });
     expect(await openTicket({ pool }, SEND)).toEqual({ kind: "key_reused" });
+    const report = refusing({ code: "23505", constraint: "ticket_open_report_key" });
+    expect(await openTicket({ pool: report }, SEND)).toEqual({ kind: "already_reported" });
     await expect(
       openTicket(
         { pool: refusing({ code: "23505", constraint: "ticket_player_id_idempotency_key_key" }) },
@@ -103,6 +122,14 @@ const teamRow = {
   answerer_deleted: true,
   created_at: AT,
   closed_at: AT,
+  queue: "event",
+  reported_enrollment_id: null,
+  reported_username: null,
+  escalated_at: null,
+  escalation_note: null,
+  escalated_by: null,
+  returned_at: null,
+  return_note: null,
 };
 
 const inboxRow = (id: string, kind: "submission" | "ticket") => ({
@@ -133,8 +160,64 @@ describe("the calls", () => {
       kind: "done",
       value: { ticketId: "9", status: "open", createdAt: AT, marked: true, replayed: false },
     });
-    expect(queries).toEqual(["SELECT * FROM open_ticket($1, $2, $3, $4, $5)"]);
-    expect(seen).toEqual([[EVENT, "question", null, "Where?", "k"]]);
+    expect(queries).toEqual(["SELECT * FROM open_ticket($1, $2, $3, $4, $5, $6)"]);
+    expect(seen).toEqual([[EVENT, "question", null, null, "Where?", "k"]]);
+  });
+
+  it("sends a report's username, and a platform ticket's device facts or nulls", async () => {
+    const seen: unknown[] = [];
+    const { pool, queries } = fakePool((_sql, values) => {
+      seen.push(values);
+      return {
+        rows: [{ ticket_id: "9", status: "open", created_at: AT, marked: false, replayed: true }],
+      };
+    });
+    await openTicket({ pool }, { ...SEND, kind: "report_player", reportedUsername: "sara" });
+    const device = {
+      appVersion: "1.4.0",
+      platform: "ios",
+      osVersion: "18.1",
+      model: null,
+    } as const;
+    expect(
+      await openPlatformTicket(
+        { pool },
+        { playerId: PLAYER, kind: "app_problem", text: "Blank", device, idempotencyKey: "p" },
+      ),
+    ).toEqual({
+      kind: "done",
+      value: { ticketId: "9", status: "open", createdAt: AT, marked: false, replayed: true },
+    });
+    await openPlatformTicket(
+      { pool },
+      { playerId: PLAYER, kind: "suggestion", text: "Idea", device: null, idempotencyKey: "s" },
+    );
+    expect(queries.slice(1)).toEqual([
+      "SELECT * FROM open_platform_ticket($1, $2, $3, $4, $5, $6, $7)",
+      "SELECT * FROM open_platform_ticket($1, $2, $3, $4, $5, $6, $7)",
+    ]);
+    expect(seen).toEqual([
+      [EVENT, "report_player", null, "sara", "Where?", "k"],
+      ["app_problem", "Blank", "1.4.0", "ios", "18.1", null, "p"],
+      ["suggestion", "Idea", null, null, null, null, "s"],
+    ]);
+  });
+
+  it("escalates with the note and the request id", async () => {
+    const seen: unknown[] = [];
+    const { pool } = fakePool((_sql, values) => {
+      seen.push(values);
+      return { rows: [{ ticket_id: "4", queue: "questify", replayed: false }] };
+    });
+    expect(
+      await staffEscalate({ pool }, STAFF, {
+        eventId: EVENT,
+        ticketId: "4",
+        note: "Tried",
+        requestId: "r",
+      }),
+    ).toEqual({ kind: "done", value: { ticketId: "4", queue: "questify", replayed: false } });
+    expect(seen).toEqual([[EVENT, "4", "Tried", "r"]]);
   });
 
   it("reads the player's own tickets with no answerer, and marks them seen anywhere with null", async () => {
@@ -162,6 +245,9 @@ describe("the calls", () => {
             closed_at: AT,
             created_at: AT,
             unread: true,
+            with_questify: false,
+            answered_by_team: "questify",
+            reported_username: "khalid",
           },
         ],
       };
@@ -179,6 +265,9 @@ describe("the calls", () => {
         closedAt: AT,
         createdAt: AT,
         unread: true,
+        withQuestify: false,
+        answeredBy: "questify",
+        reportedUsername: "khalid",
       },
     ]);
     expect(await markTicketsSeen({ pool }, PLAYER, { eventId: null, ids: ["1"] })).toBe(1);
@@ -205,8 +294,25 @@ describe("the calls", () => {
   it("names who answered on the team's page, with the tab counts", async () => {
     const { pool } = fakePool((sql) =>
       sql.includes("event_ticket_counts")
-        ? { rows: [{ open: 2, closed: 1 }] }
-        : { rows: [teamRow] },
+        ? { rows: [{ open: 2, with_questify: 3, closed: 1, waiting_by_kind: { prize: 4 } }] }
+        : {
+            rows: [
+              teamRow,
+              {
+                ...teamRow,
+                id: "4",
+                queue: "questify",
+                answered_by: "admin",
+                reported_enrollment_id: "r",
+                reported_username: null,
+                escalated_at: AT,
+                escalation_note: "Tried",
+                escalated_by: "a@team.test",
+                returned_at: AT,
+                return_note: "Yours",
+              },
+            ],
+          },
     );
     const page = await staffTickets({ pool }, STAFF, {
       eventId: EVENT,
@@ -218,11 +324,22 @@ describe("the calls", () => {
     expect(page).toMatchObject({
       kind: "done",
       value: {
-        counts: { open: 2, closed: 1 },
+        counts: { open: 2, withQuestify: 3, closed: 1, waitingByKind: { prize: 4 } },
         tickets: [
           {
             quest: { id: "q", title: { ar: "م", en: "Q" } },
             answeredBy: { kind: "operator", name: null, deleted: true },
+            queue: "event",
+            reported: null,
+            escalation: null,
+            returned: null,
+          },
+          {
+            queue: "questify",
+            answeredBy: { kind: "admin" },
+            reported: { enrollmentId: "r", username: null },
+            escalation: { at: AT, note: "Tried", by: "a@team.test" },
+            returned: { at: AT, note: "Yours" },
           },
         ],
       },

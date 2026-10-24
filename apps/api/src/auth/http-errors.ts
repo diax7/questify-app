@@ -1596,3 +1596,56 @@ export const selfAnswer = make(
   "لا يمكنك الرد على طلبك.",
   "You can't answer your own request.",
 );
+
+// ---------------------------------------------------------------- the ticket center (T-312)
+/** No active member of this event has that username: the same answer for an account outside the event. */
+export const ticketUnknownPlayer = make(
+  404,
+  "unknown_player",
+  "لا يوجد لاعب بهذا الاسم في هذه الفعالية.",
+  "No player with this username in this event.",
+);
+/** A player cannot report themselves. */
+export const ticketSelfReport = make(
+  403,
+  "self_report",
+  "لا يمكنك الإبلاغ عن نفسك.",
+  "You can't report yourself.",
+);
+/** One open report per reporter and reported member. */
+export const ticketAlreadyReported = make(
+  409,
+  "already_reported",
+  "سبق أن أبلغت عن هذا اللاعب، وسيراجع فريق الفعالية البلاغ.",
+  "You already reported this player. The event team will look at it.",
+);
+/** A report names the player's username. */
+export const ticketUsernameRequired = make(
+  422,
+  "username_required",
+  "اكتب اسم مستخدم اللاعب.",
+  "Write the player's username.",
+);
+/** Ten usernames not found in this event within the hour: try again after `Retry-After`. */
+export const tooManyLookups = make(
+  429,
+  "too_many_lookups",
+  "حاولت أسماء كثيرة. حاول مرة أخرى لاحقًا.",
+  "You've tried many usernames. Try again later.",
+);
+/** The ticket is closed already, so it cannot be escalated. */
+export const ticketNotOpen = make(409, "not_open", "أُغلق هذا الطلب.", "This request is closed.");
+/** The ticket changed queue (escalated, or sent back) since it was read. */
+export const ticketMoved = make(
+  409,
+  "moved",
+  "انتقل هذا الطلب. حدّث الصفحة.",
+  "This request moved. Refresh the page.",
+);
+/** Only an escalated event ticket goes back to the event team: an app problem or a suggestion has none. */
+export const ticketNotEscalated = make(
+  409,
+  "not_escalated",
+  "لا يمكن إعادة هذا الطلب: لم تُحِله فعالية.",
+  "This request can't be sent back: no event sent it.",
+);

@@ -1,7 +1,13 @@
 import {
+  EVENT_TICKET_KINDS,
+  PLATFORM_TICKET_KINDS,
+  TICKET_DEVICE_FACT,
+  TICKET_DEVICE_MODEL_MAX,
   TICKET_KINDS,
   TICKET_OPEN_LIMIT,
   TICKET_TEXT_MAX,
+  USERNAME_MAX,
+  USERNAME_MIN,
   decodeCursor,
   encodeCursor,
 } from "@questify/shared";
@@ -11,29 +17,41 @@ import {
   abilityOff,
   featureOff,
   idempotencyKeyReused,
+  invalidDevice,
   invalidRequest,
   notFound,
   notOperator,
   outsideOperatorQuests,
   selfAnswer,
   ticketAlreadyClosed,
+  ticketAlreadyReported,
   ticketEventClosed,
+  ticketMoved,
+  ticketNotEscalated,
   ticketNotMember,
+  ticketNotOpen,
+  ticketSelfReport,
   ticketSendingClosed,
   ticketText,
+  ticketUnknownPlayer,
   ticketUnknownQuest,
+  ticketUsernameRequired,
+  tooManyLookups,
   tooManyOpenTickets,
   tooManyTickets,
   unauthenticated,
 } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
-import { BUCKETS } from "#src/auth/throttle";
+import { BUCKETS, countRecent, record } from "#src/auth/throttle";
+import { withConnection } from "#src/db/connection";
+import { withRequestContext } from "#src/db/context";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { organizerContextOf } from "#src/organizers/context";
 import type { SettingsService } from "#src/settings/service";
 import {
   markTicketsSeen,
+  openPlatformTicket,
   openTicket,
   operatorAnswer,
   operatorInbox,
@@ -41,6 +59,7 @@ import {
   operatorTicket,
   ownTickets,
   staffAnswer,
+  staffEscalate,
   staffTickets,
   type Answered,
   type Done,
@@ -59,11 +78,35 @@ const ID = /^[1-9][0-9]{0,17}$/;
 const eventParams = z.object({ eventId: z.uuid() });
 const ticketParams = z.object({ eventId: z.uuid(), ticketId: z.string().regex(ID) });
 // The database cleans and measures the text (NFC, trimmed); this only bounds the body.
-const sendBody = z.strictObject({
-  kind: z.enum(TICKET_KINDS),
-  questId: z.uuid().optional(),
-  text: z.string().max(TICKET_TEXT_MAX * 4),
+const textField = z.string().max(TICKET_TEXT_MAX * 4);
+// A username only on a report, and a report never about a quest (the database checks both again).
+const sendBody = z
+  .strictObject({
+    kind: z.enum(EVENT_TICKET_KINDS),
+    questId: z.uuid().optional(),
+    reportedUsername: z.string().min(USERNAME_MIN).max(USERNAME_MAX).optional(),
+    text: textField,
+  })
+  .refine((body) => body.kind === "report_player" || body.reportedUsername === undefined)
+  .refine((body) => body.kind !== "report_player" || body.questId === undefined);
+const deviceBody = z.strictObject({
+  appVersion: z.string().regex(TICKET_DEVICE_FACT),
+  platform: z.enum(["ios", "android"]),
+  osVersion: z.string().regex(TICKET_DEVICE_FACT),
+  model: z
+    .string()
+    .max(TICKET_DEVICE_MODEL_MAX * 4)
+    .nullable(),
 });
+// An app problem carries the phone's facts; a suggestion never keeps any.
+const platformBody = z
+  .strictObject({
+    kind: z.enum(PLATFORM_TICKET_KINDS),
+    text: textField,
+    device: deviceBody.optional(),
+  })
+  .refine((body) => body.kind !== "app_problem" || body.device !== undefined);
+const noteBody = z.strictObject({ note: textField });
 const answerBody = z.strictObject({
   reply: z
     .string()
@@ -72,7 +115,7 @@ const answerBody = z.strictObject({
 });
 const seenBody = z.strictObject({ ids: z.array(z.string().regex(ID)).min(1).max(50) });
 const teamQuery = z.strictObject({
-  status: z.enum(["open", "closed"]).default("open"),
+  status: z.enum(["open", "with_questify", "closed"]).default("open"),
   kind: z.enum(TICKET_KINDS).optional(),
   cursor: z.string().regex(ID).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -87,7 +130,8 @@ const inboxCursor = z.strictObject({
   i: z.string().regex(ID),
 });
 
-type Deps = TicketDeps & Readonly<{ settings: SettingsService; keys: Pick<AuthKeys, "playerKey"> }>;
+type Deps = TicketDeps &
+  Readonly<{ settings: SettingsService; keys: Pick<AuthKeys, "playerKey" | "playerQuestKey"> }>;
 
 /**
  * Per-player limits on the help desk's reads and seen marks (CTO code review, NIT 6): the app reads a few a minute (on
@@ -96,6 +140,11 @@ type Deps = TicketDeps & Readonly<{ settings: SettingsService; keys: Pick<AuthKe
 export const TICKET_LIMITS = {
   playerReads: { bucket: BUCKETS.ticketRead, max: 60, windowSeconds: 60 },
   operatorReads: { bucket: BUCKETS.inboxRead, max: 60, windowSeconds: 60 },
+  /**
+   * Usernames a report names that are not in the event, per player and event (T-312, CTO 8): the lookup can tell a
+   * member is in the event even where the board would not show them, so failed lookups are capped. No name is kept.
+   */
+  lookupMisses: { bucket: BUCKETS.ticketLookup, max: 10, windowSeconds: 3600 },
 } as const satisfies Readonly<Record<string, DeviceLimit>>;
 
 const hold = (deps: Deps, limit: DeviceLimit, request: FastifyRequest, reply: FastifyReply) =>
@@ -109,7 +158,7 @@ const playerIdOf = (request: FastifyRequest): string => {
   return request.player.id;
 };
 
-const keyOf = (request: FastifyRequest): string => {
+export const keyOf = (request: FastifyRequest): string => {
   const key = request.headers["idempotency-key"];
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the idempotency convention answers first
   if (typeof key !== "string") {
@@ -117,6 +166,24 @@ const keyOf = (request: FastifyRequest): string => {
   }
   return key;
 };
+
+/** The seconds until a player may name another username in this event's reports, or undefined when free now. */
+async function lookupWait(deps: Deps, key: Buffer): Promise<number | undefined> {
+  const limit = TICKET_LIMITS.lookupMisses;
+  const window = await withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, () =>
+      countRecent(client, limit.bucket, key, limit.windowSeconds),
+    ),
+  );
+  return window.count >= limit.max ? window.retryAfterSeconds : undefined;
+}
+
+/** Counts one username a report named that is not in the event. */
+async function recordLookupMiss(deps: Deps, key: Buffer): Promise<void> {
+  await withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, () => record(client, TICKET_LIMITS.lookupMisses.bucket, key)),
+  );
+}
 
 /** One HTTP answer per refusal (API.md, Help desk); logged by its reason only, never the text. */
 export function refuse(request: FastifyRequest, reply: FastifyReply, result: TicketRefusal): never {
@@ -155,10 +222,26 @@ export function refuse(request: FastifyRequest, reply: FastifyReply, result: Tic
       throw notOperator();
     case "ability_off":
       throw abilityOff();
+    case "unknown_player":
+      throw ticketUnknownPlayer();
+    case "self_report":
+      throw ticketSelfReport();
+    case "already_reported":
+      throw ticketAlreadyReported();
+    case "username_required":
+      throw ticketUsernameRequired();
+    case "invalid_device":
+      throw invalidDevice({ field: result.field });
+    case "not_open":
+      throw ticketNotOpen();
+    case "moved":
+      throw ticketMoved();
+    case "not_escalated":
+      throw ticketNotEscalated();
   }
 }
 
-const valueOf = <T>(request: FastifyRequest, reply: FastifyReply, result: Done<T>): T =>
+export const valueOf = <T>(request: FastifyRequest, reply: FastifyReply, result: Done<T>): T =>
   result.kind === "done" ? result.value : refuse(request, reply, result);
 
 /** The inbox's opaque cursor: base64url of the last item's (created_at in microseconds, kind, id). */
@@ -182,7 +265,11 @@ export function inboxPositionOf(cursor: string | undefined): InboxPosition | nul
   throw invalidRequest();
 }
 
-const logAnswer = (request: FastifyRequest, answered: Answered, via: "operator" | "staff") => {
+export const logAnswer = (
+  request: FastifyRequest,
+  answered: Answered,
+  via: "operator" | "staff" | "admin",
+) => {
   request.log.info({
     event: "ticket.answered",
     outcome: answered.outcome,
@@ -211,21 +298,32 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
     if (!(await helpDeskOn(deps, eventId, playerId))) {
       refuse(request, reply, { kind: "feature_off" });
     }
-    const opened = valueOf(
-      request,
-      reply,
-      await openTicket(deps, {
-        playerId,
-        eventId,
-        kind: body.kind,
-        questId: body.questId ?? null,
-        text: body.text,
-        idempotencyKey: keyOf(request),
-      }),
-    );
+    const lookupKey = deps.keys.playerQuestKey(playerId, eventId);
+    if (body.kind === "report_player") {
+      const wait = await lookupWait(deps, lookupKey);
+      if (wait !== undefined) {
+        request.log.info({ event: "ticket.refused", reason: "too_many_lookups" });
+        reply.header("retry-after", String(wait));
+        throw tooManyLookups({ retryAfterSeconds: wait });
+      }
+    }
+    const result = await openTicket(deps, {
+      playerId,
+      eventId,
+      kind: body.kind,
+      questId: body.questId ?? null,
+      reportedUsername: body.reportedUsername ?? null,
+      text: body.text,
+      idempotencyKey: keyOf(request),
+    });
+    if (result.kind === "unknown_player") {
+      await recordLookupMiss(deps, lookupKey);
+    }
+    const opened = valueOf(request, reply, result);
     request.log.info({
       event: "ticket.opened",
       kind: body.kind,
+      queue: "event",
       hasQuest: body.questId !== undefined,
       marked: opened.marked,
       replayed: opened.replayed,
@@ -251,10 +349,40 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
         closedAt: ticket.closedAt,
         createdAt: ticket.createdAt,
         unread: ticket.unread,
+        withQuestify: ticket.withQuestify,
+        answeredBy: ticket.answeredBy,
+        reportedUsername: ticket.reportedUsername,
       })),
       open: tickets.filter((ticket) => ticket.status === "open").length,
       limit: { open: TICKET_OPEN_LIMIT },
     };
+  });
+
+  // An app problem or a suggestion to Questify, with no event (FR-1822): a player in no event can write.
+  app.post("/v1/me/tickets", playerIdempotent, async (request, reply) => {
+    const body = parse(platformBody, request.body);
+    const opened = valueOf(
+      request,
+      reply,
+      await openPlatformTicket(deps, {
+        playerId: playerIdOf(request),
+        kind: body.kind,
+        text: body.text,
+        device: body.kind === "app_problem" ? (body.device ?? null) : null,
+        idempotencyKey: keyOf(request),
+      }),
+    );
+    request.log.info({
+      event: "ticket.opened",
+      kind: body.kind,
+      queue: "questify",
+      hasQuest: false,
+      marked: opened.marked,
+      replayed: opened.replayed,
+    });
+    return reply.code(opened.replayed ? 200 : 201).send({
+      ticket: { id: opened.ticketId, status: opened.status, createdAt: opened.createdAt },
+    });
   });
 
   app.get("/v1/me/tickets", player, async (request, reply) => {
@@ -387,6 +515,28 @@ export function registerTicketTeamRoutes(scope: FastifyInstance, deps: TicketDep
         }),
       );
       return logAnswer(request, answered, "staff");
+    },
+  );
+
+  // Owners and editors only (operators have no door): the ticket moves whole to Questify's queue (FR-1823).
+  scope.post(
+    "/events/:eventId/tickets/:ticketId/escalate",
+    memberIdempotent,
+    async (request, reply) => {
+      const { eventId, ticketId } = parse(ticketParams, request.params);
+      const { note } = parse(noteBody, request.body);
+      const escalated = valueOf(
+        request,
+        reply,
+        await staffEscalate(deps, organizerContextOf(request), {
+          eventId,
+          ticketId,
+          note,
+          requestId: request.id,
+        }),
+      );
+      request.log.info({ event: "ticket.escalated", replayed: escalated.replayed });
+      return escalated;
     },
   );
 }

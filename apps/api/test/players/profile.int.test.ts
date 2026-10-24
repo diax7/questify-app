@@ -83,6 +83,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
         nextLevelAt: 200,
         title: { ar: "مستكشف", en: "Explorer" },
       },
+      help: { unread: 0 },
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

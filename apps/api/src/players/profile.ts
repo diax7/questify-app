@@ -24,6 +24,7 @@ import { parse } from "#src/auth/request";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { SettingsService } from "#src/settings/service";
+import { readUnreadTickets } from "#src/tickets/tickets";
 
 export type ProfileDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
 
@@ -44,6 +45,8 @@ export type MyProfile = Readonly<{
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
   /** The lifetime Questify level (T-401, FR-416, FR-706): the bar runs from `levelFrom` to `nextLevelAt` (null at the top). */
   questify: QuestifyLevel;
+  /** Answers to the player's requests not seen yet, in every queue (T-312): the profile tab's dot. */
+  help: Readonly<{ unread: number }>;
 }>;
 
 export type QuestifyLevel = Readonly<{
@@ -135,6 +138,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       throw unauthenticated();
     }
     const questify = await readLevel(client);
+    const unread = await readUnreadTickets(client, null);
     return {
       id: playerId,
       username: row.username,
@@ -149,6 +153,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
         email: row.email === null ? null : maskEmail(row.email),
       },
       questify,
+      help: { unread },
     };
   });
 }

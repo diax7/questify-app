@@ -46,6 +46,17 @@ describe("refuse (API.md, Help desk)", () => {
     [{ kind: "outside_quests" }, [403, "outside_quests", {}, {}]],
     [{ kind: "not_operator" }, [403, "not_operator", {}, {}]],
     [{ kind: "ability_off" }, [403, "ability_off", {}, {}]],
+    [{ kind: "unknown_player" }, [404, "unknown_player", {}, {}]],
+    [{ kind: "self_report" }, [403, "self_report", {}, {}]],
+    [{ kind: "already_reported" }, [409, "already_reported", {}, {}]],
+    [{ kind: "username_required" }, [422, "username_required", {}, {}]],
+    [
+      { kind: "invalid_device", field: "app_version" },
+      [422, "invalid_device", { field: "app_version" }, {}],
+    ],
+    [{ kind: "not_open" }, [409, "not_open", {}, {}]],
+    [{ kind: "moved" }, [409, "moved", {}, {}]],
+    [{ kind: "not_escalated" }, [409, "not_escalated", {}, {}]],
   ] as const)("answers %o", (refusal, expected) => {
     expect(answerOf(refusal as TicketRefusal)).toEqual(expected);
   });

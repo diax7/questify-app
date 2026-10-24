@@ -449,6 +449,20 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit, through event_tickets and event_ticket_counts (test/tickets/routes, test/db/tickets)",
   "POST /v1/organizers/:organizerId/events/:eventId/tickets/:ticketId/answer":
     "members inside their event limit; only a ticket of that event, once; audited without the text (test/tickets/routes, test/db/tickets)",
+  "POST /v1/organizers/:organizerId/events/:eventId/tickets/:ticketId/escalate":
+    "owners and editors inside their event limit (award_event_of); only an open ticket of that event's queue, once; audited without the note (test/tickets/center, test/db/tickets-center)",
+  "POST /v1/me/tickets":
+    "the calling player's own account only, active; no event, the caps and the device facts checked by open_platform_ticket (test/tickets/center, test/db/tickets-center)",
+  "GET /v1/admin/tickets":
+    "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
+  "GET /v1/admin/tickets/counts":
+    "active platform admins only (walked below); counts of Questify's queue only ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
+  "GET /v1/admin/tickets/:ticketId":
+    "active platform admins only (walked below); a ticket in Questify's queue only, any other id the same 404; audited with the event's ids ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
+  "POST /v1/admin/tickets/:ticketId/answer":
+    "active platform admins only (walked below); a ticket in Questify's queue only, once; audited without the text ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
+  "POST /v1/admin/tickets/:ticketId/return":
+    "active platform admins only (walked below); an escalated ticket in Questify's queue only; audited without the note ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/quests/:questId/vote":
     "the calling player's own options and choice, through member_vote; only a quest they may play (test/plays/routes, test/db/vote-quiz)",
   "POST /v1/quests/:questId/vote":
