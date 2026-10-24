@@ -194,6 +194,21 @@ describe("a member's quests as the database lists them", () => {
   });
 });
 
+/** The caller's own first place in event_results, with its prize's redemption in this status. */
+const result = (status: string) => ({
+  rank: 1,
+  username: "sara_k",
+  avatar: "falcon",
+  score: 90,
+  prize_kind: "item",
+  prize_name_ar: null,
+  prize_name_en: "Hoodie",
+  mine: true,
+  redemption_id: "7",
+  redemption_status: status,
+  claim_until: null,
+});
+
 describe("the event home's switches and prize", () => {
   it("counts a switch the configuration does not name as on", async () => {
     expect(await readHome(homeDeps({}), PLAYER, EVENT)).toMatchObject({
@@ -203,19 +218,6 @@ describe("the event home's switches and prize", () => {
   });
 
   it("shows the revealed rank prize while it waits at the desk, and not once handed over", async () => {
-    const result = (status: string) => ({
-      rank: 1,
-      username: "sara_k",
-      avatar: "falcon",
-      score: 90,
-      prize_kind: "item",
-      prize_name_ar: null,
-      prize_name_en: "Hoodie",
-      mine: true,
-      redemption_id: "7",
-      redemption_status: status,
-      claim_until: null,
-    });
     const ended = { status_now: "ended" };
     const waiting = await readHome(
       homeDeps({ standing: ended, results: [result("reserved")] }),
