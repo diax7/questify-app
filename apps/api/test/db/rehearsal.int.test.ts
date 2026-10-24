@@ -1044,6 +1044,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "quest_completion.nfc_tap",
         // A kiosk scan row goes with its completion (ON DELETE CASCADE) (T-309b, test/db/kiosks).
         "quest_completion.kiosk_scan",
+        // A rehearsal account's tickets go before its account, and with it (ON DELETE CASCADE) (T-310, test/db/tickets).
+        "enrollment.ticket",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

@@ -406,6 +406,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read tickets or reach any help-desk door, the sweep included (T-310)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.ticket",
+        "SELECT * FROM public.open_ticket(gen_random_uuid(), 'question', NULL, 'x', 'k')",
+        "SELECT * FROM public.own_tickets(NULL)",
+        "SELECT public.own_unread_tickets(gen_random_uuid())",
+        "SELECT public.mark_tickets_seen(NULL, '{}')",
+        "SELECT * FROM public.staff_answer_ticket(gen_random_uuid(), 1, 'x', 'k', NULL)",
+        "SELECT * FROM public.operator_answer_ticket(gen_random_uuid(), 1, 'x', 'k')",
+        "SELECT * FROM public.answer_core(NULL::public.event, 1, 'x', 'k', NULL, NULL, NULL)",
+        "SELECT * FROM public.event_tickets(gen_random_uuid(), 'open', NULL, NULL, 1)",
+        "SELECT * FROM public.event_ticket_counts(gen_random_uuid())",
+        "SELECT * FROM public.operator_ticket(gen_random_uuid(), 1)",
+        "SELECT * FROM public.operator_inbox(gen_random_uuid(), NULL, NULL, NULL, 1)",
+        "SELECT * FROM public.operator_inbox_count(gen_random_uuid())",
+        "SELECT * FROM public.inbox_abilities(gen_random_uuid())",
+        "SELECT * FROM public.inbox_rows(gen_random_uuid(), gen_random_uuid(), true, true)",
+        "SELECT public.help_operator(gen_random_uuid())",
+        "SELECT public.help_desk_on(NULL::public.event)",
+        "SELECT public.operator_sees_ticket(NULL::public.ticket, gen_random_uuid())",
+        "SELECT public.purge_ended_tickets(1)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

@@ -912,6 +912,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by quiz_next and quiz_answer, read by the player through member_quiz (test/db/vote-quiz)",
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
+  ticket:
+    "no right and no policy for the API role at all; written by open_ticket for the calling player's own active enrollment, by the answer doors inside the caller's event (award_event_of, help_operator) and by the sweep, erasure and the rehearsal wipe; read by its sender through own_tickets, by the event's team through event_tickets and by an operator of the event through operator_ticket and operator_inbox (test/db/tickets, which also crosses organizers, events and players)",
   community_goal:
     "no right for the API role at all; written by save_community_goal and delete_community_goal inside the caller's event, by the settling definers in the system context and by the event switch's trigger; read by the event's team through community_goals and by its active members through live_state (test/db/community)",
   community_step:
