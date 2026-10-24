@@ -3173,3 +3173,35 @@ While the switch is off, `GET /v1/device` answers a kiosk `shut: feature_off`, s
 without waiting for a scan. The live code's window comes from a granted `live_code_window()` (the internal
 `screen_window()` stays closed). The bad-code limit is keyed apart from the device's polls, so a poll never holds a
 scan back.
+
+## ADR-246 — Help-desk tickets: one closed table, one answer
+**Status:** Proposed (Claude, 2026-10-24; T-310 plan, `docs/plans/2026-10-24-t-310-help-desk.md`). Builds on ADR-105.
+**Decision:** A help-desk ticket is one row of a closed `ticket` table (RLS forced, PUBLIC revoked, no grant; definers
+are the only doors). T-310's kinds are `question` and `problem`, its only queue is `event`. A ticket is open, then
+closed as `answered` (the team's one reply, ADR-105) or `solved` (closed with no reply); a further question is a new
+ticket. The player sees the answer signed "The event team", never a person. The columns and CHECKs are laid out so
+T-312 widens the kinds and queues (`questify`), allows the event columns NULL for a ticket outside an event, and adds
+escalation, without moving data. FR-338's "reply and mark it solved" reads as these two outcomes (pending Q-081).
+**Why:** ADR-105 fixed one reply; one table that T-312 extends avoids building the help desk twice.
+**Trade-offs:** No follow-up in the same ticket; if Q-081 allows one, the reply moves to a message table.
+
+## ADR-247 — Who sees a help-desk ticket
+**Status:** Proposed (Claude, 2026-10-24; T-310 plan).
+**Decision:** The sender reads their own tickets in any enrollment status while their account is active. Owners and
+editors in the event's scope read and answer every ticket of the event. Operators with `help_desk` read and answer open
+tickets with no quest or a quest inside their limit, never their own. No other player, and no Questify admin, reads a
+ticket until T-312's escalation (Q-211). The team sees the player's @username and avatar, never a contact, name or birth
+year. Staff answers are audited without the text; operator answers are recorded on the row. Text never reaches logs,
+errors, audit rows or push text.
+**Why:** FR-339: private between the player and the event team; the same limits as the submission queue.
+
+## ADR-248 — Sending, limits, notice and retention of tickets
+**Status:** Proposed (Claude, 2026-10-24; T-310 plan).
+**Decision:** Active members of a scheduled, live or ended event send tickets while the event switch `helpDesk` (on by
+default) is on; at most 3 open and 10 in 24 hours per player per event, checked in the database; text 1 to 1,000
+characters, word-list hits mark (FR-1628). No help-desk mute: a ban stops sending. Until T-501 the player learns of an
+answer from a Home strip and a dot in Your requests; T-501's push has fixed text and never the question or reply.
+Tickets are deleted with the account at once and 90 days after the event ends (the lifecycle tick; Q-210). The
+optional photo (FR-337) moves to T-301b, which owns the one photo pipeline (blocked on Q-149). The app gains "Contact
+Questify" (the web contact page) on Get help and the profile, the in-app contact Apple 1.5 asks for.
+**Why:** Bounded spam with no cache; PDPL minimization; one photo pipeline.

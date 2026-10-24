@@ -525,3 +525,17 @@ is built. Or should kiosks accept the pass, with ADR-091's risk and no one watch
 ## Q-208 — What a kiosk shows of the player (2026-10-24, T-309b plan)
 ADR-244: a kiosk's green and orange cards show the @username and avatar (both public on the boards already); red names
 no one. Agree, or show only the colour and the points, so a bystander learns nothing?
+
+## Q-209 — The help desk's two kinds and the ticket center's four types (2026-10-24, T-310 plan)
+T-310 stores `question` and `problem` (a problem at the event, such as a missing QR). FR-1822 has four types: report a
+player, app problem, suggestion, question or prize problem. Recommended: T-312 shows four cards and "Question or prize
+problem" becomes "Question or problem at the event", holding both stored kinds, so nothing is migrated. Or should
+problem reports be a fifth type?
+
+## Q-210 — Help-desk ticket retention (2026-10-24, T-310 plan, with Q-075)
+ADR-248: tickets are deleted 90 days after their event ends (prize claims run up to 60 days), and at once with the
+account. Agree, or keep them longer for disputes?
+
+## Q-211 — Questify's access to tickets before escalation (2026-10-24, T-310 plan)
+ADR-247: until T-312, no Questify admin can read an event's tickets, even for abuse or a legal request (only the
+database owner can, as for every table). Agree, or add a logged console read now?
