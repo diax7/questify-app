@@ -761,6 +761,9 @@ T-304 and T-304b with a CTO GO each; everything is on `main` and pushed. Progres
     player account `dhia` is an operator of the event (personal invite "Dhia NFC test", preset full, so `write_nfc`;
     may play, no quest limit), so the app's Tools → Write NFC tag offers that quest; a prepare call answered on CranL
     (no tag registered yet). Write an NTAG213/215 sticker in the app, then tap it as a player.
+    Three more scan quests were added in "General" the same way (staff API, temporary sessions revoked afterwards):
+    "NFC test 2", "NFC test 3" and "NFC test 4" (15 pts each, quest QR and NFC ticked, visible now). Dhia's operator
+    has no quest limit, so Write NFC tag now lists all four; a prepare call answered for each (no tag registered).
   - **Phone-test setup on 77XBUB (2026-10-23, fake data):** category "Daily challenges" refreshes daily (typed codes
     `SUNRISE` 10 pts, `CHECKIN` 5 pts); hidden category "Secret garden" (typed code `ROSE` 25 pts inside) whose secret
     QR is in the dashboard's printable codes (event, Codes, "Secret garden"; version 1); in "General", "Find the
