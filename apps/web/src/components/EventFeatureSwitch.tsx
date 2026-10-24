@@ -2,7 +2,7 @@
 
 import type { Language, MessageKey } from "@questify/shared";
 import { useState } from "react";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
@@ -90,7 +90,7 @@ export function EventFeatureSwitch({
   initial,
   myRole,
 }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const words = FEATURES[feature];
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);

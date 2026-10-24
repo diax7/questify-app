@@ -3,7 +3,7 @@
 import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { tagsOf, type TagLine } from "#src/lib/nfc-tags.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type Bilingual } from "#src/lib/quests.ts";
@@ -43,7 +43,7 @@ function TagCard({
   move: (questId: string) => void;
   revoke: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [target, setTarget] = useState("");
   const count = (n: number) => formatNumber(n, language);
   const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
@@ -117,7 +117,7 @@ export function NfcTagsPanel({
   nfcOn,
   readOnly,
 }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [tags, setTags] = useState<readonly TagLine[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

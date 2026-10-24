@@ -12,14 +12,14 @@ test("the owner invites operators and prints their codes", async ({ page }, info
   // FR-301: a scan quest is verified by its printed QR, by staff scanning My QR, or both; never neither.
   await page.getByRole("button", { name: "إضافة مهمة" }).first().click();
   const myQr = page.getByRole("checkbox", { name: "يمسح المشغّل رمز اللاعب" });
-  await expect(page.getByRole("checkbox", { name: "يمسح اللاعب رمز المهمة" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "يمسح اللاعب رمز مهمة" })).toBeChecked();
   await expect(myQr).not.toBeChecked();
-  await page.getByRole("checkbox", { name: "يمسح اللاعب رمز المهمة" }).uncheck();
+  await page.getByRole("checkbox", { name: "يمسح اللاعب رمز مهمة" }).uncheck();
   await page.getByLabel("العنوان بالعربية").fill("بوابة الدخول");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("اختر طريقة واحدة على الأقل.")).toBeVisible();
   await myQr.check();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("بوابة الدخول")).toBeVisible();
 
   const eventPage = page.url().replace(/\/quests$/, "");

@@ -14,7 +14,7 @@ test("the organizer adds a quest item and gives it with a quest and a category",
   const prizesPage = builderPage.replace(/\/quests$/, "/prizes");
 
   await page.goto(prizesPage);
-  const items = page.getByRole("region", { name: "هدايا المهام" });
+  const items = page.getByRole("region", { name: "هدايا مهام" });
   await expect(items.getByText("لا توجد هدايا بعد.")).toBeVisible();
   await items.getByRole("button", { name: "إضافة هدية" }).click();
   await items.getByLabel("الاسم بالعربية", { exact: true }).fill("قميص الفعالية");
@@ -37,7 +37,7 @@ test("the organizer adds a quest item and gives it with a quest and a category",
   await expect(items.getByRole("status")).toHaveText("حُفظت الهدية.");
   const card = items.getByRole("listitem").filter({ hasText: "قميص الفعالية" });
   await expect(card).toContainText("المتبقي: 5 من 5");
-  await expect(card).toContainText("لا تمنحها أي مهمة أو فئة بعد.");
+  await expect(card).toContainText("لم تُربط بأي مهمة أو فئة بعد.");
 
   await page.goto(builderPage);
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
@@ -45,15 +45,15 @@ test("the organizer adds a quest item and gives it with a quest and a category",
   await page
     .getByRole("combobox", { name: /^هدية/ })
     .selectOption({ label: "قميص الفعالية (المتبقي: 5 من 5)" });
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("ابحث عن الصقر", { exact: true })).toBeVisible();
   const general = page.getByRole("region", { name: "عام" });
-  await general.getByRole("button", { name: "تعديل الفئة" }).click();
+  await general.getByRole("button", { name: "تعديل فئة" }).click();
   await general
     .getByRole("combobox", { name: /^هدية/ })
     .selectOption({ label: "قميص الفعالية (المتبقي: 5 من 5)" });
-  await general.getByRole("button", { name: "حفظ الفئة" }).click();
-  await expect(general.getByRole("button", { name: "تعديل الفئة" })).toBeVisible();
+  await general.getByRole("button", { name: "حفظ فئة" }).click();
+  await expect(general.getByRole("button", { name: "تعديل فئة" })).toBeVisible();
 
   await page.goto(prizesPage);
   await expect(card).toContainText("تُمنح عند: ابحث عن الصقر، عام");

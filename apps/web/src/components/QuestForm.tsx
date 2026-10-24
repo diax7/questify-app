@@ -18,7 +18,7 @@ import { QUEST_TYPE_FIELDS, startingConfig } from "#src/components/QuestTypeFiel
 import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { NfcTagsPanel } from "#src/components/NfcTagsPanel.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { QuestItem } from "#src/lib/quest-items.ts";
 import {
   hasPlace,
@@ -79,7 +79,7 @@ export function QuestForm({
   save,
   cancel,
 }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [draft, setDraft] = useState<QuestDraft>(initial);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const change = (patch: Partial<QuestDraft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -258,7 +258,7 @@ function QuestWindowFields({
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       {(["opensAt", "closesAt"] as const).map((key) => (
@@ -305,7 +305,7 @@ function FlashField({
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <label className={styles.check}>
@@ -344,7 +344,7 @@ function QuestRepeatField({
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <label className={styles.check}>
@@ -406,7 +406,7 @@ function QuestVerificationField({
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const offered: readonly QuestVerification[] = QUEST_TYPES[draft.type].verifications;
   // Nothing to choose: no method, or a challenge's one fixed method (ADR-197).
   if (offered.length < 2) {

@@ -2,7 +2,7 @@
 
 import { formatEventTime, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import {
   FLASH_DEFAULT_MINUTES,
@@ -47,7 +47,7 @@ export function FlashControls({
   readOnly: boolean;
   actions: FlashActions;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [, setTick] = useState(0);
   const state = flashStateOf({ ...quest, flash: quest.flash === true }, Date.now());
   useEffect(() => {
@@ -98,7 +98,7 @@ export function FlashLaunchDialog({
   cancel: () => void;
   confirm: (minutes: number) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const [minutes, setMinutes] = useState(FLASH_DEFAULT_MINUTES);
   const valid = flashMinutesValid(minutes);

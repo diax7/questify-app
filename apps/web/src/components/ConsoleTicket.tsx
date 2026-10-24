@@ -149,7 +149,9 @@ export function ConsoleTicket({
     });
     setBusy(false);
     if (!result.ok) {
-      setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+      setProblem(
+        result.body === undefined ? t("join.network") : problemOf(result.body, language, t),
+      );
       return;
     }
     keys.current[path] = crypto.randomUUID();

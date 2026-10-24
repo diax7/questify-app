@@ -11,15 +11,15 @@ test("builds a challenge, a survey and a share quest", async ({ page }, info) =>
   await openBuilder(page, info.project.name);
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("challenge");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("challenge");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تحدي الرماية");
   await expect(page.getByText(/يؤكد المشغّل هذا التحدي/)).toBeVisible();
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("تحدي الرماية", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("survey");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("survey");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("رأيك في الفعالية");
   await expect(page.getByLabel("يمكن إكمالها أكثر من مرة")).toHaveCount(0);
   await page.getByLabel("نص السؤال بالعربية").fill("أي جلسة أعجبتك؟");
@@ -29,15 +29,15 @@ test("builds a challenge, a survey and a share quest", async ({ page }, info) =>
   await page.getByLabel("نص السؤال بالعربية").nth(1).fill("قيّم الفعالية");
   await page.getByLabel("نوع السؤال").nth(1).selectOption("rating");
   await page.getByLabel("سؤال مطلوب").nth(1).uncheck();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("رأيك في الفعالية", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("share");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("share");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("شارك الفعالية");
   await page.getByLabel("الرسالة بالعربية").fill("أنا في الفعالية الآن!");
   await page.getByLabel(/^رابط/).fill("https://example.com/fest");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("شارك الفعالية", { exact: true })).toBeVisible();
 
   const survey = page.getByRole("listitem").filter({ hasText: "رأيك في الفعالية" });

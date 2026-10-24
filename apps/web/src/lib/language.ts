@@ -74,26 +74,51 @@ export type Translate = (
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
 
-function buildTranslator(language: Language, terms: EventTerms): Translate {
-  const words = wordParams(terms, language);
+function buildTranslator(language: Language, words: Readonly<Record<string, string>>): Translate {
   return (key, params) => translate(key, language, { ...words, ...params });
 }
 
 /**
- * One translator per language for Questify's own words, built once: panels list `t` in their hook dependencies, and a
- * new function on every render re-ran their loads in an endless loop (thousands of requests a minute).
+ * One translator per language and set of words, built once: panels list `t` in their hook dependencies, and a new
+ * function on every render re-ran their loads in an endless loop (thousands of requests a minute). The key is the
+ * words themselves, so two reads of the same event's terms (a new object each time) still give the same function.
+ * Questify's own words are never evicted; an event's are kept for the last few events a server or browser has shown.
  */
-const DEFAULT_TRANSLATORS: Readonly<Record<Language, Translate>> = {
-  ar: buildTranslator("ar", DEFAULT_TERMS),
-  en: buildTranslator("en", DEFAULT_TERMS),
+const DEFAULT_WORDS: Readonly<Record<Language, string>> = {
+  ar: JSON.stringify(wordParams(DEFAULT_TERMS, "ar")),
+  en: JSON.stringify(wordParams(DEFAULT_TERMS, "en")),
 };
+const DEFAULT_TRANSLATORS: Readonly<Record<Language, Translate>> = {
+  ar: buildTranslator("ar", wordParams(DEFAULT_TERMS, "ar")),
+  en: buildTranslator("en", wordParams(DEFAULT_TERMS, "en")),
+};
+const EVENT_TRANSLATORS = new Map<string, Translate>();
+const MAX_EVENT_TRANSLATORS = 32;
 
 /**
  * The shipped texts in one language (translation-store overrides join with the first organizer screens). A text that
- * names the quest, category or player word shows Questify's own unless `terms` are given, as the Event words preview
- * does; the rest of the dashboard follows the event's words in T-311c. Without `terms` the same function comes back
- * every time, so it is safe in hook dependencies.
+ * names the quest, category or player word shows Questify's own unless `terms` are given: an event's pages get them
+ * from `TermsScope` (FR-942), the Event words preview passes its draft. The same arguments always give the same
+ * function, so it is safe in hook dependencies.
  */
 export function translatorFor(language: Language, terms: EventTerms = DEFAULT_TERMS): Translate {
-  return terms === DEFAULT_TERMS ? DEFAULT_TRANSLATORS[language] : buildTranslator(language, terms);
+  const words = wordParams(terms, language);
+  const key = JSON.stringify(words);
+  if (key === DEFAULT_WORDS[language]) {
+    return DEFAULT_TRANSLATORS[language];
+  }
+  const cacheKey = `${language}:${key}`;
+  const known = EVENT_TRANSLATORS.get(cacheKey);
+  if (known !== undefined) {
+    return known;
+  }
+  if (EVENT_TRANSLATORS.size >= MAX_EVENT_TRANSLATORS) {
+    const oldest = EVENT_TRANSLATORS.keys().next().value;
+    if (oldest !== undefined) {
+      EVENT_TRANSLATORS.delete(oldest);
+    }
+  }
+  const built = buildTranslator(language, words);
+  EVENT_TRANSLATORS.set(cacheKey, built);
+  return built;
 }

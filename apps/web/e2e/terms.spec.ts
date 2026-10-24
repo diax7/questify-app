@@ -15,6 +15,7 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   const currency = words.getByRole("group", { name: "العملة", exact: true });
   const player = words.getByRole("group", { name: "اللاعب", exact: true });
   const quest = words.getByRole("group", { name: "المهمة", exact: true });
+  const category = words.getByRole("group", { name: "الفئة", exact: true });
   await currency.getByRole("radio", { name: "جوهرة" }).check();
   await currency.getByLabel("بالعربية، مفرد").fill("جوهرة");
   await currency.getByLabel("بالعربية، جمع").fill("جواهر");
@@ -42,6 +43,10 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   await quest.getByLabel("بالإنجليزية، جمع").fill("missions");
   await expect(words.getByText("أنجز مغامرة لتدخل الترتيب.")).toBeVisible();
   await expect(words.getByText("Missions", { exact: true })).toBeVisible();
+  await category.getByLabel("بالعربية، مفرد").fill("مرحلة");
+  await category.getByLabel("بالعربية، جمع").fill("مراحل");
+  await category.getByLabel("بالإنجليزية، مفرد").fill("stage");
+  await category.getByLabel("بالإنجليزية، جمع").fill("stages");
   await words.getByRole("button", { name: "حفظ الكلمات" }).click();
   await expect(words.getByRole("status")).toHaveText("حُفظت الكلمات.");
   await expect(page.getByRole("link", { name: "طلاب" })).toBeVisible();
@@ -54,4 +59,43 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
 
   await page.goto(`${eventPage.replace("/ar/", "/en/")}/players`);
   await expect(page.getByRole("heading", { name: "Students", level: 2 })).toBeVisible();
+
+  // The event's own page says them too, in the switch for community quests.
+  await page.goto(eventPage);
+  await expect(page.getByRole("heading", { name: "مغامرات للجميع" })).toBeVisible();
+
+  // The builder and the other pages of the event say the event's words (T-311c, FR-942).
+  const arabic = eventPage;
+  const english = eventPage.replace("/ar/", "/en/");
+  let listReads = 0;
+  page.on("request", (request) => {
+    if (request.method() === "GET" && /\/events\/[^/]+\/quests$/.test(request.url())) {
+      listReads += 1;
+    }
+  });
+  await page.goto(`${arabic}/quests`);
+  await expect(page.getByRole("heading", { name: "مغامرات", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "إضافة مغامرة" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "إضافة مرحلة" })).toBeVisible();
+  // The words come with the page and are read once: the list is read on open and after changes, never in a loop.
+  await page.waitForTimeout(3_000);
+  expect(listReads).toBeLessThan(5);
+
+  await page.goto(`${english}/quests`);
+  await expect(page.getByRole("heading", { name: "Missions", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add mission" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add stage" })).toBeVisible();
+
+  await page.goto(`${arabic}/codes`);
+  await expect(
+    page.getByText("لا مغامرات برموز QR بعد. أضف مغامرة من نوع مسح رمز QR."),
+  ).toBeVisible();
+  await page.goto(`${english}/codes`);
+  await expect(page.getByText("No missions with codes yet. Add one that uses a QR.")).toBeVisible();
+  await page.goto(`${arabic}/community`);
+  await expect(page.getByRole("heading", { name: "مغامرات للجميع" })).toBeVisible();
+  await page.goto(`${english}/boosts`);
+  await expect(page.getByText(/^Double what one stage's missions pay/)).toBeVisible();
+  await page.goto(`${arabic}/joining`);
+  await expect(page.getByText(/^اجعل مرحلة أو جائزة لمجموعة من اللاعبين فقط/)).toBeVisible();
 });

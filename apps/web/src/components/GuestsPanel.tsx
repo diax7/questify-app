@@ -3,7 +3,7 @@
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GUESTS_PER_UPLOAD, guestLines } from "#src/lib/joining.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
@@ -24,7 +24,7 @@ type Props = Readonly<{ language: Language; organizerId: string; eventId: string
 
 /** What an upload did: added, already there, newly tagged, and the lines that are not a contact. */
 function AddedResult({ language, result }: Readonly<{ language: Language; result: Added }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <div role="status" className={styles.notice}>
       <p>
@@ -75,7 +75,7 @@ function GuestUpload({
   fail: (body: unknown) => void;
   added: () => Promise<void>;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [text, setText] = useState("");
   const [tag, setTag] = useState("");
   const [result, setResult] = useState<Added | null>(null);
@@ -162,7 +162,7 @@ function GuestRows({
   busy: boolean;
   remove: (guest: Guest) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <ul className={styles.list}>
       {guests.map((guest) => (
@@ -191,7 +191,7 @@ function GuestRows({
 
 /** The listed guests (or the one found) and the total, read once and after each change; a lost session signs out. */
 function useGuestList(base: string, language: Language) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const loaded = useRef(false);
   const [guests, setGuests] = useState<Guest[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -239,7 +239,7 @@ function useGuestList(base: string, language: Language) {
  * masked and remove one. Owners and editors.
  */
 export function GuestsPanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}/join/guests`;
   const list = useGuestList(base, language);
   const { guests, total, load, fail, setProblem, setGuests, setTotal } = list;

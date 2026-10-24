@@ -22,7 +22,7 @@ test("builds a game quest with its level, unlimited attempts and the players' li
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("game");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("game");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تحدي الذاكرة");
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
   const game = page.getByRole("combobox", { name: "اللعبة" });
@@ -51,7 +51,7 @@ test("builds a game quest with its level, unlimited attempts and the players' li
   await game.selectOption("slide_puzzle");
   await expect(page.getByText("يرى اللاعبون: أعد ترتيب الصورة خلال 180 ثانية.")).toBeVisible();
 
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   const quest = page.getByRole("listitem").filter({ hasText: "تحدي الذاكرة" });
   await expect(quest).toBeVisible();
   await quest.getByRole("button", { name: "تعديل" }).click();

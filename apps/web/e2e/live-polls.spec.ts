@@ -15,18 +15,18 @@ test("builds a live poll, sends it during the rehearsal, and closes it", async (
   await page.goto(builder);
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("vote");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("vote");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("المحاضرة التالية");
   await page.getByLabel("الخيار 1 بالعربية").fill("الذكاء الاصطناعي");
   await page.getByLabel("الخيار 2 بالعربية").fill("الفضاء");
   await expect(page.getByLabel("ظاهرة في التطبيق")).toBeVisible();
-  await page.getByLabel("تصويت مباشر: ترسله من قائمة المهام").check();
+  await page.getByLabel("تصويت مباشر: ترسله من قائمة مهام").check();
   await expect(page.getByLabel("ظاهرة في التطبيق")).toHaveCount(0);
   await expect(page.getByText("صوّتوا على الأفكار، لا على مظهر أحد.")).toBeVisible();
   await page.getByLabel("عدة اختيارات").check();
   await page.getByLabel("عند إغلاق التصويت").check();
   await page.getByLabel(/^مدة التصويت بالدقائق/).fill("10");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
 
   const poll = page.getByRole("listitem").filter({ hasText: "المحاضرة التالية" });
   await expect(poll.getByText("مسودة", { exact: true })).toBeVisible();

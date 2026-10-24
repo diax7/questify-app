@@ -11,7 +11,8 @@ import {
   whoOf,
   type LedgerLine,
 } from "#src/lib/awards.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { Translate } from "#src/lib/language.ts";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
@@ -37,7 +38,7 @@ export function ConfirmDialog({
   confirm: () => void;
   children: ReactNode;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
     <div
@@ -68,8 +69,7 @@ export function ConfirmDialog({
 }
 
 /** The API's refusal in words: the cap that applies (FR-310), else the API's own message. */
-export function problemOf(body: unknown, language: Language): string {
-  const t = translatorFor(language);
+export function problemOf(body: unknown, language: Language, t: Translate): string {
   return capProblem(body, t) ?? describeProblem(body, language, t).text;
 }
 
@@ -119,7 +119,7 @@ function RecordLine({
   line: LedgerLine;
   remove: (line: LedgerLine) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const who = whoOf(line.by);
   const title = textFor(line.title, language);
   return (
@@ -169,7 +169,7 @@ function AwardFields({
   draft: Draft;
   change: (next: Draft) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <fieldset className={styles.choices}>
@@ -257,7 +257,7 @@ function AskDialog({
   cancel: () => void;
   confirm: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const name = handleOf(username, language);
   if (asking.kind === "award") {
     const points = formatNumber(asking.points, language);
@@ -334,13 +334,13 @@ function RecordSection({
   record: ReturnType<typeof useRecord>;
   remove: (line: LedgerLine) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <h3 className={styles.subtitle}>{t("awards.record")}</h3>
       {record.failed === null ? null : (
         <p role="alert" className={styles.alert}>
-          {problemOf(record.failed, language)}
+          {problemOf(record.failed, language, t)}
         </p>
       )}
       {record.lines === null && record.failed === null ? (
@@ -394,7 +394,7 @@ export function PlayerAwards({
   caps,
   changed,
 }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const record = useRecord(`${eventApi}/players/${player.enrollmentId}/entries`);
   const [draft, setDraft] = useState<Draft>({
     mode: "points",
@@ -437,7 +437,7 @@ export function PlayerAwards({
     setBusy(false);
     setAsking(null);
     if (!result.ok) {
-      setProblem(problemOf(result.body, language));
+      setProblem(problemOf(result.body, language, t));
       return;
     }
     if (sending.kind === "award") {

@@ -12,12 +12,12 @@ import {
   type Text,
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/layout.module.css";
 
 /** A challenge (T-303, ADR-197): nothing to set; the description says what to do, and staff confirm it. */
 export function ChallengeFields({ language }: TypeFieldProps) {
-  return <p className={styles.muted}>{translatorFor(language)("quests.challenge.note")}</p>;
+  return <p className={styles.muted}>{useTranslator(language)("quests.challenge.note")}</p>;
 }
 
 const SURVEY_KINDS = ["choice", "rating", "text"] as const;
@@ -62,7 +62,7 @@ function SurveyQuestionFields({
   change: (question: SurveyQuestion) => void;
   remove: (() => void) | null;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <fieldset className={styles.field}>
       <legend>{t("quests.quiz.question", { number })}</legend>
@@ -120,7 +120,7 @@ function SurveyQuestionFields({
  * unticked. The answers reach the owner and editors, names not shown.
  */
 export function SurveyFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const questions = Array.isArray(config["questions"])
     ? (config["questions"] as SurveyQuestion[])
     : [newSurveyQuestion()];
@@ -162,7 +162,7 @@ export function SurveyFields({ language, config, disabled, change }: TypeFieldPr
  * optional https link. Paid once per player, with no proof; the event's switch hides them all.
  */
 export function ShareFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const message = (config["message"] ?? {}) as Text;
   const link = str(config["link"]);
   const setLink = (value: string) => {

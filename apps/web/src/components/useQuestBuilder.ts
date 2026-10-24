@@ -7,7 +7,8 @@ import {
   type Language,
 } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { questItemsOf, type QuestItem } from "#src/lib/quest-items.ts";
 import { invalidQuestKey, type CategoryView } from "#src/lib/quests.ts";
@@ -41,8 +42,7 @@ const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 const FIELD_CODES = new Set(["invalid_quest", "invalid_category"]);
 
 /** The words for a refusal: the field to fix for a builder 422, the API's own message otherwise. */
-function problemText(body: unknown, language: Language): string {
-  const t = translatorFor(language);
+function problemText(body: unknown, language: Language, t: Translate): string {
   const field = (body as { details?: { field?: unknown } } | undefined)?.details?.field;
   const code = errorCodeOf(body);
   if (code !== undefined && FIELD_CODES.has(code) && typeof field === "string") {
@@ -57,6 +57,7 @@ function problemText(body: unknown, language: Language): string {
  * again with `confirm: true` and the same key.
  */
 export function useQuestBuilder(language: Language, organizerId: string, eventId: string) {
+  const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [categories, setCategories] = useState<readonly CategoryView[] | null>(null);
   const [items, setItems] = useState<readonly QuestItem[]>([]);
@@ -76,11 +77,11 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
         return true;
       }
       if (!result.ok) {
-        setProblem(problemText(result.body, language));
+        setProblem(problemText(result.body, language, t));
       }
       return !result.ok;
     },
-    [language],
+    [language, t],
   );
 
   const reload = useCallback(async () => {

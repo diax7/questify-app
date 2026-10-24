@@ -25,7 +25,7 @@ import {
   type GoalDraft,
   type UnlockOptions,
 } from "#src/lib/community.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -85,7 +85,7 @@ function useEventChoices(eventApi: string, language: Language) {
 
 /** The goals, read again every 5 s while one is running. */
 function useGoals(eventApi: string, language: Language) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [goals, setGoals] = useState<readonly Goal[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const failed = useCallback(
@@ -152,7 +152,7 @@ function GoalCard({
   edit: () => void;
   remove: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const at = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   const share = goal.target === 0 ? 0 : Math.min(1, goal.progress / goal.target);
   const progress = t("community.progress", {
@@ -229,7 +229,7 @@ function GoalCard({
  * preview of the bar (goals never run in rehearsal, Q-186). Owners and editors.
  */
 export function CommunityPanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { timeZone, quests, categories, options } = useEventChoices(eventApi, language);
   const { goals, problem, setProblem, failed, load } = useGoals(eventApi, language);

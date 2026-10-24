@@ -594,3 +594,15 @@ Questify for help, the Questify team can see it too", shown before sending. Does
 
 ## Q-222 — Operators escalating (2026-10-24, T-312 plan)
 ADR-258: only owners and editors escalate; an operator asks them. Agree, or let operators with `help_desk` escalate?
+
+## Q-227 — Pages that cannot read the event's words keep Questify's (2026-10-25, T-311c)
+The public page of a printed code (`/q/{token}`), the kiosk page (`kiosk.notOpen`, `kiosk.methodOff`) and the big
+screen's "closed" lines (`device.shut.*`) do not load an event's configuration, so a renamed event still shows "quest"
+there. The Event words form names the concepts it renames, so it keeps them too. Recommended: leave it until the kiosk
+and big screen read the event's configuration (T-5xx), then fill the words the way the app does. Agree?
+
+## Q-228 — The dashboard still says "player" in about 100 texts (2026-10-25, T-311c)
+FR-941 asks the dashboard to use an event's renamed "player" word everywhere; T-117 did the page titles and a few
+fields. About 100 texts the dashboard names (rewards, prizes, flags, guests, join setup, results) still say "player",
+and the same goes for "operator". T-311c did the quest and category words only, as asked. Recommended: a T-311d that
+turns them into `{playerOne}`/`{playerMany}` placeholders with the same guard test, Standard bar. Agree?

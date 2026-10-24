@@ -10,7 +10,7 @@ test("builds a vote and a quiz, each played once", async ({ page }, info) => {
   await openBuilder(page, info.project.name);
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("vote");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("vote");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("أفضل جناح");
   await expect(page.getByLabel("يمكن إكمالها أكثر من مرة")).toHaveCount(0);
   await page.getByLabel("الخيار 1 بالعربية").fill("الروبوتات");
@@ -18,18 +18,18 @@ test("builds a vote and a quiz, each played once", async ({ page }, info) => {
   await page.getByRole("button", { name: "إضافة خيار" }).click();
   await page.getByLabel("الخيار 3 بالعربية").fill("المحيطات");
   await page.getByRole("button", { name: "حذف الخيار 3" }).click();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("أفضل جناح", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("quiz");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("quiz");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("اختبار التاريخ");
   await page.getByLabel(/^الوقت لكل سؤال بالثواني/).fill("30");
   await page.getByLabel("نص السؤال بالعربية").fill("متى تأسست الدرعية؟");
   await page.getByLabel("الخيار 1 بالعربية").fill("1727");
   await page.getByLabel("الخيار 2 بالعربية").fill("1902");
   await page.getByLabel("الإجابة الصحيحة").selectOption({ label: "الخيار 1" });
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("اختبار التاريخ", { exact: true })).toBeVisible();
 
   const vote = page.getByRole("listitem").filter({ hasText: "أفضل جناح" });

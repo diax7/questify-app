@@ -14,7 +14,8 @@ import {
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { Translate } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
 import {
   categoryBody,
@@ -49,7 +50,7 @@ export function ItemPicker({
   busy: boolean;
 }> &
   PickerBinding) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const hintId = useId();
   const bound =
     "change" in binding
@@ -121,7 +122,7 @@ export function LiveDialog({
   cancel,
   confirm,
 }: Readonly<{ language: Language; busy: boolean; cancel: () => void; confirm: () => void }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
     <div role="alertdialog" aria-labelledby="live-title" className={styles.card}>
@@ -158,7 +159,7 @@ function OrderButtons({
   busy: boolean;
   apply: (ids: string[]) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const up = moved(ids, index, -1);
   const down = moved(ids, index, 1);
   return (
@@ -211,7 +212,7 @@ function QuestRow({
   pinned: boolean;
   readOnly: boolean;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const live = isLivePoll(quest.type, quest.config);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
     iso === null || live ? null : (
@@ -316,7 +317,7 @@ function QuestRow({
 /** A rule note in words, for the category card. */
 function ruleText(
   note: CategoryRuleNote,
-  t: ReturnType<typeof translatorFor>,
+  t: Translate,
   language: Language,
   timeZone: string,
 ): string {
@@ -359,7 +360,7 @@ function CategoryRuleFields({
   items: readonly QuestItem[];
   busy: boolean;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <label className={styles.field}>
@@ -496,7 +497,7 @@ export function CategoryCard({
   /** False for the last category: every event keeps one (FR-228). */
   canDelete: boolean;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [renaming, setRenaming] = useState(false);
   const questIds = category.quests.map((quest) => quest.id);
   const save = (event: FormEvent<HTMLFormElement>) => {
@@ -607,7 +608,7 @@ export function CategoryNameFields({
   initial,
   busy,
 }: Readonly<{ language: Language; initial?: CategoryView | undefined; busy: boolean }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <label className={styles.field}>
@@ -655,7 +656,7 @@ export function DeleteDialog({
   cancel: () => void;
   confirm: (choice: Readonly<Record<string, unknown>>) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const others =
     target.kind === "category" ? categories.filter((item) => item.id !== target.category.id) : [];
   // No choice is made for the person: the button waits until they pick one (the UX confirmation pattern).

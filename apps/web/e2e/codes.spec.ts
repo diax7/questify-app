@@ -8,11 +8,11 @@ test("prints a QR quest's code, and a new code replaces the printed one after a 
   await openBuilder(page, info.project.name);
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("ابحث عن المسرح");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await page.getByRole("link", { name: "طباعة QR" }).click();
 
   await expect(page.getByRole("heading", { name: "رموز QR للطباعة", level: 1 })).toBeVisible();
-  const code = page.getByRole("img", { name: "رمز QR للمهمة «ابحث عن المسرح»" });
+  const code = page.getByRole("img", { name: "رمز QR، مهمة: «ابحث عن المسرح»" });
   await expect(code).toBeVisible();
   // Print QR lands on its card, though the cards arrive after the first paint.
   await expect(code).toBeInViewport();

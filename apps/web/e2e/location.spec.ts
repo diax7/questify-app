@@ -63,19 +63,19 @@ test("a scan quest takes an optional place and keeps it; the location type waits
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
 
   // The platform's location switch is off by default: the type is not offered.
-  const types = page.getByRole("combobox", { name: /^نوع المهمة/ });
+  const types = page.getByRole("combobox", { name: /^نوع مهمة/ });
   await expect(types.locator("option[value=location]")).toHaveCount(0);
 
   const place = page.getByRole("group", { name: "المكان" });
   await expect(place).toContainText("اختياري: نقطة المكان ونصف قطره");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("بوابة الدخول");
   await place.getByLabel(LAT, { exact: true }).fill("24.7136");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.locator("p[role=alert]")).toContainText("أدخل خط عرض بين -90 و90");
 
   await place.getByLabel(LNG, { exact: true }).fill("46.6753");
   await place.getByLabel(PLACE_RADIUS).fill("150");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   const row = page.getByRole("listitem").filter({ hasText: "بوابة الدخول" });
   await expect(row).toBeVisible();
 
@@ -89,8 +89,8 @@ test("a scan quest takes an optional place and keeps it; the location type waits
   // Clearing both numbers removes the place.
   await saved.getByLabel(LAT, { exact: true }).fill("");
   await saved.getByLabel(LNG, { exact: true }).fill("");
-  await page.getByRole("button", { name: "حفظ المهمة" }).click();
-  await expect(page.getByRole("heading", { name: "تعديل المهمة" })).toHaveCount(0);
+  await page.getByRole("button", { name: "حفظ مهمة" }).click();
+  await expect(page.getByRole("heading", { name: "تعديل مهمة" })).toHaveCount(0);
   await row.getByRole("button", { name: "تعديل", exact: true }).click();
   await expect(
     page.getByRole("group", { name: "المكان" }).getByLabel(LAT, { exact: true }),

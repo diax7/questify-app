@@ -14,7 +14,7 @@ import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { FlashLaunchDialog } from "#src/components/FlashControls.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { moveTargets } from "#src/lib/nfc-tags.ts";
 import { pollMinutesOf } from "#src/lib/polls.ts";
 import {
@@ -72,7 +72,7 @@ export function QuestBuilder({
   organizerId,
   eventId,
 }: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const b = useQuestBuilder(language, organizerId, eventId);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<Deleting | null>(null);

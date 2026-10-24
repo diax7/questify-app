@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards, type Caps, type QuestOption } from "#src/components/PlayerAwards.tsx";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { handleOf, nameOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
@@ -76,7 +76,7 @@ function BanDialog({
   cancel: () => void;
   confirm: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const lifting = player.status === "banned";
   return (
@@ -137,7 +137,7 @@ function PlayerRow({
   toggle: () => void;
   children: ReactNode;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <li className={styles.card}>
       <p className={styles.row}>
@@ -319,7 +319,7 @@ type StandingDeps = Readonly<{
  * redemption (FR-518, never automatic). Focus returns to the button that opened the sheet.
  */
 function useStanding({ base, language, mark, failed, clear, said }: StandingDeps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [asking, setAsking] = useState<Player | null>(null);
   const [pausing, setPausing] = useState<Player | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -394,7 +394,7 @@ function StandingDialogs({
   language,
   standing,
 }: Readonly<{ language: Language; standing: ReturnType<typeof useStanding> }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const { asking, pausing, busy, close } = standing;
   if (asking !== null) {
     return (
@@ -450,7 +450,7 @@ function Said({ problem, notice }: Readonly<{ problem: string | null; notice: st
  * owner bans a player or lifts a ban after a confirmation; editors see the list only.
  */
 export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const facts = useEventFacts(eventApi, language);
   const terms = facts.terms;

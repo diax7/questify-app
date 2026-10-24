@@ -4,7 +4,8 @@ import { formatNumber, type Language, type MessageKey } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
-import { directionOf, translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import { directionOf } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { handleOf } from "#src/lib/players.ts";
 import { named } from "#src/lib/prizes.ts";
@@ -104,7 +105,7 @@ function ItemForm({
   save: () => void;
   cancel: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <form
       className={styles.form}
@@ -172,7 +173,7 @@ function MissList({
   language,
   misses,
 }: Readonly<{ language: Language; misses: readonly QuestItemMiss[] }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   if (misses.length === 0) {
     return <p className={styles.muted}>{t("questItems.noMisses")}</p>;
   }
@@ -204,7 +205,7 @@ function ItemRow({
   remove: () => void;
   showMisses: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const name = named(item.name, language);
   const sources = [...item.quests, ...item.categories].map((source) =>
     named(source.name, language),
@@ -255,7 +256,7 @@ function ItemRow({
 
 /** The items, with every write going through the API and its answer shown. */
 function useQuestItems(eventApi: string, language: Language) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [items, setItems] = useState<readonly QuestItem[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -321,7 +322,7 @@ function useQuestItems(eventApi: string, language: Language) {
  * and who got points only once one ran out. Owners and editors; the quest and category forms pick them.
  */
 export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { items, problem, notice, busy, write, missesOf } = useQuestItems(eventApi, language);
   const [draft, setDraft] = useState<Draft | null>(null);

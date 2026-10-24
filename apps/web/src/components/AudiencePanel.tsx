@@ -15,7 +15,7 @@ import {
   type AudienceItem,
   type AudienceView,
 } from "#src/lib/audience.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/layout.module.css";
@@ -47,7 +47,7 @@ function ValueTicks({
   draft: AudienceDraft;
   change: (draft: AudienceDraft) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const field = view.fields.find((entry) => entry.id === draft.fieldId);
   const values =
     draft.kind === "answer"
@@ -84,7 +84,7 @@ function ValueTicks({
 
 /** "Who sees it" for one category or reward: everyone, players with chosen answers, or guests with chosen tags. */
 function RuleEditor({ language, view, kind, item, busy, save, cancel }: EditorProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [draft, setDraft] = useState<AudienceDraft>(() => draftOf(item.audience, view.fields));
   const body = ruleBody(draft);
   return (
@@ -158,7 +158,7 @@ function ItemRow({
   children: ReactNode;
   edit: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const words = ruleWords(item.audience, view.fields, language);
   const name = nameIn(item.name, language);
   return (
@@ -214,7 +214,7 @@ function ItemList({
   setEditing: (id: string | null) => void;
   save: (id: string, body: object) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <h3 className={styles.subtitle}>{t(`audience.${kind}`)}</h3>
@@ -251,7 +251,7 @@ function ItemList({
  * reserve it. Owners and editors.
  */
 export function AudiencePanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}/audience`;
   const loaded = useRef(false);
   const [view, setView] = useState<AudienceView | null>(null);

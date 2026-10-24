@@ -16,7 +16,7 @@ import {
 } from "#src/lib/boosts.ts";
 import { issuesOf } from "#src/lib/community.ts";
 import { FLASH_MAX_MINUTES } from "#src/lib/flash.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -58,7 +58,7 @@ function useEventChoices(eventApi: string, language: Language) {
 
 /** The boosts, read again every 15 s while one is scheduled or running (its state and what it paid move). */
 function useBoosts(eventApi: string, language: Language) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [boosts, setBoosts] = useState<readonly Boost[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const failed = useCallback(
@@ -119,7 +119,7 @@ function BoostCard({
   remove: () => void;
   stop: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const at = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   const state = boostStateOf(boost, Date.now());
   return (
@@ -177,7 +177,7 @@ function BoostForm({
   save: () => void;
   cancel: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <form
       className={styles.form}
@@ -257,7 +257,7 @@ type Asking = Readonly<{ kind: "delete" | "stop"; boost: Boost }>;
  * change a scheduled one, Delete until a minute before the start, and Stop while it runs. Owners and editors.
  */
 export function BoostsPanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { timeZone, categories } = useEventChoices(eventApi, language);
   const { boosts, problem, setProblem, failed, load } = useBoosts(eventApi, language);

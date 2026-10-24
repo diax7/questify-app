@@ -97,7 +97,7 @@ function AnswerActions({
       return;
     }
     // Kept on a failure: trying again cannot answer twice.
-    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language, t));
   };
   const solve = () => {
     if (window.confirm(t("tickets.solveConfirm"))) {
@@ -168,7 +168,7 @@ function EscalateAction({
       done();
       return;
     }
-    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language, t));
   };
   if (!opened) {
     return (
@@ -319,7 +319,7 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
       window.location.assign(`/${language}/sign-in?ended=1`);
       return;
     }
-    setProblem(body === undefined ? t("join.network") : problemOf(body, language));
+    setProblem(body === undefined ? t("join.network") : problemOf(body, language, t));
   });
   return (
     <section className={styles.panel} aria-labelledby="tickets-title">

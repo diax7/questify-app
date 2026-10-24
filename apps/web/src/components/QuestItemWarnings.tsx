@@ -2,7 +2,7 @@
 
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { named } from "#src/lib/prizes.ts";
 import { questItemsOf, ranOut, type QuestItem } from "#src/lib/quest-items.ts";
@@ -15,7 +15,7 @@ type Props = Readonly<{ language: Language; organizerId: string; eventId: string
  * with how many players got points only, linking to the Prizes page. Nothing while all is well or the read fails.
  */
 export function QuestItemWarnings({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [out, setOut] = useState<readonly QuestItem[]>([]);
   useEffect(() => {
     void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}/quest-items`).then(

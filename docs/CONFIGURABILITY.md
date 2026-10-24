@@ -138,8 +138,9 @@ for an event.
   `{questCap}`, the same for `category` and `player`; ADR-252), so a screen never passes them. Arabic takes a renamed noun only
   as a label or heading, an indefinite object or a construct, and is otherwise rephrased with no noun (ADR-253). The player app
   and staff mode use them (staff mode loads the event's configuration with the player app's cached copy, ADR-254); Questify
-  home keeps the defaults. The dashboard builder's own texts follow in T-311c (Q-215); the big screen (T-5xx) uses the words
-  when it exists.
+  home keeps the defaults. Every page of an event in the dashboard says them too (T-311c, ADR-264: the event layout reads them
+  once; the kiosk page, the public code page and the Event words form keep the defaults, Q-227); the big screen (T-5xx) uses
+  the words when it exists.
 
 ## What can be configured
 

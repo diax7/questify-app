@@ -9,7 +9,7 @@ import {
   type QuestOption,
 } from "#src/components/PlayerAwards.tsx";
 import { pointsOf, reasonOk, whoOf, kindKey, type ReportLine } from "#src/lib/awards.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
@@ -90,7 +90,7 @@ function CapsCard({
   isOwner: boolean;
   saved: (caps: Caps) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [each, setEach] = useState(String(caps.each));
   const [day, setDay] = useState(String(caps.day));
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -110,7 +110,7 @@ function CapsCard({
     setMessage(
       result.ok
         ? { ok: true, text: t("awards.capsSaved") }
-        : { ok: false, text: problemOf(result.body, language) },
+        : { ok: false, text: problemOf(result.body, language, t) },
     );
     if (result.ok) {
       saved(result.body as Caps);
@@ -187,7 +187,7 @@ function BulkFields({
   draft: BulkDraft;
   change: (next: BulkDraft) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const upload = async (file: File | undefined) => {
     if (file !== undefined) {
       change({ ...draft, lines: await file.text() });
@@ -272,7 +272,7 @@ function BulkFields({
 }
 
 function PreviewNote({ language, preview }: Readonly<{ language: Language; preview: Preview }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <div role="status">
       <p>{t("awards.matched", { count: formatNumber(preview.count, language) })}</p>
@@ -302,7 +302,7 @@ function BulkCard({
   quests: readonly QuestOption[];
   done: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [draft, setDraft] = useState<BulkDraft>({
     target: "list",
     lines: "",
@@ -331,7 +331,7 @@ function BulkCard({
     const body = draft.target === "list" ? { lines: draft.lines } : { questId };
     const result = await requestJson("POST", `${eventApi}/bulk-awards/preview`, body);
     if (!result.ok) {
-      setMessage({ ok: false, text: problemOf(result.body, language) });
+      setMessage({ ok: false, text: problemOf(result.body, language, t) });
       return;
     }
     setPreview(result.body as Preview);
@@ -354,7 +354,7 @@ function BulkCard({
     setBusy(false);
     setAsking(false);
     if (!result.ok) {
-      setMessage({ ok: false, text: problemOf(result.body, language) });
+      setMessage({ ok: false, text: problemOf(result.body, language, t) });
       return;
     }
     const outcome = result.body as { awarded: number; skipped: number };
@@ -432,7 +432,7 @@ function ReportRow({
   timeZone,
   line,
 }: Readonly<{ language: Language; timeZone: string; line: ReportLine }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const who = whoOf(line.by);
   const sign = line.kind === "removal" ? "−" : "+";
   return (
@@ -473,7 +473,7 @@ type Props = Readonly<{
  * award and removal with player, quest or points, reason, who and when (FR-311).
  */
 export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [problem, setProblem] = useState<string | null>(null);
   const awards = useAwards(eventApi, language, (body) => {
@@ -482,7 +482,7 @@ export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
       window.location.assign(`/${language}/sign-in?ended=1`);
       return;
     }
-    setProblem(body === undefined ? t("awards.loadFailed") : problemOf(body, language));
+    setProblem(body === undefined ? t("awards.loadFailed") : problemOf(body, language, t));
   });
 
   return (

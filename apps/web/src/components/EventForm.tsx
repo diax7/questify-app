@@ -1,6 +1,7 @@
 "use client";
 
 import { readEventTerms, termFor, type Language } from "@questify/shared";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   EventAccessFields,
@@ -18,7 +19,8 @@ import {
   type EventDraft,
   type EventView,
 } from "#src/lib/events.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
@@ -39,8 +41,7 @@ type Props = Readonly<{
 }>;
 
 /** The words for a refusal: the field to fix for `invalid_event`, the API's own message otherwise. */
-function problemText(body: unknown, language: Language): string {
-  const t = translatorFor(language);
+function problemText(body: unknown, language: Language, t: Translate): string {
   const details = (body as { details?: { field?: unknown } } | undefined)?.details;
   const field = details?.field;
   if (errorCodeOf(body) === "invalid_event" && typeof field === "string" && FIELDS.has(field)) {
@@ -69,7 +70,8 @@ function useIdempotencyKey(): (body: unknown) => string {
  * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
  */
 export function EventForm({ language, organizerId, eventId, myRole }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
+  const router = useRouter();
   const api = `/v1/organizers/${organizerId}/events`;
   const pages = `/${language}/organizers/${organizerId}/events`;
   const [event, setEvent] = useState<EventView | null>(null);
@@ -89,7 +91,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
       return false;
     }
     if (!result.ok) {
-      setProblem(problemText(result.body, language));
+      setProblem(problemText(result.body, language, t));
     }
     return result.ok;
   };
@@ -390,9 +392,11 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           organizerId={organizerId}
           eventId={event.id}
           initial={terms}
-          saved={(saved) =>
-            setEvent((current) => (current === null ? null : { ...current, terms: saved }))
-          }
+          saved={(saved) => {
+            setEvent((current) => (current === null ? null : { ...current, terms: saved }));
+            // The event's layout reads the words once; this reads them again for every page of the event.
+            router.refresh();
+          }}
         />
       )}
       {event === null ? null : (
@@ -431,7 +435,7 @@ function EventDangerZone({
   ask: (what: "delete" | "end" | null) => void;
   confirm: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   if (confirming !== null) {
     return (
       <div role="alertdialog" aria-labelledby="confirm-title" className={styles.card}>

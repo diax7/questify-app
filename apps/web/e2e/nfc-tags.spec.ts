@@ -11,14 +11,14 @@ test("ticks an NFC tag beside the QR and shows the quest's Tags panel", async ({
   await openBuilder(page, info.project.name);
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("بوابة البرج");
-  const qr = page.getByLabel("يمسح اللاعب رمز المهمة");
+  const qr = page.getByLabel("يمسح اللاعب رمز مهمة");
   await qr.uncheck();
   await page.getByLabel("يمسح المشغّل رمز اللاعب").check();
-  await page.getByLabel("يلمس اللاعب بطاقة NFC للمهمة").check();
+  await page.getByLabel("يلمس اللاعب بطاقة NFC لمهمة").check();
   await expect(qr).toBeChecked();
   await expect(qr).toBeDisabled();
   await expect(page.getByText("يبقى رمز QR مفعّلًا احتياطًا.")).toBeVisible();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
 
   const quest = page.getByRole("listitem").filter({ hasText: "بوابة البرج" });
   await quest.getByRole("button", { name: "تعديل" }).click();

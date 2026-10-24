@@ -82,7 +82,7 @@ function ItemActions({
       return;
     }
     // Kept on a failure: trying again cannot act twice.
-    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language, t));
   };
   const reasonField = (label: "submissions.rejectReason" | "submissions.removeReason") => (
     <label className={styles.field}>
@@ -189,7 +189,7 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
       window.location.assign(`/${language}/sign-in?ended=1`);
       return;
     }
-    setProblem(body === undefined ? t("join.network") : problemOf(body, language));
+    setProblem(body === undefined ? t("join.network") : problemOf(body, language, t));
   });
   const markRead = async () => {
     const ids = (queue.items ?? []).map((item) => item.id);
@@ -200,7 +200,9 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
     if (result.ok) {
       queue.reload();
     } else {
-      setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+      setProblem(
+        result.body === undefined ? t("join.network") : problemOf(result.body, language, t),
+      );
     }
   };
 

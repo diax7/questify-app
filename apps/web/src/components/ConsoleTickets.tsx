@@ -159,7 +159,7 @@ export function ConsoleTickets({ language }: Readonly<{ language: Language }>) {
       </div>
       {queue.failed === null ? null : (
         <p role="alert" className={styles.alert}>
-          {queue.failed === "network" ? t("join.network") : problemOf(queue.failed, language)}
+          {queue.failed === "network" ? t("join.network") : problemOf(queue.failed, language, t)}
         </p>
       )}
       {queue.rows === null && queue.failed === null ? (

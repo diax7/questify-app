@@ -4,7 +4,8 @@ import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards } from "#src/components/PlayerAwards.tsx";
-import { translatorFor, type Translate } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
+import { type Translate } from "#src/lib/language.ts";
 import {
   flagDetailOf,
   flagSummary,
@@ -53,7 +54,7 @@ function MethodNote({ method, t }: Readonly<{ method: string | null; t: Translat
 
 /** What the case shows as its evidence (FR-335): the accounts on the phone, or each scan of the burst. */
 function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const at = (iso: string | null) => when(iso, shared.timeZone, shared.language);
   return (
     <>
@@ -122,7 +123,7 @@ function Removals({
   removals,
   shared,
 }: Readonly<{ removals: readonly Removal[]; shared: Shared }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   if (removals.length === 0) {
     return null;
   }
@@ -171,7 +172,7 @@ function CaseDialog({
   shared: Shared;
   close: () => void;
 }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const [busy, setBusy] = useState(false);
   const name = flag.player.username;
   const run = async (method: "POST" | "PUT", path: string, payload: object, notice: string) => {
@@ -245,7 +246,7 @@ function CaseActions({
   shared,
   ask,
 }: Readonly<{ flag: FlagDetail; shared: Shared; ask: (what: Asking) => void }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const [removing, setRemoving] = useState(false);
   return (
     <>
@@ -297,7 +298,7 @@ function CaseActions({
 
 /** One case opened: its evidence and, while open, its actions; closed, how and by whom. */
 function CaseDetail({ id, shared }: Readonly<{ id: string; shared: Shared }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const [flag, setFlag] = useState<FlagDetail | null>(null);
   const [asking, setAsking] = useState<Asking>(null);
   const loaded = useRef(false);
@@ -349,7 +350,7 @@ function FlagRow({
   shared,
   start,
 }: Readonly<{ line: FlagLine; shared: Shared; start: boolean }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const [open, setOpen] = useState(start);
   const summary = flagSummary(line);
   return (
@@ -384,7 +385,7 @@ function FlagRow({
 
 /** The desk's flag hold for the event (FR-1815): the owner switches it; editors read it. */
 function HoldSwitch({ hold, shared }: Readonly<{ hold: boolean; shared: Shared }>) {
-  const t = translatorFor(shared.language);
+  const t = useTranslator(shared.language);
   const [busy, setBusy] = useState(false);
   const flip = async () => {
     setBusy(true);
@@ -455,7 +456,7 @@ function useFlags(eventApi: string, status: "open" | "closed", failed: (body: un
  * desk's hold. The system never acts on its own (ADR-041). A case can be opened from the Players page (`?case=`).
  */
 export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [problem, setProblem] = useState<string | null>(null);

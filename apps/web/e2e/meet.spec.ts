@@ -21,7 +21,7 @@ test("builds a meet quest with its daily cap, refusing a cap above the repeat ca
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
-  await page.getByRole("combobox", { name: /^نوع المهمة/ }).selectOption("meet");
+  await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("meet");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تعرّف على لاعب");
   await expect(page.getByText(/يتجدد كل دقيقة، فلا تنفع لقطات الشاشة/)).toBeVisible();
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
@@ -30,11 +30,11 @@ test("builds a meet quest with its daily cap, refusing a cap above the repeat ca
   await expect(page.getByLabel("أقصى عدد مرات لكل لاعب")).toHaveValue("10");
 
   await dailyCap.fill("12");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.locator("p[role=alert]")).toContainText("ولا يزيد على حد التكرار");
 
   await dailyCap.fill("3");
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   const quest = page.getByRole("listitem").filter({ hasText: "تعرّف على لاعب" });
   await expect(quest).toBeVisible();
   await quest.getByRole("button", { name: "تعديل" }).click();
@@ -50,9 +50,9 @@ test("the owner switches meet-someone quests off and on for the event", async ({
   const card = page.getByRole("region", { name: "مهام التعارف" });
   const box = card.getByLabel("إظهار مهام التعارف للاعبين");
   await expect(box).toBeChecked();
-  await expect(card.getByRole("status")).toContainText("مهام التعارف ظاهرة");
+  await expect(card.getByRole("status")).toContainText("مفعّل: يحصل اللاعبان على النقاط");
   await box.uncheck();
-  await expect(card.getByRole("status")).toContainText("مخفية عن اللاعبين");
+  await expect(card.getByRole("status")).toContainText("يُخفى هذا النوع عن اللاعبين");
   await page.reload();
   await expect(
     page.getByRole("region", { name: "مهام التعارف" }).getByLabel(/مهام التعارف/),
@@ -63,6 +63,6 @@ test("the owner switches meet-someone quests off and on for the event", async ({
     .check();
   await expect(
     page.getByRole("region", { name: "مهام التعارف" }).getByRole("status"),
-  ).toContainText("ظاهرة");
+  ).toContainText("مفعّل");
   await expectNoSidewaysScroll(page);
 });

@@ -8,7 +8,7 @@ import {
   type QuestType,
 } from "@questify/shared";
 import type { ReactNode } from "react";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import {
   OptionList,
   TextPair,
@@ -33,12 +33,12 @@ import {
 import styles from "#src/components/layout.module.css";
 
 function ScanQrFields({ language }: TypeFieldProps) {
-  return <p className={styles.muted}>{translatorFor(language)("quests.scanQrNote")}</p>;
+  return <p className={styles.muted}>{useTranslator(language)("quests.scanQrNote")}</p>;
 }
 
 /** A location quest: what a check-in trusts, and that the QR always works (the place itself is `QuestPlaceFields`). */
 function LocationFields({ language }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <p className={styles.muted}>{t("quests.location.note")}</p>
@@ -52,7 +52,7 @@ function LocationFields({ language }: TypeFieldProps) {
  * and how the one-minute code works.
  */
 function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const value = config["dailyCap"];
   return (
     <>
@@ -71,7 +71,7 @@ function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
 
 /** The code players type, and where the team shows it. Members see the code; players never do. */
 function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const hint = (config["hint"] ?? {}) as Readonly<{ ar?: string; en?: string }>;
   const setHint = (key: "ar" | "en", value: string) => {
     const next = { ...hint, [key]: value === "" ? undefined : value };
@@ -117,7 +117,7 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
  * whether a rejected player may send again (FR-1709).
  */
 function SubmissionFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const toggle = (name: "autoApprove" | "resubmit", label: MessageKey) => (
     <label className={styles.check}>
       <input
@@ -160,7 +160,7 @@ function LivePollFields({
   sent: boolean;
   change: (live: LiveBlock) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const radio = (name: "choices" | "results", value: string, label: MessageKey, fixed: boolean) => (
     <label key={value} className={styles.check}>
       <input
@@ -208,7 +208,7 @@ function LivePollFields({
  * sent and closed from the quest list (T-306).
  */
 function VoteFields({ language, config, disabled, change, sent = false }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const live = config["live"] as LiveBlock | undefined;
   const plain = Object.fromEntries(Object.entries(config).filter(([name]) => name !== "live"));
   return (
@@ -267,7 +267,7 @@ function QuestionFields({
   change: (question: Question) => void;
   remove: (() => void) | null;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const setChoices = (choices: readonly Item[]) =>
     change({
       ...question,
@@ -319,7 +319,7 @@ function QuestionFields({
 
 /** A quiz (T-302): 1 to 20 questions, 2 to 6 choices each, one right; an optional timer for every question. */
 function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const questions = Array.isArray(config["questions"])
     ? (config["questions"] as Question[])
     : [newQuestion()];

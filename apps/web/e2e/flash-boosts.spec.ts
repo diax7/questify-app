@@ -22,16 +22,16 @@ test("launches and ends a flash quest, and builds, edits and deletes a boost", a
   const event = builder.replace(/\/quests$/, "");
   await page.goto(event);
   await expect(page.getByRole("region", { name: "التجربة" })).toBeVisible();
-  await expect(page.getByLabel("تشغيل المهام الخاطفة في الفعالية")).toBeChecked();
+  await expect(page.getByLabel("تشغيل مهام بوقت محدود في الفعالية")).toBeChecked();
   await expect(page.getByLabel("تشغيل النقاط المضاعفة في الفعالية")).toBeChecked();
   await page.goto(builder);
 
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("الصقر الذهبي");
-  await page.getByLabel("مهمة خاطفة").check();
-  await expect(page.getByText(/^لا تظهر للاعبين إلا بين وقتي البدء والانتهاء/)).toBeVisible();
+  await page.getByLabel("مهمة بوقت محدود").check();
+  await expect(page.getByText(/^الظهور للاعبين فقط بين وقتي البدء والانتهاء/)).toBeVisible();
   await expect(page.getByLabel("ظاهرة في التطبيق")).not.toBeChecked();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
 
   const flash = page.getByRole("listitem").filter({ hasText: "الصقر الذهبي" });
   await expect(flash.getByText("خاطفة، لم تنطلق")).toBeVisible();

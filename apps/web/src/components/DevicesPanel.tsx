@@ -14,7 +14,7 @@ import {
   type DeviceQuest,
   type DeviceStatus,
 } from "#src/lib/devices.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -76,7 +76,7 @@ function DeviceCard({
   busy: boolean;
   revoke: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   const status = statusOf(line);
   return (
@@ -127,7 +127,7 @@ function ConfirmFields({
   back: () => void;
   confirm: (questId: string | null, label: string) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [questId, setQuestId] = useState("");
   const [label, setLabel] = useState("");
   const needsQuest = preview.kind !== "screen";
@@ -206,7 +206,7 @@ function PairForm({
   quests: QuestChoices;
   paired: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [code, setCode] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -295,7 +295,7 @@ function PairForm({
 
 /** The device list, read now and every 15 seconds; a lost session goes back to sign-in. */
 function useDevices(eventApi: string, language: Language) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [devices, setDevices] = useState<readonly DeviceLine[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -337,7 +337,7 @@ function RevokeAllButtons({
   busy: boolean;
   ask: (target: Confirming) => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   if (active.length === 0) {
     return null;
   }
@@ -370,7 +370,7 @@ function RevokeAllButtons({
  * each device's state, Revoke, Revoke all big screens (ADR-241: the big screen's "regenerate the link") and Revoke all.
  */
 export function DevicesPanel({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { timeZone, quests } = useEventChoices(eventApi);
   const { devices, problem, setProblem, load } = useDevices(eventApi, language);

@@ -11,7 +11,7 @@ import {
   type TargetChoice,
   type UnlockKind,
 } from "#src/lib/community.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/layout.module.css";
 
 /** A quest or category the goal may count. */
@@ -70,7 +70,7 @@ function UnlockFields({
   change: (next: RewardDraft) => void;
   targets: Targets;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <select
@@ -127,7 +127,7 @@ function RewardFields({
   change: (next: RewardDraft) => void;
   targets: Targets;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   return (
     <>
       <select
@@ -205,7 +205,7 @@ function ScopeFields({
   quests: readonly Choice[];
   categories: readonly Choice[];
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const choices = draft.scope === "quest" ? quests : categories;
   return (
     <>
@@ -285,7 +285,7 @@ function MilestoneFields({
   change: Change;
   targets: Targets;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const set = (index: number, next: GoalDraft["milestones"][number]) =>
     change({
       ...draft,
@@ -357,7 +357,7 @@ function BarPreview({
   draft,
   targets,
 }: Readonly<{ language: Language; draft: GoalDraft; targets: Targets }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const unlocks = [draft.reward, ...draft.milestones]
     .filter((reward) => reward.kind === "unlock" && reward.targetId !== "")
     .map(
@@ -403,7 +403,7 @@ export function CommunityGoalForm({
   save: () => void;
   cancel: () => void;
 }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const locked = draft.started;
   const time = (field: "startsAt" | "endsAt") => (
     <label className={styles.field}>

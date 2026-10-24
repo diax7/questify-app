@@ -3,7 +3,7 @@
 import { formatNumber, type Language } from "@questify/shared";
 import { useRef } from "react";
 import { JOIN_OPTION_MAX, JOIN_OPTION_MIN, type OptionDraft } from "#src/lib/joining.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/layout.module.css";
 
 type Props = Readonly<{
@@ -21,7 +21,7 @@ type Props = Readonly<{
  * answers `join_field_in_use`); a new one can always be added.
  */
 export function JoinOptionsEditor({ language, fieldName, options, busy, change }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const counter = useRef(0);
   const fresh = (): OptionDraft => {
     counter.current += 1;

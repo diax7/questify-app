@@ -33,12 +33,12 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
   await openBuilder(page, info.project.name);
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("شاشة القاعة");
-  const printed = page.getByLabel("يمسح اللاعب رمز المهمة");
+  const printed = page.getByLabel("يمسح اللاعب رمز مهمة");
   await expect(printed).toBeChecked();
   await page.getByLabel("رمز QR على شاشة (يتغير كل 30 ثانية)").check();
   await expect(printed).not.toBeChecked();
   await expect(page.getByText("يمكن تصوير الرمز المطبوع ومشاركته")).toBeVisible();
-  await page.getByRole("button", { name: "إضافة المهمة" }).click();
+  await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "شاشة القاعة" })).toBeVisible();
 
   const eventUrl = page.url().replace(/\/quests$/, "");
@@ -69,7 +69,7 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
     .selectOption({ label: "شاشة القاعة" });
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة القاعة ب");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
-  await expect(page.getByText("تم الربط. تظهر المهمة على الشاشة خلال ثوانٍ.")).toBeVisible();
+  await expect(page.getByText("تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
   await expectNoSidewaysScroll(page);
 
   await expect(station.getByRole("heading", { name: "شاشة القاعة" })).toBeVisible({

@@ -3,7 +3,7 @@
 import type { Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { QrImage } from "#src/components/CodesPanel.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { nameOf } from "#src/lib/players.ts";
 import {
   ABILITIES,
@@ -48,7 +48,7 @@ type Shared = Readonly<{
  * the open personal codes. Editors see the list without the codes (the API gives them no claim address).
  */
 export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const loaded = useRef(false);
   const [operators, setOperators] = useState<OperatorView[] | null>(null);
@@ -161,7 +161,7 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
 }
 
 function NewInviteForm({ language, busy, run, sent }: Shared & Readonly<{ sent: () => void }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [kind, setKind] = useState<InviteKind>("personal");
   const [label, setLabel] = useState("");
   const [count, setCount] = useState(10);
@@ -271,7 +271,7 @@ function OperatorRow({
   stations,
   canEdit,
 }: Shared & Readonly<{ operator: OperatorView; stations: readonly Station[]; canEdit: boolean }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const [abilities, setAbilities] = useState<readonly string[]>(operator.abilities);
   const [canPlay, setCanPlay] = useState(operator.canPlay);
   const [questIds, setQuestIds] = useState<readonly string[]>(operator.questIds);
@@ -385,7 +385,7 @@ function InvitesList({
   invites,
   canEdit,
 }: Shared & Readonly<{ invites: readonly InviteView[]; canEdit: boolean }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const statusOf = (invite: InviteView) =>
     invite.status === "claimed"
       ? t("operators.status.claimed", {
@@ -430,7 +430,7 @@ function PrintSheet({
   language,
   invites,
 }: Readonly<{ language: Language; invites: ReadonlyArray<InviteView & { url: string }> }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   if (invites.length === 0) {
     return null;
   }

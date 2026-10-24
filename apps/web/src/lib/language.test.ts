@@ -1,3 +1,4 @@
+import { readEventTerms } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   directionOf,
@@ -65,4 +66,44 @@ describe("language helpers", () => {
     expect(translatorFor("en")).toBe(translatorFor("en"));
     expect(translatorFor("ar")).not.toBe(translatorFor("en"));
   });
+
+  it("hands back the same translator for the same event words, however often they are read", () => {
+    expect(translatorFor("en", words("mission"))).toBe(translatorFor("en", words("mission")));
+    expect(translatorFor("en", words("mission"))).not.toBe(translatorFor("en", words("task")));
+    expect(translatorFor("en", words("mission"))).not.toBe(translatorFor("en"));
+    expect(translatorFor("en", readEventTerms({}))).toBe(translatorFor("en"));
+  });
+
+  it("keeps Questify's own translators and the latest events' after many other events", () => {
+    const first = translatorFor("en", readEventTerms({ quest: wordOf(nameOf(0)) }));
+    for (let index = 1; index <= 40; index += 1) {
+      translatorFor("en", readEventTerms({ quest: wordOf(nameOf(index)) }));
+    }
+    expect(translatorFor("en")).toBe(translatorFor("en"));
+    const latest = readEventTerms({ quest: wordOf(nameOf(40)) });
+    expect(translatorFor("en", latest)).toBe(translatorFor("en", latest));
+    expect(translatorFor("en", readEventTerms({ quest: wordOf(nameOf(0)) }))).not.toBe(first);
+  });
+
+  it("fills the event's quest and category words into the texts that name them", () => {
+    const terms = readEventTerms({
+      quest: { ar: { one: "مغامرة", many: "مغامرات" }, en: { one: "mission", many: "missions" } },
+    });
+    expect(translatorFor("en", terms)("quests.addQuest")).toBe("Add mission");
+    expect(translatorFor("en")("quests.addQuest")).toBe("Add quest");
+  });
+});
+
+const words = (one: string) =>
+  readEventTerms({
+    quest: { ar: { one: "مغامرة", many: "مغامرات" }, en: { one, many: `${one}s` } },
+  });
+
+// Words cannot hold digits, so the nth name is written in letters.
+const nameOf = (index: number): string =>
+  String.fromCodePoint(97 + Math.floor(index / 26), 97 + (index % 26));
+
+const wordOf = (name: string) => ({
+  ar: { one: "كلمة", many: "كلمات" },
+  en: { one: name, many: `${name}s` },
 });

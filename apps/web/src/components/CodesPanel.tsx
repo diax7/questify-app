@@ -3,7 +3,7 @@
 import type { Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
-import { translatorFor } from "#src/lib/language.ts";
+import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { qrDrawing, qrSvgFile } from "#src/lib/qr.ts";
 import { textFor } from "#src/lib/quests.ts";
@@ -101,7 +101,7 @@ function RegenerateDialog({
   cancel,
   confirm,
 }: Readonly<{ language: Language; busy: boolean; cancel: () => void; confirm: () => void }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
     <div role="alertdialog" aria-labelledby="regenerate-title" className={styles.card}>
@@ -130,7 +130,7 @@ export function CodesPanel({
   organizerId,
   eventId,
 }: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
-  const t = translatorFor(language);
+  const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [codes, setCodes] = useState<readonly Code[] | null>(null);
   const [large, setLarge] = useState(false);
