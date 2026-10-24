@@ -2867,6 +2867,8 @@ crosses the payer with a meet payment.
 **Why:** one transaction for thousands of players would hold their rows for seconds and block their scans; batches
 in id order keep the ADR-211 lock order and bound any wait to one batch.
 
+**Build notes (T-306b, CTO code review):** one settle reads at most 10 minutes of ledger past its last settle point,
+so a backlog after an outage catches up tick by tick inside the statement limit; the owner's settle loops until final.
 **Build notes (T-306b plan, 2026-10-24):** the settle point is bounded by the open transactions of the roles that can
 write the ledger only (ADR-224); contributors come from every row read, tail included, and a reached `contributors`
 step is topped up until the settled point passes the reach (ADR-225); a removal counts only when it reverses a

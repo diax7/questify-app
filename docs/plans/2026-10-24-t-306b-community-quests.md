@@ -389,5 +389,11 @@ CTO plan review 91/100 GO; its eight notes are folded in above. Where the build 
 - **One live read.** The app reads `/live` once for the event's tabs (`LiveProvider`); the poll card and the Home bar
   share it. The one-time community cards (a reached moment, a step that paid the player) join the poll card's queue
   and its remembered list.
+- **CTO code review (92 GO), folded:** a started goal whose event switch is off is finished by the next settle (a
+  tick that read the old config could start it while the switch's trigger skipped it as scheduled); the tick also
+  lists goals whose window ended before they started (an event ended early), so they finish `missed` and results never
+  wait on them; one settle reads at most 10 minutes past its last settle point (both the settle point and the read are
+  capped), so a backlog catches up over several ticks, and `settle_community` settles repeatedly until final. Tests for
+  each; the crossed-lock rounds are 10 with a 120 s limit.
 - **Browser test.** `e2e/community.spec.ts` covers the switch, the form with a milestone and its preview, edit and
   delete; Settle and pay now is covered by the route tests (it needs an ended event with rewards due).

@@ -14,7 +14,8 @@ type Row = Record<string, unknown>;
 type Member = Readonly<{ player: string; enrollment: string }>;
 
 const as = (player: string): RequestContext => ({ playerId: player });
-const ROUNDS = 20;
+/** Enough rounds to cross the locks often, few enough to finish under load (CTO code review nit 4). */
+const ROUNDS = 10;
 
 const noDeadlock = (results: readonly PromiseSettledResult<unknown>[]) => {
   for (const result of results) {
@@ -153,7 +154,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community payer crossed locks 
       expect([await communityEntries(a), await communityEntries(b)]).toEqual([1, 1]);
       expect(await pay(event)).toEqual([]);
     }
-  });
+  }, 120_000);
 
   it("crosses a batch with the owner's results confirmation: one waits for the other", async () => {
     for (let round = 0; round < ROUNDS; round += 1) {
@@ -191,7 +192,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community payer crossed locks 
       expect([await communityEntries(a), await communityEntries(b)]).toEqual([1, 1]);
       expect((await confirm(await places()))[0]?.o).toMatch(/^(confirmed|replayed)$/);
     }
-  });
+  }, 120_000);
 
   it("lets a player's completion wait for a batch and land after it", async () => {
     const event = await newEvent();

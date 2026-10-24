@@ -282,7 +282,11 @@ the client-address count (ADR-113).
 - Community timing, by hand (not in CI): `COMMUNITY_TIMING=out.txt pnpm vitest run
   apps/api/test/perf/community-payer-timing.int.test.ts`. 2026-10-24 on the dev machine: a first settle over 20,000
   completions with 10,000 new contributors and 10,000 payees frozen 2.25 s (under the pool's 5 s statement limit),
-  a steady 5 s tick 73 ms, 10,001 players paid in 21 batches in 5.5 s (the slowest batch 296 ms).
+  a steady 5 s tick 73 ms, 10,001 players paid in 21 batches in 5.5 s (the slowest batch 296 ms). One settle reads at
+  most 10 minutes of ledger, so a backlog after an outage catches up over several ticks; the owner's Settle and pay now
+  settles repeatedly until final. **On CranL, before the first real event with a community quest:** time a batch of 500
+  (the same file against a CranL copy, or the `community.paid` log lines' spacing); if a batch takes over 250 ms, lower
+  `BATCH_SIZE` in `apps/api/src/community/payer.ts` to 250 (CTO code review nit 5).
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.

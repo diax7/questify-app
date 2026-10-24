@@ -218,8 +218,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
     );
     return goal;
   };
-  const settle = async (goal: string, mayStart = true) =>
+  /** One tick's settle of the goal: at most 10 minutes past its last settle point. */
+  const settleOnce = async (goal: string, mayStart = true) =>
     (await query<{ s: string }>(SYSTEM, "SELECT settle_goal($1, $2) AS s", [goal, mayStart]))[0]?.s;
+  /** Ticks until the goal is final or its settle point stops moving, as a tick would after a pause. */
+  const settle = async (goal: string, mayStart = true) => {
+    let status = await settleOnce(goal, mayStart);
+    for (let tick = 0; tick < 50; tick += 1) {
+      const before = await state(goal);
+      if (before === undefined || before.final_at !== null) {
+        break;
+      }
+      const next = await settleOnce(goal, mayStart);
+      const after = await state(goal);
+      if (after.settled_until?.getTime() === before.settled_until?.getTime()) {
+        break;
+      }
+      status = next;
+    }
+    return status;
+  };
   const pay = async (event: string) =>
     query<{ step_id: string; paid: number; skipped: number }>(
       SYSTEM,
@@ -407,6 +425,72 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       await earn(c, zeroQuest, 0);
       await settle(points);
       expect(await contributors(points)).toEqual([]);
+    });
+  });
+
+  describe("the CTO code review's cases", () => {
+    it("finishes a goal a stale tick started while the switch went off (CTO code review 1)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const goal = await goalIn(event, { target: 1000 });
+      const who = await member(event);
+      await earn(who, quest, 10);
+      expect(await settleOnce(goal)).toBe("running");
+      // The trigger saw the goal still scheduled and skipped it: the switch is off with the goal running.
+      await owner("ALTER TABLE event DISABLE TRIGGER event_community_off");
+      try {
+        await owner(
+          `UPDATE event SET config = config || '{"features": {"community": false}}' WHERE id = $1`,
+          [event],
+        );
+      } finally {
+        await owner("ALTER TABLE event ENABLE TRIGGER event_community_off");
+      }
+      expect(await settleOnce(goal)).toBe("missed");
+      expect((await state(goal)).final_at).not.toBeNull();
+    });
+
+    it("finishes a scheduled goal whose event ended before its start (CTO code review 2)", async () => {
+      const event = await newEvent();
+      const goal = await save(
+        event,
+        body({
+          startsAt: new Date(Date.now() + 3_600_000).toISOString(),
+          endsAt: new Date(Date.now() + 5_400_000).toISOString(),
+        }),
+      );
+      await owner(
+        "UPDATE event SET status = 'ended', ends_at = now() - interval '1 second' WHERE id = $1",
+        [event],
+      );
+      const listed = (
+        await query<{ g: string }>(SYSTEM, "SELECT g FROM community_tick_goals() g")
+      ).map((row) => row.g);
+      expect(listed).toContain(goal);
+      expect(await settleOnce(goal)).toBe("missed");
+      expect((await state(goal)).final_at).not.toBeNull();
+    });
+
+    it("reads at most 10 minutes a settle and catches a backlog up over several (CTO code review 3)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const goal = await goalIn(event, { target: 100000 }, "35 minutes", "1 hour");
+      const who = await member(event);
+      for (const ago of ["34 minutes", "24 minutes", "14 minutes", "4 minutes"]) {
+        await earn(who, quest, 10, ago);
+      }
+      await settleOnce(goal);
+      const first = await state(goal);
+      expect(first.settled_value).toBe("10");
+      const [start] = await owner<{ starts_at: Date }>(
+        "SELECT starts_at FROM community_goal WHERE id = $1",
+        [goal],
+      );
+      expect((first.settled_until?.getTime() ?? 0) - (start?.starts_at.getTime() ?? 0)).toBe(
+        600_000,
+      );
+      await settle(goal);
+      expect(await state(goal)).toMatchObject({ settled_value: "40", progress: "40" });
     });
   });
 

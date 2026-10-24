@@ -318,8 +318,11 @@ REVOKE ALL ON FUNCTION community_freeze_payees(community_goal, uuid[], timestamp
 -- tail above it shown only; upper is now, the window's end, or the goal step's reach once reached (CTO 4), so later
 -- rows never move the bar. Steps newly at or under progress are reached (audited, payees frozen); reaching the goal
 -- step finishes the goal (`reached`); p reaching the window's end finishes it `missed`. final_at is set once p passed
--- the goal step's reach or the window's end, whichever is first: every row that could top a payee list up was read. VOLATILE: each statement reads a fresh snapshot, taken
--- after the settle point's session read. Internal.
+-- the goal step's reach or the window's end, whichever is first: every row that could top a payee list up was read.
+-- One settle reads at most 10 minutes past the last settle point, so a backlog after an outage is caught up over several
+-- ticks within the statement limit (CTO code review 3). A started goal whose event switch is off is finished as the
+-- switch's trigger finishes it: a tick that read the old config may have started it while the trigger ran (CTO code
+-- review 1). VOLATILE: each statement reads a fresh snapshot, taken after the settle point's session read. Internal.
 CREATE FUNCTION settle_goal_at(goal community_goal, ev event, lag interval, may_start boolean) RETURNS text
   LANGUAGE plpgsql VOLATILE SET search_path = public, pg_temp AS $$
 DECLARE
@@ -344,13 +347,19 @@ BEGIN
     ELSE
       RETURN 'scheduled';
     END IF;
+  ELSIF NOT community_on(ev) THEN
+    goal.status := CASE WHEN EXISTS (SELECT 1 FROM community_step s JOIN community_reach r ON r.step_id = s.id
+                                     WHERE s.goal_id = goal.id AND s.is_goal) THEN 'reached' ELSE 'missed' END;
+    UPDATE community_goal g SET status = goal.status, final_at = now(), progress_at = now() WHERE g.id = goal.id;
+    RETURN goal.status;
   END IF;
 
   old_until := goal.settled_until;
-  p := greatest(least(now() - lag, community_settle_point(), close_at), old_until);
+  p := greatest(least(now() - lag, community_settle_point(), close_at, old_until + interval '10 minutes'), old_until);
   SELECT r.reached_at INTO goal_reach
   FROM community_step s JOIN community_reach r ON r.step_id = s.id WHERE s.goal_id = goal.id AND s.is_goal;
-  upper := greatest(least(now(), close_at, coalesce(goal_reach, 'infinity'::timestamptz)), old_until);
+  upper := greatest(least(now(), close_at, coalesce(goal_reach, 'infinity'::timestamptz),
+                          old_until + interval '10 minutes'), old_until);
 
   WITH slice AS MATERIALIZED (
     SELECT * FROM community_read_slice(goal, close_at, old_until, upper, least(p, upper))
@@ -404,12 +413,15 @@ END $$;
 REVOKE ALL ON FUNCTION settle_goal_at(community_goal, event, interval, boolean) FROM PUBLIC;
 
 -- ================================================================ the community tick's doors (system context only)
--- The goals with work to do: not final, start passed. Oldest first, at most 200 a tick.
+-- The goals with work to do: not final, and the start passed or the window ended (a goal whose event ended before its
+-- start is finished missed, so results never wait on it; CTO code review 2). Oldest first, at most 200 a tick.
 CREATE FUNCTION community_tick_goals() RETURNS SETOF uuid
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   PERFORM community_system_only();
-  RETURN QUERY SELECT g.id FROM community_goal g WHERE g.final_at IS NULL AND g.starts_at <= now()
+  RETURN QUERY SELECT g.id FROM community_goal g JOIN event e ON e.id = g.event_id
+               WHERE g.final_at IS NULL
+                 AND (g.starts_at <= now() OR community_close_at(g.ends_at, e.ends_at) <= now())
                ORDER BY g.starts_at, g.id LIMIT 200;
 END $$;
 REVOKE ALL ON FUNCTION community_tick_goals() FROM PUBLIC;
@@ -755,14 +767,15 @@ GRANT EXECUTE ON FUNCTION community_goals(uuid) TO questify_app;
 
 -- ================================================================ Settle and pay now (the owner, CTO 5)
 -- Settles every goal of the event that is not final and whose window ended, with no lag: each FOR UPDATE (waits under
--- a 2 s lock timeout, then 503 busy), settled up to the oldest open transaction. A goal still not final then had a
--- transaction from its window open: CS409 community_settling (the dashboard retries after 5 s). The owner only (CO403).
+-- a 2 s lock timeout, then 503 busy), settled again and again (10 minutes a settle) up to the oldest open
+-- transaction. A goal still not final then had a transaction from its window open: CS409 community_settling (the dashboard retries after 5 s). The owner only (CO403).
 -- READ COMMITTED only. Audited `community.settle`. The API then pays in the system context.
 CREATE FUNCTION settle_community(target_event uuid, may_start boolean, request uuid) RETURNS integer
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   ev      event := award_event_of(target_event);
   goal    community_goal%ROWTYPE;
+  before  timestamptz;
   settled integer := 0;
 BEGIN
   IF NOT app_is_owner(ev.organizer_id) THEN
@@ -775,8 +788,14 @@ BEGIN
   FOR goal IN SELECT g.* FROM community_goal g
               WHERE g.event_id = ev.id AND g.final_at IS NULL AND community_close_at(g.ends_at, ev.ends_at) <= now()
               ORDER BY g.id FOR UPDATE LOOP
-    PERFORM settle_goal_at(goal, ev, interval '0', may_start);
-    IF EXISTS (SELECT 1 FROM community_goal g WHERE g.id = goal.id AND g.final_at IS NULL) THEN
+    -- Each settle reads at most 10 minutes: settle again while the settle point moves, until the goal is final.
+    LOOP
+      before := goal.settled_until;
+      PERFORM settle_goal_at(goal, ev, interval '0', may_start);
+      SELECT g.* INTO goal FROM community_goal g WHERE g.id = goal.id;
+      EXIT WHEN goal.final_at IS NOT NULL OR goal.settled_until IS NOT DISTINCT FROM before;
+    END LOOP;
+    IF goal.final_at IS NULL THEN
       RAISE EXCEPTION 'a transaction from the goal''s window is still open' USING ERRCODE = 'CS409',
         DETAIL = 'community_settling';
     END IF;

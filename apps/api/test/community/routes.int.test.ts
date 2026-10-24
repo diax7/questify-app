@@ -142,7 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
     );
   };
   /** A goal saved through the dashboard, then moved to start `ago` before now and end `endsIn` from now. */
-  const running = async (event: string, over: Row = {}, ago = "30 minutes", endsIn = "1 hour") => {
+  const running = async (event: string, over: Row = {}, ago = "8 minutes", endsIn = "1 hour") => {
     const made = await dashboard("POST", `/events/${event}/community-goals`, goal(over));
     expect(made.statusCode).toBe(201);
     const id = (made.json().goal as { id: string }).id;
