@@ -2866,3 +2866,44 @@ The five community tables are closed (RLS, no grant, PUBLIC revoked) with outsid
 crosses the payer with a meet payment.
 **Why:** one transaction for thousands of players would hold their rows for seconds and block their scans; batches
 in id order keep the ADR-211 lock order and bound any wait to one batch.
+
+**Build notes (T-306b plan, 2026-10-24):** the settle point is bounded by the open transactions of the roles that can
+write the ledger only (ADR-224); contributors come from every row read, tail included, and a reached `contributors`
+step is topped up until the settled point passes the reach (ADR-225); a removal counts only when it reverses a
+counted entry; reaching the goal step finishes the goal; a goal closes once the settled point passes its end (at
+least 30 s after; the separate 15 s is dropped).
+
+## ADR-224 — The settle point reads the ledger writers' sessions
+**Status:** Proposed (Claude, 2026-10-24; T-306b plan). Q-188.
+**Decision:** `community_settle_point()` reads `pg_stat_activity` for client backends of the current database owned by
+`questify_app` or the owner (its own backend left out) and returns the oldest `xact_start`. Migration 0053 makes the
+owner a member of `questify_app` (when it is not already), so the definer may read those sessions without
+`pg_read_all_stats`. If any of those backends still reads `state IS NULL`, settling stops with `CV500 settle_blind`
+and an error log line; NULL is never read as "no transaction". Other roles' sessions are ignored.
+**Why:** only those two roles can write ledger rows, so only their transactions can still add rows to a slice; a host's
+monitoring session the owner cannot see would otherwise stop settling for good.
+
+## ADR-225 — Community counting details
+**Status:** Proposed (Claude, 2026-10-24; T-306b plan). Q-189.
+**Decision:** contributors are written from every committed row the tick reads (settled slice and tail) and never
+removed; a reached `contributors` step is topped up with contributors whose first counted row is older than the reach,
+until the settled point passes it. A removal counts only when the entry it reverses was counted (inside the window,
+not rehearsal). In a points goal a contributor earned more than 0 points. Reaching the goal step finishes the goal at
+once. A category goal reads each quest's current category. `/live` shows the running goal, or the latest one finished
+in the last 30 minutes.
+**Why:** reaching is judged on settled plus tail, so a payee list made from settled rows alone would miss players whose
+only row was in the tail; the other rules keep the bar from moving for activity outside the window.
+**Build notes (T-306b plan, 2026-10-24):** the payer takes the event `FOR KEY SHARE` after the rehearsal row and before
+the enrollments, as `remove_award`, so `confirm_results` and a batch serialise. `event_has_open_poll` is replaced by
+`event_has_live`.
+
+## ADR-226 — Community switches and the owner's settle
+**Status:** Proposed (Claude, 2026-10-24; T-306b plan). Q-190.
+**Decision:** the event's `community` switch turned off finishes every running goal at once (`reached` if its goal
+step was reached, else `missed`; reached steps still pay) and keeps scheduled goals from starting; the tick still
+finishes a scheduled goal whose window ended. The platform switch off hides the bar and refuses the builder, but goals
+already running keep counting and paying. "Settle and pay now" settles past the 30 s lag but never past an open
+transaction from the window (`409 community_settling`, Retry-After 5), and pays for up to 20 s a call (`paying` asks
+the dashboard to call again).
+**Why:** an owner's off switch must end the goal players see; a platform switch is a display kill switch and should
+not cancel rewards already promised; the owner's settle must be quick but never read a slice that can still change.
