@@ -622,7 +622,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("ticket center (database)", () 
         one: "HT404",
       });
       expect(await refusal(opAnswer(op, event, asked.ticket_id))).toBe("HT404");
-      expect(await refusal(staffAnswer(event, asked.ticket_id))).toBe("HT404");
+      // A stale dashboard Reply is told the ticket moved; an operator is told nothing (CTO code review 2).
+      expect(await refusal(staffAnswer(event, asked.ticket_id))).toBe("HT409:moved");
       expect(idsOf(await teamTab(event, "open"))).toEqual([]);
       const [shown] = await teamTab(event, "with_questify");
       expect(shown).toMatchObject({
@@ -1229,7 +1230,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("ticket center (database)", () 
         () => staffAnswer(event, asked.ticket_id),
       );
       expect(first.status).toBe("fulfilled");
-      expect(codeOf(second)).toBe("HT404:");
+      expect(codeOf(second)).toBe("HT409:moved");
       const other = await open(sender.player, event);
       const [answered, escalation] = await crossed(
         [

@@ -76,6 +76,12 @@ export async function readModelName(
   try {
     return (await load()).modelName;
   } catch {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      // oxlint-disable-next-line no-console -- a developer-only hint with no personal data (CTO code review 4)
+      console.warn(
+        "expo-device is not in this build: an app problem is sent without the phone model.",
+      );
+    }
     return undefined;
   }
 }

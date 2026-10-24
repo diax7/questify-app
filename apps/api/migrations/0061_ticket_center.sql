@@ -339,7 +339,9 @@ CREATE OR REPLACE FUNCTION own_unread_tickets(target_event uuid) RETURNS integer
 $$;
 
 -- ================================================================ answering
--- As 0059, and an operator never learns a report exists: a report is HT404 to them, as a missing ticket.
+-- As 0059, and an operator never learns a report exists: a report is HT404 to them, as a missing ticket. A ticket
+-- that moved to Questify's queue is HT404 to an operator (it left their inbox) and HT409 moved to the team (a stale
+-- page: they can still read it under With Questify), as the console answers a ticket sent back (CTO code review 2).
 CREATE OR REPLACE FUNCTION answer_core(ev event, target bigint, reply text, request_key text, operator uuid,
                                        staff uuid, request uuid)
   RETURNS TABLE (ticket_id bigint, outcome text, replayed boolean)
@@ -365,9 +367,13 @@ BEGIN
     RAISE EXCEPTION 'this key was used for another answer' USING ERRCODE = 'QK422';
   END IF;
 
-  SELECT t.* INTO item FROM ticket t WHERE t.id = target AND t.event_id = ev.id AND t.queue = 'event' FOR UPDATE;
-  IF NOT FOUND OR (operator IS NOT NULL AND item.kind = 'report_player') THEN
+  SELECT t.* INTO item FROM ticket t WHERE t.id = target AND t.event_id = ev.id FOR UPDATE;
+  IF NOT FOUND
+     OR (operator IS NOT NULL AND (item.kind = 'report_player' OR item.queue <> 'event')) THEN
     RAISE EXCEPTION 'no such ticket in this event' USING ERRCODE = 'HT404';
+  END IF;
+  IF item.queue <> 'event' THEN
+    RAISE EXCEPTION 'the ticket is with Questify' USING ERRCODE = 'HT409', DETAIL = 'moved';
   END IF;
   IF operator IS NOT NULL THEN
     IF item.player_id = operator THEN

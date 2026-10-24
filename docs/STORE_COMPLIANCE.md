@@ -116,12 +116,13 @@ word lists and a hit marks the item for its reviewer (FR-1628). With the guideli
 submission (FR-1706), this meets §1.2 for submissions. A public gallery (later) needs the full set.
 
 Note 2026-10-24 (T-310): help-desk tickets are private between a player and the event team, never shown to other
-Note 2026-10-25 (T-312): Report a player is an in-app report of another user, sent privately to the event team's owners and editors (never operators, never the reported player); tickets stay private, so no public UGC is added. Blocks remain T-705's (FR-1415).
 players, so §1.2's public-UGC controls (report, block) have nothing to act on there; the word lists mark ticket text
 (FR-1628) and a ban stops sending. Apple 1.5's support contact is the existing web contact page (`/{lang}/contact`),
 which Get help links ("A problem with the app itself? Contact Questify"), and App Store Connect's Support URL; the help
 desk reaches the event team, not Questify. App Review notes: the demo event's help desk is on; the reviewer can send a
 question and see "Waiting for an answer".
+
+Note 2026-10-25 (T-312): Report a player is an in-app report of another user, sent privately to the event team's owners and editors (never operators, never the reported player); tickets stay private, so no public UGC is added. Blocks remain T-705's (FR-1415).
 
 ### 1.3 Guideline 2.1 — App completeness, demo account and demo event
 

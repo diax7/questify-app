@@ -175,6 +175,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
     expect(theirs.json()).toEqual({ tickets: [] });
   });
 
+  it("never lets reports sent at once pass the lookup cap together (CTO code review 1)", async () => {
+    const event = await newEvent();
+    const sara = await newPlayer(event);
+    const answers = await Promise.all(
+      Array.from({ length: 14 }, (_, miss) =>
+        app("POST", `/v1/events/${event}/tickets`, sara.token, {
+          kind: "report_player",
+          reportedUsername: `ghost_${miss}`,
+          text: "Who is this",
+        }),
+      ),
+    );
+    const codes = answers.map((answer) => answer.json<{ code: string }>().code);
+    expect(codes.filter((code) => code === "unknown_player")).toHaveLength(10);
+    expect(codes.filter((code) => code === "too_many_lookups")).toHaveLength(4);
+  });
+
   it("sends app problems and suggestions with no event, and the profile shows the unread dot", async () => {
     const nobody = await newPlayer(null);
     const send = (payload: object) => app("POST", "/v1/me/tickets", nobody.token, payload);
@@ -247,10 +264,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
         await dashboard("POST", `/events/${event}/tickets/${id}/escalate`, { note: "Again" }),
       ),
     ).toEqual([409, "moved"]);
-    expect(answerOf(await dashboard("POST", `/events/${event}/tickets/${id}/answer`, {}))).toEqual([
-      404,
-      "not_found",
-    ]);
+    const stale = await dashboard("POST", `/events/${event}/tickets/${id}/answer`, {});
+    expect(answerOf(stale)).toEqual([409, "moved"]);
+    expect(stale.json()).toMatchObject({
+      message: { ar: "انتقل هذا الطلب. حدّث الصفحة.", en: "This request moved. Refresh the page." },
+    });
     const tab = await dashboard("GET", `/events/${event}/tickets?status=with_questify`);
     expect(tab.json()).toMatchObject({
       tickets: [

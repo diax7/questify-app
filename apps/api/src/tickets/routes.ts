@@ -43,7 +43,7 @@ import {
 } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
-import { BUCKETS, countRecent, record } from "#src/auth/throttle";
+import { BUCKETS, countRecent, forget, record } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
@@ -167,21 +167,36 @@ export const keyOf = (request: FastifyRequest): string => {
   return key;
 };
 
-/** The seconds until a player may name another username in this event's reports, or undefined when free now. */
-async function lookupWait(deps: Deps, key: Buffer): Promise<number | undefined> {
+/**
+ * Reserves one lookup of a report's username, counted and recorded in one step under a lock on the key (CTO code
+ * review 1), so reports sent at once never pass the cap together. Answers the seconds to wait when the cap is
+ * reached, or the reservation to give back when the name was found.
+ */
+async function reserveLookup(
+  deps: Deps,
+  key: Buffer,
+): Promise<Readonly<{ wait: number }> | Readonly<{ at: string }>> {
   const limit = TICKET_LIMITS.lookupMisses;
-  const window = await withConnection(deps.pool, (client) =>
-    withRequestContext(client, {}, () =>
-      countRecent(client, limit.bucket, key, limit.windowSeconds),
-    ),
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, async () => {
+      await client.query("SELECT pg_advisory_xact_lock($1::bigint)", [
+        key.readBigInt64BE(0).toString(),
+      ]);
+      const window = await countRecent(client, limit.bucket, key, limit.windowSeconds);
+      if (window.count >= limit.max) {
+        return { wait: window.retryAfterSeconds };
+      }
+      return { at: await record(client, limit.bucket, key) };
+    }),
   );
-  return window.count >= limit.max ? window.retryAfterSeconds : undefined;
 }
 
-/** Counts one username a report named that is not in the event. */
-async function recordLookupMiss(deps: Deps, key: Buffer): Promise<void> {
+/** Gives a reservation back: the report's username was found (or the report was refused for another reason). */
+async function releaseLookup(deps: Deps, key: Buffer, at: string): Promise<void> {
   await withConnection(deps.pool, (client) =>
-    withRequestContext(client, {}, () => record(client, TICKET_LIMITS.lookupMisses.bucket, key)),
+    withRequestContext(client, {}, () =>
+      forget(client, TICKET_LIMITS.lookupMisses.bucket, key, at),
+    ),
   );
 }
 
@@ -299,13 +314,11 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
       refuse(request, reply, { kind: "feature_off" });
     }
     const lookupKey = deps.keys.playerQuestKey(playerId, eventId);
-    if (body.kind === "report_player") {
-      const wait = await lookupWait(deps, lookupKey);
-      if (wait !== undefined) {
-        request.log.info({ event: "ticket.refused", reason: "too_many_lookups" });
-        reply.header("retry-after", String(wait));
-        throw tooManyLookups({ retryAfterSeconds: wait });
-      }
+    const reserved = body.kind === "report_player" ? await reserveLookup(deps, lookupKey) : null;
+    if (reserved !== null && "wait" in reserved) {
+      request.log.info({ event: "ticket.refused", reason: "too_many_lookups" });
+      reply.header("retry-after", String(reserved.wait));
+      throw tooManyLookups({ retryAfterSeconds: reserved.wait });
     }
     const result = await openTicket(deps, {
       playerId,
@@ -316,8 +329,9 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
       text: body.text,
       idempotencyKey: keyOf(request),
     });
-    if (result.kind === "unknown_player") {
-      await recordLookupMiss(deps, lookupKey);
+    // Only a name not in the event keeps its place in the count.
+    if (reserved !== null && result.kind !== "unknown_player") {
+      await releaseLookup(deps, lookupKey, reserved.at);
     }
     const opened = valueOf(request, reply, result);
     request.log.info({
