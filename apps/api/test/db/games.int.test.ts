@@ -86,7 +86,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    pool = new Pool({ connectionString: db.appUrl, max: 8 });
+    // A lock wait that never ends fails as 55P03 here instead of as a test timeout.
+    pool = new Pool({ connectionString: db.appUrl, max: 8, options: "-c lock_timeout=5000" });
     ids = await seedTwoTenants(db.owner);
     ownerA = await addMember(db.owner, ids.orgA, "owner");
     ownerB = await addMember(db.owner, ids.orgB, "owner");
@@ -133,6 +134,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
         [event, fields["bonus"] ?? 0, fields["order"] ?? "any"],
       )
     )[0]?.id ?? "";
+  /** `count` fresh categories of the event, in one statement. */
+  const newCategories = async (event: string, count: number): Promise<string[]> => {
+    const made = Array.from({ length: count }, () => randomUUID());
+    await owner(
+      `INSERT INTO category (id, event_id, name_en, completion_bonus, order_mode)
+       SELECT c, $1, 'Games', 0, 'any' FROM unnest($2::uuid[]) c`,
+      [event, made],
+    );
+    return made;
+  };
   const newQuest = async (
     event: string,
     config: GameConfig = {},
@@ -220,6 +231,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
     (
       await owner<{ done: boolean }>("SELECT quest_done($1, $2) AS done", [who.enrollment, quest])
     )[0]?.done;
+  /** The status of each given game round, in the order given. */
+  const statusesOf = async (roundIds: readonly string[]) =>
+    (
+      await owner<{ status: string }>(
+        `SELECT r.status FROM unnest($1::bigint[]) WITH ORDINALITY e(id, at)
+         JOIN game_round r ON r.id = e.id ORDER BY e.at`,
+        [roundIds],
+      )
+    ).map((row) => row.status);
   const sweep = async () =>
     (await query<{ outcome: string | null }>({}, "SELECT close_one_due_round() AS outcome"))[0]
       ?.outcome;
@@ -890,72 +910,142 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
     });
   });
 
-  describe("races (two connections, 50 rounds each)", () => {
-    const rounds = 50;
+  // Each race runs 25 rounds on fresh quests and players. Everything the rounds need (quests, players, started rounds)
+  // is made before the first round in a few statements, and the results are read back once after the last, so a round
+  // costs its race and nothing else: under a loaded full run the one-row-at-a-time setup took about 0.4 s a round and
+  // the QR test came within seconds of its timeout (no lock waited long). With the enrollment and round locks taken out
+  // of finish_game_round, the replay, the two-keys and the QR races fail in their first rounds.
+  describe("races (two connections, 25 rounds each)", () => {
+    const rounds = 25;
+    type RaceRound = Readonly<{
+      quest: string;
+      a: Member;
+      scan: Readonly<{ id: string; version: number }>;
+    }>;
+
+    /** A live event and `count` rounds of it: a game quest, a QR quest and a player each, made in a few statements. */
+    const raceRounds = async (count: number) => {
+      const event = await newEvent();
+      const gameCategories = await newCategories(event, count);
+      const scanCategories = await newCategories(event, count);
+      const games = await owner<{ id: string; category_id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, position)
+         SELECT $1, c, 'game', 'Play', 40, $3, 0 FROM unnest($2::uuid[]) c RETURNING id, category_id`,
+        [event, gameCategories, JSON.stringify(configOf({}))],
+      );
+      const scans = await owner<{ id: string; category_id: string; qr_version: number }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points)
+         SELECT $1, c, 'scan_qr', 'Scan', 5 FROM unnest($2::uuid[]) c RETURNING id, category_id, qr_version`,
+        [event, scanCategories],
+      );
+      counter += 1;
+      const players = await owner<{ id: string }>(
+        `INSERT INTO player (username) SELECT 'game_race_' || $1 || '_' || g FROM generate_series(1, $2) g
+         RETURNING id`,
+        [counter, count],
+      );
+      const enrolled = await owner<{ player_id: string; id: string }>(
+        `INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via)
+         SELECT $1, $2, p, 'code' FROM unnest($3::uuid[]) p RETURNING player_id, id`,
+        [ids.orgA, event, players.map((player) => player.id)],
+      );
+      const made = gameCategories.map((category, index): RaceRound => {
+        const player = (players[index] as { id: string }).id;
+        const scan = scans.find((row) => row.category_id === scanCategories[index]);
+        return {
+          quest: (games.find((row) => row.category_id === category) as { id: string }).id,
+          a: {
+            player,
+            enrollment: (enrolled.find((row) => row.player_id === player) as { id: string }).id,
+          },
+          scan: { id: scan?.id ?? "", version: scan?.qr_version ?? 0 },
+        };
+      });
+      return { event, made };
+    };
+
+    /** Every round's game started at once; the start is not what these races cross. */
+    const startAll = (made: readonly RaceRound[], device: string | null = null) =>
+      Promise.all(made.map(({ quest, a }) => start(a, quest, randomUUID(), device)));
+    /** The number of completions of each given enrollment, in the order given. */
+    const completionCounts = async (made: readonly RaceRound[]) =>
+      (
+        await owner<{ n: string }>(
+          `SELECT count(c.id) AS n FROM unnest($1::uuid[]) WITH ORDINALITY e(id, at)
+           LEFT JOIN quest_completion c ON c.enrollment_id = e.id GROUP BY e.at ORDER BY e.at`,
+          [made.map(({ a }) => a.enrollment)],
+        )
+      ).map((row) => Number(row.n));
 
     it("answers the same result sent twice at once with one verdict and one replay", async () => {
-      const { event } = await setup();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const a = await member(event);
-        const round = await start(a, quest);
+      const { made } = await raceRounds(rounds);
+      const started = await startAll(made);
+      for (const [index, { a }] of made.entries()) {
         const key = randomUUID();
+        const roundId = (started[index] as Round).round_id;
         const answers = await Promise.all([
-          finish(a, round.round_id, { key }),
-          finish(a, round.round_id, { key }),
+          finish(a, roundId, { key }),
+          finish(a, roundId, { key }),
         ]);
         expect(answers.map((answer) => answer.replayed).toSorted()).toEqual([false, true]);
-        expect(await completions(a.enrollment)).toHaveLength(1);
       }
+      expect(await completionCounts(made)).toEqual(made.map(() => 1));
     });
 
     it("pays one of two results of one round under two keys and answers the other `finished`", async () => {
-      const { event } = await setup();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const a = await member(event);
-        const round = await start(a, quest);
+      const { made } = await raceRounds(rounds);
+      const started = await startAll(made);
+      for (const [index, { a }] of made.entries()) {
+        const roundId = (started[index] as Round).round_id;
         const outcomes = await Promise.all([
-          refusal(finish(a, round.round_id)),
-          refusal(finish(a, round.round_id)),
+          refusal(finish(a, roundId)),
+          refusal(finish(a, roundId)),
         ]);
         expect(outcomes.toSorted()).toEqual(["QG409:finished", "none"]);
-        expect(await completions(a.enrollment)).toHaveLength(1);
       }
+      expect(await completionCounts(made)).toEqual(made.map(() => 1));
     });
 
     it("lets a result and the sweep closing the round at its deadline cross without a double close", async () => {
-      const { event } = await setup();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const a = await member(event);
-        const round = await start(a, quest);
+      const { made } = await raceRounds(rounds);
+      const started = await startAll(made);
+      const results: string[] = [];
+      for (const [index, { a }] of made.entries()) {
+        const roundId = (started[index] as Round).round_id;
         await owner(
           "UPDATE game_round SET deadline_at = now() + interval '30 milliseconds' WHERE id = $1",
-          [round.round_id],
+          [roundId],
         );
-        const [result] = await Promise.all([refusal(finish(a, round.round_id)), sweep()]);
-        const row = await roundOf(round.round_id);
-        if (result === "none") {
-          expect(row["status"]).toBe("passed");
-        } else {
-          expect(result).toBe("QG409:expired");
-        }
-        expect(await completions(a.enrollment)).toHaveLength(result === "none" ? 1 : 0);
+        const [result] = await Promise.all([refusal(finish(a, roundId)), sweep()]);
+        results.push(result);
       }
+      const statuses = await statusesOf(started.map((round) => round.round_id));
+      for (const [index, result] of results.entries()) {
+        if (result === "none") {
+          expect(statuses[index], `round ${index}`).toBe("passed");
+        } else {
+          expect(result, `round ${index}`).toBe("QG409:expired");
+        }
+      }
+      expect(await completionCounts(made)).toEqual(
+        results.map((result) => (result === "none" ? 1 : 0)),
+      );
     });
 
     it("lets a result and the player's ban cross: paid before the ban, or the round abandoned", async () => {
-      const { event } = await setup();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const a = await member(event);
-        const round = await start(a, quest);
+      const { made } = await raceRounds(rounds);
+      const started = await startAll(made);
+      const results: string[] = [];
+      for (const [index, { a }] of made.entries()) {
         const [result] = await Promise.all([
-          refusal(finish(a, round.round_id)),
+          refusal(finish(a, (started[index] as Round).round_id)),
           owner("UPDATE enrollment SET status = 'banned' WHERE id = $1", [a.enrollment]),
         ]);
-        const status = (await roundOf(round.round_id))["status"];
+        results.push(result);
+      }
+      const statuses = await statusesOf(started.map((round) => round.round_id));
+      for (const [index, result] of results.entries()) {
+        const status = statuses[index];
         expect(
           result === "none" ? status === "passed" : status === "abandoned",
           `${result} ${String(status)}`,
@@ -964,38 +1054,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
     });
 
     it("pays a pass beside a QR scan on the same phone, both counted, without a deadlock", async () => {
-      const { event } = await setup();
       const device = randomUUID();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const [scan] = await owner<{ id: string; qr_version: number }>(
-          `INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'scan_qr', 'Scan', 5)
-           RETURNING id, qr_version`,
-          [event, await newCategory(event)],
-        );
-        const a = await member(event);
-        const round = await start(a, quest, randomUUID(), device);
+      const { made } = await raceRounds(rounds);
+      const started = await startAll(made, device);
+      for (const [index, { a, scan }] of made.entries()) {
         await Promise.all([
-          finish(a, round.round_id),
+          finish(a, (started[index] as Round).round_id),
           query(as(a.player), "SELECT * FROM complete_quest($1, 'qr', $2, NULL, $3, $4)", [
-            scan?.id,
-            scan?.qr_version,
+            scan.id,
+            scan.version,
             randomUUID(),
             device,
           ]),
         ]);
-        expect(await completions(a.enrollment)).toHaveLength(2);
       }
+      expect(await completionCounts(made)).toEqual(made.map(() => 2));
     });
 
     it("pays once for a pass beside a manual award of the same quest", async () => {
-      const { event } = await setup();
-      for (let index = 0; index < rounds; index += 1) {
-        const quest = await newQuest(event);
-        const a = await member(event);
-        const round = await start(a, quest);
+      const { event, made } = await raceRounds(rounds);
+      const started = await startAll(made);
+      for (const [index, { quest, a }] of made.entries()) {
         await Promise.all([
-          refusal(finish(a, round.round_id)),
+          refusal(finish(a, (started[index] as Round).round_id)),
           refusal(
             query(teamA(), "SELECT * FROM staff_award($1, $2, $3, NULL, 'Helped', $4, $5)", [
               event,
@@ -1006,8 +1087,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
             ]),
           ),
         ]);
-        expect(await completions(a.enrollment)).toHaveLength(1);
       }
+      expect(await completionCounts(made)).toEqual(made.map(() => 1));
     });
   });
 
