@@ -136,6 +136,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("boosts over HTTP", () => {
       minutes: 30,
     });
     expect(moved.statusCode).toBe(200);
+    const edited = moved.json().boost as Boost;
+    expect(edited).toMatchObject({ id: boost.id, categoryId: category, editable: true });
+    expect(Date.parse(edited.endsAt) - Date.parse(edited.startsAt)).toBe(30 * 60_000);
+    expect(
+      codeOf(await dashboard("POST", `/events/${event}/boosts/${boost.id}/end`, { extra: 1 })),
+    ).toEqual([400, "invalid_request"]);
     expect(
       codeOf(
         await dashboard("POST", `/events/${event}/boosts`, {
@@ -194,6 +200,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("boosts over HTTP", () => {
       code: "invalid_boost",
       details: { issues: ["categoryId", "minutes"] },
     });
+    const unknownField = await dashboard("POST", `/events/${event}/boosts`, {
+      categoryId: category,
+      minutes: 5,
+      colour: "gold",
+    });
+    expect(unknownField.json()).toMatchObject({
+      code: "invalid_boost",
+      details: { issues: ["boost"] },
+    });
     const outside = await dashboard("POST", `/events/${event}/boosts`, {
       categoryId: category,
       startsAt: minutesFromNow(60 * 24),
@@ -211,6 +226,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("boosts over HTTP", () => {
         }),
       ),
     ).toEqual([404, "not_found"]);
+  });
+
+  it("refuses the 101st boost of an event, and any boost once the event has ended", async () => {
+    const event = await newEvent();
+    const category = await categoryOf(event);
+    await owner(
+      `INSERT INTO boost (organizer_id, event_id, category_id, starts_at, ends_at)
+       SELECT $1, $2, $3, now() - make_interval(mins => 2 * n + 10), now() - make_interval(mins => 2 * n + 9)
+       FROM generate_series(1, 100) n`,
+      [organizer, event, category],
+    );
+    const full = await dashboard("POST", `/events/${event}/boosts`, {
+      categoryId: category,
+      minutes: 5,
+    });
+    expect(full.json()).toMatchObject({ code: "limit_reached", details: { limit: 100 } });
+    expect(full.statusCode).toBe(409);
+
+    const ended = await newEvent();
+    await owner("UPDATE event SET ends_at = now() - interval '1 minute' WHERE id = $1", [ended]);
+    expect(
+      codeOf(
+        await dashboard("POST", `/events/${ended}/boosts`, {
+          categoryId: await categoryOf(ended),
+          minutes: 5,
+        }),
+      ),
+    ).toEqual([409, "event_ended"]);
   });
 
   it("refuses a new boost while the platform switch is off; running ones still pay", async () => {

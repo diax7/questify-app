@@ -146,9 +146,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
   };
   const tap = (who: Person, code: string, extra: Row = {}, key?: string) =>
     call("POST", "/v1/taps", who, { code, uid: UID, platform: "android", ...extra }, key);
-  const withNfcOff = async (work: () => Promise<void>) => {
+  const withFeatures = async (features: Row, work: () => Promise<void>) => {
     await owner("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
-      JSON.stringify({ nfcTags: { enabled: false } }),
+      JSON.stringify(features),
     ]);
     settings.forget();
     try {
@@ -158,6 +158,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
       settings.forget();
     }
   };
+  const withNfcOff = (work: () => Promise<void>) =>
+    withFeatures({ nfcTags: { enabled: false } }, work);
+  const entriesOf = (from: number, event: string) =>
+    logs
+      .slice(from)
+      .map((line) => JSON.parse(line) as Row)
+      .filter((entry) => entry["event"] === event);
+  const usernameOf = async (who: Person) =>
+    (await owner<{ username: string }>("SELECT username FROM player WHERE id = $1", [who.id]))[0]
+      ?.username;
+  const isoNow = expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
 
   it("prepares, confirms, lists the operator's page, and a tap pays as a scan", async () => {
     const event = await newEvent();
@@ -214,6 +225,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
       ].toSorted(),
     );
     expect(logs.slice(logged).join("\n")).not.toContain(tokenOf(body.url));
+    expect(entriesOf(logged, "nfc.tapped")).toMatchObject([{ questId: quest, replayed: "false" }]);
+    const [tapRow] = await owner<{ uid_ok: boolean | null }>(
+      "SELECT uid_ok FROM nfc_tap WHERE completion_id = $1",
+      [paid.json<{ completionId: string }>().completionId],
+    );
+    expect(tapRow?.uid_ok).toBe(true);
   });
 
   it("refuses a confirm without its own ticket, a forged code, and a second confirm of one tag (CTO B, CTO C)", async () => {
@@ -288,18 +305,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
     expect(codeOf(await tap(who, "x".repeat(50)))).toEqual([422, "invalid_proof"]);
     const forged = `${code.slice(0, 30)}${code[30] === "A" ? "B" : "A"}${code.slice(31)}`;
     expect(codeOf(await tap(who, forged))).toEqual([422, "invalid_proof"]);
-    const refusals = logs
-      .slice(logged)
-      .map((line) => JSON.parse(line) as Row)
-      .filter((entry) => entry["event"] === "nfc.tap_refused")
-      .map((entry) => entry["reason"]);
-    expect(refusals).toEqual(["not_questify", "forged"]);
     expect(logs.slice(logged).join("\n")).not.toContain(forged);
     const unknown = tagCode(createTagCodeKey("q".repeat(40)), randomUUID(), 1);
     expect(codeOf(await tap(who, unknown))).toEqual([404, "unknown_tag"]);
     // Every tag is written at version 1; a signed token of another version was never issued.
     const otherVersion = tagCode(createTagCodeKey("q".repeat(40)), randomUUID(), 2);
     expect(codeOf(await tap(who, otherVersion))).toEqual([422, "invalid_proof"]);
+    expect(entriesOf(logged, "nfc.tap_refused").map((entry) => entry["reason"])).toEqual([
+      "not_questify",
+      "forged",
+      "unknown_tag",
+      "forged",
+    ]);
+    expect(entriesOf(logged, "nfc.tapped")).toEqual([]);
 
     const key = randomUUID();
     const first = await tap(who, code, {}, key);
@@ -342,7 +360,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
     const tags = listed.json<{ tags: Row[] }>().tags;
     expect(tags).toHaveLength(2);
     const tapped = tags.find((row) => row["taps"] === 1);
-    expect(tapped).toMatchObject({ copies: 1, unchecked: 0, status: "active", locked: true });
+    expect(tapped).toMatchObject({
+      label: "Gate",
+      copies: 1,
+      unchecked: 0,
+      status: "active",
+      locked: true,
+      writtenAt: isoNow,
+      revokedAt: null,
+      writtenBy: await usernameOf(op),
+      lastTapAt: isoNow,
+    });
+    expect(tags.find((row) => row["taps"] === 0)).toMatchObject({ lastTapAt: null });
     const tagId = String(tapped?.["id"]);
 
     expect(
@@ -361,11 +390,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
       204,
     );
     expect(codeOf(await tap(who, code))).toEqual([404, "unknown_tag"]);
+    const moved = await dashboard("GET", `/events/${event}/quests/${target}/nfc-tags`);
+    expect(moved.json()).toMatchObject({
+      tags: [{ id: tagId, status: "revoked", revokedAt: isoNow }],
+    });
     expect(codeOf(await dashboard("POST", `/events/${event}/nfc-tags/${tagId}/revoke`))).toEqual([
       404,
       "unknown_tag",
     ]);
-    const all = await dashboard("POST", `/events/${event}/quests/${quest}/nfc-tags/revoke-all`);
+    const revoke = `/events/${event}/nfc-tags/${randomUUID()}/revoke`;
+    expect(codeOf(await dashboard("POST", revoke, { extra: 1 }))).toEqual([400, "invalid_request"]);
+    const revokeAll = `/events/${event}/quests/${quest}/nfc-tags/revoke-all`;
+    expect(codeOf(await dashboard("POST", revokeAll, { extra: 1 }))).toEqual([
+      400,
+      "invalid_request",
+    ]);
+    const all = await dashboard("POST", revokeAll);
     expect(all.json()).toEqual({ revoked: 1 });
     expect(
       codeOf(await dashboard("GET", `/events/${randomUUID()}/quests/${quest}/nfc-tags`)),
@@ -381,7 +421,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
     }
     const held = await prepare(op, event, quest);
     expect(codeOf(held)).toEqual([429, "too_many_attempts"]);
-    expect(Number(held.headers["retry-after"])).toBeGreaterThan(0);
+    const wait = Number(held.headers["retry-after"]);
+    expect(wait).toBeGreaterThan(0);
+    expect(held.json<{ details: Row }>().details).toEqual({ retryAfterSeconds: wait });
   });
 
   it("answers feature_off for taps and writes while the platform's switch is off; the panel stays", async () => {
@@ -390,9 +432,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
     const op = await newPerson(event, "operator");
     const code = await writeTag(op, event, quest);
     const who = await newPerson(event, "player");
+    const prepared = (await prepare(op, event, quest)).json<Prepared>();
+    const written = {
+      code: tokenOf(prepared.url),
+      ticket: prepared.ticket,
+      uid: "04abababab",
+      locked: false,
+    };
     await withNfcOff(async () => {
       expect(codeOf(await tap(who, code))).toEqual([403, "feature_off"]);
       expect(codeOf(await prepare(op, event, quest))).toEqual([403, "feature_off"]);
+      expect(codeOf(await confirm(op, event, quest, written))).toEqual([403, "feature_off"]);
       expect(codeOf(await call("GET", `/v1/operator/events/${event}/nfc-tags`, op))).toEqual([
         403,
         "feature_off",
@@ -401,5 +451,117 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
         200,
       );
     });
+  });
+
+  it("answers outside_quests, limit_reached, event_closed, a code of another version and a prepare's body", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const other = await newQuest(event);
+    const op = await newPerson(event, "operator");
+    expect(
+      codeOf(
+        await call("POST", `/v1/operator/events/${event}/quests/${quest}/nfc-tags/prepare`, op, {
+          extra: 1,
+        }),
+      ),
+    ).toEqual([400, "invalid_request"]);
+
+    const prepared = (await prepare(op, event, quest)).json<Prepared>();
+    const written = { ticket: prepared.ticket, uid: UID, locked: true };
+    const v2 = tagCode(createTagCodeKey("q".repeat(40)), prepared.tagId, 2);
+    const refused = await confirm(op, event, quest, { ...written, code: v2 });
+    expect([...codeOf(refused), refused.json<{ details: Row }>().details["field"]]).toEqual([
+      422,
+      "invalid_tag",
+      "code",
+    ]);
+    await owner(
+      `INSERT INTO nfc_tag (id, organizer_id, event_id, quest_id, uid, locked)
+       SELECT gen_random_uuid(), $1, $2, $3, decode(lpad(to_hex(n), 8, '0'), 'hex'), true
+       FROM generate_series(1, 50) n`,
+      [organizer, event, quest],
+    );
+    expect(
+      codeOf(await confirm(op, event, quest, { ...written, code: tokenOf(prepared.url) })),
+    ).toEqual([409, "limit_reached"]);
+
+    await owner(
+      `INSERT INTO staff_assignment_quest (assignment_id, event_id, quest_id)
+       SELECT id, event_id, $2 FROM staff_assignment WHERE player_id = $1`,
+      [op.id, other],
+    );
+    expect(codeOf(await prepare(op, event, quest))).toEqual([403, "outside_quests"]);
+    await owner("UPDATE event SET ends_at = now() - interval '1 minute' WHERE id = $1", [event]);
+    expect(codeOf(await prepare(op, event, other))).toEqual([409, "event_closed"]);
+  });
+
+  it("answers a sticker's earlier tag as replaced; the page and the panel show titles, locks and revokes", async () => {
+    const event = await newEvent();
+    const gate = await newQuest(event);
+    const stage = await newQuest(event);
+    await owner("UPDATE quest SET title_ar = 'البوابة' WHERE id = $1", [gate]);
+    const op = await newPerson(event, "operator");
+    await writeTag(op, event, gate);
+    const prepared = (await prepare(op, event, stage)).json<Prepared>();
+    const made = await confirm(op, event, stage, {
+      code: tokenOf(prepared.url),
+      ticket: prepared.ticket,
+      uid: UID,
+      label: "Stage",
+      locked: false,
+    });
+    expect(made.statusCode).toBe(201);
+    expect(made.json()).toEqual({
+      tagId: prepared.tagId,
+      questId: stage,
+      replaced: { label: "Gate", questId: gate, quest: { ar: "البوابة", en: "Gate" } },
+    });
+
+    const page = await call("GET", `/v1/operator/events/${event}/nfc-tags`, op);
+    expect(page.json()).toMatchObject({
+      tags: [
+        { id: prepared.tagId, quest: { ar: null, en: "Gate" }, locked: false, status: "active" },
+        { questId: gate, quest: { ar: "البوابة", en: "Gate" }, locked: true, status: "revoked" },
+      ],
+    });
+    const panel = await dashboard("GET", `/events/${event}/quests/${stage}/nfc-tags`);
+    expect(panel.json()).toMatchObject({ tags: [{ label: "Stage", locked: false }] });
+  });
+
+  it("keeps a tap's place only while location quests are on, and its device", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const op = await newPerson(event, "operator");
+    const code = await writeTag(op, event, quest);
+    const who = await newPerson(event, "player");
+    const place = { lat: 24.7136, lng: 46.6753, accuracyM: 12, ageS: 5 };
+    const device = randomUUID();
+    const tapFrom = (position: unknown) =>
+      test.app.inject({
+        method: "POST",
+        url: "/v1/taps",
+        headers: {
+          authorization: `Bearer ${who.token}`,
+          "idempotency-key": randomUUID(),
+          "x-device-id": device,
+        },
+        payload: { code, uid: UID, platform: "android", position },
+      });
+    const keptOf = async (position: unknown) => {
+      const paid = await tapFrom(position);
+      expect(paid.statusCode, paid.body).toBe(200);
+      const [row] = await owner<{ device_id: string | null; kept: boolean }>(
+        `SELECT c.device_id, EXISTS (SELECT 1 FROM completion_position p WHERE p.completion_id = c.id) AS kept
+         FROM quest_completion c WHERE c.id = $1`,
+        [paid.json<{ completionId: string }>().completionId],
+      );
+      return row;
+    };
+
+    await withFeatures({ locationQuests: { enabled: true } }, async () => {
+      expect(await keptOf(place)).toEqual({ device_id: device, kept: true });
+      expect(await keptOf({ ...place, lat: "north" })).toEqual({ device_id: device, kept: false });
+    });
+    expect(await keptOf(place)).toEqual({ device_id: device, kept: false });
   });
 });
