@@ -277,6 +277,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
       } finally {
         await other.close();
       }
+      // A third server has no memory of the key at all: the database itself refuses it on another quest.
+      const third = await startApp(db);
+      try {
+        const another = await newQuest();
+        const reused = await complete(token, another, scan(another), headers, third);
+        expect([reused.statusCode, reused.json().code]).toEqual([422, "idempotency_key_reused"]);
+      } finally {
+        await third.close();
+      }
       const [count] = await owner<{ n: number }>(
         "SELECT count(*)::int AS n FROM quest_completion WHERE quest_id = $1",
         [quest],
@@ -313,7 +322,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
       const stopped = await complete(token, quest, { type: "code", code: "NAJD2030" });
       expect(stopped.statusCode).toBe(429);
       expect(Number(stopped.headers["retry-after"])).toBeGreaterThan(0);
-      expect(stopped.json()).toMatchObject({ code: "too_many_attempts" });
+      expect(stopped.json()).toMatchObject({
+        code: "too_many_attempts",
+        details: { retryAfterSeconds: Number(stopped.headers["retry-after"]) },
+      });
     });
 
     it("gives an attempt back when the database fails, so a right code is never locked out by retries", async () => {
@@ -440,6 +452,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
       });
       for (const [position, reason] of [
         [undefined, "no_position"],
+        [null, "no_position"],
         [at(0, { ageS: 300 }), "stale"],
         [at(0, { accuracyM: 900 }), "imprecise"],
       ] as const) {
@@ -478,6 +491,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
       });
       expect(typed.statusCode).toBe(200);
       expect(await kept(quest)).toEqual([]);
+    });
+
+    it("answers feature_off for a check-in while the platform's location switch is off (ADR-208)", async () => {
+      const { token } = await newPlayer();
+      const quest = await newSpot();
+      await owner(`UPDATE platform_setting SET value = '{}' WHERE key = 'features'`);
+      const off = await startApp(db);
+      try {
+        const response = await complete(
+          token,
+          quest,
+          { type: "location", position: at(0) },
+          {},
+          off,
+        );
+        expect([response.statusCode, response.json().code]).toEqual([403, "feature_off"]);
+      } finally {
+        await off.close();
+        await owner(
+          `UPDATE platform_setting SET value = '{"locationQuests": {"enabled": true}}' WHERE key = 'features'`,
+        );
+      }
     });
 
     it("refuses a check-in on a quest that is not a location quest as an invalid code", async () => {

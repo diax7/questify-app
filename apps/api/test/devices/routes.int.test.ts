@@ -285,6 +285,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
     const code = await device("GET", "/v1/device/screen-code", page.cookie);
     expect(codeOf(code)).toEqual([401, "device_unpaired"]);
     expect(code.headers["cache-control"]).toBe("no-store");
+    expect(codeOf(await device("POST", "/v1/device/activate", page.cookie, {}))).toEqual([
+      401,
+      "device_unpaired",
+    ]);
     expect(
       (
         await test.app.inject({
@@ -295,6 +299,108 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+
+  it("holds a device's polls at 30 a minute, counted by its id across activation", async () => {
+    const event = await newEvent();
+    const page = await pending();
+    const claimed = await dashboard("POST", `/events/${event}/devices`, {
+      code: page.code,
+      kind: "station",
+      questId: await newQuest(event),
+      label: "Hall B TV",
+    });
+    expect(claimed.statusCode, claimed.body).toBe(201);
+    for (let index = 0; index < 20; index += 1) {
+      expect((await device("GET", "/v1/device", page.cookie)).statusCode).toBe(200);
+    }
+    const fresh = cookieOf(await device("POST", "/v1/device/activate", page.cookie, {}));
+    for (let index = 0; index < 10; index += 1) {
+      expect((await device("GET", "/v1/device", fresh)).statusCode).toBe(200);
+    }
+    const held = await device("GET", "/v1/device", fresh);
+    expect(codeOf(held)).toEqual([429, "too_many_attempts"]);
+  });
+
+  it("a paired page renewing answers its state; renew and activate take no body", async () => {
+    const event = await newEvent();
+    const page = await pending();
+    await dashboard("POST", `/events/${event}/devices`, {
+      code: page.code,
+      kind: "station",
+      questId: await newQuest(event),
+      label: "Hall B TV",
+    });
+    const renewed = await device("POST", "/v1/device/pairing/renew", page.cookie, {});
+    expect(renewed.json()).toEqual({ state: "paired", activated: false });
+    for (const path of ["/v1/device/pairing/renew", "/v1/device/activate"]) {
+      expect(codeOf(await device("POST", path, page.cookie, { kind: "screen" }))).toEqual([
+        400,
+        "invalid_request",
+      ]);
+    }
+    expect((await device("GET", "/v1/device", page.cookie)).json()).toEqual({
+      state: "paired",
+      activated: false,
+    });
+  });
+
+  it("a paired page that is not activated yet gets no station code (CTO 2)", async () => {
+    const event = await newEvent();
+    const page = await pending();
+    await dashboard("POST", `/events/${event}/devices`, {
+      code: page.code,
+      kind: "station",
+      questId: await newQuest(event),
+      label: "Hall B TV",
+    });
+    expect(codeOf(await device("GET", "/v1/device/screen-code", page.cookie))).toEqual([
+      401,
+      "device_unpaired",
+    ]);
+  });
+
+  it("a paired device asking to pair as another kind answers its state and keeps its cookie (CTO 4)", async () => {
+    const event = await newEvent();
+    const made = await station(event, await newQuest(event));
+    const again = await pair("screen", { cookie: made.cookie });
+    expect(again.statusCode).toBe(200);
+    expect(again.headers["set-cookie"]).toBeUndefined();
+    expect(again.json()).toMatchObject({ state: "paired", activated: true, kind: "station" });
+  });
+
+  it("holds 6 code fetches a minute per station and per operator and quest", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const made = await station(event, quest);
+    const op = await newPerson(event, "operator");
+    const operatorPath = `/v1/operator/events/${event}/quests/${quest}/screen-code`;
+    for (let index = 0; index < 6; index += 1) {
+      expect((await device("GET", "/v1/device/screen-code", made.cookie)).statusCode).toBe(200);
+      expect((await call("GET", operatorPath, op)).statusCode).toBe(200);
+    }
+    expect(codeOf(await device("GET", "/v1/device/screen-code", made.cookie))).toEqual([
+      429,
+      "too_many_attempts",
+    ]);
+    expect(codeOf(await call("GET", operatorPath, op))).toEqual([429, "too_many_attempts"]);
+  });
+
+  it("holds the team's previews once its organizer has 30 unknown codes this hour (CTO 8)", async () => {
+    const event = await newEvent();
+    for (let index = 0; index < 30; index += 1) {
+      await owner(
+        "INSERT INTO auth_throttle (bucket, key, at) VALUES ('device_miss_organizer', $1, now() - make_interval(secs => $2))",
+        [KEYS.organizerKey(organizer), index],
+      );
+    }
+    try {
+      expect(
+        codeOf(await dashboard("POST", `/events/${event}/devices/preview`, { code: "ABCD-EFGH" })),
+      ).toEqual([429, "too_many_attempts"]);
+    } finally {
+      await owner("DELETE FROM auth_throttle WHERE bucket = 'device_miss_organizer'");
+    }
   });
 
   // ============================================================ pairing and activation
@@ -318,6 +424,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
       activated: false,
     });
     const activated = await device("POST", "/v1/device/activate", page.cookie, {});
+    expect(activated.json()).toEqual({ state: "paired", activated: true });
     const fresh = cookieOf(activated);
     expect(fresh).not.toBe(page.cookie);
     expect(String(activated.headers["set-cookie"])).toMatch(/HttpOnly; Secure; SameSite=Strict/);
@@ -494,6 +601,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
       status: "active",
     });
     expect(
+      codeOf(await dashboard("POST", `/events/${event}/devices/${made.id}/revoke`, { all: true })),
+    ).toEqual([400, "invalid_request"]);
+    expect(
       (await dashboard("POST", `/events/${event}/devices/${made.id}/revoke`, {})).statusCode,
     ).toBe(204);
     expect(codeOf(await device("GET", "/v1/device/screen-code", made.cookie))).toEqual([
@@ -509,8 +619,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
       kind: "screen",
       label: "Main hall",
     });
-    const all = await dashboard("POST", `/events/${event}/devices/revoke`, { kind: "screen" });
+    const kept = await station(event, await newQuest(event));
+    const screens = await dashboard("POST", `/events/${event}/devices/revoke`, { kind: "screen" });
+    expect(screens.json()).toEqual({ revoked: 1 });
+    expect((await device("GET", "/v1/device", kept.cookie)).statusCode).toBe(200);
+    const all = await test.app.inject({
+      method: "POST",
+      url: `/v1/organizers/${organizer}/events/${event}/devices/revoke`,
+      headers: withSession(ownerCookie, { "idempotency-key": randomUUID() }),
+    });
     expect(all.json()).toEqual({ revoked: 1 });
+    expect(codeOf(await device("GET", "/v1/device", kept.cookie))).toEqual([
+      401,
+      "device_unpaired",
+    ]);
   });
 
   // ============================================================ staff mode
@@ -542,6 +664,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
     expect(
       codeOf(await call("POST", base, op, { code: screen.code, kind: "screen", label: "Hall" })),
     ).toEqual([422, "invalid_device"]);
+    expect(codeOf(await call("POST", `${base}/${id}/revoke`, op, { all: true }))).toEqual([
+      400,
+      "invalid_request",
+    ]);
     expect((await call("POST", `${base}/${id}/revoke`, op, {})).statusCode).toBe(204);
     const stranger = await newPerson(event, "player");
     expect(codeOf(await call("GET", base, stranger))).toEqual([403, "not_operator"]);

@@ -319,6 +319,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("kiosks over HTTP", () => {
     expect((await send(cookie, code, { origin: "https://evil.test" })).statusCode).toBe(403);
     const station = await paired(event, quest, "station");
     expect(codeOf(await send(station, code))).toEqual([401, "device_unpaired"]);
+    expect(codeOf(await send(station, "not a questify code"))).toEqual([401, "device_unpaired"]);
+    expect(codeOf(await send(station, myCode(MY_KEY, randomUUID(), 1)))).toEqual([
+      401,
+      "device_unpaired",
+    ]);
     expect(codeOf(await send("", code))).toEqual([401, "device_unpaired"]);
     const bearer = await test.app.inject({
       method: "POST",
@@ -344,6 +349,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("kiosks over HTTP", () => {
       headers: { cookie, origin: DASHBOARD_ORIGIN },
     });
     expect(kioskOnLive.statusCode).toBe(401);
+  });
+
+  it("a paired kiosk scans nothing until it is activated (CTO 2)", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const page = await pair("kiosk");
+    const claimed = await dashboard("POST", `/events/${event}/devices`, {
+      code: page.json<{ code: string }>().code,
+      kind: "kiosk",
+      questId: quest,
+      label: "Gate tablet",
+    });
+    expect(claimed.statusCode, claimed.body).toBe(201);
+    const code = await freshCode(await newPlayer(event));
+    expect(codeOf(await send(cookieOf(page), code))).toEqual([401, "device_unpaired"]);
+    expect(codeOf(await send(cookieOf(page), "not a questify code"))).toEqual([
+      401,
+      "device_unpaired",
+    ]);
+  });
+
+  it("keeps each kiosk's Idempotency-Keys its own: another kiosk's same key is a new scan", async () => {
+    const event = await newEvent();
+    const first = await paired(event, await newQuest(event));
+    const otherQuest = await newQuest(event);
+    const second = await paired(event, otherQuest);
+    const code = await freshCode(await newPlayer(event));
+    const key = randomUUID();
+    expect((await send(first, code, { "idempotency-key": key })).statusCode).toBe(200);
+    const other = await send(second, code, { "idempotency-key": key });
+    expect(other.headers["idempotent-replayed"]).toBeUndefined();
+    expect(other.json()).toMatchObject({ result: "completed", replayed: false });
+    const done = await owner<{ n: number }>(
+      "SELECT count(*)::int AS n FROM quest_completion WHERE quest_id = $1",
+      [otherQuest],
+    );
+    expect(done[0]?.n).toBe(1);
   });
 
   it("answers device_unpaired once the kiosk is revoked", async () => {
