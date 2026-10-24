@@ -191,6 +191,25 @@ describe("the screen QR (T-309)", () => {
   });
 });
 
+describe("the kiosk (T-309b)", () => {
+  it("is offered on scan quests only, alone or with any other scan method", () => {
+    expect(parseVerification("scan_qr", ["kiosk"])).toEqual(["kiosk"]);
+    expect(parseVerification("scan_qr", ["kiosk", "quest_qr"])).toEqual(["quest_qr", "kiosk"]);
+    expect(parseVerification("scan_qr", ["kiosk", "screen_qr", "my_qr"])).toEqual([
+      "my_qr",
+      "screen_qr",
+      "kiosk",
+    ]);
+    expect(parseVerification("scan_qr", ["quest_qr", "nfc", "kiosk"])).toEqual([
+      "quest_qr",
+      "nfc",
+      "kiosk",
+    ]);
+    expect(parseVerification("location", ["kiosk"])).toBeUndefined();
+    expect(parseVerification("challenge", ["kiosk"])).toBeUndefined();
+  });
+});
+
 describe("challenge quests", () => {
   it("hold no config and are verified only by staff scanning My QR", () => {
     expect(parseQuestConfig("challenge", {})).toEqual({});

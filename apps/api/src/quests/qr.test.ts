@@ -2,6 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   createInviteCodeKey,
+  createLiveCodeKey,
   createMyCodeKey,
   createQuestCodeKey,
   createRevealCodeKey,
@@ -10,6 +11,7 @@ import {
   createTagCodeKey,
   inviteCode,
   inviteCodeUrl,
+  liveCode,
   myCode,
   questCode,
   questCodeUrl,
@@ -20,6 +22,7 @@ import {
   tagCode,
   tagCodeUrl,
   verifyInviteCode,
+  verifyLiveCode,
   verifyMyCode,
   verifyQuestCode,
   verifyRevealCode,
@@ -420,6 +423,71 @@ describe("screen codes (T-309)", () => {
       tagCode(createTagCodeKey(SECRET), QUEST, WINDOW),
     ]) {
       expect(verifyScreenCode(SCREEN_KEY, other, QUEST)).toEqual({ kind: "not_questify" });
+    }
+  });
+});
+
+describe("live codes (T-309b)", () => {
+  const SECRET = "q".repeat(32);
+  const LIVE_KEY = createLiveCodeKey(SECRET);
+  const PLAYER = "6a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+  const WINDOW = 59_416_440;
+
+  it("refuses a short secret", () => {
+    expect(() => createLiveCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens to its player and window, 50 characters of format 0x08, no URL", () => {
+    const token = liveCode(LIVE_KEY, PLAYER, WINDOW);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(Buffer.from(token, "base64url")[0]).toBe(0x08);
+    expect(verifyLiveCode(LIVE_KEY, token)).toEqual({
+      kind: "valid",
+      playerId: PLAYER,
+      window: WINDOW,
+    });
+    expect(liveCode(LIVE_KEY, PLAYER, WINDOW + 1)).not.toBe(token);
+  });
+
+  it("answers forged for another key or a changed byte, not_questify for junk", () => {
+    const token = liveCode(LIVE_KEY, PLAYER, WINDOW);
+    expect(verifyLiveCode(createLiveCodeKey("r".repeat(32)), token)).toEqual({ kind: "forged" });
+    expect(verifyLiveCode(LIVE_KEY, swapped(token, 30, token[30] === "A" ? "B" : "A"))).toEqual({
+      kind: "forged",
+    });
+    expect(verifyLiveCode(LIVE_KEY, "hello")).toEqual({ kind: "not_questify" });
+    expect(verifyLiveCode(LIVE_KEY, `https://questify.nafes.com/s/${token}`)).toEqual({
+      kind: "not_questify",
+    });
+  });
+
+  it("accepts only the canonical encoding", () => {
+    const token = liveCode(LIVE_KEY, PLAYER, WINDOW);
+    const last = token.at(-1) ?? "A";
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const sibling = alphabet[(alphabet.indexOf(last) ^ 1) % 64] ?? "A";
+    expect(verifyLiveCode(LIVE_KEY, `${token.slice(0, -1)}${sibling}`)).toEqual({
+      kind: "not_questify",
+    });
+  });
+
+  it("never opens as any other code (a My QR above all), nor they as a live code", () => {
+    const live = liveCode(LIVE_KEY, PLAYER, WINDOW);
+    expect(verifyMyCode(createMyCodeKey(SECRET), live)).toEqual({ kind: "not_questify" });
+    expect(verifyScreenCode(createScreenCodeKey(SECRET), live, PLAYER)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyTagCode(createTagCodeKey(SECRET), live)).toEqual({ kind: "not_questify" });
+    for (const other of [
+      questCode(createQuestCodeKey(SECRET), PLAYER, WINDOW),
+      myCode(createMyCodeKey(SECRET), PLAYER, WINDOW),
+      inviteCode(createInviteCodeKey(SECRET), PLAYER),
+      stepCode(createStepCodeKey(SECRET), PLAYER, WINDOW),
+      revealCode(createRevealCodeKey(SECRET), PLAYER, WINDOW),
+      tagCode(createTagCodeKey(SECRET), PLAYER, WINDOW),
+      screenCode(createScreenCodeKey(SECRET), PLAYER, WINDOW),
+    ]) {
+      expect(verifyLiveCode(LIVE_KEY, other)).toEqual({ kind: "not_questify" });
     }
   });
 });

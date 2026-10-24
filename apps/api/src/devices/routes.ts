@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { deviceUnpaired, unauthenticated } from "#src/auth/http-errors";
+import { deviceUnpaired, invalidRequest, unauthenticated } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin } from "#src/auth/staff-guard";
 import {
@@ -26,6 +26,8 @@ import {
   type DeviceDeps,
 } from "#src/devices/devices";
 import { deviceCookie, deviceOfCookie, type DeviceIdentity } from "#src/devices/guard";
+import { kioskScan, type KioskDeps } from "#src/devices/kiosk";
+import { playerLiveCode, type LiveCodeDeps } from "#src/devices/live-code";
 import { organizerContextOf } from "#src/organizers/context";
 
 const KINDS = ["station", "kiosk", "screen"] as const;
@@ -45,12 +47,18 @@ const revokeAllBody = z.union([
   z.undefined(),
   z.null(),
 ]);
+const kioskScanBody = z.strictObject({ code: z.string().min(1).max(200) });
+const UUID_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const emptyBody = z.union([z.strictObject({}), z.undefined(), z.null()]);
 const eventParams = z.object({ eventId: z.uuid() });
 const deviceParams = z.object({ eventId: z.uuid(), deviceId: z.uuid() });
 const questParams = z.object({ eventId: z.uuid(), questId: z.uuid() });
 
 const deviceRoute = { config: { access: "device" }, bodyLimit: 1024 } as const;
+const deviceIdempotent = {
+  config: { access: "device", idempotent: true },
+  bodyLimit: 1024,
+} as const;
 const anyDevice = { config: { access: "device", anyDevice: true }, bodyLimit: 1024 } as const;
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = {
@@ -86,7 +94,10 @@ const teamOf = (request: FastifyRequest): Extract<Actor, { type: "team" }> => {
  * device cookie answers that device's state and makes nothing, so a reload never unpairs, CTO 4), and under the device
  * guard its state, a fresh code, the activation that replaces its secret (CTO 2) and a station's code.
  */
-export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceDeps): void {
+export function registerDeviceRoutes(
+  app: FastifyInstance,
+  deps: DeviceDeps & Readonly<{ kiosk: KioskDeps }>,
+): void {
   app.post(
     "/v1/device/pairing",
     { config: { access: "public" }, bodyLimit: 1024 },
@@ -144,6 +155,37 @@ export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceDeps): vo
       throw deviceUnpaired();
     }
     return deviceScreenCode(deps, device, reply);
+  });
+
+  // T-309b, FR-315: a kiosk pays the player whose live code it read; the key is a UUID (it is namespaced in the door).
+  app.post("/v1/device/kiosk-scans", deviceIdempotent, async (request, reply) => {
+    const device = deviceOf(request);
+    if (device.state !== "paired" || device.kind !== "kiosk") {
+      throw deviceUnpaired();
+    }
+    const key = request.headers["idempotency-key"];
+    if (typeof key !== "string" || !UUID_KEY.test(key)) {
+      throw invalidRequest();
+    }
+    const { code } = parse(kioskScanBody, request.body);
+    return kioskScan(
+      deps.kiosk,
+      { deviceId: device.id, questId: device.questId, code, idempotencyKey: key.toLowerCase() },
+      callerOf(request),
+      reply,
+    );
+  });
+}
+
+/** The signed-in player's live code for kiosks (T-309b, ADR-242): `GET /v1/me/live-code`, never cached. */
+export function registerLiveCodeRoute(app: FastifyInstance, deps: LiveCodeDeps): void {
+  app.get("/v1/me/live-code", player, async (request, reply) => {
+    reply.header("cache-control", "no-store");
+    // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
+    if (request.player === undefined) {
+      throw unauthenticated();
+    }
+    return playerLiveCode(deps, request.player.id, reply);
   });
 }
 

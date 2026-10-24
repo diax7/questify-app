@@ -315,7 +315,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
       ).toBe("23514");
     });
 
-    it("refuses a completion method the door does not know (kiosk is T-309b's)", async () => {
+    it("refuses a completion method the door does not know", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
       const who = await member(event);
@@ -324,7 +324,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
           owner(
             `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
                                            idempotency_key)
-             VALUES ($1, $2, $3, $4, 1, 'kiosk', 'k')`,
+             VALUES ($1, $2, $3, $4, 1, 'telepathy', 'k')`,
             [ids.orgA, event, who.enrollment, quest],
           ),
         ),

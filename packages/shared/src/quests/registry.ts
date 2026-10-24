@@ -108,7 +108,7 @@ export const QUEST_TYPES = {
     label: "quests.type.scanQr",
     oneTry: false,
     usesQuestQr: true,
-    verifications: ["quest_qr", "my_qr", "nfc", "screen_qr"],
+    verifications: ["quest_qr", "my_qr", "nfc", "screen_qr", "kiosk"],
     config: z.strictObject({}),
   },
   /** The player types a code shown at the venue (T-105). The code is a secret: never shown to players. */
@@ -335,12 +335,13 @@ export type QuestType = keyof typeof QUEST_TYPES;
 /**
  * How a quest may be verified (FR-301): the player scans the quest's printed QR, staff scan the player's My QR
  * (T-205), the player taps the quest's NFC tag (T-308), or the player scans the code a station shows, which changes
- * every 30 seconds (T-309, FR-314). A type lists the methods it offers; a quest keeps at least one of them (none for a
+ * every 30 seconds (T-309, FR-314), or the player shows their live code to a kiosk (T-309b, FR-315). A type lists the methods it offers; a quest keeps at least one of them (none for a
  * type that offers none, such as a typed code), NFC only beside the quest QR, its backup (FR-313), and the screen QR
- * never beside the printed one, which would undo the rotation (ADR-240). The database's `quest_verification_known`
+ * never beside the printed one, which would undo the rotation (ADR-240); the kiosk combines with any of them. The
+ * database's `quest_verification_known`
  * check holds the same rule.
  */
-export type QuestVerification = "quest_qr" | "my_qr" | "nfc" | "screen_qr";
+export type QuestVerification = "quest_qr" | "my_qr" | "nfc" | "screen_qr" | "kiosk";
 
 export const QUEST_TYPE_NAMES = Object.keys(QUEST_TYPES) as QuestType[];
 

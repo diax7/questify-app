@@ -33,7 +33,11 @@ import { registerRevealRoutes } from "#src/reveal/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerNfcRoutes } from "#src/nfc/routes";
 import { registerDeviceGuard } from "#src/devices/guard";
-import { registerDeviceOperatorRoutes, registerDeviceRoutes } from "#src/devices/routes";
+import {
+  registerDeviceOperatorRoutes,
+  registerDeviceRoutes,
+  registerLiveCodeRoute,
+} from "#src/devices/routes";
 import { createTicketKey } from "#src/nfc/ticket";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
@@ -47,6 +51,7 @@ import { createPlayerSignIn } from "#src/players/sign-in";
 import type { SmsSender } from "#src/players/sms";
 import {
   createInviteCodeKey,
+  createLiveCodeKey,
   createMyCodeKey,
   createQuestCodeKey,
   createRevealCodeKey,
@@ -299,7 +304,19 @@ export function buildApp(options: AppOptions): FastifyInstance {
     dashboardOrigin: config.auth.dashboardOrigin,
   };
   registerDeviceGuard(app, { pool: options.pool, dashboardOrigin: config.auth.dashboardOrigin });
-  registerDeviceRoutes(app, deviceDeps);
+  const liveKey = createLiveCodeKey(config.qrSecret);
+  registerDeviceRoutes(app, {
+    ...deviceDeps,
+    kiosk: {
+      pool: options.pool,
+      liveKey,
+      myKey: createMyCodeKey(config.qrSecret),
+      keys: signInDeps.keys,
+      settings,
+      ranking,
+    },
+  });
+  registerLiveCodeRoute(app, { pool: options.pool, liveKey, keys: signInDeps.keys, settings });
   registerDeviceOperatorRoutes(app, { ...deviceDeps, claims: deviceClaims });
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });

@@ -6,7 +6,8 @@ const MIN_SECRET_LENGTH = 32;
  * Layout and purpose of a signed code, its first byte. 0x01: a static printed quest QR (FR-305); 0x02: a player's My
  * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203); 0x05: a hidden
  * category's secret code (T-304c, ADR-204); 0x06: an NFC tag (T-308, ADR-234); 0x07: a station's rotating code (T-309,
- * FR-314, ADR-240). Each purpose also has its own key, so a code of one purpose never opens as another.
+ * FR-314, ADR-240); 0x08: a player's live code for kiosks (T-309b, FR-315, ADR-242). Each purpose also has its own
+ * key, so a code of one purpose never opens as another.
  */
 const FORMAT = {
   quest: 0x01,
@@ -16,6 +17,7 @@ const FORMAT = {
   reveal: 0x05,
   tag: 0x06,
   screen: 0x07,
+  live: 0x08,
 } as const;
 type Purpose = keyof typeof FORMAT;
 const ID_BYTES = 16;
@@ -358,4 +360,34 @@ export function verifyScreenCode(
     return { kind: "wrong_quest" };
   }
   return { kind: "valid", questId: opened.id, window: opened.version };
+}
+
+export type LiveCodeKey = CodeKey<"live">;
+
+/**
+ * @throws Error when the secret is shorter than 32 characters.
+ */
+export function createLiveCodeKey(secret: string): LiveCodeKey {
+  return deriveKey(secret, "live");
+}
+
+/**
+ * A player's live code for kiosks (T-309b, ADR-242): their id and the 30-second window of the database clock. The QR
+ * holds this bare token, never a URL. Not stored: the kiosk door judges the window with the database's now().
+ */
+export function liveCode(key: LiveCodeKey, playerId: string, window: number): string {
+  return sign(key, playerId, window);
+}
+
+export type LiveCodeCheck =
+  | Readonly<{ kind: "valid"; playerId: string; window: number }>
+  | Readonly<{ kind: "not_questify" }>
+  | Readonly<{ kind: "forged" }>;
+
+/** Opens a live code a kiosk read. Whether its window is still good is the door's. */
+export function verifyLiveCode(key: LiveCodeKey, token: string): LiveCodeCheck {
+  const opened = open(key, token);
+  return opened.kind === "valid"
+    ? { kind: "valid", playerId: opened.id, window: opened.version }
+    : opened;
 }

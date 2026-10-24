@@ -172,6 +172,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the device cookie's own paired device only; replaces its secret under the row lock (activate_device, CTO 2) (test/devices/routes, test/db/devices)",
   "GET /v1/device/screen-code":
     "a paired, activated station's own quest only (screen_code_for_device takes no quest); per device at most 6 a minute (test/devices/routes, test/db/devices)",
+  "POST /v1/device/kiosk-scans":
+    "a paired, activated kiosk's own quest only (kiosk_complete_quest takes no quest or event); the player is the one whose live code it read, paid only in the kiosk's own event (QC404); a UUID Idempotency-Key, namespaced in the door; per kiosk at most 30 scans and 10 bad codes a minute (test/devices/kiosk-routes, test/db/kiosks)",
+  "GET /v1/me/live-code":
+    "the signed-in player's own code only (their id from the bearer, the window from the database); per player at most 6 a minute (test/devices/kiosk-routes)",
   "POST /v1/operator/events/:eventId/devices/preview":
     "an operator of that event only (OP403 in preview_device); a code is unknown_code until it exists; claims and previews held at 10 a minute per operator and 30 unknown codes an hour per event (test/devices/routes, test/db/devices)",
   "POST /v1/operator/events/:eventId/devices":

@@ -394,6 +394,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a kiosk's scans or reach the kiosk door, its reader or the live code's window (T-309b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.kiosk_scan",
+        "SELECT * FROM public.kiosk_complete_quest(gen_random_uuid(), 1, gen_random_uuid()::text)",
+        "SELECT * FROM public.kiosk_scan_subject(gen_random_uuid())",
+        "SELECT * FROM public.live_code_window()",
+        "SELECT public.device_quest_state(NULL::public.quest, 'kiosk')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

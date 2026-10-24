@@ -2170,6 +2170,7 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   submit_survey: "now: record_completion (survey row)",
   share_quest: "now: record_completion (share row)",
   tap_quest: "now: record_completion (nfc rows, test/db/nfc-tags)",
+  kiosk_complete_quest: "now: record_completion (kiosk rows, test/db/kiosks)",
   grant_manual_award:
     "manual: record_completion with manual, never boosted; `award` entries never (manual awards test)",
   pay_submission: "frozen: sub.created_at (the frozen rows)",

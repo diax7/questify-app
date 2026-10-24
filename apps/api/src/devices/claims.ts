@@ -38,6 +38,8 @@ export type DeviceView = Readonly<{
   status: "active" | "revoked" | "ended";
   paused: boolean;
   revokedAt: string | null;
+  /** A kiosk's scans in the last 24 hours (T-309b); null for a station or big screen. */
+  scans: number | null;
 }>;
 
 type Json = Record<string, unknown>;
@@ -78,6 +80,7 @@ export const viewOf = (row: Json): DeviceView => {
     status: row["status"] as DeviceView["status"],
     paused: row["paused"] === true,
     revokedAt: isoOrNull(row["revokedAt"]),
+    scans: typeof row["scans"] === "number" ? row["scans"] : null,
   };
 };
 
@@ -221,31 +224,37 @@ export function eventDevices(
 export type OperatorDevices = Readonly<{
   devices: DeviceView[];
   /** Scan quests with the screen QR the operator may show or pair a station for. */
-  quests: ReadonlyArray<Readonly<{ id: string; title: Bilingual; points: number }>>;
+  quests: ReadonlyArray<OperatorQuest>;
+  /** Scan quests with the kiosk on the operator may pair a kiosk for (T-309b). */
+  kioskQuests: ReadonlyArray<OperatorQuest>;
 }>;
 
-/** Staff mode's devices page: the operator's own devices and their station quests. */
+type OperatorQuest = Readonly<{ id: string; title: Bilingual; points: number }>;
+
+const operatorQuestOf = (row: Json): OperatorQuest => ({
+  id: String(row["id"]),
+  title: {
+    ar: (row["titleAr"] as string | null) ?? null,
+    en: (row["titleEn"] as string | null) ?? null,
+  },
+  points: Number(row["points"]),
+});
+
+/** Staff mode's devices page: the operator's own devices and their station and kiosk quests. */
 export function operatorDevices(
   deps: ClaimDeps,
   operatorId: string,
   eventId: string,
 ): Promise<OperatorDevices> {
   return inDevice(deps.pool, { playerId: operatorId }, async (client) => {
-    const { rows } = await client.query<{ page: { devices: Json[]; quests: Json[] } }>(
-      "SELECT operator_devices($1) AS page",
-      [eventId],
-    );
-    const page = rows[0]?.page ?? { devices: [], quests: [] };
+    const { rows } = await client.query<{
+      page: { devices: Json[]; quests: Json[]; kioskQuests: Json[] };
+    }>("SELECT operator_devices($1) AS page", [eventId]);
+    const page = rows[0]?.page ?? { devices: [], quests: [], kioskQuests: [] };
     return {
       devices: page.devices.map(viewOf),
-      quests: page.quests.map((row) => ({
-        id: String(row["id"]),
-        title: {
-          ar: (row["titleAr"] as string | null) ?? null,
-          en: (row["titleEn"] as string | null) ?? null,
-        },
-        points: Number(row["points"]),
-      })),
+      quests: page.quests.map(operatorQuestOf),
+      kioskQuests: page.kioskQuests.map(operatorQuestOf),
     };
   });
 }

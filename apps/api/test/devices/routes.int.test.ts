@@ -580,6 +580,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
       "GET /v1/device",
       "GET /v1/device/screen-code",
       "POST /v1/device/activate",
+      "POST /v1/device/kiosk-scans",
       "POST /v1/device/pairing/renew",
     ]);
     for (const route of deviceRoutes) {

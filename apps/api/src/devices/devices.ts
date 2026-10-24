@@ -7,6 +7,7 @@ import { withRequestContext } from "#src/db/context";
 import { deviceErrorOf, inDevice } from "#src/devices/errors";
 import { secretHashOf, type DeviceIdentity, type DeviceKind } from "#src/devices/guard";
 import { DEVICE_LIMITS, holdBack } from "#src/devices/limits";
+import { kiosksOn } from "#src/devices/live-code";
 import { formatPairingCode, generatePairingCode } from "#src/devices/pairing-code";
 import { screenCode, screenCodeUrl, type ScreenCodeKey } from "#src/quests/qr";
 import type { SettingsService } from "#src/settings/service";
@@ -46,7 +47,10 @@ export type DeviceState =
       activated: true;
       kind: DeviceKind;
       label: string;
-      /** Why it shows nothing now: paused, method_off, hidden, not_started, ended, event_ended; or null. */
+      /**
+       * Why it shows nothing now: paused, method_off, hidden, not_started, ended, event_ended, or feature_off (a kiosk
+       * while the platform's `kiosks` switch is off); or null.
+       */
       shut: string | null;
       event: Readonly<{ name: Bilingual }>;
       quest: Readonly<{ title: Bilingual; points: number }> | null;
@@ -178,7 +182,10 @@ type View = {
   quest: { titleAr: string | null; titleEn: string | null; points: number } | null;
 };
 
-/** The device's own state (`GET /v1/device`): pending, paired and waiting to activate, or its view (`device_view`). */
+/**
+ * The device's own state (`GET /v1/device`): pending, paired and waiting to activate, or its view (`device_view`). A
+ * kiosk is shut `feature_off` while the platform's `kiosks` switch is off (T-309b).
+ */
 export async function deviceState(deps: DeviceDeps, device: DeviceIdentity): Promise<DeviceState> {
   if (device.state === "pending") {
     return { state: "pending", kind: device.kind, expiresAt: device.expiresAt };
@@ -190,12 +197,13 @@ export async function deviceState(deps: DeviceDeps, device: DeviceIdentity): Pro
     const { rows } = await client.query<{ view: View }>("SELECT device_view() AS view");
     return (rows[0] as { view: View }).view;
   });
+  const off = view.kind === "kiosk" && !(await kiosksOn(deps.settings));
   return {
     state: "paired",
     activated: true,
     kind: view.kind,
     label: view.label,
-    shut: view.shut,
+    shut: off ? "feature_off" : view.shut,
     event: { name: { ar: view.event.nameAr, en: view.event.nameEn } },
     quest:
       view.quest === null

@@ -7,7 +7,7 @@ import { withRequestContext } from "#src/db/context";
 /** At most `max` attempts in `windowSeconds`, counted in `bucket` under a keyed hash. */
 export type DeviceLimit = Readonly<{ bucket: Bucket; max: number; windowSeconds: number }>;
 
-/** The limits of pairing and the screen code (T-309, API.md). */
+/** The limits of pairing, the screen code (T-309) and the kiosk (T-309b), API.md. */
 export const DEVICE_LIMITS = {
   /** Pairing requests from one address bucket: a venue's screens share one address behind its NAT (CTO 4). */
   requestsPerAddress: { bucket: BUCKETS.deviceRequest, max: 60, windowSeconds: 600 },
@@ -18,6 +18,12 @@ export const DEVICE_LIMITS = {
   /** A station's code fetches, and an operator's for one quest. */
   codesPerDevice: { bucket: BUCKETS.deviceScreenCode, max: 6, windowSeconds: 60 },
   codesPerOperatorQuest: { bucket: BUCKETS.operatorScreenCode, max: 6, windowSeconds: 60 },
+  /** A kiosk's scans (T-309b). */
+  kioskScans: { bucket: BUCKETS.kioskScan, max: 30, windowSeconds: 60 },
+  /** Unreadable or forged codes at one kiosk: reached, every scan waits until the minute has passed (ADR-245). */
+  kioskBadCodes: { bucket: BUCKETS.kioskBadCode, max: 10, windowSeconds: 60 },
+  /** A player's live code fetches (the app needs 2 a minute). */
+  liveCodesPerPlayer: { bucket: BUCKETS.liveCode, max: 6, windowSeconds: 60 },
   /** Claims and previews by one staff member or operator. */
   claimsPerActor: { bucket: BUCKETS.deviceClaim, max: 10, windowSeconds: 60 },
   /** Unknown codes tried against one event and one organizer (CTO 8). */

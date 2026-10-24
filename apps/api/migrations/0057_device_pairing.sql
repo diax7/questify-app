@@ -797,8 +797,8 @@ GRANT EXECUTE ON FUNCTION screen_code_for_operator(uuid, uuid) TO questify_app;
 -- ================================================================ the one door
 -- As 0056, with `screen_qr` on a scan quest that offers it: the window judged by the database clock after the
 -- enrollment lock (QV422 expired), and one pay per player per window (CTO 6): a screen completion of this quest by this
--- enrollment in the last 45 seconds answers QD409, so one code cannot pay a repeatable quest twice. Only
--- complete_quest passes `screen_qr`.
+-- enrollment in the last 45 seconds answers QD409, so one code cannot pay a repeatable quest twice. Here only
+-- complete_quest passes `screen_qr`; 0058 restates this door for the kiosk's `kiosk` method.
 CREATE OR REPLACE FUNCTION record_completion(target uuid, who uuid, proof_method text, proof_version integer,
                                              typed_code text, request_key text, device uuid, operator uuid,
                                              staff uuid, reason text, expected_event uuid, reading jsonb DEFAULT NULL)

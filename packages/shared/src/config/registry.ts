@@ -70,6 +70,12 @@ export const FEATURES: FeatureRegistry = {
    * the type, the app never reads location, and existing location quests complete by their QR.
    */
   locationQuests: { gated: false, level: "platform", offByDefault: true },
+  /**
+   * Kiosks and the live code (T-309b, F-107, ADR-245): off for the platform, kiosk pages show "Not available", no kiosk
+   * scan is paid and the app serves no live code; pairing and the Devices page stay, so kiosks can still be revoked. No
+   * event switch: the quest's own kiosk method is the organizer's. ADR-076's paid add-on gates it later.
+   */
+  kiosks: { gated: false, level: "platform" },
   /** Meet-someone quests (T-303c, FR-1009, ADR-210): the owner turns them off for an event, which hides every one. */
   meetSomeone: { gated: false },
   /** Mini-games (T-305, FR-1009, ADR-213): the owner turns them off for an event, which hides every game quest. */
