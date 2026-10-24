@@ -152,13 +152,16 @@ REVOKE ALL ON FUNCTION quest_boost(quest, enrollment, timestamptz) FROM PUBLIC;
 
 -- ================================================================ every door (ADR-231)
 -- As 0046, plus: a flash quest while flash quests are switched off is not open (QN403 switched_off). The window is
--- the quest's own opens_at and closes_at, refused below as for any quest.
+-- the quest's own opens_at and closes_at, refused below as for any quest. The visibility and the window are read from
+-- the quest as it is now (CTO code review 1): a door may have read its quest before its own call ran the go-live wipe,
+-- which puts a rehearsal launch or send back to draft; a quest whose launch or send changed since that read is hidden.
 CREATE OR REPLACE FUNCTION quest_open_check(quest_row quest, enrolled enrollment, skip_category boolean) RETURNS void
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
   ev        event%ROWTYPE;
   group_row category%ROWTYPE;
   shut      text;
+  stored    quest%ROWTYPE;
 BEGIN
   IF enrolled.status <> 'active' THEN
     RAISE EXCEPTION 'enrollment not active' USING ERRCODE = 'QC403', DETAIL = enrolled.status;
@@ -167,16 +170,19 @@ BEGIN
   IF play_phase(ev, enrolled) IS NULL THEN
     RAISE EXCEPTION 'quest not open' USING ERRCODE = 'QN403', DETAIL = 'event_not_live';
   END IF;
-  IF NOT quest_row.visible THEN
+  SELECT * INTO stored FROM quest q WHERE q.id = quest_row.id;
+  IF NOT FOUND OR NOT stored.visible
+     OR (stored.flash_launched_at, stored.poll_sent_at)
+        IS DISTINCT FROM (quest_row.flash_launched_at, quest_row.poll_sent_at) THEN
     RAISE EXCEPTION 'quest not open' USING ERRCODE = 'QN403', DETAIL = 'hidden';
   END IF;
-  IF quest_row.flash AND NOT flash_on(ev) THEN
+  IF stored.flash AND NOT flash_on(ev) THEN
     RAISE EXCEPTION 'quest not open' USING ERRCODE = 'QN403', DETAIL = 'switched_off';
   END IF;
-  IF quest_row.opens_at IS NOT NULL AND quest_row.opens_at > now() THEN
+  IF stored.opens_at IS NOT NULL AND stored.opens_at > now() THEN
     RAISE EXCEPTION 'quest not open' USING ERRCODE = 'QN403', DETAIL = 'not_started';
   END IF;
-  IF quest_row.closes_at IS NOT NULL AND quest_row.closes_at <= now() THEN
+  IF stored.closes_at IS NOT NULL AND stored.closes_at <= now() THEN
     RAISE EXCEPTION 'quest not open' USING ERRCODE = 'QN403', DETAIL = 'ended';
   END IF;
   SELECT * INTO group_row FROM category c WHERE c.id = quest_row.category_id;

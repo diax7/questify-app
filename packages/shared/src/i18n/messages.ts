@@ -3686,7 +3686,7 @@ export const MESSAGES = {
     ar: "مضاعفة قبل بدء الفعالية تخص حسابات التجربة فقط، وتُحذف عند بدء الفعالية أو مسح بيانات التجربة.",
     en: "A boost before the event starts is for rehearsal accounts only, and is removed at go-live or when test data is erased.",
   },
-  "boosts.page.paid": { ar: "ضاعفت {count} من المهام", en: "{count} payments doubled" },
+  "boosts.page.paid": { ar: "مرات المضاعفة: {count}", en: "{count} payments doubled" },
   "boosts.page.lockedNote": {
     ar: "تُعدّل المضاعفة أو تُحذف حتى دقيقة قبل بدئها، وبعدها يمكن إيقافها فقط.",
     en: "A boost can be edited or deleted until a minute before it starts; after that it can only be stopped.",

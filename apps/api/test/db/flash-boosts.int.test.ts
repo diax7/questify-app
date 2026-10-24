@@ -1924,6 +1924,80 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flash quests and boosts (datab
       expect(await owner("SELECT 1 FROM boost WHERE id = $1", [practice])).toEqual([]);
     });
 
+    it("refuses a rehearsal launch at the live door whose own call runs the go-live wipe (CTO code review 1)", async () => {
+      const event = await newEvent("scheduled", "30 minutes", "1 day");
+      await openRehearsal(event);
+      const quest = async (type: string, config: object = {}) => {
+        const id = await newQuest(event, { type, config });
+        await flashWindow(id, "draft");
+        expect((await launch(event, id))[0]?.replayed).toBe(false);
+        return id;
+      };
+      const scan = await quest("scan_qr");
+      const submission = await quest("submission", {
+        accepts: ["text"],
+        autoApprove: true,
+        resubmit: false,
+      });
+      const quiz = await quest("quiz", QUIZ);
+      const game = await quest("game", GAME);
+      const meet = await quest("meet", { dailyCap: 5 });
+      await owner(
+        "UPDATE event SET status = 'live', starts_at = now() - interval '1 minute' WHERE id = $1",
+        [event],
+      );
+      const player = await member(event);
+      const shown = await member(event);
+      const hash = randomBytes(32);
+      await owner(
+        `INSERT INTO meet_pass (organizer_id, event_id, quest_id, enrollment_id, token_hash, expires_at)
+         VALUES ($1, $2, $3, $4, $5, now() + interval '1 minute')`,
+        [ids.orgA, event, meet, shown.enrollment, hash],
+      );
+      // Each refused door rolls its own wipe back, so every call below is the first live one.
+      const doors: readonly [string, Promise<unknown>][] = [
+        ["scan", complete(player.player, scan)],
+        [
+          "submission",
+          query(as(player.player), "SELECT * FROM submit_quest($1, 'My answer', $2, $3)", [
+            submission,
+            GUIDELINES,
+            randomUUID(),
+          ]),
+        ],
+        ["quiz start", query(as(player.player), "SELECT quiz_start($1)", [quiz])],
+        [
+          "game start",
+          query(as(player.player), "SELECT * FROM start_game_round($1, $2, NULL, 1)", [
+            game,
+            randomUUID(),
+          ]),
+        ],
+        [
+          "meet pass",
+          query(as(player.player), "SELECT * FROM issue_meet_pass($1, $2, NULL)", [
+            meet,
+            randomBytes(32),
+          ]),
+        ],
+        [
+          "meet code",
+          query(as(player.player), "SELECT * FROM meet_player($1, $2, NULL, NULL)", [
+            hash,
+            randomUUID(),
+          ]),
+        ],
+      ];
+      for (const [name, door] of doors) {
+        expect(await refusal(door), name).toBe("QN403:hidden");
+      }
+      expect(
+        await owner("SELECT 1 FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'quest'", [
+          player.enrollment,
+        ]),
+      ).toEqual([]);
+    });
+
     it("a rehearsal launch is hidden between go-live and the wipe, a draft again after it, and can be launched live", async () => {
       const event = await newEvent("scheduled", "30 minutes", "1 day");
       await openRehearsal(event);

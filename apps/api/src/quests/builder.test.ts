@@ -450,6 +450,10 @@ describe("a flash quest (T-307, ADR-231)", () => {
     expect(mergeQuest(later, "scan_qr", { flash: false }, ZONE, NOW)).toMatchObject({
       flash: false,
     });
+    expect(mergeQuest(started, "scan_qr", { flash: false }, ZONE, NOW)).toEqual({
+      kind: "invalid",
+      field: "flashLaunched",
+    });
     expect(auditView(launched)).toMatchObject({ flash: true });
   });
 });

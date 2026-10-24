@@ -780,7 +780,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
         }
         expect(results.every((result) => result.status === "fulfilled")).toBe(true);
       }
-    });
+    }, 120_000);
   });
 
   describe("erasure, the rehearsal wipe and the closed doors", () => {

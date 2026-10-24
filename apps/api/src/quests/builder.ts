@@ -206,6 +206,12 @@ function windowOf(live: boolean, current: QuestRecord | undefined, asked: Window
 /** A flash quest's shortest and longest shown window (T-307, ADR-231). */
 export const FLASH_WINDOW_MS = { min: 60_000, max: 1440 * 60_000 } as const;
 
+/** Whether a flash quest runs or ran: launched, or its scheduled window has started. */
+const flashStarted = (current: QuestRecord | undefined, now: Date): current is QuestRecord =>
+  current?.flash === true &&
+  (current.flashLaunchedAt !== null ||
+    (current.visible && current.opensAt !== null && current.opensAt <= now));
+
 /**
  * A flash quest's window (T-307, ADR-231): once launched, or once a scheduled window has started, it is Launch's and
  * End now's, whatever the input says; otherwise a shown one needs both times, 1 to 1,440 minutes apart.
@@ -215,11 +221,7 @@ export function flashWindowOf(
   asked: Window,
   now: Date,
 ): Window | "flashWindow" {
-  const running =
-    current?.flash === true &&
-    (current.flashLaunchedAt !== null ||
-      (current.visible && current.opensAt !== null && current.opensAt <= now));
-  if (running) {
+  if (flashStarted(current, now)) {
     return { opensAt: current.opensAt, closesAt: current.closesAt, visible: current.visible };
   }
   if (!asked.visible) {
@@ -232,17 +234,21 @@ export function flashWindowOf(
   return length >= FLASH_WINDOW_MS.min && length <= FLASH_WINDOW_MS.max ? asked : "flashWindow";
 }
 
-/** Whether the quest is flash after this input, or the field that refuses it. */
+/**
+ * Whether the quest is flash after this input, or the field that refuses it: never a live poll, and it stays flash once
+ * launched or once its scheduled window has started (CTO code review 2).
+ */
 function flashOf(
   current: QuestRecord | undefined,
   input: QuestInput,
   live: boolean,
+  now: Date,
 ): boolean | "flash" | "flashLaunched" {
   const flash = input.flash ?? current?.flash ?? false;
   if (flash && live) {
     return "flash";
   }
-  return !flash && current?.flashLaunchedAt != null ? "flashLaunched" : flash;
+  return !flash && flashStarted(current, now) ? "flashLaunched" : flash;
 }
 
 /**
@@ -298,7 +304,7 @@ export function mergeQuest(
     return { kind: "invalid", field: "place" };
   }
   const live = isLivePoll(type, config);
-  const flash = flashOf(current, input, live);
+  const flash = flashOf(current, input, live, now);
   if (typeof flash === "string") {
     return { kind: "invalid", field: flash };
   }
