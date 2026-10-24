@@ -1,5 +1,5 @@
 import { DEFAULT_TERMS } from "@questify/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fetchEventTerms, type EventTermsRequest } from "#src/lib/event-terms.ts";
 
 const MISSION = {
@@ -53,6 +53,7 @@ describe("fetchEventTerms", () => {
   });
 
   it("keeps Questify's words when the event is out of reach or the API answers badly", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     expect(await fetchEventTerms(request({ fetchImpl: answering(404, {}).fetchImpl }))).toEqual(
       DEFAULT_TERMS,
     );
@@ -63,6 +64,9 @@ describe("fetchEventTerms", () => {
       throw new Error("connection refused");
     }) as unknown as typeof fetch;
     expect(await fetchEventTerms(request({ fetchImpl: failing }))).toEqual(DEFAULT_TERMS);
+    expect(warn).toHaveBeenCalledWith("event words not read: event event-1 answered 404");
+    expect(warn).toHaveBeenCalledWith("event words not read: event event-1 could not be reached");
+    warn.mockRestore();
   });
 
   it("escapes the ids it puts in the path", async () => {

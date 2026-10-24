@@ -93,6 +93,21 @@ const DEFAULT_TRANSLATORS: Readonly<Record<Language, Translate>> = {
   en: buildTranslator("en", wordParams(DEFAULT_TERMS, "en")),
 };
 const EVENT_TRANSLATORS = new Map<string, Translate>();
+const WORDS_OF = new WeakMap<EventTerms, Partial<Record<Language, WordsKey>>>();
+
+type WordsKey = Readonly<{ words: Readonly<Record<string, string>>; key: string }>;
+
+/** The placeholders of a terms object and their text, worked out once per object and language. */
+function wordsOf(language: Language, terms: EventTerms): WordsKey {
+  const known = WORDS_OF.get(terms)?.[language];
+  if (known !== undefined) {
+    return known;
+  }
+  const words = wordParams(terms, language);
+  const made = { words, key: JSON.stringify(words) };
+  WORDS_OF.set(terms, { ...WORDS_OF.get(terms), [language]: made });
+  return made;
+}
 const MAX_EVENT_TRANSLATORS = 32;
 
 /**
@@ -102,14 +117,16 @@ const MAX_EVENT_TRANSLATORS = 32;
  * function, so it is safe in hook dependencies.
  */
 export function translatorFor(language: Language, terms: EventTerms = DEFAULT_TERMS): Translate {
-  const words = wordParams(terms, language);
-  const key = JSON.stringify(words);
+  const { words, key } = wordsOf(language, terms);
   if (key === DEFAULT_WORDS[language]) {
     return DEFAULT_TRANSLATORS[language];
   }
   const cacheKey = `${language}:${key}`;
   const known = EVENT_TRANSLATORS.get(cacheKey);
   if (known !== undefined) {
+    // Least recently used goes first: a hit moves to the end.
+    EVENT_TRANSLATORS.delete(cacheKey);
+    EVENT_TRANSLATORS.set(cacheKey, known);
     return known;
   }
   if (EVENT_TRANSLATORS.size >= MAX_EVENT_TRANSLATORS) {

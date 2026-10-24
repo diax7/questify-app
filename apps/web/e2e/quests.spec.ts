@@ -34,7 +34,7 @@ test("builds categories and quests in Arabic, reorders, hides, and deletes a cat
   await expect(general.getByRole("listitem").first()).toContainText("مخفية");
 
   await general.getByRole("button", { name: "حذف فئة" }).click();
-  await expect(page.getByText("عدد مهام في «عام»: 2. ماذا تريد أن يحدث عند الحذف؟")).toBeVisible();
+  await expect(page.getByText("مهام في «عام»: 2. ماذا تريد أن يحدث عند الحذف؟")).toBeVisible();
   const dialog = page.getByRole("alertdialog");
   // Nothing is chosen for the person: the button waits for a choice.
   await expect(dialog.getByRole("button", { name: "حذف فئة" })).toBeDisabled();
@@ -119,21 +119,21 @@ test("pins one quest as Up next, moves the pin, warns while it is hidden, and cl
 
   await pinOf(first).click();
   await expect(pinOf(first)).toHaveAttribute("aria-pressed", "true");
-  await expect(first).toContainText("التثبيت في «التالي»");
+  await expect(first).toContainText("مثبّت في «التالي»");
   await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");
 
   // One pin per event: pinning another moves it.
   await pinOf(second).click();
   await expect(pinOf(second)).toHaveAttribute("aria-pressed", "true");
   await expect(pinOf(first)).toHaveAttribute("aria-pressed", "false");
-  await expect(first).not.toContainText("التثبيت في «التالي»");
+  await expect(first).not.toContainText("مثبّت في «التالي»");
 
   await second.getByRole("button", { name: "إخفاء" }).click();
   await expect(second).toContainText("المحتوى مخفي، فلن يظهر في «التالي» حتى تُظهره.");
 
   await pinOf(second).click();
   await expect(pinOf(second)).toHaveAttribute("aria-pressed", "false");
-  await expect(general).not.toContainText("التثبيت في «التالي»");
+  await expect(general).not.toContainText("مثبّت في «التالي»");
 });
 
 test("sets a category's order, opening time, unlock and bonus, and shows them on its card (T-304)", async ({

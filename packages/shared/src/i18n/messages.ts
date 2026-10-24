@@ -439,7 +439,7 @@ export const MESSAGES = {
   "quests.field.orderMode": { ar: "ترتيب {questMany}", en: "{questOneCap} order" },
   "quests.field.orderAny": { ar: "بأي ترتيب", en: "Any order" },
   "quests.field.orderInOrder": {
-    ar: "بالترتيب: كل واحد يفتح ما بعده",
+    ar: "بالترتيب: يفتح كل عنصر ما بعده",
     en: "In order: each {questOne} opens the next",
   },
   "quests.field.categoryOpensAt": { ar: "موعد فتح {categoryOne}", en: "{categoryOneCap} opens" },
@@ -481,12 +481,12 @@ export const MESSAGES = {
     en: "“{name}” will be deleted. This cannot be undone.",
   },
   "quests.deleteCategoryHolds": {
-    ar: "عدد {questMany} في «{name}»: {count}. ماذا تريد أن يحدث عند الحذف؟",
+    ar: "{questMany} في «{name}»: {count}. ماذا تريد أن يحدث عند الحذف؟",
     en: "“{name}” holds {count} {questMany}. What should happen to them?",
   },
   "quests.moveTo": { ar: "نقلها إلى", en: "Move them to" },
   "quests.deleteThem": {
-    ar: "حذف الكل مع {categoryOne}",
+    ar: "حذف الكل ثم حذف {categoryOne}",
     en: "Delete them with the {categoryOne}",
   },
   "quests.addQuest": { ar: "إضافة {questOne}", en: "Add {questOne}" },
@@ -512,7 +512,7 @@ export const MESSAGES = {
   "quests.show": { ar: "إظهار", en: "Show" },
   "quests.hide": { ar: "إخفاء", en: "Hide" },
   "quests.pin": { ar: "تثبيت في «التالي»", en: "Pin as Up next" },
-  "quests.pinned": { ar: "التثبيت في «التالي»", en: "Pinned as Up next" },
+  "quests.pinned": { ar: "مثبّت في «التالي»", en: "Pinned as Up next" },
   "quests.pinnedHidden": {
     ar: "المحتوى مخفي، فلن يظهر في «التالي» حتى تُظهره.",
     en: "It's hidden, so it won't show as Up next until you show it.",
@@ -985,7 +985,7 @@ export const MESSAGES = {
     en: "Opens after you finish {name}",
   },
   "questsTab.category.inOrder": {
-    ar: "بالترتيب: كل واحد يفتح ما بعده",
+    ar: "بالترتيب: يفتح كل عنصر ما بعده",
     en: "In order: each {questOne} opens the next",
   },
   "questsTab.category.bonus": {

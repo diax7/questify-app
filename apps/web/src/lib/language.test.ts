@@ -85,6 +85,15 @@ describe("language helpers", () => {
     expect(translatorFor("en", readEventTerms({ quest: wordOf(nameOf(0)) }))).not.toBe(first);
   });
 
+  it("evicts the event used longest ago, not the one built first", () => {
+    const kept = readEventTerms({ quest: wordOf(nameOf(100)) });
+    const keptTranslator = translatorFor("en", kept);
+    for (let index = 101; index <= 120; index += 1) {
+      translatorFor("en", readEventTerms({ quest: wordOf(nameOf(index)) }));
+      expect(translatorFor("en", kept)).toBe(keptTranslator);
+    }
+  });
+
   it("fills the event's quest and category words into the texts that name them", () => {
     const terms = readEventTerms({
       quest: { ar: { one: "مغامرة", many: "مغامرات" }, en: { one: "mission", many: "missions" } },

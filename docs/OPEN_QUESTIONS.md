@@ -572,7 +572,7 @@ operators in a migration with an outsider test.
 ## Q-217 — Arabic lines for Dhia's eye (2026-10-24, T-311b)
 The lines most worth a read are in ADR-253: «{questOne} للجميع» (community quest), «{questOne} بوقت محدود!» (flash
 quest), «المحطة غير متاحة الآن» (operator cards), «انتهى الوقت المحدد», «المستلم» (manual award search), «لا شيء في نطاق
-عملك يعرض رمز QR على شاشة», «بالترتيب: كل واحد يفتح ما بعده». Several Arabic lines no longer name the quest at all.
+عملك يعرض رمز QR على شاشة», «بالترتيب: يفتح كل عنصر ما بعده». Several Arabic lines no longer name the quest at all.
 
 ## Q-218 — What "take over any ticket" means (2026-10-24, T-312 plan)
 ADR-258 reads FR-1823's "the Questify team shall be able to ... take over any ticket" as "answer any ticket in

@@ -33,12 +33,16 @@ export async function fetchEventTerms(request: EventTermsRequest): Promise<Event
       signal: AbortSignal.timeout(request.timeoutMs ?? 5_000),
     });
     if (!response.ok) {
+      // oxlint-disable-next-line no-console -- server log: the only trace of a page that fell back to the default words
+      console.warn(`event words not read: event ${request.eventId} answered ${response.status}`);
       return DEFAULT_TERMS;
     }
     const body: unknown = await response.json().catch(() => undefined);
     const event = (body as { event?: { terms?: unknown } } | undefined)?.event;
     return readEventTerms(event?.terms);
   } catch {
+    // oxlint-disable-next-line no-console -- server log, as above
+    console.warn(`event words not read: event ${request.eventId} could not be reached`);
     return DEFAULT_TERMS;
   }
 }

@@ -3357,13 +3357,16 @@ it; no permission, no identifier), loaded lazily so an older binary sends `null`
 session (`fetchEventTerms`; any failure gives Questify's words) and offers its terms to every page below it through
 `TermsScope`. Components call `useTranslator(language)` instead of `translatorFor(language)`; texts name the words with
 ADR-252's placeholders. `translatorFor(language, terms)` now keeps one function per language and set of words (the key is
-the words, at most 32 events kept, Questify's own never evicted), so a new terms object with the same words gives the same
+the words, the 32 most recently used events kept, Questify's own never evicted), so a new terms object with the same words gives the same
 function and a panel that lists `t` in a hook dependency cannot reload in a loop again. Saving the Event words calls
 `router.refresh()`, which reads the layout again. About 120 texts were rewritten under ADR-253, plus these Arabic forms: a
 feature name is `{questMany}` before its qualifier («{questMany} المشاركة», «{questMany} للجميع», «{questMany} بوقت محدود»);
 a switch's on and off lines open with «مفعّل:» or «متوقف:» and say «هذا النوع» instead of a pronoun for the renamed noun; a
 community quest is «هدف» in running text; the secret code is «الرمز السري ل{categoryOne}»; the destructive choice is «حذف
-الكل مع {categoryOne}». The Event words form, the public code page and the kiosk page keep Questify's words (Q-227).
+الكل ثم حذف {categoryOne}». The Event words form, the public code page and the kiosk page keep Questify's words (Q-227).
+The Arabic «{questMany} للجميع» against English "Community {questMany}" is accepted: «للجميع» says the same without an
+adjective that would have to agree with a renamed noun. The form's submit is «إنشاء {questOne}», not «إضافة {questOne}»,
+so it is never confused with the list's add button (assistive technology and the specs find buttons by name).
 **Why:** the pages are client components that each read their own data; one server read gives the words before the first
 paint, with no flash of the default word and no extra request per panel.
 **Trade-offs:** one extra server-to-API read per event page load (5 s timeout); a change made in another tab shows after a
