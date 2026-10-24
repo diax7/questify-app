@@ -3147,6 +3147,13 @@ paid by it (`self_scan`). The door namespaces its keys as `kiosk:{device}:{uuid}
 names the kiosk. The door holds the device `FOR SHARE` and never locks the operator's assignment (the removal trigger
 locks the assignment, then the device).
 **Why:** no one watches a kiosk, and anyone standing near it reads the screen.
+**Build notes (2026-10-24, T-309b):** the one-pay rule is per method: a quest with both the screen QR and the kiosk can
+pay one presence twice within 45 seconds (once by each), within the quest's caps; accepted, each method is its own way
+in. The reserved-key check is null-safe (`(coalesce(request_key, '') LIKE 'kiosk:%') IS DISTINCT FROM (proof_method =
+'kiosk')`, CTO note 1). `boosted` is read from the ledger entry by completion id, on a replay too. An operator who may
+not play (QP403) reads `not_open` on the card like every other personal reason. FR-1415's blocked user: a kiosk names
+the @username of a player another player has blocked like any public board does; blocking hides people from each
+other in the app and was never a way to hide from a public screen at the venue.
 
 ## ADR-245 — The kiosk page's decoder, headers and limits
 **Status:** Proposed (Claude, 2026-10-24; T-309b plan). Builds on ADR-242.
@@ -3157,3 +3164,12 @@ and no frame leaves the page. Only `/ar/kiosk` and `/en/kiosk` get `camera=(self
 front camera by default, with a switch. 30 scans a minute per kiosk; 10 unreadable or forged codes in a minute pause it
 until the minute passes. The platform switch `kiosks` (on by default; the paid add-on of ADR-076 gates it later).
 **Why:** Safari has no `BarcodeDetector`; one decoder everywhere, with no third-party origin at run time.
+**Build notes (2026-10-24, T-309b):** 3.1.6 (2026-10-19) was still inside the 7-day cooldown at build, so 3.1.5 stays,
+pinned exactly; `pnpm audit` clean of new advisories. Every link to the kiosk page is a plain `<a>` (a full page load),
+so the page always runs under its own `Permissions-Policy` and CSP (CTO note 4; an e2e test clicks through from the
+Devices page). The web image now copies `apps/web/public` (the standalone server serves nothing from it otherwise; the
+currency icons were missing there too). The six default avatars are copied to `apps/web/public/avatars` for the cards.
+While the switch is off, `GET /v1/device` answers a kiosk `shut: feature_off`, so the page shows "Not available"
+without waiting for a scan. The live code's window comes from a granted `live_code_window()` (the internal
+`screen_window()` stays closed). The bad-code limit is keyed apart from the device's polls, so a poll never holds a
+scan back.

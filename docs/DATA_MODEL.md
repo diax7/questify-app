@@ -645,6 +645,20 @@ event delete cascading). `quest_verification_known` takes `screen_qr` on scan qu
 `device_claim_check`, `make_device`, `device_json`, `revoke_devices_of`. `app_device_id()` reads `app.device_id`, set only
 by the API's device guard. Devices are kept by the rehearsal wipe.
 
+### kiosk_scan; the kiosk method (migration 0058, T-309b, ADR-242, ADR-244)
+**Built:** `kiosk_scan (completion_id → quest_completion CASCADE primary key, device_id → paired_device SET NULL,
+organizer_id, event_id, created_at)`, index `(device_id, created_at)`: which kiosk paid a completion. No personal data.
+Row-level security forced, PUBLIC revoked, no grant; written only by `kiosk_complete_quest`. It goes with its completion
+(the rehearsal wipe); erasure keeps completions and so keeps it; a deleted device (its quest's or event's delete) leaves
+it with no device. `quest_verification_known` takes `kiosk` on scan quests only, with any other scan method;
+`quest_completion.method` takes `kiosk`; `quest_completion_screen_idx` is replaced by `quest_completion_window_idx`
+(`method IN ('screen_qr', 'kiosk')`). `record_completion` restated: a `kiosk:` key only with the kiosk method and the
+kiosk method only with one (QK422, null-safe), the kiosk method on a scan quest that offers it, its live code's window
+judged as the screen QR's, one pay per player per method within 45 s. A kiosk completion has no install id
+(`device_id` NULL) and the ledger's actor `player`. Doors: `kiosk_complete_quest`, `kiosk_scan_subject` (the kiosk),
+`live_code_window` (player); internal `device_quest_state` (`screen_quest_state` now reads it for a station);
+`device_view`, `device_json` (`scans`) and `operator_devices` (`kioskQuests`) restated.
+
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
 created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method

@@ -69,6 +69,11 @@ Fail fast with a message that says what failed and what to do next. Never swallo
 errors use the one envelope in `API.md`. A failed network action in the app is never silently lost or
 half-applied (NFR-007): the player sees it and can retry. No personal data in error messages.
 
+**The kiosk door's lock order (T-309b, ADR-244).** `kiosk_complete_quest` takes its device `FOR SHARE`, then the
+rehearsal row, then the enrollment (`record_completion`'s `FOR NO KEY UPDATE`), then items; it reads the pairing
+operator's assignment without a lock, never `FOR SHARE`, since the removal trigger locks the assignment before the
+device. A Revoke or removal waits for a scan in flight, and the scan is paid before or refused after (DV401).
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

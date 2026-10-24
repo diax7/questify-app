@@ -194,7 +194,7 @@ Decisions:
 | F-109 | Caps on manual awards, set by the owner: maximum per award and per operator per day; a report of every manual award | Must | Claude | |
 | F-105 | NFC tags: written from staff mode on a phone ("Write to NFC tag" on the quest), tapped by players in the app; the QR as backup | Should | user | Basic tags; the web dashboard can't write tags. Platform limits: Q-071. Built (T-308): basic tags only (Dhia, 2026-10-24) |
 | F-106 | Rotating QR on a screen: the quest's QR on an operator's phone or on a station page opened on any tablet or TV, changing every 30–60 s | Should | Claude | The deck's "staff shows a one-time QR" is this, on the operator's phone. Built (T-309): every 30 s with 15 s' grace on the database clock (ADR-240) |
-| F-107 | Unattended kiosk: a tablet signed in as a station scans each player's My QR | Should | Claude | No staff needed; the rotating My QR proves the player is there |
+| F-107 | Unattended kiosk: a tablet signed in as a station scans each player's My QR | Should | Claude | No staff needed; the rotating My QR proves the player is there. Built (T-309b): the kiosk reads the player's live code (My QR → For kiosks, ADR-242), never the fixed My QR |
 
 ### Fair play
 
@@ -707,7 +707,7 @@ first column.
 | F-271 | 10 | The wizard's text, mock previews and hints are maintained by the Questify team as data | Should | Claude | Changes need no release |
 | F-272 | 1 | Add to Apple Wallet and Add to Google Wallet: after joining and from Profile, the player adds an event pass | Must | user | ADR-091. From the app only in v1 |
 | F-273 | 1 | The pass shows the Questify frame with the event's logo and name, dates, the @username, score, balance, level and rank, and when it was last updated | Must | user | ADR-091 |
-| F-274 | 3 | The pass carries a fixed ID code, unique per player per event. Stations, kiosks and the prize desk accept it like My QR; the result screen shows the username so the operator can compare | Must | user | Fixed code, risk accepted (ADR-091) |
+| F-274 | 3 | The pass carries a fixed ID code, unique per player per event. Stations, kiosks and the prize desk accept it like My QR; the result screen shows the username so the operator can compare | Must | user | Fixed code, risk accepted (ADR-091). Note (T-309b): kiosks read only the live code and refuse a fixed code (`needs_live_code`); whether kiosks accept the pass is pending Q-207 |
 | F-275 | 1 | The pass updates when the player's numbers change (Apple push, Google API), rate-limited; the code can be revoked by the server | Must | Claude | Updates are not guaranteed on Apple; the server is the truth |
 | F-276 | 10 | Layout presets: the Questify team defines approved layouts and the organizer picks one per event | Should | user | ADR-090 |
 | F-277 | 14 | Translation matrix: every text in the app (not only organizer content), listed as key, Arabic, English; the Questify team edits either or both at any time and the change is live without a release | Must | user | ADR-093. Defaults ship in the app as a fallback |

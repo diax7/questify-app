@@ -175,6 +175,12 @@ What App Review needs from Questify:
    system sheet). Android: `android.permission.NFC` (normal) and the NFC feature not required. The note says NFC is
    optional and every NFC quest also has its QR, so the reviewer needs no tag; the demo event gets an NFC quest. The
    sticker's id is the sticker's, not the player's; Data safety and privacy answers are unchanged.
+   **Kiosks (T-309b):** the kiosk is a web page on organizer hardware, its camera the browser's, asked on that page only.
+   The app gains My QR's For kiosks tab (a server-signed code that changes every 30 seconds): no new permission,
+   entitlement or native module, nothing downloaded (`expo-keep-awake` was already in the build). Privacy answers are
+   unchanged: the live code is the signed-in player's own request; no camera frame is stored or sent. Kiosks are
+   optional and every kiosk quest in the demo event also has another way in; the reviewer can open For kiosks and see
+   the code change.
    **Stations and the screen QR (T-309):** station, kiosk and big-screen pages are web pages on organizer hardware, in
    neither store build. The app gains staff-mode screens (Pair a device, Rotating QR, My paired devices) and a scanner
    case for `/s/` codes: no new permission, entitlement or native module, nothing downloaded (the method is data, the

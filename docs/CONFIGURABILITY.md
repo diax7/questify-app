@@ -81,6 +81,14 @@ for an event.
   No event switch: the quest's own `screen_qr` method is the organizer's. The window is fixed at 30 seconds with 15
   seconds' grace (ADR-240); the old platform tuning `screenQrRotationSeconds` was removed (Q-206).
 
+## As built (T-309b): the kiosks switch
+
+- `kiosks` (platform level, not an add-on yet, on by default; ADR-076's paid add-on gates it later, with activation):
+  off, kiosk pages show "Not available" (`GET /v1/device` answers a kiosk `shut: feature_off`),
+  `POST /v1/device/kiosk-scans` and `GET /v1/me/live-code` answer `feature_off`, and the app's For kiosks tab says
+  "Kiosks aren't available right now"; pairing, the Devices page and Revoke stay. No event switch: the quest's own
+  `kiosk` method is the organizer's.
+
 ## As built (T-008): texts
 
 - **Shipped texts** are `MESSAGES` in `packages/shared/src/i18n/messages.ts`: every key in Arabic and English, the same

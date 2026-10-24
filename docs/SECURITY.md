@@ -134,6 +134,31 @@ carrying most traffic) are log lines until T-018 wires them; see `TASKS.md`.
 | A flood of pairing requests (CTO 9) | At 5,000 open requests new pairings answer 503 `busy` (logged `device.request_flood`, which the error tracker alerts on) for up to 10 minutes; paired devices are never touched |
 | An operator who lost the ability or the quest keeps a station running (CTO 3) | The station shows "Paused by the event team" and no code until the ability or the quest comes back |
 
+### Kiosks and the live code (T-309b, ADR-242, ADR-244, ADR-245)
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V8 authorization | `kiosk_complete_quest` takes no quest or event: it pays only the device's own quest, only a player enrolled in the device's event, only from an activated, live kiosk (a station's or pending cookie is 401); `kiosk_scan_subject` names only a player of that event; `GET /v1/me/live-code` signs only the bearer's own id | `test/db/kiosks`, `test/devices/kiosk-routes`, `test/security/*` |
+| V11 business logic | the live code's window is issued and judged on the database clock; one pay per player per method per 45 s on a quest under the enrollment lock; the `kiosk:` key namespace is the kiosk door's alone (QK422 elsewhere, null-safe); the pairing operator is never paid by their kiosk | `test/db/kiosks` (the kiosk door table, the crossed locks) |
+| V2 / V11 anti-automation | 30 scans a minute per kiosk; 10 unreadable or forged codes in a minute pause it until the minute passes; 6 live codes a minute per player | `test/devices/kiosk-routes` |
+| V14 configuration | only `/ar/kiosk` and `/en/kiosk` get `camera=(self)` and `'wasm-unsafe-eval'`; every link there is a full page load; the decoder's wasm is self-hosted and hash-checked | `security-headers.test.ts`, `kiosk-decoder.test.ts`, `e2e/kiosks.spec.ts` |
+
+| Threat | Answer |
+|---|---|
+| A screenshot of a live code | Dead 15 s after its window changed (45 s at most): `expired` |
+| The fixed My QR (or a screenshot of it) at a kiosk | `needs_live_code`, nothing paid |
+| A live code relayed live by video | Pays its owner once per quest per 45 s, within the caps; burst flags; risk accepted (ADR-242) |
+| One code held up twice, or two phones showing one code | One pay (the 45-s rule under the enrollment lock; the page drops a string it just sent for 5 s) |
+| The operator who paired the kiosk scanning themselves | `self_scan` |
+| Forged or junk codes probing the signature | Not Questify-shaped: dropped in the page; shaped but forged: counted, 10 a minute pause the kiosk |
+| A prankster pausing the kiosk with forged codes | At most a minute per 10 codes, from in front of the camera; accepted |
+| The tablet taken, or its cookie read through an unlocked browser | Works elsewhere until Revoke, the event's end + 24 h or 30 idle days, and pays only players whose live codes it is shown; the Devices page shows last seen and scans in the last 24 hours; pairing a kiosk shows the lock-the-tablet tip (Guided Access, screen pinning) |
+| A device cookie of another kind (a station) | `kiosk-scans` refuses it (401) |
+| A kiosk of event A scanning a player of event B | `not_in_event`; the door takes no quest or event argument |
+| A removed or de-abilitied operator's kiosk | `paused` at the next scan and poll; a removal revokes it |
+| A camera feed | Decoded on the tablet; no frame leaves the page; nothing stored |
+| Personal data on a public screen | The @username and the Questify avatar on green and orange only (public on the boards already, FR-120); never a score, balance, rank, status, ban or name; a red card names no one |
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

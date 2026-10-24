@@ -999,7 +999,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-312 | F-105 | Should | built (T-308) |
 | FR-313 | F-105 | Should | built (T-308) |
 | FR-314 | F-106 | Should | built (T-309) |
-| FR-315 | F-107 | Should | pending |
+| FR-315 | F-107 | Should | built (T-309b, 2026-10-24); the rewording to "live code" pending Q-201 |
 | FR-316 | F-110 | Must | pending |
 | FR-317 | F-110 | Must | pending |
 | FR-318 | F-111 | Must | pending |
