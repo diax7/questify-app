@@ -78,6 +78,7 @@ describe("the survey form (T-303, FR-214)", () => {
       levelUp: null,
       bonus: null,
       item: null,
+      boost: null,
     });
   });
 });

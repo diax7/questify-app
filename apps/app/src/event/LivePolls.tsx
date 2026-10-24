@@ -1,5 +1,5 @@
-import { formatNumber } from "@questify/shared";
-import { useSegments } from "expo-router";
+import { formatEventTime, formatNumber } from "@questify/shared";
+import { router, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import { keyValueStore } from "#src/api/app-session.ts";
@@ -7,7 +7,9 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { useOpenSheets } from "#src/components/sheet-count.ts";
 import { communityNews, type CommunityCard, type CommunityNews } from "#src/event/community.ts";
+import { Button } from "#src/components/Controls.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
+import { nextDrop, type LiveBoost, type LiveFlash } from "#src/event/flash-boost.ts";
 import { useLive } from "#src/event/LiveContext.tsx";
 import { PollEntry } from "#src/event/PollEntry.tsx";
 import {
@@ -23,7 +25,9 @@ import { textIn } from "#src/i18n/text.ts";
 
 type Card =
   | Readonly<{ kind: "poll" | "results"; questId: string }>
-  | Readonly<{ kind: "community"; news: CommunityNews; goal: CommunityCard }>;
+  | Readonly<{ kind: "community"; news: CommunityNews; goal: CommunityCard }>
+  | Readonly<{ kind: "flash"; flash: LiveFlash }>
+  | Readonly<{ kind: "boost"; boost: LiveBoost }>;
 
 /** The results and community cards this phone already showed for the event (one-time each), read once. */
 function useShownResults(eventId: string) {
@@ -94,6 +98,47 @@ function CommunityNewsBody({ news, goal }: Readonly<{ news: CommunityNews; goal:
 }
 
 /**
+ * A one-time flash quest or boost card (T-307): "Flash quest!" with its title, its end and Open (the quest on the
+ * Quests tab), or "Double points" with the category and its end. Times in the event's zone.
+ */
+function DropBody({ card, close }: Readonly<{ card: Card; close: () => void }>) {
+  const { t, language } = useI18n();
+  const { eventId, events } = useEvent();
+  const timeZone = events?.find((event) => event.id === eventId)?.timezone ?? "Asia/Riyadh";
+  if (card.kind === "flash") {
+    const open = () => {
+      close();
+      router.navigate({
+        pathname: "/event/[eventId]/quests",
+        params: { eventId, quest: card.flash.questId },
+      });
+    };
+    return (
+      <View style={{ gap: 8 }} accessibilityLiveRegion="polite">
+        <AppText variant="title">{textIn(card.flash.title, language)}</AppText>
+        <AppText muted>
+          {t("quests.flash.endsAt", {
+            time: formatEventTime(new Date(card.flash.closesAt), timeZone, language),
+          })}
+        </AppText>
+        <Button label={t("live.flash.open")} onPress={open} />
+      </View>
+    );
+  }
+  if (card.kind !== "boost") {
+    return null;
+  }
+  return (
+    <AppText variant="title" accessibilityLiveRegion="polite">
+      {t("live.boost.body", {
+        category: textIn(card.boost.category, language),
+        time: formatEventTime(new Date(card.boost.endsAt), timeZone, language),
+      })}
+    </AppText>
+  );
+}
+
+/**
  * The live poll pop-up (FR-239): a sheet over the event's tabs for an open poll the player has not voted in or put off
  * in this session, a one-time card when an at_close poll's results are in, and one per community step that reached a
  * moment or paid the player (T-306b). It waits for a calm screen: never over a mini-game, a quiz or any other sheet,
@@ -135,11 +180,34 @@ export function LivePolls() {
         notePaid();
       }
       AccessibilityInfo.announceForAccessibility(t(NEWS_TITLE[news.kind]));
+      return;
+    }
+    // A new flash quest or boost: the quest list and Home read again for its badge, then its one-time card.
+    const drop = shown === undefined ? undefined : nextDrop(live, shown);
+    if (drop !== undefined) {
+      remember(drop.key);
+      notePaid();
+      setCard(drop.kind === "flash" ? { kind: "flash", flash: drop.flash } : drop);
+      AccessibilityInfo.announceForAccessibility(
+        t(drop.kind === "flash" ? "live.flash.title" : "live.boost.title"),
+      );
     }
   }, [card, calm, live, putOff, shown, remember, t, notePaid]);
 
   if (card === null) {
     return null;
+  }
+  if (card.kind === "flash" || card.kind === "boost") {
+    const close = () => setCard(null);
+    return (
+      <Sheet
+        visible
+        title={t(card.kind === "flash" ? "live.flash.title" : "live.boost.title")}
+        onClose={close}
+      >
+        <DropBody card={card} close={close} />
+      </Sheet>
+    );
   }
   if (card.kind === "community") {
     return (

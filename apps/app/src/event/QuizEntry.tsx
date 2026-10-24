@@ -345,6 +345,7 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
             </AppText>
           )}
           <Result quiz={view} />
+          {quiz.step?.boost == null ? null : <AppText>{t("completion.boosted")}</AppText>}
           {item === null ? null : <AppText>{itemLine(t, language, item)}</AppText>}
           {bonus === null ? null : <AppText>{bonusLine(t, language, bonus)}</AppText>}
           {levelUp === null ? null : (

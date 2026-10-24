@@ -75,7 +75,12 @@ describe("the vote", () => {
       levelUp: null,
       bonus: null,
       item: null,
+      boost: null,
     });
+    expect(votedOf(ok({ points: 50, boost: { multiplier: 2 } }))).toMatchObject({
+      boost: { multiplier: 2 },
+    });
+    expect(votedOf(ok({ points: 50, boost: { multiplier: 1 } }))).toMatchObject({ boost: null });
     const bonus = { points: 40, category: { ar: null, en: "Stage" } };
     expect(votedOf(ok({ points: 25, bonus: { categoryId: "c", ...bonus } }))).toMatchObject({
       bonus,

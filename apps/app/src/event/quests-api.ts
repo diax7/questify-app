@@ -67,7 +67,33 @@ export type Quest = Readonly<{
   game: Readonly<{ attemptsLeft: number | null; passed: boolean }> | null;
   /** The community goal holding it shut, its category's included (T-306c); null when free or from an older API. */
   communityLock: CommunityLock | null;
+  /** A flash quest's end (T-307): it is listed only inside its window; null for any other quest or an older API. */
+  flash: Readonly<{ closesAt: string }> | null;
+  /** The boost doubling its category now (T-307); null when none or from an older API. */
+  boost: RunningBoost | null;
 }>;
+
+/** A boost in force (T-307): the quest pays its points times `multiplier` until `endsAt`. */
+export type RunningBoost = Readonly<{ multiplier: number; endsAt: string }>;
+
+/** A running boost as sent, or null for anything missing or not well formed. */
+export function runningBoostOf(value: unknown): RunningBoost | null {
+  return isRecord(value) &&
+    typeof value["multiplier"] === "number" &&
+    typeof value["endsAt"] === "string"
+    ? { multiplier: value["multiplier"], endsAt: value["endsAt"] }
+    : null;
+}
+
+/** The boost a payment was made with (T-307): `points` already holds the multiplied amount. */
+export type Boosted = Readonly<{ multiplier: number }>;
+
+/** The boost in a payment's answer, or null when there is none, it is not well formed, or the API is older. */
+export function boostedOf(value: unknown): Boosted | null {
+  return isRecord(value) && typeof value["multiplier"] === "number" && value["multiplier"] > 1
+    ? { multiplier: value["multiplier"] }
+    : null;
+}
 
 /**
  * Whether a quest of a type this app version does not know still offers its printed QR (F-282): a type added after this
@@ -88,6 +114,8 @@ export type CategoryRules = Readonly<{
   resetsAt: string | null;
   /** The community goal locking the category as a whole (T-306c), shown once as its note; null when free. */
   communityLock: CommunityLock | null;
+  /** The boost doubling the category now (T-307); null when none or from an older API. */
+  boost: RunningBoost | null;
 }>;
 
 export type Category = Readonly<{ id: string; name: Bilingual; quests: readonly Quest[] }> &
@@ -197,7 +225,16 @@ const withVerification = (quest: Quest): Quest => ({
   meet: meetOf(quest.meet),
   game: gameOf(quest.game),
   communityLock: lockNoteOf(quest.communityLock),
+  flash: flashOf(quest.flash),
+  boost: runningBoostOf(quest.boost),
 });
+
+/** A flash quest's end as sent, or null for anything missing or not well formed. */
+function flashOf(value: unknown): Quest["flash"] {
+  return isRecord(value) && typeof value["closesAt"] === "string"
+    ? { closesAt: value["closesAt"] }
+    : null;
+}
 
 /** A game quest's attempts and pass as sent, or null for anything missing or not well formed. */
 function gameOf(value: unknown): Quest["game"] {
@@ -257,6 +294,7 @@ function rulesOf(category: Record<string, unknown>): CategoryRules {
         : "none",
     resetsAt: typeof category["resetsAt"] === "string" ? category["resetsAt"] : null,
     communityLock: lockNoteOf(category["communityLock"]),
+    boost: runningBoostOf(category["boost"]),
   };
 }
 
@@ -446,6 +484,8 @@ export type CompletionAnswer =
       bonus: Bonus | null;
       /** The quest item this completion gave or missed (T-304d), or null. */
       item: ItemGiven | null;
+      /** The boost that doubled it (T-307), or null. */
+      boost: Boosted | null;
     }>
   /** A check-in refused for its position (T-303b); `distanceM` is the player's own rounded distance for not_here. */
   | Readonly<{
@@ -586,6 +626,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
         levelUp: levelUpOf(body["levelUp"]),
         bonus: bonusOf(body["bonus"]),
         item: itemGivenOf(body["item"]),
+        boost: boostedOf(body["boost"]),
       }
     : { kind: "failed" };
 }

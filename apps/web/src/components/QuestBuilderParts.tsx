@@ -12,6 +12,7 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
@@ -86,6 +87,7 @@ export type Deleting =
   | Readonly<{ kind: "category"; category: CategoryView }>;
 
 export type CardActions = PollActions &
+  FlashActions &
   Readonly<{
     /** Where a quest's printed code is, for the types that have one. */
     codeLink: (quest: QuestView) => string | undefined;
@@ -218,11 +220,19 @@ function QuestRow({
       </span>
     );
   return (
-    <li className={live ? `${styles.card} ${styles.wrap}` : styles.card}>
+    <li className={live || quest.flash === true ? `${styles.card} ${styles.wrap}` : styles.card}>
       <strong>{textFor(quest.title, language)}</strong>
       <span className={styles.badge}>{t(QUEST_TYPES[quest.type].label)}</span>
       {quest.visible || live ? null : <span className={styles.badge}>{t("quests.hidden")}</span>}
       <PollControls
+        language={language}
+        timeZone={timeZone}
+        quest={quest}
+        busy={busy}
+        readOnly={readOnly}
+        actions={actions}
+      />
+      <FlashControls
         language={language}
         timeZone={timeZone}
         quest={quest}

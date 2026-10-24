@@ -34,6 +34,8 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   game: null,
   verification: [],
   communityLock: null,
+  flash: null,
+  boost: null,
   ...fields,
 });
 
@@ -47,6 +49,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   refresh: "none",
   resetsAt: null,
   communityLock: null,
+  boost: null,
   quests,
 });
 
@@ -338,7 +341,11 @@ describe("completionAnswer", () => {
       levelUp: null,
       bonus: null,
       item: null,
+      boost: null,
     });
+    expect(completionAnswer(ok({ points: 20, score: 40, boost: { multiplier: 2 } }))).toMatchObject(
+      { points: 20, boost: { multiplier: 2 } },
+    );
     const shirt = { name: { ar: "قميص", en: null }, outcome: "out_of_stock", until: null };
     expect(
       completionAnswer(

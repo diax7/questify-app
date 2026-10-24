@@ -56,11 +56,18 @@ describe("the live read's flash quests and boosts (T-307)", () => {
               polls: [],
               closed: [],
               community: null,
-              flash: [{ questId: "q1", closesAt: "2030-11-01T07:10:00+00:00" }],
+              flash: [
+                {
+                  questId: "q1",
+                  title: { ar: null, en: "Drop" },
+                  closesAt: "2030-11-01T07:10:00+00:00",
+                },
+              ],
               boosts: [
                 {
                   boostId: "b1",
                   categoryId: "c1",
+                  category: { ar: null, en: "Stage" },
                   multiplier: 2,
                   endsAt: "2030-11-01T07:30:00+00:00",
                 },
@@ -76,9 +83,17 @@ describe("the live read's flash quests and boosts (T-307)", () => {
       polls: [],
       closed: [],
       community: null,
-      flash: [{ questId: "q1", closesAt: "2030-11-01T07:10:00.000Z" }],
+      flash: [
+        { questId: "q1", title: { ar: null, en: "Drop" }, closesAt: "2030-11-01T07:10:00.000Z" },
+      ],
       boosts: [
-        { boostId: "b1", categoryId: "c1", multiplier: 2, endsAt: "2030-11-01T07:30:00.000Z" },
+        {
+          boostId: "b1",
+          categoryId: "c1",
+          category: { ar: null, en: "Stage" },
+          multiplier: 2,
+          endsAt: "2030-11-01T07:30:00.000Z",
+        },
       ],
     });
     anything = false;

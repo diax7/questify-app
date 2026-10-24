@@ -1,7 +1,7 @@
 import { formatEventTime, formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Pressable, ScrollView, View } from "react-native";
+import { AppState, Image, Pressable, ScrollView, View } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
@@ -9,10 +9,12 @@ import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { boostLine, flashLine } from "#src/event/flash-boost.ts";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
 import { resetLabel } from "#src/event/reset.ts";
 import { unlockLine, type CommunityLock } from "#src/event/unlock.ts";
+import type { RunningBoost } from "#src/event/quests-api.ts";
 import {
   categoryNotes,
   categorySummary,
@@ -74,6 +76,53 @@ function useQuests(eventId: string) {
   return { answer, load };
 }
 
+/** The brand's lightning (icon-lightning, 128 px), beside a flash quest's badge; decorative, the words say "Flash". */
+const LIGHTNING = require("#assets/icons/lightning.png");
+
+/**
+ * A flash quest's badge with its end, and a boosted category's "×2" seal with "Double points until …" (T-307). The
+ * running ones come from this quest read, never from the live cards, which stop naming them 15 minutes in (CTO 8).
+ */
+function DropLines({
+  quest,
+  boost,
+  timeZone,
+}: Readonly<{
+  quest: Pick<Quest, "flash"> | undefined;
+  boost: RunningBoost | null;
+  timeZone: string;
+}>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const flash = quest === undefined ? null : flashLine(quest, t, language, timeZone);
+  const boosted = boostLine(boost, t, language, timeZone);
+  return (
+    <>
+      {flash === null ? null : (
+        <View style={styles.badgeRow}>
+          <Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={LIGHTNING}
+            resizeMode="contain"
+            style={styles.icon}
+          />
+          <AppText variant="label">{t("quests.flash.badge")}</AppText>
+          <AppText muted>{flash}</AppText>
+        </View>
+      )}
+      {boosted === null ? null : (
+        <View style={styles.badgeRow}>
+          <AppText variant="label" style={styles.seal}>
+            {t("quests.boost.badge")}
+          </AppText>
+          <AppText>{boosted}</AppText>
+        </View>
+      )}
+    </>
+  );
+}
+
 /**
  * A quest in its category. A quest a community goal locks on its own says which goal opens it (T-306c); one locked
  * with its whole category says only that it opens with the goal, the category's note naming the goal once.
@@ -102,6 +151,7 @@ function QuestCard({
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
       <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
+      <DropLines quest={quest} boost={quest.boost} timeZone={timeZone} />
       {quest.item === null ? null : (
         <AppText muted>{t("questsTab.itemReward", { item: textIn(quest.item, language) })}</AppText>
       )}
@@ -208,6 +258,7 @@ function CategorySection({
             {note}
           </AppText>
         ))}
+        <DropLines quest={undefined} boost={category.boost} timeZone={timeZone} />
       </Pressable>
       {open
         ? category.quests.map((quest) => (
@@ -322,6 +373,20 @@ export default function QuestsScreen() {
 
 const makeStyles = (theme: Theme) => ({
   section: { gap: theme.spacing.sm },
+  badgeRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    flexWrap: "wrap" as const,
+    gap: theme.spacing.xs,
+  },
+  icon: { width: 20, height: 20 },
+  // A gold wax seal for "×2" (brand deck): the event's highlight on the card.
+  seal: {
+    paddingHorizontal: theme.spacing.xs,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.navigationActive,
+    overflow: "hidden" as const,
+  },
   header: {
     gap: theme.spacing.xs,
     paddingVertical: theme.spacing.sm,

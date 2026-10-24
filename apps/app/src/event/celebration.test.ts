@@ -23,6 +23,8 @@ const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
   game: null,
   verification: ["quest_qr"],
   communityLock: null,
+  flash: null,
+  boost: null,
   ...fields,
 });
 
@@ -41,6 +43,7 @@ const category = (id: string, quests: Quest[]): Category => ({
   refresh: "none",
   resetsAt: null,
   communityLock: null,
+  boost: null,
   quests,
 });
 
@@ -65,6 +68,7 @@ describe("scanStep", () => {
           levelUp,
           bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
           item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
+          boost: { multiplier: 2 },
         },
       }),
     ).toEqual({
@@ -75,6 +79,7 @@ describe("scanStep", () => {
       levelUp,
       bonus: { points: 50, category: { ar: null, en: "Stage" }, item: null },
       item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
+      boosted: true,
       met: null,
       details: undefined,
     });
@@ -93,6 +98,7 @@ describe("scanStep", () => {
           levelUp: null,
           bonus: null,
           item: null,
+          boost: null,
           questId: "q9",
           met: { username: "noura", avatar: "owl" },
         },
@@ -120,6 +126,7 @@ describe("scanStep", () => {
           levelUp: null,
           bonus: null,
           item: null,
+          boost: null,
         },
       }),
     ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
@@ -236,9 +243,9 @@ const error = (status: number, code: string) => ({
 describe("readActivity and activityAnswer", () => {
   it("reads entries and the cursor", () => {
     expect(readActivity({ entries: [ENTRY], nextCursor: "41" })).toEqual({
-      entries: [{ ...ENTRY, reason: undefined, title: { ar: null, en: "Find the word" } }].map(
-        ({ reason: _reason, ...entry }) => entry,
-      ),
+      entries: [
+        { ...ENTRY, reason: undefined, title: { ar: null, en: "Find the word" }, multiplier: null },
+      ].map(({ reason: _reason, ...entry }) => entry),
       nextCursor: "41",
     });
   });
@@ -290,6 +297,7 @@ describe("celebrationBeats", () => {
     levelUp: null,
     bonus: null,
     item: null,
+    boosted: false,
     met: null,
     details: undefined,
   } as const;

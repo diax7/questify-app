@@ -11,6 +11,7 @@ import {
   type Deleting,
 } from "#src/components/QuestBuilderParts.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { FlashLaunchDialog } from "#src/components/FlashControls.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { translatorFor } from "#src/lib/language.ts";
@@ -32,6 +33,9 @@ type Editing = Readonly<{ quest?: QuestView; initial: QuestDraft; key: string }>
 
 /** A live poll's Send or Close while the page asks for it, with the Idempotency-Key it goes with (T-306). */
 type Polling = Readonly<{ kind: "send" | "close"; quest: QuestView; key: string }>;
+
+/** A flash quest's Launch or End now while the page asks for it, with its Idempotency-Key (T-307). */
+type Flashing = Readonly<{ kind: "launch" | "end"; quest: QuestView; key: string }>;
 
 /**
  * Remembers the control that opened a dialog or form, and gives it the focus back when that closes, so a keyboard or
@@ -72,6 +76,7 @@ export function QuestBuilder({
   const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<Deleting | null>(null);
   const [polling, setPolling] = useState<Polling | null>(null);
+  const [flashing, setFlashing] = useState<Flashing | null>(null);
   const categoryKey = useRef(crypto.randomUUID());
   const focus = useReturnFocus();
   const categories = b.categories ?? [];
@@ -97,7 +102,25 @@ export function QuestBuilder({
     setPolling(null);
     void b.send("POST", `/quests/${quest.id}/${kind}`, {}, { key }).then(() => focus.restore());
   };
+  const askFlash = (kind: Flashing["kind"], quest: QuestView) => {
+    focus.remember();
+    setFlashing({ kind, quest, key: crypto.randomUUID() });
+  };
+  const confirmFlash = (body: Readonly<Record<string, unknown>>) => {
+    if (flashing === null) {
+      return;
+    }
+    const { kind, quest, key } = flashing;
+    setFlashing(null);
+    void b.send("POST", `/quests/${quest.id}/${kind}`, body, { key }).then(() => focus.restore());
+  };
+  const cancelFlash = () => {
+    setFlashing(null);
+    focus.restore();
+  };
   const actions: CardActions = {
+    launchFlash: (quest) => askFlash("launch", quest),
+    endFlash: (quest) => askFlash("end", quest),
     sendPoll: (quest) => askPoll("send", quest),
     closePoll: (quest) => askPoll("close", quest),
     votesUrl: (quest) => `/v1/organizers/${organizerId}/events/${eventId}/quests/${quest.id}/votes`,
@@ -251,6 +274,26 @@ export function QuestBuilder({
           confirm={confirmPoll}
         />
       )}
+      {flashing?.kind === "launch" ? (
+        <FlashLaunchDialog
+          language={language}
+          busy={b.busy}
+          cancel={cancelFlash}
+          confirm={(minutes) => confirmFlash({ minutes })}
+        />
+      ) : null}
+      {flashing?.kind === "end" ? (
+        <ConfirmDialog
+          language={language}
+          title={t("quests.flash.endTitle")}
+          body={t("quests.flash.endBody")}
+          confirmLabel={t("quests.flash.end")}
+          noteLabel={null}
+          busy={b.busy}
+          cancel={cancelFlash}
+          confirm={() => confirmFlash({})}
+        />
+      ) : null}
       {editing === null ? null : (
         <QuestForm
           language={language}

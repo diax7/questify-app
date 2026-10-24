@@ -9,6 +9,12 @@ import {
 import type { Session } from "#src/api/session.ts";
 import { communityOf, type CommunityCard } from "#src/event/community.ts";
 import {
+  liveBoostsOf,
+  liveFlashOf,
+  type LiveBoost,
+  type LiveFlash,
+} from "#src/event/flash-boost.ts";
+import {
   isChoices,
   isRecord,
   isStrings,
@@ -132,9 +138,19 @@ export type LiveState = Readonly<{
   closed: readonly Readonly<{ questId: string }>[];
   /** The community goal to show (T-306b), or null. */
   community: CommunityCard | null;
+  /** Flash quests just launched or started (T-307): one-time cards; none from an older API. */
+  flash: readonly LiveFlash[];
+  /** Boosts just started on categories the player sees (T-307): one-time cards; none from an older API. */
+  boosts: readonly LiveBoost[];
 }>;
 
-export const NOTHING_LIVE: LiveState = { polls: [], closed: [], community: null };
+export const NOTHING_LIVE: LiveState = {
+  polls: [],
+  closed: [],
+  community: null,
+  flash: [],
+  boosts: [],
+};
 
 export function liveStateOf(body: unknown): LiveState | undefined {
   if (!isRecord(body) || !Array.isArray(body["polls"]) || !Array.isArray(body["closed"])) {
@@ -151,6 +167,8 @@ export function liveStateOf(body: unknown): LiveState | undefined {
     polls: polls.map((poll) => ({ questId: poll.questId, closesAt: poll.closesAt })),
     closed: closed.map((poll) => ({ questId: poll.questId })),
     community: communityOf(body["community"]),
+    flash: liveFlashOf(body["flash"]),
+    boosts: liveBoostsOf(body["boosts"]),
   };
 }
 

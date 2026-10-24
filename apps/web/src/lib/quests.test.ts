@@ -71,6 +71,7 @@ describe("quest bodies", () => {
       description: { ar: "", en: "" },
       points: 10,
       repeatCap: 1,
+      flash: false,
       opensAt: null,
       closesAt: null,
       visible: true,
@@ -79,6 +80,30 @@ describe("quest bodies", () => {
       itemId: null,
       place: null,
     });
+  });
+
+  it("sends a flash quest's flag and window, never a running one's window, and checks it first (T-307)", () => {
+    const draft = { ...blankQuest("c1"), titleEn: "Drop", flash: true, visible: false };
+    expect(createQuestBody(draft)).toMatchObject({ flash: true, visible: false, opensAt: null });
+    expect(questProblem(draft)).toBeUndefined();
+    expect(questProblem({ ...draft, visible: true })).toBe("flashWindow");
+    expect(
+      questProblem({
+        ...draft,
+        visible: true,
+        opensAt: "2030-11-01T10:00",
+        closesAt: "2030-11-01T10:30",
+      }),
+    ).toBeUndefined();
+    const running = { ...draft, visible: true, flashRunning: true };
+    expect(questProblem(running)).toBeUndefined();
+    expect(createQuestBody(running)).not.toHaveProperty("closesAt");
+    const poll = {
+      ...draft,
+      type: "vote" as const,
+      config: { options: [], live: { choices: "one", results: "never", minutes: 5 } },
+    };
+    expect(questProblem(poll)).toBe("flash");
   });
 
   it("never sends a live poll's window: Send and Close set it (T-306)", () => {

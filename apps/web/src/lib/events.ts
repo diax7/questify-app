@@ -36,6 +36,9 @@ export type EventView = Readonly<{
   miniGames: boolean;
   /** The event's community quests switch (T-306b, ADR-226). */
   community: boolean;
+  /** The event's flash quests and double points switches (T-307); absent from an older API, read as on. */
+  flashQuests?: boolean;
+  boosts?: boolean;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

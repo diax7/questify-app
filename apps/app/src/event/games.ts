@@ -8,8 +8,10 @@ import {
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import {
   bonusOf,
+  boostedOf,
   completionAnswer,
   itemGivenOf,
+  type Boosted,
   type Bonus,
   type CompletionAnswer,
   type ItemGiven,
@@ -174,6 +176,7 @@ export type ResultAnswer =
       levelUp: LevelUp | null;
       bonus: Bonus | null;
       item: ItemGiven | null;
+      boost: Boosted | null;
     }>
   | Readonly<{ kind: "done" }>
   | Readonly<{ kind: "short"; result: unknown; target: GameTarget; attemptsLeft: number | null }>
@@ -195,6 +198,7 @@ function sentOf(body: Record<string, unknown>): ResultAnswer {
         levelUp: levelUpOf(body["levelUp"]),
         bonus: bonusOf(body["bonus"]),
         item: itemGivenOf(body["item"]),
+        boost: boostedOf(body["boost"]),
       };
     case "done":
       return { kind: "done" };

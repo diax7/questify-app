@@ -12,6 +12,7 @@ import {
   type QuestVerification,
 } from "@questify/shared";
 import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
+import { flashWindowValid } from "#src/lib/flash.ts";
 import { itemChoice } from "#src/lib/quest-items.ts";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
@@ -39,6 +40,10 @@ export type QuestView = Readonly<{
   place: Readonly<{ lat: number; lng: number; radiusM: number }> | null;
   /** When a live poll was sent (T-306); null for a draft and every other quest. */
   pollSentAt: string | null;
+  /** Shown to players only inside its window (T-307); absent from an older API. */
+  flash?: boolean;
+  /** When a flash quest was launched by hand, or null. */
+  flashLaunchedAt?: string | null;
 }>;
 
 /** A passport step as the form holds it (`PassportFields`): `saved` marks one the API already has. */
@@ -193,6 +198,10 @@ export type QuestDraft = Readonly<{
   placeRadius: string;
   /** Whether it is a live poll already sent (T-306): its live setting, choices and minutes stay. Never sent to the API. */
   pollSent: boolean;
+  /** A flash quest (T-307): shown only inside its window; a draft without times is launched from the list. */
+  flash: boolean;
+  /** Whether a flash quest was launched or its window started: it stays one and its window is kept. Never sent. */
+  flashRunning: boolean;
 }>;
 
 /** The radius a new place starts with, in metres: a doorway-sized circle. */
@@ -221,6 +230,8 @@ export function blankQuest(categoryId: string): QuestDraft {
     placeLng: "",
     placeRadius: String(DEFAULT_PLACE_RADIUS),
     pollSent: false,
+    flash: false,
+    flashRunning: false,
   };
 }
 
@@ -245,6 +256,11 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     placeLng: quest.place === null ? "" : String(quest.place.lng),
     placeRadius: String(quest.place?.radiusM ?? DEFAULT_PLACE_RADIUS),
     pollSent: quest.pollSentAt !== null,
+    flash: quest.flash === true,
+    flashRunning:
+      quest.flash === true &&
+      ((quest.flashLaunchedAt ?? null) !== null ||
+        (quest.visible && quest.opensAt !== null && Date.parse(quest.opensAt) <= Date.now())),
   };
 }
 
@@ -254,8 +270,10 @@ const fieldsOf = (draft: QuestDraft): Record<string, unknown> => ({
   description: { ar: draft.descriptionAr, en: draft.descriptionEn },
   points: draft.points,
   repeatCap: draft.repeatCap,
-  // A live poll's window is Send's and Close's (T-306): the API keeps it, so the form never sends one.
-  ...(isLivePoll(draft.type, draft.config)
+  flash: draft.flash,
+  // A live poll's window is Send's and Close's (T-306), a running flash quest's Launch's and End now's (T-307): the API
+  // keeps it, so the form never sends one.
+  ...(isLivePoll(draft.type, draft.config) || draft.flashRunning
     ? {}
     : {
         opensAt: draft.opensAt === "" ? null : draft.opensAt,
@@ -330,6 +348,8 @@ export function questProblem(
   | "needed"
   | "place"
   | "dailyCap"
+  | "flash"
+  | "flashWindow"
   | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
@@ -342,6 +362,12 @@ export function questProblem(
   }
   if (!placeIsValid(draft)) {
     return "place";
+  }
+  if (draft.flash && isLivePoll(draft.type, draft.config)) {
+    return "flash";
+  }
+  if (draft.flash && !draft.flashRunning && !flashWindowValid(draft)) {
+    return "flashWindow";
   }
   const parts = apiParts(draft);
   const steps = parts.steps;

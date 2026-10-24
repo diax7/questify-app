@@ -184,6 +184,9 @@ export function QuestForm({
         />
       )}
       {isLivePoll(draft.type, draft.config) ? null : (
+        <FlashField language={language} draft={draft} busy={busy} change={change} />
+      )}
+      {isLivePoll(draft.type, draft.config) || draft.flashRunning ? null : (
         <QuestWindowFields
           language={language}
           timeZone={timeZone}
@@ -262,6 +265,45 @@ function QuestWindowFields({
         />
         <span>{t("quests.field.visible")}</span>
       </label>
+    </>
+  );
+}
+
+/**
+ * "Flash quest" (T-307, FR-251): shown to players only inside its window. Ticked on a quest with no times, it becomes a
+ * hidden draft to launch from the list. Once launched (or its window started) it stays one, with its window kept.
+ */
+function FlashField({
+  language,
+  draft,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  draft: QuestDraft;
+  busy: boolean;
+  change: (patch: Partial<QuestDraft>) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={draft.flash}
+          disabled={busy || draft.flashRunning}
+          onChange={(event) =>
+            change({
+              flash: event.target.checked,
+              ...(event.target.checked && (draft.opensAt === "" || draft.closesAt === "")
+                ? { visible: false }
+                : {}),
+            })
+          }
+        />
+        <span>{t("quests.field.flash")}</span>
+      </label>
+      {draft.flash ? <p className={styles.muted}>{t("quests.field.flashHint")}</p> : null}
     </>
   );
 }

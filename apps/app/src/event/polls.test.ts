@@ -128,6 +128,8 @@ describe("what is live (T-306, ADR-221)", () => {
     ],
     closed: [{ questId: "c1" }, { questId: "c2" }],
     community: null,
+    flash: [],
+    boosts: [],
   };
 
   it("reads the state and drops malformed entries", () => {

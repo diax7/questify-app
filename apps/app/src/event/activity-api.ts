@@ -11,6 +11,8 @@ export type ActivityEntry = Readonly<{
   balanceDelta: number;
   /** The quest's title for a quest; for anything else only its type. */
   title: Bilingual | null;
+  /** The boost that doubled it or its removal (T-307), shown as "×2"; null when none or from an older API. */
+  multiplier: number | null;
 }>;
 
 export type ActivityPage = Readonly<{
@@ -53,6 +55,10 @@ function readEntry(value: unknown): ActivityEntry | undefined {
     scoreDelta: value["scoreDelta"],
     balanceDelta: value["balanceDelta"],
     title: reason["type"] === "quest" && isText(reason["title"]) ? reason["title"] : null,
+    multiplier:
+      typeof value["multiplier"] === "number" && value["multiplier"] > 1
+        ? value["multiplier"]
+        : null,
   };
 }
 

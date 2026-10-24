@@ -43,6 +43,7 @@ export type LiveCommunity = Readonly<{
 export type LiveBoost = Readonly<{
   boostId: string;
   categoryId: string;
+  category: Readonly<{ ar: string | null; en: string | null }>;
   multiplier: number;
   endsAt: string;
 }>;
@@ -58,7 +59,12 @@ export type LiveState = Readonly<{
   closed: readonly Readonly<{ questId: string }>[];
   /** The community goal (T-306b); null when none is shown or the platform switch is off. */
   community: LiveCommunity | null;
-  flash: readonly Readonly<{ questId: string; closesAt: string }>[];
+  /** The flash quests open now that the player may play, with their titles. */
+  flash: readonly Readonly<{
+    questId: string;
+    title: Readonly<{ ar: string | null; en: string | null }>;
+    closesAt: string;
+  }>[];
   boosts: readonly LiveBoost[];
 }>;
 
@@ -159,6 +165,7 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
         community,
         flash: state.flash.map((quest) => ({
           questId: quest.questId,
+          title: quest.title,
           closesAt: new Date(quest.closesAt).toISOString(),
         })),
         boosts: state.boosts.map((boost) => ({

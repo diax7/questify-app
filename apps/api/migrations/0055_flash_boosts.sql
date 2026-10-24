@@ -232,8 +232,8 @@ BEGIN
       RETURN 'category_locked';
     END IF;
   END IF;
-  IF group_row.order_mode = 'in_order' AND NOT quest_row.flash AND NOT is_live_poll(quest_row.type, quest_row.type_config)
-     AND EXISTS (
+  IF group_row.order_mode = 'in_order' AND NOT quest_row.flash
+     AND NOT is_live_poll(quest_row.type, quest_row.type_config) AND EXISTS (
     SELECT 1 FROM quest q
     WHERE q.category_id = group_row.id AND q.visible AND (q.position, q.id) < (quest_row.position, quest_row.id)
       AND (q.closes_at IS NULL OR q.closes_at > now()) AND NOT q.flash AND NOT is_live_poll(q.type, q.type_config)
@@ -965,7 +965,8 @@ CREATE OR REPLACE FUNCTION member_quiz(target uuid)
          coalesce(t.points_each, me.points),
          coalesce(t.timer_seconds, (me.type_config ->> 'timerSeconds')::integer),
          coalesce(t.right_count, 0),
-         coalesce((SELECT l.score_delta FROM ledger_entry l WHERE l.completion_id = t.completion_id AND l.kind = 'quest'),
+         coalesce((SELECT l.score_delta FROM ledger_entry l
+                   WHERE l.completion_id = t.completion_id AND l.kind = 'quest'),
                   t.right_count::bigint * t.points_each
                     * coalesce((quest_boost(me.quest_row, me.enrolled, t.started_at)).multiplier, 1),
                   0),
@@ -1188,10 +1189,10 @@ REVOKE ALL ON FUNCTION member_event_quests(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION member_event_quests(uuid) TO questify_app;
 
 -- ================================================================ live (until T-501's push)
--- As 0054, plus `flash` (the flash quests open now that the member may play: their window, a category they see, no
--- rule lock, not done) and `boosts` (the running boosts of the categories they see, by boost_in_force, so a rehearsal
--- boost is never shown to a real player and a hidden category's never to one who has not found it). A member who may
--- not play gets neither.
+-- As 0054, plus `flash` (the flash quests open now that the member may play, with their titles: their window, a
+-- category they see, no rule lock, not done) and `boosts` (the running boosts of the categories they see, with the
+-- category's name, by boost_in_force, so a rehearsal boost is never shown to a real player and a hidden category's never to one
+-- who has not found it). A member who may not play gets neither.
 CREATE OR REPLACE FUNCTION live_state(target uuid) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -1232,7 +1233,9 @@ BEGIN
       '[]'::jsonb),
     'community', member_community(ev, enrolled.id),
     'flash', coalesce((
-      SELECT jsonb_agg(jsonb_build_object('questId', q.id, 'closesAt', q.closes_at) ORDER BY q.opens_at, q.id)
+      SELECT jsonb_agg(jsonb_build_object('questId', q.id,
+                                          'title', jsonb_build_object('ar', q.title_ar, 'en', q.title_en),
+                                          'closesAt', q.closes_at) ORDER BY q.opens_at, q.id)
       FROM quest q JOIN category c ON c.id = q.category_id
       WHERE playing AND q.event_id = target AND q.flash AND q.visible AND flash_shown(q)
         AND sees_category(enrolled.id, c) AND category_lock(q, enrolled.id) IS NULL
@@ -1240,6 +1243,7 @@ BEGIN
       '[]'::jsonb),
     'boosts', coalesce((
       SELECT jsonb_agg(jsonb_build_object('boostId', (r.running).id, 'categoryId', c.id,
+                                          'category', jsonb_build_object('ar', c.name_ar, 'en', c.name_en),
                                           'multiplier', (r.running).multiplier, 'endsAt', (r.running).ends_at)
                        ORDER BY (r.running).starts_at, (r.running).id)
       FROM category c
@@ -1437,7 +1441,8 @@ BEGIN
     AND EXISTS (SELECT 1 FROM event_rehearsal r WHERE r.event_id = ev.id AND r.live_wiped_at IS NULL);
   practice := rehearsing AND (ev.starts_at IS NULL OR begins < ev.starts_at);
   IF (practice AND ev.starts_at IS NOT NULL AND ends > ev.starts_at)
-     OR (NOT practice AND (ev.starts_at IS NULL OR ev.ends_at IS NULL OR begins < ev.starts_at OR ends > ev.ends_at)) THEN
+     OR (NOT practice
+         AND (ev.starts_at IS NULL OR ev.ends_at IS NULL OR begins < ev.starts_at OR ends > ev.ends_at)) THEN
     RAISE EXCEPTION 'the boost is outside the event' USING ERRCODE = 'BO422', DETAIL = 'outside_event';
   END IF;
   IF target_boost IS NULL AND (SELECT count(*) FROM boost b WHERE b.event_id = ev.id) >= 100 THEN

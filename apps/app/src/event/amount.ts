@@ -8,7 +8,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import type { Bonus, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
+import type { Bonus, Boosted, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
 import { textIn } from "#src/i18n/text.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
@@ -75,14 +75,25 @@ export function bonusLine(t: Translate, language: Language, bonus: Bonus): strin
   return bonus.item === null ? text : `${text} ${itemLine(t, language, bonus.item)}`;
 }
 
-/** What a play paid, with its quest item and the category bonus it paid after it when there are. */
+/**
+ * What a play paid, with its quest item and the category bonus it paid after it when there are; "Double points!"
+ * first when a boost doubled it (T-307). An older API sends no boost.
+ */
 export function paidText(
   t: Translate,
   terms: EventTerms,
   language: Language,
-  paid: Readonly<{ points: number; bonus: Bonus | null; item: ItemGiven | null }>,
+  paid: Readonly<{
+    points: number;
+    bonus: Bonus | null;
+    item: ItemGiven | null;
+    boost?: Boosted | null | undefined;
+  }>,
 ): string {
   const lines = [completedText(t, terms, language, paid.points)];
+  if (paid.boost != null) {
+    lines.unshift(t("completion.boosted"));
+  }
   if (paid.item !== null) {
     lines.push(itemLine(t, language, paid.item));
   }

@@ -234,6 +234,9 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           <a className={styles.textLink} href={`${pages}/${event.id}/community`}>
             {t("community.page.title")}
           </a>
+          <a className={styles.textLink} href={`${pages}/${event.id}/boosts`}>
+            {t("boosts.page.title")}
+          </a>
           <a className={styles.textLink} href={`${pages}/${event.id}/joining`}>
             {t("joining.title")}
           </a>
@@ -343,6 +346,26 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           organizerId={organizerId}
           eventId={event.id}
           initial={event.community}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <EventFeatureSwitch
+          language={language}
+          feature="flashQuests"
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.flashQuests !== false}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <EventFeatureSwitch
+          language={language}
+          feature="boosts"
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.boosts !== false}
           myRole={myRole}
         />
       )}

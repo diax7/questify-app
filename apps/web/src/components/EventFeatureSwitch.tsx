@@ -39,6 +39,20 @@ const FEATURES = {
     on: "events.community.on",
     off: "events.community.off",
   },
+  flashQuests: {
+    path: "flash-quests",
+    title: "events.flashQuests.title",
+    label: "events.flashQuests.label",
+    on: "events.flashQuests.on",
+    off: "events.flashQuests.off",
+  },
+  boosts: {
+    path: "double-points",
+    title: "events.boosts.title",
+    label: "events.boosts.label",
+    on: "events.boosts.on",
+    off: "events.boosts.off",
+  },
 } as const satisfies Record<
   string,
   Readonly<{ path: string; title: MessageKey; label: MessageKey; on: MessageKey; off: MessageKey }>
@@ -58,7 +72,8 @@ type Props = Readonly<{
  * An event's share quests, meet-someone, mini-games or community quests switch (FR-219, ADR-199; FR-1009, ADR-210,
  * ADR-213; T-306b, ADR-226): on by default; off hides every quest of that type from players and stops paying them (off
  * for community quests finishes a running goal, whose reached steps still pay, and warns that what it would unlock stays
- * locked, T-306c). The owner changes it; an editor sees which it is. Saved as soon as the box changes.
+ * locked, T-306c). Flash quests and double points (T-307) work the same way: off hides every flash quest, or stops
+ * every boost paying, at once. The owner changes it; an editor sees which it is. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
   language,

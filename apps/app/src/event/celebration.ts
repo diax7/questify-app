@@ -29,6 +29,8 @@ export type ScanStep =
       bonus: Bonus | null;
       /** The quest item this scan gave or missed (T-304d), said with the points. */
       item: ItemGiven | null;
+      /** Whether a boost doubled it (T-307): "Double points!" with the points. */
+      boosted: boolean;
       /** The other player's username when this scan was a meeting (T-303c), else null. */
       met: string | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
@@ -102,6 +104,7 @@ function answered(
         levelUp: answer.levelUp,
         bonus: answer.bonus,
         item: answer.item,
+        boosted: "boost" in answer && answer.boost != null,
         met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
         details: undefined,
       };

@@ -128,6 +128,7 @@ function Celebration({
         {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
         {completedText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step.points)}
       </AppText>
+      {step.boosted ? <AppText variant="title">{t("completion.boosted")}</AppText> : null}
       {step.met === null ? null : (
         <AppText variant="title">{t("meet.youMet", { name: step.met })}</AppText>
       )}

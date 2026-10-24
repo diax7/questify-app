@@ -295,7 +295,15 @@ describe("a round's result", () => {
     expect(
       resultLine(
         en,
-        { kind: "passed", result: {}, points: 40, levelUp: null, bonus: null, item: null },
+        {
+          kind: "passed",
+          result: {},
+          points: 40,
+          levelUp: null,
+          bonus: null,
+          item: null,
+          boost: null,
+        },
         DEFAULT_TERMS,
         "en",
       ),

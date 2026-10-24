@@ -60,7 +60,10 @@ function EntryRow({ entry, timeZone }: Readonly<{ entry: ActivityEntry; timeZone
   return (
     <View style={styles.row}>
       <View style={styles.grow}>
-        <AppText variant="label">{entryLabel(entry, t, language)}</AppText>
+        <AppText variant="label">
+          {entryLabel(entry, t, language)}
+          {entry.multiplier === null ? null : ` ${t("activity.boosted")}`}
+        </AppText>
         <AppText muted>{formatEventTime(new Date(entry.at), timeZone, language)}</AppText>
       </View>
       <Amount amount={signed(amount, language)} form="labelled" variant="label" />
