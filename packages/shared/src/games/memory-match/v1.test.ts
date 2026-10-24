@@ -176,7 +176,15 @@ describe("memory match: results", () => {
   });
 
   it("counts a lucky match made while exactly 4 cards were unseen", () => {
-    const [p0, p1, p2, p3, p4, p5] = pairsOf(engine.start(3, easy)) as [number, number][];
+    type Pair = [number, number];
+    const [p0, p1, p2, p3, p4, p5] = pairsOf(engine.start(3, easy)) as [
+      Pair,
+      Pair,
+      Pair,
+      Pair,
+      Pair,
+      Pair,
+    ];
     // A mismatch first, then a seen card with its never-seen pair: unseen before each second flip 10, 8, 6, 4, 2, 1.
     const cards = [p0[0], p1[0], p0[0], p0[1], ...p2, ...p3, ...p4, ...p5, p1[0], p1[1]];
     const inputs = cards.map((card, index) => ({

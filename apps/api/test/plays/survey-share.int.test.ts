@@ -47,6 +47,9 @@ const SURVEY = {
 /** The quest ids of a quest list, in order. */
 const ids = (body: { categories: { quests: { id: string }[] }[] }) =>
   body.categories.flatMap((category) => category.quests.map((quest) => quest.id));
+/** A survey body leaving this many questions unanswered. */
+const blankAnswers = (count: number) =>
+  Object.fromEntries(Array.from({ length: count }, (_, index) => [`q${index}`, null]));
 const SHARE = { message: en("I am at Share Fest!"), link: "https://example.com/fest" };
 
 /**
@@ -217,6 +220,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
       ).toEqual([422, "not_survey_quest"]);
       expect(
         codeOf(await app("POST", `/v1/quests/${quest}/survey`, token, { answers: [] })),
+      ).toEqual([400, "invalid_request"]);
+      expect(
+        codeOf(
+          await app("POST", `/v1/quests/${quest}/survey`, token, { answers: blankAnswers(20) }),
+        ),
+      ).toEqual([422, "bad_answer"]);
+      expect(
+        codeOf(
+          await app("POST", `/v1/quests/${quest}/survey`, token, { answers: blankAnswers(21) }),
+        ),
       ).toEqual([400, "invalid_request"]);
       expect(codeOf(await app("GET", `/v1/quests/${randomUUID()}/survey`, token))).toEqual([
         404,
