@@ -1,6 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import type { RankingStore } from "#src/ranking/store";
+import { createSettingsService, type SettingsService } from "#src/settings/service";
 import {
   createStaff,
   signInFully,
@@ -45,14 +48,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
   let counter = 0;
   const upserts: Upsert[] = [];
   const logs: string[] = [];
+  let settingsPool: Pool;
+  let settings: SettingsService;
+  /** The HTTP replay store's clock: moved past a day, a replayed key reaches the database's own replay. */
+  let clock = Date.now();
 
   beforeAll(async () => {
     db = await createTestDatabase();
+    settingsPool = new Pool({ connectionString: db.appUrl, max: 2 });
+    settings = createSettingsService({ pool: settingsPool });
     test = await startApp(
       db,
       { level: "debug", stream: { write: (line: string) => void logs.push(line) } },
       {},
-      { rankingStore: recordingStore(upserts) },
+      {
+        rankingStore: recordingStore(upserts),
+        settings,
+        idempotencyStore: new MemoryIdempotencyStore(() => clock),
+      },
     );
     organizer =
       (
@@ -69,8 +82,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
   });
   afterAll(async () => {
     await test.close();
+    await settingsPool.end();
     await db.close();
   });
+
+  /** The meet log lines written since `from` lines were logged. */
+  const meetLogs = (from = 0) =>
+    logs
+      .slice(from)
+      .map((line) => JSON.parse(line) as Row)
+      .filter((entry) => String(entry["event"]).startsWith("meet."));
+  /** Runs `work` with the platform's location quests switched on. */
+  const withLocationOn = async (work: () => Promise<void>) => {
+    await db.owner.query("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
+      JSON.stringify({ locationQuests: { enabled: true } }),
+    ]);
+    settings.forget();
+    try {
+      await work();
+    } finally {
+      await db.owner.query("DELETE FROM platform_setting WHERE key = 'features'");
+      settings.forget();
+    }
+  };
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
@@ -165,8 +199,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
     expect(stored[0]?.token_hash.equals(createHash("sha256").update(token).digest())).toBe(true);
 
     const before = upserts.length;
+    const logged = logs.length;
     const met = await scan(a, pass.code);
     expect(met.statusCode, met.body).toBe(200);
+    expect(meetLogs(logged)).toEqual([
+      expect.objectContaining({
+        event: "meet.met",
+        refusal: "done",
+        reason: "done",
+        replayed: "false",
+      }),
+    ]);
+    const listed = await call("GET", `/v1/events/${event}/quests`, a);
+    expect(
+      listed.json<{ categories: { quests: Row[] }[] }>().categories[0]?.quests[0],
+    ).toMatchObject({ id: quest, meet: { dailyCap: 5, today: 1 }, game: null });
     expect(met.json()).toMatchObject({
       points: 50,
       occurrence: 1,
@@ -213,6 +260,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
     const again = await scan(a, code, key);
     expect(again.json()).toMatchObject({ completionId: first.json().completionId });
     expect(upserts.length - writes).toBeLessThanOrEqual(1);
+    clock += 2 * 24 * 60 * 60 * 1000;
+    const logged = logs.length;
+    const replayed = await scan(a, code, key);
+    expect(replayed.json()).toMatchObject({
+      completionId: first.json().completionId,
+      replayed: true,
+    });
+    const [shown] = await owner<{ id: string }>(
+      "SELECT id FROM enrollment WHERE event_id = $1 AND player_id = $2",
+      [event, b.id],
+    );
+    expect(upserts.slice(writes).map((write) => write.enrollment)).not.toContain(shown?.id);
+    expect(meetLogs(logged)).toEqual([
+      expect.objectContaining({ event: "meet.met", replayed: "true" }),
+    ]);
   });
 
   it("answers each refusal with its status and reason, and never echoes the code", async () => {
@@ -220,7 +282,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
     const quest = await newQuest(event, 1, 10);
     const [a, b, c] = [await newPlayer(event), await newPlayer(event), await newPlayer(event)];
     const own = await show(a, quest);
+    const logged = logs.length;
     expect(reasonOf(await scan(a, own.code))).toEqual([422, "meet_refused", "self"]);
+    expect(meetLogs(logged)).toEqual([
+      expect.objectContaining({
+        event: "meet.refused",
+        refusal: "meet_refused",
+        reason: "self",
+        replayed: "",
+      }),
+    ]);
     const phone = randomUUID();
     const onPhone = await show(b, quest, phone);
     expect(reasonOf(await scan(a, onPhone.code, { "x-device-id": phone }))).toEqual([
@@ -246,11 +317,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
     await scan(a, fresh.code);
     expect(reasonOf(await scan(c, fresh.code))).toEqual([422, "meet_refused", "used"]);
     const capped = await scan(a, (await show(c, quest)).code);
-    expect([...reasonOf(capped), capped.json().details?.["cap"]]).toEqual([
+    expect([capped.statusCode, capped.json().code, capped.json().details]).toEqual([
       409,
       "meet_refused",
-      "daily_cap",
-      1,
+      { reason: "daily_cap", cap: 1 },
     ]);
     expect(codeOf(await call("POST", `/v1/quests/${quest}/meet-pass`, a))).toEqual([
       409,
@@ -302,6 +372,83 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
     const limited = await scan(a, `questify/meet/v1/${"B".repeat(22)}`);
     expect(codeOf(limited)).toEqual([429, "too_many_attempts"]);
     expect(limited.headers["retry-after"]).toBeDefined();
+    expect(limited.json().details).toEqual({
+      retryAfterSeconds: Number(limited.headers["retry-after"]),
+    });
+  });
+
+  it("never counts a paying meeting against the refused scans", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const [a, b] = [await newPlayer(event), await newPlayer(event)];
+    expect((await scan(a, (await show(b, quest)).code)).statusCode).toBe(200);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      expect(reasonOf(await scan(a, `questify/meet/v1/${"C".repeat(22)}`))[2]).toBe("bad_code");
+    }
+    expect(codeOf(await scan(a, `questify/meet/v1/${"C".repeat(22)}`))).toEqual([
+      429,
+      "too_many_attempts",
+    ]);
+  });
+
+  it("holds codes shown to 30 per player in 10 minutes, and state reads to 60 a minute", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const a = await newPlayer(event);
+    let pass = { passId: "" };
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      pass = await show(a, quest);
+    }
+    const shownLimited = await call("POST", `/v1/quests/${quest}/meet-pass`, a);
+    expect(codeOf(shownLimited)).toEqual([429, "too_many_attempts"]);
+    expect(shownLimited.json().details).toEqual({
+      retryAfterSeconds: Number(shownLimited.headers["retry-after"]),
+    });
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      expect((await call("GET", `/v1/meet-passes/${pass.passId}`, a)).statusCode).toBe(200);
+    }
+    const readLimited = await call("GET", `/v1/meet-passes/${pass.passId}`, a);
+    expect(codeOf(readLimited)).toEqual([429, "too_many_attempts"]);
+    expect(readLimited.headers["retry-after"]).toBeDefined();
+  });
+
+  it("takes no body when showing a code", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const a = await newPlayer(event);
+    expect(codeOf(await call("POST", `/v1/quests/${quest}/meet-pass`, a, { x: 1 }))).toEqual([
+      400,
+      "invalid_request",
+    ]);
+  });
+
+  /** How many of the player's completions kept a position. */
+  const positionsKept = async (who: Player) =>
+    (
+      await owner(
+        `SELECT 1 FROM completion_position p JOIN enrollment n ON n.id = p.enrollment_id
+         WHERE n.player_id = $1`,
+        [who.id],
+      )
+    ).length;
+
+  it("keeps the scanner's well-formed position only while location quests are on, and drops a bad one", async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const position = { lat: 24.7136, lng: 46.6753, accuracyM: 12, ageS: 3 };
+    const meetWith = async (reading: unknown) => {
+      const [a, b] = [await newPlayer(event), await newPlayer(event)];
+      const { code } = await show(b, quest);
+      const met = await call("POST", "/v1/meet", a, { code, position: reading });
+      expect(met.statusCode, met.body).toBe(200);
+      return positionsKept(a);
+    };
+    expect(await meetWith(position)).toBe(0);
+    await withLocationOn(async () => {
+      expect(await meetWith(position)).toBe(1);
+      expect(await meetWith({ ...position, lat: 91 })).toBe(0);
+      expect(await meetWith(undefined)).toBe(0);
+    });
   });
 
   it("lets the owner switch meet quests off, which hides them and refuses codes and scans", async () => {
