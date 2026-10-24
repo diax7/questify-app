@@ -52,6 +52,8 @@ const PROBLEMS = {
   taken: "operator.nfc.taken",
   failed: "operator.nfc.failed",
   unsupported: "operator.nfc.unsupported",
+  off: "operator.nfc.off",
+  unusable: "operator.nfc.unusable",
 } as const satisfies Record<string, MessageKey>;
 
 /**

@@ -504,3 +504,8 @@ printed QR). Agree, or another rhythm (FR-314 allows 30 to 60 seconds), or allow
 ADR-239: operators pair stations with `show_rotating_qr` and kiosks with `scan_quests`; big screens only from the
 dashboard; removing an operator revokes what they paired. Agree, or a separate `pair_devices` ability (off by default),
 or pairing from the dashboard only?
+
+## Q-205 — Blank stickers without a read-back (2026-10-24, T-308 phone-test fix)
+ADR-243: a factory-blank sticker is formatted with the Questify link in one step and trusted on Android's success,
+with no read-back before the server registers it. Agree, or format first and ask the operator to tap again for the
+write and its read-back?

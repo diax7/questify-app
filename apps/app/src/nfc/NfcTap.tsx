@@ -28,7 +28,7 @@ export type TapRead = Readonly<{ url: string | null; uid: string | null }>;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * NFC in the scanner (FR-621). Android: reader mode runs while `active`, so a tag is read beside the camera and never
+ * NFC in the scanner (FR-621). Android: reader mode runs while `active` (a hint to switch NFC on when it is off), so a tag is read beside the camera and never
  * opens the browser. iOS: a button opens the system sheet (no silent reading on the iPhone); `autoStart` opens it at
  * once when the quest sheet's "Tap the NFC tag" brought the player here. Hidden on a phone without NFC.
  */
@@ -40,6 +40,7 @@ export function NfcTap({
   const { t } = useI18n();
   const supported = useNfcSupported();
   const [failed, setFailed] = useState(false);
+  const [off, setOff] = useState(false);
   const started = useRef(false);
   const reading = useRef(onRead);
   reading.current = onRead;
@@ -54,6 +55,10 @@ export function NfcTap({
       while (run.on) {
         const read = await readTag(t("scanner.nfc.hold"));
         if (!run.on || read.kind === "unsupported") {
+          return;
+        }
+        if (read.kind === "off") {
+          setOff(true);
           return;
         }
         if (read.kind === "read") {
@@ -94,7 +99,7 @@ export function NfcTap({
       {ios ? (
         <Button kind="quiet" label={t("scanner.nfc.button")} onPress={() => void tapOnce()} />
       ) : (
-        <AppText muted>{t("scanner.nfc.androidHint")}</AppText>
+        <AppText muted>{t(off ? "scanner.nfc.off" : "scanner.nfc.androidHint")}</AppText>
       )}
       {failed ? <AppText accessibilityRole="alert">{t("scanner.nfc.failed")}</AppText> : null}
     </>

@@ -3744,6 +3744,10 @@ export const MESSAGES = {
     ar: "تعذّرت قراءة البطاقة. حاول مرة أخرى أو امسح رمز QR.",
     en: "Couldn't read the tag. Try again or scan the QR.",
   },
+  "scanner.nfc.off": {
+    ar: "تقنية NFC مغلقة. شغّلها من الإعدادات أو امسح رمز QR.",
+    en: "NFC is off. Turn it on in Settings, or scan the QR.",
+  },
   "scanner.nfc.notQuestify": {
     ar: "هذه البطاقة ليست من كويستفاي.",
     en: "This isn't a Questify tag.",
@@ -3780,6 +3784,14 @@ export const MESSAGES = {
   "operator.nfc.failed": {
     ar: "تعذّرت كتابة البطاقة. أبقِها ثابتة وحاول مرة أخرى.",
     en: "Couldn't write the tag. Hold it still and try again.",
+  },
+  "operator.nfc.off": {
+    ar: "تقنية NFC مغلقة في هذا الهاتف. شغّلها من الإعدادات ثم حاول مرة أخرى.",
+    en: "NFC is off on this phone. Turn it on in Settings, then try again.",
+  },
+  "operator.nfc.unusable": {
+    ar: "لا يحمل هذا النوع من البطاقات رابط كويستفاي. استخدم ملصقات NTAG213 أو NTAG215.",
+    en: "This kind of tag can't hold a Questify link. Use NTAG213 or NTAG215 stickers.",
   },
   "operator.nfc.unsupported": {
     ar: "هذا الهاتف لا يدعم NFC.",

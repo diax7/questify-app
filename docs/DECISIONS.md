@@ -3102,3 +3102,16 @@ as screen codes are), shown in My QR's "For kiosks" tab while online; the fixed 
 tablet, decoding with `zxing-wasm` 3.1.5 (reader only, wasm self-hosted), with the camera allowed on that route only.
 **Risk accepted:** a live code relayed by video within its 45 seconds pays its owner.
 **Why:** the fixed My QR (ADR-137) works from a screenshot for ever, which only a watching operator mitigates.
+
+## ADR-243 — Android NFC sessions hold reader mode
+**Status:** Proposed (Claude, 2026-10-24; T-308 phone-test fix). Q-205. Amends the T-308 plan's Android session.
+**Decision:** on Android every tag session (the scanner's tap, Write NFC tag) turns on reader mode itself
+(`registerTagEvent` with `isReaderModeEnabled`, NFC-A/B/F/V) before `requestTechnology([Ndef, NdefFormatable])`, and
+turns it off itself when the session ends; sessions run one at a time, and one stopped while it waited its turn never
+starts. NFC switched off answers at once (`off`, with a hint). A factory-blank sticker (NdefFormatable) is formatted
+with the message, locked in the same step when asked, with no read-back (Android reports the format only once the
+message is written). A tag with neither NDEF nor NdefFormatable (a MIFARE Classic card on most phones) is refused in
+the app as `unusable`.
+**Why:** the T-308 build asked for no reader mode, so the library fell back to foreground dispatch, and its cancel
+turned the registration off a second later, under a newer session. On Dhia's phone a sticker and a card met Android's
+"Could not find an app that supports this NFC tag" on the write screen while an NDEF fob was written.
