@@ -1,6 +1,11 @@
 "use client";
 
-import { TICKET_KINDS, TICKET_TEXT_MAX, type Language, type TicketKind } from "@questify/shared";
+import {
+  EVENT_TICKET_KINDS,
+  TICKET_TEXT_MAX,
+  type Language,
+  type TicketKind,
+} from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { problemOf } from "#src/components/PlayerAwards.tsx";
 import { translatorFor } from "#src/lib/language.ts";
@@ -9,10 +14,13 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
 import {
   TABS,
+  TAB_KEYS,
   answeredByLine,
   canReply,
   kindKey,
   outcomeKey,
+  reportedLine,
+  tabCount,
   ticketQuery,
   type TeamTicket,
   type TicketPage,
@@ -129,6 +137,99 @@ function AnswerActions({
   );
 }
 
+/** Escalate to Questify (owners and editors, T-312): a note of what the team tried is required, then a confirm. */
+function EscalateAction({
+  language,
+  eventApi,
+  ticket,
+  done,
+}: Readonly<{ language: Language; eventApi: string; ticket: TeamTicket; done: () => void }>) {
+  const t = translatorFor(language);
+  const [opened, setOpened] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const key = useRef(crypto.randomUUID());
+  const send = async () => {
+    if (!window.confirm(t("tickets.escalate.confirm"))) {
+      return;
+    }
+    setBusy(true);
+    setProblem(null);
+    const result = await requestJson(
+      "POST",
+      `${eventApi}/tickets/${ticket.id}/escalate`,
+      { note: note.trim() },
+      { "idempotency-key": key.current },
+    );
+    setBusy(false);
+    if (result.ok) {
+      key.current = crypto.randomUUID();
+      done();
+      return;
+    }
+    setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language));
+  };
+  if (!opened) {
+    return (
+      <button type="button" className={styles.quiet} onClick={() => setOpened(true)}>
+        {t("tickets.escalate")}
+      </button>
+    );
+  }
+  return (
+    <div className={styles.formCard}>
+      <label className={styles.field}>
+        <span>{t("tickets.escalate.note")}</span>
+        <textarea
+          className={styles.input}
+          dir="auto"
+          rows={3}
+          maxLength={TICKET_TEXT_MAX}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </label>
+      <button
+        type="button"
+        className={styles.button}
+        disabled={busy || !canReply(note)}
+        onClick={() => void send()}
+      >
+        {t("tickets.escalate.send")}
+      </button>
+      {problem === null ? null : (
+        <p role="alert" className={styles.alert}>
+          {problem}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** What Questify has to do with a ticket: the team's note while it waits there, and the note it sent back. */
+function QuestifyLines({ language, ticket }: Readonly<{ language: Language; ticket: TeamTicket }>) {
+  const t = translatorFor(language);
+  const escalated = ticket.queue === "questify" && ticket.escalation !== null;
+  return (
+    <>
+      {escalated && ticket.escalation !== null ? (
+        <p className={styles.muted} dir="auto">
+          {t("tickets.escalatedNote", { note: ticket.escalation.note })}
+          {ticket.escalation.by === null
+            ? null
+            : ` · ${t("tickets.escalatedBy", { name: ticket.escalation.by })}`}
+        </p>
+      ) : null}
+      {ticket.queue === "event" && ticket.status === "open" && ticket.returned !== null ? (
+        <p className={styles.muted} dir="auto" data-testid="returned">
+          {t("tickets.returned", { note: ticket.returned.note })}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function TicketRow({
   language,
   eventApi,
@@ -144,6 +245,8 @@ function TicketRow({
 }>) {
   const t = translatorFor(language);
   const by = answeredByLine(ticket, language);
+  const reported = reportedLine(ticket, language);
+  const answerable = ticket.status === "open" && ticket.queue === "event";
   return (
     <li className={styles.card} data-testid="ticket">
       <p className={styles.row}>
@@ -164,17 +267,32 @@ function TicketRow({
           )}
         </time>
         {ticket.marked ? <span className={styles.badge}>{t("tickets.marked")}</span> : null}
-        <span className={styles.badge}>{t(outcomeKey(ticket))}</span>
+        <span className={styles.badge}>
+          {ticket.status === "open" && ticket.queue === "questify"
+            ? t("help.status.withQuestify")
+            : t(outcomeKey(ticket))}
+        </span>
       </p>
+      {reported === null ? null : (
+        <p dir="auto">
+          <a className={styles.textLink} href={playersPage}>
+            {reported}
+          </a>
+        </p>
+      )}
       <p dir="auto">{ticket.text}</p>
+      <QuestifyLines language={language} ticket={ticket} />
       {ticket.reply === null ? null : (
         <p dir="auto" className={styles.muted}>
           {ticket.reply}
         </p>
       )}
       {by === null ? null : <p className={styles.muted}>{by}</p>}
-      {ticket.status === "open" ? (
-        <AnswerActions language={language} eventApi={eventApi} ticket={ticket} done={done} />
+      {answerable ? (
+        <>
+          <AnswerActions language={language} eventApi={eventApi} ticket={ticket} done={done} />
+          <EscalateAction language={language} eventApi={eventApi} ticket={ticket} done={done} />
+        </>
       ) : null}
     </li>
   );
@@ -183,9 +301,10 @@ function TicketRow({
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
 /**
- * The event's Help desk (T-310, FR-337 to FR-339): open requests oldest first and closed ones newest first, a kind
- * filter, each with the player's @username, the quest, the time and the text; Reply (one reply closes it) or Solved.
- * Closed ones show the reply, the outcome and who answered.
+ * The event's Help desk (T-310, T-312, FR-337 to FR-339, FR-1823): Open (oldest first), With Questify (escalated,
+ * read-only, with the team's note) and Closed (newest first, Questify's answers signed "the Questify team"), a kind
+ * filter, each with the player's @username, the quest, the time and the text; Reply, Solved, or Escalate to Questify
+ * with a note. A ticket Questify sent back shows its note. A report names the reported member.
  */
 export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
   const t = translatorFor(language);
@@ -217,9 +336,7 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
             className={tab === name ? styles.button : styles.quiet}
             onClick={() => setTab(name)}
           >
-            {t(name === "open" ? "tickets.open" : "tickets.closed", {
-              count: list.counts?.[name] ?? 0,
-            })}
+            {t(TAB_KEYS[name], { count: tabCount(list.counts, name) })}
           </button>
         ))}
       </div>
@@ -233,7 +350,7 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
           }
         >
           <option value="">{t("tickets.allKinds")}</option>
-          {TICKET_KINDS.map((name) => (
+          {EVENT_TICKET_KINDS.map((name) => (
             <option key={name} value={name}>
               {t(kindKey(name))}
             </option>
