@@ -30,6 +30,8 @@ import { registerSubmissionTeamRoutes } from "#src/submissions/routes";
 import { registerPlayTeamRoutes } from "#src/plays/routes";
 import { registerBoostTeamRoutes } from "#src/boosts/routes";
 import { registerNfcTeamRoutes } from "#src/nfc/routes";
+import type { ClaimDeps } from "#src/devices/claims";
+import { registerDeviceTeamRoutes } from "#src/devices/routes";
 import { registerCommunityTeamRoutes } from "#src/community/routes";
 import { registerFlagRoutes } from "#src/flags/routes";
 import { registerResultsTeamRoutes } from "#src/results/routes";
@@ -70,6 +72,8 @@ export type OrganizerRoutesDeps = Readonly<{
   operators: OperatorsDeps;
   /** Moves a player's place after a reviewer approves their submission (T-301). */
   ranking: Ranking;
+  /** Pairing codes claimed from the Devices page, and its lists and revokes (T-309). */
+  devices: ClaimDeps;
   dashboardOrigin: string;
 }>;
 
@@ -243,6 +247,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerCommunityTeamRoutes(scope, { pool: deps.pool, settings: deps.settings });
       registerBoostTeamRoutes(scope, { pool: deps.pool, settings: deps.settings });
       registerNfcTeamRoutes(scope, { pool: deps.pool });
+      registerDeviceTeamRoutes(scope, deps.devices);
       registerFlagRoutes(scope, { pool: deps.pool });
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerQuestItemRoutes(scope, { pool: deps.pool });

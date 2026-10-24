@@ -38,6 +38,14 @@ export const BUCKETS = {
   nfcPrepare: "nfc_prepare",
   nfcConfirm: "nfc_confirm",
   nfcTap: "nfc_tap",
+  deviceRequest: "device_request",
+  devicePoll: "device_poll",
+  deviceScreenCode: "device_screen_code",
+  operatorScreenCode: "operator_screen_code",
+  deviceClaim: "device_claim",
+  deviceMissEvent: "device_miss_event",
+  deviceMissOrganizer: "device_miss_organizer",
+  deviceMissPlatform: "device_miss_platform",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

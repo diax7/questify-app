@@ -32,6 +32,8 @@ import { registerPassportRoutes } from "#src/passport/routes";
 import { registerRevealRoutes } from "#src/reveal/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerNfcRoutes } from "#src/nfc/routes";
+import { registerDeviceGuard } from "#src/devices/guard";
+import { registerDeviceOperatorRoutes, registerDeviceRoutes } from "#src/devices/routes";
 import { createTicketKey } from "#src/nfc/ticket";
 import { registerOperatorPlayerRoutes } from "#src/operators/routes";
 import { registerJoinRoutes } from "#src/join/routes";
@@ -48,6 +50,7 @@ import {
   createMyCodeKey,
   createQuestCodeKey,
   createRevealCodeKey,
+  createScreenCodeKey,
   createStepCodeKey,
   createTagCodeKey,
 } from "#src/quests/qr";
@@ -229,9 +232,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
       email: options.emailSender,
     }),
   );
+  const screenKey = createScreenCodeKey(config.qrSecret);
   registerCompletionRoutes(app, {
     pool: options.pool,
     codeKey: questCodeKey,
+    screenKey,
     keys: signInDeps.keys,
     settings,
     ranking,
@@ -281,6 +286,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
     dashboardOrigin: config.auth.dashboardOrigin,
     ranking,
   });
+  const deviceClaims = {
+    pool: options.pool,
+    keys: signInDeps.keys,
+    alarm: (event: string, fields: Readonly<Record<string, unknown>>) =>
+      app.log.error({ event, ...fields }),
+  };
+  const deviceDeps = {
+    ...deviceClaims,
+    screenKey,
+    settings,
+    dashboardOrigin: config.auth.dashboardOrigin,
+  };
+  registerDeviceGuard(app, { pool: options.pool, dashboardOrigin: config.auth.dashboardOrigin });
+  registerDeviceRoutes(app, deviceDeps);
+  registerDeviceOperatorRoutes(app, { ...deviceDeps, claims: deviceClaims });
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });
   registerResultsPlayerRoutes(app, { pool: options.pool });
@@ -322,6 +342,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     rewardCodeKey,
     operators: operatorDeps,
     ranking,
+    devices: deviceClaims,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
 

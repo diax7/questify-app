@@ -2163,7 +2163,8 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   pay_completion: "caller: boosted at its fixed_at (no default; the payer table)",
   record_completion:
     "caller: boosted now unless manual (scan, code, location, my-QR, vote, poll, survey, share)",
-  complete_quest: "now: record_completion (scan, typed code, location rows)",
+  complete_quest:
+    "now: record_completion (scan, typed code, location rows; screen_qr in test/db/devices)",
   operator_complete_quest: "now: record_completion (my-QR row)",
   vote_quest: "now: record_completion (vote and live poll rows)",
   submit_survey: "now: record_completion (survey row)",

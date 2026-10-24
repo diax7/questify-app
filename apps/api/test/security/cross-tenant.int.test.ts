@@ -928,6 +928,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by register_nfc_tag for an operator of the tag's event (nfc_writer), and by move_nfc_tag, revoke_nfc_tag and revoke_quest_nfc_tags inside the caller's event (award_event_of); read by tap_quest only for a member of the tag's event, by operator_nfc_tags for the calling operator's own writes and by quest_nfc_tags for the event's team (test/db/nfc-tags)",
   nfc_tap:
     "no right for the API role at all; written by tap_quest beside the calling player's own completion and removed with it; read as counts by the event's team through quest_nfc_tags and by raise_nfc_flag for the tapping member (test/db/nfc-tags)",
+  device_request:
+    "no right for the API role at all; belongs to no tenant until claimed: written by open_device_request and renew_device_request (a hash of the browser's own secret and code) and turned into a paired device by operator_claim_device and team_claim_device only for the caller's own event; read by device_session for its own secret and by preview_device for the caller's event (test/db/devices)",
+  paired_device:
+    "no right for the API role at all; written by the claims inside the caller's event (device_operator, award_event_of), by revoke_device, revoke_devices and the removal triggers; read by device_session for its own secret, by the device definers only for app_device_id's own row, and by event_devices and operator_devices for the caller's event or own pairings (test/db/devices)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

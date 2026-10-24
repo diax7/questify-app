@@ -2,10 +2,18 @@ import type { FastifyInstance } from "fastify";
 
 /**
  * Who may call a route. Every route must say so in `config.access`; a route without it stops the server from
- * starting, so nothing becomes public by being forgotten. Later tasks add their kinds here (player bearer token,
- * screen token, signed provider callback), each with the hook that enforces it.
+ * starting, so nothing becomes public by being forgotten. Later tasks add their kinds here (signed provider callback),
+ * each with the hook that enforces it. `device` is a paired station, kiosk or big screen (T-309, devices/guard.ts).
  */
-export const ACCESS_KINDS = ["public", "staff", "member", "owner", "player", "admin"] as const;
+export const ACCESS_KINDS = [
+  "public",
+  "staff",
+  "member",
+  "owner",
+  "player",
+  "admin",
+  "device",
+] as const;
 export type Access = (typeof ACCESS_KINDS)[number];
 
 /** Each access kind is enforced by a hook on its own path; a label alone would protect nothing. */
@@ -19,6 +27,11 @@ export type RouteInfo = Readonly<{ method: string; url: string; access: Access }
 
 /** The decorator `registerPlayerGuard` sets, so a player route registered without the guard stops the server. */
 export const PLAYER_GUARD = "playerGuard";
+/** The decorator `registerDeviceGuard` sets (T-309), so a device route registered without the guard stops the server. */
+export const DEVICE_GUARD = "deviceGuard";
+/** `device` routes live here and only here (CTO 5): `/v1/devices` is not a device route. */
+export const isDevicePath = (url: string): boolean =>
+  url === "/v1/device" || url.startsWith("/v1/device/");
 
 const isAccess = (value: unknown): value is Access =>
   typeof value === "string" && (ACCESS_KINDS as readonly string[]).includes(value);
@@ -63,6 +76,16 @@ export function registerRouteInventory(app: FastifyInstance): RouteInfo[] {
       if (access === "player" && !app.hasDecorator(PLAYER_GUARD)) {
         throw new Error(
           `Route ${name} is marked player but the player guard is not registered before it.`,
+        );
+      }
+      if (access === "device" && !isDevicePath(route.url)) {
+        throw new Error(
+          `Route ${name} is marked device but is outside /v1/device, where the device check runs.`,
+        );
+      }
+      if (access === "device" && !app.hasDecorator(DEVICE_GUARD)) {
+        throw new Error(
+          `Route ${name} is marked device but the device guard is not registered before it.`,
         );
       }
       if (access === "public" && route.config?.idempotent === true) {

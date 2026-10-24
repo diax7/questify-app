@@ -1,6 +1,11 @@
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { ACCESS_KINDS, PLAYER_GUARD, registerRouteInventory } from "#src/route-access";
+import {
+  ACCESS_KINDS,
+  DEVICE_GUARD,
+  PLAYER_GUARD,
+  registerRouteInventory,
+} from "#src/route-access";
 
 const build = () => {
   const app = Fastify();
@@ -28,7 +33,7 @@ describe("registerRouteInventory", () => {
   it("stops the server from starting when a route does not say who may call it", async () => {
     const { app } = build();
     expect(() => app.get("/forgotten", async () => ({}))).toThrow(
-      "Route GET /forgotten must declare config.access (one of public, staff, member, owner, player, admin).",
+      "Route GET /forgotten must declare config.access (one of public, staff, member, owner, player, admin, device).",
     );
   });
 
@@ -70,6 +75,27 @@ describe("registerRouteInventory", () => {
     await app.ready();
     expect(inventory).toEqual([
       { method: "POST", url: "/v1/quests/:id/complete", access: "player" },
+    ]);
+    await app.close();
+  });
+
+  it("takes device routes only under /v1/device, and only once the device guard is registered (T-309)", async () => {
+    const { app, inventory } = build();
+    expect(() => app.get("/v1/device", { config: { access: "device" } }, async () => ({}))).toThrow(
+      "Route GET /v1/device is marked device but the device guard is not registered before it.",
+    );
+    app.decorate(DEVICE_GUARD, true);
+    for (const url of ["/v1/devices", "/v1/devicex/a", "/v1/staff/device", "/device"]) {
+      expect(() => app.get(url, { config: { access: "device" } }, async () => ({}))).toThrow(
+        `Route GET ${url} is marked device but is outside /v1/device, where the device check runs.`,
+      );
+    }
+    app.get("/v1/device", { config: { access: "device" } }, async () => ({}));
+    app.post("/v1/device/activate", { config: { access: "device" } }, async () => ({}));
+    await app.ready();
+    expect(inventory.filter((route) => route.method !== "HEAD")).toEqual([
+      { method: "GET", url: "/v1/device", access: "device" },
+      { method: "POST", url: "/v1/device/activate", access: "device" },
     ]);
     await app.close();
   });
@@ -137,6 +163,14 @@ describe("registerRouteInventory", () => {
   });
 
   it("lists the known kinds", () => {
-    expect(ACCESS_KINDS).toEqual(["public", "staff", "member", "owner", "player", "admin"]);
+    expect(ACCESS_KINDS).toEqual([
+      "public",
+      "staff",
+      "member",
+      "owner",
+      "player",
+      "admin",
+      "device",
+    ]);
   });
 });

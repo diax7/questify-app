@@ -87,6 +87,12 @@ export const FEATURES: FeatureRegistry = {
   /** Share quests (T-303, FR-219, ADR-199): the owner turns them off for an event, which hides every one. */
   shareQuests: { gated: false },
   shop: { gated: false },
+  /**
+   * Station pages and the rotating screen QR (T-309, F-106, ADR-240): off for the platform, station pages show "Not
+   * available" and no screen code is served; pairing and the Devices page stay, so devices can still be revoked. No
+   * event switch: the quest's own screen QR method is the organizer's.
+   */
+  stations: { gated: false, level: "platform" },
   /** Players may change their username (FR-1702), at most once per `usernameChangeDays`. */
   usernameChanges: { gated: false, level: "platform" },
 };

@@ -6,13 +6,20 @@ import type { Caller } from "#src/auth/sign-in";
 import { BUCKETS, countRecent, forget, record, tryLock, type Bucket } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import { verifyQuestCode, type QuestCodeKey } from "#src/quests/qr";
+import {
+  verifyQuestCode,
+  verifyScreenCode,
+  type QuestCodeKey,
+  type ScreenCodeKey,
+} from "#src/quests/qr";
 import type { SettingsService } from "#src/settings/service";
 
 export type Proof =
   | Readonly<{ type: "qr"; code: string }>
   | Readonly<{ type: "code"; code: string }>
-  | Readonly<{ type: "location" }>;
+  | Readonly<{ type: "location" }>
+  /** The code a station or an operator's phone shows (T-309, FR-314): the quest id and a 30-second window. */
+  | Readonly<{ type: "screen"; code: string }>;
 
 /**
  * The phone's reading (T-303b, ADR-206): every value is client-reported. It reaches the database only as an argument,
@@ -189,7 +196,9 @@ export type CodeProblem =
   | "wrong_quest"
   | "old"
   | "wrong_code"
-  | "wrong_method";
+  | "wrong_method"
+  /** A screen code more than 15 seconds past its change (T-309): the app asks to scan the screen again. */
+  | "expired";
 
 /** Why a check-in was refused (migration 0048's check_in_check). */
 export type LocationProblem = "no_position" | "bad_position" | "stale" | "imprecise" | "not_here";
@@ -218,6 +227,7 @@ export type CompletionResult =
 export type CompletionDeps = Readonly<{
   pool: Pool;
   codeKey: QuestCodeKey;
+  screenKey: ScreenCodeKey;
   keys: AuthKeys;
   settings: Pick<SettingsService, "forEvent">;
 }>;
@@ -358,7 +368,7 @@ type Row = {
 };
 
 type EngineProof = Readonly<{
-  method: "qr" | "code" | "location";
+  method: "qr" | "code" | "location" | "screen_qr";
   version: number | null;
   typed: string | null;
 }>;
@@ -445,8 +455,26 @@ type Prepared =
   | Readonly<{ kind: "ready"; proof: EngineProof; reservation: Reservation | undefined }>
   | Readonly<{ kind: "refused"; result: CompletionResult }>;
 
-/** Checks a QR's signature, or holds a typed code or a check-in against its limits, before the database is asked. */
+/** Opens a screen code for this quest: its window goes to the door, which judges it with the database clock. */
+function screenProof(deps: CompletionDeps, request: CompletionRequest, code: string): Prepared {
+  const check = verifyScreenCode(deps.screenKey, code, request.questId);
+  return check.kind === "valid"
+    ? {
+        kind: "ready",
+        proof: { method: "screen_qr", version: check.window, typed: null },
+        reservation: undefined,
+      }
+    : { kind: "refused", result: { kind: "invalid_code", problem: check.kind } };
+}
+
+/**
+ * Checks a QR's or a screen code's signature, or holds a typed code or a check-in against its limits, before the
+ * database is asked.
+ */
 async function prepare(deps: CompletionDeps, request: CompletionRequest): Promise<Prepared> {
+  if (request.proof.type === "screen") {
+    return screenProof(deps, request, request.proof.code);
+  }
   if (request.proof.type === "qr") {
     const check = verifyQuestCode(deps.codeKey, request.proof.code, request.questId);
     return check.kind === "valid"

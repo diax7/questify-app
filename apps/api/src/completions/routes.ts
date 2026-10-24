@@ -9,6 +9,7 @@ import {
   platformFeatureOff,
   questCodeInvalid,
   questNotOpen,
+  screenCodeExpired,
   tooManyAttempts,
   unauthenticated,
 } from "#src/auth/http-errors";
@@ -37,6 +38,12 @@ const completeBody = z.strictObject({
     z.strictObject({ type: z.literal("qr"), code: z.string().min(1).max(200), position: reading }),
     z.strictObject({ type: z.literal("code"), code: z.string().min(1).max(64), position: reading }),
     z.strictObject({ type: z.literal("location"), position: reading }),
+    // The token the app read from a station's /s/{token} address (T-309).
+    z.strictObject({
+      type: z.literal("screen"),
+      code: z.string().min(1).max(200),
+      position: reading,
+    }),
   ]),
 });
 
@@ -61,8 +68,9 @@ function answer(reply: FastifyReply, result: Exclude<CompletionResult, { kind: "
     case "already_completed":
       throw alreadyCompleted({ cap: result.cap });
     case "invalid_code":
-      // One answer whatever the problem: the player can do nothing different, and the log keeps the difference.
-      throw questCodeInvalid();
+      // A screen code past its window asks for a fresh scan (T-309); any other problem gets one answer, since the
+      // player can do nothing different, and the log keeps the difference.
+      throw result.problem === "expired" ? screenCodeExpired() : questCodeInvalid();
     case "key_reused":
       throw idempotencyKeyReused();
     case "too_many_attempts":
@@ -79,8 +87,8 @@ function answer(reply: FastifyReply, result: Exclude<CompletionResult, { kind: "
 }
 
 /**
- * `POST /v1/quests/:questId/complete` (FR-201, 211, 215, 216, 302, 304): a player with a live session completes a quest
- * with its QR's token, its typed code or a location check-in. A scan may carry the phone's position (a bad one is
+ * `POST /v1/quests/:questId/complete` (FR-201, 211, 215, 216, 302, 304, 314): a player with a live session completes a
+ * quest with its QR's token, a station's rotating code, its typed code or a location check-in. A scan may carry the phone's position (a bad one is
  * dropped); a check-in must (a bad one is 422 location_refused bad_position). Every call needs an Idempotency-Key; a
  * retry with the same key gets the first answer.
  */

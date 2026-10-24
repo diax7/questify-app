@@ -7,6 +7,8 @@ export type RequestContext = Readonly<{
   playerId?: string;
   staffUserId?: string;
   isAdmin?: boolean;
+  /** A paired station, kiosk or big screen (T-309): set only by the device guard from the row it found. */
+  deviceId?: string;
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,6 +39,7 @@ export async function withRequestContext<T>(
     ["app.player_id", checkedId("playerId", context.playerId)],
     ["app.staff_user_id", checkedId("staffUserId", context.staffUserId)],
     ["app.is_admin", context.isAdmin === true ? "on" : ""],
+    ["app.device_id", checkedId("deviceId", context.deviceId)],
   ];
   await client.query("BEGIN");
   try {

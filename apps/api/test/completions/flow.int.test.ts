@@ -10,7 +10,7 @@ import {
   type Proof,
 } from "#src/completions/complete";
 import type { ConfigResult } from "#src/settings/service";
-import { createQuestCodeKey, questCode } from "#src/quests/qr";
+import { createQuestCodeKey, createScreenCodeKey, questCode } from "#src/quests/qr";
 import { testConfig } from "#test/support/auth-app";
 import {
   TEST_DATABASE_URL,
@@ -43,6 +43,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the completion flow", () => {
     deps = {
       pool,
       codeKey: CODE_KEY,
+      screenKey: createScreenCodeKey(config.qrSecret),
       keys: KEYS,
       settings: {
         forEvent: async () =>

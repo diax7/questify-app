@@ -356,6 +356,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read a pairing request or a device or reach the device doors and helpers (T-309)", async () => {
+      const bytes = "'\\x" + "00".repeat(32) + "'::bytea";
+      for (const sql of [
+        "SELECT * FROM public.device_request",
+        "SELECT * FROM public.paired_device",
+        `SELECT * FROM public.open_device_request(${bytes}, ${bytes}, 'screen', '')`,
+        `SELECT public.renew_device_request(${bytes}, ${bytes})`,
+        `SELECT * FROM public.device_session(${bytes})`,
+        `SELECT public.activate_device(${bytes}, ${bytes})`,
+        "SELECT public.device_view()",
+        "SELECT * FROM public.screen_code_for_device()",
+        "SELECT * FROM public.screen_code_for_operator(gen_random_uuid(), gen_random_uuid())",
+        `SELECT public.operator_claim_device(${bytes}, gen_random_uuid(), 'station', gen_random_uuid(), 'x', NULL)`,
+        `SELECT public.team_claim_device(${bytes}, gen_random_uuid(), 'screen', NULL, 'x', NULL)`,
+        `SELECT * FROM public.preview_device(${bytes}, gen_random_uuid())`,
+        "SELECT public.revoke_device(gen_random_uuid(), gen_random_uuid(), NULL)",
+        "SELECT public.revoke_devices(gen_random_uuid(), NULL, NULL)",
+        "SELECT public.event_devices(gen_random_uuid())",
+        "SELECT public.operator_devices(gen_random_uuid())",
+        "SELECT public.app_device_id()",
+        "SELECT public.screen_window_of(now())",
+        "SELECT * FROM public.screen_window()",
+        "SELECT public.screen_window_ok(1, now())",
+        "SELECT public.revoke_devices_of(NULL, NULL, NULL, 'x')",
+        "SELECT public.device_alive(NULL::public.paired_device)",
+        "SELECT public.current_device()",
+        "SELECT public.screen_quest_state(NULL::public.quest)",
+        "SELECT public.device_paused(NULL::public.paired_device)",
+        "SELECT public.device_operator(gen_random_uuid(), 'station', gen_random_uuid())",
+        `SELECT public.device_request_of(${bytes}, NULL::public.event, false)`,
+        "SELECT public.device_claim_check(NULL::public.event, 'screen', NULL, 'x')",
+        `SELECT public.make_device(${bytes}, NULL::public.event, 'screen', NULL, 'x', NULL, NULL, NULL)`,
+        "SELECT public.device_json(NULL::public.paired_device)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

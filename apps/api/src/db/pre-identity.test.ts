@@ -39,6 +39,7 @@ describe("withPreIdentityContext", () => {
       "app.player_id",
       "app.staff_user_id",
       "app.is_admin",
+      "app.device_id",
       "app.session_token_hash",
       "app.challenge_token_hash",
       "app.reset_token_hash",

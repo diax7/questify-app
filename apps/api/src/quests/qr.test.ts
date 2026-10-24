@@ -5,6 +5,7 @@ import {
   createMyCodeKey,
   createQuestCodeKey,
   createRevealCodeKey,
+  createScreenCodeKey,
   createStepCodeKey,
   createTagCodeKey,
   inviteCode,
@@ -13,6 +14,8 @@ import {
   questCode,
   questCodeUrl,
   revealCode,
+  screenCode,
+  screenCodeUrl,
   stepCode,
   tagCode,
   tagCodeUrl,
@@ -20,6 +23,7 @@ import {
   verifyMyCode,
   verifyQuestCode,
   verifyRevealCode,
+  verifyScreenCode,
   verifyStepCode,
   verifyTagCode,
 } from "#src/quests/qr";
@@ -350,6 +354,72 @@ describe("NFC tag codes (T-308)", () => {
       revealCode(createRevealCodeKey(SECRET), TAG, 1),
     ]) {
       expect(verifyTagCode(TAG_KEY, other)).toEqual({ kind: "not_questify" });
+    }
+  });
+});
+
+describe("screen codes (T-309)", () => {
+  const SECRET = "q".repeat(32);
+  const SCREEN_KEY = createScreenCodeKey(SECRET);
+  const WINDOW = 59_416_440;
+
+  it("refuses a short secret", () => {
+    expect(() => createScreenCodeKey("q".repeat(31))).toThrow(/QR_SECRET must be at least 32/);
+  });
+
+  it("opens to its quest and window, 50 characters of format 0x07", () => {
+    const token = screenCode(SCREEN_KEY, QUEST, WINDOW);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{50}$/);
+    expect(Buffer.from(token, "base64url")[0]).toBe(0x07);
+    expect(verifyScreenCode(SCREEN_KEY, token, QUEST.toUpperCase())).toEqual({
+      kind: "valid",
+      questId: QUEST,
+      window: WINDOW,
+    });
+    expect(screenCode(SCREEN_KEY, QUEST, WINDOW + 1)).not.toBe(token);
+    expect(screenCodeUrl("https://questify.nafes.com", token)).toBe(
+      `https://questify.nafes.com/s/${token}`,
+    );
+  });
+
+  it("answers wrong_quest for another quest, forged for another key or a changed byte", () => {
+    const token = screenCode(SCREEN_KEY, QUEST, WINDOW);
+    expect(verifyScreenCode(SCREEN_KEY, token, randomUUID())).toEqual({ kind: "wrong_quest" });
+    expect(verifyScreenCode(createScreenCodeKey("r".repeat(32)), token, QUEST)).toEqual({
+      kind: "forged",
+    });
+    expect(
+      verifyScreenCode(SCREEN_KEY, swapped(token, 30, token[30] === "A" ? "B" : "A"), QUEST),
+    ).toEqual({ kind: "forged" });
+    expect(verifyScreenCode(SCREEN_KEY, "hello", QUEST)).toEqual({ kind: "not_questify" });
+  });
+
+  it("accepts only the canonical encoding", () => {
+    const token = screenCode(SCREEN_KEY, QUEST, WINDOW);
+    const last = token.at(-1) ?? "A";
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const sibling = alphabet[(alphabet.indexOf(last) ^ 1) % 64] ?? "A";
+    expect(verifyScreenCode(SCREEN_KEY, `${token.slice(0, -1)}${sibling}`, QUEST)).toEqual({
+      kind: "not_questify",
+    });
+  });
+
+  it("never opens as any other code, nor they as a screen code", () => {
+    const screen = screenCode(SCREEN_KEY, QUEST, WINDOW);
+    expect(verifyQuestCode(createQuestCodeKey(SECRET), screen, QUEST)).toEqual({
+      kind: "not_questify",
+    });
+    expect(verifyTagCode(createTagCodeKey(SECRET), screen)).toEqual({ kind: "not_questify" });
+    expect(verifyMyCode(createMyCodeKey(SECRET), screen)).toEqual({ kind: "not_questify" });
+    for (const other of [
+      questCode(createQuestCodeKey(SECRET), QUEST, WINDOW),
+      myCode(createMyCodeKey(SECRET), QUEST, WINDOW),
+      inviteCode(createInviteCodeKey(SECRET), QUEST),
+      stepCode(createStepCodeKey(SECRET), QUEST, WINDOW),
+      revealCode(createRevealCodeKey(SECRET), QUEST, WINDOW),
+      tagCode(createTagCodeKey(SECRET), QUEST, WINDOW),
+    ]) {
+      expect(verifyScreenCode(SCREEN_KEY, other, QUEST)).toEqual({ kind: "not_questify" });
     }
   });
 });

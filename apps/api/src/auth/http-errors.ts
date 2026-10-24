@@ -1459,3 +1459,75 @@ export const outsideOperatorQuests = make(
   "هذه المهمة ليست من مهامك.",
   "This quest isn't one of yours.",
 );
+
+// ---------------------------------------------------------------- devices (T-309)
+/** A device cookie that opens no live device (revoked, ended, unknown): the page starts over at pairing. */
+export const deviceUnpaired = make(
+  401,
+  "device_unpaired",
+  "هذه الشاشة غير مرتبطة. اطلب من فريق الفعالية ربطها.",
+  "This screen isn't paired. Ask the event team to pair it.",
+);
+/** A pairing code that is unknown, expired or already claimed: one answer for all three. */
+export const unknownPairingCode = make(
+  404,
+  "unknown_code",
+  "لم نجد هذا الرمز أو انتهت صلاحيته. اطلب رمزًا جديدًا من الشاشة.",
+  "We couldn't find this code, or it expired. Get a new code from the screen.",
+);
+/** A device of this event that is unknown, already revoked, or not one the operator paired. */
+export const unknownDevice = make(
+  404,
+  "unknown_device",
+  "لم نجد هذا الجهاز.",
+  "We couldn't find this device.",
+);
+/** Pairing for an event that has ended. */
+export const deviceEventClosed = make(
+  409,
+  "event_closed",
+  "انتهت الفعالية، فلا تُربط بها أجهزة.",
+  "The event has ended, so no devices can be paired.",
+);
+/** A station for a quest without the screen QR. */
+export const notScreenQr = make(
+  409,
+  "not_screen_qr",
+  "هذه المهمة لا تستخدم رمز QR على شاشة.",
+  "This quest doesn't use a QR on a screen.",
+);
+/** A kiosk for a quest without the kiosk method (T-309b). */
+export const notKiosk = make(
+  409,
+  "not_kiosk",
+  "هذه المهمة لا تستخدم كشكًا ذاتيًا.",
+  "This quest doesn't use a kiosk.",
+);
+/** The page shows another kind of device than the one chosen. */
+export const wrongDeviceKind = make(
+  409,
+  "wrong_kind",
+  "هذه الشاشة من نوع آخر. افتح الصفحة الصحيحة على الجهاز.",
+  "This screen is another kind of device. Open the right page on it.",
+);
+/** A claim's field the database refused: `field` is kind, quest or label. */
+export const invalidDevice = make(
+  422,
+  "invalid_device",
+  "تحقق من بيانات الجهاز.",
+  "Check the device's details.",
+);
+/** Too many pairing requests at once (the flood cap) or no free code: try again shortly. */
+export const pairingBusy = make(
+  503,
+  "busy",
+  "الخدمة مشغولة الآن. حاول بعد قليل.",
+  "We're busy right now. Try again in a moment.",
+);
+/** A screen code whose window has passed: the screen shows a new one. */
+export const screenCodeExpired = make(
+  422,
+  "code_expired",
+  "تغيّر هذا الرمز. امسح الشاشة مجددًا.",
+  "This code has changed. Scan the screen again.",
+);

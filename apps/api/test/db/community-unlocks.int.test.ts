@@ -1624,4 +1624,11 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   register_nfc_tag: "staff: an operator registers a tag; it pays nothing",
   move_nfc_tag: "staff: the team's Tags panel",
   revoke_quest_nfc_tags: "staff: the team's Tags panel",
+  device_view:
+    "staff: a paired station's title line (the scan itself is gated through record_completion)",
+  operator_devices: "staff: the operator's stations to pair or show (the scan itself is gated)",
+  screen_code_for_device:
+    "staff: a station's rotating code; the scan is gated through record_completion (T-309)",
+  screen_code_for_operator:
+    "staff: the operator's rotating code; the scan is gated through record_completion (T-309)",
 };

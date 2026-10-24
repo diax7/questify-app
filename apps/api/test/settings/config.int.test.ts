@@ -79,6 +79,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           rankingToday: { enabled: true, minAppVersion: null, message: null },
           shareQuests: { enabled: true, minAppVersion: null, message: null },
           shop: { enabled: true, minAppVersion: null, message: null },
+          stations: { enabled: true, minAppVersion: null, message: null },
           usernameChanges: { enabled: true, minAppVersion: null, message: null },
         },
         tuning: {

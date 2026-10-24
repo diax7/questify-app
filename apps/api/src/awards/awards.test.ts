@@ -123,7 +123,7 @@ describe("awards", () => {
       value: { entryId: "9", points: 50, replayed: true },
     });
     expect(pool.statements[0]?.values).toEqual([EVENT, "e1", null, 50, "Helped", "k1"]);
-    expect(pool.contexts[0]?.[1]).toEqual(["", OPERATOR, "", ""]);
+    expect(pool.contexts[0]?.[1]).toEqual(["", OPERATOR, "", "", ""]);
   });
 
   it("reads a first award as not replayed, and sends a quest award from staff", async () => {
@@ -135,7 +135,7 @@ describe("awards", () => {
     });
     expect(done).toEqual({ kind: "done", value: { entryId: "3", points: 150, replayed: false } });
     expect(pool.statements[0]?.values).toEqual([EVENT, "e1", "q1", null, "Helped", "k1", "r1"]);
-    expect(pool.contexts[0]?.[1]).toEqual([STAFF.organizerId, "", STAFF.staffUserId, ""]);
+    expect(pool.contexts[0]?.[1]).toEqual([STAFF.organizerId, "", STAFF.staffUserId, "", ""]);
   });
 
   it("reads a removal", async () => {
@@ -213,7 +213,7 @@ describe("findPlayer", () => {
     });
     expect(pool.statements.some((s) => s.sql.includes("INSERT"))).toBe(true);
     expect(pool.statements.at(-1)?.values).toEqual([EVENT, "sara", null]);
-    expect(pool.contexts.at(-1)?.[1]).toEqual(["", OPERATOR, "", ""]);
+    expect(pool.contexts.at(-1)?.[1]).toEqual(["", OPERATOR, "", "", ""]);
   });
 
   it("answers no match, and an inactive member as not active", async () => {

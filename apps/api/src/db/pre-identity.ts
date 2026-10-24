@@ -30,6 +30,7 @@ const SETTINGS = [
   "app.player_id",
   "app.staff_user_id",
   "app.is_admin",
+  "app.device_id",
   "app.auth_email",
   "app.session_token_hash",
   "app.challenge_token_hash",

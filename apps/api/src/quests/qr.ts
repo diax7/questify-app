@@ -5,8 +5,8 @@ const MIN_SECRET_LENGTH = 32;
 /**
  * Layout and purpose of a signed code, its first byte. 0x01: a static printed quest QR (FR-305); 0x02: a player's My
  * QR (ADR-137); 0x03: an operator invite (T-204); 0x04: a printed passport step (T-304b, ADR-203); 0x05: a hidden
- * category's secret code (T-304c, ADR-204); 0x06: an NFC tag (T-308, ADR-234). A rotating code (FR-314) gets its own. Each purpose also has its own key,
- * so a code of one purpose never opens as another.
+ * category's secret code (T-304c, ADR-204); 0x06: an NFC tag (T-308, ADR-234); 0x07: a station's rotating code (T-309,
+ * FR-314, ADR-240). Each purpose also has its own key, so a code of one purpose never opens as another.
  */
 const FORMAT = {
   quest: 0x01,
@@ -15,6 +15,7 @@ const FORMAT = {
   step: 0x04,
   reveal: 0x05,
   tag: 0x06,
+  screen: 0x07,
 } as const;
 type Purpose = keyof typeof FORMAT;
 const ID_BYTES = 16;
@@ -312,4 +313,49 @@ export function verifyTagCode(key: TagCodeKey, token: string): TagCodeCheck {
   return opened.kind === "valid"
     ? { kind: "valid", tagId: opened.id, version: opened.version }
     : opened;
+}
+
+export type ScreenCodeKey = CodeKey<"screen">;
+
+/**
+ * @throws Error when the secret is shorter than 32 characters.
+ */
+export function createScreenCodeKey(secret: string): ScreenCodeKey {
+  return deriveKey(secret, "screen");
+}
+
+/**
+ * The code a station or an operator's phone shows (T-309, ADR-240): the quest id and the 30-second window of the
+ * database clock. Not stored and not single-use: the window is judged by the completion door with the database's now().
+ */
+export function screenCode(key: ScreenCodeKey, questId: string, window: number): string {
+  return sign(key, questId, window);
+}
+
+/** The address a screen code holds: the dashboard's `/s/{token}` page, which the app reads and a camera can open. */
+export function screenCodeUrl(origin: string, token: string): string {
+  return `${origin}/s/${token}`;
+}
+
+export type ScreenCodeCheck =
+  | Readonly<{ kind: "valid"; questId: string; window: number }>
+  | Readonly<{ kind: "not_questify" }>
+  | Readonly<{ kind: "forged" }>
+  /** A real screen code of another quest: never completes this one. */
+  | Readonly<{ kind: "wrong_quest" }>;
+
+/** Opens a scanned screen code for the quest it is used on. Whether its window is still good is the door's. */
+export function verifyScreenCode(
+  key: ScreenCodeKey,
+  token: string,
+  expectedQuestId: string,
+): ScreenCodeCheck {
+  const opened = open(key, token);
+  if (opened.kind !== "valid") {
+    return opened;
+  }
+  if (opened.id !== expectedQuestId.toLowerCase()) {
+    return { kind: "wrong_quest" };
+  }
+  return { kind: "valid", questId: opened.id, window: opened.version };
 }

@@ -122,4 +122,16 @@ describe("createAuthKeys", () => {
       false,
     );
   });
+
+  it("hashes pairing codes and keys devices and events under purposes of their own (T-309)", () => {
+    const all = createAuthKeys(SECRET);
+    expect(
+      all.pairingCodeHash("ABCDEFGH").equals(hmac(subkey("device-pairing-code"), "ABCDEFGH")),
+    ).toBe(true);
+    expect(all.pairedDeviceKey("d1").equals(hmac(subkey("throttle-paired-device"), "d1"))).toBe(
+      true,
+    );
+    expect(all.eventKey("e1").equals(hmac(subkey("throttle-event"), "e1"))).toBe(true);
+    expect(all.eventKey("x").equals(all.organizerKey("x"))).toBe(false);
+  });
 });

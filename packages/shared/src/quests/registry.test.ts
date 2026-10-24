@@ -180,6 +180,17 @@ describe("NFC tags (T-308)", () => {
   });
 });
 
+describe("the screen QR (T-309)", () => {
+  it("is offered on scan quests only, alone or with My QR, never beside the printed QR (ADR-240)", () => {
+    expect(parseVerification("scan_qr", ["screen_qr"])).toEqual(["screen_qr"]);
+    expect(parseVerification("scan_qr", ["screen_qr", "my_qr"])).toEqual(["my_qr", "screen_qr"]);
+    expect(parseVerification("scan_qr", ["quest_qr", "screen_qr"])).toBeUndefined();
+    expect(parseVerification("scan_qr", ["quest_qr", "nfc", "screen_qr"])).toBeUndefined();
+    expect(parseVerification("location", ["screen_qr"])).toBeUndefined();
+    expect(parseVerification("challenge", ["screen_qr"])).toBeUndefined();
+  });
+});
+
 describe("challenge quests", () => {
   it("hold no config and are verified only by staff scanning My QR", () => {
     expect(parseQuestConfig("challenge", {})).toEqual({});

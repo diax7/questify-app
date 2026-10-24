@@ -162,6 +162,36 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; a tag of that event only (NT404 in revoke_nfc_tag) (test/nfc/routes, test/db/nfc-tags)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/nfc-tags/revoke-all":
     "members inside their event limit; a quest of that event only (AN404 in revoke_quest_nfc_tags) (test/nfc/routes, test/db/nfc-tags)",
+  "POST /v1/device/pairing":
+    "public, Origin checked: writes only a pairing request that holds no one's data (the hashes of the browser's own secret and code); a call with a live device cookie answers that device's own state; 60 per 10 minutes per address bucket (test/devices/routes, test/db/devices)",
+  "GET /v1/device":
+    "the device cookie's own row only (device_session by its secret's hash); nothing of an event before activation; per device at most 30 a minute (test/devices/routes, test/db/devices)",
+  "POST /v1/device/pairing/renew":
+    "the device cookie's own pending request only, a new code under the same secret (test/devices/routes, test/db/devices)",
+  "POST /v1/device/activate":
+    "the device cookie's own paired device only; replaces its secret under the row lock (activate_device, CTO 2) (test/devices/routes, test/db/devices)",
+  "GET /v1/device/screen-code":
+    "a paired, activated station's own quest only (screen_code_for_device takes no quest); per device at most 6 a minute (test/devices/routes, test/db/devices)",
+  "POST /v1/operator/events/:eventId/devices/preview":
+    "an operator of that event only (OP403 in preview_device); a code is unknown_code until it exists; claims and previews held at 10 a minute per operator and 30 unknown codes an hour per event (test/devices/routes, test/db/devices)",
+  "POST /v1/operator/events/:eventId/devices":
+    "an operator of that event with show_rotating_qr (or scan_quests for a kiosk), within their quest limit, never a big screen (device_operator in operator_claim_device) (test/devices/routes, test/db/devices)",
+  "GET /v1/operator/events/:eventId/devices":
+    "an operator of that event only; the devices they paired themselves (operator_devices) (test/devices/routes, test/db/devices)",
+  "POST /v1/operator/events/:eventId/devices/:deviceId/revoke":
+    "an operator of that event only, for a device they paired; any other answers 404 (DN404 in revoke_device) (test/devices/routes, test/db/devices)",
+  "GET /v1/operator/events/:eventId/quests/:questId/screen-code":
+    "an operator of that event with show_rotating_qr, within their quest limit (device_operator in screen_code_for_operator); per operator and quest at most 6 a minute (test/devices/routes, test/db/devices)",
+  "GET /v1/organizers/:organizerId/events/:eventId/devices":
+    "members inside their event limit; another organizer's event answers 404 (AN404 in event_devices); never a secret or code (test/devices/routes, test/db/devices)",
+  "POST /v1/organizers/:organizerId/events/:eventId/devices/preview":
+    "members inside their event limit (AN404 in preview_device); unknown codes held at 30 an hour per event and per organizer (test/devices/routes, test/db/devices)",
+  "POST /v1/organizers/:organizerId/events/:eventId/devices":
+    "members inside their event limit; a quest of that event only (team_claim_device) (test/devices/routes, test/db/devices)",
+  "POST /v1/organizers/:organizerId/events/:eventId/devices/:deviceId/revoke":
+    "members inside their event limit; a device of that event only (DN404 in revoke_device) (test/devices/routes, test/db/devices)",
+  "POST /v1/organizers/:organizerId/events/:eventId/devices/revoke":
+    "members inside their event limit; that event's devices only (revoke_devices) (test/devices/routes, test/db/devices)",
   "GET /v1/organizers/:organizerId/events/:eventId/community-goals":
     "members of that organizer only (member route, walked below); another organizer's event answers 404 (AN404 in community_goals) (test/community/routes, test/db/community)",
   "POST /v1/organizers/:organizerId/events/:eventId/community-goals":
@@ -497,6 +527,7 @@ const PUBLIC_ROUTES = [
   "POST /v1/deletion/code",
   "POST /v1/deletion/confirm",
   "POST /v1/deletion/verify",
+  "POST /v1/device/pairing",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",

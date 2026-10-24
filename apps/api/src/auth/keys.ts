@@ -64,6 +64,12 @@ export type AuthKeys = Readonly<{
   deletionFingerprint: (contact: string) => Buffer;
   /** Hash of a deletion code, bound to its challenge (a deletion code can never match a sign-in code). */
   deletionCodeHash: (challengeId: string, code: string) => Buffer;
+  /** Hash of a device pairing code (T-309, normalised), the only form in which a code is stored. */
+  pairingCodeHash: (code: string) => Buffer;
+  /** Throttle key for a paired device or a pending one (its secret's hash), T-309. */
+  pairedDeviceKey: (device: string) => Buffer;
+  /** Throttle key for an event (unknown pairing codes, T-309). */
+  eventKey: (eventId: string) => Buffer;
 }>;
 
 /**
@@ -92,6 +98,9 @@ export function createAuthKeys(secret: string): AuthKeys {
   const code = derive("code");
   const deletionFingerprint = keyed("deletion-fingerprint");
   const deletionCode = derive("deletion-code");
+  const pairingCode = keyed("device-pairing-code");
+  const pairedDevice = keyed("throttle-paired-device");
+  const event = keyed("throttle-event");
   return {
     emailKey: email,
     addressKey: address,
@@ -109,5 +118,8 @@ export function createAuthKeys(secret: string): AuthKeys {
     deletionFingerprint,
     deletionCodeHash: (challengeId, value) =>
       createHmac("sha256", deletionCode).update(`${challengeId}\n${value}`).digest(),
+    pairingCodeHash: pairingCode,
+    pairedDeviceKey: pairedDevice,
+    eventKey: event,
   };
 }
