@@ -32,6 +32,10 @@ then reply and stop.
 - Tests: `npx vitest run <paths>` from the repo root. Run only the suites your change touches, plus
   `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
   only the specs you touched. `npx expo export` when app screens change.
+- Before reporting a task done, run the full `npx vitest run` once with both URLs set: list-style guards
+  (`test/db/rehearsal.int.test.ts`, the security suites, the community gate map) fail on any new table or function.
+- A new owner-only event switch adds one "Only the owner can change this." note: update its count in
+  `apps/web/e2e/organizers.spec.ts` and run that spec.
 - **Never run Stryker or any mutation testing locally** (ADR-174: about 18 GB, can crash the PC). It runs on
   GitHub (`.github/workflows/mutation.yml`), started by the coordinator. In your reply list the mutation target
   globs: core code only, only files this task changed. When results come back, kill survivors only while a file
