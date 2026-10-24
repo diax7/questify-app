@@ -32,23 +32,24 @@ CREATE UNIQUE INDEX flag_nfc_open ON flag (enrollment_id, kind) WHERE kind = 'nf
 
 -- ================================================================ the tag (ADR-234)
 -- One registration of a physical sticker for one quest. `uid` is the sticker's id as the writing phone read it
--- (4 to 10 bytes). `version` is in the tag's signed URL. A revoked row stays (its taps name it); one active row per
--- sticker and event. A quest with tags is not deleted (RESTRICT: the builder answers tags_in_use). Written only by its
--- definers; never by the rehearsal wipe (a tag on a wall is organizer data).
+-- (4 to 10 bytes). A revoked row stays while its taps name it; one active row per sticker and event. A quest with an
+-- active tag is not deleted (RESTRICT: the builder answers tags_in_use, the Tags panel revokes); deleting a quest whose
+-- tags are all revoked removes those with no taps and detaches the rest (`quest_id` NULL, kept as the taps' evidence).
+-- Written only by its definers; never by the rehearsal wipe (a tag on a wall is organizer data).
 CREATE TABLE nfc_tag (
   id           uuid PRIMARY KEY,
   organizer_id uuid NOT NULL,
   event_id     uuid NOT NULL,
-  quest_id     uuid NOT NULL,
+  quest_id     uuid,
   uid          bytea NOT NULL CHECK (length(uid) BETWEEN 4 AND 10),
   label        text NOT NULL DEFAULT '' CHECK (char_length(label) <= 40),
   locked       boolean NOT NULL,
-  version      integer NOT NULL DEFAULT 1 CHECK (version >= 1),
   status       text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
   written_by   uuid REFERENCES staff_assignment (id) ON DELETE SET NULL,
   written_at   timestamptz NOT NULL DEFAULT now(),
   revoked_at   timestamptz,
   CONSTRAINT nfc_tag_revoked CHECK ((status = 'revoked') = (revoked_at IS NOT NULL)),
+  CONSTRAINT nfc_tag_quest CHECK (quest_id IS NOT NULL OR status = 'revoked'),
   FOREIGN KEY (event_id, organizer_id) REFERENCES event (id, organizer_id) ON DELETE RESTRICT,
   FOREIGN KEY (quest_id, event_id) REFERENCES quest (id, event_id) ON DELETE RESTRICT
 );
@@ -58,6 +59,19 @@ CREATE INDEX nfc_tag_writer_idx ON nfc_tag (written_by, written_at DESC);
 ALTER TABLE nfc_tag ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nfc_tag FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON nfc_tag FROM PUBLIC;
+
+-- Before a quest's delete (CTO code review 1): its revoked tags with no taps go, its revoked tags with taps are detached
+-- (kept for the taps). Active tags stay, so the delete is refused by the key (tags_in_use) until they are revoked.
+CREATE FUNCTION quest_delete_nfc_tags() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  DELETE FROM nfc_tag t
+  WHERE t.quest_id = OLD.id AND t.status = 'revoked' AND NOT EXISTS (SELECT 1 FROM nfc_tap a WHERE a.tag_id = t.id);
+  UPDATE nfc_tag t SET quest_id = NULL WHERE t.quest_id = OLD.id AND t.status = 'revoked';
+  RETURN OLD;
+END $$;
+REVOKE ALL ON FUNCTION quest_delete_nfc_tags() FROM PUBLIC;
+CREATE TRIGGER quest_delete_nfc_tags BEFORE DELETE ON quest FOR EACH ROW EXECUTE FUNCTION quest_delete_nfc_tags();
 
 -- One row per tap that paid. `uid_ok`: the sticker id the phone read is the registered one (false: another sticker,
 -- or none sent); NULL when the phone said it cannot read one (`platform`, the iPhone's fallback): not checked. Goes
@@ -405,15 +419,16 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION raise_nfc_flag(quest_completion) FROM PUBLIC;
 
--- A player's tap (the API opened the tag's signed URL: its id and version). `seen_uid` is the sticker id the phone
+-- A player's tap (the API opened the tag's signed URL: its id). `seen_uid` is the sticker id the phone
 -- read, NULL when none was sent; `uid_unreadable` is the phone saying it cannot read one (the iPhone's `platform`
 -- fallback): not checked, never flagged. In order: an unknown tag, or one of an event the player is not in, is NT404
--- unknown_tag (one answer, nothing learned about other tags or tenants); a retry of a tap already paid replays it on
--- its own quest, whatever became of the tag since (CTO 1); a revoked tag or an old version is NT404; then the one door,
+-- unknown_tag (one answer, nothing learned about other tags or tenants); the go-live wipe runs before anything is read
+-- (CTO code review 2); a retry of a tap already paid replays it on its own quest, whatever became of the tag since
+-- (CTO 1); a revoked tag is NT404; then the one door,
 -- record_completion, with method `nfc` (the wipe, the enrollment lock, every open check and cap, the boost). A fresh
 -- completion writes its tap row (taking KEY SHARE on the tag row: a Revoke in flight does not wait or block) and may
 -- flag the account. Answers the completion with its quest.
-CREATE FUNCTION tap_quest(tag uuid, tag_version integer, seen_uid bytea, uid_unreadable boolean, request_key text,
+CREATE FUNCTION tap_quest(tag uuid, seen_uid bytea, uid_unreadable boolean, request_key text,
                           device uuid, reading jsonb DEFAULT NULL)
   RETURNS TABLE (completion_id bigint, points bigint, occurrence integer, score bigint, balance bigint,
                  replayed boolean, quest_id uuid)
@@ -430,7 +445,11 @@ BEGIN
     RAISE EXCEPTION 'no player in this request' USING ERRCODE = 'insufficient_privilege';
   END IF;
   SELECT * INTO tag_row FROM nfc_tag t WHERE t.id = tag;
-  IF NOT FOUND OR NOT EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = tag_row.event_id AND n.player_id = me) THEN
+  IF tag_row.id IS NOT NULL THEN
+    PERFORM ensure_rehearsal_wiped(tag_row.event_id);
+  END IF;
+  IF tag_row.id IS NULL
+     OR NOT EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = tag_row.event_id AND n.player_id = me) THEN
     RAISE EXCEPTION 'unknown tag' USING ERRCODE = 'NT404';
   END IF;
   SELECT c.quest_id INTO earlier FROM quest_completion c JOIN enrollment n ON n.id = c.enrollment_id
@@ -440,7 +459,7 @@ BEGIN
                                                             NULL, NULL, tag_row.event_id, reading) r;
     RETURN;
   END IF;
-  IF tag_row.status <> 'active' OR tag_row.version IS DISTINCT FROM tag_version THEN
+  IF tag_row.status <> 'active' THEN
     RAISE EXCEPTION 'unknown tag' USING ERRCODE = 'NT404';
   END IF;
 
@@ -459,8 +478,8 @@ BEGIN
   RETURN QUERY SELECT result.completion_id, result.points, result.occurrence, result.score, result.balance,
                       result.replayed, tag_row.quest_id;
 END $$;
-REVOKE ALL ON FUNCTION tap_quest(uuid, integer, bytea, boolean, text, uuid, jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION tap_quest(uuid, integer, bytea, boolean, text, uuid, jsonb) TO questify_app;
+REVOKE ALL ON FUNCTION tap_quest(uuid, bytea, boolean, text, uuid, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tap_quest(uuid, bytea, boolean, text, uuid, jsonb) TO questify_app;
 
 -- ================================================================ the Tags panel (owners and editors)
 -- The quest's tags for its event's team, newest first: the label, who wrote it and when, locked, the status, and the

@@ -18,6 +18,8 @@ type Props = Readonly<{
   questId: string;
   /** The event's other scan quests with NFC on, where a tag may be moved. */
   targets: readonly Readonly<{ id: string; title: Bilingual }>[];
+  /** The quest's NFC method: off, the panel shows only while tags remain (CTO code review 1). */
+  nfcOn: boolean;
   readOnly: boolean;
 }>;
 
@@ -106,7 +108,15 @@ function TagCard({
  * another NFC quest, Revoke, and Revoke all after a confirmation. Tags are written from staff mode on a phone, never
  * here. A basic tag can be copied like a printed QR, which the panel says.
  */
-export function NfcTagsPanel({ language, timeZone, eventApi, questId, targets, readOnly }: Props) {
+export function NfcTagsPanel({
+  language,
+  timeZone,
+  eventApi,
+  questId,
+  targets,
+  nfcOn,
+  readOnly,
+}: Props) {
   const t = translatorFor(language);
   const [tags, setTags] = useState<readonly TagLine[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -144,6 +154,9 @@ export function NfcTagsPanel({ language, timeZone, eventApi, questId, targets, r
   };
 
   const active = tags?.some((tag) => tag.status === "active") === true;
+  if (!nfcOn && (tags === null || tags.length === 0)) {
+    return null;
+  }
   return (
     <section className={styles.panel} aria-labelledby={`tags-${questId}`}>
       <h3 id={`tags-${questId}`} className={styles.subtitle}>

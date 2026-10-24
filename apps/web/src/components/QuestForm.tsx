@@ -47,11 +47,15 @@ type Props = Readonly<{
   votesUrl: string | null;
   /** A survey quest's results, for the team (T-303). */
   surveyUrl: string | null;
-  /** An existing NFC quest's Tags panel (T-308): the event's API path and where its tags may move; null otherwise. */
+  /**
+   * An existing scan quest's Tags panel (T-308): the event's API path, where its tags may move, and whether NFC is on.
+   * Shown with NFC on, and with it off while the quest still has tags (so they can be revoked); null otherwise.
+   */
   nfcTags: Readonly<{
     eventApi: string;
     questId: string;
     targets: readonly Readonly<{ id: string; title: Bilingual }>[];
+    nfcOn: boolean;
   }> | null;
   busy: boolean;
   save: (draft: QuestDraft) => void;

@@ -188,15 +188,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
     player: string,
     tag: string,
     fields: Readonly<{
-      version?: number;
       uid?: Buffer | null;
       unreadable?: boolean;
       key?: string;
     }> = {},
   ) =>
-    query<Tapped>(as(player), "SELECT * FROM tap_quest($1, $2, $3, $4, $5, NULL)", [
+    query<Tapped>(as(player), "SELECT * FROM tap_quest($1, $2, $3, $4, NULL)", [
       tag,
-      fields.version ?? 1,
       fields.uid === undefined ? UID : fields.uid,
       fields.unreadable ?? false,
       fields.key ?? randomUUID(),
@@ -311,7 +309,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
       });
       expect(made).toMatchObject({ tag_id: prepared?.id, quest_id: quest, replaced_label: null });
       const [row] = await owner<Row>(
-        "SELECT label, locked, status, written_by, version FROM nfc_tag WHERE id = $1",
+        "SELECT label, locked, status, written_by FROM nfc_tag WHERE id = $1",
         [prepared?.id],
       );
       expect(row).toEqual({
@@ -319,7 +317,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
         locked: true,
         status: "active",
         written_by: op.assignment,
-        version: 1,
       });
       const audit = await owner<{ after: Row }>(
         "SELECT after FROM audit_log WHERE action = 'nfc_tag.write' AND target_id = $1",
@@ -493,13 +490,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
       expect(await tapRow(paid?.completion_id)).toEqual({ tag_id: tag, uid_ok: true });
     });
 
-    it("answers unknown_tag for an unknown, revoked or old-version tag, and for another organizer's or event's", async () => {
+    it("answers unknown_tag for an unknown or revoked tag, and for another organizer's or event's", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
       const tag = await tagOn(event, quest);
       const who = await member(event);
       expect(await refusal(tap(who.player, randomUUID()))).toBe("NT404");
-      expect(await refusal(tap(who.player, tag, { version: 2 }))).toBe("NT404");
       const elsewhere = await newEvent();
       const there = await tagOn(elsewhere, await newQuest(elsewhere));
       expect(await refusal(tap(who.player, there))).toBe("NT404");
@@ -783,6 +779,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
       ).toBe("AN404");
     });
 
+    it("deletes a quest once its tags are revoked: tapless ones go, tapped ones are detached and kept (CTO code review 1)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const tapless = await tagOn(event, quest);
+      const tapped = await tagOn(event, quest, OTHER_UID);
+      const target = await newQuest(event);
+      const who = await member(event);
+      await tap(who.player, tapped, { uid: OTHER_UID });
+      await query(teamA(), "SELECT move_nfc_tag($1, $2, $3, $4)", [
+        event,
+        tapped,
+        target,
+        randomUUID(),
+      ]);
+      await query(teamA(), "SELECT move_nfc_tag($1, $2, $3, $4)", [
+        event,
+        tapless,
+        target,
+        randomUUID(),
+      ]);
+      // The tapped tag's completion is on the first quest; the second has none, only the two moved tags.
+      expect(await refusal(owner("DELETE FROM quest WHERE id = $1", [target]))).toBe("23503");
+      await query(teamA(), "SELECT revoke_quest_nfc_tags($1, $2, $3)", [
+        event,
+        target,
+        randomUUID(),
+      ]);
+      expect(await refusal(owner("DELETE FROM quest WHERE id = $1", [target]))).toBe("none");
+      expect(await owner("SELECT 1 FROM nfc_tag WHERE id = $1", [tapless])).toEqual([]);
+      expect(await owner("SELECT quest_id, status FROM nfc_tag WHERE id = $1", [tapped])).toEqual([
+        { quest_id: null, status: "revoked" },
+      ]);
+      expect(await owner("SELECT 1 FROM nfc_tap WHERE tag_id = $1", [tapped])).toHaveLength(1);
+      expect(
+        await refusal(
+          owner("UPDATE nfc_tag SET status = 'active', revoked_at = NULL WHERE id = $1", [tapped]),
+        ),
+      ).toBe("23514");
+    });
+
     it("keeps a quest with tags from being deleted; the event's delete removes its tags first (CTO 4)", async () => {
       const event = await newEvent("draft", "1 day", "2 days");
       const quest = await newQuest(event);
@@ -824,6 +860,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
     });
   });
 
+  describe("the go-live wipe runs before a retry is looked up (CTO code review 2)", () => {
+    it("a rehearsal tap retried after go-live finds no account (unknown_tag, never a fresh payment)", async () => {
+      const event = await newEvent("scheduled", "30 minutes", "1 day");
+      counter += 1;
+      await owner(
+        "INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, $3)",
+        [
+          event,
+          ids.orgA,
+          `${LETTERS[counter % 24]}${LETTERS[Math.floor(counter / 24) % 24]}NF-RTRY`,
+        ],
+      );
+      const quest = await newQuest(event);
+      const tag = await tagOn(event, quest);
+      const rehearsal = await member(event, "rehearsal");
+      const key = randomUUID();
+      await tap(rehearsal.player, tag, { key });
+      await owner(
+        "UPDATE event SET status = 'live', starts_at = now() - interval '1 minute' WHERE id = $1",
+        [event],
+      );
+      await owner("UPDATE nfc_tag SET status = 'revoked', revoked_at = now() WHERE id = $1", [tag]);
+      expect(await refusal(tap(rehearsal.player, tag, { key }))).toBe("NT404");
+    });
+  });
+
   // ============================================================ crossed locks
   describe("crossed locks", () => {
     it("a Revoke while a tap holds the tag's key does not wait; the tap pays", async () => {
@@ -831,11 +893,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
       const quest = await newQuest(event);
       const tag = await tagOn(event, quest);
       const who = await member(event);
-      const held = await hold(
-        as(who.player),
-        "SELECT * FROM tap_quest($1, 1, $2, false, $3, NULL)",
-        [tag, UID, randomUUID()],
-      );
+      const held = await hold(as(who.player), "SELECT * FROM tap_quest($1, $2, false, $3, NULL)", [
+        tag,
+        UID,
+        randomUUID(),
+      ]);
       await query(teamA(), "SELECT revoke_nfc_tag($1, $2, $3)", [event, tag, randomUUID()]);
       held.release();
       const rows = (await held.done) as Tapped[];
@@ -884,11 +946,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags (database)", () => {
       const tag = await tagOn(event, quest);
       const one = await member(event);
       const two = await member(event);
-      const held = await hold(
-        as(one.player),
-        "SELECT * FROM tap_quest($1, 1, $2, false, $3, NULL)",
-        [tag, UID, randomUUID()],
-      );
+      const held = await hold(as(one.player), "SELECT * FROM tap_quest($1, $2, false, $3, NULL)", [
+        tag,
+        UID,
+        randomUUID(),
+      ]);
       const other = await tap(two.player, tag);
       held.release();
       await held.done;

@@ -297,6 +297,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
     expect(logs.slice(logged).join("\n")).not.toContain(forged);
     const unknown = tagCode(createTagCodeKey("q".repeat(40)), randomUUID(), 1);
     expect(codeOf(await tap(who, unknown))).toEqual([404, "unknown_tag"]);
+    // Every tag is written at version 1; a signed token of another version was never issued.
+    const otherVersion = tagCode(createTagCodeKey("q".repeat(40)), randomUUID(), 2);
+    expect(codeOf(await tap(who, otherVersion))).toEqual([422, "invalid_proof"]);
 
     const key = randomUUID();
     const first = await tap(who, code, {}, key);

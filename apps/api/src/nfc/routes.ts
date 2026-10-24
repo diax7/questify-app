@@ -191,7 +191,8 @@ export function registerNfcRoutes(app: FastifyInstance, deps: NfcRouteDeps): voi
 
 /**
  * A quest's Tags panel in the organizer scope (T-308): the list for members, and Move, Revoke and Revoke all with an
- * Idempotency-Key. Kept while the platform switch is off, so tags can still be taken out of use.
+ * Idempotency-Key. All four stay open while the platform switch is off (accepted, CTO code review 4): the team can
+ * still take tags out of use or move them; a moved tag pays only once the switch is on again.
  */
 export function registerNfcTeamRoutes(scope: FastifyInstance, deps: TeamNfcDeps): void {
   scope.get("/events/:eventId/quests/:questId/nfc-tags", member, async (request, reply) => {

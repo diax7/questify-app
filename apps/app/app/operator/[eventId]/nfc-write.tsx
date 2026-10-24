@@ -24,8 +24,20 @@ import { useOperator } from "#src/operator/OperatorContext.tsx";
 
 const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
 
-/** A tag written on the phone whose confirm did not reach the server: retried with the same key, never rewritten. */
-type Pending = Readonly<{ url: string; ticket: string; uid: string; key: string }>;
+/**
+ * A tag written on the phone whose confirm did not reach the server: retried with the same key and the same body (the
+ * quest, label and lock as written, whatever the form says now), never rewritten.
+ */
+type Pending = Readonly<{
+  questId: string;
+  quest: Bilingual;
+  url: string;
+  ticket: string;
+  uid: string;
+  label: string;
+  locked: boolean;
+  key: string;
+}>;
 
 type Step =
   | Readonly<{ kind: "idle" }>
@@ -68,24 +80,21 @@ export default function NfcWriteScreen() {
   const quest = page?.quests.find((item) => item.id === questId);
 
   const confirm = async (pending: Pending) => {
-    if (quest === undefined) {
-      return;
-    }
     const answer = await confirmWrite(
       api.session,
       {
         eventId,
-        questId: quest.id,
+        questId: pending.questId,
         url: pending.url,
         ticket: pending.ticket,
         uid: pending.uid,
-        label,
-        locked: lock,
+        label: pending.label,
+        locked: pending.locked,
       },
       pending.key,
     );
     if (answer.kind === "confirmed") {
-      setStep({ kind: "done", quest: quest.title, confirmed: answer });
+      setStep({ kind: "done", quest: pending.quest, confirmed: answer });
       void load();
     } else if (answer.kind === "refused" && answer.message !== null) {
       setStep({ kind: "refused", message: answer.message });
@@ -124,6 +133,10 @@ export default function NfcWriteScreen() {
       return;
     }
     await confirm({
+      questId: quest.id,
+      quest: quest.title,
+      label,
+      locked: lock,
       url: prepared.url,
       ticket: prepared.ticket,
       uid: written.uid,

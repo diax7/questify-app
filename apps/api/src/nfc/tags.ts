@@ -365,23 +365,20 @@ export async function tapTag(
     return held;
   }
   const opened = verifyTagCode(deps.tagKey, request.code);
-  if (opened.kind !== "valid") {
-    caller.log("nfc.tap_refused", { reason: opened.kind });
+  // Every tag is written at version 1: a signed token of another version was never issued, so it is refused as forged.
+  if (opened.kind !== "valid" || opened.version !== 1) {
+    caller.log("nfc.tap_refused", { reason: opened.kind === "valid" ? "forged" : opened.kind });
     return { kind: "invalid_proof" };
   }
   const result = await runNfc(deps.pool, { playerId: request.playerId }, async (client) => {
-    const { rows } = await client.query<TapRow>(
-      "SELECT * FROM tap_quest($1, $2, $3, $4, $5, $6, $7)",
-      [
-        opened.tagId,
-        opened.version,
-        request.uid === null ? null : Buffer.from(request.uid, "hex"),
-        request.uidUnreadable,
-        request.idempotencyKey,
-        request.deviceId ?? null,
-        request.position,
-      ],
-    );
+    const { rows } = await client.query<TapRow>("SELECT * FROM tap_quest($1, $2, $3, $4, $5, $6)", [
+      opened.tagId,
+      request.uid === null ? null : Buffer.from(request.uid, "hex"),
+      request.uidUnreadable,
+      request.idempotencyKey,
+      request.deviceId ?? null,
+      request.position,
+    ]);
     return tapped(client, rows[0] as TapRow);
   });
   if (result.kind === "done") {

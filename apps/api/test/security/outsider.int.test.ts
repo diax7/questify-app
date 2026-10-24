@@ -342,7 +342,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.prepare_nfc_tag(gen_random_uuid(), gen_random_uuid())",
         "SELECT * FROM public.register_nfc_tag(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), '\x01020304', '', true, NULL)",
         "SELECT public.operator_nfc_tags(gen_random_uuid())",
-        "SELECT * FROM public.tap_quest(gen_random_uuid(), 1, NULL, false, 'k', NULL, NULL)",
+        "SELECT * FROM public.tap_quest(gen_random_uuid(), NULL, false, 'k', NULL, NULL)",
         "SELECT public.quest_nfc_tags(gen_random_uuid(), gen_random_uuid())",
         "SELECT public.move_nfc_tag(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), NULL)",
         "SELECT public.revoke_nfc_tag(gen_random_uuid(), gen_random_uuid(), NULL)",
@@ -350,6 +350,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.nfc_writer(gen_random_uuid(), gen_random_uuid())",
         "SELECT public.raise_nfc_flag(NULL::public.quest_completion)",
         "SELECT public.team_nfc_tag(NULL::public.event, gen_random_uuid())",
+        "SELECT public.quest_delete_nfc_tags()",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }

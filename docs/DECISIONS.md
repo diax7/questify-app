@@ -3035,7 +3035,11 @@ prepare that answers a fresh tag id, its URL and a 5-minute signed ticket (event
 confirm requires (CTO B); a second confirm of one tag answers 409 `already_registered` (CTO C). NFC is offered on scan
 quests only and always with the quest QR on (phones without NFC, a torn-off tag). Tags are written from staff mode on a
 phone (the `write_nfc` ability), never from the web dashboard; "Lock the tag" is on by default and permanent.
-Regenerating a quest's QR does not revoke its tags; each tag is revoked or moved on its own.
+Regenerating a quest's QR does not revoke its tags; each tag is revoked or moved on its own. While the platform's
+`nfcTags` switch is off, taps and writes are refused but the team's Tags panel (list, Move, Revoke) stays open (CTO
+code review 4). A quest with an active tag is not deleted (`tags_in_use`); once its tags are revoked the delete
+removes the tapless ones and detaches the tapped ones (kept as the taps' evidence). Tags carry no version: every tag
+is written at version 1 and any other signed version is refused.
 **Why:** research 2026-10-24 (plan `docs/plans/2026-10-24-t-308-nfc-tags.md`, Q-071 table): `react-native-nfc-manager`
 v4 reads and writes NDEF on both phones; no Saudi figure for phones without NFC exists, and budget Android lines still
 ship without it.

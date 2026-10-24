@@ -611,9 +611,10 @@ tail. The wipe deletes rehearsal boosts after the rehearsal entries and puts reh
 event's `BEFORE DELETE` trigger deletes its boosts too.
 
 ### nfc_tag and nfc_tap (migration 0056, T-308, ADR-234)
-**Built:** `nfc_tag (id, organizer_id, event_id, quest_id, uid bytea (4 to 10), label (0 to 40), locked, version ≥ 1,
+**Built:** `nfc_tag (id, organizer_id, event_id, quest_id, uid bytea (4 to 10), label (0 to 40), locked,
 status active|revoked, written_by → staff_assignment SET NULL, written_at, revoked_at)`, `(quest_id, event_id)` →
-quest RESTRICT (the builder answers `tags_in_use`), unique `(event_id, uid) WHERE status = 'active'`. `nfc_tap
+quest RESTRICT (the builder answers `tags_in_use` while an active tag remains; `quest_delete_nfc_tags` deletes the
+revoked tapless tags and detaches the revoked tapped ones, `quest_id` NULL only when revoked), unique `(event_id, uid) WHERE status = 'active'`. `nfc_tap
 (completion_id PK → quest_completion CASCADE, organizer_id, event_id, tag_id → nfc_tag RESTRICT, uid_ok (NULL: not
 checked), created_at)`. Both: row-level security forced, PUBLIC revoked, no grant. `quest_verification_known` takes
 `nfc` on scan quests only and only with `quest_qr`; `quest_completion.method` takes `nfc`; `flag.kind` takes `nfc_copy`

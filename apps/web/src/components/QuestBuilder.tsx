@@ -316,11 +316,12 @@ export function QuestBuilder({
               : null
           }
           nfcTags={
-            editing.quest?.verification.includes("nfc") === true
+            editing.quest?.type === "scan_qr"
               ? {
                   eventApi: `/v1/organizers/${organizerId}/events/${eventId}`,
                   questId: editing.quest.id,
                   targets: moveTargets(categories, editing.quest.id),
+                  nfcOn: editing.quest.verification.includes("nfc"),
                 }
               : null
           }
