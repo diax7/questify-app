@@ -3020,3 +3020,48 @@ payment (a quest moved between a send and its approval follows its new category)
 passes the time explicitly (no default), held by a completeness test over every function.
 **Why:** what the player saw when they acted is what they get, whatever the review or finish delay, with nothing new
 stored on submissions, quizzes or rounds.
+
+## ADR-234 — NFC tags: basic and secure
+**Status:** Proposed (Claude, 2026-10-24; T-308 plan). Answers Q-071; amends ADR-040's "Not chosen: secure NFC tags
+that sign each tap" (Q-198). Q-199.
+**Decision:** two kinds of tag. A **basic tag** (any NTAG21x sticker) holds a signed Questify URL of its own
+(`/t/{token}`, code purpose 0x06: the tag's id and version; the quest is looked up on the server, so a tag can be moved
+to another quest of the event). It is as strong as the printed quest QR; a tap whose tag id (told by the phone) is not
+the one registered at writing, or is missing, is flagged `nfc_copy` and still paid (ADR-041). A **secure tag** (NTAG 424
+DNA with SUN) signs every tap with a counter, verified on the server; a copied or reused tap is refused (T-308b,
+ADR-236). NFC is offered on scan quests only and always with the quest QR on (phones without NFC, a torn-off tag). Tags
+are written from staff mode on a phone (the `write_nfc` ability), never from the web dashboard; "Lock the tag" is on by
+default. Regenerating a quest's QR does not revoke its tags; each tag is revoked or moved on its own.
+**Why:** research 2026-10-24 (plan `docs/plans/2026-10-24-t-308-nfc-tags.md`, Q-071 table): `react-native-nfc-manager`
+v4 reads and writes NDEF on both phones and sends ISO 7816 APDUs on both, so a phone can both read a SUN tag (a normal
+NDEF URL) and personalise one; no Saudi figure for phones without NFC exists, and budget Android lines still ship
+without it.
+
+## ADR-235 — T-308 split: basic tags, then secure tags (T-308b)
+**Status:** Proposed (Claude, 2026-10-24; T-308 plan).
+**Decision:** T-308 builds basic tags end to end (migration 0056: `nfc_tag`, `nfc_tap`, the `nfc` method; write from
+staff mode, tap from the scanner, the copy flag, the landing page, the dashboard's Tags panel). T-308b builds secure
+tags and their personalisation from staff mode, after Dhia answers Q-198, finished on a phone once tags are bought.
+**Why:** secure tags reverse part of an Accepted ADR, their write path is a card-protocol state machine that needs real
+tags to finish, and each half gets its own review.
+
+## ADR-236 — Secure tags: keys, personalisation and replay
+**Status:** Proposed (Claude, 2026-10-24; T-308 plan). Q-200.
+**Decision:** each secure tag's AES keys are derived from a new `NFC_SECRET` and the tag's id and key version (never
+stored, never sent to a phone, never logged; all five changed from the factory keys, the master key last). Staff mode
+personalises a tag with the phone as a byte relay: the API runs AN12196's sequence (authenticate, write the URL
+template, switch SUN on with encrypted UID and counter and a MAC, change the keys, read back and verify) and carries
+its session in a sealed, 90-second state, so nothing is stored between steps. The API verifies each tap with its own
+AES-CMAC (RFC 4493 on `node:crypto`, no new dependency); the database accepts each counter of a tag once, and only
+above the tag's highest accepted counter minus 20, under the tag row's lock taken after the enrollment's.
+**Why:** the keys never leave the server, so neither a lost phone nor a curious operator can forge taps; the window
+keeps a busy station's out-of-order taps paying while a harvested tap dies quickly.
+
+## ADR-237 — The NFC library
+**Status:** Proposed (Claude, 2026-10-24; T-308 plan). Confirms TECH_STACK's Proposed row.
+**Decision:** `react-native-nfc-manager` v4 (4.1.0, MIT, New Architecture, validated on Expo SDK 57) with its config
+plugin (`NFCReaderUsageDescription` in Arabic and English, NDEF and TAG entitlement, select identifier
+`D2760000850101`), plus our own small config plugin declaring the Android NFC feature not required. No second NFC or
+crypto module: `react-native-ntag-424` is rejected (one author, needs `react-native-quick-crypto`, keeps keys in the
+app). Adding it needs a new EAS build; the runtime version changes so no update reaches an older build.
+**Why:** one maintained module covers NDEF and APDUs on both phones; secure-tag crypto stays on the server.

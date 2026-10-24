@@ -367,6 +367,10 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-23 (T-214): the finale's winner reveal calls the owner's `POST …/results/reveal` (confirmed results, a claim deadline) and shows `results_places`; it never decides winners itself. Results are confirmed only after the event ends (ADR-163, Q-127): a finale before the end needs the end time moved, or Q-127 answered otherwise.
 - [ ] **T-308** NFC: write a tag from staff mode, tap to complete, signed tags (Q-071 decision first), QR stays as a fallback — delivers FR 312, 313; depends on: T-205
   - Done when: A quest can be completed by tapping its tag; a cloned plain tag is flagged or refused according to Q-071.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-308-nfc-tags.md`, migration 0056, ADR-234 to ADR-237 and Q-198 to Q-200 Proposed, Q-071 answered. Split (ADR-235): T-308 builds basic tags (signed URL, copy flagged and paid, QR always on); secure tags move to T-308b.
+- [ ] **T-308b** Secure NFC tags (NTAG 424 DNA, SUN): personalised from staff mode with the phone as a relay, every tap verified on the server, each counter once — delivers FR 312, 313 (secure part); depends on: T-308, Q-198
+  - Split from T-308 2026-10-24 (ADR-235): reverses ADR-040's "not chosen" (Q-198 first), and its card protocol needs real tags to finish. Design: the T-308 plan's T-308b section (ADR-236). Needs `NFC_SECRET` in the secret store and NTAG 424 DNA stickers (Dhia).
+  - Done when: A copied or replayed secure-tag tap is refused; a tag's keys never leave the API.
 - [ ] **T-309** Rotating screen QR, station pages and kiosks, pairing of stations, kiosks and big screens — delivers FR 314, 315, 1713; depends on: T-205
   - Done when: An unpaired device shows nothing; a kiosk scans players without staff.
 - [ ] **T-310** Help desk: Report a problem or Ask a question, operator inbox, private tickets — delivers FR 337, 338, 339, 927; depends on: T-205
