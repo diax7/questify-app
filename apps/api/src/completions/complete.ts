@@ -6,6 +6,7 @@ import type { Caller } from "#src/auth/sign-in";
 import { BUCKETS, countRecent, forget, record, tryLock, type Bucket } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 import {
   verifyQuestCode,
   verifyScreenCode,
@@ -59,6 +60,8 @@ export type Completed = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled this completion (T-307), or null; the same on a replay. */
   boost: Boosted | null;
+  /** The first-N bonus this completion earned, or missed when `place` is null (T-313); the same on a replay. */
+  firstBonus: OwnFirstBonus | null;
 }>;
 
 /** A boost a payment was made with (T-307, ADR-233): `points` already holds the multiplied amount. */
@@ -396,6 +399,7 @@ async function callEngine(
     const bonus = await bonusPaid(client, row.completion_id);
     const item = await itemGiven(client, row.completion_id);
     const boost = await boostApplied(client, row.completion_id);
+    const firstBonus = await firstBonusPaid(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -409,6 +413,7 @@ async function callEngine(
         bonus,
         item,
         boost,
+        firstBonus,
       },
     };
   } catch (error) {

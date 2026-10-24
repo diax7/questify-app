@@ -123,6 +123,7 @@ describe("sending", () => {
         bonus: null,
         item: null,
         boost: null,
+        firstBonus: null,
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
@@ -149,6 +150,9 @@ describe("sending", () => {
             item_time_zone: "Asia/Riyadh",
           },
         ];
+      }
+      if (sql.includes("own_first_bonus")) {
+        return [{ points: 25, place: 3, slots: 10 }];
       }
       if (sql.includes("own_quest_item")) {
         return [
@@ -187,6 +191,7 @@ describe("sending", () => {
           outcome: "pending",
           until: { at: "2030-01-01T18:00:00.000Z", timeZone: "Asia/Riyadh" },
         },
+        firstBonus: { points: 25, place: 3, slots: 10 },
       },
     });
     expect(pool.statements[1]?.values).toEqual(["77"]);

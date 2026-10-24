@@ -1,4 +1,10 @@
-import { REFRESHING_QUEST_TYPES, isQuestType, type QuestType } from "@questify/shared";
+import {
+  REFRESHING_QUEST_TYPES,
+  firstBonusProblem,
+  isQuestType,
+  type FirstBonusInput,
+  type QuestType,
+} from "@questify/shared";
 import type { Caller } from "#src/auth/sign-in";
 import type { Actor } from "#src/events/events";
 import {
@@ -11,11 +17,14 @@ import {
   mergeQuest,
   questChanges,
   withEvent,
+  withFirstBonus,
   type BuilderDeps,
+  type BuilderQuest,
   type Change,
   type Done,
   type QuestInput,
 } from "#src/quests/builder";
+import { setFirstBonus } from "#src/quests/first-bonus";
 import { passportSteps } from "#src/quests/passports";
 import {
   activeItem,
@@ -32,6 +41,36 @@ import {
 import type { PoolClient } from "pg";
 
 type Target = Readonly<{ eventId: string; id: string }>;
+
+/** The input's bonus problem as the builder's refusal, or undefined when there is none or nothing to change. */
+function bonusRefusal(
+  input: FirstBonusInput | undefined,
+): Readonly<{ kind: "invalid_first_bonus"; field: "points" | "slots" }> | undefined {
+  const field = input === undefined ? null : firstBonusProblem(input);
+  return field === null ? undefined : { kind: "invalid_first_bonus", field };
+}
+
+/**
+ * Writes the input's first-N bonus after the quest write (the setter's lock is taken last, ADR-260) and reads the quest
+ * back with its bonus. A refusal of the setter throws, so the quest write rolls back with it.
+ */
+async function savedWithBonus(
+  client: PoolClient,
+  quest: QuestRecord,
+  input: FirstBonusInput | undefined,
+  caller: Caller,
+): Promise<BuilderQuest> {
+  if (input !== undefined) {
+    const outcome = await setFirstBonus(
+      client,
+      { eventId: quest.eventId, questId: quest.id },
+      input,
+      caller.requestId,
+    );
+    caller.log("quest.first_bonus_set", { questId: quest.id, outcome });
+  }
+  return (await withFirstBonus(client, quest.eventId, [quest]))[0] as BuilderQuest;
+}
 
 /** A newly named item must be this event's and not removed; keeping or clearing the current one is always allowed. */
 async function itemAllowed(
@@ -70,10 +109,14 @@ export function createQuest(
   eventId: string,
   input: QuestInput & Readonly<{ type: string; categoryId: string }>,
   caller: Caller,
-): Promise<Done<QuestRecord>> {
+): Promise<Done<BuilderQuest>> {
   return withEvent(deps, actor, eventId, { change: undefined }, async (client, event) => {
     if (!isQuestType(input.type)) {
       return { kind: "invalid", field: "type" };
+    }
+    const bonus = bonusRefusal(input.firstBonus);
+    if (bonus !== undefined) {
+      return bonus;
     }
     const taken = await takesQuest(client, eventId, input.categoryId, input.type);
     if (taken !== "yes") {
@@ -104,7 +147,7 @@ export function createQuest(
       target: { type: "quest", id: made.id },
       after: auditView(made),
     });
-    return done(made);
+    return done(await savedWithBonus(client, made, input.firstBonus, caller));
   });
 }
 
@@ -118,11 +161,15 @@ export function updateQuest(
   target: Target,
   input: QuestInput & Change,
   caller: Caller,
-): Promise<Done<QuestRecord>> {
+): Promise<Done<BuilderQuest>> {
   return withEvent(deps, actor, target.eventId, { change: input }, async (client, event) => {
     const current = await readQuest(client, target.eventId, target.id, true);
     if (current === undefined) {
       return { kind: "not_found" };
+    }
+    const bonus = bonusRefusal(input.firstBonus);
+    if (bonus !== undefined) {
+      return bonus;
     }
     const taken =
       input.categoryId === undefined
@@ -156,7 +203,7 @@ export function updateQuest(
         ...diff,
       });
     }
-    return done(updated);
+    return done(await savedWithBonus(client, updated, input.firstBonus, caller));
   });
 }
 

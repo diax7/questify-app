@@ -120,6 +120,8 @@ export {
   unavailableSubmissionKind,
 } from "./quests/registry";
 export { MEET_CODE_PREFIX, meetCodeOf, meetTokenOf } from "./quests/meet-code";
+export type { FirstBonusInput } from "./quests/first-bonus";
+export { FIRST_BONUS_LIMITS, firstBonusProblem } from "./quests/first-bonus";
 export type { Avatar } from "./players/avatars";
 export { AVATARS } from "./players/avatars";
 export type { UsernameCheck } from "./players/username";

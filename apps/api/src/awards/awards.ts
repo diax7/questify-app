@@ -323,6 +323,11 @@ export type LedgerLine = Readonly<{
   removed: boolean;
   /** The boost that doubled the entry or its removal (T-307), shown as "×2"; null when none. */
   multiplier: number | null;
+  /**
+   * The first-N bonus (T-313): on its own line, its N and the place shown; on the quest line whose completion earned
+   * one not yet removed, its N alone (the remove dialog's hint). Null elsewhere.
+   */
+  firstBonus: Readonly<{ slots: number; place: number | null }> | null;
 }>;
 
 /** One member's points record for the dashboard, newest first (owners and editors). */
@@ -357,6 +362,13 @@ export function memberLedger(
       removable: row["removable"] === true,
       removed: row["removed"] === true,
       multiplier: typeof row["multiplier"] === "number" ? row["multiplier"] : null,
+      firstBonus:
+        typeof row["bonus_slots"] === "number"
+          ? {
+              slots: row["bonus_slots"],
+              place: typeof row["bonus_place"] === "number" ? row["bonus_place"] : null,
+            }
+          : null,
     }));
   });
 }

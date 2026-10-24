@@ -394,6 +394,7 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
           player: result.player,
           points: result.points,
           occurrence: result.occurrence,
+          bonusPoints: result.bonusPoints,
           practice: true,
         };
       case "already_completed":

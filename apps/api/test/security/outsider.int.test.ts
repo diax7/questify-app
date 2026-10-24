@@ -479,6 +479,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot read a first-N bonus or its slots, set one, count one or claim one (T-313)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.quest_first_bonus",
+        "SELECT * FROM public.quest_bonus_slot",
+        "SELECT public.set_quest_first_bonus(gen_random_uuid(), gen_random_uuid(), 5, 3, gen_random_uuid())",
+        "SELECT * FROM public.first_bonus_left(gen_random_uuid())",
+        "SELECT * FROM public.own_first_bonus(1)",
+        "SELECT public.practice_first_bonus(gen_random_uuid())",
+        "SELECT public.pay_first_bonus(NULL::public.enrollment, gen_random_uuid(), 1, 'k')",
+        "SELECT public.first_bonus_place(NULL::public.quest_bonus_slot)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "set_quest_first_bonus",
+        "first_bonus_left",
+        "own_first_bonus",
+        "practice_first_bonus",
+        "pay_first_bonus",
+        "first_bonus_place",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the entry points only, never the claim or the rank.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "first_bonus_left",
+        "own_first_bonus",
+        "practice_first_bonus",
+        "set_quest_first_bonus",
+      ]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

@@ -27,9 +27,10 @@ type Claim = Readonly<{ scope: string; key: string }>;
 const DATABASE_BUSY = new Set(["55P03", "57014", "53300", "40P01", "40001"]);
 /**
  * Visible ASCII; `sub:`, `quiz:`, `pass:`, `meet:` and `game:` are reserved for the database's own completion keys
- * (T-301, T-302, T-304b, T-303c, T-305).
+ * (T-301, T-302, T-304b, T-303c, T-305), and `practice:` for a practice scan's undone door, which skips the first-N
+ * bonus (T-313).
  */
-const KEY_FORMAT = /^(?!sub:|quiz:|pass:|meet:|game:)[\x21-\x7e]{1,255}$/;
+const KEY_FORMAT = /^(?!sub:|quiz:|pass:|meet:|game:|practice:)[\x21-\x7e]{1,255}$/;
 const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
 
 const headerValue = (value: string | string[] | undefined): string | undefined =>

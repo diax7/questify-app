@@ -6,6 +6,7 @@ import {
   parseVerification,
   toInstant,
   unavailableSubmissionKind,
+  type FirstBonusInput,
   type QuestType,
 } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
@@ -14,6 +15,7 @@ import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
+import { builderBonusOf, readFirstBonuses, type BuilderFirstBonus } from "#src/quests/first-bonus";
 import {
   listCategories,
   listQuests,
@@ -66,6 +68,8 @@ export type QuestInput = Readonly<{
   place?: QuestPlace | null | undefined;
   /** Shown to players only inside its window (T-307): launched from a draft, or scheduled with both times. */
   flash?: boolean | undefined;
+  /** The first-N bonus (T-313): set, stop or switch off (null); left out, it stays as it is. */
+  firstBonus?: FirstBonusInput | undefined;
 }>;
 
 export type QuestField =
@@ -122,14 +126,23 @@ export type Refused =
    * A live poll's `live` setting, choices or minutes once sent or voted on, or `live` added to a vote players can see
    * (T-306, migration 0052): `field` names which.
    */
-  | Readonly<{ kind: "poll_locked"; field: string }>;
+  | Readonly<{ kind: "poll_locked"; field: string }>
+  /** A real player got the first-N bonus (T-313): its points stay and it cannot be switched off. */
+  | Readonly<{ kind: "first_bonus_paid" }>
+  /** Fewer bonuses than players who already got it (T-313). */
+  | Readonly<{ kind: "below_given"; given: number }>
+  /** The bonus's points (1 to 100,000) or players (1 to 1,000) are out of range (T-313). */
+  | Readonly<{ kind: "invalid_first_bonus"; field: "points" | "slots" }>;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
+
+/** A quest as the builder shows it: the stored record and its first-N bonus (T-313), null when none. */
+export type BuilderQuest = QuestRecord & Readonly<{ firstBonus: BuilderFirstBonus | null }>;
 
 export type BuilderView = Readonly<{
   /** The quest pinned as Up next (FR-1748), or null. */
   focusQuestId: string | null;
-  categories: readonly (CategoryRecord & { quests: readonly QuestRecord[] })[];
+  categories: readonly (CategoryRecord & { quests: readonly BuilderQuest[] })[];
 }>;
 
 export type CategoryDelete = Readonly<{
@@ -454,7 +467,7 @@ export async function withEvent<T>(
       return { kind: "event_closed" };
     }
     // Stryker restore all
-    const pg = error as { code?: string; table?: string; detail?: string };
+    const pg = error as { code?: string; table?: string; detail?: string; hint?: string };
     if (pg.code === LOCKED) {
       return { kind: "quest_locked" };
     }
@@ -498,8 +511,27 @@ export async function withEvent<T>(
     if (pg.code === "23503" && pg.table === "nfc_tag") {
       return { kind: "tags_in_use" };
     }
+    const bonus = firstBonusRefusal(pg);
+    if (bonus !== undefined) {
+      return bonus;
+    }
     throw error;
   }
+}
+
+/** The first-N bonus setter's refusals (set_quest_first_bonus, migration 0062), or undefined for any other error. */
+function firstBonusRefusal(
+  pg: Readonly<{ code?: string; detail?: string; hint?: string }>,
+): Refused | undefined {
+  if (pg.code === "QB409") {
+    return pg.detail === "below_given"
+      ? { kind: "below_given", given: Number(pg.hint) }
+      : { kind: "first_bonus_paid" };
+  }
+  if (pg.code === "QB422") {
+    return { kind: "invalid_first_bonus", field: pg.detail === "slots" ? "slots" : "points" };
+  }
+  return undefined;
 }
 
 export const audit = (
@@ -528,13 +560,28 @@ export const audit = (
     requestId: caller.requestId,
   });
 
+/** These quests of the event with their first-N bonuses, as the builder shows them. */
+export async function withFirstBonus(
+  client: PoolClient,
+  eventId: string,
+  quests: readonly QuestRecord[],
+): Promise<BuilderQuest[]> {
+  const counts = new Map(
+    (await readFirstBonuses(client, eventId)).map((count) => [count.questId, count]),
+  );
+  return quests.map((quest) => {
+    const count = counts.get(quest.id);
+    return { ...quest, firstBonus: count === undefined ? null : builderBonusOf(count) };
+  });
+}
+
 async function view(
   client: PoolClient,
   eventId: string,
   focusQuestId: string | null,
 ): Promise<BuilderView> {
   const categories = await listCategories(client, eventId);
-  const quests = await listQuests(client, eventId);
+  const quests = await withFirstBonus(client, eventId, await listQuests(client, eventId));
   return {
     focusQuestId,
     categories: categories.map((category) => ({

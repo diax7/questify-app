@@ -4,6 +4,11 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { pickGoal, type Goal, type GoalReward } from "#src/home/goal";
 import {
+  readFirstBonuses,
+  type FirstBonusCache,
+  type FirstBonusCount,
+} from "#src/quests/first-bonus";
+import {
   categoriesWithoutSwitchedOff,
   switchedOffTypes,
   withoutSwitchedOff,
@@ -13,7 +18,12 @@ import type { SettingsService } from "#src/settings/service";
 import { readPendingPoints } from "#src/submissions/submissions";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
-export type HomeDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
+export type HomeDeps = Readonly<{
+  pool: Pool;
+  settings: SettingsService;
+  /** The per-event 2-second cache of the first-N bonus counts (T-313, ADR-263), shared with the live read. */
+  firstBonus: FirstBonusCache;
+}>;
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -51,6 +61,16 @@ export type MemberQuest = Readonly<{
   flash: Readonly<{ closesAt: Date }> | null;
   /** The boost doubling its category for this player now (T-307, FR-252), or null. */
   boost: RunningBoost | null;
+  /** Its first-N bonus (T-313, FR-1840), or null: `left` from the 2-second cache, `mine` this player's own place. */
+  firstBonus: QuestFirstBonus | null;
+}>;
+
+/** A quest's first-N bonus as a player sees it: `mine` once they got it, else null. */
+export type QuestFirstBonus = Readonly<{
+  points: number;
+  slots: number;
+  left: number;
+  mine: Readonly<{ place: number }> | null;
 }>;
 
 /** A boost in force for this player (T-307): what the quest pays is its points times `multiplier` until `endsAt`. */
@@ -247,6 +267,9 @@ type QuestRow = Readonly<{
   flash_closes_at: Date | null;
   /** jsonb: `{boostId, multiplier, endsAt}` or null. */
   boost: Readonly<{ multiplier: number; endsAt: string }> | null;
+  first_bonus_points: number | null;
+  first_bonus_slots: number | null;
+  first_bonus_place: number | null;
 }>;
 
 /** The running boost a row names, with its end as a time. */
@@ -286,7 +309,25 @@ const asPlayer = <T>(deps: HomeDeps, playerId: string, work: (client: PoolClient
     withRequestContext(client, { playerId }, () => work(client)),
   );
 
-async function questRows(client: PoolClient, eventId: string): Promise<MemberCategory[]> {
+/** A row's first-N bonus with the cached count of what is left (the full N when the cache has not seen it yet). */
+const firstBonusOf = (
+  row: QuestRow,
+  counts: ReadonlyMap<string, FirstBonusCount>,
+): QuestFirstBonus | null =>
+  row.first_bonus_points === null || row.first_bonus_slots === null
+    ? null
+    : {
+        points: row.first_bonus_points,
+        slots: row.first_bonus_slots,
+        left: counts.get(row.quest_id)?.left ?? row.first_bonus_slots,
+        mine: row.first_bonus_place === null ? null : { place: row.first_bonus_place },
+      };
+
+async function questRows(
+  client: PoolClient,
+  eventId: string,
+  counts: ReadonlyMap<string, FirstBonusCount> = new Map(),
+): Promise<MemberCategory[]> {
   const { rows } = await client.query<QuestRow>("SELECT * FROM member_event_quests($1)", [eventId]);
   const categories = new Map<string, MemberCategory>();
   for (const row of rows) {
@@ -327,6 +368,7 @@ async function questRows(client: PoolClient, eventId: string): Promise<MemberCat
       communityLock: lockNoteOf(row.community_lock),
       flash: row.flash_closes_at === null ? null : { closesAt: row.flash_closes_at },
       boost: boostOf(row),
+      firstBonus: firstBonusOf(row, counts),
     });
     categories.set(row.category_id, category);
   }
@@ -364,7 +406,12 @@ export async function memberQuests(
     if (row?.status !== "active") {
       return { kind: "not_member" } as const;
     }
-    const shown = categoriesWithoutSwitchedOff(await questRows(client, eventId), off);
+    // Read only after the membership gate above: the cache is per event, whoever filled it.
+    const counts = await deps.firstBonus.get(eventId, () => readFirstBonuses(client, eventId));
+    const shown = categoriesWithoutSwitchedOff(
+      await questRows(client, eventId, new Map(counts.map((count) => [count.questId, count]))),
+      off,
+    );
     const categories = shown.map((category) => ({
       ...category,
       quests: category.quests.map((quest) => ({
@@ -539,6 +586,8 @@ export type ActivityEntry = Readonly<{
   reason: Readonly<{ type: "quest"; questId: string; title: Text }> | Readonly<{ type: string }>;
   /** The boost that doubled this entry or its removal (T-307), shown as "×2"; null when none. */
   multiplier: number | null;
+  /** A first-N bonus line's N (T-313), "First-{slots} bonus"; null for every other line. */
+  bonusSlots: number | null;
 }>;
 
 type ActivityRow = Readonly<{
@@ -551,6 +600,7 @@ type ActivityRow = Readonly<{
   title_ar: string | null;
   title_en: string | null;
   multiplier: number | null;
+  bonus_slots: number | null;
 }>;
 
 export type ActivityView =
@@ -592,6 +642,7 @@ export async function memberActivity(
               title: { ar: entry.title_ar, en: entry.title_en },
             },
       multiplier: entry.multiplier,
+      bonusSlots: entry.bonus_slots,
     }));
     return { kind: "entries", entries } as const;
   });

@@ -166,6 +166,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator tools over HTTP", () 
         player: { username: expect.stringMatching(/^tools_/), avatar: "falcon" },
         points: 25,
         occurrence: 1,
+        bonusPoints: null,
         practice: true,
       });
       expect(await scoreOf(event, player.id)).toBe("0");

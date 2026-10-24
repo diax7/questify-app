@@ -2179,6 +2179,8 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   stamp_step: "now: the passport row",
   pay_meeting: "now: both meet rows",
   pay_category_bonus: "never: the organizer's fixed bonus (never-boosted test)",
+  pay_first_bonus:
+    "never: the organizer's fixed first-N bonus (never-boosted test, test/db/first-bonus)",
   pay_community_batch: "never: the step's fixed reward (kind community: the boost CHECK)",
   grant_welcome: "never: welcome points",
   bulk_award: "never: a point award from the team",

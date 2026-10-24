@@ -1649,3 +1649,24 @@ export const ticketNotEscalated = make(
   "لا يمكن إعادة هذا الطلب: لم تُحِله فعالية.",
   "This request can't be sent back: no event sent it.",
 );
+/** A real player got the quest's first-N bonus (T-313): its points stay and it cannot be switched off. */
+export const firstBonusPaid = make(
+  409,
+  "first_bonus_paid",
+  "حصل لاعبون على هذه المكافأة، فلا يمكن تغيير نقاطها ولا إلغاؤها.",
+  "Players already got this bonus, so its points can't change and it can't be removed.",
+);
+/** Fewer first-N bonuses than players who already got one (T-313); `given` is that number. */
+export const belowGiven = make(
+  409,
+  "below_given",
+  "لا يقل العدد عن اللاعبين الذين حصلوا على المكافأة.",
+  "The number can't be below the players who already got this bonus.",
+);
+/** The first-N bonus's points or players are out of range (T-313); `field` names which. */
+export const invalidFirstBonus = make(
+  422,
+  "invalid_first_bonus",
+  "نقاط المكافأة من 1 إلى 100,000، وعدد اللاعبين من 1 إلى 1,000.",
+  "Bonus points are 1 to 100,000, and players 1 to 1,000.",
+);

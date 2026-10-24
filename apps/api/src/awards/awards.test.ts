@@ -330,6 +330,7 @@ describe("memberLedger and report", () => {
           removable: true,
           removed: false,
           multiplier: null,
+          firstBonus: null,
         },
         {
           id: "6",
@@ -345,6 +346,7 @@ describe("memberLedger and report", () => {
           removable: false,
           removed: true,
           multiplier: 2,
+          firstBonus: null,
         },
       ],
     });

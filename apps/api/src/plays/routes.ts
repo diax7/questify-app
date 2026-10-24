@@ -75,6 +75,7 @@ import {
   type MeetReason,
 } from "#src/plays/meet";
 import { createLiveReader, liveEtagOf } from "#src/plays/live";
+import type { FirstBonusCache } from "#src/quests/first-bonus";
 import type { Done, PlayDeps, PlayRefusal } from "#src/plays/run";
 import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
@@ -199,7 +200,9 @@ async function withRank<T extends QuizStep>(deps: RankingDeps, playerId: string,
  */
 export function registerPlayRoutes(
   app: FastifyInstance,
-  deps: PlayDeps & RankingDeps & Readonly<{ settings: SettingsService }>,
+  deps: PlayDeps &
+    RankingDeps &
+    Readonly<{ settings: SettingsService; firstBonus: FirstBonusCache }>,
 ): void {
   app.get("/v1/quests/:questId/vote", player, async (request) => {
     const { questId } = parse(questParams, request.params);

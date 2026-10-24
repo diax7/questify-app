@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { memberActivity, memberQuests, playStatus, readHome } from "#src/home/home";
+import { createFirstBonusCache } from "#src/quests/first-bonus";
 import type { ConfigResult, SettingsService } from "#src/settings/service";
 import { fakePool } from "#test/support/fake-pool";
 
@@ -78,6 +79,9 @@ const questRow = (fields: Record<string, unknown> = {}) => ({
   game_passed: null,
   flash_closes_at: null,
   boost: null,
+  first_bonus_points: null,
+  first_bonus_slots: null,
+  first_bonus_place: null,
   ...fields,
 });
 
@@ -87,6 +91,7 @@ type Rows = Readonly<{
   results?: readonly Record<string, unknown>[];
   activity?: readonly Record<string, unknown>[];
   unread?: number;
+  bonuses?: readonly Record<string, unknown>[];
 }>;
 
 /** The home's dependencies over a database that answers each read with these rows. */
@@ -97,6 +102,9 @@ function homeDeps(rows: Rows) {
     }
     if (sql.includes("member_event_quests")) {
       return { rows: rows.quests ?? [] };
+    }
+    if (sql.includes("first_bonus_left")) {
+      return { rows: rows.bonuses ?? [] };
     }
     if (sql.includes("own_pending_points")) {
       return { rows: [{ points: "0" }] };
@@ -115,11 +123,14 @@ function homeDeps(rows: Rows) {
     }
     throw new Error(`unexpected query: ${sql}`);
   });
-  return { pool, settings };
+  return { pool, settings, firstBonus: createFirstBonusCache() };
 }
 
-const questsOf = async (rows: readonly Record<string, unknown>[]) => {
-  const view = await memberQuests(homeDeps({ quests: rows }), PLAYER, EVENT);
+const questsOf = async (
+  rows: readonly Record<string, unknown>[],
+  bonuses: readonly Record<string, unknown>[] = [],
+) => {
+  const view = await memberQuests(homeDeps({ quests: rows, bonuses }), PLAYER, EVENT);
   if (view.kind !== "quests") {
     throw new Error(`not quests: ${view.kind}`);
   }
@@ -166,6 +177,32 @@ describe("a member's quests as the database lists them", () => {
       { ...none, id: "meet", meet: { dailyCap: 5, today: 2 } },
       { ...none, id: "game", game: { attemptsLeft: 2, passed: false } },
       { ...none, id: "plain" },
+    ]);
+  });
+
+  it("gives a quest's first-N bonus with the cached left and the player's own place; none without one (T-313)", async () => {
+    const [category] = await questsOf(
+      [
+        questRow({
+          quest_id: "mine",
+          first_bonus_points: 7,
+          first_bonus_slots: 5,
+          first_bonus_place: 2,
+        }),
+        questRow({ quest_id: "open", first_bonus_points: 9, first_bonus_slots: 3 }),
+        questRow({ quest_id: "unseen", first_bonus_points: 4, first_bonus_slots: 8 }),
+        questRow({ quest_id: "plain" }),
+      ],
+      [
+        { quest_id: "mine", points: 7, slots: 5, free: 1, given: 4, real_given: 4 },
+        { quest_id: "open", points: 9, slots: 3, free: 0, given: 3, real_given: 3 },
+      ],
+    );
+    expect(category?.quests.map((quest) => [quest.id, quest.firstBonus])).toEqual([
+      ["mine", { points: 7, slots: 5, left: 1, mine: { place: 2 } }],
+      ["open", { points: 9, slots: 3, left: 0, mine: null }],
+      ["unseen", { points: 4, slots: 8, left: 8, mine: null }],
+      ["plain", null],
     ]);
   });
 

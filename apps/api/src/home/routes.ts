@@ -66,6 +66,7 @@ const questView = (quest: MemberQuest & Readonly<{ state: QuestState }>) => ({
   game: quest.game,
   flash: quest.flash === null ? null : { closesAt: quest.flash.closesAt.toISOString() },
   boost: boostView(quest.boost),
+  firstBonus: quest.firstBonus,
 });
 
 function playerIdOf(request: { player?: { id: string } | undefined }): string {

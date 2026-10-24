@@ -309,6 +309,7 @@ describe("idempotency key", () => {
     "pass:1",
     "meet:1",
     "game:1",
+    "practice:1",
   ])("rejects the key %j", async (key) => {
     app = await build();
     const response = await post("/pay", { "idempotency-key": key }, {});

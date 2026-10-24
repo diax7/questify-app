@@ -25,6 +25,7 @@ import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
 import { registerHomeRoutes } from "#src/home/routes";
+import { createFirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
 import { registerTicketRoutes } from "#src/tickets/routes";
@@ -223,6 +224,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     dashboardOrigin: config.auth.dashboardOrigin,
   };
   const settings = options.settings ?? createSettingsService({ pool: options.pool });
+  // One per instance, shared by the quests read and the live read (T-313, ADR-263).
+  const firstBonus = createFirstBonusCache();
   const ranking = createRanking({
     pool: options.pool,
     store: options.rankingStore,
@@ -267,7 +270,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys, settings });
   const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });
   registerRehearsalPlayerRoutes(app, rehearsal);
-  registerHomeRoutes(app, { pool: options.pool, settings });
+  registerHomeRoutes(app, { pool: options.pool, settings, firstBonus });
   registerOperatorPlayerRoutes(app, {
     ...operatorDeps,
     myKey: createMyCodeKey(config.qrSecret),
@@ -282,7 +285,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
   registerTicketRoutes(app, { pool: options.pool, settings, keys: signInDeps.keys });
-  registerPlayRoutes(app, { pool: options.pool, ranking, settings });
+  registerPlayRoutes(app, { pool: options.pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
   registerGameRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
   registerNfcRoutes(app, {

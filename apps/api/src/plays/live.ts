@@ -3,6 +3,7 @@ import { communityPlatformOn } from "#src/community/goals";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
+import { readFirstBonuses, type FirstBonusCache } from "#src/quests/first-bonus";
 import type { SettingsService } from "#src/settings/service";
 
 /** A step of the community goal as the player sees it, with their own payout (`mine`) when the step pays them. */
@@ -66,6 +67,12 @@ export type LiveState = Readonly<{
     closesAt: string;
   }>[];
   boosts: readonly LiveBoost[];
+  /**
+   * The first-N bonuses of the quests this player may play now and has never completed (T-313, ADR-263), with what is
+   * left from the 2-second cache, 0 included ("All taken"). The app's ribbon reads `left` from here, never by a re-read
+   * of the quests (CTO MAJOR 3).
+   */
+  firstBonus: readonly Readonly<{ questId: string; left: number; slots: number }>[];
 }>;
 
 export const EMPTY_LIVE: LiveState = {
@@ -74,7 +81,11 @@ export const EMPTY_LIVE: LiveState = {
   community: null,
   flash: [],
   boosts: [],
+  firstBonus: [],
 };
+
+/** What live_state answers: the bonus quests' ids only, the counts come from the cache. */
+type LiveRow = Omit<LiveState, "firstBonus"> & Readonly<{ firstBonus?: readonly string[] }>;
 
 /** How long an event's "anything live" answer is kept (CTO 7), and the per-player limit on the live read. */
 export const LIVE_CACHE_MS = 3000;
@@ -82,7 +93,11 @@ export const LIVE_LIMIT = { max: 30, windowMs: 60_000 } as const;
 /** Past this many entries a map is emptied rather than grown (one instance's events and players in a minute). */
 const MAP_CAP = 20_000;
 
-export type LiveDeps = Readonly<{ pool: Pool; settings: Pick<SettingsService, "forEvent"> }>;
+export type LiveDeps = Readonly<{
+  pool: Pool;
+  settings: Pick<SettingsService, "forEvent">;
+  firstBonus: FirstBonusCache;
+}>;
 
 /** The weak ETag of a live answer: over the body without `serverNow`, which changes every call (CTO 3). */
 export const liveEtagOf = (state: LiveState): string => `W/${etagOf(state)}`;
@@ -143,13 +158,27 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
       if (!(await anythingLive(eventId))) {
         return EMPTY_LIVE;
       }
-      const state = await withConnection(deps.pool, (client) =>
+      const { state, firstBonus } = await withConnection(deps.pool, (client) =>
         withRequestContext(client, { playerId }, async () => {
-          const { rows } = await client.query<{ state: LiveState }>(
+          const { rows } = await client.query<{ state: LiveRow }>(
             "SELECT live_state($1) AS state",
             [eventId],
           );
-          return rows[0]?.state ?? EMPTY_LIVE;
+          const found: LiveRow = rows[0]?.state ?? { ...EMPTY_LIVE, firstBonus: [] };
+          const ids = found.firstBonus ?? [];
+          // The counts only for the quests live_state listed: it lists none for a stranger (CTO 6).
+          const counts =
+            ids.length === 0
+              ? []
+              : await deps.firstBonus.get(eventId, () => readFirstBonuses(client, eventId));
+          const byQuest = new Map(counts.map((count) => [count.questId, count]));
+          return {
+            state: found,
+            firstBonus: ids.flatMap((questId) => {
+              const count = byQuest.get(questId);
+              return count === undefined ? [] : [{ questId, left: count.left, slots: count.slots }];
+            }),
+          };
         }),
       );
       const community =
@@ -172,6 +201,7 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
           ...boost,
           endsAt: new Date(boost.endsAt).toISOString(),
         })),
+        firstBonus,
       };
     },
   };

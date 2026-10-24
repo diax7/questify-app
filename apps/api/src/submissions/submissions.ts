@@ -11,6 +11,7 @@ import {
   type ItemGiven,
   type LevelUp,
 } from "#src/completions/complete";
+import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
@@ -128,6 +129,8 @@ export type Sent = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled an auto-approved send (T-307), or null; `points` is then what it paid. */
   boost: Boosted | null;
+  /** The first-N bonus an auto-approved send earned, or missed when `place` is null (T-313). */
+  firstBonus: OwnFirstBonus | null;
 }>;
 
 type SentRow = {
@@ -169,6 +172,8 @@ export function sendSubmission(
       bonus: row.completion_id === null ? null : await bonusPaid(client, row.completion_id),
       item: row.completion_id === null ? null : await itemGiven(client, row.completion_id),
       boost,
+      firstBonus:
+        row.completion_id === null ? null : await firstBonusPaid(client, row.completion_id),
     };
   });
 }

@@ -23,11 +23,14 @@ import {
   tagsInUse,
   goalInUse,
   submissionKindUnavailable,
+  firstBonusPaid,
+  belowGiven,
+  invalidFirstBonus,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { locationQuestsOn } from "#src/completions/complete";
 import { organizerContextOf } from "#src/organizers/context";
-import { readBuilder, type BuilderDeps, type Done } from "#src/quests/builder";
+import { readBuilder, type BuilderDeps, type BuilderQuest, type Done } from "#src/quests/builder";
 import {
   listCodes,
   regenerateCode,
@@ -42,7 +45,7 @@ import {
   updateCategory,
 } from "#src/quests/categories";
 import { createQuest, deleteQuest, reorderQuests, setFocus, updateQuest } from "#src/quests/quests";
-import type { CategoryRecord, QuestRecord } from "#src/quests/store";
+import type { CategoryRecord } from "#src/quests/store";
 import type { SettingsService } from "#src/settings/service";
 
 const BODY_LIMIT = 16_384;
@@ -98,6 +101,14 @@ const questFields = {
     .optional(),
   // A flash quest (T-307): shown to players only inside its window.
   flash: z.boolean().optional(),
+  // The first-N bonus (T-313): set, stop or off (null); the ranges are the builder's (422 invalid_first_bonus).
+  firstBonus: z
+    .union([
+      z.strictObject({ points: z.number(), slots: z.number() }),
+      z.strictObject({ stop: z.literal(true) }),
+    ])
+    .nullable()
+    .optional(),
 };
 const questBody = z.strictObject({
   ...questFields,
@@ -133,7 +144,7 @@ const categoryView = (category: CategoryRecord) => ({
 });
 
 /** A quest as the dashboard sees it; members see an entry code, players never will (T-105). */
-const questView = (quest: QuestRecord) => ({
+const questView = (quest: BuilderQuest) => ({
   id: quest.id,
   categoryId: quest.categoryId,
   type: quest.type,
@@ -152,6 +163,7 @@ const questView = (quest: QuestRecord) => ({
   pollSentAt: quest.pollSentAt?.toISOString() ?? null,
   flash: quest.flash,
   flashLaunchedAt: quest.flashLaunchedAt?.toISOString() ?? null,
+  firstBonus: quest.firstBonus,
   ...(quest.type === "passport"
     ? {
         steps: quest.steps.map((step) => ({
@@ -215,6 +227,12 @@ function answer<T>(
       throw invalidItem();
     case "poll_locked":
       throw pollLocked({ field: result.field });
+    case "first_bonus_paid":
+      throw firstBonusPaid();
+    case "below_given":
+      throw belowGiven({ given: result.given });
+    case "invalid_first_bonus":
+      throw invalidFirstBonus({ field: result.field });
   }
 }
 

@@ -14,6 +14,7 @@ import type { RequestContext } from "#src/db/context";
 import { ticketHolds, issueTicket, type TicketKey } from "#src/nfc/ticket";
 import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { run, type PlayRefusal } from "#src/plays/run";
+import { firstBonusPaid } from "#src/quests/first-bonus";
 import { tagCode, tagCodeUrl, verifyTagCode, type TagCodeKey } from "#src/quests/qr";
 import type { SettingsService } from "#src/settings/service";
 
@@ -346,6 +347,7 @@ async function tapped(client: PoolClient, row: TapRow): Promise<Tapped> {
     bonus: await bonusPaid(client, row.completion_id),
     item: await itemGiven(client, row.completion_id),
     boost: await boostApplied(client, row.completion_id),
+    firstBonus: await firstBonusPaid(client, row.completion_id),
     questId: row.quest_id,
   };
 }

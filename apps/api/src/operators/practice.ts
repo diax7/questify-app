@@ -24,6 +24,8 @@ export type PracticeResult =
       player: ScannedPlayer | null;
       points: number;
       occurrence: number;
+      /** The first-N bonus this scan would also earn (T-313): its points while a slot is free; else null. */
+      bonusPoints: number | null;
     }>
   | Readonly<{ kind: "already_completed"; player: ScannedPlayer | null }>
   | Readonly<{
@@ -40,10 +42,11 @@ type Row = {
   occurrence: number | null;
   refusal: string | null;
   refusal_detail: string | null;
+  bonus_points: number | null;
 };
 
 type Judged =
-  | Readonly<{ kind: "completed"; points: number; occurrence: number }>
+  | Readonly<{ kind: "completed"; points: number; occurrence: number; bonusPoints: number | null }>
   | Readonly<{ kind: "already_completed" }>
   | Readonly<{ kind: "refused"; reason: PracticeReason; detail?: string }>
   | Readonly<{ kind: "not_operator" }>;
@@ -54,7 +57,12 @@ type Judged =
  */
 function judged(row: Row): Judged {
   if (row.outcome === "completed") {
-    return { kind: "completed", points: Number(row.points), occurrence: Number(row.occurrence) };
+    return {
+      kind: "completed",
+      points: Number(row.points),
+      occurrence: Number(row.occurrence),
+      bonusPoints: row.bonus_points,
+    };
   }
   if (row.refusal === "PW409") {
     return { kind: "refused", reason: "going_live" };
@@ -90,7 +98,8 @@ export async function practiceScan(
     { playerId: request.operatorId },
     async (client) => {
       const { rows } = await client.query<Row>(
-        "SELECT outcome, points, occurrence, refusal, refusal_detail FROM operator_practice_scan($1, $2, $3)",
+        `SELECT outcome, points, occurrence, refusal, refusal_detail, bonus_points
+         FROM operator_practice_scan($1, $2, $3)`,
         [request.questId, opened.playerId, opened.version],
       );
       const found = judged(rows[0] as Row);

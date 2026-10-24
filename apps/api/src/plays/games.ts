@@ -24,6 +24,7 @@ import {
 } from "#src/completions/complete";
 import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { run, type Done, type PlayDeps } from "#src/plays/run";
+import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 import type { SettingsService } from "#src/settings/service";
 
 export type GameDeps = PlayDeps &
@@ -98,6 +99,8 @@ export type GameResult = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled this round's pay (T-307), or null. */
   boost: Boosted | null;
+  /** The first-N bonus this round's pay earned, or missed when `place` is null (T-313). */
+  firstBonus: OwnFirstBonus | null;
 }>;
 
 /** Whether the platform's `miniGames` switch is on; the event's own switch is the database's (`games_on`). */
@@ -336,6 +339,7 @@ async function finishOf(
     bonus: paid === null ? null : await bonusPaid(client, paid),
     item: paid === null ? null : await itemGiven(client, paid),
     boost: paid === null ? null : await boostApplied(client, paid),
+    firstBonus: paid === null ? null : await firstBonusPaid(client, paid),
   };
   return { verdict: row.verdict, reason: row.reason, answer };
 }

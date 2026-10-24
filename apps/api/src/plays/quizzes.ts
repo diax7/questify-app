@@ -10,6 +10,7 @@ import {
   type LevelUp,
 } from "#src/completions/complete";
 import { run, textOf, type Bilingual, type Done, type PlayDeps } from "#src/plays/run";
+import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 
 export type QuizChoice = Readonly<{ id: string; text: Bilingual }>;
 
@@ -51,6 +52,8 @@ export type QuizPlay = Readonly<{
   item: ItemGiven | null;
   /** The boost that doubled a paid finish (T-307), judged at the quiz's start; or null. */
   boost: Boosted | null;
+  /** The first-N bonus a paid finish earned, or missed when `place` is null (T-313). */
+  firstBonus: OwnFirstBonus | null;
 }>;
 
 /** A step's answer and whether this very step paid (a replay, or a read after the payment, did not). */
@@ -132,6 +135,7 @@ async function playOf(client: PoolClient, questId: string): Promise<QuizPlay> {
     bonus: quiz.status === "finished" ? await quizBonus(client, questId) : null,
     item: quiz.completionId === null ? null : await itemGiven(client, quiz.completionId),
     boost: quiz.completionId === null ? null : await boostApplied(client, quiz.completionId),
+    firstBonus: quiz.completionId === null ? null : await firstBonusPaid(client, quiz.completionId),
   };
 }
 

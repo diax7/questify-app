@@ -1046,6 +1046,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "quest_completion.kiosk_scan",
         // A rehearsal account's tickets go before its account, and with it (ON DELETE CASCADE) (T-310, test/db/tickets).
         "enrollment.ticket",
+        // A rehearsal claim's slot is given back (its claim columns cleared) before the entries, completions and
+        // accounts it points at are deleted; a real slot never names a rehearsal row (T-313, test/db/first-bonus).
+        "enrollment.quest_bonus_slot",
+        "ledger_entry.quest_bonus_slot",
+        "quest_completion.quest_bonus_slot",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

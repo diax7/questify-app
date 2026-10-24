@@ -932,6 +932,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by tap_quest beside the calling player's own completion and removed with it; read as counts by the event's team through quest_nfc_tags and by raise_nfc_flag for the tapping member (test/db/nfc-tags)",
   device_request:
     "no right for the API role at all; belongs to no tenant until claimed: written by open_device_request and renew_device_request (a hash of the browser's own secret and code) and turned into a paired device by operator_claim_device and team_claim_device only for the caller's own event; read by device_session for its own secret and by preview_device for the caller's event (test/db/devices)",
+  quest_first_bonus:
+    "no right for the API role at all; written by set_quest_first_bonus inside the caller's event (award_event_of) and deleted with its quest or a draft event; read as counts by first_bonus_left (an active member of the event or its team in scope, nothing for anyone else), live_state and member_event_quests for the calling member, and own_first_bonus for the caller's own completion (test/db/first-bonus crosses organizers and players)",
+  quest_bonus_slot:
+    "no right for the API role at all; holds no personal data beyond an enrollment id the ledger already names; claimed only by pay_first_bonus inside the payers for the paying enrollment, freed by the rehearsal wipe, added and removed by set_quest_first_bonus inside the caller's event; read as counts by first_bonus_left and as the calling member's own place by member_event_quests and own_first_bonus, and by the team through member_ledger (award_event_of) (test/db/first-bonus)",
   kiosk_scan:
     "no right for the API role at all; holds no personal data (a completion id, a device id, tenant ids); written only by kiosk_complete_quest for app_device_id's own kiosk beside the completion it paid, read as a count by device_json in the caller's event or own pairings (test/db/kiosks)",
   paired_device:
