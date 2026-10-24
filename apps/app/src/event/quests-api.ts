@@ -587,6 +587,7 @@ function refusal(
       };
     }
     case "invalid_code":
+    case "code_expired":
       return { kind: "wrong_code", problem: answer.message };
     case "quest_not_open": {
       const reason = String(answer.details["reason"]);
@@ -644,12 +645,14 @@ export function keyFor(last: Attempt | undefined, code: string, makeKey: () => s
 }
 
 /**
- * How a completion is proven: a typed entry code (FR-202), a scanned quest QR's token (FR-201) or a location check-in
- * (FR-215). A scan may carry the last known position (T-303b); a check-in carries its fresh one.
+ * How a completion is proven: a typed entry code (FR-202), a scanned quest QR's token (FR-201), a station's rotating
+ * code (FR-314) or a location check-in (FR-215). A scan may carry the last known position (T-303b); a check-in carries its fresh one.
  */
 export type Proof =
   | Readonly<{ type: "code"; code: string; position?: Position }>
   | Readonly<{ type: "qr"; code: string; position?: Position }>
+  /** A station's rotating code (T-309): judged by the server against its 30-second window. */
+  | Readonly<{ type: "screen"; code: string; position?: Position }>
   | Readonly<{ type: "location"; position: Position }>;
 
 /**

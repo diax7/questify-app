@@ -239,6 +239,16 @@ function Verification({
       />
     </>
   ) : null;
+  // T-309: a quest whose code is shown on a station's screen (never with a printed one) is scanned from the scanner.
+  if (quest.verification.includes("screen_qr")) {
+    return (
+      <>
+        {showMyQr}
+        <AppText variant="label">{t("quests.action.scanScreen")}</AppText>
+        {scanButton}
+      </>
+    );
+  }
   if (!quest.verification.includes("quest_qr")) {
     return showMyQr;
   }

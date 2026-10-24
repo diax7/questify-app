@@ -7,6 +7,7 @@ import {
   questIdOf,
   readScan,
   categoryIdOf,
+  screenQuestIdOf,
   stepIdOf,
 } from "#src/event/scan.ts";
 
@@ -110,6 +111,28 @@ describe("categoryIdOf (T-304c)", () => {
     expect(readScan(`https://questify.nafes.com/q/${token(0x06)}`, null)).toEqual({
       kind: "other",
     });
+  });
+});
+
+describe("station codes (T-309)", () => {
+  it("reads a station's rotating code on Questify's host, and nothing else as one", () => {
+    expect(screenQuestIdOf(token(0x07))).toBe(QUEST_ID);
+    expect(screenQuestIdOf(token(0x01))).toBeNull();
+    expect(questIdOf(token(0x07))).toBeNull();
+    expect(readScan(`https://questify.nafes.com/s/${token(0x07)}`, null)).toEqual({
+      kind: "screen",
+      questId: QUEST_ID,
+      token: token(0x07),
+    });
+    expect(readScan(`${STAGING}/s/${token(0x07)}/`, STAGING)).toMatchObject({ kind: "screen" });
+    for (const text of [
+      `https://evil.example/s/${token(0x07)}`,
+      `https://questify.nafes.com/s/${token(0x01)}`,
+      `https://questify.nafes.com/q/${token(0x07)}`,
+      `https://questify.nafes.com/s/${token(0x07)}/more`,
+    ]) {
+      expect(readScan(text, null)).toEqual({ kind: "other" });
+    }
   });
 });
 

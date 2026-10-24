@@ -34,6 +34,7 @@ import {
   passes,
   questCodeOrigin,
   readScan,
+  screenQuestIdOf,
   stepIdOf,
   type ScanGate,
 } from "#src/event/scan.ts";
@@ -50,7 +51,7 @@ const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"
 
 /**
  * Sends a scanned code: `id` is the quest's, a passport step's for a step's code (T-304b), or a hidden category's for
- * its secret code (T-304c); the token's own layout says which. Another player's meet code (T-303c) goes whole to
+ * its secret code (T-304c); the token's own layout says which, and a station's rotating code (T-309) is its quest's. Another player's meet code (T-303c) goes whole to
  * `POST /v1/meet`, which names its quest. A quest's code carries the last known position when
  * there is one (T-303b): it never delays the scan, and the server drops a bad one.
  */
@@ -61,14 +62,16 @@ const send = (id: string, token: string, key: string, position: Position | null)
   if (categoryIdOf(token) !== null) {
     return revealCategory(api.session, id, token);
   }
-  return stepIdOf(token) === null
-    ? completeQuest(
-        api.session,
-        id,
-        { type: "qr", code: token, ...(position === null ? {} : { position }) },
-        key,
-      )
-    : stampStep(api.session, id, token, key);
+  if (stepIdOf(token) !== null) {
+    return stampStep(api.session, id, token, key);
+  }
+  const type = screenQuestIdOf(token) === null ? "qr" : "screen";
+  return completeQuest(
+    api.session,
+    id,
+    { type, code: token, ...(position === null ? {} : { position }) },
+    key,
+  );
 };
 
 /** The scanner's placeholder id for a tag: its quest is the server's answer (`questId`). */
@@ -255,6 +258,7 @@ export default function ScanQuestScreen() {
     }
     const id =
       scan.kind === "step" ? scan.stepId : scan.kind === "reveal" ? scan.categoryId : scan.questId;
+
     dispatch({ type: "read", questId: id, token: scan.token });
     void submit(id, scan.token);
   };

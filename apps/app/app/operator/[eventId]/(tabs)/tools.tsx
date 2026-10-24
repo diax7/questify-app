@@ -1,4 +1,4 @@
-import { joinCard, type MessageKey } from "@questify/shared";
+import { joinCard } from "@questify/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
@@ -13,13 +13,11 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { playAsPlayer } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
-/** The Tools entries that come with later tasks (FR-922): the rotating QR. */
-const LATER: readonly MessageKey[] = ["operators.ability.showRotatingQr"];
-
 /**
  * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); Review
- * submissions with the `review` ability (T-301); Write NFC tag with the `write_nfc` ability (T-308); the switch to
- * Player mode, shown only to an operator the owner allows to play (FR-906, FR-907); the other tools are listed as coming.
+ * submissions with the `review` ability (T-301); Write NFC tag with the `write_nfc` ability (T-308); Rotating QR, Pair a
+ * device and My paired devices with the `show_rotating_qr` ability (T-309); the switch to Player mode, shown only to an
+ * operator the owner allows to play (FR-906, FR-907).
  */
 export default function OperatorToolsScreen() {
   const { t, language } = useI18n();
@@ -65,6 +63,23 @@ export default function OperatorToolsScreen() {
             onPress={() => router.push(`/operator/${eventId}/nfc-write`)}
           />
         ) : null}
+        {event?.abilities.includes("show_rotating_qr") === true ? (
+          <>
+            <Button
+              label={t("operator.rotating")}
+              onPress={() => router.push(`/operator/${eventId}/rotating-qr`)}
+            />
+            <Button
+              label={t("operator.devices.pair")}
+              onPress={() => router.push(`/operator/${eventId}/pair-device`)}
+            />
+            <Button
+              kind="quiet"
+              label={t("operator.devices.mine")}
+              onPress={() => router.push(`/operator/${eventId}/my-devices`)}
+            />
+          </>
+        ) : null}
         {event?.canPlay === true ? (
           <Button
             label={t("operator.switchToPlayer")}
@@ -73,11 +88,6 @@ export default function OperatorToolsScreen() {
           />
         ) : null}
         {problem === null ? null : <AppText accessibilityRole="alert">{problem}</AppText>}
-        {LATER.map((key) => (
-          <AppText key={key} muted>
-            {`${t(key)} · ${t("common.comingSoon")}`}
-          </AppText>
-        ))}
       </View>
     </Screen>
   );

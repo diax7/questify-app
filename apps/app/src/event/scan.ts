@@ -60,6 +60,8 @@ const FORMAT_QUEST = 0x01;
 const FORMAT_STEP = 0x04;
 /** A hidden category's secret code (T-304c, ADR-204): the same layout, the category's id. */
 const FORMAT_REVEAL = 0x05;
+/** A station's rotating code (T-309, ADR-240): the same layout, the quest's id and a 30-second window. */
+const FORMAT_SCREEN = 0x07;
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -83,10 +85,15 @@ export const stepIdOf = (token: string): string | null => idOf(token, FORMAT_STE
 /** The category id inside a hidden category's secret token (T-304c). */
 export const categoryIdOf = (token: string): string | null => idOf(token, FORMAT_REVEAL);
 
+/** The quest id inside a station's rotating code (T-309). */
+export const screenQuestIdOf = (token: string): string | null => idOf(token, FORMAT_SCREEN);
+
 export type Scan =
   | Readonly<{ kind: "quest"; questId: string; token: string }>
   | Readonly<{ kind: "step"; stepId: string; token: string }>
   | Readonly<{ kind: "reveal"; categoryId: string; token: string }>
+  /** A station's rotating code (T-309): `https://{host}/s/{token}`, only from the live camera. */
+  | Readonly<{ kind: "screen"; questId: string; token: string }>
   | Readonly<{ kind: "join"; code: string }>
   /** Another player's meet code (T-303c): the whole text goes to `POST /v1/meet`. */
   | Readonly<{ kind: "meet"; code: string }>
@@ -99,8 +106,8 @@ export type Scan =
 const HTTPS_LINK = /^https:\/\/([A-Za-z0-9.-]+)(\/[^?#\s]*)?(?:[?#]\S*)?$/;
 
 /**
- * What the camera read: a quest, passport step or secret category code on a Questify host (`https://{host}/q/{token}`), a join link,
- * another player's meet code, or something else.
+ * What the camera read: a quest, passport step or secret category code on a Questify host (`https://{host}/q/{token}`), a
+ * station's rotating code (`https://{host}/s/{token}`, T-309), a join link, another player's meet code, or something else.
  * Only whole https links count, never a bare word.
  */
 export function readScan(text: string, extraOrigin: string | null): Scan {
@@ -118,6 +125,11 @@ export function readScan(text: string, extraOrigin: string | null): Scan {
   }
   const host = (link[1] ?? "").toLowerCase();
   const known = QUEST_CODE_HOSTS.includes(host) || `https://${host}` === extraOrigin;
+  const screen = /^\/s\/([^/]+)\/?$/.exec(link[2] ?? "")?.[1];
+  if (known && screen !== undefined) {
+    const questId = screenQuestIdOf(screen);
+    return questId === null ? { kind: "other" } : { kind: "screen", questId, token: screen };
+  }
   const token = /^\/q\/([^/]+)\/?$/.exec(link[2] ?? "")?.[1];
   if (!known || token === undefined) {
     return { kind: "other" };
