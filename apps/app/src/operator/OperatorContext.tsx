@@ -1,7 +1,9 @@
 import { router } from "expo-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { AppState } from "react-native";
 import { api, keyValueStore } from "#src/api/app-session.ts";
+import { fetchWaiting, type Waiting } from "#src/operator/inbox.ts";
 import { fetchOperatorEvents, type OperatorEvent } from "#src/operator/operator-api.ts";
 
 /** The station an operator picked, by quest, with its title for the scanner's header. */
@@ -15,11 +17,42 @@ type OperatorValue = Readonly<{
   pickStation: (station: PickedStation | null) => void;
   /** FR-905: the owner removed this operator; leave operator mode with a note. */
   removed: () => void;
+  /** Practice mode (FR-929, ADR-250): in memory only, never stored, so leaving staff mode or a restart turns it off. */
+  practice: boolean;
+  setPractice: (on: boolean) => void;
+  /** What waits in the Inbox (T-310's count), one poll for the tab badge and Home; undefined before the first read. */
+  waiting: Waiting | undefined;
+  refreshWaiting: () => Promise<void>;
 }>;
 
 const OperatorContext = createContext<OperatorValue | undefined>(undefined);
 
 const stationKey = (eventId: string) => `questify.station.${eventId}`;
+
+/** How often the Inbox count is read while staff mode is in the foreground (T-310). */
+const WAITING_REFRESH_MS = 30_000;
+
+/** The Inbox count, read at once and every 30 seconds while the app is in the foreground. */
+function useWaiting(eventId: string) {
+  const [waiting, setWaiting] = useState<Waiting | undefined>(undefined);
+  const [active, setActive] = useState(AppState.currentState === "active");
+  const refreshWaiting = useCallback(async () => {
+    setWaiting(await fetchWaiting(api.session, eventId));
+  }, [eventId]);
+  useEffect(() => {
+    const watcher = AppState.addEventListener("change", (state) => setActive(state === "active"));
+    return () => watcher.remove();
+  }, []);
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    void refreshWaiting();
+    const timer = setInterval(() => void refreshWaiting(), WAITING_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [active, refreshWaiting]);
+  return { waiting, refreshWaiting };
+}
 
 /** Operator mode inside one event (FR-907): the event, and the station kept on this phone between scans (FR-923). */
 export function OperatorProvider({
@@ -28,6 +61,8 @@ export function OperatorProvider({
 }: Readonly<{ eventId: string; children: ReactNode }>) {
   const [event, setEvent] = useState<OperatorEvent | undefined>(undefined);
   const [station, setStation] = useState<PickedStation | null>(null);
+  const [practice, setPractice] = useState(false);
+  const { waiting, refreshWaiting } = useWaiting(eventId);
 
   useEffect(() => {
     let current = true;
@@ -79,10 +114,25 @@ export function OperatorProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ eventId, event, station, pickStation, removed }),
-    [eventId, event, station, pickStation, removed],
+    () => ({
+      eventId,
+      event,
+      station,
+      pickStation,
+      removed,
+      practice,
+      setPractice,
+      waiting,
+      refreshWaiting,
+    }),
+    [eventId, event, station, pickStation, removed, practice, waiting, refreshWaiting],
   );
   return <OperatorContext.Provider value={value}>{children}</OperatorContext.Provider>;
+}
+
+/** The operator inside staff mode, or undefined outside it (the practice strip on the shared screen frame). */
+export function useOptionalOperator(): OperatorValue | undefined {
+  return useContext(OperatorContext);
 }
 
 export function useOperator(): OperatorValue {

@@ -36,6 +36,7 @@ import {
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { isPlayerCode } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 /** What happened to a row on this desk since the scan. */
 type Done = "handed_over" | "cancelled" | "ended" | "lapsed";
@@ -428,7 +429,7 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
  * their own app (ADR-137: Collect first, or the desk's offer they accept), confirm an experience, or cancel. The desk
  * never awards points (FR-926). A removed operator leaves operator mode at the first refused call (FR-905).
  */
-export default function DeskTab() {
+function DeskTab() {
   const { t, language } = useI18n();
   const { eventId, event } = useOperator();
   const { problem, setProblem, settle } = useOutcome();
@@ -530,3 +531,12 @@ const makeStyles = (theme: Theme) => ({
     backgroundColor: theme.colors.surface,
   },
 });
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function DeskTabRoute() {
+  return (
+    <PracticeLocked title="operator.desk" back={false}>
+      <DeskTab />
+    </PracticeLocked>
+  );
+}

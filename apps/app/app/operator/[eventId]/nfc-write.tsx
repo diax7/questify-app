@@ -21,6 +21,7 @@ import {
 } from "#src/nfc/nfc-api.ts";
 import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
 
@@ -63,7 +64,7 @@ const PROBLEMS = {
  * permanent), hold a tag to the phone. The phone writes the signed URL the server prepared, reads it back, locks it,
  * and the server registers the sticker. Nothing is stored before the server's answer.
  */
-export default function NfcWriteScreen() {
+function NfcWriteScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const supported = useNfcSupported();
@@ -275,4 +276,13 @@ function Outcome({
         </>
       );
   }
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function NfcWriteScreenRoute() {
+  return (
+    <PracticeLocked title="operator.nfc.write" back={true}>
+      <NfcWriteScreen />
+    </PracticeLocked>
+  );
 }

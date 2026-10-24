@@ -1910,8 +1910,33 @@ export const MESSAGES = {
     ar: "لا مهام تقبل مسح رمز اللاعب. اطلب من المنظِّم تفعيلها.",
     en: "No quest takes players' codes yet. Ask the organizer to turn it on.",
   },
-  "operator.today": { ar: "اليوم: {count}", en: "Today: {count}" },
+  "operator.today": { ar: "أنت اليوم: {count}", en: "You today: {count}" },
   "operator.total": { ar: "الإجمالي: {count}", en: "In all: {count}" },
+  "operator.practice.title": { ar: "وضع التدريب", en: "Practice mode" },
+  "operator.practice.hint": {
+    ar: "يعرض المسح النتيجة الحقيقية ولا يُحفظ شيء. قبل بدء الفعالية امسح رمز My QR لحساب تجربة.",
+    en: "Scans show the real result. Nothing is saved. Before the event opens, scan a rehearsal account's My QR.",
+  },
+  "operator.practice.strip": { ar: "تدريب: لا يُحفظ شيء", en: "Practice: nothing is saved" },
+  "operator.practice.result": { ar: "تدريب · لم يُحفظ", en: "Practice · not saved" },
+  "operator.practice.footer": { ar: "تدريب", en: "Practice" },
+  "operator.practice.locked": {
+    ar: "وضع التدريب مفعّل. أوقفه لتستخدم هذه الأداة.",
+    en: "Practice mode is on. Leave it to use this.",
+  },
+  "operator.practice.leave": { ar: "إيقاف التدريب", en: "Leave practice" },
+  "operator.stationToday.title": { ar: "اليوم في هذه المحطة", en: "Today at this station" },
+  "operator.stationToday.done": { ar: "المحطة اليوم: {count}", en: "Station today: {count}" },
+  "operator.stationToday.lastHour": { ar: "آخر ساعة: {count}", en: "Last hour: {count}" },
+  "operator.stationToday.waiting": { ar: "بانتظارك: {count}", en: "Waiting: {count}" },
+  "operator.stationToday.pick": {
+    ar: "اختر محطتك لترى أرقام اليوم.",
+    en: "Pick your station to see today's numbers.",
+  },
+  "operator.stationToday.failed": {
+    ar: "لا اتصال. تعذّر تحميل الأرقام.",
+    en: "No signal. Numbers cannot load.",
+  },
   "operator.scanHint": {
     ar: "وجّه الكاميرا إلى رمز اللاعب.",
     en: "Point the camera at the player's code.",
@@ -1940,6 +1965,10 @@ export const MESSAGES = {
   "operator.red.operatorNotPlaying": {
     ar: "هذا مشغّل لا يلعب",
     en: "This is an operator who doesn't play",
+  },
+  "operator.red.goingLive": {
+    ar: "الفعالية تُفتح الآن. حاول مرة أخرى بعد دقيقة",
+    en: "The event is opening. Try again in a minute",
   },
   "operator.red.wrongMethod": {
     ar: "هذه المهمة لا تقبل رمز اللاعب",

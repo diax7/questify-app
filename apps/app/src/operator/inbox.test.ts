@@ -3,7 +3,7 @@ import {
   answerResult,
   answerTicket,
   fetchInbox,
-  fetchInboxTotal,
+  fetchWaiting,
   inboxAnswer,
   inboxOf,
   ticketOf,
@@ -86,9 +86,20 @@ describe("staff mode's Inbox (T-310, FR-927)", () => {
       { method: "GET", path: "/v1/operator/events/e1/inbox" },
       { method: "GET", path: "/v1/operator/events/e1/inbox?cursor=a%20b" },
     ]);
-    expect(await fetchInboxTotal(recording(ok({ total: 5 })).session, "e1")).toBe(5);
-    expect(await fetchInboxTotal(recording(ok({})).session, "e1")).toBeNull();
-    expect(await fetchInboxTotal(recording({ kind: "network" }).session, "e1")).toBeNull();
+    expect(await fetchWaiting(recording(ok({ total: 5 })).session, "e1")).toEqual({
+      kind: "count",
+      total: 5,
+    });
+    expect(await fetchWaiting(recording(error(403, "ability_off")).session, "e1")).toEqual({
+      kind: "off",
+    });
+    expect(await fetchWaiting(recording(error(403, "not_operator")).session, "e1")).toEqual({
+      kind: "failed",
+    });
+    expect(await fetchWaiting(recording(ok({})).session, "e1")).toEqual({ kind: "failed" });
+    expect(await fetchWaiting(recording({ kind: "network" }).session, "e1")).toEqual({
+      kind: "failed",
+    });
   });
 
   it("reads one ticket, and a malformed one as nothing", () => {

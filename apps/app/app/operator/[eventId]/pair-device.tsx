@@ -23,6 +23,7 @@ import {
   type Preview,
 } from "#src/operator/devices.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
 
@@ -151,7 +152,7 @@ function ConfirmPairing({
  * what the screen said it is, pick the quest (one with the screen QR for a station, the kiosk for a kiosk, inside the
  * operator's limit) and a label, and pair. Big screens are paired from the dashboard only.
  */
-export default function PairDeviceScreen() {
+function PairDeviceScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const [typed, setTyped] = useState("");
@@ -254,5 +255,14 @@ export default function PairDeviceScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function PairDeviceScreenRoute() {
+  return (
+    <PracticeLocked title="operator.devices.pair" back={true}>
+      <PairDeviceScreen />
+    </PracticeLocked>
   );
 }

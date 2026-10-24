@@ -19,6 +19,7 @@ import {
   type StationQuest,
 } from "#src/operator/devices.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 const RETRY_MS = 3000;
 
@@ -108,7 +109,7 @@ function QuestCode({ quest }: Readonly<{ quest: StationQuest }>) {
  * Staff mode's Rotating QR (FR-314, FR-922): pick a quest with the screen QR (inside the operator's limit, with
  * `show_rotating_qr` on), then its code, which changes every 30 seconds, full screen on the operator's phone.
  */
-export default function RotatingQrScreen() {
+function RotatingQrScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const [quests, setQuests] = useState<readonly StationQuest[] | null>(null);
@@ -148,5 +149,14 @@ export default function RotatingQrScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function RotatingQrScreenRoute() {
+  return (
+    <PracticeLocked title="operator.rotating" back={true}>
+      <RotatingQrScreen />
+    </PracticeLocked>
   );
 }

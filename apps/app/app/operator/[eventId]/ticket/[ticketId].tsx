@@ -19,6 +19,7 @@ import {
   type OperatorTicket,
 } from "#src/operator/inbox.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 /** Reply (one reply closes it) or mark it solved with a confirm; the key is kept until the answer lands. */
 function AnswerForm({
@@ -88,7 +89,7 @@ function AnswerForm({
  * One help-desk request in staff mode (FR-338, T-310): the text, the quest, the time, and the answer form while it is
  * open. "Already answered" says someone on the team answered first, and goes back to the Inbox.
  */
-export default function OperatorTicketScreen() {
+function OperatorTicketScreen() {
   const { t, language } = useI18n();
   const { eventId, event } = useOperator();
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>();
@@ -151,5 +152,14 @@ export default function OperatorTicketScreen() {
         ) : null}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function OperatorTicketScreenRoute() {
+  return (
+    <PracticeLocked title="operator.ticket.title" back={true}>
+      <OperatorTicketScreen />
+    </PracticeLocked>
   );
 }

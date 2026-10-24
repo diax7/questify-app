@@ -14,13 +14,14 @@ import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { scanPlayer } from "#src/operator/operator-api.ts";
+import { scanFor } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import {
   held,
   isPlayerCode,
   isRepeat,
-  type LastScan,
+  memoryIn,
+  type ScanMemory,
   type StationResult,
 } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -37,8 +38,15 @@ const FEEL = {
   red: Haptics.NotificationFeedbackType.Error,
 } as const;
 
-/** The full-screen result (FR-924): green with the points, orange for "already completed", red with the reason. */
-function ResultCover({ result }: Readonly<{ result: StationResult }>) {
+/** What the cover shows: the result, and whether the server said it was a practice scan (never the phone's switch). */
+type Shown = Readonly<{ result: StationResult; practice: boolean }>;
+
+/**
+ * The full-screen result (FR-924): green with the points, orange for "already completed", red with the reason; a
+ * practice scan adds "Practice · not saved" under it (FR-929).
+ */
+function ResultCover({ shown }: Readonly<{ shown: Shown }>) {
+  const { result } = shown;
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const words =
@@ -57,6 +65,11 @@ function ResultCover({ result }: Readonly<{ result: StationResult }>) {
           {result.player.username}
         </AppText>
       )}
+      {shown.practice ? (
+        <AppText variant="label" style={styles.coverText}>
+          {t("operator.practice.result")}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -69,16 +82,15 @@ function ResultCover({ result }: Readonly<{ result: StationResult }>) {
 export default function StationScanScreen() {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const { event, station, removed } = useOperator();
+  const { event, station, removed, practice } = useOperator();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const active = useCameraActive();
-  const [result, setResult] = useState<StationResult | null>(null);
+  const [result, setResult] = useState<Shown | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [cameraFailed, setCameraFailed] = useState(false);
   const busy = useRef(false);
-  const last = useRef<LastScan>(null);
-  // One key per code and station until the server gives a definite answer: a retry after a lost reply never pays twice.
-  const attempt = useRef<Readonly<{ code: string; questId: string; key: string }> | null>(null);
+  // The last code (held up, it stays one scan) and its key; forgotten when practice mode changes (memoryIn).
+  const memory = useRef<ScanMemory>({ practice, last: null, attempt: null });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -98,9 +110,9 @@ export default function StationScanScreen() {
     return () => watcher.remove();
   }, [getPermission]);
 
-  const show = (next: StationResult) => {
+  const show = (next: Shown) => {
     setResult(next);
-    buzz(() => Haptics.notificationAsync(FEEL[next.color]));
+    buzz(() => Haptics.notificationAsync(FEEL[next.result.color]));
     timer.current = setTimeout(() => {
       setResult(null);
       busy.current = false;
@@ -113,34 +125,40 @@ export default function StationScanScreen() {
     if (station === null) {
       return;
     }
+    memory.current = memoryIn(memory.current, practice);
+    const { last } = memory.current;
     // A code still in front of the camera keeps its one scan for as long as it stays (the window slides).
-    if (last.current !== null && isRepeat(last.current, code, station.questId, now)) {
-      last.current = held(last.current, now);
+    if (last !== null && isRepeat(last, code, station.questId, now)) {
+      memory.current = { ...memory.current, last: held(last, now) };
       return;
     }
     if (busy.current) {
       return;
     }
     busy.current = true;
-    last.current = { code, questId: station.questId, at: now };
+    memory.current = { ...memory.current, last: { code, questId: station.questId, at: now } };
     if (!isPlayerCode(code)) {
-      show({ color: "red", reason: "operator.red.invalidCode", player: null });
+      show({
+        result: { color: "red", reason: "operator.red.invalidCode", player: null },
+        practice: false,
+      });
       return;
     }
     setProblem(null);
-    const same = attempt.current?.code === code && attempt.current.questId === station.questId;
-    const key = same && attempt.current !== null ? attempt.current.key : randomUuid();
-    attempt.current = { code, questId: station.questId, key };
-    const answer = await scanPlayer(api.session, {
+    const prior = memory.current.attempt;
+    const same = prior?.code === code && prior.questId === station.questId;
+    const key = same && prior !== null ? prior.key : randomUuid();
+    memory.current = { ...memory.current, attempt: { code, questId: station.questId, key } };
+    const answer = await scanFor(practice)(api.session, {
       questId: station.questId,
       code,
       idempotencyKey: key,
     });
     if (answer.kind !== "network") {
-      attempt.current = null;
+      memory.current = { ...memory.current, attempt: null };
     }
     if (answer.kind === "result") {
-      show(answer.result);
+      show({ result: answer.result, practice: answer.practice });
       return;
     }
     busy.current = false;
@@ -150,7 +168,7 @@ export default function StationScanScreen() {
       router.replace("/home");
     } else {
       // Nothing was decided: the same code may be scanned again at once.
-      last.current = null;
+      memory.current = { ...memory.current, last: null };
       setProblem(t("join.network"));
     }
   };
@@ -193,13 +211,18 @@ export default function StationScanScreen() {
               onMountError={() => setCameraFailed(true)}
             />
           </View>
+          {practice ? (
+            <AppText variant="label" style={styles.footer}>
+              {t("operator.practice.footer")}
+            </AppText>
+          ) : null}
         </>
       ) : null}
       {cameraFailed ? (
         <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
       ) : null}
       {problem === null ? null : <AppText accessibilityRole="alert">{problem}</AppText>}
-      {result === null ? null : <ResultCover result={result} />}
+      {result === null ? null : <ResultCover shown={result} />}
     </Screen>
   );
 }
@@ -229,4 +252,5 @@ const makeStyles = (theme: Theme) => ({
   orange: { backgroundColor: "#C25E00" },
   red: { backgroundColor: "#B3261E" },
   coverText: { color: "#FFFFFF", textAlign: "center" as const },
+  footer: { textAlign: "center" as const },
 });

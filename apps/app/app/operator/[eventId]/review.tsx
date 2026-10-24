@@ -19,13 +19,14 @@ import {
   sendReview,
   type ReviewItem,
 } from "#src/operator/review.ts";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 /**
  * The operator's review queue (FR-324, FR-325): one pending submission at a time, oldest first, approved or rejected
  * with a reason the player sees. Shown only with the `review` ability; the server checks it again. Opened from the Inbox
  * (`first`), that submission comes first.
  */
-export default function OperatorReviewScreen() {
+function OperatorReviewScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const { first } = useLocalSearchParams<{ first?: string }>();
@@ -128,5 +129,14 @@ export default function OperatorReviewScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function OperatorReviewScreenRoute() {
+  return (
+    <PracticeLocked title="operators.ability.review" back={true}>
+      <OperatorReviewScreen />
+    </PracticeLocked>
   );
 }

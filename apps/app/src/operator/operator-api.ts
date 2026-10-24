@@ -165,18 +165,28 @@ export async function fetchStations(
   return { kind: "stations", stations };
 }
 
-/** FR-923, FR-924: one scan at the station; `removed` means the owner removed this operator (FR-905). */
-export async function scanPlayer(
+export type ScanRequest = Readonly<{ questId: string; code: string; idempotencyKey: string }>;
+
+/**
+ * A station scan's answer. `practice` is what the server said (`practice: true` on the practice route), never the
+ * phone's switch, so the "Practice · not saved" line can only show for a scan that was in fact not saved.
+ */
+export type ScanAnswer =
+  | Readonly<{ kind: "result"; result: StationResult; practice: boolean }>
+  | Readonly<{ kind: "removed" }>
+  | Common;
+
+async function postScan(
   session: Requester,
-  request: Readonly<{ questId: string; code: string; idempotencyKey: string }>,
-): Promise<
-  Readonly<{ kind: "result"; result: StationResult }> | Readonly<{ kind: "removed" }> | Common
-> {
+  path: string,
+  request: ScanRequest,
+  headers?: Readonly<Record<string, string>>,
+): Promise<ScanAnswer> {
   const answer = await session.request({
     method: "POST",
-    path: "/v1/operator/scan",
+    path,
     body: { questId: request.questId, code: request.code },
-    headers: { "idempotency-key": request.idempotencyKey },
+    ...(headers === undefined ? {} : { headers }),
   });
   if (answer.kind === "error" && answer.code === "not_operator") {
     return { kind: "removed" };
@@ -185,7 +195,55 @@ export async function scanPlayer(
     return common(answer);
   }
   const result = stationResult(answer.body);
-  return result === undefined ? { kind: "network" } : { kind: "result", result };
+  const practice = isRecord(answer.body) && answer.body["practice"] === true;
+  return result === undefined ? { kind: "network" } : { kind: "result", result, practice };
+}
+
+/** FR-923, FR-924: one scan at the station; `removed` means the owner removed this operator (FR-905). */
+export function scanPlayer(session: Requester, request: ScanRequest): Promise<ScanAnswer> {
+  return postScan(session, "/v1/operator/scan", request, {
+    "idempotency-key": request.idempotencyKey,
+  });
+}
+
+/** FR-929: a practice scan shows the real result and saves nothing; it takes no Idempotency-Key. */
+export function practiceScanPlayer(session: Requester, request: ScanRequest): Promise<ScanAnswer> {
+  return postScan(session, "/v1/operator/scan/practice", request);
+}
+
+/** The one place the station picks its door: practice mode on, the practice route; off, the real one (ADR-249). */
+export function scanFor(
+  practice: boolean,
+): (session: Requester, request: ScanRequest) => Promise<ScanAnswer> {
+  return practice ? practiceScanPlayer : scanPlayer;
+}
+
+/** My station today (FR-928): the picked station's completions today and in the last hour, by everyone. */
+export type StationToday = Readonly<{ today: number; lastHour: number }>;
+
+export async function fetchStationToday(
+  session: Requester,
+  eventId: string,
+  questId: string,
+): Promise<
+  Readonly<{ kind: "counts"; counts: StationToday }> | Readonly<{ kind: "removed" }> | Common
+> {
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/operator/events/${encodeURIComponent(eventId)}/stations/${encodeURIComponent(questId)}/today`,
+  });
+  if (answer.kind === "error" && answer.code === "not_operator") {
+    return { kind: "removed" };
+  }
+  if (answer.kind !== "ok") {
+    return common(answer);
+  }
+  const body = isRecord(answer.body) ? answer.body : {};
+  const today = body["today"];
+  const lastHour = body["lastHour"];
+  return typeof today === "number" && typeof lastHour === "number"
+    ? { kind: "counts", counts: { today, lastHour } }
+    : { kind: "network" };
 }
 
 /** FR-907: an operator the owner allows to play joins as a player, with the join card in force. */

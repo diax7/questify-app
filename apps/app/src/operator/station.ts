@@ -30,7 +30,7 @@ export function isPlayerCode(text: string): boolean {
   return TOKEN.test(text.trim());
 }
 
-/** Why the station shows red (API.md, `POST /v1/operator/scan`). */
+/** Why the station shows red (API.md, `POST /v1/operator/scan`; `going_live` from a practice scan only). */
 const RED_REASONS = [
   "invalid_code",
   "old_code",
@@ -43,6 +43,7 @@ const RED_REASONS = [
   "self_scan",
   "operator_not_playing",
   "wrong_method",
+  "going_live",
 ] as const;
 type RedReason = (typeof RED_REASONS)[number];
 
@@ -103,6 +104,21 @@ export function isRepeat(last: LastScan, code: string, questId: string, now: num
   return (
     last !== null && last.code === code && last.questId === questId && now - last.at < REPEAT_MS
   );
+}
+
+/** One key per code and station until the server gives a definite answer: a retry after a lost reply never pays twice. */
+export type Attempt = Readonly<{ code: string; questId: string; key: string }> | null;
+
+/** What the station remembers between camera reads: the mode it was in, the last code and its key. */
+export type ScanMemory = Readonly<{ practice: boolean; last: LastScan; attempt: Attempt }>;
+
+/**
+ * The memory for a read in this mode. A mode change forgets the last code and its key (CTO plan review, MAJOR-1): a
+ * code still in front of the camera after leaving practice is scanned again, for real, and paid; one practised after
+ * a real scan is practised.
+ */
+export function memoryIn(memory: ScanMemory, practice: boolean): ScanMemory {
+  return memory.practice === practice ? memory : { practice, last: null, attempt: null };
 }
 
 /** The last scan after a repeat read: the same scan, seen again now (the window slides). */

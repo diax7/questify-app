@@ -15,12 +15,13 @@ import {
   type MyDevice,
 } from "#src/operator/devices.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 /**
  * Staff mode's My paired devices (T-309): the stations and kiosks this operator paired, each with its quest and state, and Revoke
  * for an active one (an operator revokes only what they paired). The dashboard's Devices page lists every device.
  */
-export default function MyDevicesScreen() {
+function MyDevicesScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
   const [devices, setDevices] = useState<readonly MyDevice[] | null | undefined>(undefined);
@@ -76,5 +77,14 @@ export default function MyDevicesScreen() {
         {problem === null ? null : <AppText accessibilityRole="alert">{problem}</AppText>}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function MyDevicesScreenRoute() {
+  return (
+    <PracticeLocked title="operator.devices.mine" back={true}>
+      <MyDevicesScreen />
+    </PracticeLocked>
   );
 }

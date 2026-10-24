@@ -8,7 +8,9 @@ import {
   playerOfCode,
   isPlayerCode,
   isRepeat,
+  memoryIn,
   stationResult,
+  type ScanMemory,
 } from "#src/operator/station.ts";
 
 const TOKEN = "A".repeat(49) + "Q";
@@ -73,6 +75,7 @@ describe("stationResult", () => {
       "self_scan",
       "operator_not_playing",
       "wrong_method",
+      "going_live",
       "something_new",
     ]) {
       const result = stationResult({ result: "refused", reason, player: null });
@@ -147,5 +150,29 @@ describe("playerOfCode", () => {
     expect(playerOfCode(codeOf(0x02))).toBe(PLAYER);
     expect(playerOfCode(codeOf(0x01))).toBeNull();
     expect(playerOfCode("short")).toBeNull();
+  });
+});
+
+describe("memoryIn (CTO plan review, MAJOR-1)", () => {
+  const CODE = "B".repeat(50);
+  const practised: ScanMemory = {
+    practice: true,
+    last: { code: CODE, questId: "q1", at: 1000 },
+    attempt: { code: CODE, questId: "q1", key: "k1" },
+  };
+
+  it("keeps the last code and its key while the mode stays", () => {
+    expect(memoryIn(practised, true)).toBe(practised);
+  });
+
+  it("forgets them when practice is left, so the code still in the camera is scanned for real", () => {
+    const real = memoryIn(practised, false);
+    expect(real).toEqual({ practice: false, last: null, attempt: null });
+    expect(isRepeat(real.last, CODE, "q1", 1500)).toBe(false);
+  });
+
+  it("forgets a real scan's code when practice is turned on, so it is practised", () => {
+    const afterReal: ScanMemory = { ...practised, practice: false };
+    expect(memoryIn(afterReal, true)).toEqual({ practice: true, last: null, attempt: null });
   });
 });

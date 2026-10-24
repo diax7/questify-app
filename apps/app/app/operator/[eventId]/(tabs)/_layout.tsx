@@ -1,12 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { AppState } from "react-native";
-import { api } from "#src/api/app-session.ts";
+import { useCallback } from "react";
 import type { MessageKey } from "@questify/shared";
 import { ScanButton } from "#src/components/ScanButton.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { fetchInboxTotal } from "#src/operator/inbox.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { useTheme } from "#src/theme/theme.tsx";
 
@@ -21,33 +18,15 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
   { name: "tools", title: "operator.tools", icon: "construct" },
 ];
 
-/** How often the Inbox badge reads its count while staff mode is in the foreground (T-310). */
-const BADGE_REFRESH_MS = 30_000;
-
-/** The Inbox badge: what waits, read on focus and every 30 seconds while the app is in the foreground. */
-function useInboxBadge(eventId: string): number | undefined {
-  const [total, setTotal] = useState<number | null>(null);
-  const [active, setActive] = useState(AppState.currentState === "active");
-  const read = useCallback(async () => {
-    setTotal(await fetchInboxTotal(api.session, eventId));
-  }, [eventId]);
+/** The Inbox badge: what waits, from the one shared poll (T-310), read again when the bar comes into focus. */
+function useInboxBadge(): number | undefined {
+  const { waiting, refreshWaiting } = useOperator();
   useFocusEffect(
     useCallback(() => {
-      void read();
-    }, [read]),
+      void refreshWaiting();
+    }, [refreshWaiting]),
   );
-  useEffect(() => {
-    const watcher = AppState.addEventListener("change", (state) => setActive(state === "active"));
-    return () => watcher.remove();
-  }, []);
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-    const timer = setInterval(() => void read(), BADGE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [active, read]);
-  return total === null || total === 0 ? undefined : total;
+  return waiting?.kind === "count" && waiting.total > 0 ? waiting.total : undefined;
 }
 
 /**
@@ -58,7 +37,7 @@ export default function OperatorTabsLayout() {
   const { t } = useI18n();
   const { theme, text } = useTheme();
   const { eventId } = useOperator();
-  const badge = useInboxBadge(eventId);
+  const badge = useInboxBadge();
   return (
     <Tabs
       screenOptions={{

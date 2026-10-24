@@ -4,12 +4,14 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText } from "#src/components/AppText.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { PracticeStrip } from "#src/operator/PracticeStrip.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
  * The frame every tab screen shares: the theme's page background, safe areas, a title. Layout uses start and end, and
  * the content takes the language's direction itself, so a screen mirrors in Arabic even when the app as a whole could
- * not (Expo Go). The tab bar sits outside this frame.
+ * not (Expo Go). The tab bar sits outside this frame. In staff mode with practice on, every screen starts with the
+ * practice strip (ADR-250).
  */
 export function Screen({
   title,
@@ -26,6 +28,7 @@ export function Screen({
   return (
     <SafeAreaView edges={["top"]} style={styles.page}>
       <View style={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
+        <PracticeStrip />
         {header}
         <AppText variant="display">{title}</AppText>
         {children}

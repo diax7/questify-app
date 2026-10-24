@@ -1,7 +1,7 @@
 import { joinCard } from "@questify/shared";
 import { router } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
+import { Switch, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -16,12 +16,13 @@ import { useOperator } from "#src/operator/OperatorContext.tsx";
 /**
  * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); Review
  * submissions with the `review` ability (T-301); Write NFC tag with the `write_nfc` ability (T-308); Rotating QR, Pair a
- * device and My paired devices with the `show_rotating_qr` ability (T-309); the switch to Player mode, shown only to an
- * operator the owner allows to play (FR-906, FR-907).
+ * device and My paired devices with the `show_rotating_qr` ability (T-309); Practice mode with the `scan_quests` ability
+ * (T-311, FR-929: held in memory, off when staff mode ends); the switch to Player mode, shown only to an operator the
+ * owner allows to play (FR-906, FR-907).
  */
 export default function OperatorToolsScreen() {
   const { t, language } = useI18n();
-  const { eventId, event } = useOperator();
+  const { eventId, event, practice, setPractice } = useOperator();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -78,6 +79,19 @@ export default function OperatorToolsScreen() {
               label={t("operator.devices.mine")}
               onPress={() => router.push(`/operator/${eventId}/my-devices`)}
             />
+          </>
+        ) : null}
+        {event?.abilities.includes("scan_quests") === true ? (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Switch
+                value={practice}
+                onValueChange={setPractice}
+                accessibilityLabel={t("operator.practice.title")}
+              />
+              <AppText variant="label">{t("operator.practice.title")}</AppText>
+            </View>
+            <AppText muted>{t("operator.practice.hint")}</AppText>
           </>
         ) : null}
         {event?.canPlay === true ? (

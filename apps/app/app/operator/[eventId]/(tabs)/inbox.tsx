@@ -12,6 +12,7 @@ import { textIn } from "#src/i18n/text.ts";
 import { fetchInbox, type InboxItem } from "#src/operator/inbox.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 type Loaded = Readonly<{ items: readonly InboxItem[]; next: string | null }>;
 
@@ -54,7 +55,7 @@ function InboxCard({ eventId, item }: Readonly<{ eventId: string; item: InboxIte
  * Staff mode's Inbox (FR-927, T-310): submissions to review and help-desk requests as one list, oldest first, read on
  * every focus. With neither ability the tab says the inbox is off for this event.
  */
-export default function InboxTab() {
+function InboxTab() {
   const { t } = useI18n();
   const { eventId, removed } = useOperator();
   const [loaded, setLoaded] = useState<Loaded | "off" | "failed" | undefined>(undefined);
@@ -126,3 +127,12 @@ const makeStyles = (theme: Theme) => ({
   },
   row: { flexDirection: "row" as const, gap: theme.spacing.sm, alignItems: "center" as const },
 });
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function InboxTabRoute() {
+  return (
+    <PracticeLocked title="operator.inbox" back={false}>
+      <InboxTab />
+    </PracticeLocked>
+  );
+}

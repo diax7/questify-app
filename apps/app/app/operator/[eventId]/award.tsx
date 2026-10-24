@@ -31,6 +31,7 @@ import {
   type Refused,
 } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 /** A problem to show: one of the app's own lines, or the API's message as it came. */
 type Shown = Said | Readonly<{ text: LocalizedText }> | "network";
@@ -266,7 +267,7 @@ type Step = "fill" | "confirm" | Readonly<{ done: number; name: string }>;
  * Manual award in operator mode (FR-308 to FR-310, OPERATOR_MODE 3.5): find a member, pick a quest or an amount,
  * write the reason, confirm. The caps show on the form; the server checks them again on the award.
  */
-export default function ManualAwardScreen() {
+function ManualAwardScreen() {
   const { t } = useI18n();
   const { eventId, removed } = useOperator();
   const [form, setForm] = useState<AwardForm | null | "failed">(null);
@@ -353,5 +354,14 @@ export default function ManualAwardScreen() {
         ) : null}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Locked while practice mode is on (ADR-250): this tool writes real records. */
+export default function ManualAwardScreenRoute() {
+  return (
+    <PracticeLocked title="operator.award.title" back={true}>
+      <ManualAwardScreen />
+    </PracticeLocked>
   );
 }

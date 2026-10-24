@@ -101,14 +101,25 @@ export async function fetchInbox(
   );
 }
 
-/** The tab's badge: what waits; null when it could not be read (the badge then hides). */
-export async function fetchInboxTotal(session: Requester, eventId: string): Promise<number | null> {
+/**
+ * What waits for this operator (T-310's count), for the Inbox badge and Home's "Waiting" line (T-311): `off` for an
+ * operator with neither review nor the help desk (OA403, the line hides), `failed` when it could not be read.
+ */
+export type Waiting =
+  | Readonly<{ kind: "count"; total: number }>
+  | Readonly<{ kind: "off" }>
+  | Readonly<{ kind: "failed" }>;
+
+export async function fetchWaiting(session: Requester, eventId: string): Promise<Waiting> {
   const answer = await session.request({
     method: "GET",
     path: `${eventPath(eventId)}/inbox/count`,
   });
+  if (answer.kind === "error" && answer.code === "ability_off") {
+    return { kind: "off" };
+  }
   const total = answer.kind === "ok" && isRecord(answer.body) ? answer.body["total"] : undefined;
-  return typeof total === "number" ? total : null;
+  return typeof total === "number" ? { kind: "count", total } : { kind: "failed" };
 }
 
 /** One request as the operator sees it: never who answered. */
