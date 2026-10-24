@@ -1954,42 +1954,47 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flash quests and boosts (datab
          VALUES ($1, $2, $3, $4, $5, now() + interval '1 minute')`,
         [ids.orgA, event, meet, shown.enrollment, hash],
       );
-      // Each refused door rolls its own wipe back, so every call below is the first live one.
-      const doors: readonly [string, Promise<unknown>][] = [
-        ["scan", complete(player.player, scan)],
+      // Each refused door rolls its own wipe back, so every call below is the first live one; each starts only when
+      // awaited, so no refusal is left unhandled.
+      const doors: readonly [string, () => Promise<unknown>][] = [
+        ["scan", () => complete(player.player, scan)],
         [
           "submission",
-          query(as(player.player), "SELECT * FROM submit_quest($1, 'My answer', $2, $3)", [
-            submission,
-            GUIDELINES,
-            randomUUID(),
-          ]),
+          () =>
+            query(as(player.player), "SELECT * FROM submit_quest($1, 'My answer', $2, $3)", [
+              submission,
+              GUIDELINES,
+              randomUUID(),
+            ]),
         ],
-        ["quiz start", query(as(player.player), "SELECT quiz_start($1)", [quiz])],
+        ["quiz start", () => query(as(player.player), "SELECT quiz_start($1)", [quiz])],
         [
           "game start",
-          query(as(player.player), "SELECT * FROM start_game_round($1, $2, NULL, 1)", [
-            game,
-            randomUUID(),
-          ]),
+          () =>
+            query(as(player.player), "SELECT * FROM start_game_round($1, $2, NULL, 1)", [
+              game,
+              randomUUID(),
+            ]),
         ],
         [
           "meet pass",
-          query(as(player.player), "SELECT * FROM issue_meet_pass($1, $2, NULL)", [
-            meet,
-            randomBytes(32),
-          ]),
+          () =>
+            query(as(player.player), "SELECT * FROM issue_meet_pass($1, $2, NULL)", [
+              meet,
+              randomBytes(32),
+            ]),
         ],
         [
           "meet code",
-          query(as(player.player), "SELECT * FROM meet_player($1, $2, NULL, NULL)", [
-            hash,
-            randomUUID(),
-          ]),
+          () =>
+            query(as(player.player), "SELECT * FROM meet_player($1, $2, NULL, NULL)", [
+              hash,
+              randomUUID(),
+            ]),
         ],
       ];
       for (const [name, door] of doors) {
-        expect(await refusal(door), name).toBe("QN403:hidden");
+        expect(await refusal(door()), name).toBe("QN403:hidden");
       }
       expect(
         await owner("SELECT 1 FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'quest'", [
