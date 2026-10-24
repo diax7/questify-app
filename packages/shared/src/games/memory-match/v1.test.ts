@@ -174,15 +174,37 @@ describe("memory match: results", () => {
     ]);
     expect(seenFirst).toMatchObject({ result: { pairs: 1, lucky: 0 } });
   });
+
+  it("counts a lucky match made while exactly 4 cards were unseen", () => {
+    const [p0, p1, p2, p3, p4, p5] = pairsOf(engine.start(3, easy)) as [number, number][];
+    // A mismatch first, then a seen card with its never-seen pair: unseen before each second flip 10, 8, 6, 4, 2, 1.
+    const cards = [p0[0], p1[0], p0[0], p0[1], ...p2, ...p3, ...p4, ...p5, p1[0], p1[1]];
+    const inputs = cards.map((card, index) => ({
+      t: index < 2 ? (index + 1) * 200 : index * 200 + 800,
+      card,
+    }));
+    expect(replay(engine, 3, easy, inputs)).toEqual({
+      result: { pairs: 6, moves: 7, ms: inputs.at(-1)?.t, lucky: 4 },
+    });
+  });
 });
 
+/**
+ * Seed 1's first two pairs on easy. Read inside each test, never while the file is collected: Stryker counts a call
+ * made outside a test as static and then misses what the tests check.
+ */
+function seedOne(): { first: number; second: number; third: number } {
+  const pairs = pairsOf(engine.start(1, easy));
+  const [first, second] = pairs[0] as [number, number];
+  const [third] = pairs[1] as [number, number];
+  return { first, second, third };
+}
+
 describe("memory match: impossible rounds", () => {
-  const state = engine.start(1, easy);
-  const [first, second] = pairsOf(state)[0] as [number, number];
-  const [third] = pairsOf(state)[1] as [number, number];
   const reason = (inputs: MemoryInput[]) => replay(engine, 1, easy, inputs);
 
   it("refuses a card that is not there, a matched card and the face-up card", () => {
+    const { first, second } = seedOne();
     expect(reason([{ t: 0, card: 12 }])).toEqual({ impossible: "illegal" });
     expect(
       reason([
@@ -194,12 +216,20 @@ describe("memory match: impossible rounds", () => {
     expect(
       reason([
         { t: 0, card: first },
+        { t: 200, card: second },
+        { t: 400, card: second },
+      ]),
+    ).toEqual({ impossible: "illegal" });
+    expect(
+      reason([
+        { t: 0, card: first },
         { t: 200, card: first },
       ]),
     ).toEqual({ impossible: "illegal" });
   });
 
   it("refuses a flip during the mismatch pause and takes one right after it", () => {
+    const { first, second, third } = seedOne();
     const mismatch = [
       { t: 0, card: first },
       { t: 200, card: third },
@@ -211,6 +241,7 @@ describe("memory match: impossible rounds", () => {
   });
 
   it("refuses inputs out of order, closer than 100 ms, or past the time limit", () => {
+    const { first, third } = seedOne();
     expect(
       reason([
         { t: 500, card: first },
@@ -236,13 +267,15 @@ describe("memory match: impossible rounds", () => {
   });
 
   it("refuses a flip after every pair was found", () => {
+    const { first } = seedOne();
     const inputs = seeingPlayer(1, easy);
     expect(replay(engine, 1, easy, [...inputs, { t: 99_000, card: first }])).toEqual({
       impossible: "illegal",
     });
   });
 
-  it("refuses a flip over the cap", () => {
+  it("refuses a flip over the cap, and judges a round past it as over the cap, not malformed", () => {
+    const { first, third } = seedOne();
     const flips: MemoryInput[] = [];
     for (let index = 0; index <= MEMORY_FLIP_CAP; index += 1) {
       flips.push({ t: index * 100, card: index % 2 === 0 ? first : third });
@@ -251,6 +284,11 @@ describe("memory match: impossible rounds", () => {
     const pauseFree = flips.map((input, index) => ({ ...input, t: index * 1000 }));
     expect(replay(engine, 1, slow, pauseFree.slice(0, MEMORY_FLIP_CAP))).toHaveProperty("result");
     expect(replay(engine, 1, slow, pauseFree)).toEqual({ impossible: "cap" });
+    const claimed = { pairs: 0, moves: 0, ms: 0, lucky: 0 };
+    expect(judge(engine, { seed: 1, params: slow }, { inputs: pauseFree, claimed })).toEqual({
+      verdict: "refused",
+      reason: "cap",
+    });
   });
 });
 

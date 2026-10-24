@@ -43,7 +43,8 @@
     "apps/app/src/api/session.ts",
     "packages/shared/src/time/**/*.ts",
     "!**/*.test.ts",
-    "!**/*.d.ts"
+    "!**/*.d.ts",
+    "!packages/shared/src/games/testing/**"
   ],
   "thresholds": {
     "high": 90,
