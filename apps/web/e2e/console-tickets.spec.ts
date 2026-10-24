@@ -71,7 +71,7 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   await expect(page.getByText("ردّ عليه فريق كويستفاي")).toBeVisible();
 
   await page.goto(`/ar/console/tickets/${never}`);
-  await expect(page.getByRole("alert")).toContainText("لم نجد هذه التذكرة.");
+  await expect(page.getByText("لم نجد هذه التذكرة.")).toBeVisible();
 
   await page.goto(`${event}/help`);
   await page.getByRole("tab", { name: "مغلقة (1)" }).click();

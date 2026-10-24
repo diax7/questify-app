@@ -4340,7 +4340,10 @@ export const MESSAGES = {
   "tickets.escalatedNote": { ar: "ملاحظتكم لكويستفاي: {note}", en: "Your note to Questify: {note}" },
   "tickets.escalatedBy": { ar: "أحاله {name}", en: "Escalated by {name}" },
   "tickets.returned": { ar: "أعاده فريق كويستفاي: {note}", en: "Sent back by Questify: {note}" },
-  "tickets.answeredByQuestify": { ar: "ردّ عليه فريق كويستفاي", en: "Answered by the Questify team" },
+  "tickets.answeredByQuestify": {
+    ar: "ردّ عليه فريق كويستفاي",
+    en: "Answered by the Questify team",
+  },
   "tickets.closedByQuestify": { ar: "أغلقه فريق كويستفاي", en: "Closed by the Questify team" },
   "tickets.kind.report": { ar: "بلاغ عن لاعب", en: "Report a player" },
   "tickets.kind.prize": { ar: "جائزة", en: "Prize" },
