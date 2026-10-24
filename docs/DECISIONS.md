@@ -2964,3 +2964,42 @@ event, with no owner override; the switch's confirm and the builder form say so.
 (goals do not run there, Q-186). The gate only reads reach rows, all written after the go-live wipe, so nothing
 unlocks in rehearsal or re-locks at go-live.
 **Why:** an unlock given on a miss is not a reward; an override is a feature nobody has asked for yet.
+
+## ADR-230 — T-307 is split in two
+**Status:** Proposed (Claude, 2026-10-24; T-307 plan).
+**Decision:** T-307 builds flash quests and double-point boosts (FR-251, FR-252). T-307b builds the live finale
+(FR-254, FR-255, FR-1621) after T-504; its design is in the T-307 plan. The finale's reveal calls the owner's
+`POST …/results/reveal` and never decides winners.
+**Why:** the finale is a big-screen scene, and the big screen, its pairing and its reader rule (T-504, T-309) do not
+exist yet; a finale page of its own on the dashboard would duplicate T-504's scene player. Boosts touch every quest
+payer and need their own review.
+
+## ADR-231 — Flash quests
+**Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-195.
+**Decision:** a flash quest is any quest but a live poll with `flash` set. It is launched now for 1 to 1,440 minutes
+(once; a rehearsal launch goes back to draft at go-live) or scheduled with both an opening and a closing time; End now
+closes it early. Players see it only inside its window (never on the public event page). It stays out of every
+category rule, as live polls do. The event's `flashQuests` switch hides it and its doors refuse it.
+**Why:** a "drop" that shows only while it runs; leaving it out of the category rules means a missed flash quest
+never holds back a bonus or an unlock.
+
+## ADR-232 — Double-point boosts
+**Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-196.
+**Decision:** a boost doubles (×2) the quest payments of one category (a "zone" is a category under the event's own
+word, F-187) for 1 to 1,440 minutes, started now or scheduled; two boosts of one category never overlap; at most 100 an
+event; a scheduled boost can be edited or deleted until a minute before it starts, a started one only stopped. The
+doubled amount is written into the quest's own ledger entry with `boost_id`, so the score, the ranking rebuild,
+removals, today's ranking and results need no change. Boosted: every quest payment from a player's own act (scan,
+code, location, my-QR, vote, live poll, survey, share, passport, meet, submission, quiz, game). Never: the category
+bonus, items, community rewards, manual quest awards and point awards, welcome points, XP.
+**Why:** one entry per payment keeps the ledger the only source of the score; staff awards keep their caps exact.
+
+## ADR-233 — When a boost applies
+**Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-197.
+**Decision:** a boost is judged at the time the quest's points were fixed: the completion, a submission's send, a
+quiz's start, a game round's issue. It is looked up by that time; since a window never moves once it starts (only Stop
+shortens it to now), the answer never changes. The event's `boosts` switch off stops every boost paying at once; the
+platform switch only stops new ones. A community points goal counts the doubled points. A rehearsal boost pays only
+rehearsal accounts and the go-live wipe deletes it after the rehearsal entries.
+**Why:** what the player saw when they acted is what they get, whatever the review or finish delay, with nothing new
+stored on submissions, quizzes or rounds.

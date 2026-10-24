@@ -457,3 +457,18 @@ ADR-227 build note: when a community goal misses a step that locks one quest of 
 counts toward the category's bonus. A player who already finished every other quest of the category gets the bonus
 with their next completion there, and not at all if nothing is left to complete (the bonus is paid by a completion,
 never by the goal). Agree, or should the goal pay those bonuses when it is missed?
+
+## Q-195 — Flash quests (2026-10-24, T-307 plan)
+ADR-231: a flash quest is hidden from players before and after its window (and never shown on the public event page),
+lasts at most 24 hours, and is launched once; a missed flash quest never blocks a category's bonus or what unlocks
+after it, and doing one does not count toward the bonus. Agree?
+
+## Q-196 — What a boost doubles (2026-10-24, T-307 plan)
+ADR-232: a boost always doubles (×2), on one category, never overlapping another on it; the category bonus, community
+rewards and points handed out by staff are never doubled (staff top up with a point award if a scan failed during a
+boost). Agree, or should a staff award of a quest during a boost be doubled too?
+
+## Q-197 — When a boost applies (2026-10-24, T-307 plan)
+ADR-233: a submission sent, a quiz started or a game begun during a boost gets double points even if it is approved or
+finished after the boost ends; turning boosts off for the event stops doubling at once, including for submissions
+still waiting for review; a community points goal counts the doubled points. Agree?

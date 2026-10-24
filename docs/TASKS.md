@@ -356,9 +356,13 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-24 (T-306b done): `community_step.reward` gains `unlock` (0053 checks `points | moment | nothing`);
     the gate reads `community_reach` (a step reached stays reached). The builder's `goal_locked` already freezes a
     started goal's steps, so an unlock's target cannot move under players.
-- [ ] **T-307** Flash quests, double-point boosts, live finale — delivers FR 251, 252, 254, 255, 1621; depends on: T-306b
-  - Note 2026-10-24 (T-306 plan): the finale's "last community push" reads T-306b's goal; flash quests can be announced through `GET /v1/events/{id}/live` (ADR-221) until T-501's push exists.
+- [ ] **T-307** Flash quests and double-point boosts — delivers FR 251, 252; depends on: T-306b
+  - Note 2026-10-24 (T-306 plan): flash quests can be announced through `GET /v1/events/{id}/live` (ADR-221) until T-501's push exists.
   - Done when: A flash quest is available only in its window; a boost applies only to its category or zone.
+  - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-307-flash-quests-boosts.md`, migration 0055, ADR-230 to ADR-233 and Q-195 to Q-197 Proposed. Split (ADR-230): the live finale (FR 254, 255, 1621) moves to T-307b.
+- [ ] **T-307b** Live finale: countdown, last community push, winner reveal on the big screen — delivers FR 254, 255, 1621; depends on: T-307, T-504, T-214
+  - Split from T-307 2026-10-24 (ADR-230): the finale is a big-screen scene and the big screen does not exist yet. Its design is in the T-307 plan's last section.
+  - Note 2026-10-24 (T-306 plan): the finale's "last community push" reads T-306b's goal.
   - Note 2026-10-23 (T-214): the finale's winner reveal calls the owner's `POST …/results/reveal` (confirmed results, a claim deadline) and shows `results_places`; it never decides winners itself. Results are confirmed only after the event ends (ADR-163, Q-127): a finale before the end needs the end time moved, or Q-127 answered otherwise.
 - [ ] **T-308** NFC: write a tag from staff mode, tap to complete, signed tags (Q-071 decision first), QR stays as a fallback — delivers FR 312, 313; depends on: T-205
   - Done when: A quest can be completed by tapping its tag; a cloned plain tag is flagged or refused according to Q-071.
