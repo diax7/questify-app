@@ -36,13 +36,15 @@ type Pending = Readonly<{
   uid: string;
   label: string;
   locked: boolean;
+  /** The operator asked for a lock the tag did not take. */
+  lockMissed: boolean;
   key: string;
 }>;
 
 type Step =
   | Readonly<{ kind: "idle" }>
   | Readonly<{ kind: "writing" }>
-  | Readonly<{ kind: "done"; quest: Bilingual; confirmed: Confirmed }>
+  | Readonly<{ kind: "done"; quest: Bilingual; confirmed: Confirmed; lockMissed: boolean }>
   | Readonly<{ kind: "problem"; key: MessageKey; rewrite: boolean }>
   | Readonly<{ kind: "refused"; message: LocalizedText }>
   | Readonly<{ kind: "unconfirmed"; pending: Pending }>;
@@ -96,7 +98,12 @@ export default function NfcWriteScreen() {
       pending.key,
     );
     if (answer.kind === "confirmed") {
-      setStep({ kind: "done", quest: pending.quest, confirmed: answer });
+      setStep({
+        kind: "done",
+        quest: pending.quest,
+        confirmed: answer,
+        lockMissed: pending.lockMissed,
+      });
       void load();
     } else if (answer.kind === "refused" && answer.message !== null) {
       setStep({ kind: "refused", message: answer.message });
@@ -138,7 +145,8 @@ export default function NfcWriteScreen() {
       questId: quest.id,
       quest: quest.title,
       label,
-      locked: lock,
+      locked: written.locked,
+      lockMissed: lock && !written.locked,
       url: prepared.url,
       ticket: prepared.ticket,
       uid: written.uid,
@@ -236,6 +244,7 @@ function Outcome({
           <AppText variant="title" accessibilityRole="alert">
             {t("operator.nfc.done", { quest: textIn(step.quest, language) })}
           </AppText>
+          {step.lockMissed ? <AppText>{t("operator.nfc.notLocked")}</AppText> : null}
           {replaced === null ? null : (
             <AppText>
               {t("operator.nfc.replaced", {

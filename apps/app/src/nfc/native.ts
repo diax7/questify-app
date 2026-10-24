@@ -143,7 +143,7 @@ export async function readTag(alert: string): Promise<TagRead> {
 
 /** What a write gave: the sticker's id, or why nothing was written (FR-312). */
 export type TagWrite =
-  | Readonly<{ kind: "written"; uid: string }>
+  | Readonly<{ kind: "written"; uid: string; locked: boolean }>
   | Readonly<{
       kind: "locked" | "taken" | "unusable" | "cancelled" | "failed" | "unsupported" | "off";
     }>;
@@ -158,7 +158,9 @@ type WriteRequest = Readonly<{
 
 /**
  * Writes on a tag that already holds an NDEF area: refuses a locked tag, and a tag holding a Questify tag URL unless
- * `rewrite`; writes one URI record, reads it back, and locks it when asked.
+ * `rewrite`; writes one URI record, reads it back, and locks it when asked. Once the write went through, only a
+ * read-back showing another message fails it: a tag pulled away before the read-back or the lock is still answered as
+ * written (unlocked), so the server registers the link it now holds instead of leaving it unknown (ADR-243).
  */
 async function writeNdef(
   module: NfcModule,
@@ -180,14 +182,16 @@ async function writeNdef(
     return { kind: "taken" };
   }
   await manager.ndefHandler.writeNdefMessage(bytes);
-  const after = await manager.ndefHandler.getNdefMessage();
-  if (uriOfMessage((after?.ndefMessage as TagRecord[] | undefined) ?? null) !== request.url) {
+  const after = await manager.ndefHandler.getNdefMessage().catch(() => null);
+  if (
+    after !== null &&
+    uriOfMessage((after?.ndefMessage as TagRecord[] | undefined) ?? null) !== request.url
+  ) {
     return { kind: "failed" };
   }
-  if (request.lock) {
-    await manager.ndefHandler.makeReadOnly();
-  }
-  return { kind: "written", uid };
+  const locked =
+    request.lock && (await manager.ndefHandler.makeReadOnly().catch(() => false)) === true;
+  return { kind: "written", uid, locked };
 }
 
 /**
@@ -216,7 +220,7 @@ export async function writeTag(request: WriteRequest): Promise<TagWrite> {
         await module.default.ndefFormatableHandlerAndroid.formatNdef(messageOf(request.url), {
           readOnly: request.lock,
         });
-        return { kind: "written", uid };
+        return { kind: "written", uid, locked: request.lock };
       }
       return writeNdef(module, request, uid, tag?.ndefMessage);
     },

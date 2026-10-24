@@ -27,6 +27,9 @@ const fake = vi.hoisted(() => ({
   calls: [] as string[],
   formatted: null as null | { bytes: number[]; readOnly: boolean },
   written: null as number[] | null,
+  /** The tag leaves the phone right after the write went through. */
+  pulled: false,
+  lockable: true,
 }));
 
 const manager = {
@@ -62,12 +65,22 @@ const manager = {
   getTag: async () => fake.tag,
   ndefHandler: {
     getNdefStatus: async () => ({ status: 2, capacity: 137 }),
-    getNdefMessage: async () => ({ ndefMessage: fake.tag.ndefMessage }),
+    getNdefMessage: async () => {
+      if (fake.pulled && fake.written !== null) {
+        throw new Error("Tag was lost.");
+      }
+      return { ndefMessage: fake.tag.ndefMessage };
+    },
     writeNdefMessage: async (bytes: number[]) => {
       fake.written = bytes;
       fake.tag.ndefMessage = [{ tnf: 1, type: "U", payload: bytes.slice(4) }];
     },
-    makeReadOnly: async () => undefined,
+    makeReadOnly: async () => {
+      if (fake.pulled) {
+        throw new Error("Tag was lost.");
+      }
+      return fake.lockable;
+    },
   },
   ndefFormatableHandlerAndroid: {
     formatNdef: async (bytes: number[], options: { readOnly: boolean }) => {
@@ -124,6 +137,8 @@ beforeEach(() => {
     calls: [],
     formatted: null,
     written: null,
+    pulled: false,
+    lockable: true,
   });
 });
 
@@ -135,7 +150,7 @@ describe("Android tag sessions", () => {
     expect(fake.registration).toMatchObject({ isReaderModeEnabled: true, readerModeFlags: 15 });
     expect(fake.waiting?.techs).toEqual(["Ndef", "NdefFormatable"]);
     expect(holdTag("Ndef")).toBe("app");
-    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6" });
+    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6", locked: true });
     expect(fake.written).toEqual(messageOf(URL));
     expect(fake.registration).toBeNull();
   });
@@ -145,9 +160,39 @@ describe("Android tag sessions", () => {
     const written = writeTag({ ...request, lock: false });
     await until(() => fake.waiting !== null);
     expect(holdTag("NdefFormatable")).toBe("app");
-    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6" });
+    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6", locked: false });
     expect(fake.formatted).toEqual({ bytes: messageOf(URL), readOnly: false });
     expect(fake.written).toBeNull();
+  });
+
+  it("answers a tag pulled away after the write as written and unlocked, so its link gets registered", async () => {
+    fake.pulled = true;
+    const { writeTag } = await load();
+    const written = writeTag(request);
+    await until(() => fake.waiting !== null);
+    holdTag("Ndef");
+    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6", locked: false });
+    expect(fake.written).toEqual(messageOf(URL));
+  });
+
+  it("answers unlocked when the tag refuses the lock", async () => {
+    fake.lockable = false;
+    const { writeTag } = await load();
+    const written = writeTag(request);
+    await until(() => fake.waiting !== null);
+    holdTag("Ndef");
+    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6", locked: false });
+  });
+
+  it("fails a write whose read-back shows another message", async () => {
+    const { writeTag } = await load();
+    const original = manager.ndefHandler.writeNdefMessage;
+    manager.ndefHandler.writeNdefMessage = async () => undefined;
+    const written = writeTag(request);
+    await until(() => fake.waiting !== null);
+    holdTag("Ndef");
+    expect(await written).toEqual({ kind: "failed" });
+    manager.ndefHandler.writeNdefMessage = original;
   });
 
   it("says a tag with neither NDEF nor a blank NDEF area cannot be used, in the app", async () => {

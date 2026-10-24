@@ -3111,7 +3111,13 @@ turns it off itself when the session ends; sessions run one at a time, and one s
 starts. NFC switched off answers at once (`off`, with a hint). A factory-blank sticker (NdefFormatable) is formatted
 with the message, locked in the same step when asked, with no read-back (Android reports the format only once the
 message is written). A tag with neither NDEF nor NdefFormatable (a MIFARE Classic card on most phones) is refused in
-the app as `unusable`.
+the app as `unusable`. Once an NDEF write went through, only a read-back showing another message fails it: a tag
+pulled away before the read-back or the lock is answered as written and unlocked, so the server registers the link it
+holds (a refused lock is registered as unlocked and said on screen). The "already holds a Questify link" refusal says
+the link may not be registered.
 **Why:** the T-308 build asked for no reader mode, so the library fell back to foreground dispatch, and its cancel
 turned the registration off a second later, under a newer session. On Dhia's phone a sticker and a card met Android's
-"Could not find an app that supports this NFC tag" on the write screen while an NDEF fob was written.
+"Could not find an app that supports this NFC tag" on the write screen while an NDEF fob was written. The fob's link was then unknown to the server (CranL: no `nfc_tag` row and no
+`nfc_tag.*` audit entry, so no confirm ever committed): a write that failed after the NDEF write (the fob moved before
+the read-back or the lock) left a signed link on it, and the next tap answered "already holds a Questify quest", which
+reads as success.
