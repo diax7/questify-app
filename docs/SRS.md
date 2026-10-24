@@ -981,8 +981,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-248 | F-101 | Should | `test/db/community.int` (contributors with the top-up, everyone at the reach) (T-306b) |
 | FR-249 | F-101 | Should | `test/db/community.int` (a miss pays nothing for the goal) (T-306b) |
 | FR-250 | F-101 | Should | `test/db/community.int`, `test/community/routes.int`, `apps/app/src/event/community.test.ts` (the Home bar; the big screen is T-504's) (T-306b) |
-| FR-251 | F-102 | Should | pending |
-| FR-252 | F-102 | Should | pending |
+| FR-251 | F-102 | Should | built (T-307) |
+| FR-252 | F-102 | Should | built (T-307) |
 | FR-254 | F-103 | Should | pending |
 | FR-255 | F-103 | Should | pending |
 | FR-301 | F-54 | Must | pending |

@@ -2984,6 +2984,10 @@ back into a normal quest. The event's `flashQuests` switch hides it and its door
 refusal of the launch and the builder, not a table check (CTO plan review 1).
 **Why:** a "drop" that shows only while it runs; leaving it out of the category rules means a missed flash quest
 never holds back a bonus or an unlock.
+**Build notes (T-307, 2026-10-24):** the platform's `flashQuests` switch is read by the database too (`flash_on` reads
+`platform_setting`), so every door and reader honours it at once with no API check per completion. A visible flash quest
+with its own times is not launched by hand (`409 flash_scheduled`): hide it first. The builder's refusals keep its one
+`field` (`flash`, `flashWindow`, `flashLaunched`), not `issues`.
 
 ## ADR-232 — Double-point boosts
 **Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-196.
@@ -2997,6 +3001,11 @@ removals, today's ranking and results need no change. Boosted: every quest payme
 code, location, my-QR, vote, live poll, survey, share, passport, meet, submission, quiz, game). Never: the category
 bonus, items, community rewards, manual quest awards and point awards, welcome points, XP.
 **Why:** one entry per payment keeps the ledger the only source of the score; staff awards keep their caps exact.
+**Build notes (T-307, 2026-10-24):** a boost saved while the event has no start is a rehearsal boost; if a start is set
+later, before that boost ends, the edit is **accepted** (CTO plan re-review note 2): the boost keeps paying and showing
+to rehearsal accounts only, real players are paid ×1 and see no ×2, and the go-live wipe deletes it (tested). Stop is
+refused before a boost starts (`not_started`; Delete until a minute before), so in the minute before its start a boost
+can be neither changed nor stopped.
 
 ## ADR-233 — When a boost applies
 **Status:** Proposed (Claude, 2026-10-24; T-307 plan). Q-197.

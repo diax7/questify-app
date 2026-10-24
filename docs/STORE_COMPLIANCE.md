@@ -165,6 +165,11 @@ What App Review needs from Questify:
    unlock a quest, category or shop reward already in the event's data, decided by the server (T-306c, 2.5.2: data
    only, no code downloaded); a locked shop reward is bought with event points like any other once open, never with
    money or chance. The demo goal gets an unlock milestone.
+   **Flash quests and boosts (T-307, ADR-231 to ADR-233):** the note says a flash quest is a quest already in the
+   event's data shown only inside the window the organizer set, and a boost doubles the event points (never money) one
+   category's quests pay for a while, both decided by the server (2.5.2: data only); boosts are never bought (3.1.1).
+   The app learns them from its own polling (no push needed, 4.5.4). The demo event gets a scheduled flash quest and a
+   boost on the day the build goes to review (RUNBOOK).
 5. **Staff or organizer mode**, if the mobile app has one, needs its own demo credentials.
 6. Backend, SMS provider, push and image moderation all live during review.
 

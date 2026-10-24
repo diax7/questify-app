@@ -356,10 +356,11 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-24 (T-306b done): `community_step.reward` gains `unlock` (0053 checks `points | moment | nothing`);
     the gate reads `community_reach` (a step reached stays reached). The builder's `goal_locked` already freezes a
     started goal's steps, so an unlock's target cannot move under players.
-- [ ] **T-307** Flash quests and double-point boosts — delivers FR 251, 252; depends on: T-306b
+- [x] **T-307** Flash quests and double-point boosts — delivers FR 251, 252; depends on: T-306b
   - Note 2026-10-24 (T-306 plan): flash quests can be announced through `GET /v1/events/{id}/live` (ADR-221) until T-501's push exists.
   - Done when: A flash quest is available only in its window; a boost applies only to its category or zone.
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-307-flash-quests-boosts.md`, migration 0055, ADR-230 to ADR-233 and Q-195 to Q-197 Proposed. Split (ADR-230): the live finale (FR 254, 255, 1621) moves to T-307b.
+  - Done 2026-10-24 (CTO plan 84 → 93 GO, its three notes folded: the app reads running boosts and flash quests from the quests read, never from `/live`'s 15-minute tail; a boost saved with no event start stays a rehearsal boost and a start set before its end is accepted, tested (ADR-232 note); `pay_submission`'s own callers noted in the payer map), not yet run on a phone. Migration 0055: `quest.flash`, the `boost` table, `ledger_entry.boost_id`, every payer and reader restated (see DATA_MODEL). API: Launch and End now, the Boosts routes, the two event switches, `boost` on every completion answer, `flash`/`boost` on the quests read, `/live`'s `flash` and `boosts`, `multiplier` on the activity. App: the lightning badge and "Ends …", the ×2 seal with "Double points until …", "Double points!" on the paid lines, one-time live cards, "×2" in the history. Dashboard: the Flash quest box, Launch now (minutes) and End now on the list, the Double points page, the two switches. Code review and mutation owed (globs in STATE).
 - [ ] **T-307b** Live finale: countdown, last community push, winner reveal on the big screen — delivers FR 254, 255, 1621; depends on: T-307, T-504, T-214
   - Split from T-307 2026-10-24 (ADR-230): the finale is a big-screen scene and the big screen does not exist yet. Its design is in the T-307 plan's last section.
   - Note 2026-10-24 (T-306 plan): the finale's "last community push" reads T-306b's goal.
@@ -412,6 +413,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 _Notifications, announcements, big screen, agenda and sessions, maps, sponsors and surveys._
 
 - [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
+  - Note 2026-10-24 (T-307): a flash quest's launch (or a scheduled one's start) and a boost's start are FR-1102 event pushes; until then the app learns them from `/live`'s one-time cards.
   - Note 2026-10-24 (T-306 plan, ADR-219 Proposed): two event pushes are owed here: a live poll's push at `send_poll` (to the active members in the poll's audience who have not voted, once per poll; the in-app card already shows it), and FR-246's push at each reached community step (`community_reach`, T-306b; once per step, active members only).
   - Note 2026-10-24 (T-304 plan, ADR-200 Proposed): FR-238 moves here: a hidden category (T-304c) appears for the players who receive the organizer's hint push for it.
   - Note 2026-10-24 (T-306b done): the milestone push reads `community_reach` (one per reached step, the audit line
@@ -423,6 +425,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.
   - Note 2026-10-23 (T-218): FR-1819's push is owed here: when `decide_join_request` or `accept_all_join_requests` accepts or declines a request (pending → active or declined, audited as `event.join_accept` / `event.join_decline`), the player gets a personal push saying so (a release from the waiting list is an acceptance); send once per decision, never to a player who left. Home already shows the decision.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
+  - Note 2026-10-24 (T-307, CTO note 1): the "Happening now" strip (FR-806) must read running boosts and flash quests from the quests read (`flash`, `boost` on each quest and category), not from `GET …/live`: the event's live shortcut stops naming a boost or a flash quest 15 minutes after it starts (`event_has_live`'s tail), which is not its end. Or revisit that tail here.
   - Done when: Announcements never go by email or SMS.
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
   - Done when: A player entering the top 10 gets one push; organizer alert types are switchable per team member.
@@ -461,6 +464,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
   - Note 2026-10-21 (T-201): the uploads built here also carry each reward's picture (FR-501's last part): a picture column on `reward`, shown in the app's shop and the dashboard; until then a reward has none.
   - Note 2026-10-21 (T-112): the event's banner shows on its web page, and replaces the brand share image per event (`opengraph-image.tsx` in `app/[lang]/e/[code]/`), so a shared link previews the new banner (FR-116).
 - [ ] **T-603** Live control room: scan feed, launch flash quest or boost, announcement, pause quests, counters, pin the focus quest — delivers FR 1024, 1025, 1026, 1028; depends on: T-307, T-502
+  - Note 2026-10-24 (T-307): Launch and End now (`POST …/quests/{id}/launch|end`) and the boost routes exist; the control room gathers them on one screen (FR-1025).
   - Done when: The feed shows completions as they happen.
 - [ ] **T-604** Confirmation screens, live-edit choices (future only or also past) and change sets — delivers FR 411, 412, 413, 1031, 1032, 1034, 1035; depends on: T-103, T-004
   - Done when: Editing live points asks 'future only or also past' and explains each option before it applies.

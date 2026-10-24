@@ -369,6 +369,23 @@ review notes gain one line; the demo event gets a scheduled flash quest and a bo
    lock order, TASKS notes for T-501 (flash launch and boost start pushes, FR-1102), T-502 (strip), T-603 (control
    room), STATE).
 
+## CTO plan re-review notes (93/100 GO), as built
+
+1. `/live` stops naming a flash quest or a boost 15 minutes after it starts (`event_has_live`'s tail), so the app never
+   reads its absence as "ended": the live cards are one-time only, and the badges and lines come from the quests read
+   (`flash` on each quest, `boost` on each quest and category). T-502's note in `docs/TASKS.md` says the same for the
+   "Happening now" strip (or revisit the tail there).
+2. A boost saved while the event has no start is a rehearsal boost; a start set later, before that boost ends, is
+   **accepted**: it keeps paying and showing to rehearsal accounts only, real players are paid ×1 and see nothing, and
+   the go-live wipe deletes it (`test/db/flash-boosts.int.test.ts`, ADR-232 build note).
+3. In the payer completeness map, `pay_submission`'s own callers (the auto-approve in `submit_quest`, 0040:355,
+   0041:851, 0045:531, and `review_core`) need no time entry: they call `pay_submission`, which passes `sub.created_at`.
+
+Other build choices: the platform's `flashQuests` switch is read by the database (`flash_on`); a visible flash quest
+with its own times answers Launch `409 flash_scheduled`; Stop before the start is `not_started`; the builder's refusals
+keep `{field}`; `/live` carries the flash quest's title and the boost's category name for the cards; `member_poll` is not
+restated (a live poll can never be flash); the event switches' paths are `…/flash-quests` and `…/double-points`.
+
 ## T-307b — the live finale (split, ADR-230; design for its worker)
 
 FR-254, FR-255, FR-1621 on the big screen, after T-504 (pairing, scenes, the screen's own reader rule and outsider

@@ -589,6 +589,27 @@ nothing (`member_game` QN403); `member_event_quests` and `shop_rewards` carry `c
 to a member who sees it. A `BEFORE DELETE` trigger on `event` deletes its goals first, so a draft event holding goals
 can be deleted. `event_community_off` (restated) ends scheduled goals missed too. No new table, no grant change.
 
+### Flash quests and boost (migration 0055, T-307, ADR-231 to ADR-233)
+**Built:** `quest.flash` (builder's column grant) and `quest.flash_launched_at` (no grant: `launch_flash` and the wipe):
+a flash quest is never a live poll, a shown one has both times at most 1,440 minutes apart, only a flash quest has a
+launch time (`quest_flash_not_live_poll`, `quest_flash_window`, `quest_flash_launched`; the 1-minute minimum is launch's
+and the builder's), index `quest_flash_idx (event_id) WHERE flash`; `quest_flash_guard` keeps the API's seat from moving a
+launched or started flash quest's window (`FL409 window`). `boost (id, organizer_id, event_id, category_id, multiplier
+= 2, starts_at, ends_at (after the start, at most 1,440 minutes), rehearsal, created_by → staff_user SET NULL,
+created_at)`, cascading with its event, RESTRICT on its category; indexes `(category_id, starts_at)` and
+`(event_id, starts_at)`; row-level security forced, PUBLIC revoked, no grant. `ledger_entry.boost_id` → boost RESTRICT,
+only on `quest` and `removal` entries (`ledger_entry_boost_kinds`), indexed where set; `ledger_stamp_rehearsal` refuses a
+real entry naming a rehearsal boost (`LB500`). Internal: `flash_on` (the event's and the platform's switch),
+`boosts_on`, `flash_shown`, `boost_in_force` (the one rule for payers and readers), `quest_boost`, `team_flash`,
+`boost_editable`. Doors: `launch_flash`, `end_flash`, `save_boost`, `delete_boost`, `end_boost`, `event_boosts` (team),
+`completion_boost` (player). `pay_completion` takes `device` and `fixed_at` with no default; `record_completion` (now, never
+for `manual`), `pay_submission` (`created_at`), `finish_quiz` (`started_at`), `finish_game_round` (`issued_at`),
+`stamp_step` and `pay_meeting` (now) write the doubled amount and the boost. Readers restated with `flash_shown`; the
+category rules leave flash quests out; `member_event_quests` (`flash_closes_at`, `boost`), `member_activity` and
+`member_ledger` (`multiplier`) are dropped and created; `live_state` has `flash` and `boosts`; `event_has_live` a 15-minute
+tail. The wipe deletes rehearsal boosts after the rehearsal entries and puts rehearsal launches back to draft; the
+event's `BEFORE DELETE` trigger deletes its boosts too.
+
 ### survey_response; challenge and share quests (migration 0042, T-303, ADR-196 to ADR-199)
 **Built:** `survey_response (organizer_id, event_id, enrollment_id, quest_id, answers jsonb, completion_id unique,
 created_at)`, primary key (enrollment, quest): one response per player, paid as an ordinary completion (method

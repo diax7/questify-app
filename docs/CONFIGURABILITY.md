@@ -61,6 +61,13 @@ for an event.
   every share quest from every player read through one helper (`src/quests/switched-off.ts`) and refuses paying one.
   The database also checks the event's own switch in `share_quest`.
 
+## As built (T-307): flash quests and double points switches
+
+- `flashQuests` and `boosts` (not add-ons) join the registry. The owner turns each off per event (`PUT …/flash-quests`,
+  `PUT …/double-points`). Flash quests off (the event's or the platform's, both read by the database) hides every flash
+  quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
+  paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
+
 ## As built (T-008): texts
 
 - **Shipped texts** are `MESSAGES` in `packages/shared/src/i18n/messages.ts`: every key in Arabic and English, the same

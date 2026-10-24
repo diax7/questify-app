@@ -268,6 +268,10 @@ the client-address count (ADR-113).
   read questify_app's sessions" otherwise; `node migrate.cjs --verify` then reports `ownerSeesSessions: true`. Nothing
   is granted. It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. On the day a build
   goes to store review, give the demo event a running community goal with an unlock milestone (STORE_COMPLIANCE, review notes).
+- **Migration 0055 (T-307, flash quests and boosts):** a new column on `quest`, the `boost` table and `ledger_entry.boost_id`
+  (nullable, no default: no rewrite of the ledger). `pay_completion` is dropped and created with no defaults: deploy the
+  new API with it. On the day a build goes to store review, give the demo event a scheduled flash quest and a boost
+  (STORE_COMPLIANCE, review notes).
 - **Community tick alerts (T-306b, ADR-222 to ADR-224; log lines until T-018 makes them alerts):**
   - `community.settle_behind {goals, blockerPid, blockerApp}`: a goal's settle point is more than 2 minutes behind.
     The named backend holds the oldest open transaction of `questify_app` or the owner. CranL's own sessions as

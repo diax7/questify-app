@@ -83,7 +83,11 @@ holder never waits for a goal). Crossed cases: `test/db/community-locks.int.test
 rehearsal row, the builder's advisory lock, the goal, then its steps, whose inserts take `KEY SHARE` on each unlock
 target (quest, category, reward) through their keys; `reserve_reward` takes the enrollment then the reward `FOR UPDATE`
 and reads the gate in a later statement; the save never locks an enrollment, so the two never cycle (crossed both ways
-in `test/db/community-unlocks.int.test.ts`).
+in `test/db/community-unlocks.int.test.ts`). A boost's save (T-307) takes the rehearsal row, the event's boost advisory
+lock, the boost row `FOR UPDATE` (an edit), then reads other boosts; its delete takes the rehearsal row then the boost
+row `FOR UPDATE`; Stop takes the row `FOR NO KEY UPDATE` only, so a payer holding the boost's key (`KEY SHARE` through
+its entry's foreign key) never waits for it; none locks an enrollment. Launch and End now take the rehearsal row then
+the quest `FOR UPDATE`. Payers read the boost with no lock (crossed both ways in `test/db/flash-boosts.int.test.ts`).
 
 ## Testing
 
