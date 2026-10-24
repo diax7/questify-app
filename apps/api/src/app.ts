@@ -280,7 +280,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
-  registerTicketRoutes(app, { pool: options.pool, settings });
+  registerTicketRoutes(app, { pool: options.pool, settings, keys: signInDeps.keys });
   registerPlayRoutes(app, { pool: options.pool, ranking, settings });
   registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
   registerGameRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });

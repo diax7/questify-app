@@ -1042,6 +1042,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("help desk tickets (database)",
       expect(await ticketRow(asked.ticket_id)).toMatchObject({ reply: "Mine" });
     });
 
+    it("refuses one answerer's key on two tickets at once: the second waits, then QK422", async () => {
+      const event = await newEvent();
+      const { player } = await member(event);
+      const first = await open(player, event);
+      const second = await open(player, event);
+      const key = randomUUID();
+      const [held, waited] = await crossed(
+        [
+          team(),
+          "SELECT * FROM staff_answer_ticket($1, $2, 'Hi', $3, NULL)",
+          [event, first.ticket_id, key],
+        ],
+        () => staffAnswer(event, second.ticket_id, "Hi", key),
+      );
+      expect(held.status).toBe("fulfilled");
+      expect(codeOf(waited)).toBe("QK422:");
+      expect(await ticketRow(second.ticket_id)).toMatchObject({ status: "open" });
+    });
+
     it("replays one answerer's key that waited on the lock", async () => {
       const event = await newEvent();
       const { player } = await member(event);

@@ -21,19 +21,28 @@ describe("the Help desk page (T-310)", () => {
   });
 
   it("says who answered: an operator's @username, a staff email, or a deleted account", () => {
-    expect(answeredByLine({ answeredBy: null }, "en")).toBeNull();
+    expect(answeredByLine({ answeredBy: null, outcome: null }, "en")).toBeNull();
     expect(
-      answeredByLine({ answeredBy: { kind: "operator", name: "sara", deleted: false } }, "en"),
+      answeredByLine(
+        { answeredBy: { kind: "operator", name: "sara", deleted: false }, outcome: "answered" },
+        "en",
+      ),
     ).toBe("Answered by @sara");
     expect(
       answeredByLine(
-        { answeredBy: { kind: "staff", name: "owner@najd.test", deleted: false } },
+        {
+          answeredBy: { kind: "staff", name: "owner@najd.test", deleted: false },
+          outcome: "solved",
+        },
         "en",
       ),
-    ).toBe("Answered by owner@najd.test");
+    ).toBe("Closed by owner@najd.test");
     expect(
-      answeredByLine({ answeredBy: { kind: "operator", name: null, deleted: true } }, "ar"),
-    ).toBe("ردّ عليه حساب محذوف");
+      answeredByLine(
+        { answeredBy: { kind: "operator", name: null, deleted: true }, outcome: "answered" },
+        "ar",
+      ),
+    ).toBe("الرد من حساب محذوف");
   });
 
   it("needs a reply of 1 to 1000 characters", () => {

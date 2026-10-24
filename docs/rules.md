@@ -76,7 +76,8 @@ device. A Revoke or removal waits for a scan in flight, and the scan is paid bef
 
 **The help desk's lock order (T-310).** `open_ticket` takes the rehearsal row, then the enrollment `FOR NO KEY
 UPDATE`, then inserts (a replay by key is read under the enrollment lock, so two sends with one key are one ticket);
-an answer takes the rehearsal row, then the ticket `FOR UPDATE`, and never an enrollment; the retention sweep skips a
+an answer takes the rehearsal row, then an advisory lock on its answerer's key, then the ticket `FOR UPDATE`, and never
+an enrollment; the retention sweep skips a
 ticket an answer holds (`SKIP LOCKED`), and erasure deletes ticket rows only. No path takes an enrollment after a
 ticket.
 

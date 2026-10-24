@@ -50,9 +50,9 @@ export function outcomeKey(ticket: Pick<TeamTicket, "status" | "outcome">): Mess
   return ticket.outcome === "solved" ? "help.status.solved" : "help.status.answered";
 }
 
-/** "Answered by …": an operator's @username or a staff member's email; "Deleted account" once erased. */
+/** "Answered by …" (or "Closed by …" when solved): an operator's @username or a staff email; "Deleted account" once erased. */
 export function answeredByLine(
-  ticket: Pick<TeamTicket, "answeredBy">,
+  ticket: Pick<TeamTicket, "answeredBy" | "outcome">,
   language: Language,
 ): string | null {
   const by = ticket.answeredBy;
@@ -66,7 +66,7 @@ export function answeredByLine(
       : by.kind === "operator"
         ? `@${by.name}`
         : by.name;
-  return t("tickets.answeredBy", { name });
+  return t(ticket.outcome === "solved" ? "tickets.closedBy" : "tickets.answeredBy", { name });
 }
 
 /** A reply of 1 to 1000 characters after trimming, as the server checks. */

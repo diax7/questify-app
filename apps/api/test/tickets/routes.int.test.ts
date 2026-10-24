@@ -354,6 +354,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the help desk over HTTP", () =
     expect(elsewhere.statusCode).toBe(404);
   });
 
+  it("holds a player's reads and seen marks to 60 a minute, with Retry-After", async () => {
+    const event = await newEvent();
+    const sara = await newPlayer(event);
+    const reads = [];
+    for (let i = 0; i < 59; i += 1) {
+      reads.push(await app("GET", "/v1/me/tickets", sara.token));
+    }
+    expect(reads.every((read) => read.statusCode === 200)).toBe(true);
+    const seen = await app("POST", `/v1/events/${event}/tickets/seen`, sara.token, { ids: ["1"] });
+    expect(seen.statusCode).toBe(204);
+    const held = await app("GET", `/v1/events/${event}/tickets/mine`, sara.token);
+    expect([held.statusCode, held.json().code]).toEqual([429, "too_many_attempts"]);
+    expect(Number(held.headers["retry-after"])).toBeGreaterThan(0);
+    const other = await newPlayer(event);
+    expect((await app("GET", "/v1/me/tickets", other.token)).statusCode).toBe(200);
+  });
+
   it("logs the ticket's events and never its text or reply", async () => {
     const lines: string[] = [];
     const logged = await startApp(db, {

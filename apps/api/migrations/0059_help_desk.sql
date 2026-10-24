@@ -240,7 +240,7 @@ GRANT EXECUTE ON FUNCTION mark_tickets_seen(uuid, bigint[]) TO questify_app;
 -- One answer by a staff member (`staff`) or an operator (`operator`), already checked by the entry points: a reply of
 -- 1 to 1000 characters, or NULL to close it as solved. The ticket FOR UPDATE; only an open one moves. A replay of the
 -- answerer's key on the same ticket answers the first outcome (also when it waited on the lock); on another ticket, or
--- for the other outcome, it is QK422. Refusals: HT404 (no such ticket here, or an operator's own is never theirs to
+-- for the other outcome, it is QK422 (the key is held under an advisory lock first, so two tickets at once serialize). Refusals: HT404 (no such ticket here, or an operator's own is never theirs to
 -- see), HT403 self_answer, HT403 outside_quests, HT409 already_closed, HT409 event_closed (archived), SV422 (the
 -- reply). Staff answers are audited with ids and the outcome only; operators are recorded on the row.
 CREATE FUNCTION answer_core(ev event, target bigint, reply text, request_key text, operator uuid, staff uuid,
@@ -258,6 +258,10 @@ BEGIN
     RAISE EXCEPTION 'an idempotency key is required' USING ERRCODE = 'QK422';
   END IF;
   PERFORM ensure_rehearsal_wiped(ev.id);
+  -- One answerer's key is unique in the event (ticket_answer_key_*): two answers with it at once, on two tickets, wait
+  -- here one for the other, so the second sees the first's ticket below (QK422), never a unique violation.
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    'ticket-answer:' || ev.id || ':' || coalesce('s' || staff, 'o' || operator) || ':' || request_key, 0));
   SELECT t.* INTO earlier FROM ticket t
   WHERE t.event_id = ev.id AND t.answer_key = request_key
     AND ((staff IS NOT NULL AND t.answered_by_staff = staff)
@@ -504,8 +508,8 @@ GRANT EXECUTE ON FUNCTION operator_inbox_count(uuid) TO questify_app;
 -- ================================================================ retention (Q-210)
 -- Deletes tickets 90 days after the later of their event's end and their sending, at most `batch` (1 to 1000) a run,
 -- oldest first; a ticket an answer holds is skipped until the next run. Called by the lifecycle tick with no organizer
--- context, so it reads across organizers on purpose (rules.md allows this for retention sweeps). An event with no end
--- keeps its tickets. Answers how many were deleted.
+-- context, so it reads across organizers on purpose (rules.md allows this for retention sweeps). Every event a ticket
+-- can be sent in has an end (event_times_once_active, 0009: out of draft, both times are set). Answers how many went.
 CREATE FUNCTION purge_ended_tickets(batch integer) RETURNS integer
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -513,7 +517,7 @@ DECLARE
 BEGIN
   WITH due AS (
     SELECT t.id FROM ticket t JOIN event e ON e.id = t.event_id
-    WHERE e.ends_at IS NOT NULL AND greatest(e.ends_at, t.created_at) + interval '90 days' <= now()
+    WHERE greatest(e.ends_at, t.created_at) + interval '90 days' <= now()
     ORDER BY t.created_at, t.id
     LIMIT least(greatest(coalesce(batch, 1000), 1), 1000)
     FOR UPDATE OF t SKIP LOCKED)

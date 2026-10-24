@@ -46,6 +46,8 @@ export const BUCKETS = {
   kioskScan: "kiosk_scan",
   kioskBadCode: "kiosk_bad_code",
   liveCode: "live_code",
+  ticketRead: "ticket_read",
+  inboxRead: "inbox_read",
   deviceClaim: "device_claim",
   deviceMissEvent: "device_miss_event",
   deviceMissOrganizer: "device_miss_organizer",

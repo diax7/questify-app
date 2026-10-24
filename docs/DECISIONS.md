@@ -3216,5 +3216,8 @@ caller's own closed tickets), so the profile's Your requests marks every event's
 days after the end, matching `help.sendClosed`; `event_closed` (HT409) for answering in an archived event. Staff accounts
 have no display name, so "Answered by" names the staff member's email (as flag resolutions do). The inbox cursor carries
 `created_at` in microseconds (a JavaScript Date keeps milliseconds). The app has no ban screen (a 403 Home forgets the
-event), so a banned, left or removed player reads their answers in the profile's Your requests. An event with no end
-keeps its tickets until it has one.
+event), so a banned, left or removed player reads their answers in the profile's Your requests. Every event a ticket
+can be sent in has an end (`event_times_once_active`), so the 90-day sweep has no gap. CTO code review (93 GO): one
+answerer's key is held under an advisory lock in `answer_core`, so the same key on two tickets at once is `QK422`, not a
+unique violation (the API maps that index's 23505 to `idempotency_key_reused` as a backstop); the ticket reads and seen
+marks take a per-player limit of 60 a minute, the operator's Inbox reads 60 a minute (`too_many_attempts`).

@@ -4061,12 +4061,14 @@ export const MESSAGES = {
   "operator.rotating": { ar: "رمز QR متغيّر", en: "Rotating QR" },
   "operator.rotating.pick": { ar: "اختر المهمة", en: "Pick a quest" },
   "help.title": { ar: "المساعدة", en: "Get help" },
+  "help.open": { ar: "اطلب المساعدة", en: "Get help" },
+  "tickets.closedBy": { ar: "أغلقه {name}", en: "Closed by {name}" },
   "help.ask": { ar: "اطرح سؤالًا", en: "Ask a question" },
   "help.report": { ar: "أبلغ عن مشكلة", en: "Report a problem" },
   "help.reportQuest": { ar: "أبلغ عن مشكلة في هذه المهمة", en: "Report a problem with this quest" },
   "help.aboutQuest": { ar: "عن المهمة: {quest}", en: "About the quest: {quest}" },
   "help.placeholder.question": {
-    ar: "ما الذي تودّ أن تسأل عنه فريق الفعالية؟",
+    ar: "ماذا تريد أن تسأل فريق الفعالية؟",
     en: "What would you like to ask the event team?",
   },
   "help.placeholder.problem": {
@@ -4092,8 +4094,8 @@ export const MESSAGES = {
   "help.kind.question": { ar: "سؤال", en: "Question" },
   "help.kind.problem": { ar: "مشكلة", en: "Problem" },
   "help.status.open": { ar: "بانتظار الرد", en: "Waiting for an answer" },
-  "help.status.answered": { ar: "تم الرد", en: "Answered" },
-  "help.status.solved": { ar: "تم الحل", en: "Solved" },
+  "help.status.answered": { ar: "وصل الرد", en: "Answered" },
+  "help.status.solved": { ar: "حُلّ", en: "Solved" },
   "help.replyFrom": { ar: "فريق الفعالية", en: "The event team" },
   "help.unread": { ar: "ردّ جديد", en: "New answer" },
   "help.newRequest": {
@@ -4113,7 +4115,7 @@ export const MESSAGES = {
     en: "Help isn't available for this event",
   },
   "help.notMember": {
-    ar: "لا يرسل الطلبات إلا الأعضاء النشطون في الفعالية، وتبقى ردودك هنا",
+    ar: "إرسال الطلبات للأعضاء النشطين فقط، وتبقى ردودك هنا",
     en: "Only active members can send requests. Your answers stay here",
   },
   "help.sendClosed": {
@@ -4128,7 +4130,7 @@ export const MESSAGES = {
   "profile.requests": { ar: "طلباتك", en: "Your requests" },
   "operator.inbox.empty": { ar: "لا شيء بانتظارك", en: "Nothing waiting" },
   "operator.inbox.off": {
-    ar: "صندوق الوارد غير مفعّل لك في هذه الفعالية",
+    ar: "الوارد غير مفعّل لك في هذه الفعالية",
     en: "Your inbox is off for this event",
   },
   "operator.inbox.loadFailed": {
@@ -4149,12 +4151,12 @@ export const MESSAGES = {
   },
   "operator.ticket.solve": { ar: "أغلقه محلولًا دون رد", en: "Mark solved without a reply" },
   "operator.ticket.solveConfirm": {
-    ar: "يُغلق الطلب ويرى اللاعب أنه تم الحل.",
+    ar: "سيُغلق الطلب، ويظهر للاعب أنه حُلّ.",
     en: "The request closes and the player sees it as solved.",
   },
   "operator.ticket.alreadyClosed": {
-    ar: "أجاب أحد أعضاء الفريق عن هذا الطلب",
-    en: "Someone on the team already answered this",
+    ar: "أغلق أحد أعضاء الفريق هذا الطلب",
+    en: "Someone on the team already closed this",
   },
   "operator.ticket.done": { ar: "أُغلق الطلب.", en: "The request is closed." },
   "operator.ticket.loadFailed": {
@@ -4174,7 +4176,7 @@ export const MESSAGES = {
     en: "Contains words from the watch list",
   },
   "tickets.eventWide": { ar: "عن الفعالية", en: "About the event" },
-  "tickets.answeredBy": { ar: "ردّ عليه {name}", en: "Answered by {name}" },
+  "tickets.answeredBy": { ar: "الرد من {name}", en: "Answered by {name}" },
   "tickets.deletedAccount": { ar: "حساب محذوف", en: "Deleted account" },
   "tickets.reply": {
     ar: "الرد (يراه اللاعب باسم فريق الفعالية)",
@@ -4183,7 +4185,7 @@ export const MESSAGES = {
   "tickets.send": { ar: "أرسل الرد", en: "Send the reply" },
   "tickets.solve": { ar: "أغلقه محلولًا دون رد", en: "Mark solved without a reply" },
   "tickets.solveConfirm": {
-    ar: "يُغلق الطلب ويرى اللاعب أنه تم الحل. هل تتابع؟",
+    ar: "سيُغلق الطلب، ويظهر للاعب أنه حُلّ. هل تتابع؟",
     en: "The request closes and the player sees it as solved. Go ahead?",
   },
   "tickets.more": { ar: "المزيد", en: "More" },
@@ -4197,7 +4199,7 @@ export const MESSAGES = {
     en: "Help desk: players ask questions and report problems, and the team answers.",
   },
   "events.helpDesk.off": {
-    ar: "لا يرسل اللاعبون طلبات جديدة. تبقى الطلبات المفتوحة قابلة للرد، ويرى اللاعبون ردودهم.",
+    ar: "لا يرسل اللاعبون طلبات جديدة، ويمكن الرد على الطلبات المفتوحة، ويرى اللاعبون ردودهم.",
     en: "Players can't send new requests. Open ones can still be answered, and players still see their answers.",
   },
 } as const satisfies Messages;

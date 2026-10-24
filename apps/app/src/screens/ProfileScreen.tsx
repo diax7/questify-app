@@ -159,7 +159,7 @@ export function ProfileScreen({
             {eventId === undefined ? null : (
               <Button
                 kind="quiet"
-                label={t("help.title")}
+                label={t("help.open")}
                 onPress={() => router.push(`/event/${eventId}/help`)}
               />
             )}

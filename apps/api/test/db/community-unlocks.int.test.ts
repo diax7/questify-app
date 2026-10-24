@@ -1538,7 +1538,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       const found = await owner<{ name: string }>(
         `SELECT DISTINCT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND has_function_privilege('questify_app', p.oid, 'EXECUTE')
-           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll|team_flash)\\()'
+           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll|team_flash|inbox_rows)\\()'
          ORDER BY 1`,
       );
       const names = found.map((row) => row.name);
@@ -1552,7 +1552,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
 /**
  * Every function `questify_app` may run whose source reads `quest`, `category` or `reward` (CTO 3): `gated` passes the
  * community lock (a door or reader above, each with its test), `staff` authorizes an owner, editor or operator first
- * (operator doors that offer quests are gated), `exempt` with the reason. A new reader or door fails the test above
+ * (operator doors that offer quests are gated), `exempt` with the reason. Helpers that read them for a door (`inbox_rows`)
+are matched by name, since the door's own source does not name the table. A new reader or door fails the test above
  * until it is placed here.
  */
 const GATE_MAP: Readonly<Record<string, string>> = {
@@ -1598,10 +1599,14 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   own_bonus: "exempt: bonuses already paid",
   own_category_bonus: "exempt: bonuses already paid",
   own_submissions: "exempt: submissions already sent",
-  own_tickets: "exempt: help-desk tickets already sent; a quest's title only for a ticket about it (T-310)",
-  open_ticket: "exempt: a help-desk ticket names a quest of the event without playing it; it pays nothing (T-310)",
+  own_tickets:
+    "exempt: help-desk tickets already sent; a quest's title only for a ticket about it (T-310)",
+  open_ticket:
+    "exempt: a help-desk ticket names a quest of the event without playing it; it pays nothing (T-310)",
   event_tickets: "staff: the team's Help desk page (T-310)",
-  operator_ticket: "operator: a help-desk ticket the operator answers, as the review queue (T-310)",
+  operator_ticket: "staff: a help-desk ticket the operator answers, as the review queue (T-310)",
+  operator_inbox: "staff: the operator's Inbox, quest titles through inbox_rows (T-310)",
+  operator_inbox_count: "staff: the operator's Inbox badge, through inbox_rows (T-310)",
   close_one_due_round: "exempt: the system sweep closing a round already open; it pays no quest",
   add_reward_codes: "staff: the team's reward codes",
   audience_counts: "staff: the team's audience preview",

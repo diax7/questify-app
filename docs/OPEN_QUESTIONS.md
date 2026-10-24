@@ -535,6 +535,8 @@ problem reports be a fifth type?
 ## Q-210 — Help-desk ticket retention (2026-10-24, T-310 plan, with Q-075)
 ADR-248: tickets are deleted 90 days after the later of their event's end and their sending (sending closes 30 days
 after the end; prize claims run up to 60 days), and at once with the account. Agree, or keep them longer for disputes?
+Closed part (CTO code review, 2026-10-24): no ticket escapes the sweep, since every event out of draft has an end
+(`event_times_once_active`) and tickets cannot be sent in a draft. The length (90 days) stays open for Dhia and counsel.
 
 ## Q-211 — Questify's access to tickets before escalation (2026-10-24, T-310 plan)
 ADR-247: until T-312, no Questify admin can read an event's tickets, even for abuse or a legal request (only the

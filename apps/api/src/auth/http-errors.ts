@@ -1537,7 +1537,7 @@ export const screenCodeExpired = make(
 export const ticketNotMember = make(
   403,
   "not_member",
-  "لا يرسل الطلبات إلا الأعضاء النشطون في هذه الفعالية.",
+  "إرسال الطلبات للأعضاء النشطين في هذه الفعالية فقط.",
   "Only active members of this event can send requests.",
 );
 /** The event is a draft, archived, or ended more than 30 days ago: answers already given stay readable. */
@@ -1575,12 +1575,12 @@ export const tooManyTickets = make(
   "أرسلت طلبات كثيرة اليوم. حاول مرة أخرى لاحقًا.",
   "You've sent many requests today. Try again later.",
 );
-/** Someone on the team answered first: the request is closed. */
+/** Someone on the team answered or solved it first: the request is closed. */
 export const ticketAlreadyClosed = make(
   409,
   "already_closed",
-  "أجاب أحد أعضاء الفريق عن هذا الطلب.",
-  "Someone on the team already answered this.",
+  "أغلق أحد أعضاء الفريق هذا الطلب.",
+  "Someone on the team already closed this.",
 );
 /** The event is archived, so its requests can no longer be answered. */
 export const ticketEventClosed = make(

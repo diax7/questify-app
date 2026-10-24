@@ -430,19 +430,19 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/events/:eventId/tickets":
     "the calling player's own active enrollment in that event only; the switch, the 30 days, the quest of that event and the caps checked by open_ticket (test/tickets/routes, test/db/tickets)",
   "GET /v1/events/:eventId/tickets/mine":
-    "the calling player's own tickets only, through own_tickets; never another player's, never who answered (test/tickets/routes, test/db/tickets)",
+    "the calling player's own tickets only, through own_tickets; never another player's, never who answered ; 60 a minute per player (test/tickets/routes, test/db/tickets)",
   "GET /v1/me/tickets":
-    "the calling player's own tickets in every event, through own_tickets(NULL); never another player's, never who answered (test/tickets/routes, test/db/tickets)",
+    "the calling player's own tickets in every event, through own_tickets(NULL); never another player's, never who answered ; 60 a minute per player (test/tickets/routes, test/db/tickets)",
   "POST /v1/events/:eventId/tickets/seen":
-    "marks only the calling player's own closed tickets of that event (test/tickets/routes, test/db/tickets)",
+    "marks only the calling player's own closed tickets of that event ; 60 a minute per player (test/tickets/routes, test/db/tickets)",
   "POST /v1/me/tickets/seen":
-    "marks only the calling player's own closed tickets, in any event (test/tickets/routes, test/db/tickets)",
+    "marks only the calling player's own closed tickets, in any event ; 60 a minute per player (test/tickets/routes, test/db/tickets)",
   "GET /v1/operator/events/:eventId/inbox":
-    "only an operator of that event with review or help_desk; pending submissions and open tickets inside their quest limit, never their own (test/tickets/routes, test/db/tickets)",
+    "only an operator of that event with review or help_desk; pending submissions and open tickets inside their quest limit, never their own ; 60 a minute per operator (test/tickets/routes, test/db/tickets)",
   "GET /v1/operator/events/:eventId/inbox/count":
-    "only an operator of that event with review or help_desk; counts by the inbox's own rules (test/tickets/routes, test/db/tickets)",
+    "only an operator of that event with review or help_desk; counts by the inbox's own rules ; 60 a minute per operator (test/tickets/routes, test/db/tickets)",
   "GET /v1/operator/events/:eventId/tickets/:ticketId":
-    "only an operator of that event with help_desk; an open ticket inside their limit and not their own, or one they answered; never who answered (test/tickets/routes, test/db/tickets)",
+    "only an operator of that event with help_desk; an open ticket inside their limit and not their own, or one they answered; never who answered ; 60 a minute per operator (test/tickets/routes, test/db/tickets)",
   "POST /v1/operator/events/:eventId/tickets/:ticketId/answer":
     "only an operator of that event with help_desk, inside their quest limit, never their own; once (test/tickets/routes, test/db/tickets)",
   "GET /v1/organizers/:organizerId/events/:eventId/tickets":

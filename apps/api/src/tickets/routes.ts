@@ -26,7 +26,10 @@ import {
   tooManyTickets,
   unauthenticated,
 } from "#src/auth/http-errors";
+import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
+import { BUCKETS } from "#src/auth/throttle";
+import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { organizerContextOf } from "#src/organizers/context";
 import type { SettingsService } from "#src/settings/service";
 import {
@@ -84,7 +87,19 @@ const inboxCursor = z.strictObject({
   i: z.string().regex(ID),
 });
 
-type Deps = TicketDeps & Readonly<{ settings: SettingsService }>;
+type Deps = TicketDeps & Readonly<{ settings: SettingsService; keys: Pick<AuthKeys, "playerKey"> }>;
+
+/**
+ * Per-player limits on the help desk's reads and seen marks (CTO code review, NIT 6): the app reads a few a minute (on
+ * open, after a send, the badge every 30 seconds); a client in a loop gets 429 `too_many_attempts` with Retry-After.
+ */
+export const TICKET_LIMITS = {
+  playerReads: { bucket: BUCKETS.ticketRead, max: 60, windowSeconds: 60 },
+  operatorReads: { bucket: BUCKETS.inboxRead, max: 60, windowSeconds: 60 },
+} as const satisfies Readonly<Record<string, DeviceLimit>>;
+
+const hold = (deps: Deps, limit: DeviceLimit, request: FastifyRequest, reply: FastifyReply) =>
+  holdBack(deps.pool, [{ limit, key: deps.keys.playerKey(playerIdOf(request)) }], true, reply);
 
 const playerIdOf = (request: FastifyRequest): string => {
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
@@ -220,8 +235,9 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
     });
   });
 
-  app.get("/v1/events/:eventId/tickets/mine", player, async (request) => {
+  app.get("/v1/events/:eventId/tickets/mine", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
+    await hold(deps, TICKET_LIMITS.playerReads, request, reply);
     const tickets = await ownTickets(deps, playerIdOf(request), eventId);
     return {
       tickets: tickets.map((ticket) => ({
@@ -241,13 +257,15 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
     };
   });
 
-  app.get("/v1/me/tickets", player, async (request) => ({
-    tickets: await ownTickets(deps, playerIdOf(request), null),
-  }));
+  app.get("/v1/me/tickets", player, async (request, reply) => {
+    await hold(deps, TICKET_LIMITS.playerReads, request, reply);
+    return { tickets: await ownTickets(deps, playerIdOf(request), null) };
+  });
 
   app.post("/v1/events/:eventId/tickets/seen", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const { ids } = parse(seenBody, request.body);
+    await hold(deps, TICKET_LIMITS.playerReads, request, reply);
     await markTicketsSeen(deps, playerIdOf(request), { eventId, ids });
     return reply.code(204).send();
   });
@@ -255,6 +273,7 @@ function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
   // The profile's Your requests lists every event's tickets, so it marks them in one call (CTO note 1).
   app.post("/v1/me/tickets/seen", player, async (request, reply) => {
     const { ids } = parse(seenBody, request.body);
+    await hold(deps, TICKET_LIMITS.playerReads, request, reply);
     await markTicketsSeen(deps, playerIdOf(request), { eventId: null, ids });
     return reply.code(204).send();
   });
@@ -265,6 +284,7 @@ function registerTicketOperatorRoutes(app: FastifyInstance, deps: Deps): void {
   app.get("/v1/operator/events/:eventId/inbox", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const query = parse(inboxQuery, request.query);
+    await hold(deps, TICKET_LIMITS.operatorReads, request, reply);
     const inbox = valueOf(
       request,
       reply,
@@ -283,11 +303,13 @@ function registerTicketOperatorRoutes(app: FastifyInstance, deps: Deps): void {
 
   app.get("/v1/operator/events/:eventId/inbox/count", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
+    await hold(deps, TICKET_LIMITS.operatorReads, request, reply);
     return valueOf(request, reply, await operatorInboxCount(deps, playerIdOf(request), eventId));
   });
 
   app.get("/v1/operator/events/:eventId/tickets/:ticketId", player, async (request, reply) => {
     const { eventId, ticketId } = parse(ticketParams, request.params);
+    await hold(deps, TICKET_LIMITS.operatorReads, request, reply);
     return {
       ticket: valueOf(
         request,

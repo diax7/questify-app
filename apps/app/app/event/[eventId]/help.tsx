@@ -153,8 +153,10 @@ function useHelp(eventId: string, helpOn: boolean) {
           Date.now(),
         ),
       );
-    } else if (home.kind === "gone") {
-      setOff("not_member");
+    } else {
+      // Home could not be read: the form shows unless the server said this is no longer the player's event; the server
+      // checks every send again, and its refusal hides the form with the reason.
+      setOff(home.kind === "gone" ? "not_member" : helpOn ? null : "feature_off");
     }
     if (mine !== undefined) {
       // Showing the list is seeing the answers on it; a failure is marked again next time.

@@ -67,8 +67,13 @@ async function run<T>(
     );
     return { kind: "done", value };
   } catch (error) {
-    const pg = error as { code?: string; detail?: string };
-    const refusal = REFUSALS[String(pg.code)]?.(pg.detail ?? "");
+    const pg = error as { code?: string; detail?: string; constraint?: string };
+    // A backstop: answer_core serializes one answerer's key, so its unique index should never be what refuses it.
+    const keyIndex =
+      pg.code === "23505" && pg.constraint?.startsWith("ticket_answer_key_") === true;
+    const refusal = keyIndex
+      ? { kind: "key_reused" as const }
+      : REFUSALS[String(pg.code)]?.(pg.detail ?? "");
     if (refusal === undefined) {
       throw error;
     }

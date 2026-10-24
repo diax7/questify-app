@@ -117,7 +117,7 @@ export default function EventInfoScreen() {
         {rules?.kind === "rules" ? <RulesSection rules={rules.rules} language={language} /> : null}
         <Button
           kind="quiet"
-          label={t("help.title")}
+          label={t("help.open")}
           onPress={() => router.push(`/event/${eventId}/help`)}
         />
       </ScrollView>

@@ -65,6 +65,17 @@ describe("refusals (migration 0059's SQLSTATEs)", () => {
     expect(await openTicket({ pool: refusing(fields) }, SEND)).toEqual(expected);
   });
 
+  it("reads the answer key's unique index as a reused key, and any other unique violation as an error", async () => {
+    const pool = refusing({ code: "23505", constraint: "ticket_answer_key_operator" });
+    expect(await openTicket({ pool }, SEND)).toEqual({ kind: "key_reused" });
+    await expect(
+      openTicket(
+        { pool: refusing({ code: "23505", constraint: "ticket_player_id_idempotency_key_key" }) },
+        SEND,
+      ),
+    ).rejects.toThrow();
+  });
+
   it("throws anything else, an unknown HT403 detail included", async () => {
     await expect(openTicket({ pool: refusing({ code: "23505" }) }, SEND)).rejects.toThrow();
     await expect(

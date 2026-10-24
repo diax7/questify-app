@@ -62,11 +62,11 @@ test("the owner answers a player's question, and a second answer is refused", as
   await page.getByRole("tab", { name: "مغلقة (1)" }).click();
   const closed = page.getByTestId("ticket");
   await expect(closed).toContainText("خلف القاعة ب");
-  await expect(closed).toContainText("تم الرد");
-  await expect(closed).toContainText(/ردّ عليه quests\./);
+  await expect(closed).toContainText("وصل الرد");
+  await expect(closed).toContainText(/الرد من quests\./);
 
   const late = other.getByTestId("ticket");
   other.once("dialog", (dialog) => void dialog.accept());
   await late.getByRole("button", { name: "أغلقه محلولًا دون رد" }).click();
-  await expect(late.getByRole("alert")).toContainText("أجاب أحد أعضاء الفريق عن هذا الطلب.");
+  await expect(late.getByRole("alert")).toContainText("أغلق أحد أعضاء الفريق هذا الطلب.");
 });
