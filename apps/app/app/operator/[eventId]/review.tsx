@@ -1,4 +1,5 @@
 import { formatNumber, termFor, DEFAULT_TERMS, type LocalizedText } from "@questify/shared";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -11,15 +12,23 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
-import { canReject, fetchReviewQueue, sendReview, type ReviewItem } from "#src/operator/review.ts";
+import {
+  canReject,
+  fetchReviewQueue,
+  firstOf,
+  sendReview,
+  type ReviewItem,
+} from "#src/operator/review.ts";
 
 /**
  * The operator's review queue (FR-324, FR-325): one pending submission at a time, oldest first, approved or rejected
- * with a reason the player sees. Shown only with the `review` ability; the server checks it again.
+ * with a reason the player sees. Shown only with the `review` ability; the server checks it again. Opened from the Inbox
+ * (`first`), that submission comes first.
  */
 export default function OperatorReviewScreen() {
   const { t, language } = useI18n();
   const { eventId } = useOperator();
+  const { first } = useLocalSearchParams<{ first?: string }>();
   const [queue, setQueue] = useState<ReviewItem[] | undefined | "failed">(undefined);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,8 +37,9 @@ export default function OperatorReviewScreen() {
   const [key, setKey] = useState(randomUuid);
 
   const load = useCallback(async () => {
-    setQueue((await fetchReviewQueue(api.session, eventId)) ?? "failed");
-  }, [eventId]);
+    const loaded = await fetchReviewQueue(api.session, eventId);
+    setQueue(loaded === undefined ? "failed" : firstOf(loaded, first));
+  }, [eventId, first]);
   useEffect(() => {
     void load();
   }, [load]);

@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
 import { router } from "expo-router";
+import { api } from "#src/api/app-session.ts";
+import { fetchMyTickets } from "#src/event/help.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
@@ -74,11 +76,38 @@ function LevelCard({ level }: Readonly<{ level: QuestifyLevel }>) {
   );
 }
 
-/** The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. */
-export function ProfileScreen({ header }: Readonly<{ header?: ReactNode }>) {
+/** Whether the player has sent any help-desk request (T-310): the profile then shows Your requests. */
+function useHasRequests(signedIn: boolean): boolean {
+  const [has, setHas] = useState(false);
+  useEffect(() => {
+    if (!signedIn) {
+      return;
+    }
+    let current = true;
+    void fetchMyTickets(api.session, null).then((tickets) => {
+      if (current) {
+        setHas((tickets?.length ?? 0) > 0);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [signedIn]);
+  return has;
+}
+
+/**
+ * The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. Inside
+ * an event it opens Get help; anywhere, Your requests once the player has sent one.
+ */
+export function ProfileScreen({
+  header,
+  eventId,
+}: Readonly<{ header?: ReactNode; eventId?: string }>) {
   const { t, language, switchLanguage } = useI18n();
   const { state, signOut } = usePlayer();
   const styles = useThemedStyles(makeStyles);
+  const hasRequests = useHasRequests(state.status === "signed_in");
 
   // FR-124: the confirmation says what signing out does; cancelling keeps the player signed in.
   const confirmSignOut = (): void => {
@@ -127,6 +156,20 @@ export function ProfileScreen({ header }: Readonly<{ header?: ReactNode }>) {
                 <MyAccount me={state.me} />
               </>
             )}
+            {eventId === undefined ? null : (
+              <Button
+                kind="quiet"
+                label={t("help.title")}
+                onPress={() => router.push(`/event/${eventId}/help`)}
+              />
+            )}
+            {hasRequests ? (
+              <Button
+                kind="quiet"
+                label={t("profile.requests")}
+                onPress={() => router.push("/requests")}
+              />
+            ) : null}
             <Button kind="quiet" label={t("signOut.confirm")} onPress={confirmSignOut} />
             <Button
               kind="quiet"

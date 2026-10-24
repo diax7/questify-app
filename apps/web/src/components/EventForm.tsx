@@ -24,6 +24,7 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
+import { HelpDeskLink } from "#src/components/HelpDeskPanel.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -225,6 +226,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           <a className={styles.textLink} href={`${pages}/${event.id}/submissions`}>
             {t("submissions.link")}
           </a>
+          <HelpDeskLink language={language} organizerId={organizerId} eventId={event.id} />
           <a className={styles.textLink} href={`${pages}/${event.id}/flags`}>
             {t("flags.link")}
           </a>
@@ -369,6 +371,16 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           organizerId={organizerId}
           eventId={event.id}
           initial={event.boosts !== false}
+          myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <EventFeatureSwitch
+          language={language}
+          feature="helpDesk"
+          organizerId={organizerId}
+          eventId={event.id}
+          initial={event.helpDesk !== false}
           myRole={myRole}
         />
       )}

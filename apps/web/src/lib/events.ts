@@ -39,6 +39,8 @@ export type EventView = Readonly<{
   /** The event's flash quests and double points switches (T-307); absent from an older API, read as on. */
   flashQuests?: boolean;
   boosts?: boolean;
+  /** The event's help desk switch (T-310); absent from an older API, read as on. */
+  helpDesk?: boolean;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

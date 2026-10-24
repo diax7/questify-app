@@ -239,6 +239,7 @@ const HOME = {
   },
   win: null,
   rankingOn: true,
+  helpUnread: 0,
 };
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });
@@ -329,6 +330,15 @@ describe("homeAnswer", () => {
     expect(goalMessage({ ...HOME.goal, left: -5 }, false)).toBe("goal.ready");
     expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true }, false)).toBe("goal.soldOut");
     expect(goalMessage({ ...HOME.goal, soldOut: true }, true)).toBe("goal.soldOut");
+  });
+
+  it("reads the help desk's unseen answers, and 0 for an older API or anything else (T-310)", () => {
+    expect(readHome({ ...HOME, help: { unread: 2 } })?.helpUnread).toBe(2);
+    expect(readHome(HOME)?.helpUnread).toBe(0);
+    expect(readHome({ ...HOME, help: { unread: "2" } })?.helpUnread).toBe(0);
+    expect(readHome({ ...HOME, help: { unread: -1 } })?.helpUnread).toBe(0);
+    expect(readHome({ ...HOME, help: { unread: 1.5 } })?.helpUnread).toBe(0);
+    expect(readHome({ ...HOME, help: null })?.helpUnread).toBe(0);
   });
 
   it("forgets the event only on the server's definite answer", () => {

@@ -99,6 +99,10 @@ export async function loadEventConfig(
 export const locationQuestsOn = (config: ComposedConfig | undefined): boolean =>
   config?.features["locationQuests"]?.enabled === true;
 
+/** Whether the help desk is on for the event (T-310): on unless the configuration says off. Only sending depends on it. */
+export const helpDeskOn = (config: ComposedConfig | undefined): boolean =>
+  config?.features["helpDesk"]?.enabled !== false;
+
 /** Whether the platform's NFC switch is on (ADR-234): on unless the configuration says off. */
 export const nfcTagsOn = (config: ComposedConfig | undefined): boolean =>
   config?.features["nfcTags"]?.enabled !== false;

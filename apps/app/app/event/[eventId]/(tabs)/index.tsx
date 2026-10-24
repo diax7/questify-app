@@ -65,6 +65,27 @@ function CountdownLine({ event }: Readonly<{ event: Home["event"] }>) {
   );
 }
 
+/**
+ * "The event team answered you" (T-310) while an answer is unseen, whatever the help desk's switch; part of Home's own
+ * read, so it shows on every load and refresh (no poll of its own). A tap opens Get help, which marks them seen.
+ */
+function HelpStrip({ eventId, unread }: Readonly<{ eventId: string; unread: number }>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  if (unread === 0) {
+    return null;
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push(`/event/${eventId}/help`)}
+      style={[styles.card, styles.answered]}
+    >
+      <AppText variant="label">{t("home.helpAnswered")}</AppText>
+    </Pressable>
+  );
+}
+
 /** My rank and the top 3 (FR-802); a tap opens the ranking. Hidden when the ranking is off. */
 function RankingCard({ eventId, ranking }: Readonly<{ eventId: string; ranking: RankingAnswer }>) {
   const { t, language } = useI18n();
@@ -387,6 +408,7 @@ export default function EventHomeScreen() {
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <RehearsalStrip shown={home.event.rehearsal} />
         <AddEmailCard />
+        <HelpStrip eventId={eventId} unread={home.helpUnread} />
         <CountdownLine event={home.event} />
         <Standing home={home} />
         <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
@@ -433,4 +455,5 @@ const makeStyles = (theme: Theme) => ({
   },
   rankRow: { flexDirection: "row" as const, gap: theme.spacing.md, alignItems: "center" as const },
   grow: { flex: 1 },
+  answered: { borderColor: theme.colors.primaryAction },
 });

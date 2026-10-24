@@ -56,6 +56,8 @@ export type Home = Readonly<{
   goal: Goal | null;
   win: Win | null;
   rankingOn: boolean;
+  /** How many of the player's help-desk answers they have not seen (T-310); 0 from an older API. */
+  helpUnread: number;
 }>;
 
 /**
@@ -188,7 +190,14 @@ export function readHome(body: unknown): Home | undefined {
     goal: readGoal(body["goal"]),
     win: readWin(body["win"]),
     rankingOn: body["rankingOn"],
+    helpUnread: readUnread(body["help"]),
   };
+}
+
+/** Home's help-desk count: a whole number above 0, or 0 for anything else (an older API sends none). */
+function readUnread(value: unknown): number {
+  const unread = isRecord(value) ? value["unread"] : undefined;
+  return typeof unread === "number" && Number.isInteger(unread) && unread > 0 ? unread : 0;
 }
 
 export function homeAnswer(answer: AuthedResult): HomeAnswer {

@@ -73,6 +73,12 @@ export function reviewAnswer(answer: AuthedResult): ReviewAnswer {
   return { kind: "done" };
 }
 
+/** The queue with one submission moved to the front (the one the Inbox opened); unchanged when it is not there. */
+export function firstOf(queue: readonly ReviewItem[], id: string | undefined): ReviewItem[] {
+  const picked = queue.find((item) => item.id === id);
+  return picked === undefined ? [...queue] : [picked, ...queue.filter((item) => item !== picked)];
+}
+
 /** A rejection needs a reason of 1 to 300 characters (FR-325); an approval none. */
 export const canReject = (reason: string): boolean => {
   const length = reason.trim().length;

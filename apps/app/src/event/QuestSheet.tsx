@@ -353,6 +353,7 @@ export function QuestSheet({
 }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
+  const { eventId, helpOn } = useEvent();
   // Kept here, not in the code field: a success turns the quest to done and the field goes, its message stays.
   const [outcome, setOutcome] = useState<string | null>(null);
   if (quest === undefined) {
@@ -390,6 +391,24 @@ export function QuestSheet({
       {line === null ? null : <AppText variant="label">{line}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
+      {helpOn ? (
+        <Button
+          kind="quiet"
+          label={t("help.reportQuest")}
+          onPress={() => {
+            onClose();
+            router.push({
+              pathname: "/event/[eventId]/help",
+              params: {
+                eventId,
+                kind: "problem",
+                questId: quest.id,
+                questTitle: textIn(quest.title, language),
+              },
+            });
+          }}
+        />
+      ) : null}
     </Sheet>
   );
 }
