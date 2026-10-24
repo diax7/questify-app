@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform, type NativeEventSubscription } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { nfcModule, readTag, stopReading } from "#src/nfc/native.ts";
+import { tapLoop, type ActiveWait } from "#src/nfc/tap-loop.ts";
 
 /** Whether this phone reads NFC tags: undefined while it is being asked, false without NFC or the module. */
 export function useNfcSupported(): boolean | undefined {
@@ -25,11 +26,33 @@ export function useNfcSupported(): boolean | undefined {
 /** A tag read for a tap: its URL (null when it holds none of ours to read) and the sticker's id. */
 export type TapRead = Readonly<{ url: string | null; uid: string | null }>;
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** The app coming back to the front (from Settings, after switching NFC on). */
+function untilActive(): ActiveWait {
+  let subscription: NativeEventSubscription | undefined;
+  let finish: (() => void) | undefined;
+  const done = new Promise<void>((resolve) => {
+    finish = resolve;
+    subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        subscription?.remove();
+        resolve();
+      }
+    });
+  });
+  return {
+    done,
+    cancel: () => {
+      subscription?.remove();
+      finish?.();
+    },
+  };
+}
 
 /**
- * NFC in the scanner (FR-621). Android: reader mode runs while `active` (a hint to switch NFC on when it is off), so a tag is read beside the camera and never
- * opens the browser. iOS: a button opens the system sheet (no silent reading on the iPhone); `autoStart` opens it at
+ * NFC in the scanner (FR-621). Android: reader mode runs while `active`, so a tag is read beside the camera and never
+ * opens the browser; NFC switched off shows a hint until the person comes back with it on. iOS: a button opens the system sheet (no silent reading on the iPhone); `autoStart` opens it at
  * once when the quest sheet's "Tap the NFC tag" brought the player here. Hidden on a phone without NFC.
  */
 export function NfcTap({
@@ -50,28 +73,14 @@ export function NfcTap({
     if (ios || supported !== true || !active) {
       return;
     }
-    const run = { on: true };
-    void (async () => {
-      while (run.on) {
-        const read = await readTag(t("scanner.nfc.hold"));
-        if (!run.on || read.kind === "unsupported") {
-          return;
-        }
-        if (read.kind === "off") {
-          setOff(true);
-          return;
-        }
-        if (read.kind === "read") {
-          reading.current(read);
-          return;
-        }
-        await pause(500);
-      }
-    })();
-    return () => {
-      run.on = false;
-      void stopReading();
-    };
+    return tapLoop({
+      read: () => readTag(t("scanner.nfc.hold")),
+      onRead: (read) => reading.current(read),
+      onOff: setOff,
+      untilActive,
+      pause,
+      stopReading: () => void stopReading(),
+    });
   }, [ios, supported, active, t]);
 
   const tapOnce = async () => {

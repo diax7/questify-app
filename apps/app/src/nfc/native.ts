@@ -38,8 +38,28 @@ const isCancel = (module: NfcModule, error: unknown): boolean =>
 
 /** The session before this one, so a new one starts only after the last one let go of the reader (ADR-243). */
 let previous: Promise<unknown> = Promise.resolve();
-/** Bumped by `stopReading`: a session that was waiting its turn when the screen stopped never starts. */
-let generation = 0;
+/** A screen's stop: `stopReading` ends every session begun before it, whether it waits its turn or a tag. */
+type StopSignal = Readonly<{ stopped: () => boolean; done: Promise<void>; stop: () => void }>;
+
+function stopSignal(): StopSignal {
+  let stopped = false;
+  let finish: (() => void) | undefined;
+  const done = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  return {
+    stopped: () => stopped,
+    done,
+    stop: () => {
+      stopped = true;
+      finish?.();
+    },
+  };
+}
+
+let currentStop = stopSignal();
+/** Thrown into a session waiting for a tag when its screen stopped reading. */
+const STOPPED = new Error("NFC reading stopped");
 
 /**
  * Android's reader mode for every kind of tag (ADR-243): while a session waits, the phone hands each tag to this app,
@@ -61,15 +81,28 @@ const readerMode = (module: NfcModule, alert: string) => {
  * off later under a newer session (ADR-243); a factory-blank sticker connects as NdefFormatable. iOS: the system sheet
  * with `alert`, asking for MIFARE too so Core NFC hands over the sticker's id (CTO 2).
  */
-async function connect(module: NfcModule, alert: string): Promise<string | null> {
+async function connect(module: NfcModule, alert: string, stop: StopSignal): Promise<string | null> {
   const { default: manager, NfcTech } = module;
-  if (Platform.OS === "ios") {
-    return (await manager.requestTechnology([NfcTech.Ndef, NfcTech.MifareIOS], {
-      alertMessage: alert,
-    })) as string | null;
+  if (Platform.OS !== "ios") {
+    await manager.registerTagEvent(readerMode(module, alert));
   }
-  await manager.registerTagEvent(readerMode(module, alert));
-  return (await manager.requestTechnology([NfcTech.Ndef, NfcTech.NdefFormatable])) as string | null;
+  if (stop.stopped()) {
+    throw STOPPED;
+  }
+  const request = (
+    Platform.OS === "ios"
+      ? manager.requestTechnology([NfcTech.Ndef, NfcTech.MifareIOS], { alertMessage: alert })
+      : manager.requestTechnology([NfcTech.Ndef, NfcTech.NdefFormatable])
+  ) as Promise<string | null>;
+  request.catch(() => undefined);
+  // A stop that came while the request was on its way never reached it: the stop ends the wait here instead, and
+  // `release` then cancels the request and turns reader mode off (CTO minor 3).
+  return Promise.race([
+    request,
+    stop.done.then(() => {
+      throw STOPPED;
+    }),
+  ]);
 }
 
 /** Ends a session: the waiting request, then (Android) the reader mode this app turned on. */
@@ -89,7 +122,7 @@ async function session<T>(
   work: (module: NfcModule, tech: string | null) => Promise<T>,
   failed: (stop: Stop) => T,
 ): Promise<T> {
-  const turn = generation;
+  const stop = currentStop;
   const run = previous.then(async () => {
     const module = await nfcModule();
     if (module === null) {
@@ -98,13 +131,17 @@ async function session<T>(
     if (Platform.OS !== "ios" && !(await module.default.isEnabled().catch(() => true))) {
       return failed("off");
     }
-    if (turn !== generation) {
+    if (stop.stopped()) {
       return failed("cancelled");
     }
     try {
-      return await work(module, await connect(module, alert));
+      const tech = await connect(module, alert, stop);
+      if (stop.stopped()) {
+        return failed("cancelled");
+      }
+      return await work(module, tech);
     } catch (error) {
-      return failed(isCancel(module, error) ? "cancelled" : "failed");
+      return failed(error === STOPPED || isCancel(module, error) ? "cancelled" : "failed");
     } finally {
       await release(module);
     }
@@ -189,8 +226,13 @@ async function writeNdef(
   ) {
     return { kind: "failed" };
   }
+  // Android answers whether the tag took the lock; iOS answers nothing once it did (CTO major 2).
   const locked =
-    request.lock && (await manager.ndefHandler.makeReadOnly().catch(() => false)) === true;
+    request.lock &&
+    (await manager.ndefHandler.makeReadOnly().then(
+      (answer: unknown) => answer !== false,
+      () => false,
+    ));
   return { kind: "written", uid, locked };
 }
 
@@ -230,7 +272,8 @@ export async function writeTag(request: WriteRequest): Promise<TagWrite> {
 
 /** Ends a waiting session (the scanner closing, or the screen leaving); a session still waiting its turn never starts. */
 export async function stopReading(): Promise<void> {
-  generation += 1;
+  currentStop.stop();
+  currentStop = stopSignal();
   const module = await nfcModule();
   await module?.default.cancelTechnologyRequest().catch(() => undefined);
 }

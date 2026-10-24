@@ -30,6 +30,7 @@ const fake = vi.hoisted(() => ({
   /** The tag leaves the phone right after the write went through. */
   pulled: false,
   lockable: true,
+  onRegister: null as null | (() => void),
 }));
 
 const manager = {
@@ -39,6 +40,7 @@ const manager = {
   registerTagEvent: async (options: Registration) => {
     fake.calls.push("register");
     fake.registration = options;
+    fake.onRegister?.();
   },
   unregisterTagEvent: async () => {
     fake.calls.push("unregister");
@@ -79,7 +81,8 @@ const manager = {
       if (fake.pulled) {
         throw new Error("Tag was lost.");
       }
-      return fake.lockable;
+      // Android answers whether the tag took the lock; iOS resolves with nothing once it did.
+      return platform.OS === "ios" ? undefined : fake.lockable;
     },
   },
   ndefFormatableHandlerAndroid: {
@@ -139,6 +142,7 @@ beforeEach(() => {
     written: null,
     pulled: false,
     lockable: true,
+    onRegister: null,
   });
 });
 
@@ -229,6 +233,21 @@ describe("Android tag sessions", () => {
     expect(fake.calls).toEqual(["register", "unregister"]);
   });
 
+  it("ends a session stopped after reader mode came on but before its request, and the next one runs", async () => {
+    const { readTag, writeTag, stopReading } = await load();
+    fake.onRegister = () => {
+      fake.onRegister = null;
+      void stopReading();
+    };
+    expect(await writeTag(request)).toEqual({ kind: "cancelled" });
+    expect(fake.registration).toBeNull();
+    expect(fake.written).toBeNull();
+    const next = readTag("Hold");
+    await until(() => fake.waiting !== null && fake.registration !== null);
+    expect(holdTag("Ndef")).toBe("app");
+    expect(await next).toMatchObject({ kind: "read" });
+  });
+
   it("answers off without waiting when NFC is switched off in settings", async () => {
     fake.enabled = false;
     const { readTag, writeTag } = await load();
@@ -248,5 +267,14 @@ describe("iPhone tag sessions", () => {
     expect(fake.calls).toEqual([]);
     fake.waiting?.resolve("Ndef");
     expect(await read).toEqual({ kind: "read", url: null, uid: "04a1b2c3d4e5f6" });
+  });
+
+  it("counts a lock the iPhone answered with nothing as locked", async () => {
+    platform.OS = "ios";
+    const { writeTag } = await load();
+    const written = writeTag(request);
+    await until(() => fake.waiting !== null);
+    fake.waiting?.resolve("Ndef");
+    expect(await written).toEqual({ kind: "written", uid: "04a1b2c3d4e5f6", locked: true });
   });
 });
