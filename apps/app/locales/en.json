@@ -1,6 +1,7 @@
 {
   "ios": {
     "NSCameraUsageDescription": "Questify uses the camera to scan the QR codes at your event.",
-    "NSLocationWhenInUseUsageDescription": "Questify uses your location while the app is open to check you in at quest spots and to keep the game fair at your event. You can always scan the QR code instead."
+    "NSLocationWhenInUseUsageDescription": "Questify uses your location while the app is open to check you in at quest spots and to keep the game fair at your event. You can always scan the QR code instead.",
+    "NFCReaderUsageDescription": "Questify reads the NFC tags at your event when you tap one in the app. You can always scan the QR code instead."
   }
 }

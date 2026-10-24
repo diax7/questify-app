@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
-import { loadEventConfig, locationQuestsOn } from "#src/config/remote.ts";
+import { loadEventConfig, locationQuestsOn, nfcTagsOn } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
 import { livePollSecondsOf } from "#src/event/polls.ts";
 
@@ -22,6 +22,8 @@ type EventValue = Readonly<{
    * virtual one, FR-1744; nothing while its kind is unknown).
    */
   scanPositions: boolean;
+  /** The platform's NFC switch (ADR-234): on until the configuration says off; off, the app never reads a tag. */
+  nfcOn: boolean;
   /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
   livePollSeconds: number;
   /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
@@ -40,6 +42,7 @@ export function EventProvider({
   const [knownName, rememberName] = useState<string | undefined>(undefined);
   const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
   const [locationOn, setLocationOn] = useState(false);
+  const [nfcOn, setNfcOn] = useState(true);
   const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
   const [paidCount, setPaidCount] = useState(0);
   const notePaid = useCallback(() => setPaidCount((count) => count + 1), []);
@@ -60,6 +63,7 @@ export function EventProvider({
       if (current) {
         setTerms(loaded.terms);
         setLocationOn(locationQuestsOn(loaded));
+        setNfcOn(nfcTagsOn(loaded));
         setLivePollSeconds(livePollSecondsOf(loaded));
       }
     });
@@ -78,6 +82,7 @@ export function EventProvider({
       terms,
       locationOn,
       scanPositions,
+      nfcOn,
       livePollSeconds,
       paidCount,
       notePaid,
@@ -89,6 +94,7 @@ export function EventProvider({
       terms,
       locationOn,
       scanPositions,
+      nfcOn,
       livePollSeconds,
       paidCount,
       notePaid,

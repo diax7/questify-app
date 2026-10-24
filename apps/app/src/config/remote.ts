@@ -99,6 +99,10 @@ export async function loadEventConfig(
 export const locationQuestsOn = (config: ComposedConfig | undefined): boolean =>
   config?.features["locationQuests"]?.enabled === true;
 
+/** Whether the platform's NFC switch is on (ADR-234): on unless the configuration says off. */
+export const nfcTagsOn = (config: ComposedConfig | undefined): boolean =>
+  config?.features["nfcTags"]?.enabled !== false;
+
 /** The terms and privacy versions in force, from the documents the config names (unknown ids are ignored). */
 export function signupVersions(config: ComposedConfig | undefined): SignupAcceptance | undefined {
   return versionsFrom(config?.legal?.documents);

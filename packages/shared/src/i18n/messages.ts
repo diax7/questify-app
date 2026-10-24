@@ -3718,6 +3718,114 @@ export const MESSAGES = {
     ar: "النقاط المضاعفة متوقفة: لا تتضاعف أي نقاط من الآن.",
     en: "Double points are off: nothing is doubled from now on.",
   },
+  "quests.verification.nfc": {
+    ar: "يلمس اللاعب بطاقة NFC للمهمة",
+    en: "The player taps the quest's NFC tag",
+  },
+  "quests.verification.nfcHint": {
+    ar: "يبقى رمز QR مفعّلًا احتياطًا.",
+    en: "The QR stays on as a backup.",
+  },
+  "quests.action.tapNfc": { ar: "المس بطاقة NFC", en: "Tap the NFC tag" },
+  "scanner.nfc.button": { ar: "المس بطاقة NFC", en: "Tap NFC tag" },
+  "scanner.nfc.hold": {
+    ar: "قرّب أعلى هاتفك من البطاقة",
+    en: "Hold the top of your phone to the tag",
+  },
+  "scanner.nfc.holdIos": {
+    ar: "قرّب أعلى جهاز iPhone من البطاقة",
+    en: "Hold the top of your iPhone to the tag",
+  },
+  "scanner.nfc.androidHint": {
+    ar: "أو قرّب هاتفك من بطاقة NFC للمهمة.",
+    en: "Or hold your phone to the quest's NFC tag.",
+  },
+  "scanner.nfc.failed": {
+    ar: "تعذّرت قراءة البطاقة. حاول مرة أخرى أو امسح رمز QR.",
+    en: "Couldn't read the tag. Try again or scan the QR.",
+  },
+  "scanner.nfc.notQuestify": {
+    ar: "هذه البطاقة ليست من كويستفاي.",
+    en: "This isn't a Questify tag.",
+  },
+  "operator.nfc.write": { ar: "كتابة بطاقة NFC", en: "Write NFC tag" },
+  "operator.nfc.pickQuest": { ar: "اختر المهمة", en: "Choose the quest" },
+  "operator.nfc.tagCount": { ar: "البطاقات: {count}", en: "Tags: {count}" },
+  "operator.nfc.noQuests": {
+    ar: "لا مهام ببطاقة NFC بعد. يفعّلها المنظّم من لوحة التحكم.",
+    en: "No quest uses an NFC tag yet. The organizer turns it on in the dashboard.",
+  },
+  "operator.nfc.label": { ar: "اسم البطاقة (اختياري)", en: "Tag name (optional)" },
+  "operator.nfc.lock": { ar: "قفل البطاقة", en: "Lock the tag" },
+  "operator.nfc.lockHint": {
+    ar: "القفل دائم: لا يمكن إعادة كتابة البطاقة أبدًا. وإن كُتبت لمهمة خاطئة فانقلها من لوحة التحكم.",
+    en: "Locking is permanent: the tag can never be rewritten. A tag written for the wrong quest is moved on the dashboard.",
+  },
+  "operator.nfc.start": { ar: "ابدأ الكتابة", en: "Start writing" },
+  "operator.nfc.hold": {
+    ar: "قرّب البطاقة من أعلى الهاتف",
+    en: "Hold a tag to the top of the phone",
+  },
+  "operator.nfc.done": { ar: "البطاقة جاهزة لمهمة {quest}", en: "Tag ready for {quest}" },
+  "operator.nfc.replaced": { ar: "تحل محل {label} ({quest})", en: "It replaces {label} ({quest})" },
+  "operator.nfc.locked": {
+    ar: "هذه البطاقة مقفلة، فلا يمكن الكتابة عليها.",
+    en: "This tag is locked, so it can't be written.",
+  },
+  "operator.nfc.taken": {
+    ar: "على هذه البطاقة مهمة من كويستفاي. اختر «إعادة الكتابة» لتستبدلها.",
+    en: "This tag already holds a Questify quest. Choose Rewrite to replace it.",
+  },
+  "operator.nfc.rewrite": { ar: "إعادة الكتابة", en: "Rewrite" },
+  "operator.nfc.failed": {
+    ar: "تعذّرت كتابة البطاقة. أبقِها ثابتة وحاول مرة أخرى.",
+    en: "Couldn't write the tag. Hold it still and try again.",
+  },
+  "operator.nfc.unsupported": {
+    ar: "هذا الهاتف لا يدعم NFC.",
+    en: "This phone doesn't support NFC.",
+  },
+  "operator.nfc.recent": { ar: "آخر ما كتبت", en: "Your latest tags" },
+  "operator.nfc.another": { ar: "كتابة بطاقة أخرى", en: "Write another" },
+  "tags.title": { ar: "بطاقات NFC", en: "NFC tags" },
+  "tags.basicNote": {
+    ar: "بطاقة أساسية: يمكن نسخها مثل رمز QR المطبوع.",
+    en: "Basic tag: can be copied like a printed QR.",
+  },
+  "tags.empty": {
+    ar: "لا بطاقات بعد. يكتبها المشغّلون من وضع الطاقم في التطبيق.",
+    en: "No tags yet. Operators write them from staff mode in the app.",
+  },
+  "tags.unnamed": { ar: "بطاقة بلا اسم", en: "Unnamed tag" },
+  "tags.writtenBy": { ar: "كتبها {name}", en: "Written by {name}" },
+  "tags.taps": { ar: "اللمسات: {count}", en: "Taps: {count}" },
+  "tags.copies": { ar: "يُشتبه في نسخها: {count}", en: "Possible copies: {count}" },
+  "tags.unchecked": { ar: "دون تحقق من البطاقة: {count}", en: "Not checked: {count}" },
+  "tags.lastTap": { ar: "آخر لمسة: {at}", en: "Last tap: {at}" },
+  "tags.locked": { ar: "مقفلة", en: "Locked" },
+  "tags.revoked": { ar: "ملغاة", en: "Revoked" },
+  "tags.moveTo": { ar: "انقلها إلى", en: "Move to" },
+  "tags.move": { ar: "نقل", en: "Move" },
+  "tags.revoke": { ar: "إلغاء البطاقة", en: "Revoke" },
+  "tags.revokeAll": { ar: "إلغاء كل البطاقات", en: "Revoke all tags" },
+  "tags.revokeAllConfirm": {
+    ar: "ستتوقف كل بطاقات هذه المهمة فورًا، ويبقى رمز QR يعمل.",
+    en: "Every tag of this quest stops working at once. The QR still works.",
+  },
+  "tags.qrNote": {
+    ar: "إعادة إنشاء رمز QR لا تلغي بطاقات NFC.",
+    en: "Making a new QR doesn't revoke the NFC tags.",
+  },
+  "tags.failed": { ar: "تعذّر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
+  "tag.landing.title": { ar: "بطاقة كويستفاي", en: "A Questify tag" },
+  "tag.landing": {
+    ar: "المس هذه البطاقة من الماسح داخل تطبيق كويستفاي.",
+    en: "Tap this tag inside the Questify app, from the scanner.",
+  },
+  "flags.kind.nfcCopy": {
+    ar: "قد تكون البطاقة منسوخة ({count})",
+    en: "Tag may be copied ({count})",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

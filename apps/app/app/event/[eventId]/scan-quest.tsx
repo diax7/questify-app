@@ -1,9 +1,9 @@
 import { DEFAULT_TERMS, formatNumber, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useReducer, useRef, useState } from "react";
-import { AppState, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -40,6 +40,9 @@ import {
 import { inviteTokenOf } from "#src/operator/station.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { NfcTap, type TapRead } from "#src/nfc/NfcTap.tsx";
+import { tapTag } from "#src/nfc/nfc-api.ts";
+import { tagTokenOf } from "#src/nfc/tag.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The one extra web origin this build reads quest codes from (a staging demo, or development). */
@@ -67,6 +70,9 @@ const send = (id: string, token: string, key: string, position: Position | null)
       )
     : stampStep(api.session, id, token, key);
 };
+
+/** The scanner's placeholder id for a tag: its quest is the server's answer (`questId`). */
+const NFC_ID = "nfc";
 
 /** Haptics never block a scan: a phone without them simply stays still. */
 const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
@@ -154,7 +160,8 @@ function Celebration({
  */
 export default function ScanQuestScreen() {
   const { t, language } = useI18n();
-  const { eventId, scanPositions } = useEvent();
+  const { eventId, scanPositions, nfcOn } = useEvent();
+  const { nfc } = useLocalSearchParams<{ nfc?: string }>();
   const reader = useLocationReader();
   const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission, getPermission] = useCameraPermissions();
@@ -164,6 +171,7 @@ export default function ScanQuestScreen() {
   const [cameraFailed, setCameraFailed] = useState(false);
   const gate = useRef<ScanGate>(OPEN_GATE);
   const attempt = useRef<Attempt | undefined>(undefined);
+  const tagUid = useRef<string | null>(null);
 
   // Coming back from Settings re-reads the permission, so allowing it there works without a restart.
   useEffect(() => {
@@ -178,7 +186,19 @@ export default function ScanQuestScreen() {
   const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
     const position = await scanReading(reader ?? null, scanPositions, Date.now);
-    const answer = await send(id, token, key, position);
+    const answer =
+      id === NFC_ID
+        ? await tapTag(
+            api.session,
+            {
+              code: token,
+              uid: tagUid.current,
+              platform: Platform.OS === "ios" ? "ios" : "android",
+              position,
+            },
+            key,
+          )
+        : await send(id, token, key, position);
     attempt.current = { key, code: token, retryable: answer.kind === "network" };
     if (answer.kind === "signed_out") {
       router.replace("/home");
@@ -239,6 +259,25 @@ export default function ScanQuestScreen() {
     void submit(id, scan.token);
   };
 
+  // A tag read in the scanner (FR-621): only a Questify tag URL read from a tag counts, never a typed or shared link.
+  const tapped = (read: TapRead) => {
+    if (!passes(gate.current, read.url ?? "")) {
+      return;
+    }
+    const token = tagTokenOf(read.url, EXTRA_ORIGIN);
+    if (token === null) {
+      setNotice(t("scanner.nfc.notQuestify"));
+      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+      return;
+    }
+    gate.current = { busy: true, ignored: null };
+    setNotice(null);
+    tagUid.current = read.uid;
+    buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    dispatch({ type: "read", questId: NFC_ID, token });
+    void submit(NFC_ID, token);
+  };
+
   // The last attempt stays: rescanning the same code after a lost answer reuses its key (`keyFor`), so it never pays
   // twice; any answer from the server already made the next key new.
   const again = () => {
@@ -259,6 +298,7 @@ export default function ScanQuestScreen() {
     <Screen title={t("scanner.title")} header={<BackButton />}>
       {/* FR-306, FR-622: My QR sits behind the same round button. */}
       <Button kind="quiet" label={t("myQr.title")} onPress={() => router.push("/my-qr")} />
+      {nfcOn ? <NfcTap active={scanning} autoStart={nfc === "1"} onRead={tapped} /> : null}
       {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
       {permission !== null && !granted ? (
         <PermissionCard

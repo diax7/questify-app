@@ -81,6 +81,13 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
         }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Questify reads the NFC tags at your event when you tap one in the app. You can always scan the QR code instead.",
+          "includeNdefEntitlement": true
+        }
       ]
     ],
     "extra": {

@@ -13,15 +13,12 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { playAsPlayer } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
-/** The Tools entries that come with later tasks (FR-922): rotating QR, NFC. */
-const LATER: readonly MessageKey[] = [
-  "operators.ability.showRotatingQr",
-  "operators.ability.writeNfc",
-];
+/** The Tools entries that come with later tasks (FR-922): the rotating QR. */
+const LATER: readonly MessageKey[] = ["operators.ability.showRotatingQr"];
 
 /**
  * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); Review
- * submissions with the `review` ability (T-301); the switch to
+ * submissions with the `review` ability (T-301); Write NFC tag with the `write_nfc` ability (T-308); the switch to
  * Player mode, shown only to an operator the owner allows to play (FR-906, FR-907); the other tools are listed as coming.
  */
 export default function OperatorToolsScreen() {
@@ -60,6 +57,12 @@ export default function OperatorToolsScreen() {
           <Button
             label={t("operators.ability.review")}
             onPress={() => router.push(`/operator/${eventId}/review`)}
+          />
+        ) : null}
+        {event?.abilities.includes("write_nfc") === true ? (
+          <Button
+            label={t("operator.nfc.write")}
+            onPress={() => router.push(`/operator/${eventId}/nfc-write`)}
           />
         ) : null}
         {event?.canPlay === true ? (

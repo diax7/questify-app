@@ -39,6 +39,7 @@ import {
   scanFallback,
 } from "#src/event/quests-api.ts";
 import { unlockLine } from "#src/event/unlock.ts";
+import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 
@@ -200,7 +201,8 @@ function Verification({
   onDone,
 }: Readonly<{ quest: Quest; onDone: (answer: CompletionAnswer) => void }>) {
   const { t } = useI18n();
-  const { eventId } = useEvent();
+  const { eventId, nfcOn } = useEvent();
+  const nfcSupported = useNfcSupported();
   const scanButton = (
     <Button
       label={t("questsTab.scan")}
@@ -240,9 +242,23 @@ function Verification({
   if (!quest.verification.includes("quest_qr")) {
     return showMyQr;
   }
+  // FR-313: a tag where NFC is on, the phone reads tags and the quest offers one; its QR stays below as the backup.
+  const tapButton =
+    nfcOn && nfcSupported === true && quest.verification.includes("nfc") ? (
+      <Button
+        label={t("quests.action.tapNfc")}
+        onPress={() =>
+          router.push({
+            pathname: "/event/[eventId]/scan-quest",
+            params: { eventId, quest: quest.id, nfc: "1" },
+          })
+        }
+      />
+    ) : null;
   return (
     <>
       {showMyQr}
+      {tapButton}
       <AppText variant="label">{t("questsTab.verifyScan")}</AppText>
       {scanButton}
     </>
