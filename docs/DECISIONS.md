@@ -3457,6 +3457,9 @@ history is returned. Equipment edits and a simultaneous username change are atom
 Questify-wide public identity while event history and account data remain private.
 **Trade-offs:** stale username links return 404 after a rename. A missing level mapping fails the XP transaction;
 future curve administration must add complete reward mappings atomically. No anonymous public profile or directory.
+**Upgrade safety (plan review, 2026-10-25):** migration first drains old erasures with player EXCLUSIVE, then takes
+player_xp and level_reached SHARE ROW EXCLUSIVE, in that order, before creating FKs/replacing cleanup/backfilling.
+This closes the old-function in-flight erasure race; two actual pre-upgrade connection schedules are required tests.
 
 ## ADR-268 — A deterministic shipped level-reward catalog
 **Status:** Proposed (worker recommendation, 2026-10-25; Q-232).

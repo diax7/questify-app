@@ -825,6 +825,11 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   T-403 completes FR-701/702's real achievements/passport and owner history. No requirements cut. Next task action:
   fresh independent Sol High plan review, >=90 and no BLOCKER/MAJOR, then the worker's three build phases. Mutation
   queue remains independent; coordinator holds push while the current run is active. Keep building; deploy later.
+- 2026-10-25 **T-402 plan review 86/100 NO-GO; revised for fresh re-review, no implementation:** migration now drains
+  old in-flight erasures with player EXCLUSIVE before XP/reached barriers and requires both pre-0063 upgrade schedules;
+  table-lock compatibility was verified with two local connections and rolled back, without data changes. Removed
+  large-text promises to honor Accepted ADR-121, kept fixed row/avatar bounds and full accessible labels, and added
+  T-402 to T-403's dependencies. Coordinator must receive fresh independent GO before build starts.
 
 ## Next
 
