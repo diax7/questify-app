@@ -297,3 +297,8 @@ Evidence: `test/db/profile-items.int.test.ts` (forged/read/write denial, kind, r
 `src/app.test.ts` (log redaction), all outsider/cross-tenant/route guards, ranking DB/Redis suites. Lifetime grants
 survive rehearsal wipes because rehearsals never produce XP/reached; no inventory FK targets wiped event rows.
 Per-player blocks remain FR-1415/T-705 and must filter this new public-profile read; event bans are not platform bans.
+The app's owner-profile loader generation is invalidated at sign-out, forced end, a superseding reload and provider
+cleanup; both awaited reads check it before publishing. Sign-out removes private state immediately and blocks new
+profile reads until logout settles. `apps/app/src/auth/player-state.test.ts` exercises deferred real-session
+responses: late private data after sign-out, A→B replacement, stale failures, forced end and cleanup never restore
+the old account. This closes the MAJOR in the first independent code review88; fresh re-review remains required.
