@@ -853,6 +853,16 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Recurring heartbeat resumes this task after actual reset05:44:06 Riyadh, first wake05:50; reschedule for future
   actual resets. Worker owns this WIP; do not restart/rebuild an unrelated feature. No CranL/EAS/deployment.
 
+- 2026-10-25 **WIP commit af6345e saved; Arabic re-review GO96/100** (fresh independent Sol High, no
+  BLOCKER/MAJOR). Current full-vitest diagnostic command uses TEST_DATABASE_URL at127.0.0.1:55432 and TEST_REDIS_URL
+  at127.0.0.1:56379; running exec session **10434**. JSON report will be saved to
+  `C:/Users/xdhia/AppData/Local/Temp/questify-t402-full-vitest.json`. Poll that session/read the report first on resume.
+  After it ends: fix any failures, add the missing in-flight-XP-vs-upgrade test plus app profile/frame/multi-item-message
+  tests, complete changed-function size refactors and late-response owner guards, then update DATA_MODEL/API/SECURITY/
+  SRS/TASKS with actual coverage and pending core review. Repeat final checks if subsequent source changes warrant.
+  Still owed fresh web build/full browser suite, Expo export, full workspace lint/types/format/audit/secret check and
+  fresh core code review. This is WIP, not task completion; no tick, push or deploy. Mutation40139062524 stays active.
+
 ## Next
 
 1. **Now (2026-10-25, handoff taken over):** follow the coordinator queue above (mutation run 40139062524 remains active, then T-402); apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of
