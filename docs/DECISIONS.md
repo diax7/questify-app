@@ -3491,7 +3491,8 @@ These recommended semantics require Dhia's review and are not Accepted by this p
 public item DTO. Deny-by-default rules, targets, receipts and durable work have only narrow authorized SQL doors.
 Fact triggers enqueue real recipients; bounded automatic workers evaluate relational eligibility and grant once.
 Claim/ack transactions are separate from grant transactions, with generation fencing and leases; queues never hold
-locks while waiting for player/enrollment/XP. Grants lock active player, enrollment, frozen rule, then XP; erasure
+locks while waiting for player/enrollment/XP. Grants lock active player FOR SHARE (not KEY SHARE, which permits
+an admin's concurrent non-key ban UPDATE), enrollment, frozen rule, then XP; the player lock lasts through commit. Erasure
 removes equipment/items/receipts/work and cannot be followed by a tombstone grant. Source event names/IDs appear only
 in the owner's locker, never public profile/ranking/equipment. Organizers do not gain an arbitrary-player grant door;
 admin context cannot impersonate the empty-context system worker. Retry/repair is durable, no new queue service.
