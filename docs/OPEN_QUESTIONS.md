@@ -629,3 +629,21 @@ is +7.5%; the rest is the bonus's own ledger row for the first 50 players. Recom
 the extra lasts only for the first N), and keep the bonus as its own ledger kind. The alternative, folding the bonus into
 the quest's entry, would lose its own removal, label and community count. Agree? The CTO code review (92, GO)
 recommends "agree", with the timing measured again if Q-226 raises the 1,000 cap (a larger N means more first claims).
+
+## Q-230 — Split souvenirs from profile ownership (2026-10-25, T-402 plan)
+Recommended (ADR-266): T-402 builds owned cosmetics, per-level grants and private/public profiles; T-402b immediately
+after it builds the organizer's souvenir dashboard/rules/grants (FR-723/1622). T-403 finishes FR-701/702's real
+achievements/passport and owner history; private-event stamp disclosure needs its own explicit plan decision.
+Everything remains in v1. Agree with the decomposition?
+
+## Q-231 — Questify-wide signed-in public profiles (2026-10-25, T-402 plan)
+Recommended (ADR-267): any active signed-in player can open another active player's public profile by current
+username without sharing an event, but only username, character, frame, equipped title and level are returned now;
+T-403 adds only public-safe achievements/passport. Deleted/platform-banned targets answer the same 404 as missing;
+contacts, XP, event history and locker sources stay private. A rename makes an old link unavailable. Agree?
+
+## Q-232 — First level-reward catalog (2026-10-25, T-402 plan)
+Recommended (ADR-268): a treasure-chest character at level 4 using existing art; frames at the other even levels;
+titles at odd levels, 29 distinct items for levels 2–30. This makes every historical/new level grant concrete without
+waiting for more art or a media bucket. Six starters stay free; the equipped cosmetic title is separate from the
+automatic level-range title. Agree with this starting mix, or prefer a different guaranteed reward order?

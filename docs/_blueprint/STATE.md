@@ -818,6 +818,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   migrations 0057–0062 and the new Android build; continue the build queue. UI copy changes require the full browser
   suite after a fresh web build; this update changes docs only and stops for independent review before further work.
 
+- 2026-10-25 **T-402 plan committed for independent review (no implementation yet):**
+  `docs/plans/2026-10-25-t-402-profile.md` covers own-only cosmetics/equipment, atomic edits, each level's guaranteed
+  item/backfill, next reward, public-profile allowlist, ranking cosmetics and erasure races. Proposed ADR-266–268 /
+  Q-230–232 record the split and catalog choices. T-402b immediately follows for organizer souvenirs (FR-723/1622);
+  T-403 completes FR-701/702's real achievements/passport and owner history. No requirements cut. Next task action:
+  fresh independent Sol High plan review, >=90 and no BLOCKER/MAJOR, then the worker's three build phases. Mutation
+  queue remains independent; coordinator holds push while the current run is active. Keep building; deploy later.
+
 ## Next
 
 1. **Now (2026-10-25, handoff taken over):** follow the coordinator queue above (mutation run 40139062524 remains active, then T-402); apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of

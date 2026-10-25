@@ -3433,3 +3433,38 @@ keep their original model names. The existing config already pins GPT-6.1 Sol wi
 **Why:** Dhia explicitly set the model, reasoning effort and reviewer independence policy.
 **Trade-offs:** workers and reviewers must select the task's reasoning effort explicitly where it differs from the
 configured High default; the mechanical-edit exception never applies to plans or reviews.
+
+## ADR-266 — Separate profile ownership from organizer souvenir rules
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-230).
+**Decision:** T-402 builds the locker/equipment and public privacy boundary, guaranteed level-up items and next-level
+reward. A new core T-402b immediately after it delivers all FR-723/FR-1622 souvenir rules and dashboard grants, using
+that ownership primitive. FR-701/702 stay partial until T-403 supplies real achievements/passport and owner history;
+T-403 must resolve disclosure of private-event stamps. No requirement is removed from v1.
+**Why:** the souvenir engine includes final-rank lifecycle, category/all-quest audiences, tenant authorization and
+batched grants, beyond a profile screen. Each boundary deserves its own plan and code review.
+**Trade-offs:** more than one task completes the original T-402 requirement group; TASKS records every handoff.
+
+## ADR-267 — Cosmetics are server-owned grants with separate public reads
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-231).
+**Decision:** A data catalog and level-to-item map feed one idempotent grant per `level_reached` row through an AFTER
+INSERT trigger, with a migration backfill. Own-only inventory and equipment use narrow definers, never direct API
+writes; choosing a starter avatar clears the earned character slot. XP drops retain earned items. Erasure removes
+owned/equipped items under the documented XP/grant lock order. The public profile uses a separate allowlisted DTO,
+never `readMe`, and is available by current username to active signed-in players with no shared-event requirement.
+Public target resolution excludes deleted and platform-banned players; no contacts, XP, locker provenance or event
+history is returned. Equipment edits and a simultaneous username change are atomic.
+**Why:** SQL grants must cover every XP writer; ownership cannot rely on client choices; FR-702 permits a narrow
+Questify-wide public identity while event history and account data remain private.
+**Trade-offs:** stale username links return 404 after a rename. A missing level mapping fails the XP transaction;
+future curve administration must add complete reward mappings atomically. No anonymous public profile or directory.
+
+## ADR-268 — A deterministic shipped level-reward catalog
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-232).
+**Decision:** Seed one distinct item at each level 2–30: a treasure-chest character at level 4 (existing shipped
+chest art), frames at other even levels, cosmetic titles at odd levels. Use 14 finite shipped frame designs and
+14 bounded bilingual titles. Six starter avatars stay freely selectable. The catalog's names and level mapping are
+data; visuals select only shipped allowlisted renderers. Distinguish equipped titles from automatic level titles.
+**Why:** every level immediately has an actual guaranteed reward, including previous reached rows, without a new
+art upload/storage service or dependency. Existing art and native frame primitives fit the adventure theme.
+**Trade-offs:** this is a recommended starting catalog, pending Dhia's taste review. New visual mechanics need an app
+release; T-709 edits names/mappings only within ownership/grant invariants. No random item selection or duplicates.
