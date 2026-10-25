@@ -3471,3 +3471,41 @@ data; visuals select only shipped allowlisted renderers. Distinguish equipped ti
 art upload/storage service or dependency. Existing art and native frame primitives fit the adventure theme.
 **Trade-offs:** this is a recommended starting catalog, pending Dhia's taste review. New visual mechanics need an app
 release; T-709 edits names/mappings only within ownership/grant invariants. No random item selection or duplicates.
+
+## ADR-269 — Explicit, frozen organizer souvenir promises
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-233).
+**Decision:** An owner/editor prepares a bilingual frame/title/character rule using shipped visual renderers, then
+explicitly activates its permanent promise. Each rule has a distinct opaque item; activation freezes public cosmetic
+content, audience and nonempty eligible quest targets. Joined means an approved active real enrollment, not proof of
+physical presence. Finisher souvenirs count completed targets once across all periods, including existing quiz/game
+terminal-done semantics, without daily re-awards. Later quest edits do not rewrite the target set. Stopping prevents
+future grants and retains earned items; replacements require a new item/rule. No remote artwork or arbitrary player
+list. Rank rules freeze before owner confirmation. At most100 rules per event, with1–100 rank bounds.
+**Why:** Organizer promises must survive asynchronous work, category resets and live builder changes predictably.
+**Trade-offs:** Later additions need a new explicit promise; recurring finisher progress is lifetime for the souvenir.
+These recommended semantics require Dhia's review and are not Accepted by this planning commit.
+
+## ADR-270 — Souvenirs extend owned items through durable scoped grants
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-234).
+**Decision:** Extend0063's tagged ownership provenance with an event/rule receipt, keeping every level constraint and
+public item DTO. Deny-by-default rules, targets, receipts and durable work have only narrow authorized SQL doors.
+Fact triggers enqueue real recipients; bounded automatic workers evaluate relational eligibility and grant once.
+Claim/ack transactions are separate from grant transactions, with generation fencing and leases; queues never hold
+locks while waiting for player/enrollment/XP. Grants lock active player, enrollment, frozen rule, then XP; erasure
+removes equipment/items/receipts/work and cannot be followed by a tombstone grant. Source event names/IDs appear only
+in the owner's locker, never public profile/ranking/equipment. Organizers do not gain an arbitrary-player grant door;
+admin context cannot impersonate the empty-context system worker. Retry/repair is durable, no new queue service.
+**Why:** Reuse existing equipping/privacy while separating play latency from lifetime grants and preserving erasure.
+**Trade-offs:** Eventual automatic delivery with visible pending status; more DB work-state tests, no immediate scan
+celebration promised. Source attribution survives leaving and archive for the earned item's owner.
+
+## ADR-271 — Souvenir rank awards use owner-confirmed snapshots
+**Status:** Proposed (worker recommendation, 2026-10-25; Q-235).
+**Decision:** Extend result_depth through the highest active souvenir rank, capped100, independently of physical-prize
+enablement. Existing preview/expected-place confirmation includes that depth; preserve community payout and quiz
+settlement barriers. Grant only frozen result_place recipients after owner confirmation; never live/cache ranks or
+automatic confirmation. Rank activation after confirmation is refused rather than fabricating missing historical
+places. A late ineligible recipient is skipped without promoting another rank; earned items remain permanent.
+**Why:** Existing snapshots may retain only10 places; retroactive live ranking would contradict confirmed results.
+**Trade-offs:** The owner still confirms after event end. Pre-confirmation rules are required for rank souvenirs;
+historical confirmed events cannot add a new rank promise through this feature.

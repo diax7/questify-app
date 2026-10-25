@@ -647,3 +647,21 @@ Recommended (ADR-268): a treasure-chest character at level 4 using existing art;
 titles at odd levels, 29 distinct items for levels 2–30. This makes every historical/new level grant concrete without
 waiting for more art or a media bucket. Six starters stay free; the equipped cosmetic title is separate from the
 automatic level-range title. Agree with this starting mix, or prefer a different guaranteed reward order?
+
+## Q-233 — Frozen souvenir targets and once-ever finishers (2026-10-25, T-402b plan)
+Recommended (ADR-269): activate an explicit permanent promise with a distinct item and frozen nonempty quest set;
+later quest edits do not change it. Category/every-quest souvenirs use done evidence across all event periods,
+including existing quiz/game terminal completion rules, and award once. Joined means approved active real membership,
+not proof of attendance. Stop affects future grants only. Keep the100-rule cap and existing shipped frame/chest art?
+
+## Q-234 — Durable automatic souvenirs and private event sources (2026-10-25, T-402b plan)
+Recommended (ADR-270): small automatic batches grant outside the scan transaction; the dashboard shows pending work
+and can safely request another processing pass. Own locker shows the event privately, even after leaving/archive;
+equipped cosmetic names/art can be public, but event names are never copied into them automatically. Rehearsals earn
+none and erasure removes ownership/provenance/work. Agree with eventual delivery using the existing DB/tick runtime?
+
+## Q-235 — Rank souvenirs wait for confirmed results (2026-10-25, T-402b plan)
+Recommended (ADR-271): set rank rules before owner confirmation; extend the preview/frozen snapshot up to their
+highest rank (maximum100), even if physical prizes are off. After event end show waiting-for-confirmation, then grant
+from those frozen ranks. Refuse newly activated rank rules on already confirmed events; do not reconstruct missing
+places from current scores. If a winner becomes ineligible before delivery, skip without moving the next player up.
