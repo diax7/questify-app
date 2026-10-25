@@ -284,7 +284,7 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
 - Load test at 20,000 completions per minute before the first event (NFR-003).
 - A restore rehearsal and an SMS-pumping simulation before launch.
 
-### T-402 cosmetics and public-profile evidence (code review pending)
+### T-402 cosmetics and public-profile evidence (core GO95; final integration gate pending)
 Ownership grants originate only from reached-level inserts in the XP transaction; no direct catalog/inventory/
 equipment rights exist for the API. Composite ownership FKs and setter kind checks prevent forged equips; direct
 avatar writes are revoked. Rename/equipment failure rolls back every field. Active caller checks live inside each
@@ -301,4 +301,5 @@ The app's owner-profile loader generation is invalidated at sign-out, forced end
 cleanup; both awaited reads check it before publishing. Sign-out removes private state immediately and blocks new
 profile reads until logout settles. `apps/app/src/auth/player-state.test.ts` exercises deferred real-session
 responses: late private data after sign-out, A→B replacement, stale failures, forced end and cleanup never restore
-the old account. This closes the MAJOR in the first independent code review88; fresh re-review remains required.
+the old account. This closes the MAJOR in the first independent code review88; fresh re-review GO95 confirms the
+fix with zero BLOCKER/MAJOR. The coordinator's combined full-suite integration gate remains pending.

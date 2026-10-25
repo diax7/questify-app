@@ -418,7 +418,7 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 - No grant on any of them; `own_level(completion)` is the detailed owner XP read (the caller's xp, level, range, title
   and the level a completion reached first). The gem ledger (T-404) will have the same shape.
 
-### Questify cosmetics (T-402, migration 0063; code review pending)
+### Questify cosmetics (T-402, migration 0063 undeployed; core GO95, final integration gate pending)
 - `item(id text PK, kind character|frame|title, name_ar, name_en, visual_key, created_at)`: global catalog; stable
   identity/kind, bounded bilingual names and allowlisted shipped visuals. Six starters remain `player.avatar`.
 - `level_item(level PK/FK xp_level, item_id UNIQUE FK item, UNIQUE level/item_id)`: one distinct guaranteed item for

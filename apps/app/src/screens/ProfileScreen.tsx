@@ -1,5 +1,6 @@
 import { Avatar } from "#src/components/Avatar.tsx";
 import { RewardNotices } from "#src/questify/RewardNotices.tsx";
+import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
@@ -178,11 +179,7 @@ export function ProfileScreen({
         </View>
         {state.status === "signed_in" ? (
           <>
-            {state.me === undefined ? null : (
-              <>
-                <MyIdentity me={state.me} />
-              </>
-            )}
+            {state.me === undefined ? <ProfileGate /> : <MyIdentity me={state.me} />}
             <Button
               kind="quiet"
               label={t("help.open")}
