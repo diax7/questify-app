@@ -4,6 +4,10 @@ Read by every worker the coordinator starts (CLAUDE.md, "How work runs"). You bu
 then reply and stop.
 
 ## Ground rules
+- **Model and reasoning (ADR-265):** GPT-6.1 Sol (`gpt-6.1-sol`, pinned in `config.toml`) for everything;
+  GPT-6 Luna at High is allowed only for purely mechanical edits. High for the coordinator, all plans, all reviews
+  and core builds; Medium for standard builds; Max only for the riskiest reviews. Every review, including a
+  re-review, uses a fresh session or subagent, never the code author.
 - Repo: this folder, branch `main` (already checked out). Never switch branches, never push (the coordinator
   pushes), never open PRs. Commit locally on main.
 - Follow `CLAUDE.md` and its read order, but read only what your task needs. Standards: `docs/rules.md`,
@@ -31,7 +35,8 @@ then reply and stop.
 - Lint, format, types: `npx oxfmt <paths>`, `npx oxlint --deny-warnings <dirs>`, `npx tsc --noEmit -p apps/<x>`.
 - Tests: `npx vitest run <paths>` from the repo root. Run only the suites your change touches, plus
   `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
-  only the specs you touched. `npx expo export` when app screens change.
+  the full browser suite after a fresh web build for UI copy changes; otherwise only the specs you touched.
+  `npx expo export` when app screens change.
 - Before reporting a task done, run the full `npx vitest run` once with both URLs set: list-style guards
   (`test/db/rehearsal.int.test.ts`, the security suites, the community gate map) fail on any new table or function.
 - A new owner-only event switch adds one "Only the owner can change this." note: update its count in

@@ -692,3 +692,14 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   from the plans, remove it from everything."
 - Processed: Q-198 answered; ADR-235 and ADR-236 rejected (titles kept); ADR-234 and ADR-237 cover basic tags only;
   ADR-040 stands; T-308b deleted from TASKS; the plan's signed-tag section removed; Q-200 closed as moot.
+
+## 2026-10-25 — Model routing and independent reviews
+
+- "Use GPT-6.1 Sol for everything (pinned in config.toml). Reasoning effort: High for coordinator, all plans,
+  all reviews and core builds (Max only riskiest reviews); Medium standard builds; GPT-6 Luna (High) fine purely
+  mechanical edits. Every review fresh session/subagent, never code author."
+- Processed: ADR-265 (Accepted), `CLAUDE.md` and `docs/agents/WORKER_BRIEF.md`; preserved historical
+  records. The existing `config.toml` already pins `gpt-6.1-sol` with High reasoning; no config change needed.
+- "Keep building; deploy later" (when asked whether to deploy CranL migrations 0057–0062 and make a new Android
+  build now). Continue building; defer that deployment and Android build.
+- Processed: handoff and current queue in `docs/_blueprint/STATE.md` updated with the deployment deferral.

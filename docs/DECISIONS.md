@@ -3422,3 +3422,14 @@ so it is never confused with the list's add button (assistive technology and the
 paint, with no flash of the default word and no extra request per panel.
 **Trade-offs:** one extra server-to-API read per event page load (5 s timeout); a change made in another tab shows after a
 reload.
+
+## ADR-265 — Model routing and independent reviews
+**Status:** Accepted (Dhia, 2026-10-25).
+**Decision:** Use GPT-6.1 Sol (`gpt-6.1-sol`, pinned in `config.toml`) for everything. GPT-6 Luna at High is allowed
+only for purely mechanical edits. Reasoning effort is High for the coordinator, all plans, all reviews and core
+builds; Medium for standard builds; Max only for the riskiest reviews. Every review, including a re-review, runs in
+a fresh session or subagent, never the code author. This replaces the active Opus/Sonnet routing; historical records
+keep their original model names. The existing config already pins GPT-6.1 Sol with High; no config edit is needed.
+**Why:** Dhia explicitly set the model, reasoning effort and reviewer independence policy.
+**Trade-offs:** workers and reviewers must select the task's reasoning effort explicitly where it differs from the
+configured High default; the mechanical-edit exception never applies to plans or reviews.

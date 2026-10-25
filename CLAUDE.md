@@ -18,13 +18,13 @@ any organizer anywhere; Saudi Arabia is the first market (Arabic + English, RTL)
 
 The main session is the **coordinator**. It does not build tasks itself; it runs them one after another:
 
-1. **A fresh worker per task** (Agent tool, Opus; Sonnet for small mechanical work), pointed at
+1. **A fresh worker per task** (Agent tool; model and reasoning policy below), pointed at
    `docs/agents/WORKER_BRIEF.md` and the task id. Prompts stay short: point at files, don't restate them.
    Workers reply in ≤15 lines. A worker is resumed only for quick fixes right after its review; the next task
    gets a new worker (a large context is costly to resume).
 2. **One CTO review per task.** Core tasks (see Quality bar) get a plan review and a code review; every other task
-   gets one code review. Opus reviews core work and plans; Sonnet reviews non-core work (screens, copy, docs,
-   config). Re-review only after a BLOCKER, or several MAJOR findings, were fixed; fold minor findings in without
+   gets one code review. Every review, including a re-review, runs in a fresh session or subagent, never the code
+   author. Re-review only after a BLOCKER, or several MAJOR findings, were fixed; fold minor findings in without
    asking again.
 3. **Mutation testing batched on GitHub, core code only** (ADR-174): never locally; only the files a task
    changed; one `mutation.yml` run per 2–3 core tasks, dispatched one at a time (a new dispatch cancels the
@@ -38,6 +38,11 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
 7. **Whenever Dhia's interaction or input is needed** (an action only he can do, an approval, a choice, a
    credential, a test on his phone), the coordinator asks with the **AskUserQuestion** tool, never buried in a
    status message, and makes clear what is needed and why. Work that doesn't depend on the answer keeps going.
+
+**Model and reasoning policy (Dhia, 2026-10-25; ADR-265):** use GPT-6.1 Sol (`gpt-6.1-sol`, pinned in
+`config.toml`) for everything, with GPT-6 Luna at High allowed only for purely mechanical edits. Use High for the
+coordinator, all plans, all reviews and core builds; use Medium for standard builds. Max is reserved only for the
+riskiest reviews. The review independence rule applies to every model and task, including docs and config.
 
 ## Read order at the start of every session
 
