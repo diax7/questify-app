@@ -927,6 +927,19 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   migration0063 remains undeployed, GitHub mutation and real-phone Arabic/RTL/cosmetic visual checks are owed.
   No push/deploy/EAS. Mutation40156105166 and ticket rerun queue remain root-owned; existing heartbeat10:55 Riyadh.
 
+- 2026-10-25 **Coordinator integration checkpoint:** T-402 code re-review GO95 (previous88 MAJOR fixed), Arabic
+  GO96, and the small profile retry improvement are saved through a4178a4. Reviewed T-312 test-only commits
+  f77b531/137cf44 (GO96, 5694 tests passed) were integrated on main as 162edc0/d601097; no production ticket
+  code changed. Main is now d601097. The final combined DB/Redis Vitest run is active in exec session4546;
+  report `C:/Users/xdhia/AppData/Local/Temp/questify-combined-t402-t312-final.json`, log with the same prefix
+  ending `.log`. Read the report/poll that session first on resume. T-402 remains unchecked (74/153) until
+  this integration gate passes; then record completion and continue with a fresh T-402b worker. Mutation
+  40156105166 (T-313, remote main179e55d) is still active: hold push until it completes, inspect its results,
+  then push only reviewed green commits after checking origin/main..main. The three ticket-file mutation
+  rerun is still owed; target90 is unverified. T-402 mutation and phone visuals are also owed. No deployment
+  or EAS build. Reset-resume heartbeat is active for10:55 Riyadh after reported reset10:50:18; reschedule
+  it after the next actual reset. No reset credits or purchases used.
+
 ## Next
 
 1. **Now (2026-10-25):** T-402 fresh core GO95, minor folded; root integrates reviewed T-312 tests and runs combined full gate before task tick, then a fresh worker for T-402b; coordinator tracks active T-313 mutation40156105166; apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of
