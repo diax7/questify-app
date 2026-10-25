@@ -260,16 +260,21 @@ describe("player and team ticket HTTP boundaries", () => {
       kind: "ok",
       config: { features: { helpDesk: { enabled: false } } },
     });
+    const reportedUsername = "private_user_9f2c";
+    const text = "Private report body 9f2c";
     const response = await post(EVENT_PATH, {
       kind: "report_player",
-      reportedUsername: "someone",
-      text: "Hi",
+      reportedUsername,
+      text,
     });
     expect([response.statusCode, response.json().code]).toEqual([403, "feature_off"]);
     expect(calls.forEvent).toHaveBeenCalledWith(EVENT, PLAYER);
     expect(calls.countRecent).not.toHaveBeenCalled();
     expect(calls.openTicket).not.toHaveBeenCalled();
     expect(logged("ticket.refused")).toMatchObject([{ reason: "feature_off" }]);
+    for (const secret of [reportedUsername, text, PLAYER]) {
+      expect(JSON.stringify(logged("ticket.refused"))).not.toContain(secret);
+    }
   });
 
   it.each([
@@ -288,10 +293,12 @@ describe("player and team ticket HTTP boundaries", () => {
 
   it("returns the lookup wait in both the header and envelope and logs only its reason", async () => {
     calls.countRecent.mockResolvedValueOnce({ count: 10, retryAfterSeconds: 123 });
+    const reportedUsername = "private_user_4a81";
+    const text = "Private report body 4a81";
     const response = await post(EVENT_PATH, {
       kind: "report_player",
-      reportedUsername: "someone",
-      text: "Hi",
+      reportedUsername,
+      text,
     });
     expect([response.statusCode, response.headers["retry-after"]]).toEqual([429, "123"]);
     expect(response.json()).toMatchObject({
@@ -299,6 +306,9 @@ describe("player and team ticket HTTP boundaries", () => {
       details: { retryAfterSeconds: 123 },
     });
     expect(logged("ticket.refused")).toMatchObject([{ reason: "too_many_lookups" }]);
+    for (const secret of [reportedUsername, text, PLAYER]) {
+      expect(JSON.stringify(logged("ticket.refused"))).not.toContain(secret);
+    }
     expect(calls.openTicket).not.toHaveBeenCalled();
   });
 
