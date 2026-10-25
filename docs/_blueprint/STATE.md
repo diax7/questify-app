@@ -808,7 +808,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   items); location (needs the switch and a build), meet-someone, the four mini-games, practice mode, the kiosk on a
   tablet, the station page on a TV; iPhone tests wait for the Apple account (T-010).
 - **Dhia's open decisions:** Q-170 to Q-229 (except those answered: Q-198 basic NFC tags only, Q-206 removed,
-  Q-215 split agreed); ADR-206 onward are Proposed. Highest value: Q-229 (accept +13 ms burst cost, CTO says agree),
+  Q-215 split agreed); the historical handoff's ADR-206–264 are Proposed except decisions resolved above. Highest value: Q-229 (accept +13 ms burst cost, CTO says agree),
   Q-219 (FR-1411 vs FR-1822 player reports), Q-207/Q-208 (kiosk), Q-210/Q-220 (retention).
 
 - 2026-10-25 **Coordinator handoff taken over:** recorded Dhia's model and reasoning policy as Accepted ADR-265
