@@ -953,6 +953,18 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   successfully; two under90 files are being handled in a separate worktree, not this docs task. Migration0063,
   real-device/CranL/EAS/deployment remain deferred. Resume heartbeat15:05 Riyadh after reset15:00:55.
 
+- 2026-10-25 **T-313 mutation follow-up, isolated test-only verification:** run40156105166's requested API
+  `quests/first-bonus.ts`88.71 and `quests/quests.ts`89.38 were the only targets below90 (historical cached files
+  excluded). Added deterministic cache eviction/in-flight success and failure regressions, real-DB builder service
+  bonus-boundary refusals with unchanged quest/bonus/audit state, setter outcome logging and omitted-bonus preservation.
+  Full DB/Redis Vitest **359 files/5735 tests passed,3 optional timing tests skipped**,272.57s; report
+  `C:/Users/xdhia/AppData/Local/Temp/questify-t313-followup-full-vitest.json`. Focused16 tests PASS; workspace
+  lint/format/types, API build, audit (two existing high advisories ignored by unchanged policy), digest-verified
+  Gitleaks8.30.1 redacted scan PASS. Only API test files and this state note change; fresh web/browser checks are
+  unnecessary under the existing CI scope. Production code, fallback/security/cache contracts and dependencies
+  remain unchanged. Fresh independent core review GO96; remote90% scores remain unverified. Coordinator owns
+  integration and the two-file GitHub rerun after its current queue; no local mutation, push, deploy or EAS.
+
 ## Next
 
 1. **Now (2026-10-25):** T-402 complete (75/153); T-402b plan saved by /root/t402b_worker; commission fresh independent Sol High plan review >=90 with zero BLOCKER/MAJOR before build. T-313 mutation40156105166 succeeded; target first-bonus/quests survivors below90 in a separate worktree. Reviewed main6f5a899 pushed; CI40171311885 running, hold further push until green, then three-file ticket mutation rerun. Apply ADR-265, keep building/deploy later; next reset heartbeat15:05 Riyadh. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of
