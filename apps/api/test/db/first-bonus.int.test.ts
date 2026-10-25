@@ -91,7 +91,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    pool = new Pool({ connectionString: db.appUrl, max: 8 });
+    // Eight claimers and the setter at once (the Stop test).
+    pool = new Pool({ connectionString: db.appUrl, max: 9 });
     ids = await seedTwoTenants(db.owner);
     ownerA = await addMember(db.owner, ids.orgA, "owner");
     ownerB = await addMember(db.owner, ids.orgB, "owner");
@@ -329,6 +330,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
     }
     return false;
   };
+  const hasLiveOf = async (event: string) =>
+    (await query<{ h: boolean }>(SYSTEM, "SELECT event_has_live($1) AS h", [event]))[0]?.h;
   const lockKey = "SELECT pg_advisory_xact_lock(hashtextextended('first-bonus:' || $1, 0))";
   /** A quest with a bonus of `points` for `slots`, and `claimed` players who already got it. */
   const bonusQuest = async (slots: number, claimed = 0, points = 7, fields: QuestFields = {}) => {
@@ -930,18 +933,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
             hash,
             randomUUID(),
           ]);
-        const raise = () => setBonus(event, quest, 7, 2);
         const scan = () => complete(b.player, other);
-        const runs =
-          order === "setter first" ? [raise(), meet(), scan()] : [meet(), scan(), raise()];
-        await Promise.all(runs);
-        expect((await bonuses(quest)).length, order).toBeLessThanOrEqual(2);
-        const [counts] = await leftOf(event).then((rows) =>
-          rows.filter((row) => row.quest_id === quest),
-        );
-        expect(counts?.slots, order).toBe(2);
-        expect((counts?.given ?? 0) + (counts?.free ?? 0), order).toBe(2);
-        expect(counts?.given, order).toBe((await bonuses(quest)).length);
+        // Each order is forced: the first transaction holds its locks open while the other two queue behind it.
+        if (order === "setter first") {
+          const raise = await hold(teamA(), "SELECT set_quest_first_bonus($1, $2, 7, 2, $3)", [
+            event,
+            quest,
+            randomUUID(),
+          ]);
+          const met = meet();
+          expect(await waitsOnLock("meet_player"), order).toBe(true);
+          const scanned = scan();
+          expect(await waitsOnLock("complete_quest"), order).toBe(true);
+          raise.release();
+          await Promise.all([raise.done, met, scanned]);
+        } else {
+          const met = await hold(as(a.player), "SELECT * FROM meet_player($1, $2, NULL, NULL)", [
+            hash,
+            randomUUID(),
+          ]);
+          const raised = setBonus(event, quest, 7, 2);
+          expect(await waitsOnLock("set_quest_first_bonus"), order).toBe(true);
+          const scanned = scan();
+          expect(await waitsOnLock("complete_quest"), order).toBe(true);
+          met.release();
+          await Promise.all([met.done, raised, scanned]);
+        }
+        // Raised first, both sides of the meet claim; met first, one slot was left for the lower player id.
+        const expected = order === "setter first" ? 2 : 1;
+        expect((await bonuses(quest)).length, order).toBe(expected);
+        expect(
+          await leftOf(event).then((rows) => rows.find((row) => row.quest_id === quest)),
+          order,
+        ).toMatchObject({ slots: 2, given: expected, free: 2 - expected });
         expect(await bonuses(other), order).toHaveLength(1);
       }
     });
@@ -975,12 +999,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
       expect(await bonusOf(two, fresh.quest)).toMatchObject([{ score_delta: "9" }]);
     });
 
-    it("Stop during continuous claims on 7 connections finishes in under 2 seconds (CTO 4)", async () => {
+    it("Stop during continuous claims on 8 connections finishes in under 2 seconds (CTO 4)", async () => {
       const { event, quest } = await bonusQuest(1000);
       const players = await Promise.all(Array.from({ length: 210 }, () => member(event)));
       const running = { stop: false };
-      const loops = Array.from({ length: 7 }, async (_, lane) => {
-        for (let next = lane; !running.stop && next < players.length; next += 7) {
+      const loops = Array.from({ length: 8 }, async (_, lane) => {
+        for (let next = lane; !running.stop && next < players.length; next += 8) {
           await complete(players[next]?.player ?? "", quest);
         }
       });
@@ -1121,6 +1145,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
         [event],
       );
       expect(card?.erase_counts).toMatchObject({ first_bonuses: 3, points: 3 * 10 + 3 * 7 });
+    });
+
+    it("Stop with only rehearsal claims switches the bonus off, so the go-live wipe never reopens it", async () => {
+      const { event, quest } = await rehearsing();
+      expect(await setBonus(event, quest, null, 0)).toBe("off");
+      expect(await owner("SELECT 1 FROM quest_first_bonus WHERE quest_id = $1", [quest])).toEqual(
+        [],
+      );
+      await goLive(event);
+      await complete((await member(event)).player, quest);
+      expect(await bonuses(quest)).toEqual([]);
+      expect(await leftOf(event)).toEqual([]);
     });
 
     it("the tick's wipe and the team's Erase rehearsal give the slots back too", async () => {
@@ -1414,6 +1450,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
         [quest],
       );
       expect(await hasLive()).toBe(false);
+      // Only a live event, and only while the quest is not closed (CTO code review 1).
+      const { event: closing, quest: closed } = await bonusQuest(1);
+      expect(await hasLiveOf(closing)).toBe(true);
+      await owner("UPDATE quest SET closes_at = now() - interval '1 minute' WHERE id = $1", [
+        closed,
+      ]);
+      expect(await hasLiveOf(closing)).toBe(false);
+      const later = await newEvent("scheduled", "1 day", "2 days");
+      await setBonus(later, await newQuest(later), 7, 1);
+      expect(await hasLiveOf(later)).toBe(false);
     });
 
     it("a community points goal counts the bonus", async () => {

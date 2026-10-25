@@ -627,4 +627,5 @@ Measured by hand (ADR-260): at 300 completions at once on one quest from two API
 without a bonus and 73.2 ms with N = 50 (+22.7%, 13 ms); a used-up bonus costs nothing (60.0 ms). The slot claim alone
 is +7.5%; the rest is the bonus's own ledger row for the first 50 players. Recommended: accept it (NFR-002 allows 1 s;
 the extra lasts only for the first N), and keep the bonus as its own ledger kind. The alternative, folding the bonus into
-the quest's entry, would lose its own removal, label and community count. Agree?
+the quest's entry, would lose its own removal, label and community count. Agree? The CTO code review (92, GO)
+recommends "agree", with the timing measured again if Q-226 raises the 1,000 cap (a larger N means more first claims).

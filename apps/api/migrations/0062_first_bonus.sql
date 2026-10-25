@@ -140,14 +140,15 @@ $$;
 REVOKE ALL ON FUNCTION first_bonus_place(quest_bonus_slot) FROM PUBLIC;
 
 -- ================================================================ the setter (owners and editors, ADR-262)
--- Sets, changes, stops or switches off a quest's bonus, in the builder's save after its quest write. Off is `points` and
--- `slots` both NULL; Stop is `points` NULL and `slots` 0: N becomes the number given, counted under the lock, so a
--- claim in flight is never refused or lost (nobody got it: off). AN404 outside the caller's events, QC404 not a quest of this event, QE409 once the event ended or
--- its results are final, QB422 (points: 1 to 100,000; slots: 1 to 1,000), QB409 first_bonus_paid (off, or new points,
--- once a real player got it), QB409 below_given (fewer slots than given, HINT the count). The rehearsal row, then the
--- bonus's advisory lock exclusive (it waits for the claims in flight, which then count exactly), the bonus row, then
--- its slots: never an enrollment, an item or an XP row. Raising adds places; lowering deletes free slots from the
--- highest place down. Audited `event.first_bonus_set` when anything changed. Answers 'set', 'off' or 'unchanged'.
+-- Sets, changes, stops or switches off a quest's bonus, in the builder's save after its quest write. Off is `points`
+-- and `slots` both NULL; Stop is `points` NULL and `slots` 0: N becomes the number given, counted under the lock, so a
+-- claim in flight is never refused or lost; with no real player given, Stop is off (rehearsal claims included).
+-- AN404 outside the caller's events, QC404 not a quest of this event, QE409 once the event ended or its results are
+-- final, QB422 (points: 1 to 100,000; slots: 1 to 1,000), QB409 first_bonus_paid (off, or new points, once a real
+-- player got it), QB409 below_given (fewer slots than given, HINT the count). The rehearsal row, then the bonus's
+-- advisory lock exclusive (it waits for the claims in flight, which then count exactly), the bonus row, then its
+-- slots: never an enrollment, an item or an XP row. Raising adds places; lowering deletes free slots from the highest
+-- place down. Audited `event.first_bonus_set` when anything changed. Answers 'set', 'off' or 'unchanged'.
 CREATE FUNCTION set_quest_first_bonus(target_event uuid, target_quest uuid, bonus_points integer,
                                       bonus_slots integer, request uuid) RETURNS text
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -176,12 +177,14 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('first-bonus:' || target_quest, 0));
   SELECT * INTO old FROM quest_first_bonus b WHERE b.quest_id = target_quest FOR UPDATE;
   IF FOUND THEN
-    SELECT count(s.completion_id)::integer, count(*) FILTER (WHERE s.completion_id IS NOT NULL AND NOT s.rehearsal)::integer
+    SELECT count(s.completion_id)::integer,
+           count(*) FILTER (WHERE s.completion_id IS NOT NULL AND NOT s.rehearsal)::integer
     INTO given, real_paid
     FROM quest_bonus_slot s WHERE s.quest_id = target_quest;
   END IF;
 
-  IF bonus_slots = 0 AND old.quest_id IS NOT NULL AND given > 0 THEN
+  -- Stop with only rehearsal claims is off: N at the rehearsal count would reopen at the go-live wipe (CTO review 2).
+  IF bonus_slots = 0 AND old.quest_id IS NOT NULL AND real_paid > 0 THEN
     bonus_points := old.points;
     bonus_slots := given;
   END IF;
@@ -1215,8 +1218,8 @@ BEGIN
       '[]'::jsonb));
 END $$;
 
--- As 0055, also true while a shown quest of the event has a first-N bonus with a slot free, and for 15 minutes after
--- its last claim (so "All taken" reaches the app): the live read carries the bonuses left.
+-- As 0055, also true while the event is live and a shown quest of it, not yet closed, has a first-N bonus with a slot
+-- free, or claimed in the last 15 minutes (so "All taken" reaches the app): the live read carries the bonuses left.
 CREATE OR REPLACE FUNCTION event_has_live(target uuid) RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM quest q
@@ -1232,7 +1235,10 @@ CREATE OR REPLACE FUNCTION event_has_live(target uuid) RETURNS boolean
                  WHERE b.event_id = event_has_live.target AND b.starts_at <= now()
                    AND b.starts_at > now() - interval '15 minutes' AND b.ends_at > now())
       OR EXISTS (SELECT 1 FROM quest_first_bonus fb JOIN quest q ON q.id = fb.quest_id
+                 JOIN event e ON e.id = fb.event_id
                  WHERE fb.event_id = event_has_live.target AND q.visible
+                   AND event_status_now(e.status, e.starts_at, e.ends_at) = 'live'
+                   AND (q.closes_at IS NULL OR q.closes_at > now())
                    AND EXISTS (SELECT 1 FROM quest_bonus_slot s
                                WHERE s.quest_id = fb.quest_id
                                  AND (s.completion_id IS NULL OR s.claimed_at > now() - interval '15 minutes')))
