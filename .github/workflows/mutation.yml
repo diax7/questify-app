@@ -11,6 +11,11 @@ on:
         description: "Files to mutate, comma-separated globs (empty: every core module in stryker.config.json)"
         required: false
         default: ""
+      force:
+        description: "Re-test all selected mutants even when incremental results exist"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: mutation-${{ github.ref }}
@@ -82,9 +87,13 @@ jobs:
       - name: Mutation test
         env:
           MUTATE: ${{ inputs.mutate }}
+          FORCE: ${{ inputs.force }}
         run: |
           set -euo pipefail
           args=(--incremental --concurrency 4 --dryRunTimeoutMinutes 20 --reporters clear-text,html)
+          if [ "$FORCE" = "true" ]; then
+            args+=(--force)
+          fi
           if [ -n "$MUTATE" ]; then
             args+=(--mutate "$MUTATE")
           fi
