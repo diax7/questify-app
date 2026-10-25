@@ -73,12 +73,33 @@ export function registerSouvenirRoutes(scope: FastifyInstance, deps: SouvenirDep
       return souvenirList(client, eventId);
     });
   });
+  registerSouvenirActions(scope, deps);
+  scope.post("/events/:eventId/souvenirs/process", writing, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    parse(empty, request.body);
+    const actor = organizerContextOf(request);
+    await asSouvenirTeam(deps, actor, (client) =>
+      client.query("SELECT souvenir_request($1,$2)", [eventId, commandId(request)]),
+    );
+    const totals = await paySouvenirs(deps, { eventId });
+    const list = await asSouvenirTeam(deps, actor, (client) => souvenirList(client, eventId));
+    return {
+      ...list,
+      ...totals,
+      status: list.due === 0 && list.scanning === 0 ? "complete" : "pending",
+    };
+  });
+}
+
+function registerSouvenirActions(scope: FastifyInstance, deps: SouvenirDeps) {
   for (const action of ["activate", "stop", "delete"] as const) {
     const url = `/events/:eventId/souvenirs/:souvenirId${action === "delete" ? "" : `/${action}`}`;
     scope.route({
       method: action === "delete" ? "DELETE" : "POST",
       url,
       ...writing,
+      // A full300-quest event's reviewed UUID list exceeds the small draft body limit.
+      ...(action === "activate" ? { bodyLimit: 512 * 1024 } : {}),
       handler: async (request) => {
         const { eventId, souvenirId } = parse(ruleParams, request.params);
         const targets = action === "activate" ? parse(activation, request.body).targetIds : null;
@@ -96,19 +117,4 @@ export function registerSouvenirRoutes(scope: FastifyInstance, deps: SouvenirDep
       },
     });
   }
-  scope.post("/events/:eventId/souvenirs/process", writing, async (request) => {
-    const { eventId } = parse(eventParams, request.params);
-    parse(empty, request.body);
-    const actor = organizerContextOf(request);
-    await asSouvenirTeam(deps, actor, (client) =>
-      client.query("SELECT souvenir_request($1,$2)", [eventId, commandId(request)]),
-    );
-    const totals = await paySouvenirs(deps, { eventId });
-    const list = await asSouvenirTeam(deps, actor, (client) => souvenirList(client, eventId));
-    return {
-      ...list,
-      ...totals,
-      status: list.due === 0 && list.scanning === 0 ? "complete" : "pending",
-    };
-  });
 }

@@ -59,6 +59,38 @@ describe("profile client contracts", () => {
     expect(await seeItems(session(null, "network"), [item.id])).toBe(false);
     expect(await seeItems(session(null), [item.id])).toBe(true);
   });
+  it("parses own event provenance alongside level items and refuses malformed source payloads", async () => {
+    const source = {
+      kind: "event",
+      event: {
+        id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        name: { ar: "فعالية خاصة", en: "Private event" },
+      },
+    };
+    const entry = {
+      item: { ...item, id: "souvenir-a" },
+      earnedAt: "2026-10-25T10:20:30.123456Z",
+      source,
+      seen: false,
+    };
+    const page = await lockerPage(
+      session({
+        items: [entry, { ...entry, item, source: { kind: "level", level: 2 } }],
+        nextCursor: null,
+      }),
+    );
+    expect(page?.items.map((row) => row.source.kind)).toEqual(["event", "level"]);
+    expect(page?.items[0]?.earnedAt).toBe(entry.earnedAt);
+    for (const bad of [
+      { kind: "event" },
+      { kind: "event", event: { ...source.event, id: "bad" } },
+      { kind: "unknown" },
+    ]) {
+      expect(
+        await lockerPage(session({ items: [{ ...entry, source: bad }], nextCursor: null })),
+      ).toBeNull();
+    }
+  });
   it("preserves clear/omitted slots and server refusals, without claiming a failed save", async () => {
     const s = session(null, "error");
     const patch = { frameId: null, titleId: "level-3" };

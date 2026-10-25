@@ -175,5 +175,11 @@ before the first use.
 
 ## Audit
 
+T-402b souvenir rules are organizer data: bilingual public cosmetic names, a shipped frame/chest/title renderer,
+one of4 audiences and category/rank parameters. Explicit activation freezes item content and the nonempty eligible
+quest set; stop prevents future grants without recall. New behavior/art mechanics still require a release. Private
+event attribution is separate from public cosmetic names. Rank rules must activate before confirmed results;
+existing snapshots are not reconstructed.100 rules/event, ranks1–100. Configuration uses no remote art/code service.
+
 Every platform and event configuration change writes an audit entry (who, what, before, after, when)
 that is never edited (FR-1409, NFR-019).

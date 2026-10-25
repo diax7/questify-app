@@ -440,6 +440,24 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 - Account/locker/public-profile data remains in memory on the app, never persisted. Passport, achievements and owner
   event history remain T-403; no empty placeholders count as delivering them. Source event history is never public.
 
+### Organizer souvenir ownership (T-402b, migration0064; code review pending)
+
+- `souvenir_rule` binds organizer/event, one opaque item and typed audience/category/range; draft→active→stopped,
+ 100-rule cap. `souvenir_target` freezes nonempty same-event finisher quest IDs. Active names/art/identity cannot change.
+- `souvenir_receipt` proves rule/event/item and enrollment/event/player; unique rule/player and player/item. No redundant
+  direct event FK after enrollment (confirmation locks event→enrollment). Immutable, erasure-only deletion/no truncate.
+  player_item gains an exact level/souvenir source union and composite receipt FK, retaining every existing level FK.
+  Both source-map writers serialize on the shared item identity.
+- `souvenir_work` stores real event/member generation, lease/token and retry metadata. Claim/ack are separate transactions
+  from grants. `souvenir_scan` performs bounded500-member activation/repair scans. Private `souvenir_command` records
+  actor/event/operation-body fingerprint/result for durable request replay. All6 tables force RLS, no direct API/PUBLIC
+  rights; only narrow organizer/system doors. System excludes player/staff/organizer/admin/device contexts.
+- Grant order: active player FOR SHARE→enrollment FOR NO KEY UPDATE→rules FOR SHARE→XP FOR UPDATE→receipt/item. SHARE
+  serializes normal admin ban UPDATEs. No event/wipe lock after enrollment. Erasure extends0063 cleanup: equipment/items
+  before receipts/work, preserving ticket/other erasure steps. No rehearsal lifetime grants or work.
+- Only own locker joins source event names. T-708 must integrate earned provenance into future authorized exports and
+  decide transient-work disclosure/retention; no export assembly is built here. T-507 later attaches sponsor metadata.
+
 ### reward, reward_code, redemption
 Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,
 ADR-151):

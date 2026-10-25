@@ -297,3 +297,25 @@ the client-address count (ADR-113).
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.
+
+### Souvenir grant recovery (T-402b; deployment still deferred)
+
+The server's separate souvenir tick runs every5s with jitter and a2s processing budget, at most500 recipients per
+invocation. Each recipient's claim, grant and generation/token acknowledgment commit separately. A crash after
+grant commit replays ownership safely; a claimed but unfinished lease expires after60s. Failures remain durable,
+retry with bounded backoff up to300s and expose pending/failed counts in the authorized organizer Souvenirs page.
+Health logs contain counts/error classes only. The internal empty-context `souvenir_health()` also excludes device
+identity; never expose this system context through HTTP or grant a direct table right for recovery.
+
+Use 'Process pending grants' with a fresh request key for another pass; retry a dropped request using its same key.
+The response is pending until both due work and currently scheduled backfill are done. Activated rules are repaired
+through bounded500-member scans each minute; already granted rule/player pairs are skipped. For rank waiting state,
+the owner must confirm the existing final-results preview; do not rebuild frozen places or activate a new rank rule
+after confirmation. An archived event is read-only, but its previously authorized durable work can finish normally.
+Do not delete receipts or reset player_item source fields to repair a queue. Preserve source privacy and erasure.
+
+Synthetic load evidence can be reproduced on a throwaway local test database by bundling/running
+`apps/api/test/support/souvenir-benchmark.ts` with TEST_DATABASE_URL and optional SOUVENIR_BENCH_REPORT. It seeds
+20,001 recipients, measures source enqueue cost and actual bounded worker passes, and requires convergence with
+no pass over500 recipients. It creates/drops its own test database; never point it at production. This is ordinary
+database performance verification, not Stryker; mutation remains GitHub-only. Record measured values separately.

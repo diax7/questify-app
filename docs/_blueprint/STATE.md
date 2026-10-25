@@ -998,16 +998,47 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   No worker push/local Stryker/deploy/EAS; migration0064 undeployed and phone/RTL checks deferred. Heartbeat03:12
   Riyadh2026-10-26 after actual03:07:04 reset remains active. Continue this same worker; no other main writer.
 
+- 2026-10-25 **T-402b durable implementation checkpoint; final verification pending, NOT complete:**
+  Source is frozen for the final rerun after self-audit fixes. Since a4ab626: activation accepts the legitimate
+  300-quest target body (activation-only512KiB limit plus HTTP regression); catalog writers serialize on item;
+  repair/enqueue skips already-owned rule/player pairs; audit records settings without free names; final scoped
+  UI retry/read fencing, private native event provenance, HTTP/security/native/shared and Arabic browser cases
+  are saved. Arabic84→94 GO and plan88→96 GO remain source/plan evidence, not core-code approval. TASKS remains
+  unchecked75/153 (49.02%); Proposed ADR-269–271/Q-233–235 remain Proposed. Migration0064 remains undeployed.
+  Final fresh web build exec3002 PASS (exit0), log `C:/Users/xdhia/AppData/Local/Temp/questify-t402b-web-final-build.log`.
+  Current workspace shared/API/app/web types PASS exec47984. Its lint failed only the manual benchmark console.log;
+  changed that to process.stdout.write, so final lint rerun is owed. Earlier API build/audit PASS (two existing high
+  advisories ignored by unchanged policy); Android export6359 PASS, log `Temp/questify-t402b-android.log` and output
+  `Temp/questify-t402b-android`. iOS export is owed. Focused evidence: original11 ownership;29 souvenir/locks;
+  518 results/security/rehearsal; updated HTTP/shared/native/copy15 passed. Final-focused51807 had12 pass/1 fail:
+  optimized repair changed scan order; fixture fixed and targeted expired-lease rerun PASS1/6 filtered skips.
+  Log `Temp/questify-t402b-final-focused.log`; no known unresolved focused failure, but full rerun remains required.
+  Initial full Vitest99199 and browser56935 were deliberately cancelled after real source fixes, NOT passing runs.
+  Logs `Temp/questify-t402b-full.log` and `Temp/questify-t402b-browser.log`; initial browser discovered142 cases.
+  No local check process remains active:3002/47984 completed; cancelled suites left no3100/4100 listeners. The
+  final DB/Redis Vitest slot is available; coordinate before running ONE full suite. Full final DB/Redis Vitest,
+  FULL browser142 from the fresh build, iOS export,20k convergence benchmark, final lint/format/API build/redacted
+  secret scans and fresh independent core code review remain owed. Benchmark source is manual support script
+  `apps/api/test/support/souvenir-benchmark.ts`, not yet run; bundle alongside test-db in support before execution,
+  set TEST_DATABASE_URL and optional SOUVENIR_BENCH_REPORT. Do not claim20k latency until actual report exists.
+  Reviewed remote main4bca465 CI40224593807 SUCCESS,404000ms/6.73wallmin,0 billed. Mutation-force configfb0fba4
+  GO98 is side-branch only. Forced console40226079637 SUCCESS98.51% (65Killed+1Timeout,1Survived,3Ignored),
+  983000ms/16.38wallmin,0 billed; artifacts `Temp/questify-forced-console-40226079637`; no further console chase.
+  Forced T-313 two-file run40227738340 ACTIVE per coordinator; root owns it and the push hold. T-402/T-402b mutation
+  batch remains owed, never local Stryker. Heartbeat ACTIVE03:12 Riyadh2026-10-26 after03:07:04 reset; no credits.
+  Save this checkpoint locally, do not push or commission core review before remaining gates. Continue the SAME
+  worker after reset; physical-phone RTL/cosmetic visuals, CranL migrations/deployment/EAS remain deferred.
+
 ## Next
 
-1. **Now (2026-10-25): RESUMED by Dhia.** T-402 complete75/153. Publish reviewed checkpoint; implement approved T-402b plan96 after two minor clarifications. Fresh code review/full gates required. Heartbeat ACTIVE03:12 Riyadh2026-10-26; continue the latest resumed queue above and keep deployment/EAS deferred.
-   T-306c (migration 0054), then the mutation runs on GitHub for T-306b, T-306c and T-307, then the next unchecked task. The Opus code review of T-306
-   is still owed. Before that: the Opus code review of T-305c (and of T-303c, T-303b), then mutation on GitHub (T-305c's globs; T-305's re-run now that its many-seed tests sit outside Stryker), then the next unchecked task in `docs/TASKS.md`. Before 2026-10-24: Earlier: Dhia decides whether to merge branch `t-206-prize-desk` into `main` and push (Full checks and mutation are green on it), then the next unchecked task in `docs/TASKS.md` (T-207, T-209, T-211, T-213, T-214, T-216, T-217, T-218 and T-220 are done on `batch-2026-10-23`; T-207, T-209, T-211, T-214, T-216 and T-218 reviewed GO, T-220 reviewed GO (mutation on GitHub run 39936502814), T-213 reviewed (Sonnet 86 → fixed); T-217 reviewed GO (92), its mutation run on GitHub owed; T-401 reviewed GO (94), mutation on GitHub run 39945083260; T-301 reviewed GO (93), minors folded, mutation on GitHub run 39949844007; T-302 done, awaiting its Opus code review and its mutation run on GitHub; T-303 done (challenge, survey, share), reviewed GO (94), nits folded; T-304 (category rules and bonus) done, reviewed GO (92), minors folded, mutation run owed, T-304b (passport) done, reviewed GO (92), minor folded, mutation run owed, T-304c done (Opus code review and mutation owed), T-304d done (Opus code review and mutation owed); T-303b (location) done (Opus code review and mutation owed); T-303c (meet-someone) is next in that area), then T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations
-   0007 to 0023 and an EAS development build (Android: an Expo account only). Otherwise the next unchecked task in
-   `docs/TASKS.md`. One task per session (CLAUDE.md, Token budget).
-   - Dependabot (2026-10-21): two high alerts, `braces` 3.0.3 and `node-forge` 1.4.0, both only through Expo's build
-     tools (`@expo/cli`, Metro), not in the API, the web app or the app's bundle; no patched version yet. Take the fix
-     with the next Expo update.
+1. **Current queue (2026-10-25, supersedes historical queues):** resume this same T-402b implementation from the
+   latest durable checkpoint above. Run final frozen-source DB/Redis Vitest, full browser142, iOS export,20k
+   benchmark and final static/build/secret gates; then fresh independent core code review >=90 with zero
+   BLOCKER/MAJOR, fixing/rechecking findings before marking T-402b done. Keep75/153 until then. Root checks active
+   T-313 mutation40227738340 and owns reviewed pushes/CI and T-402/T-402b mutation batch. Console98.51% already meets
+   target. Do not push unfinished WIP, deploy, run EAS or local Stryker. Heartbeat ACTIVE03:12 Riyadh2026-10-26.
+   Earlier completed-task/Opus queues above are historical, not instructions to restart those tasks.
+   Existing dependency audit exceptions remain unchanged; real-device/CranL/EAS obligations remain deferred.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

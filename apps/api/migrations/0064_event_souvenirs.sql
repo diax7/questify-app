@@ -114,6 +114,7 @@ REVOKE ALL ON FUNCTION souvenir_rule_guard() FROM PUBLIC;
 CREATE TRIGGER souvenir_rule_guard BEFORE UPDATE OR DELETE ON souvenir_rule FOR EACH ROW EXECUTE FUNCTION souvenir_rule_guard();
 ALTER TABLE souvenir_rule ENABLE ALWAYS TRIGGER souvenir_rule_guard;
 CREATE TRIGGER souvenir_rule_truncate BEFORE TRUNCATE ON souvenir_rule FOR EACH STATEMENT EXECUTE FUNCTION xp_append_only();
+ALTER TABLE souvenir_rule ENABLE ALWAYS TRIGGER souvenir_rule_truncate;
 
 CREATE FUNCTION souvenir_target_guard() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE rule uuid := CASE WHEN TG_OP='DELETE' THEN OLD.rule_id ELSE NEW.rule_id END;
@@ -128,9 +129,14 @@ REVOKE ALL ON FUNCTION souvenir_target_guard() FROM PUBLIC;
 CREATE TRIGGER souvenir_target_guard BEFORE INSERT OR UPDATE OR DELETE ON souvenir_target FOR EACH ROW EXECUTE FUNCTION souvenir_target_guard();
 ALTER TABLE souvenir_target ENABLE ALWAYS TRIGGER souvenir_target_guard;
 CREATE TRIGGER souvenir_target_truncate BEFORE TRUNCATE ON souvenir_target FOR EACH STATEMENT EXECUTE FUNCTION xp_append_only();
+ALTER TABLE souvenir_target ENABLE ALWAYS TRIGGER souvenir_target_truncate;
 
 CREATE FUNCTION souvenir_catalog_guard() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
+ IF TG_TABLE_NAME IN ('level_item','souvenir_rule') THEN
+  -- Serialize the two source-map writers on their common immutable catalog identity.
+  PERFORM 1 FROM item i WHERE i.id=NEW.item_id FOR UPDATE;
+ END IF;
  IF TG_TABLE_NAME='level_item' THEN
   IF EXISTS(SELECT 1 FROM souvenir_rule r WHERE r.item_id=NEW.item_id) THEN
    RAISE EXCEPTION 'item already has a souvenir source' USING ERRCODE='23514';
@@ -148,6 +154,9 @@ REVOKE ALL ON FUNCTION souvenir_catalog_guard() FROM PUBLIC;
 CREATE TRIGGER souvenir_level_source BEFORE INSERT OR UPDATE ON level_item FOR EACH ROW EXECUTE FUNCTION souvenir_catalog_guard();
 CREATE TRIGGER souvenir_rule_source BEFORE INSERT OR UPDATE ON souvenir_rule FOR EACH ROW EXECUTE FUNCTION souvenir_catalog_guard();
 CREATE TRIGGER souvenir_item_content BEFORE UPDATE ON item FOR EACH ROW EXECUTE FUNCTION souvenir_catalog_guard();
+ALTER TABLE level_item ENABLE ALWAYS TRIGGER souvenir_level_source;
+ALTER TABLE souvenir_rule ENABLE ALWAYS TRIGGER souvenir_rule_source;
+ALTER TABLE item ENABLE ALWAYS TRIGGER souvenir_item_content;
 
 CREATE FUNCTION souvenir_system_only() RETURNS void LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
@@ -185,7 +194,8 @@ CREATE FUNCTION souvenir_enqueue(target uuid) RETURNS void LANGUAGE sql SECURITY
  SELECT n.event_id,n.id FROM enrollment n JOIN player p ON p.id=n.player_id
  WHERE n.id=target AND n.joined_via IS DISTINCT FROM 'rehearsal' AND p.status='active'
    AND n.status='active' AND NOT n.waitlisted
-   AND EXISTS(SELECT 1 FROM souvenir_rule r WHERE r.event_id=n.event_id AND r.status='active')
+   AND EXISTS(SELECT 1 FROM souvenir_rule r WHERE r.event_id=n.event_id AND r.status='active'
+    AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=r.id AND s.player_id=n.player_id))
  ON CONFLICT(event_id,enrollment_id) DO UPDATE SET generation=souvenir_work.generation+1,ready_at=now()
 $$;
 REVOKE ALL ON FUNCTION souvenir_enqueue(uuid) FROM PUBLIC;
@@ -227,13 +237,16 @@ END $$;
 REVOKE ALL ON FUNCTION souvenir_list(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION souvenir_list(uuid) TO questify_app;
 
-CREATE FUNCTION souvenir_audit(ev event, action text, target uuid, request uuid) RETURNS void
+CREATE FUNCTION souvenir_audit(ev event, action text, target uuid, request uuid, prior jsonb DEFAULT NULL) RETURNS void
  LANGUAGE sql SECURITY DEFINER SET search_path=public,pg_temp AS $$
- INSERT INTO audit_log(actor_type,actor_id,organizer_id,event_id,action,target_type,target_id,after,request_id)
- VALUES('staff',app_staff_user_id(),ev.organizer_id,ev.id,action,'souvenir',target::text,
- jsonb_build_object('status',(SELECT status FROM souvenir_rule WHERE id=target)),request)
+ INSERT INTO audit_log(actor_type,actor_id,organizer_id,event_id,action,target_type,target_id,before,after,request_id)
+ VALUES('staff',app_staff_user_id(),ev.organizer_id,ev.id,action,'souvenir',target::text,prior,
+ (SELECT jsonb_build_object('status',r.status,'audience',r.audience,'categoryId',r.category_id,
+  'rankFrom',r.rank_from,'rankTo',r.rank_to,'kind',i.kind,'visualKey',i.visual_key,
+  'targets',(SELECT count(*) FROM souvenir_target t WHERE t.rule_id=r.id))
+  FROM souvenir_rule r JOIN item i ON i.id=r.item_id WHERE r.id=target),request)
 $$;
-REVOKE ALL ON FUNCTION souvenir_audit(event,text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION souvenir_audit(event,text,uuid,uuid,jsonb) FROM PUBLIC;
 
 CREATE FUNCTION souvenir_replay(ev event,operation text,body jsonb,request uuid) RETURNS uuid
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
@@ -289,7 +302,9 @@ BEGIN
  VALUES(made,ev.organizer_id,ev.id,chosen,audience,cat,(body->>'rankFrom')::integer,(body->>'rankTo')::integer)
  ON CONFLICT(id) DO UPDATE SET audience=EXCLUDED.audience,category_id=EXCLUDED.category_id,
  rank_from=EXCLUDED.rank_from,rank_to=EXCLUDED.rank_to;
- PERFORM souvenir_audit(ev,CASE WHEN target_rule IS NULL THEN 'souvenir.create' ELSE 'souvenir.update' END,made,request);
+ PERFORM souvenir_audit(ev,CASE WHEN target_rule IS NULL THEN 'souvenir.create' ELSE 'souvenir.update' END,made,request,
+  CASE WHEN target_rule IS NOT NULL THEN jsonb_build_object('status',r.status,'audience',r.audience,
+    'categoryId',r.category_id,'rankFrom',r.rank_from,'rankTo',r.rank_to) END);
  PERFORM souvenir_remember(ev,'save:'||coalesce(target_rule::text,'new'),body,request,made);
  RETURN made;
 END $$;
@@ -328,7 +343,8 @@ BEGIN
   DELETE FROM item WHERE id=r.item_id;
  ELSE RAISE EXCEPTION 'souvenir frozen' USING ERRCODE='SV409',DETAIL='souvenir_locked';
  END IF;
- PERFORM souvenir_audit(ev,'souvenir.'||action,r.id,request);
+ PERFORM souvenir_audit(ev,'souvenir.'||action,r.id,request,jsonb_build_object('status',r.status,'audience',r.audience,
+  'categoryId',r.category_id,'rankFrom',r.rank_from,'rankTo',r.rank_to));
  PERFORM souvenir_remember(ev,action,jsonb_build_object('rule',target_rule,'targets',expected),request,r.id);
 END $$;
 REVOKE ALL ON FUNCTION souvenir_action(uuid,uuid,text,uuid,uuid[]) FROM PUBLIC;
@@ -361,6 +377,7 @@ BEGIN
  members:=ARRAY(SELECT n.id FROM enrollment n JOIN player p ON p.id=n.player_id
   WHERE n.event_id=ev AND n.joined_via IS DISTINCT FROM 'rehearsal' AND p.status='active'
    AND n.status='active' AND NOT n.waitlisted AND (chosen.cursor_id IS NULL OR n.id>chosen.cursor_id)
+   AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=chosen.rule_id AND s.player_id=n.player_id)
   ORDER BY n.id LIMIT 500);
  FOREACH member IN ARRAY members LOOP PERFORM souvenir_enqueue(member); END LOOP;
  UPDATE souvenir_scan SET cursor_id=CASE WHEN cardinality(members)=500 THEN members[500] END,

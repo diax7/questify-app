@@ -104,6 +104,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
     const first = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,1)", [f.ids.eventA]))
       .rows[0];
     await f.grant();
+    const another = await f.create();
+    await f.action(another);
     await f.db.owner.query("UPDATE enrollment SET waitlisted=waitlisted WHERE id=$1", [f.member]);
     await f.run({}, "SELECT souvenir_ack($1,$2,$3,NULL)", [
       f.member,
@@ -113,7 +115,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
     const next = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,1)", [f.ids.eventA]))
       .rows[0];
     expect(Number(next.generation)).toBeGreaterThan(Number(first.generation));
-    expect((await f.grant()).rows[0].n).toBe(0);
+    expect((await f.grant()).rows[0].n).toBe(1);
     await f.run({}, "SELECT souvenir_ack($1,$2,$3,NULL)", [
       f.member,
       next.generation,
@@ -124,9 +126,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
   it("concurrent evaluators grant once, and expired-lease replay after commit stays idempotent", async () => {
     const grants = await Promise.all([f.grant(), f.grant()]);
     expect(grants.reduce((n, r) => n + Number(r.rows[0].n), 0)).toBe(1);
+    const another = await f.create();
+    await f.action(another);
+    await f.run({}, "SELECT souvenir_scan_batch($1)", [f.ids.eventA]);
     await f.run({}, "SELECT souvenir_scan_batch($1)", [f.ids.eventA]);
     const first = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,1)", [f.ids.eventA]))
       .rows[0];
+    await f.grant();
     await f.db.owner.query("UPDATE souvenir_work SET lease_until=now()-interval '1 second'");
     const next = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,1)", [f.ids.eventA]))
       .rows[0];

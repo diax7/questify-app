@@ -1,4 +1,10 @@
-import { decodeCursor, encodeCursor, type Equipment, type ProfileItem, type LockerEntry } from "@questify/shared";
+import {
+  decodeCursor,
+  encodeCursor,
+  type Equipment,
+  type ProfileItem,
+  type LockerEntry,
+} from "@questify/shared";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { invalidRequest, unauthenticated } from "#src/auth/http-errors";
@@ -57,9 +63,10 @@ export async function readLocker(client: PoolClient, cursor: string | undefined,
   const items: LockerItem[] = rows.slice(0, limit).map((row) => ({
     item: row.item,
     earnedAt: row.earned_at,
-    source: row.source_event == null
-      ? { kind: "level", level: row.source_level }
-      : { kind: "event", event: row.source_event },
+    source:
+      row.source_event == null
+        ? { kind: "level", level: row.source_level }
+        : { kind: "event", event: row.source_event },
     seen: row.seen,
   }));
   const last = items.at(-1);

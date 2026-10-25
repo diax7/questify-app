@@ -1,5 +1,21 @@
 # Security — Questify
 
+## T-402b souvenir boundary (implemented; final code review pending)
+
+Rules/targets/receipts/work/scans/command receipts force RLS with no direct API/PUBLIC rights. Narrow SQL doors
+recheck active staff membership/event limits and reject forged admin/device/player contexts. System grant doors
+require empty context including app_device_id. Recipient eligibility is relational, never a client/queue assertion.
+Player FOR SHARE serializes platform ban UPDATE through grant commit; enrollment/rule/XP order and separate queue
+claim/ack prevent player-erasure and completion-queue inversions. Receipt composite references avoid an event FK lock
+after enrollment, preserving confirmation's opposite order. Rehearsal data cannot produce lifetime ownership/work.
+
+Own locker exposes private source event ID/name only to the active owner, even after leaving/archive; public
+profile/ranking/equipment retain source-free allowlists and opaque cosmetic IDs. Cosmetic names/art are explicitly
+public-facing content, never automatically copied from private event names. Errors, health and audit metadata contain
+no submitted names, attendee list or contacts. Erasure deletes equipment/items/receipts/member work under0063's barriers;
+retained result places remain anonymous. T-708's future download must cover earned provenance and explicitly decide
+transient-work disclosure/retention; no data-download assembly is claimed here.
+
 > One page: what we protect, from whom, and how. Stage 6, 2026-10-17. Not a compliance document
 > (that is `STORE_COMPLIANCE.md`). Mitigations here also appear in the SRS or `ARCHITECTURE.md`.
 

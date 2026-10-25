@@ -471,3 +471,37 @@ never URLs/code. Own `/me` includes automatic level title separately from the eq
 actual grants; re-climbing a reached level adds none. Unseen grants also appear by name on Profile for operator or
 background completions. Profile URL logging masks username segments and drops query values. Souvenirs remain T-402b;
 public achievements/passport and owner event history remain T-403; blocks must cover this read in T-705.
+
+### T-402b event souvenirs (implemented; final verification/code review pending)
+
+Organizer prefix `/v1/organizers/{organizerId}/events/{eventId}/souvenirs`; active scoped owner/editor,
+independently validated by SQL. Every mutation takes Idempotency-Key. No recipient/source/time input or remote art.
+Body: `{kind:frame|title|character,name:{ar,en},visualKey,audience:joined|category|all|rank,categoryId?,rankFrom?,rankTo?}`.
+Both names1–60; rank bounds1–100 inclusive; category/range fields must match audience. Frames select frame-01..14,
+character selects chest, title has visualKey:null.100 rules/event maximum; immutable item identity/kind.
+
+| Method/path under prefix | Contract |
+|---|---|
+| GET root | `{rules,archived,due,scanning,failed}`, private,no-store. Rules include item/audience/category/range/status, preview/frozen targetIds/targetCount, granted count and waitingForResults |
+| POST root | Create draft;201 list |
+| PATCH `/{id}` / DELETE `/{id}` | Replace editable draft fields / remove draft and its item; active promises refuse edits/deletion |
+| POST `/{id}/activate` | `{targetIds:uuid[]}` from reviewed preview; freezes promise. Changed finisher targets return409 souvenir_changed. Activation body limit512KiB supports all300 event quests |
+| POST `/{id}/stop` | Empty body; future grants stop, earned items stay; no resume |
+| POST `/process` | Empty body; authorized enqueue, bounded system work, reauthorized status. Adds `{status:complete|pending,granted,skipped,failed}` totals for this pass, never recipients |
+
+404 missing/foreign/out-of-scope;400 invalid/missing key;409 souvenir_locked/souvenir_empty/souvenir_changed/
+results_final/event_archived/limit_reached. Existing HTTP key/body conflict remains422; durable SQL command conflict
+maps409 idempotency_conflict. Lock/serialization failures retain503 busy/Retry-After. Durable scoped command receipts
+prevent duplicate rule/audit writes after a crash following commit. Errors/logs never echo submitted cosmetic names.
+
+Rank rules activate before owner-confirmed results, extend their SQL snapshot depth up to100 independently of the
+physical-prize switch, and grant only confirmed result_place recipients. No live/cache/today rank grants or automatic
+confirmation. Late ineligible winners are skipped without promotion. Finisher targets freeze visible eligible quests,
+excluding flash/live-poll/permanently unreachable community targets; done evidence is lifetime across category resets.
+Joined needs no quest/score/physical-attendance proof. Delivery requires approved active real membership and active
+account. Earned items survive stop/leave/archive/reversals.
+
+Own `/v1/me/locker` source becomes `{kind:level,level}` or `{kind:event,event:{id,name:{ar,en}}}`, preserving
+microsecond paging/seen/equipping. Response is private,no-store. Only the earned owner sees event attribution,
+including after leaving/archive. Public profile/ranking/equipment retain the source-free Item DTO; opaque cosmetic
+IDs encode no event identity. Cosmetic names/art themselves may be public, as explained before activation.

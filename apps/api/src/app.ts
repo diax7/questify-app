@@ -402,8 +402,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   if (options.souvenirIntervalMs !== undefined) {
-    const tick = startSouvenirTick({ pool: options.pool, intervalMs: options.souvenirIntervalMs,
-      log: (fields) => app.log.error(fields) });
+    const tick = startSouvenirTick({
+      pool: options.pool,
+      intervalMs: options.souvenirIntervalMs,
+      log: (fields) => app.log.error(fields),
+    });
     app.addHook("onClose", tick.stop);
   }
   registerConfigRoutes(app, settings);
