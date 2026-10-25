@@ -843,6 +843,12 @@ const OWNED: Readonly<Record<string, Owned>> = {
 
 /** Tables that belong to nobody in particular, with the reason; their write rules are tested where they live. */
 const SHARED: Readonly<Record<string, string>> = {
+  souvenir_rule: "no direct API rights; event-scoped owner/editor definers and cross-tenant forgery tests (souvenirs)",
+  souvenir_target: "no direct API rights; same-event frozen targets only (souvenirs)",
+  souvenir_receipt: "no direct API rights; system evaluator alone grants; own locker source never public (souvenirs)",
+  souvenir_work: "no direct API rights; real-only generation-fenced system work, erasure tested (souvenirs)",
+  souvenir_scan: "no direct API rights; bounded system backfill under activated event rules (souvenirs)",
+  souvenir_command: "no direct API rights; organizer command replay bound to actor/event/body (souvenirs)",
   item: "global catalog, no direct API rights; narrow DTOs only (profile-items)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
   player_item:

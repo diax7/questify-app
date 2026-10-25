@@ -996,6 +996,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "bulk_award.ledger_note",
         // Results need an ended event, so no rehearsal account is ever placed or given a rank prize (T-214).
         "enrollment.result_place",
+        // Souvenir ownership/work is real-only; guards refuse rehearsal before these FKs can be written.
+        "enrollment.souvenir_receipt",
+        "enrollment.souvenir_work",
         "redemption.result_place",
         // A rehearsal entry never pays XP (T-401, ledger_xp skips it), so no XP row points at what the wipe deletes.
         "ledger_entry.xp_entry",
@@ -1081,6 +1084,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "settle_goal_at", // internal: settle_goal and settle_community wipe before calling it (T-306b)
         "nfc_writer", // an operator writing a tag: organizer data the wipe never touches (T-308)
         "console_ticket", // Questify reads one ticket (an audit row only); the event's status is shown, not judged (T-312)
+        "souvenir_evaluate", // real-only lifetime grants, no rehearsal row or wipe lock after player/enrollment
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

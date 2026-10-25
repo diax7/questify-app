@@ -37,7 +37,8 @@ export function registerItemRoutes(
     withConnection(deps.pool, (client) =>
       withRequestContext(client, { playerId: id }, () => work(client)),
     );
-  app.get("/v1/me/locker", options, async (request) => {
+  app.get("/v1/me/locker", options, async (request, reply) => {
+    reply.header("cache-control", "private, no-store");
     const query = parse(querySchema, request.query);
     return as(own(request), (client) => readLocker(client, query.cursor, query.limit));
   });

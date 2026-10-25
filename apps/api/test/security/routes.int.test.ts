@@ -70,6 +70,13 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the caller leaves; the owner cannot (test/organizers/team)",
   "GET /v1/organizers/:organizerId/members":
     "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
+  "GET /v1/organizers/:organizerId/events/:eventId/souvenirs": "active scoped owner/editor only; narrow SQL list (souvenirs)",
+  "POST /v1/organizers/:organizerId/events/:eventId/souvenirs": "scoped event draft only; no recipient/source inputs (souvenirs)",
+  "PATCH /v1/organizers/:organizerId/events/:eventId/souvenirs/:souvenirId": "draft in the same authorized event only (souvenirs)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/souvenirs/:souvenirId": "draft in the same authorized event only (souvenirs)",
+  "POST /v1/organizers/:organizerId/events/:eventId/souvenirs/:souvenirId/activate": "scoped event/rule; frozen audience, no arbitrary player (souvenirs)",
+  "POST /v1/organizers/:organizerId/events/:eventId/souvenirs/:souvenirId/stop": "scoped event/rule; earned items remain (souvenirs)",
+  "POST /v1/organizers/:organizerId/events/:eventId/souvenirs/process": "scoped event request; internal payer is system-only, final read reauthorizes (souvenirs)",
   "GET /v1/organizers/:organizerId/events":
     "members of that organizer only; a limited editor sees only their events (test/events/events)",
   "POST /v1/organizers/:organizerId/events":

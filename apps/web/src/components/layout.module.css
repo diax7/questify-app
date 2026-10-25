@@ -1,4 +1,10 @@
 /* Phone first; logical properties only, so `dir="rtl"` mirrors everything. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-inline-size: 0;
+}
 
 .bar {
   display: flex;

@@ -983,6 +983,21 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   The existing reset-resume heartbeat resume-questify-after-usage-resets is PAUSED; its former15:05 schedule must not wake this chat while Dhia is taking a break. Wait for his explicit instruction to resume, then inspect real usage limits and re-enable/reschedule the SAME heartbeat if he wants the earlier automatic-reset behavior restored. No reset credits or purchases used. CranL migrations after0056, deployment, EAS builds and real-phone/RTL/cosmetic checks remain deferred. All current review evidence and pending work are saved; no worker is authorized to begin implementation during the break.
 - 2026-10-25 **RESUMED explicitly by Dhia ("keep working now"); the break is over.** Progress75/153, T-402 complete. T-402b approved plan96 GO; before implementation retain composite rule/enrollment receipt FKs (no redundant direct event FK after enrollment) and explicitly deny device-only app_device_id worker context. Resume the same T-402b author, then fresh independent code review after full green gates. The previously requested reset heartbeat is ACTIVE again, next03:12 Riyadh on2026-10-26 after reported03:07:04 reset. No credits purchased or consumed. All earlier PAUSED notes are history overridden by this explicit resume. Deployment/EAS remain deferred.
   Current main041efc7 includes the approved plan and reviewed T-313 test-only improvements (GO96,5735 full tests passed/3 optional skips), not yet pushed after6f5a899. No CI/mutation run is active; latest CI40171311885 and mutation40172088017 succeeded. Publish only the reviewed clean checkpoint before starting build work, wait for its CI, then queue the T-313 two-file mutation proof. Separately chase only ticket console-routes.ts85.07 in an isolated worktree; console.ts100/routes.ts95.45 are already above90. T-402/T-402b mutation batch remains owed; never local Stryker.
+- 2026-10-25 **T-402b implementation WIP after approved plan88→96 GO; unchecked75/153:** migration0064 now
+  extends typed ownership with closed rules/targets/receipts, generation-fenced work/scans and durable scoped
+  command replay; rank depth extends confirmed snapshots, result-place facts enqueue work without changing0053's
+  confirmation body. System guard excludes device-only identity, grants hold player FOR SHARE through commit,
+  receipt composite FKs avoid a direct event-lock inversion, and cleanup extends0063. Organizer forms/controls,
+  shipped previews and private locker event attribution are connected. Fresh independent Arabic84→94 GO,
+  no BLOCKER/MAJOR; cheap wording minor folded. Focused29 souvenir/lock and518 results/security/rehearsal tests
+  passed; initial11 profile ownership tests passed. New upgrade/refusal/browser cases, final full DB/Redis,
+  web build/full browser/native exports/lint/types/audit/secrets and fresh core code review remain owed. No
+  implementation completion or release is claimed. Main4bca465 reviewed checkpoint was pushed; CI40224593807
+  SUCCESS,404000ms (6.73wallmin),0 billed. Root's reviewed optional mutation-force config is side-branch only;
+  forced console mutation40226079637 active/queued, T-313 two-file rerun and profile/souvenir batch remain root-owned.
+  No worker push/local Stryker/deploy/EAS; migration0064 undeployed and phone/RTL checks deferred. Heartbeat03:12
+  Riyadh2026-10-26 after actual03:07:04 reset remains active. Continue this same worker; no other main writer.
+
 ## Next
 
 1. **Now (2026-10-25): RESUMED by Dhia.** T-402 complete75/153. Publish reviewed checkpoint; implement approved T-402b plan96 after two minor clarifications. Fresh code review/full gates required. Heartbeat ACTIVE03:12 Riyadh2026-10-26; continue the latest resumed queue above and keep deployment/EAS deferred.

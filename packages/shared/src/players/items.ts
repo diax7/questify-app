@@ -30,7 +30,13 @@ export type ProfilePatch = z.infer<typeof profilePatchSchema>;
 export const lockerEntrySchema = z.object({
   item: itemSchema,
   earnedAt: z.string(),
-  source: z.object({ kind: z.literal("level"), level: z.number().int().positive() }),
+  source: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("level"), level: z.number().int().positive() }),
+    z.object({
+      kind: z.literal("event"),
+      event: z.object({ id: z.uuid(), name: z.object({ ar: z.string(), en: z.string() }) }),
+    }),
+  ]),
   seen: z.boolean(),
 });
 export type LockerEntry = z.infer<typeof lockerEntrySchema>;

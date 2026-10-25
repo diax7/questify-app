@@ -109,6 +109,7 @@ async function main(): Promise<void> {
     ...(redis === undefined ? {} : { rankingStore: createRankingStore(redis) }),
     rankingRepairIntervalMs: RANKING_REPAIR_INTERVAL_MS,
     communityIntervalMs: COMMUNITY_INTERVAL_MS,
+    souvenirIntervalMs: 5000,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

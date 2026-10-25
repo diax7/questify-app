@@ -194,3 +194,6 @@ export type { ProfileItem, Equipment, ProfilePatch } from "./players/items";
 
 export { lockerSchema, publicProfileSchema } from "./players/items";
 export type { LockerEntry, PublicProfile } from "./players/items";
+export { souvenirBodySchema, souvenirRuleSchema, souvenirListSchema } from "./souvenirs";
+export type { SouvenirBody, SouvenirRule, SouvenirList } from "./souvenirs";
+export { frameDesign } from "./players/frame";

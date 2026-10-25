@@ -1,4 +1,4 @@
-import { decodeCursor, encodeCursor, type Equipment, type ProfileItem } from "@questify/shared";
+import { decodeCursor, encodeCursor, type Equipment, type ProfileItem, type LockerEntry } from "@questify/shared";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { invalidRequest, unauthenticated } from "#src/auth/http-errors";
@@ -32,12 +32,7 @@ const positionSchema = z.strictObject({
   at: z.iso.datetime({ offset: true }),
   id: z.string().min(1).max(64),
 });
-export type LockerItem = Readonly<{
-  item: ProfileItem;
-  earnedAt: string;
-  source: { kind: "level"; level: number };
-  seen: boolean;
-}>;
+export type LockerItem = LockerEntry;
 export async function readLocker(client: PoolClient, cursor: string | undefined, limit: number) {
   let before: z.infer<typeof positionSchema> | undefined;
   if (cursor !== undefined) {
@@ -53,15 +48,18 @@ export async function readLocker(client: PoolClient, cursor: string | undefined,
     item: ProfileItem;
     earned_at: string;
     source_level: number;
+    source_event: Extract<LockerEntry["source"], { kind: "event" }>["event"] | null;
     seen: boolean;
   }>(
-    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,seen FROM own_locker($1,$2,$3)`,
+    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen FROM own_locker($1,$2,$3)`,
     [before?.at ?? null, before?.id ?? null, limit + 1],
   );
   const items: LockerItem[] = rows.slice(0, limit).map((row) => ({
     item: row.item,
     earnedAt: row.earned_at,
-    source: { kind: "level", level: row.source_level },
+    source: row.source_event == null
+      ? { kind: "level", level: row.source_level }
+      : { kind: "event", event: row.source_event },
     seen: row.seen,
   }));
   const last = items.at(-1);

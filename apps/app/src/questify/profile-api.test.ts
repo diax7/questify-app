@@ -8,7 +8,7 @@ import {
   saveProfile,
   seeItems,
 } from "#src/questify/profile-api.ts";
-import { frameDesign } from "#src/questify/frame.ts";
+import { frameDesign } from "@questify/shared";
 import { levelUpMessage, levelUpOf } from "#src/questify/level.ts";
 
 const title = { ar: "مستكشف", en: "Explorer" };

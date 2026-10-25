@@ -68,6 +68,7 @@ import type { RankingStore } from "#src/ranking/store";
 import { startRankingTick } from "#src/ranking/tick";
 import { startLifecycleTick } from "#src/events/tick";
 import { startCommunityTick } from "#src/community/tick";
+import { startSouvenirTick } from "#src/souvenirs/tick";
 import { createInvites } from "#src/organizers/accept";
 import { registerConsoleRoutes } from "#src/activation/routes";
 import { createActivation } from "#src/activation/service";
@@ -106,6 +107,7 @@ export type AppOptions = Readonly<{
   rankingRepairIntervalMs?: number;
   /** How often community goals are settled and paid (ADR-222); off when not given (tests call the functions). */
   communityIntervalMs?: number;
+  souvenirIntervalMs?: number;
 }>;
 
 declare module "fastify" {
@@ -399,6 +401,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.addHook("onClose", tick.stop);
   }
 
+  if (options.souvenirIntervalMs !== undefined) {
+    const tick = startSouvenirTick({ pool: options.pool, intervalMs: options.souvenirIntervalMs,
+      log: (fields) => app.log.error(fields) });
+    app.addHook("onClose", tick.stop);
+  }
   registerConfigRoutes(app, settings);
 
   registerTranslationRoutes(

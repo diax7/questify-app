@@ -1,6 +1,7 @@
 /** The class names in layout.module.css, so a misspelt class fails the type check. Keep in step with the file. */
 declare const styles: {
   readonly actions: string;
+  readonly stack: string;
   readonly alert: string;
   readonly badge: string;
   readonly bar: string;

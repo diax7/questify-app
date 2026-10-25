@@ -279,6 +279,7 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
       <h2 id="results-title" className={styles.title}>
         {t("results.title")}
       </h2>
+      <p className={styles.muted}>{t("souvenir.resultsDepth")}</p>
       <StateLine results={results} language={language} timeZone={timeZone} />
       <Notes problem={problem} notice={notice} loading={false} language={language} />
       {results.places.length === 0 ? <p className={styles.muted}>{t("results.empty")}</p> : null}

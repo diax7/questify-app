@@ -1,6 +1,6 @@
 import type { Avatar as AvatarName, Theme, Equipment } from "@questify/shared";
 import { Image, View, type ImageSourcePropType } from "react-native";
-import { frameDesign } from "#src/questify/frame.ts";
+import { frameDesign } from "@questify/shared";
 import { AppText } from "#src/components/AppText.tsx";
 import { avatarFace } from "#src/components/avatar-face.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";

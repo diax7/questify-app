@@ -190,7 +190,9 @@ function EarnedChoices({
               kind="quiet"
               onPress={() => select({ [`${kind}Id`]: row.item.id })}
             />
-            <AppText muted>{t("locker.fromLevel", { level: row.source.level })}</AppText>
+            <AppText muted>{row.source.kind === "level"
+              ? t("locker.fromLevel", { level: row.source.level })
+              : t("locker.fromEvent", { event: row.source.event.name[language] })}</AppText>
           </View>
         ))}
       {items.every((row) => row.item.kind !== kind) ? (
