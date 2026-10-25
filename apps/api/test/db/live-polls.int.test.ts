@@ -280,6 +280,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
         community: null,
         flash: [],
         boosts: [],
+        firstBonus: [],
       });
       expect(await query(as(player), "SELECT * FROM member_poll($1)", [quest])).toEqual([]);
       expect(await refusal(vote(player, quest, ["a"]))).toBe("QN403:hidden");
@@ -620,7 +621,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls (database)", () => 
       const quest = await newVote(event, await newCategory(event), poll());
       await send(event, quest);
       const other = await member(await newEvent());
-      const empty = { polls: [], closed: [], community: null, flash: [], boosts: [] };
+      const empty = {
+        polls: [],
+        closed: [],
+        community: null,
+        flash: [],
+        boosts: [],
+        firstBonus: [],
+      };
       expect(await live(other.player, event)).toEqual(empty);
       expect(await live(randomUUID(), event)).toEqual(empty);
       expect(

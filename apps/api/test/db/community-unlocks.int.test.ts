@@ -1632,6 +1632,7 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   launch_flash: "gated: Launch refused while locked (flash-boosts.int.test.ts)",
   end_flash: "staff: ends a flash quest already running; it pays nothing",
   save_boost: "staff: the team's Boosts page",
+  set_quest_first_bonus: "staff: the quest builder's save (test/db/first-bonus)",
   event_boosts: "staff: the team's Boosts page",
   own_pending_points: "exempt: submissions already sent",
   operator_nfc_tags:

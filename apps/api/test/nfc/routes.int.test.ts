@@ -214,6 +214,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
         "bonus",
         "boost",
         "completionId",
+        "firstBonus",
         "item",
         "levelUp",
         "occurrence",
