@@ -3,6 +3,7 @@ import type { Client, PoolClient } from "pg";
 type Db = Client | PoolClient;
 
 export const BUCKETS = {
+  profileRead: "profile_read",
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",

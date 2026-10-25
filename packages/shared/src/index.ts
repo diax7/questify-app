@@ -182,3 +182,15 @@ export {
   TICKET_OPEN_LIMIT,
   TICKET_TEXT_MAX,
 } from "./tickets/tickets";
+
+export {
+  ITEM_KINDS,
+  itemSchema,
+  equipmentSchema,
+  EMPTY_EQUIPMENT,
+  profilePatchSchema,
+} from "./players/items";
+export type { ProfileItem, Equipment, ProfilePatch } from "./players/items";
+
+export { lockerSchema, publicProfileSchema } from "./players/items";
+export type { LockerEntry, PublicProfile } from "./players/items";

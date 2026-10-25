@@ -206,6 +206,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
           rank: 12,
           username: await usernameOf(last?.id ?? ""),
           avatar: "falcon",
+          equipment: { character: null, frame: null, title: null },
           score: 10,
         });
         expect(seen.rows.some((row) => row.isMe)).toBe(false);
@@ -213,6 +214,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         for (const row of seen.rows) {
           expect(Object.keys(row).toSorted()).toEqual([
             "avatar",
+            "equipment",
             "isMe",
             "rank",
             "score",

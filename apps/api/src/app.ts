@@ -47,6 +47,7 @@ import { registerResultsPlayerRoutes } from "#src/results/routes";
 import { registerRehearsalPlayerRoutes } from "#src/rehearsal/routes";
 import { createRehearsal } from "#src/rehearsal/service";
 import { registerContactRoutes } from "#src/players/contact";
+import { registerItemRoutes } from "#src/players/item-routes";
 import { registerProfileRoutes } from "#src/players/profile";
 import { registerPlayerAuthRoutes } from "#src/players/routes";
 import { createPlayerSignIn } from "#src/players/sign-in";
@@ -252,6 +253,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerRankingRoutes(app, { ranking, settings });
   registerProfileRoutes(app, { pool: options.pool, settings });
+  registerItemRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerContactRoutes(app, {
     pool: options.pool,
     settings,

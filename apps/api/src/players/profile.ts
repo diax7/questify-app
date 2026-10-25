@@ -1,7 +1,9 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Pool, PoolClient } from "pg";
 import {
-  AVATARS,
+  profilePatchSchema,
+  type Equipment,
+  type ProfileItem,
   TUNING,
   checkUsername,
   playerDocuments,
@@ -24,6 +26,7 @@ import { parse } from "#src/auth/request";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { SettingsService } from "#src/settings/service";
+import { itemRefusal, readEquipment } from "#src/players/items";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
 export type ProfileDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
@@ -36,6 +39,7 @@ export type MyProfile = Readonly<{
   id: string;
   username: string;
   avatar: Avatar;
+  equipment: Equipment;
   usernameChange: Readonly<{ allowed: boolean; nextChangeAt: string | null }>;
   /**
    * The sign-up documents (terms, privacy) whose version in force the player has not accepted (the app asks on launch),
@@ -55,10 +59,11 @@ export type QuestifyLevel = Readonly<{
   levelFrom: number;
   nextLevelAt: number | null;
   title: Readonly<{ ar: string; en: string }>;
+  nextReward: ProfileItem | null;
 }>;
 
 /** The caller's level through own_level (migration 0039); a player always has an XP row. */
-async function readLevel(client: PoolClient): Promise<QuestifyLevel> {
+async function readLevel(client: PoolClient): Promise<Omit<QuestifyLevel, "nextReward">> {
   const { rows } = await client.query<{
     xp: string;
     level: number;
@@ -90,12 +95,7 @@ export function maskEmail(email: string): string {
   return `${email.slice(0, 1)}•••${email.slice(at)}`;
 }
 
-const patchBody = z
-  .strictObject({
-    username: z.string().min(1).max(120).optional(),
-    avatar: z.enum(AVATARS).optional(),
-  })
-  .refine((body) => body.username !== undefined || body.avatar !== undefined);
+const patchBody = profilePatchSchema;
 
 /** The platform's username-change switch and the days between changes (FR-1702, FR-705). */
 async function changeRules(settings: SettingsService): Promise<{ on: boolean; days: number }> {
@@ -138,6 +138,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       throw unauthenticated();
     }
     const questify = await readLevel(client);
+    const cosmetics = await readEquipment(client);
     const unread = await readUnreadTickets(client, null);
     return {
       id: playerId,
@@ -152,7 +153,8 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
         phone: row.phone === null ? null : maskPhone(row.phone),
         email: row.email === null ? null : maskEmail(row.email),
       },
-      questify,
+      questify: { ...questify, nextReward: cosmetics.next_reward },
+      equipment: cosmetics.equipment,
       help: { unread },
     };
   });
@@ -206,12 +208,11 @@ async function acceptDocuments(
 
 /** Renames the caller, or throws the refusal's HTTP error. */
 async function renameMe(
-  deps: ProfileDeps,
+  rules: Awaited<ReturnType<typeof changeRules>>,
   reply: FastifyReply,
-  playerId: string,
+  client: PoolClient,
   typed: string,
 ): Promise<void> {
-  const rules = await changeRules(deps.settings);
   if (!rules.on) {
     throw usernameChangesOff();
   }
@@ -219,14 +220,14 @@ async function renameMe(
   if (!name.ok) {
     throw invalidUsername({ reason: name.reason });
   }
-  const { outcome, next_change_at: next } = await asPlayer(deps.pool, playerId, async (client) => {
+  const { outcome, next_change_at: next } = await (async () => {
     const { rows } = await client.query<{ outcome: string; next_change_at: Date | null }>(
       "SELECT * FROM rename_player($1, $2)",
       [name.username, rules.days],
     );
     // Stryker disable next-line OptionalChaining: rename_player always answers one row
     return rows[0] ?? { outcome: "unchanged", next_change_at: null };
-  });
+  })();
   switch (outcome) {
     case "too_soon": {
       const retryAfter = Math.max(1, Math.ceil(((next?.getTime() ?? 0) - Date.now()) / 1000));
@@ -255,21 +256,24 @@ const own = (request: { player?: { id: string } | undefined }): string => {
  * than its tuned days, through `rename_player` (the word lists and the history live in the database).
  */
 export function registerProfileRoutes(app: FastifyInstance, deps: ProfileDeps): void {
-  app.get("/v1/me", { config: { access: "player" } }, async (request) =>
-    readMe(deps, own(request)),
-  );
+  app.get("/v1/me", { config: { access: "player" } }, async (request, reply) => {
+    reply.header("cache-control", "private, no-store");
+    return readMe(deps, own(request));
+  });
 
   app.patch("/v1/me", { config: { access: "player" }, bodyLimit: 1024 }, async (request, reply) => {
     const playerId = own(request);
     const body = parse(patchBody, request.body);
-    if (body.username !== undefined) {
-      await renameMe(deps, reply, playerId, body.username);
-    }
-    if (body.avatar !== undefined) {
-      const avatar = body.avatar;
-      await asPlayer(deps.pool, playerId, (client) =>
-        client.query("UPDATE player SET avatar = $2 WHERE id = $1", [playerId, avatar]),
-      );
+    const rules = body.username === undefined ? null : await changeRules(deps.settings);
+    try {
+      await asPlayer(deps.pool, playerId, async (client) => {
+        // The setter locks the player, validates every slot and changes equipment in this transaction.
+        await client.query("SELECT equip_player($1)", [JSON.stringify(body)]);
+        if (body.username !== undefined && rules !== null)
+          await renameMe(rules, reply, client, body.username);
+      });
+    } catch (error) {
+      itemRefusal(error);
     }
     return readMe(deps, playerId);
   });

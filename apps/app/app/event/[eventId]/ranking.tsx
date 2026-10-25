@@ -1,3 +1,4 @@
+import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { formatNumber, termFor, type Theme } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -155,27 +156,37 @@ function Row({ row, height }: Readonly<{ row: ShownRow; height: number }>) {
     ? t("ranking.rowLabelMe", { rank: row.rank, score, currency })
     : t("ranking.rowLabel", { rank: row.rank, username: row.username, score, currency });
   return (
-    <View
+    <Pressable
       accessible
-      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={() =>
+        router.push({ pathname: "/player/[username]", params: { username: row.username } })
+      }
+      accessibilityLabel={`${label}${row.equipment?.title == null ? "" : `، ${row.equipment.title.name[language]}`}`}
       style={[styles.row, { height }, row.isMe ? styles.mine : null]}
     >
       <RankBadge rank={row.rank} />
-      <Avatar name={row.avatar} username={row.username} size={Math.max(0, height - 8)} />
+      <Avatar
+        name={row.avatar}
+        username={row.username}
+        size={Math.max(0, height - 8)}
+        equipment={row.equipment}
+      />
       <AppText
         numberOfLines={1}
         adjustsFontSizeToFit
         // A username is Latin: it reads left to right inside an Arabic row, so "@" stays in front.
         style={[styles.grow, { writingDirection: "ltr" }]}
       >
-        @{row.username}
+        {isolatedLtr(`@${row.username}`)}
+        {row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
       </AppText>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}
       <CurrencyIcon size={20} />
       <AppText variant="label" numberOfLines={1}>
         {score}
       </AppText>
-    </View>
+    </Pressable>
   );
 }
 

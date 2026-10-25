@@ -73,10 +73,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       id: player.id,
       username: "shown_name",
       avatar: "falcon",
+      equipment: { character: null, frame: null, title: null },
       usernameChange: { allowed: true, nextChangeAt: null },
       legal: { toAccept: ["terms_of_use", "privacy_policy"], guidelinesAccepted: false },
       identifiers: { phone: null, email: "p•••@najd.sa" },
       questify: {
+        nextReward: {
+          id: "level-2",
+          kind: "frame",
+          name: { ar: "إطار الدرب", en: "Trail frame" },
+          visualKey: "frame-01",
+        },
         xp: 0,
         level: 1,
         levelFrom: 0,

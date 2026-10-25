@@ -843,6 +843,12 @@ const OWNED: Readonly<Record<string, Owned>> = {
 
 /** Tables that belong to nobody in particular, with the reason; their write rules are tested where they live. */
 const SHARED: Readonly<Record<string, string>> = {
+  item: "global catalog, no direct API rights; narrow DTOs only (profile-items)",
+  level_item: "global reward map, no API writes; one item per configured level (profile-items)",
+  player_item:
+    "no direct API rights; own_locker/equip/seen caller-bound and forged access tested in profile-items",
+  player_equipment:
+    "no direct API rights; caller-bound equipment setters and public-safe read tested in profile-items",
   platform_setting: "platform-wide settings; only a Questify admin writes (test/settings)",
   translation: "platform-wide texts; only a Questify admin writes (test/translations)",
   auth_throttle: "keyed by a one-way tag, not by a person; no data to leak (test/auth)",

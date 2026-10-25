@@ -1,3 +1,4 @@
+import { EMPTY_EQUIPMENT, type Equipment } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
@@ -20,6 +21,7 @@ export type RankingRow = Readonly<{
   rank: number;
   username: string;
   avatar: string;
+  equipment: Equipment;
   score: number;
   isMe: boolean;
 }>;
@@ -30,7 +32,13 @@ export type RankingRow = Readonly<{
  */
 export type RankingView = Readonly<{
   rows: readonly RankingRow[];
-  me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
+  me: Readonly<{
+    rank: number;
+    username: string;
+    avatar: string;
+    equipment: Equipment;
+    score: number;
+  }> | null;
   total: number;
   today: boolean;
 }>;
@@ -118,11 +126,12 @@ function fromPostgres(
       enrollment_id: string;
       username: string;
       avatar: string;
+      equipment: Equipment;
       score: string;
     }>(
       daily
-        ? "SELECT enrollment_id, username, avatar, score FROM ranking_day_top($1, $2)"
-        : "SELECT enrollment_id, username, avatar, score FROM ranking_top($1, $2)",
+        ? "SELECT enrollment_id, username, avatar, equipment, score FROM ranking_day_top($1, $2)"
+        : "SELECT enrollment_id, username, avatar, equipment, score FROM ranking_top($1, $2)",
       [board.eventId, TOP],
     );
     const { rows } = await client.query<{ place: string | null; total: string }>(
@@ -137,6 +146,7 @@ function fromPostgres(
         rank: index + 1,
         username: row.username,
         avatar: row.avatar,
+        equipment: row.equipment,
         score: Number(row.score),
         isMe: row.enrollment_id === me.enrollmentId,
       })),
@@ -153,7 +163,12 @@ function fromPostgres(
 
 type Named = ReadonlyMap<
   string,
-  Readonly<{ username: string | null; avatar: string | null; ranked: boolean }>
+  Readonly<{
+    username: string | null;
+    avatar: string | null;
+    equipment: Equipment | null;
+    ranked: boolean;
+  }>
 >;
 
 /** The rows of the top as the database sees them now, or `not_enrolled` when the reader may no longer look. */
@@ -169,6 +184,7 @@ async function rowsOf(
         enrollment_id: string;
         username: string | null;
         avatar: string | null;
+        equipment: Equipment | null;
         ranked: boolean;
       }>("SELECT * FROM ranking_rows($1, $2)", [eventId, top.map((row) => row.enrollmentId)]);
       return new Map(rows.map((row) => [row.enrollment_id, row]));
@@ -224,8 +240,9 @@ async function ownIn(
     score: string;
     username: string;
     avatar: string;
+    equipment: Equipment;
   }>(
-    `SELECT e.id, e.score, p.username, p.avatar FROM enrollment e JOIN player p ON p.id = e.player_id
+    `SELECT e.id, e.score, p.username, p.avatar, c.equipment FROM enrollment e JOIN player p ON p.id = e.player_id CROSS JOIN own_equipment() c
      WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
     [eventId, playerId],
   );
@@ -237,6 +254,7 @@ async function ownIn(
         score: Number(row.score),
         username: row.username,
         avatar: row.avatar,
+        equipment: row.equipment,
       };
 }
 
@@ -468,14 +486,26 @@ export function createRanking(deps: RankingDeps): Ranking {
   };
 }
 
-type Own = Readonly<{ enrollmentId: string; score: number; username: string; avatar: string }>;
+type Own = Readonly<{
+  enrollmentId: string;
+  score: number;
+  username: string;
+  avatar: string;
+  equipment: Equipment;
+}>;
 
 type BoardView = Omit<RankingView, "today">;
 
 const meOf = (me: Own, place: number | null): RankingView["me"] =>
   place === null
     ? null
-    : { rank: place, username: me.username, avatar: me.avatar, score: me.score };
+    : {
+        rank: place,
+        username: me.username,
+        avatar: me.avatar,
+        equipment: me.equipment,
+        score: me.score,
+      };
 
 function viewOf(copy: Read, named: Named, me: Own): BoardView {
   return {
@@ -483,6 +513,7 @@ function viewOf(copy: Read, named: Named, me: Own): BoardView {
       rank: index + 1,
       username: named.get(row.enrollmentId)?.username ?? "",
       avatar: named.get(row.enrollmentId)?.avatar ?? "",
+      equipment: named.get(row.enrollmentId)?.equipment ?? EMPTY_EQUIPMENT,
       score: Number(row.score),
       isMe: row.enrollmentId === me.enrollmentId,
     })),

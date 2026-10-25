@@ -4451,6 +4451,46 @@ export const MESSAGES = {
     ar: "حصل هذا الإنجاز أيضًا على مكافأة أول {slots}، فاحذف سطرها كذلك إن لزم",
     en: "This completion also earned the first-{slots} bonus. Remove that line too if it should go",
   },
+  "profile.edit": { ar: "عدّل حسابك", en: "Edit profile" },
+  "profile.public": { ar: "حساب اللاعب", en: "Player profile" },
+  "profile.unavailable": { ar: "هذا الحساب غير متاح.", en: "This profile is unavailable." },
+  "profile.nameLocked": {
+    ar: "اسم المستخدم مقفل الآن. يمكنك تغيير مظهرك من الخزانة.",
+    en: "Your username is locked right now. You can change your look in the locker.",
+  },
+  "profile.save": { ar: "احفظ التغييرات", en: "Save changes" },
+  "locker.title": { ar: "خزانتي", en: "My locker" },
+  "locker.character": { ar: "الشخصية", en: "Character" },
+  "locker.frame": { ar: "الإطار", en: "Frame" },
+  "locker.titleTab": { ar: "اللقب", en: "Title" },
+  "locker.clear": { ar: "بدون", en: "None" },
+  "locker.empty": {
+    ar: "لم تكسب عناصر هنا بعد. أكمل المهام لرفع مستواك.",
+    en: "No earned items here yet. Complete quests to level up.",
+  },
+  "locker.failed": {
+    ar: "تعذّر تحميل الخزانة. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load your locker. Check your connection and try again.",
+  },
+  "locker.saved": { ar: "حُفظت التغييرات.", en: "Changes saved." },
+  "locker.equip": { ar: "احفظ المظهر", en: "Save look" },
+  "locker.fromLevel": { ar: "مكافأة المستوى {level}", en: "Level {level} reward" },
+  "locker.more": { ar: "اعرض المزيد", en: "Show more" },
+  "locker.new": { ar: "مكافآتك الجديدة", en: "Your new rewards" },
+  "locker.seen": { ar: "رأيت المكافآت", en: "Got it" },
+  "locker.next": { ar: "المكافأة التالية: {item}", en: "Next reward: {item}" },
+  "locker.levelTitle": { ar: "لقب المستوى", en: "Level title" },
+  "locker.equippedTitle": { ar: "لقبك المختار", en: "Equipped title" },
+  "locker.rewardLine": { ar: "مكافآتك الجديدة: {items}", en: "Your new rewards: {items}" },
+  "profile.failed": {
+    ar: "تعذّر تحميل الحساب. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load the profile. Check your connection and try again.",
+  },
+  "profile.saveFailed": {
+    ar: "تعذّر حفظ التغييرات. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not save your changes. Check your connection and try again.",
+  },
+  "profile.equippedTitle": { ar: "اللقب المختار", en: "Equipped title" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

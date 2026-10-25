@@ -1,3 +1,4 @@
+import { levelUpMessage } from "#src/questify/level.ts";
 import {
   JOIN_LINK_HOSTS,
   SUBMISSION_TEXT_MAX,
@@ -95,7 +96,7 @@ function answerLine(
       const key: MessageKey = sentLine(answer);
       return answer.levelUp === null
         ? t(key)
-        : `${t(key)} ${t("level.upLine", { level: answer.levelUp.level, title: answer.levelUp.title[language] })}`;
+        : `${t(key)} ${levelUpMessage(t, language, answer.levelUp)}`;
     }
     case "refused":
       return answer.message ?? t("questsTab.failed");

@@ -1,3 +1,4 @@
+import type { ProfileItem } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { normalizeEntryCode } from "@questify/shared";
 import type { AuthKeys } from "#src/auth/keys";
@@ -67,7 +68,11 @@ export type Completed = Readonly<{
 /** A boost a payment was made with (T-307, ADR-233): `points` already holds the multiplied amount. */
 export type Boosted = Readonly<{ multiplier: number }>;
 
-export type LevelUp = Readonly<{ level: number; title: Readonly<{ ar: string; en: string }> }>;
+export type LevelUp = Readonly<{
+  level: number;
+  title: Readonly<{ ar: string; en: string }>;
+  items: readonly ProfileItem[];
+}>;
 
 /**
  * A quest item a payment gave (FR-522) or missed (FR-1617): `pending` waits at the prize desk; `out_of_stock` and
@@ -440,7 +445,15 @@ export async function levelReached(
   if (row === undefined || row.level_up === null) {
     return null;
   }
-  return { level: row.level_up, title: { ar: row.up_title_ar, en: row.up_title_en } };
+  const granted = await client.query<{ items: ProfileItem[] }>(
+    "SELECT own_level_items($1) AS items",
+    [completionId],
+  );
+  return {
+    level: row.level_up,
+    title: { ar: row.up_title_ar, en: row.up_title_en },
+    items: granted.rows[0]?.items ?? [],
+  };
 }
 
 /** Whether the platform's `locationQuests` switch is on (ADR-208); off unless a Questify admin switched it on. */

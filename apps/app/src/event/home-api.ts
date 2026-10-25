@@ -1,3 +1,5 @@
+import type { Equipment } from "@questify/shared";
+import { equipmentOf } from "#src/questify/profile-api.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
 
@@ -228,6 +230,7 @@ export type RankRow = Readonly<{
   rank: number;
   username: string;
   avatar: string;
+  equipment?: Equipment;
   score: number;
   isMe: boolean;
 }>;
@@ -238,7 +241,13 @@ export type RankRow = Readonly<{
  */
 export type Ranking = Readonly<{
   rows: readonly RankRow[];
-  me: Readonly<{ rank: number; username: string; avatar: string; score: number }> | null;
+  me: Readonly<{
+    rank: number;
+    username: string;
+    avatar: string;
+    equipment?: Equipment;
+    score: number;
+  }> | null;
   total: number;
   today: boolean;
 }>;
@@ -282,8 +291,19 @@ export function readRanking(body: unknown): Ranking | undefined {
     return undefined;
   }
   return {
-    rows: body["rows"],
-    me: me as Ranking["me"],
+    rows: body["rows"].map((row) => ({
+      ...row,
+      ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
+    })),
+    me:
+      me === null
+        ? null
+        : {
+            ...(me as NonNullable<Ranking["me"]>),
+            ...((me as Record<string, unknown>)["equipment"] === undefined
+              ? {}
+              : { equipment: equipmentOf((me as Record<string, unknown>)["equipment"]) }),
+          },
     total: body["total"],
     today: body["today"] === true,
   };

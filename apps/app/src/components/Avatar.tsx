@@ -1,5 +1,6 @@
-import type { Avatar as AvatarName, Theme } from "@questify/shared";
+import type { Avatar as AvatarName, Theme, Equipment } from "@questify/shared";
 import { Image, View, type ImageSourcePropType } from "react-native";
+import { frameDesign } from "#src/questify/frame.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { avatarFace } from "#src/components/avatar-face.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -22,16 +23,62 @@ export function Avatar({
   name,
   username,
   size,
-}: Readonly<{ name: string; username: string; size: number }>) {
+  equipment,
+}: Readonly<{ name: string; username: string; size: number; equipment?: Equipment | undefined }>) {
   const styles = useThemedStyles(makeStyles);
-  const face = avatarFace(name, username);
+  const chosen = equipment?.character?.visualKey ?? name;
+  const face = avatarFace(chosen, username);
+  const frame = frameDesign(equipment?.frame?.visualKey);
+  const radius = frame?.rounded === false ? size * 0.25 : size / 2;
+  const border = frame === null ? 1 : Math.max(1, size * 0.06);
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        styles.circle,
+        {
+          width: size,
+          height: size,
+          borderRadius: radius,
+          borderWidth: border,
+          borderColor: frame === null ? styles.circle.borderColor : "#8B5A2B",
+        },
+      ]}
     >
-      {face.kind === "letter" ? (
+      {frame === null ? null : (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: Math.max(0, radius - border),
+            borderWidth: border,
+            borderColor: frame.color,
+            borderStyle: frame.double ? "dashed" : "solid",
+          }}
+        />
+      )}
+      {frame?.motif === true ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            width: Math.max(2, size * 0.08),
+            height: Math.max(2, size * 0.08),
+            backgroundColor: "#8B5A2B",
+            transform: [{ rotate: "45deg" }],
+          }}
+        />
+      ) : null}
+      {chosen === "chest" ? (
+        <Image
+          source={require("#assets/games/cards/chest.png")}
+          resizeMode="contain"
+          style={{ width: size * 0.72, height: size * 0.72 }}
+        />
+      ) : face.kind === "letter" ? (
         <AppText variant="label">{face.letter}</AppText>
       ) : (
         <Image

@@ -831,6 +831,28 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   large-text promises to honor Accepted ADR-121, kept fixed row/avatar bounds and full accessible labels, and added
   T-402 to T-403's dependencies. Coordinator must receive fresh independent GO before build starts.
 
+- 2026-10-25 **T-402 implementation in progress after independent plan GO94**: migration 0063, own/public profile
+  API, ranking cosmetics and app locker/edit/public screens are written, not yet committed or reviewed. Focused
+  checks PASS: 11 files/577 tests (DB/Redis), including both actual pre-0063 upgrade/erasure schedules and all
+  security suites; API/app typechecks pass. Fresh Arabic UX review87 NO-GO identified ambiguous reward copy and
+  title/error labels; author is applying those before a fresh re-review. Final full vitest, fresh web build/full
+  browser suite, Expo export and fresh core code review remain. Coordinator created the requested recurring usage-
+  reset heartbeat `resume-questify-after-usage-resets`, first 05:50 Riyadh (reported reset05:44); resume this active
+  work after limits rather than restarting or skipping gates. Keep building; deploy later; never worker-push.
+
+- 2026-10-25 **T-402 durable implementation checkpoint (WIP, no push; task still unchecked):** independent plan
+  reviews86→94 GO, Arabic UX review87 NO-GO then copy revised and fresh review pending. Focused run11 files/577
+  tests PASS with DB/Redis (both actual upgrade races, all security, ownership/privacy, ranking/app parsing); API
+  and app types PASS. After that run, added PostgreSQL-microsecond pagination and both-order runtime erase/equip/seen
+  tests (not yet rerun). Source/catalog/screens are written; label fixes applied per Arabic review. Remaining:
+  add the upgrade/in-flight-XP schedule, app parser/frame/reward-message tests, finish short-function refactors and
+  session/late-response review, update DATA_MODEL/API/SECURITY/SRS/TASKS implementation records accurately, normalize
+  touched files to LF, then full vitest with DB/Redis, fresh web build + FULL browser suite, Expo export, lint/types/
+  formatting/audit/secret checks. Fresh core code review only after final green checks; mark pending until GO>=90
+  without BLOCKER/MAJOR. T-402b remains next, then T-403. Mutation40139062524 remains active; coordinator holds push.
+  Recurring heartbeat resumes this task after actual reset05:44:06 Riyadh, first wake05:50; reschedule for future
+  actual resets. Worker owns this WIP; do not restart/rebuild an unrelated feature. No CranL/EAS/deployment.
+
 ## Next
 
 1. **Now (2026-10-25, handoff taken over):** follow the coordinator queue above (mutation run 40139062524 remains active, then T-402); apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of

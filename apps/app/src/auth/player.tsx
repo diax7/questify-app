@@ -1,3 +1,5 @@
+import type { Equipment } from "@questify/shared";
+import { equipmentOf } from "#src/questify/profile-api.ts";
 import {
   createContext,
   useCallback,
@@ -17,6 +19,8 @@ export type Me = Readonly<{
   id: string;
   username: string;
   avatar: string;
+  equipment?: Equipment;
+  usernameChange?: { allowed: boolean; nextChangeAt: string | null };
   legal: Readonly<{ toAccept: readonly string[]; guidelinesAccepted: boolean }>;
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
   /** The lifetime Questify level (T-401); undefined when the answer has none or a malformed one. */
@@ -76,7 +80,11 @@ export function PlayerProvider({ children }: Readonly<{ children: ReactNode }>) 
       status: "signed_in",
       me:
         answer.kind === "ok" && isMe(answer.body)
-          ? { ...answer.body, questify: levelOf(answer.body.questify) }
+          ? {
+              ...answer.body,
+              questify: levelOf(answer.body.questify),
+              equipment: equipmentOf(answer.body.equipment),
+            }
           : undefined,
     });
   }, []);

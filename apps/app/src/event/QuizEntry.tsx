@@ -1,3 +1,4 @@
+import { levelUpMessage } from "#src/questify/level.ts";
 import { formatNumber, termFor, type LocalizedText, type Theme } from "@questify/shared";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useState } from "react";
@@ -352,11 +353,7 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
           {quiz.step?.firstBonus == null ? null : (
             <AppText>{firstBonusLine(t, language, quiz.step.firstBonus)}</AppText>
           )}
-          {levelUp === null ? null : (
-            <AppText>
-              {t("level.upLine", { level: levelUp.level, title: levelUp.title[language] })}
-            </AppText>
-          )}
+          {levelUp === null ? null : <AppText>{levelUpMessage(t, language, levelUp)}</AppText>}
         </>
       ) : null}
     </>

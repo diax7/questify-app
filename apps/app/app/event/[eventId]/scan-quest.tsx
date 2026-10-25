@@ -136,6 +136,9 @@ function Celebration({
         <AppText variant="title">{t("level.up")}</AppText>
         <AppText variant="display">{t("level.number", { level: step.levelUp.level })}</AppText>
         <AppText variant="title">{textIn(step.levelUp.title, language)}</AppText>
+        {step.levelUp.items?.map((item) => (
+          <AppText key={item.id}>{item.name[language]}</AppText>
+        ))}
         <Button label={t("common.continue")} onPress={claim} />
       </PopIn>
     );

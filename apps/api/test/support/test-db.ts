@@ -78,7 +78,9 @@ async function connect(url: string): Promise<Client> {
 }
 
 /** Creates a fresh database, runs the roles script and every migration, and connects the three roles. */
-export async function createTestDatabase(): Promise<TestDatabase> {
+export async function createTestDatabase(
+  migrationDirectory = join(API_ROOT, "migrations"),
+): Promise<TestDatabase> {
   if (TEST_DATABASE_URL === undefined) {
     throw new Error("TEST_DATABASE_URL is not set.");
   }
@@ -97,7 +99,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   }
 
   const owner = await connect(urlFor(TEST_DATABASE_URL, name));
-  await migrate(owner, join(API_ROOT, "migrations"));
+  await migrate(owner, migrationDirectory);
   const app = await connect(urlFor(TEST_DATABASE_URL, name, "questify_app"));
   const outsider = await connect(urlFor(TEST_DATABASE_URL, name, "questify_outsider"));
 

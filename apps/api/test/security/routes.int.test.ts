@@ -20,6 +20,10 @@ import {
  * keeps one caller out of another's data; a new route fails the first test until that is decided and proven.
  */
 const ROUTES: Readonly<Record<string, string>> = {
+  "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
+  "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
+  "GET /v1/players/:username":
+    "active-player public DTO allowlist, no account details (profile-items HTTP)",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",
   "GET /v1/translations": "no tenant data: the same platform texts for everyone",

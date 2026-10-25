@@ -1,3 +1,4 @@
+import { levelUpMessage } from "#src/questify/level.ts";
 import {
   QUEST_TYPES,
   formatEventTime,
@@ -118,7 +119,7 @@ export function outcomeText(
       // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
       return answer.levelUp === null
         ? paid
-        : `${paid} ${t("level.upLine", { level: answer.levelUp.level, title: answer.levelUp.title[language] })}`;
+        : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;
     }
     case "wrong_code":
       return answer.problem?.[language] ?? t("questsTab.failed");

@@ -1,3 +1,5 @@
+import { Avatar } from "#src/components/Avatar.tsx";
+import { RewardNotices } from "#src/questify/RewardNotices.tsx";
 import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
@@ -59,6 +61,7 @@ function LevelCard({ level }: Readonly<{ level: QuestifyLevel }>) {
   return (
     <View style={styles.level}>
       <AppText variant="title">{t("level.number", { level: level.level })}</AppText>
+      <AppText muted>{t("locker.levelTitle")}</AppText>
       <AppText variant="label">{level.title[language]}</AppText>
       <View
         accessible
@@ -69,6 +72,9 @@ function LevelCard({ level }: Readonly<{ level: QuestifyLevel }>) {
       >
         <View style={[styles.fill, { width: `${progress * 100}%` }]} />
       </View>
+      {level.nextReward == null ? null : (
+        <AppText>{t("locker.next", { item: level.nextReward.name[language] })}</AppText>
+      )}
       <AppText muted>
         {level.nextLevelAt === null ? t("level.top") : t("level.next", { next: level.level + 1 })}
       </AppText>
@@ -153,7 +159,30 @@ export function ProfileScreen({
           <>
             {state.me === undefined ? null : (
               <>
+                <Avatar
+                  name={state.me.avatar}
+                  username={state.me.username}
+                  equipment={state.me.equipment}
+                  size={96}
+                />
                 <AppText variant="title">@{state.me.username}</AppText>
+                {state.me.equipment?.title == null ? null : (
+                  <>
+                    <AppText variant="label">{t("locker.equippedTitle")}</AppText>
+                    <AppText>{state.me.equipment.title.name[language]}</AppText>
+                  </>
+                )}
+                <Button
+                  label={t("profile.edit")}
+                  kind="quiet"
+                  onPress={() => router.push("/edit-profile")}
+                />
+                <Button
+                  label={t("locker.title")}
+                  kind="quiet"
+                  onPress={() => router.push("/locker")}
+                />
+                <RewardNotices />
                 {state.me.questify === undefined ? null : <LevelCard level={state.me.questify} />}
                 <MyAccount me={state.me} />
               </>

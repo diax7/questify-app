@@ -57,6 +57,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     it("cannot read or move Questify XP (T-401)", async () => {
       for (const sql of [
         "SELECT * FROM public.own_level(NULL)",
+        "SELECT * FROM public.own_equipment()",
+        "SELECT * FROM public.own_locker(NULL,NULL,30)",
+        "SELECT public.equip_player('{}')",
+        "SELECT public.see_owned_items('{}')",
+        "SELECT public.public_player_profile('sara_k')",
+        "SELECT public.own_level_items(NULL)",
+        "SELECT public.item_json('level-2')",
+        "SELECT public.backfill_level_items()",
         "SELECT public.xp_credit(NULL::public.ledger_entry)",
         "SELECT public.xp_reverse(NULL::public.ledger_entry)",
         "SELECT public.xp_backfill()",

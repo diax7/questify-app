@@ -1,3 +1,4 @@
+import { levelUpMessage } from "#src/questify/level.ts";
 import {
   GAME_LEVEL_KEYS,
   formatEventTime,
@@ -105,7 +106,7 @@ export function resultLine(
       const paid = paidText(t, terms, language, answer);
       return answer.levelUp === null
         ? paid
-        : `${paid} ${t("level.upLine", { level: answer.levelUp.level, title: answer.levelUp.title[language] })}`;
+        : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;
     }
     case "done":
       return t("play.game.done");

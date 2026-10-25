@@ -428,7 +428,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify XP (database)", () =>
         "TRUNCATE xp_entry CASCADE",
         "UPDATE level_reached SET level = 9",
         "DELETE FROM level_reached",
-        "TRUNCATE level_reached",
+        "TRUNCATE level_reached CASCADE",
       ]) {
         await expect(owner(sql), sql).rejects.toThrow(/can never be changed/);
       }

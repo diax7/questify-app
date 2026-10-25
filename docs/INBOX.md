@@ -703,3 +703,10 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - "Keep building; deploy later" (when asked whether to deploy CranL migrations 0057–0062 and make a new Android
   build now). Continue building; defer that deployment and Android build.
 - Processed: handoff and current queue in `docs/_blueprint/STATE.md` updated with the deployment deferral.
+
+## 2026-10-25 — Resume after usage limits reset
+
+- Dhia: “You might get out of tokens after a little because we are in short right now. But I would like you to give yourself a task or a ping when the limit is reset. It will reset in about five and fifty minutes. So can you just do that? So whenever the limit resets, you keep continuing. Is that possible? And you should do that each time if it's possible.”
+- Processed: coordinator created heartbeat `resume-questify-after-usage-resets`; first wake 05:50 Asia/Riyadh, after
+  the actual account reset at 2026-10-25 05:44:06 Riyadh. Reschedule the same heartbeat against each future actual
+  reset; no API-credit purchase or reset-credit workaround. Keep building; deploy later. Preserve active T-402 work and fresh-review gates on resume.
