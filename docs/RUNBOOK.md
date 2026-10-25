@@ -27,6 +27,14 @@
   `mutation-report` artifact. The PC keeps the quick loop: single test files while coding. **Never run mutation
   on the PC** (ADR-174: about 18 GB, it can crash it). One `mutation.yml` run per batch of 2 or 3 core tasks, with
   `mutate` set to the core files those tasks changed; kill survivors only while a file is under 90%.
+- If incremental results reuse stale static/schema survivors after new tests, request a fresh scoped proof with
+  `gh workflow run mutation.yml --ref <branch> -f mutate="apps/api/src/tickets/console-routes.ts,!**/*.test.ts" -f force=true`.
+  The optional boolean `force` defaults to false; true adds Stryker 10's `--force` alongside `--incremental`,
+  re-testing all selected mutants and saving fresh incremental results for later runs. Ordinary dispatches keep
+  incremental reuse. Only the coordinator dispatches, one run at a time (a new run on the same ref cancels
+  the active run).
+  Run 40172088017 reused nine static schema survivors with empty coverage and the prior `testsCompleted: 1393`
+  despite 31 new passing boundary tests; its 85.07% score is not fresh proof for those survivors.
 
 ## Staff sign-in
 
