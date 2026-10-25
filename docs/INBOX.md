@@ -716,3 +716,9 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 
 - Dhia: "how much did we finish so far in %? and please keep going"
 - Processed: confirmed75/153 tasks (49.02% by task count); continue coordinator queue, deploy later.
+
+
+## 2026-10-25 - Requested break after current work
+
+- Dhia: "When you finish what you have in your hand, please stop for a minute. I will tell you to. Please take a break and I will tell you when to go back."
+- Processed: finish only the plan review already underway, save current evidence/next actions, then stop. Pause reset-resume heartbeat; no automatic continuation until Dhia explicitly resumes.
