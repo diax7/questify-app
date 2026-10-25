@@ -91,18 +91,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
       expect(grant).toEqual({ app: true, anyone: false });
       const player = await newPlayer();
       for (const avatar of Array.from({ length: 120 }, (_, n) => ["owl", "fox", "camel"][n % 3])) {
-        await as(player, "UPDATE player SET avatar = $2 WHERE id = $1", [player, avatar]);
+        await as(player, "SELECT equip_player($1)", [JSON.stringify({ avatar })]);
       }
     });
 
     it("allows exactly the avatars the app ships", async () => {
       const player = await newPlayer();
       for (const avatar of AVATARS) {
-        await as(player, "UPDATE player SET avatar = $2 WHERE id = $1", [player, avatar]);
+        await as(player, "SELECT equip_player($1)", [JSON.stringify({ avatar })]);
       }
       await expect(
-        as(player, "UPDATE player SET avatar = 'dragon' WHERE id = $1", [player]),
-      ).rejects.toThrow(/player_avatar_check/);
+        as(player, "SELECT equip_player($1)", [JSON.stringify({ avatar: "dragon" })]),
+      ).rejects.toMatchObject({ code: "PI422" });
       const [check] = await owner<{ definition: string }>(
         "SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'player_avatar_check'",
       );

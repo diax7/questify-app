@@ -134,7 +134,15 @@ export function loggerOptions(config: AppConfig): {
   return {
     level: config.nodeEnv === "production" ? "info" : "debug",
     // Method and path only: the default serializer also writes the client address, which is personal data.
-    serializers: { req: (request) => ({ method: request.method, url: request.url }) },
+    serializers: {
+      req: (request) => ({
+        method: request.method,
+        url: (request.url.split("?")[0] ?? "/").replace(
+          /^\/v1\/players\/[^/]+/,
+          "/v1/players/:username",
+        ),
+      }),
+    },
     redact: [
       "req.headers.authorization",
       "req.headers.cookie",

@@ -115,10 +115,14 @@ const HARD_CODED_AR = /مهم|فئ/;
 const HARD_CODED_EN = /\b(quests?|categor(?:y|ies))\b/i;
 
 // Questify-level texts that an event's words never reach (FR-942: Questify home keeps the defaults), with why.
-const QUESTIFY_LEVEL = new Set<string>([]);
+const QUESTIFY_LEVEL = new Set<string>(["locker.empty"]); // Lifetime locker, outside any event vocabulary.
 
 // "Player mode" is the app's mode beside staff mode, not the event's word for its people.
-const PLAYER_MODE = new Set<string>(["operator.playerMode", "operator.switchToPlayer"]);
+const PLAYER_MODE = new Set<string>([
+  "operator.playerMode",
+  "operator.switchToPlayer",
+  "profile.public",
+]);
 
 describe("texts of staff mode and the event screens", () => {
   const keys = new Set([

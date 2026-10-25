@@ -40,7 +40,7 @@ export const lockerSchema = z.object({
 });
 export const publicProfileSchema = z.object({
   username: z.string(),
-  character: z.union([itemSchema, z.object({ starter: z.string() })]),
+  character: itemSchema.or(z.object({ starter: z.string() })),
   frame: itemSchema.nullable(),
   title: itemSchema.nullable(),
   level: z.object({

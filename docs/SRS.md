@@ -1039,7 +1039,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-413 | F-123 | Must | pending |
 | FR-414 | F-124 | Must | pending |
 | FR-415 | F-124 | Must | pending |
-| FR-416 | F-57 | Must | pending |
+| FR-416 | F-57 | Must | `test/db/xp.int`, `test/db/profile-items.int`, app level bar (T-401/T-402 next reward) |
 | FR-417 | F-59 | Should | pending |
 | FR-418 | F-59 | Should | pending |
 | FR-419 | F-125 | Should | pending |
@@ -1071,7 +1071,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-601 | F-09 | Must | pending |
 | FR-602 | F-09 | Must | pending |
 | FR-603 | F-09 | Must | pending |
-| FR-604 | F-09 | Must | pending |
+| FR-604 | F-09 | Must | `test/db/ranking.int`, `test/ranking/ranking.int`, `test/ranking/flow.int` (T-402 cosmetics) |
 | FR-605 | F-09 | Must | pending |
 | FR-606 | F-155 | Must | pending |
 | FR-607 | F-23 | Must | pending |
@@ -1094,9 +1094,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-635 | F-159 | Could | pending |
 | FR-636 | F-159 | Could | pending |
 | FR-637 | F-159 | Could | pending |
-| FR-701 | F-127 | Must | pending |
-| FR-702 | F-127 | Must | pending |
-| FR-703 | F-143 | Must | pending |
+| FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 achievements/passport/owner history pending |
+| FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 achievements/passport pending |
+| FR-703 | F-143 | Must | `test/db/profile-items.int`, `test/players/items.int`, `test/players/profile.int` (T-402) |
 | FR-704 | F-143 | Must | pending |
 | FR-705 | F-143 | Must | pending |
 | FR-706 | F-128 | Must | pending |
@@ -1105,10 +1105,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-709 | F-133 | Must | pending |
 | FR-710 | F-132 | Must | pending |
 | FR-711 | F-132 | Must | pending |
-| FR-720 | F-129 | Must | pending |
-| FR-721 | F-131 | Must | pending |
-| FR-722 | F-130 | Should | pending |
-| FR-723 | F-134 | Should | pending |
+| FR-720 | F-129 | Must | `test/db/profile-items.int`, `apps/app/src/questify/profile-api.test.ts` (T-402) |
+| FR-721 | F-131 | Must | `test/db/profile-items.int`, `test/db/profile-upgrade.int`, app profile-api tests (T-402) |
+| FR-722 | F-130 | Should | `test/db/profile-items.int` ownership/starter/earned character (T-402) |
+| FR-723 | F-134 | Should | pending T-402b (ADR-266) |
 | FR-724 | F-135 | Should | pending |
 | FR-725 | F-135, F-136 | Should | pending |
 | FR-726 | F-136 | Should | pending |
@@ -1286,7 +1286,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1619 | F-51 | Should | built (T-304c) |
 | FR-1620 | F-101 | Should | `test/db/community.int`, `test/db/community-locks.int` (T-306b) |
 | FR-1621 | F-103 | Should | pending |
-| FR-1622 | F-134 | Should | pending |
+| FR-1622 | F-134 | Should | pending T-402b (ADR-266) |
 | FR-1623 | F-210 | Could | pending |
 | FR-1624 | F-209 | Should | pending |
 | FR-1625 | F-65 | Must | pending |

@@ -1,3 +1,4 @@
+import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import {
   AVATARS,
   EMPTY_EQUIPMENT,
@@ -6,7 +7,7 @@ import {
   type Equipment,
   type ProfileItem,
 } from "@questify/shared";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -66,8 +67,8 @@ function useLocker(owner: string | undefined) {
   };
   return {
     items: loadedOwner === owner ? items : null,
-    cursor,
-    failed,
+    cursor: loadedOwner === owner ? cursor : null,
+    failed: loadedOwner === owner && failed,
     busy,
     more,
     retry: () => setAttempt((n) => n + 1),
@@ -93,6 +94,8 @@ function useAppearance(
   locker: ReturnType<typeof useLocker>,
 ) {
   const { reload } = usePlayer();
+  const owner = useRef(me?.id);
+  owner.current = me?.id;
   const [draft, setDraft] = useState<ProfilePatch>({});
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<{ ar: string; en: string } | null>(null);
@@ -113,9 +116,12 @@ function useAppearance(
     if (busy || Object.keys(draft).length === 0) return;
     setBusy(true);
     setProblem(null);
+    const current = owner.current;
     const answer = await saveProfile(api.session, draft);
+    if (current !== owner.current) return;
     if (answer.kind === "ok") {
       await reload();
+      if (current !== owner.current) return;
       setDraft({});
       setSaved(true);
     } else
@@ -247,7 +253,7 @@ export function LockerScreen() {
     <Screen title={t("locker.title")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         {me === undefined ? (
-          <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
+          <ProfileGate />
         ) : (
           <>
             <Avatar

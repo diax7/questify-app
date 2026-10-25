@@ -113,17 +113,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("profile ownership boundary", (
     const { player } = await seed(99999);
     const client = await pool.connect();
     try {
-      const ids: string[] = [];
+      const collected: string[] = [];
       let cursor: string | undefined;
       do {
         const page = await withRequestContext(client, { playerId: player }, () =>
           readLocker(client, cursor, 1),
         );
-        ids.push(...page.items.map((row) => row.item.id));
+        collected.push(...page.items.map((row) => row.item.id));
         cursor = page.nextCursor ?? undefined;
       } while (cursor !== undefined);
-      expect(ids).toHaveLength(29);
-      expect(new Set(ids).size).toBe(29);
+      expect(collected).toHaveLength(29);
+      expect(new Set(collected).size).toBe(29);
     } finally {
       client.release();
     }

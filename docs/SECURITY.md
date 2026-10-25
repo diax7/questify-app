@@ -283,3 +283,17 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
   it may update, and forge none. Every route is listed with how it keeps callers apart.
 - Load test at 20,000 completions per minute before the first event (NFR-003).
 - A restore rehearsal and an SMS-pumping simulation before launch.
+
+### T-402 cosmetics and public-profile evidence (code review pending)
+Ownership grants originate only from reached-level inserts in the XP transaction; no direct catalog/inventory/
+equipment rights exist for the API. Composite ownership FKs and setter kind checks prevent forged equips; direct
+avatar writes are revoked. Rename/equipment failure rolls back every field. Active caller checks live inside each
+definer, not only HTTP guards. Own locker/acknowledgments never accept a recipient ID. Public profile is a separate
+five-field DTO, excludes deleted/platform-banned targets and never returns owner contacts, XP, source events or
+history. Read rate limits and no-store apply; URL logger redacts public usernames/query values.
+Evidence: `test/db/profile-items.int.test.ts` (forged/read/write denial, kind, replay, pagination, erasure races),
+`test/db/profile-upgrade.int.test.ts` (both old/new erasure orders and in-flight XP barrier),
+`test/players/items.int.test.ts` (exact HTTP allowlist, active targets, refusal/atomicity, cache and limit),
+`src/app.test.ts` (log redaction), all outsider/cross-tenant/route guards, ranking DB/Redis suites. Lifetime grants
+survive rehearsal wipes because rehearsals never produce XP/reached; no inventory FK targets wiped event rows.
+Per-player blocks remain FR-1415/T-705 and must filter this new public-profile read; event bans are not platform bans.

@@ -415,8 +415,30 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 - `xp_level (level 1–100, xp_from)` (seeded 30 levels, `50·(n−1)·(n+2)`) and `level_title (level_from, name_ar,
   name_en)` (six titles): data for T-709 to edit. The amount per quest is `platform_setting` key `xp` `{questXp}`
   (1–99999, CHECKed on write; server-only, never in the public config; read with a fallback of 100).
-- No grant on any of them; `own_level(completion)` is the API role's only door (the caller's xp, level, range, title
+- No grant on any of them; `own_level(completion)` is the detailed owner XP read (the caller's xp, level, range, title
   and the level a completion reached first). The gem ledger (T-404) will have the same shape.
+
+### Questify cosmetics (T-402, migration 0063; code review pending)
+- `item(id text PK, kind character|frame|title, name_ar, name_en, visual_key, created_at)`: global catalog; stable
+  identity/kind, bounded bilingual names and allowlisted shipped visuals. Six starters remain `player.avatar`.
+- `level_item(level PK/FK xp_level, item_id UNIQUE FK item, UNIQUE level/item_id)`: one distinct guaranteed item for
+  each level above 1; seeded levels 2–30, level 4 chest character, other even levels frames, odd levels titles.
+- `player_item(player_id → player_xp, item_id → item, source level, source_level, earned_at, seen_at;
+  PK player/item, UNIQUE player/source_level)`: immutable grant provenance with composite FKs to reached level
+  and reward mapping. Only seen_at changes; deletion only inside erasure, truncate refused. Earned_at copies reached_at.
+- `player_equipment(player_id PK → player_xp, character_id?, frame_id?, title_id?, updated_at)`: each non-null slot
+  has an owned-item composite FK and kind validation in the setter. Starter changes clear earned character; NULL
+  frame/title clears it. API direct avatar UPDATE is revoked; username/equipment changes share one transaction.
+- All four tables force RLS with no direct API rights. Own reads, equip and seen marks use active caller-bound
+  definers; public reads return a separate DTO, not the owner's profile. Ranking readers expose selected cosmetics only.
+- `grant_level_item` runs after each reached insert in the XP transaction; replay/backfill is idempotent, reversals
+  retain items. Migration drains player EXCLUSIVE, XP then reached SHARE ROW EXCLUSIVE before DDL/erasure replacement/
+  backfill; historical deleted tombstones are excluded. Erasure deletes equipment then grants under the XP lock,
+  preserving retained XP/reached. Tests cross old/new upgrade order, XP in flight, equip/seen and erasure both ways.
+- Future curve editing (T-709) must maintain complete distinct reward mappings atomically; grant FKs freeze used
+  mapping pairs. T-402b extends typed provenance for event souvenirs; T-404 for gem purchases, no speculative columns.
+- Account/locker/public-profile data remains in memory on the app, never persisted. Passport, achievements and owner
+  event history remain T-403; no empty placeholders count as delivering them. Source event history is never public.
 
 ### reward, reward_code, redemption
 Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,
@@ -800,7 +822,8 @@ rows or push text.
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
-| item, player_item, achievement, player_achievement, event_stamp, streak | Questify layer collectibles and progress | Linked to player |
+| item, level_item, player_item, player_equipment | Built T-402 (0063): catalog, distinct level rewards, ownership and equipped slots; see above | Ownership/equipment linked to player; erased with account |
+| achievement, player_achievement, event_stamp, streak | Questify layer progress (later tasks) | Linked to player |
 | daily_word, word_bank | Daily word and valid guesses per language (ADR-097) | No |
 | announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |

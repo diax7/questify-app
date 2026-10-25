@@ -19,6 +19,9 @@ export function PublicProfileScreen() {
     "loading",
   );
   const [attempt, setAttempt] = useState(0);
+  const owner = state.status === "signed_in" ? state.me?.id : undefined;
+  const requestKey = `${owner ?? ""}:${username}`;
+  const [loadedKey, setLoadedKey] = useState("");
   useEffect(() => {
     let current = true;
     setResult("loading");
@@ -30,6 +33,7 @@ export function PublicProfileScreen() {
       .request({ method: "GET", path: `/v1/players/${encodeURIComponent(username)}` })
       .then((answer) => {
         if (!current) return;
+        setLoadedKey(requestKey);
         if (answer.kind === "error" && answer.status === 404) {
           setResult("unavailable");
           return;
@@ -40,49 +44,50 @@ export function PublicProfileScreen() {
     return () => {
       current = false;
     };
-  }, [username, attempt, state.status]);
+  }, [username, attempt, state.status, requestKey]);
+  const shown = loadedKey === requestKey ? result : "loading";
   return (
     <Screen title={t("profile.public")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         {state.status !== "signed_in" ? (
           <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
-        ) : typeof result === "string" ? (
+        ) : typeof shown === "string" ? (
           <>
             <AppText accessibilityLiveRegion="polite">
               {t(
-                result === "loading"
+                shown === "loading"
                   ? "common.loading"
-                  : result === "unavailable"
+                  : shown === "unavailable"
                     ? "profile.unavailable"
                     : "profile.failed",
               )}
             </AppText>
-            {result === "failed" ? (
+            {shown === "failed" ? (
               <Button label={t("common.retry")} onPress={() => setAttempt((n) => n + 1)} />
             ) : null}
           </>
         ) : (
           <>
             <Avatar
-              name={"starter" in result.character ? result.character.starter : ""}
-              username={result.username}
+              name={"starter" in shown.character ? shown.character.starter : ""}
+              username={shown.username}
               size={120}
               equipment={{
-                character: "starter" in result.character ? null : result.character,
-                frame: result.frame,
-                title: result.title,
+                character: "starter" in shown.character ? null : shown.character,
+                frame: shown.frame,
+                title: shown.title,
               }}
             />
-            <AppText variant="title">@{result.username}</AppText>
-            {result.title === null ? null : (
+            <AppText variant="title">@{shown.username}</AppText>
+            {shown.title === null ? null : (
               <>
                 <AppText variant="label">{t("profile.equippedTitle")}</AppText>
-                <AppText>{result.title.name[language]}</AppText>
+                <AppText>{shown.title.name[language]}</AppText>
               </>
             )}
-            <AppText>{t("level.number", { level: result.level.number })}</AppText>
+            <AppText>{t("level.number", { level: shown.level.number })}</AppText>
             <AppText variant="label">{t("locker.levelTitle")}</AppText>
-            <AppText>{result.level.title[language]}</AppText>
+            <AppText>{shown.level.title[language]}</AppText>
           </>
         )}
       </ScrollView>

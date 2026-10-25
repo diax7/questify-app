@@ -1,9 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, resolve as resolvePath, join } from "node:path";
 import { Client } from "pg";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { withRequestContext } from "#src/db/context";
 import { TEST_DATABASE_URL, createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
@@ -51,6 +51,7 @@ async function fixture() {
   return {
     db,
     ids,
+    quest,
     hash,
     migration,
     sql,
@@ -58,6 +59,11 @@ async function fixture() {
       await Promise.all([db.app.query("ROLLBACK"), migration.query("ROLLBACK")]);
       await migration.end();
       await db.close();
+      if (
+        dirname(resolvePath(directory)) !== resolvePath(tmpdir()) ||
+        !basename(directory).startsWith("questify-pre-profile-")
+      )
+        throw new Error("unsafe temporary fixture path");
       await rm(directory, { recursive: true, force: true });
     },
   };
@@ -89,42 +95,76 @@ async function absent(db: Awaited<ReturnType<typeof fixture>>["db"], player: str
 describe.skipIf(TEST_DATABASE_URL === undefined)(
   "profile migration versus pre-upgrade erasure",
   () => {
+    let f: Awaited<ReturnType<typeof fixture>>;
+    beforeEach(async () => {
+      f = await fixture();
+    });
+    afterEach(async () => {
+      await f?.close();
+    });
     it("drains the old erasure before taking the backfill snapshot", async () => {
-      const f = await fixture();
-      try {
-        await f.db.app.query("BEGIN");
-        await f.db.app.query("SELECT * FROM erase_player($1,true,$2)", [f.hash, randomUUID()]);
-        await f.migration.query("BEGIN");
-        const pid = (await f.migration.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
-        const upgrading = f.migration.query(f.sql);
-        await blocked(f.db.owner, pid);
-        await f.db.app.query("COMMIT");
-        await upgrading;
-        await f.migration.query("COMMIT");
-        await absent(f.db, f.ids.playerA);
-      } finally {
-        await f.close();
-      }
+      await f.db.app.query("BEGIN");
+      await f.db.app.query("SELECT * FROM erase_player($1,true,$2)", [f.hash, randomUUID()]);
+      await f.migration.query("BEGIN");
+      const pid = (await f.migration.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+      const upgrading = f.migration.query(f.sql);
+      await blocked(f.db.owner, pid);
+      await f.db.app.query("COMMIT");
+      await upgrading;
+      await f.migration.query("COMMIT");
+      await absent(f.db, f.ids.playerA);
     });
     it("holds a connection from the old schema until new cleanup is visible", async () => {
-      const f = await fixture();
-      try {
-        await f.migration.query("BEGIN");
-        await f.migration.query(f.sql);
-        const pid = (await f.db.app.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
-        await f.db.app.query("BEGIN");
-        const erasing = f.db.app.query("SELECT * FROM erase_player($1,true,$2)", [
-          f.hash,
-          randomUUID(),
-        ]);
-        await blocked(f.db.owner, pid);
-        await f.migration.query("COMMIT");
-        await erasing;
-        await f.db.app.query("COMMIT");
-        await absent(f.db, f.ids.playerA);
-      } finally {
-        await f.close();
-      }
+      await f.migration.query("BEGIN");
+      await f.migration.query(f.sql);
+      const pid = (await f.db.app.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+      await f.db.app.query("BEGIN");
+      const erasing = f.db.app.query("SELECT * FROM erase_player($1,true,$2)", [
+        f.hash,
+        randomUUID(),
+      ]);
+      await blocked(f.db.owner, pid);
+      await f.migration.query("COMMIT");
+      await erasing;
+      await f.db.app.query("COMMIT");
+      await absent(f.db, f.ids.playerA);
+    });
+    it("drains an in-flight XP writer before the reached barrier without a player/XP cycle", async () => {
+      const next = (
+        await f.db.owner.query(
+          `INSERT INTO quest(event_id,category_id,type,title_en,points,type_config)
+   SELECT event_id,category_id,type,'Next',points,type_config FROM quest WHERE id=$1 RETURNING id`,
+          [f.quest],
+        )
+      ).rows[0].id;
+      await f.db.app.query("BEGIN");
+      await f.db.app.query("SELECT set_config('app.player_id',$1,true)", [f.ids.playerA]);
+      await f.db.app.query("SELECT * FROM complete_quest($1,'code',NULL,'ABC',$2,NULL)", [
+        next,
+        randomUUID(),
+      ]);
+      await f.migration.query("BEGIN");
+      const pid = (await f.migration.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+      const upgrading = f.migration.query(f.sql);
+      await blocked(f.db.owner, pid);
+      expect(
+        (
+          await f.db.owner.query(
+            `SELECT relation::regclass::text AS name FROM pg_locks WHERE pid=$1 AND NOT granted`,
+            [pid],
+          )
+        ).rows,
+      ).toContainEqual({ name: "player_xp" });
+      await f.db.app.query("COMMIT");
+      await upgrading;
+      await f.migration.query("COMMIT");
+      const owned = (
+        await f.db.owner.query(
+          "SELECT source_level FROM player_item WHERE player_id=$1 ORDER BY source_level",
+          [f.ids.playerA],
+        )
+      ).rows;
+      expect(owned.map((row) => row.source_level)).toEqual([2, 3, 4, 5, 6]);
     });
   },
 );

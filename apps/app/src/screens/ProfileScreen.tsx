@@ -102,6 +102,27 @@ function useHasRequests(signedIn: boolean): boolean {
   return has;
 }
 
+function MyIdentity({ me }: { me: Me }) {
+  const { t, language } = useI18n();
+  return (
+    <>
+      <Avatar name={me.avatar} username={me.username} equipment={me.equipment} size={96} />
+      <AppText variant="title">@{me.username}</AppText>
+      {me.equipment?.title == null ? null : (
+        <>
+          <AppText variant="label">{t("locker.equippedTitle")}</AppText>
+          <AppText>{me.equipment.title.name[language]}</AppText>
+        </>
+      )}
+      <Button label={t("profile.edit")} kind="quiet" onPress={() => router.push("/edit-profile")} />
+      <Button label={t("locker.title")} kind="quiet" onPress={() => router.push("/locker")} />
+      <RewardNotices />
+      {me.questify === undefined ? null : <LevelCard level={me.questify} />}
+      <MyAccount me={me} />
+    </>
+  );
+}
+
 /**
  * The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. Inside
  * an event it opens that event's Get help, elsewhere the ticket center (T-312); anywhere, Your requests once the player
@@ -159,32 +180,7 @@ export function ProfileScreen({
           <>
             {state.me === undefined ? null : (
               <>
-                <Avatar
-                  name={state.me.avatar}
-                  username={state.me.username}
-                  equipment={state.me.equipment}
-                  size={96}
-                />
-                <AppText variant="title">@{state.me.username}</AppText>
-                {state.me.equipment?.title == null ? null : (
-                  <>
-                    <AppText variant="label">{t("locker.equippedTitle")}</AppText>
-                    <AppText>{state.me.equipment.title.name[language]}</AppText>
-                  </>
-                )}
-                <Button
-                  label={t("profile.edit")}
-                  kind="quiet"
-                  onPress={() => router.push("/edit-profile")}
-                />
-                <Button
-                  label={t("locker.title")}
-                  kind="quiet"
-                  onPress={() => router.push("/locker")}
-                />
-                <RewardNotices />
-                {state.me.questify === undefined ? null : <LevelCard level={state.me.questify} />}
-                <MyAccount me={state.me} />
+                <MyIdentity me={state.me} />
               </>
             )}
             <Button

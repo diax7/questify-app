@@ -159,14 +159,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       ]);
     });
 
-    it("lets a player change their own avatar, but never rename or delete directly (erase_player does, T-217)", async () => {
+    it("changes an avatar only through its ownership setter, never direct profile writes", async () => {
       for (const column of ["username = 'sara_new'", "birth_year = 1990"]) {
         await expect(
           as({ playerId: ids.playerA }, `UPDATE player SET ${column} WHERE id = $1`, [ids.playerA]),
         ).rejects.toThrow(/permission denied/);
       }
-      await as({ playerId: ids.playerA }, "UPDATE player SET avatar = 'owl' WHERE id = $1", [
-        ids.playerA,
+      await expect(
+        as({ playerId: ids.playerA }, "UPDATE player SET avatar='owl' WHERE id=$1", [ids.playerA]),
+      ).rejects.toThrow(/permission denied/);
+      await as({ playerId: ids.playerA }, "SELECT equip_player($1)", [
+        JSON.stringify({ avatar: "owl" }),
       ]);
       await expect(
         as({ playerId: ids.playerA }, "UPDATE player SET status = 'deleted' WHERE id = $1", [

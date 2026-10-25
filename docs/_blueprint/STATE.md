@@ -863,9 +863,50 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Still owed fresh web build/full browser suite, Expo export, full workspace lint/types/format/audit/secret check and
   fresh core code review. This is WIP, not task completion; no tick, push or deploy. Mutation40139062524 stays active.
 
+- 2026-10-25 **T-402 resumed after quota reset:** old diagnostic5666 passed/8 failed/3 skipped; exact causes
+  fixed (revoked-avatar legacy assertions, ranking DTO, Hermes z.union false-positive, Questify-wide word exceptions,
+  expensive upgrade-fixture setup moved into existing beforeEach hook budget). Focused regression73 tests PASS;
+  app contracts/frame/reward-message + request-log redaction18 tests PASS. Added actual in-flight-XP upgrade schedule.
+  Workspace lint/format/types and API/fresh web builds PASS; Android/iOS exports PASS, baseline web export lacks
+  react-native-web. Audit completed exit0, two preexisting high advisories ignored by existing policy. Pinned
+  official Gitleaks8.30.1 asset digest verified; committed-task scan PASS, final staged scan pending. Final full
+  vitest session68090/report `C:/Users/xdhia/AppData/Local/Temp/questify-t402-final-vitest.json` is running.
+  Small final owner-load gate now distinguishes loading/offline retry from signed-out (no new copy); recheck
+  app guards/types/native exports after it. Full browser suite and fresh core code review remain. Mutation run
+  40139062524 completed SUCCESS; coordinator dispatched T-313 mutation40156105166, so push remains held.
+
+- 2026-10-25 **T-402 final verification underway:** source/docs complete and task remains unchecked for fresh core
+  review. API/fresh web production builds, workspace lint/format/types, Android/iOS exports and dependency audit
+  PASS (two existing high advisories remain ignored by unchanged policy). Default Expo web export is unavailable
+  on the baseline because react-native-web is not installed; explicit native bundles are supported and no dependency
+  was added. Final full vitest session68090 is running; focused current app/Hermes/word guards30 tests PASS, and
+  native exports are refreshing after the small owner-load gate. Next: read final vitest JSON, run full browser suite
+  against the fresh web build, final staged Gitleaks redacted scan, commit source/docs and request fresh core review.
+  No deploy/EAS/push. Usage-reset heartbeat already woke successfully05:50; next scheduled10:55 Riyadh after the
+  actual10:50:18 reset. Mutation40156105166 is active (T-313); coordinator owns that run and push sequencing.
+
+- 2026-10-25 **T-402 final gates PASS; fresh core code review pending (task unchecked):** final full DB/Redis
+  vitest **354 files/5681 tests passed,3 timing opt-ins skipped**,244.10s; report
+  `C:/Users/xdhia/AppData/Local/Temp/questify-t402-final-vitest.json`. All three actual pre-0063 upgrade schedules,
+  runtime erasure races, outsider/cross-tenant/public privacy, app contracts/Hermes and request-log masking pass.
+  Fresh web build + FULL browser suite **139 passed,1 intentional phone-camera skip**,9.2m. Workspace lint/types/
+  format, API build, final Android/iOS exports, audit (two existing high advisories ignored by unchanged policy)
+  and digest-verified portable Gitleaks8.30.1 redacted task/staged scans PASS. Default Expo web export lacks baseline
+  react-native-web; no dependency added. Real-phone Arabic/RTL and narrow cosmetic appearance remain owed; no export
+  is claimed as device proof. Plan GO94 and fresh Arabic UX GO96 stand. Source/docs/refactors/upgrade-XP/app coverage
+  now complete; all diagnostic sessions ended. Next: final local commit, fresh independent Sol High core code review
+  >=90 with no BLOCKER/MAJOR; keep T-402 unchecked until GO, then T-402b immediately (FR-723/1622); T-403 completes
+  FR-701/702. Proposed ADR-266–268/Q-230–232 stay Proposed. Pending integration: test-only branch
+  `codex/t312-mutation-tests` at `137cf4416dc141994ec6cf119e2a085f5eec68c7` (`f77b531` plus minor fix), fresh
+  independent review GO96 and its isolated full suite5694 passed/3 skipped,262.81s. Not integrated or pushed; ticket
+  mutation90% remains unverified. Root integrates only after this worker's final clean commit and fresh core review;
+  then queues a GitHub rerun of the three ticket globs after current T-313 run40156105166 finishes. That active
+  mutation remains coordinator-owned/push hold;
+  no push/deploy/EAS. Existing usage-reset heartbeat next10:55 Riyadh after10:50:18 reset; no duplicate created.
+
 ## Next
 
-1. **Now (2026-10-25, handoff taken over):** follow the coordinator queue above (mutation run 40139062524 remains active, then T-402); apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of
+1. **Now (2026-10-25):** T-402 final checks PASS; fresh independent code review next, then T-402b; coordinator tracks active T-313 mutation40156105166; apply ADR-265 and keep building, deploy later. Everything older in this item is done; kept as history. Previously: the Opus code review of T-313 (built; migration 0062 undeployed; Dhia answers Q-229 on the burst cost), then its mutation run on GitHub. Before it: the Opus code review of T-312 (built; migration 0061 undeployed), then its mutation run on GitHub; then T-312b waits on T-501. Before it: the Sonnet code review of T-311b (built; Dhia reads the Arabic lines of Q-217), then the Sonnet code review of T-311c (built; Dhia reads the Arabic lines of ADR-264, Q-227 and Q-228 ask about the kiosk page and the dashboard's player word). Before it: the Opus code review of T-311 (built; migration 0060 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-310 (built; migration 0059 undeployed), then its mutation run on GitHub. Before it: the Opus code review of T-309 (built; migration 0057 undeployed), then its mutation run on GitHub; then the Opus code review of T-309b (built; migration 0058 undeployed) and its mutation run, and the kiosk tried on an iPad and an Android tablet by Dhia. Also: Dhia phone-tests NFC basic tags on Android with the 2026-10-24 APK (CranL note above). The coordinator runs the Opus code review of T-308 (built; migration 0056 now deployed on CranL, so any fix to 0048 to 0056 is a new migration), and the Opus code review of T-307 (built; migration 0055 deployed) and of
    T-306c (migration 0054), then the mutation runs on GitHub for T-306b, T-306c and T-307, then the next unchecked task. The Opus code review of T-306
    is still owed. Before that: the Opus code review of T-305c (and of T-303c, T-303b), then mutation on GitHub (T-305c's globs; T-305's re-run now that its many-seed tests sit outside Stryker), then the next unchecked task in `docs/TASKS.md`. Before 2026-10-24: Earlier: Dhia decides whether to merge branch `t-206-prize-desk` into `main` and push (Full checks and mutation are green on it), then the next unchecked task in `docs/TASKS.md` (T-207, T-209, T-211, T-213, T-214, T-216, T-217, T-218 and T-220 are done on `batch-2026-10-23`; T-207, T-209, T-211, T-214, T-216 and T-218 reviewed GO, T-220 reviewed GO (mutation on GitHub run 39936502814), T-213 reviewed (Sonnet 86 → fixed); T-217 reviewed GO (92), its mutation run on GitHub owed; T-401 reviewed GO (94), mutation on GitHub run 39945083260; T-301 reviewed GO (93), minors folded, mutation on GitHub run 39949844007; T-302 done, awaiting its Opus code review and its mutation run on GitHub; T-303 done (challenge, survey, share), reviewed GO (94), nits folded; T-304 (category rules and bonus) done, reviewed GO (92), minors folded, mutation run owed, T-304b (passport) done, reviewed GO (92), minor folded, mutation run owed, T-304c done (Opus code review and mutation owed), T-304d done (Opus code review and mutation owed); T-303b (location) done (Opus code review and mutation owed); T-303c (meet-someone) is next in that area), then T-118's phone run (RUNBOOK, "The first loop on two phones"): needs Dhia for staging migrations
    0007 to 0023 and an EAS development build (Android: an Expo account only). Otherwise the next unchecked task in

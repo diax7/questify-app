@@ -1,6 +1,7 @@
-import { MESSAGES } from "@questify/shared";
+import { ProfileGate } from "#src/questify/ProfileGate.tsx";
+import { MESSAGES, USERNAME_MAX } from "@questify/shared";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { usePlayer } from "#src/auth/player.tsx";
@@ -15,6 +16,8 @@ export function EditProfileScreen() {
   const { state, reload } = usePlayer();
   const { t } = useI18n();
   const me = state.status === "signed_in" ? state.me : undefined;
+  const owner = useRef(me?.id);
+  owner.current = me?.id;
   const [username, setUsername] = useState(me?.username ?? "");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<{ ar: string; en: string } | null>(null);
@@ -22,15 +25,20 @@ export function EditProfileScreen() {
   useEffect(() => {
     setUsername(me?.username ?? "");
     setProblem(null);
+    setBusy(false);
+    setSaved(false);
   }, [me?.id]);
   const save = async () => {
     if (busy) return;
     setBusy(true);
     setProblem(null);
     setSaved(false);
+    const current = owner.current;
     const answer = await saveProfile(api.session, { username });
+    if (current !== owner.current) return;
     if (answer.kind === "ok") {
       await reload();
+      if (current !== owner.current) return;
       setSaved(true);
     } else
       setProblem(
@@ -44,14 +52,14 @@ export function EditProfileScreen() {
     <Screen title={t("profile.edit")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         {me === undefined ? (
-          <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
+          <ProfileGate />
         ) : (
           <>
             <Field
               label={t("signIn.username")}
               value={username}
               autoCapitalize="none"
-              maxLength={20}
+              maxLength={USERNAME_MAX}
               editable={me.usernameChange?.allowed === true && !busy}
               onChangeText={(value) => {
                 setUsername(value);

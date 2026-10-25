@@ -139,6 +139,15 @@ describe("loggerOptions", () => {
     expect(req(request)).toEqual({ method: "POST", url: "/v1/staff/auth/password" });
   });
 
+  it("keeps public usernames and query values out of request logs", () => {
+    const { req } = loggerOptions(base).serializers;
+    const request = {
+      method: "GET",
+      url: "/v1/players/private_handle?ignored=private_email",
+    } as unknown as Parameters<typeof req>[0];
+    expect(req(request)).toEqual({ method: "GET", url: "/v1/players/:username" });
+  });
+
   it("removes credentials, session cookies and idempotency keys from every log line", () => {
     expect(loggerOptions({ ...base, nodeEnv: "production" }).redact).toEqual([
       "req.headers.authorization",
