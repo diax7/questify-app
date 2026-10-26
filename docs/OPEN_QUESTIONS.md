@@ -665,3 +665,17 @@ Recommended (ADR-271): set rank rules before owner confirmation; extend the prev
 highest rank (maximum100), even if physical prizes are off. After event end show waiting-for-confirmation, then grant
 from those frozen ranks. Refuse newly activated rank rules on already confirmed events; do not reconstruct missing
 places from current scores. If a winner becomes ineligible before delivery, skip without moving the next player up.
+
+## Q-236 — Finite souvenir repair passes instead of a repeating sweep (2026-10-26, T-402b review repair)
+Recommended (ADR-272): scan existing members once at activation (once the event is live) and once per 'Process
+pending grants' request, then rely on triggers for every later fact; rank souvenirs wait for confirmed places with no
+member scan. The dashboard reads complete once that work drains. Agree that Process pending grants is the manual repair
+path, with no automatic periodic re-scan?
+
+## Q-237 — Cached idempotent replay before event-scope checks on other organizer routes (2026-10-26, T-402b review)
+The independent T-402b review noted that other event-scoped `idempotent: true` organizer routes (for example
+`apps/api/src/awards/routes.ts:52-61`) likely replay a cached response from the global preHandler
+(`apps/api/src/conventions.ts:82`) before their handler re-checks the editor's current event scope. Souvenir routes
+authorize in preValidation first (T-402b). Recommended: one central fix rather than per-route copies, such as an
+organizer-scope preValidation that authorizes the `:eventId` parameter for the current session before any replay, with
+the souvenir revocation regression reused for every such route. Not changed by T-402b; needs its own task and review.

@@ -310,14 +310,19 @@ the client-address count (ADR-113).
 
 The server's separate souvenir tick runs every5s with jitter and a2s processing budget, at most500 recipients per
 invocation. Each recipient's claim, grant and generation/token acknowledgment commit separately. A crash after
-grant commit replays ownership safely; a claimed but unfinished lease expires after60s. Failures remain durable,
+grant commit replays ownership safely; a claimed but unfinished lease expires after60s. Claims the time budget left
+unevaluated are released at once (souvenir_release), not held for the lease. Failures remain durable,
 retry with bounded backoff up to300s and expose pending/failed counts in the authorized organizer Souvenirs page.
 Health logs contain counts/error classes only. The internal empty-context `souvenir_health()` also excludes device
 identity; never expose this system context through HTTP or grant a direct table right for recovery.
 
 Use 'Process pending grants' with a fresh request key for another pass; retry a dropped request using its same key.
-The response is pending until both due work and currently scheduled backfill are done. Activated rules are repaired
-through bounded500-member scans each minute; already granted rule/player pairs are skipped. For rank waiting state,
+The response is pending until both due work and the current pass are done. Scans are finite (ADR-272): activating a
+non-rank rule, and each 'Process pending grants' request, starts one pass of500-member batches over members without
+that souvenir; the pass waits until the event is live and deletes itself at the end. After it, nothing re-scans on a
+timer: triggers on the facts (joins, completions, quiz/game results, confirmed places, operator play/removal, account
+reinstatement) queue each member. If a member is missing an item after an owner-connection data repair, run one
+'Process pending grants'. Rank rules start no activation pass; confirmation queues the placed members. For rank waiting state,
 the owner must confirm the existing final-results preview; do not rebuild frozen places or activate a new rank rule
 after confirmation. An archived event is read-only, but its previously authorized durable work can finish normally.
 Do not delete receipts or reset player_item source fields to repair a queue. Preserve source privacy and erasure.
@@ -327,6 +332,10 @@ Synthetic load evidence can be reproduced on a throwaway local test database by 
 20,001 recipients, measures source enqueue cost and actual bounded worker passes, and requires convergence with
 no pass over500 recipients. It creates/drops its own test database; never point it at production. This is ordinary
 database performance verification, not Stryker; mutation remains GitHub-only. Record measured values separately.
+
+The measurement below predates the finite-pass and lease-release repair (ADR-272) and was not re-run. Its joined rule
+grants every member, so it could not show the repeating sweep's cost for rules most members miss; that behavior is
+now covered by `apps/api/test/db/souvenir-repair.int.test.ts` (no re-enqueue after a drained pass).
 
 2026-10-26 local synthetic measurement (one joined rule, local Docker PostgreSQL, no overlapping heavy checks):
 20,001 owned/0 due/0 failed after443,198ms. Source enqueue of a20,001-row enrollment update took23,401ms total;

@@ -449,12 +449,22 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
   player_item gains an exact level/souvenir source union and composite receipt FK, retaining every existing level FK.
   Both source-map writers serialize on the shared item identity.
 - `souvenir_work` stores real event/member generation, lease/token and retry metadata. Claim/ack are separate transactions
-  from grants. `souvenir_scan` performs bounded500-member activation/repair scans. Private `souvenir_command` records
+  from grants; a re-enqueue keeps the earlier ready_at; a worker releases claims its time budget left unevaluated.
+  `souvenir_scan` holds one finite pass (ADR-272): created by a non-rank activation or a /process request, it enqueues
+  500 real members per batch behind a cursor, waits until the event is live, and deletes itself at the end. Every later
+  change reaches the queue through a trigger on the fact the evaluator reads: enrollment join/status/waitlist,
+  quest_completion, finished quiz_attempt, terminal game_round (lifecycle expiry included), result_place, staff_assignment
+  can_play true or removal, and player reinstated to active. A new qualification source must add its trigger here.
+  The evaluator pre-checks without locks and takes no player/enrollment/XP lock for a member owed nothing.
+  Private `souvenir_command` records
   actor/event/operation-body fingerprint/result for durable request replay. All6 tables force RLS, no direct API/PUBLIC
   rights; only narrow organizer/system doors. System excludes player/staff/organizer/admin/device contexts.
 - Grant order: active player FOR SHARE→enrollment FOR NO KEY UPDATE→rules FOR SHARE→XP FOR UPDATE→receipt/item. SHARE
   serializes normal admin ban UPDATEs. No event/wipe lock after enrollment. Erasure extends0063 cleanup: equipment/items
-  before receipts/work, preserving ticket/other erasure steps. No rehearsal lifetime grants or work.
+  before receipts, member work last (after the staff_assignment delete that can enqueue), preserving ticket/other
+  erasure steps. No rehearsal lifetime grants or work. Public cosmetic names refuse control and bidi characters in SQL.
+  souvenir_rule's event/category references and souvenir_target's quest reference do not cascade: deleting a draft event
+  a rule names answers 409 souvenir_data.
 - Only own locker joins source event names. T-708 must integrate earned provenance into future authorized exports and
   decide transient-work disclosure/retention; no export assembly is built here. T-507 later attaches sponsor metadata.
 

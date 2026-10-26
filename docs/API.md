@@ -289,7 +289,7 @@ the door on the database clock (the current one, or the previous one for its fir
 | `POST …/events` | owner, editor (unlimited) | **Idempotency-Key**; `{name: {ar?, en?}, kind?, venue?: {ar?, en?}, access?, joinMethods?, timezone?, dayStartHour?, startsAt, endsAt, venuePin?: {lat, lng} \| null, venueRadiusM?}` → `201 {event}` (`venuePin` and `venueRadiusM`, 100 to 20000 m, default 1000, T-303b: optional, for the far-from-venue flag only; the edit route takes them too, null clears the pin), always a draft. Times are the event's wall clock `YYYY-MM-DDTHH:mm` (no offset), read in `timezone` (default `Asia/Riyadh`); unknown fields (`status`, `joinCode`) are refused | 400, 403 `scope_limited`, 422 `invalid_event` `{field}` |
 | `GET …/events/{eventId}` | owner, editor | `{event}`: `{id, joinCode, name, kind, venue, access, joinMethods, timezone, dayStartHour, startsAt, endsAt (UTC ISO), status, statusNow, createdAt, venuePin, venueRadiusM}`; `statusNow` is the status at this moment, before the lifecycle tick | 404 (also outside an editor's limit) |
 | `PATCH …/events/{eventId}` | owner, editor | the same fields, all optional → `{event}`; times sent are read in the zone sent, else the stored one; a zone sent alone keeps the instants. Scheduled: the start stays in the future; live: only a later end; ended: times fixed | 404, 409 `event_times_locked`, 422 `invalid_event` `{field}` |
-| `DELETE …/events/{eventId}` | owner, editor | drafts only → 204 (FR-1003) | 404, 409 `event_not_draft` |
+| `DELETE …/events/{eventId}` | owner, editor | drafts only → 204 (FR-1003) | 404, 409 `event_not_draft` / `rehearsal_data` / `souvenir_data` (a souvenir rule names it: delete its drafts first; T-402b) |
 | `PUT …/events/{eventId}/ranking` | owner | `{enabled: boolean}` → `{ranking}`; shows or hides the event's ranking to players (FR-607), keeping the event's other switches; audited (`event.features.update`). The event view (`GET …/events/{eventId}`) carries `ranking` | 400, 403 `owner_only`, 404 |
 | `PUT …/events/{eventId}/ranking-today` | owner | `{enabled: boolean}` → `{rankingToday}`; shows or hides today's ranking of a multi-day event (FR-608, T-216), the same way; the event view carries `rankingToday` (on unless turned off) | 400, 403 `owner_only`, 404 |
 | `PUT …/events/{eventId}/share-quests` | owner | `{enabled: boolean}` → `{shareQuests}`; off hides every share quest from players (quests tab, Home, public quests) and refuses paying one (FR-219, T-303, ADR-199); the event view carries `shareQuests` (on unless turned off) | 400, 403 `owner_only`, 404 |
@@ -477,17 +477,18 @@ public achievements/passport and owner event history remain T-403; blocks must c
 Organizer prefix `/v1/organizers/{organizerId}/events/{eventId}/souvenirs`; active scoped owner/editor,
 independently validated by SQL. Every mutation takes Idempotency-Key. No recipient/source/time input or remote art.
 Body: `{kind:frame|title|character,name:{ar,en},visualKey,audience:joined|category|all|rank,categoryId?,rankFrom?,rankTo?}`.
-Both names1–60; rank bounds1–100 inclusive; category/range fields must match audience. Frames select frame-01..14,
+Both names1–60 with no control, line-separator or bidi embedding/override/isolate characters (schema and SQL, 400);
+rank bounds1–100 inclusive; category/range fields must match audience. Frames select frame-01..14,
 character selects chest, title has visualKey:null.100 rules/event maximum; immutable item identity/kind.
 
 | Method/path under prefix | Contract |
 |---|---|
-| GET root | `{rules,archived,due,scanning,failed}`, private,no-store. Rules include item/audience/category/range/status, preview/frozen targetIds/targetCount, granted count and waitingForResults |
+| GET root | `{rules,archived,due,scanning,failed}`, private,no-store. `scanning` counts passes due now; a pass waits until the event is live, so it reads 0 before. Rules include item/audience/category/range/status, preview/frozen targetIds/targetCount, granted count and waitingForResults |
 | POST root | Create draft;201 list |
 | PATCH `/{id}` / DELETE `/{id}` | Replace editable draft fields / remove draft and its item; active promises refuse edits/deletion |
 | POST `/{id}/activate` | `{targetIds:uuid[]}` from reviewed preview; freezes promise. Changed finisher targets return409 souvenir_changed. Activation body limit512KiB supports all300 event quests |
 | POST `/{id}/stop` | Empty body; future grants stop, earned items stay; no resume |
-| POST `/process` | Empty body; authorized enqueue, bounded system work, reauthorized status. Adds `{status:complete|pending,granted,skipped,failed}` totals for this pass, never recipients |
+| POST `/process` | Empty body; starts one finite repair pass per active rule (ADR-272), runs bounded system work, then reauthorizes status. Adds `{status:complete|pending,granted,skipped,failed}` totals for this call, never recipients. A finished pass deletes itself, so another request runs one more pass; the same key replays without one |
 
 404 missing/foreign/out-of-scope;400 invalid/missing key;409 souvenir_locked/souvenir_empty/souvenir_changed/
 results_final/event_archived/limit_reached. Existing HTTP key/body conflict remains422; durable SQL command conflict

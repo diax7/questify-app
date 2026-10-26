@@ -3510,3 +3510,21 @@ places. A late ineligible recipient is skipped without promoting another rank; e
 **Why:** Existing snapshots may retain only10 places; retroactive live ranking would contradict confirmed results.
 **Trade-offs:** The owner still confirms after event end. Pre-confirmation rules are required for rank souvenirs;
 historical confirmed events cannot add a new rank promise through this feature.
+
+## ADR-272 — Souvenir repair passes are finite; fact triggers carry every later change
+**Status:** Proposed (worker recommendation, 2026-10-26, T-402b review repair; Q-236). Replaces the plan's periodic
+repair sweep and 0064's "repeat completed scans every minute"; ADR-270 otherwise stands.
+**Decision:** A souvenir_scan row is one finite pass: a non-rank activation or an owner/editor Process request starts
+it, it queues 500 real members per batch behind a cursor, waits until the event is live (one-way, 0009's times guard),
+and deletes itself at the end. A rank rule starts no activation pass; its result_place trigger queues the confirmed
+places, and a Process pass for it reads only placed members in range. After a pass, triggers on every fact the evaluator
+reads queue the member: enrollment join/approval/event unban, quest completion, finished quiz, terminal game round (the
+lifecycle tick's expiry included), result_place, an operator allowed to play or removed, and a platform account
+reinstated. A re-enqueue keeps the earlier ready_at. The evaluator pre-checks without locks and returns before the
+player/enrollment/XP locks when no missing active souvenir qualifies; the locked path rechecks everything in ADR-270's
+order. A worker releases the claims its time budget left unevaluated.
+**Why:** The repeating sweep re-queued every non-recipient of a rank or category rule each minute for the event's life,
+kept the dashboard pending, logged souvenir.pending every tick, delayed live work and took write-contending locks
+beside quest scans. The 20k benchmark used a joined rule, which everyone leaves, so it could not show this.
+**Trade-offs:** A change made outside these facts (an owner-connection data repair, a future qualification source
+without its trigger) is picked up only by a Process request; DATA_MODEL lists the triggers a new source must extend.

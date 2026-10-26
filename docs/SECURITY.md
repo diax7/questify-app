@@ -8,6 +8,10 @@ require empty context including app_device_id. Recipient eligibility is relation
 Player FOR SHARE serializes platform ban UPDATE through grant commit; enrollment/rule/XP order and separate queue
 claim/ack prevent player-erasure and completion-queue inversions. Receipt composite references avoid an event FK lock
 after enrollment, preserving confirmation's opposite order. Rehearsal data cannot produce lifetime ownership/work.
+Repair passes are finite (ADR-272): no automatic sweep re-reads non-recipients, and the evaluator's unlocked pre-check
+returns before any player/enrollment/XP lock for a member owed nothing, so a backlog cannot contend with quest scans.
+The locked path rechecks every condition in the order above. Public cosmetic names refuse control, line-separator and
+bidi embedding/override/isolate characters in the shared schema and in souvenir_save (400), as terms and submissions do.
 
 Own locker exposes private source event ID/name only to the active owner, even after leaving/archive; public
 profile/ranking/equipment retain source-free allowlists and opaque cosmetic IDs. Cosmetic names/art are explicitly

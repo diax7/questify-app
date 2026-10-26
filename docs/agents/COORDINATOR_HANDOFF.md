@@ -26,6 +26,10 @@ the riskiest reviews; Luna High only for mechanical edits. Every review/re-revie
 
 ## Required next gate
 
+**Update 2026-10-26:** the independent re-review ran and returned 87 NO-GO; its MAJOR (endless repair sweep) and
+minors are repaired in `81d5054` (Proposed ADR-272, Q-236/Q-237), full DB/Redis 5819 passed / 3 optional skips.
+The gate is now a fresh independent review of `8f32f05..81d5054`; STATE.md Next 1 supersedes the text below.
+
 First independent code review was **84 NO-GO**: cached response after editor event-scope revocation, and missing
 new evaluator/concurrency proof. Both are repaired in `7c0843b`: current event authorization precedes cached
 replay on all six mutation doors; 20 targeted authorization/evaluator/forced-lock tests passed. Plan96 and

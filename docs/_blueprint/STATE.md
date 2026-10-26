@@ -1259,18 +1259,27 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   worker, local check/server, remote CI or mutation remains. This coordinator stops; the new session must retain
   the supported-review requirement, existing gates and deployment/EAS deferral. No credits used.
 
+- 2026-10-26 **T-402b re-review 87 NO-GO repaired; fresh independent re-review of the delta pending.** The re-review
+  of 4bca465..8f32f05 closed both 84 findings and found grants correct, but the repair sweep never ended: every minute
+  it re-queued all non-recipients of rank/category rules. Production repair 81d5054 (undeployed 0064 edited in place;
+  CranL stays at 0056): finite passes per activation/Process that wait for live and delete themselves, rank rules
+  without a pass, triggers for operator play/removal and account reinstatement, least(ready_at), an unlocked evaluator
+  pre-check, lease release for unevaluated claims, control/bidi name refusal in schema and SQL (22P05→400), 409
+  souvenir_data for deleting a draft event with souvenirs, work erased last. Proposed ADR-272, Q-236 (design) and
+  Q-237 (central replay-before-scope fix for other routes). Focused souvenir/security/rehearsal/event suites green;
+  full DB/Redis 5819 passed / 3 optional skips; lint/format/types PASS. No web code changed, so no browser rerun.
+  T-402b stays unchecked, 75/153 (49.02%). No push, deploy, EAS or mutation. Follow-up: category/quest deletion that a
+  souvenir names still answers 500.
+
 ## Next
 
-1. **Handoff queue (2026-10-26):** this chat is PAUSED at Dhia's request; the new Codex session reads
-   `docs/agents/COORDINATOR_HANDOFF.md` first. Review-repair source7c0843b and all author gates are green, but the mandatory
-   fresh independent re-review failed at an automated cybersecurity safeguard before returning a verdict.
-   Await a supported independent review path; do not retry or bypass the blocked request while unchanged.
-   A permitted NEW independent reviewer must check the complete task and both84 NO-GO findings, excluding
-   author and first reviewer. Require >=90 with zero unresolved BLOCKER/MAJOR before
-   ticking T-402b; keep 75/153 until then. Author stops here. Reviewed mutation-force config is already integrated
-   at 5c87d29. Root owns reviewed push/CI and the T-402/T-402b GitHub mutation batch. T-312/T-313 targets already
-   meet 90, no chase. T-403 gets a fresh worker only after this core gate. No deployment/EAS/local Stryker;
-   phone/CranL obligations remain deferred. This chat's heartbeat is PAUSED. Earlier queues and schedules are historical.
+1. **T-402b gate (2026-10-26):** the independent re-review returned 87 NO-GO; its MAJOR and minors are repaired in
+   81d5054 with green focused and full suites. Next: a fresh independent reviewer (not the author or earlier
+   reviewers) checks the repair delta 8f32f05..81d5054 against the 87 findings; require >=90 with zero unresolved
+   BLOCKER/MAJOR before ticking T-402b; keep 75/153 until then. Root owns reviewed push/CI and the T-402/T-402b GitHub
+   mutation batch (actual changed core files only). T-312/T-313 targets already meet 90, no chase. T-403 gets a fresh
+   worker only after this core gate. No deployment/EAS/local Stryker; phone/CranL obligations remain deferred.
+   Follow-ups: Q-237 central replay fix; category/quest deletion naming a souvenir answers 500.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
