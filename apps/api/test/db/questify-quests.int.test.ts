@@ -539,6 +539,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       code: "QY409",
       detail: "campaign_closed",
     });
+    // A new quest counts plays from its campaign's start, so a running campaign takes none; its own quests still edit.
+    const running = await seasonal(hours(-1), hours(5));
+    await expect(saveQuest({ campaignId: running.campaign })).rejects.toMatchObject({
+      code: "QY409",
+      detail: "started",
+    });
+    expect((await saveQuest({ xp: 70 }, running.quests[0] ?? "")).xp).toBe(70);
+    await retireCampaign(running.campaign);
   });
 
   it("lets only an active platform admin run a console door, and audits each write with ids and field names", async () => {
@@ -568,7 +576,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     ];
     for (const context of seats) {
       for (const [sql, values] of calls) {
-        await expect(f.run(context, sql, values), sql).rejects.toMatchObject({ code: "42501" });
+        await expect(f.run(context, sql, values), sql).rejects.toMatchObject({ code: "QY403" });
       }
     }
 

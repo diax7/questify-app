@@ -89,6 +89,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests routes (T-403b
       "UPDATE questify_campaign SET starts_at = now() - interval '1 hour' WHERE id = $1",
       [campaign.id],
     );
+    const late = await admin("POST", "/quests", { ...QUEST, campaignId: campaign.id });
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toMatchObject({
+      code: "questify_conflict",
+      details: { reason: "started" },
+    });
     const player = await f.newPlayer();
     const token = await tokenOf(player);
     await f.play(await f.newEvent(), player);
@@ -219,5 +225,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests routes (T-403b
       "SELECT count(*)::integer AS n FROM questify_campaign WHERE name_en = 'Winter'",
     );
     expect(count?.n).toBe(1);
+  });
+
+  it("answers a real permission fault, such as a lost EXECUTE grant, as a 500 and not a 404", async () => {
+    await f.owner("REVOKE EXECUTE ON FUNCTION questify_admin_list() FROM questify_app");
+    try {
+      expect((await admin("GET", "")).statusCode).toBe(500);
+    } finally {
+      await f.owner("GRANT EXECUTE ON FUNCTION questify_admin_list() TO questify_app");
+    }
+    expect((await admin("GET", "")).statusCode).toBe(200);
   });
 });

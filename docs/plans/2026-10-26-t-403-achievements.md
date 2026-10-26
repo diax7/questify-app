@@ -280,8 +280,11 @@ note.
 - `questify_due(player)` feeds both the pre-check and the paying loop; `questify_level_up` gives `levelUp` the
   completion answer's shape (level, title, items). The award's key check takes KEY SHARE on the quest, which an admin
   save (NO KEY UPDATE) never blocks.
-- Console doors take a jsonb body (the API's own JSON) and answer the admin view; refusals are `QY404`, `QY409` with
-  the reason in DETAIL and `QY422` with the field. Build choices (campaign fixed at creation, active one-way, retire not
+- Console doors take a jsonb body (the API's own JSON) and answer the admin view; refusals are `QY403` (not an admin),
+  `QY404`, `QY409` with the reason in DETAIL and `QY422` with the field. Build choices (campaign fixed at creation,
+  active one-way, retire not
   delete, closed campaigns refuse edits, the 100-campaign list) are Proposed ADR-280 / Q-246.
 - `history_append_only` now names Questify awards too (replaced in 0066; 0065 untouched).
 - Not built: a delete door, a per-admin rate limit on the catalog doors (no personal data), award counts in the list.
+- Code review GO 94 (2026-10-26) folded: non-admin is `QY403` so a real 42501 (a lost grant) answers 500 (MINOR-1); a
+  published campaign that has started refuses a new quest, `409 {reason: started}` (MINOR-2).

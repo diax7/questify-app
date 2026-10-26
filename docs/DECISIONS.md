@@ -3612,7 +3612,9 @@ and Questify quests grant no item or gem yet; T-404 pays gems from the earned ro
 **Status:** Proposed (worker recommendation, 2026-10-26, T-403b build; Q-246). Extends ADR-278.
 **Decision:** A quest's campaign is chosen when it is created and never moves. `active` is one-way: an active quest is
 retired, never put back to draft. Nothing is deleted: a draft quest or campaign is retired (no delete door). A quest
-cannot be added to, or edited in, a retired or ended campaign; retire still works. A published campaign's start moves
+cannot be added to, or edited in, a retired or ended campaign; retire still works. A published campaign that
+has started takes no new quest (`started`: it would count plays back to the start; code review MINOR-2). A
+published campaign's start moves
 only before it starts and never into the past; once started the start is fixed and the end only moves later; once
 ended the window is fixed (the name still changes). Publishing an already published campaign answers it as it is.
 The caps count quests not retired (drafts included): 20 per campaign, 50 always-on. The console list shows every

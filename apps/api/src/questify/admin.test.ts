@@ -13,7 +13,7 @@ const answerOf = (error: unknown) => {
 
 describe("the console Questify doors' refusals (T-403b)", () => {
   it.each([
-    [{ code: "42501" }, 404, "not_found", {}],
+    [{ code: "QY403" }, 404, "not_found", {}],
     [{ code: "QY404" }, 404, "not_found", {}],
     [{ code: "QY409", detail: "frozen" }, 409, "questify_conflict", { reason: "frozen" }],
     [{ code: "QY422", detail: "campaignId" }, 422, "invalid_questify", { field: "campaignId" }],
@@ -24,8 +24,8 @@ describe("the console Questify doors' refusals (T-403b)", () => {
     expect(answer).toMatchObject({ status, envelope: { code, details } });
   });
 
-  it("rethrows anything else unchanged", () => {
-    const fault = Object.assign(new Error("deadlock detected"), { code: "40P01" });
+  it.each(["40P01", "42501"])("rethrows %s unchanged as a server fault", (code) => {
+    const fault = Object.assign(new Error("a database fault"), { code });
     expect(answerOf(fault)).toBe(fault);
   });
 });

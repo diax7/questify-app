@@ -269,14 +269,15 @@ GRANT EXECUTE ON FUNCTION own_questify_quests() TO questify_app;
 
 -- ================================================================ the console's doors (ADR-278, ADR-280)
 -- Each door re-reads the admin from the account (app_admin_id), so the request flag alone opens nothing; every write
--- is audited with ids and changed field names only. Refusals: 42501 (not an active platform admin), QY404, QY409
--- with the reason in DETAIL, QY422 with the field in DETAIL.
+-- is audited with ids and changed field names only. Refusals: QY403 (not an active platform admin; its own code so a
+-- real 42501, such as a lost EXECUTE grant, stays a server fault), QY404, QY409 with the reason in DETAIL, QY422 with
+-- the field in DETAIL.
 CREATE FUNCTION questify_admin() RETURNS uuid LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
  admin uuid := app_admin_id();
 BEGIN
  IF admin IS NULL THEN
-  RAISE EXCEPTION 'only a Questify admin can do this' USING ERRCODE = 'insufficient_privilege';
+  RAISE EXCEPTION 'only a Questify admin can do this' USING ERRCODE = 'QY403';
  END IF;
  RETURN admin;
 END $$;
@@ -443,6 +444,10 @@ BEGIN
  END IF;
  IF chosen IS NULL THEN
   home := questify_home((fields ->> 'campaignId')::uuid);
+  -- A new quest counts plays from its campaign's start, so one added to a running campaign would pay past plays.
+  IF home.status = 'published' AND home.starts_at <= now() THEN
+   RAISE EXCEPTION 'the campaign has started' USING ERRCODE = 'QY409', DETAIL = 'started';
+  END IF;
   IF (SELECT count(*) FROM questify_quest q WHERE q.status <> 'retired'
        AND q.campaign_id IS NOT DISTINCT FROM home.id) >= (CASE WHEN home.id IS NULL THEN 50 ELSE 20 END) THEN
    RAISE EXCEPTION 'too many quests' USING ERRCODE = 'QY409', DETAIL = 'too_many';

@@ -20,8 +20,9 @@ import { withRequestContext } from "#src/db/context";
 /** A door's refusal as an HTTP answer; anything else is a server fault and is rethrown. */
 export function refusalOf(error: unknown): never {
   const { code, detail } = error as { code?: string; detail?: string };
-  // Not an active platform admin: the same 404 the console hook gives, so nothing is advertised.
-  if (code === "42501" || code === "QY404") throw notFound();
+  // Not an active platform admin (QY403): the same 404 the console hook gives, so nothing is advertised. A plain 42501
+  // (say a lost EXECUTE grant) is a server fault and falls through to a 500.
+  if (code === "QY403" || code === "QY404") throw notFound();
   if (code === "QY409") throw questifyConflict({ reason: detail });
   if (code === "QY422") throw invalidQuestify({ field: detail });
   // A value the tables refuse that the shared schemas let through.
