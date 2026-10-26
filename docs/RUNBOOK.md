@@ -319,3 +319,11 @@ Synthetic load evidence can be reproduced on a throwaway local test database by 
 20,001 recipients, measures source enqueue cost and actual bounded worker passes, and requires convergence with
 no pass over500 recipients. It creates/drops its own test database; never point it at production. This is ordinary
 database performance verification, not Stryker; mutation remains GitHub-only. Record measured values separately.
+
+2026-10-26 local synthetic measurement (one joined rule, local Docker PostgreSQL, no overlapping heavy checks):
+20,001 owned/0 due/0 failed after443,198ms. Source enqueue of a20,001-row enrollment update took23,401ms total;
+this is a bulk storm measurement, not individual completion latency.7,399 back-to-back invocations included213
+nonempty passes; the largest processed160 recipients (cap500), and the slowest pass took2,764ms. The2s budget is
+checked between transactions, not a hard cancellation deadline. Empty invocations while unfinished leases expire
+are included. This harness omits the normal5s tick interval and does not establish production capacity or all-audience/
+100-rule performance. Report `Temp/questify-t402b-20k.json`, log with the same prefix. No invented latency target.

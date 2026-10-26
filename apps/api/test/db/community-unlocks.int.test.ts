@@ -1557,6 +1557,10 @@ are matched by name, since the door's own source does not name the table. A new 
  * until it is placed here.
  */
 const GATE_MAP: Readonly<Record<string, string>> = {
+  // souvenir_event checks active owner/editor membership and award_event_of checks tenant/event scope.
+  // This is configuration, with no play/wipe/payment; souvenir_evaluate separately refuses rehearsal members.
+  souvenir_action:
+    "staff: freezes visible nonflash/nonlive targets through quest_lock_missed; no quest payment (T-402b)",
   member_game: "gated: answers QN403 community_locked (the sheets test)",
   send_poll: "gated: Send refused while locked (the live poll test)",
   share_quest: "gated: share (door table)",

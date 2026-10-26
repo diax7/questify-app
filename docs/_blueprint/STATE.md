@@ -1029,14 +1029,60 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Save this checkpoint locally, do not push or commission core review before remaining gates. Continue the SAME
   worker after reset; physical-phone RTL/cosmetic visuals, CranL migrations/deployment/EAS remain deferred.
 
+- 2026-10-26 **T-402b resumed from b0944d3; frozen-source final gates running:** full DB/Redis Vitest exec4924,
+  log/report `C:/Users/xdhia/AppData/Local/Temp/questify-t402b-final-vitest.{log,json}`. iOS export48842 PASS,
+  output/log `Temp/questify-t402b-ios`; lint/format67520 PASS; current API build PASS, audit61415 pending.
+  Redacted Gitleaks8.30.1 scan of4bca465..b0944d3 PASS. No source edits since the checkpoint. Fresh web build3002,
+  workspace types47984 and Android6359 remain current evidence. Full browser142 follows the full suite, then20k
+  benchmark runs alone; final docs/staged scan and fresh independent core review still owed. T-402b unchecked75/153.
+  Coordinator verified forced T-31340227738340 SUCCESS: API first-bonus93.55%, quests90.27%, both>=90, no chase;
+  1386000ms/23.10wallmin,0 billed. Artifacts `Temp/questify-forced-first-bonus-40227738340`. All prior T-312/T-313
+  mutation follow-ups are now closed; T-402/T-402b batch remains owed. No current remote CI/mutation; main WIP
+  push hold remains. Configfb0fba4 stays isolated until root integrates after this worker's green checkpoint.
+  Heartbeat ACTIVE08:22 Riyadh after coordinator-reported actual08:16:06 reset; no credits. Continue same worker.
+
+- 2026-10-26 **Final-gate diagnosis, no production changes:** full4924 completed324.45s with5786 passed,
+  3 optional timing skips and3 failures; retain its JSON/log as failed evidence, not a green gate. Fixed test-only
+  issues: community gate-map classifies souvenir_action through actual staff/tenant guards; outsider table query
+  now schema-qualified; rehearsal test creates an immutable rehearsal enrollment and proves a real member still
+  receives the item. Focused4996 then97 passed/1 failed: PostgreSQL's FK guard preceded the intended truncate
+  trigger; changed the test to TRUNCATE CASCADE. Targeted truncate rerun1 passed/24 filtered skips in5.36s.
+  Logs `Temp/questify-t402b-failures-rerun.log` and `Temp/questify-t402b-truncate-rerun.log`. Final full rerun remains
+  required. All current production/web/native build evidence remains valid.20,001-recipient benchmark exec4363
+  is running alone; JSON/log `Temp/questify-t402b-20k.{json,log}`. No full/browser/export overlaps this measurement.
+  Audit61415 PASS under unchanged two-high-advisory exceptions. Next: benchmark result, then final full Vitest,
+  FULL browser142, final changed-test static checks/docs/secrets, local green checkpoint for independent core review.
+
+- 2026-10-26 **T-402b synthetic20k benchmark PASS; final full rerun active:** exec4363 completed exit0.
+  Report/log `C:/Users/xdhia/AppData/Local/Temp/questify-t402b-20k.{json,log}`:20,001 owned,0 due,0 failed,
+  443,198ms convergence;20,001-row source enqueue storm23,401ms.7,399 back-to-back calls/213 nonempty passes,
+  max160 recipients/pass below500; slowest2,764ms because2s budget is checked between transactions, not a hard
+  deadline. Isolated local Docker/one joined rule, no full/browser/export overlap; normal5s cadence and production
+  capacity/all-audience100-rule load are not measured. Generated support bundle safely removed after completion.
+  Full frozen-production-source Vitest rerun exec66372 now active, JSON/log `Temp/questify-t402b-final-vitest-rerun`.
+  Test-only corrections from the failed run are included; no production change or stale-build claim. Browser142,
+  final static/docs/staged secret scan and independent core review remain owed. Keep T-402b unchecked75/153.
+
+- 2026-10-26 **Final rerun66372 not green:5788 passed/3 optional skips/1 upgrade timeout,324.02s.**
+  All prior3 failures are resolved. First actual0063-erasure upgrade test exceeded30s; old trace identifies only
+  the test start, not the exact phase. Prior full-run durations for these three setup-in-body tests were20.27s,
+  19.37s,17.62s; this run30.01s(timeout),23.68s,12.90s. Do not claim proven production failure or proven setup
+  phase from that trace. Moved preSouvenir database construction/63 migrations into beforeEach (existing60s hook),
+  cleanup into afterEach; behavioral crossed-lock assertions retain the existing30s test budget. Failure-only
+  diagnostics now distinguish incomplete fixture from behavior/cleanup and report fixture time. No production
+  change or global timeout increase. Focused upgrade lifecycle exec13575 PASS3/3 in14.54s, log
+  `Temp/questify-t402b-upgrade-lifecycle.log`; affected-file lint and API types PASS. Save this test-fix checkpoint
+  and run the required final full again. Logs/reports of both failed
+  full runs are preserved. Lint/format/types19666 PASS before this lifecycle-only refinement; recheck affected file.
+
 ## Next
 
 1. **Current queue (2026-10-25, supersedes historical queues):** resume this same T-402b implementation from the
    latest durable checkpoint above. Run final frozen-source DB/Redis Vitest, full browser142, iOS export,20k
    benchmark and final static/build/secret gates; then fresh independent core code review >=90 with zero
-   BLOCKER/MAJOR, fixing/rechecking findings before marking T-402b done. Keep75/153 until then. Root checks active
-   T-313 mutation40227738340 and owns reviewed pushes/CI and T-402/T-402b mutation batch. Console98.51% already meets
-   target. Do not push unfinished WIP, deploy, run EAS or local Stryker. Heartbeat ACTIVE03:12 Riyadh2026-10-26.
+   BLOCKER/MAJOR, fixing/rechecking findings before marking T-402b done. Keep75/153 until then. Root closed T-312/T-313
+   mutation follow-ups and owns reviewed pushes/CI and the T-402/T-402b mutation batch. Console98.51% already meets
+   target. Do not push unfinished WIP, deploy, run EAS or local Stryker. Heartbeat ACTIVE08:22 Riyadh2026-10-26.
    Earlier completed-task/Opus queues above are historical, not instructions to restart those tasks.
    Existing dependency audit exceptions remain unchanged; real-device/CranL/EAS obligations remain deferred.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

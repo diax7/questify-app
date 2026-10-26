@@ -245,7 +245,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
       await expect(f.run(f.actor, `INSERT INTO ${table} DEFAULT VALUES`)).rejects.toMatchObject({
         code: "42501",
       });
-      await expect(f.db.outsider.query(`SELECT * FROM ${table}`)).rejects.toMatchObject({
+      await expect(f.db.outsider.query(`SELECT * FROM public.${table}`)).rejects.toMatchObject({
         code: "42501",
       });
     }
@@ -261,7 +261,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
     await expect(f.db.owner.query("DELETE FROM souvenir_receipt")).rejects.toMatchObject({
       code: "42501",
     });
-    await expect(f.db.owner.query("TRUNCATE souvenir_receipt")).rejects.toMatchObject({
+    await expect(f.db.owner.query("TRUNCATE souvenir_receipt CASCADE")).rejects.toMatchObject({
       code: "42501",
     });
   });
@@ -280,11 +280,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
     await expect(f.action(rule)).rejects.toMatchObject({ code: "AN404" });
   });
   it("never queues or grants a rehearsal membership even through backfill", async () => {
+    const player = (
+      await f.db.owner.query(
+        "INSERT INTO player(username) VALUES('souvenir_practice') RETURNING id",
+      )
+    ).rows[0].id;
+    const member = (
+      await f.db.owner.query(
+        "INSERT INTO enrollment(organizer_id,event_id,player_id,joined_via) VALUES($1,$2,$3,'rehearsal') RETURNING id",
+        [f.ids.orgA, f.ids.eventA, player],
+      )
+    ).rows[0].id;
     const rule = await f.create();
     await f.action(rule);
-    await f.db.owner.query("UPDATE enrollment SET joined_via='rehearsal' WHERE id=$1", [f.member]);
     await f.run({}, "SELECT souvenir_scan_batch($1)", [f.ids.eventA]);
-    expect((await f.db.owner.query("SELECT * FROM souvenir_work")).rows).toEqual([]);
-    expect((await f.grant()).rows[0].n).toBe(0);
+    expect(
+      (await f.db.owner.query("SELECT * FROM souvenir_work WHERE enrollment_id=$1", [member])).rows,
+    ).toEqual([]);
+    expect((await f.run({}, "SELECT souvenir_evaluate($1) AS n", [member])).rows[0].n).toBe(0);
+    expect((await f.grant()).rows[0].n).toBe(1);
+    expect(
+      (await f.db.owner.query("SELECT * FROM souvenir_receipt WHERE player_id=$1", [player])).rows,
+    ).toEqual([]);
   });
 });
