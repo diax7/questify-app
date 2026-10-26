@@ -159,4 +159,71 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
     expect(removed.statusCode).toBe(200);
     expect(removed.json().rules.some((r: { id: string }) => r.id === id)).toBe(false);
   });
+  it.each(["create", "edit", "delete", "activate", "stop", "process"] as const)(
+    "reauthorizes event scope before cached %s replay",
+    async (operation) => {
+      const email = `cache-${operation}@team.test`;
+      const editor = await createStaff(f.db.owner, { email });
+      await f.db.owner.query(
+        "INSERT INTO organizer_member(organizer_id,staff_user_id,role,event_scope) VALUES($1,$2,'editor',ARRAY[$3::uuid])",
+        [f.ids.orgA, editor, f.ids.eventA],
+      );
+      const editorCookie = await signInFully(app, email);
+      const other = (
+        await f.db.owner.query(
+          "INSERT INTO event(organizer_id,join_code,name_en,starts_at,ends_at) VALUES($1,$2,'Other event',now(),now()+interval '1 day') RETURNING id",
+          [f.ids.orgA, randomUUID().slice(0, 8)],
+        )
+      ).rows[0].id;
+      const body = { ...f.body, name: { ar: "تذكار خاص", en: `Cache probe ${operation}` } };
+      const created = await post(base, body);
+      const rule = created
+        .json()
+        .rules.find((r: { item: { name: { en: string } } }) => r.item.name.en === body.name.en);
+      if (operation === "stop") await post(`${base}/${rule.id}/activate`, { targetIds: [] });
+      const method = operation === "edit" ? "PATCH" : operation === "delete" ? "DELETE" : "POST";
+      const path =
+        operation === "create"
+          ? base
+          : operation === "process"
+            ? `${base}/process`
+            : `${base}/${rule.id}${operation === "edit" || operation === "delete" ? "" : `/${operation}`}`;
+      const payload =
+        operation === "create" || operation === "edit"
+          ? body
+          : operation === "activate"
+            ? { targetIds: [] }
+            : {};
+      const key = randomUUID();
+      const request = () =>
+        app.app.inject({
+          method,
+          url: path,
+          headers: withSession(editorCookie, { "idempotency-key": key }),
+          payload,
+        });
+      const first = await request();
+      expect(first.statusCode).toBe(operation === "create" ? 201 : 200);
+      const replay = await request();
+      expect(replay.headers["idempotent-replayed"]).toBe("true");
+      expect(replay.body).toBe(first.body);
+      await f.db.owner.query(
+        "UPDATE organizer_member SET event_scope=ARRAY[$3::uuid] WHERE organizer_id=$1 AND staff_user_id=$2",
+        [f.ids.orgA, editor, other],
+      );
+      expect(
+        (await app.app.inject({ url: base, headers: withSession(editorCookie) })).statusCode,
+      ).toBe(404);
+      const before = (await f.db.owner.query("SELECT count(*) AS n FROM souvenir_command")).rows[0]
+        .n;
+      const denied = await request();
+      expect(denied.statusCode).toBe(404);
+      expect(denied.headers["idempotent-replayed"]).toBeUndefined();
+      expect(denied.json().code).toBe("not_found");
+      expect(denied.body).not.toContain("Cache probe");
+      expect((await f.db.owner.query("SELECT count(*) AS n FROM souvenir_command")).rows[0].n).toBe(
+        before,
+      );
+    },
+  );
 });

@@ -319,3 +319,10 @@ profile reads until logout settles. `apps/app/src/auth/player-state.test.ts` exe
 responses: late private data after sign-out, A→B replacement, stale failures, forced end and cleanup never restore
 the old account. This closes the MAJOR in the first independent code review88; fresh re-review GO95 confirms the
 fix with zero BLOCKER/MAJOR. The coordinator's combined full-suite integration gate remains pending.
+
+Souvenir replay boundary (T-402b): current resource authorization must precede cached idempotent replay, including
+a same-organizer event-scope revocation while staff membership stays active. These routes use preValidation
+before the global cache preHandler and retain SQL authorization in each mutation. Real middleware tests first
+prove a successful cached replay, revoke only event scope, then require404/no replay header/no private cached
+body for all six mutation doors, including processing. This finding and repair are scoped to souvenirs; other
+routes are not asserted vulnerable without evidence.

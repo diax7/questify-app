@@ -1170,6 +1170,25 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   cutoffc2353c9. This integration changes workflow/docs only; no task source or tests changed. No push until core
   GO and required checks. Heartbeat ACTIVE08:22 Riyadh after actual08:16:06 reset; no credits/deploy/EAS.
 
+- 2026-10-26 **Fresh independent core review84 NO-GO: one BLOCKER, one MAJOR; task remains unchecked.**
+  Reviewer reproduced editor POST201, then only event_scope revoked to another event of the SAME organizer;
+  GET404 but identical POST key replayed201 with idempotent-replayed:true and the private old rule list.
+  Existing organizer membership checks were insufficient because membership stayed active. Added all-six-route
+  real cache middleware regressions; red run review-auth-red2 reproduced six failures. Earlier red fixture-only
+  missing join_code failure is separately retained. Repair is scoped to souvenir routes: preValidation now runs
+  current SQL event authorization before global cached preHandler; handler SQL still authorizes every write.
+  No global rewrite or claim about unrelated routes. API/SECURITY notes document this invariant.
+  MAJOR missing new-door proof addressed with actual automatic work/evaluator tests: finished zero-right quizzes
+  for category/all, last-attempt short games, still-open games, unlimited games, and a forced completion that
+  holds its queue write while waiting for XP against concurrent evaluation and old-generation acknowledgment.
+  Added activation-versus-confirmation both lock orders with5s lock timeouts, exact committed snapshot depth,
+  receipts/items and stale-preview refusal/refresh. Focused routes/new doors18 passed25.78s; confirmation locks
+  2 passed8.42s. Small test helper extraction for the 100-line limit followed; combined focused rerun passed all 20 tests in 26.56s (exec 5871, Temp/questify-t402b-review-matrix.log).
+  Lint/all types PASS; no SQL/native/shared/copy or payer change, so native/Arabic/20k evidence remains valid.
+  Save focused repair checkpoint before final full DB/Redis, fresh web build/FULL browser, API build/audit/secrets
+  and NEW fresh independent re-review (different reviewer). No push/deploy/EAS/local Stryker. Main5c87d29 includes
+  root's reviewed mutation-force workflow/config integration; no current remote CI/mutation. Keep75/153.
+
 ## Next
 
 1. **Current queue (2026-10-26):** T-402b implementation and author gates are green at the checkpoint above.

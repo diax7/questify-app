@@ -505,3 +505,9 @@ Own `/v1/me/locker` source becomes `{kind:level,level}` or `{kind:event,event:{i
 microsecond paging/seen/equipping. Response is private,no-store. Only the earned owner sees event attribution,
 including after leaving/archive. Public profile/ranking/equipment retain the source-free Item DTO; opaque cosmetic
 IDs encode no event identity. Cosmetic names/art themselves may be public, as explained before activation.
+
+Souvenir mutation replay authorizes the resource before reading any cached response: the route's preValidation
+runs the current scoped souvenir reader after session/membership checks and before the global idempotency
+preHandler. A still-active organizer editor whose event scope was revoked receives404 even with the original
+successful mutation key. This covers create/edit/delete/activate/stop/process; the handler SQL independently
+reauthorizes writes. A cached success is never authority to read the former event's private rule list.

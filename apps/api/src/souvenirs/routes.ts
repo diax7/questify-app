@@ -9,7 +9,18 @@ import { paySouvenirs } from "#src/souvenirs/payer";
 
 const eventParams = z.object({ eventId: z.uuid() });
 const ruleParams = z.object({ eventId: z.uuid(), souvenirId: z.uuid() });
-const writing = { config: { access: "member", idempotent: true }, bodyLimit: 8192 } as const;
+// preValidation precedes the global cached replay preHandler; every retry rechecks current event scope.
+const writing = (deps: SouvenirDeps) =>
+  ({
+    config: { access: "member", idempotent: true },
+    bodyLimit: 8192,
+    preValidation: async (request: FastifyRequest) => {
+      const { eventId } = parse(eventParams, request.params);
+      await asSouvenirTeam(deps, organizerContextOf(request), (client) =>
+        souvenirList(client, eventId),
+      );
+    },
+  }) as const;
 const empty = z.union([z.strictObject({}), z.null(), z.undefined()]);
 const activation = z.strictObject({
   targetIds: z
@@ -47,7 +58,7 @@ export function registerSouvenirRoutes(scope: FastifyInstance, deps: SouvenirDep
       );
     },
   );
-  scope.post("/events/:eventId/souvenirs", writing, async (request, reply) => {
+  scope.post("/events/:eventId/souvenirs", writing(deps), async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const body = parse(souvenirBodySchema, request.body);
     const result = await asSouvenirTeam(deps, organizerContextOf(request), async (client) => {
@@ -60,7 +71,7 @@ export function registerSouvenirRoutes(scope: FastifyInstance, deps: SouvenirDep
     });
     return reply.code(201).send(result);
   });
-  scope.patch("/events/:eventId/souvenirs/:souvenirId", writing, async (request) => {
+  scope.patch("/events/:eventId/souvenirs/:souvenirId", writing(deps), async (request) => {
     const { eventId, souvenirId } = parse(ruleParams, request.params);
     const body = parse(souvenirBodySchema, request.body);
     return asSouvenirTeam(deps, organizerContextOf(request), async (client) => {
@@ -74,7 +85,7 @@ export function registerSouvenirRoutes(scope: FastifyInstance, deps: SouvenirDep
     });
   });
   registerSouvenirActions(scope, deps);
-  scope.post("/events/:eventId/souvenirs/process", writing, async (request) => {
+  scope.post("/events/:eventId/souvenirs/process", writing(deps), async (request) => {
     const { eventId } = parse(eventParams, request.params);
     parse(empty, request.body);
     const actor = organizerContextOf(request);
@@ -97,7 +108,7 @@ function registerSouvenirActions(scope: FastifyInstance, deps: SouvenirDeps) {
     scope.route({
       method: action === "delete" ? "DELETE" : "POST",
       url,
-      ...writing,
+      ...writing(deps),
       // A full300-quest event's reviewed UUID list exceeds the small draft body limit.
       ...(action === "activate" ? { bodyLimit: 512 * 1024 } : {}),
       handler: async (request) => {
