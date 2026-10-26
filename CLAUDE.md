@@ -44,6 +44,13 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
 coordinator, all plans, all reviews and core builds; use Medium for standard builds. Max is reserved only for the
 riskiest reviews. The review independence rule applies to every model and task, including docs and config.
 
+**Cost cap (Dhia, 2026-10-26):** at most one sub-agent at a time; two only when a reviewer checks finished work
+while the next task's worker builds. No extra helper agents alongside them. In a Claude Code session, which cannot
+run GPT-6.1 Sol, use the strongest model only for core builds and core reviews (points ledger, sign-in, tenant
+isolation, SQL and locking) and the mid-tier model for docs, ticking tasks, copy checks and non-core builds and
+reviews. A worker runs the full test suite once into a log file and reads the summary line; no polling or duplicate
+wait commands. Minor review findings are folded into the worker that just finished, with no re-review.
+
 ## Read order at the start of every session
 
 1. `docs/_blueprint/STATE.md`: where the project stands and what comes next

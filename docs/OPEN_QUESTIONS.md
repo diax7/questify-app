@@ -679,3 +679,10 @@ The independent T-402b review noted that other event-scoped `idempotent: true` o
 authorize in preValidation first (T-402b). Recommended: one central fix rather than per-route copies, such as an
 organizer-scope preValidation that authorizes the `:eventId` parameter for the current session before any replay, with
 the souvenir revocation regression reused for every such route. Not changed by T-402b; needs its own task and review.
+
+## Q-238 — Fixed API refusal wording ignores an organizer's renamed quest and category words (2026-10-26, T-402b Arabic review)
+The builder's 409 refusals (`categoryNotEmpty`, `boostInUse`, `goalInUse` and the new `SOUVENIR_IN_USE`) use Questify's
+default words «مهمة» and «فئة» because the dashboard shows an API message as sent and cannot fill the event's
+`{questOne}`/`{categoryOne}` placeholders (FR-942, `terms.quest`/`terms.category`). An organizer who renamed them sees the
+default word in these refusals. Recommended: later, let the dashboard map the error code to a placeholder-aware
+messages.ts text instead of showing the API string, for all of these refusals together. Not a T-402b change.

@@ -888,12 +888,12 @@ export const SOUVENIR_IN_USE = {
     en: "A souvenir uses this category. Delete the souvenir draft first. If the souvenir is active or stopped, the category can't be deleted.",
   },
   quest: {
-    ar: "هذه المهمة شرط لتذكار نشط أو متوقف، فلا يمكن حذف المهمة.",
+    ar: "هذه المهمة مطلوبة لتذكار نشط أو متوقف، فلا يمكن حذفها.",
     en: "An active or stopped souvenir requires this quest, so the quest can't be deleted.",
   },
   categoryQuest: {
-    ar: "في هذه الفئة مهمة شرط لتذكار نشط أو متوقف. اختر نقل المهام إلى فئة أخرى.",
-    en: "An active or stopped souvenir requires a quest in this category. Choose to move the quests to another category.",
+    ar: "لا يمكن حذف مهام هذه الفئة: بعضها مطلوب لتذكار نشط أو متوقف. اختر نقلها إلى فئة أخرى.",
+    en: "This category's quests can't be deleted: some are required by an active or stopped souvenir. Choose to move them to another category.",
   },
 } as const;
 /**
