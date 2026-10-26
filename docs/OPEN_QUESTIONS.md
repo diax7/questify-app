@@ -760,3 +760,30 @@ real players, yet the button acts at once. Recommended: ask for a confirmation f
 it cannot be undone.
 **Answered (developer, delegated by Dhia, 2026-10-27):** confirm first (ADR-283); built 2026-10-27.
 
+## Q-249 — Split T-404 into a core part and a screens part? (2026-10-27, T-404 plan)
+Recommended (ADR-284): T-404 builds the gem ledger, payments, shop and purchase door (core); T-404b builds the app
+screens, the console Gems field and the strings (standard, cheaper model). Agree, or build it as one task?
+
+## Q-250 — How the gem ledger works (2026-10-27, T-404 plan)
+Recommended (ADR-285): an append-only gem record with only four sources (level-up, achievement, Questify quest, shop
+spend), no transfers, gifts, corrections or expiry, and gems never shown to other players. Agree? An admin correction
+(for example taking gems from a proven cheater) would need a later task.
+
+## Q-251 — When and how many gems are paid (2026-10-27, T-404 plan)
+Recommended (ADR-286): 20 gems per level-up; 10, 25 and 50 for bronze, silver and gold achievement tiers; 25 for each of
+the two seeded Questify quests (other quests set their own, 0 to 1000). Paid at the next sync (seconds after a scan),
+and paid back for levels players reached before gems existed. Agree with the amounts and the back pay?
+
+## Q-252 — Gem shop rules (2026-10-27, T-404 plan)
+Recommended (ADR-287): one copy of each item per player; an item sold in the shop is never also a level reward or a
+souvenir; a tap made at an old price is refused and the app asks again; retired items stay owned. The catalog is set in
+the database until the console can edit it (T-709). Agree?
+
+## Q-253 — What the shop sells at launch (2026-10-27, T-404 plan)
+Recommended (ADR-288): six frames in six new designs and six titles; titles 40 to 80 gems, frames 80 to 150. No
+characters until new character art is made (FR-726 partial for characters). Agree, or commission character art first?
+
+## Q-254 — Shop wording for the stores (2026-10-27, T-404 plan)
+Recommended (ADR-289): the button says "Get" (احصل عليه), not "Buy"; no "add gems" button anywhere; the shop says gems
+are earned by playing and cannot be bought. Agree?
+
