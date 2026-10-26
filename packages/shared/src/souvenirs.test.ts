@@ -40,4 +40,20 @@ describe("souvenir configuration", () => {
       expect(souvenirBodySchema.safeParse({ ...body, ...patch }).success).toBe(false);
     }
   });
+  it("refuses control and direction characters in public names and keeps ordinary Arabic", () => {
+    for (const ar of ["إطار\u202Eالرحلة", "إطار\u0000", "إطار\u0007الرحلة", "إطار\u2066الرحلة"])
+      expect(souvenirBodySchema.safeParse({ ...body, name: { ar, en: "Frame" } }).success).toBe(
+        false,
+      );
+    expect(
+      souvenirBodySchema.safeParse({ ...body, name: { ar: "Frame", en: "Frame\u2029two" } })
+        .success,
+    ).toBe(false);
+    expect(
+      souvenirBodySchema.safeParse({
+        ...body,
+        name: { ar: "بطل هاكاثون 2026", en: "Hackathon hero" },
+      }).success,
+    ).toBe(true);
+  });
 });

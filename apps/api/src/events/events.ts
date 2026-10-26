@@ -55,7 +55,9 @@ export type RemoveResult =
   | Missing
   | Readonly<{ kind: "not_draft" }>
   /** Rehearsal accounts joined it: their data goes with an erase first (T-211). */
-  | Readonly<{ kind: "rehearsal_data" }>;
+  | Readonly<{ kind: "rehearsal_data" }>
+  /** A souvenir rule names it (T-402b): its drafts are deleted first, a frozen promise keeps the event. */
+  | Readonly<{ kind: "souvenir_data" }>;
 export type EndResult = Readonly<{ kind: "ended" }> | Missing | Readonly<{ kind: "not_live" }>;
 
 export type Actor = OrganizerContext & Readonly<{ organizer: OrganizerPrincipal }>;
@@ -280,6 +282,24 @@ async function update(
 }
 
 async function remove(
+  deps: EventsDeps,
+  actor: Actor,
+  id: string,
+  caller: Caller,
+): Promise<RemoveResult> {
+  try {
+    return await removeDraft(deps, actor, id, caller);
+  } catch (error) {
+    // souvenir_rule's event reference has no cascade (migration 0064): the delete rolls back whole.
+    const pg = error as { code?: string; table?: string };
+    if (pg.code === "23503" && pg.table === "souvenir_rule") {
+      return { kind: "souvenir_data" };
+    }
+    throw error;
+  }
+}
+
+function removeDraft(
   deps: EventsDeps,
   actor: Actor,
   id: string,

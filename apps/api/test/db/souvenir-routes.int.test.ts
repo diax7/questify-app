@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { MESSAGES } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { souvenirFixture } from "#test/support/souvenirs";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
@@ -16,6 +17,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
   let app: TestApp;
   let cookie: string;
   let base: string;
+  let actor: { organizerId: string; staffUserId: string };
   beforeAll(async () => {
     f = await souvenirFixture();
     const staff = await createStaff(f.db.owner, { email: "souvenirs@team.test" });
@@ -23,6 +25,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
       f.staff,
       staff,
     ]);
+    actor = { organizerId: f.ids.orgA, staffUserId: staff };
     app = await startApp(f.db);
     cookie = await signInFully(app, "souvenirs@team.test");
     base = `/v1/organizers/${f.ids.orgA}/events/${f.ids.eventA}/souvenirs`;
@@ -61,6 +64,73 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
       expect((await post(base, body)).statusCode).toBe(400);
     }
     expect((await f.db.owner.query("SELECT * FROM souvenir_rule")).rows).toHaveLength(1);
+  });
+  it("refuses control and direction characters in public names over HTTP and in SQL", async () => {
+    for (const ar of ["تذكار\u202Eالرحلة", "تذكار\u0000الرحلة"]) {
+      expect((await post(base, { ...f.body, name: { ar, en: "Journey" } })).statusCode).toBe(400);
+    }
+    await expect(
+      f.run(actor, "SELECT souvenir_save($1,NULL,$2,$3)", [
+        f.ids.eventA,
+        { ...f.body, name: { ar: "تذكار\u202Eالرحلة", en: "Journey" } },
+        randomUUID(),
+      ]),
+    ).rejects.toMatchObject({ code: "SV422" });
+    // JSON text cannot hold a NUL: SQL raises 22P05, which souvenirRefusal answers as 400 (its unit test).
+    await expect(
+      f.run(actor, "SELECT souvenir_save($1,NULL,$2,$3)", [
+        f.ids.eventA,
+        { ...f.body, name: { ar: "تذكار\u0000", en: "Journey" } },
+        randomUUID(),
+      ]),
+    ).rejects.toMatchObject({ code: "22P05" });
+    expect((await f.db.owner.query("SELECT * FROM souvenir_rule")).rows).toHaveLength(1);
+    const arabic = await post(base, {
+      ...f.body,
+      name: { ar: "بطل الرحلة 2026", en: "Journey hero" },
+    });
+    expect(arabic.statusCode).toBe(201);
+    const kept = arabic
+      .json()
+      .rules.find((r: { item: { name: { en: string } } }) => r.item.name.en === "Journey hero");
+    expect(kept.item.name.ar).toBe("بطل الرحلة 2026");
+    const removed = await app.app.inject({
+      method: "DELETE",
+      url: `${base}/${kept.id}`,
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+    });
+    expect(removed.statusCode).toBe(200);
+  });
+  it("refuses deleting a draft event with souvenirs in both languages, then deletes it without them", async () => {
+    const draft = (
+      await f.db.owner.query(
+        "INSERT INTO event(organizer_id,join_code,name_en) VALUES($1,$2,'Draft with souvenirs') RETURNING id",
+        [f.ids.orgA, randomUUID().slice(0, 8)],
+      )
+    ).rows[0].id as string;
+    const draftBase = `/v1/organizers/${f.ids.orgA}/events/${draft}`;
+    const created = await post(`${draftBase}/souvenirs`, f.body);
+    expect(created.statusCode).toBe(201);
+    const remove = () =>
+      app.app.inject({ method: "DELETE", url: draftBase, headers: withSession(cookie) });
+    const refused = await remove();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({
+      code: "souvenir_data",
+      message: MESSAGES["souvenir.eventDeleteError"],
+    });
+    expect(
+      (await f.db.owner.query("SELECT count(*)::int AS n FROM event WHERE id=$1", [draft])).rows[0]
+        .n,
+    ).toBe(1);
+    const rule = created.json().rules[0].id as string;
+    const cleared = await app.app.inject({
+      method: "DELETE",
+      url: `${draftBase}/souvenirs/${rule}`,
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect((await remove()).statusCode).toBe(204);
   });
   it("requires authentication, origin and idempotency key, conceals other tenant/event IDs", async () => {
     expect(
@@ -108,6 +178,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
     expect(granted.statusCode).toBe(200);
     expect(granted.json()).toMatchObject({ status: "complete", granted: 1, due: 0 });
     expect((await f.owned()).rows).toHaveLength(1);
+    // A finished pass is gone; another request runs one more pass and completes again.
+    const again = await post(`${base}/process`, {});
+    expect(again.json()).toMatchObject({ status: "complete", granted: 0, due: 0, scanning: 0 });
+    expect((await f.db.owner.query("SELECT * FROM souvenir_scan")).rows).toEqual([]);
     const edit = await app.app.inject({
       method: "PATCH",
       url: `${base}/${id}`,

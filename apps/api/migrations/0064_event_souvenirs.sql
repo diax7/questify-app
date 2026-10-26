@@ -189,6 +189,7 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION souvenir_event(uuid,boolean) FROM PUBLIC;
 
+-- A re-enqueue never moves waiting work behind newer rows (least ready_at); the generation bump keeps it due.
 CREATE FUNCTION souvenir_enqueue(target uuid) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=public,pg_temp AS $$
  INSERT INTO souvenir_work(event_id,enrollment_id)
  SELECT n.event_id,n.id FROM enrollment n JOIN player p ON p.id=n.player_id
@@ -196,21 +197,36 @@ CREATE FUNCTION souvenir_enqueue(target uuid) RETURNS void LANGUAGE sql SECURITY
    AND n.status='active' AND NOT n.waitlisted
    AND EXISTS(SELECT 1 FROM souvenir_rule r WHERE r.event_id=n.event_id AND r.status='active'
     AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=r.id AND s.player_id=n.player_id))
- ON CONFLICT(event_id,enrollment_id) DO UPDATE SET generation=souvenir_work.generation+1,ready_at=now()
+ ON CONFLICT(event_id,enrollment_id) DO UPDATE SET generation=souvenir_work.generation+1,
+  ready_at=least(souvenir_work.ready_at,now())
 $$;
 REVOKE ALL ON FUNCTION souvenir_enqueue(uuid) FROM PUBLIC;
 
+-- Every fact the evaluator reads enqueues its member, so no sweep repeats (ADR-272): joins/approval/event unban,
+-- completions, finished quizzes, terminal game rounds (the lifecycle tick's expiry included), confirmed places, an
+-- operator allowed to play or removed, and a platform account reinstated. The event going live is one-way and time
+-- driven: souvenir_scan_batch holds each activation pass until then.
 CREATE FUNCTION souvenir_on_fact() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
  IF TG_TABLE_NAME='enrollment' THEN PERFORM souvenir_enqueue(NEW.id);
+ ELSIF TG_TABLE_NAME='player' THEN
+  PERFORM souvenir_enqueue(n.id) FROM enrollment n WHERE n.player_id=NEW.id;
+ ELSIF TG_TABLE_NAME='staff_assignment' THEN
+  IF TG_OP='DELETE' OR NEW.can_play THEN
+   PERFORM souvenir_enqueue(n.id) FROM enrollment n WHERE n.event_id=OLD.event_id AND n.player_id=OLD.player_id;
+  END IF;
  ELSE PERFORM souvenir_enqueue(NEW.enrollment_id); END IF;
- RETURN NEW;
+ RETURN NULL;
 END $$;
 REVOKE ALL ON FUNCTION souvenir_on_fact() FROM PUBLIC;
 CREATE TRIGGER souvenir_on_join AFTER INSERT OR UPDATE OF status,waitlisted ON enrollment FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
 CREATE TRIGGER souvenir_on_complete AFTER INSERT ON quest_completion FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
 CREATE TRIGGER souvenir_on_quiz AFTER UPDATE OF status ON quiz_attempt FOR EACH ROW WHEN(NEW.status='finished') EXECUTE FUNCTION souvenir_on_fact();
 CREATE TRIGGER souvenir_on_game AFTER UPDATE OF status ON game_round FOR EACH ROW WHEN(NEW.status<>'open') EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER souvenir_on_staff AFTER UPDATE OF can_play OR DELETE ON staff_assignment FOR EACH ROW
+ WHEN(NOT OLD.can_play) EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER souvenir_on_reinstate AFTER UPDATE OF status ON player FOR EACH ROW
+ WHEN(NEW.status='active' AND OLD.status<>'active') EXECUTE FUNCTION souvenir_on_fact();
 
 CREATE FUNCTION souvenir_rule_json(target uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
  SELECT jsonb_build_object('id',r.id,'item',item_json(r.item_id),'audience',r.audience,'categoryId',r.category_id,
@@ -231,7 +247,9 @@ BEGIN
  RETURN jsonb_build_object('rules',coalesce((SELECT jsonb_agg(souvenir_rule_json(r.id) ORDER BY r.created_at,r.id)
   FROM souvenir_rule r WHERE r.event_id=ev.id),'[]'::jsonb),'archived',ev.status='archived',
   'due',(SELECT count(*) FROM souvenir_work w WHERE w.event_id=ev.id),
-  'scanning',(SELECT count(*) FROM souvenir_scan s JOIN souvenir_rule r ON r.id=s.rule_id WHERE r.event_id=ev.id AND s.next_at<=now()),
+  'scanning',(SELECT count(*) FROM souvenir_scan s JOIN souvenir_rule r ON r.id=s.rule_id
+   WHERE r.event_id=ev.id AND r.status='active' AND s.next_at<=now()
+     AND event_status_now(ev.status,ev.starts_at,ev.ends_at) IN ('live','ended','archived')),
   'failed',(SELECT count(*) FROM souvenir_work w WHERE w.event_id=ev.id AND w.error_code IS NOT NULL));
 END $$;
 REVOKE ALL ON FUNCTION souvenir_list(uuid) FROM PUBLIC;
@@ -278,7 +296,9 @@ BEGIN
  replay:=souvenir_replay(ev,'save:'||coalesce(target_rule::text,'new'),body,request);
  IF replay IS NOT NULL THEN RETURN replay; END IF;
  IF audience IS NULL OR audience NOT IN ('joined','category','all','rank') OR body->>'kind' IS NULL
-  OR body->>'kind' NOT IN ('frame','title','character') OR body#>>'{name,ar}' IS NULL OR body#>>'{name,en}' IS NULL THEN
+  OR body->>'kind' NOT IN ('frame','title','character') OR body#>>'{name,ar}' IS NULL OR body#>>'{name,en}' IS NULL
+  -- Public names never carry control, line-separator or bidi embedding/override/isolate characters (as 0040).
+  OR concat(body#>>'{name,ar}',body#>>'{name,en}') ~ '[\x01-\x1F\x7F-\x9F\u2028\u2029\u202A-\u202E\u2066-\u2069]' THEN
   RAISE EXCEPTION 'invalid souvenir' USING ERRCODE='SV422';
  END IF;
  IF target_rule IS NULL THEN
@@ -333,7 +353,8 @@ BEGIN
    END IF;
   END IF;
   UPDATE souvenir_rule SET status='active',activated_at=now() WHERE id=r.id;
-  INSERT INTO souvenir_scan(rule_id) VALUES(r.id);
+  -- One pass over existing members; a rank rule has no confirmed place yet and its result_place trigger delivers.
+  IF r.audience<>'rank' THEN INSERT INTO souvenir_scan(rule_id) VALUES(r.id); END IF;
  ELSIF action='stop' AND r.status='active' THEN
   UPDATE souvenir_rule SET status='stopped',stopped_at=now() WHERE id=r.id;
   DELETE FROM souvenir_scan WHERE rule_id=r.id;
@@ -355,33 +376,43 @@ CREATE FUNCTION souvenir_request(target uuid,request uuid) RETURNS void
 DECLARE ev event:=souvenir_event(target,true);
 BEGIN
  IF souvenir_replay(ev,'process','{}',request) IS NOT NULL THEN RETURN; END IF;
- UPDATE souvenir_scan s SET cursor_id=NULL,next_at=now() FROM souvenir_rule r
- WHERE r.id=s.rule_id AND r.event_id=ev.id AND r.status='active';
+ -- One fresh repair pass per active rule (a finished pass deleted its row); a rank pass reads only placed members.
+ INSERT INTO souvenir_scan(rule_id)
+ SELECT r.id FROM souvenir_rule r WHERE r.event_id=ev.id AND r.status='active'
+ ON CONFLICT(rule_id) DO UPDATE SET cursor_id=NULL,next_at=now();
  PERFORM souvenir_audit(ev,'souvenir.process',ev.id,request);
  PERFORM souvenir_remember(ev,'process','{}',request,ev.id);
 END $$;
 REVOKE ALL ON FUNCTION souvenir_request(uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION souvenir_request(uuid,uuid) TO questify_app;
 
--- Bounded repair/backfill: mark up to 500 real members, retain a cursor, repeat completed scans every minute.
+-- A finite pass (ADR-272): enqueue up to500 real members per call behind a cursor, and delete the scan row once the
+-- pass reaches the end. Activation and each /process request start one pass; fact triggers deliver everything after.
+-- A pass waits until the event is live, since the evaluator grants nothing before (going live is one-way, 0009).
 CREATE FUNCTION souvenir_scan_batch(only_event uuid) RETURNS integer
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE chosen souvenir_scan; ev uuid; members uuid[]; member uuid;
+DECLARE chosen souvenir_scan; r souvenir_rule; members uuid[]; member uuid;
 BEGIN
  PERFORM souvenir_system_only();
- SELECT s.* INTO chosen FROM souvenir_scan s JOIN souvenir_rule r ON r.id=s.rule_id
- WHERE r.status='active' AND s.next_at<=now() AND (only_event IS NULL OR r.event_id=only_event)
+ SELECT s.* INTO chosen FROM souvenir_scan s JOIN souvenir_rule sr ON sr.id=s.rule_id JOIN event e ON e.id=sr.event_id
+ WHERE sr.status='active' AND s.next_at<=now() AND (only_event IS NULL OR sr.event_id=only_event)
+   AND event_status_now(e.status,e.starts_at,e.ends_at) IN ('live','ended','archived')
  ORDER BY s.next_at,s.rule_id FOR UPDATE OF s SKIP LOCKED LIMIT 1;
  IF NOT FOUND THEN RETURN 0; END IF;
- SELECT r.event_id INTO ev FROM souvenir_rule r WHERE r.id=chosen.rule_id;
+ SELECT * INTO r FROM souvenir_rule sr WHERE sr.id=chosen.rule_id;
  members:=ARRAY(SELECT n.id FROM enrollment n JOIN player p ON p.id=n.player_id
-  WHERE n.event_id=ev AND n.joined_via IS DISTINCT FROM 'rehearsal' AND p.status='active'
+  WHERE n.event_id=r.event_id AND n.joined_via IS DISTINCT FROM 'rehearsal' AND p.status='active'
    AND n.status='active' AND NOT n.waitlisted AND (chosen.cursor_id IS NULL OR n.id>chosen.cursor_id)
-   AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=chosen.rule_id AND s.player_id=n.player_id)
+   AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=r.id AND s.player_id=n.player_id)
+   AND (r.audience<>'rank' OR EXISTS(SELECT 1 FROM event_result er JOIN result_place rp ON rp.event_id=er.event_id
+    WHERE er.event_id=r.event_id AND rp.enrollment_id=n.id AND rp.rank BETWEEN r.rank_from AND r.rank_to))
   ORDER BY n.id LIMIT 500);
  FOREACH member IN ARRAY members LOOP PERFORM souvenir_enqueue(member); END LOOP;
- UPDATE souvenir_scan SET cursor_id=CASE WHEN cardinality(members)=500 THEN members[500] END,
-  next_at=CASE WHEN cardinality(members)=500 THEN now() ELSE now()+interval '1 minute' END WHERE rule_id=chosen.rule_id;
+ IF cardinality(members)=500 THEN
+  UPDATE souvenir_scan SET cursor_id=members[500],next_at=now() WHERE rule_id=r.id;
+ ELSE
+  DELETE FROM souvenir_scan WHERE rule_id=r.id;
+ END IF;
  RETURN cardinality(members);
 END $$;
 REVOKE ALL ON FUNCTION souvenir_scan_batch(uuid) FROM PUBLIC;
@@ -403,6 +434,18 @@ END $$;
 REVOKE ALL ON FUNCTION souvenir_claim_work(uuid,integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION souvenir_claim_work(uuid,integer) TO questify_app;
 
+-- Hands back claims a worker never evaluated (its time budget ran out), so they are due again at once, uncounted.
+CREATE FUNCTION souvenir_release(targets uuid[],tokens uuid[]) RETURNS void
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+BEGIN
+ PERFORM souvenir_system_only();
+ UPDATE souvenir_work w SET lease_token=NULL,lease_until=NULL,attempts=greatest(w.attempts-1,0)
+ FROM unnest(targets,tokens) AS given(target,token)
+ WHERE w.enrollment_id=given.target AND w.lease_token=given.token;
+END $$;
+REVOKE ALL ON FUNCTION souvenir_release(uuid[],uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION souvenir_release(uuid[],uuid[]) TO questify_app;
+
 CREATE FUNCTION souvenir_done(member uuid,target uuid) RETURNS boolean
  LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
  SELECT EXISTS(SELECT 1 FROM quest_completion c WHERE c.enrollment_id=member AND c.quest_id=target)
@@ -411,13 +454,38 @@ CREATE FUNCTION souvenir_done(member uuid,target uuid) RETURNS boolean
 $$;
 REVOKE ALL ON FUNCTION souvenir_done(uuid,uuid) FROM PUBLIC;
 
+-- The audience evidence of one active rule for one real member; the locked evaluator alone grants on it.
+CREATE FUNCTION souvenir_qualifies(member enrollment,r souvenir_rule) RETURNS boolean
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+ SELECT CASE r.audience
+  WHEN 'joined' THEN true
+  WHEN 'rank' THEN EXISTS(SELECT 1 FROM event_result er JOIN result_place rp ON rp.event_id=er.event_id
+   WHERE er.event_id=member.event_id AND rp.enrollment_id=member.id AND rp.rank BETWEEN r.rank_from AND r.rank_to)
+  ELSE NOT EXISTS(SELECT 1 FROM staff_assignment a
+    WHERE a.event_id=member.event_id AND a.player_id=member.player_id AND NOT a.can_play)
+   AND EXISTS(SELECT 1 FROM souvenir_target t WHERE t.rule_id=r.id)
+   AND NOT EXISTS(SELECT 1 FROM souvenir_target t WHERE t.rule_id=r.id AND NOT souvenir_done(member.id,t.quest_id))
+ END
+$$;
+REVOKE ALL ON FUNCTION souvenir_qualifies(enrollment,souvenir_rule) FROM PUBLIC;
+
 CREATE FUNCTION souvenir_evaluate(target uuid) RETURNS integer
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE who uuid; member enrollment; r souvenir_rule; made integer:=0; written integer;
 BEGIN
  PERFORM souvenir_system_only();
- SELECT n.player_id INTO who FROM enrollment n WHERE n.id=target AND n.joined_via IS DISTINCT FROM 'rehearsal';
- IF who IS NULL THEN RETURN 0; END IF;
+ SELECT * INTO member FROM enrollment n WHERE n.id=target AND n.joined_via IS DISTINCT FROM 'rehearsal';
+ IF NOT FOUND THEN RETURN 0; END IF;
+ who:=member.player_id;
+ -- Unlocked pre-check: a member owed no missing active souvenir takes no player, enrollment or XP lock. A fact
+ -- committed after this read bumps the queue generation, so the member is evaluated again (ADR-272).
+ IF member.status<>'active' OR member.waitlisted
+   OR NOT EXISTS(SELECT 1 FROM player p WHERE p.id=who AND p.status='active')
+   OR NOT EXISTS(SELECT 1 FROM event e WHERE e.id=member.event_id AND event_status_now(e.status,e.starts_at,e.ends_at) IN ('live','ended','archived'))
+   OR NOT EXISTS(SELECT 1 FROM souvenir_rule sr WHERE sr.event_id=member.event_id AND sr.status='active'
+    AND NOT EXISTS(SELECT 1 FROM souvenir_receipt s WHERE s.rule_id=sr.id AND s.player_id=who)
+    AND souvenir_qualifies(member,sr))
+ THEN RETURN 0; END IF;
  -- SHARE, not KEY SHARE: a non-key admin status UPDATE must serialize with the entire grant.
  PERFORM 1 FROM player p WHERE p.id=who AND p.status='active' FOR SHARE;
  IF NOT FOUND THEN RETURN 0; END IF;
@@ -429,14 +497,7 @@ BEGIN
  PERFORM 1 FROM souvenir_rule sr WHERE sr.event_id=member.event_id AND sr.status='active' ORDER BY sr.id FOR SHARE;
  PERFORM 1 FROM player_xp x WHERE x.player_id=who FOR UPDATE;
  FOR r IN SELECT * FROM souvenir_rule sr WHERE sr.event_id=member.event_id AND sr.status='active' ORDER BY sr.id LOOP
-  IF r.audience='rank' THEN
-   CONTINUE WHEN NOT EXISTS(SELECT 1 FROM event_result er JOIN result_place rp ON rp.event_id=er.event_id
-    WHERE er.event_id=member.event_id AND rp.enrollment_id=member.id AND rp.rank BETWEEN r.rank_from AND r.rank_to);
-  ELSIF r.audience IN ('category','all') THEN
-   CONTINUE WHEN EXISTS(SELECT 1 FROM staff_assignment a WHERE a.event_id=member.event_id AND a.player_id=who AND NOT a.can_play);
-   CONTINUE WHEN NOT EXISTS(SELECT 1 FROM souvenir_target t WHERE t.rule_id=r.id)
-    OR EXISTS(SELECT 1 FROM souvenir_target t WHERE t.rule_id=r.id AND NOT souvenir_done(member.id,t.quest_id));
-  END IF;
+  CONTINUE WHEN NOT souvenir_qualifies(member,r);
   INSERT INTO souvenir_receipt(rule_id,event_id,item_id,player_id,enrollment_id)
    VALUES(r.id,r.event_id,r.item_id,who,member.id) ON CONFLICT DO NOTHING;
   GET DIAGNOSTICS written=ROW_COUNT;
@@ -503,7 +564,6 @@ BEGIN
   PERFORM set_config('app.erasure','on',true);
   DELETE FROM player_item WHERE player_id = me;
   DELETE FROM souvenir_receipt WHERE player_id = me;
-  DELETE FROM souvenir_work WHERE enrollment_id = ANY(enrolled);
   PERFORM set_config('app.erasure','',true);
   -- The append-only histories let a DELETE through under this flag only, for this transaction.
   PERFORM set_config('app.erasure', 'on', true);
@@ -545,6 +605,8 @@ BEGIN
   DELETE FROM passport_stamp WHERE enrollment_id = ANY (enrolled);
   DELETE FROM quiz_answer a USING quiz_attempt t WHERE t.id = a.attempt_id AND t.enrollment_id = ANY (enrolled);
   DELETE FROM game_round g WHERE g.enrollment_id = ANY (enrolled);
+  -- Last: the staff_assignment delete above enqueues while the enrollments are still active (souvenir_on_staff).
+  DELETE FROM souvenir_work WHERE enrollment_id = ANY (enrolled);
   UPDATE player
   SET status = 'deleted', deleted_at = now(), username = NULL, birth_year = NULL, avatar = 'falcon',
       my_qr_version = my_qr_version + 1

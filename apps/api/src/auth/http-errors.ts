@@ -1,3 +1,4 @@
+import { MESSAGES } from "@questify/shared";
 import { HttpError } from "#src/http-error";
 
 type Details = Readonly<Record<string, unknown>>;
@@ -872,6 +873,12 @@ export const rehearsalData = make(
   "rehearsal_data",
   "في هذه الفعالية بيانات تجربة. امسحها أولًا.",
   "This event has rehearsal data. Erase rehearsal first.",
+);
+export const souvenirData = make(
+  409,
+  "souvenir_data",
+  MESSAGES["souvenir.eventDeleteError"].ar,
+  MESSAGES["souvenir.eventDeleteError"].en,
 );
 export const resultsFinal = make(
   409,

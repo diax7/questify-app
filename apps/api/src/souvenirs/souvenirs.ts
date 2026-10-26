@@ -17,12 +17,14 @@ const CONFLICTS: Readonly<Record<string, MessageKey>> = {
   idempotency_conflict: "souvenir.keyError",
 };
 
+/** SQL input refusals; 22P05 is text JSON cannot hold, such as a NUL character. */
+const INVALID = new Set(["SV422", "23514", "23503", "22P02", "22P05"]);
+
 /** Never echo exception details or submitted cosmetic text. */
 export function souvenirRefusal(error: unknown): never {
   const pg = error as { code?: string; detail?: string };
   if (pg.code === "AN404") throw notFound();
-  if (pg.code === "SV422" || pg.code === "23514" || pg.code === "23503" || pg.code === "22P02")
-    throw invalidRequest();
+  if (pg.code !== undefined && INVALID.has(pg.code)) throw invalidRequest();
   const message = pg.detail === undefined ? undefined : CONFLICTS[pg.detail];
   if (pg.code === "SV409" && pg.detail !== undefined && message !== undefined) {
     throw new HttpError(409, pg.detail, MESSAGES[message]);

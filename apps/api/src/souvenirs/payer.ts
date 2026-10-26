@@ -42,16 +42,27 @@ async function evaluateClaim(deps: SouvenirDeps, claim: Claim): Promise<Souvenir
   };
 }
 
-/** At most500 recipients and a time budget per invocation. Unprocessed leases expire safely for another run. */
+/** Claims the budget left unevaluated go back at once, not after their 60s lease (no attempt is counted). */
+async function releaseClaims(deps: SouvenirDeps, claims: readonly Claim[]): Promise<void> {
+  await asSouvenirSystem(deps, (client) =>
+    client.query("SELECT souvenir_release($1,$2)", [
+      claims.map((claim) => claim.enrollment_id),
+      claims.map((claim) => claim.lease_token),
+    ]),
+  );
+}
+
+/** At most500 recipients and a time budget per invocation; claims left over are released for the next run. */
 export async function paySouvenirs(
   deps: SouvenirDeps,
   options: Readonly<{ eventId?: string; budgetMs?: number; now?: () => number }> = {},
 ): Promise<SouvenirTotals> {
   const now = options.now ?? Date.now;
   const started = now();
+  const spent = () => now() - started >= (options.budgetMs ?? SOUVENIR_BUDGET_MS);
   const totals = { granted: 0, skipped: 0, failed: 0 };
   let evaluated = 0;
-  while (evaluated < 500 && now() - started < (options.budgetMs ?? SOUVENIR_BUDGET_MS)) {
+  while (evaluated < 500 && !spent()) {
     const claims = await asSouvenirSystem(deps, async (client) => {
       await client.query("SELECT souvenir_scan_batch($1)", [options.eventId ?? null]);
       const { rows } = await client.query<Claim>("SELECT * FROM souvenir_claim_work($1,$2)", [
@@ -61,8 +72,11 @@ export async function paySouvenirs(
       return rows;
     });
     if (claims.length === 0) break;
-    for (const claim of claims) {
-      if (now() - started >= (options.budgetMs ?? SOUVENIR_BUDGET_MS)) return totals;
+    for (const [index, claim] of claims.entries()) {
+      if (spent()) {
+        await releaseClaims(deps, claims.slice(index));
+        return totals;
+      }
       const result = await evaluateClaim(deps, claim);
       totals.granted += result.granted;
       totals.skipped += result.skipped;

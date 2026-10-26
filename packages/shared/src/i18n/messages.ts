@@ -4579,6 +4579,10 @@ export const MESSAGES = {
     ar: "مفتاح المحاولة مستخدم لطلب آخر. حدّث الصفحة وحاول مجددًا.",
     en: "This retry key belongs to another request. Refresh and try again.",
   },
+  "souvenir.eventDeleteError": {
+    ar: "في هذه الفعالية تذكارات. احذف مسوداتها من صفحة التذكارات أولًا.",
+    en: "This event has souvenirs. Delete their drafts on the Souvenirs page first.",
+  },
   "souvenir.resultsDepth": {
     ar: "تشمل المراكز المعروضة نطاق التذكارات النشطة. راجعها قبل اعتماد النتائج.",
     en: "These places include active souvenir rank ranges. Review them before confirming results.",

@@ -11,6 +11,7 @@ import {
   notFound,
   rehearsalData,
   scopeLimited,
+  souvenirData,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import type {
@@ -128,6 +129,8 @@ function answerGone(reply: FastifyReply, result: RemoveResult | EndResult) {
       throw eventNotLive();
     case "rehearsal_data":
       throw rehearsalData();
+    case "souvenir_data":
+      throw souvenirData();
   }
 }
 

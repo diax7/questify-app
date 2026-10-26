@@ -148,17 +148,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
   it("erasure after a grant removes it and never a following evaluation resurrects it", async () => {
     const token = await f.deletion();
     const evaluator = await f.pool.connect();
+    const eraser = await f.pool.connect();
     try {
       await evaluator.query("BEGIN");
-      await evaluator.query("SELECT souvenir_evaluate($1)", [f.member]);
-      const deleting = f.run({}, "SELECT * FROM erase_player($1,true,$2)", [token, randomUUID()]);
+      expect(
+        (await evaluator.query("SELECT souvenir_evaluate($1) AS n", [f.member])).rows[0].n,
+      ).toBe(1);
+      const pid = (await eraser.query("SELECT pg_backend_pid() AS id")).rows[0].id;
+      const deleting = withRequestContext(eraser, {}, () =>
+        eraser.query("SELECT * FROM erase_player($1,true,$2)", [token, randomUUID()]),
+      );
+      // The erasure really waits behind the uncommitted grant's player SHARE lock.
+      await blocked(f.db.owner, pid);
       await evaluator.query("COMMIT");
-      await deleting;
+      expect((await deleting).rows[0].outcome).toBe("erased");
       expect((await f.owned()).rows).toEqual([]);
       expect((await f.grant()).rows[0].n).toBe(0);
     } finally {
       await evaluator.query("ROLLBACK");
       evaluator.release();
+      eraser.release();
     }
   });
 });

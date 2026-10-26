@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { itemSchema } from "./players/items";
 
-const name = z.string().trim().min(1).max(60);
+// Names show publicly in other events' profiles and rankings: control, line-separator and bidi embedding, override or
+// isolate characters would reorder or break the line around them (as event terms and submissions refuse them).
+const FORBIDDEN = /[\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]/u;
+const name = z
+  .string()
+  .trim()
+  .min(1)
+  .max(60)
+  .refine((value) => !FORBIDDEN.test(value), "must hold no control or direction characters");
 export const souvenirBodySchema = z
   .strictObject({
     kind: z.enum(["frame", "title", "character"]),

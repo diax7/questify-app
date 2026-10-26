@@ -113,6 +113,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir new-door matrix", () 
   );
 
   it("completion waiting after its queue write cannot cycle with grant or an older acknowledgment", async () => {
+    // The joined promise is owed before the completion commits, so the evaluator passes its unlocked pre-check and
+    // takes the grant locks behind the waiting completion instead of returning early.
+    await f.action(await f.create());
     const rule = await f.create({ audience: "all" });
     await f.action(rule);
     await f.run({}, "SELECT souvenir_scan_batch($1)", [f.ids.eventA]);
@@ -161,8 +164,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir new-door matrix", () 
       await f.db.owner.query("COMMIT");
       await completing;
       await acknowledging;
-      expect((await granting).rows[0].n).toBe(1);
-      expect(await counts()).toEqual({ receipts: 1, items: 1 });
+      expect((await granting).rows[0].n).toBe(2);
+      expect(await counts()).toEqual({ receipts: 2, items: 2 });
       const pending = (
         await f.db.owner.query("SELECT generation FROM souvenir_work WHERE enrollment_id=$1", [
           f.member,
@@ -173,7 +176,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir new-door matrix", () 
       expect(
         (await f.db.owner.query("SELECT count(*)::int AS n FROM souvenir_work")).rows[0].n,
       ).toBe(0);
-      expect(await counts()).toEqual({ receipts: 1, items: 1 });
+      expect(await counts()).toEqual({ receipts: 2, items: 2 });
     } finally {
       await f.db.owner.query("ROLLBACK");
       for (const client of [completion, evaluator, ack]) {
