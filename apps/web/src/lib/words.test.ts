@@ -104,6 +104,22 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "kiosk.notOpen": "the kiosk page does not load the event's words (Q-227)",
   "kiosk.methodOff": "the kiosk page does not load the event's words (Q-227)",
   "quests.location.note": "«المهمة» here is the adjective 'important', about prizes",
+  "console.questify.field.titleAr": "Questify's own quests on the console, not an event's word",
+  "console.questify.field.titleEn": "Questify's own quests on the console, not an event's word",
+  "console.questify.field.metric": "Questify's own quests on the console, not an event's word",
+  "console.questify.editQuest": "Questify's own quests on the console, not an event's word",
+  "console.questify.retireQuest": "Questify's own quests on the console, not an event's word",
+  "console.questify.newQuest": "Questify's own quests on the console, not an event's word",
+  "console.questify.noQuests": "Questify's own quests on the console, not an event's word",
+  "console.questify.title": "Questify's own quests on the console, not an event's word",
+  "console.questify.alwaysOn": "Questify's own quests on the console, not an event's word",
+  "console.questify.retiredQuest": "Questify's own quests on the console, not an event's word",
+  "console.questify.conflict.started": "Questify's own quests on the console, not an event's word",
+  "console.questify.conflict.frozen": "Questify's own quests on the console, not an event's word",
+  "console.questify.conflict.tooMany": "Questify's own quests on the console, not an event's word",
+  "console.questify.conflict.campaignClosed":
+    "Questify's own quests on the console, not an event's word",
+  "console.questify.metric.quests": "Questify's own quests on the console, not an event's word",
 };
 
 describe("the dashboard's source", () => {

@@ -17,6 +17,7 @@ const EVENT: EventView = {
   venue: { ar: null, en: "Riyadh Front" },
   venuePin: null,
   venueRadiusM: 1000,
+  cityId: null,
   access: "public",
   joinMethods: ["code", "qr"],
   timezone: "Asia/Riyadh",
@@ -53,7 +54,12 @@ describe("draftOf", () => {
       venueLat: "",
       venueLng: "",
       venueRadius: "1000",
+      cityId: null,
     });
+  });
+
+  it("shows a saved city by its id", () => {
+    expect(draftOf({ ...EVENT, cityId: "sa-riyadh" }).cityId).toBe("sa-riyadh");
   });
 
   it("shows a saved pin as typed numbers and the radius as text", () => {
@@ -82,6 +88,7 @@ describe("createBodyOf", () => {
       venue: { ar: "", en: "" },
       venuePin: null,
       venueRadiusM: 1000,
+      cityId: null,
       access: "public",
       joinMethods: ["code", "qr", "link"],
       dayStartHour: 4,
@@ -102,6 +109,18 @@ describe("createBodyOf with a venue pin", () => {
     });
     expect(body["venuePin"]).toEqual({ lat: 24.7136, lng: 46.6753 });
     expect(body["venueRadiusM"]).toBe(800);
+  });
+});
+
+describe("createBodyOf with a city", () => {
+  it("sends the chosen city", () => {
+    expect(createBodyOf({ ...BLANK_DRAFT, cityId: "sa-jeddah" })["cityId"]).toBe("sa-jeddah");
+  });
+
+  it("sends no city for an online event, whatever was picked before", () => {
+    expect(createBodyOf({ ...BLANK_DRAFT, kind: "virtual", cityId: "sa-jeddah" })["cityId"]).toBe(
+      null,
+    );
   });
 });
 
@@ -146,6 +165,21 @@ describe("editBodyOf", () => {
     const pinned = { ...before, venueLat: "24.7", venueLng: "46.6" };
     expect(editBodyOf({ ...pinned, venueLat: "", venueLng: "" }, pinned)).toEqual({
       venuePin: null,
+    });
+  });
+
+  it("sends the city only when it changes, and null when it is cleared", () => {
+    expect(editBodyOf({ ...before, cityId: "sa-abha" }, before)).toEqual({ cityId: "sa-abha" });
+    const placed = { ...before, cityId: "sa-abha" };
+    expect(editBodyOf(placed, placed)).toEqual({});
+    expect(editBodyOf({ ...placed, cityId: null }, placed)).toEqual({ cityId: null });
+  });
+
+  it("clears the city when the event becomes online", () => {
+    const placed = { ...before, cityId: "sa-abha" };
+    expect(editBodyOf({ ...placed, kind: "virtual" }, placed)).toEqual({
+      kind: "virtual",
+      cityId: null,
     });
   });
 

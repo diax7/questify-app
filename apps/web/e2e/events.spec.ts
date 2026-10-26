@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
+import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const PASSWORD = "an organizer's own pass phrase";
 
@@ -105,4 +106,52 @@ test("the owner hides the ranking and shows it again, in Arabic; it stays as sav
   await page.reload();
   await expect(page.getByRole("checkbox", { name: "إظهار ترتيب اليوم" })).not.toBeChecked();
   await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).toBeChecked();
+});
+
+test("an owner picks the event's city, it clears for an online event and locks once the event is live", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await signUpOwner(page, info.project.name);
+  await page.getByRole("link", { name: "Events" }).click();
+  await page.getByRole("link", { name: "New event" }).click();
+  await page.getByLabel("Name in English", { exact: true }).fill("Jeddah Meetup");
+  await page.getByRole("combobox", { name: /^City/ }).selectOption({ label: "Jeddah" });
+  await page.getByLabel("Starts", { exact: true }).fill("2030-11-01T09:00");
+  await page.getByLabel("Ends", { exact: true }).fill("2030-11-01T17:00");
+  await page.getByRole("button", { name: "Create event" }).click();
+  await expect(page.getByRole("heading", { name: "Jeddah Meetup" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /^City/ })).toHaveValue("sa-jeddah");
+
+  await page.getByRole("combobox", { name: /^City/ }).selectOption({ label: "Riyadh" });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Changes saved.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: /^City/ })).toHaveValue("sa-riyadh");
+
+  // An online event has no city: the field goes and the saved city is cleared.
+  await page.getByRole("combobox", { name: "Kind of event" }).selectOption("virtual");
+  await expect(page.getByRole("combobox", { name: /^City/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Changes saved.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Kind of event" }).selectOption("physical");
+  await expect(page.getByRole("combobox", { name: /^City/ })).toHaveValue("");
+
+  // Once the event is live its city is fixed, said in Arabic too.
+  await page.getByRole("combobox", { name: /^City/ }).selectOption({ label: "Abha" });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Changes saved.")).toBeVisible();
+  const eventId = page.url().split("/").at(-1) ?? "";
+  const control = `http://127.0.0.1:${CONTROL_PORT}`;
+  expect(
+    (
+      await page.request.post(`${control}/event-status`, { data: { eventId, status: "live" } })
+    ).status(),
+  ).toBe(204);
+  await page.goto(page.url().replace("/en/", "/ar/"));
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const city = page.getByRole("combobox", { name: /^المدينة/ });
+  await expect(city).toHaveValue("sa-abha");
+  await expect(city).toBeDisabled();
+  await expect(page.getByText("بدأت الفعالية، فلا تتغير مدينتها.")).toBeVisible();
 });

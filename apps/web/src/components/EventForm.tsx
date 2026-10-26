@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   EventAccessFields,
+  EventCityField,
   EventIdentityFields,
   EventTimeFields,
   EventVenuePinFields,
@@ -30,7 +31,7 @@ import { HelpDeskLink } from "#src/components/HelpDeskPanel.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-const FIELDS = new Set(["name", "timezone", "startsAt", "endsAt", "joinMethods"]);
+const FIELDS = new Set(["name", "timezone", "startsAt", "endsAt", "joinMethods", "cityId"]);
 
 type Props = Readonly<{
   language: Language;
@@ -269,6 +270,13 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
       ) : (
         <form className={styles.form} onSubmit={(submitted) => void submit(submitted)}>
           <EventIdentityFields language={language} draft={draft} disabled={busy} change={change} />
+          <EventCityField
+            language={language}
+            draft={draft}
+            disabled={busy}
+            change={change}
+            status={status}
+          />
           <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
           <EventTimeFields
             language={language}

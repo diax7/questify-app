@@ -1,8 +1,9 @@
 "use client";
 
-import { VENUE_RADIUS, isTimeZone, zoneLabel, type Language } from "@questify/shared";
+import { VENUE_RADIUS, isTimeZone, zoneLabel, type City, type Language } from "@questify/shared";
 import { useEffect, useMemo, useState } from "react";
 import { NumberField } from "#src/components/NumberField.tsx";
+import { cityChoices, cityName, readCities } from "#src/lib/cities.ts";
 import { isRadius, pinIsValid } from "#src/lib/coordinates.ts";
 import {
   ACCESS,
@@ -13,6 +14,7 @@ import {
   type EventStatus,
 } from "#src/lib/events.ts";
 import { translatorFor } from "#src/lib/language.ts";
+import { requestJson } from "#src/lib/post-json.ts";
 import styles from "#src/components/layout.module.css";
 
 type FieldProps = Readonly<{
@@ -68,6 +70,74 @@ export function EventIdentityFields({ language, draft, disabled, change }: Field
       </label>
       {text("venueAr", t("events.field.venueAr"), 200)}
       {text("venueEn", t("events.field.venueEn"), 200)}
+    </>
+  );
+}
+
+/** The seeded cities (ADR-277), read once; `failed` when the list could not be read. */
+function useCities(): Readonly<{ cities: readonly City[]; failed: boolean }> {
+  const [state, setState] = useState<{ cities: readonly City[]; failed: boolean }>({
+    cities: [],
+    failed: false,
+  });
+  useEffect(() => {
+    let current = true;
+    void requestJson("GET", "/v1/cities").then((result) => {
+      const cities = result.ok ? readCities(result.body) : undefined;
+      if (current) {
+        setState({ cities: cities ?? [], failed: cities === undefined });
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
+  return state;
+}
+
+/**
+ * The event's city, for Questify's city achievements (T-403, ADR-277). An online event has none, so the field is not
+ * shown; once the event is live the city is fixed (the API refuses a change with `city_locked`; this says so up front).
+ */
+export function EventCityField({
+  language,
+  draft,
+  disabled,
+  change,
+  status,
+}: FieldProps & Readonly<{ status: EventStatus }>) {
+  const t = translatorFor(language);
+  const { cities, failed } = useCities();
+  if (draft.kind === "virtual") {
+    return null;
+  }
+  const locked = status === "live" || status === "ended" || status === "archived";
+  return (
+    <>
+      <label className={styles.field}>
+        {t("events.field.city")}
+        <select
+          className={styles.input}
+          value={draft.cityId ?? ""}
+          disabled={disabled || locked}
+          onChange={(event) =>
+            change({ cityId: event.target.value === "" ? null : event.target.value })
+          }
+        >
+          <option value="">{t("events.city.none")}</option>
+          {cityChoices(cities, draft.cityId).map((city) => (
+            <option key={city.id} value={city.id}>
+              {cityName(city, language)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {failed ? (
+        <p role="alert" className={styles.alert}>
+          {t("events.city.failed")}
+        </p>
+      ) : null}
+      <p className={styles.muted}>{t(locked ? "events.city.locked" : "events.city.hint")}</p>
     </>
   );
 }
