@@ -8,7 +8,13 @@ import { BUCKETS } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack } from "#src/devices/limits";
-import { readAchievements, readCities, readEvents, syncQuestify } from "#src/questify/questify";
+import {
+  readAchievements,
+  readCities,
+  readEvents,
+  readQuestifyQuests,
+  syncQuestify,
+} from "#src/questify/questify";
 
 const eventsQuery = z.strictObject({
   played: z.enum(["true", "false"]).optional(),
@@ -25,8 +31,8 @@ const own = (request: FastifyRequest) => {
 };
 
 /**
- * Questify-wide player doors (T-403): the sync evaluator, achievements, the Event Passport and history, and the
- * public city list. Player routes take a player bearer token only, so a staff session never enters them.
+ * Questify-wide player doors (T-403, T-403b): the sync evaluator, achievements, Questify quests, the Event Passport
+ * and history, and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
  */
 export function registerQuestifyRoutes(
   app: FastifyInstance,
@@ -46,6 +52,10 @@ export function registerQuestifyRoutes(
   app.get("/v1/me/achievements", player, async (request, reply) => {
     reply.header("cache-control", "private, no-store");
     return { achievements: await as(own(request), readAchievements) };
+  });
+  app.get("/v1/me/questify-quests", player, async (request, reply) => {
+    reply.header("cache-control", "private, no-store");
+    return as(own(request), readQuestifyQuests);
   });
   app.get("/v1/me/event-history", player, async (request, reply) => {
     reply.header("cache-control", "private, no-store");

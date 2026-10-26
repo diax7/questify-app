@@ -53,9 +53,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify routes (T-403)", () =
     expect(synced.headers["cache-control"]).toBe("private, no-store");
     expect(questifySyncSchema.parse(synced.json())).toEqual({
       achievements: [{ id: "events-attended", tier: "bronze" }],
+      quests: [],
+      levelUp: null,
     });
     expect((await call(token, "POST", "/v1/me/questify/sync")).json()).toEqual({
       achievements: [],
+      quests: [],
+      levelUp: null,
     });
 
     const achievements = achievementsSchema.parse(
@@ -133,6 +137,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify routes (T-403)", () =
       ["POST", "/v1/me/questify/sync"],
       ["GET", "/v1/me/achievements"],
       ["GET", "/v1/me/event-history"],
+      ["GET", "/v1/me/questify-quests"],
     ] as const) {
       expect((await test.app.inject({ method, url })).statusCode, url).toBe(401);
       expect(

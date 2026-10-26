@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { Pool } from "pg";
 import { REGISTRIES, isGatedFeature } from "@questify/shared";
 import { z } from "zod";
 import { checkAddons, checkLimit, type Refusal } from "#src/activation/activation";
@@ -18,6 +19,7 @@ import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
 import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
+import { registerConsoleQuestifyRoutes } from "#src/questify/admin-routes";
 import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
 import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
@@ -104,6 +106,8 @@ export type ConsoleRoutesDeps = Readonly<{
   dashboardOrigin: string;
   /** Questify's ticket queue (T-312), behind the same hook. */
   tickets: ConsoleTicketDeps;
+  /** The Questify quests page (T-403b), behind the same hook. */
+  questify: Readonly<{ pool: Pool }>;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -248,6 +252,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
 
       registerConsoleWrites(scope, deps);
       registerConsoleTicketRoutes(scope, deps.tickets);
+      registerConsoleQuestifyRoutes(scope, deps.questify);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

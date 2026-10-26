@@ -213,6 +213,18 @@ export const eventCityLocked = make(
   "لا يمكن تغيير مدينة الفعالية بعد أن تبدأ.",
   "The event's city can no longer change: the event has started.",
 );
+export const invalidQuestify = make(
+  422,
+  "invalid_questify",
+  "راجع بيانات المهمة أو الموسم: الحقل المحدد غير صالح.",
+  "Check the quest or campaign details: the named field is not valid.",
+);
+export const questifyConflict = make(
+  409,
+  "questify_conflict",
+  "لا يمكن إجراء هذا التغيير الآن. راجع حالة المهمة أو الموسم.",
+  "This change is not possible now. Check the quest or campaign's status.",
+);
 export const eventNotDraft = make(
   409,
   "event_not_draft",

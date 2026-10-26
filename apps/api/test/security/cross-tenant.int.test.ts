@@ -862,6 +862,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; append-only, written only by questify_sync for the calling player, read as tiers by own_achievements and the public profile; no organizer read exists (achievements)",
   final_rank:
     "no direct API rights; append-only, written only by confirm_results inside the owner's event, read only through own_events for the calling player and the public passport after the reveal; no organizer read exists (final-rank, event-passport)",
+  questify_campaign:
+    "platform-wide catalog with no tenant, no direct API rights; written only by the admin-checked, audited console doors, read by the caller-bound own_questify_quests (questify-quests)",
+  questify_quest:
+    "platform-wide catalog with no tenant, no direct API rights; written only by the admin-checked, audited console doors, read by the caller-bound own_questify_quests (questify-quests)",
+  questify_award:
+    "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
   player_item:
     "no direct API rights; own_locker/equip/seen caller-bound and forged access tested in profile-items",

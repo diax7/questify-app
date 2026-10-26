@@ -19,12 +19,6 @@ export const achievementSchema = z.object({
 export type Achievement = z.infer<typeof achievementSchema>;
 export const achievementsSchema = z.object({ achievements: z.array(achievementSchema) });
 
-/** What one `POST /v1/me/questify/sync` wrote: every tier newly earned, in catalog then tier order. */
-export const questifySyncSchema = z.object({
-  achievements: z.array(z.object({ id: z.string().min(1).max(64), tier: achievementTierSchema })),
-});
-export type QuestifySync = z.infer<typeof questifySyncSchema>;
-
 /** Another player's achievement: the tier only, never progress. */
 export const publicAchievementSchema = z.object({
   id: z.string().min(1).max(64),

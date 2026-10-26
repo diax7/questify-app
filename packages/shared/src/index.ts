@@ -202,10 +202,34 @@ export {
   achievementTierSchema,
   achievementSchema,
   achievementsSchema,
-  questifySyncSchema,
   publicAchievementSchema,
 } from "./questify/achievements";
-export type { AchievementTier, Achievement, QuestifySync } from "./questify/achievements";
+export type { AchievementTier, Achievement } from "./questify/achievements";
+export {
+  QUESTIFY_METRICS,
+  levelUpSchema,
+  questifySyncSchema,
+  questifyQuestSchema,
+  questifyQuestsSchema,
+  campaignBodySchema,
+  questPatchSchema,
+  questBodySchema,
+  adminCampaignSchema,
+  adminQuestSchema,
+  adminQuestifySchema,
+} from "./questify/quests";
+export type {
+  QuestifyMetric,
+  QuestifySync,
+  QuestifyQuest,
+  QuestifyQuests,
+  CampaignBody,
+  QuestPatch,
+  QuestBody,
+  AdminCampaign,
+  AdminQuest,
+  AdminQuestify,
+} from "./questify/quests";
 export {
   RANK_STATES,
   ownEventSchema,

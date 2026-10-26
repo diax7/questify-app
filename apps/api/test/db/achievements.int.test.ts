@@ -243,8 +243,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       expect(outcome.waited).toBe(true);
       expect((outcome.first as { r: unknown }).r).toEqual({
         achievements: [{ id: "events-attended", tier: "bronze" }],
+        quests: [],
+        levelUp: null,
       });
-      expect((outcome.second as { r: unknown }).r).toEqual({ achievements: [] });
+      expect((outcome.second as { r: unknown }).r).toEqual({
+        achievements: [],
+        quests: [],
+        levelUp: null,
+      });
       expect(await f.earned(player)).toEqual(["events-attended:bronze"]);
     });
 

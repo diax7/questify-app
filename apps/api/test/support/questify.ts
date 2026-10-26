@@ -125,11 +125,14 @@ export async function questifyFixture() {
     return row?.id ?? "";
   };
 
-  /** One first completion of a new quest, written as the ledger writes it; returns the ledger entry's id. */
+  /**
+   * One first completion of a new quest, written as the ledger writes it; returns the ledger entry's id. `at` sets the
+   * ledger entry's time (a campaign window counts on it, T-403b).
+   */
   const earn = async (
     event: string,
     enrollment: string,
-    options: Readonly<{ points?: number; operator?: string }> = {},
+    options: Readonly<{ points?: number; operator?: string; at?: Date }> = {},
   ): Promise<string> => {
     const organizer = await organizerOf(event);
     const points = options.points ?? 10;
@@ -147,8 +150,8 @@ export async function questifyFixture() {
     );
     const [entry] = await owner<{ id: string }>(
       `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
-                                 completion_id, quest_id, actor, operator_id)
-       VALUES ($1, $2, $3, 'quest', $4, $4, $5, $6, $7, $8) RETURNING id`,
+                                 completion_id, quest_id, actor, operator_id, created_at)
+       VALUES ($1, $2, $3, 'quest', $4, $4, $5, $6, $7, $8, coalesce($9, now())) RETURNING id`,
       [
         organizer,
         event,
@@ -158,6 +161,7 @@ export async function questifyFixture() {
         quest?.id,
         options.operator === undefined ? "player" : "operator",
         options.operator ?? null,
+        options.at ?? null,
       ],
     );
     return entry?.id ?? "";

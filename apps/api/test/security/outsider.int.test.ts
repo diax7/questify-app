@@ -585,6 +585,77 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot read Questify quests, run a console door or reach the quest evaluator (T-403b)", async () => {
+      const probe = "gen_random_uuid()";
+      for (const sql of [
+        "SELECT * FROM public.questify_campaign",
+        "SELECT * FROM public.questify_quest",
+        "SELECT * FROM public.questify_award",
+        "SELECT public.own_questify_quests()",
+        "SELECT public.questify_admin_list()",
+        `SELECT public.questify_campaign_save(NULL, '{}', ${probe})`,
+        `SELECT public.questify_campaign_publish(${probe}, ${probe})`,
+        `SELECT public.questify_campaign_retire(${probe}, ${probe})`,
+        `SELECT public.questify_quest_save(NULL, '{}', ${probe})`,
+        `SELECT public.questify_quest_retire(${probe}, ${probe})`,
+        `SELECT * FROM public.questify_due(${probe})`,
+        `SELECT public.questify_level_up(${probe}, '{}')`,
+        "SELECT public.questify_admin()",
+        "SELECT public.questify_home(NULL)",
+        "SELECT public.questify_campaign_json(NULL::public.questify_campaign)",
+        "SELECT public.questify_quest_json(NULL::public.questify_quest)",
+        "SELECT public.questify_audit(NULL, 'x', 'y', NULL, NULL, NULL)",
+        "SELECT public.questify_window_check(NULL::public.questify_campaign, NULL, NULL)",
+        `SELECT * FROM public.standing_credits(${probe}, NULL, NULL)`,
+        `SELECT * FROM public.player_metrics(${probe}, NULL, NULL)`,
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "own_questify_quests",
+        "questify_admin_list",
+        "questify_campaign_save",
+        "questify_campaign_publish",
+        "questify_campaign_retire",
+        "questify_quest_save",
+        "questify_quest_retire",
+        "questify_due",
+        "questify_level_up",
+        "questify_admin",
+        "questify_home",
+        "questify_campaign_json",
+        "questify_quest_json",
+        "questify_audit",
+        "questify_window_check",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the player's list and the six console doors only.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "own_questify_quests",
+        "questify_admin_list",
+        "questify_campaign_publish",
+        "questify_campaign_retire",
+        "questify_campaign_save",
+        "questify_quest_retire",
+        "questify_quest_save",
+      ]);
+      // The windowed overloads stay internal like the lifetime ones.
+      const overloads = await rows<{ signature: string }>(
+        `SELECT p.oid::regprocedure::text AS signature FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND p.proname IN ('standing_credits', 'player_metrics')
+           AND has_function_privilege('questify_app', p.oid, 'EXECUTE')`,
+      );
+      expect(overloads).toEqual([]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

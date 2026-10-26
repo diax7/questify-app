@@ -4,6 +4,7 @@ import {
   type Achievement,
   type City,
   type OwnEvent,
+  type QuestifyQuests,
   type QuestifySync,
   type RankState,
 } from "@questify/shared";
@@ -11,14 +12,17 @@ import type { PoolClient } from "pg";
 import { z } from "zod";
 import { invalidRequest, unauthenticated } from "#src/auth/http-errors";
 
-/** Runs the sync evaluator (ADR-274): the tiers this call earned, empty on a replay. */
+/**
+ * Runs the sync evaluator (ADR-274, ADR-278): the tiers earned, the Questify quests paid and the highest level reached
+ * by this call; empty on a replay.
+ */
 export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
   try {
     const { rows } = await client.query<{ result: QuestifySync }>(
       "SELECT questify_sync() AS result",
     );
     // Stryker disable next-line all: questify_sync always answers an object or raises
-    return rows[0]?.result ?? { achievements: [] };
+    return rows[0]?.result ?? { achievements: [], quests: [], levelUp: null };
   } catch (error) {
     if ((error as { code?: string }).code === "PI401") throw unauthenticated();
     throw error;
@@ -29,6 +33,16 @@ export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
 export async function readAchievements(client: PoolClient): Promise<Achievement[]> {
   const { rows } = await client.query<{ list: Achievement[] | null }>(
     "SELECT own_achievements() AS list",
+  );
+  const list = rows[0]?.list;
+  if (list === null || list === undefined) throw unauthenticated();
+  return list;
+}
+
+/** The caller's Questify quests: always-on, then each campaign running now (T-403b); an inactive caller has none. */
+export async function readQuestifyQuests(client: PoolClient): Promise<QuestifyQuests> {
+  const { rows } = await client.query<{ list: QuestifyQuests | null }>(
+    "SELECT own_questify_quests() AS list",
   );
   const list = rows[0]?.list;
   if (list === null || list === undefined) throw unauthenticated();

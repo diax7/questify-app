@@ -25,11 +25,29 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/players/:username":
     "active-player public DTO allowlist, no account details; stamps of ended public events only (profile-items HTTP, event-passport)",
   "POST /v1/me/questify/sync":
-    "writes only the calling player's earned tiers from their own facts (achievements, test/questify)",
+    "writes only the calling player's earned tiers, Questify awards and their XP from their own facts (achievements, questify-quests, test/questify)",
   "GET /v1/me/achievements":
     "the calling player's own achievements through own_achievements (achievements)",
   "GET /v1/me/event-history":
     "the calling player's own memberships through own_events; another player's never show (event-passport)",
+  "GET /v1/me/questify-quests":
+    "the calling player's own progress and awards through own_questify_quests; the catalog has no tenant (questify-quests, test/questify)",
+  "GET /v1/admin/questify":
+    "active platform admins only (walked below); the platform-wide catalog, no personal data; the admin checked again (app_admin_id) (questify-quests, test/questify)",
+  "POST /v1/admin/questify/campaigns":
+    "active platform admins only (walked below); Idempotency-Key; the admin checked again in questify_campaign_save and audited with ids and field names (questify-quests)",
+  "PUT /v1/admin/questify/campaigns/:campaignId":
+    "active platform admins only (walked below); Idempotency-Key; the window rules and the admin checked in questify_campaign_save, audited (questify-quests)",
+  "POST /v1/admin/questify/campaigns/:campaignId/publish":
+    "active platform admins only (walked below); Idempotency-Key; only before the start, the admin checked again, audited (questify-quests)",
+  "POST /v1/admin/questify/campaigns/:campaignId/retire":
+    "active platform admins only (walked below); Idempotency-Key; the admin checked again, audited; awards stay (questify-quests)",
+  "POST /v1/admin/questify/quests":
+    "active platform admins only (walked below); Idempotency-Key; the caps and the admin checked in questify_quest_save, audited (questify-quests)",
+  "PUT /v1/admin/questify/quests/:questId":
+    "active platform admins only (walked below); Idempotency-Key; the freeze and the admin checked in questify_quest_save, audited (questify-quests)",
+  "POST /v1/admin/questify/quests/:questId/retire":
+    "active platform admins only (walked below); Idempotency-Key; the admin checked again, audited; awards stay (questify-quests)",
   "GET /v1/cities": "no tenant data: the same seeded city list for everyone",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",

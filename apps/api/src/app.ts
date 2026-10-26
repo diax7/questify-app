@@ -362,6 +362,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     sessions: staffSessions,
     dashboardOrigin: config.auth.dashboardOrigin,
     tickets: { pool: options.pool, keys: signInDeps.keys },
+    questify: { pool: options.pool },
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
