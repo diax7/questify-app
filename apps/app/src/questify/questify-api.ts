@@ -9,13 +9,17 @@ import {
 } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
 
-type Reader = Pick<Session, "request">;
+export type Reader = Pick<Session, "request">;
 type Schema<T> = Readonly<{
   safeParse: (value: unknown) => Readonly<{ success: true; data: T } | { success: false }>;
 }>;
 
 /** The body of a 200 answer that fits the schema, else null: a failed or odd answer is never shown as an empty list. */
-async function readOk<T>(session: Reader, path: string, schema: Schema<T>): Promise<T | null> {
+export async function readOk<T>(
+  session: Reader,
+  path: string,
+  schema: Schema<T>,
+): Promise<T | null> {
   const answer = await session.request({ method: "GET", path });
   const parsed = answer.kind === "ok" ? schema.safeParse(answer.body) : null;
   return parsed?.success === true ? parsed.data : null;

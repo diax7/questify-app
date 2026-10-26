@@ -43,6 +43,16 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   ).toBeVisible();
   await expectNoSidewaysScroll(page);
 
+  // A seeded quest already pays, so its gems show (25) and can no longer change.
+  const seeded = page.getByTestId("questify-quest").filter({ hasText: "شارك في 3 فعاليات" });
+  await expect(seeded).toContainText("الجواهر 25");
+  await seeded.getByRole("button", { name: "عدّل المهمة" }).click();
+  await expect(page.getByLabel("الجواهر (من 0 إلى 1000)")).toBeDisabled();
+  await expect(page.getByLabel("الجواهر (من 0 إلى 1000)")).toHaveValue("25");
+  await expect(page.getByText("تثبت الجواهر عندما تصبح المهمة قابلة للدفع.")).toBeVisible();
+  await expectNoSidewaysScroll(page);
+  await page.getByRole("button", { name: "إلغاء", exact: true }).click();
+
   // A draft may start in the past, but it cannot be published like that.
   await page.getByRole("button", { name: "موسم جديد" }).click();
   const name = `موسم الشتاء ${info.project.name}`;
@@ -90,13 +100,18 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await page.getByLabel("ما تحسبه المهمة").selectOption("cities");
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("0");
   await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("50");
+  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("15");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("الهدف عدد صحيح من 1 إلى 1000.", { exact: true })).toBeVisible();
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("4");
+  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("1001");
+  await page.getByRole("button", { name: "احفظ", exact: true }).click();
+  await expect(page.getByText("الجواهر عدد صحيح من 0 إلى 1000.", { exact: true })).toBeVisible();
+  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("15");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();
   const quest = campaign.getByTestId("questify-quest").filter({ hasText: "العب في 4 مدن" });
-  await expect(quest).toContainText("المدن التي لعب فيها: 4، الخبرة 50");
+  await expect(quest).toContainText("المدن التي لعب فيها: 4، الخبرة 50، الجواهر 15");
   await expectNoSidewaysScroll(page);
 
   // Retiring asks first and is permanent.
@@ -135,6 +150,11 @@ test("in English the publish dialog says it cannot be undone and starts paying X
   );
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
+
+  // A new quest starts paying no gems, and its gems can be set while it cannot pay yet.
+  await campaign.getByRole("button", { name: "New quest" }).click();
+  await expect(page.getByLabel("Gems paid (0 to 1000)")).toHaveValue("0");
+  await expect(page.getByLabel("Gems paid (0 to 1000)")).toBeEnabled();
 });
 
 test("Escape closes the publish dialog, sends nothing, and the page is inert while it is open", async ({

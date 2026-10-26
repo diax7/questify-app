@@ -48,13 +48,13 @@ describe("profile client contracts", () => {
     ).toBe("future-frame");
     expect(equipmentOf({ frame: 123 })).toEqual(EMPTY_EQUIPMENT);
   });
-  it("uses a finite fourteen-frame vocabulary and safely ignores unknown keys", () => {
-    const designs = Array.from({ length: 14 }, (_, i) =>
+  it("uses a finite twenty-frame vocabulary and safely ignores unknown keys", () => {
+    const designs = Array.from({ length: 20 }, (_, i) =>
       frameDesign(`frame-${String(i + 1).padStart(2, "0")}`),
     );
     expect(designs.every(Boolean)).toBe(true);
-    expect(new Set(designs.map((x) => JSON.stringify(x))).size).toBe(14);
-    for (const key of [null, undefined, "frame-00", "frame-15", "toString"])
+    expect(new Set(designs.map((x) => JSON.stringify(x))).size).toBe(20);
+    for (const key of [null, undefined, "frame-00", "frame-21", "toString"])
       expect(frameDesign(key)).toBeNull();
   });
   it("never presents an unvalidated locker or acknowledges a failed request", async () => {

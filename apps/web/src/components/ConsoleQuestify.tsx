@@ -18,6 +18,7 @@ import {
   campaignDraftOf,
   invalidKey,
   questBodyOf,
+  questCanPay,
   questDraftOf,
   questPatchOf,
   readAdminQuestify,
@@ -40,6 +41,8 @@ type Editing =
       id: string | null;
       campaignId: string | null;
       draft: QuestDraft;
+      /** The quest can pay, so its gems cannot change (ADR-286). */
+      gemsFixed: boolean;
     }>;
 type Retiring = Readonly<{ kind: "campaign" | "quest"; id: string }>;
 
@@ -136,6 +139,7 @@ function CampaignForm({
 function QuestForm({
   language,
   draft,
+  gemsFixed,
   busy,
   change,
   cancel,
@@ -143,6 +147,7 @@ function QuestForm({
 }: Readonly<{
   language: Language;
   draft: QuestDraft;
+  gemsFixed: boolean;
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
   cancel: () => void;
@@ -163,12 +168,12 @@ function QuestForm({
       />
     </label>
   );
-  const number = (key: "target" | "xp" | "position", label: string) => (
+  const number = (key: "target" | "xp" | "gems" | "position", label: string) => (
     <NumberField
       label={label}
       value={draft[key]}
       invalid={false}
-      disabled={busy}
+      disabled={busy || (key === "gems" && gemsFixed)}
       change={(value) => change({ [key]: value })}
     />
   );
@@ -193,6 +198,8 @@ function QuestForm({
       </label>
       {number("target", t("console.questify.field.target"))}
       {number("xp", t("console.questify.field.xp"))}
+      {number("gems", t("console.questify.field.gems"))}
+      {gemsFixed ? <p className={styles.muted}>{t("console.questify.gemsFixed")}</p> : null}
       {number("position", t("console.questify.field.position"))}
       <label className={styles.field}>
         {t("console.questify.field.status")}
@@ -247,6 +254,7 @@ function QuestRow({
           metric: t(`console.questify.metric.${quest.metric}`),
           target: formatNumber(quest.target, language),
           xp: formatNumber(quest.xp, language),
+          gems: formatNumber(quest.gems, language),
         })}
       </p>
       {open ? (
@@ -455,6 +463,7 @@ function Editor({
         <QuestForm
           {...common}
           draft={editing.draft}
+          gemsFixed={editing.gemsFixed}
           change={(patch) => setEditing({ ...editing, draft: { ...editing.draft, ...patch } })}
         />
       )}
@@ -467,7 +476,7 @@ type Doors = Readonly<{
   publish: (campaign: AdminCampaign) => void;
   retireCampaign: (campaign: AdminCampaign) => void;
   newQuest: (campaignId: string | null) => void;
-  editQuest: (campaignId: string | null, quest: AdminQuest) => void;
+  editQuest: (campaign: AdminCampaign | null, quest: AdminQuest) => void;
   retireQuest: (quest: AdminQuest) => void;
   newCampaign: () => void;
 }>;
@@ -518,7 +527,7 @@ function Lists({
               language={language}
               quests={campaign.quests}
               busy={busy}
-              edit={(quest) => doors.editQuest(campaign.id, quest)}
+              edit={(quest) => doors.editQuest(campaign, quest)}
               retire={doors.retireQuest}
             />
           </li>
@@ -635,12 +644,13 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
     }
   };
 
-  const questForm = (campaignId: string | null, quest?: AdminQuest) =>
+  const questForm = (campaign: AdminCampaign | null, quest?: AdminQuest) =>
     setEditing({
       kind: "quest",
       id: quest?.id ?? null,
-      campaignId,
+      campaignId: campaign?.id ?? null,
       draft: quest === undefined ? BLANK_QUEST : questDraftOf(quest),
+      gemsFixed: quest !== undefined && questCanPay(quest, campaign),
     });
 
   const doors: Doors = {
@@ -654,7 +664,8 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
       setPublishing(null);
       setRetiring({ kind: "campaign", id: campaign.id });
     },
-    newQuest: (campaignId) => questForm(campaignId),
+    newQuest: (campaignId) =>
+      questForm(page.view?.campaigns.find((campaign) => campaign.id === campaignId) ?? null),
     editQuest: questForm,
     retireQuest: (quest) => {
       setPublishing(null);

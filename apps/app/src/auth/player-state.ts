@@ -13,6 +13,8 @@ export type Me = Readonly<{
   legal: Readonly<{ toAccept: readonly string[]; guidelinesAccepted: boolean }>;
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
   questify: QuestifyLevel | undefined;
+  /** The player's own gem balance (T-404); absent from an older API. */
+  gems?: number;
   help?: Readonly<{ unread: number }> | undefined;
 }>;
 

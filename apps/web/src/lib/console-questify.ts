@@ -50,6 +50,7 @@ export type QuestDraft = Readonly<{
   metric: QuestBody["metric"];
   target: string;
   xp: string;
+  gems: string;
   position: string;
   status: QuestBody["status"];
 }>;
@@ -60,6 +61,7 @@ export const BLANK_QUEST: QuestDraft = {
   metric: "events",
   target: "",
   xp: "",
+  gems: "0",
   position: "1",
   status: "draft",
 };
@@ -70,13 +72,14 @@ export const questDraftOf = (quest: AdminQuest): QuestDraft => ({
   metric: quest.metric,
   target: String(quest.target),
   xp: String(quest.xp),
+  gems: String(quest.gems),
   position: String(quest.position),
   // A retired quest has no form; the others are saved as a draft or active.
   status: quest.status === "active" ? "active" : "draft",
 });
 
 /** The API's field names, so a problem points at one thing. */
-export type QuestifyField = "label" | "startsAt" | "endsAt" | "target" | "xp" | "position";
+export type QuestifyField = "label" | "startsAt" | "endsAt" | "target" | "xp" | "gems" | "position";
 
 export type Checked<T> =
   | Readonly<{ ok: true; body: T }>
@@ -89,6 +92,7 @@ const FIELD_OF: Readonly<Record<string, QuestifyField>> = {
   endsAt: "endsAt",
   target: "target",
   xp: "xp",
+  gems: "gems",
   position: "position",
 };
 
@@ -125,10 +129,18 @@ function questFields(draft: QuestDraft) {
     target: WHOLE.test(draft.target.trim()) ? Number(draft.target) : Number.NaN,
     title: { ar: draft.titleAr, en: draft.titleEn },
     xp: WHOLE.test(draft.xp.trim()) ? Number(draft.xp) : Number.NaN,
+    gems: WHOLE.test(draft.gems.trim()) ? Number(draft.gems) : Number.NaN,
     position: WHOLE.test(draft.position.trim()) ? Number(draft.position) : Number.NaN,
     status: draft.status,
   };
 }
+
+/**
+ * Whether a quest can pay players now (an active quest, always-on or in a published campaign). Its gems are then fixed,
+ * as its condition is: raising them later could never pay earlier awardees (ADR-286).
+ */
+export const questCanPay = (quest: AdminQuest, campaign: AdminCampaign | null): boolean =>
+  quest.status === "active" && (campaign === null || campaign.status === "published");
 
 /** Checks a new quest's form (its campaign, or none for an always-on quest, is chosen when it is created). */
 export function questBodyOf(draft: QuestDraft, campaignId: string | null): Checked<QuestBody> {

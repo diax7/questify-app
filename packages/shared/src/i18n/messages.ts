@@ -2547,7 +2547,7 @@ export const MESSAGES = {
   },
   "operator.award.another": { ar: "منح آخر", en: "Another award" },
   "operator.award.tooMany": {
-    ar: "بحثت كثيرًا. انتظر قليلًا ثم حاول.",
+    ar: "بحثت كثيرًا. انتظر قليلًا ثم حاول مرة أخرى.",
     en: "Too many searches. Wait a little, then try again.",
   },
   "rules.title": { ar: "القواعد الرسمية", en: "Official rules" },
@@ -4744,8 +4744,8 @@ export const MESSAGES = {
   "console.questify.questStatus.retired": { ar: "متوقفة", en: "Retired" },
   "console.questify.window": { ar: "من {from} إلى {to}", en: "{from} to {to}" },
   "console.questify.row": {
-    ar: "{metric}: {target}، الخبرة {xp}",
-    en: "{metric}: {target}, {xp} XP",
+    ar: "{metric}: {target}، الخبرة {xp}، الجواهر {gems}",
+    en: "{metric}: {target}, {xp} XP, gems: {gems}",
   },
   "console.questify.save": { ar: "احفظ", en: "Save" },
   "console.questify.publish": { ar: "انشر الموسم", en: "Publish campaign" },
@@ -4786,8 +4786,8 @@ export const MESSAGES = {
     en: "The campaign has ended and its dates can't change.",
   },
   "console.questify.conflict.frozen": {
-    ar: "المهمة تمنح الخبرة الآن: لا يتغير ما تحسبه ولا هدفها، ولا تعود مسودة.",
-    en: "This quest can already pay XP: what it counts and its target can't change, and it can't go back to a draft.",
+    ar: "المهمة تمنح الخبرة الآن: لا يتغير ما تحسبه ولا هدفها ولا جواهرها، ولا تعود مسودة.",
+    en: "This quest can already pay XP: what it counts, its target and its gems can't change, and it can't go back to a draft.",
   },
   "console.questify.conflict.tooMany": {
     ar: "بلغت الحد الأقصى: 20 مهمة لكل موسم و50 مهمة دائمة، دون احتساب المتوقفة.",
@@ -4828,6 +4828,76 @@ export const MESSAGES = {
   "console.questify.invalid.other": {
     ar: "راجع الحقول ثم أعد المحاولة.",
     en: "Check the fields and try again.",
+  },
+  "gems.one": { ar: "جوهرة واحدة", en: "1 gem" },
+  "gems.two": { ar: "جوهرتان", en: "2 gems" },
+  "gems.twoObject": { ar: "جوهرتين", en: "2 gems" },
+  "gems.few": { ar: "{count} جواهر", en: "{count} gems" },
+  "gems.many": { ar: "{count} جوهرة", en: "{count} gems" },
+  "gemShop.title": { ar: "متجر الجواهر", en: "Gem shop" },
+  "gemShop.balance": { ar: "لديك {gems}", en: "You have {gems}" },
+  "gemShop.earnedByPlaying": {
+    ar: "تُكسب الجواهر باللعب ولا تُشترى.",
+    en: "Gems are earned by playing. They can't be bought.",
+  },
+  "gemShop.howEarned": {
+    ar: "اكسب الجواهر بالارتقاء في المستويات، وفتح الإنجازات، وإنجاز مهام Questify.",
+    en: "Earn gems by leveling up, unlocking achievements and finishing Questify quests.",
+  },
+  "gemShop.frames": { ar: "الإطارات", en: "Frames" },
+  "gemShop.titles": { ar: "الألقاب", en: "Titles" },
+  "gemShop.characters": { ar: "الشخصيات", en: "Characters" },
+  "gemShop.get": { ar: "احصل عليه", en: "Get" },
+  "gemShop.getLabel": { ar: "احصل على {name} مقابل {gems}", en: "Get {name} for {gems}" },
+  "gemShop.owned": { ar: "في خزانتك", en: "Owned" },
+  "gemShop.price": { ar: "السعر: {gems}", en: "Price: {gems}" },
+  "gemShop.confirmTitle": {
+    ar: "هل تريد الحصول على {name} مقابل {gems}؟",
+    en: "Get {name} for {gems}?",
+  },
+  "gemShop.confirmBody": {
+    ar: "ستُخصم الجواهر من رصيدك الآن.",
+    en: "The gems come out of your balance now.",
+  },
+  "gemShop.working": { ar: "جارٍ الحصول عليه…", en: "Getting it…" },
+  "gemShop.got": { ar: "أصبح {name} في خزانتك.", en: "{name} is in your locker." },
+  "gemShop.equipNow": { ar: "فعّله الآن", en: "Equip now" },
+  "gemShop.tooFew": { ar: "جواهرك لا تكفي بعد.", en: "You don't have enough gems yet." },
+  "gemShop.priceChanged": {
+    ar: "تغيّر السعر إلى {gems}. راجعه ثم أكّد.",
+    en: "The price changed to {gems}. Check it and confirm again.",
+  },
+  "gemShop.alreadyOwned": { ar: "هذا العنصر في خزانتك.", en: "You already have this item." },
+  "gemShop.gone": { ar: "لم يعد هذا العنصر في المتجر.", en: "This item is no longer in the shop." },
+  "gemShop.busy": {
+    ar: "ما زال طلبك قيد التنفيذ. حاول مرة أخرى بعد قليل.",
+    en: "Your request is still going through. Try again in a moment.",
+  },
+  "gemShop.limited": {
+    ar: "طلبات كثيرة في وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.",
+    en: "Too many tries. Wait a moment, then try again.",
+  },
+  "gemShop.networkFailed": {
+    ar: "تعذّر الاتصال. حاول مرة أخرى، ولن تُخصم الجواهر مرتين.",
+    en: "Couldn't connect. Try again. The gems won't be taken twice.",
+  },
+  "gemShop.failed": {
+    ar: "تعذّر تحميل متجر الجواهر. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load the gem shop. Check your connection and try again.",
+  },
+  "gemShop.empty": { ar: "لا عناصر في المتجر الآن.", en: "Nothing in the shop right now." },
+  "profile.gems": { ar: "جواهرك", en: "Your gems" },
+  "locker.fromShop": { ar: "من متجر الجواهر", en: "From the gem shop" },
+  "questifyQuests.gems": { ar: "+{gems}", en: "+{gems}" },
+  "sync.gems": { ar: "حصلت على {gems}", en: "You earned {gems}" },
+  "console.questify.field.gems": { ar: "الجواهر (من 0 إلى 1000)", en: "Gems paid (0 to 1000)" },
+  "console.questify.gemsFixed": {
+    ar: "تثبت الجواهر عندما تصبح المهمة قابلة للدفع.",
+    en: "The gems are fixed once the quest can pay.",
+  },
+  "console.questify.invalid.gems": {
+    ar: "الجواهر عدد صحيح من 0 إلى 1000.",
+    en: "The gems are a whole number from 0 to 1000.",
   },
 } as const satisfies Messages;
 

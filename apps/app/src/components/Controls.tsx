@@ -9,14 +9,23 @@ type ButtonProps = Readonly<{
   onPress: () => void;
   kind?: "primary" | "quiet";
   disabled?: boolean;
+  /** What a screen reader says when the visible label is not enough, such as one "Get" among many. */
+  accessibilityLabel?: string;
 }>;
 
 /** One button style for the app: a primary action, or a quiet one beside it. */
-export function Button({ label, onPress, kind = "primary", disabled = false }: ButtonProps) {
+export function Button({
+  label,
+  onPress,
+  kind = "primary",
+  disabled = false,
+  accessibilityLabel,
+}: ButtonProps) {
   const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}

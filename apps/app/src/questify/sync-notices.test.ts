@@ -94,4 +94,27 @@ describe("syncNotices", () => {
     expect(wroteSomething(sync)).toBe(true);
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([]);
   });
+
+  it("adds one gems line for everything the sync paid, after the other toasts", () => {
+    const sync = {
+      ...none,
+      achievements: [{ id: "events-attended", tier: "bronze" as const }],
+      gems: { earned: 30, balance: 130 },
+    };
+    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
+      "New achievement: Wanderer (Bronze)",
+      "You earned 30 gems",
+    ]);
+    expect(
+      syncNotices({ ...none, gems: { earned: 1, balance: 1 } }, catalog, tIn("en"), "en"),
+    ).toEqual(["You earned 1 gem"]);
+    expect(
+      syncNotices({ ...none, gems: { earned: 2, balance: 2 } }, catalog, tIn("ar"), "ar"),
+    ).toEqual(["حصلت على جوهرتين"]);
+  });
+
+  it("counts a sync that only paid gems as something written, and a balance alone as nothing", () => {
+    expect(wroteSomething({ ...none, gems: { earned: 20, balance: 20 } })).toBe(true);
+    expect(wroteSomething({ ...none, gems: { earned: 0, balance: 90 } })).toBe(false);
+  });
 });

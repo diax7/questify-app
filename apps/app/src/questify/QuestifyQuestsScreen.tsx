@@ -8,6 +8,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { gemsLabel } from "#src/questify/gems.ts";
 import { wordsIn } from "#src/questify/PassportSection.tsx";
 import { useQuestifySync } from "#src/questify/QuestifySyncProvider.tsx";
 import { fetchQuestifyQuests } from "#src/questify/questify-api.ts";
@@ -39,7 +40,14 @@ function QuestCard({ quest }: Readonly<{ quest: QuestifyQuest }>) {
       </View>
       <View style={styles.line}>
         <AppText muted>{quest.done ? t("questifyQuests.done") : progress}</AppText>
-        <AppText variant="label">{t("questifyQuests.xp", { xp: quest.xp })}</AppText>
+        <View style={styles.rewards}>
+          <AppText variant="label">{t("questifyQuests.xp", { xp: quest.xp })}</AppText>
+          {quest.gems > 0 ? (
+            <AppText variant="label">
+              {t("questifyQuests.gems", { gems: gemsLabel(t, quest.gems, language) })}
+            </AppText>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -115,5 +123,6 @@ const makeStyles = (theme: Theme) => ({
   },
   fill: { height: 12, backgroundColor: theme.colors.highlight },
   fillDone: { backgroundColor: theme.colors.primaryAction },
+  rewards: { flexDirection: "row" as const, gap: theme.spacing.md },
   line: { flexDirection: "row" as const, justifyContent: "space-between" as const },
 });
