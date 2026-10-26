@@ -1282,6 +1282,15 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   lint/format/types PASS; no web code changed. No new ADR/Q (ADR-272, Q-236, Q-237 stay Proposed). Progress
   **76/153 (49.67%)**. No push, deploy, EAS or mutation by the worker; 0063/0064 remain undeployed (CranL at 0056).
 
+- 2026-10-26 **T-402b pushed; CI green; mutation dispatched (coordinator).** `4bca465..6286d41` (18 commits) pushed
+  after the Docker gitleaks scan (419 commits, no leaks) and a fresh Sonnet Arabic review of the three `souvenir_in_use`
+  strings (84; quest and category-with-quests wording fixed in 6286d41, Q-238 added for fixed refusal wording vs renamed
+  terms). CI run 40356348454: success, 14 min, browser 141 passed / 1 skipped. Mutation run 40358820903 (GitHub only,
+  one at a time) targets `apps/api/src/souvenirs/*.ts`, `apps/api/src/players/{items,item-routes}.ts`,
+  `packages/shared/src/souvenirs.ts`, `packages/shared/src/players/items.ts`, tests excluded; chase only files under 90.
+  CLAUDE.md gains Dhia's cost cap (one sub-agent at a time, two only for review plus next build; the strongest model
+  only for core work). Progress **76/153 (49.67%)**. No deployment, EAS, phone or local mutation.
+
 ## Next
 
 1. **After T-402b (2026-10-26):** the coordinator pushes the reviewed main (check `git log origin/main..main` first),
@@ -1289,7 +1298,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
    at a time; chase only files under 90). T-312/T-313 targets already meet 90, no chase. Then **T-403** is next, built
    by a fresh worker. No deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-ups: Q-237
    central replay-before-scope fix for other idempotent organizer routes; the new souvenir_in_use Arabic strings'
-   review; flag the Sol-policy deviation to Dhia.
+   review (done, 6286d41); flag the Sol-policy deviation to Dhia (done in the coordinator's reply).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
