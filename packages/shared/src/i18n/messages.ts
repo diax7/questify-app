@@ -4580,8 +4580,8 @@ export const MESSAGES = {
     en: "This retry key belongs to another request. Refresh and try again.",
   },
   "souvenir.eventDeleteError": {
-    ar: "في هذه الفعالية تذكارات. احذف مسوداتها من صفحة التذكارات أولًا.",
-    en: "This event has souvenirs. Delete their drafts on the Souvenirs page first.",
+    ar: "في هذه الفعالية تذكارات. احذف مسودات التذكارات أولًا. بعد تفعيل أي تذكار، لا يمكن حذف الفعالية.",
+    en: "This event has souvenirs. Delete the souvenir drafts first. Once any souvenir is activated, the event can't be deleted.",
   },
   "souvenir.resultsDepth": {
     ar: "تشمل المراكز المعروضة نطاق التذكارات النشطة. راجعها قبل اعتماد النتائج.",
