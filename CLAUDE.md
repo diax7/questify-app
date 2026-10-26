@@ -33,8 +33,11 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
    demo builds in step when Dhia asks.
 5. **Short messages.** Brief status to Dhia; read only the part of a file that is needed. When the coordinator's
    own context gets long it is summarized automatically and the work carries on; no `/clear` between tasks.
-6. **Dhia is not interrupted for decisions inside a task:** workers take the recommended option and record it
-   as a Proposed ADR and an OPEN_QUESTIONS entry for him to review.
+6. **Dhia is the product manager; the coordinator is the developer** (Dhia, 2026-10-27). Workers take the
+   recommended option and record it as a Proposed ADR and an OPEN_QUESTIONS entry; once the work is reviewed, the
+   coordinator decides it (`Accepted (developer, delegated by Dhia, <date>)`), asking the `cto` agent when a second
+   opinion is needed. Technical calls (config, dependencies, alerts, task order, review-recommended fixes) are never
+   put to Dhia; only product direction and actions only he can do go to him.
 7. **Whenever Dhia's interaction or input is needed** (an action only he can do, an approval, a choice, a
    credential, a test on his phone), the coordinator asks with the **AskUserQuestion** tool, never buried in a
    status message, and makes clear what is needed and why. Work that doesn't depend on the answer keeps going.

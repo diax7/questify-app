@@ -3512,7 +3512,7 @@ places. A late ineligible recipient is skipped without promoting another rank; e
 historical confirmed events cannot add a new rank promise through this feature.
 
 ## ADR-272 — Souvenir repair passes are finite; fact triggers carry every later change
-**Status:** Proposed (worker recommendation, 2026-10-26, T-402b review repair; Q-236). Replaces the plan's periodic
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-402b review repair; Q-236). Replaces the plan's periodic
 repair sweep and 0064's "repeat completed scans every minute"; ADR-270 otherwise stands.
 **Decision:** A souvenir_scan row is one finite pass: a non-rank activation or an owner/editor Process request starts
 it, it queues 500 real members per batch behind a cursor, waits until the event is live (one-way, 0009's times guard),
@@ -3530,7 +3530,7 @@ beside quest scans. The 20k benchmark used a joined rule, which everyone leaves,
 without its trigger) is picked up only by a Process request; DATA_MODEL lists the triggers a new source must extend.
 
 ## ADR-273 — T-403 splits into a core server task, a core Questify-quests task and a standard surfaces task
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-239).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-239).
 **Decision:** T-403 (CORE): event city, final-rank snapshot, Event Passport and owner history reads, achievement tiers,
 the `questify_sync` evaluator and the public profile's achievements/passport. T-403b (CORE): always-on and seasonal
 Questify quests, console API doors, XP awards through `xp_entry`. T-403c (STANDARD): app, dashboard and console screens
@@ -3542,7 +3542,7 @@ worker can build and prove in one run; splitting by risk lets the display work u
 **Trade-offs:** Three code reviews instead of one; T-403's "Done when" is shown on screen only when T-403c lands.
 
 ## ADR-274 — Achievements and the passport derive from standing XP credits through one sync evaluator
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-241).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-241).
 **Decision:** A player played an event when they hold a non-reversed quest XP credit there on an enrollment that passes
 the one shared `played_enrollment` predicate (not rehearsal, banned or removed); all five metrics use that predicate. The
 Event Passport is computed on read from those credits. Achievement tiers (and T-403b's Questify awards) are append-only
@@ -3557,7 +3557,7 @@ the scan path keeps its latency and lock set. Materialized rows give T-404 somet
 briefly see an older tier; a removal that drops a count below a threshold leaves the tier.
 
 ## ADR-275 — The passport's final rank is a confirm-time snapshot shown after the reveal
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-242).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-242).
 **Decision:** `confirm_results` also writes `final_rank` for every ranked enrollment, in one data-modifying statement
 with `result_place` that reads the ordering (`all_places`) once. A stamp shows the rank once results are revealed; before that it says the results are not final, and a
 member with no row is "not ranked". Already confirmed events are backfilled from `result_place`, then the rest in order, under a bounded `event_result`
@@ -3567,7 +3567,7 @@ frozen at confirmation, so the snapshot is exact and stable. The reveal keeps th
 **Trade-offs:** One insert per ranked member at confirmation; an event whose results are never confirmed shows no rank.
 
 ## ADR-276 — The public passport lists only ended public events
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-243; amended by the plan review's MAJOR-1 and
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-243; amended by the plan review's MAJOR-1 and
 MINOR-5). Resolves T-402's open point.
 **Decision:** Another player sees up to 50 newest stamps of played events that, at read time, are `public`, are not
 workplace events, and have ended or been archived; never while the event is live. Each stamp shows name, local date,
@@ -3579,7 +3579,7 @@ polling a username learn where that player is now; a tier shows a number, not an
 **Trade-offs:** A player cannot choose to show a private event publicly; a public stamp appears only after the event ends.
 
 ## ADR-277 — Events gain a city from a seeded catalog
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-244).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-244).
 **Decision:** A `city` table (about 20 Saudi cities, bilingual, ordered; no `active` flag until the console edits it)
 and `event.city_id`, set by the owner or an editor, none for virtual events, frozen by its own trigger once the event is
 live, ended or archived. "Cities played" counts distinct cities of played
@@ -3588,7 +3588,7 @@ events; events without a city count none. T-407 reuses the table for the player'
 **Trade-offs:** Older events count no city; until the console can edit the list (T-703/T-709), a new city needs a migration.
 
 ## ADR-278 — Questify quests are console data with a closed metric list, paid in XP
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-245).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-245).
 **Decision:** The Questify team creates always-on quests and seasonal campaigns (window entered in Saudi time) in the
 console; metrics are events, cities and quests played. A campaign is published only before it starts. Seasonal quests
 count only facts inside their window (on the ledger entry's time) and are offered only inside it; a sync up to 3 days
@@ -3601,7 +3601,7 @@ conflict with App Store 3.2.2(x), and FR-710's other examples meet the requireme
 **Trade-offs:** A veteran who already qualifies for a new always-on quest gets it at their next sync, not at once.
 
 ## ADR-279 — Seeded thresholds and rewards; no item or gem rewards before T-404
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-240).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403 plan; Q-240).
 **Decision:** Achievement tiers (bronze/silver/gold): events 1/5/15, quests 10/50/200, cities 2/4/8, top-10 finishes
 1/3/10, community goals 1/5/15. Seeded always-on quests: attend 3 events and play in 2 cities, 300 XP each. Achievements
 and Questify quests grant no item or gem yet; T-404 pays gems from the earned rows (ADR-046).
@@ -3609,7 +3609,7 @@ and Questify quests grant no item or gem yet; T-404 pays gems from the earned ro
 **Trade-offs:** ADR-046's achievement items wait for catalog art and T-404.
 
 ## ADR-280 — Questify quest console rules as built (T-403b)
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403b build; Q-246). Extends ADR-278.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403b build; Q-246). Extends ADR-278.
 **Decision:** A quest's campaign is chosen when it is created and never moves. `active` is one-way: an active quest is
 retired, never put back to draft. Nothing is deleted: a draft quest or campaign is retired (no delete door). A quest
 cannot be added to, or edited in, a retired or ended campaign; retire still works. A published campaign that
@@ -3627,7 +3627,7 @@ are active from the deploy, so a veteran who already qualifies is paid at the ne
 veterans may be paid both seeded quests and reach a level at once.
 
 ## ADR-281 — T-403c screens as built: one sync scheduler, ids-only public badges, no points on the history
-**Status:** Proposed (worker recommendation, 2026-10-26, T-403c build; Q-247). Extends ADR-273 to ADR-280.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; built and CTO-reviewed; was a worker recommendation, 2026-10-26, T-403c build; Q-247). Extends ADR-273 to ADR-280.
 **Decision:** The app syncs through one scheduler: on focus of Profile or the Questify quests, at launch and sign-in,
 on each return to the foreground at least 5 minutes after the last call, and 15 seconds after the last first-time
 completion (a trailing debounce; every completion flow ends in `completionAnswer`, which signals it). Calls never
@@ -3646,3 +3646,22 @@ times in Saudi time, retires instead of deleting after a confirmation, and words
 needs no API change; no new store or screen state is needed.
 **Trade-offs:** The public profile needs a second read for badge names; a history row cannot show its points; the
 scheduler sits behind a signal in the completion parser, which is a side effect in a parser.
+
+## ADR-282 — Accept the two Expo CLI dependency alerts (zod 3, node-forge) until upstream fixes
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27).
+**Decision:** Dependabot alerts #7 (zod 3.25.76, GHSA "oversized constrained collections", fixed only in zod 4.6.6) and
+#5 (node-forge 1.4.0, GHSA-86w9-cpqp-85rv, RSA PKCS#1 v1.5 signature parsing, no fixed release) are dismissed as
+tolerable risk. Both arrive only through `@expo/cli` 57, the developer and EAS build tool: neither is in the app bundle
+nor in the API image, and neither handles player or untrusted input there (the CLI validates its own config and makes
+a local dev certificate). The latest `@expo/cli` (57.0.32) still requires `zod ^3.25.76`, and forcing zod 4 on it with
+an override would break the CLI. Our own code uses zod 4.6.7.
+**Why:** No fix is available that does not break the build tool, and the vulnerable code cannot be reached by an outsider.
+**Trade-offs:** The alerts stay dismissed until reopened; the monthly Dependabot run and `pnpm audit` keep watching, and
+the next Expo SDK upgrade must recheck both.
+
+## ADR-283 — Publishing a Questify campaign asks for confirmation first
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; answers Q-248).
+**Decision:** The console's Publish button opens a confirmation dialog, built like the retire dialog, saying that
+publishing cannot be undone and starts paying XP to players. Only the dialog's confirm button sends the publish call.
+**Why:** Publishing is one-way and affects real players; the retire action already confirms.
+**Trade-offs:** One extra click per publish.

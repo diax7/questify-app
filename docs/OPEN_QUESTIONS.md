@@ -671,6 +671,7 @@ Recommended (ADR-272): scan existing members once at activation (once the event 
 pending grants' request, then rely on triggers for every later fact; rank souvenirs wait for confirmed places with no
 member scan. The dashboard reads complete once that work drains. Agree that Process pending grants is the manual repair
 path, with no automatic periodic re-scan?
+**Answered (developer, delegated by Dhia, 2026-10-27):** yes, ADR-272 accepted as built: Process pending grants is the manual repair path, no periodic re-scan.
 
 ## Q-237 — Cached idempotent replay before event-scope checks on other organizer routes (2026-10-26, T-402b review)
 The independent T-402b review noted that other event-scoped `idempotent: true` organizer routes (for example
@@ -691,10 +692,12 @@ messages.ts text instead of showing the API string, for all of these refusals to
 Recommended (ADR-273): T-403 core server (achievements, passport, history, city), T-403b core Questify quests and
 console API, T-403c standard screens and copy on a cheaper model, with one code review that includes the Arabic pass.
 Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** yes, ADR-273 accepted; the three tasks are built and reviewed.
 
 ## Q-240 — Achievement thresholds and Questify quest rewards (2026-10-26, T-403 plan)
 Recommended (ADR-279): events 1/5/15, quests 10/50/200, cities 2/4/8, top-10 1/3/10, community goals 1/5/15; seeded
 quests "attend 3 events" and "play in 2 cities" at 300 XP each (3 event quests' worth); no items or gems until T-404.
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-279 accepted with these thresholds and 300 XP each; items and gems wait for T-404.
 
 ## Q-241 — What counts as playing an event, and earned is permanent (2026-10-26, T-403 plan)
 Recommended (ADR-274): an event counts once the player has a quest XP credit there that was not removed, outside
@@ -702,27 +705,32 @@ rehearsal and not on a banned or removed membership (the same rule for all five 
 are kept even if a later removal drops a count below the threshold, and a banned fraudster keeps them until T-709 adds
 an admin revoke. Rewards are checked when the app syncs (opening Profile or Questify quests, on foreground, about 15
 seconds after scans), not inside the scan. Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** yes, ADR-274 accepted as built.
 
 ## Q-242 — Final rank on the passport (2026-10-26, T-403 plan)
 Recommended (ADR-275): snapshot every ranked member's place when the owner confirms results; show it after the reveal.
 An event whose results are never confirmed shows "results not final" forever. Should unconfirmed events show a rank
 after some time instead?
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-275 accepted as built: no rank until the owner confirms results; an unconfirmed event keeps "results not final".
 
 ## Q-243 — Private events on the public passport (2026-10-26, T-403 plan)
 Recommended (ADR-276, amended by the plan review): other players see a stamp only once the event has ended or been
 archived, and only while it is public and not a workplace event; never while it is live (a live stamp would tell anyone
 where the player is now). Private, unlisted and workplace stamps are visible to the owner only, marked "only you see
 this". Tiers still count them. Agree, or offer a per-stamp choice later?
+**Answered (developer, delegated by Dhia, 2026-10-27):** yes, ADR-276 accepted as built; no per-stamp choice for now.
 
 ## Q-244 — Event city list (2026-10-26, T-403 plan)
 Recommended (ADR-277): a seeded list of about 20 Saudi cities that organizers pick from (none for virtual events),
 frozen once live. Which cities should the first list hold, and who adds new ones (Questify admin)?
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-277 accepted: the seeded list of Saudi cities as built; a Questify admin adds new ones.
 
 ## Q-245 — Seasonal windows and the "follow Questify" quest (2026-10-26, T-403 plan)
 Recommended (ADR-278): a campaign is published before it starts; seasonal quests count plays inside the window only,
 with a 3-day grace to pay a late sync. Follow
 Questify is not built: XP for following a social account outside the app may conflict with App Store 3.2.2(x), on top
 of Meta's rule (ADR-034). If you accept that risk and give the account links, it is a small later addition.
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-278 accepted as built (3-day grace); Follow Questify stays unbuilt because of the store risk.
 
 ## Q-246 — Questify quest console rules, and ADR-093's "seasonal campaigns" (2026-10-26, T-403b build)
 Recommended (ADR-280): a quest's campaign never changes after creation; an active quest stays active until retired;
@@ -730,21 +738,25 @@ drafts are retired rather than deleted; the seeded "attend 3 events" and "play i
 live with the deploy, so players who already qualify are paid at their next sync. Also: ADR-093 (accepted) lists
 "seasonal campaigns" as not in v1; the build reads that as seasonal configuration (themes, settings), not FR-711's
 seasonal Questify quest campaigns, which the approved plan builds. Agree, or should the seeded quests start as drafts?
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-280 accepted as built; the seeded quests go live with the deploy; ADR-093 is read as seasonal configuration only.
 
 ## Q-247 — T-403c: seeded names, public badge names, points on the history (2026-10-26, T-403c build)
 1. The Arabic pass over the seeded names (migration 0065, the app shows the API's text as sent): رحّالة, صائد المهام,
    جوّاب المدن are fine. Recommended: "نخبة العشرة" becomes "العشرة الأوائل" (the natural Arabic for Top Ten) and
    "يدٌ واحدة" loses its tanween mark ("يد واحدة"). 0065 is undeployed, so the two seed values can change in place;
-   Done 2026-10-26 (T-403c close-out): both applied in 0065 in place; no test pinned the old names. Items 2 and 3 stay
-   open for Dhia.
+   Done 2026-10-26 (T-403c close-out): both applied in 0065 in place; no test pinned the old names.
 2. The public profile's `achievements` hold ids and tiers only. The app reads the viewer's own catalog for names and
    art. Recommended: leave it. Alternative: add `name` and `visualKey` to the public DTO (an API change).
 3. The history shows no points (the event's currency word is not in `GET /v1/me/event-history`). Recommended: leave it;
    add the currency's name and icon to the answer only if a points line is wanted.
 4. Needs a phone check once a build exists: release Hermes, right to left, Reduce Motion, the toasts and the level-up
    card, the badges at 64 pt.
+**Answered (developer, delegated by Dhia, 2026-10-27):** items 2 and 3 left as built (ADR-281 accepted): public badges stay ids and tiers, the history shows no
+points. Item 4 stays open until a phone build exists.
 
 ## Q-248 — Publishing a campaign has no confirmation (2026-10-26, T-403c review)
 Publishing a Questify campaign from the console is one-way (it can only be retired afterwards) and starts paying XP to
 real players, yet the button acts at once. Recommended: ask for a confirmation first, as the retire dialog does, saying
-it cannot be undone. Not built; Dhia decides.
+it cannot be undone.
+**Answered (developer, delegated by Dhia, 2026-10-27):** confirm first (ADR-283); built as a small standard fix after this answer.
+
