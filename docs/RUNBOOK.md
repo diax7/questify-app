@@ -276,6 +276,12 @@ the client-address count (ADR-113).
   read questify_app's sessions" otherwise; `node migrate.cjs --verify` then reports `ownerSeesSessions: true`. Nothing
   is granted. It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. On the day a build
   goes to store review, give the demo event a running community goal with an unlock milestone (STORE_COMPLIANCE, review notes).
+- **Migration 0065 (T-403, achievements, passport, event city, final ranks):** adds a column to `event`
+  (ACCESS EXCLUSIVE for a moment), creates `final_rank` with keys to `event_result` and `enrollment` (scans wait on the
+  enrollment key lock for the rest of the migration), then holds `event_result` in SHARE ROW EXCLUSIVE while
+  `backfill_final_ranks()` snapshots every already confirmed event. `lock_timeout` is 10 s: if it stops on a lock, run
+  it again in a quiet minute; it changes nothing until it commits. Deploy the new API with it (`confirm_results` and
+  `public_player_profile` are restated; the new routes need the new functions).
 - **Migration 0056 (T-308, NFC tags):** two new closed tables and widened checks; `record_completion` restated. The app
   needs a new EAS development build (react-native-nfc-manager, a native module) before NFC runs on a phone. On the day a
   build goes to store review, give the demo event a scan quest with NFC on (its QR works for the reviewer).

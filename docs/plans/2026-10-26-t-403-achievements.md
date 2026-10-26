@@ -247,3 +247,20 @@ MINOR-5 (public passport: ended or archived, public, not workplace), MINOR-2 (`p
 trigger), MINOR-4 (one CTE, backfill lock), MINOR-6/7 and cuts 3/4 (T-403b), MINOR-8 (server pre-check, client
 debounce), MINOR-9 and cut 8 (review models), MINOR-10 (SRS notes), cuts 1, 2, 5, 6 and 7, and the banned-fraudster
 note.
+
+## Build notes (2026-10-26, T-403 worker)
+
+- `GET /v1/me/events` is already the event switcher's (FR-122), so cut 1's single passport/history door is
+  `GET /v1/me/event-history?played=true|false&cursor&limit` over `own_events`.
+- Event city refusals follow the event builder's shape: an unknown id or a virtual event with a city answer
+  `422 invalid_event {field: cityId}`, a malformed id 400 (schema), a change once live, ended or archived
+  `409 city_locked` (`CY409`, every role).
+- `player_metrics(player)` is lifetime only and returns one row per metric; T-403b adds the window rather than shipping
+  unused parameters now. Answers are objects (`{achievements}`, `{cities}`) so fields can be added later.
+- The shared `publicProfileSchema` takes `achievements`/`passport` as optional (an app test still parses a T-402
+  profile); the API always sends both and its tests pin the exact keys. T-403c may make them required.
+- `rankState` `live` covers a scheduled event too (not ended). A member who left still played (only banned, removed and
+  rehearsal memberships are out) but has no final rank (ranking counts active members at confirmation).
+- Seeded art keys: events `ach-first-steps`, quests `ach-collector`, cities `ach-swift`, top10 `ach-summit`, goals
+  `ach-social` (the shipped `docs/design/assets/achievements` set).
+- The 20,000-member confirmation is an opt-in test (`QUESTIFY_TIMING=1`); it passed its 10 s bound locally.

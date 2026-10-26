@@ -335,10 +335,10 @@ Questify's default words, not an event's renamed words (ADR-058).
 | FR-704 | The system shall filter new usernames as user content and reject unacceptable ones with a reason. | Must | F-143 | Given a player enters an acceptable username, when they save, then it is accepted. Given a player enters a username the filter blocks, when they save, then it is rejected with a message and the old username stays. |
 | FR-705 | The system shall rate-limit username changes. | Must | F-143 | Given a player who has not changed their username recently, when they change it, then the change is accepted. Given a player who has reached the change limit, when they try again, then the change is refused with a message saying when they can change it next. |
 | FR-706 | The app shall show a level title for each level range, written in Arabic and English in the adventure theme. | Must | F-128 | Given a player's level falls in a title's range, when they view their profile in Arabic, then the Arabic level title shows. Given the player levels into the next range, when they view their profile, then the new title replaces the old one. |
-| FR-707 | The system shall award Questify achievements in bronze, silver and gold tiers for events attended, quests done, cities played, top-10 finishes and community goals reached. | Must | F-58 | Given a player meets the bronze threshold for events attended, when the qualifying event is recorded, then the bronze achievement is awarded. Given a player already holds bronze, when they meet the silver threshold, then the achievement moves to silver. |
+| FR-707 | The system shall award Questify achievements in bronze, silver and gold tiers for events attended, quests done, cities played, top-10 finishes and community goals reached. | Must | F-58 | Given a player meets the bronze threshold for events attended, when the qualifying event is recorded, then the bronze achievement is awarded (at the player's next sync, seconds later: opening Profile or Questify quests, returning to the app, or about 15 seconds after a completion; ADR-274, amended 2026-10-26). Given a player already holds bronze, when they meet the silver threshold, then the achievement moves to silver. |
 | FR-708 | The app shall show achievements not yet earned as silhouettes. | Must | F-58 | Given a player without any cities-played achievement, when they open achievements, then that achievement shows as a silhouette. Given the player earns it, when they reopen achievements, then it shows in full with its tier. |
 | FR-709 | The system shall add an Event Passport stamp for every event a player played, showing the event's logo, its date and the player's final rank. | Must | F-133 | Given a player who played an event that has ended, when they open their passport, then a stamp shows the event's logo, date and final rank. Given an event that is still running, when the player opens their passport, then no final rank is shown for it yet. |
-| FR-710 | The system shall offer always-on Questify quests (for example attend 3 events, play in 2 cities, set your interests, follow Questify) that players complete across events. | Must | F-132 | Given a player has attended 2 events, when they join and play a third, then the "attend 3 events" Questify quest completes and its reward is granted. Given a player has already completed a Questify quest, when they meet its condition again, then the reward is not granted twice. |
+| FR-710 | The system shall offer always-on Questify quests (for example attend 3 events, play in 2 cities, set your interests, follow Questify) that players complete across events. | Must | F-132 | Given a player has attended 2 events, when they join and play a third, then the "attend 3 events" Questify quest completes and its reward is granted (at the player's next sync, seconds later; ADR-274, amended 2026-10-26). Given a player has already completed a Questify quest, when they meet its condition again, then the reward is not granted twice. |
 | FR-711 | The Questify console shall let the Questify team run seasonal Questify quest campaigns for a period the team sets. | Must | F-132 | Given the Questify team publishes a seasonal campaign, when its start date arrives, then its quests appear to players. Given the campaign's period has ended, when a player opens Questify quests, then the campaign's quests are no longer offered. |
 
 #### Special items, gems and the Questify shop
@@ -1094,15 +1094,15 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-635 | F-159 | Could | pending |
 | FR-636 | F-159 | Could | pending |
 | FR-637 | F-159 | Could | pending |
-| FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 achievements/passport/owner history pending |
-| FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 achievements/passport pending |
+| FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 server built (achievements, passport, owner history: `test/db/achievements.int`, `test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens T-403c |
+| FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 server adds tiers and ended public-event stamps only (`test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens T-403c |
 | FR-703 | F-143 | Must | `test/db/profile-items.int`, `test/players/items.int`, `test/players/profile.int` (T-402) |
 | FR-704 | F-143 | Must | pending |
 | FR-705 | F-143 | Must | pending |
 | FR-706 | F-128 | Must | pending |
-| FR-707 | F-58 | Must | pending |
-| FR-708 | F-58 | Must | pending |
-| FR-709 | F-133 | Must | pending |
+| FR-707 | F-58 | Must | server built T-403 (`test/db/achievements.int`: thresholds, jumps, replays, crossings), core code review pending; awarded at the next sync |
+| FR-708 | F-58 | Must | partial: server answers `tier` null for a silhouette (`test/db/achievements.int`); screens T-403c |
+| FR-709 | F-133 | Must | partial: stamps, local date and final rank (none while running) server-side (`test/db/event-passport.int`, `test/db/final-rank.int`); the event logo waits for T-602; screens T-403c |
 | FR-710 | F-132 | Must | pending |
 | FR-711 | F-132 | Must | pending |
 | FR-720 | F-129 | Must | `test/db/profile-items.int`, `apps/app/src/questify/profile-api.test.ts` (T-402) |

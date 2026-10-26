@@ -1298,12 +1298,30 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   **T-403c STANDARD** (app, dashboard and console screens, copy). No change to the scan transaction; follow Questify not
   built (store risk). Proposed ADR-273 to ADR-279, Q-239 to Q-245. TASKS gains T-403b/T-403c (now 155 tasks). No code.
 
+- 2026-10-26 **T-403 built (core), awaiting the independent core code review; not ticked.** First commit folded the plan
+  review's amendments (88, one MAJOR) into the plan, ADR-273..279 and Q-239..245 (ADR-276: other players see a played
+  event only once it has ended or been archived, public and not workplace; never while live). Migration 0065 (new,
+  undeployed; 0063/0064 untouched): `city` (20 seeded), `event.city_id` with `event_city_guard` (fixed once live, every
+  role, `CY409`), `final_rank` written with `result_place` in one CTE over `all_places` plus `backfill_final_ranks`
+  under an `event_result` lock, `achievement` (five seeded) and append-only `achievement_earned`, one
+  `played_enrollment` rule, `questify_sync` (unlocked pre-check, player KEY SHARE → `player_xp`), `own_achievements`,
+  `own_events`, `public_player_profile` with tiers and at most 50 ended public stamps. API `apps/api/src/questify/`:
+  `POST /v1/me/questify/sync` (20/min), `GET /v1/me/achievements`, `GET /v1/me/event-history?played=` (cut 1's single
+  door; `/v1/me/events` is the switcher's), public `GET /v1/cities`; event `cityId` (422 unknown/virtual, 409
+  `city_locked`); the public profile is parsed through the shared allowlist; shared `packages/shared/src/questify/`.
+  Tests: focused 53 files / 727 passed (DB achievements 15, event-passport 9, final-rank 4 + opt-in 20,000-member
+  confirm under 10 s, routes 4, events city 3, security suites); full `npx vitest run` 374 files, 5863 passed / 4
+  skipped / 0 failed; oxfmt, oxlint --deny-warnings and tsc clean for api and shared. No app or web code changed. No
+  new ADR/Q (build notes in the plan). Mutation owed on GitHub with T-403b (one dispatch, cut 7).
+
 ## Next
 
-1. **T-403 plan review (2026-10-26):** a fresh independent core plan review of
-   `docs/plans/2026-10-26-t-403-achievements.md` (covers T-403, T-403b and T-403c). On GO, a fresh worker builds T-403,
-   then T-403b (both core, own code reviews), then T-403c (standard, cheaper model, one code review and one Arabic
-   review). Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No
+1. **T-403 core code review (2026-10-26):** a fresh independent review of the T-403 build (migration 0065,
+   `apps/api/src/questify/`, event city, public profile); on GO tick T-403. Then a fresh worker builds T-403b (core,
+   0066, its own code review), then T-403c (standard, cheaper model, one code review that includes the Arabic pass).
+   One `mutation.yml` dispatch after T-403b covers both (`apps/api/src/questify/**/*.ts`,
+   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`
+   plus T-403b's files). Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No
    deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-up: Q-237 central replay-before-scope
    fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

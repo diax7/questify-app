@@ -78,7 +78,8 @@ Players created before 0017 have no rows and are asked again.
 ### Account deletion (migration 0038, T-217, ADR-175 to ADR-178)
 - **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
-  completions (`device_id` cleared), frozen `result_place` rows and handed-over redemptions; they name no one.
+  completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403)
+  and handed-over redemptions; they name no one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
   player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
 - `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
@@ -438,7 +439,7 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 - Future curve editing (T-709) must maintain complete distinct reward mappings atomically; grant FKs freeze used
   mapping pairs. T-402b extends typed provenance for event souvenirs; T-404 for gem purchases, no speculative columns.
 - Account/locker/public-profile data remains in memory on the app, never persisted. Passport, achievements and owner
-  event history remain T-403; no empty placeholders count as delivering them. Source event history is never public.
+  event history are T-403 (server, below) and T-403c (screens). Source event history is never public.
 
 ### Organizer souvenir ownership (T-402b, migration0064; code review pending)
 
@@ -504,6 +505,40 @@ ADR-151):
   either (`RH409`) **before** the status check, so the desk never learns of a ban. `desk_items` (the lookup and the
   find) shows only `active` and `hold`, never the status. `enrollment.redeem_paused_at` (0031) also refuses new
   reservations and Collect (`RP403`, after the replay check).
+
+### Achievements, Event Passport, event city, final ranks (T-403, migration 0065 undeployed; core code review pending)
+
+- `city(id ^sa-[a-z0-9-]{2,30}$, name_ar, name_en (1–60, no control/bidi), position unique)`: 20 seeded Saudi cities,
+  no `active` flag until the console edits the list (T-703/T-709). Read through `city_list()` (`GET /v1/cities`).
+- `event.city_id NULL → city`: in the API role's INSERT/UPDATE column grants (owner/editor under the event policy);
+  CHECK `event_virtual_no_city` (`kind <> 'virtual' OR city_id IS NULL`); its own trigger `event_city_guard` (BEFORE
+  UPDATE OF city_id, WHEN changed, every role) refuses any change once the event is live, ended or archived (`CY409`).
+  Older events stay NULL and count no city.
+- `final_rank(event_id → event_result, enrollment_id, rank ≥ 1)`: PK (event_id, enrollment_id), UNIQUE (event_id, rank),
+  composite FK to `enrollment (id, event_id)`, index (enrollment_id). Every ranked member's place, written once by
+  `confirm_results` with `result_place` in one statement reading `all_places(ev)` once (`current_places` is now its first
+  `result_depth` rows). Append-only for every role (`history_append_only`, ENABLE ALWAYS); kept on erasure tombstones.
+  `backfill_final_ranks()` (internal, idempotent per event) filled events confirmed before 0065: `result_place` first,
+  then the other ranked members after them, under `LOCK TABLE event_result IN SHARE ROW EXCLUSIVE MODE`.
+- `achievement(id, metric unique events|quests|cities|top10|goals, bronze < silver < gold (1–100000), name_ar/en,
+  visual_key ^ach-(first-steps|collector|swift|summit|social|power-up)$, position)`: seeded five (ADR-279: events 1/5/15,
+  quests 10/50/200, cities 2/4/8, top10 1/3/10, goals 1/5/15); data T-709 edits, a change never removes an earned row.
+- `achievement_earned(player_id → player_xp, achievement_id → achievement RESTRICT, tier bronze|silver|gold, earned_at)`:
+  PK (player, achievement, tier); append-only for every role; kept on the tombstone (no personal data). Written only by
+  `questify_sync()`; a jump writes every tier passed. T-404 pays gems once per row.
+- Played (ADR-274): a standing quest XP credit (`xp_entry` source `quest`, never reversed) through `ledger_entry →
+  enrollment` on a membership passing `played_enrollment(status, joined_via)` (not banned, not removed, not rehearsal),
+  the one rule all five metrics use (`standing_credits(player)`, `player_metrics(player)`; lifetime, T-403b adds the
+  campaign window on `ledger_entry.created_at`). `top10`: revealed `final_rank` ≤ 10; `goals`: distinct reached
+  `community_goal` with the membership in `community_contributor`.
+- `questify_sync()`: unlocked pre-check (`achievements_due`), then player FOR KEY SHARE → `player_xp` FOR UPDATE →
+  fresh reads → `INSERT … ON CONFLICT DO NOTHING RETURNING`. Erasure (player FOR UPDATE → enrollments → player_xp) and
+  completions (enrollment → player_xp, no player lock after it) form no cycle with it.
+- Reads (definers, caller-bound through `profile_player()`): `own_achievements()`, `own_events(played, before_at,
+  before_event, page)` (passport and history, (start, id) cursor), `public_player_profile` (adds `achievements` tiers and
+  `passport` from `public_passport`, at most 50 stamps where `public_stamp(event)`: public, not workplace, ended or
+  archived now). Internal helpers hold no grant: `played_enrollment`, `standing_credits`, `player_metrics`,
+  `achievements_due`, `earned_tier`, `public_stamp`, `public_achievements`, `public_passport`, `all_places`.
 
 ### rank_prize, event_result, result_place (migration 0034, T-214)
 - `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description

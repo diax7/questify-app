@@ -1,5 +1,25 @@
 # Security — Questify
 
+## T-403 achievements, passport and history boundary (implemented; core code review pending)
+
+`city`, `achievement`, `achievement_earned` and `final_rank` force RLS with no API or PUBLIC rights; only four doors
+are granted to `questify_app` (`questify_sync`, `own_achievements`, `own_events`, `city_list`) and every helper holds no
+grant (outsider suite). Each player door binds to `app_player_id()` of an active player (`profile_player()`); no door
+takes a player id, so one player cannot read or write another's tiers, stamps or history, and a staff session never
+enters them (player bearer only). Earned tiers come only from server facts (standing quest XP credits, revealed final
+ranks, reached community goals) through one `played_enrollment` rule; nothing the client sends is counted.
+`achievement_earned` and `final_rank` are append-only for every role and kept on erasure tombstones (no personal data).
+Lock order: sync takes player KEY SHARE then `player_xp`; erasure player → enrollments → `player_xp`; completions
+enrollment → `player_xp` with no later player lock: no cycle (crossed-lock tests). The unlocked pre-check keeps a sync
+with nothing due lock-free; 20 syncs a minute per player.
+
+Public profile (ADR-276, plan review MAJOR-1/MINOR-5): another player sees tiers only (never progress) and at most 50
+stamps of played events that are public, not workplace and ended or archived **at read time**: a live event never
+appears, so polling a username cannot tell where someone is now, and an event made private later disappears. Stamps
+carry name, local date, city and the revealed rank only: no event id, score, member status, join answer, history or
+count of hidden stamps. The API also parses the DTO through the shared stripping allowlist (FR-702). The event city is
+fixed once the event is live, ended or archived for every role (`CY409`), so a played event's city never moves.
+
 ## T-402b souvenir boundary (implemented; final code review pending)
 
 Rules/targets/receipts/work/scans/command receipts force RLS with no direct API/PUBLIC rights. Narrow SQL doors
