@@ -656,6 +656,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(overloads).toEqual([]);
     });
 
+    it("cannot read the gem record or the shop, sync, buy, or reach the gem helpers (T-404)", async () => {
+      const probe = "gen_random_uuid()";
+      for (const sql of [
+        "SELECT * FROM public.gem_entry",
+        "SELECT * FROM public.gem_purchase",
+        "SELECT * FROM public.gem_shop_item",
+        "SELECT public.gem_shop()",
+        `SELECT public.gem_buy('shop-map-reader', 40, ${probe})`,
+        "SELECT public.own_gems()",
+        `SELECT public.gems_due(${probe})`,
+        "SELECT * FROM public.gem_amounts()",
+        "SELECT public.gem_amount('{}', 'levelUp', 20)",
+        "SELECT public.questify_gems_of('{}', 0)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "gem_shop",
+        "gem_buy",
+        "own_gems",
+        "gems_due",
+        "gem_amounts",
+        "gem_amount",
+        "gem_append_only",
+        "questify_gems_of",
+        "own_locker",
+        "souvenir_catalog_guard",
+        "owned_item_guard",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the three player doors and the locker read only.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "gem_buy",
+        "gem_shop",
+        "own_gems",
+        "own_locker",
+      ]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

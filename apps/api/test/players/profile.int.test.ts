@@ -91,6 +91,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
         title: { ar: "مستكشف", en: "Explorer" },
       },
       help: { unread: 0 },
+      gems: 0,
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

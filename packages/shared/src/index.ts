@@ -232,6 +232,25 @@ export type {
   AdminQuestify,
 } from "./questify/quests";
 export {
+  GEM_PRICE_MAX,
+  GEM_SHOP_REFUSALS,
+  gemShopConflictSchema,
+  gemShopItemSchema,
+  gemShopSchema,
+  gemPurchaseBodySchema,
+  gemPurchaseSchema,
+  syncGemsSchema,
+} from "./questify/gems";
+export type {
+  GemShopRefusal,
+  GemShopConflict,
+  GemShopItem,
+  GemShop,
+  GemPurchaseBody,
+  GemPurchase,
+  SyncGems,
+} from "./questify/gems";
+export {
   RANK_STATES,
   ownEventSchema,
   ownEventsSchema,

@@ -5,6 +5,7 @@ type Db = Client | PoolClient;
 export const BUCKETS = {
   profileRead: "profile_read",
   questifySync: "questify_sync",
+  gemPurchase: "gem_purchase",
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",

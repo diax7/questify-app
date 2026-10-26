@@ -31,6 +31,7 @@ const sync = {
   achievements: [{ id: "regular", tier: "bronze" }],
   quests: [{ id: UUID, title, xp: 50 }],
   levelUp: { level: 2, title, items: [] },
+  gems: { earned: 30, balance: 120 },
 };
 const syncWithAchievement = (achievement: Record<string, unknown>) => ({
   ...sync,
@@ -76,8 +77,21 @@ describe("questifySyncSchema", () => {
   });
 
   it("keeps an empty answer with no level reached", () => {
-    const empty = { achievements: [], quests: [], levelUp: null };
+    const empty = { achievements: [], quests: [], levelUp: null, gems: { earned: 0, balance: 0 } };
     expect(questifySyncSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("needs the gems paid and the balance, each a whole number from 0 (T-404)", () => {
+    const { gems: _gems, ...withoutGems } = sync;
+    expect(accepts(questifySyncSchema, withoutGems)).toBe(false);
+    for (const gems of [
+      { earned: -1, balance: 0 },
+      { earned: 0, balance: -1 },
+      { earned: 1.5, balance: 2 },
+      { earned: "1", balance: 2 },
+      { earned: 1 },
+    ])
+      expect(accepts(questifySyncSchema, { ...sync, gems }), JSON.stringify(gems)).toBe(false);
   });
 
   it("bounds an achievement id to 1..64 characters and takes only the three tiers", () => {
@@ -116,6 +130,7 @@ describe("questifyQuestSchema and questifyQuestsSchema", () => {
     target: 3,
     progress: 1,
     xp: 40,
+    gems: 25,
     done: false,
   };
 
@@ -265,13 +280,30 @@ describe("campaignBodySchema", () => {
 });
 
 describe("questPatchSchema and questBodySchema", () => {
-  const patch = { metric: "quests", target: 5, title, xp: 80, position: 2, status: "active" };
+  const patch = {
+    metric: "quests",
+    target: 5,
+    title,
+    xp: 80,
+    gems: 10,
+    position: 2,
+    status: "active",
+  };
   const body = { ...patch, campaignId: UUID };
   const bounds: [string, number, number][] = [
     ["target", 1, 1000],
     ["xp", 1, 10000],
     ["position", 1, 1000],
   ];
+
+  it("takes gems as a whole number from 0 to 1000, or leaves them out (T-404)", () => {
+    for (const gems of [0, 1, 1000])
+      expect(accepts(questPatchSchema, { ...patch, gems })).toBe(true);
+    const { gems: _gems, ...withoutGems } = patch;
+    expect(questPatchSchema.parse(withoutGems)).toEqual(withoutGems);
+    for (const gems of [-1, 1001, 2.5, "5", null])
+      expect(accepts(questPatchSchema, { ...patch, gems }), String(gems)).toBe(false);
+  });
 
   it("keeps every field of a patch and of a body", () => {
     expect(questPatchSchema.parse(patch)).toEqual(patch);
@@ -349,6 +381,7 @@ describe("the console's reads", () => {
     target: 2000,
     title,
     xp: 0,
+    gems: 0,
     position: -1,
     status: "retired",
     createdAt: stamp,

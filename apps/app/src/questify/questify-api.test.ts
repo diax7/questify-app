@@ -82,6 +82,7 @@ describe("postSync", () => {
     achievements: [{ id: "events-attended", tier: "bronze" }],
     quests: [],
     levelUp: null,
+    gems: { earned: 10, balance: 10 },
   };
 
   it("returns what the sync wrote", async () => {

@@ -117,6 +117,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests routes (T-403b
             target: 1,
             progress: 1,
             xp: 120,
+            gems: 0,
             done: false,
           },
         ],

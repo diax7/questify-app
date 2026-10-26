@@ -9,6 +9,7 @@ type Sync = {
   achievements: { id: string; tier: string }[];
   quests: { id: string; title: Bilingual; xp: number }[];
   levelUp: null | { level: number; title: Bilingual; items: { id: string }[] };
+  gems: { earned: number; balance: number };
 };
 type Campaign = { id: string; status: string; startsAt: string; endsAt: string; name: Bilingual };
 type Quest = {
@@ -147,7 +148,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     expect(await xpOf(player)).toBe(900);
     expect(answer.levelUp).toMatchObject({ level: 4, title: { en: "Explorer" } });
     expect(answer.levelUp?.items.map((item) => item.id)).toEqual(["level-4"]);
-    expect(await sync(player)).toEqual({ achievements: [], quests: [], levelUp: null });
+    // Gems (T-404): levels 2 to 4 at 20, two bronze tiers at 10 and the two seeded quests at 25.
+    expect(await sync(player)).toEqual({
+      achievements: [],
+      quests: [],
+      levelUp: null,
+      gems: { earned: 0, balance: 130 },
+    });
     const rows = await f.owner(
       `SELECT x.delta, x.ledger_entry_id, x.quest_id, x.reverses, a.quest_id AS award_quest
        FROM xp_entry x JOIN questify_award a ON a.id = x.questify_award_id
@@ -189,6 +196,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       achievements: [],
       quests: [],
       levelUp: null,
+      gems: { earned: 0, balance: 30 },
     });
     expect(await awards(player)).toEqual([quest.id]);
     await retireQuest(quest.id);
@@ -270,6 +278,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
             target: 2,
             progress: 1,
             xp: 75,
+            gems: 0,
             done: false,
           },
         ],
@@ -612,7 +621,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       {
         ...onQuest,
         action: "questify.quest_created",
-        after: { fields: ["metric", "target", "title", "xp", "position", "status", "campaignId"] },
+        after: {
+          fields: ["metric", "target", "title", "xp", "gems", "position", "status", "campaignId"],
+        },
       },
       { ...onQuest, action: "questify.quest_updated", after: { fields: ["title"] } },
       { ...onQuest, action: "questify.quest_retired", after: { status: "retired" } },

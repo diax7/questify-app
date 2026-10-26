@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { itemSchema } from "#src/players/items";
 import { achievementTierSchema } from "#src/questify/achievements";
+import { syncGemsSchema } from "#src/questify/gems";
 
 const bilingual = z.object({ ar: z.string(), en: z.string() });
 
@@ -15,11 +16,15 @@ export const levelUpSchema = z.object({
   items: z.array(itemSchema),
 });
 
-/** What one `POST /v1/me/questify/sync` wrote: the new tiers, the Questify quests paid, the highest level reached. */
+/**
+ * What one `POST /v1/me/questify/sync` wrote: the new tiers, the Questify quests paid, the highest level reached, and
+ * the gems it paid with the balance after (T-404).
+ */
 export const questifySyncSchema = z.object({
   achievements: z.array(z.object({ id: z.string().min(1).max(64), tier: achievementTierSchema })),
   quests: z.array(z.object({ id: z.uuid(), title: bilingual, xp: z.number().int().positive() })),
   levelUp: levelUpSchema.nullable(),
+  gems: syncGemsSchema,
 });
 export type QuestifySync = z.infer<typeof questifySyncSchema>;
 
@@ -31,6 +36,8 @@ export const questifyQuestSchema = z.object({
   target: z.number().int().positive(),
   progress: z.number().int().nonnegative(),
   xp: z.number().int().positive(),
+  /** Gems paid with the XP when the quest is met; 0 pays none (T-404). */
+  gems: z.number().int().nonnegative(),
   done: z.boolean(),
 });
 export type QuestifyQuest = z.infer<typeof questifyQuestSchema>;
@@ -73,6 +80,8 @@ export const questPatchSchema = z.strictObject({
   target: z.number().int().min(1).max(1000),
   title: labels,
   xp: z.number().int().min(1).max(10000),
+  /** 0 to 1000; left out, a new quest pays none and a saved one keeps its value. Fixed once the quest can pay. */
+  gems: z.number().int().min(0).max(1000).optional(),
   position: z.number().int().min(1).max(1000),
   status: z.enum(["draft", "active"]),
 });
@@ -99,6 +108,7 @@ export const adminQuestSchema = z.object({
   target: z.number().int(),
   title: bilingual,
   xp: z.number().int(),
+  gems: z.number().int(),
   position: z.number().int(),
   status: z.enum(["draft", "active", "retired"]),
   createdAt: stamp,

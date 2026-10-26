@@ -787,3 +787,14 @@ characters until new character art is made (FR-726 partial for characters). Agre
 Recommended (ADR-289): the button says "Get" (احصل عليه), not "Buy"; no "add gems" button anywhere; the shop says gems
 are earned by playing and cannot be bought. Agree?
 
+## Q-255 — Small T-404 build choices (2026-10-27, T-404 build)
+Recommended (ADR-290): a gem purchase needs a UUID request key; the console's quest Gems value may be left out (keeps the
+old value) until T-404b adds the field; the locker says when an item came from the gem shop; the profile shows the
+player's own gem count; the twelve seeded item names in ADR-290 (shop frames are called "rings", حلقة, so none looks
+like a level frame). Agree, or change any name or price?
+
+## Q-256 — Accept two rare deploy-time lock clashes in migration 0067? (2026-10-27, T-404 build)
+Recommended (ADR-291): keep the reviewed lock order. If a player's sync or locker read happens at the exact moment the
+migration runs, the database may cancel one of them; the app retries, or the deploy is run again. Nothing is lost.
+A retry loop inside the migration would remove this; worth building before real players?
+

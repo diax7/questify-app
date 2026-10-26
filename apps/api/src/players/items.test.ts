@@ -17,6 +17,7 @@ const levelRow = (n: number) => ({
   source_level: n,
   source_event: null,
   seen: n % 2 === 0,
+  source: "level",
 });
 
 /** Reads the locker from rows the database "returns", keeping the statement's values. */
@@ -129,11 +130,20 @@ describe("readLocker", () => {
   it("keeps entries earned at an event as an event source", async () => {
     const event = { id: EVENT_ID, name: { ar: "مهرجان", en: "Fest" } };
     const { page } = await lockerOf(
-      [{ ...levelRow(3), source_level: 0, source_event: event }],
+      [{ ...levelRow(3), source_level: null, source_event: event, source: "souvenir" }],
       undefined,
       5,
     );
     expect(page.items[0]?.source).toEqual({ kind: "event", event });
+  });
+
+  it("keeps entries got in the gem shop as a shop source (T-404)", async () => {
+    const { page } = await lockerOf(
+      [{ ...levelRow(4), source_level: null, source_event: null, source: "shop" }],
+      undefined,
+      5,
+    );
+    expect(page.items[0]?.source).toEqual({ kind: "shop" });
   });
 
   it("returns no next cursor when the rows fit the page exactly or fall short of it", async () => {

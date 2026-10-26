@@ -39,6 +39,19 @@ const positionSchema = z.strictObject({
   id: z.string().min(1).max(64),
 });
 export type LockerItem = LockerEntry;
+
+/** Where a locker item came from: a level, an event's souvenir or the gem shop (T-404). */
+function sourceOf(
+  row: Readonly<{
+    source: "level" | "souvenir" | "shop";
+    source_level: number;
+    source_event: Extract<LockerEntry["source"], { kind: "event" }>["event"] | null;
+  }>,
+): LockerEntry["source"] {
+  if (row.source === "shop") return { kind: "shop" };
+  if (row.source_event === null) return { kind: "level", level: row.source_level };
+  return { kind: "event", event: row.source_event };
+}
 export async function readLocker(client: PoolClient, cursor: string | undefined, limit: number) {
   let before: z.infer<typeof positionSchema> | undefined;
   if (cursor !== undefined) {
@@ -56,17 +69,15 @@ export async function readLocker(client: PoolClient, cursor: string | undefined,
     source_level: number;
     source_event: Extract<LockerEntry["source"], { kind: "event" }>["event"] | null;
     seen: boolean;
+    source: "level" | "souvenir" | "shop";
   }>(
-    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen FROM own_locker($1,$2,$3)`,
+    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen,source FROM own_locker($1,$2,$3)`,
     [before?.at ?? null, before?.id ?? null, limit + 1],
   );
   const items: LockerItem[] = rows.slice(0, limit).map((row) => ({
     item: row.item,
     earnedAt: row.earned_at,
-    source:
-      row.source_event == null
-        ? { kind: "level", level: row.source_level }
-        : { kind: "event", event: row.source_event },
+    source: sourceOf(row),
     seen: row.seen,
   }));
   const last = items.at(-1);

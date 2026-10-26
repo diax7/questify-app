@@ -868,6 +868,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide catalog with no tenant, no direct API rights; written only by the admin-checked, audited console doors, read by the caller-bound own_questify_quests (questify-quests)",
   questify_award:
     "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
+  gem_entry:
+    "no direct API rights; append-only, written only by questify_sync and gem_buy for the calling player, each row bound to the same player's source row; never shown to anyone else, no organizer read exists (gems)",
+  gem_purchase:
+    "no direct API rights; append-only, written only by gem_buy for the calling player; no organizer read exists (gem-shop)",
+  gem_shop_item:
+    "platform-wide catalog with no tenant, no direct API rights; seeded only, read through the caller-bound gem_shop (gem-shop)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
   player_item:
     "no direct API rights; own_locker/equip/seen caller-bound and forged access tested in profile-items",

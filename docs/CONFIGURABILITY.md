@@ -156,6 +156,17 @@ for an event.
 - **Seeded:** attend 3 events and play in 2 cities, 300 XP each, live from the deploy (ADR-279).
 - **Audit:** every change is in the audit log with the admin, the ids and the names of the fields changed.
 
+## As built (T-404): gems and the gem shop
+
+- **Amounts are data (ADR-286):** `platform_setting` key `gems` `{levelUp, bronze, silver, gold}` sets the gems paid per
+  level reached and per achievement tier; each field counts only when it is a whole number 1–1000, else its default
+  (20, 10, 25, 50). No row exists until T-709 adds the editor and the row's CHECK; a changed amount pays rows earned
+  later. Server-only, never in the public `features`/`tuning`.
+- **Quest gems:** each Questify quest pays 0–1000 gems with its XP (the two seeded quests 25), fixed once the quest can
+  pay. The console field comes with T-404b; until then the console keeps a quest's value.
+- **The shop catalog:** items, prices, order and retirement are seeded by migration until T-709 (FR-1403). Nothing is
+  sold for money; gems are earned only by playing (STORE_COMPLIANCE 1.6).
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |

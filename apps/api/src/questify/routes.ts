@@ -1,13 +1,15 @@
+import { gemPurchaseBodySchema } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
-import { unauthenticated } from "#src/auth/http-errors";
+import { gemKeyInvalid, unauthenticated } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack } from "#src/devices/limits";
+import { buyGemItem, readGemShop } from "#src/questify/gems";
 import {
   readAchievements,
   readCities,
@@ -23,6 +25,16 @@ const eventsQuery = z.strictObject({
 });
 /** At most 20 syncs a minute per player (the app syncs on focus, on foreground and after completions). */
 const SYNC_LIMIT = { bucket: BUCKETS.questifySync, max: 20, windowSeconds: 60 } as const;
+/** At most 10 gem shop purchases a minute per player (a replayed key is answered before this and never counts). */
+const PURCHASE_LIMIT = { bucket: BUCKETS.gemPurchase, max: 10, windowSeconds: 60 } as const;
+const uuidKey = z.uuid();
+
+/** The purchase's Idempotency-Key, which the database keeps with the purchase: a UUID (the app makes one per confirmation). */
+function purchaseKeyOf(request: FastifyRequest): string {
+  const key = uuidKey.safeParse(request.headers["idempotency-key"]);
+  if (!key.success) throw gemKeyInvalid();
+  return key.data;
+}
 
 const own = (request: FastifyRequest) => {
   // Stryker disable next-line all: the player guard has already refused a request without a player
@@ -31,8 +43,8 @@ const own = (request: FastifyRequest) => {
 };
 
 /**
- * Questify-wide player doors (T-403, T-403b): the sync evaluator, achievements, Questify quests, the Event Passport
- * and history, and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
+ * Questify-wide player doors (T-403, T-403b, T-404): the sync evaluator, achievements, Questify quests, the Event
+ * Passport and history, the gem shop and its purchase door, and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
  */
 export function registerQuestifyRoutes(
   app: FastifyInstance,
@@ -68,6 +80,27 @@ export function registerQuestifyRoutes(
       }),
     );
   });
+  app.get("/v1/me/gem-shop", player, async (request, reply) => {
+    reply.header("cache-control", "private, no-store");
+    return as(own(request), readGemShop);
+  });
+  app.post(
+    "/v1/me/gem-shop/purchases",
+    { ...player, config: { ...player.config, idempotent: true } },
+    async (request, reply) => {
+      const id = own(request);
+      reply.header("cache-control", "private, no-store");
+      const requestKey = purchaseKeyOf(request);
+      const body = parse(gemPurchaseBodySchema, request.body);
+      await holdBack(
+        deps.pool,
+        [{ limit: PURCHASE_LIMIT, key: deps.keys.playerKey(id) }],
+        true,
+        reply,
+      );
+      return as(id, (client) => buyGemItem(client, { ...body, requestKey }));
+    },
+  );
   app.get("/v1/cities", { config: { access: "public" } }, async (_request, reply) => {
     reply.header("cache-control", "public, max-age=3600");
     return {

@@ -26,7 +26,12 @@ const catalog: Achievement[] = [
     next: null,
   },
 ];
-const none: QuestifySync = { achievements: [], quests: [], levelUp: null };
+const none: QuestifySync = {
+  achievements: [],
+  quests: [],
+  levelUp: null,
+  gems: { earned: 0, balance: 0 },
+};
 
 describe("syncNotices", () => {
   it("makes no toast for a sync that wrote nothing", () => {

@@ -142,9 +142,11 @@ describe("lockerEntrySchema", () => {
     seen: true,
   };
 
-  it("keeps an entry earned at a level and one earned at an event", () => {
+  it("keeps an entry earned at a level, one earned at an event and one got in the gem shop", () => {
     expect(lockerEntrySchema.parse(level)).toEqual(level);
     expect(lockerEntrySchema.parse(event)).toEqual(event);
+    const shop = { ...level, source: { kind: "shop" } };
+    expect(lockerEntrySchema.parse(shop)).toEqual(shop);
   });
 
   it("refuses a source of another kind or with the wrong fields", () => {

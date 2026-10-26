@@ -79,7 +79,8 @@ Players created before 0017 have no rows and are asked again.
 - **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
   completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403),
-  `questify_award` rows and their XP entries (T-403b) and handed-over redemptions; they name no one.
+  `questify_award` rows and their XP entries (T-403b), `gem_entry` and `gem_purchase` rows (T-404) and handed-over
+  redemptions; they name no one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
   player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
 - `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
@@ -576,6 +577,43 @@ ADR-151):
   one), `questify_window_check`, `questify_audit`, `questify_campaign_json`, `questify_quest_json`.
 - Migration lock order: `xp_entry` ACCESS EXCLUSIVE then `player_xp` SHARE ROW EXCLUSIVE up front, the order a scan
   takes them, under `lock_timeout = 10s`.
+
+### Gems and the gem shop (migration 0067, T-404, ADR-285 to ADR-291)
+- `player_xp.gems bigint NOT NULL DEFAULT 0 CHECK (gems >= 0)`: the balance, a cache of `gem_entry` like `xp`, on the
+  row every sync and purchase already locks FOR UPDATE. Invariant: `gems = sum(gem_entry.delta)` per player.
+- `gem_entry(id bigint identity, player_id → player_xp, delta ≠ 0, source level|achievement|questify|purchase,
+  source_level, achievement_id, tier, questify_award_id, purchase_id, created_at)`: CHECK `gem_entry_shape` (exactly the
+  key of its source; credits `delta > 0`, a purchase `delta < 0`); composite FKs to the same player's row: (player_id,
+  source_level) → `level_reached`, (player_id, achievement_id, tier) → `achievement_earned`, (questify_award_id,
+  player_id) → `questify_award (id, player_id)` (new UNIQUE `questify_award_owner_key`), (purchase_id, player_id) →
+  `gem_purchase (id, player_id)`; UNIQUE (player_id, source_level), (player_id, achievement_id, tier),
+  (questify_award_id), (purchase_id). Append-only for every role (`gem_append_only`, ENABLE ALWAYS). No transfer, gift,
+  adjustment or expiry source; never shown to anyone but its player.
+- `gem_shop_item(item_id pk → item, price 1–100000, status active|retired, position 1–1000, created_at)`: the seeded
+  catalog (six titles at 40–80, six frames at 80–150 on `frame-15`…`frame-20`, ADR-290); T-709 edits it. A retired item
+  stays owned and equippable.
+- `gem_purchase(id bigint identity, player_id → player_xp, item_id → gem_shop_item, price, request_key uuid, created_at)`:
+  UNIQUE (player_id, item_id) (one copy), (player_id, request_key) (the replay), (id, player_id), (player_id, item_id,
+  id); append-only.
+- `player_item` (altered): `source` gains `shop` with `source_purchase_id` (CHECK rewritten: level, souvenir as 0064,
+  shop has only `source_purchase_id`); FK (player_id, item_id, source_purchase_id) → `gem_purchase (player_id, item_id,
+  id)`; `owned_item_guard` freezes the new column too. `item`'s frame key allowlist widens to `frame-01`…`frame-20`.
+- Exclusive sources: `souvenir_catalog_guard` (replaced) refuses an item named by two of `level_item`, `souvenir_rule`,
+  `gem_shop_item`, each write taking the item FOR UPDATE first; an item the shop names is frozen (`GS409
+  shop_item_locked`), as an active souvenir's.
+- Amounts: `gem_amounts()` reads `platform_setting` key `gems` `{levelUp, bronze, silver, gold}`, each field only when an
+  integer 1–1000, else 20/10/25/50 (no row is written by 0067; T-709 adds it with its CHECK). `questify_quest.gems
+  integer 0–1000` (the two seeded quests 25), frozen with metric and target once the quest can pay.
+- Earning: `questify_sync()` (replaced) pays, after the tiers and the Questify quests under the same locks, every
+  `level_reached`, `achievement_earned` and paying `questify_award` row of the caller with no entry yet (retroactive for
+  rows before 0067), then moves the balance once; the unlocked pre-check gains `gems_due(player)`. Nothing is added to
+  the completion transaction. It is the only credit writer; `gem_buy` the only spend writer.
+- Doors: `gem_shop()`, `gem_buy(item, seen_price, request)`, `own_gems()` (player, caller-bound); `own_locker` gains
+  `source`. Internal, no grant: `gems_due`, `gem_amounts`, `gem_amount`, `questify_gems_of`. Kept on the erasure
+  tombstone: `gem_entry`, `gem_purchase` (no personal data); the shop's `player_item` rows are erased with the locker.
+- Migration lock order (plan review MAJOR-1, ADR-291): player EXCLUSIVE, player_xp ACCESS EXCLUSIVE, level_reached and
+  achievement_earned SHARE ROW EXCLUSIVE, questify_quest, questify_award, item, player_item ACCESS EXCLUSIVE, level_item
+  and souvenir_rule SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; `platform_setting` is never touched.
 
 ### rank_prize, event_result, result_place (migration 0034, T-214)
 - `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description

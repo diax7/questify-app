@@ -1038,7 +1038,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-412 | F-123 | Must | pending |
 | FR-413 | F-123 | Must | pending |
 | FR-414 | F-124 | Must | pending |
-| FR-415 | F-124 | Must | pending |
+| FR-415 | F-124 | Must | partial: the gem shop prices in gems only and `gem_buy` never reads or writes XP (`test/db/gem-shop.int`, T-404 server built, core code review pending); the shop screen comes with T-404b |
 | FR-416 | F-57 | Must | `test/db/xp.int`, `test/db/profile-items.int`, app level bar (T-401/T-402 next reward) |
 | FR-417 | F-59 | Should | pending |
 | FR-418 | F-59 | Should | pending |
@@ -1109,9 +1109,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-721 | F-131 | Must | `test/db/profile-items.int`, `test/db/profile-upgrade.int`, app profile-api tests (T-402) |
 | FR-722 | F-130 | Should | `test/db/profile-items.int` ownership/starter/earned character (T-402) |
 | FR-723 | F-134 | Should | pending T-402b (ADR-266) |
-| FR-724 | F-135 | Should | pending |
-| FR-725 | F-135, F-136 | Should | pending |
-| FR-726 | F-136 | Should | pending |
+| FR-724 | F-135 | Should | server built T-404 (`test/db/gems.int`: closed source list, one entry per level, tier and paying Questify award, retroactive, amounts as data, event points, score and XP untouched, only `questify_sync` credits), core code review pending; the gem count on screen comes with T-404b |
+| FR-725 | F-135, F-136 | Should | server built T-404 (no purchase or transfer door, no door names another player, no gem field in the public profile; `test/db/gems.int`), core code review pending; the on-screen Givens are proven by T-404b |
+| FR-726 | F-136 | Should | partial: server built T-404 (`test/db/gem-shop.int`: deducts and adds to the locker, too few gems refused with the balance unchanged, one copy, seen price, replay); frames and titles only, no characters until character art exists (ADR-288); the shop screen comes with T-404b |
 | FR-730 | F-137 | Should | pending |
 | FR-731 | F-137 | Should | pending |
 | FR-732 | F-137 | Should | pending |

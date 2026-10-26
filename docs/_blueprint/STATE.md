@@ -1419,12 +1419,28 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   and `publishBody`, Arabic and English). Only the dialog's confirm button sends the publish call. Browser spec
   `console-questify.spec.ts` covers cancel (no call), confirm (one call) and the English text.
 
+- 2026-10-27 **T-404 built (core, server; core code review pending).** Migration 0067 (undeployed; 0063 to 0066
+  untouched) takes the plan's lock list up front (player, player_xp, level_reached, achievement_earned, questify_quest,
+  questify_award, item, player_item, level_item, souvenir_rule; never platform_setting). Gems: `player_xp.gems` (CHECK ≥ 0),
+  append-only `gem_entry` with four sources bound by composite keys, paid only by `questify_sync` once per level,
+  tier and paying Questify award (retroactive; `gem_amounts()` falls back to 20/10/25/50, no setting row yet; seeded
+  quests 25, quest gems frozen once it can pay). Shop: `gem_shop_item` (six titles 40–80, six "ring" frames 80–150 on
+  `frame-15`…`frame-20`), `gem_purchase`, the locker's `shop` source, exclusive sources with level rewards and
+  souvenirs; `gem_shop()`, `gem_buy()` (seen price, one copy, too few gems, replay by key with the current balance),
+  `own_gems()`. API: `GET /v1/me/gem-shop`, `POST /v1/me/gem-shop/purchases` (UUID Idempotency-Key, 10 a minute), `gems`
+  on `/v1/me`, the sync answer and the quests list; shared `questify/gems.ts`. STORE_COMPLIANCE 1.6 row and review note
+  added. New suites `test/db/gems.int`, `gem-shop.int`, `gems-upgrade.int` (a scan in flight across the migration, the
+  lock list checked against the SQL); security suites extended. Full suite: 400 files passed, 3 skipped; 6359 tests
+  passed. Proposed ADR-290 / Q-255 (build choices), ADR-291 / Q-256 (two rare deploy-time lock clashes accepted).
+  Mutation owed on GitHub (core files only). Progress 80/156 (51.28%).
+
 ## Next
 
-1. **Mutation chase closed** (forced run above, all files ≥ 90). Waiting for Dhia: his OK
-   on the `stryker.config.json` globs, and Q-247 items 2 and 3 (Q-248, the publish confirmation, is built). Next task: **T-404**
-   (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred (T-403c's phone check
-   included). Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
+1. **T-404 core code review** (independent, strongest model), then the GitHub mutation run on T-404's core files; then
+   **T-404b** (standard: gem screens, console Gems field, strings; after the f68ad34 publish-dialog review closes).
+   Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-256. No deployment/EAS/
+   local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
+   replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

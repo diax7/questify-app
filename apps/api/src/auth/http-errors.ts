@@ -225,6 +225,24 @@ export const questifyConflict = make(
   "لا يمكن إجراء هذا التغيير الآن. راجع حالة المهمة أو الموسم.",
   "This change is not possible now. Check the quest or campaign's status.",
 );
+export const gemItemNotFound = make(
+  404,
+  "gem_item_not_found",
+  "هذا العنصر غير متاح في متجر الجواهر.",
+  "This item isn't in the gem shop.",
+);
+export const gemShopConflict = make(
+  409,
+  "gem_shop_conflict",
+  "تعذّر الحصول على هذا العنصر الآن. حدّث المتجر وحاول مرة أخرى.",
+  "You can't get this item right now. Refresh the shop and try again.",
+);
+export const gemKeyInvalid = make(
+  400,
+  "idempotency_key_invalid",
+  "يجب أن يكون مفتاح Idempotency-Key لطلب الجواهر بصيغة UUID.",
+  "A gem shop request needs a UUID Idempotency-Key.",
+);
 export const eventNotDraft = make(
   409,
   "event_not_draft",

@@ -245,11 +245,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         achievements: [{ id: "events-attended", tier: "bronze" }],
         quests: [],
         levelUp: null,
+        gems: { earned: 10, balance: 10 },
       });
       expect((outcome.second as { r: unknown }).r).toEqual({
         achievements: [],
         quests: [],
         levelUp: null,
+        gems: { earned: 0, balance: 10 },
       });
       expect(await f.earned(player)).toEqual(["events-attended:bronze"]);
     });
@@ -348,7 +350,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       ]) {
         await expect(f.owner(sql, [player])).rejects.toThrow(/never be changed/);
       }
-      await expect(f.owner("TRUNCATE achievement_earned")).rejects.toThrow(/never be changed/);
+      // gem_entry points at the earned tiers (T-404), so a plain TRUNCATE is refused by its key; CASCADE meets the triggers.
+      await expect(f.owner("TRUNCATE achievement_earned CASCADE")).rejects.toThrow(
+        /never be changed/,
+      );
       expect(await f.earned(player)).toEqual(["events-attended:bronze"]);
     });
   },

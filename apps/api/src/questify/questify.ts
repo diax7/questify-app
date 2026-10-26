@@ -13,8 +13,8 @@ import { z } from "zod";
 import { invalidRequest, unauthenticated } from "#src/auth/http-errors";
 
 /**
- * Runs the sync evaluator (ADR-274, ADR-278): the tiers earned, the Questify quests paid and the highest level reached
- * by this call; empty on a replay.
+ * Runs the sync evaluator (ADR-274, ADR-278, ADR-286): the tiers earned, the Questify quests paid, the highest level
+ * reached and the gems paid by this call with the balance after; empty (with the balance) on a replay.
  */
 export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
   try {
@@ -22,7 +22,14 @@ export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
       "SELECT questify_sync() AS result",
     );
     // Stryker disable next-line all: questify_sync always answers an object or raises
-    return rows[0]?.result ?? { achievements: [], quests: [], levelUp: null };
+    return (
+      rows[0]?.result ?? {
+        achievements: [],
+        quests: [],
+        levelUp: null,
+        gems: { earned: 0, balance: 0 },
+      }
+    );
   } catch (error) {
     if ((error as { code?: string }).code === "PI401") throw unauthenticated();
     throw error;

@@ -48,6 +48,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); Idempotency-Key; the freeze and the admin checked in questify_quest_save, audited (questify-quests)",
   "POST /v1/admin/questify/quests/:questId/retire":
     "active platform admins only (walked below); Idempotency-Key; the admin checked again, audited; awards stay (questify-quests)",
+  "GET /v1/me/gem-shop":
+    "the calling player's own balance and owned flags through gem_shop; the catalog has no tenant (gem-shop, test/questify)",
+  "POST /v1/me/gem-shop/purchases":
+    "spends only the calling player's gems on one item through gem_buy, bound to the caller and re-checked active; UUID Idempotency-Key; no recipient (gem-shop, test/questify)",
   "GET /v1/cities": "no tenant data: the same seeded city list for everyone",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",

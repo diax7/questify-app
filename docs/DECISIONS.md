@@ -3734,3 +3734,41 @@ nothing sold, no trading. No random grant or mystery item.
 **Why:** Apple 3.1.1 applies to items sold; the wording and the absence of any purchase control keep a reviewer from
 reading the shop as an unpaid in-app purchase; no chance keeps the age rating unchanged.
 **Trade-offs:** "Get" is less familiar than "Buy" for a shop.
+
+## ADR-290 — T-404 build choices: the purchase key, the quest gems field, the locker's shop source, the profile balance
+**Status:** Proposed (worker recommendation, 2026-10-27, T-404 build; Q-255). Extends ADR-286, ADR-287.
+**Decision:** (1) `POST /v1/me/gem-shop/purchases` needs a UUID Idempotency-Key (400 `idempotency_key_invalid`
+otherwise): the database keeps it with the purchase as `gem_purchase.request_key uuid` (the plan's type), and the app
+already makes UUID keys. (2) The console quest body's `gems` is optional: left out, a new quest pays none and a saved
+quest keeps its value, so the console keeps saving quests until T-404b adds the field; a value is checked by
+`questify_gems_of` (`422 invalid_questify {field: gems}`) and frozen with the metric and target once the quest can pay.
+(3) The locker names a shop item's origin: `own_locker` is re-created with a `source` column and the locker answer
+gains `source: {kind: "shop"}` (the app shows no line for it until T-404b's string). (4) `GET /v1/me` reads the balance
+through a new caller-bound `own_gems()` and answers it as a top-level `gems`. (5) A `GS409` refusal carries the reason
+in DETAIL and the caller's balance in HINT, which the API answers as `409 gem_shop_conflict {reason, gems}`. (6) The
+seeded catalog ids and names: titles `shop-map-reader` قارئ الخرائط / Map reader 40, `shop-dune-watcher` راصد الكثبان /
+Dune watcher 50, `shop-oasis-warden` حارس الواحة / Oasis warden 55, `shop-pearl-diver` غوّاص اللؤلؤ / Pearl diver 60,
+`shop-desert-knight` فارس الصحراء / Desert knight 70, `shop-star-navigator` ملّاح النجوم / Star navigator 80; frames
+`shop-dune-ring` حلقة الكثبان / Dune ring 80 (`frame-15`), `shop-compass-ring` حلقة البوصلة / Compass ring 90
+(`frame-16`), `shop-falcon-ring` حلقة الصقر / Falcon ring 110 (`frame-17`), `shop-desert-ring` حلقة الصحراء / Desert ring
+120 (`frame-18`), `shop-pearl-ring` حلقة اللؤلؤ / Pearl ring 135 (`frame-19`), `shop-moon-ring` حلقة القمر / Moon ring 150
+(`frame-20`). Shop frames are "rings" (حلقة) so none reads like a level frame (إطار …).
+**Why:** Each keeps the plan's shapes while letting the console and the app run unchanged until T-404b.
+**Trade-offs:** A purchase key is narrower than the other doors' (any visible ASCII); an optional field means a console
+that forgets it keeps the old value rather than failing.
+
+## ADR-291 — 0067 keeps the plan's lock order; two deploy-time deadlock windows are accepted
+**Status:** Proposed (worker recommendation, 2026-10-27, T-404 build; Q-256). Extends ADR-286 (plan review MAJOR-1).
+**Decision:** 0067 takes the plan's lock list in the plan's order (player, player_xp, level_reached, achievement_earned,
+questify_quest, questify_award, item, player_item, level_item, souvenir_rule). Two live paths cannot fit any single
+order: a sync whose unlocked pre-check read `questify_quest` and `questify_award` and then waits for the player lock,
+while the migration holds the player and wants those two tables (a sync with an achievement tier due locks the player
+first and reads them later, the opposite order); and a locker read that holds `player_item` and then reads `item`. If
+either crosses the deploy at that moment, PostgreSQL aborts one side: the request answers 503 busy and is retried, or the
+migration fails, rolls back whole and is run again. Nothing is half-written. A lock-with-retry loop in the migration
+(locks taken in a subtransaction under a short `lock_timeout`, released and retried) would remove both windows; it is
+not built now.
+**Why:** The order fits every other live path (scans, erasures, the souvenir evaluator, purchases) and the windows need
+a request at the exact deploy moment; CranL has no real players yet.
+**Trade-offs:** A deploy under load can fail once and need a rerun; revisit with the retry loop before real players or
+if a deploy fails this way.

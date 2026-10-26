@@ -107,6 +107,7 @@ const quest = (status: AdminQuest["status"]): AdminQuest => ({
   target: 2,
   title: { ar: "العب في مدينتين", en: "Play in 2 cities" },
   xp: 300,
+  gems: 25,
   position: 2,
   status,
   createdAt: "2026-11-01T00:00:00.000Z",

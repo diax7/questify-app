@@ -478,22 +478,44 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     events, the level-up card is modal for screen readers, Arabic polish on eight lines (the quest limit now says
     drafts count), and the two seeded names set in 0065 in place (Q-247 item 1). Phone checks still owed.
     Progress 79/155 (50.97%).
-- [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
-  - Plan 2026-10-27 (core): `docs/plans/2026-10-27-t-404-gems.md`, CTO plan review 88 with revisions folded (no re-review). Proposes a split into
+- [x] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
+  - Plan 2026-10-27 (core): `docs/plans/2026-10-27-t-404-gems.md`, CTO plan review 88 with revisions folded (no re-review). Split into
     T-404 (core: migration 0067, API, shared) and T-404b (standard: screens, console Gems field, strings), ADR-284 to
-    ADR-289 / Q-249 to Q-254; the T-404b line is added when the plan review accepts it.
+    ADR-289 / Q-249 to Q-254.
+  - Done 2026-10-27 (core, server; core code review pending): migration 0067 (the plan's lock list up front; `gem_entry`
+    append-only with four sources and composite keys, `player_xp.gems` CHECK ≥ 0, `gem_shop_item` with twelve seeded
+    items, `gem_purchase`, the locker's `shop` source, exclusive sources, `gem_amounts()` falling back per field, quest
+    `gems` frozen once a quest can pay); `questify_sync` pays every unpaid level, tier and paying award (retroactive);
+    `gem_shop`, `gem_buy` (seen price, one copy, too few gems, replay by key), `own_gems`; routes `GET /v1/me/gem-shop`,
+    `POST /v1/me/gem-shop/purchases` (UUID Idempotency-Key, 10 a minute), `gems` on `GET /v1/me`, the sync answer and
+    the quests list; shared `questify/gems.ts`. Tests: `test/db/gems.int`, `test/db/gem-shop.int`,
+    `test/db/gems-upgrade.int`, security suites, route and unit tests. Proposed ADR-290, ADR-291 / Q-255, Q-256.
+    Progress 80/156 (51.28%).
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).
   - Done when: Gems cannot be bought or traded and are earned only from Questify activity.
+- [ ] **T-404b** Gems on screen: the gem count on Profile, the gem shop screen with its confirmation sheet, "+N gems" in the sync toasts, gems on the Questify quests list, the console quest form's Gems field, the six shop frame designs (`frame-15` to `frame-20`) and every string — delivers FR 724, 725, 726 (on screen); depends on: T-404
+  - Standard (ADR-284); plan: `docs/plans/2026-10-27-t-404-gems.md` (T-404b section). Starts after the console
+    publish-dialog review of f68ad34 is closed (it edits `ConsoleQuestify.tsx`). Note 2026-10-27 (T-404): the locker's
+    `source: {kind: "shop"}` shows no line yet (`LockerScreen.tsx`); add "From the gem shop" with the strings. The quest
+    body's `gems` is optional until this task sends it (ADR-290). The purchase needs a UUID Idempotency-Key, fresh per
+    confirmation and reused only to retry a lost answer (every answer below 500 replays for its key, a 409 or a 429
+    included, so asking again after either takes a new key).
+  - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
 - [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
+  - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
+    one needs a migration a review sees.
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
 - [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
+  - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
 - [ ] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Note 2026-10-26 (T-403): the player's city reuses the `city` table (migration 0065); "set your interests" adds its metric to `player_metrics` and is counted by the same `questify_sync` evaluator (FR-710).
   - Done when: Promotional messages go only to opted-in players and never between 22:00 and 09:00 Saudi time.
 - [ ] **T-408** Questify home and Explore: events grouped live, upcoming and past, Questify-wide ranking (lifetime and monthly), join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614, 1786; depends on: T-401
   - Note 2026-10-24 (T-401): the lifetime ranking reads `player_xp.xp` (add an index); the monthly one sums `xp_entry.delta` by `created_at` (reversals included). Deleted players (tombstones) keep their rows and must be left out.
+  - Note 2026-10-27 (T-404): the Shop tab (FR-830) opens the gem shop (`GET /v1/me/gem-shop`, T-404b's screen); a
+    player's gems never show in any ranking.
   - Done when: Outside an event the center button scans only join QR codes.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Done when: An organizer sees only counts of their invitations, never player lists.
@@ -632,6 +654,8 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-21 (T-110): player versions live in `playerDocuments()` and reach apps through `/v1/config`; players accept again through `POST /v1/me/acceptances`. Whether routes refuse until then is Q-095.
 - [ ] **T-708** Legal data requests: export and delete a player's data; player data download; no restore after deletion — delivers FR 1778, 1418, 1776; depends on: T-704
   - Note 2026-10-26 (T-403): the export covers `achievement_earned`, the Event Passport and history (`own_events`) and the player's `final_rank` rows; T-403b adds `questify_award`.
+  - Note 2026-10-27 (T-404): the export covers the player's `gem_entry` record and `gem_purchase` rows (both kept on the
+    tombstone) and the shop items in the locker.
   - Done when: A deletion request removes the profile and anonymizes log entries; a deleted account cannot be restored.
   - Note 2026-10-26 (T-402b export integration obligation): export must cover player_item event/rule sources, souvenir_receipt and recipient-linked souvenir_work under an explicit transient-work disclosure/retention policy. Include the owner's earned event provenance; exclude other recipients, unrelated private configuration and internal lease/error metadata. T-402b implements erasure now but adds no export infrastructure; no download assembly currently exists.
   - Note 2026-10-24 (T-217): `erase_player` does the deletion; the admin path needs a definer that issues a deletion token for a player on a verified request (or calls `erase_marks`/`erase_rows` in the same order), audited with the admin as actor.
@@ -639,6 +663,10 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-26 (T-403): console editing of achievement thresholds and names (a change never removes an earned row), and an audited admin revoke of a banned fraudster's tiers (earned rows are append-only today, plan review note).
   - Note 2026-10-25 (T-402): curve/catalog editing must add a distinct shipped reward mapping for every level above 1 atomically; missing mappings abort XP transactions. Used level/item pairs are frozen by grant FKs. Catalog names are bilingual; kinds/IDs immutable; visual keys select shipped renderers only. No catalog write API was introduced in T-402.
   - Note 2026-10-24 (T-401): FR-1403's XP table: edit `platform_setting` key `xp` (`questXp`, CHECKed 1–99999), `xp_level` and `level_title` (admin only, audited). A curve change must recompute `player_xp.level` (`xp_level_of`) in the same transaction as the edit, and refuse to delete a level any player holds (`own_level` joins `xp_level` on it, migration 0039 line 266); `level_reached` rows stay.
+  - Note 2026-10-27 (T-404): FR-1403's gem editing: write `platform_setting` key `gems` (`levelUp`, `bronze`, `silver`,
+    `gold`) with a CHECK of whole numbers 1–1000 added in that migration; the gem shop catalog (`gem_shop_item` prices,
+    order, retirement; new items only through the exclusive-source guard); a quest's Gems stays frozen once it can pay.
+    An admin gem correction needs a new `gem_entry` source in a migration (ADR-285).
   - Done when: An admin can see and end another admin's sessions.
 - [ ] **T-710** Review demo tenant and reviewer login — delivers FR 1406, 1407, 1736; depends on: T-703
   - Note 2026-10-21 (T-115): FR-303's App Review demo QR picker belongs here: offered only in the review demo event, never in any other. The scanner (`apps/app/app/event/[eventId]/scan-quest.tsx`) has no image picker today.

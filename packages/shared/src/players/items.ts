@@ -38,6 +38,8 @@ export const lockerEntrySchema = z.object({
       kind: z.literal("event"),
       event: z.object({ id: z.uuid(), name: z.object({ ar: z.string(), en: z.string() }) }),
     }),
+    /** Got for gems in the Questify gem shop (T-404). */
+    z.object({ kind: z.literal("shop") }),
   ]),
   seen: z.boolean(),
 });
