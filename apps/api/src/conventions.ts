@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
+import { idempotencyKeyInvalid } from "#src/auth/http-errors";
 import { HttpError } from "#src/http-error";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
@@ -91,10 +92,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
       });
     }
     if (!KEY_FORMAT.test(key)) {
-      throw new HttpError(400, "idempotency_key_invalid", {
-        ar: "مفتاح Idempotency-Key غير صالح.",
-        en: "The Idempotency-Key must be 1 to 255 visible characters with no spaces.",
-      });
+      throw idempotencyKeyInvalid();
     }
     const scope = principal(request);
     const result = await options.idempotencyStore.begin(scope, key, bodyHash(request));

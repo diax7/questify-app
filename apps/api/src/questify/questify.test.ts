@@ -65,6 +65,19 @@ describe("syncQuestify", () => {
     expect(seen[0]?.sql).toContain("questify_sync()");
   });
 
+  it.each([
+    ["no row", []],
+    ["a null result", [{ result: null }]],
+  ])(
+    "fails as a server fault on %s, never as an empty sync with a 0 balance",
+    async (_label, rows) => {
+      const { client } = await clientAnswering(() => ({ rows }));
+      const error = await failure(syncQuestify(client));
+      expect(error).not.toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ message: "questify_sync answered no result" });
+    },
+  );
+
   it("answers 401 when the database says the caller is not an active player (PI401)", async () => {
     const { client } = await clientAnswering(() => {
       throw pgError({ code: "PI401" });

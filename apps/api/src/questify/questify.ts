@@ -21,15 +21,11 @@ export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
     const { rows } = await client.query<{ result: QuestifySync }>(
       "SELECT questify_sync() AS result",
     );
-    // Stryker disable next-line all: questify_sync always answers an object or raises
-    return (
-      rows[0]?.result ?? {
-        achievements: [],
-        quests: [],
-        levelUp: null,
-        gems: { earned: 0, balance: 0 },
-      }
-    );
+    const result = rows[0]?.result;
+    // questify_sync always answers one object or raises; a missing one is a server fault, never an empty sync.
+    if (result === undefined || result === null)
+      throw new Error("questify_sync answered no result");
+    return result;
   } catch (error) {
     if ((error as { code?: string }).code === "PI401") throw unauthenticated();
     throw error;

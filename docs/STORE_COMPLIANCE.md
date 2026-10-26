@@ -194,8 +194,8 @@ What App Review needs from Questify:
    achievement tiers, Questify quests) and are spent only on cosmetic frames and titles in the Questify gem shop that
    give no gameplay, points or prize advantage; nothing in the app is sold, so there is no purchase, no "add gems"
    control and no link out; gems cannot be traded, gifted or turned into event points, and another player's gems are
-   never shown; every item has a fixed price chosen by the player (no chance, no mystery item). The demo account gets
-   enough gems for one item.
+   never shown; every item has a fixed price chosen by the player (no chance, no mystery item). The demo account is
+   played to level 3 (at least 40 gems) before submission, so the reviewer can get one item (T-806).
    **Stations and the screen QR (T-309):** station, kiosk and big-screen pages are web pages on organizer hardware, in
    neither store build. The app gains staff-mode screens (Pair a device, Rotating QR, My paired devices) and a scanner
    case for `/s/` codes: no new permission, entitlement or native module, nothing downloaded (the method is data, the

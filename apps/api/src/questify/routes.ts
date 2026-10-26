@@ -2,7 +2,7 @@ import { gemPurchaseBodySchema } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
-import { gemKeyInvalid, unauthenticated } from "#src/auth/http-errors";
+import { idempotencyKeyInvalid, unauthenticated } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
@@ -32,7 +32,7 @@ const uuidKey = z.uuid();
 /** The purchase's Idempotency-Key, which the database keeps with the purchase: a UUID (the app makes one per confirmation). */
 function purchaseKeyOf(request: FastifyRequest): string {
   const key = uuidKey.safeParse(request.headers["idempotency-key"]);
-  if (!key.success) throw gemKeyInvalid();
+  if (!key.success) throw idempotencyKeyInvalid();
   return key.data;
 }
 

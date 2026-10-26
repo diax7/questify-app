@@ -3736,7 +3736,7 @@ reading the shop as an unpaid in-app purchase; no chance keeps the age rating un
 **Trade-offs:** "Get" is less familiar than "Buy" for a shop.
 
 ## ADR-290 — T-404 build choices: the purchase key, the quest gems field, the locker's shop source, the profile balance
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 build; Q-255). Extends ADR-286, ADR-287.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-255). Extends ADR-286, ADR-287.
 **Decision:** (1) `POST /v1/me/gem-shop/purchases` needs a UUID Idempotency-Key (400 `idempotency_key_invalid`
 otherwise): the database keeps it with the purchase as `gem_purchase.request_key uuid` (the plan's type), and the app
 already makes UUID keys. (2) The console quest body's `gems` is optional: left out, a new quest pays none and a saved
@@ -3758,7 +3758,7 @@ Dune watcher 50, `shop-oasis-warden` حارس الواحة / Oasis warden 55, `s
 that forgets it keeps the old value rather than failing.
 
 ## ADR-291 — 0067 keeps the plan's lock order; two deploy-time deadlock windows are accepted
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 build; Q-256). Extends ADR-286 (plan review MAJOR-1).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-256). Extends ADR-286 (plan review MAJOR-1).
 **Decision:** 0067 takes the plan's lock list in the plan's order (player, player_xp, level_reached, achievement_earned,
 questify_quest, questify_award, item, player_item, level_item, souvenir_rule). Two live paths cannot fit any single
 order: a sync whose unlocked pre-check read `questify_quest` and `questify_award` and then waits for the player lock,
@@ -3770,5 +3770,5 @@ migration fails, rolls back whole and is run again. Nothing is half-written. A l
 not built now.
 **Why:** The order fits every other live path (scans, erasures, the souvenir evaluator, purchases) and the windows need
 a request at the exact deploy moment; CranL has no real players yet.
-**Trade-offs:** A deploy under load can fail once and need a rerun; revisit with the retry loop before real players or
-if a deploy fails this way.
+**Trade-offs:** A deploy under load can fail once and need a rerun; the retry in the migration runner (T-022, before
+real players) removes the rerun.

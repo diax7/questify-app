@@ -237,11 +237,12 @@ export const gemShopConflict = make(
   "تعذّر الحصول على هذا العنصر الآن. حدّث المتجر وحاول مرة أخرى.",
   "You can't get this item right now. Refresh the shop and try again.",
 );
-export const gemKeyInvalid = make(
+/** One answer for a malformed key: the conventions' format check and a door that needs a UUID key (the gem shop). */
+export const idempotencyKeyInvalid = make(
   400,
   "idempotency_key_invalid",
-  "يجب أن يكون مفتاح Idempotency-Key لطلب الجواهر بصيغة UUID.",
-  "A gem shop request needs a UUID Idempotency-Key.",
+  "مفتاح Idempotency-Key غير صالح.",
+  "The Idempotency-Key is not valid for this action.",
 );
 export const eventNotDraft = make(
   409,

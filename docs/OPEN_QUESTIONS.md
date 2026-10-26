@@ -792,9 +792,12 @@ Recommended (ADR-290): a gem purchase needs a UUID request key; the console's qu
 old value) until T-404b adds the field; the locker says when an item came from the gem shop; the profile shows the
 player's own gem count; the twelve seeded item names in ADR-290 (shop frames are called "rings", حلقة, so none looks
 like a level frame). Agree, or change any name or price?
+**Answered (developer, delegated by Dhia, 2026-10-27):** agreed as recommended (ADR-290 Accepted, CTO code review GO 93).
 
 ## Q-256 — Accept two rare deploy-time lock clashes in migration 0067? (2026-10-27, T-404 build)
 Recommended (ADR-291): keep the reviewed lock order. If a player's sync or locker read happens at the exact moment the
 migration runs, the database may cancel one of them; the app retries, or the deploy is run again. Nothing is lost.
 A retry loop inside the migration would remove this; worth building before real players?
+**Answered (developer, delegated by Dhia, 2026-10-27):** accept the windows now (ADR-291 Accepted); the migration runner
+retries a migration on 40P01 or 55P03 up to 3 times before the first real player (T-022).
 

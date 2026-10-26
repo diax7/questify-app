@@ -77,6 +77,8 @@ _A working skeleton: repository, pipeline, Saudi staging environment, tenant-saf
 - [x] **T-020** Staff password reset and password change: reset by email link, breached-password check (k-anonymity range API, `Add-Padding`, 3 s timeout, listed in the data map) on every set, revoke the user's sessions on a reset (all) or a change (all others; ASVS 5.0 V7.4.3) — delivers FR 1725 (recovery); depends on: T-006
   - Done when: A staff user who forgot the password can set a new one through an emailed link that works once; all their sessions end; a password found in the breach list is refused; a locked-out admin has a documented way back.
   - Done 2026-10-20 (CTO cycle: plan 84 → 94, code 88 → see STATE): `POST /v1/staff/auth/reset/request|confirm`, `POST /v1/staff/password`, migration 0007, web pages forgot-password, reset-password, account. Wording changed from "revoke all of the user's sessions on a change": a change keeps the session it was made from and ends every other one (ASVS 5.0 V7.4.3; the person just proved the current password in a session that passed the email code). Breach check fails closed. Way back for a locked-out admin: RUNBOOK "A locked-out admin".
+- [ ] **T-022** (before the first real player; ADR-291) Migration retry on a lock clash: in `apps/api/src/db/migrate.ts`, when a migration's transaction fails with 40P01 (deadlock) or 55P03 (lock timeout), roll it back and run the whole migration transaction again, up to 3 times with jittered backoff, then fail — delivers no FR (infrastructure or quality gate); depends on: T-002
+  - Done when: A test that forces a deadlock against a migration in flight sees the migration retried and applied once, and a fourth clash fails the run with the SQLSTATE in the log.
 
 ## Phase 1 — Core loop
 
@@ -490,7 +492,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `POST /v1/me/gem-shop/purchases` (UUID Idempotency-Key, 10 a minute), `gems` on `GET /v1/me`, the sync answer and
     the quests list; shared `questify/gems.ts`. Tests: `test/db/gems.int`, `test/db/gem-shop.int`,
     `test/db/gems-upgrade.int`, security suites, route and unit tests. Proposed ADR-290, ADR-291 / Q-255, Q-256.
-    Progress 80/156 (51.28%).
+    Progress 80/157 (50.96%; T-022 added from the code review).
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).
   - Done when: Gems cannot be bought or traded and are earned only from Questify activity.
@@ -696,6 +698,8 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-805** Restore rehearsal and second-region recovery drill — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore to a point 5 minutes earlier completes within an hour.
 - [ ] **T-806** Store submission: privacy labels, age rating, data-safety form, screenshots, review notes, the review demo event — delivers no FR (infrastructure or quality gate); depends on: T-710
+  - Note 2026-10-27 (T-404, CTO code review): before submission, play the demo account to level 3 (at least 40 gems)
+    so the reviewer can get one gem shop item (STORE_COMPLIANCE 1.3 review note).
   - Done when: Both stores accept the submission for review.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A written answer exists for each batched question or it stays listed in OPEN_QUESTIONS.

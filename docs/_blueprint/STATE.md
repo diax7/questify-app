@@ -1433,6 +1433,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   lock list checked against the SQL); security suites extended. Full suite: 400 files passed, 3 skipped; 6359 tests
   passed. Proposed ADR-290 / Q-255 (build choices), ADR-291 / Q-256 (two rare deploy-time lock clashes accepted).
   Mutation owed on GitHub (core files only). Progress 80/156 (51.28%).
+  Core code review GO 93 (independent, no re-review); folded in: the STORE_COMPLIANCE demo-account line (played to
+  level 3 before submission, T-806 note), T-022 added (migration retry on 40P01/55P03, before real players; ADR-291),
+  the sync's missing-row fallback now throws, one shared `idempotency_key_invalid` error. ADR-290/291 Accepted,
+  Q-255/256 answered. Progress 80/157 (50.96%).
 
 ## Next
 
