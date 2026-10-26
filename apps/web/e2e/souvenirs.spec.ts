@@ -8,7 +8,16 @@ test("creates and edits bilingual souvenirs, reviews each audience, activates an
   await openBuilder(page, info.project.name);
   const event = page.url().replace(/\/quests$/, "");
   await page.goto(event);
-  await page.getByRole("link", { name: "تذكارات الفعالية" }).click();
+  const apiPath = `${new URL(event).pathname.replace(/^\/ar\//, "/v1/")}/souvenirs`;
+  const [loaded] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === apiPath && response.request().method() === "GET",
+      { timeout: 10_000 },
+    ),
+    page.getByRole("link", { name: "تذكارات الفعالية" }).click(),
+  ]);
+  expect(loaded.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "تذكارات الفعالية" })).toBeVisible();
   await page.getByRole("button", { name: "أضف تذكارًا" }).click();
   await page.getByLabel("الاسم بالعربية").fill("تذكار نجد");
@@ -25,7 +34,7 @@ test("creates and edits bilingual souvenirs, reviews each audience, activates an
   await expect(page.getByText(/عند التفعيل، يثبت المطلوب/)).toHaveCount(0);
   await page.getByRole("button", { name: "احفظ المسودة" }).click();
   const card = page.getByRole("article").filter({ hasText: "تذكار نجد" });
-  await expect(card.getByText("مسودة", { exact: false })).toBeVisible();
+  await expect(card.getByText(/^مسودة ·/)).toBeVisible();
   await card.getByRole("button", { name: "عدّل المسودة" }).click();
   await page.getByLabel("الاسم بالعربية").fill("تذكار الرحلة");
   await page.getByRole("button", { name: "احفظ المسودة" }).click();

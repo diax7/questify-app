@@ -41,7 +41,7 @@ function useCategories(api: string, language: Language) {
 /** Discards earlier-scope reads and older polls; writes keep their retry key after a failed request. */
 export function useSouvenirs({ language, organizerId, eventId }: SouvenirProps) {
   const t = useTranslator(language);
-  const api = `/api/v1/organizers/${organizerId}/events/${eventId}`;
+  const api = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [list, setList] = useState<SouvenirList | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);

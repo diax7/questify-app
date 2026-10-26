@@ -1075,6 +1075,50 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   and run the required final full again. Logs/reports of both failed
   full runs are preserved. Lint/format/types19666 PASS before this lifecycle-only refinement; recheck affected file.
 
+- 2026-10-26 **Test-fix checkpoint4c1ac36 saved clean; final full exec90390 active:**
+  `Temp/questify-t402b-verified-vitest.{json,log}`. Focused upgrade3 passed/14.54s; affected lint/API types and
+  redacted staged secrets PASS. Production remains b0944d3's frozen source, current builds/native exports valid.
+  Browser142 follows the completed full run; no local mutation/push/deploy/EAS. Keep T-402b unchecked75/153.
+
+- 2026-10-26 **Final DB/Redis suite GREEN at4c1ac36:** exec90390 exit0,366 files/5789 tests passed,
+  3 optional timing skips,0 failures in288.94s. Report/log `Temp/questify-t402b-verified-vitest.{json,log}`.
+  Full browser142 now exec1127, report/log `Temp/questify-t402b-browser-final.{json,log}`, against the current fresh
+  production web build3002 plus freshly bundled test API. First launch failed before tests because PowerShell
+  split an unquoted reporter comma; corrected argument, no application change, diagnostic retained separately in
+  `Temp/questify-t402b-browser-startup.log`. Full Vitest slot released. No production source change this resume;
+  full/native/static/benchmark evidence remains current. Browser completion, final docs/staged secrets/local commit
+  and fresh independent core review remain. Keep T-402b unchecked75/153; root owns later reviewed config integration.
+
+- 2026-10-26 **Browser found real souvenir page forwarder bug; full1127 continues, not green:**
+  Desktop case64 timed out waiting for Add because useSouvenirs used /api/v1 instead of the existing /v1 forwarder.
+  Its trace proves307 to /ar/api/v1 then404; page showed the intended load-error state. Diagnostics preserved in
+  `apps/web/.e2e/results/souvenirs-creates-and-edit-06250-d-stops-a-permanent-promise-desktop/trace.zip` and
+  error-context.md. Corrected only the new hook's prefix in source; running browser still serves the OLD build,
+  so do not interpret later pass/fail as verification of that edit. Let FULL142 complete without cancellation.
+  Next: make the existing real-forwarder browser regression assert its actual GET response, fresh web build,
+  focused souvenir desktop/phone, checkpoint the verified repair, final full frozen-source Vitest and FULL browser.
+  No API/SQL/native/shared/copy change; iOS/Android/20k evidence remains valid.5789-pass suite90390 is prior to this
+  web fix; its required final rerun is owed. Parent has enough quota; do not rush or mark T-402b done.
+
+- 2026-10-26 **First FULL142 browser completed with139 passed/1 intentional skip/2 failed (10.3min):**
+  Both souvenir desktop/phone cases reproduce the same /api/v1 forwarder bug. Full report/log preserved at
+  `Temp/questify-t402b-browser-final.{json,log}`; original default .e2e/results traces retained. Source repair is
+  one prefix in use-souvenirs.ts (/v1), and the existing real-API browser flow now explicitly awaits its exact
+  forwarded GET200 before interacting. No mocking or proxy allowlist workaround. Fresh web build exec64981/log
+  `Temp/questify-t402b-web-forwarder-build.log` active. Next focused desktop/phone souvenir browser using a separate
+  output directory, checkpoint repair, final static/type checks, required final Vitest and FULL142 browser reruns.
+  No native/API/SQL/shared/copy change; their exports/benchmark remain current. Task still unchecked75/153.
+
+- 2026-10-26 **Souvenir forwarder repair focused-GREEN:** fresh web build64981 PASS, workspace lint/format
+  and all four types PASS. The real forwarder browser assertion now observes /v1/.../souvenirs GET200. First
+  focused34704 then exposed only an ambiguous draft-status selector matching Edit/Delete button text; changed to
+  anchored status text, preserving the production UI. Focused86804 PASS desktop+phone2/2 in18.4s, including all four
+  audience helpers, create/edit, activation permanence/current membership, stop and360px RTL overflow assertion.
+  Logs/reports `Temp/questify-t402b-browser-focused-rerun.{log,json}`; earlier failed focused report/traces preserved
+  under `Temp/questify-t402b-browser-focused` and `Temp/questify-t402b-focused-browser-results`. Production repair
+  remains just the new hook's /v1 prefix. Save repair checkpoint before final full Vitest and FULL142 browser;
+  native/API/SQL/shared/copy/20k evidence unaffected. Final task/core review still pending,75/153 unchecked.
+
 ## Next
 
 1. **Current queue (2026-10-25, supersedes historical queues):** resume this same T-402b implementation from the
