@@ -1,7 +1,7 @@
 "use client";
 
 import type { Language } from "@questify/shared";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
@@ -18,9 +18,35 @@ type Props = Readonly<{
   confirm: (note: string) => void;
 }>;
 
+/** Makes the dialog's siblings inert while it is mounted and returns focus to the element that opened it. */
+function useModalAround<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    const opener = document.activeElement;
+    const made: Element[] = [];
+    for (const sibling of Array.from(dialog?.parentElement?.children ?? [])) {
+      if (sibling !== dialog && !sibling.hasAttribute("inert")) {
+        sibling.setAttribute("inert", "");
+        made.push(sibling);
+      }
+    }
+    return () => {
+      for (const sibling of made) {
+        sibling.removeAttribute("inert");
+      }
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus();
+      }
+    };
+  }, []);
+  return ref;
+}
+
 /**
  * A confirmation sheet for one team action: what happens, an optional note, Cancel and the action. Escape cancels;
- * the heading takes focus when it opens. The caller makes the panel behind it inert.
+ * the heading takes focus when it opens. While it is open everything beside it is inert, and focus goes back to the
+ * button that opened it when it closes.
  */
 export function ConfirmDialog({
   language,
@@ -33,10 +59,12 @@ export function ConfirmDialog({
   confirm,
 }: Props) {
   const t = translatorFor(language);
+  const dialog = useModalAround<HTMLDivElement>();
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const [note, setNote] = useState("");
   return (
     <div
+      ref={dialog}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="confirm-title"

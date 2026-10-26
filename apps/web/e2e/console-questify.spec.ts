@@ -133,6 +133,45 @@ test("in English the publish dialog says it cannot be undone and starts paying X
   await expect(page.getByRole("alertdialog")).toContainText(
     "Publishing can't be undone. From then on the campaign starts paying XP to players.",
   );
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("Escape closes the publish dialog, sends nothing, and the page is inert while it is open", async ({
+  page,
+}, info) => {
+  await openBuilder(page, info.project.name);
+  const eventId = page.url().split("/").at(-2) ?? "";
+  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
+    204,
+  );
+  await page.goto("/en/console/questify");
+  await page.getByRole("button", { name: "New campaign" }).click();
+  await page.getByLabel("Campaign name in Arabic", { exact: true }).fill("موسم الصيف");
+  await page
+    .getByLabel("Campaign name in English", { exact: true })
+    .fill(`Summer ${info.project.name}`);
+  await page.getByLabel("Starts (Saudi time)", { exact: true }).fill(inDays(1));
+  await page.getByLabel("Ends (Saudi time)", { exact: true }).fill(inDays(30));
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const campaign = page
+    .getByTestId("questify-campaign")
+    .filter({ hasText: `Summer ${info.project.name}` });
+  const publishCalls: string[] = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "POST" && sent.url().endsWith("/publish")) {
+      publishCalls.push(sent.url());
+    }
+  });
+  const publish = campaign.getByRole("button", { name: "Publish campaign" });
+  await publish.click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(campaign.locator("xpath=ancestor::ul")).toHaveJSProperty("inert", true);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(publish).toBeFocused();
+  await expect(campaign.locator("xpath=ancestor::ul")).toHaveJSProperty("inert", false);
+  expect(publishCalls).toHaveLength(0);
 });
 
 test("an organizer who is not a Questify admin does not find the page", async ({ page }, info) => {
