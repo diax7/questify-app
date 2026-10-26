@@ -1271,15 +1271,25 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   T-402b stays unchecked, 75/153 (49.02%). No push, deploy, EAS or mutation. Follow-up: category/quest deletion that a
   souvenir names still answers 500.
 
+- 2026-10-26 **T-402b DONE: repair re-review GO 93; three fold-ins committed.** The third code review (8f32f05..81d5054
+  plus the coordinator's Arabic fix 6a53ef2) returned GO 93 with zero BLOCKER/MAJOR. It was run by the in-house CTO
+  reviewer (Claude Opus): **the recorded GPT-6.1 Sol review policy (ADR-265) could not be used from the Claude Code
+  session; Dhia should know the gate ran on another model.** Independent Arabic review of the event-delete string 72,
+  fixed in 6a53ef2. Fold-ins 6d7dd9c/597c009: 409 `souvenir_in_use` (three new bilingual strings in http-errors.ts, awaiting Arabic review) for
+  deleting a category a souvenir rule names or a quest an activated souvenir froze (was 500); the every-quest-only
+  completion/ack lock test; enqueue triggers renamed `enqueue_souvenir_on_*` so they fire before `mark_ranking_on_*`
+  (removes a rare 40P01 with a rejoin) plus a trigger-order assertion. Focused 983 passed; full DB/Redis 5824 passed / 3 optional skips / 0 failed;
+  lint/format/types PASS; no web code changed. No new ADR/Q (ADR-272, Q-236, Q-237 stay Proposed). Progress
+  **76/153 (49.67%)**. No push, deploy, EAS or mutation by the worker; 0063/0064 remain undeployed (CranL at 0056).
+
 ## Next
 
-1. **T-402b gate (2026-10-26):** the independent re-review returned 87 NO-GO; its MAJOR and minors are repaired in
-   81d5054 with green focused and full suites. Next: a fresh independent reviewer (not the author or earlier
-   reviewers) checks the repair delta 8f32f05..81d5054 against the 87 findings; require >=90 with zero unresolved
-   BLOCKER/MAJOR before ticking T-402b; keep 75/153 until then. Root owns reviewed push/CI and the T-402/T-402b GitHub
-   mutation batch (actual changed core files only). T-312/T-313 targets already meet 90, no chase. T-403 gets a fresh
-   worker only after this core gate. No deployment/EAS/local Stryker; phone/CranL obligations remain deferred.
-   Follow-ups: Q-237 central replay fix; category/quest deletion naming a souvenir answers 500.
+1. **After T-402b (2026-10-26):** the coordinator pushes the reviewed main (check `git log origin/main..main` first),
+   waits for green CI, then dispatches the T-402/T-402b GitHub mutation batch (actual changed core files only, one run
+   at a time; chase only files under 90). T-312/T-313 targets already meet 90, no chase. Then **T-403** is next, built
+   by a fresh worker. No deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-ups: Q-237
+   central replay-before-scope fix for other idempotent organizer routes; the new souvenir_in_use Arabic strings'
+   review; flag the Sol-policy deviation to Dhia.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

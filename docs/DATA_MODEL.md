@@ -464,7 +464,8 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
   before receipts, member work last (after the staff_assignment delete that can enqueue), preserving ticket/other
   erasure steps. No rehearsal lifetime grants or work. Public cosmetic names refuse control and bidi characters in SQL.
   souvenir_rule's event/category references and souvenir_target's quest reference do not cascade: deleting a draft event
-  a rule names answers 409 souvenir_data.
+  a rule names answers 409 souvenir_data; a category a rule names or a quest frozen as a target answers 409
+  souvenir_in_use. The enqueue triggers are named `enqueue_souvenir_on_*` so they fire before `mark_ranking_on_*`.
 - Only own locker joins source event names. T-708 must integrate earned provenance into future authorized exports and
   decide transient-work disclosure/retention; no export assembly is built here. T-507 later attaches sponsor metadata.
 
