@@ -132,6 +132,24 @@ describe("the sync scheduler", () => {
     expect(h.run).toHaveBeenCalledTimes(1);
   });
 
+  it("treats a rejected call as done, so the next trigger still syncs", async () => {
+    const run = vi
+      .fn<() => Promise<RunOutcome>>()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValue({ kind: "done" });
+    const scheduler = createSyncScheduler({
+      run,
+      now: () => 1_000_000,
+      setTimer: () => 0,
+      clearTimer: () => undefined,
+    });
+    scheduler.focus();
+    await Promise.resolve();
+    await Promise.resolve();
+    scheduler.focus();
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
   it("drops a waiting completion and every later trigger once stopped", () => {
     const h = harness();
     h.scheduler.completion();

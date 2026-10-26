@@ -529,6 +529,48 @@ function Lists({
   );
 }
 
+type PageWrite = ReturnType<typeof usePage>["write"];
+
+/** The confirmation before a campaign or quest is retired for good. */
+function RetireDialog({
+  language,
+  retiring,
+  busy,
+  write,
+  close,
+}: Readonly<{
+  language: Language;
+  retiring: Retiring;
+  busy: boolean;
+  write: PageWrite;
+  close: () => void;
+}>) {
+  const t = translatorFor(language);
+  const campaign = retiring.kind === "campaign";
+  const retire = async () => {
+    await write({
+      method: "POST",
+      path: `/${campaign ? "campaigns" : "quests"}/${retiring.id}/retire`,
+      done: t(campaign ? "console.questify.retiredCampaign" : "console.questify.retiredQuest"),
+    });
+    close();
+  };
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t("console.questify.retireTitle")}
+      body={t("console.questify.retireBody")}
+      confirmLabel={t(
+        campaign ? "console.questify.retireCampaign" : "console.questify.retireQuest",
+      )}
+      noteLabel={null}
+      busy={busy}
+      cancel={close}
+      confirm={() => void retire()}
+    />
+  );
+}
+
 /**
  * The console's Questify quests (T-403c, FR-710, FR-711): always-on quests and seasonal campaigns, each created, edited,
  * published or retired here (never deleted: what players earned stays). Times are entered in Saudi time. Every write
@@ -553,19 +595,6 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
     if (await page.write(call.write)) {
       setEditing(null);
     }
-  };
-
-  const retire = async () => {
-    if (retiring === null) {
-      return;
-    }
-    const campaign = retiring.kind === "campaign";
-    await page.write({
-      method: "POST",
-      path: `/${campaign ? "campaigns" : "quests"}/${retiring.id}/retire`,
-      done: t(campaign ? "console.questify.retiredCampaign" : "console.questify.retiredQuest"),
-    });
-    setRetiring(null);
   };
 
   const questForm = (campaignId: string | null, quest?: AdminQuest) =>
@@ -608,19 +637,12 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
         </p>
       )}
       {retiring === null ? null : (
-        <ConfirmDialog
+        <RetireDialog
           language={language}
-          title={t("console.questify.retireTitle")}
-          body={t("console.questify.retireBody")}
-          confirmLabel={t(
-            retiring.kind === "campaign"
-              ? "console.questify.retireCampaign"
-              : "console.questify.retireQuest",
-          )}
-          noteLabel={null}
+          retiring={retiring}
           busy={page.busy}
-          cancel={() => setRetiring(null)}
-          confirm={() => void retire()}
+          write={page.write}
+          close={() => setRetiring(null)}
         />
       )}
       {editing === null ? null : (

@@ -56,7 +56,7 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await expect(campaign.getByText("مسودة", { exact: true }).first()).toBeVisible();
   await campaign.getByRole("button", { name: "انشر الموسم" }).click();
   await expect(
-    page.getByText("وقت البداية فات. اختر وقتًا مستقبليًا ثم انشر.", { exact: true }),
+    page.getByText("مضى وقت البداية. اختر وقتًا مستقبليًا ثم انشر.", { exact: true }),
   ).toBeVisible();
 
   await campaign.getByRole("button", { name: "عدّل الموسم" }).click();
@@ -75,7 +75,7 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("0");
   await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("50");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
-  await expect(page.getByText("الهدف رقم صحيح من 1 إلى 1000.", { exact: true })).toBeVisible();
+  await expect(page.getByText("الهدف عدد صحيح من 1 إلى 1000.", { exact: true })).toBeVisible();
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("4");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();

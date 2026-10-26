@@ -114,6 +114,7 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "console.questify.title": "Questify's own quests on the console, not an event's word",
   "console.questify.alwaysOn": "Questify's own quests on the console, not an event's word",
   "console.questify.retiredQuest": "Questify's own quests on the console, not an event's word",
+  "console.questify.retireBody": "Questify's own quests on the console, not an event's word",
   "console.questify.conflict.started": "Questify's own quests on the console, not an event's word",
   "console.questify.conflict.frozen": "Questify's own quests on the console, not an event's word",
   "console.questify.conflict.tooMany": "Questify's own quests on the console, not an event's word",

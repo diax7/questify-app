@@ -1,6 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "#src/api/app-session.ts";
+import { appendPage, createSingleFlight } from "#src/questify/event-pages.ts";
 import { fetchEventPage } from "#src/questify/questify-api.ts";
 import type { OwnEvent } from "@questify/shared";
 
@@ -66,18 +67,19 @@ export function useEventPages(played: boolean, reloadOn: readonly unknown[]): Ev
     setCursor(undefined);
     setFailedMore(false);
   }, [first.data]);
+  const [flight] = useState(createSingleFlight);
   const next = cursor === undefined ? (first.data?.nextCursor ?? null) : cursor;
   const more =
     next === null
       ? null
-      : () => {
-          void fetchEventPage(api.session, { played, cursor: next }).then((page) => {
+      : () =>
+          void flight(async () => {
+            const page = await fetchEventPage(api.session, { played, cursor: next });
             setFailedMore(page === null);
             if (page === null) return;
-            setExtra((current) => [...current, ...page.events]);
+            setExtra((current) => appendPage(current, page.events));
             setCursor(page.nextCursor);
           });
-        };
   return {
     rows: first.data === null ? null : [...first.data.events, ...extra],
     failed: first.failed || failedMore,

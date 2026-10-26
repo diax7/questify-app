@@ -219,8 +219,8 @@ INSERT INTO achievement (id, metric, bronze, silver, gold, name_ar, name_en, vis
  ('events-attended', 'events', 1, 5, 15, 'رحّالة', 'Wanderer', 'ach-first-steps', 1),
  ('quests-done', 'quests', 10, 50, 200, 'صائد المهام', 'Quest Hunter', 'ach-collector', 2),
  ('cities-played', 'cities', 2, 4, 8, 'جوّاب المدن', 'City Roamer', 'ach-swift', 3),
- ('top-ten', 'top10', 1, 3, 10, 'نخبة العشرة', 'Top Ten', 'ach-summit', 4),
- ('community-goals', 'goals', 1, 5, 15, 'يدٌ واحدة', 'Teamwork', 'ach-social', 5);
+ ('top-ten', 'top10', 1, 3, 10, 'العشرة الأوائل', 'Top Ten', 'ach-summit', 4),
+ ('community-goals', 'goals', 1, 5, 15, 'يد واحدة', 'Teamwork', 'ach-social', 5);
 
 -- Each tier a player earned, once. Points at player_xp (as the XP rows), so its key checks never wait on
 -- erase_player's player lock. Append-only for every role; kept on the tombstone (no personal data).

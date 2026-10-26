@@ -11,7 +11,7 @@ export type RunOutcome =
   | Readonly<{ kind: "limited"; retryAfterSeconds: number | null }>;
 
 export type SchedulerDeps = Readonly<{
-  /** Makes one sync call; it must resolve whatever the network does (a failure is `done`: the next trigger retries). */
+  /** Makes one sync call. A rejection counts as `done`: the next trigger retries. */
   run: () => Promise<RunOutcome>;
   now: () => number;
   setTimer: (work: () => void, ms: number) => unknown;
@@ -49,7 +49,12 @@ export function createSyncScheduler(deps: SchedulerDeps): SyncScheduler {
     }
     running = true;
     lastStart = deps.now();
-    const outcome = await deps.run();
+    let outcome: RunOutcome;
+    try {
+      outcome = await deps.run();
+    } catch {
+      outcome = { kind: "done" };
+    }
     running = false;
     if (outcome.kind === "limited") {
       const wait =

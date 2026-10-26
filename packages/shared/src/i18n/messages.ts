@@ -4695,7 +4695,7 @@ export const MESSAGES = {
   "events.field.city": { ar: "المدينة", en: "City" },
   "events.city.none": { ar: "بلا مدينة", en: "No city" },
   "events.city.hint": {
-    ar: "تُحتسب في إنجازات المدن لدى Questify. يمكنك تغييرها حتى تبدأ الفعالية.",
+    ar: "تُحتسب في إنجازات المدن ضمن Questify. يمكنك تغييرها حتى تبدأ الفعالية.",
     en: "Counts toward Questify's city achievements. You can change it until the event starts.",
   },
   "events.city.locked": {
@@ -4753,19 +4753,19 @@ export const MESSAGES = {
   "console.questify.retireQuest": { ar: "أوقف المهمة", en: "Retire quest" },
   "console.questify.retireTitle": { ar: "إيقاف نهائي؟", en: "Retire for good?" },
   "console.questify.retireBody": {
-    ar: "يختفي من التطبيق ولا يعود. ما حصل عليه اللاعبون يبقى لهم.",
-    en: "It disappears from the app and can't come back. What players already earned stays theirs.",
+    ar: "يختفي الموسم أو المهمة من التطبيق ولا يعودان. ما كسبه اللاعبون يبقى لهم.",
+    en: "The campaign or quest disappears from the app and can't come back. What players already earned stays theirs.",
   },
   "console.questify.saved": { ar: "حُفظت التغييرات.", en: "Changes saved." },
   "console.questify.published": { ar: "نُشر الموسم.", en: "Campaign published." },
   "console.questify.retiredCampaign": { ar: "أُوقف الموسم.", en: "Campaign retired." },
   "console.questify.retiredQuest": { ar: "أُوقفت المهمة.", en: "Quest retired." },
   "console.questify.conflict.retired": {
-    ar: "متوقف نهائيًا ولا يمكن تعديله.",
+    ar: "لا يمكن تعديل ما أُوقف نهائيًا.",
     en: "It is retired and can't be changed.",
   },
   "console.questify.conflict.startPassed": {
-    ar: "وقت البداية فات. اختر وقتًا مستقبليًا ثم انشر.",
+    ar: "مضى وقت البداية. اختر وقتًا مستقبليًا ثم انشر.",
     en: "The start time has passed. Choose a future start, then publish.",
   },
   "console.questify.conflict.started": {
@@ -4781,19 +4781,19 @@ export const MESSAGES = {
     en: "The campaign has ended and its dates can't change.",
   },
   "console.questify.conflict.frozen": {
-    ar: "المهمة تدفع الخبرة الآن: لا يتغير ما تحسبه ولا هدفها، ولا تعود مسودة.",
+    ar: "المهمة تمنح الخبرة الآن: لا يتغير ما تحسبه ولا هدفها، ولا تعود مسودة.",
     en: "This quest can already pay XP: what it counts and its target can't change, and it can't go back to a draft.",
   },
   "console.questify.conflict.tooMany": {
-    ar: "بلغت الحد الأقصى: 20 مهمة لكل موسم و50 مهمة دائمة نشطة.",
-    en: "Limit reached: 20 quests per campaign and 50 active always-on quests.",
+    ar: "بلغت الحد الأقصى: 20 مهمة لكل موسم و50 مهمة دائمة، دون احتساب المتوقفة.",
+    en: "Limit reached: 20 quests per campaign and 50 always-on quests, not counting retired ones.",
   },
   "console.questify.conflict.campaignClosed": {
     ar: "الموسم منتهٍ أو متوقف، فلا تُعدَّل مهامه.",
     en: "The campaign has ended or is retired, so its quests can't change.",
   },
   "console.questify.conflict.other": {
-    ar: "لا يمكن هذا التغيير الآن. أعد تحميل الصفحة وحاول مرة أخرى.",
+    ar: "تعذّر هذا التغيير الآن. أعد تحميل الصفحة وحاول مرة أخرى.",
     en: "This change isn't possible now. Reload the page and try again.",
   },
   "console.questify.invalid.label": {
@@ -4809,15 +4809,15 @@ export const MESSAGES = {
     en: "Make the end later than the start.",
   },
   "console.questify.invalid.target": {
-    ar: "الهدف رقم صحيح من 1 إلى 1000.",
+    ar: "الهدف عدد صحيح من 1 إلى 1000.",
     en: "The target is a whole number from 1 to 1000.",
   },
   "console.questify.invalid.xp": {
-    ar: "الخبرة رقم صحيح من 1 إلى 10000.",
+    ar: "الخبرة عدد صحيح من 1 إلى 10000.",
     en: "The XP is a whole number from 1 to 10000.",
   },
   "console.questify.invalid.position": {
-    ar: "الموضع رقم صحيح من 1 إلى 1000.",
+    ar: "الموضع عدد صحيح من 1 إلى 1000.",
     en: "The position is a whole number from 1 to 1000.",
   },
   "console.questify.invalid.other": {

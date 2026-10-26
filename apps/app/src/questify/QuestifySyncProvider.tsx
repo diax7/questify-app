@@ -112,7 +112,13 @@ export function QuestifySyncProvider({ children }: Readonly<{ children: ReactNod
   return (
     <SyncContext.Provider value={value}>
       <View style={styles.fill}>
-        {children}
+        <View
+          style={styles.fill}
+          accessibilityElementsHidden={levelUp !== null}
+          importantForAccessibility={levelUp === null ? "auto" : "no-hide-descendants"}
+        >
+          {children}
+        </View>
         <SyncNotices
           notices={notices}
           levelUp={levelUp}
@@ -162,7 +168,7 @@ function SyncNotices({ notices, levelUp, dismissNotice, dismissLevelUp }: Notice
         </Pressable>
       )}
       {levelUp === null ? null : (
-        <View style={themed.backdrop}>
+        <View style={themed.backdrop} accessibilityViewIsModal>
           <View style={themed.levelCard}>
             <PopIn>
               <AppText variant="title">{t("level.up")}</AppText>
