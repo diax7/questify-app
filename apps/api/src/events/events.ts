@@ -34,9 +34,11 @@ export type EventInput = Readonly<{
   /** The venue's pin (T-303b); null clears it. */
   venuePin?: VenuePin | null | undefined;
   venueRadiusM?: number | undefined;
+  /** A city from the seeded list (T-403); null clears it. A virtual event has none. */
+  cityId?: string | null | undefined;
 }>;
 
-export type InvalidField = "name" | "timezone" | "startsAt" | "endsAt" | "joinMethods";
+export type InvalidField = "name" | "timezone" | "startsAt" | "endsAt" | "joinMethods" | "cityId";
 
 type Invalid = Readonly<{ kind: "invalid"; field: InvalidField }>;
 type Missing = Readonly<{ kind: "not_found" }>;
@@ -49,7 +51,9 @@ export type UpdateResult =
   | Readonly<{ kind: "updated"; event: EventRecord }>
   | Invalid
   | Missing
-  | Readonly<{ kind: "times_locked" }>;
+  | Readonly<{ kind: "times_locked" }>
+  /** The event is live, ended or archived: its city stays (migration 0065). */
+  | Readonly<{ kind: "city_locked" }>;
 export type RemoveResult =
   | Readonly<{ kind: "deleted" }>
   | Missing
@@ -82,6 +86,13 @@ const DEFAULTS = {
 } as const;
 const TIMES_LOCKED = "QE409";
 const BAD_ZONE = "QE422";
+const CITY_LOCKED = "CY409";
+
+/** A city id the seeded list does not hold (the event's foreign key, migration 0065). */
+const unknownCity = (error: unknown): boolean => {
+  const pg = error as { code?: string; constraint?: string };
+  return pg.code === "23503" && pg.constraint === "event_city_id_fkey";
+};
 
 const blankToNull = (text: string | null | undefined): string | null => {
   const trimmed = text?.trim() ?? "";
@@ -124,6 +135,11 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
   if (endsAt === undefined || endsAt === null || endsAt <= startsAt) {
     return { kind: "invalid", field: "endsAt" };
   }
+  const kind = input.kind ?? current?.kind ?? DEFAULTS.kind;
+  const cityId = input.cityId === undefined ? (current?.cityId ?? null) : input.cityId;
+  if (kind === "virtual" && cityId !== null) {
+    return { kind: "invalid", field: "cityId" };
+  }
   const access = input.access ?? current?.access ?? DEFAULTS.access;
   const joinMethods = [
     ...new Set(input.joinMethods ?? current?.joinMethods ?? DEFAULTS.joinMethods),
@@ -134,7 +150,7 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
   return {
     nameAr,
     nameEn,
-    kind: input.kind ?? current?.kind ?? DEFAULTS.kind,
+    kind,
     venueAr: input.venue === undefined ? (current?.venue.ar ?? null) : blankToNull(input.venue.ar),
     venueEn: input.venue === undefined ? (current?.venue.en ?? null) : blankToNull(input.venue.en),
     access,
@@ -145,6 +161,7 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
     endsAt,
     venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
     venueRadiusM: input.venueRadiusM ?? current?.venueRadiusM ?? VENUE_RADIUS.default,
+    cityId,
   };
 }
 
@@ -166,6 +183,7 @@ const auditView = (event: EventRecord) => ({
   endsAt: event.endsAt?.toISOString() ?? null,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
+  cityId: event.cityId,
 });
 
 /** Only the fields that changed, before and after, so an entry reads as the change it records. */
@@ -219,22 +237,29 @@ async function create(
   if (isInvalid(fields)) {
     return fields;
   }
-  const event = await inContext(deps, actor, async (client) => {
-    const made = await insertEvent(
-      client,
-      actor.organizerId,
-      fields,
-      deps.joinCodes ?? newJoinCode,
-    );
-    await audit(
-      client,
-      actor,
-      { action: "event.create", eventId: made.id, after: auditView(made) },
-      caller,
-    );
-    return made;
-  });
-  return { kind: "created", event };
+  try {
+    const event = await inContext(deps, actor, async (client) => {
+      const made = await insertEvent(
+        client,
+        actor.organizerId,
+        fields,
+        deps.joinCodes ?? newJoinCode,
+      );
+      await audit(
+        client,
+        actor,
+        { action: "event.create", eventId: made.id, after: auditView(made) },
+        caller,
+      );
+      return made;
+    });
+    return { kind: "created", event };
+  } catch (error) {
+    if (unknownCity(error)) {
+      return { kind: "invalid", field: "cityId" };
+    }
+    throw error;
+  }
 }
 
 async function update(
@@ -270,6 +295,12 @@ async function update(
     const code = (error as { code?: string }).code;
     if (code === TIMES_LOCKED) {
       return { kind: "times_locked" };
+    }
+    if (code === CITY_LOCKED) {
+      return { kind: "city_locked" };
+    }
+    if (unknownCity(error)) {
+      return { kind: "invalid", field: "cityId" };
     }
     // A zone this runtime knows but the database does not; merge refuses the zones neither knows.
     // Stryker disable all: reachable only with a database older than the runtime's zone data

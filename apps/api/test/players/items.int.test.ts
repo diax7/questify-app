@@ -53,6 +53,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("profile HTTP privacy", () => {
       frame: null,
       title: null,
       level: { number: 1, title: { ar: "مستكشف", en: "Explorer" } },
+      achievements: [
+        { id: "events-attended", tier: null },
+        { id: "quests-done", tier: null },
+        { id: "cities-played", tier: null },
+        { id: "top-ten", tier: null },
+        { id: "community-goals", tier: null },
+      ],
+      passport: [],
     });
     expect(answer.headers["cache-control"]).toBe("private, no-store");
     expect(answer.body).not.toContain("private");

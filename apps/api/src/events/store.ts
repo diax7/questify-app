@@ -49,6 +49,8 @@ export type EventRecord = Readonly<{
   /** The venue's pin, or null (T-303b); with its radius in metres. */
   venuePin: VenuePin | null;
   venueRadiusM: number;
+  /** The event's city from the seeded list (T-403, ADR-277); none for a virtual event, fixed once live. */
+  cityId: string | null;
 }>;
 
 /** The fields the API may write (the column grants of migration 0009). */
@@ -66,6 +68,7 @@ export type EventFields = Readonly<{
   endsAt: Date;
   venuePin: VenuePin | null;
   venueRadiusM: number;
+  cityId: string | null;
 }>;
 
 type Row = {
@@ -98,6 +101,7 @@ type Row = {
   venue_lat: string | null;
   venue_lng: string | null;
   venue_radius_m: number;
+  city_id: string | null;
 };
 
 const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods, timezone,
@@ -111,7 +115,7 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'flashQuests')::boolean, true) AS flash_quests_on,
   coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on,
   coalesce((config -> 'features' ->> 'helpDesk')::boolean, true) AS help_desk_on, config -> 'terms' AS terms,
-  venue_lat, venue_lng, venue_radius_m`;
+  venue_lat, venue_lng, venue_radius_m, city_id`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -143,6 +147,7 @@ const toRecord = (row: Row): EventRecord => ({
       ? null
       : { lat: Number(row.venue_lat), lng: Number(row.venue_lng) },
   venueRadiusM: row.venue_radius_m,
+  cityId: row.city_id,
 });
 
 /** The events the caller may see in their organizer (the database applies an editor's limit). */
@@ -197,8 +202,8 @@ export async function insertEvent(
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt += 1) {
     const { rows } = await db.query<Row>(
       `INSERT INTO event (organizer_id, join_code, name_ar, name_en, kind, venue_ar, venue_en, access, join_methods,
-                          timezone, day_start_hour, starts_at, ends_at, venue_lat, venue_lng, venue_radius_m)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                          timezone, day_start_hour, starts_at, ends_at, venue_lat, venue_lng, venue_radius_m, city_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT DO NOTHING
        RETURNING ${COLUMNS}`,
       [
@@ -218,6 +223,7 @@ export async function insertEvent(
         fields.venuePin?.lat ?? null,
         fields.venuePin?.lng ?? null,
         fields.venueRadiusM,
+        fields.cityId,
       ],
     );
     const row = rows[0];
@@ -241,7 +247,7 @@ export async function updateEvent(
                       join_methods = $9, timezone = $10, day_start_hour = $11,
                       starts_at = CASE WHEN date_trunc('milliseconds', starts_at) = $12 THEN starts_at ELSE $12 END,
                       ends_at = CASE WHEN date_trunc('milliseconds', ends_at) = $13 THEN ends_at ELSE $13 END,
-                      venue_lat = $14, venue_lng = $15, venue_radius_m = $16
+                      venue_lat = $14, venue_lng = $15, venue_radius_m = $16, city_id = $17
      WHERE organizer_id = $1 AND id = $2
      RETURNING ${COLUMNS}`,
     [
@@ -261,6 +267,7 @@ export async function updateEvent(
       fields.venuePin?.lat ?? null,
       fields.venuePin?.lng ?? null,
       fields.venueRadiusM,
+      fields.cityId,
     ],
   );
   const row = rows[0];

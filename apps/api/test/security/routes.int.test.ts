@@ -23,7 +23,14 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":
-    "active-player public DTO allowlist, no account details (profile-items HTTP)",
+    "active-player public DTO allowlist, no account details; stamps of ended public events only (profile-items HTTP, event-passport)",
+  "POST /v1/me/questify/sync":
+    "writes only the calling player's earned tiers from their own facts (achievements, test/questify)",
+  "GET /v1/me/achievements":
+    "the calling player's own achievements through own_achievements (achievements)",
+  "GET /v1/me/event-history":
+    "the calling player's own memberships through own_events; another player's never show (event-passport)",
+  "GET /v1/cities": "no tenant data: the same seeded city list for everyone",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",
   "GET /v1/translations": "no tenant data: the same platform texts for everyone",
@@ -576,6 +583,7 @@ const ROUTES: Readonly<Record<string, string>> = {
 const PUBLIC_ROUTES = [
   "GET /healthz",
   "GET /readyz",
+  "GET /v1/cities",
   "GET /v1/config",
   "GET /v1/public/events",
   "GET /v1/public/events/:joinCode",

@@ -855,6 +855,13 @@ const SHARED: Readonly<Record<string, string>> = {
   souvenir_command:
     "no direct API rights; organizer command replay bound to actor/event/body (souvenirs)",
   item: "global catalog, no direct API rights; narrow DTOs only (profile-items)",
+  city: "platform-wide seeded list, no direct API rights; read through city_list (event-passport)",
+  achievement:
+    "platform-wide catalog, no direct API rights; read through the caller-bound own_achievements and the public profile's tiers (achievements)",
+  achievement_earned:
+    "no direct API rights; append-only, written only by questify_sync for the calling player, read as tiers by own_achievements and the public profile; no organizer read exists (achievements)",
+  final_rank:
+    "no direct API rights; append-only, written only by confirm_results inside the owner's event, read only through own_events for the calling player and the public passport after the reveal; no organizer read exists (final-rank, event-passport)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
   player_item:
     "no direct API rights; own_locker/equip/seen caller-bound and forged access tested in profile-items",

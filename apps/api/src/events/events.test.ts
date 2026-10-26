@@ -33,6 +33,7 @@ const STORED: EventRecord = {
   terms: DEFAULT_TERMS,
   venuePin: { lat: 24.7136, lng: 46.6753 },
   venueRadiusM: 800,
+  cityId: null,
 };
 
 describe("merge", () => {
@@ -51,6 +52,7 @@ describe("merge", () => {
       endsAt: new Date("2030-11-01T14:00:00Z"),
       venuePin: null,
       venueRadiusM: 1000,
+      cityId: null,
     });
   });
 
@@ -69,6 +71,7 @@ describe("merge", () => {
       endsAt: STORED.endsAt,
       venuePin: STORED.venuePin,
       venueRadiusM: 800,
+      cityId: null,
     });
   });
 
@@ -102,6 +105,20 @@ describe("merge", () => {
     });
   });
 
+  it("sets, keeps and clears the city; a virtual event has none (T-403)", () => {
+    const physical = { ...STORED, kind: "physical" as const, cityId: "sa-riyadh" };
+    expect(merge(physical, {})).toMatchObject({ cityId: "sa-riyadh" });
+    expect(merge(physical, { cityId: "sa-jeddah" })).toMatchObject({ cityId: "sa-jeddah" });
+    expect(merge(physical, { cityId: null })).toMatchObject({ cityId: null });
+    expect(merge(physical, { kind: "virtual", cityId: null })).toMatchObject({
+      kind: "virtual",
+      cityId: null,
+    });
+    expect(merge(STORED, { kind: "workplace", cityId: "sa-abha" })).toMatchObject({
+      cityId: "sa-abha",
+    });
+  });
+
   it("keeps the instants when only the zone changes, and reads new times in the new zone", () => {
     expect(merge(STORED, { timezone: "Asia/Riyadh" })).toMatchObject({
       startsAt: STORED.startsAt,
@@ -126,6 +143,8 @@ describe("merge", () => {
     ["endsAt", STORED, { endsAt: "2030-11-01T08:59" }],
     ["joinMethods", STORED, { joinMethods: [] }],
     ["joinMethods", STORED, { joinMethods: ["public_list"] }],
+    ["cityId", STORED, { cityId: "sa-riyadh" }],
+    ["cityId", { ...STORED, kind: "physical", cityId: "sa-riyadh" }, { kind: "virtual" }],
     [
       "joinMethods",
       { ...STORED, access: "public", joinMethods: ["public_list"] },

@@ -5,6 +5,7 @@ import {
   eventNotDraft,
   eventNotLive,
   eventArchived,
+  eventCityLocked,
   eventTimesLocked,
   invalidEvent,
   invalidTerms,
@@ -53,6 +54,12 @@ const eventFields = {
     .nullable()
     .optional(),
   venueRadiusM: z.number().int().min(VENUE_RADIUS.min).max(VENUE_RADIUS.max).optional(),
+  // A city id from GET /v1/cities (T-403); null clears it. An unknown id answers invalid_event { field: cityId }.
+  cityId: z
+    .string()
+    .regex(/^sa-[a-z0-9-]{2,30}$/)
+    .nullable()
+    .optional(),
 };
 const patchBody = z.strictObject(eventFields);
 const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
@@ -90,6 +97,7 @@ const view = (event: EventRecord) => ({
   helpDesk: event.helpDeskOn,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
+  cityId: event.cityId,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {
@@ -113,6 +121,8 @@ function answerUpdate(result: UpdateResult) {
       throw notFound();
     case "times_locked":
       throw eventTimesLocked();
+    case "city_locked":
+      throw eventCityLocked();
   }
 }
 

@@ -526,6 +526,65 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot sync, read achievements, events or cities, or reach the evaluator's helpers (T-403)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.city",
+        "SELECT * FROM public.achievement",
+        "SELECT * FROM public.achievement_earned",
+        "SELECT * FROM public.final_rank",
+        "SELECT public.questify_sync()",
+        "SELECT public.own_achievements()",
+        "SELECT * FROM public.own_events(true, NULL, NULL, 20)",
+        "SELECT public.city_list()",
+        "SELECT * FROM public.player_metrics(gen_random_uuid())",
+        "SELECT * FROM public.standing_credits(gen_random_uuid())",
+        "SELECT * FROM public.achievements_due(gen_random_uuid())",
+        "SELECT public.earned_tier(gen_random_uuid(), 'top-ten')",
+        "SELECT public.played_enrollment('active', NULL)",
+        "SELECT public.public_stamp(NULL::public.event)",
+        "SELECT public.public_achievements(gen_random_uuid())",
+        "SELECT public.public_passport(gen_random_uuid())",
+        "SELECT * FROM public.all_places(NULL::public.event)",
+        "SELECT public.backfill_final_ranks()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "questify_sync",
+        "own_achievements",
+        "own_events",
+        "city_list",
+        "player_metrics",
+        "standing_credits",
+        "achievements_due",
+        "earned_tier",
+        "played_enrollment",
+        "public_stamp",
+        "public_achievements",
+        "public_passport",
+        "all_places",
+        "backfill_final_ranks",
+        "history_append_only",
+        "event_city_guard",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the four doors only, never the evaluator's helpers.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "city_list",
+        "own_achievements",
+        "own_events",
+        "questify_sync",
+      ]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

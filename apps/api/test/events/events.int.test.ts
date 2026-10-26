@@ -643,4 +643,55 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
       expect(logged).toContainEqual(expect.objectContaining({ event: "event.lifecycle_moved" }));
     });
   });
+
+  describe("the event's city (T-403)", () => {
+    it("sets and clears a known city, refuses unknown and virtual ones, audits the change", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie, { ...DRAFT, cityId: "sa-riyadh" });
+      expect(event).toMatchObject({ cityId: "sa-riyadh" });
+      const url = `/v1/organizers/${org.id}/events/${event.id}`;
+      const moved = await call("PATCH", url, org.cookie, { cityId: "sa-jeddah" });
+      expect(moved.json().event).toMatchObject({ cityId: "sa-jeddah" });
+      const [entry] = await auditOf(event.id, "event.update");
+      expect(entry).toEqual({ before: { cityId: "sa-riyadh" }, after: { cityId: "sa-jeddah" } });
+      for (const payload of [{ cityId: "sa-nowhere" }, { kind: "virtual" }]) {
+        const refused = await call("PATCH", url, org.cookie, payload);
+        expect(refused.statusCode).toBe(422);
+        expect(refused.json()).toMatchObject({
+          code: "invalid_event",
+          details: { field: "cityId" },
+        });
+      }
+      const unknown = await create(org.id, org.cookie, { ...DRAFT, cityId: "sa-nowhere" });
+      expect(unknown.statusCode).toBe(422);
+      expect(unknown.json()).toMatchObject({ details: { field: "cityId" } });
+      expect((await call("PATCH", url, org.cookie, { cityId: "Riyadh" })).statusCode).toBe(400);
+      const cleared = await call("PATCH", url, org.cookie, { kind: "virtual", cityId: null });
+      expect(cleared.json().event).toMatchObject({ kind: "virtual", cityId: null });
+    });
+
+    it("refuses a city-only change once the event is live (409 city_locked)", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie, { ...DRAFT, cityId: "sa-abha" });
+      await setStatus(event.id, "live", "-1 hour", "1 day");
+      const url = `/v1/organizers/${org.id}/events/${event.id}`;
+      for (const cityId of ["sa-tabuk", null]) {
+        const locked = await call("PATCH", url, org.cookie, { cityId });
+        expect(locked.statusCode).toBe(409);
+        expect(locked.json().code).toBe("city_locked");
+      }
+      const renamed = await call("PATCH", url, org.cookie, { name: { en: "Abha Fest" } });
+      expect(renamed.json().event).toMatchObject({ cityId: "sa-abha" });
+    });
+
+    it("lists the seeded cities to anyone, in order", async () => {
+      const answer = await test.app.inject({ method: "GET", url: "/v1/cities" });
+      expect(answer.statusCode).toBe(200);
+      const { cities } = answer.json<{
+        cities: { id: string; name: { ar: string; en: string } }[];
+      }>();
+      expect(cities).toHaveLength(20);
+      expect(cities[0]).toEqual({ id: "sa-riyadh", name: { ar: "الرياض", en: "Riyadh" } });
+    });
+  });
 });

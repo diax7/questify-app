@@ -207,6 +207,12 @@ export const eventTimesLocked = make(
   "لا يمكن تغيير هذه الأوقات الآن: بدأت الفعالية أو انتهت.",
   "These times can no longer change: the event has started or ended.",
 );
+export const eventCityLocked = make(
+  409,
+  "city_locked",
+  "لا يمكن تغيير مدينة الفعالية بعد أن تبدأ.",
+  "The event's city can no longer change: the event has started.",
+);
 export const eventNotDraft = make(
   409,
   "event_not_draft",

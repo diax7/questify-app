@@ -1,3 +1,4 @@
+import { publicProfileSchema } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { z } from "zod";
@@ -76,6 +77,7 @@ export function registerItemRoutes(
     });
     reply.header("cache-control", "private, no-store");
     if (body === null || body === undefined) throw notFound();
-    return body;
+    // The allowlist again on the way out: a key the database might add is stripped, never sent (FR-702).
+    return publicProfileSchema.parse(body);
   });
 }

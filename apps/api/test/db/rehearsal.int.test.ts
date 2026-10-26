@@ -996,6 +996,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "bulk_award.ledger_note",
         // Results need an ended event, so no rehearsal account is ever placed or given a rank prize (T-214).
         "enrollment.result_place",
+        // The final-rank snapshot is written by the same confirmation, after the rehearsal wipe (T-403).
+        "enrollment.final_rank",
         // Souvenir ownership/work is real-only; guards refuse rehearsal before these FKs can be written.
         "enrollment.souvenir_receipt",
         "enrollment.souvenir_work",
