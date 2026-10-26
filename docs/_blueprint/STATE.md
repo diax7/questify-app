@@ -1330,19 +1330,38 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   `own_questify_quests`; six console doors that re-read the admin and audit ids and field names. API
   `GET /v1/me/questify-quests` and `/v1/admin/questify/*` (Idempotency-Key on every write; `409 questify_conflict
   {reason}`, `422 invalid_questify {field}`); shared `packages/shared/src/questify/quests.ts`. Tests: DB
-  questify-quests 18, routes quests 3 and questify 4, unit 6, achievements 16, security suites 492; FULL_RESULT;
+  questify-quests 18, routes quests 3 and questify 4, unit 6, achievements 16, security suites 492; full suite 377
+  files / 5892 passed / 4 skipped / 0 failed;
   oxfmt, oxlint --deny-warnings and tsc clean for api and shared. Proposed ADR-280 / Q-246 (console rules; ADR-093's
   "seasonal campaigns" read as configuration, not FR-711). No app or web code changed.
 
+- 2026-10-26 **T-403b done (core), ticked; progress 78/155 (50.32%).** Code review GO 94 of 7b8b981 by the in-house CTO
+  reviewer on Claude Opus (the recorded Sol policy could not be used from the Claude Code session); no re-review. Two
+  minors folded in 0066 in place (undeployed): `questify_admin()` raises `QY403` and only that maps to 404, so a real
+  42501 (a lost EXECUTE grant) answers 500 (unit and HTTP tests); a published campaign that has started refuses a new
+  quest, `409 questify_conflict {reason: started}` (DB and HTTP tests). API.md, ADR-280 and the plan's build notes
+  updated. Focused suites (questify-quests DB, test/questify, src/questify, security) 525 passed; oxfmt, oxlint and
+  tsc clean for api and shared. Not pushed by the worker.
+
+- 2026-10-26 **First GitHub mutation result for T-402/T-402b:** run 40358820903 on 6286d41, 8 files mutated (the
+  report's other rows are stale from earlier runs). souvenirs.ts 98.11, souvenirs/routes.ts 97.89; under 90, to chase
+  with tests only: souvenirs/payer.ts 84.42 (11 no-cov, 1 survived), souvenirs/tick.ts 0.00 (65 no-cov: no test
+  imports it), players/items.ts 80.65 (12 survived), players/item-routes.ts 79.31 (6 survived, 6 no-cov),
+  `packages/shared/src/souvenirs.ts` 58.56 (45 survived), `packages/shared/src/players/items.ts` 0.00 (43 survived,
+  11 no-cov; no unit test of its own). Cause: `stryker.config.json`'s default `mutate` list leaves out
+  `apps/api/src/souvenirs/**`, `apps/api/src/questify/**`, `packages/shared/src/souvenirs.ts` and
+  `packages/shared/src/questify/**`; only the dispatch input mutated them. Proposed after the chase (needs Dhia's OK,
+  not done): add those globs to the default list.
+
 ## Next
 
-1. **T-403b (CORE):** built; a fresh independent core code review, then tick it. Then T-403c (standard, the cheaper
-   model; one code review that includes the Arabic pass; the console page words each refusal reason, ADR-280). One
-   `mutation.yml` dispatch now covers T-403 and T-403b (`apps/api/src/questify/**/*.ts`,
-   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`).
-   Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No deployment/EAS/local
-   Stryker; phone/CranL obligations remain deferred. Follow-up: Q-237 central replay-before-scope fix for other
-   idempotent organizer routes.
+1. **Mutation chase (a Sonnet worker, tests only, no source change):** the six T-402/T-402b files under 90 from run
+   40358820903 (above). Then **the coordinator pushes `main`**. Then **T-403c (STANDARD)**: the cheaper model; one
+   code review that includes the Arabic pass; the console page words each refusal reason, `started` included
+   (ADR-280). Still owed: one `mutation.yml` dispatch for T-403 and T-403b (`apps/api/src/questify/**/*.ts`,
+   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`),
+   and Dhia's OK on the `stryker.config.json` globs. No deployment/EAS/local Stryker; phone/CranL obligations remain
+   deferred. Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

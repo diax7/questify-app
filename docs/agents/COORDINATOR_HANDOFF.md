@@ -15,7 +15,7 @@ the riskiest reviews; Luna High only for mechanical edits. Every review/re-revie
 
 - Before this handoff-doc commit: local main `3e0529d`; production source `7c0843b`, green evidence `8f32f05`.
   Run `git log -1` for the handoff commit. Reviewed remote main is `4bca465`; all souvenir work remains unpushed.
-- Progress **76/153 tasks (49.67%)** since 2026-10-26: T-402 and T-402b complete (see the update below).
+- Progress **78/155 tasks (50.32%)** since 2026-10-26: T-402, T-402b, T-403 and T-403b complete (see STATE.md).
 - Final full DB/Redis: **5803 passed / 3 optional timing skips / 0 failed**. Full browser: **141 passed /
   1 intentional phone-camera skip / 0 failures or flaky tests**. Fresh web/API builds, Android/iOS exports,
   lint/format/types/audit/redacted scans passed. Two existing audit exceptions are unchanged.
