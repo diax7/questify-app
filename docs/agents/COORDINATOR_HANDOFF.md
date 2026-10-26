@@ -1,55 +1,55 @@
-# Coordinator handoff — 2026-10-26
+# Coordinator handoff — 2026-10-26 (late evening)
 
-Repo: `C:/Users/xdhia/Downloads/Github coding/NAFES/Questify App`, branch `main`.
-The older chat cwd `.../Github coding/Questify` is a different repository. Always use the repo above.
+Repo: `C:/Users/xdhia/Downloads/Github coding/NAFES/Questify App`, branch `main`. The older chat cwd
+`.../Github coding/Questify` is a different repository.
 
-Dhia requested this coordinator take a break and hand over to a new Codex session. The existing heartbeat
-`resume-questify-after-usage-resets` is **PAUSED**; do not restart this old chat automatically.
+Read first: `CLAUDE.md` (it holds the **cost cap**: one sub-agent at a time, two only for a reviewer plus the next
+build; strongest model only for core work), then STATE.md "Next" and `docs/agents/WORKER_BRIEF.md`.
+The Sol policy (ADR-265) cannot run in Claude Code: reviews since 2026-10-26 ran on Claude Opus (core) or Sonnet
+(standard). STATE.md flags this; Dhia has not objected.
 
-Read `CLAUDE.md`, the latest notes and Next in `docs/_blueprint/STATE.md`, `docs/agents/WORKER_BRIEF.md`,
-`docs/TASKS.md`, and `docs/plans/2026-10-25-t-402b-souvenirs.md`. Follow the repository coordinator workflow.
-Use GPT-6.1 Sol: High for coordination/plans/core builds/fresh reviews, Medium for standard builds. Max only for
-the riskiest reviews; Luna High only for mechanical edits. Every review/re-review must be fresh and independent.
+## Checkpoint
 
-## Exact checkpoint
+- Progress **79/155 tasks (50.97%)**: T-402, T-402b, T-403, T-403b and T-403c are done, reviewed (GO 93, 94, 92) and
+  pushed. Remote `main` is `e150f5a`; this handoff commit is local only and rides with the next push.
+- Full DB/Redis last run (T-403b, local): 5892 passed / 4 skipped / 0 failed. Migrations 0063-0066 are undeployed
+  (CranL is at 0056) and may still be edited in place until deployed.
+- CI on `569190d` failed (3 route tests used a profile fixture without the newly required `achievements`/`passport`);
+  fixed in `e150f5a`. **CI run 40393715601** on `e150f5a` must be `success`; check with
+  `gh run view 40393715601 --json conclusion`. If red: reproduce locally, fix everything found, one re-run.
+- **Mutation run 40386286433** (GitHub, started 2026-10-26 19:23 UTC on `7a0faa8`, about 1.5 to 3 hours) mutates
+  `apps/api/src/souvenirs/*.ts`, `apps/api/src/players/{items,item-routes}.ts`, `packages/shared/src/souvenirs.ts`,
+  `packages/shared/src/players/items.ts`, `apps/api/src/questify/**/*.ts`, `packages/shared/src/questify/*.ts`
+  (tests excluded). The last run (40358820903) left six files under 90 and the chase tests in `7a0faa8` target them.
 
-- Before this handoff-doc commit: local main `3e0529d`; production source `7c0843b`, green evidence `8f32f05`.
-  Run `git log -1` for the handoff commit. Reviewed remote main is `4bca465`; all souvenir work remains unpushed.
-- Progress **79/155 tasks (50.97%)** since 2026-10-26: T-402, T-402b, T-403, T-403b and T-403c complete (see STATE.md).
-- Final full DB/Redis: **5803 passed / 3 optional timing skips / 0 failed**. Full browser: **141 passed /
-  1 intentional phone-camera skip / 0 failures or flaky tests**. Fresh web/API builds, Android/iOS exports,
-  lint/format/types/audit/redacted scans passed. Two existing audit exceptions are unchanged.
-- Reports: `C:/Users/xdhia/AppData/Local/Temp/questify-t402b-review-{full,browser}.{json,log}`.
-  Isolated local 20,001-recipient benchmark: all owned, zero due/failed, 443198ms, max160 recipients/pass;
-  local/back-to-back cadence limitations are in RUNBOOK. Do not call this production capacity evidence.
-- No worker, local check/server, remote CI or mutation run is active. Do not duplicate old agents.
+## What to do next (Dhia chose: chase mutants, then pause)
 
-## Required next gate
+1. Confirm CI 40393715601 is green and the mutation run has finished (`gh run view 40386286433`). Do not dispatch
+   another mutation run while it is active (a new dispatch cancels it).
+2. `gh run view 40386286433 --log > <temp file>`. The per-file table lists stale rows of earlier runs too; only
+   files named in the "Found N of M file(s) to be mutated" line are new. Survivors are listed as `path:line:col`
+   with `-` original and `+` mutant lines. Chase only files under 90%: one Sonnet worker, tests only, no production
+   change, no local Stryker. Then one more dispatch only if needed.
+3. Before any push: `git log origin/main..main`, gitleaks in Docker
+   (`MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/repo" -w /repo zricethezav/gitleaks:v8.30.1 git --redact
+   --no-banner --log-opts="<last pushed>..HEAD" .`), then push once and read the CI conclusion with
+   `gh run view <id> --json conclusion` (a `gh run watch` wrapper's own exit code can hide a red run).
+4. Stop and report. T-404 (gems and the Questify shop, core) is next but **not started**: it needs plan, plan
+   review, build and code review, about 8 runs. Ask Dhia before starting it.
 
-**Update 2026-10-26:** the independent re-review ran and returned 87 NO-GO; its MAJOR (endless repair sweep) and
-minors are repaired in `81d5054` (Proposed ADR-272, Q-236/Q-237), full DB/Redis 5819 passed / 3 optional skips.
-The gate is now a fresh independent review of `8f32f05..81d5054`; STATE.md Next 1 supersedes the text below.
-That review returned GO 93 (in-house CTO reviewer, Claude Opus, not the recorded Sol policy); fold-ins `6d7dd9c`/`597c009`;
-T-402b is ticked. Next: push, CI, the T-402/T-402b mutation batch, then T-403 (STATE.md Next 1).
+## Waiting on Dhia
 
-First independent code review was **84 NO-GO**: cached response after editor event-scope revocation, and missing
-new evaluator/concurrency proof. Both are repaired in `7c0843b`: current event authorization precedes cached
-replay on all six mutation doors; 20 targeted authorization/evaluator/forced-lock tests passed. Plan96 and
-Arabic94 GO are separate evidence. Proposed ADR269–271/Q233–235 remain Proposed.
+- Q-247 items 2 and 3 (public badge names need an API change; history shows no points), Q-248 (confirm before
+  publishing a campaign), Q-246, ADR-272/273-281 are Proposed.
+- Proposal: add `apps/api/src/souvenirs/**`, `apps/api/src/questify/**`, `packages/shared/src/souvenirs.ts` and
+  `packages/shared/src/questify/**` to the default `mutate` list in `stryker.config.json` (needs his OK).
+- Physical-phone checks (release Hermes, RTL, Reduce Motion, toasts, level-up card, badges at 64 pt), deployment,
+  CranL migrations after 0056 and EAS builds remain deferred.
 
-Fresh reviewer `/root/t402b_code_review_2` failed before a verdict because an automated cybersecurity safeguard
-flagged the request. **No independent approval exists for the repairs.** Do not bypass the safeguard or
-automatically resubmit the blocked request while unchanged. Dhia was asked to arrange a supported independent
-review/access path. Once that is available, obtain a fresh Sol High review of the complete `4bca465..8f32f05`
-task and both repairs, score >=90 with zero BLOCKER/MAJOR, before ticking T-402b, pushing or starting T-403.
+## Lessons from this session
 
-## After permitted GO
-
-Coordinator alone pushes reviewed green work after inspecting `git log origin/main..main` and ensuring desired
-CI/mutation runs are not interrupted. Require CI success, then queue the outstanding T-402/T-402b core mutation
-batch on GitHub only, actual changed files, one run at a time, excluding tests; chase only files below90.
-The reviewed optional force workflow is integrated locally as `5c87d29` (independent GO98).
-Prior T-312/T-313 mutation follow-ups are closed: console98.51, first-bonus93.55, quests90.27; no further chase.
-
-Deployment/CranL migrations after0056, EAS/new Android builds and physical-phone visual checks remain deferred.
-Never run local mutation or spend/reset credits. Preserve durable STATE checkpoints and do not publish WIP.
+- After a shared-schema change, workers must also run the unit tests of every package that imports it
+  (`npx vitest run apps/api/src/<area>`), not only the integration suites.
+- Workers must run the full suite once into a log file and read the summary; three overlapping runs wasted CPU.
+- Waking a long idle session after the 1-hour cache window re-reads its whole context; a fresh session that reads this
+  file is cheaper than resuming an old one.
