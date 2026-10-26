@@ -1230,6 +1230,15 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   independently reviewed. No worker push/deploy/EAS/local mutation; physical phone/CranL/migrations remain deferred.
   This worker commits the green repair evidence and STOPS for the new independent re-review.
 
+- 2026-10-26 **Coordinator checkpoint: fresh independent core re-review ACTIVE, no approval yet.**
+  Reviewer /root/t402b_code_review_2 reviews immutable4bca465..8f32f05 (production cutoff7c0843b), separate from
+  author and first reviewer. First review84 NO-GO found cached replay after event-scope revocation and missing
+  evaluator/forced-lock proof; author repairs and all final gates are saved in7c0843b/8f32f05. Root independently
+  parsed final reports:5803 passed/3 optional skips/0 failed; browser141 passed/1 intentional skip/0 flaky.
+  Main remains unpushed after reviewed remote4bca465. No local check, remote CI or mutation is active; author
+  stopped, no duplicate worker. Quota89% used; next reset08:16:06 Riyadh, same heartbeat ACTIVE08:22. Preserve
+  re-review findings/verdict before any push; only GO>=90 with no BLOCKER/MAJOR closes this gate. No credits.
+
 ## Next
 
 1. **Current queue (2026-10-26):** review-repair source 7c0843b and all author gates are green, as recorded
