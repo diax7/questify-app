@@ -145,7 +145,7 @@ for an event.
 ## As built (T-403b): Questify quests and campaigns
 
 - **Data, not code (ADR-278):** the Questify team creates always-on quests and seasonal campaigns in the console
-  (`/v1/admin/questify`, the page is T-403c). A quest has a title in Arabic and English (1–80 characters, no control or
+  (`/v1/admin/questify`; the page is `/console/questify`, built T-403c). A quest has a title in Arabic and English (1–80 characters, no control or
   bidi characters), a metric from a closed list (events played, cities played, quests completed), a target (1–1000), an
   XP reward (1–10000) and an order; a campaign has a name and a window entered in Saudi time. No new metric, reward kind
   or screen can be added this way (rule 7).

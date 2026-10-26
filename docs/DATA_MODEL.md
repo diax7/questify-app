@@ -439,7 +439,7 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 - Future curve editing (T-709) must maintain complete distinct reward mappings atomically; grant FKs freeze used
   mapping pairs. T-402b extends typed provenance for event souvenirs; T-404 for gem purchases, no speculative columns.
 - Account/locker/public-profile data remains in memory on the app, never persisted. Passport, achievements and owner
-  event history are T-403 (server, below) and T-403c (screens). Source event history is never public.
+  event history are T-403 (server, below) and T-403c (screens, built; the app reads them through `GET /v1/me/event-history` and `GET /v1/me/achievements`). Source event history is never public.
 
 ### Organizer souvenir ownership (T-402b, migration0064; code review pending)
 

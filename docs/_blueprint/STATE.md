@@ -1362,15 +1362,25 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   check (a changed condition in tick.ts, payer.ts) failed the new tests; the sources are unchanged. Awaiting the
   coordinator's push and one GitHub mutation re-run on these six files.
 
+- 2026-10-26 **T-403c built (standard), awaiting the standard code review that includes the Arabic pass; not ticked.**
+  App: achievements (shipped badges, tier rings, padlock silhouettes), the Event Passport on the profile, `/event-history`,
+  `/questify-quests`, the public profile's tiers and ended public stamps, and `QuestifySyncProvider` (scheduler:
+  focus, launch, foreground at 5 minutes, a trailing 15 s debounce after a completion, a silent 429; toasts and the
+  level-up card). Dashboard: the event city picker. Console: `/console/questify`. Shared: the public profile's
+  `achievements` and `passport` are required; theme gains three tier colours; `formatLocalDate`. 99 new strings
+  in `messages.ts` (own `ux-araby` pass). Tests: app and web units (scheduler, notices, stamps, API client, console
+  checks), the shared suites, `events.spec.ts` and `console-questify.spec.ts` (desktop and phone), `expo export`
+  (android and ios). Proposed ADR-281 / Q-247. Needs a phone check. No CI minutes used.
+
 ## Next
 
-1. **Mutation chase tests are added (2026-10-26, above); awaiting the coordinator's push and one GitHub mutation
-   re-run** on the six T-402/T-402b files from run 40358820903. **The coordinator pushes `main`**. Then **T-403c (STANDARD)**: the cheaper model; one
-   code review that includes the Arabic pass; the console page words each refusal reason, `started` included
-   (ADR-280). Still owed: one `mutation.yml` dispatch for T-403 and T-403b (`apps/api/src/questify/**/*.ts`,
-   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`),
-   and Dhia's OK on the `stryker.config.json` globs. No deployment/EAS/local Stryker; phone/CranL obligations remain
-   deferred. Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
+1. **The coordinator pushes `main`** (the T-402/T-402b mutation chase tests and T-403c). **T-403c is built and waits for
+   its one standard code review that includes the Arabic pass** (a fresh session; do not tick before it). Still owed:
+   one `mutation.yml` dispatch for the six T-402/T-402b files and, with T-403 and T-403b, for `apps/api/src/questify/**/*.ts`,
+   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`;
+   Dhia's OK on the `stryker.config.json` globs; Q-247 (two seed names, public badge names). Next task after the review:
+   **T-404** (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-up:
+   Q-237 central replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

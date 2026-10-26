@@ -1094,17 +1094,17 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-635 | F-159 | Could | pending |
 | FR-636 | F-159 | Could | pending |
 | FR-637 | F-159 | Could | pending |
-| FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 server built (achievements, passport, owner history: `test/db/achievements.int`, `test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens T-403c |
-| FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 server adds tiers and ended public-event stamps only (`test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens T-403c |
+| FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 server built (achievements, passport, owner history: `test/db/achievements.int`, `test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens built T-403c, awaiting standard review (profile, public profile) |
+| FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 server adds tiers and ended public-event stamps only (`test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens built T-403c (the public profile shows tiers and ended public stamps as sent; `apps/app/src/questify/*.test.ts`), awaiting standard review |
 | FR-703 | F-143 | Must | `test/db/profile-items.int`, `test/players/items.int`, `test/players/profile.int` (T-402) |
 | FR-704 | F-143 | Must | pending |
 | FR-705 | F-143 | Must | pending |
 | FR-706 | F-128 | Must | pending |
 | FR-707 | F-58 | Must | server built T-403 (`test/db/achievements.int`: thresholds, jumps, replays, crossings), core code review pending; awarded at the next sync |
-| FR-708 | F-58 | Must | partial: server answers `tier` null for a silhouette (`test/db/achievements.int`); screens T-403c |
-| FR-709 | F-133 | Must | partial: stamps, local date and final rank (none while running) server-side (`test/db/event-passport.int`, `test/db/final-rank.int`); the event logo waits for T-602; screens T-403c |
-| FR-710 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: seeded attend 3 events and play in 2 cities, one award and one XP entry per quest under replays and crossings; `test/questify/quests.int`), core code review pending; paid at the next sync; "set your interests" comes with T-407, "follow Questify" not built (Q-245); screens T-403c |
-| FR-711 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: published only before the start, offered only inside the window, counts only plays inside it, 3-day late-sync grace; console doors admin-only and audited), core code review pending; console page T-403c |
+| FR-708 | F-58 | Must | partial: server answers `tier` null for a silhouette (`test/db/achievements.int`); screens built T-403c (padlock silhouette, `stamps.test.ts`), awaiting standard review |
+| FR-709 | F-133 | Must | partial: stamps, local date and final rank (none while running) server-side (`test/db/event-passport.int`, `test/db/final-rank.int`); the event logo waits for T-602 (an emblem letter until then); screens built T-403c (`stamps.test.ts`: upcoming, live, results soon, rank, not ranked), awaiting standard review |
+| FR-710 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: seeded attend 3 events and play in 2 cities, one award and one XP entry per quest under replays and crossings; `test/questify/quests.int`), core code review pending; paid at the next sync; "set your interests" comes with T-407, "follow Questify" not built (Q-245); the quests screen built T-403c (clamped progress, "Ends in N days" in Saudi days), awaiting standard review |
+| FR-711 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: published only before the start, offered only inside the window, counts only plays inside it, 3-day late-sync grace; console doors admin-only and audited), core code review pending; console page built T-403c (`apps/web/e2e/console-questify.spec.ts`, `console-questify.test.ts`), awaiting standard review |
 | FR-720 | F-129 | Must | `test/db/profile-items.int`, `apps/app/src/questify/profile-api.test.ts` (T-402) |
 | FR-721 | F-131 | Must | `test/db/profile-items.int`, `test/db/profile-upgrade.int`, app profile-api tests (T-402) |
 | FR-722 | F-130 | Should | `test/db/profile-items.int` ownership/starter/earned character (T-402) |

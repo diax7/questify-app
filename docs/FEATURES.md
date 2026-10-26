@@ -271,12 +271,12 @@ Lifetime XP and level: F-124 and F-57 (Area 4).
 
 | # | Feature | Priority | Source | Notes |
 |---|---|---|---|---|
-| F-127 | Questify profile, across all events: character, frame, title, level and XP bar, achievements, passport, history | Must | user | Public view shows only username, character, frame, title, level, achievements and passport (ADR-032) |
+| F-127 | Questify profile, across all events: character, frame, title, level and XP bar, achievements, passport, history | Must | user | Public view shows only username, character, frame, title, level, achievements and passport (ADR-032). Screens built T-403c (ADR-281) |
 | F-143 | Edit profile: character, frame, title; username only if the Questify team allows changes (platform setting), with previous usernames kept | Must | Claude / user | ADR-084 |
 | F-128 | Level titles in Arabic and English, in the adventure theme (e.g. Explorer → Pathfinder → Adventurer → Legend) | Must | Claude | Names written with the `ux-araby` skill in Stage 4 |
-| F-58 | Questify achievements, tiered bronze/silver/gold: events attended, quests done, cities played, top-10 finishes, community goals reached; locked ones shown as silhouettes | Must | deck / user | |
-| F-133 | Event Passport: a stamp for every event played, with its logo, date and final rank | Must | Claude | The deck's "collection" |
-| F-132 | Questify quests: always-on (attend 3 events, play in 2 cities, set your interests, follow Questify) and seasonal campaigns run by the Questify team | Must | user | Social-follow rewards carry ADR-034's accepted Meta risk |
+| F-58 | Questify achievements, tiered bronze/silver/gold: events attended, quests done, cities played, top-10 finishes, community goals reached; locked ones shown as silhouettes | Must | deck / user | Built T-403c: the shipped badge art, tier rings, a padlock on silhouettes |
+| F-133 | Event Passport: a stamp for every event played, with its logo, date and final rank | Must | Claude | The deck's "collection". Built T-403c with an emblem letter until the logo (T-602) |
+| F-132 | Questify quests: always-on (attend 3 events, play in 2 cities, set your interests, follow Questify) and seasonal campaigns run by the Questify team | Must | user | Social-follow rewards carry ADR-034's accepted Meta risk. Quests screen and console page built T-403c; follow Questify not built (Q-245) |
 
 ### Special items, gems and the Questify shop
 

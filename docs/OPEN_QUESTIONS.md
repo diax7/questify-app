@@ -730,3 +730,15 @@ drafts are retired rather than deleted; the seeded "attend 3 events" and "play i
 live with the deploy, so players who already qualify are paid at their next sync. Also: ADR-093 (accepted) lists
 "seasonal campaigns" as not in v1; the build reads that as seasonal configuration (themes, settings), not FR-711's
 seasonal Questify quest campaigns, which the approved plan builds. Agree, or should the seeded quests start as drafts?
+
+## Q-247 — T-403c: seeded names, public badge names, points on the history (2026-10-26, T-403c build)
+1. The Arabic pass over the seeded names (migration 0065, the app shows the API's text as sent): رحّالة, صائد المهام,
+   جوّاب المدن are fine. Recommended: "نخبة العشرة" becomes "العشرة الأوائل" (the natural Arabic for Top Ten) and
+   "يدٌ واحدة" loses its tanween mark ("يد واحدة"). 0065 is undeployed, so the two seed values can change in place;
+   otherwise T-709 edits them. Not done: migrations were out of scope for this task.
+2. The public profile's `achievements` hold ids and tiers only. The app reads the viewer's own catalog for names and
+   art. Recommended: leave it. Alternative: add `name` and `visualKey` to the public DTO (an API change).
+3. The history shows no points (the event's currency word is not in `GET /v1/me/event-history`). Recommended: leave it;
+   add the currency's name and icon to the answer only if a points line is wanted.
+4. Needs a phone check once a build exists: release Hermes, right to left, Reduce Motion, the toasts and the level-up
+   card, the badges at 64 pt.

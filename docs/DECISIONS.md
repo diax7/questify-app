@@ -3625,3 +3625,24 @@ are active from the deploy, so a veteran who already qualifies is paid at the ne
 **Why:** Fixed conditions and no deletion keep every award explainable; one rule per state keeps the doors small.
 **Trade-offs:** A mistyped quest in the wrong campaign is retired and made again; on the first sync after the deploy
 veterans may be paid both seeded quests and reach a level at once.
+
+## ADR-281 — T-403c screens as built: one sync scheduler, ids-only public badges, no points on the history
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403c build; Q-247). Extends ADR-273 to ADR-280.
+**Decision:** The app syncs through one scheduler: on focus of Profile or the Questify quests, at launch and sign-in,
+on each return to the foreground at least 5 minutes after the last call, and 15 seconds after the last first-time
+completion (a trailing debounce; every completion flow ends in `completionAnswer`, which signals it). Calls never
+overlap, and a 429 pauses syncing for its Retry-After (60 seconds when it names none) and shows nothing. A sync that
+writes shows light toasts, the level-up card when `levelUp` is set (Reduce Motion respected), and makes the profile and
+Questify screens read again. Achievements show the shipped badges in a ring in the tier's colour (three theme tokens)
+and a dark silhouette with a padlock when unearned; progress to the next tier is on your own profile only. The public
+profile sends ids and tiers, so another player's badges take names and art from the viewer's own catalog, and the
+passport is shown as sent. The Event Passport is on the profile; the history is its own screen and shows no points (the
+currency's word is per event and not in the answer). A draft or scheduled membership reads "Upcoming", a running one
+"Live now". The dashboard's city picker is hidden for an online event and read-only from live; the console page enters
+times in Saudi time, retires instead of deleting after a confirmation, and words each refusal by reason and field.
+"Ends in N days" counts Saudi calendar days with Arabic's one, two, few and many forms. Strings follow ADR-125 (Latin
+"Questify") and call a campaign "موسم" as the API's own messages do.
+**Why:** One scheduler keeps the server's 20-a-minute limit safe and makes each trigger testable; the viewer's catalog
+needs no API change; no new store or screen state is needed.
+**Trade-offs:** The public profile needs a second read for badge names; a history row cannot show its points; the
+scheduler sits behind a signal in the completion parser, which is a side effect in a parser.

@@ -288,3 +288,24 @@ note.
 - Not built: a delete door, a per-admin rate limit on the catalog doors (no personal data), award counts in the list.
 - Code review GO 94 (2026-10-26) folded: non-admin is `QY403` so a real 42501 (a lost grant) answers 500 (MINOR-1); a
   published campaign that has started refuses a new quest, `409 {reason: started}` (MINOR-2).
+
+## Build notes (2026-10-26, T-403c worker)
+
+- The app's sync is one scheduler (`apps/app/src/questify/sync-scheduler.ts`) behind `QuestifySyncProvider` in the root
+  layout: focus (Profile, Questify quests), launch or sign-in and each return to the foreground at least 5 minutes after
+  the last call, and a trailing 15 s debounce after a first completion (every completion flow ends in
+  `completionAnswer`, which signals it). Calls never overlap; a 429 pauses syncing for its Retry-After (60 s when it
+  names none) and shows nothing. A sync that wrote something shows light toasts (names from a fresh
+  `GET /v1/me/achievements`), the level-up card when `levelUp` is set, reads the profile again for XP, and makes the
+  Questify screens read their data again.
+- The public profile gives ids and tiers only, so another player's badges take their names and art from the viewer's own
+  achievement catalog (the same five for everyone); the viewer's progress is never shown on them. Q-247.
+- `rankState` `live` reads "Upcoming" for a draft or scheduled membership and "Live now" for a running one (the
+  `rank_state` note of the T-403 review). The history shows no points: the currency's word is per event and not in the
+  answer (Q-247).
+- The shared public profile's `achievements` and `passport` are required. Theme: `tierBronze`, `tierSilver`, `tierGold`
+  (each at least 3:1 on the page). The five shipped badges are trimmed and reduced to 192 px in
+  `apps/app/assets/achievements/` (no new art run); `ach-power-up` has no seeded achievement.
+- Console: `/console/questify`; the window is entered in Saudi time and sent as `+03:00`; retire (after a confirmation)
+  instead of delete; every write carries an Idempotency-Key kept for a retry of the same request; refusals are worded by
+  `questify_conflict` reason and `invalid_questify` field (`apps/web/src/lib/console-questify.ts`).

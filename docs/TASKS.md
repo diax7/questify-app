@@ -459,6 +459,18 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     reason (`retired`, `start_passed`, `started`, `ends_earlier`, `ended`, `frozen`, `too_many`, `campaign_closed`) and
     each `invalid_questify` field in both languages, sends the window as ISO with the `+03:00` offset, and offers retire
     instead of delete (ADR-280). The player list sends raw `progress`; clamp it to `target` on screen.
+  - Built 2026-10-26 (standard), **awaiting the standard code review that includes the Arabic pass; not ticked.**
+    App: achievements (five badges, tier rings, padlock silhouettes, progress to the next tier on your own profile
+    only), the Event Passport (stamps with local date, city, rank or "Results soon"/"Live now"/"Upcoming"/"Not
+    ranked"; "Only you see this" on stamps others do not see), `/event-history` (yours alone), `/questify-quests`
+    (always-on, then each campaign with "Ends in N days"), the public profile's achievements and stamps as the API
+    sends them, and `QuestifySyncProvider` (focus, launch and foreground at least 5 minutes apart, a trailing 15 s
+    debounce after a first completion, a 429 silent, light toasts and the level-up card). Dashboard: the event
+    form's city picker (hidden for an online event, read-only from live, the API's `city_locked` message). Console:
+    `/console/questify` (campaigns and quests; Saudi time; Idempotency-Key; refusals worded by reason and field).
+    Shared: the public profile's `achievements` and `passport` are now required. Proposed ADR-281 / Q-247 (the
+    two seeded names to polish in 0065, the public DTO's missing names, no points on the history). Needs a phone
+    check (Hermes release, RTL, Reduce Motion, toasts, the badges at 64 pt).
 - [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).
