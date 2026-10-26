@@ -806,3 +806,15 @@ migration runs, the database may cancel one of them; the app retries, or the dep
 A retry loop inside the migration would remove this; worth building before real players?
 **Answered (developer, delegated by Dhia, 2026-10-27):** accept the windows now (ADR-291 Accepted); the migration runner
 retries a migration on 40P01 or 55P03 up to 3 times before the first real player (T-022).
+
+## Q-257 — How the gem shop asks and buys (2026-10-27, T-404b build)
+Recommended (ADR-292): the shop opens from the Profile and the locker; "Get" asks first in a sheet; a changed price asks
+again in the same sheet; too few gems says how gems are earned and nothing else; a bought item offers "Equip now"; a new
+key for every confirmation. Agree, or should the Shop tab (T-408) be the only door?
+**Answered:** open (worker recommendation; phone check of the sheet owed).
+
+## Q-258 — Gem wording in Arabic and the six rings' colours (2026-10-27, T-404b build)
+Recommended (ADR-293): the Arabic counts and forms in ADR-293, "Get" as احصل عليه, "Equip now" as فعّله الآن, and the six
+ring colours (purple, teal, crimson, terracotta, mauve, midnight blue). Agree, or change any word or colour once seen on a
+phone?
+**Answered:** open (worker recommendation).

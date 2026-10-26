@@ -163,7 +163,7 @@ for an event.
   (20, 10, 25, 50). No row exists until T-709 adds the editor and the row's CHECK; a changed amount pays rows earned
   later. Server-only, never in the public `features`/`tuning`.
 - **Quest gems:** each Questify quest pays 0–1000 gems with its XP (the two seeded quests 25), fixed once the quest can
-  pay. The console field comes with T-404b; until then the console keeps a quest's value.
+  pay. The console quest form has the Gems field (T-404b), disabled once the quest can pay.
 - **The shop catalog:** items, prices, order and retirement are seeded by migration until T-709 (FR-1403). Nothing is
   sold for money; gems are earned only by playing (STORE_COMPLIANCE 1.6).
 

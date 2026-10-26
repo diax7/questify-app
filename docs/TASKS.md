@@ -496,13 +496,20 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).
   - Done when: Gems cannot be bought or traded and are earned only from Questify activity.
-- [ ] **T-404b** Gems on screen: the gem count on Profile, the gem shop screen with its confirmation sheet, "+N gems" in the sync toasts, gems on the Questify quests list, the console quest form's Gems field, the six shop frame designs (`frame-15` to `frame-20`) and every string — delivers FR 724, 725, 726 (on screen); depends on: T-404
+- [x] **T-404b** Gems on screen: the gem count on Profile, the gem shop screen with its confirmation sheet, "+N gems" in the sync toasts, gems on the Questify quests list, the console quest form's Gems field, the six shop frame designs (`frame-15` to `frame-20`) and every string — delivers FR 724, 725, 726 (on screen); depends on: T-404
   - Standard (ADR-284); plan: `docs/plans/2026-10-27-t-404-gems.md` (T-404b section). Starts after the console
     publish-dialog review of f68ad34 is closed (it edits `ConsoleQuestify.tsx`). Note 2026-10-27 (T-404): the locker's
     `source: {kind: "shop"}` shows no line yet (`LockerScreen.tsx`); add "From the gem shop" with the strings. The quest
     body's `gems` is optional until this task sends it (ADR-290). The purchase needs a UUID Idempotency-Key, fresh per
     confirmation and reused only to retry a lost answer (every answer below 500 replays for its key, a 409 or a 429
     included, so asking again after either takes a new key).
+  - Done 2026-10-27: `app/gem-shop.tsx` (balance, the "earned by playing, can't be bought" line, frame and title cards,
+    "Get" opening a confirmation sheet, a fresh key per confirmation kept only after a lost answer or a busy server,
+    price change asked again in the sheet, too few gems told how gems are earned, "Equip now"); the gem count and the shop
+    door on the Profile and the locker, the locker's "From the gem shop" line, "+N gems" on the Questify quests list and
+    in one sync toast; `frame-15` to `frame-20` in `frameDesign`; the console quest form's Gems field (disabled once the
+    quest can pay) and the gems in the list row; every string in both languages. Proposed ADR-292, ADR-293 / Q-257, Q-258.
+    Phone check owed (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six rings). Progress 81/157 (51.59%).
   - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
 - [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding

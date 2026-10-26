@@ -1438,11 +1438,27 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   the sync's missing-row fallback now throws, one shared `idempotency_key_invalid` error. ADR-290/291 Accepted,
   Q-255/256 answered. Progress 80/157 (50.96%).
 
+- 2026-10-27 **T-404b built (gems on screen, standard).** App: `app/gem-shop.tsx` (balance; "Gems are earned by playing.
+  They can't be bought." always; frame and title cards with the price in gems; "Get" / احصل عليه opening a confirmation
+  sheet; `createPurchaser` sends the same key again only after a lost answer, a 5xx or a 409 `request_in_progress`,
+  and takes a new key after every other answer, 409 and 429 included; a changed price keeps the sheet open and asks
+  again; too few gems says how gems are earned; owned and retired refresh; "Equip now" through `PATCH /v1/me`); the gem
+  count and the shop door on the Profile and the locker; the locker's "From the gem shop" line; "+N gems" on the
+  Questify quests list and one "You earned N gems" toast per sync (a gems-only sync counts as written and reloads the
+  profile); Arabic gem counts by helper (`gems.ts`: جوهرة واحدة, جوهرتان/جوهرتين, 3-10, 11+). Shared: `frame-15` to
+  `frame-20` as an explicit table (colours outside the level palette, 3:1 on the page, tested), about 40 new strings.
+  Console: the quest form's Gems field (0 to 1000, disabled once the quest can pay) and gems in the list row. Tests: new
+  unit tests (api outcomes, key rule, flow steps, Arabic counts, toast, frames, console draft/body/`questCanPay`),
+  `console-questify.spec` extended (seeded quest's fixed gems, bad gems named, new quest at 0, both languages, phone
+  width). `npx expo export` (Android, Hermes bundle) passes; full browser suite after a fresh web build: 151 passed, 1
+  skipped; full `npx vitest run`: 404 files passed, 3 skipped; 6431 tests passed, 4 skipped. Proposed ADR-292, ADR-293 /
+  Q-257, Q-258. Phone check owed when a build exists (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six
+  rings). No mutation (standard task). Progress 81/157 (51.59%).
+
 ## Next
 
-1. **T-404 core code review** (independent, strongest model), then the GitHub mutation run on T-404's core files; then
-   **T-404b** (standard: gem screens, console Gems field, strings; after the f68ad34 publish-dialog review closes).
-   Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-256. No deployment/EAS/
+1. **T-404b standard code review** (independent, mid-tier model, with the Arabic pass), then the GitHub mutation run on
+   T-404's core files; then T-405. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

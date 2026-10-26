@@ -3772,3 +3772,37 @@ not built now.
 a request at the exact deploy moment; CranL has no real players yet.
 **Trade-offs:** A deploy under load can fail once and need a rerun; the retry in the migration runner (T-022, before
 real players) removes the rerun.
+
+## ADR-292 — T-404b: how the gem shop screen buys, asks again and equips
+**Status:** Proposed (worker recommendation, 2026-10-27, T-404b build; Q-257). Extends ADR-287, ADR-289, ADR-290.
+**Decision:** The gem shop (`app/gem-shop.tsx`) opens from the Profile (beside the gem count) and from the locker. It
+shows the balance, the line "Gems are earned by playing. They can't be bought." on every visit, and items in sections
+(frames, titles) as cards: a frame on the player's own avatar, a title on a name plate, the price in gems, then "Get"
+(احصل عليه) or "Owned". "Get" opens a sheet that asks "Get {name} for {gems}?"; only its Get button sends the purchase.
+The app keeps one key per confirmation: the same key is sent again only after a lost answer, a 5xx or a 409
+`request_in_progress` (the server stored nothing for it); every other answer, a 409 and a 429 included, ends the
+confirmation and the next one takes a new key. `price_changed` keeps the sheet open, reads the shop again and asks again
+at the new price (or says the item left the shop); `too_few_gems` closes the sheet and says how gems are earned
+(levels, achievements, Questify quests) and nothing else; `owned` and a retired item refresh the shop. A bought item
+offers "Equip now" through the existing `PATCH /v1/me` (`frameId` or `titleId`). One "You earned N gems" toast per sync
+that paid, and a sync that only paid gems counts as written so the profile balance is read again. The Questify quests
+list shows "+N gems" beside XP when a quest pays gems. The locker says "From the gem shop" for a shop item.
+**Why:** The route's replay store keeps every answer below 500, so a key reused after a refusal would replay the refusal
+for ever; keeping the key only while nothing was stored makes a lost answer safe and every new try fresh.
+**Trade-offs:** A player who confirms the same item at the same price right after a lost answer reuses that key, which
+is intended (a replay answers the original purchase).
+
+## ADR-293 — T-404b: gem counts in Arabic, the six rings' colours, the console Gems field
+**Status:** Proposed (worker recommendation, 2026-10-27, T-404b build; Q-258). Extends ADR-288, ADR-018.
+**Decision:** (1) Gems are counted by one helper with its own message forms: English "1 gem" / "N gems"; Arabic
+جوهرة واحدة, جوهرتان (subject: «لديك جوهرتان») or جوهرتين (after a verb or preposition), «N جواهر» for 3 to 10 (and 0),
+«N جوهرة» for 11 and over; digits are Western with a thousands comma. Gems are Questify's own word, not an event's
+renamed currency, so ADR-058's rule does not apply. (2) `frameDesign` draws `frame-15` to `frame-20` from an explicit
+table (royal purple, teal, crimson, terracotta, mauve, midnight blue), none in the level frames' palette and each at
+3:1 or more against the page background (tested); the theme has no gem or royal colour role, so the six colours live
+beside the table. (3) The console quest form gets a Gems field (0 to 1000, new quests start at 0), disabled with a
+line saying the gems are fixed once the quest can pay (active, always-on or in a published campaign; ADR-286); the
+list row shows the gems.
+**Why:** Gems are counted in every screen and toast, so one helper keeps the grammar right; the old formula would have
+repeated colours the level frames already use.
+**Trade-offs:** The six colours are a design guess until the brand deck owner reviews them on a phone.
