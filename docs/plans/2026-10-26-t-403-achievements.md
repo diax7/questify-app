@@ -270,3 +270,18 @@ note.
   answers an empty page (the player guard refuses first; mapping it to 401 needs `own_events` to signal it).
 - Carried from that review: its migration lock-order note goes to T-403b (0066 keeps one lock order with
   `questify_sync`), its `rank_state` note to T-403c (the screens render every state).
+
+## Build notes (2026-10-26, T-403b worker)
+
+- Migration 0066 takes `xp_entry` (ACCESS EXCLUSIVE) then `player_xp` (SHARE ROW EXCLUSIVE) up front, the order a scan
+  takes them, under `lock_timeout = 10s` (the T-403 review's lock-order note).
+- The window is a new overload, `standing_credits(player, since, until)` and `player_metrics(player, since, until)`;
+  the one-argument versions call them with NULL. A bounded call answers events, quests and cities only.
+- `questify_due(player)` feeds both the pre-check and the paying loop; `questify_level_up` gives `levelUp` the
+  completion answer's shape (level, title, items). The award's key check takes KEY SHARE on the quest, which an admin
+  save (NO KEY UPDATE) never blocks.
+- Console doors take a jsonb body (the API's own JSON) and answer the admin view; refusals are `QY404`, `QY409` with
+  the reason in DETAIL and `QY422` with the field. Build choices (campaign fixed at creation, active one-way, retire not
+  delete, closed campaigns refuse edits, the 100-campaign list) are Proposed ADR-280 / Q-246.
+- `history_append_only` now names Questify awards too (replaced in 0066; 0065 untouched).
+- Not built: a delete door, a per-admin rate limit on the catalog doors (no personal data), award counts in the list.

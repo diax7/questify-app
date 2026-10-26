@@ -440,9 +440,19 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-403b** Always-on and seasonal Questify quests: console-configured catalog and campaigns, XP awards through `xp_entry` — delivers FR 710, 711; depends on: T-403
   - Split from T-403 2026-10-26 (ADR-273, Q-239). **CORE** (writes the XP ledger; admin powers). Built from the T-403 plan (no separate plan); migration 0066. Follow Questify is not built (Q-245); "set your interests" comes with T-407.
   - Done when: A seasonal quest is offered only inside its window and counts only plays inside it; meeting an always-on quest twice pays its XP once.
+  - Built 2026-10-26 (core), **awaiting the independent core code review; not ticked.** Migration 0066 (undeployed):
+    `questify_campaign`, `questify_quest` (two seeded active), append-only `questify_award`, `xp_entry` source
+    `questify`, the windowed `standing_credits`/`player_metrics`, `questify_sync` paying quests, `own_questify_quests`
+    and six admin-checked, audited console doors. API `GET /v1/me/questify-quests` and `/v1/admin/questify/*`.
+    Proposed ADR-280 / Q-246. Mutation owed on GitHub with T-403 (one dispatch).
 - [ ] **T-403c** Achievements, passport, history and Questify quests on screen; dashboard event city; console campaign editor — delivers FR 701, 702, 708, 709 (on screen); depends on: T-403, T-403b
   - Split from T-403 2026-10-26 (ADR-273). **STANDARD** (display and copy; authorization stays in T-403/T-403b): built on the cheaper model; one standard code review that includes the Arabic pass (the worker applies `ux-araby`; cut 8), on the model and cost policy in CLAUDE.md. Reads `GET /v1/me/event-history?played=true` for the passport and without `played` for the history, `GET /v1/me/achievements`, `POST /v1/me/questify/sync` (focus, foreground ≥5 min, about 15 s after completions, 429 silent), `GET /v1/cities`; the public profile's `achievements`/`passport` are optional in the shared schema until it tightens them. Seeded achievement names (migration 0065) get their `ux-araby` pass here; FR-709's logo waits for T-602.
   - Done when: A finished event adds a stamp with its date and rank; unearned achievements show as silhouettes; another player sees only stamps of ended public (non-workplace) events.
+  - Note 2026-10-26 (T-403b): the sync answer now carries `quests` (one light toast each) and `levelUp` (the completion
+    answer's shape: show the existing level-up beat and its items). The console page words each `questify_conflict`
+    reason (`retired`, `start_passed`, `started`, `ends_earlier`, `ended`, `frozen`, `too_many`, `campaign_closed`) and
+    each `invalid_questify` field in both languages, sends the window as ISO with the `+03:00` offset, and offers retire
+    instead of delete (ADR-280). The player list sends raw `progress`; clamp it to `target` on screen.
 - [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).

@@ -78,8 +78,8 @@ Players created before 0017 have no rows and are asked again.
 ### Account deletion (migration 0038, T-217, ADR-175 to ADR-178)
 - **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
-  completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403)
-  and handed-over redemptions; they name no one.
+  completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403),
+  `questify_award` rows and their XP entries (T-403b) and handed-over redemptions; they name no one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
   player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
 - `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
@@ -528,8 +528,8 @@ ADR-151):
   `questify_sync()`; a jump writes every tier passed. T-404 pays gems once per row.
 - Played (ADR-274): a standing quest XP credit (`xp_entry` source `quest`, never reversed) through `ledger_entry →
   enrollment` on a membership passing `played_enrollment(status, joined_via)` (not banned, not removed, not rehearsal),
-  the one rule all five metrics use (`standing_credits(player)`, `player_metrics(player)`; lifetime, T-403b adds the
-  campaign window on `ledger_entry.created_at`). `top10`: revealed `final_rank` ≤ 10 on a membership with a standing credit (welcome
+  the one rule all five metrics use (`standing_credits(player)`, `player_metrics(player)`; lifetime; T-403b added the
+  campaign window on `ledger_entry.created_at`, below). `top10`: revealed `final_rank` ≤ 10 on a membership with a standing credit (welcome
   points alone rank a member who never played; that place never counts); `goals`: distinct reached
   `community_goal` with the membership in `community_contributor`.
 - `questify_sync()`: unlocked pre-check (`achievements_due`), then player FOR KEY SHARE → `player_xp` FOR UPDATE →
@@ -540,6 +540,42 @@ ADR-151):
   `passport` from `public_passport`, at most 50 stamps where `public_stamp(event)`: public, not workplace, ended or
   archived now). Internal helpers hold no grant: `played_enrollment`, `standing_credits`, `player_metrics`,
   `achievements_due`, `earned_tier`, `public_stamp`, `public_achievements`, `public_passport`, `all_places`.
+
+### Questify quests and campaigns (T-403b, migration 0066 undeployed; core code review pending)
+
+- `questify_campaign(id, name_ar/en (1–80, no control/bidi), starts_at < ends_at (instants; the console enters Saudi
+  time), status draft|published|retired, created_by → staff_user SET NULL, created_at, updated_at)`: a seasonal window.
+  Published only while `starts_at >= now()` (MINOR-6). Once published: the start moves only before it starts and never
+  into the past, then is fixed; the end moves only later while running; an ended window is fixed; retired is final
+  (ADR-280). Offered while `starts_at <= now() < ends_at`.
+- `questify_quest(id, campaign_id NULL → questify_campaign (NULL = always-on; set at creation, never moves), metric
+  events|cities|quests, target 1–1000, title_ar/en (1–80, no control/bidi), xp 1–10000, position 1–1000, status
+  draft|active|retired, created_by, created_at, updated_at)`, index (campaign_id). At most 20 not retired per campaign
+  and 50 always-on, a count inside `questify_quest_save` (cut 3; the campaign row lock makes the campaign cap exact, the
+  always-on one is admin-only). Metric and target are fixed once the quest can pay (active always-on, or its campaign
+  published; MINOR-7); active is one-way until retired; a changed `xp` pays later awards only. A draft is retired,
+  never deleted (no delete door). Seeded active: attend 3 events and play in 2 cities, 300 XP each (ADR-279).
+- `questify_award(id bigint identity, player_id → player_xp, quest_id → questify_quest RESTRICT, earned_at)`: UNIQUE
+  (player_id, quest_id); append-only for every role (`history_append_only`, ENABLE ALWAYS); kept on the tombstone.
+- `xp_entry` (altered): `source` gains `questify`; `ledger_entry_id` and `quest_id` drop NOT NULL; `questify_award_id
+  bigint UNIQUE → questify_award`. CHECK `xp_entry_shape`: `quest` and `removal` exactly as 0039 (both ledger ids set,
+  no award); `questify` has `delta > 0`, no ledger entry, no event quest, no `reverses`, the award set. `xp_reverse`
+  follows `ledger_entry_id` only, so a removal never takes a Questify award back. T-408's monthly sum includes it.
+- Window (MINOR-6): `standing_credits(player, since, until)` and `player_metrics(player, since, until)` bound the
+  credits to `ledger_entry.created_at` in `[since, until)` (NULL: unbounded; the one-argument versions call them with
+  NULL). A bounded call answers events, quests and cities only (top10 and goals are lifetime).
+- Evaluator: `questify_due(player)` lists active always-on quests met on lifetime metrics and active quests of a
+  published campaign met inside its window, from its start until `ends_at + 3 days`, not yet awarded. `questify_sync()`
+  pays each after the tiers under the same locks: one award (`ON CONFLICT DO NOTHING`), one `xp_entry` (xp read under
+  the lock) and `xp_apply`, so the total, the level, `level_reached` and the level items follow. Its answer gains
+  `quests` and `levelUp` (`questify_level_up`: the highest level those entries reached, its title and items).
+- Doors: `own_questify_quests()` (player, caller-bound); `questify_admin_list`, `questify_campaign_save | publish |
+  retire`, `questify_quest_save | retire` (console, each re-reads `app_admin_id()` through `questify_admin()`, audits
+  `questify.campaign_*` / `questify.quest_*` with ids and changed field names). Internal, no grant: `questify_due`,
+  `questify_level_up`, `questify_admin`, `questify_home` (locks a quest's campaign before the quest, refuses a closed
+  one), `questify_window_check`, `questify_audit`, `questify_campaign_json`, `questify_quest_json`.
+- Migration lock order: `xp_entry` ACCESS EXCLUSIVE then `player_xp` SHARE ROW EXCLUSIVE up front, the order a scan
+  takes them, under `lock_timeout = 10s`.
 
 ### rank_prize, event_result, result_place (migration 0034, T-214)
 - `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description

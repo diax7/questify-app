@@ -3607,3 +3607,19 @@ conflict with App Store 3.2.2(x), and FR-710's other examples meet the requireme
 and Questify quests grant no item or gem yet; T-404 pays gems from the earned rows (ADR-046).
 **Why:** Bronze within the first event or two keeps new players engaged; gold takes a season of play.
 **Trade-offs:** ADR-046's achievement items wait for catalog art and T-404.
+
+## ADR-280 — Questify quest console rules as built (T-403b)
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403b build; Q-246). Extends ADR-278.
+**Decision:** A quest's campaign is chosen when it is created and never moves. `active` is one-way: an active quest is
+retired, never put back to draft. Nothing is deleted: a draft quest or campaign is retired (no delete door). A quest
+cannot be added to, or edited in, a retired or ended campaign; retire still works. A published campaign's start moves
+only before it starts and never into the past; once started the start is fixed and the end only moves later; once
+ended the window is fixed (the name still changes). Publishing an already published campaign answers it as it is.
+The caps count quests not retired (drafts included): 20 per campaign, 50 always-on. The console list shows every
+always-on quest and the 100 latest-starting campaigns and is not audited (no personal data). A sync's `levelUp` has
+the completion answer's shape (level, title, the level items those payments gave). The two seeded always-on quests
+are active from the deploy, so a veteran who already qualifies is paid at the next sync. Console refusals answer
+`409 questify_conflict {reason}` or `422 invalid_questify {field}`; the console (T-403c) words each reason.
+**Why:** Fixed conditions and no deletion keep every award explainable; one rule per state keeps the doors small.
+**Trade-offs:** A mistyped quest in the wrong campaign is retired and made again; on the first sync after the deploy
+veterans may be paid both seeded quests and reach a level at once.

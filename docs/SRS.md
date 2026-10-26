@@ -1103,8 +1103,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-707 | F-58 | Must | server built T-403 (`test/db/achievements.int`: thresholds, jumps, replays, crossings), core code review pending; awarded at the next sync |
 | FR-708 | F-58 | Must | partial: server answers `tier` null for a silhouette (`test/db/achievements.int`); screens T-403c |
 | FR-709 | F-133 | Must | partial: stamps, local date and final rank (none while running) server-side (`test/db/event-passport.int`, `test/db/final-rank.int`); the event logo waits for T-602; screens T-403c |
-| FR-710 | F-132 | Must | pending |
-| FR-711 | F-132 | Must | pending |
+| FR-710 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: seeded attend 3 events and play in 2 cities, one award and one XP entry per quest under replays and crossings; `test/questify/quests.int`), core code review pending; paid at the next sync; "set your interests" comes with T-407, "follow Questify" not built (Q-245); screens T-403c |
+| FR-711 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: published only before the start, offered only inside the window, counts only plays inside it, 3-day late-sync grace; console doors admin-only and audited), core code review pending; console page T-403c |
 | FR-720 | F-129 | Must | `test/db/profile-items.int`, `apps/app/src/questify/profile-api.test.ts` (T-402) |
 | FR-721 | F-131 | Must | `test/db/profile-items.int`, `test/db/profile-upgrade.int`, app profile-api tests (T-402) |
 | FR-722 | F-130 | Should | `test/db/profile-items.int` ownership/starter/earned character (T-402) |

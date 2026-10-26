@@ -1,5 +1,22 @@
 # Security — Questify
 
+## T-403b Questify quests boundary (implemented; core code review pending)
+
+`questify_campaign`, `questify_quest` and `questify_award` force RLS with no API or PUBLIC rights. `questify_app` holds
+seven doors: the player's `own_questify_quests` (caller-bound through `profile_player()`, no player parameter) and six
+console doors (`questify_admin_list`, `questify_campaign_save|publish|retire`, `questify_quest_save|retire`); every
+evaluator and console helper holds no grant (outsider suite). Each console door re-reads the admin from the account
+(`app_admin_id()`, an active platform admin with the request's admin flag), so a player, an organizer's staff, a device
+context, the anonymous role, a disabled admin or an admin account without the flag is refused (`42501`, answered 404 like
+the console hook); every write route takes an Idempotency-Key and every write is audited (`questify.campaign_*`,
+`questify.quest_*`) with ids and changed field names only, never titles. Awards come only from server facts through
+`questify_sync` (one per player and quest, unique key); a Questify XP entry has no ledger entry, so no removal can
+reverse it, and the CHECK pins each source's shape. A quest's condition is fixed once it can pay, so a later edit cannot
+re-pay or re-label what players earned. Lock order is unchanged (player KEY SHARE, then `player_xp`); the award's key
+check takes KEY SHARE on the quest, which an admin save (NO KEY UPDATE) never blocks; crossed-lock tests cover erasure
+and completions while a quest pays. Migration 0066 takes `xp_entry` then `player_xp` up front, in scan order, under a
+10 s lock timeout.
+
 ## T-403 achievements, passport and history boundary (implemented; core code review pending)
 
 `city`, `achievement`, `achievement_earned` and `final_rank` force RLS with no API or PUBLIC rights; only four doors

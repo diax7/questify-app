@@ -1321,16 +1321,28 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   API.md, DATA_MODEL.md and the plan's build notes updated (lock-order note to T-403b, `rank_state` note to T-403c; a
   NULL `profile_player()` in event history left as an empty page). Not pushed by the worker.
 
+- 2026-10-26 **T-403b built (core), awaiting the independent core code review; not ticked.** Migration 0066 (new,
+  undeployed; 0063 to 0065 untouched) takes `xp_entry` then `player_xp` up front in scan order under a 10 s lock
+  timeout: `questify_campaign`, `questify_quest` (seeded active: attend 3 events, play in 2 cities, 300 XP each),
+  append-only `questify_award`; `xp_entry` source `questify` (no ledger entry, CHECK `xp_entry_shape`, never reversed);
+  the window as `standing_credits`/`player_metrics(player, since, until)` on `ledger_entry.created_at`; `questify_sync`
+  pays each met quest once (award, XP entry, `xp_apply`, level items) and answers `quests` and `levelUp`;
+  `own_questify_quests`; six console doors that re-read the admin and audit ids and field names. API
+  `GET /v1/me/questify-quests` and `/v1/admin/questify/*` (Idempotency-Key on every write; `409 questify_conflict
+  {reason}`, `422 invalid_questify {field}`); shared `packages/shared/src/questify/quests.ts`. Tests: DB
+  questify-quests 18, routes quests 3 and questify 4, unit 6, achievements 16, security suites 492; FULL_RESULT;
+  oxfmt, oxlint --deny-warnings and tsc clean for api and shared. Proposed ADR-280 / Q-246 (console rules; ADR-093's
+  "seasonal campaigns" read as configuration, not FR-711). No app or web code changed.
+
 ## Next
 
-1. **T-403b (CORE, migration 0066):** after the coordinator pushes T-403 and CI passes, a fresh Opus worker builds
-   T-403b from the T-403 plan (its own code review), then T-403c (standard, built on the cheaper model; one code review
-   that includes the Arabic pass, on the CLAUDE.md model and cost policy).
-   One `mutation.yml` dispatch after T-403b covers both (`apps/api/src/questify/**/*.ts`,
-   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`
-   plus T-403b's files). Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No
-   deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-up: Q-237 central replay-before-scope
-   fix for other idempotent organizer routes.
+1. **T-403b (CORE):** built; a fresh independent core code review, then tick it. Then T-403c (standard, the cheaper
+   model; one code review that includes the Arabic pass; the console page words each refusal reason, ADR-280). One
+   `mutation.yml` dispatch now covers T-403 and T-403b (`apps/api/src/questify/**/*.ts`,
+   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`).
+   Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No deployment/EAS/local
+   Stryker; phone/CranL obligations remain deferred. Follow-up: Q-237 central replay-before-scope fix for other
+   idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

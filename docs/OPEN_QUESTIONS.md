@@ -723,3 +723,10 @@ Recommended (ADR-278): a campaign is published before it starts; seasonal quests
 with a 3-day grace to pay a late sync. Follow
 Questify is not built: XP for following a social account outside the app may conflict with App Store 3.2.2(x), on top
 of Meta's rule (ADR-034). If you accept that risk and give the account links, it is a small later addition.
+
+## Q-246 — Questify quest console rules, and ADR-093's "seasonal campaigns" (2026-10-26, T-403b build)
+Recommended (ADR-280): a quest's campaign never changes after creation; an active quest stays active until retired;
+drafts are retired rather than deleted; the seeded "attend 3 events" and "play in 2 cities" quests (300 XP each) go
+live with the deploy, so players who already qualify are paid at their next sync. Also: ADR-093 (accepted) lists
+"seasonal campaigns" as not in v1; the build reads that as seasonal configuration (themes, settings), not FR-711's
+seasonal Questify quest campaigns, which the approved plan builds. Agree, or should the seeded quests start as drafts?

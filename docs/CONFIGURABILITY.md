@@ -142,6 +142,20 @@ for an event.
   once; the kiosk page, the public code page and the Event words form keep the defaults, Q-227); the big screen (T-5xx) uses
   the words when it exists.
 
+## As built (T-403b): Questify quests and campaigns
+
+- **Data, not code (ADR-278):** the Questify team creates always-on quests and seasonal campaigns in the console
+  (`/v1/admin/questify`, the page is T-403c). A quest has a title in Arabic and English (1–80 characters, no control or
+  bidi characters), a metric from a closed list (events played, cities played, quests completed), a target (1–1000), an
+  XP reward (1–10000) and an order; a campaign has a name and a window entered in Saudi time. No new metric, reward kind
+  or screen can be added this way (rule 7).
+- **Safe edits:** a campaign is published only before it starts; once started its start is fixed and its end only moves
+  later; once a quest can pay (active always-on, or its campaign published) its metric and target are fixed and it stays
+  active until retired. Titles, XP (later awards only), order and names stay editable. Retiring hides a quest or
+  campaign and keeps every award. At most 20 quests per campaign and 50 always-on.
+- **Seeded:** attend 3 events and play in 2 cities, 300 XP each, live from the deploy (ADR-279).
+- **Audit:** every change is in the audit log with the admin, the ids and the names of the fields changed.
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |
@@ -155,6 +169,7 @@ for an event.
 | Tuning numbers | Flag thresholds, QR refresh and My QR grace time, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range; out-of-range saves are refused |
 | Platform messages | Banner on Questify home (scheduled); maintenance mode, global or per event (F-280, F-281) | Maintenance shows its message; staff and health checks still work |
 | Catalog | Items, achievements, gem prices (F-216) | |
+| Questify quests | Always-on quests and seasonal campaigns: titles, metric (closed list), target, XP, order, window (FR-710, FR-711; T-403b) | Condition fixed once a quest can pay; a campaign published only before it starts; caps 20 per campaign, 50 always-on |
 | Templates and legal | SMS/email/push templates with CST rules checked on save; terms, privacy, guidelines, DPA as versions with forced re-acceptance (F-288, F-289) | Promotional templates cannot omit opt-out; versions are never edited, only replaced |
 | Content | Daily questions, word bank, help/FAQ, word lists (F-261, F-313, F-287, F-290) | A day with no daily word shows no game |
 | Intro cards | Edited by admin (ADR-096) | |
@@ -163,8 +178,8 @@ for an event.
 
 New quest types and mini-games; new screens and flows; theme and animation code; choosing celebration
 animations; anything native (NFC behavior, wallet formats). Left out of v1 on purpose (ADR-093):
-theme settings as data, gradual rollout, seasonal campaigns, per-country settings, draft/preview/
-publish, version rollback, A/B tests.
+theme settings as data, gradual rollout, seasonal campaigns of configuration (Questify quest campaigns, FR-711, are
+data; Q-246), per-country settings, draft/preview/publish, version rollback, A/B tests.
 
 ## Over-the-air updates (Q-033)
 
