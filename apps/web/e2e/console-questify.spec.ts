@@ -54,7 +54,21 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();
   const campaign = page.getByTestId("questify-campaign").filter({ hasText: name });
   await expect(campaign.getByText("مسودة", { exact: true }).first()).toBeVisible();
+  const publishCalls: string[] = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "POST" && sent.url().endsWith("/publish")) {
+      publishCalls.push(sent.url());
+    }
+  });
+  // Publishing asks first: cancel sends nothing, the confirm button sends the one call.
   await campaign.getByRole("button", { name: "انشر الموسم" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("نشر الموسم؟");
+  await expect(page.getByRole("alertdialog")).toContainText("لا يمكن التراجع عن النشر.");
+  await page.getByRole("alertdialog").getByRole("button", { name: "إلغاء" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(publishCalls).toHaveLength(0);
+  await campaign.getByRole("button", { name: "انشر الموسم" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "انشر الموسم" }).click();
   await expect(
     page.getByText("مضى وقت البداية. اختر وقتًا مستقبليًا ثم انشر.", { exact: true }),
   ).toBeVisible();
@@ -64,8 +78,10 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();
   await campaign.getByRole("button", { name: "انشر الموسم" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "انشر الموسم" }).click();
   await expect(page.getByText("نُشر الموسم.")).toBeVisible();
   await expect(campaign.getByText("منشور", { exact: true })).toBeVisible();
+  expect(publishCalls).toHaveLength(2);
 
   // A quest for the campaign: a bad target is named before anything is sent.
   await campaign.getByRole("button", { name: "مهمة جديدة" }).click();
@@ -90,6 +106,33 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await expect(page.getByText("أُوقفت المهمة.")).toBeVisible();
   await expect(quest.getByText("متوقفة", { exact: true })).toBeVisible();
   await expect(quest.getByRole("button", { name: "عدّل المهمة" })).toHaveCount(0);
+});
+
+test("in English the publish dialog says it cannot be undone and starts paying XP", async ({
+  page,
+}, info) => {
+  await openBuilder(page, info.project.name);
+  const eventId = page.url().split("/").at(-2) ?? "";
+  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
+    204,
+  );
+  await page.goto("/en/console/questify");
+  await page.getByRole("button", { name: "New campaign" }).click();
+  await page.getByLabel("Campaign name in Arabic", { exact: true }).fill("موسم الربيع");
+  await page
+    .getByLabel("Campaign name in English", { exact: true })
+    .fill(`Spring ${info.project.name}`);
+  await page.getByLabel("Starts (Saudi time)", { exact: true }).fill(inDays(1));
+  await page.getByLabel("Ends (Saudi time)", { exact: true }).fill(inDays(30));
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const campaign = page
+    .getByTestId("questify-campaign")
+    .filter({ hasText: `Spring ${info.project.name}` });
+  await campaign.getByRole("button", { name: "Publish campaign" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Publish this campaign?");
+  await expect(page.getByRole("alertdialog")).toContainText(
+    "Publishing can't be undone. From then on the campaign starts paying XP to players.",
+  );
 });
 
 test("an organizer who is not a Questify admin does not find the page", async ({ page }, info) => {

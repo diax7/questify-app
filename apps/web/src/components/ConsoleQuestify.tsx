@@ -348,7 +348,7 @@ function QuestList({
   );
 }
 
-/** What the page can be doing at once: one form open, or one retirement waiting for its confirmation. */
+/** What the page can be doing at once: one form open, or one retirement or publication waiting for its confirmation. */
 function usePage(language: Language) {
   const t = translatorFor(language);
   const [view, setView] = useState<AdminQuestify | null>(null);
@@ -571,6 +571,43 @@ function RetireDialog({
   );
 }
 
+/** The confirmation before a campaign is published: it cannot be undone and starts paying XP to players. */
+function PublishDialog({
+  language,
+  campaignId,
+  busy,
+  write,
+  close,
+}: Readonly<{
+  language: Language;
+  campaignId: string;
+  busy: boolean;
+  write: PageWrite;
+  close: () => void;
+}>) {
+  const t = translatorFor(language);
+  const publish = async () => {
+    await write({
+      method: "POST",
+      path: `/campaigns/${campaignId}/publish`,
+      done: t("console.questify.published"),
+    });
+    close();
+  };
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t("console.questify.publishTitle")}
+      body={t("console.questify.publishBody")}
+      confirmLabel={t("console.questify.publish")}
+      noteLabel={null}
+      busy={busy}
+      cancel={close}
+      confirm={() => void publish()}
+    />
+  );
+}
+
 /**
  * The console's Questify quests (T-403c, FR-710, FR-711): always-on quests and seasonal campaigns, each created, edited,
  * published or retired here (never deleted: what players earned stays). Times are entered in Saudi time. Every write
@@ -581,6 +618,7 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
   const page = usePage(language);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [retiring, setRetiring] = useState<Retiring | null>(null);
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const saveForm = async (submitted: FormEvent) => {
     submitted.preventDefault();
@@ -608,16 +646,20 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
   const doors: Doors = {
     editCampaign: (campaign) =>
       setEditing({ kind: "campaign", id: campaign.id, draft: campaignDraftOf(campaign) }),
-    publish: (campaign) =>
-      void page.write({
-        method: "POST",
-        path: `/campaigns/${campaign.id}/publish`,
-        done: t("console.questify.published"),
-      }),
-    retireCampaign: (campaign) => setRetiring({ kind: "campaign", id: campaign.id }),
+    publish: (campaign) => {
+      setRetiring(null);
+      setPublishing(campaign.id);
+    },
+    retireCampaign: (campaign) => {
+      setPublishing(null);
+      setRetiring({ kind: "campaign", id: campaign.id });
+    },
     newQuest: (campaignId) => questForm(campaignId),
     editQuest: questForm,
-    retireQuest: (quest) => setRetiring({ kind: "quest", id: quest.id }),
+    retireQuest: (quest) => {
+      setPublishing(null);
+      setRetiring({ kind: "quest", id: quest.id });
+    },
     newCampaign: () => setEditing({ kind: "campaign", id: null, draft: BLANK_CAMPAIGN }),
   };
 
@@ -643,6 +685,15 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
           busy={page.busy}
           write={page.write}
           close={() => setRetiring(null)}
+        />
+      )}
+      {publishing === null ? null : (
+        <PublishDialog
+          language={language}
+          campaignId={publishing}
+          busy={page.busy}
+          write={page.write}
+          close={() => setPublishing(null)}
         />
       )}
       {editing === null ? null : (

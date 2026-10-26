@@ -758,5 +758,5 @@ points. Item 4 stays open until a phone build exists.
 Publishing a Questify campaign from the console is one-way (it can only be retired afterwards) and starts paying XP to
 real players, yet the button acts at once. Recommended: ask for a confirmation first, as the retire dialog does, saying
 it cannot be undone.
-**Answered (developer, delegated by Dhia, 2026-10-27):** confirm first (ADR-283); built as a small standard fix after this answer.
+**Answered (developer, delegated by Dhia, 2026-10-27):** confirm first (ADR-283); built 2026-10-27.
 

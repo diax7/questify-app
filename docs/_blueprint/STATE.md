@@ -1414,10 +1414,15 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   100, `players/items.ts` 94.55 (3 survived), `souvenirs.ts` 98.20 (2 survived). This confirms that the earlier low shared
   scores came from incremental-report leftovers. The T-402 and T-403 mutation chase is closed.
 
+- 2026-10-27 **ADR-283 built (answers Q-248).** The console's Questify campaign page asks for confirmation before Publish
+  (`PublishDialog` in `ConsoleQuestify.tsx`, same `ConfirmDialog` as retire; new messages `console.questify.publishTitle`
+  and `publishBody`, Arabic and English). Only the dialog's confirm button sends the publish call. Browser spec
+  `console-questify.spec.ts` covers cancel (no call), confirm (one call) and the English text.
+
 ## Next
 
 1. **Mutation chase closed** (forced run above, all files ≥ 90). Waiting for Dhia: his OK
-   on the `stryker.config.json` globs, Q-247 items 2 and 3, and Q-248 (publish confirmation). Next task: **T-404**
+   on the `stryker.config.json` globs, and Q-247 items 2 and 3 (Q-248, the publish confirmation, is built). Next task: **T-404**
    (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred (T-403c's phone check
    included). Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

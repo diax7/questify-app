@@ -4749,6 +4749,11 @@ export const MESSAGES = {
   },
   "console.questify.save": { ar: "احفظ", en: "Save" },
   "console.questify.publish": { ar: "انشر الموسم", en: "Publish campaign" },
+  "console.questify.publishTitle": { ar: "نشر الموسم؟", en: "Publish this campaign?" },
+  "console.questify.publishBody": {
+    ar: "لا يمكن التراجع عن النشر. بعده يبدأ الموسم بمنح الخبرة (XP) للاعبين.",
+    en: "Publishing can't be undone. From then on the campaign starts paying XP to players.",
+  },
   "console.questify.retireCampaign": { ar: "أوقف الموسم", en: "Retire campaign" },
   "console.questify.retireQuest": { ar: "أوقف المهمة", en: "Retire quest" },
   "console.questify.retireTitle": { ar: "إيقاف نهائي؟", en: "Retire for good?" },
