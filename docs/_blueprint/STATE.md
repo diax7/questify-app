@@ -1119,16 +1119,53 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   remains just the new hook's /v1 prefix. Save repair checkpoint before final full Vitest and FULL142 browser;
   native/API/SQL/shared/copy/20k evidence unaffected. Final task/core review still pending,75/153 unchecked.
 
+- 2026-10-26 **Repair checkpointc2353c9 saved clean; final frozen-source full Vitest18450 active:**
+  report/log `Temp/questify-t402b-forwarder-vitest.{json,log}`. FULL142 browser rerun follows using fresh web64981;
+  retain all prior failed/cancelled evidence. No further source changes planned. Final docs and independent core
+  review remain; task unchecked75/153, no worker push/deploy/EAS/local mutation.
+
+- 2026-10-26 **Final frozen-source Vitest18450 GREEN atc2353c9:**366 files/5789 tests passed,3 optional timing
+  skips,0 failures,290.78s. Report/log `Temp/questify-t402b-forwarder-vitest.{json,log}`. Current web build64981
+  includes the observed forwarder fix; focused desktop/phone2/2 PASS. FULL142 browser verified rerun started next,
+  output `Temp/questify-t402b-verified-browser-results`, report/log `Temp/questify-t402b-browser-verified.{json,log}`.
+  Earlier failing traces remain intact in the original paths. Native exports,20k measurement and static/audit
+  evidence remain current. Full Vitest slot released; only browser completion/final docs/secrets/commit then fresh
+  independent core review remain. Keep task unchecked75/153, no push/deploy/EAS/local Stryker.
+
+- 2026-10-26 **T-402b author verification GREEN; ready for fresh independent core CODE review, NOT complete:**
+  Production source cutoffc2353c9. Final full DB/Redis exec18450 PASS366 files/5789 tests,3 optional timing skips,
+  0 failures,290.78s; `Temp/questify-t402b-forwarder-vitest.{json,log}`. Fresh production web build64981 PASS;
+  FULL142 browser37282 PASS141/1 intentional phone-camera skip,0 failures,417.28s; report/log
+  `Temp/questify-t402b-browser-verified.{json,log}`. Focused real-forwarder desktop/phone86804 PASS2/2. Original
+  failed/cancelled runs and traces remain explicitly documented, never substituted for passing evidence. The real
+  /api/v1→/v1 integration fix and anchored draft-status assertion are committed; no source changes afterc2353c9.
+  Current Android6359/iOS48842 exports PASS. Workspace lint/format/all types, API build and audit PASS (unchanged
+  two existing high-advisory exceptions). Redacted committed-range/repair/final staged Gitleaks8.30.1 scans PASS;
+  source LF and staged diff clean. Generated benchmark bundle removed; no local command or browser server remains.
+  Isolated20,001-recipient benchmark PASS:443,198ms,0 due/failed,max160 recipients/pass; detailed bulk-enqueue and
+  back-to-back-cadence limitations remain in RUNBOOK, not a production capacity claim. Plan88→96 GO and Arabic
+  84→94 GO already independent; no fresh Arabic review needed because no copy changed during this resume.
+  Keep T-402b UNCHECKED75/153 (49.02%) until fresh Sol High core code review >=90 with zero BLOCKER/MAJOR. Proposed
+  ADR-269–271/Q-233–235 remain Proposed. Root owns review and subsequent configfb0fba4 integration/push/CI.
+  Suggested mutation targets (GitHub-only, only changed core files): apps/api/src/souvenirs/*.ts,
+  apps/api/src/players/items.ts, apps/api/src/players/item-routes.ts, packages/shared/src/souvenirs.ts,
+  packages/shared/src/players/items.ts; reviewer/coordinator may narrow pure wiring/format branches. No broad repo
+  mutation. T-402/T-402b batch and physical-phone RTL/cosmetic checks remain owed.0063/0064 undeployed; CranL,
+  deployment and EAS remain deferred. T-312/T-313 forced proofs are closed, no current remote CI/mutation active.
+  Latest reviewed remote4bca465 CI40224593807 SUCCESS6.73wallmin/0 billed. T-31340227738340 requested files93.55/
+  90.27 meet target; console40226079637 98.51 meets target, no survivor chase. Heartbeat ACTIVE08:22 Riyadh after
+  coordinator-reported08:16:06 reset; no credits. Worker commits this green evidence and STOPS for core review.
+
 ## Next
 
-1. **Current queue (2026-10-25, supersedes historical queues):** resume this same T-402b implementation from the
-   latest durable checkpoint above. Run final frozen-source DB/Redis Vitest, full browser142, iOS export,20k
-   benchmark and final static/build/secret gates; then fresh independent core code review >=90 with zero
-   BLOCKER/MAJOR, fixing/rechecking findings before marking T-402b done. Keep75/153 until then. Root closed T-312/T-313
-   mutation follow-ups and owns reviewed pushes/CI and the T-402/T-402b mutation batch. Console98.51% already meets
-   target. Do not push unfinished WIP, deploy, run EAS or local Stryker. Heartbeat ACTIVE08:22 Riyadh2026-10-26.
-   Earlier completed-task/Opus queues above are historical, not instructions to restart those tasks.
-   Existing dependency audit exceptions remain unchanged; real-device/CranL/EAS obligations remain deferred.
+1. **Current queue (2026-10-26):** T-402b implementation and author gates are green at the checkpoint above.
+   Root commissions a fresh independent Sol High core CODE review of the complete4bca465..HEAD task range;
+   >=90 and zero BLOCKER/MAJOR required. Author stops here. Fix/recheck review findings before ticking T-402b;
+   keep75/153 until GO. Root then integrates independently reviewed mutation-force configfb0fba4, checks the
+   reviewed range before push/CI, and schedules the T-402/T-402b GitHub mutation batch. T-312/T-313 targets already
+   meet90, no more chase. Continue T-403 with a fresh worker only after this core gate. No deployment/EAS/local
+   Stryker; phone/CranL obligations remain deferred. Heartbeat ACTIVE08:22 Riyadh2026-10-26. Earlier queues are
+   historical and do not authorize restarting completed tasks.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
