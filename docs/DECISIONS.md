@@ -3693,7 +3693,8 @@ later task cannot add a gem source without a migration a review sees; one locked
 `level_reached` row (level 2 and up), `achievement_earned` row and `questify_award` row (quest `gems` above 0) of the
 caller that has no gem entry yet; nothing is added to the completion transaction. Rows earned before T-404 are paid
 at the first sync after the deploy. Amounts: `platform_setting` key `gems` `{levelUp: 20, bronze: 10, silver: 25,
-gold: 50}` (each 1–1000, fallbacks in code) and `questify_quest.gems` (0–1000, frozen once the quest can pay; the two
+gold: 50}` (each field used only when an integer 1–1000, otherwise its fallback in `gem_amounts()`; 0067 writes no row
+and no CHECK, T-709 adds both with the editor, so the migration never locks `platform_setting`, plan review MAJOR-1) and `questify_quest.gems` (0–1000, frozen once the quest can pay; the two
 seeded quests 25). A changed setting applies to rows paid later.
 **Why:** One evaluator keeps the scan path's latency and locks unchanged; paying per row makes replays and concurrent
 syncs harmless; retroactive pay keeps veterans level with newcomers.
@@ -3705,7 +3706,9 @@ gem reward cannot be raised after launch (retire it and make a new quest).
 **Decision:** `gem_shop_item` lists items for sale at a fixed gem price (active or retired); an item sold in the shop is
 never a level reward or a souvenir (a guard refuses both directions). A player owns at most one copy. `gem_buy` takes
 the item, the price the player saw and an idempotency key; it refuses an unknown or retired item, an owned item, a
-changed price and too few gems (nothing written), and replays a repeated key. A purchase writes one purchase row, one
+changed price and too few gems (nothing written), and replays a repeated key with the current balance (the route's
+replay store also replays a refusal, so the app makes a fresh key per confirmation). A shop item's catalog entry is
+frozen and its source-map writes serialize on the item, as an active souvenir's. A purchase writes one purchase row, one
 negative gem entry and one locker item (`source = 'shop'`); XP is never touched. Retired items stay owned and
 equippable. The catalog is seeded; console editing waits for T-709 (FR-1403).
 **Why:** Exclusive sources keep `player_item`'s one row per item safe from a later level grant; the seen price stops a

@@ -479,7 +479,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     drafts count), and the two seeded names set in 0065 in place (Q-247 item 1). Phone checks still owed.
     Progress 79/155 (50.97%).
 - [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
-  - Plan 2026-10-27 (core): `docs/plans/2026-10-27-t-404-gems.md`, awaiting the CTO plan review. Proposes a split into
+  - Plan 2026-10-27 (core): `docs/plans/2026-10-27-t-404-gems.md`, CTO plan review 88 with revisions folded (no re-review). Proposes a split into
     T-404 (core: migration 0067, API, shared) and T-404b (standard: screens, console Gems field, strings), ADR-284 to
     ADR-289 / Q-249 to Q-254; the T-404b line is added when the plan review accepts it.
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
