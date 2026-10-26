@@ -1250,9 +1250,19 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   commands, workers, remote CI or mutation. No push/deploy/EAS/credits. Keep heartbeat ACTIVE08:22 Riyadh;
   while this condition is unchanged, stay quiet and do not resubmit the blocked review automatically.
 
+- 2026-10-26 **PAUSED by Dhia for handoff to a new Codex session.** His instruction: finish saving the current
+  task checkpoint, take a break, and give a short takeover prompt. The implementation cannot be declared complete:
+  the fresh independent re-review remains blocked without a verdict. All source, repairs and green evidence are
+  committed locally (source7c0843b/evidence8f32f05; main3e0529d before this documentation commit), no push.
+  `docs/agents/COORDINATOR_HANDOFF.md` is the concise durable takeover map. Progress remains75/153, T-402b unchecked.
+  Heartbeat resume-questify-after-usage-resets is now PAUSED, overriding all earlier ACTIVE schedules. No active
+  worker, local check/server, remote CI or mutation remains. This coordinator stops; the new session must retain
+  the supported-review requirement, existing gates and deployment/EAS deferral. No credits used.
+
 ## Next
 
-1. **Current queue (2026-10-26):** review-repair source7c0843b and all author gates are green, but the mandatory
+1. **Handoff queue (2026-10-26):** this chat is PAUSED at Dhia's request; the new Codex session reads
+   `docs/agents/COORDINATOR_HANDOFF.md` first. Review-repair source7c0843b and all author gates are green, but the mandatory
    fresh independent re-review failed at an automated cybersecurity safeguard before returning a verdict.
    Await a supported independent review path; do not retry or bypass the blocked request while unchanged.
    A permitted NEW independent reviewer must check the complete task and both84 NO-GO findings, excluding
@@ -1260,7 +1270,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
    ticking T-402b; keep 75/153 until then. Author stops here. Reviewed mutation-force config is already integrated
    at 5c87d29. Root owns reviewed push/CI and the T-402/T-402b GitHub mutation batch. T-312/T-313 targets already
    meet 90, no chase. T-403 gets a fresh worker only after this core gate. No deployment/EAS/local Stryker;
-   phone/CranL obligations remain deferred. Heartbeat ACTIVE 08:22 Riyadh 2026-10-26. Earlier queues are historical.
+   phone/CranL obligations remain deferred. This chat's heartbeat is PAUSED. Earlier queues and schedules are historical.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

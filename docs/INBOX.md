@@ -728,3 +728,10 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 
 - Dhia: "keep working now"
 - Processed: explicit resume revokes the break; continue the approved T-402b plan and restore the previously requested usage-reset wake-ups. Deployment and EAS builds remain deferred.
+
+## 2026-10-26 - Break and handoff to a new Codex session
+
+- Dhia: "okay finish your task on your hand then take a break, another ai agent will keep your work same codex but new session, so give me handoff short promit"
+- Processed: save the current verified checkpoint and a concise takeover prompt, pause this chat's reset heartbeat,
+  and stop. A new session may take over from the durable handoff; the unresolved independent-review gate is not
+  waived, and no unreviewed implementation is pushed or marked complete.
