@@ -270,9 +270,10 @@ CREATE FUNCTION player_metrics(who uuid) RETURNS TABLE (metric text, value integ
  UNION ALL
  SELECT 'cities', (SELECT count(DISTINCT e.city_id) FROM played p JOIN event e ON e.id = p.event_id)::integer
  UNION ALL
- SELECT 'top10', (SELECT count(*) FROM enrollment n JOIN final_rank f ON f.enrollment_id = n.id
+ -- A place counts only on a membership with a standing credit: welcome points alone rank a member who never played.
+ SELECT 'top10', (SELECT count(*) FROM final_rank f
                   JOIN event_result r ON r.event_id = f.event_id AND r.revealed_at IS NOT NULL
-                  WHERE n.player_id = who AND played_enrollment(n.status, n.joined_via) AND f.rank <= 10)::integer
+                  WHERE f.rank <= 10 AND f.enrollment_id IN (SELECT c.enrollment_id FROM credit c))::integer
  UNION ALL
  SELECT 'goals', (SELECT count(DISTINCT c.goal_id) FROM enrollment n
                   JOIN community_contributor c ON c.enrollment_id = n.id

@@ -687,6 +687,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
     it("lists the seeded cities to anyone, in order", async () => {
       const answer = await test.app.inject({ method: "GET", url: "/v1/cities" });
       expect(answer.statusCode).toBe(200);
+      expect(answer.headers["cache-control"]).toBe("public, max-age=3600");
       const { cities } = answer.json<{
         cities: { id: string; name: { ar: string; en: string } }[];
       }>();

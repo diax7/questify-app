@@ -58,9 +58,12 @@ export function registerQuestifyRoutes(
       }),
     );
   });
-  app.get("/v1/cities", { config: { access: "public" } }, async () => ({
-    cities: await withConnection(deps.pool, (client) =>
-      withRequestContext(client, {}, () => readCities(client)),
-    ),
-  }));
+  app.get("/v1/cities", { config: { access: "public" } }, async (_request, reply) => {
+    reply.header("cache-control", "public, max-age=3600");
+    return {
+      cities: await withConnection(deps.pool, (client) =>
+        withRequestContext(client, {}, () => readCities(client)),
+      ),
+    };
+  });
 }

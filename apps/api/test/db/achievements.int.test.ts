@@ -170,6 +170,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       expect(await f.sync(player)).toEqual([{ id: "top-ten", tier: "bronze" }]);
     });
 
+    it("never counts a top-ten place held by welcome points alone; a member who played does", async () => {
+      const event = await f.newEvent();
+      await f.owner("UPDATE event SET welcome_points = 20 WHERE id = $1", [event]);
+      const idle = await f.newPlayer();
+      const player = await f.newPlayer();
+      await f.join(event, idle);
+      await f.play(event, player);
+      expect(await f.confirm(event)).toBe("confirmed");
+      expect(await f.reveal(event)).toBe("revealed");
+      const [ranked] = await f.owner<{ n: number }>(
+        "SELECT count(*)::integer AS n FROM final_rank WHERE event_id = $1",
+        [event],
+      );
+      expect(ranked?.n).toBe(2);
+      expect(await progressOf(idle, "top-ten")).toMatchObject({ progress: 0, tier: null });
+      expect(await f.sync(idle)).toEqual([]);
+      expect(await progressOf(player, "top-ten")).toMatchObject({ progress: 1 });
+      expect(await f.sync(player)).toEqual([
+        { id: "events-attended", tier: "bronze" },
+        { id: "top-ten", tier: "bronze" },
+      ]);
+    });
+
     it("counts a community goal only when reached and contributed to, on a membership that counts", async () => {
       const player = await f.newPlayer();
       const event = await f.newEvent();
