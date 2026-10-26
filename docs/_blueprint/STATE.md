@@ -1291,14 +1291,21 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   CLAUDE.md gains Dhia's cost cap (one sub-agent at a time, two only for review plus next build; the strongest model
   only for core work). Progress **76/153 (49.67%)**. No deployment, EAS, phone or local mutation.
 
+- 2026-10-26 **T-403 plan written, awaiting independent plan review.** `docs/plans/2026-10-26-t-403-achievements.md`
+  covers three parts (ADR-273): **T-403 CORE** (event city, final-rank snapshot at confirm, Event Passport and owner
+  history reads, achievement tiers through one `questify_sync` evaluator, public profile achievements and public-event
+  stamps only; 0065), **T-403b CORE** (always-on and seasonal Questify quests, console API, XP source `questify`; 0066),
+  **T-403c STANDARD** (app, dashboard and console screens, copy). No change to the scan transaction; follow Questify not
+  built (store risk). Proposed ADR-273 to ADR-279, Q-239 to Q-245. TASKS gains T-403b/T-403c (now 155 tasks). No code.
+
 ## Next
 
-1. **After T-402b (2026-10-26):** the coordinator pushes the reviewed main (check `git log origin/main..main` first),
-   waits for green CI, then dispatches the T-402/T-402b GitHub mutation batch (actual changed core files only, one run
-   at a time; chase only files under 90). T-312/T-313 targets already meet 90, no chase. Then **T-403** is next, built
-   by a fresh worker. No deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-ups: Q-237
-   central replay-before-scope fix for other idempotent organizer routes; the new souvenir_in_use Arabic strings'
-   review (done, 6286d41); flag the Sol-policy deviation to Dhia (done in the coordinator's reply).
+1. **T-403 plan review (2026-10-26):** a fresh independent core plan review of
+   `docs/plans/2026-10-26-t-403-achievements.md` (covers T-403, T-403b and T-403c). On GO, a fresh worker builds T-403,
+   then T-403b (both core, own code reviews), then T-403c (standard, cheaper model, one code review and one Arabic
+   review). Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No
+   deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-up: Q-237 central replay-before-scope
+   fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

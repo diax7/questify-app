@@ -686,3 +686,35 @@ default words «مهمة» and «فئة» because the dashboard shows an API mes
 `{questOne}`/`{categoryOne}` placeholders (FR-942, `terms.quest`/`terms.category`). An organizer who renamed them sees the
 default word in these refusals. Recommended: later, let the dashboard map the error code to a placeholder-aware
 messages.ts text instead of showing the API string, for all of these refusals together. Not a T-402b change.
+
+## Q-239 — Split T-403 in three (2026-10-26, T-403 plan)
+Recommended (ADR-273): T-403 core server (achievements, passport, history, city), T-403b core Questify quests and
+console API, T-403c standard screens and copy on a cheaper model. Agree?
+
+## Q-240 — Achievement thresholds and Questify quest rewards (2026-10-26, T-403 plan)
+Recommended (ADR-279): events 1/5/15, quests 10/50/200, cities 2/4/8, top-10 1/3/10, community goals 1/5/15; seeded
+quests "attend 3 events" and "play in 2 cities" at 300 XP each (3 event quests' worth); no items or gems until T-404.
+
+## Q-241 — What counts as playing an event, and earned is permanent (2026-10-26, T-403 plan)
+Recommended (ADR-274): an event counts once the player has a quest XP credit there that was not removed, outside
+rehearsal and not on a banned or removed membership. Tiers and Questify awards are kept even if a later removal drops a
+count below the threshold. Rewards are checked when the app syncs (opening Profile or Questify quests, on foreground,
+after a scan), not inside the scan. Agree?
+
+## Q-242 — Final rank on the passport (2026-10-26, T-403 plan)
+Recommended (ADR-275): snapshot every ranked member's place when the owner confirms results; show it after the reveal.
+An event whose results are never confirmed shows "results not final" forever. Should unconfirmed events show a rank
+after some time instead?
+
+## Q-243 — Private events on the public passport (2026-10-26, T-403 plan)
+Recommended (ADR-276): other players see only stamps of events that are public now; private and unlisted stamps are
+visible to the owner only, marked "only you see this". Tiers still count them. Agree, or offer a per-stamp choice later?
+
+## Q-244 — Event city list (2026-10-26, T-403 plan)
+Recommended (ADR-277): a seeded list of about 20 Saudi cities that organizers pick from (none for virtual events),
+frozen once live. Which cities should the first list hold, and who adds new ones (Questify admin)?
+
+## Q-245 — Seasonal windows and the "follow Questify" quest (2026-10-26, T-403 plan)
+Recommended (ADR-278): seasonal quests count plays inside the window only, with a 3-day grace to pay a late sync. Follow
+Questify is not built: XP for following a social account outside the app may conflict with App Store 3.2.2(x), on top
+of Meta's rule (ADR-034). If you accept that risk and give the account links, it is a small later addition.

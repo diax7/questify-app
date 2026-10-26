@@ -3528,3 +3528,69 @@ kept the dashboard pending, logged souvenir.pending every tick, delayed live wor
 beside quest scans. The 20k benchmark used a joined rule, which everyone leaves, so it could not show this.
 **Trade-offs:** A change made outside these facts (an owner-connection data repair, a future qualification source
 without its trigger) is picked up only by a Process request; DATA_MODEL lists the triggers a new source must extend.
+
+## ADR-273 — T-403 splits into a core server task, a core Questify-quests task and a standard surfaces task
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-239).
+**Decision:** T-403 (CORE): event city, final-rank snapshot, Event Passport and owner history reads, achievement tiers,
+the `questify_sync` evaluator and the public profile's achievements/passport. T-403b (CORE): always-on and seasonal
+Questify quests, console API doors, XP awards through `xp_entry`. T-403c (STANDARD): app, dashboard and console screens
+and all copy. One plan (`docs/plans/2026-10-26-t-403-achievements.md`) and one plan review cover all three.
+**Why:** A new evaluator, a confirm-results change, admin powers, a new XP source and three surfaces are more than one
+worker can build and prove in one run; splitting by risk lets the display work use a cheaper model and a lighter review.
+**Trade-offs:** Three code reviews instead of one; T-403's "Done when" is shown on screen only when T-403c lands.
+
+## ADR-274 — Achievements and the passport derive from standing XP credits through one sync evaluator
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-241).
+**Decision:** A player played an event when they hold a non-reversed quest XP credit there on an enrollment that is not
+rehearsal, banned or removed. The Event Passport is computed on read from those credits. Achievement tiers (and T-403b's
+Questify awards) are append-only rows written only by `questify_sync()`, which the app calls on Profile/Questify focus,
+on foreground and after a completion; it locks player (KEY SHARE) then `player_xp`, computes the metrics once and inserts
+with unique keys. Earned rows are never taken back. Nothing is added to the completion transaction.
+**Why:** Every fact already exists on the server, so nothing can be forged; unique keys make replays and races grant once;
+the scan path keeps its latency and lock set. Materialized rows give T-404 something to pay gems on, once per row.
+**Trade-offs:** A tier earned through top-10 or community goals appears at the player's next sync, so another player may
+briefly see an older tier; a removal that drops a count below a threshold leaves the tier.
+
+## ADR-275 — The passport's final rank is a confirm-time snapshot shown after the reveal
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-242).
+**Decision:** `confirm_results` also writes `final_rank` for every ranked enrollment, from the same ordering as
+`result_place`. A stamp shows the rank once results are revealed; before that it says the results are not final, and a
+member with no row is "not ranked". Already confirmed events are backfilled from `result_place`, then the rest in order.
+**Why:** `result_place` stops at the results depth (at least 10), but FR-709 shows every player's final rank; scores are
+frozen at confirmation, so the snapshot is exact and stable. The reveal keeps the organizer's ceremony.
+**Trade-offs:** One insert per ranked member at confirmation; an event whose results are never confirmed shows no rank.
+
+## ADR-276 — The public passport lists only events that are public now
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-243). Resolves T-402's open point.
+**Decision:** Another player sees up to 50 newest stamps of events whose `access` is `public` at read time: name, local
+date, city and final rank only. Unlisted and private events, the owner's history, scores, join answers, progress and
+any count of hidden stamps never enter the public DTO. Achievement tiers count every played event.
+**Why:** Attending a private or workplace event can reveal an employer or affiliation; a tier shows a number, not an event.
+**Trade-offs:** A player cannot choose to show a private event publicly.
+
+## ADR-277 — Events gain a city from a seeded catalog
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-244).
+**Decision:** A `city` table (about 20 Saudi cities, bilingual, ordered) and `event.city_id`, set by the owner or an
+editor, none for virtual events, frozen once the event is live. "Cities played" counts distinct cities of played
+events; events without a city count none. T-407 reuses the table for the player's city.
+**Why:** FR-707 and FR-710 count cities, and no event carries one; free-text venues cannot be counted.
+**Trade-offs:** Older events count no city; until the console can edit the list (T-703/T-709), a new city needs a migration.
+
+## ADR-278 — Questify quests are console data with a closed metric list, paid in XP
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-245).
+**Decision:** The Questify team creates always-on quests and seasonal campaigns (window entered in Saudi time) in the
+console; metrics are events, cities and quests played. Seasonal quests count only facts inside their window and are
+offered only inside it; a sync up to 3 days after the end still pays a qualifying in-window play. A met quest writes one
+`questify_award` and one `xp_entry` (new source `questify`) through T-401's `xp_apply`, so levels and level items follow.
+A Questify quest shows its XP reward. No event points, gems, items, money or trading. "Follow Questify" is not built.
+**Why:** Configuration over code without downloading features; one XP path; an out-of-app follow rewarded with XP may
+conflict with App Store 3.2.2(x), and FR-710's other examples meet the requirement.
+**Trade-offs:** A veteran who already qualifies for a new always-on quest gets it at their next sync, not at once.
+
+## ADR-279 — Seeded thresholds and rewards; no item or gem rewards before T-404
+**Status:** Proposed (worker recommendation, 2026-10-26, T-403 plan; Q-240).
+**Decision:** Achievement tiers (bronze/silver/gold): events 1/5/15, quests 10/50/200, cities 2/4/8, top-10 finishes
+1/3/10, community goals 1/5/15. Seeded always-on quests: attend 3 events and play in 2 cities, 300 XP each. Achievements
+and Questify quests grant no item or gem yet; T-404 pays gems from the earned rows (ADR-046).
+**Why:** Bronze within the first event or two keeps new players engaged; gold takes a season of play.
+**Trade-offs:** ADR-046's achievement items wait for catalog art and T-404.
