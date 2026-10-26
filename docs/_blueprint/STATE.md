@@ -1408,13 +1408,15 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   the incremental cache (restored from run 40358820903) most likely kept their old result.
   If a forced run still leaves import-time schema mutants alive, the lever is `ignoreStatic` for those files, not tests.
 
+- 2026-10-27 **Forced mutation run 40400940399 on 9345a17 (all 9 files retested): every file passes, no chase
+  needed, no `ignoreStatic`.** API `questify/`: `admin-routes.ts` 100, `admin.ts` 100, `routes.ts` 100,
+  `questify.ts` 98.53 (1 survivor, the known equivalent at line 101). Shared: `questify/{achievements,events,quests}.ts`
+  100, `players/items.ts` 94.55 (3 survived), `souvenirs.ts` 98.20 (2 survived). This confirms that the earlier low shared
+  scores came from incremental-report leftovers. The T-402 and T-403 mutation chase is closed.
+
 ## Next
 
-1. **The coordinator pushes `main`** (the T-402/T-402b and T-403/T-403b mutation chase tests, T-403b and T-403c).
-   The chase tests for `apps/api/src/questify/{questify,admin-routes}.ts` and the shared `questify/*` files are added
-   (see the second mutation result above). Then one forced `mutation.yml` dispatch (`force`) for
-   `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`, `packages/shared/src/souvenirs.ts`,
-   `apps/api/src/questify/**/*.ts`; its result decides whether another test-only chase or `ignoreStatic` follows. Waiting for Dhia: his OK
+1. **Mutation chase closed** (forced run above, all files ≥ 90). Waiting for Dhia: his OK
    on the `stryker.config.json` globs, Q-247 items 2 and 3, and Q-248 (publish confirmation). Next task: **T-404**
    (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred (T-403c's phone check
    included). Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
