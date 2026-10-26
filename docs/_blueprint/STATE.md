@@ -1454,6 +1454,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   skipped; full `npx vitest run`: 404 files passed, 3 skipped; 6431 tests passed, 4 skipped. Proposed ADR-292, ADR-293 /
   Q-257, Q-258. Phone check owed when a build exists (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six
   rings). No mutation (standard task). Progress 81/157 (51.59%).
+- 2026-10-27 **Mutation chase for `players/profile.ts` (run 40418719633: 88.54%, 17 survived, 5 no coverage), tests only.** New
+  `apps/api/src/players/profile.test.ts` (14 unit tests over `fakePool` and a fake settings service) kills the level
+  threshold (null stays null), the gem balance (no row or null answers 401), the username-change rules (switch, tuned days,
+  30-day fallback, settings that do not compose: off, 403 on rename), the `retry-after` arithmetic and the null
+  `next_change_at` of a 429, and "no settings read for the rename when the username is not sent". Equivalent, left alone:
+  line 244 (`?? { outcome, next_change_at }`: with no row the switch matches nothing either way), line 116 (the fallback
+  equals `TUNING.usernameChangeDays.default`, 30), line 287 (`rules` is null exactly when `body.username` is undefined, so
+  `&&`, `||` and either `true` behave the same). Expected score about 96%; confirm on the next run.
 
 ## Next
 
