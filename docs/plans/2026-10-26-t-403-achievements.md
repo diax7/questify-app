@@ -219,3 +219,33 @@ passport and history; T-709 achievement thresholds), STORE_COMPLIANCE (Questify 
 - **ADR-278 / Q-245** Questify quests as console data with a closed metric list; seasonal counts in-window facts with a
   3-day grant grace; XP through `xp_entry` source `questify`; follow Questify not built pending store risk.
 - **ADR-279 / Q-240** seeded thresholds, quests and XP amounts; no item/gem rewards before T-404.
+
+## Plan review amendments (2026-10-26, independent CTO plan review 88 NO-GO, one MAJOR, folded; no re-review)
+
+These override the text above. The build worker folds them into the plan body, ADR-273..279 and Q-239..245 in its first commit.
+
+**T-403**
+- MAJOR-1 (ADR-276): the public passport lists a played event only after it has ended or been archived. A live public event never appears for other players (they could poll a username and learn where someone is now). The owner view is unchanged. Test: a live public event is absent from the public DTO and appears after it ends.
+- MINOR-2: one shared `played_enrollment` predicate (not banned, not removed, not rehearsal) is used by all five metrics, including `goals` and `top10`.
+- MINOR-3: a separate `BEFORE UPDATE OF city_id` trigger covers live, ended and archived events (`event_times_guard` fires only on the time columns, 0009:91). Test with a city-only PATCH on a live event.
+- MINOR-4: `confirm_results` writes `final_rank` and `result_place` in one data-modifying CTE that reads `all_places()` once. The backfill first takes `LOCK TABLE event_result IN SHARE ROW EXCLUSIVE MODE` with a `lock_timeout` (0039 precedent).
+- MINOR-5: workplace events (`kind='workplace'`) are left out of the public passport list.
+- MINOR-8 (server): an unlocked pre-check (the ADR-272 pattern) in `questify_sync()` so it locks only when something new is due.
+- MINOR-10: FR-707's acceptance gets the same "at the next sync" note as FR-710. FR-709 is recorded as partial, T-602 owns the logo; do not amend the FR.
+- Cut 1: merge `own_event_passport` and `own_event_history` into one owner door and route (`/v1/me/events?played=`) with a composite cursor (start time, id).
+- Cut 2: drop the planned `community_contributor(enrollment_id)` index (it exists, 0053:111) and the EXPLAIN index-use test.
+- Cut 5: drop `city.active` and the `/v1/cities` ETag until console editing exists (T-703/T-709).
+
+**T-403b**
+- MINOR-6: publishing a seasonal quest requires `starts_at >= now()`; window facts are bounded on `ledger_entry.created_at` (0039's backfill gave older `xp_entry` rows the migration's timestamp).
+- MINOR-7: freeze metric, target and campaign once the quest can pay (an always-on quest is active, or its campaign is published); delete only drafts. This removes the award-lookup guard and its race tests (cut 4).
+- Cut 3: replace the caps trigger and advisory lock with a count check in `questify_quest_save` (admin-only).
+- 0066's `xp_entry` ALTER takes a bounded lock wait.
+
+**T-403c (standard)**
+- MINOR-8 (client): sync after completions with a trailing debounce of about 15 s and silent handling of 429.
+- Cut 6: shipped art for the five achievement badges, `icons/padlock.png` for silhouettes; no new art run.
+- Cut 8: one standard review that includes the Arabic pass (the worker applies the ux-araby skill); no separate Arabic review run.
+- MINOR-9: the review model for every review follows the cost cap in CLAUDE.md; the cheaper model builds T-403c.
+
+**Process:** one `mutation.yml` dispatch for T-403 and T-403b together (cut 7); T-403c runs `ci:changed` plus the specs it touches, not the full browser suite. Banned fraudsters keep earned tiers: log an admin revoke for T-709, build nothing now.
