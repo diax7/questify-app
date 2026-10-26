@@ -107,7 +107,7 @@ call carries no client input and a replay writes nothing. Rate limit: 20 a minut
 | `GET /v1/me/events?played&cursor&limit` | player | `{events: [...], nextCursor}` (passport with `played=true`, history without) |
 | `GET /v1/players/{username}` | player | T-402 DTO + `achievements`, `passport` (exact allowlist test) |
 | `GET /v1/cities` | public | `[{id, name {ar,en}}]` (no ETag until console editing, cut 5) |
-| event create/update (dashboard) | owner/editor | gains `cityId`; unknown city 400, virtual with city 400, live change 409 `city_locked` |
+| event create/update (dashboard) | owner/editor | gains `cityId`; unknown city or virtual with city 422 `invalid_event {field: cityId}`, live change 409 `city_locked` |
 
 Shared zod schemas in `packages/shared/src/questify/`. Staff sessions cannot enter player doors (T-402 pattern).
 
@@ -264,3 +264,9 @@ note.
 - Seeded art keys: events `ach-first-steps`, quests `ach-collector`, cities `ach-swift`, top10 `ach-summit`, goals
   `ach-social` (the shipped `docs/design/assets/achievements` set).
 - The 20,000-member confirmation is an opt-in test (`QUESTIFY_TIMING=1`); it passed its 10 s bound locally.
+- Code review GO 93 (2026-10-26) folded: `top10` counts a final place only on a membership with a standing credit
+  (MINOR-1: welcome points alone ranked a member who never played), and `GET /v1/cities` answers
+  `cache-control: public, max-age=3600`. Not changed: a NULL `profile_player()` in `/v1/me/event-history` still
+  answers an empty page (the player guard refuses first; mapping it to 401 needs `own_events` to signal it).
+- Carried from that review: its migration lock-order note goes to T-403b (0066 keeps one lock order with
+  `questify_sync`), its `rank_state` note to T-403c (the screens render every state).

@@ -1314,11 +1314,18 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   skipped / 0 failed; oxfmt, oxlint --deny-warnings and tsc clean for api and shared. No app or web code changed. No
   new ADR/Q (build notes in the plan). Mutation owed on GitHub with T-403b (one dispatch, cut 7).
 
+- 2026-10-26 **T-403 done (core), ticked; progress 77/155.** Code review GO 93 by the in-house CTO reviewer on Claude
+  Opus (the recorded Sol policy could not be used from the Claude Code session); plan review 88, then folded. Its MINOR
+  folded in 0065 in place (undeployed): `top10` counts a final place only on a membership with a standing credit, so
+  welcome points alone never earn Top Ten (new DB test). `GET /v1/cities` sends `cache-control: public, max-age=3600`;
+  API.md, DATA_MODEL.md and the plan's build notes updated (lock-order note to T-403b, `rank_state` note to T-403c; a
+  NULL `profile_player()` in event history left as an empty page). Not pushed by the worker.
+
 ## Next
 
-1. **T-403 core code review (2026-10-26):** a fresh independent review of the T-403 build (migration 0065,
-   `apps/api/src/questify/`, event city, public profile); on GO tick T-403. Then a fresh worker builds T-403b (core,
-   0066, its own code review), then T-403c (standard, cheaper model, one code review that includes the Arabic pass).
+1. **T-403b (CORE, migration 0066):** after the coordinator pushes T-403 and CI passes, a fresh Opus worker builds
+   T-403b from the T-403 plan (its own code review), then T-403c (standard, built on the cheaper model; one code review
+   that includes the Arabic pass, on the CLAUDE.md model and cost policy).
    One `mutation.yml` dispatch after T-403b covers both (`apps/api/src/questify/**/*.ts`,
    `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`
    plus T-403b's files). Still owed: the T-402/T-402b mutation run 40358820903 result (chase only files under 90). No

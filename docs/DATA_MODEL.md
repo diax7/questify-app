@@ -529,7 +529,8 @@ ADR-151):
 - Played (ADR-274): a standing quest XP credit (`xp_entry` source `quest`, never reversed) through `ledger_entry →
   enrollment` on a membership passing `played_enrollment(status, joined_via)` (not banned, not removed, not rehearsal),
   the one rule all five metrics use (`standing_credits(player)`, `player_metrics(player)`; lifetime, T-403b adds the
-  campaign window on `ledger_entry.created_at`). `top10`: revealed `final_rank` ≤ 10; `goals`: distinct reached
+  campaign window on `ledger_entry.created_at`). `top10`: revealed `final_rank` ≤ 10 on a membership with a standing credit (welcome
+  points alone rank a member who never played; that place never counts); `goals`: distinct reached
   `community_goal` with the membership in `community_contributor`.
 - `questify_sync()`: unlocked pre-check (`achievements_due`), then player FOR KEY SHARE → `player_xp` FOR UPDATE →
   fresh reads → `INSERT … ON CONFLICT DO NOTHING RETURNING`. Erasure (player FOR UPDATE → enrollments → player_xp) and
