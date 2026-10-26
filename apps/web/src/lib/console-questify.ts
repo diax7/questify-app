@@ -136,11 +136,12 @@ function questFields(draft: QuestDraft) {
 }
 
 /**
- * Whether a quest can pay players now (an active quest, always-on or in a published campaign). Its gems are then fixed,
- * as its condition is: raising them later could never pay earlier awardees (ADR-286).
+ * Whether a quest can pay players now, as migration 0067 decides it: an active always-on quest, or any quest of a
+ * published campaign (a draft quest there too, since it can be made active at once). Its gems are then fixed, as its
+ * condition is: raising them later could never pay earlier awardees (ADR-286).
  */
 export const questCanPay = (quest: AdminQuest, campaign: AdminCampaign | null): boolean =>
-  quest.status === "active" && (campaign === null || campaign.status === "published");
+  campaign === null ? quest.status === "active" : campaign.status === "published";
 
 /** Checks a new quest's form (its campaign, or none for an always-on quest, is chosen when it is created). */
 export function questBodyOf(draft: QuestDraft, campaignId: string | null): Checked<QuestBody> {

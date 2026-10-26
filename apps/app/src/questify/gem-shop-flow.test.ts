@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { PurchaseOutcome } from "#src/questify/gem-shop-api.ts";
 import type { GemShop, GemShopItem } from "@questify/shared";
 import {
   afterPriceChange,
   equipFieldOf,
   sectionsOf,
+  settlePurchase,
   stepAfter,
 } from "#src/questify/gem-shop-flow.ts";
 
@@ -71,10 +73,17 @@ describe("stepAfter", () => {
   it.each([
     ["busy", "gemShop.busy"],
     ["limited", "gemShop.limited"],
-    ["failed", "error.generic"],
     ["network", "gemShop.networkFailed"],
   ] as const)("keeps the sheet open after %s so the player can try again", (kind, notice) => {
     expect(stepAfter({ kind })).toMatchObject({ notice, closeSheet: false, reread: false });
+  });
+
+  it("reads the shop again after a 200 it could not read, since the item may have been bought", () => {
+    expect(stepAfter({ kind: "failed" })).toMatchObject({
+      notice: "error.generic",
+      closeSheet: false,
+      reread: true,
+    });
   });
 
   it("leaves for the start screen when the session ended", () => {
@@ -92,10 +101,20 @@ describe("afterPriceChange", () => {
   });
 
   it("says so when the item left the shop, was bought meanwhile, or the shop could not be read", () => {
-    expect(afterPriceChange(shop([title]), ring.id)).toEqual({ notice: "gemShop.gone" });
-    expect(afterPriceChange(null, ring.id)).toEqual({ notice: "gemShop.gone" });
+    expect(afterPriceChange(shop([title]), ring.id)).toEqual({
+      notice: "gemShop.gone",
+      closeSheet: true,
+    });
     expect(afterPriceChange(shop([{ ...ring, owned: true }]), ring.id)).toEqual({
       notice: "gemShop.alreadyOwned",
+      closeSheet: true,
+    });
+  });
+
+  it("keeps the sheet open with the load failure when the shop could not be read", () => {
+    expect(afterPriceChange(null, ring.id)).toEqual({
+      notice: "gemShop.failed",
+      closeSheet: false,
     });
   });
 });
@@ -112,5 +131,64 @@ describe("equipFieldOf", () => {
     expect(equipFieldOf("frame")).toBe("frameId");
     expect(equipFieldOf("title")).toBe("titleId");
     expect(equipFieldOf("character")).toBe("characterId");
+  });
+});
+
+const run = (outcome: PurchaseOutcome, fresh: GemShop | null) => {
+  const load = vi.fn().mockResolvedValue(fresh);
+  const reloadPlayer = vi.fn();
+  const settled = settlePurchase({
+    buy: () => Promise.resolve(outcome),
+    load,
+    reloadPlayer,
+    itemId: ring.id,
+  });
+  return { settled, load, reloadPlayer };
+};
+const priceMoved: PurchaseOutcome = { kind: "conflict", reason: "price_changed", gems: 300 };
+
+describe("settlePurchase", () => {
+  it("keeps the sheet open at the new price after a price change, so it asks again", async () => {
+    const { settled, load } = run(priceMoved, shop([{ ...ring, price: 150 }]));
+    expect(await settled).toEqual({
+      leave: false,
+      notice: "gemShop.priceChanged",
+      closeSheet: false,
+      bought: null,
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the sheet when the price change came with the item leaving the shop", async () => {
+    expect(await run(priceMoved, shop([title])).settled).toMatchObject({
+      notice: "gemShop.gone",
+      closeSheet: true,
+    });
+  });
+
+  it("keeps the sheet and shows the load failure when the read after a price change fails", async () => {
+    expect(await run(priceMoved, null).settled).toMatchObject({
+      notice: "gemShop.failed",
+      closeSheet: false,
+    });
+  });
+
+  it("reads the shop and the profile again after a purchase and closes the sheet", async () => {
+    const { settled, load, reloadPlayer } = run({ kind: "bought", gems: 10, item: ring }, null);
+    expect(await settled).toMatchObject({ closeSheet: true, bought: ring, notice: null });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(reloadPlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the shop again after a 200 it could not read", async () => {
+    const { settled, load } = run({ kind: "failed" }, shop([ring]));
+    expect(await settled).toMatchObject({ notice: "error.generic", closeSheet: false });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads nothing after a lost answer", async () => {
+    const { settled, load } = run({ kind: "network" }, shop([ring]));
+    expect(await settled).toMatchObject({ notice: "gemShop.networkFailed", closeSheet: false });
+    expect(load).not.toHaveBeenCalled();
   });
 });

@@ -44,7 +44,7 @@ function QuestCard({ quest }: Readonly<{ quest: QuestifyQuest }>) {
           <AppText variant="label">{t("questifyQuests.xp", { xp: quest.xp })}</AppText>
           {quest.gems > 0 ? (
             <AppText variant="label">
-              {t("questifyQuests.gems", { gems: gemsLabel(t, quest.gems, language) })}
+              {t("questifyQuests.gems", { gems: gemsLabel(t, quest.gems, language, "subject") })}
             </AppText>
           ) : null}
         </View>

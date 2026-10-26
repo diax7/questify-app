@@ -14,13 +14,7 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { GemIcon } from "#src/questify/GemIcon.tsx";
 import { ShopCard } from "#src/questify/GemShopCards.tsx";
 import { createPurchaser, fetchGemShop } from "#src/questify/gem-shop-api.ts";
-import {
-  afterPriceChange,
-  equipFieldOf,
-  offerNow,
-  sectionsOf,
-  stepAfter,
-} from "#src/questify/gem-shop-flow.ts";
+import { equipFieldOf, offerNow, sectionsOf, settlePurchase } from "#src/questify/gem-shop-flow.ts";
 import { gemsLabel } from "#src/questify/gems.ts";
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { saveProfile } from "#src/questify/profile-api.ts";
@@ -70,23 +64,19 @@ function usePurchase(shop: GemShop | null, load: () => Promise<GemShop | null>) 
     const item = asking === null ? undefined : offerNow(shop, asking);
     if (item === undefined || busy) return;
     setBusy(true);
-    const step = stepAfter(await buy(item.id, item.price));
-    if (step.leave) {
+    const settled = await settlePurchase({
+      buy: () => buy(item.id, item.price),
+      load,
+      reloadPlayer: () => void reload(),
+      itemId: item.id,
+    });
+    if (settled.leave) {
       router.replace("/home");
       return;
     }
-    setNotice(step.notice);
-    setBought(step.bought);
-    if (step.closeSheet) setAsking(null);
-    if (step.reread) {
-      const fresh = await load();
-      if (step.bought !== null) void reload();
-      const again = step.closeSheet ? null : afterPriceChange(fresh, item.id);
-      if (again !== null && "notice" in again) {
-        setNotice(again.notice);
-        setAsking(null);
-      }
-    }
+    setNotice(settled.notice);
+    setBought(settled.bought);
+    if (settled.closeSheet) setAsking(null);
     setBusy(false);
   };
   return { asking, busy, notice, bought, ask, confirm, close: () => setAsking(null) };

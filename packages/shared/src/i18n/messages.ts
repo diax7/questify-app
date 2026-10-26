@@ -4888,7 +4888,7 @@ export const MESSAGES = {
   "gemShop.empty": { ar: "لا عناصر في المتجر الآن.", en: "Nothing in the shop right now." },
   "profile.gems": { ar: "جواهرك", en: "Your gems" },
   "locker.fromShop": { ar: "من متجر الجواهر", en: "From the gem shop" },
-  "questifyQuests.gems": { ar: "+{gems}", en: "+{gems}" },
+  "questifyQuests.gems": { ar: "مكافأة: {gems}", en: "+{gems}" },
   "sync.gems": { ar: "حصلت على {gems}", en: "You earned {gems}" },
   "console.questify.field.gems": { ar: "الجواهر (من 0 إلى 1000)", en: "Gems paid (0 to 1000)" },
   "console.questify.gemsFixed": {

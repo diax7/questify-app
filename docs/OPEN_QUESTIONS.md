@@ -811,10 +811,10 @@ retries a migration on 40P01 or 55P03 up to 3 times before the first real player
 Recommended (ADR-292): the shop opens from the Profile and the locker; "Get" asks first in a sheet; a changed price asks
 again in the same sheet; too few gems says how gems are earned and nothing else; a bought item offers "Equip now"; a new
 key for every confirmation. Agree, or should the Shop tab (T-408) be the only door?
-**Answered:** open (worker recommendation; phone check of the sheet owed).
+**Answered (developer, delegated by Dhia, 2026-10-27):** agreed as recommended (ADR-292 Accepted, code review GO 91); the phone check of the sheet is owed (T-806).
 
 ## Q-258 — Gem wording in Arabic and the six rings' colours (2026-10-27, T-404b build)
 Recommended (ADR-293): the Arabic counts and forms in ADR-293, "Get" as احصل عليه, "Equip now" as فعّله الآن, and the six
 ring colours (purple, teal, crimson, terracotta, mauve, midnight blue). Agree, or change any word or colour once seen on a
 phone?
-**Answered:** open (worker recommendation).
+**Answered (developer, delegated by Dhia, 2026-10-27):** agreed as recommended (ADR-293 Accepted, code review GO 91); the ring colours are seen on a phone at the T-806 check.

@@ -284,9 +284,14 @@ describe("questCanPay", () => {
     expect(questCanPay(quest("active"), campaignWith("published"))).toBe(true);
   });
 
+  it("fixes the gems of a draft quest in a published campaign too, as the database does", () => {
+    expect(questCanPay(quest("draft"), campaignWith("published"))).toBe(true);
+  });
+
   it("leaves the gems of a draft, of a quest in a draft campaign and of a retired quest editable", () => {
     expect(questCanPay(quest("draft"), null)).toBe(false);
     expect(questCanPay(quest("active"), campaignWith("draft"))).toBe(false);
+    expect(questCanPay(quest("draft"), campaignWith("draft"))).toBe(false);
     expect(questCanPay(quest("retired"), null)).toBe(false);
   });
 });

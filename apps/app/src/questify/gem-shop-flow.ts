@@ -41,7 +41,8 @@ export function stepAfter(outcome: PurchaseOutcome): PurchaseStep {
     case "limited":
       return { ...STEP, notice: "gemShop.limited" };
     case "failed":
-      return { ...STEP, notice: "error.generic" };
+      // A 200 the app cannot read may still have bought the item: read the shop again so nothing is stale.
+      return { ...STEP, notice: "error.generic", reread: true };
     case "network":
       return { ...STEP, notice: "gemShop.networkFailed" };
     case "signed_out":
@@ -64,16 +65,51 @@ function conflictStep(reason: "owned" | "price_changed" | "too_few_gems"): Purch
 export const offerNow = (shop: GemShop | null, itemId: string): GemShopItem | undefined =>
   shop?.items.find((item) => item.id === itemId);
 
-/** After a price change and a fresh read: the item to ask about again, else the line saying it left the shop. */
+/**
+ * After a fresh read: the item to ask about again, or the line to show. A shop that could not be read keeps the sheet
+ * open with the load failure (the item may still be there); an item that left or was bought closes it.
+ */
 export function afterPriceChange(
   fresh: GemShop | null,
   itemId: string,
-): Readonly<{ item: GemShopItem }> | Readonly<{ notice: MessageKey }> {
+): Readonly<{ item: GemShopItem }> | Readonly<{ notice: MessageKey; closeSheet: boolean }> {
+  if (fresh === null) return { notice: "gemShop.failed", closeSheet: false };
   const item = offerNow(fresh, itemId);
-  if (item === undefined || item.owned) {
-    return { notice: item === undefined ? "gemShop.gone" : "gemShop.alreadyOwned" };
-  }
-  return { item };
+  if (item === undefined) return { notice: "gemShop.gone", closeSheet: true };
+  return item.owned ? { notice: "gemShop.alreadyOwned", closeSheet: true } : { item };
+}
+
+/** What the screen needs after a purchase call and the reads it caused. */
+export type SettledPurchase = Readonly<{
+  leave: boolean;
+  notice: MessageKey | null;
+  closeSheet: boolean;
+  bought: ProfileItem | null;
+}>;
+
+/**
+ * Runs one confirmed purchase to the end: the call, then (when the answer changed what the shop shows) a fresh read,
+ * and for a sheet that stays open, whether the item is still there to ask about at its new price.
+ */
+export async function settlePurchase(deps: {
+  buy: () => Promise<PurchaseOutcome>;
+  load: () => Promise<GemShop | null>;
+  reloadPlayer: () => void;
+  itemId: string;
+}): Promise<SettledPurchase> {
+  const step = stepAfter(await deps.buy());
+  const settled = {
+    leave: step.leave,
+    notice: step.notice,
+    closeSheet: step.closeSheet,
+    bought: step.bought,
+  };
+  if (!step.reread) return settled;
+  const fresh = await deps.load();
+  if (step.bought !== null) deps.reloadPlayer();
+  if (step.closeSheet) return settled;
+  const again = afterPriceChange(fresh, deps.itemId);
+  return "notice" in again ? { ...settled, ...again } : settled;
 }
 
 /** Sections of the shop in the order the screen shows them, each with its items; empty sections are left out. */

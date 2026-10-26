@@ -3774,7 +3774,7 @@ a request at the exact deploy moment; CranL has no real players yet.
 real players) removes the rerun.
 
 ## ADR-292 — T-404b: how the gem shop screen buys, asks again and equips
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404b build; Q-257). Extends ADR-287, ADR-289, ADR-290.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-257). Extends ADR-287, ADR-289, ADR-290.
 **Decision:** The gem shop (`app/gem-shop.tsx`) opens from the Profile (beside the gem count) and from the locker. It
 shows the balance, the line "Gems are earned by playing. They can't be bought." on every visit, and items in sections
 (frames, titles) as cards: a frame on the player's own avatar, a title on a name plate, the price in gems, then "Get"
@@ -3790,10 +3790,11 @@ list shows "+N gems" beside XP when a quest pays gems. The locker says "From the
 **Why:** The route's replay store keeps every answer below 500, so a key reused after a refusal would replay the refusal
 for ever; keeping the key only while nothing was stored makes a lost answer safe and every new try fresh.
 **Trade-offs:** A player who confirms the same item at the same price right after a lost answer reuses that key, which
-is intended (a replay answers the original purchase).
+is intended (a replay answers the original purchase). A 200 the app cannot read, and a failed read after a price
+change, read the shop again; the latter keeps the sheet open with the load failure.
 
 ## ADR-293 — T-404b: gem counts in Arabic, the six rings' colours, the console Gems field
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404b build; Q-258). Extends ADR-288, ADR-018.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-258). Extends ADR-288, ADR-018.
 **Decision:** (1) Gems are counted by one helper with its own message forms: English "1 gem" / "N gems"; Arabic
 جوهرة واحدة, جوهرتان (subject: «لديك جوهرتان») or جوهرتين (after a verb or preposition), «N جواهر» for 3 to 10 (and 0),
 «N جوهرة» for 11 and over; digits are Western with a thousands comma. Gems are Questify's own word, not an event's
@@ -3801,8 +3802,10 @@ renamed currency, so ADR-058's rule does not apply. (2) `frameDesign` draws `fra
 table (royal purple, teal, crimson, terracotta, mauve, midnight blue), none in the level frames' palette and each at
 3:1 or more against the page background (tested); the theme has no gem or royal colour role, so the six colours live
 beside the table. (3) The console quest form gets a Gems field (0 to 1000, new quests start at 0), disabled with a
-line saying the gems are fixed once the quest can pay (active, always-on or in a published campaign; ADR-286); the
-list row shows the gems.
+line saying the gems are fixed once the quest can pay, as migration 0067 decides it (an active always-on quest, or any
+quest of a published campaign, a draft one too; ADR-286); the list row shows the gems. Arabic counts take the nominative
+pair (جوهرتان) as a subject or after a colon and the oblique (جوهرتين) after a verb or preposition; a quest's gems on
+the quests list read «مكافأة: …».
 **Why:** Gems are counted in every screen and toast, so one helper keeps the grammar right; the old formula would have
 repeated colours the level frames already use.
 **Trade-offs:** The six colours are a design guess until the brand deck owner reviews them on a phone.

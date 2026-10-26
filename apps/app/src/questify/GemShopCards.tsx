@@ -1,5 +1,6 @@
 import { EMPTY_EQUIPMENT, type GemShopItem, type Theme } from "@questify/shared";
 import { View } from "react-native";
+import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import type { Me } from "#src/auth/player.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
@@ -16,7 +17,7 @@ export function ItemPreview({ item, me }: Readonly<{ item: GemShopItem; me: Me }
   if (item.kind === "title") {
     return (
       <View style={styles.plate}>
-        <AppText variant="label">@{me.username}</AppText>
+        <AppText variant="label">{isolatedLtr(`@${me.username}`)}</AppText>
         <AppText variant="title">{item.name[language]}</AppText>
       </View>
     );
@@ -34,7 +35,8 @@ export function ShopCard({
 }: Readonly<{ item: GemShopItem; me: Me; disabled: boolean; onGet: () => void }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const price = gemsLabel(t, item.price, language);
+  const price = gemsLabel(t, item.price, language, "subject");
+  const priceAfterVerb = gemsLabel(t, item.price, language);
   return (
     <View style={styles.card}>
       <ItemPreview item={item} me={me} />
@@ -48,7 +50,10 @@ export function ShopCard({
       ) : (
         <Button
           label={t("gemShop.get")}
-          accessibilityLabel={t("gemShop.getLabel", { name: item.name[language], gems: price })}
+          accessibilityLabel={t("gemShop.getLabel", {
+            name: item.name[language],
+            gems: priceAfterVerb,
+          })}
           disabled={disabled}
           onPress={onGet}
         />
