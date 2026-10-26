@@ -3667,7 +3667,7 @@ publishing cannot be undone and starts paying XP to players. Only the dialog's c
 **Trade-offs:** One extra click per publish.
 
 ## ADR-284 — T-404 split: the gem ledger and shop (core), then the screens (standard)
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-249).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-249).
 **Decision:** T-404 (CORE) builds migration 0067, the API doors and the shared schemas: the gem ledger, the payments in
 `questify_sync`, the gem shop and its purchase door, quest `gems` on the console doors. T-404b (STANDARD) builds the
 app's gem count and gem shop screen, the "+N gems" toast line, gems on the Questify quests list, the console quest
@@ -3677,7 +3677,7 @@ goes to the cheaper model and a standard review.
 **Trade-offs:** Two workers and two code reviews; FR-725's on-screen Givens are proven only by T-404b.
 
 ## ADR-285 — The gem ledger: append-only, closed sources, balance on `player_xp`
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-250). Extends ADR-046.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-250). Extends ADR-046.
 **Decision:** `gem_entry` is append-only and kept on the erasure tombstone, like `xp_entry`. Its source list is closed:
 `level`, `achievement`, `questify` (credits) and `purchase` (a spend), each bound by a composite foreign key to the
 same player's source row and unique per source row. There is no transfer, gift, adjustment or expiry source. The
@@ -3688,7 +3688,7 @@ later task cannot add a gem source without a migration a review sees; one locked
 **Trade-offs:** `player_xp` holds two caches; an admin correction or a fraud revoke needs a new source and migration.
 
 ## ADR-286 — Gems are paid by the sync, once per earned row, retroactively; amounts are data
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-251). Extends ADR-274, ADR-280.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-251). Extends ADR-274, ADR-280.
 **Decision:** `questify_sync()` is the only door that credits gems. Under its existing locks it pays every
 `level_reached` row (level 2 and up), `achievement_earned` row and `questify_award` row (quest `gems` above 0) of the
 caller that has no gem entry yet; nothing is added to the completion transaction. Rows earned before T-404 are paid
@@ -3702,7 +3702,7 @@ syncs harmless; retroactive pay keeps veterans level with newcomers.
 gem reward cannot be raised after launch (retire it and make a new quest).
 
 ## ADR-287 — The gem shop: exclusive seeded items, one copy each, a checked purchase
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-252). Extends ADR-046, ADR-002.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-252). Extends ADR-046, ADR-002.
 **Decision:** `gem_shop_item` lists items for sale at a fixed gem price (active or retired); an item sold in the shop is
 never a level reward or a souvenir (a guard refuses both directions). A player owns at most one copy. `gem_buy` takes
 the item, the price the player saw and an idempotency key; it refuses an unknown or retired item, an owned item, a
@@ -3716,7 +3716,7 @@ silent charge after a price change; the key makes a retried tap safe.
 **Trade-offs:** Changing prices or adding items needs a migration until T-709.
 
 ## ADR-288 — Seeded shop catalog: six frames and six titles, no characters yet
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-253).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-253).
 **Decision:** Six frames on six new procedural frame designs (`frame-15` to `frame-20`, rendered by `frameDesign`) and six
 titles, adventure-themed in both languages; titles cost 40 to 80 gems, frames 80 to 150. No character is sold until new
 character art exists, so FR-726 is partial for characters.
@@ -3726,7 +3726,7 @@ item is within reach after one event and the whole catalog takes a season.
 **Trade-offs:** No characters in the shop at launch; prices are a first guess to revisit with real play data.
 
 ## ADR-289 — Gem shop wording and the store-compliance row
-**Status:** Proposed (worker recommendation, 2026-10-27, T-404 plan; Q-254).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-254).
 **Decision:** The shop's action reads "Get" (احصل عليه), never "Buy". The app has no "add gems" or "get more" control
 and no link out; a player short of gems is told how gems are earned. The shop shows "Gems are earned by playing. They
 can't be bought." STORE_COMPLIANCE 1.6 gains the row: gems earned by play, spent on cosmetic items, no IAP needed,
