@@ -1389,12 +1389,32 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   suite 99 passed; one CI re-run. Lesson for worker briefs: after a shared-schema change, run the unit tests of every
   package that imports the schema (`npx vitest run apps/api/src/<area>`), not only the integration suites.
 
+- 2026-10-26 **Second GitHub mutation result (run 40386286433 on 7a0faa8) and the chase for the files under 90 (tests
+  only, no source change).** Scores: souvenirs files 96.9 to 98.7, `players/items.ts` 100; under 90: `questify/questify.ts`
+  67.65 (17 survived, 5 no-cov), `questify/admin-routes.ts` 88.64 (3 + 2), shared `questify/quests.ts` 0.00 (47 no-cov),
+  `questify/events.ts` 29.63 (19), `questify/achievements.ts` 27.27 (8), shared `players/items.ts` 23.64 (42) and
+  `souvenirs.ts` 81.08 (21). New unit tests, none needing a database: `questify/questify.test.ts` 32 (fake pool: the
+  `PI401` 401, rethrown faults, null/missing lists, event mapping, cursor paging and every cursor refusal),
+  `questify/admin-routes.test.ts` 34 (Fastify inject: the PUT campaign write, the publish/retire arguments, a window
+  ending when it starts, no staff on the request), `questify/routes.test.ts` 15 (the `no-store` headers),
+  `packages/shared/src/questify/{achievements 13, events 20, quests 49}.test.ts` (accept/reject at every boundary,
+  trimmed text, direction characters with message and path, offset-required instants, every enum value). 21 of the 22
+  `questify.ts` mutants and all 5 `admin-routes.ts` and all shared `questify/*` mutants should now die; the one
+  equivalent is `questify.ts:101` (an emptied `catch` still ends in the same 400, because `safeParse(undefined)` fails).
+  Hand checks (10 broken lines, each failed the new tests, restored). The shared `items.ts` and `souvenirs.ts`
+  survivors are **not test gaps**: 9 of 10 applied by hand (empty schemas, bounds, enum values, `refine` removed) fail
+  the existing tests and the tenth, `souvenirs.ts:27` (`rankTo === null` replaced by `false`), is equivalent (`5 > null`
+  is true in JS). Every survivor is import-time schema code while the in-function mutants of the same files were killed;
+  the incremental cache (restored from run 40358820903) most likely kept their old result.
+  If a forced run still leaves import-time schema mutants alive, the lever is `ignoreStatic` for those files, not tests.
+
 ## Next
 
-1. **The coordinator pushes `main`** (the T-402/T-402b mutation chase tests, T-403b and T-403c). Then one
-   `mutation.yml` dispatch for the six T-402/T-402b files and, with T-403 and T-403b, for
-   `apps/api/src/questify/**/*.ts`, `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`,
-   `packages/shared/src/players/items.ts`; its results decide whether a test-only chase follows. Waiting for Dhia: his OK
+1. **The coordinator pushes `main`** (the T-402/T-402b and T-403/T-403b mutation chase tests, T-403b and T-403c).
+   The chase tests for `apps/api/src/questify/{questify,admin-routes}.ts` and the shared `questify/*` files are added
+   (see the second mutation result above). Then one forced `mutation.yml` dispatch (`force`) for
+   `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`, `packages/shared/src/souvenirs.ts`,
+   `apps/api/src/questify/**/*.ts`; its result decides whether another test-only chase or `ignoreStatic` follows. Waiting for Dhia: his OK
    on the `stryker.config.json` globs, Q-247 items 2 and 3, and Q-248 (publish confirmation). Next task: **T-404**
    (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred (T-403c's phone check
    included). Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
