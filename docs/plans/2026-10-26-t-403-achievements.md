@@ -1,7 +1,7 @@
 # T-403 — Achievements, Event Passport, event history and Questify quests
 
-**Plan only; nothing is built until an independent plan review returns GO (>=90, zero unresolved BLOCKER/MAJOR).**
-Delivers FR-707, FR-708, FR-709, FR-710, FR-711 and completes FR-701/FR-702 (achievements, passport, the owner's
+**Plan reviewed 2026-10-26 (independent CTO plan review 88, one MAJOR; its amendments are folded into the body below,
+no re-review).** Delivers FR-707, FR-708, FR-709, FR-710, FR-711 and completes FR-701/FR-702 (achievements, passport, the owner's
 event history). Depends on T-401 (XP), T-402 (profile), T-214 (results), T-306b (community goals), all done. This
 one plan covers all three parts below; T-403b and T-403c need no plan of their own. Never push, deploy, run EAS or
 run local mutation testing. Choices are **Proposed ADR-273 to ADR-279 / Q-239 to Q-245**.
@@ -30,22 +30,26 @@ the same evaluator); "follow Questify" (Q-245, store risk, below); editing achie
 ## Shared definitions (ADR-274, Q-240, Q-241)
 
 - **Played an event** = the player holds at least one *standing* quest XP credit there: an `xp_entry` with
-  `source = 'quest'` and no reversal, through `ledger_entry → enrollment`, where the enrollment is not `banned` or
-  `removed` and `joined_via <> 'rehearsal'`. XP credits already exist only for non-rehearsal first completions from
-  every writer (scan, typed code, My QR, team award; T-401), so nothing new is written in the scan path and a player
-  cannot create a fact the server did not already record. "Events attended" (FR-707, FR-710) means played.
-- **Metrics**, all from server facts, computed by one internal STABLE function `player_metrics(player, since, until)`
-  (NULL bounds = lifetime; bounds filter by the credit's `created_at`, half-open `[since, until)`):
+  `source = 'quest'` and no reversal, through `ledger_entry → enrollment`, where the enrollment passes the one shared
+  `played_enrollment` predicate (not `banned`, not `removed`, `joined_via` not `rehearsal`; MINOR-2). XP credits already
+  exist only for non-rehearsal first completions from every writer (scan, typed code, My QR, team award; T-401), so
+  nothing new is written in the scan path and a player cannot create a fact the server did not already record.
+  "Events attended" (FR-707, FR-710) means played.
+- **Metrics**, all from server facts, computed by one internal STABLE function `player_metrics(player)` (lifetime;
+  T-403b adds the half-open `[since, until)` window, bounded on `ledger_entry.created_at`, MINOR-6):
   `events` (played events), `quests` (standing quest credits), `cities` (distinct non-null `event.city_id` of played
-  events), `top10` (revealed `final_rank` ≤ 10 on non-banned enrollments), `goals` (distinct `community_goal` with
-  `status = 'reached'` where the player's enrollment is a `community_contributor`). `top10` and `goals` are lifetime only.
+  events), `top10` (revealed `final_rank` ≤ 10), `goals` (distinct `community_goal` with `status = 'reached'` where the
+  player's enrollment is a `community_contributor`). All five apply the same `played_enrollment` predicate (MINOR-2).
+  `top10` and `goals` are lifetime only.
 - **Earned is permanent.** Achievement tiers and Questify quest awards are append-only rows; a later removal that drops
   a count below a threshold takes nothing back (FR-1602's rule for items). The passport is derived on read, so a fully
   reversed event leaves it.
 - **One evaluator, one door.** `questify_sync()` (definer, granted to `questify_app`) is the only writer of earned rows.
-  The app calls it when Profile or Questify quests gains focus, on foreground (at most every 5 minutes) and after a
-  completion result. Nothing is added to the completion transaction (scan latency, no new locks beside scans). FR-710's
-  "completes when they play a third event" is met at the next sync, seconds later; SRS gets that amendment at build.
+  The app calls it when Profile or Questify quests gains focus, on foreground (at most every 5 minutes) and after
+  completions (trailing debounce of about 15 s, 429 handled silently; MINOR-8 client). Nothing is added to the
+  completion transaction (scan latency, no new locks beside scans). FR-707's "when the qualifying event is recorded" and
+  FR-710's "completes when they play a third event" are met at the next sync, seconds later; SRS gets both notes at build
+  (MINOR-10).
 
 ## T-403 (CORE) — migration 0065
 
@@ -55,17 +59,18 @@ Each door rechecks an active caller through `app_player_id()` (or `app_admin_id(
 
 | Object | Shape | Notes |
 |---|---|---|
-| `city` | `id text PK` (`^sa-[a-z0-9-]{2,30}$`), `name_ar`, `name_en` (1–60, no control/bidi chars), `position smallint`, `active bool` | Seeded with about 20 Saudi cities (Riyadh, Jeddah, Makkah, Madinah, Dammam, Khobar, Dhahran, Taif, Abha, Tabuk, Buraidah, Hail, Jazan, Najran, Al-Ahsa, AlUla, Yanbu, Al Baha, Jubail, Khamis Mushait). Read through `city_list()`. T-407 reuses it for the player's city; console editing is T-703/T-709 (ADR-277, Q-244) |
-| `event.city_id` | `text NULL REFERENCES city` | Added to the API role's INSERT/UPDATE column grants (owner/editor under the existing event RLS). CHECK `kind <> 'virtual' OR city_id IS NULL`. The times guard (`0009`, latest body) gains: frozen once live, so a played event's city never moves. Existing events stay NULL and count no city |
-| `final_rank` | `event_id`, `enrollment_id`, `rank int ≥ 1`; PK (event_id, enrollment_id), UNIQUE (event_id, rank); composite FK to `enrollment (id, event_id)`; index (enrollment_id) | Every ranked enrollment's place, written once by `confirm_results` in the statement after `result_place`, from the same ordering (`current_places` refactored to `all_places(ev)` + LIMIT so both share one ORDER BY). Append-only (0012 trigger, ENABLE ALWAYS); kept on erasure tombstones. Backfill for already confirmed events: `result_place` ranks first, then the remaining ranked enrollments after them (ADR-275, Q-242) |
+| `city` | `id text PK` (`^sa-[a-z0-9-]{2,30}$`), `name_ar`, `name_en` (1–60, no control/bidi chars), `position smallint` | Seeded with about 20 Saudi cities (Riyadh, Jeddah, Makkah, Madinah, Dammam, Khobar, Dhahran, Taif, Abha, Tabuk, Buraidah, Hail, Jazan, Najran, Al-Ahsa, AlUla, Yanbu, Al Baha, Jubail, Khamis Mushait). Read through `city_list()`. No `active` flag until console editing exists (cut 5). T-407 reuses it for the player's city; console editing is T-703/T-709 (ADR-277, Q-244) |
+| `event.city_id` | `text NULL REFERENCES city` | Added to the API role's INSERT/UPDATE column grants (owner/editor under the existing event RLS). CHECK `kind <> 'virtual' OR city_id IS NULL`. Its own `BEFORE UPDATE OF city_id` trigger (MINOR-3; `event_times_guard` fires only on the time columns, 0009:91) refuses any change once the event is live, ended or archived, so a played event's city never moves. Existing events stay NULL and count no city |
+| `final_rank` | `event_id`, `enrollment_id`, `rank int ≥ 1`; PK (event_id, enrollment_id), UNIQUE (event_id, rank); composite FK to `enrollment (id, event_id)`; index (enrollment_id) | Every ranked enrollment's place, written once by `confirm_results` together with `result_place` in one data-modifying CTE that reads `all_places(ev)` once (MINOR-4; `current_places` becomes `all_places(ev)` + LIMIT so both share one ORDER BY). Append-only (ENABLE ALWAYS); kept on erasure tombstones. Backfill for already confirmed events, after `LOCK TABLE event_result IN SHARE ROW EXCLUSIVE MODE` under a `lock_timeout` (0039 precedent): `result_place` ranks first, then the remaining ranked enrollments after them (ADR-275, Q-242) |
 | `achievement` | `id text PK`, `metric` UNIQUE CHECK IN (events, quests, cities, top10, goals), `bronze < silver < gold` (each 1–100000), `name_ar/en`, `visual_key` (shipped allowlist), `position` | Seeded 5 rows: events 1/5/15, quests 10/50/200, cities 2/4/8, top10 1/3/10, goals 1/5/15 (Q-240). Data, not code: T-709 edits thresholds/names later; a threshold change never removes an earned row |
 | `achievement_earned` | `player_id → player_xp`, `achievement_id → achievement RESTRICT`, `tier` bronze/silver/gold, `earned_at`; PK (player, achievement, tier) | Append-only for every role (no UPDATE/DELETE/TRUNCATE, ENABLE ALWAYS). Points at `player_xp`, like the XP rows, so its FK checks never wait on `erase_player`'s player lock. Kept on the tombstone (no personal data; ADR-175's list gains a row). A jump writes every tier passed |
 
-New index for the evaluator: `community_contributor (enrollment_id)`; `final_rank (enrollment_id)` above. Index use
-is asserted with EXPLAIN in one DB test.
+The evaluator's goal lookup uses the existing `community_contributor_enrollment_idx` (0053:111) and `final_rank
+(enrollment_id)` above; no new index and no EXPLAIN test (cut 2).
 
-**`questify_sync()`** — lock order: the caller's `player` FOR KEY SHARE (active, else the existing inactive-player
-refusal), then `player_xp` FOR UPDATE, then reads (no locks) and inserts. Completions take enrollment then `player_xp`
+**`questify_sync()`** — first an unlocked pre-check (the ADR-272 pattern, MINOR-8 server): when no tier is due it
+answers at once and takes no lock. Otherwise the lock order: the caller's `player` FOR KEY SHARE (active, else the
+existing inactive-player refusal), then `player_xp` FOR UPDATE, then reads (no locks) and inserts. Completions take enrollment then `player_xp`
 and no player lock after it (T-402); erasure takes player FOR UPDATE → enrollments → `player_xp`. Sync and erasure meet
 on the player row first, and nothing holding `player_xp` waits for a player lock, so there is no cycle; two syncs
 serialize on `player_xp` and the second reports nothing new. It computes
@@ -76,18 +81,22 @@ call carries no client input and a replay writes nothing. Rate limit: 20 a minut
 **Reads (definers, caller-bound, no player parameter):**
 - `own_achievements()`: all five, each `{id, name, visualKey, tier|null, progress, next|null}`; `tier` null is the
   silhouette (FR-708). Progress is computed live; the tier shown is the highest earned row.
-- `own_event_passport(before, page ≤ 50)`: played events newest first, each `{eventId, name {ar,en}, date (the event's
-  local start date, 'YYYY-MM-DD' from `starts_at AT TIME ZONE timezone`), city {ar,en}|null, rank|null, rankState, isPublic}`.
+- `own_events(played, before_at, before_event, page ≤ 50)` — one owner door for the passport and the history (cut 1):
+  every non-rehearsal enrollment of the caller except `pending`/`declined`, newest event start first, keyed by the
+  composite cursor (start time, event id); `played = true` keeps only played events (the passport). Each row:
+  `{eventId, name {ar,en}, date (the event's local start date, 'YYYY-MM-DD' from `starts_at AT TIME ZONE timezone`),
+  startsAt, endsAt, timezone, city {ar,en}|null, eventStatus, memberStatus, score, played, rank|null, rankState, isPublic}`.
   `rankState`: `live` (event not ended, `event_status_now`), `pending` (ended, results not revealed), `final` (revealed,
   rank from `final_rank`), `unranked` (revealed, no row: zero points or team). FR-709's "no final rank while running".
-- `own_event_history(before, page ≤ 50)`: every non-rehearsal enrollment of the caller except `pending`/`declined`, newest
-  join first: `{eventId, name, startsAt, endsAt, timezone, eventStatus, memberStatus, score, rank|null, played}`. Owner only.
+  `isPublic` says the stamp is eligible for the public passport now (the rule below). Owner only.
 - `public_player_profile(username)` (T-402, replaced in 0065) gains `achievements: [{id, tier|null}]` (all five, tiers
-  only, no progress) and `passport: [{name, date, city, rank|null}]`: at most the 50 newest stamps of events whose
-  `access = 'public'` **at read time** (ADR-276, Q-243). Unlisted and private events never appear publicly; no event id,
-  score, member status, join answer, history, count of hidden stamps or progress is in the public DTO. Achievement
-  counts include private events (a tier shows a number, never which event).
-- `city_list()`: active cities by position.
+  only, no progress) and `passport: [{name, date, city, rank|null}]`: at most the 50 newest stamps of played events that,
+  **at read time**, have `access = 'public'`, are not `kind = 'workplace'` (MINOR-5) and have ended or been archived
+  (MAJOR-1: a live public event never appears, so nobody can poll a username to learn where someone is now) (ADR-276,
+  Q-243). Unlisted and private events never appear publicly; no event id, score, member status, join answer, history,
+  count of hidden stamps or progress is in the public DTO. Achievement counts include private events (a tier shows a
+  number, never which event).
+- `city_list()`: the cities by position.
 
 **API** (`apps/api/src/questify/`; the name `passport` is taken by the T-304b quest type, so this is "event passport"):
 
@@ -95,10 +104,9 @@ call carries no client input and a replay writes nothing. Rate limit: 20 a minut
 |---|---|---|
 | `POST /v1/me/questify/sync` | player | `{achievements: [{id, tier}]}` newly earned |
 | `GET /v1/me/achievements` | player | `[{id, name, visualKey, tier, progress, next}]` |
-| `GET /v1/me/event-passport?cursor&limit` | player | `{stamps: [...], next}` |
-| `GET /v1/me/event-history?cursor&limit` | player | `{events: [...], next}` |
+| `GET /v1/me/events?played&cursor&limit` | player | `{events: [...], nextCursor}` (passport with `played=true`, history without) |
 | `GET /v1/players/{username}` | player | T-402 DTO + `achievements`, `passport` (exact allowlist test) |
-| `GET /v1/cities` | public | `[{id, name {ar,en}}]`, ETag |
+| `GET /v1/cities` | public | `[{id, name {ar,en}}]` (no ETag until console editing, cut 5) |
 | event create/update (dashboard) | owner/editor | gains `cityId`; unknown city 400, virtual with city 400, live change 409 `city_locked` |
 
 Shared zod schemas in `packages/shared/src/questify/`. Staff sessions cannot enter player doors (T-402 pattern).
@@ -111,14 +119,15 @@ they never pay event points, never touch `ledger_entry`, and count event facts o
 
 | Table | Shape | Notes |
 |---|---|---|
-| `questify_campaign` | `id uuid`, `name_ar/en` (1–80, no control/bidi), `starts_at < ends_at` (timestamptz), `status` draft/published/retired, `created_by`, timestamps | Seasonal window. The console enters Saudi time (Asia/Riyadh, no DST) and sends ISO with offset; stored as instants. Published: shown when `starts_at <= now() < ends_at` (FR-711). After publish, `starts_at` is frozen once started and `ends_at` may only move later while running; retire at any time hides it and keeps awards |
-| `questify_quest` | `id uuid`, `campaign_id NULL → campaign` (NULL = always-on), `metric` CHECK IN (events, cities, quests), `target` 1–1000, `title_ar/en` (1–80), `xp` 1–10000, `position`, `status` draft/active/retired | At most 20 per campaign and 50 active always-on (trigger, advisory lock). Metric, target and campaign are frozen once any award names the quest (guard); a changed `xp` applies to later awards only. Delete only a draft with no award |
+| `questify_campaign` | `id uuid`, `name_ar/en` (1–80, no control/bidi), `starts_at < ends_at` (timestamptz), `status` draft/published/retired, `created_by`, timestamps | Seasonal window. The console enters Saudi time (Asia/Riyadh, no DST) and sends ISO with offset; stored as instants. Publishing requires `starts_at >= now()` (MINOR-6). Published: shown when `starts_at <= now() < ends_at` (FR-711). After publish, `starts_at` is frozen once started and `ends_at` may only move later while running; retire at any time hides it and keeps awards |
+| `questify_quest` | `id uuid`, `campaign_id NULL → campaign` (NULL = always-on), `metric` CHECK IN (events, cities, quests), `target` 1–1000, `title_ar/en` (1–80), `xp` 1–10000, `position`, `status` draft/active/retired | At most 20 per campaign and 50 active always-on, a count check inside `questify_quest_save` (admin-only; cut 3, no trigger or advisory lock). Metric, target and campaign are frozen once the quest can pay: an always-on quest is active, or its campaign is published (MINOR-7; no award-lookup guard and no race tests for it, cut 4); a changed `xp` applies to later awards only. Delete only a draft |
 | `questify_award` | `id bigint identity`, `player_id → player_xp`, `quest_id → questify_quest RESTRICT`, `earned_at`; UNIQUE (player_id, quest_id) | Append-only, ENABLE ALWAYS; kept on the tombstone |
-| `xp_entry` (altered) | `source` gains `questify`; `ledger_entry_id`, `quest_id` DROP NOT NULL; `questify_award_id bigint UNIQUE → questify_award` | CHECK rewritten: quest/removal exactly as 0039 (both ids NOT NULL); questify → delta > 0, both ledger ids NULL, `reverses` NULL, award id set. `xp_reverse` only follows `ledger_entry_id`, so a removal can never reverse a Questify award. Brief table lock in the migration; T-408's monthly sum includes Questify XP by design |
+| `xp_entry` (altered) | `source` gains `questify`; `ledger_entry_id`, `quest_id` DROP NOT NULL; `questify_award_id bigint UNIQUE → questify_award` | CHECK rewritten: quest/removal exactly as 0039 (both ids NOT NULL); questify → delta > 0, both ledger ids NULL, `reverses` NULL, award id set. `xp_reverse` only follows `ledger_entry_id`, so a removal can never reverse a Questify award. The ALTER takes a bounded lock wait (`lock_timeout`); T-408's monthly sum includes Questify XP by design |
 
 **Evaluator extension** (inside `questify_sync`, after the tiers, same lock): for each active always-on quest, lifetime
 metrics; for each active quest of a published campaign with `starts_at <= now() < ends_at + 3 days`, metrics bounded to
-`[starts_at, ends_at)`. Facts before the start never count, so a new campaign needs no backfill and veterans cannot
+`[starts_at, ends_at)` on `ledger_entry.created_at` (0039's backfill gave older `xp_entry` rows the migration's
+timestamp; MINOR-6). Facts before the start never count, so a new campaign needs no backfill and veterans cannot
 complete it on day one. The 3-day grace only lets a qualifying play near the end be rewarded at a late sync; the list
 stops offering the quest at `ends_at`. Each met quest: insert `questify_award ON CONFLICT DO NOTHING`; if written, insert
 the `xp_entry` (`xp` read under the lock) and call T-401's `xp_apply(player, entry, xp)`, so `player_xp`, the level,
@@ -143,13 +152,15 @@ and changed field names only, Idempotency-Key on every write route under `/v1/ad
 
 ## T-403c (STANDARD) — surfaces
 
-- **App** (`apps/app`): Profile gains an Achievements row (five badges; silhouette = dark tint + lock; tier ring from
+- **App** (`apps/app`): Profile gains an Achievements row (five badges from the shipped achievement art, silhouette =
+  dark tint + `icons/padlock.png`, no new art run (cut 6); tier ring from
   bronze/silver/gold theme tokens, added if missing; progress to the next tier on own profile only), an Event Passport
   section (stamp grid: emblem from the event's first letter until T-602's logo, local date, city, rank or "Results
   soon"/"Not ranked"; private stamps marked "Only you see this") and History (own only). The public profile shows
   achievements and the public passport, nothing else. A Questify quests screen (always-on, then each live campaign with
   "Ends in N days"/"Ends today" from `endsAt`, progress bars, done state). `useQuestifySync` calls sync on focus,
-  foreground (≥5 minutes apart) and after a completion result, then shows one light toast per new tier/quest and the
+  foreground (≥5 minutes apart) and after completions (trailing debounce of about 15 s; a 429 is handled silently,
+  MINOR-8 client), then shows one light toast per new tier/quest and the
   existing medium level-up beat when `levelUp` is set (Reduce Motion respected).
 - **Dashboard**: event form city picker from `/v1/cities`, hidden for virtual events, read-only once live.
 - **Console**: `/console/questify` — campaigns (create, edit window in Saudi time, publish, retire) and quests
@@ -164,7 +175,8 @@ and changed field names only, Idempotency-Key on every write route under `/v1/ad
 **T-403 DB** (`apps/api/test/db/achievements.int.test.ts`, `event-passport.int.test.ts`, `final-rank.int.test.ts`):
 - Stamps: first credit makes a stamp, a repeat adds none; rehearsal, award-only and welcome-only make none; a fully
   reversed event drops out, a partly reversed one stays; banned/removed enrollments drop out; two events, two stamps;
-  operator scan and team quest award count; `rankState` live → pending (ended, unrevealed) → final/unranked (revealed).
+  operator scan and team quest award count; `rankState` live → pending (ended, unrevealed) → final/unranked (revealed);
+  the history lists every non-rehearsal membership and pages on (start time, id).
 - `final_rank`: confirm writes every ranked enrollment once; its top ranks equal `result_place`; zero-point/team members
   get none; append-only refusals; backfill on a confirmed fixture; erasure keeps tombstone rows; a 20,000-member
   confirm stays inside a stated time bound (opt-in timing test, like T-402b's 20,001-recipient run).
@@ -172,24 +184,27 @@ and changed field names only, Idempotency-Key on every write route under `/v1/ad
   three tiers; replay writes nothing; two concurrent syncs on two connections write once and only one reports it;
   dropping below keeps the tier; top10 needs reveal; goals need `reached` and contribution; cities ignore NULL and
   virtual; sync crossing `erase_player` and a completion in both orders (no deadlock, no row after erasure commits).
-- Privacy: the public DTO has exactly the allowlisted keys; private and unlisted events never listed (also after an
-  event moves public → private); no history, score, progress or join answer; owner sees private stamps flagged.
-- City: virtual with city refused, unknown city refused, live change refused, editor outside their event limit refused.
+- Privacy: the public DTO has exactly the allowlisted keys; private, unlisted and workplace events never listed (also
+  after an event moves public → private); a live public event is absent and appears once it ends (MAJOR-1); no history,
+  score, progress or join answer; owner sees private stamps flagged.
+- City: virtual with city refused, unknown city refused, a city-only PATCH on a live event refused (MINOR-3), ended and
+  archived refused, editor outside their event limit refused.
 - Append-only: UPDATE/DELETE/TRUNCATE refused for the owner role on `achievement_earned` and `final_rank`.
 
 **T-403b DB** (`questify-quests.int.test.ts`): one award per (player, quest) under replay and two concurrent syncs;
-draft/retired quests and unpublished/retired campaigns award nothing; window boundaries (a fact at `starts_at` counts,
-at `ends_at` does not; a sync at `ends_at + 3 days − 1s` grants, at `+ 3 days` does not); XP CHECKs for every source;
-an award's level-up writes `level_reached` and grants the T-402 item; `remove_award` never reverses a Questify entry;
-frozen-field guard after an award; caps; bidi/control names refused; every admin door refuses a player, an organizer
+draft/retired quests and unpublished/retired campaigns award nothing; publishing with a past start refused; window
+boundaries on `ledger_entry.created_at` (a fact at `starts_at` counts, at `ends_at` does not; a sync at `ends_at + 3
+days − 1s` grants, at `+ 3 days` does not); XP CHECKs for every source; an award's level-up writes `level_reached` and
+grants the T-402 item; `remove_award` never reverses a Questify entry; metric/target/campaign frozen once the quest can
+pay; the save's caps; bidi/control names refused; every admin door refuses a player, an organizer
 staff session, a device context and the anonymous role, and audits.
 
 **Security** (`apps/api/test/security/*`): outsider EXECUTE probe gains every new function; cross-tenant suite lists the
 new tables (an organizer reads no achievement, award, rank or city change of another tenant); the rehearsal guard list
 and community gate map gain the new tables. **Route/unit:** shapes, auth, rate limit, staff refused on player doors,
-admin prefix, the shared schemas. **T-403c:** app unit tests for the sync hook throttle and toasts, silhouettes, rank
-states, RTL snapshots; browser specs for the console page and the dashboard city field (both languages, phone width);
-`npx expo export`; full browser suite after a fresh web build.
+admin prefix, the shared schemas. **T-403c:** app unit tests for the sync hook throttle, debounce, silent 429 and
+toasts, silhouettes, rank states, RTL snapshots; browser specs for the console page and the dashboard city field (both
+languages, phone width); `npx expo export`; `ci:changed` plus the specs it touches, not the full browser suite.
 
 ## Mutation (GitHub only, ADR-174) and review levels
 
@@ -197,24 +212,29 @@ states, RTL snapshots; browser specs for the console page and the dashboard city
   `packages/shared/src/questify/*.ts`; tests excluded. Most logic is SQL, covered by the DB suites (T-401 precedent).
 - T-403b: the `apps/api/src/questify/` files it adds or changes (quests, admin), `packages/shared/src/questify/*.ts`.
 - T-403c: none (standard).
-- Reviews: this plan, one independent plan review (core, covers all three parts). T-403 and T-403b: one independent
-  core code review each (re-review only after a BLOCKER or several MAJORs). T-403c: one standard code review and one
-  Arabic review; both can run on a cheaper model.
+- One `mutation.yml` dispatch covers T-403 and T-403b together (cut 7).
+- Reviews: this plan, one independent plan review (core, covers all three parts; done, 88, amendments folded). T-403
+  and T-403b: one independent core code review each (re-review only after a BLOCKER or several MAJORs). T-403c: one
+  standard code review that includes the Arabic pass (the worker applies `ux-araby`; no separate Arabic review run,
+  cut 8). The cheaper model builds T-403c; every review's model follows the cost cap in CLAUDE.md (MINOR-9).
+- Banned fraudsters keep earned tiers: an admin revoke is logged for T-709; nothing is built now.
 
 ## Docs touched at build
 
 DATA_MODEL (city, event.city_id, final_rank, achievement tables, Questify quest tables, xp_entry source), API (routes
-above), SRS status rows and the FR-709 logo/FR-710 sync amendments, TASKS notes (T-404 gems per earned row; T-407 the
+above), SRS status rows, the FR-707 and FR-710 "at the next sync" notes (FR-709 is recorded as partial with T-602
+owning the logo; the FR itself is not amended; MINOR-10), TASKS notes (T-404 gems per earned row; T-407 the
 interests metric and the player's city from `city`; T-602 the stamp logo; T-708 export of achievements, awards,
 passport and history; T-709 achievement thresholds), STORE_COMPLIANCE (Questify quests reward only in-app play).
 
 ## Proposed decisions and questions
 
 - **ADR-273 / Q-239** the three-part split, CORE/STANDARD labels.
-- **ADR-274 / Q-241** played = a standing quest XP credit; derived passport; one sync evaluator; earned rows permanent;
-  no change to the completion transaction.
+- **ADR-274 / Q-241** played = a standing quest XP credit on a `played_enrollment`; derived passport; one sync
+  evaluator with an unlocked pre-check; earned rows permanent; no change to the completion transaction.
 - **ADR-275 / Q-242** final rank from a confirm-time snapshot of every ranked member, shown only after the reveal.
-- **ADR-276 / Q-243** public passport lists only events public at read time; private stamps are owner-only.
+- **ADR-276 / Q-243** other players see a played event only once it has ended or been archived, and only while it is
+  public and not a workplace event; never while live; private stamps are owner-only.
 - **ADR-277 / Q-244** a seeded city catalog; event city set by owner/editor, frozen once live, none for virtual.
 - **ADR-278 / Q-245** Questify quests as console data with a closed metric list; seasonal counts in-window facts with a
   3-day grant grace; XP through `xp_entry` source `questify`; follow Questify not built pending store risk.
@@ -222,30 +242,8 @@ passport and history; T-709 achievement thresholds), STORE_COMPLIANCE (Questify 
 
 ## Plan review amendments (2026-10-26, independent CTO plan review 88 NO-GO, one MAJOR, folded; no re-review)
 
-These override the text above. The build worker folds them into the plan body, ADR-273..279 and Q-239..245 in its first commit.
-
-**T-403**
-- MAJOR-1 (ADR-276): the public passport lists a played event only after it has ended or been archived. A live public event never appears for other players (they could poll a username and learn where someone is now). The owner view is unchanged. Test: a live public event is absent from the public DTO and appears after it ends.
-- MINOR-2: one shared `played_enrollment` predicate (not banned, not removed, not rehearsal) is used by all five metrics, including `goals` and `top10`.
-- MINOR-3: a separate `BEFORE UPDATE OF city_id` trigger covers live, ended and archived events (`event_times_guard` fires only on the time columns, 0009:91). Test with a city-only PATCH on a live event.
-- MINOR-4: `confirm_results` writes `final_rank` and `result_place` in one data-modifying CTE that reads `all_places()` once. The backfill first takes `LOCK TABLE event_result IN SHARE ROW EXCLUSIVE MODE` with a `lock_timeout` (0039 precedent).
-- MINOR-5: workplace events (`kind='workplace'`) are left out of the public passport list.
-- MINOR-8 (server): an unlocked pre-check (the ADR-272 pattern) in `questify_sync()` so it locks only when something new is due.
-- MINOR-10: FR-707's acceptance gets the same "at the next sync" note as FR-710. FR-709 is recorded as partial, T-602 owns the logo; do not amend the FR.
-- Cut 1: merge `own_event_passport` and `own_event_history` into one owner door and route (`/v1/me/events?played=`) with a composite cursor (start time, id).
-- Cut 2: drop the planned `community_contributor(enrollment_id)` index (it exists, 0053:111) and the EXPLAIN index-use test.
-- Cut 5: drop `city.active` and the `/v1/cities` ETag until console editing exists (T-703/T-709).
-
-**T-403b**
-- MINOR-6: publishing a seasonal quest requires `starts_at >= now()`; window facts are bounded on `ledger_entry.created_at` (0039's backfill gave older `xp_entry` rows the migration's timestamp).
-- MINOR-7: freeze metric, target and campaign once the quest can pay (an always-on quest is active, or its campaign is published); delete only drafts. This removes the award-lookup guard and its race tests (cut 4).
-- Cut 3: replace the caps trigger and advisory lock with a count check in `questify_quest_save` (admin-only).
-- 0066's `xp_entry` ALTER takes a bounded lock wait.
-
-**T-403c (standard)**
-- MINOR-8 (client): sync after completions with a trailing debounce of about 15 s and silent handling of 429.
-- Cut 6: shipped art for the five achievement badges, `icons/padlock.png` for silhouettes; no new art run.
-- Cut 8: one standard review that includes the Arabic pass (the worker applies the ux-araby skill); no separate Arabic review run.
-- MINOR-9: the review model for every review follows the cost cap in CLAUDE.md; the cheaper model builds T-403c.
-
-**Process:** one `mutation.yml` dispatch for T-403 and T-403b together (cut 7); T-403c runs `ci:changed` plus the specs it touches, not the full browser suite. Banned fraudsters keep earned tiers: log an admin revoke for T-709, build nothing now.
+Folded into the body above and into ADR-273..279 / Q-239..245 by the T-403 build worker (2026-10-26): MAJOR-1 and
+MINOR-5 (public passport: ended or archived, public, not workplace), MINOR-2 (`played_enrollment`), MINOR-3 (city
+trigger), MINOR-4 (one CTE, backfill lock), MINOR-6/7 and cuts 3/4 (T-403b), MINOR-8 (server pre-check, client
+debounce), MINOR-9 and cut 8 (review models), MINOR-10 (SRS notes), cuts 1, 2, 5, 6 and 7, and the banned-fraudster
+note.
