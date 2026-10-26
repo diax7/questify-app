@@ -19,6 +19,8 @@ const profile = {
   frame: null,
   title: null,
   level: { number: 2, title: { ar: "مستكشف", en: "Explorer" } },
+  achievements: [],
+  passport: [],
 };
 
 type Seen = { sql: string; values: readonly unknown[] };

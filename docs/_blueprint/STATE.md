@@ -1382,6 +1382,13 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   place (`العشرة الأوائل`, `يد واحدة`; undeployed, no test pins them). Publishing a campaign has no confirmation:
   Q-248. Phone checks still owed. No CI minutes used.
 
+- 2026-10-26 **CI red on 569190d, fixed by the coordinator.** Run 40392290636: 6119 passed, 3 failed, all in
+  `apps/api/src/players/item-routes.test.ts`. The mutation-chase tests built a fake public profile without
+  `achievements`/`passport`, which T-403c made required in the shared schema, so the route's own parse answered 500.
+  The T-403c worker ran `apps/api/test/players` but not `apps/api/src/players`. Fixture fixed (two fields); players unit
+  suite 99 passed; one CI re-run. Lesson for worker briefs: after a shared-schema change, run the unit tests of every
+  package that imports the schema (`npx vitest run apps/api/src/<area>`), not only the integration suites.
+
 ## Next
 
 1. **The coordinator pushes `main`** (the T-402/T-402b mutation chase tests, T-403b and T-403c). Then one
