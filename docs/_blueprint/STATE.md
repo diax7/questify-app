@@ -1189,16 +1189,56 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   and NEW fresh independent re-review (different reviewer). No push/deploy/EAS/local Stryker. Main5c87d29 includes
   root's reviewed mutation-force workflow/config integration; no current remote CI/mutation. Keep75/153.
 
+- 2026-10-26 **Review repair checkpoint 7c0843b committed; final gates active:** all 20 focused regressions
+  passed together in 26.56s. Extracted helper needed a compile-time literal tuple annotation; API types passed
+  after that correction. Workspace lint/format and staged redacted secrets PASS. Full DB/Redis exec 90379,
+  `Temp/questify-t402b-review-full.{json,log}`; fresh web build exec 56569,
+  `Temp/questify-t402b-review-web-build.log`; API build/audit exec 60003 (build passed, audit pending).
+  FULL browser must use a freshly rebuilt test API bundle after these gates because the route hook changed.
+  SQL/payer/shared/native/copy are unchanged: prior native exports, Arabic review and 20k benchmark remain valid.
+  Current source is frozen; only a concrete failure justifies another edit. No current remote CI/mutation.
+  Keep T-402b unchecked 75/153; root commissions a NEW independent reviewer after green final evidence.
+
+- 2026-10-26 **Review-repair full DB/Redis GREEN at 7c0843b:** exec 90379 passed 368 files / 5,803 tests,
+  3 optional timing skips, 0 failures in 311.69s; `Temp/questify-t402b-review-full.{json,log}`. Fresh web build
+  56569 and API build/audit 60003 PASS (two existing high advisories ignored by unchanged policy). Test API bundle
+  rebuilt with the current pre-replay authorization hook. FULL 142 browser exec 83776 active; report/log
+  `Temp/questify-t402b-review-browser.{json,log}`, unique output `Temp/questify-t402b-review-browser-results`.
+  No production change after the repair checkpoint. Browser completion, final docs/redacted secret scan/commit and
+  NEW independent core re-review remain. The last independent verdict is still 84 NO-GO, never author-approved.
+  Task unchecked 75/153. Native exports, Arabic review and SQL benchmark evidence remain current; no push/deploy/EAS.
+
+- 2026-10-26 **Review repairs and final author gates GREEN at source 7c0843b; NEW core re-review required:**
+  Scoped souvenir preValidation resource authorization now precedes global cached replay on all six mutation
+  doors, including process. The actual middleware regressions reproduced all six leaks before repair and passed
+  afterward. The 20-case new-door/race matrix passed, including zero-right quiz automatic work, exhausted/open/
+  unlimited games, queue-before-XP completion against evaluator/old ack, and activation/confirmation both lock
+  orders with finite 5s waits and exact depth/receipt/item outcomes. No SQL or payer change was needed.
+  Final full DB/Redis exec 90379: 368 files / 5,803 passed, 3 optional timing skips, 0 failures, 311.69s;
+  report/log `Temp/questify-t402b-review-full.{json,log}`. Fresh web build 56569 PASS and rebuilt test API;
+  FULL browser 83776 PASS: 141 passed / 1 intentional phone-camera skip, 0 failures, 436.30s, report/log
+  `Temp/questify-t402b-review-browser.{json,log}`. Workspace lint/format/all types, current API build and audit
+  PASS with unchanged two existing high-advisory exceptions. Redacted committed-range/staged Gitleaks scans PASS;
+  all task source LF and staged diff clean. No active local command or browser server remains.
+  Native Android/iOS exports, Arabic 84→94 approval and the isolated 20k SQL/worker benchmark remain valid because
+  no corresponding source changed. Last independent CORE verdict remains 84 NO-GO; author verification does
+  not replace it. Root must use a NEW independent Sol High reviewer, excluding author and first code reviewer,
+  and obtain >=90 with zero unresolved BLOCKER/MAJOR before ticking T-402b. Keep 75/153 (49.02%) unchecked.
+  Proposed ADR-269–271 / Q-233–235 unchanged. API/SECURITY document the pre-replay authorization invariant; no
+  claims or broad rewrite of unrelated routes. Prior red/failed/cancelled evidence is retained. Root owns reviewed
+  push/CI and later T-402/T-402b mutation batch; no current remote CI/mutation. Config integration 5c87d29 is already
+  independently reviewed. No worker push/deploy/EAS/local mutation; physical phone/CranL/migrations remain deferred.
+  This worker commits the green repair evidence and STOPS for the new independent re-review.
+
 ## Next
 
-1. **Current queue (2026-10-26):** T-402b implementation and author gates are green at the checkpoint above.
-   Root commissions a fresh independent Sol High core CODE review of the complete4bca465..HEAD task range;
-   >=90 and zero BLOCKER/MAJOR required. Author stops here. Fix/recheck review findings before ticking T-402b;
-   keep75/153 until GO. Root has integrated independently reviewed mutation-force configfb0fba4 and checks the
-   reviewed range before push/CI, and schedules the T-402/T-402b GitHub mutation batch. T-312/T-313 targets already
-   meet90, no more chase. Continue T-403 with a fresh worker only after this core gate. No deployment/EAS/local
-   Stryker; phone/CranL obligations remain deferred. Heartbeat ACTIVE08:22 Riyadh2026-10-26. Earlier queues are
-   historical and do not authorize restarting completed tasks.
+1. **Current queue (2026-10-26):** review-repair source 7c0843b and all author gates are green, as recorded
+   above. Root commissions a NEW independent Sol High core re-review of the complete task and both 84 NO-GO
+   findings; author and first code reviewer excluded. Require >=90 with zero unresolved BLOCKER/MAJOR before
+   ticking T-402b; keep 75/153 until then. Author stops here. Reviewed mutation-force config is already integrated
+   at 5c87d29. Root owns reviewed push/CI and the T-402/T-402b GitHub mutation batch. T-312/T-313 targets already
+   meet 90, no chase. T-403 gets a fresh worker only after this core gate. No deployment/EAS/local Stryker;
+   phone/CranL obligations remain deferred. Heartbeat ACTIVE 08:22 Riyadh 2026-10-26. Earlier queues are historical.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
