@@ -300,4 +300,86 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
       );
     },
   );
+
+  const builder = (path: string, payload: unknown) =>
+    app.app.inject({
+      method: "DELETE",
+      url: `/v1/organizers/${f.ids.orgA}/events/${f.ids.eventA}${path}`,
+      headers: withSession(cookie),
+      payload: payload as Record<string, unknown>,
+    });
+  const refusal = async (path: string, payload: unknown) => {
+    const answer = await builder(path, payload);
+    return [answer.statusCode, answer.json().code, answer.json().message];
+  };
+  const exists = async (table: "category" | "quest", id: string) =>
+    (await f.db.owner.query(`SELECT 1 FROM ${table} WHERE id=$1`, [id])).rowCount === 1;
+  const categoryWithSouvenir = async (name: string) => {
+    const category = (
+      await f.db.owner.query("INSERT INTO category(event_id,name_en) VALUES($1,$2) RETURNING id", [
+        f.ids.eventA,
+        name,
+      ])
+    ).rows[0].id as string;
+    const quest = (
+      await f.db.owner.query(
+        `INSERT INTO quest(event_id,category_id,type,title_en,points,type_config)
+        VALUES($1,$2,'enter_code',$3,10,'{"code":"ABC"}') RETURNING id`,
+        [f.ids.eventA, category, `${name} quest`],
+      )
+    ).rows[0].id as string;
+    const created = await post(base, {
+      ...f.body,
+      audience: "category",
+      categoryId: category,
+      name: { ar: "تذكار الفئة", en: name },
+    });
+    const rule = created
+      .json()
+      .rules.find((r: { item: { name: { en: string } } }) => r.item.name.en === name).id as string;
+    return { category, quest, rule };
+  };
+
+  it("refuses deleting a category a souvenir draft names with 409 souvenir_in_use, then deletes it", async () => {
+    const { category, quest, rule } = await categoryWithSouvenir("Draft named");
+    const remove = () => builder(`/categories/${category}`, { quests: "delete", confirm: true });
+    const refused = await remove();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({
+      code: "souvenir_in_use",
+      message: MESSAGES["souvenir.categoryInUse"],
+    });
+    expect([await exists("category", category), await exists("quest", quest)]).toEqual([
+      true,
+      true,
+    ]);
+    const cleared = await app.app.inject({
+      method: "DELETE",
+      url: `${base}/${rule}`,
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect((await remove()).statusCode).toBe(204);
+  });
+  it("refuses deleting a quest an activated souvenir requires, alone or with its category", async () => {
+    const { category, quest, rule } = await categoryWithSouvenir("Frozen target");
+    expect((await post(`${base}/${rule}/activate`, { targetIds: [quest] })).statusCode).toBe(200);
+    expect(await refusal(`/quests/${quest}`, { confirm: true })).toEqual([
+      409,
+      "souvenir_in_use",
+      MESSAGES["souvenir.questInUse"],
+    ]);
+    expect(await refusal(`/categories/${category}`, { quests: "delete", confirm: true })).toEqual([
+      409,
+      "souvenir_in_use",
+      MESSAGES["souvenir.categoryQuestInUse"],
+    ]);
+    expect(
+      await refusal(`/categories/${category}`, { quests: "move", to: f.category, confirm: true }),
+    ).toEqual([409, "souvenir_in_use", MESSAGES["souvenir.categoryInUse"]]);
+    expect([await exists("category", category), await exists("quest", quest)]).toEqual([
+      true,
+      true,
+    ]);
+  });
 });

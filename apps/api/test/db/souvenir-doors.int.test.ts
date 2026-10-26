@@ -185,4 +185,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir new-door matrix", () 
       }
     }
   });
+
+  it("with only an every-quest promise, the evaluator returns at once while the older ack waits", async () => {
+    await f.action(await f.create({ audience: "all" }));
+    await f.run({}, "SELECT souvenir_scan_batch($1)", [f.ids.eventA]);
+    const claim = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,1)", [f.ids.eventA]))
+      .rows[0];
+    const completion = await f.pool.connect();
+    const evaluator = await f.pool.connect();
+    const ack = await f.pool.connect();
+    try {
+      for (const client of [completion, evaluator, ack])
+        await client.query("SET lock_timeout='5s'");
+      await f.db.owner.query("BEGIN");
+      await f.db.owner.query("SET LOCAL lock_timeout='5s'");
+      await f.db.owner.query("SELECT 1 FROM player_xp WHERE player_id=$1 FOR UPDATE", [
+        f.ids.playerA,
+      ]);
+      const cp = (await completion.query("SELECT pg_backend_pid() AS id")).rows[0].id;
+      const completing = withRequestContext(completion, { playerId: f.ids.playerA }, () =>
+        completion.query("SELECT * FROM complete_quest($1,'code',NULL,'ABC',$2,NULL)", [
+          f.quest,
+          randomUUID(),
+        ]),
+      );
+      await blocked(evaluator, cp);
+      const ap = (await ack.query("SELECT pg_backend_pid() AS id")).rows[0].id;
+      const acknowledging = withRequestContext(ack, {}, () =>
+        ack.query("SELECT souvenir_ack($1,$2,$3,NULL)", [
+          f.member,
+          claim.generation,
+          claim.lease_token,
+        ]),
+      );
+      await blocked(evaluator, ap);
+      // The uncommitted completion is invisible to the unlocked pre-check: no lock is taken, nothing waits.
+      const granted = await withRequestContext(evaluator, {}, () =>
+        evaluator.query("SELECT souvenir_evaluate($1) AS n", [f.member]),
+      );
+      expect(granted.rows[0].n).toBe(0);
+      await blocked(evaluator, ap);
+      await f.db.owner.query("COMMIT");
+      await completing;
+      await acknowledging;
+      const pending = (
+        await f.db.owner.query("SELECT generation FROM souvenir_work WHERE enrollment_id=$1", [
+          f.member,
+        ])
+      ).rows[0];
+      expect(Number(pending.generation)).toBeGreaterThan(Number(claim.generation));
+      expect((await drain()).granted).toBe(1);
+      expect(
+        (await f.db.owner.query("SELECT count(*)::int AS n FROM souvenir_work")).rows[0].n,
+      ).toBe(0);
+      expect(await counts()).toEqual({ receipts: 1, items: 1 });
+    } finally {
+      await f.db.owner.query("ROLLBACK");
+      for (const client of [completion, evaluator, ack]) {
+        await client.query("RESET lock_timeout");
+        client.release();
+      }
+    }
+  });
 });

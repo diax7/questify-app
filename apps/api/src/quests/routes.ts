@@ -22,6 +22,7 @@ import {
   boostInUse,
   tagsInUse,
   goalInUse,
+  souvenirInUse,
   submissionKindUnavailable,
   firstBonusPaid,
   belowGiven,
@@ -223,6 +224,8 @@ function answer<T>(
       throw boostInUse();
     case "tags_in_use":
       throw tagsInUse();
+    case "souvenir_in_use":
+      throw souvenirInUse(result.what, subject);
     case "invalid_item":
       throw invalidItem();
     case "poll_locked":

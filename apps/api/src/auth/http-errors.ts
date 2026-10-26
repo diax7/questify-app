@@ -880,6 +880,22 @@ export const souvenirData = make(
   MESSAGES["souvenir.eventDeleteError"].ar,
   MESSAGES["souvenir.eventDeleteError"].en,
 );
+/**
+ * A souvenir rule names the category, or an activated souvenir's frozen targets need the quest (T-402b). Deleting a
+ * category with its quests names the quest case through the category's own wording.
+ */
+export const souvenirInUse = (what: "category" | "quest", subject: "category" | "quest") =>
+  new HttpError(
+    409,
+    "souvenir_in_use",
+    MESSAGES[
+      what === "category"
+        ? "souvenir.categoryInUse"
+        : subject === "category"
+          ? "souvenir.categoryQuestInUse"
+          : "souvenir.questInUse"
+    ],
+  );
 export const resultsFinal = make(
   409,
   "results_final",

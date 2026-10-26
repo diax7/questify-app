@@ -120,6 +120,8 @@ export type Refused =
   | Readonly<{ kind: "boost_in_use" }>
   /** NFC tags are registered for this quest (T-308): revoke them first. */
   | Readonly<{ kind: "tags_in_use" }>
+  /** A souvenir rule names this category, or an activated souvenir requires this quest (T-402b). */
+  | Readonly<{ kind: "souvenir_in_use"; what: "category" | "quest" }>
   /** The quest item named is removed or another event's (T-304d). */
   | Readonly<{ kind: "invalid_item" }>
   /**
@@ -511,12 +513,26 @@ export async function withEvent<T>(
     if (pg.code === "23503" && pg.table === "nfc_tag") {
       return { kind: "tags_in_use" };
     }
-    const bonus = firstBonusRefusal(pg);
-    if (bonus !== undefined) {
-      return bonus;
+    const refused = firstBonusRefusal(pg) ?? souvenirUseRefusal(pg);
+    if (refused !== undefined) {
+      return refused;
     }
     throw error;
   }
+}
+
+/**
+ * A souvenir rule names the category, or an activated souvenir's frozen targets name the quest (migration 0064, no
+ * cascade): undefined for any other error.
+ */
+function souvenirUseRefusal(pg: Readonly<{ code?: string; table?: string }>): Refused | undefined {
+  if (pg.code === "23503" && pg.table === "souvenir_rule") {
+    return { kind: "souvenir_in_use", what: "category" };
+  }
+  if (pg.code === "23503" && pg.table === "souvenir_target") {
+    return { kind: "souvenir_in_use", what: "quest" };
+  }
+  return undefined;
 }
 
 /** The first-N bonus setter's refusals (set_quest_first_bonus, migration 0062), or undefined for any other error. */

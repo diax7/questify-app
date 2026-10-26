@@ -219,13 +219,15 @@ BEGIN
  RETURN NULL;
 END $$;
 REVOKE ALL ON FUNCTION souvenir_on_fact() FROM PUBLIC;
-CREATE TRIGGER souvenir_on_join AFTER INSERT OR UPDATE OF status,waitlisted ON enrollment FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
-CREATE TRIGGER souvenir_on_complete AFTER INSERT ON quest_completion FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
-CREATE TRIGGER souvenir_on_quiz AFTER UPDATE OF status ON quiz_attempt FOR EACH ROW WHEN(NEW.status='finished') EXECUTE FUNCTION souvenir_on_fact();
-CREATE TRIGGER souvenir_on_game AFTER UPDATE OF status ON game_round FOR EACH ROW WHEN(NEW.status<>'open') EXECUTE FUNCTION souvenir_on_fact();
-CREATE TRIGGER souvenir_on_staff AFTER UPDATE OF can_play OR DELETE ON staff_assignment FOR EACH ROW
+-- Names sort before mark_ranking_* (same-kind triggers fire in name order): the work insert's key share on the
+-- enrollment comes before the ranking_repair lock, the order a rejoin takes them in, so the two cannot deadlock.
+CREATE TRIGGER enqueue_souvenir_on_join AFTER INSERT OR UPDATE OF status,waitlisted ON enrollment FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER enqueue_souvenir_on_complete AFTER INSERT ON quest_completion FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER enqueue_souvenir_on_quiz AFTER UPDATE OF status ON quiz_attempt FOR EACH ROW WHEN(NEW.status='finished') EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER enqueue_souvenir_on_game AFTER UPDATE OF status ON game_round FOR EACH ROW WHEN(NEW.status<>'open') EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER enqueue_souvenir_on_staff AFTER UPDATE OF can_play OR DELETE ON staff_assignment FOR EACH ROW
  WHEN(NOT OLD.can_play) EXECUTE FUNCTION souvenir_on_fact();
-CREATE TRIGGER souvenir_on_reinstate AFTER UPDATE OF status ON player FOR EACH ROW
+CREATE TRIGGER enqueue_souvenir_on_reinstate AFTER UPDATE OF status ON player FOR EACH ROW
  WHEN(NEW.status='active' AND OLD.status<>'active') EXECUTE FUNCTION souvenir_on_fact();
 
 CREATE FUNCTION souvenir_rule_json(target uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
@@ -605,7 +607,7 @@ BEGIN
   DELETE FROM passport_stamp WHERE enrollment_id = ANY (enrolled);
   DELETE FROM quiz_answer a USING quiz_attempt t WHERE t.id = a.attempt_id AND t.enrollment_id = ANY (enrolled);
   DELETE FROM game_round g WHERE g.enrollment_id = ANY (enrolled);
-  -- Last: the staff_assignment delete above enqueues while the enrollments are still active (souvenir_on_staff).
+  -- Last: the staff_assignment delete above enqueues while the enrollments are still active (enqueue_souvenir_on_staff).
   DELETE FROM souvenir_work WHERE enrollment_id = ANY (enrolled);
   UPDATE player
   SET status = 'deleted', deleted_at = now(), username = NULL, birth_year = NULL, avatar = 'falcon',
@@ -615,4 +617,4 @@ END $$;
 REVOKE ALL ON FUNCTION erase_rows(uuid,uuid[],bytea) FROM PUBLIC;
 
 -- A result-place fact is visible to workers only after confirmation commits the entire snapshot.
-CREATE TRIGGER souvenir_on_results AFTER INSERT ON result_place FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();
+CREATE TRIGGER enqueue_souvenir_on_results AFTER INSERT ON result_place FOR EACH ROW EXECUTE FUNCTION souvenir_on_fact();

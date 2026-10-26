@@ -175,6 +175,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir finite repair passes"
     expect([await receipts(finishers), await receipts(joined), await work()]).toEqual([2, 3, 0]);
   });
 
+  it("fires every souvenir enqueue before the ranking mark on the same table (name order)", async () => {
+    const { rows } = await f.db.owner.query(
+      `SELECT c.relname AS table, t.tgname AS name FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+       WHERE NOT t.tgisinternal AND (t.tgname LIKE 'enqueue_souvenir_%' OR (t.tgname LIKE 'mark_ranking_%'
+         AND c.relname IN ('enrollment','game_round','player','quest_completion','quiz_attempt','result_place','staff_assignment')))
+       ORDER BY c.relname, t.tgname::text COLLATE "C"`,
+    );
+    expect(rows.map((row) => `${row.table}.${row.name}`)).toEqual([
+      "enrollment.enqueue_souvenir_on_join",
+      "enrollment.mark_ranking_on_enrollment",
+      "game_round.enqueue_souvenir_on_game",
+      "player.enqueue_souvenir_on_reinstate",
+      "player.mark_ranking_on_player",
+      "quest_completion.enqueue_souvenir_on_complete",
+      "quiz_attempt.enqueue_souvenir_on_quiz",
+      "result_place.enqueue_souvenir_on_results",
+      "staff_assignment.enqueue_souvenir_on_staff",
+      "staff_assignment.mark_ranking_on_assignment",
+    ]);
+  });
+
   it("erases an operator's queued work although deleting their assignment enqueues it", async () => {
     await f.db.owner.query(
       "INSERT INTO staff_assignment(organizer_id,event_id,player_id) VALUES($1,$2,$3)",
