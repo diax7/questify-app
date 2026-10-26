@@ -167,7 +167,7 @@ and changed field names only, Idempotency-Key on every write route under `/v1/ad
   (always-on and per campaign: title ar/en, metric, target, XP, order, retire), with the API's refusals shown.
 - Strings: every label in `packages/shared/src/i18n/messages.ts` in Arabic and English; achievement and seeded quest
   names reviewed with `ux-araby` (working names: Wanderer رحّالة, Quest Hunter صائد المهام, City Roamer جوّاب المدن,
-  Top Ten نخبة العشرة, Teamwork يدٌ واحدة); RTL layouts checked; Western digits everywhere (ADR-018); no
+  Top Ten العشرة الأوائل, Teamwork يد واحدة); RTL layouts checked; Western digits everywhere (ADR-018); no
   `toSorted`/`toReversed`/`Object.groupBy`/new Set methods/`structuredClone` (Hermes guard).
 
 ## Tests (test first)

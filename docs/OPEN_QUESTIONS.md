@@ -735,10 +735,16 @@ seasonal Questify quest campaigns, which the approved plan builds. Agree, or sho
 1. The Arabic pass over the seeded names (migration 0065, the app shows the API's text as sent): رحّالة, صائد المهام,
    جوّاب المدن are fine. Recommended: "نخبة العشرة" becomes "العشرة الأوائل" (the natural Arabic for Top Ten) and
    "يدٌ واحدة" loses its tanween mark ("يد واحدة"). 0065 is undeployed, so the two seed values can change in place;
-   otherwise T-709 edits them. Not done: migrations were out of scope for this task.
+   Done 2026-10-26 (T-403c close-out): both applied in 0065 in place; no test pinned the old names. Items 2 and 3 stay
+   open for Dhia.
 2. The public profile's `achievements` hold ids and tiers only. The app reads the viewer's own catalog for names and
    art. Recommended: leave it. Alternative: add `name` and `visualKey` to the public DTO (an API change).
 3. The history shows no points (the event's currency word is not in `GET /v1/me/event-history`). Recommended: leave it;
    add the currency's name and icon to the answer only if a points line is wanted.
 4. Needs a phone check once a build exists: release Hermes, right to left, Reduce Motion, the toasts and the level-up
    card, the badges at 64 pt.
+
+## Q-248 — Publishing a campaign has no confirmation (2026-10-26, T-403c review)
+Publishing a Questify campaign from the console is one-way (it can only be retired afterwards) and starts paying XP to
+real players, yet the button acts at once. Recommended: ask for a confirmation first, as the retire dialog does, saying
+it cannot be undone. Not built; Dhia decides.

@@ -451,7 +451,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     GO 94 by the in-house CTO reviewer on Claude Opus (the recorded Sol policy, ADR-265, could not be used from the
     Claude Code session). Two minors folded in 0066 in place: non-admin raises `QY403`, so a real 42501 answers 500;
     a published campaign that has started refuses a new quest (`409 {reason: started}`). Progress 78/155 (50.32%).
-- [ ] **T-403c** Achievements, passport, history and Questify quests on screen; dashboard event city; console campaign editor — delivers FR 701, 702, 708, 709 (on screen); depends on: T-403, T-403b
+- [x] **T-403c** Achievements, passport, history and Questify quests on screen; dashboard event city; console campaign editor — delivers FR 701, 702, 708, 709 (on screen); depends on: T-403, T-403b
   - Split from T-403 2026-10-26 (ADR-273). **STANDARD** (display and copy; authorization stays in T-403/T-403b): built on the cheaper model; one standard code review that includes the Arabic pass (the worker applies `ux-araby`; cut 8), on the model and cost policy in CLAUDE.md. Reads `GET /v1/me/event-history?played=true` for the passport and without `played` for the history, `GET /v1/me/achievements`, `POST /v1/me/questify/sync` (focus, foreground ≥5 min, about 15 s after completions, 429 silent), `GET /v1/cities`; the public profile's `achievements`/`passport` are optional in the shared schema until it tightens them. Seeded achievement names (migration 0065) get their `ux-araby` pass here; FR-709's logo waits for T-602.
   - Done when: A finished event adds a stamp with its date and rank; unearned achievements show as silhouettes; another player sees only stamps of ended public (non-workplace) events.
   - Note 2026-10-26 (T-403b): the sync answer now carries `quests` (one light toast each) and `levelUp` (the completion
@@ -459,7 +459,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     reason (`retired`, `start_passed`, `started`, `ends_earlier`, `ended`, `frozen`, `too_many`, `campaign_closed`) and
     each `invalid_questify` field in both languages, sends the window as ISO with the `+03:00` offset, and offers retire
     instead of delete (ADR-280). The player list sends raw `progress`; clamp it to `target` on screen.
-  - Built 2026-10-26 (standard), **awaiting the standard code review that includes the Arabic pass; not ticked.**
+  - Built 2026-10-26 (standard).
     App: achievements (five badges, tier rings, padlock silhouettes, progress to the next tier on your own profile
     only), the Event Passport (stamps with local date, city, rank or "Results soon"/"Live now"/"Upcoming"/"Not
     ranked"; "Only you see this" on stamps others do not see), `/event-history` (yours alone), `/questify-quests`
@@ -471,6 +471,13 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     Shared: the public profile's `achievements` and `passport` are now required. Proposed ADR-281 / Q-247 (the
     two seeded names to polish in 0065, the public DTO's missing names, no points on the history). Needs a phone
     check (Hermes release, RTL, Reduce Motion, toasts, the badges at 64 pt).
+  - Done 2026-10-26 (standard): author gates green; standard code review GO 92 of 9f4af20..fb699f6 by the in-house
+    reviewer (Sonnet; the recorded Sol policy could not be used from the Claude Code session); no re-review. Folded in:
+    the console page split (`RetireDialog`), a rejected sync call no longer stops syncing for the session, the
+    next-tier line is part of the badge's screen-reader label, "Show more" ignores a second tap and drops repeated
+    events, the level-up card is modal for screen readers, Arabic polish on eight lines (the quest limit now says
+    drafts count), and the two seeded names set in 0065 in place (Q-247 item 1). Phone checks still owed.
+    Progress 79/155 (50.97%).
 - [ ] **T-404** Gems and the Questify shop (no money, no trading) — delivers FR 724, 725, 726; depends on: T-402
   - Note 2026-10-26 (T-403): pay achievement gems (ADR-046) once per `achievement_earned` row, as level items read `level_reached`; T-403b's `questify_award` rows likewise if gems are ever paid for Questify quests.
   - Note 2026-10-24 (T-401): level-up gems (ADR-046) come from `level_reached`, once per row; the gem ledger copies `xp_entry`'s append-only shape. Never price anything in XP (FR-415).

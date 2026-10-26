@@ -1362,25 +1362,35 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   check (a changed condition in tick.ts, payer.ts) failed the new tests; the sources are unchanged. Awaiting the
   coordinator's push and one GitHub mutation re-run on these six files.
 
-- 2026-10-26 **T-403c built (standard), awaiting the standard code review that includes the Arabic pass; not ticked.**
+- 2026-10-26 **T-403c built (standard).**
   App: achievements (shipped badges, tier rings, padlock silhouettes), the Event Passport on the profile, `/event-history`,
   `/questify-quests`, the public profile's tiers and ended public stamps, and `QuestifySyncProvider` (scheduler:
   focus, launch, foreground at 5 minutes, a trailing 15 s debounce after a completion, a silent 429; toasts and the
   level-up card). Dashboard: the event city picker. Console: `/console/questify`. Shared: the public profile's
-  `achievements` and `passport` are required; theme gains three tier colours; `formatLocalDate`. 99 new strings
+  `achievements` and `passport` are required; theme gains three tier colours; `formatLocalDate`. 103 new strings
   in `messages.ts` (own `ux-araby` pass). Tests: app and web units (scheduler, notices, stamps, API client, console
   checks), the shared suites, `events.spec.ts` and `console-questify.spec.ts` (desktop and phone), `expo export`
   (android and ios). Proposed ADR-281 / Q-247. Needs a phone check. No CI minutes used.
 
+- 2026-10-26 **T-403c done (standard), ticked; progress 79/155 (50.97%).** Standard code review GO 92 of
+  9f4af20..fb699f6 by the in-house reviewer (Sonnet; the recorded Sol policy could not be used from the Claude Code
+  session); no re-review. Folded in: `ConsoleQuestify` split (`RetireDialog`, under 100 lines); the sync scheduler treats
+  a rejected call as done; the own-profile badge label carries the next-tier line; "Show more" is single-flight and
+  deduplicates by `eventId` (`event-pages.ts`); the level-up card is modal for screen readers and hides the screen
+  beneath; the new-string count is 103; Arabic polish on the console conflict, invalid-number, retire and city-hint
+  lines (the quest-limit line now says retired quests are not counted, drafts are); migration 0065 seed names set in
+  place (`العشرة الأوائل`, `يد واحدة`; undeployed, no test pins them). Publishing a campaign has no confirmation:
+  Q-248. Phone checks still owed. No CI minutes used.
+
 ## Next
 
-1. **The coordinator pushes `main`** (the T-402/T-402b mutation chase tests and T-403c). **T-403c is built and waits for
-   its one standard code review that includes the Arabic pass** (a fresh session; do not tick before it). Still owed:
-   one `mutation.yml` dispatch for the six T-402/T-402b files and, with T-403 and T-403b, for `apps/api/src/questify/**/*.ts`,
-   `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`;
-   Dhia's OK on the `stryker.config.json` globs; Q-247 (two seed names, public badge names). Next task after the review:
-   **T-404** (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred. Follow-up:
-   Q-237 central replay-before-scope fix for other idempotent organizer routes.
+1. **The coordinator pushes `main`** (the T-402/T-402b mutation chase tests, T-403b and T-403c). Then one
+   `mutation.yml` dispatch for the six T-402/T-402b files and, with T-403 and T-403b, for
+   `apps/api/src/questify/**/*.ts`, `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`,
+   `packages/shared/src/players/items.ts`; its results decide whether a test-only chase follows. Waiting for Dhia: his OK
+   on the `stryker.config.json` globs, Q-247 items 2 and 3, and Q-248 (publish confirmation). Next task: **T-404**
+   (gems and the shop). No deployment/EAS/local Stryker; phone/CranL obligations remain deferred (T-403c's phone check
+   included). Follow-up: Q-237 central replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
