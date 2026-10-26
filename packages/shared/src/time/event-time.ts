@@ -193,6 +193,19 @@ export function formatEventTime(instant: Date, timeZone: string, language: Langu
 }
 
 /**
+ * A calendar date that is already local to its event (`2026-10-26`, as the passport sends it) for people: day, short
+ * month and year, Gregorian, Western digits. No zone shift applies, so the day never moves.
+ */
+export function formatLocalDate(date: string, language: Language): string {
+  return new Intl.DateTimeFormat(LOCALES[language], {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
+/**
  * A time window for people, in the event's zone (the prize desk's hours, ADR-150): "Thu 23 Oct, 16:00–22:00", or both
  * dates when it runs past midnight; 24-hour, Western digits, Gregorian, the zone named once.
  */

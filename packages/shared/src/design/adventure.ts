@@ -2,7 +2,8 @@ import type { Theme } from "#src/design/theme";
 
 /**
  * The brand deck's colours (ADR-013). `inkBrown` and `creamShade` are derived neutrals the deck has no name for;
- * `parchmentLight` and `emberMist` are lighter tints for raised surfaces and error panels.
+ * `parchmentLight` and `emberMist` are lighter tints for raised surfaces and error panels, and the three tier colours
+ * are the achievement rings.
  */
 export const adventurePalette = {
   treasureGold: "#FFC94D",
@@ -16,6 +17,10 @@ export const adventurePalette = {
   creamShade: "#E9D5B0",
   parchmentLight: "#FFFCF5",
   emberMist: "#FDE8E0",
+  // Achievement rings (FR-707): darker than the deck's gold so each ring shows on the parchment.
+  tierBronze: "#A8642A",
+  tierSilver: "#7B8794",
+  tierGold: "#B87A00",
 } as const;
 
 const p = adventurePalette;
@@ -39,6 +44,9 @@ export const adventureTheme: Theme = {
     hot: p.adventureOrange,
     dangerSurface: p.emberMist,
     focus: p.treasureBlue,
+    tierBronze: p.tierBronze,
+    tierSilver: p.tierSilver,
+    tierGold: p.tierGold,
   },
   fonts: { display: "Baloo Bhaijaan 2", body: "Rubik" },
   text: {

@@ -1,4 +1,5 @@
 import { isQuestType, type LocalizedText } from "@questify/shared";
+import { noteCompletion } from "#src/questify/completion-signal.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
@@ -629,19 +630,23 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
     return refusal(answer);
   }
   const body = isRecord(answer.body) ? answer.body : {};
-  return typeof body["points"] === "number" && typeof body["score"] === "number"
-    ? {
-        kind: "completed",
-        points: body["points"],
-        score: body["score"],
-        replayed: body["replayed"] === true,
-        levelUp: levelUpOf(body["levelUp"]),
-        bonus: bonusOf(body["bonus"]),
-        item: itemGivenOf(body["item"]),
-        boost: boostedOf(body["boost"]),
-        firstBonus: firstBonusPaidOf(body["firstBonus"]),
-      }
-    : { kind: "failed" };
+  if (typeof body["points"] !== "number" || typeof body["score"] !== "number") {
+    return { kind: "failed" };
+  }
+  const replayed = body["replayed"] === true;
+  // Every completion flow (scan, typed code, games, meeting, passport, NFC) ends here: the sync debounce starts once.
+  if (!replayed) noteCompletion();
+  return {
+    kind: "completed",
+    points: body["points"],
+    score: body["score"],
+    replayed,
+    levelUp: levelUpOf(body["levelUp"]),
+    bonus: bonusOf(body["bonus"]),
+    item: itemGivenOf(body["item"]),
+    boost: boostedOf(body["boost"]),
+    firstBonus: firstBonusPaidOf(body["firstBonus"]),
+  };
 }
 
 /** The last submission's key, its code, and whether only the network failed (the one case a key is reused). */

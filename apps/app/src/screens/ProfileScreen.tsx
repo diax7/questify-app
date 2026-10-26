@@ -1,4 +1,5 @@
 import { Avatar } from "#src/components/Avatar.tsx";
+import { ProfileQuestify } from "#src/questify/ProfileQuestify.tsx";
 import { RewardNotices } from "#src/questify/RewardNotices.tsx";
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { useEffect, useState, type ReactNode } from "react";
@@ -119,6 +120,7 @@ function MyIdentity({ me }: { me: Me }) {
       <Button label={t("locker.title")} kind="quiet" onPress={() => router.push("/locker")} />
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}
+      <ProfileQuestify />
       <MyAccount me={me} />
     </>
   );

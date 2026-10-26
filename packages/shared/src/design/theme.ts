@@ -18,7 +18,10 @@ export type ColorRole =
   | "highlight"
   | "hot"
   | "dangerSurface"
-  | "focus";
+  | "focus"
+  | "tierBronze"
+  | "tierSilver"
+  | "tierGold";
 
 export type TextVariant = "display" | "title" | "body" | "label";
 

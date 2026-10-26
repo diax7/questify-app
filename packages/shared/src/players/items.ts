@@ -55,9 +55,9 @@ export const publicProfileSchema = z.object({
     number: z.number().int().positive(),
     title: z.object({ ar: z.string(), en: z.string() }),
   }),
-  /** All five, tiers only (T-403). Optional so a client reads a profile from before T-403 too. */
-  achievements: z.array(publicAchievementSchema).optional(),
-  /** At most 50 stamps of ended public events (ADR-276). Optional as above. */
-  passport: z.array(publicStampSchema).max(50).optional(),
+  /** All five, tiers only (T-403). */
+  achievements: z.array(publicAchievementSchema),
+  /** At most 50 stamps of ended public events (ADR-276). */
+  passport: z.array(publicStampSchema).max(50),
 });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;

@@ -9,6 +9,8 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { PublicAchievements } from "#src/questify/AchievementsSection.tsx";
+import { PublicPassport } from "#src/questify/PassportSection.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
 
 export function PublicProfileScreen() {
@@ -88,6 +90,8 @@ export function PublicProfileScreen() {
             <AppText>{t("level.number", { level: shown.level.number })}</AppText>
             <AppText variant="label">{t("locker.levelTitle")}</AppText>
             <AppText>{shown.level.title[language]}</AppText>
+            <PublicAchievements tiers={shown.achievements} />
+            <PublicPassport stamps={shown.passport} />
           </>
         )}
       </ScrollView>

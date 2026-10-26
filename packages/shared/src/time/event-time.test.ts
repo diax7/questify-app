@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   eventDayOf,
   formatEventTime,
+  formatLocalDate,
   formatTimeWindow,
   isTimeZone,
   localParts,
@@ -220,5 +221,18 @@ describe("formatTimeWindow", () => {
       "en",
     );
     expect(en).toBe("Fri 23 Oct, 22:00 – Sat 24 Oct, 02:00 (Riyadh time)");
+  });
+});
+
+describe("formatLocalDate", () => {
+  it("shows a local date as day, month and year with Western digits in both languages", () => {
+    expect(formatLocalDate("2026-10-26", "en")).toBe("26 Oct 2026");
+    expect(formatLocalDate("2026-10-26", "ar")).toMatch(/^26 .+ 2026$/);
+    expect(formatLocalDate("2026-10-26", "ar")).not.toMatch(/[٠-٩]/);
+  });
+
+  it("never moves the day, whatever the machine's zone", () => {
+    expect(formatLocalDate("2026-01-01", "en")).toBe("1 Jan 2026");
+    expect(formatLocalDate("2026-12-31", "en")).toBe("31 Dec 2026");
   });
 });

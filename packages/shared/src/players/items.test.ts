@@ -203,6 +203,8 @@ describe("publicProfileSchema", () => {
     frame: null,
     title: item,
     level: { number: 3, title: { ar: "مستكشف", en: "Explorer" } },
+    achievements: [],
+    passport: [],
   };
 
   it("keeps a starter character and an owned one", () => {
@@ -239,7 +241,29 @@ describe("publicProfileSchema", () => {
     expect(publicProfileSchema.safeParse({ ...profile, title: { id: "x" } }).success).toBe(false);
   });
 
-  it("keeps the achievement tiers and the passport when present", () => {
+  it("needs the achievements and the passport, even when both are empty", () => {
+    expect(publicProfileSchema.safeParse({ ...profile, achievements: undefined }).success).toBe(
+      false,
+    );
+    expect(publicProfileSchema.safeParse({ ...profile, passport: undefined }).success).toBe(false);
+  });
+
+  it("refuses more than fifty stamps", () => {
+    const stamp = {
+      name: { ar: "مهرجان", en: "Fest" },
+      date: "2030-01-01",
+      city: null,
+      rank: null,
+    };
+    expect(
+      publicProfileSchema.safeParse({
+        ...profile,
+        passport: Array.from({ length: 51 }, () => ({ ...stamp })),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps the achievement tiers and the passport", () => {
     const withAll = {
       ...profile,
       achievements: [{ id: "quests-done", tier: null }],

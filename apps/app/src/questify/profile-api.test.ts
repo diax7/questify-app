@@ -28,13 +28,17 @@ describe("profile client contracts", () => {
       frame: item,
       title: null,
       level: { number: 2, title },
+      achievements: [{ id: "events-attended", tier: "bronze" }],
+      passport: [],
       identifiers: { email: "private" },
       xp: 100,
     });
     expect(Object.keys(parsed).sort()).toEqual([
+      "achievements",
       "character",
       "frame",
       "level",
+      "passport",
       "title",
       "username",
     ]);

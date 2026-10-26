@@ -8,6 +8,7 @@ import { router, useSegments } from "expo-router";
 import { setApiLanguage } from "#src/api/app-session.ts";
 import { PlayerProvider, usePlayer } from "#src/auth/player.tsx";
 import { I18nProvider, useI18n } from "#src/i18n/provider.tsx";
+import { QuestifySyncProvider } from "#src/questify/QuestifySyncProvider.tsx";
 import { FONT_FILES } from "#src/theme/fonts.ts";
 import { ThemeProvider } from "#src/theme/theme.tsx";
 
@@ -32,8 +33,10 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <PlayerProvider>
           <ApiLanguage />
-          {ready ? <ReacceptGate /> : null}
-          {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
+          <QuestifySyncProvider>
+            {ready ? <ReacceptGate /> : null}
+            {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
+          </QuestifySyncProvider>
         </PlayerProvider>
       </I18nProvider>
     </ThemeProvider>

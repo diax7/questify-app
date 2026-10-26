@@ -43,6 +43,15 @@ describe.each(Object.entries(THEMES))("the %s theme", (id, theme) => {
     expect(contrast(theme.colors.primaryAction, theme.colors.background)).toBeGreaterThanOrEqual(2);
   });
 
+  it("shows each achievement ring against the page (3:1) and tells the three tiers apart", () => {
+    const c = theme.colors;
+    for (const ring of [c.tierBronze, c.tierSilver, c.tierGold]) {
+      expect(contrast(ring, c.background)).toBeGreaterThanOrEqual(3);
+      expect(contrast(ring, c.surface)).toBeGreaterThanOrEqual(3);
+    }
+    expect(new Set([c.tierBronze, c.tierSilver, c.tierGold]).size).toBe(3);
+  });
+
   it("grows spacing and radius in order", () => {
     const steps = Object.values(theme.spacing);
     expect(steps).toEqual(steps.toSorted((a, b) => a - b));
