@@ -4583,18 +4583,6 @@ export const MESSAGES = {
     ar: "في هذه الفعالية تذكارات. احذف مسودات التذكارات أولًا. بعد تفعيل أي تذكار، لا يمكن حذف الفعالية.",
     en: "This event has souvenirs. Delete the souvenir drafts first. Once any souvenir is activated, the event can't be deleted.",
   },
-  "souvenir.categoryInUse": {
-    ar: "يرتبط تذكار بهذه الفئة. احذف مسودة التذكار أولًا. إذا كان التذكار نشطًا أو متوقفًا، فلا يمكن حذف الفئة.",
-    en: "A souvenir uses this category. Delete the souvenir draft first. If the souvenir is active or stopped, the category can't be deleted.",
-  },
-  "souvenir.questInUse": {
-    ar: "هذه المهمة شرط لتذكار نشط أو متوقف، فلا يمكن حذف المهمة.",
-    en: "An active or stopped souvenir requires this quest, so the quest can't be deleted.",
-  },
-  "souvenir.categoryQuestInUse": {
-    ar: "في هذه الفئة مهمة شرط لتذكار نشط أو متوقف. اختر نقل المهام إلى فئة أخرى.",
-    en: "An active or stopped souvenir requires a quest in this category. Choose to move the quests to another category.",
-  },
   "souvenir.resultsDepth": {
     ar: "تشمل المراكز المعروضة نطاق التذكارات النشطة. راجعها قبل اعتماد النتائج.",
     en: "These places include active souvenir rank ranges. Review them before confirming results.",

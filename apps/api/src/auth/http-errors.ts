@@ -880,20 +880,32 @@ export const souvenirData = make(
   MESSAGES["souvenir.eventDeleteError"].ar,
   MESSAGES["souvenir.eventDeleteError"].en,
 );
+// The builder's refusals keep Questify's own words, as its other 409s here do: the dashboard shows an API message as
+// sent, so it cannot carry the event's {questOne}/{categoryOne} placeholders that messages.ts texts must use (FR-942).
+export const SOUVENIR_IN_USE = {
+  category: {
+    ar: "يرتبط تذكار بهذه الفئة. احذف مسودة التذكار أولًا. إذا كان التذكار نشطًا أو متوقفًا، فلا يمكن حذف الفئة.",
+    en: "A souvenir uses this category. Delete the souvenir draft first. If the souvenir is active or stopped, the category can't be deleted.",
+  },
+  quest: {
+    ar: "هذه المهمة شرط لتذكار نشط أو متوقف، فلا يمكن حذف المهمة.",
+    en: "An active or stopped souvenir requires this quest, so the quest can't be deleted.",
+  },
+  categoryQuest: {
+    ar: "في هذه الفئة مهمة شرط لتذكار نشط أو متوقف. اختر نقل المهام إلى فئة أخرى.",
+    en: "An active or stopped souvenir requires a quest in this category. Choose to move the quests to another category.",
+  },
+} as const;
 /**
  * A souvenir rule names the category, or an activated souvenir's frozen targets need the quest (T-402b). Deleting a
- * category with its quests names the quest case through the category's own wording.
+ * category with its quests names the quest case in the category's own wording.
  */
 export const souvenirInUse = (what: "category" | "quest", subject: "category" | "quest") =>
   new HttpError(
     409,
     "souvenir_in_use",
-    MESSAGES[
-      what === "category"
-        ? "souvenir.categoryInUse"
-        : subject === "category"
-          ? "souvenir.categoryQuestInUse"
-          : "souvenir.questInUse"
+    SOUVENIR_IN_USE[
+      what === "category" ? "category" : subject === "category" ? "categoryQuest" : "quest"
     ],
   );
 export const resultsFinal = make(

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { MESSAGES } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { SOUVENIR_IN_USE } from "#src/auth/http-errors";
 import { souvenirFixture } from "#test/support/souvenirs";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 import {
@@ -347,7 +348,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
     expect(refused.statusCode).toBe(409);
     expect(refused.json()).toMatchObject({
       code: "souvenir_in_use",
-      message: MESSAGES["souvenir.categoryInUse"],
+      message: SOUVENIR_IN_USE.category,
     });
     expect([await exists("category", category), await exists("quest", quest)]).toEqual([
       true,
@@ -367,16 +368,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir HTTP contracts", () =
     expect(await refusal(`/quests/${quest}`, { confirm: true })).toEqual([
       409,
       "souvenir_in_use",
-      MESSAGES["souvenir.questInUse"],
+      SOUVENIR_IN_USE.quest,
     ]);
     expect(await refusal(`/categories/${category}`, { quests: "delete", confirm: true })).toEqual([
       409,
       "souvenir_in_use",
-      MESSAGES["souvenir.categoryQuestInUse"],
+      SOUVENIR_IN_USE.categoryQuest,
     ]);
     expect(
       await refusal(`/categories/${category}`, { quests: "move", to: f.category, confirm: true }),
-    ).toEqual([409, "souvenir_in_use", MESSAGES["souvenir.categoryInUse"]]);
+    ).toEqual([409, "souvenir_in_use", SOUVENIR_IN_USE.category]);
     expect([await exists("category", category), await exists("quest", quest)]).toEqual([
       true,
       true,
