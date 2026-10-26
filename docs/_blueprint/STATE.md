@@ -1353,10 +1353,19 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   `packages/shared/src/questify/**`; only the dispatch input mutated them. Proposed after the chase (needs Dhia's OK,
   not done): add those globs to the default list.
 
+- 2026-10-26 **Mutation chase tests added for the six T-402/T-402b files under 90 (tests only, no source change):**
+  new unit tests, all without a database: `souvenirs/payer.test.ts` 17, `souvenirs/tick.test.ts` 14 (fake pool and
+  timers), `players/items.test.ts` 21, `players/item-routes.test.ts` 30 (Fastify inject over a fake pool),
+  `packages/shared/src/souvenirs.test.ts` +15 (issue codes, paths and messages), `packages/shared/src/players/items.test.ts`
+  27. About 4 mutants are left as equivalent (tick.ts `timer !== undefined` is always true and
+  `Date.parse(null)` is NaN; souvenirs.ts `rankTo === null` and `visual === null` are covered by JS coercion). A hand
+  check (a changed condition in tick.ts, payer.ts) failed the new tests; the sources are unchanged. Awaiting the
+  coordinator's push and one GitHub mutation re-run on these six files.
+
 ## Next
 
-1. **Mutation chase (a Sonnet worker, tests only, no source change):** the six T-402/T-402b files under 90 from run
-   40358820903 (above). Then **the coordinator pushes `main`**. Then **T-403c (STANDARD)**: the cheaper model; one
+1. **Mutation chase tests are added (2026-10-26, above); awaiting the coordinator's push and one GitHub mutation
+   re-run** on the six T-402/T-402b files from run 40358820903. **The coordinator pushes `main`**. Then **T-403c (STANDARD)**: the cheaper model; one
    code review that includes the Arabic pass; the console page words each refusal reason, `started` included
    (ADR-280). Still owed: one `mutation.yml` dispatch for T-403 and T-403b (`apps/api/src/questify/**/*.ts`,
    `apps/api/src/players/item-routes.ts`, `packages/shared/src/questify/*.ts`, `packages/shared/src/players/items.ts`),
