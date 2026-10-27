@@ -21,7 +21,18 @@ import { dailyFixture, questionFields, type DailyFixture } from "#test/support/d
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
-const WORDS = ["plumb", "quilt", "vexed", "wharf", "joker", "nymph", "gawky", "mirth"];
+const WORDS = [
+  "plumb",
+  "quilt",
+  "vexed",
+  "wharf",
+  "joker",
+  "nymph",
+  "gawky",
+  "mirth",
+  "zebra",
+  "knoll",
+];
 
 /**
  * The daily games over HTTP (T-406): the player's read and move doors with every refusal mapped by SQLSTATE and
@@ -36,12 +47,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
   let admin: PublicAccount;
   let cookie = "";
   let staffCookie = "";
+  const logs: string[] = [];
 
   beforeAll(async () => {
     f = await dailyFixture();
     settingsPool = new Pool({ connectionString: f.db.appUrl, max: 2 });
     settings = createSettingsService({ pool: settingsPool, ttlMs: 0 });
-    test = await startApp(f.db, false, {}, { settings });
+    test = await startApp(
+      f.db,
+      { level: "info", stream: { write: (line: string) => void logs.push(line) } },
+      {},
+      { settings },
+    );
     const adminId = await createStaff(f.db.owner, { email: "root@daily.test", admin: true });
     admin = { id: adminId, email: "root@daily.test", status: "active", platformRole: "admin" };
     cookie = await signInFully(test, "root@daily.test");
@@ -77,6 +94,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
       headers: withSession(cookie, { "idempotency-key": key }),
       ...(payload === undefined ? {} : { payload }),
     });
+  /** The `daily.*` log lines written since `from` lines were logged. */
+  const dailyLogs = (from: number) =>
+    logs
+      .slice(from)
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((entry) => String(entry["event"]).startsWith("daily."))
+      .map((entry) =>
+        Object.fromEntries(
+          Object.entries(entry).filter(
+            ([key]) => !["level", "time", "pid", "hostname", "reqId"].includes(key),
+          ),
+        ),
+      );
   let words = 0;
   const ready = async () => {
     const day = await f.freshSunday();
@@ -182,6 +212,71 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
     const held = await asPlayer(token, "POST", "/v1/me/daily/challenge/answers", body);
     expect([held.statusCode, held.json().code]).toEqual([429, "too_many_attempts"]);
     expect(held.headers["retry-after"]).toBeDefined();
+  });
+
+  it("never caches a move's reply and logs only its shape", async () => {
+    const { token, challenge, picked } = await ready();
+    const logged = logs.length;
+    const send = (index: number, choice: number) =>
+      asPlayer(token, "POST", "/v1/me/daily/challenge/answers", {
+        challengeId: challenge.id,
+        questionId: picked[index],
+        position: index + 1,
+        choice,
+      });
+    const replies = [await send(0, 1), await send(0, 1), await send(1, 2), await send(2, 2)];
+    for (const reply of replies) {
+      expect(reply.statusCode).toBe(200);
+      expect(reply.headers["cache-control"]).toBe("private, no-store");
+    }
+    const shape = { event: "daily.answer", replayed: false };
+    expect(dailyLogs(logged)).toEqual([
+      { ...shape, position: 1, correct: false, finished: false },
+      { ...shape, position: 1, correct: false, finished: false, replayed: true },
+      { ...shape, position: 2, correct: true, finished: false },
+      { ...shape, position: 3, correct: true, finished: true },
+    ]);
+  });
+
+  it("logs a guess's attempt, whether it solved and whether the game is over, never the word", async () => {
+    const { token, word } = await ready();
+    const winner = await tokenOf(await f.newPlayer());
+    const logged = logs.length;
+    const send = (who: string, attempt: number, guess: string) =>
+      asPlayer(who, "POST", "/v1/me/daily/word/guesses", { wordId: word.id, attempt, guess });
+    const misses = ["adieu", "stomp", "light"];
+    const replies = [];
+    for (let attempt = 1; attempt <= 6; attempt += 1)
+      replies.push(await send(token, attempt, misses[attempt % 3] ?? ""));
+    replies.push(await send(winner, 1, "adieu"), await send(winner, 2, word.word));
+    for (const reply of replies) {
+      expect(reply.statusCode).toBe(200);
+      expect(reply.headers["cache-control"]).toBe("private, no-store");
+    }
+    const shape = { event: "daily.guess", replayed: false };
+    expect(dailyLogs(logged)).toEqual([
+      ...[1, 2, 3, 4, 5].map((attempt) => ({ ...shape, attempt, solved: false, finished: false })),
+      { ...shape, attempt: 6, solved: false, finished: true },
+      { ...shape, attempt: 1, solved: false, finished: false },
+      { ...shape, attempt: 2, solved: true, finished: true },
+    ]);
+    expect(logs.join(" ")).not.toContain(word.word);
+  });
+
+  it("holds the word door to 30 guesses a minute per player, refused guesses included", async () => {
+    const { token, word } = await ready();
+    const other = await tokenOf(await f.newPlayer());
+    const send = (who: string) =>
+      asPlayer(who, "POST", "/v1/me/daily/word/guesses", {
+        wordId: word.id,
+        attempt: 1,
+        guess: "abc",
+      });
+    for (let i = 0; i < 30; i += 1) expect((await send(token)).statusCode).toBe(422);
+    const held = await send(token);
+    expect([held.statusCode, held.json().code]).toEqual([429, "too_many_attempts"]);
+    expect(held.headers["retry-after"]).toBeDefined();
+    expect((await send(other)).statusCode).toBe(422);
   });
 
   it("switches each game off for the platform through the settings, at once", async () => {
