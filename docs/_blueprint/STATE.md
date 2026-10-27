@@ -1578,6 +1578,9 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   94.95, daily.ts 97.06, shared letters.ts 93.33; under 90: daily routes.ts 51.22 and shared daily.ts 63.56. After the survivor
   tests (326a2ae): routes.ts 100 (run 40485273781) and shared daily.ts 95.93 (forced run 40487686895; the incremental report
   had kept stale survivors). Every T-406 core file is at 90 or above.
+- 2026-10-27 **T-407c mutation scores (GitHub run 40491590598).** questify admin-routes.ts 100, admin.ts 95.08, shared
+  questify/quests.ts 100. All at 90 or above; T-407c is closed (re-review 93 GO, ADR-320 accepted, pushed a9b183d).
+
 
 
 ## Next
