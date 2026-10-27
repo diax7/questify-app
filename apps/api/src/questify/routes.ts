@@ -6,6 +6,7 @@ import { idempotencyKeyInvalid, unauthenticated } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
+import { registerDailyRoutes } from "#src/daily/routes";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack } from "#src/devices/limits";
@@ -43,8 +44,8 @@ const own = (request: FastifyRequest) => {
 };
 
 /**
- * Questify-wide player doors (T-403, T-403b, T-404): the sync evaluator, achievements, Questify quests, the Event
- * Passport and history, the gem shop and its purchase door, and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
+ * Questify-wide player doors (T-403, T-403b, T-404, T-406): the sync evaluator, achievements, Questify quests, the Event
+ * Passport and history, the gem shop and its purchase door, the daily games, and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
  */
 export function registerQuestifyRoutes(
   app: FastifyInstance,
@@ -101,6 +102,7 @@ export function registerQuestifyRoutes(
       return as(id, (client) => buyGemItem(client, { ...body, requestKey }));
     },
   );
+  registerDailyRoutes(app, deps);
   app.get("/v1/cities", { config: { access: "public" } }, async (_request, reply) => {
     reply.header("cache-control", "public, max-age=3600");
     return {

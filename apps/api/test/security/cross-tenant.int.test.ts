@@ -992,6 +992,26 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; holds no personal data (a completion id, a device id, tenant ids); written only by kiosk_complete_quest for app_device_id's own kiosk beside the completion it paid, read as a count by device_json in the caller's event or own pairings (test/db/kiosks)",
   paired_device:
     "no right for the API role at all; written by the claims inside the caller's event (device_operator, award_event_of), by revoke_device, revoke_devices and the removal triggers; read by device_session for its own secret, by the device definers only for app_device_id's own row, and by event_devices and operator_devices for the caller's event or own pairings (test/db/devices)",
+  daily_cadence:
+    "platform-wide schedule data with no tenant and no right for the API role; written only by the admin-checked, audited daily_cadence_set for tomorrow, rows whose day has come frozen for every role (test/db/daily-content)",
+  daily_question:
+    "platform-wide content with no tenant and no right for the API role; written by the admin-checked, audited console doors; a player sees a question's right option only after answering it (test/security/daily-players, test/db/daily-challenge)",
+  daily_challenge:
+    "platform-wide content with no tenant and no right for the API role; written by the admin-checked, audited console doors for future periods only (frozen once started for every role), read by the caller-bound own_daily and the player doors (test/db/daily-content)",
+  daily_challenge_question:
+    "platform-wide content with no tenant and no right for the API role; written with its challenge by daily_challenge_set, frozen with it (test/db/daily-content)",
+  daily_word:
+    "platform-wide content with no tenant and no right for the API role; written by the admin-checked console doors, never updated; the word reaches a player only once that player's game is over (test/security/daily-players, test/db/daily-word)",
+  word_guess_list:
+    "platform-wide word list with no tenant and no right for the API role; written by the admin-checked word_list_change and daily_word_set, read by the guess door's check and word_list_page (test/db/daily-content)",
+  daily_play:
+    "no right for the API role at all; append-only, no tenant: written only by the player doors for the calling player (no door takes a player id), read only for the caller by own_daily and as counts by the console (test/security/daily-players)",
+  daily_answer:
+    "no right for the API role at all; append-only, no tenant: the calling player's own answers, written and read only through the caller's play (test/security/daily-players, test/db/daily-challenge)",
+  daily_guess:
+    "no right for the API role at all; append-only, no tenant: the calling player's own guesses, written and read only through the caller's play (test/security/daily-players, test/db/daily-word)",
+  daily_finish:
+    "no right for the API role at all; append-only, no tenant: one per play of the calling player under their player_xp lock, kept on the tombstone; read for the caller and as counts by the console (test/db/daily-challenge)",
 };
 
 /** A seat holding ids that own no row anywhere, so any row a bare write reaches is someone else's. */

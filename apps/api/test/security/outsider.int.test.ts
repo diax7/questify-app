@@ -773,6 +773,138 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot read or play the daily games, set their content, or reach their helpers (T-406)", async () => {
+      const dailyTables = [
+        "daily_cadence",
+        "daily_question",
+        "daily_challenge",
+        "daily_challenge_question",
+        "daily_word",
+        "word_guess_list",
+        "daily_play",
+        "daily_answer",
+        "daily_guess",
+        "daily_finish",
+      ];
+      const doors = [
+        "own_daily",
+        "daily_answer_submit",
+        "daily_guess_submit",
+        "daily_question_save",
+        "daily_question_retire",
+        "daily_challenge_set",
+        "daily_challenge_clear",
+        "daily_word_set",
+        "daily_word_clear",
+        "word_list_change",
+        "daily_cadence_set",
+        "daily_console",
+        "daily_question_list",
+        "word_list_page",
+      ];
+      const internals = [
+        "daily_text_ok",
+        "daily_options_ok",
+        "daily_letters",
+        "daily_display",
+        "daily_fold",
+        "word_norm",
+        "daily_marks",
+        "daily_cadence_guard",
+        "daily_period",
+        "daily_period_start",
+        "daily_append_only",
+        "daily_clearable",
+        "daily_content_guard",
+        "daily_slot_guard",
+        "daily_question_guard",
+        "daily_challenge_three",
+        "daily_feature_on",
+        "daily_xp_field",
+        "daily_xp",
+        "daily_has_content",
+        "daily_coverage",
+        "daily_cover_json",
+        "daily_challenge_view",
+        "daily_word_finished",
+        "daily_word_view",
+        "daily_player",
+        "daily_current",
+        "daily_play_of",
+        "daily_finish_play",
+        "daily_answer_reply",
+        "daily_guess_reply",
+        "daily_guess_check",
+        "daily_audit",
+        "daily_started",
+        "daily_question_json",
+        "daily_question_of",
+        "daily_question_hold",
+        "daily_challenge_json",
+        "daily_challenge_hold",
+        "daily_questions_check",
+        "daily_word_json",
+        "daily_unused",
+        "daily_spans",
+        "daily_cadence_json",
+      ];
+      for (const sql of [
+        ...dailyTables.map((table) => `SELECT * FROM public.${table}`),
+        "INSERT INTO public.daily_play (player_id, kind, starts_on, word_id) VALUES (gen_random_uuid(), 'word', current_date, 1)",
+        "SELECT public.own_daily()",
+        "SELECT public.daily_answer_submit(1, gen_random_uuid(), 1::smallint, 1::smallint)",
+        "SELECT public.daily_guess_submit(1, 1::smallint, 'crane')",
+        "SELECT public.daily_question_save(NULL, '{}', gen_random_uuid())",
+        "SELECT public.daily_challenge_set(current_date, '{}', NULL, gen_random_uuid())",
+        "SELECT public.daily_word_set('en', current_date, 'crane', gen_random_uuid())",
+        "SELECT public.daily_cadence_set('word', 'daily', gen_random_uuid())",
+        "SELECT public.daily_console(current_date, current_date)",
+        "SELECT public.word_norm('en', 'crane')",
+        "SELECT public.daily_marks('crane', 'slate')",
+        "SELECT * FROM public.daily_period('word', current_date)",
+        "SELECT public.daily_feature_on('word')",
+        "SELECT * FROM public.daily_xp()",
+        "SELECT * FROM public.daily_coverage('word', 'en')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the three player doors and the console's doors only.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(
+        [...doors].toSorted(),
+      );
+      // Every function the migration made is listed above, so none is left open by being forgotten.
+      const listed = new Set([...doors, ...internals]);
+      const made = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND (p.proname LIKE 'daily\\_%' OR p.proname LIKE 'word\\_%')
+           AND p.proname NOT IN ('daily_streak_on', 'daily_streak_length', 'daily_streak_of')`,
+      );
+      expect(made.map((row) => row.proname).filter((name) => !listed.has(name))).toEqual([]);
+      // No table right for the API role or PUBLIC on the ten new dailyTables.
+      const held = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE n.nspname = 'public' AND c.relname IN (${dailyTables.map((table) => `'${table}'`).join(", ")})
+           AND (has_table_privilege('questify_app', c.oid, p.priv) OR has_table_privilege('public', c.oid, p.priv))`,
+      );
+      expect(held).toEqual([]);
+      const secured = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity
+           AND c.relname IN (${dailyTables.map((table) => `'${table}'`).join(", ")})`,
+      );
+      expect(secured).toHaveLength(dailyTables.length);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

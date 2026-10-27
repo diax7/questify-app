@@ -52,6 +52,36 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own balance and owned flags through gem_shop; the catalog has no tenant (gem-shop, test/questify)",
   "POST /v1/me/gem-shop/purchases":
     "spends only the calling player's gems on one item through gem_buy, bound to the caller and re-checked active; UUID Idempotency-Key; no recipient (gem-shop, test/questify)",
+  "GET /v1/me/daily":
+    "the calling player's own games through own_daily; another player's play never shows, a right option only once the caller answered it, a word only once the caller finished it (test/security/daily-players, test/daily/routes)",
+  "POST /v1/me/daily/challenge/answers":
+    "writes only the calling player's own play through daily_answer_submit, bound to the caller and re-checked active; no player id taken; 30 a minute per player (test/security/daily-players, test/daily/routes)",
+  "POST /v1/me/daily/word/guesses":
+    "writes only the calling player's own play through daily_guess_submit, bound to the caller and re-checked active; no player id taken; 30 a minute per player (test/security/daily-players, test/daily/routes)",
+  "GET /v1/admin/daily":
+    "active platform admins only (walked below); platform-wide content, finish counts only, no player; the admin checked again (questify_admin) (test/daily/routes, test/db/daily-content)",
+  "GET /v1/admin/daily/questions":
+    "active platform admins only (walked below); the platform-wide question bank, the admin checked again (test/daily/routes)",
+  "POST /v1/admin/daily/questions":
+    "active platform admins only (walked below); Idempotency-Key; the admin checked again in daily_question_save, audited with field names only (test/daily/routes, test/db/daily-content)",
+  "PUT /v1/admin/daily/questions/:questionId":
+    "active platform admins only (walked below); Idempotency-Key; frozen once its challenge started, the admin checked again, audited (test/daily/routes, test/db/daily-content)",
+  "POST /v1/admin/daily/questions/:questionId/retire":
+    "active platform admins only (walked below); Idempotency-Key; never while scheduled, the admin checked again, audited (test/daily/routes)",
+  "PUT /v1/admin/daily/challenges/:day":
+    "active platform admins only (walked below); Idempotency-Key; future period starts only, the admin checked again, audited (test/daily/routes, test/db/daily-content)",
+  "DELETE /v1/admin/daily/challenges/:day":
+    "active platform admins only (walked below); Idempotency-Key; future or stranded unplayed content only, audited (test/daily/routes, test/db/daily-content)",
+  "PUT /v1/admin/daily/words/:language/:day":
+    "active platform admins only (walked below); Idempotency-Key; future period starts only, replaced never updated, audited without the word (test/daily/routes, test/db/daily-word)",
+  "DELETE /v1/admin/daily/words/:language/:day":
+    "active platform admins only (walked below); Idempotency-Key; future or stranded unplayed content only, audited (test/daily/routes)",
+  "GET /v1/admin/daily/word-list/:language":
+    "active platform admins only (walked below); the platform-wide guess list (test/daily/routes)",
+  "POST /v1/admin/daily/word-list/:language":
+    "active platform admins only (walked below); Idempotency-Key; at most 20,000 words each way, audited with counts only (test/daily/routes, test/db/daily-content)",
+  "PUT /v1/admin/daily/cadence":
+    "active platform admins only (walked below); Idempotency-Key; from tomorrow only, the admin checked again, audited (test/daily/routes, test/db/daily-content)",
   "GET /v1/cities": "no tenant data: the same seeded city list for everyone",
   "GET /healthz": "no data: process liveness",
   "GET /readyz": "no data: database reachability",

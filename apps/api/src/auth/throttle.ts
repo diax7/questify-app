@@ -6,6 +6,8 @@ export const BUCKETS = {
   profileRead: "profile_read",
   questifySync: "questify_sync",
   gemPurchase: "gem_purchase",
+  dailyAnswer: "daily_answer",
+  dailyGuess: "daily_guess",
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",

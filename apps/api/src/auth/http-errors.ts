@@ -1759,3 +1759,51 @@ export const invalidStreak = make(
   "إعدادات سلسلة الأيام غير صحيحة.",
   "The streak settings aren't valid.",
 );
+/** The daily game is switched off for the platform (T-406, ADR-312). */
+export const dailyUnavailable = make(
+  404,
+  "daily_unavailable",
+  "هذه اللعبة غير متاحة الآن.",
+  "This game isn't available right now.",
+);
+/**
+ * A daily move that can't be taken now (T-406): `reason` is period_over, changed, out_of_order, answered,
+ * attempt_taken, finished or other_language. The app refreshes the game.
+ */
+export const dailyConflict = make(
+  409,
+  "daily_conflict",
+  "تعذّر قبول هذه الخطوة الآن. حدّث اللعبة وحاول مرة أخرى.",
+  "This move can't be accepted now. Refresh the game and try again.",
+);
+/** A daily challenge answer out of range (T-406); `field` is position or choice. */
+export const invalidAnswer = make(
+  422,
+  "invalid_answer",
+  "اختر أحد الخيارات المعروضة.",
+  "Choose one of the options shown.",
+);
+/** A refused daily word guess (T-406): `reason` is length, letters or not_a_word; no try is used. */
+export const invalidGuess = make(
+  422,
+  "invalid_guess",
+  "هذه الكلمة غير مقبولة، ولم تُحتسب محاولة.",
+  "That word isn't accepted. No try was used.",
+);
+/**
+ * A console change to daily content that can't be made now (T-406): `reason` is started, scheduled, used, retired or
+ * changed; `position` names the question at fault.
+ */
+export const dailyContentConflict = make(
+  409,
+  "daily_content_conflict",
+  "لا يمكن إجراء هذا التغيير الآن. راجع حالة المحتوى اليومي.",
+  "This change isn't possible now. Check the daily content's status.",
+);
+/** Daily content the console sent is not valid (T-406); `field` names which. */
+export const invalidDaily = make(
+  422,
+  "invalid_daily",
+  "راجع بيانات المحتوى اليومي: الحقل المحدد غير صالح.",
+  "Check the daily content: the named field isn't valid.",
+);

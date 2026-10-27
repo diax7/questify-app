@@ -60,11 +60,21 @@ export const FEATURES: FeatureRegistry = {
    */
   community: { gated: false },
   /**
+   * The daily challenge (T-406, FR-730, ADR-312): off for the platform, the challenge is hidden and its doors refuse at
+   * once; a play left unfinished pays nothing.
+   */
+  dailyChallenge: { gated: false, level: "platform" },
+  /**
    * The Questify daily streak (T-405, FR-420, ADR-299): off for the platform, no day is counted, none is shown and no
    * milestone is paid, at once; a streak restarts after it is switched back on. No event switch: the event streak has
    * its own owner-only settings.
    */
   dailyStreak: { gated: false, level: "platform" },
+  /**
+   * The daily word (T-406, FR-1810, ADR-312): off for the platform, the word game is hidden and its doors refuse at
+   * once; a play left unfinished pays nothing.
+   */
+  dailyWord: { gated: false, level: "platform" },
   /**
    * Flash quests (T-307, FR-251, ADR-231): off for an event or the platform, every flash quest is hidden and refused at
    * once, and none can be launched.
