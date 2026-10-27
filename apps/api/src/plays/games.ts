@@ -8,6 +8,7 @@ import {
   type GameName,
   type GameTarget,
   type Judgement,
+  type StreakBonus,
 } from "@questify/shared";
 import type { AuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
@@ -25,6 +26,7 @@ import {
 import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { run, type Done, type PlayDeps } from "#src/plays/run";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
+import { streakBonusPaid } from "#src/streaks/streaks";
 import type { SettingsService } from "#src/settings/service";
 
 export type GameDeps = PlayDeps &
@@ -101,6 +103,8 @@ export type GameResult = Readonly<{
   boost: Boosted | null;
   /** The first-N bonus this round's pay earned, or missed when `place` is null (T-313). */
   firstBonus: OwnFirstBonus | null;
+  /** The event streak bonus this round's pay paid with its streak day (T-405), or null; the same on a replay. */
+  streakBonus: StreakBonus | null;
 }>;
 
 /** Whether the platform's `miniGames` switch is on; the event's own switch is the database's (`games_on`). */
@@ -340,6 +344,7 @@ async function finishOf(
     item: paid === null ? null : await itemGiven(client, paid),
     boost: paid === null ? null : await boostApplied(client, paid),
     firstBonus: paid === null ? null : await firstBonusPaid(client, paid),
+    streakBonus: paid === null ? null : await streakBonusPaid(client, paid),
   };
   return { verdict: row.verdict, reason: row.reason, answer };
 }

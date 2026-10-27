@@ -60,6 +60,12 @@ export const FEATURES: FeatureRegistry = {
    */
   community: { gated: false },
   /**
+   * The Questify daily streak (T-405, FR-420, ADR-299): off for the platform, no day is counted, none is shown and no
+   * milestone is paid, at once; a streak restarts after it is switched back on. No event switch: the event streak has
+   * its own owner-only settings.
+   */
+  dailyStreak: { gated: false, level: "platform" },
+  /**
    * Flash quests (T-307, FR-251, ADR-231): off for an event or the platform, every flash quest is hidden and refused at
    * once, and none can be launched.
    */

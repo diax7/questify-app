@@ -1,3 +1,4 @@
+import type { EventStreak } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { lockNoteOf, type CommunityLock } from "#src/community/lock-note";
 import { withConnection } from "#src/db/connection";
@@ -15,6 +16,7 @@ import {
 } from "#src/quests/switched-off";
 import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
+import { readOwnEventStreak } from "#src/streaks/streaks";
 import { readPendingPoints } from "#src/submissions/submissions";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
@@ -155,6 +157,8 @@ export type Home = Readonly<{
   rankingOn: boolean;
   /** The team answered the player's requests (T-310): Home's strip while any answer is unseen, whatever the switch. */
   help: Readonly<{ unread: number }>;
+  /** The player's own event day streak (T-405, FR-417); null while it is off or for a member who is not active. */
+  streak: EventStreak | null;
 }>;
 
 /**
@@ -537,6 +541,7 @@ export async function readHome(
         upNext: null,
         goal: null,
         win: null,
+        streak: null,
       };
     }
     const quests = withoutSwitchedOff(
@@ -565,6 +570,7 @@ export async function readHome(
         ? pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now)
         : null,
       win: row.status_now === "ended" ? await waitingPrize(client, eventId) : null,
+      streak: await readOwnEventStreak(client, eventId),
     };
   });
   return home === null ? null : { ...home, rankingOn };
@@ -588,6 +594,8 @@ export type ActivityEntry = Readonly<{
   multiplier: number | null;
   /** A first-N bonus line's N (T-313), "First-{slots} bonus"; null for every other line. */
   bonusSlots: number | null;
+  /** A streak bonus line's streak day (T-405), "Streak bonus, day {days}"; null for every other line. */
+  streakDays: number | null;
 }>;
 
 type ActivityRow = Readonly<{
@@ -601,6 +609,7 @@ type ActivityRow = Readonly<{
   title_en: string | null;
   multiplier: number | null;
   bonus_slots: number | null;
+  streak_days: number | null;
 }>;
 
 export type ActivityView =
@@ -643,6 +652,7 @@ export async function memberActivity(
             },
       multiplier: entry.multiplier,
       bonusSlots: entry.bonus_slots,
+      streakDays: entry.streak_days,
     }));
     return { kind: "entries", entries } as const;
   });

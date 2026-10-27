@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { playerDocuments } from "@questify/shared";
+import { playerDocuments, type StreakBonus } from "@questify/shared";
 import { removedItemOf, type RemovedItem } from "#src/awards/awards";
 import {
   boostApplied,
@@ -12,6 +12,7 @@ import {
   type LevelUp,
 } from "#src/completions/complete";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
+import { streakBonusPaid } from "#src/streaks/streaks";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
@@ -131,6 +132,8 @@ export type Sent = Readonly<{
   boost: Boosted | null;
   /** The first-N bonus an auto-approved send earned, or missed when `place` is null (T-313). */
   firstBonus: OwnFirstBonus | null;
+  /** The event streak bonus an auto-approved send paid with its streak day (T-405), or null. */
+  streakBonus: StreakBonus | null;
 }>;
 
 type SentRow = {
@@ -174,6 +177,8 @@ export function sendSubmission(
       boost,
       firstBonus:
         row.completion_id === null ? null : await firstBonusPaid(client, row.completion_id),
+      streakBonus:
+        row.completion_id === null ? null : await streakBonusPaid(client, row.completion_id),
     };
   });
 }

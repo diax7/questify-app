@@ -31,6 +31,7 @@ import {
 import { organizerContextOf } from "#src/organizers/context";
 import { refuse } from "#src/plays/routes";
 import type { Ranking } from "#src/ranking/ranking";
+import { logStreakBonus } from "#src/streaks/streaks";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
 const playerIdempotent = { ...player, config: { ...player.config, idempotent: true } } as const;
@@ -146,6 +147,7 @@ export function registerNfcRoutes(app: FastifyInstance, deps: NfcRouteDeps): voi
         callerOf(request),
       ),
     );
+    logStreakBonus(request.log, answer);
     const rank = await deps.ranking.afterCompletion(playerId, answer.completionId);
     return { ...answer, rank };
   });

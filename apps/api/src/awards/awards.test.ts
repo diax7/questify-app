@@ -331,6 +331,7 @@ describe("memberLedger and report", () => {
           removed: false,
           multiplier: null,
           firstBonus: null,
+          streakDays: null,
         },
         {
           id: "6",
@@ -347,6 +348,7 @@ describe("memberLedger and report", () => {
           removed: true,
           multiplier: 2,
           firstBonus: null,
+          streakDays: null,
         },
       ],
     });

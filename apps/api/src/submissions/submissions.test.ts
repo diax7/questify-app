@@ -124,6 +124,7 @@ describe("sending", () => {
         item: null,
         boost: null,
         firstBonus: null,
+        streakBonus: null,
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([

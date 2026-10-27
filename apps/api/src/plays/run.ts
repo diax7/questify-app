@@ -1,3 +1,4 @@
+import type { StreakBonus } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import {
   boostApplied,
@@ -12,6 +13,7 @@ import {
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
+import { streakBonusPaid } from "#src/streaks/streaks";
 
 export type PlayDeps = Readonly<{ pool: Pool }>;
 
@@ -142,6 +144,8 @@ export type Paid = Readonly<{
   boost: Boosted | null;
   /** The first-N bonus this play earned, or missed when `place` is null (T-313). */
   firstBonus: OwnFirstBonus | null;
+  /** The event streak bonus this play paid with its streak day (T-405), or null; the same on a replay. */
+  streakBonus: StreakBonus | null;
 }>;
 
 /** The row `vote_quest`, `submit_survey` and `share_quest` answer with. */
@@ -167,5 +171,6 @@ export async function paidOf(client: PoolClient, rows: readonly PaidRow[]): Prom
     item: await itemGiven(client, row.completion_id),
     boost: await boostApplied(client, row.completion_id),
     firstBonus: await firstBonusPaid(client, row.completion_id),
+    streakBonus: await streakBonusPaid(client, row.completion_id),
   };
 }

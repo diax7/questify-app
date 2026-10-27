@@ -9,6 +9,7 @@ import {
   playerDocuments,
   signupDocuments,
   type Avatar,
+  type DailyStreak,
   type PlayerDocument,
   type PlayerDocumentId,
 } from "@questify/shared";
@@ -27,6 +28,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { SettingsService } from "#src/settings/service";
 import { itemRefusal, readEquipment } from "#src/players/items";
+import { readOwnDailyStreak } from "#src/streaks/streaks";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
 export type ProfileDeps = Readonly<{ pool: Pool; settings: SettingsService }>;
@@ -53,6 +55,8 @@ export type MyProfile = Readonly<{
   help: Readonly<{ unread: number }>;
   /** The player's gem balance (T-404): earned by playing, spent in the gem shop; never shown to anyone else. */
   gems: number;
+  /** The Questify daily streak (T-405, FR-419): the owner's alone; null while the platform switch is off. */
+  dailyStreak: DailyStreak | null;
 }>;
 
 export type QuestifyLevel = Readonly<{
@@ -154,6 +158,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
     const cosmetics = await readEquipment(client);
     const unread = await readUnreadTickets(client, null);
     const gems = await readGems(client);
+    const dailyStreak = await readOwnDailyStreak(client);
     return {
       id: playerId,
       username: row.username,
@@ -171,6 +176,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       equipment: cosmetics.equipment,
       help: { unread },
       gems,
+      dailyStreak,
     };
   });
 }

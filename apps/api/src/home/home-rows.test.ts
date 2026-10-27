@@ -92,6 +92,7 @@ type Rows = Readonly<{
   activity?: readonly Record<string, unknown>[];
   unread?: number;
   bonuses?: readonly Record<string, unknown>[];
+  streak?: readonly Record<string, unknown>[];
 }>;
 
 /** The home's dependencies over a database that answers each read with these rows. */
@@ -120,6 +121,9 @@ function homeDeps(rows: Rows) {
     }
     if (sql.includes("shop_rewards")) {
       return { rows: [] };
+    }
+    if (sql.includes("own_event_streak")) {
+      return { rows: rows.streak ?? [] };
     }
     throw new Error(`unexpected query: ${sql}`);
   });
@@ -284,6 +288,26 @@ describe("the event home's switches and prize", () => {
       EVENT,
     );
     expect(pending).toMatchObject({ standing: { status: "pending" }, help: { unread: 1 } });
+  });
+
+  it("carries the event streak while it is on, and none while off or for a pending member (T-405)", async () => {
+    const streak = {
+      is_on: true,
+      days: 3,
+      played_today: false,
+      closed_today: true,
+      bonus_points: 5,
+    };
+    expect((await readHome(homeDeps({ streak: [streak] }), PLAYER, EVENT))?.streak).toEqual({
+      days: 3,
+      playedToday: false,
+      closedToday: true,
+      bonusPoints: 5,
+    });
+    const off = homeDeps({ streak: [{ ...streak, is_on: false }] });
+    expect((await readHome(off, PLAYER, EVENT))?.streak).toBeNull();
+    const pending = homeDeps({ standing: { status: "pending" }, streak: [streak] });
+    expect((await readHome(pending, PLAYER, EVENT))?.streak).toBeNull();
   });
 });
 

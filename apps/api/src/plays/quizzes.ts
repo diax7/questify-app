@@ -1,3 +1,4 @@
+import type { StreakBonus } from "@questify/shared";
 import type { PoolClient } from "pg";
 import {
   itemGiven,
@@ -11,6 +12,7 @@ import {
 } from "#src/completions/complete";
 import { run, textOf, type Bilingual, type Done, type PlayDeps } from "#src/plays/run";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
+import { streakBonusPaid } from "#src/streaks/streaks";
 
 export type QuizChoice = Readonly<{ id: string; text: Bilingual }>;
 
@@ -54,6 +56,8 @@ export type QuizPlay = Readonly<{
   boost: Boosted | null;
   /** The first-N bonus a paid finish earned, or missed when `place` is null (T-313). */
   firstBonus: OwnFirstBonus | null;
+  /** The event streak bonus a paid finish paid with its streak day (T-405), or null; the same on a replay. */
+  streakBonus: StreakBonus | null;
 }>;
 
 /** A step's answer and whether this very step paid (a replay, or a read after the payment, did not). */
@@ -136,6 +140,8 @@ async function playOf(client: PoolClient, questId: string): Promise<QuizPlay> {
     item: quiz.completionId === null ? null : await itemGiven(client, quiz.completionId),
     boost: quiz.completionId === null ? null : await boostApplied(client, quiz.completionId),
     firstBonus: quiz.completionId === null ? null : await firstBonusPaid(client, quiz.completionId),
+    streakBonus:
+      quiz.completionId === null ? null : await streakBonusPaid(client, quiz.completionId),
   };
 }
 

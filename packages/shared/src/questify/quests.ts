@@ -2,6 +2,7 @@ import { z } from "zod";
 import { itemSchema } from "#src/players/items";
 import { achievementTierSchema } from "#src/questify/achievements";
 import { syncGemsSchema } from "#src/questify/gems";
+import { syncDailyStreakSchema } from "#src/streaks/streaks";
 
 const bilingual = z.object({ ar: z.string(), en: z.string() });
 
@@ -17,14 +18,16 @@ export const levelUpSchema = z.object({
 });
 
 /**
- * What one `POST /v1/me/questify/sync` wrote: the new tiers, the Questify quests paid, the highest level reached, and
- * the gems it paid with the balance after (T-404).
+ * What one `POST /v1/me/questify/sync` wrote: the new tiers, the Questify quests paid, the highest level reached (streak
+ * XP included), the gems it paid with the balance after (T-404), and the daily streak with the milestones it paid
+ * (T-405; null while the platform switch is off).
  */
 export const questifySyncSchema = z.object({
   achievements: z.array(z.object({ id: z.string().min(1).max(64), tier: achievementTierSchema })),
   quests: z.array(z.object({ id: z.uuid(), title: bilingual, xp: z.number().int().positive() })),
   levelUp: levelUpSchema.nullable(),
   gems: syncGemsSchema,
+  dailyStreak: syncDailyStreakSchema.nullable(),
 });
 export type QuestifySync = z.infer<typeof questifySyncSchema>;
 

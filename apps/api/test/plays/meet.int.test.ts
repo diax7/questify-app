@@ -240,6 +240,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
         "rank",
         "replayed",
         "score",
+        "streakBonus",
       ].toSorted(),
     );
     // The whole event's board and today's board (a multi-day event), for both players.

@@ -69,6 +69,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           boosts: { enabled: true, minAppVersion: null, message: null },
           cheers: { enabled: true, minAppVersion: null, message: null },
           community: { enabled: true, minAppVersion: null, message: null },
+          dailyStreak: { enabled: true, minAppVersion: null, message: null },
           flashQuests: { enabled: true, minAppVersion: null, message: null },
           helpDesk: { enabled: true, minAppVersion: null, message: null },
           kiosks: { enabled: true, minAppVersion: null, message: null },

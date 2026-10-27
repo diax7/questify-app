@@ -1742,3 +1742,20 @@ export const invalidFirstBonus = make(
   "نقاط المكافأة من 1 إلى 100,000، وعدد اللاعبين من 1 إلى 1,000.",
   "Bonus points are 1 to 100,000, and players 1 to 1,000.",
 );
+/**
+ * The event streak's settings can't change now (T-405): `reason` is single_day, day_started (with the first started
+ * `day` the change would touch), results_final or archived.
+ */
+export const streakConflict = make(
+  409,
+  "streak_conflict",
+  "لا يمكن تغيير سلسلة الأيام الآن.",
+  "The streak can't be changed now.",
+);
+/** A streak setting is out of range (T-405); `field` names which. */
+export const invalidStreak = make(
+  422,
+  "invalid_streak",
+  "إعدادات سلسلة الأيام غير صحيحة.",
+  "The streak settings aren't valid.",
+);

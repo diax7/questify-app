@@ -30,6 +30,7 @@ import {
 import { parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import type { Ranking } from "#src/ranking/ranking";
+import { logStreakBonus } from "#src/streaks/streaks";
 import {
   markSeen,
   operatorQueue,
@@ -175,6 +176,7 @@ export function registerSubmissionPlayerRoutes(
     const sent = valueOf(
       await sendSubmission(deps, { playerId, questId, text, idempotencyKey: keyOf(request) }),
     );
+    logStreakBonus(request.log, sent);
     const rank =
       // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent: a pending send's null completion has no ranking entry, so the place is null either way
       sent.completionId === null

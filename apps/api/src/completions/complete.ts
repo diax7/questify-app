@@ -1,4 +1,4 @@
-import type { ProfileItem } from "@questify/shared";
+import type { ProfileItem, StreakBonus } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { normalizeEntryCode } from "@questify/shared";
 import type { AuthKeys } from "#src/auth/keys";
@@ -8,6 +8,7 @@ import { BUCKETS, countRecent, forget, record, tryLock, type Bucket } from "#src
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
+import { streakBonusPaid } from "#src/streaks/streaks";
 import {
   verifyQuestCode,
   verifyScreenCode,
@@ -63,6 +64,8 @@ export type Completed = Readonly<{
   boost: Boosted | null;
   /** The first-N bonus this completion earned, or missed when `place` is null (T-313); the same on a replay. */
   firstBonus: OwnFirstBonus | null;
+  /** The event streak bonus this completion paid with its streak day (T-405), or null; the same on a replay. */
+  streakBonus: StreakBonus | null;
 }>;
 
 /** A boost a payment was made with (T-307, ADR-233): `points` already holds the multiplied amount. */
@@ -405,6 +408,7 @@ async function callEngine(
     const item = await itemGiven(client, row.completion_id);
     const boost = await boostApplied(client, row.completion_id);
     const firstBonus = await firstBonusPaid(client, row.completion_id);
+    const streakBonus = await streakBonusPaid(client, row.completion_id);
     return {
       kind: "completed",
       value: {
@@ -419,6 +423,7 @@ async function callEngine(
         item,
         boost,
         firstBonus,
+        streakBonus,
       },
     };
   } catch (error) {

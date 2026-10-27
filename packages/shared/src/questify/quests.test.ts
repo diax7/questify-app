@@ -32,6 +32,7 @@ const sync = {
   quests: [{ id: UUID, title, xp: 50 }],
   levelUp: { level: 2, title, items: [] },
   gems: { earned: 30, balance: 120 },
+  dailyStreak: { days: 3, today: true, next: { days: 7, xp: 100 }, rewards: [{ days: 3, xp: 50 }] },
 };
 const syncWithAchievement = (achievement: Record<string, unknown>) => ({
   ...sync,
@@ -77,8 +78,25 @@ describe("questifySyncSchema", () => {
   });
 
   it("keeps an empty answer with no level reached", () => {
-    const empty = { achievements: [], quests: [], levelUp: null, gems: { earned: 0, balance: 0 } };
+    const empty = {
+      achievements: [],
+      quests: [],
+      levelUp: null,
+      gems: { earned: 0, balance: 0 },
+      dailyStreak: null,
+    };
     expect(questifySyncSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("needs the daily streak, or null while the switch is off (T-405)", () => {
+    const { dailyStreak: _streak, ...withoutStreak } = sync;
+    expect(accepts(questifySyncSchema, withoutStreak)).toBe(false);
+    expect(
+      accepts(questifySyncSchema, {
+        ...sync,
+        dailyStreak: { ...sync.dailyStreak, rewards: undefined },
+      }),
+    ).toBe(false);
   });
 
   it("needs the gems paid and the balance, each a whole number from 0 (T-404)", () => {

@@ -328,6 +328,8 @@ export type LedgerLine = Readonly<{
    * one not yet removed, its N alone (the remove dialog's hint). Null elsewhere.
    */
   firstBonus: Readonly<{ slots: number; place: number | null }> | null;
+  /** A streak bonus line's streak day (T-405), "Streak bonus, day {days}"; null elsewhere. */
+  streakDays: number | null;
 }>;
 
 /** One member's points record for the dashboard, newest first (owners and editors). */
@@ -369,6 +371,7 @@ export function memberLedger(
               place: typeof row["bonus_place"] === "number" ? row["bonus_place"] : null,
             }
           : null,
+      streakDays: typeof row["streak_days"] === "number" ? row["streak_days"] : null,
     }));
   });
 }

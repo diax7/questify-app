@@ -21,6 +21,7 @@ import {
   type Position,
 } from "#src/completions/complete";
 import type { Ranking } from "#src/ranking/ranking";
+import { logStreakBonus } from "#src/streaks/streaks";
 
 /** A reading as the database takes it (migration 0048's position_of holds the same rules). */
 const positionShape = z.strictObject({
@@ -131,6 +132,7 @@ export function registerCompletionRoutes(
         return answer(reply, result);
       }
       // The player's place after this completion: null when not ranked or when Redis could not answer (T-106).
+      logStreakBonus(request.log, result.value);
       const rank = await deps.ranking.afterCompletion(player.id, result.value.completionId);
       return { ...result.value, rank };
     },

@@ -83,6 +83,7 @@ import { castVote, readPoll, readVote, voteCounts } from "#src/plays/votes";
 import { FLASH_MINUTES, endFlash, launchFlash, type FlashDone } from "#src/quests/flash";
 import { closePoll, sendPoll, type PollDone } from "#src/quests/polls";
 import type { Ranking } from "#src/ranking/ranking";
+import { logStreakBonus } from "#src/streaks/streaks";
 import type { SettingsService } from "#src/settings/service";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
@@ -218,6 +219,7 @@ export function registerPlayRoutes(
       await castVote(deps, { playerId, questId, optionIds, idempotencyKey: String(key) }),
       true,
     );
+    logStreakBonus(request.log, voted);
     const rank = await deps.ranking.afterCompletion(playerId, voted.completionId);
     return reply.code(voted.replayed ? 200 : 201).send({ ...voted, rank });
   });
@@ -261,6 +263,7 @@ export function registerPlayRoutes(
     const paid = valueOf(
       await answerSurvey(deps, { playerId, questId, answers, idempotencyKey: key }),
     );
+    logStreakBonus(request.log, paid);
     const rank = await deps.ranking.afterCompletion(playerId, paid.completionId);
     return reply.code(paid.replayed ? 200 : 201).send({ ...paid, rank });
   });
@@ -276,6 +279,7 @@ export function registerPlayRoutes(
     const playerId = playerIdOf(request);
     const key = String(request.headers["idempotency-key"]);
     const paid = valueOf(await shareQuest(deps, { playerId, questId, idempotencyKey: key }));
+    logStreakBonus(request.log, paid);
     const rank = await deps.ranking.afterCompletion(playerId, paid.completionId);
     return reply.code(paid.replayed ? 200 : 201).send({ ...paid, rank });
   });
@@ -306,6 +310,7 @@ export function registerPlayRoutes(
     const answered = valueOf(
       await answerQuestion(deps, { playerId, questId, questionId, choiceId }),
     );
+    logStreakBonus(request.log, { replayed: !answered.paid, streakBonus: answered.streakBonus });
     return withRank(deps, playerId, answered);
   });
 }
@@ -401,6 +406,7 @@ export function registerMeetRoutes(
         callerOf(request),
       ),
     );
+    logStreakBonus(request.log, answer);
     const rank = await deps.ranking.afterCompletion(playerId, answer.completionId);
     if (!answer.replayed) {
       await deps.ranking.afterCompletion(other.playerId, other.completionId);
@@ -582,6 +588,7 @@ export function registerGameRoutes(app: FastifyInstance, deps: GameDeps & Rankin
         callerOf(request),
       ),
     );
+    logStreakBonus(request.log, answer);
     const rank =
       answer.completionId !== null && !answer.replayed
         ? await deps.ranking.afterCompletion(playerId, answer.completionId)

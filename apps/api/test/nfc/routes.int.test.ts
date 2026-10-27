@@ -223,6 +223,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
         "rank",
         "replayed",
         "score",
+        "streakBonus",
       ].toSorted(),
     );
     expect(logs.slice(logged).join("\n")).not.toContain(tokenOf(body.url));

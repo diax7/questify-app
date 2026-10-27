@@ -31,6 +31,7 @@ const none: QuestifySync = {
   quests: [],
   levelUp: null,
   gems: { earned: 0, balance: 0 },
+  dailyStreak: null,
 };
 
 describe("syncNotices", () => {

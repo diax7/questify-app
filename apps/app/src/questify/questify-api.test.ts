@@ -83,6 +83,7 @@ describe("postSync", () => {
     quests: [],
     levelUp: null,
     gems: { earned: 10, balance: 10 },
+    dailyStreak: null,
   };
 
   it("returns what the sync wrote", async () => {

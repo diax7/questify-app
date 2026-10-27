@@ -5,6 +5,7 @@ import { callerOf, deviceOf, parse } from "#src/auth/request";
 import { readPassport, stampStep, type PassportDeps } from "#src/passport/stamp";
 import { refuse } from "#src/plays/routes";
 import type { Ranking } from "#src/ranking/ranking";
+import { logStreakBonus } from "#src/streaks/streaks";
 
 const stampBody = z.strictObject({ code: z.string().min(1).max(200) });
 const stepParams = z.object({ stepId: z.uuid() });
@@ -45,6 +46,7 @@ export function registerPassportRoutes(
         return refuse(result);
       }
       const { completed } = result.value;
+      logStreakBonus(request.log, completed);
       // The player's place after the paying stamp: null when not ranked or when Redis could not answer (T-106).
       const rank =
         completed === null
