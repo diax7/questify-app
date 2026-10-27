@@ -122,6 +122,56 @@ function CampaignForm({
   );
 }
 
+/**
+ * What a quest counts, with its notices: "set your interests" fixes the target at 1, and a second one beside a live one
+ * pays everyone who chose interests again (ADR-320).
+ */
+function MetricField({
+  t,
+  draft,
+  campaignId,
+  secondInterests,
+  busy,
+  change,
+}: Readonly<{
+  t: Translate;
+  draft: QuestDraft;
+  campaignId: string | null;
+  secondInterests: boolean;
+  busy: boolean;
+  change: (patch: Partial<QuestDraft>) => void;
+}>) {
+  return (
+    <>
+      <label className={styles.field}>
+        {t("console.questify.field.metric")}
+        <select
+          className={styles.input}
+          value={draft.metric}
+          disabled={busy}
+          onChange={(event) =>
+            change(withMetric(draft, event.target.value as QuestDraft["metric"]))
+          }
+        >
+          {metricsFor(campaignId).map((metric) => (
+            <option key={metric} value={metric}>
+              {t(metricKey(metric))}
+            </option>
+          ))}
+        </select>
+      </label>
+      {secondInterests ? (
+        <p className={styles.muted} role="status">
+          {t("console.questify.secondInterests")}
+        </p>
+      ) : null}
+      {targetFixed(draft) ? (
+        <p className={styles.muted}>{t("console.questify.targetFixed")}</p>
+      ) : null}
+    </>
+  );
+}
+
 function QuestForm({
   language,
   draft,
@@ -172,32 +222,15 @@ function QuestForm({
     <form className={styles.form} onSubmit={submit}>
       {text("titleAr", t("console.questify.field.titleAr"))}
       {text("titleEn", t("console.questify.field.titleEn"))}
-      <label className={styles.field}>
-        {t("console.questify.field.metric")}
-        <select
-          className={styles.input}
-          value={draft.metric}
-          disabled={busy}
-          onChange={(event) =>
-            change(withMetric(draft, event.target.value as QuestDraft["metric"]))
-          }
-        >
-          {metricsFor(campaignId).map((metric) => (
-            <option key={metric} value={metric}>
-              {t(metricKey(metric))}
-            </option>
-          ))}
-        </select>
-      </label>
-      {secondInterests ? (
-        <p className={styles.muted} role="status">
-          {t("console.questify.secondInterests")}
-        </p>
-      ) : null}
+      <MetricField
+        t={t}
+        draft={draft}
+        campaignId={campaignId}
+        secondInterests={secondInterests}
+        busy={busy}
+        change={change}
+      />
       {number("target", t("console.questify.field.target"))}
-      {targetFixed(draft) ? (
-        <p className={styles.muted}>{t("console.questify.targetFixed")}</p>
-      ) : null}
       {number("xp", t("console.questify.field.xp"))}
       {number("gems", t("console.questify.field.gems"))}
       {gemsFixed ? <p className={styles.muted}>{t("console.questify.gemsFixed")}</p> : null}
@@ -639,9 +672,7 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
 
   const saveForm = async (submitted: FormEvent) => {
     submitted.preventDefault();
-    if (editing === null) {
-      return;
-    }
+    if (editing === null) return;
     const call = callFor(editing, t);
     if (call.kind === "invalid") {
       page.setProblem(t(call.message));

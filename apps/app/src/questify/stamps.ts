@@ -93,6 +93,10 @@ export function endsIn(endsAt: string, now: Date): EndsIn | null {
 export const clampedProgress = (progress: number, target: number): number =>
   Math.min(Math.max(progress, 0), target);
 
-/** An undone "set your interests" quest (T-407c) offers the Interests screen in place of "0 of 1". */
-export const opensInterests = (quest: Pick<QuestifyQuest, "metric" | "done">): boolean =>
-  quest.metric === INTERESTS_METRIC && !quest.done;
+/**
+ * A "set your interests" quest not yet met (T-407c) offers the Interests screen in place of "0 of 1"; once met but not
+ * yet paid by a sync it reads "1 of 1".
+ */
+export const opensInterests = (
+  quest: Pick<QuestifyQuest, "metric" | "done" | "progress" | "target">,
+): boolean => quest.metric === INTERESTS_METRIC && !quest.done && quest.progress < quest.target;

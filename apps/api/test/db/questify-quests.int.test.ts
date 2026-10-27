@@ -881,6 +881,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       await choose(kept, []);
       expect(await card(kept)).toMatchObject({ progress: 0, done: true });
       expect(await paid(kept)).toEqual([]);
+      await choose(kept, ["art"]);
+      expect(await paid(kept)).toEqual([]);
       expect(await awards(kept)).toEqual([quest]);
       expect(await xpRows(kept, quest)).toEqual([100]);
       expect(await gemsFor(kept, quest)).toEqual([10]);

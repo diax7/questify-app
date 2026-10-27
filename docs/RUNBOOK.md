@@ -268,6 +268,12 @@ the client-address count (ADR-113).
   `log_statement` none, `log_min_duration_statement` -1: the rule holds (statements are never logged, and an
   error logs no parameters). Read them again if CranL changes its Postgres settings.
 
+- **"Set your interests" (T-407c, ADR-320): never deploy migration 0071 without the new app build.** App builds
+  installed before T-407c parse the Questify quest list with the closed metric list (`events`, `cities`, `quests`), so
+  once 0071 seeds the `interests_set` quest their whole quest list fails to load. Release order: the new app build
+  (its card schema takes any metric name) is approved and live in both stores, and the test phones carry it; then the
+  server with 0071. If the server must go first, retire the seeded quest in the console right after the migration and
+  re-add it once the app is out (a re-added quest pays everyone with interests again, Q-290).
 - **Mini-game engines (T-305, ADR-212):** a server deploy carrying a new engine version (`packages/shared/src/games`,
   a `v<n>.ts` beside the old one) goes out **before** the app release that draws with it: the server answers an app
   whose engine is older with 426 `update_required`, and replays each round with the version frozen on it, so the old

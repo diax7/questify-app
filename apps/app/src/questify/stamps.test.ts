@@ -126,11 +126,27 @@ describe("clampedProgress", () => {
   });
 });
 
+const interestsCard = (patch: Partial<{ metric: string; done: boolean; progress: number }>) => ({
+  metric: INTERESTS_METRIC,
+  done: false,
+  progress: 0,
+  target: 1,
+  ...patch,
+});
+
 describe("opensInterests (T-407c)", () => {
-  it("offers the Interests screen for an undone interests quest only", () => {
-    expect(opensInterests({ metric: INTERESTS_METRIC, done: false })).toBe(true);
-    expect(opensInterests({ metric: INTERESTS_METRIC, done: true })).toBe(false);
-    expect(opensInterests({ metric: "events", done: false })).toBe(false);
-    expect(opensInterests({ metric: "follow", done: false })).toBe(false);
+  it("offers the Interests screen for an interests quest not yet met", () => {
+    expect(opensInterests(interestsCard({}))).toBe(true);
+  });
+
+  it("shows the progress once it is met but not yet paid, and once it is done", () => {
+    expect(opensInterests(interestsCard({ progress: 1 }))).toBe(false);
+    expect(opensInterests(interestsCard({ progress: 1, done: true }))).toBe(false);
+    expect(opensInterests(interestsCard({ progress: 0, done: true }))).toBe(false);
+  });
+
+  it("never offers it for another metric", () => {
+    expect(opensInterests(interestsCard({ metric: "events" }))).toBe(false);
+    expect(opensInterests(interestsCard({ metric: "follow" }))).toBe(false);
   });
 });
