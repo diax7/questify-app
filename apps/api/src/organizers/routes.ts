@@ -36,6 +36,8 @@ import type { ClaimDeps } from "#src/devices/claims";
 import { registerDeviceTeamRoutes } from "#src/devices/routes";
 import { registerCommunityTeamRoutes } from "#src/community/routes";
 import { registerSouvenirRoutes } from "#src/souvenirs/routes";
+import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
+import { registerInvitationTeamRoutes } from "#src/invitation-campaigns/routes";
 import { registerFlagRoutes } from "#src/flags/routes";
 import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerQuestItemRoutes } from "#src/rewards/quest-item-routes";
@@ -77,6 +79,8 @@ export type OrganizerRoutesDeps = Readonly<{
   ranking: Ranking;
   /** Pairing codes claimed from the Devices page, and its lists and revokes (T-309). */
   devices: ClaimDeps;
+  /** Questify invitations requested by the owner (T-409). */
+  invitations: InvitationDeps;
   dashboardOrigin: string;
 }>;
 
@@ -260,6 +264,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerOperatorRoutes(scope, deps.operators);
       registerJoinSetupRoutes(scope, { pool: deps.pool });
       registerAudienceRoutes(scope, { pool: deps.pool });
+      registerInvitationTeamRoutes(scope, deps.invitations);
     },
     { prefix: ORGANIZER_PREFIX },
   );

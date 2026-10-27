@@ -70,6 +70,9 @@ import { startRankingTick } from "#src/ranking/tick";
 import { startLifecycleTick } from "#src/events/tick";
 import { startCommunityTick } from "#src/community/tick";
 import { startSouvenirTick } from "#src/souvenirs/tick";
+import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
+import { registerInvitationOpenRoute } from "#src/invitation-campaigns/routes";
+import { startInvitationTick } from "#src/invitation-campaigns/tick";
 import { createInvites } from "#src/organizers/accept";
 import { registerConsoleRoutes } from "#src/activation/routes";
 import { createActivation } from "#src/activation/service";
@@ -93,6 +96,11 @@ export type AppOptions = Readonly<{
   breachCheck: BreachCheck;
   /** Sends player sign-in codes by SMS (Msegat). Without one, every SMS is refused and the app offers email. */
   smsSender?: SmsSender;
+  /**
+   * Sends Questify invitations from the promotional "-AD" sender (T-409, FR-1112), never the service one. Without it
+   * invitation SMS cannot be approved and nothing is sent.
+   */
+  promoSmsSender?: SmsSender;
   /** Work that runs after an answer has gone. Created when not given; tests give one to wait on. */
   deferred?: Deferred;
   /** Reads and saves configuration. Created from the pool when not given (tests give one with a short cache). */
@@ -109,6 +117,8 @@ export type AppOptions = Readonly<{
   /** How often community goals are settled and paid (ADR-222); off when not given (tests call the functions). */
   communityIntervalMs?: number;
   souvenirIntervalMs?: number;
+  /** How often invitations are started, sent and settled (ADR-333); off when not given (tests call the doors). */
+  invitationIntervalMs?: number;
 }>;
 
 declare module "fastify" {
@@ -167,6 +177,58 @@ async function databaseReady(pool: Pool): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * The background ticks each option turns on (tests leave them off and call the database functions): event lifecycle,
+ * community goals, souvenirs and invitations. Each stops when the server closes.
+ */
+function startTicks(
+  app: FastifyInstance,
+  options: AppOptions,
+  deps: Readonly<{
+    settings: SettingsService;
+    keys: ReturnType<typeof createAuthKeys>;
+    invitations: InvitationDeps;
+  }>,
+): void {
+  const stops: (() => Promise<void>)[] = [];
+  if (options.lifecycleIntervalMs !== undefined) {
+    const tick = startLifecycleTick({
+      pool: options.pool,
+      intervalMs: options.lifecycleIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(tick.stop);
+  }
+  if (options.communityIntervalMs !== undefined) {
+    const tick = startCommunityTick({
+      pool: options.pool,
+      settings: deps.settings,
+      intervalMs: options.communityIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(tick.stop);
+  }
+  if (options.souvenirIntervalMs !== undefined) {
+    const tick = startSouvenirTick({
+      pool: options.pool,
+      intervalMs: options.souvenirIntervalMs,
+      log: (fields) => app.log.error(fields),
+    });
+    stops.push(tick.stop);
+  }
+  if (options.invitationIntervalMs !== undefined) {
+    const tick = startInvitationTick({
+      ...deps.invitations,
+      settings: deps.settings,
+      keys: deps.keys,
+      intervalMs: options.invitationIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(tick.stop);
+  }
+  for (const stop of stops) app.addHook("onClose", stop);
 }
 
 /** Builds the API server. Nothing listens until the caller starts it. */
@@ -355,6 +417,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
+  const invitations = {
+    pool: options.pool,
+    ...(options.promoSmsSender === undefined ? {} : { promoSms: options.promoSmsSender }),
+  };
   const staffSessions = createSessions(options.pool);
   registerConsoleRoutes(app, {
     activation,
@@ -363,6 +429,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     dashboardOrigin: config.auth.dashboardOrigin,
     tickets: { pool: options.pool, keys: signInDeps.keys },
     questify: { pool: options.pool },
+    invitations,
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -382,36 +449,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     operators: operatorDeps,
     ranking,
     devices: deviceClaims,
+    invitations,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
+  registerInvitationOpenRoute(app, { pool: options.pool, keys: signInDeps.keys });
 
-  if (options.lifecycleIntervalMs !== undefined) {
-    const tick = startLifecycleTick({
-      pool: options.pool,
-      intervalMs: options.lifecycleIntervalMs,
-      log: (level, fields) => app.log[level](fields),
-    });
-    app.addHook("onClose", tick.stop);
-  }
-
-  if (options.communityIntervalMs !== undefined) {
-    const tick = startCommunityTick({
-      pool: options.pool,
-      settings,
-      intervalMs: options.communityIntervalMs,
-      log: (level, fields) => app.log[level](fields),
-    });
-    app.addHook("onClose", tick.stop);
-  }
-
-  if (options.souvenirIntervalMs !== undefined) {
-    const tick = startSouvenirTick({
-      pool: options.pool,
-      intervalMs: options.souvenirIntervalMs,
-      log: (fields) => app.log.error(fields),
-    });
-    app.addHook("onClose", tick.stop);
-  }
+  startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);
 
   registerTranslationRoutes(

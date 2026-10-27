@@ -73,6 +73,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       )
     ).map((row) => row.player_id);
 
+  let phones = 0;
+  /** A unique Saudi mobile number on the player's contact row (the fixture's players have an email only). */
+  const givePhone = async (who: string) => {
+    phones += 1;
+    await f.owner("UPDATE player_contact SET phone_e164 = $2 WHERE player_id = $1", [
+      who,
+      `+9665${String(phones).padStart(8, "0")}`,
+    ]);
+  };
+
+  const languageOf = async (who: string) =>
+    (
+      await f.owner<{ log: string | null; state: string | null }>(
+        `SELECT (SELECT m.language FROM marketing_consent m WHERE m.player_id = $1 ORDER BY m.id DESC LIMIT 1) AS log,
+                  (SELECT s.language FROM marketing_state s WHERE s.player_id = $1 AND s.channel = 'sms') AS state`,
+        [who],
+      )
+    )[0];
+
   const optOut = async (who: string, channel: string) =>
     (await f.owner<{ r: string }>("SELECT marketing_opt_out($1, $2) AS r", [who, channel]))[0]?.r;
 
@@ -340,6 +359,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       const withdrew = await player();
       const underAge = await player();
       const noBirthYear = await player();
+      const smsNoPhone = await player();
       for (const who of [
         pushOnly,
         smsOnly,
@@ -350,6 +370,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
         withdrew,
         underAge,
         noBirthYear,
+        smsNoPhone,
       ]) {
         await call(who, "SELECT set_preferences($1, $2::text[]) AS r", [city, ["sport"]]);
       }
@@ -363,6 +384,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       await set(withdrew, { push: false });
       await set(underAge, { push: true, sms: true });
       await set(noBirthYear, { push: true, sms: true });
+      // SMS reaches only a player with a phone (T-409's promo_pool): the fixture's players have an email only.
+      await set(smsNoPhone, { sms: true });
+      await givePhone(smsOnly);
+      await givePhone(both);
       await f.owner("UPDATE player SET birth_year = $2 WHERE id = $1", [
         underAge,
         (await year()) - 15,
@@ -601,6 +626,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       expect(await count("marketing_consent WHERE player_id = $1", [who])).toBe(0);
       expect(await count("marketing_state WHERE player_id = $1", [who])).toBe(0);
       expect(await count("player_preference WHERE player_id = $1", [who])).toBe(0);
+    });
+  });
+
+  describe("restated by T-409 (migration 0073)", () => {
+    it("records the consent's language on the log and copies it to the state", async () => {
+      const who = await player();
+      await call(who, "SELECT set_marketing($1::jsonb, 'settings', '1', 'en') AS r", [
+        JSON.stringify({ sms: true }),
+      ]);
+      expect(await languageOf(who)).toEqual({ log: "en", state: "en" });
+      await call(who, "SELECT set_marketing($1::jsonb, 'settings', '1', 'ar') AS r", [
+        JSON.stringify({ sms: false }),
+      ]);
+      expect(await languageOf(who)).toEqual({ log: "ar", state: "ar" });
+    });
+
+    it("still takes the 3-argument call of the API running during the deploy, with no language", async () => {
+      const who = await player();
+      expect((await set(who, { sms: true })).channels.sms.optedIn).toBe(true);
+      expect(await languageOf(who)).toEqual({ log: null, state: null });
+    });
+
+    it("refuses a language other than ar or en, and writes nothing", async () => {
+      const who = await player();
+      const answer = call(who, "SELECT set_marketing($1::jsonb, 'settings', '1', 'fr') AS r", [
+        JSON.stringify({ sms: true }),
+      ]);
+      await expect(answer).rejects.toMatchObject({ code: "MK422", detail: "language" });
+      expect(await log(who)).toEqual([]);
+    });
+
+    it("reads the promotional audience in the system context only", async () => {
+      const sql = "SELECT player_id FROM marketing_audience('sms', NULL, NULL, NULL, 10)";
+      const who = await player();
+      for (const context of [
+        { playerId: who },
+        f.team(),
+        { isAdmin: true, staffUserId: admin },
+        { deviceId: randomUUID() },
+      ]) {
+        await expect(f.run(context, sql)).rejects.toMatchObject({ code: "MK403" });
+      }
+      expect(Array.isArray(await f.run({}, sql))).toBe(true);
     });
   });
 });

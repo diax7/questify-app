@@ -1838,3 +1838,86 @@ export const invalidDaily = make(
   "راجع بيانات المحتوى اليومي: الحقل المحدد غير صالح.",
   "Check the daily content: the named field isn't valid.",
 );
+/**
+ * The event cannot take a Questify invitation now (T-409): `reason` is not_public, not_running, ends_soon, link_off,
+ * guest_list_only or email_domains. 409 for the owner's request.
+ */
+export const invitationNotEligible = make(
+  409,
+  "event_not_eligible",
+  "هذه الفعالية لا تقبل الدعوات الآن. راجع إعدادات الوصول والانضمام.",
+  "This event can't take invitations now. Check its access and joining settings.",
+);
+/** The same at the admin's approval (T-409), answered 422 there. */
+export const approvalNotEligible = make(
+  422,
+  "event_not_eligible",
+  "هذه الفعالية لا تقبل الدعوات الآن. راجع إعدادات الوصول والانضمام.",
+  "This event can't take invitations now. Check its access and joining settings.",
+);
+/** The event already has a requested, approved or sending invitation campaign (T-409). */
+export const invitationAlreadyOpen = make(
+  409,
+  "invitation_open",
+  "لهذه الفعالية حملة دعوات مفتوحة. ألغِها أو انتظر انتهاءها.",
+  "This event already has an open invitation campaign. Cancel it or wait for it to end.",
+);
+/** The campaign's state does not allow this step (T-409); the page refreshes. */
+export const invitationWrongState = make(
+  409,
+  "wrong_state",
+  "لا يمكن تنفيذ هذا في حالة الحملة الحالية. حدّث الصفحة.",
+  "This can't be done in the campaign's current state. Refresh the page.",
+);
+/** The event was renamed after the console read it (T-409, Finding 1 (a)): the admin approves the new text again. */
+export const invitationEventRenamed = make(
+  409,
+  "event_renamed",
+  "تغيّر اسم الفعالية بعد فتح الصفحة. حدّث الصفحة وراجع نص الرسالة قبل الموافقة.",
+  "The event was renamed after you opened this page. Refresh it and check the message before approving.",
+);
+/** One request key was used for another invitation request (T-409). */
+export const invitationKeyMismatch = make(
+  409,
+  "idempotency_mismatch",
+  "استُخدم مفتاح الطلب هذا لطلب مختلف. أرسل الطلب من جديد.",
+  "This request key was used for a different request. Send the request again.",
+);
+/** An invitation request the database refused (T-409); `field` names which. */
+export const invalidInvitation = make(
+  422,
+  "invalid_invitation",
+  "راجع طلب الدعوات: الحقل المحدد غير صالح.",
+  "Check the invitation request: the named field isn't valid.",
+);
+/** An approval the database refused (T-409); `field` names which. */
+export const invalidApproval = make(
+  422,
+  "invalid_approval",
+  "راجع الموافقة: الحقل المحدد غير صالح.",
+  "Check the approval: the named field isn't valid.",
+);
+/** No promotional sender is set up for this channel on this server (T-409, ADR-331 (1)); `channel` names it. */
+export const channelUnavailable = make(
+  422,
+  "channel_unavailable",
+  "لا يمكن الإرسال عبر هذه القناة الآن: لم يُضبط مرسل الرسائل الترويجية.",
+  "This channel can't send yet: no promotional sender is set up.",
+);
+/**
+ * An event name the invitation SMS cannot carry (T-409, the name rule): `language` is ar or en, `reason`
+ * control_characters, looks_like_address or looks_like_phone.
+ */
+export const invitationEventName = make(
+  422,
+  "event_name",
+  "اسم الفعالية لا يصلح لرسالة نصية: يشبه رابطًا أو رقم هاتف، أو فيه رموز مخفية. عدّل الاسم.",
+  "The event's name can't go in a text message: it looks like a link or a phone number, or holds hidden characters. Edit the name.",
+);
+/** The invitation link is unknown, removed after 90 days, or its event is over (T-409). */
+export const invitationEnded = make(
+  404,
+  "invitation_ended",
+  "انتهت هذه الدعوة.",
+  "This invitation has ended.",
+);

@@ -44,12 +44,31 @@ async function one<T>(client: PoolClient, sql: string, values: unknown[] = []): 
 export const readMarketing = (client: PoolClient): Promise<Marketing> =>
   one(client, "SELECT own_marketing() AS r");
 
-/** Sets the channels named (all or nothing); a channel whose state does not change writes nothing. */
-export const setMarketing = (client: PoolClient, body: MarketingBody): Promise<Marketing> =>
-  one(client, "SELECT set_marketing($1::jsonb, $2, $3) AS r", [
+/**
+ * The language a consent is given in, from the request's `accept-language` (the app sends `ar` or `en` on every call):
+ * its first tag's language when that is Arabic or English, else null (read as Arabic when a promotion is sent, ADR-331
+ * (6)).
+ */
+export function consentLanguage(header: unknown): "ar" | "en" | null {
+  if (typeof header !== "string") return null;
+  const first = header.split(",")[0]?.trim().toLowerCase().split(/[-;_]/)[0];
+  return first === "ar" || first === "en" ? first : null;
+}
+
+/**
+ * Sets the channels named (all or nothing); a channel whose state does not change writes nothing. Each row written
+ * records the language of the screen it was given on.
+ */
+export const setMarketing = (
+  client: PoolClient,
+  body: MarketingBody,
+  language: "ar" | "en" | null = null,
+): Promise<Marketing> =>
+  one(client, "SELECT set_marketing($1::jsonb, $2, $3, $4) AS r", [
     JSON.stringify(body.channels),
     body.method,
     body.textVersion,
+    language,
   ]);
 
 /** The caller's city and interests (private; never part of a public profile). */

@@ -6,8 +6,8 @@
   },
   "apps/api/src/app.ts": {
     "buildApp": {
-      "complexity": [12],
-      "lines": [251]
+      "complexity": [10],
+      "lines": [234]
     }
   },
   "apps/api/src/audience/rules.ts": {

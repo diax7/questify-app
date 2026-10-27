@@ -74,6 +74,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           dailyWord: { enabled: true, minAppVersion: null, message: null },
           flashQuests: { enabled: true, minAppVersion: null, message: null },
           helpDesk: { enabled: true, minAppVersion: null, message: null },
+          invitationCampaigns: { enabled: false, minAppVersion: null, message: null },
           kiosks: { enabled: true, minAppVersion: null, message: null },
           locationQuests: { enabled: false, minAppVersion: null, message: null },
           meetSomeone: { enabled: true, minAppVersion: null, message: null },

@@ -22,6 +22,8 @@ import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
 import { registerConsoleMarketingRoutes } from "#src/marketing/admin-routes";
 import { registerConsoleQuestifyRoutes } from "#src/questify/admin-routes";
+import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
+import { registerConsoleInvitationRoutes } from "#src/invitation-campaigns/routes";
 import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
 import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
@@ -110,6 +112,8 @@ export type ConsoleRoutesDeps = Readonly<{
   tickets: ConsoleTicketDeps;
   /** The Questify quests page (T-403b), behind the same hook. */
   questify: Readonly<{ pool: Pool }>;
+  /** The Questify invitations queue and approval (T-409), behind the same hook. */
+  invitations: InvitationDeps;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -257,6 +261,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleQuestifyRoutes(scope, deps.questify);
       registerConsoleDailyRoutes(scope, deps.questify);
       registerConsoleMarketingRoutes(scope, deps.questify);
+      registerConsoleInvitationRoutes(scope, deps.invitations);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

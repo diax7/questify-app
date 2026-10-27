@@ -45,6 +45,7 @@ export function testConfig(
     qrSecret: "q".repeat(40),
     rewardCodeSecret: "r".repeat(40),
     msegat: undefined,
+    msegatPromoSender: undefined,
     redisUrl: undefined,
   };
 }
@@ -160,7 +161,10 @@ export async function startApp(
   logger: FastifyServerOptions["logger"] = false,
   auth: Partial<AppConfig["auth"]> = {},
   extra: Partial<
-    Pick<AppOptions, "settings" | "translations" | "rankingStore" | "idempotencyStore">
+    Pick<
+      AppOptions,
+      "settings" | "translations" | "rankingStore" | "idempotencyStore" | "promoSmsSender"
+    >
   > = {},
 ): Promise<TestApp> {
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });

@@ -111,16 +111,18 @@ describe("GET /v1/me/marketing", () => {
 });
 
 describe("PUT /v1/me/marketing", () => {
-  it("sends the channels, the method and the text version to the database", async () => {
+  it("sends the channels, the method, the text version and the language to the database", async () => {
     const { seen } = build(() => ({ rows: [{ r: STATE }] }));
     const response = await put("/v1/me/marketing", consent({ method: "signup" }));
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(STATE);
     expect(response.headers["cache-control"]).toBe(NO_STORE);
+    // No accept-language: no language (read as Arabic when a promotion is sent).
     expect(asked(seen, "set_marketing")[0]?.values).toEqual([
       '{"sms":true}',
       "signup",
       MARKETING_TEXT_VERSION,
+      null,
     ]);
   });
 

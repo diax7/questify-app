@@ -51,6 +51,7 @@ describe("loadConfig", () => {
       qrSecret: REQUIRED.QR_SECRET,
       rewardCodeSecret: REQUIRED.REWARD_CODE_SECRET,
       msegat: undefined,
+      msegatPromoSender: undefined,
       redisUrl: undefined,
     });
   });
@@ -225,6 +226,22 @@ describe("loadConfig", () => {
         /MSEGAT_USERNAME.*required together in production/,
       );
       expect(loadConfig({ ...PRODUCTION, ...MSEGAT }).msegat?.sender).toBe("Questify");
+    });
+
+    it("reads the promotional sender, and refuses one that is the service sender or has no account", () => {
+      expect(loadConfig({ ...REQUIRED, ...MSEGAT }).msegatPromoSender).toBeUndefined();
+      expect(
+        loadConfig({ ...REQUIRED, ...MSEGAT, MSEGAT_PROMO_SENDER: " Questify-AD " })
+          .msegatPromoSender,
+      ).toBe("Questify-AD");
+      for (const same of ["Questify", "questify", " QUESTIFY "]) {
+        expect(() => loadConfig({ ...REQUIRED, ...MSEGAT, MSEGAT_PROMO_SENDER: same })).toThrow(
+          /must not be MSEGAT_SENDER/,
+        );
+      }
+      expect(() => loadConfig({ ...REQUIRED, MSEGAT_PROMO_SENDER: "Questify-AD" })).toThrow(
+        /needs the Msegat account/,
+      );
     });
 
     it("refuses a partial account anywhere", () => {

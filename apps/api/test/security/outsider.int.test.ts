@@ -1033,6 +1033,126 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(secured).toHaveLength(1);
     });
 
+    it("cannot read an invitation, request, approve, send or open one, or reach the consent pool (T-409)", async () => {
+      const probe = "gen_random_uuid()";
+      for (const sql of [
+        "SELECT * FROM public.invitation_campaign",
+        "SELECT * FROM public.invitation_recipient",
+        "SELECT * FROM public.invitation_channel_hold",
+        "INSERT INTO public.invitation_channel_hold (channel, hold_until, code) VALUES ('sms', now(), 'x')",
+        `SELECT public.invitation_request(${probe}, '{}', ${probe})`,
+        `SELECT public.invitation_cancel(${probe}, ${probe}, ${probe})`,
+        `SELECT public.invitation_list(${probe})`,
+        "SELECT public.invitation_admin_queue()",
+        `SELECT public.invitation_admin_get(${probe})`,
+        `SELECT public.invitation_approve(${probe}, '{sms}', 50, now(), NULL, NULL, NULL, ${probe})`,
+        `SELECT public.invitation_refuse(${probe}, 'x', ${probe})`,
+        `SELECT public.invitation_admin_cancel(${probe}, 'x', ${probe})`,
+        "SELECT public.invitation_start_due()",
+        "SELECT * FROM public.invitation_claim('{sms}', 5)",
+        `SELECT public.invitation_ack(1, ${probe}, 'sent', NULL)`,
+        "SELECT public.invitation_settle()",
+        `SELECT public.invitation_open(${probe})`,
+        "SELECT * FROM public.promo_pool('sms', NULL, NULL)",
+        "SELECT * FROM public.invitation_claim_at('{sms}', 5, now())",
+        `SELECT * FROM public.invitation_candidates(${probe})`,
+        "SELECT public.invitation_on()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = [
+        "invitation_request",
+        "invitation_cancel",
+        "invitation_list",
+        "invitation_admin_queue",
+        "invitation_admin_get",
+        "invitation_approve",
+        "invitation_refuse",
+        "invitation_admin_cancel",
+        "invitation_start_due",
+        "invitation_claim",
+        "invitation_ack",
+        "invitation_settle",
+        "invitation_open",
+        "marketing_audience",
+        "set_marketing",
+      ];
+      const internals = [
+        "promo_pool",
+        "invitation_on",
+        "invitation_system_only",
+        "invitation_event_ok",
+        "invitation_bucket",
+        "invitation_sms_quiet",
+        "invitation_audit",
+        "invitation_org_json",
+        "invitation_admin_json",
+        "invitation_candidates",
+        "invitation_expire_leases",
+        "invitation_skip_queued",
+        "invitation_team_event",
+        "invitation_criteria",
+        "invitation_note",
+        "invitation_claim_lock",
+        "invitation_claim_campaigns",
+        "invitation_skip_row",
+        "invitation_claim_at",
+        "invitation_settle_lock",
+        "invitation_settle_unstarted",
+        "invitation_settle_joined",
+        "invitation_settle_finish",
+        "invitation_settle_final",
+        "invitation_settle_publish",
+        "invitation_purge",
+        "invitation_campaign_gone",
+        "marketing_state_apply",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the doors only, never promo_pool, the fixed-time claim or a helper.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(
+        [...doors].toSorted(),
+      );
+      // Every function the migration made has its place in the two lists above (a new one must be classified).
+      const made = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND (left(p.proname, 11) = 'invitation_' OR p.proname = 'promo_pool') ORDER BY 1`,
+      );
+      expect(made.map((row) => row.proname).toSorted()).toEqual(
+        [...doors, ...internals]
+          .filter((name) => name.startsWith("invitation_") || name === "promo_pool")
+          .toSorted(),
+      );
+      const held = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE n.nspname = 'public'
+           AND c.relname IN ('invitation_campaign', 'invitation_recipient', 'invitation_channel_hold')
+           AND (has_table_privilege('questify_app', c.oid, p.priv) OR has_table_privilege('public', c.oid, p.priv))`,
+      );
+      expect(held).toEqual([]);
+      const secured = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity
+           AND c.relname IN ('invitation_campaign', 'invitation_recipient', 'invitation_channel_hold')`,
+      );
+      expect(secured).toHaveLength(3);
+      const [pool] = await rows<{ definer: boolean; config: string[] | null; can: boolean }>(
+        `SELECT p.prosecdef AS definer, p.proconfig AS config,
+                has_function_privilege('questify_app', p.oid, 'EXECUTE') AS can
+         FROM pg_proc p WHERE p.proname = 'promo_pool'`,
+      );
+      // Plain SQL, no definer and no SET clause, so the planner can inline it; never callable by the API role.
+      expect(pool).toEqual({ definer: false, config: null, can: false });
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

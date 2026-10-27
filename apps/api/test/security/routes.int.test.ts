@@ -77,6 +77,18 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/interests": "no tenant data: the same seeded interest list for everyone",
   "POST /v1/public/marketing/opt-out":
     "names the player only inside a signed token (HMAC under the server's key): a forged or altered token answers 400 and touches nothing; turns a channel off only, never on; the same 204 for a known and an unknown player; 30 tries an hour per address (test/marketing/routes, src/marketing/opt-out)",
+  "GET /v1/admin/invitation-campaigns":
+    "active platform admins only (walked below); exact counts and organizer and event names, no player; the admin checked again (questify_admin) (test/invitations/routes, test/db/invitation-campaigns)",
+  "GET /v1/admin/invitation-campaigns/:campaignId":
+    "active platform admins only (walked below); exact counts, the audience estimate as a number, the event's names and the messages rendered with placeholder tokens, never a player or a real token (test/invitations/routes, test/db/invitation-campaigns)",
+  "POST /v1/admin/invitation-campaigns/:campaignId/approve":
+    "active platform admins only (walked below); Idempotency-Key; the names the console showed must still be the event's (event_renamed), the name rule, channels this server can send; audited without counts (test/invitations/routes, test/db/invitation-campaigns)",
+  "POST /v1/admin/invitation-campaigns/:campaignId/refuse":
+    "active platform admins only (walked below); Idempotency-Key; requested only, a note; audited (test/invitations/routes, test/db/invitation-campaigns)",
+  "POST /v1/admin/invitation-campaigns/:campaignId/cancel":
+    "active platform admins only (walked below); Idempotency-Key; a note; queued rows cancelled, no row left stuck (test/invitations/routes, test/db/invitation-sending)",
+  "POST /v1/public/invitation-open":
+    "anonymous by design: the bearer token from the link's fragment names one recipient row, answered only with the public event card, never player data; its own bucket of 120 an hour per address counted before the token is read; the same 404 for unknown, purged and ended (test/invitations/routes, test/db/invitation-sending)",
   "GET /v1/admin/players/:playerId/marketing-consent":
     "active platform admins only (walked below); channels and dates, no contact; the admin checked again (questify_admin) and one audit row per read (test/marketing/routes, test/db/marketing)",
   "GET /v1/admin/daily":
@@ -150,6 +162,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the caller leaves; the owner cannot (test/organizers/team)",
   "GET /v1/organizers/:organizerId/members":
     "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
+  "GET /v1/organizers/:organizerId/events/:eventId/invitation-campaigns":
+    "members in the event's scope through invitation_list (tenant and scope checked again, IV404 otherwise); rounded published counts only, parsed with the strict schema, never a player (test/invitations/routes, test/db/invitation-campaigns, cross-tenant)",
+  "POST /v1/organizers/:organizerId/events/:eventId/invitation-campaigns":
+    "the owner only (403 owner_only, checked again in invitation_request); Idempotency-Key and a request key bound to the caller, organizer and path; the event in the tenant (IV404); audited without counts (test/invitations/routes, test/db/invitation-campaigns, cross-tenant)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/invitation-campaigns/:campaignId":
+    "the owner only; the campaign must belong to the event in the tenant (IV404), requested or approved (test/invitations/routes, test/db/invitation-campaigns, cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/souvenirs":
     "active scoped owner/editor only; narrow SQL list (souvenirs)",
   "POST /v1/organizers/:organizerId/events/:eventId/souvenirs":
@@ -678,6 +696,7 @@ const PUBLIC_ROUTES = [
   "POST /v1/deletion/confirm",
   "POST /v1/deletion/verify",
   "POST /v1/device/pairing",
+  "POST /v1/public/invitation-open",
   "POST /v1/public/marketing/opt-out",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",

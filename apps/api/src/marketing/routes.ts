@@ -15,6 +15,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack } from "#src/devices/limits";
 import {
+  consentLanguage,
   optOutChannel,
   readForYou,
   readInterests,
@@ -70,7 +71,8 @@ export function registerMarketingRoutes(app: FastifyInstance, deps: Deps): void 
       throw consentTextOutdated({ textVersion: MARKETING_TEXT_VERSION });
     }
     await writeBudget(id, reply);
-    return as(id, (client) => setMarketing(client, body));
+    const language = consentLanguage(request.headers["accept-language"]);
+    return as(id, (client) => setMarketing(client, body, language));
   });
 
   app.get("/v1/me/preferences", player, async (request, reply) => {

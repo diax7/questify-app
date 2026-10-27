@@ -86,6 +86,13 @@ export const FEATURES: FeatureRegistry = {
    */
   helpDesk: { gated: false },
   /**
+   * Questify invitations (T-409, FR-738, ADR-330 (7)): off until a Questify admin switches it on, which waits for the
+   * web pages (T-409b), the privacy policy's line on invitation counts and the promotional SMS sender (RUNBOOK). Off,
+   * owners cannot request a campaign and nothing is started or sent at once; results keep being counted and published.
+   * No event switch: the admin's approval is the per-event gate. Never shown in the mobile app (FR-740).
+   */
+  invitationCampaigns: { gated: false, level: "platform", offByDefault: true },
+  /**
    * Location check-in quests and the far-from-venue flag (T-303b, ADR-208): off for every event until the App Store
    * privacy label, Play's Data safety form and the database's parameter logging are confirmed. Off, the builder refuses
    * the type, the app never reads location, and existing location quests complete by their QR.

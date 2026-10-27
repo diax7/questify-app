@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  consentLanguage,
   readConsentHistory,
   readPromoAudience,
   refusalOf,
@@ -38,6 +39,22 @@ describe("readPromoAudience", () => {
       await readPromoAudience(await clientOf(pool), { channel: "push", pageSize: 10 }),
     ).toEqual([]);
     expect(seen).toEqual([["push", null, null, null, 10]]);
+  });
+});
+
+describe("consentLanguage", () => {
+  it.each([
+    ["ar", "ar"],
+    ["en", "en"],
+    ["EN-us,ar;q=0.8", "en"],
+    ["ar-SA", "ar"],
+    [" en ", "en"],
+    ["fr", null],
+    ["", null],
+    [undefined, null],
+    [["en"], null],
+  ])("reads %j as %s", (header, expected) => {
+    expect(consentLanguage(header)).toBe(expected);
   });
 });
 

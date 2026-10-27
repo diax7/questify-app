@@ -17,6 +17,8 @@ const LIFECYCLE_INTERVAL_MS = 30_000;
 /** The community tick (ADR-222): settles each goal and pays due rewards every 5 s. */
 const COMMUNITY_INTERVAL_MS = 5000;
 const RANKING_REPAIR_INTERVAL_MS = 2000;
+/** The invitation tick (ADR-333): starts, sends rounds of 5 for up to 3 s, settles every 10 minutes. */
+const INVITATION_INTERVAL_MS = 5000;
 /** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
 const REDIS_COMMAND_TIMEOUT_MS = 250;
 const REDIS_CONNECT_TIMEOUT_MS = 2000;
@@ -105,11 +107,21 @@ async function main(): Promise<void> {
     }),
     breachCheck: createBreachCheck(),
     ...(config.msegat === undefined ? {} : { smsSender: createMsegatSender(config.msegat) }),
+    // Invitations go only from the registered promotional sender (FR-1112); loadConfig refused it equal to the service one.
+    ...(config.msegat === undefined || config.msegatPromoSender === undefined
+      ? {}
+      : {
+          promoSmsSender: createMsegatSender({
+            ...config.msegat,
+            sender: config.msegatPromoSender,
+          }),
+        }),
     lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
     ...(redis === undefined ? {} : { rankingStore: createRankingStore(redis) }),
     rankingRepairIntervalMs: RANKING_REPAIR_INTERVAL_MS,
     communityIntervalMs: COMMUNITY_INTERVAL_MS,
     souvenirIntervalMs: 5000,
+    invitationIntervalMs: INVITATION_INTERVAL_MS,
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

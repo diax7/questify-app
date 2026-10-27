@@ -886,6 +886,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by the consent log's trigger, read by own_marketing for the caller and by marketing_audience as ids of opted-in players; no organizer or public read exists (marketing)",
   gem_purchase:
     "no direct API rights; append-only, written only by gem_buy for the calling player; no organizer read exists (gem-shop)",
+  invitation_campaign:
+    "no direct API rights; written only by the owner's tenant- and scope-checked doors (invitation_request, invitation_cancel), the admin-checked console doors and the system-only sender; read by its event's team through invitation_list with rounded counts only (tested below, invitation-campaigns, invitations/routes)",
+  invitation_recipient:
+    "no direct API rights; who was invited is never shown to an organizer: written by the system-only fill, claim, ack and settle, the anonymous invitation_open by bearer link, deleted by erasure and the 90-day purge (invitation-sending)",
+  invitation_channel_hold:
+    "no direct API rights; one row per channel with a provider code, no tenant and no person; written by the system-only ack, read by the claim and the console's detail (invitation-sending)",
   gem_shop_item:
     "platform-wide catalog with no tenant, no direct API rights; seeded only, read through the caller-bound gem_shop (gem-shop)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
@@ -1397,6 +1403,51 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
        ORDER BY 1`,
     );
     expect(rows.map((row) => row.name)).toEqual(["own_daily_streak", "questify_sync"]);
+  });
+
+  it("keeps the invitation doors inside their tenant (T-409)", async () => {
+    await db.owner.query(
+      `INSERT INTO platform_setting (key, value) VALUES ('features', '{"invitationCampaigns": {"enabled": true}}')
+       ON CONFLICT (key) DO UPDATE SET value = platform_setting.value || excluded.value`,
+    );
+    const { rows } = await db.owner.query<{ id: string }>(
+      `INSERT INTO invitation_campaign (organizer_id, event_id, request_id, fingerprint, size)
+       VALUES ($1, $2, gen_random_uuid(), 'b', 50) RETURNING id`,
+      [f.orgB, f.publicEventB],
+    );
+    const theirs = rows[0]?.id;
+    const key = randomUUID();
+    expect(await refusal(asA("organizer", "SELECT invitation_list($1)", [f.publicEventB]))).toBe(
+      "IV404",
+    );
+    expect(
+      await refusal(
+        asA("organizer", `SELECT invitation_request($1, '{"size": 50}', $2)`, [
+          f.publicEventB,
+          key,
+        ]),
+      ),
+    ).toBe("IV404");
+    for (const event of [f.publicEventB, f.eventA]) {
+      expect(
+        await refusal(
+          asA("organizer", "SELECT invitation_cancel($1, $2, $3)", [event, theirs, key]),
+        ),
+      ).toBe("IV404");
+    }
+    for (const seat of ["staff", "player"] as const) {
+      expect(await refusal(asA(seat, "SELECT invitation_list($1)", [f.publicEventB]))).toBe(
+        "IV404",
+      );
+    }
+    // Only an active platform admin reaches the console's doors; a team seat is refused like anyone else.
+    expect(await refusal(asA("organizer", "SELECT invitation_admin_get($1)", [theirs]))).toBe(
+      "QY403",
+    );
+    expect(
+      await count("owner", "invitation_campaign WHERE state = 'requested' AND id = $1", [theirs]),
+    ).toBe(1);
+    await db.owner.query("DELETE FROM invitation_campaign WHERE id = $1", [theirs]);
   });
 
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {

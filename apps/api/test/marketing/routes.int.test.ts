@@ -86,6 +86,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
       ...(payload === undefined ? {} : { payload }),
     });
 
+  /** Saves SMS consent with this accept-language and reads the language the state records. */
+  const putLanguage = async (language: string | undefined, channels: object) => {
+    const { token, player } = await newSession();
+    const answer = await test.app.inject({
+      method: "PUT",
+      url: "/v1/me/marketing",
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(language === undefined ? {} : { "accept-language": language }),
+      },
+      payload: body({ channels }),
+    });
+    expect(answer.statusCode).toBe(200);
+    const [row] = await f.owner<{ language: string | null }>(
+      "SELECT language FROM marketing_state WHERE player_id = $1 AND channel = 'sms'",
+      [player],
+    );
+    return row?.language;
+  };
+
   const consoleGet = (cookie: string | null, player: string) =>
     test.app.inject({
       method: "GET",
@@ -123,6 +143,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
       expect(on.channels.sms.optedIn).toBe(true);
       expect(on.channels.sms.changedAt).not.toBeNull();
       expect(on.channels.push.optedIn).toBe(false);
+    });
+
+    it("records the language of the screen the consent was given on (accept-language, T-409)", async () => {
+      expect(await putLanguage("en", { sms: true })).toBe("en");
+      expect(await putLanguage("ar", { sms: true })).toBe("ar");
+      expect(await putLanguage("fr-FR", { sms: true })).toBeNull();
+      expect(await putLanguage(undefined, { sms: false })).toBeNull();
     });
 
     it("refuses outdated wording, a possible minor and a bad body", async () => {

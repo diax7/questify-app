@@ -44,6 +44,11 @@ export type AppConfig = Readonly<{
    */
   msegat: Readonly<{ userName: string; apiKey: string; sender: string }> | undefined;
   /**
+   * The registered promotional "...-AD" sender name for Questify invitations (FR-1112, ADR-331 (1), Q-034), used with
+   * the Msegat account above. Without it invitation SMS cannot be approved. Never the service sender.
+   */
+  msegatPromoSender: string | undefined;
+  /**
    * The Redis that holds live rankings (ADR-118). Required in production; elsewhere, without it, rankings are read from
    * PostgreSQL (the same order, more database work).
    */
@@ -169,6 +174,7 @@ export function loadConfig(env: Env): AppConfig {
     qrSecret: longSecret(env, "QR_SECRET"),
     rewardCodeSecret: longSecret(env, "REWARD_CODE_SECRET"),
     msegat: msegat(env, nodeEnv),
+    msegatPromoSender: msegatPromoSender(env),
     redisUrl: redisUrl(env, nodeEnv),
   };
 }
@@ -208,6 +214,29 @@ function msegat(env: Env, nodeEnv: string): AppConfig["msegat"] {
     apiKey: required(env, "MSEGAT_API_KEY"),
     sender: required(env, "MSEGAT_SENDER"),
   };
+}
+
+/**
+ * Optional; it rides on the Msegat account. A promotion must never leave from the service sender (FR-1112), so the
+ * server does not start when the two names are the same.
+ */
+function msegatPromoSender(env: Env): string | undefined {
+  const promo = optional(env, "MSEGAT_PROMO_SENDER");
+  if (promo === undefined) {
+    return undefined;
+  }
+  const service = optional(env, "MSEGAT_SENDER");
+  if (service === undefined) {
+    throw new Error(
+      "MSEGAT_PROMO_SENDER needs the Msegat account (MSEGAT_USERNAME, MSEGAT_API_KEY, MSEGAT_SENDER).",
+    );
+  }
+  if (promo.trim().toLowerCase() === service.trim().toLowerCase()) {
+    throw new Error(
+      'MSEGAT_PROMO_SENDER must not be MSEGAT_SENDER: promotions go only from the registered "-AD" sender (FR-1112).',
+    );
+  }
+  return promo.trim();
 }
 
 /** Required in every environment: a missing key must stop the server, never fall back to a known one. */
