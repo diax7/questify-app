@@ -822,6 +822,7 @@ phone?
 ## Q-259 — Split T-405 into a core part and a screens part? (2026-10-27, T-405 plan)
 Recommended (ADR-294): T-405 builds the streak records, the event bonus, the daily milestones and the doors (core);
 T-405b builds the app lines, the dashboard Streak panel and the strings (standard, cheaper model). Agree, or one task?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-294 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-260 — How event streak days and closed days work (2026-10-27, T-405 plan)
 Recommended (ADR-295): the organizer marks closed weekdays (for example Friday) and closed dates; those days neither
@@ -829,15 +830,18 @@ count nor break the streak; played days are recorded on every multi-day event so
 a day that has started can no longer be marked closed or open. Agree, or should closed days come from something else
 (for example days with no quest open)? Two consequences (plan review): a day lost to an outage cannot be marked closed
 afterwards, and a single-day event extended to several days counts from the extension only.
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-295 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-261 — The event streak bonus (2026-10-27, T-405 plan)
 Recommended (ADR-296): the same bonus every streak day, from day 2 (day 1 is not a streak yet), paid with the day's first
 quest. Agree, or pay from day 1, or grow the bonus with the streak (for example bonus × days, capped)?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-296 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-262 — The Questify day and what keeps the daily streak (2026-10-27, T-405 plan)
 Recommended (ADR-297): one day for everyone, 04:00 to 04:00 Riyadh time; any event quest completion keeps it (the daily
 challenge and word join with T-406); days while the platform switch is off never count. Agree, or should the day change
 at midnight, or in the player's own time zone?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-297 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-263 — Daily streak rewards, and gems from a level it causes (2026-10-27, T-405 plan)
 Recommended (ADR-298): XP only at 3, 7, 14, 30, 60, 100, 200 and 365 days (50 to 750 XP), each once ever; no items yet.
@@ -846,28 +850,34 @@ should each new streak run pay its milestones again, should items be added, or s
 gems?
 **Developer view (plan review, 2026-10-27):** agreed that level gems come from the level, so FR-421's "gems unchanged"
 means the streak reward itself writes no gems; the milestone and item parts stay open for Dhia.
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-298 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-264 — Where the streak switches live (2026-10-27, T-405 plan)
 Recommended (ADR-299): the platform daily-streak switch is a feature key T-703's console page flips; the event streak
 (on/off, bonus, closed days) is set only by the event owner in its own panel. Agree, or should editors also set it?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-299 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-265 — Streak copy and pressure (2026-10-27, T-405 plan)
 Recommended (ADR-300): no freeze or repair, no "don't lose your streak" copy, no countdown or red badge; a broken
 streak says "Start a new streak today". Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-300 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-266 — Which day a reviewed or team-awarded completion counts for (2026-10-27, T-405 plan review)
 Recommended (ADR-301, developer decision for v1): a submission counts on the day a reviewer approves it, and a team's
 manual quest award counts the day and pays that day's streak bonus like any completion. Agree, or should a submission
 count on the day it was sent (which would need a later day row and a bonus paid after the fact)?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-301 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-267 — T-405 build choices (2026-10-27, T-405 build)
 Recommended (ADR-302): the streak bonus always moves the balance with the score (it is paid only while the event is
 live, when the shop is open); the daily streak read says whether today counts and the next unpaid milestone; saving the
 same streak settings again changes nothing and writes no audit row; the milestone table is append-only; the team's award
 list shows a removed streak bonus under the paying quest's title. Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-302 accepted; plan review 86 folded, code review GO 93).
 
 ## Q-268 — The streak's cost at the entrance burst (2026-10-27, T-405 build)
 Recommended (ADR-303): accept that 300 first-of-the-day completions at once are about 10 to 18 ms slower at p95 (12% to
 24%) with the event streak, its bonus and the daily streak, against the plan's 10% target, as the first-N bonus's +22.7%
 was (Q-229). Agree, or should the daily streak's row move out of the completion transaction (into the sync, losing a
 day played by someone who never opens the app before the day ends)?
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as a burst budget of about 20 ms at p95 within NFR-002's 1 s, in place of the 10% target (ADR-303 accepted). The CTO's rerun at the code review: 75.7 ms without streak work, 89.1 ms with it (+17.7%, about 13 ms), 84.2 ms with the day rows alone (+11.3%); the day's first completion only. Re-timed when T-406 writes the same daily row.

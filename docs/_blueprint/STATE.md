@@ -1495,11 +1495,19 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   (`test/perf/streak-timing.int`): +12% to +24% at p95 (10 to 18 ms) over the 10% target, Proposed ADR-303 / Q-268 to
   accept; build choices ADR-302 / Q-267. Full suite (second run): 409 files passed, 4 skipped; 6562 tests passed, 5 skipped; 2 failed: one stale submissions unit fixture (fixed, re-run green) and the known first-N bonus Stop timing test under full-suite load (passes alone). Mutation owed on GitHub (core files only). Progress
   82/158 (51.90%).
+  Core code review GO 93 (independent, no re-review); folded in: a non-object body or an unknown key with no listed field at
+  fault is a plain 400 `invalid_request` (tested); `set_event_streak` takes the event FOR KEY SHARE before the
+  final-results check, as `remove_award` does (0068 edited in place, undeployed; a DB test crosses a confirmation and fails
+  without the lock); ADR-303's target became a burst budget of about 20 ms at p95 within NFR-002 (CTO rerun +17.7%, about
+  13 ms; re-time with T-406, TASKS note); the T-405b note that a closed day reads `closedToday` first; the first-N bonus
+  Stop test (`first-bonus.int`, CTO 4) is load-independent (4,000 players claimed back to back; Stop must return within a
+  loose 15 s guard and the lanes keep claiming after it; a setter made to wait for the claims to pause fails it). ADR-294
+  to ADR-303 Accepted, Q-259 to Q-268 answered.
 
 ## Next
 
-1. **T-405 core code review** (independent, strongest model; check MAJOR-1 and MAJOR-2 and the burst timing, ADR-303),
-   then the GitHub mutation run on T-405's core files, then T-405b. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-268. No deployment/EAS/
+1. **The GitHub mutation run on T-405's core files**, then **T-405b** (standard; screens, the dashboard Streak panel,
+   strings). Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

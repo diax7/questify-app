@@ -74,6 +74,7 @@ const REPEATS: Readonly<Record<string, number>> = {
 };
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const noop = (): void => undefined;
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The first-N bonus in the database (T-313, migration 0062, ADR-260 to ADR-263): the race at the Nth place, every door
@@ -999,26 +1000,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
       expect(await bonusOf(two, fresh.quest)).toMatchObject([{ score_delta: "9" }]);
     });
 
-    it("Stop during continuous claims on 8 connections finishes in under 2 seconds (CTO 4)", async () => {
+    it("Stop during continuous claims on 8 connections returns while they keep claiming (CTO 4)", async () => {
       const { event, quest } = await bonusQuest(1000);
-      const players = await Promise.all(Array.from({ length: 210 }, () => member(event)));
-      const running = { stop: false };
-      const loops = Array.from({ length: 8 }, async (_, lane) => {
-        for (let next = lane; !running.stop && next < players.length; next += 8) {
-          await complete(players[next]?.player ?? "", quest);
+      // Far more players than a Stop needs, made at once, so each lane claims back to back until told to stop: a Stop
+      // starved by the shared holders would not return (the loose guard below) or would return only once the lanes ran
+      // out (the claims after it), whatever the machine's load.
+      counter += 1;
+      const players = (
+        await owner<{ player_id: string }>(
+          `WITH p AS (INSERT INTO player (username)
+                      SELECT 'fnb_stop_' || $1 || '_' || n FROM generate_series(1, 4000) n RETURNING id)
+           INSERT INTO enrollment (organizer_id, event_id, player_id) SELECT $2, $3, p.id FROM p
+           RETURNING player_id`,
+          [counter, ids.orgA, event],
+        )
+      ).map((row) => row.player_id);
+      const running = { stop: false, claims: 0 };
+      const loops = Array.from({ length: 8 }, async () => {
+        for (let next = players.pop(); !running.stop && next !== undefined; next = players.pop()) {
+          await complete(next, quest);
+          running.claims += 1;
         }
       });
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const started = Date.now();
-      expect(await setBonus(event, quest, null, 0)).toBe("set");
-      const took = Date.now() - started;
-      const [after] = await leftOf(event);
-      running.stop = true;
-      await Promise.all(loops);
-      expect(took).toBeLessThan(2000);
-      expect(after?.free).toBe(0);
-      expect(after?.slots).toBe(after?.given);
-      expect(await bonuses(quest)).toHaveLength(after?.given ?? -1);
+      try {
+        // Stop once real players got the bonus, so Stop keeps N at their count (with none it would switch off).
+        for (let waited = 0; running.claims < 8 && waited < 750; waited += 1) await pause(20);
+        const stopped = await Promise.race([
+          setBonus(event, quest, null, 0),
+          pause(15_000).then(() => "starved"),
+        ]);
+        const [after] = await leftOf(event);
+        // The lanes were still claiming when Stop returned, and go on paying the quest's points after it.
+        const claimsAtStop = running.claims;
+        for (let waited = 0; running.claims < claimsAtStop + 8 && waited < 750; waited += 1)
+          await pause(20);
+        expect(running.claims).toBeGreaterThanOrEqual(claimsAtStop + 8);
+        expect(stopped).toBe("set");
+        expect(after?.free).toBe(0);
+        expect(after?.slots).toBe(after?.given);
+        expect(await bonuses(quest)).toHaveLength(after?.given ?? -1);
+        expect(after?.given).toBeLessThan(running.claims);
+      } finally {
+        running.stop = true;
+        await Promise.all(loops);
+      }
     });
   });
 

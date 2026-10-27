@@ -526,19 +526,28 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     member_activity, member_ledger, a quest's `earned`). API `apps/api/src/streaks/` (team `GET`/`PUT …/streak`),
     `streakBonus` on the completion answers, `streak` on Home, `streakDays` in the history and the team record,
     `dailyStreak` on `/v1/me` and the sync; registry key `dailyStreak`; shared `streaks/`. Tests: `test/db/event-streak`,
-    `daily-streak`, `streaks-upgrade`, `test/streaks/routes`, unit and shared, security suites. Proposed ADR-302 / Q-267,
-    ADR-303 / Q-268 (the burst timing, +12% to +24% at p95, over the 10% target). Progress 82/158 (51.90%).
+    `daily-streak`, `streaks-upgrade`, `test/streaks/routes`, unit and shared, security suites. ADR-302 / Q-267,
+    ADR-303 / Q-268 (the burst timing, now a budget of about 20 ms at p95). Progress 82/158 (51.90%).
+    Core code review GO 93 (no re-review), folded in: a body with no listed field at fault is a plain 400
+    `invalid_request`; `set_event_streak` takes the event FOR KEY SHARE before the final-results check (tested crossing a
+    confirmation); the burst budget (ADR-303); the T-405b `closedToday` note; the first-N bonus Stop test made
+    load-independent. ADR-294 to ADR-303 Accepted, Q-259 to Q-268 answered.
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
 - [ ] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
   - Split from T-405 2026-10-27 (ADR-294). Standard; plan: `docs/plans/2026-10-27-t-405-streaks.md` (T-405b section).
     No loss or guilt copy, no countdown (ADR-300). The owner-only switch adds one "Only the owner can change this." note
     (`apps/web/e2e/organizers.spec.ts` count).
+  - Note 2026-10-27 (T-405 code review): on a closed event day no day row is written, so Home's `streak.playedToday` is
+    false; the screen reads `closedToday` first ("The event is closed today. Your streak is safe.") and only then
+    `playedToday`.
   - Done when: With the streak off no player sees an event streak; with the platform switch off no player sees a daily streak.
 - [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
   - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.
   - Note 2026-10-27 (T-405): the daily challenge and the daily word each write the player's `questify_streak_day` row for
     `questify_day(now())` through their own door (`INSERT … ON CONFLICT DO NOTHING`, only while `daily_streak_on()`),
     so they keep the daily streak alive (FR-419); the word's "same for everyone that day" uses the same `questify_day`.
+    Re-time the entrance burst (`apps/api/test/perf/streak-timing.int.test.ts`) once that row has a second writer: the
+    budget is about 20 ms at p95 within NFR-002 (ADR-303).
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
 - [ ] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Note 2026-10-26 (T-403): the player's city reuses the `city` table (migration 0065); "set your interests" adds its metric to `player_metrics` and is counted by the same `questify_sync` evaluator (FR-710).

@@ -1,7 +1,7 @@
 import { streakSettingsBodySchema, type StreakField } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { invalidStreak, notFound, streakConflict } from "#src/auth/http-errors";
+import { invalidRequest, invalidStreak, notFound, streakConflict } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import {
@@ -44,14 +44,20 @@ const FIELDS: ReadonlySet<string> = new Set<StreakField>([
   "closedDays",
 ]);
 
-/** The body checked here first, naming the first field at fault (`invalid_streak {field}`). */
+/**
+ * The body checked here first, naming the first listed field at fault (`invalid_streak {field}`); a body that is not
+ * an object, or has an unknown key and no bad field, is a plain 400 `invalid_request`.
+ */
 const bodyOf = (body: unknown) => {
   const result = streakSettingsBodySchema.safeParse(body);
   if (!result.success) {
     const named = result.error.issues
       .map((issue) => String(issue.path[0] ?? ""))
       .find((field) => FIELDS.has(field));
-    throw invalidStreak({ field: named ?? "enabled" });
+    if (named === undefined) {
+      throw invalidRequest();
+    }
+    throw invalidStreak({ field: named });
   }
   return result.data;
 };

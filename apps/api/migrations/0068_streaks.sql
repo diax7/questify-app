@@ -285,8 +285,8 @@ CREATE TRIGGER ledger_streak AFTER INSERT ON ledger_entry FOR EACH ROW
 -- (a closed date added or removed that has started, today included, or a closed weekday added or removed that a
 -- started event day fell on), so stored lengths and paid bonuses never disagree with the settings; ST422 with the field
 -- in DETAIL (enabled, bonusPoints 1 to 100,000 or none, closedWeekdays 1 to 7 at most six and unique, closedDays at
--- most 366 inside the event's days). Locks only the event_streak row (its insert key-shares the event), never an
--- enrollment, a completion or an XP row. An amount or on/off change applies to bonuses paid after it commits. Answers
+-- most 366 inside the event's days). Locks the event FOR KEY SHARE (against a results confirmation in flight), then
+-- only the event_streak row, never an enrollment, a completion or an XP row. An amount or on/off change applies to bonuses paid after it commits. Answers
 -- 'set' or 'unchanged' (the same settings again: nothing written, no audit). Audited `event.streak_set`.
 CREATE FUNCTION set_event_streak(target_event uuid, is_on boolean, points integer, weekdays smallint[],
                                  dates date[], request uuid) RETURNS text
@@ -305,6 +305,9 @@ BEGIN
   IF NOT app_is_owner(ev.organizer_id) THEN
     RAISE EXCEPTION 'no such event' USING ERRCODE = 'AN404';
   END IF;
+  -- The event first (confirm_results takes it FOR UPDATE): a confirm in flight waits for this change to commit, or
+  -- this change sees the frozen results, as remove_award does. KEY SHARE never waits on a payer (they key-share it too).
+  PERFORM 1 FROM event e WHERE e.id = ev.id FOR KEY SHARE;
   IF EXISTS (SELECT 1 FROM event_result x WHERE x.event_id = ev.id) THEN
     RAISE EXCEPTION 'the results are final' USING ERRCODE = 'RF409', DETAIL = 'results_final';
   END IF;

@@ -179,8 +179,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("streaks over HTTP", () => {
       [{ ...BODY, closedWeekdays: [8] }, "closedWeekdays"],
       [{ ...BODY, closedDays: ["soon"] }, "closedDays"],
       [{ ...BODY, enabled: "yes" }, "enabled"],
-      [{ ...BODY, freeze: true }, "enabled"],
-      [null, "enabled"],
     ] as const) {
       const refused = await team(ownerCookie, "PUT", event, body);
       expect([refused.statusCode, refused.json()["code"], refused.json()["details"]]).toEqual([
@@ -189,6 +187,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("streaks over HTTP", () => {
         { field },
       ]);
     }
+    for (const body of [{ ...BODY, freeze: true }, null, [BODY], []]) {
+      expect(codeOf(await team(ownerCookie, "PUT", event, body)), JSON.stringify(body)).toEqual([
+        400,
+        "invalid_request",
+      ]);
+    }
+    // A bad listed field is named even beside an unknown key.
+    const both = await team(ownerCookie, "PUT", event, { ...BODY, bonusPoints: 0, freeze: true });
+    expect(both.json()).toMatchObject({
+      code: "invalid_streak",
+      details: { field: "bonusPoints" },
+    });
     const outside = await team(ownerCookie, "PUT", event, { ...BODY, closedDays: ["2001-01-01"] });
     expect(outside.json()).toMatchObject({
       code: "invalid_streak",

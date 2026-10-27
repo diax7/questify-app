@@ -3811,7 +3811,7 @@ repeated colours the level frames already use.
 **Trade-offs:** The six colours are a design guess until the brand deck owner reviews them on a phone.
 
 ## ADR-294 — T-405 split: the streak ledgers (core), then the screens (standard)
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-259).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-259).
 **Decision:** T-405 (CORE) builds migration 0068, the API doors and the shared schemas: day records for both streaks,
 the event streak bonus (a points-ledger kind), the daily streak milestones (an XP source) in `questify_sync`, the event
 streak settings door, the reads and the platform switch. T-405b (STANDARD) builds the app's streak lines, the success
@@ -3822,7 +3822,7 @@ cheaper model and a standard review.
 **Trade-offs:** Two workers and two code reviews; the on-screen Givens of FR-417 and FR-420 are proven only by T-405b.
 
 ## ADR-295 — Event streak days: open event days, organizer closed days, recorded whether on or not
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-260). Extends ADR-083.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-260). Extends ADR-083.
 **Decision:** The event streak counts, per enrollment, consecutive open event days (FR-1714's day start, inside the
 event window) with at least one quest completion. A day is closed when its weekday is one of the organizer's closed
 weekdays (at most six) or its date is a closed date; a closed day neither counts nor breaks, and a completion on it
@@ -3840,7 +3840,7 @@ and gives METRICS its return-visit data. Freezing started days keeps stored leng
 closed day cannot fix it afterwards.
 
 ## ADR-296 — The event streak bonus: flat, from day 2, paid with the day's first quest
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-261). Extends ADR-045, FR-418, FR-1615.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-261). Extends ADR-045, FR-418, FR-1615.
 **Decision:** The organizer sets the bonus (1 to 100,000 points) or none. It is paid by the system, once per enrollment
 and open day, with the day's first quest completion through any door, when the streak that day is 2 or more; the same
 amount every day. Its own ledger kind `streak`: never boosted, no XP, balance 0 while the shop is closed, counted by the
@@ -3854,7 +3854,7 @@ manual awards: ADR-301.
 bonus line too).
 
 ## ADR-297 — The Questify daily streak: one Riyadh day, any quest completion, only while on, own-only
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-262). Extends ADR-045.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-262). Extends ADR-045.
 **Decision:** The Questify day runs 04:00 to 04:00 Asia/Riyadh for everyone (`questify_day`, reused by T-406). A day
 counts when the player has any non-rehearsal quest completion in any event; T-406 adds the daily challenge and word
 through the same row. The `ledger_streak` trigger writes one row per player and day, only while the platform switch
@@ -3867,7 +3867,7 @@ the row has no foreign key so it adds no player lock to the scan path.
 event has nothing that keeps the streak alive.
 
 ## ADR-298 — Daily streak rewards: XP at milestones, once ever, paid by the sync
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-263). Extends ADR-046, FR-421.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-263). Extends ADR-046, FR-421.
 **Decision:** The daily streak pays XP only, at seeded milestones (3, 7, 14, 30, 60, 100, 200 and 365 days: 50 to 750
 XP), each once ever per player, written by `questify_sync` as `xp_entry` source `streak` bound to a
 `questify_streak_reward` row. No items yet. It never writes event points or gems: no ledger or gem source exists for it.
@@ -3879,7 +3879,7 @@ keeps XP locks out of the scan path (ADR-274).
 are an indirect gem effect (Q-263).
 
 ## ADR-299 — Streak switches: a platform feature key and an owner-only event settings row
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-264).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-264).
 **Decision:** The platform switch is `FEATURES.dailyStreak` (`level: "platform"`, on by default), shipped in `/v1/config`
 and read in SQL by `daily_streak_on()`; T-703's switches page is its console control. The event streak's on/off, bonus
 and closed days live in `event_streak`, set only by the event owner through `set_event_streak` (validated, audited), not
@@ -3889,7 +3889,7 @@ a validated, audited door. The platform key reuses the existing registry and con
 **Trade-offs:** Until T-703 ships its page, the platform switch is flipped through the settings service only.
 
 ## ADR-300 — Streaks put no pressure on players
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-265). Extends ADR-083.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 plan; Q-265). Extends ADR-083.
 **Decision:** Nothing about a streak is sold or offered (no freeze, repair or restore). Copy never threatens a loss or
 guilt-trips; no countdown to the day's end and no red badge; a broken streak reads "Start a new streak today"; a closed
 event day says the streak is safe. T-501's streak reminders follow the same rule. STORE_COMPLIANCE §6 gains the row.
@@ -3898,7 +3898,7 @@ players are 13 and over.
 **Trade-offs:** Softer copy may keep fewer streaks alive than loss-framed copy would.
 
 ## ADR-301 — Which day a streak completion counts for: the day it is paid; manual awards count
-**Status:** Proposed (developer decision for v1 at the T-405 plan review, 2026-10-27; Q-266). Extends ADR-295, ADR-296.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a developer decision for v1 at the T-405 plan review, 2026-10-27; Q-266). Extends ADR-295, ADR-296.
 **Decision:** A completion counts for the event day (and the Questify day) on which its quest ledger entry is written,
 whatever the door: a submission a reviewer approves counts on the approval day, not the day it was sent; a quiz on its
 finish; a game on its result. The team's manual quest award (`method = 'manual'`) is a completion like any other: it
@@ -3909,7 +3909,7 @@ door has; a manual award is the team confirming a quest the player did.
 keep a player's streak alive by hand (the organizer's own call).
 
 ## ADR-302 — T-405 build choices: the bonus moves the balance, the reads' shapes, the settings door's replay
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 build; Q-267). Extends ADR-295 to ADR-299, ADR-301.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 build; Q-267). Extends ADR-295 to ADR-299, ADR-301.
 **Decision:** (1) The streak bonus moves the balance with the score: the trigger pays only while the event is live, when
 its shop is always open, so ADR-296's "balance 0 while the shop is closed" cannot arise and is not written; the shape
 CHECK still allows a balance of 0 as the other system bonuses do. (2) The daily streak read is `{days, today, next}` with
@@ -3927,14 +3927,19 @@ open.
 **Trade-offs:** A later rule that pays a streak bonus after the event (none planned) would need the closed-shop branch
 back.
 
-## ADR-303 — The streak trigger's cost at the entrance burst is accepted
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405 build; Q-268). Extends ADR-296, ADR-297.
-**Decision:** The streak work at the entrance burst is accepted as measured: 300 first-of-the-day completions at once
-from two pools of 10, median p95 of six rounds, against the same burst with no streak work (a single-day event, the
-daily switch off): +24.2% (75.2 → 93.4 ms) in the first run, +12.0% (78.3 → 87.6 ms) with both day rows and the bonus and
-+13.8% (89.1 ms) with the day rows alone in the second, about 10 to 18 ms at p95, over the plan's 10% target. Every
-streak completion paid exactly one bonus. `apps/api/test/perf/streak-timing.int.test.ts` reruns it by hand.
+## ADR-303 — The streak trigger's cost at the entrance burst: a burst budget, not a percentage
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 86 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-405 build; Q-268; target changed at the code review). Extends ADR-296, ADR-297, NFR-002.
+**Decision:** The streak work at the entrance burst is accepted within a budget of about 20 ms at p95, inside NFR-002's
+1 s, in place of the plan's 10% target. Measured by hand (300 first-of-the-day completions at once from two pools of
+10, median p95 of six rounds, against the same burst with no streak work: a single-day event, the daily switch off):
+the worker's runs gave +24.2% (75.2 → 93.4 ms) and +12.0% (78.3 → 87.6 ms; day rows alone +13.8%); the CTO's rerun at
+the code review gave 75.7 ms without streak work, 89.1 ms with the full streak work (+17.7%, about 13 ms) and 84.2 ms
+with the day rows alone (+11.3%). Only the day's first completion pays this; later completions of the day cost one
+primary-key probe. Every streak completion paid exactly one bonus. `apps/api/test/perf/streak-timing.int.test.ts` reruns
+it; it is re-timed when T-406 writes the same daily row.
 **Why:** The cost is two small inserts, one nested ledger entry (the T-313 first-N bonus measured +22.7% for one, Q-229)
 and a few primary-key reads, all inside the transaction the payer already holds; moving any of it out of the
-transaction would lose the exactness the plan needs (the day row and the bonus with the completion that earned them).
+transaction would lose the exactness the plan needs (the day row and the bonus with the completion that earned them). A
+percentage of a fast baseline penalises a small absolute cost; a budget in milliseconds within NFR-002 states what
+players feel.
 **Trade-offs:** A large entrance burst on a multi-day event with the streak on is about 10 to 20 ms slower at p95.

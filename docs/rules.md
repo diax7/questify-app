@@ -97,7 +97,7 @@ save calls it after its quest write. No claim takes another lock after its slot.
 and before `ledger_xp` (triggers of one kind fire in name order), so it runs inside the payer's enrollment lock and
 before the `player_xp` lock; it takes no row lock of its own (its inserts key-share only rows the quest entry already
 names). The only wait it adds is one player's first completions of the day in two events at once (the second waits on
-the first's Questify day row, holding no XP row). The settings door `set_event_streak` locks only its `event_streak` row,
+the first's Questify day row, holding no XP row). The settings door `set_event_streak` takes the event FOR KEY SHARE (a results confirmation in flight finishes first), then only its `event_streak` row,
 never an enrollment, a completion or an XP row. `questify_sync` pays the milestones under its usual player KEY SHARE,
 then `player_xp` FOR UPDATE.
 

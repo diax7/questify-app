@@ -1136,6 +1136,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event day streak (database
       expect(await refusal(setStreak(archived, off))).toBe("ST409:archived");
     });
 
+    it("waits for a results confirmation in flight and then sees the results final", async () => {
+      const ev = await newEvent();
+      // The door's settings read first: a pooled connection is open before the owner's transaction starts.
+      await f.run(f.team(), "SELECT event_streak_settings($1)", [ev.id]);
+      const confirming = f.db.owner;
+      await confirming.query("BEGIN");
+      let pending: Promise<string> | undefined;
+      try {
+        await confirming.query("SELECT 1 FROM event WHERE id = $1 FOR UPDATE", [ev.id]);
+        await confirming.query(
+          "INSERT INTO event_result (event_id, organizer_id) VALUES ($1, $2)",
+          [ev.id, f.ids.orgA],
+        );
+        pending = refusal(setStreak(ev, { ...off, enabled: true }));
+        let waited = false;
+        for (let attempt = 0; attempt < 200 && !waited; attempt += 1) {
+          // Inside its own transaction this connection would keep its first activity snapshot.
+          await confirming.query("SELECT pg_stat_clear_snapshot()");
+          const rows = await confirming.query(
+            `SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'
+               AND query LIKE '%set_event_streak%'`,
+          );
+          waited = rows.rows.length > 0;
+          if (!waited) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(waited).toBe(true);
+        await confirming.query("COMMIT");
+      } catch (error) {
+        await confirming.query("ROLLBACK");
+        throw error;
+      }
+      expect(await pending).toBe("RF409:results_final");
+      expect(await owner("SELECT 1 FROM event_streak WHERE event_id = $1", [ev.id])).toEqual([]);
+    });
+
     it("refuses a change to a closed date that has started, today included; accepts a later one", async () => {
       const ev = await newEvent({ startedDaysAgo: 2 });
       for (const offset of [-1, 0]) {
