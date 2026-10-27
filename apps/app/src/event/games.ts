@@ -4,6 +4,7 @@ import {
   isGameName,
   type GameName,
   type GameTarget,
+  type StreakBonus,
 } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import {
@@ -19,6 +20,7 @@ import {
 import { drawable } from "#src/games/round.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 import { firstBonusPaidOf, type FirstBonusPaid } from "#src/event/first-bonus.ts";
+import { streakBonusPaidOf } from "#src/streaks/event-streak.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -180,6 +182,8 @@ export type ResultAnswer =
       boost: Boosted | null;
       /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
       firstBonus: FirstBonusPaid | null;
+      /** The event streak bonus it paid (T-405b); null when none. */
+      streakBonus: StreakBonus | null;
     }>
   | Readonly<{ kind: "done" }>
   | Readonly<{ kind: "short"; result: unknown; target: GameTarget; attemptsLeft: number | null }>
@@ -203,6 +207,7 @@ function sentOf(body: Record<string, unknown>): ResultAnswer {
         item: itemGivenOf(body["item"]),
         boost: boostedOf(body["boost"]),
         firstBonus: firstBonusPaidOf(body["firstBonus"]),
+        streakBonus: streakBonusPaidOf(body["streakBonus"]),
       };
     case "done":
       return { kind: "done" };

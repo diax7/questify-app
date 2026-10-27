@@ -3943,3 +3943,36 @@ transaction would lose the exactness the plan needs (the day row and the bonus w
 percentage of a fast baseline penalises a small absolute cost; a budget in milliseconds within NFR-002 states what
 players feel.
 **Trade-offs:** A large entrance burst on a multi-day event with the streak on is about 10 to 20 ms slower at p95.
+
+## ADR-304 — T-405b app copy and layout: days in a row, a closed day first, the redone flame, one line in every answer
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405b build; Q-269). Extends ADR-300, ADR-302.
+**Decision:** (1) The card's headline is "{N} days in a row" (Arabic «{N} أيام على التوالي», with the dual and the singular
+noun from 11 days) in place of the plan's "Day {N}": the stored length stays true on a day the player has not played yet,
+where "Day 3" would read as today. The success card keeps "Streak day {N}! +{points}". (2) The state is read in the order
+closed today, played today, a live streak, a fresh start (T-405 code review note): a closed day says "The event is closed
+today. Your streak is safe." (or only "The event is closed today." at 0) and never invites play. (3) The flame is the
+redone `icon-flame` (upright, one connected shape, no sparks), reviewed at full size and shipped as
+`apps/app/assets/icons/flame.png` at 128 px; it is decorative and the card is one element with a spoken label. (4) The
+scan celebration gets a streak beat after the first-N beat and before the level beat; every other answer (quest sheet,
+vote, survey, share, poll, game, quiz) carries the same line as its last sentence. (5) The profile shows the daily streak
+as an unframed block beside the gems (like the level and the gems), with the next unpaid milestone; one sync toast per
+milestone paid ("Streak of 7 days! +100 XP"). (6) The app hides the daily streak when `/v1/me` sends null (the server's
+reading of the platform switch); it reads no second copy of the switch.
+**Why:** Each keeps ADR-300's no-pressure rule (no countdown, no alert colour, no loss words; a unit test scans the
+lines) while showing the streak where a player already looks.
+**Trade-offs:** A phone that has not refreshed `/v1/me` keeps showing a daily streak for a short while after the switch
+goes off; the next read hides it.
+
+## ADR-305 — T-405b dashboard Day streak panel: one Save, upcoming dates only, the owner-only note on every event
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405b build; Q-270). Extends ADR-299.
+**Decision:** The panel sits on the event page after the other switches. Its five settings go to the server as one body
+(`PUT …/streak` takes all or nothing), so it has one Save button with an Idempotency-Key per distinct body, not the
+tick-to-save of the single switches. Closed weekdays are chips (at most six); closed dates may be added only for days
+after the event's own today, and a date that has started is listed and fixed (the server refuses to change a started day,
+and the panel words that refusal by reason: `day_started` names the day). A single-day event shows why it has no streak
+instead of controls. An editor reads the state, the bonus and the closed days, and sees "Only the owner can change this."
+on every event, single-day included (the organizers spec counts nine).
+**Why:** A partial save would leave the weekday and date lists out of step with the bonus; the owner-only note on every
+event keeps the editor's page the same shape whatever the event's length.
+**Trade-offs:** A closed weekday that a started event day falls on is refused by the server, not pre-disabled by the
+panel (the panel does not read the event's days).

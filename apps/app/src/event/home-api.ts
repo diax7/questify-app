@@ -1,7 +1,8 @@
-import type { Equipment } from "@questify/shared";
+import type { Equipment, EventStreak } from "@questify/shared";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
+import { eventStreakOf } from "#src/streaks/event-streak.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -60,6 +61,8 @@ export type Home = Readonly<{
   rankingOn: boolean;
   /** How many of the player's help-desk answers they have not seen (T-310); 0 from an older API. */
   helpUnread: number;
+  /** The player's event day streak (T-405b); null while it is off, and from an older API. */
+  streak: EventStreak | null;
 }>;
 
 /**
@@ -193,6 +196,7 @@ export function readHome(body: unknown): Home | undefined {
     win: readWin(body["win"]),
     rankingOn: body["rankingOn"],
     helpUnread: readUnread(body["help"]),
+    streak: eventStreakOf(body["streak"]),
   };
 }
 

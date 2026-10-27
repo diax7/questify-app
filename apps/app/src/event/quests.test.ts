@@ -344,6 +344,16 @@ describe("completionAnswer", () => {
       item: null,
       boost: null,
       firstBonus: null,
+      streakBonus: null,
+    });
+    expect(
+      completionAnswer(ok({ points: 20, score: 40, streakBonus: { points: 25, days: 3 } })),
+    ).toMatchObject({ points: 20, streakBonus: { points: 25, days: 3 } });
+    expect(
+      completionAnswer(ok({ points: 20, score: 40, streakBonus: { points: 25, days: 1 } })),
+    ).toMatchObject({ streakBonus: null });
+    expect(completionAnswer(ok({ points: 20, score: 40, streakBonus: null }))).toMatchObject({
+      streakBonus: null,
     });
     expect(completionAnswer(ok({ points: 20, score: 40, boost: { multiplier: 2 } }))).toMatchObject(
       { points: 20, boost: { multiplier: 2 } },

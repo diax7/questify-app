@@ -247,6 +247,14 @@ describe("a round's result", () => {
       bonus: null,
       item: null,
     });
+    expect(
+      resultAnswerOf(
+        ok({ verdict: "passed", points: 40, result: {}, streakBonus: { points: 10, days: 2 } }),
+      ),
+    ).toMatchObject({ kind: "passed", streakBonus: { points: 10, days: 2 } });
+    expect(resultAnswerOf(ok({ verdict: "passed", points: 40, result: {} }))).toMatchObject({
+      streakBonus: null,
+    });
     expect(resultAnswerOf(ok({ verdict: "done" }))).toEqual({ kind: "done" });
     expect(
       resultAnswerOf(
@@ -309,6 +317,7 @@ describe("a round's result", () => {
           item: null,
           boost: null,
           firstBonus: null,
+          streakBonus: null,
         },
         DEFAULT_TERMS,
         "en",

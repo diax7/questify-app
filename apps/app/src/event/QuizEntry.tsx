@@ -10,6 +10,7 @@ import { Button, Problem } from "#src/components/Controls.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
 import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
 import { firstBonusLine } from "#src/event/first-bonus.ts";
+import { streakBonusLine } from "#src/streaks/event-streak.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import {
@@ -352,6 +353,9 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
           {bonus === null ? null : <AppText>{bonusLine(t, language, bonus)}</AppText>}
           {quiz.step?.firstBonus == null ? null : (
             <AppText>{firstBonusLine(t, language, quiz.step.firstBonus)}</AppText>
+          )}
+          {quiz.step?.streakBonus == null ? null : (
+            <AppText>{streakBonusLine(t, quiz.step.streakBonus)}</AppText>
           )}
           {levelUp === null ? null : <AppText>{levelUpMessage(t, language, levelUp)}</AppText>}
         </>

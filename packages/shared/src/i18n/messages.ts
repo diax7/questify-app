@@ -4899,6 +4899,141 @@ export const MESSAGES = {
     ar: "الجواهر عدد صحيح من 0 إلى 1000.",
     en: "The gems are a whole number from 0 to 1000.",
   },
+  // ---------------------------------------------------------------- streaks (T-405b, ADR-300: no loss or guilt copy)
+  "streak.days.one": { ar: "يوم واحد", en: "1 day" },
+  "streak.days.two": { ar: "يومان", en: "2 days" },
+  "streak.days.twoObject": { ar: "يومين", en: "2 days" },
+  "streak.days.few": { ar: "{count} أيام", en: "{count} days" },
+  "streak.days.many": { ar: "{count} يومًا", en: "{count} days" },
+  "streak.title": { ar: "سلسلة الأيام", en: "Day streak" },
+  "streak.inARow": { ar: "{days} على التوالي", en: "{days} in a row" },
+  "streak.played": { ar: "لعبت اليوم", en: "You played today" },
+  "streak.keepGoing": { ar: "العب اليوم لتواصل السلسلة", en: "Play today to keep it going" },
+  "streak.fresh": { ar: "ابدأ سلسلة جديدة اليوم", en: "Start a new streak today" },
+  "streak.closed": { ar: "الفعالية مغلقة اليوم.", en: "The event is closed today." },
+  "streak.closedSafe": {
+    ar: "الفعالية مغلقة اليوم، وسلسلتك محفوظة.",
+    en: "The event is closed today. Your streak is safe.",
+  },
+  "streak.bonus": {
+    ar: "{currency}: ‎+{points} مع أول إنجاز في كل يوم، من اليوم الثاني.",
+    en: "+{points} {currency} with your first {questOne} each day, from day 2.",
+  },
+  "streak.bonusPaid": {
+    ar: "اليوم {days} من السلسلة! ‎+{points}",
+    en: "Streak day {days}! +{points}",
+  },
+  "history.streak": { ar: "مكافأة السلسلة، اليوم {days}", en: "Streak bonus, day {days}" },
+  "profile.streak": { ar: "سلسلتك", en: "Your streak" },
+  "streak.next": {
+    ar: "المكافأة التالية: ‎+{xp} XP عند {days}",
+    en: "Next reward: +{xp} XP at {days}",
+  },
+  "sync.streak": { ar: "سلسلة {days}! ‎+{xp} XP", en: "Streak of {days}! +{xp} XP" },
+  "events.streak.title": { ar: "سلسلة الأيام", en: "Day streak" },
+  "events.streak.intro": {
+    ar: "يبني اللاعب سلسلة بأن يلعب في أيام متتالية. يمكنك إضافة مكافأة ثابتة من اليوم الثاني.",
+    en: "Players build a streak by playing on days in a row. You can add a flat bonus from day 2.",
+  },
+  "events.streak.singleDay": {
+    ar: "تحتاج السلسلة إلى فعالية تمتد أكثر من يوم واحد.",
+    en: "A streak needs an event that lasts more than one day.",
+  },
+  "events.streak.label": {
+    ar: "تشغيل سلسلة الأيام في الفعالية",
+    en: "Run a day streak in the event",
+  },
+  "events.streak.on": {
+    ar: "السلسلة مفعّلة: يرى اللاعبون سلسلتهم.",
+    en: "The streak is on: players see their streak.",
+  },
+  "events.streak.off": {
+    ar: "السلسلة متوقفة: لا يرى اللاعبون أي سلسلة. تُسجَّل الأيام مع ذلك، فتظهر صحيحة إن شغّلتها.",
+    en: "The streak is off: players see no streak. Days are still recorded, so it shows true if you switch it on.",
+  },
+  "events.streak.bonus": {
+    ar: "المكافأة اليومية ({currency}، اختياري)",
+    en: "Daily bonus ({currency}, optional)",
+  },
+  "events.streak.bonusHint": {
+    ar: "تُمنح مع أول إنجاز في اليوم، من اليوم الثاني. اتركها فارغة لسلسلة بلا مكافأة.",
+    en: "Paid with a player's first {questOne} of the day, from day 2. Leave it empty for a streak with no bonus.",
+  },
+  "events.streak.weekdays": { ar: "أيام الإغلاق الأسبوعية", en: "Weekdays the event is closed" },
+  "events.streak.weekdaysHint": {
+    ar: "اليوم المغلق لا يُحتسب ولا يقطع السلسلة. أغلق ستة أيام كحد أقصى.",
+    en: "A closed day doesn't count and doesn't break a streak. Close at most six weekdays.",
+  },
+  "events.streak.monday": { ar: "الاثنين", en: "Monday" },
+  "events.streak.tuesday": { ar: "الثلاثاء", en: "Tuesday" },
+  "events.streak.wednesday": { ar: "الأربعاء", en: "Wednesday" },
+  "events.streak.thursday": { ar: "الخميس", en: "Thursday" },
+  "events.streak.friday": { ar: "الجمعة", en: "Friday" },
+  "events.streak.saturday": { ar: "السبت", en: "Saturday" },
+  "events.streak.sunday": { ar: "الأحد", en: "Sunday" },
+  "events.streak.closedDays": { ar: "تواريخ الإغلاق", en: "Closed dates" },
+  "events.streak.dateField": { ar: "تاريخ يوم مغلق", en: "Date of a closed day" },
+  "events.streak.addDate": { ar: "أضف التاريخ", en: "Add the date" },
+  "events.streak.removeDate": { ar: "أزل {day}", en: "Remove {day}" },
+  "events.streak.dayStarted": { ar: "{day} (بدأ)", en: "{day} (started)" },
+  "events.streak.datesHint": {
+    ar: "الأيام القادمة فقط. الأيام التي بدأت لا يمكن تغييرها.",
+    en: "Upcoming days only. Days that have started can't change.",
+  },
+  "events.streak.dateInvalid": {
+    ar: "اختر يومًا قادمًا لم يُضف من قبل.",
+    en: "Pick an upcoming day that isn't added yet.",
+  },
+  "events.streak.preview.off": {
+    ar: "المعاينة: لا يرى اللاعبون أي سلسلة.",
+    en: "Preview: players see no streak.",
+  },
+  "events.streak.preview.plain": {
+    ar: "المعاينة: يرى اللاعبون سلسلتهم، بلا مكافأة.",
+    en: "Preview: players see their streak, with no bonus.",
+  },
+  "events.streak.preview.bonus": {
+    ar: "المعاينة: يرى اللاعبون سلسلتهم، ويحصلون عند أول إنجاز كل يوم، من اليوم الثاني، على {currency}: ‎+{points}.",
+    en: "Preview: players see their streak, and their first {questOne} each day pays +{points} {currency} from day 2.",
+  },
+  "events.streak.save": { ar: "احفظ إعدادات السلسلة", en: "Save the streak settings" },
+  "events.streak.saved": { ar: "حُفظت إعدادات السلسلة.", en: "The streak settings are saved." },
+  "events.streak.failed": {
+    ar: "تعذّر تحميل إعدادات السلسلة. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load the streak settings. Check your connection and try again.",
+  },
+  "events.streak.refuse.singleDay": {
+    ar: "تحتاج السلسلة إلى فعالية تمتد أكثر من يوم واحد.",
+    en: "A streak needs an event that lasts more than one day.",
+  },
+  "events.streak.refuse.dayStarted": {
+    ar: "الأيام التي بدأت لا يمكن تغييرها، وهذا التغيير يمسّ اليوم {day}.",
+    en: "Days that have started can't change, and this change touches {day}.",
+  },
+  "events.streak.refuse.resultsFinal": {
+    ar: "النتائج نهائية، فلا يمكن تغيير السلسلة.",
+    en: "The results are final, so the streak can't change.",
+  },
+  "events.streak.refuse.archived": {
+    ar: "الفعالية مؤرشفة، فلا يمكن تغيير السلسلة.",
+    en: "The event is archived, so the streak can't change.",
+  },
+  "events.streak.invalid.bonusPoints": {
+    ar: "المكافأة عدد صحيح من 1 إلى 100,000، أو اتركها فارغة.",
+    en: "The bonus is a whole number from 1 to 100,000, or leave it empty.",
+  },
+  "events.streak.invalid.closedWeekdays": {
+    ar: "أغلق ستة أيام أسبوعية كحد أقصى.",
+    en: "Close at most six weekdays.",
+  },
+  "events.streak.invalid.closedDays": {
+    ar: "تاريخ الإغلاق يجب أن يكون أحد أيام الفعالية.",
+    en: "A closed date must be one of the event's days.",
+  },
+  "events.streak.invalid.enabled": {
+    ar: "إعدادات السلسلة غير صحيحة.",
+    en: "The streak settings aren't valid.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

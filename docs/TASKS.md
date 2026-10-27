@@ -533,13 +533,20 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     confirmation); the burst budget (ADR-303); the T-405b `closedToday` note; the first-N bonus Stop test made
     load-independent. ADR-294 to ADR-303 Accepted, Q-259 to Q-268 answered.
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
-- [ ] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
+- [x] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
   - Split from T-405 2026-10-27 (ADR-294). Standard; plan: `docs/plans/2026-10-27-t-405-streaks.md` (T-405b section).
     No loss or guilt copy, no countdown (ADR-300). The owner-only switch adds one "Only the owner can change this." note
     (`apps/web/e2e/organizers.spec.ts` count).
   - Note 2026-10-27 (T-405 code review): on a closed event day no day row is written, so Home's `streak.playedToday` is
     false; the screen reads `closedToday` first ("The event is closed today. Your streak is safe.") and only then
     `playedToday`.
+  - Done 2026-10-27: `apps/app/src/streaks/` (day plurals, the card's states with `closedToday` read first, the readers,
+    the lines and toasts; the redone `icon-flame` shipped as `assets/icons/flame.png` after a full-size review); event Home
+    card, the success card's streak beat (scan) and the line in every other answer (quest sheet, vote, survey, share,
+    poll, game, quiz), the history label, the profile's daily streak beside the gems, one sync toast per milestone; the
+    dashboard's Day streak panel (`StreakPanel`, `lib/streak.ts`: owner form with one Save, editors read, a single-day
+    event explains itself); every string in both languages. Proposed ADR-304, ADR-305 / Q-269, Q-270. Phone check owed
+    (RTL, Reduce Motion, the streak beat, VoiceOver/TalkBack labels). Progress 83/158 (52.53%).
   - Done when: With the streak off no player sees an event streak; with the platform switch off no player sees a daily streak.
 - [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
   - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.

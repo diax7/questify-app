@@ -54,6 +54,7 @@ describe("stampAnswer (T-304b)", () => {
       item: null,
       boost: null,
       firstBonus: null,
+      streakBonus: null,
     });
   });
 

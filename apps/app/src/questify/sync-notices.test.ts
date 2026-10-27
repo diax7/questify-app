@@ -114,6 +114,37 @@ describe("syncNotices", () => {
     ).toEqual(["حصلت على جوهرتين"]);
   });
 
+  it("adds one toast for each daily streak milestone, after the quests and before the gems (T-405b)", () => {
+    const sync = {
+      ...none,
+      gems: { earned: 30, balance: 130 },
+      dailyStreak: {
+        days: 7,
+        today: true,
+        next: { days: 14, xp: 150 },
+        rewards: [
+          { days: 3, xp: 50 },
+          { days: 7, xp: 100 },
+        ],
+      },
+    };
+    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
+      "Streak of 3 days! +50 XP",
+      "Streak of 7 days! +100 XP",
+      "You earned 30 gems",
+    ]);
+    expect(syncNotices(sync, catalog, tIn("ar"), "ar")[0]).toBe("سلسلة 3 أيام! ‎+50 XP");
+  });
+
+  it("makes no streak toast when nothing was paid or the streak is off, and counts a paid milestone as written", () => {
+    const counted = { days: 2, today: true, next: { days: 3, xp: 50 }, rewards: [] };
+    expect(syncNotices({ ...none, dailyStreak: counted }, catalog, tIn("en"), "en")).toEqual([]);
+    expect(wroteSomething({ ...none, dailyStreak: counted })).toBe(false);
+    const paid = { ...counted, days: 3, rewards: [{ days: 3, xp: 50 }] };
+    expect(wroteSomething({ ...none, dailyStreak: paid })).toBe(true);
+    expect(wroteSomething(none)).toBe(false);
+  });
+
   it("counts a sync that only paid gems as something written, and a balance alone as nothing", () => {
     expect(wroteSomething({ ...none, gems: { earned: 20, balance: 20 } })).toBe(true);
     expect(wroteSomething({ ...none, gems: { earned: 0, balance: 90 } })).toBe(false);

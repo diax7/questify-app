@@ -15,6 +15,8 @@ export type ActivityEntry = Readonly<{
   multiplier: number | null;
   /** A first-N bonus line's N (T-313), "First-{slots} bonus"; null for any other line or an older API. */
   bonusSlots: number | null;
+  /** A streak bonus line's streak day (T-405b), "Streak bonus, day {days}"; null for any other line or an older API. */
+  streakDays: number | null;
 }>;
 
 export type ActivityPage = Readonly<{
@@ -62,6 +64,7 @@ function readEntry(value: unknown): ActivityEntry | undefined {
         ? value["multiplier"]
         : null,
     bonusSlots: typeof value["bonusSlots"] === "number" ? value["bonusSlots"] : null,
+    streakDays: typeof value["streakDays"] === "number" ? value["streakDays"] : null,
   };
 }
 

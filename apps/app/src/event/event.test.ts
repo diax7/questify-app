@@ -240,6 +240,7 @@ const HOME = {
   win: null,
   rankingOn: true,
   helpUnread: 0,
+  streak: null,
 };
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });
@@ -330,6 +331,19 @@ describe("homeAnswer", () => {
     expect(goalMessage({ ...HOME.goal, left: -5 }, false)).toBe("goal.ready");
     expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true }, false)).toBe("goal.soldOut");
     expect(goalMessage({ ...HOME.goal, soldOut: true }, true)).toBe("goal.soldOut");
+  });
+
+  it("reads the event streak, and null while it is off, from an older API or when malformed (T-405b)", () => {
+    const streak = { days: 3, playedToday: false, closedToday: true, bonusPoints: 25 };
+    expect(readHome({ ...HOME, streak })?.streak).toEqual(streak);
+    expect(readHome({ ...HOME, streak: { ...streak, bonusPoints: null } })?.streak).toEqual({
+      ...streak,
+      bonusPoints: null,
+    });
+    expect(readHome(HOME)?.streak).toBeNull();
+    expect(readHome({ ...HOME, streak: null })?.streak).toBeNull();
+    expect(readHome({ ...HOME, streak: { ...streak, days: "3" } })?.streak).toBeNull();
+    expect(readHome({ ...HOME, streak: { days: 3 } })?.streak).toBeNull();
   });
 
   it("reads the help desk's unseen answers, and 0 for an older API or anything else (T-310)", () => {

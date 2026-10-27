@@ -881,3 +881,14 @@ Recommended (ADR-303): accept that 300 first-of-the-day completions at once are 
 was (Q-229). Agree, or should the daily streak's row move out of the completion transaction (into the sync, losing a
 day played by someone who never opens the app before the day ends)?
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as a burst budget of about 20 ms at p95 within NFR-002's 1 s, in place of the 10% target (ADR-303 accepted). The CTO's rerun at the code review: 75.7 ms without streak work, 89.1 ms with it (+17.7%, about 13 ms), 84.2 ms with the day rows alone (+11.3%); the day's first completion only. Re-timed when T-406 writes the same daily row.
+
+## Q-269 — T-405b copy and layout (2026-10-27, T-405b build)
+Recommended (ADR-304): the Home card says "N days in a row" (not "Day N"), reads a closed day first, shows the redone
+flame, the scan celebration gets its own streak beat, every other answer carries a "Streak day N! +P" line, the profile's
+daily streak sits beside the gems with the next reward, and one toast shows per milestone paid. Agree, or should the
+card say "Day N" as the plan's wording did?
+
+## Q-270 — The dashboard's Day streak panel (2026-10-27, T-405b build)
+Recommended (ADR-305): one Save for the five settings, upcoming dates only, started dates listed and fixed, a single-day
+event explains itself, and the owner-only note shows for editors on every event. Agree, or should the single-day event
+hide the panel and the note?

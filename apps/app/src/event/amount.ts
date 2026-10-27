@@ -7,10 +7,12 @@ import {
   type EventTerms,
   type Language,
   type MessageKey,
+  type StreakBonus,
 } from "@questify/shared";
 import { firstBonusLine, type FirstBonusPaid } from "#src/event/first-bonus.ts";
 import type { Bonus, Boosted, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
 import { textIn } from "#src/i18n/text.ts";
+import { streakBonusLine } from "#src/streaks/event-streak.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
 
@@ -78,8 +80,8 @@ export function bonusLine(t: Translate, language: Language, bonus: Bonus): strin
 
 /**
  * What a play paid, with its quest item and the category bonus it paid after it when there are; "Double points!"
- * first when a boost doubled it (T-307); the first-N bonus it earned or missed last (T-313). An older API sends
- * neither.
+ * first when a boost doubled it (T-307); the first-N bonus it earned or missed (T-313), then the streak bonus (T-405b)
+ * last. An older API sends neither.
  */
 export function paidText(
   t: Translate,
@@ -91,6 +93,7 @@ export function paidText(
     item: ItemGiven | null;
     boost?: Boosted | null | undefined;
     firstBonus?: FirstBonusPaid | null | undefined;
+    streakBonus?: StreakBonus | null | undefined;
   }>,
 ): string {
   const lines = [completedText(t, terms, language, paid.points)];
@@ -105,6 +108,9 @@ export function paidText(
   }
   if (paid.firstBonus != null) {
     lines.push(firstBonusLine(t, language, paid.firstBonus));
+  }
+  if (paid.streakBonus != null) {
+    lines.push(streakBonusLine(t, paid.streakBonus));
   }
   return lines.join(" ");
 }

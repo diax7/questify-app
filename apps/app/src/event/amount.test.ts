@@ -129,4 +129,23 @@ describe("paidText", () => {
       "+0 gems + Cap: collect it at the prize desk +50 bonus: Stage complete",
     );
   });
+
+  it("ends with the first-N bonus and then the streak bonus when the answer carries them (T-405b)", () => {
+    const paid = {
+      points: 10,
+      bonus: null,
+      item: null,
+      firstBonus: { points: 25, place: 3, slots: 50 },
+      streakBonus: { points: 20, days: 4 },
+    };
+    expect(paidText(tIn("en"), GEMS, "en", paid)).toBe(
+      "+10 gems First 50 bonus! +25 Streak day 4! +20",
+    );
+    expect(paidText(tIn("en"), GEMS, "en", { ...paid, streakBonus: null })).toBe(
+      "+10 gems First 50 bonus! +25",
+    );
+    expect(paidText(tIn("en"), GEMS, "en", { points: 10, bonus: null, item: null })).toBe(
+      "+10 gems",
+    );
+  });
 });

@@ -100,6 +100,19 @@ function fixture() {
   };
 }
 
+/** Loads account A's profile with this `dailyStreak` in the answer and gives what the state holds. */
+async function dailyStreakOfProfile(dailyStreak: unknown) {
+  const f = fixture();
+  await f.session.start(issued("A"));
+  const response = f.next();
+  const loading = f.loader.reload();
+  await response.started.promise;
+  response.response.resolve(ok({ ...profile("A"), dailyStreak }));
+  await loading;
+  const state = f.states.at(-1);
+  return state?.status === "signed_in" ? state.me?.dailyStreak : "no profile";
+}
+
 describe("the provider's account-bound profile loader", () => {
   it("cannot restore an account's private profile after sign-out completes", async () => {
     const f = fixture();
@@ -130,6 +143,14 @@ describe("the provider's account-bound profile loader", () => {
     f.logout.resolve(ok());
     await signingOut;
     expect(f.states.at(-1)).toEqual({ status: "signed_out", ended: false });
+  });
+
+  it("reads the daily streak of the profile, and null while it is off or malformed (T-405b)", async () => {
+    const streak = { days: 5, today: true, next: { days: 7, xp: 100 } };
+    expect(await dailyStreakOfProfile(streak)).toEqual(streak);
+    expect(await dailyStreakOfProfile(null)).toBeNull();
+    expect(await dailyStreakOfProfile({ days: "5" })).toBeNull();
+    expect(await dailyStreakOfProfile(undefined)).toBeNull();
   });
 
   it.each([ok(profile("A")), { kind: "network" } as const, failed(500), ok(null)])(

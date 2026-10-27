@@ -29,6 +29,7 @@ import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
 import { useLive } from "#src/event/LiveContext.tsx";
 import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
+import { EventStreakCard } from "#src/streaks/EventStreakCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -411,6 +412,7 @@ export default function EventHomeScreen() {
         <HelpStrip eventId={eventId} unread={home.helpUnread} />
         <CountdownLine event={home.event} />
         <Standing home={home} />
+        {home.standing.status === "active" ? <EventStreakCard streak={home.streak} /> : null}
         <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
         {community === null || home.standing.status !== "active" ? null : (
           <CommunityBar card={community} />

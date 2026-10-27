@@ -1,7 +1,8 @@
-import type { Equipment } from "@questify/shared";
+import type { DailyStreak, Equipment } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import { levelOf, type QuestifyLevel } from "#src/questify/level.ts";
+import { dailyStreakOf } from "#src/streaks/daily-streak.ts";
 
 /** Owner-only profile data stays in memory and belongs to the current load generation. */
 export type Me = Readonly<{
@@ -15,6 +16,8 @@ export type Me = Readonly<{
   questify: QuestifyLevel | undefined;
   /** The player's own gem balance (T-404); absent from an older API. */
   gems?: number;
+  /** The Questify daily streak (T-405b); null while the platform switch is off, absent from an older API. */
+  dailyStreak?: DailyStreak | null;
   help?: Readonly<{ unread: number }> | undefined;
 }>;
 
@@ -65,6 +68,7 @@ export function createPlayerLoader(
               ...answer.body,
               questify: levelOf(answer.body.questify),
               equipment: equipmentOf(answer.body.equipment),
+              dailyStreak: dailyStreakOf(answer.body.dailyStreak),
             }
           : undefined,
     });

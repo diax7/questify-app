@@ -15,6 +15,8 @@ import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
 import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
 import { firstBonusLine } from "#src/event/first-bonus.ts";
+import { FlameIcon } from "#src/streaks/FlameIcon.tsx";
+import { streakBonusLine } from "#src/streaks/event-streak.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { scanReading, type Position } from "#src/event/location.ts";
 import { useLocationReader } from "#src/event/LocationEntry.tsx";
@@ -95,8 +97,9 @@ function refusalText(
 
 /**
  * Points with the quest's title (which also says which quest a code was for, when the player opened the scanner from
- * another quest), then a level-up's medium beat, then (when this scan finished its category) the full-screen category
- * celebration (FR-406, FR-407, `celebrationBeats`). */
+ * another quest), the first-N bonus and the streak bonus as their own beats, then a level-up's medium beat, then (when
+ * this scan finished its category) the full-screen category celebration (FR-406, FR-407, `celebrationBeats`).
+ */
 function Celebration({
   step,
   onClaim,
@@ -126,6 +129,15 @@ function Celebration({
       <PopIn>
         <SpinningCoin size={120} />
         <AppText variant="display">{firstBonusLine(t, language, step.firstBonus)}</AppText>
+        <Button label={t("scanner.claim")} onPress={claim} />
+      </PopIn>
+    );
+  }
+  if (beat === "streak" && step.streakBonus !== null) {
+    return (
+      <PopIn>
+        <FlameIcon size={120} />
+        <AppText variant="display">{streakBonusLine(t, step.streakBonus)}</AppText>
         <Button label={t("scanner.claim")} onPress={claim} />
       </PopIn>
     );

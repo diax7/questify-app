@@ -151,6 +151,7 @@ describe("the bonus in words, both languages, Western digits", () => {
           item: null,
           boost: null,
           firstBonus: { points: 25, place, slots: 50 },
+          streakBonus: null,
         },
       }) as Extract<ScanStep, { kind: "celebrating" }>;
     expect(celebrationBeats(paid(1))).toEqual(["points", "firstBonus"]);

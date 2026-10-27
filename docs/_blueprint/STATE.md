@@ -1503,11 +1503,27 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Stop test (`first-bonus.int`, CTO 4) is load-independent (4,000 players claimed back to back; Stop must return within a
   loose 15 s guard and the lanes keep claiming after it; a setter made to wait for the claims to pause fails it). ADR-294
   to ADR-303 Accepted, Q-259 to Q-268 answered.
+- 2026-10-27 **T-405b built (standard, screens and dashboard; code review pending).** App `src/streaks/`: `daysLabel`
+  (English one or many; Arabic one, two by role, 3 to 10, 11 and over singular), the card's states (a closed day is read
+  first, then today played, then a live streak, then "Start a new streak today"), tolerant readers for Home's `streak`,
+  a completion's `streakBonus` and `/v1/me`'s `dailyStreak`, and the lines, the success line and the sync toasts. Event
+  Home gets a Day streak card (hidden while Home sends null); the scan celebration a streak beat after the first-N beat
+  (`PopIn`, so Reduce Motion is respected), and quest-sheet, vote, survey, share, poll, game and quiz answers carry
+  "Streak day N! +P" in their line; history reads "Streak bonus, day N"; the profile shows the daily streak beside the
+  gems (hidden while null) and one toast per milestone paid. The flame is the redone `icon-flame` (upright, one connected
+  shape; passed the full-size review) at 128 px. Dashboard: a Day streak panel on the event page (owner form with one
+  Save and an Idempotency-Key, weekday chips, upcoming dates only with started ones fixed, a preview line, refusals worded
+  by reason; editors read it and see "Only the owner can change this."; a single-day event explains why it has no
+  streak). Tests: app units (`streaks/*.test`, plus the readers in `event`, `quests`, `plays`, `games`, `celebration`,
+  `amount`, `player-state`, `sync-notices`), web `lib/streak.test`, `e2e/streak.spec` (desktop and phone, English and
+  Arabic) and the organizers spec's note count (8 to 9), `npx expo export`. Proposed ADR-304, ADR-305 / Q-269, Q-270.
+  Phone check owed (RTL, Reduce Motion, the streak beat, VoiceOver/TalkBack labels). No mutation (standard task).
+  Progress 83/158 (52.53%).
 
 ## Next
 
-1. **The GitHub mutation run on T-405's core files**, then **T-405b** (standard; screens, the dashboard Streak panel,
-   strings). Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258. No deployment/EAS/
+1. **The GitHub mutation run on T-405's core files**, then **T-406** (daily challenge and word; it writes the daily streak
+   row, so re-time the entrance burst). T-405b's code review is pending. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

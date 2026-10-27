@@ -28,6 +28,7 @@ import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
 import { HelpDeskLink } from "#src/components/HelpDeskPanel.tsx";
+import { StreakPanel } from "#src/components/StreakPanel.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -395,6 +396,15 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           eventId={event.id}
           initial={event.helpDesk !== false}
           myRole={myRole}
+        />
+      )}
+      {event === null ? null : (
+        <StreakPanel
+          language={language}
+          organizerId={organizerId}
+          eventId={event.id}
+          myRole={myRole}
+          terms={terms}
         />
       )}
       {event === null ? null : (

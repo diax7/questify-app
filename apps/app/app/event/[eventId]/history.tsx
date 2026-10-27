@@ -12,6 +12,7 @@ import { fetchActivity, type ActivityAnswer, type ActivityEntry } from "#src/eve
 import { useEvent } from "#src/event/EventContext.tsx";
 import { forget } from "#src/event/launch.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { streakHistoryLabel } from "#src/streaks/event-streak.ts";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -44,6 +45,9 @@ function entryLabel(
 ) {
   if (entry.kind === "first_bonus" && entry.bonusSlots !== null) {
     return t("history.firstBonus", { slots: formatNumber(entry.bonusSlots, language) });
+  }
+  if (entry.kind === "streak" && entry.streakDays !== null) {
+    return streakHistoryLabel(t, entry.streakDays);
   }
   const plain = PLAIN[entry.kind];
   if (plain !== undefined) {

@@ -71,6 +71,7 @@ describe("scanStep", () => {
           item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
           boost: { multiplier: 2 },
           firstBonus: null,
+          streakBonus: null,
         },
       }),
     ).toEqual({
@@ -83,6 +84,7 @@ describe("scanStep", () => {
       item: { name: { ar: null, en: "T-shirt" }, outcome: "pending", until: null },
       boosted: true,
       firstBonus: null,
+      streakBonus: null,
       met: null,
       details: undefined,
     });
@@ -103,6 +105,7 @@ describe("scanStep", () => {
           item: null,
           boost: null,
           firstBonus: null,
+          streakBonus: null,
           questId: "q9",
           met: { username: "noura", avatar: "owl" },
         },
@@ -132,6 +135,7 @@ describe("scanStep", () => {
           item: null,
           boost: null,
           firstBonus: null,
+          streakBonus: null,
         },
       }),
     ).toMatchObject({ kind: "celebrating", questId: "p1", points: 30 });
@@ -255,10 +259,20 @@ describe("readActivity and activityAnswer", () => {
           title: { ar: null, en: "Find the word" },
           multiplier: null,
           bonusSlots: null,
+          streakDays: null,
         },
       ].map(({ reason: _reason, ...entry }) => entry),
       nextCursor: "41",
     });
+  });
+
+  it("reads a streak bonus line's day, and null for any other line or an older API (T-405b)", () => {
+    const line = { ...ENTRY, kind: "streak", streakDays: 4 };
+    expect(readActivity({ entries: [line], nextCursor: null })?.entries[0]).toMatchObject({
+      kind: "streak",
+      streakDays: 4,
+    });
+    expect(readActivity({ entries: [ENTRY], nextCursor: null })?.entries[0]?.streakDays).toBeNull();
   });
 
   it("shows a kind or reason this app does not know, without a title", () => {
@@ -310,11 +324,26 @@ describe("celebrationBeats", () => {
     item: null,
     boosted: false,
     firstBonus: null,
+    streakBonus: null,
     met: null,
     details: undefined,
   } as const;
   const finished = { id: "c1" } as unknown as Category;
   const details = { quest: undefined, finishedCategory: finished, otherEvent: false };
+
+  it("gives a streak bonus its own beat after the points and the first-N bonus", () => {
+    const streakBonus = { points: 25, days: 3 };
+    expect(celebrationBeats({ ...base, streakBonus })).toEqual(["points", "streak"]);
+    expect(
+      celebrationBeats({
+        ...base,
+        firstBonus: { points: 25, place: 2, slots: 50 },
+        streakBonus,
+        levelUp,
+        details,
+      }),
+    ).toEqual(["points", "firstBonus", "streak", "level", "category"]);
+  });
 
   it("grows with rarity: the points, a level-up, then a finished category", () => {
     expect(celebrationBeats(base)).toEqual(["points"]);

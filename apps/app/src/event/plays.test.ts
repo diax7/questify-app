@@ -77,7 +77,12 @@ describe("the vote", () => {
       item: null,
       boost: null,
       firstBonus: null,
+      streakBonus: null,
     });
+    expect(votedOf(ok({ points: 25, streakBonus: { points: 10, days: 2 } }))).toMatchObject({
+      streakBonus: { points: 10, days: 2 },
+    });
+    expect(votedOf(ok({ points: 25, streakBonus: "yes" }))).toMatchObject({ streakBonus: null });
     expect(votedOf(ok({ points: 50, boost: { multiplier: 2 } }))).toMatchObject({
       boost: { multiplier: 2 },
     });

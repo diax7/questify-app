@@ -16,6 +16,7 @@ import { usePlayer, type Me } from "#src/auth/player.tsx";
 import { GemIcon } from "#src/questify/GemIcon.tsx";
 import { gemsLabel } from "#src/questify/gems.ts";
 import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
+import { DailyStreakCard } from "#src/streaks/DailyStreakCard.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -141,6 +142,7 @@ function MyIdentity({ me }: { me: Me }) {
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}
       <GemsCard gems={me.gems} />
+      <DailyStreakCard streak={me.dailyStreak} />
       <ProfileQuestify />
       <MyAccount me={me} />
     </>

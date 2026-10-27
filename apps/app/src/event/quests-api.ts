@@ -1,6 +1,7 @@
-import { isQuestType, type LocalizedText } from "@questify/shared";
+import { isQuestType, type LocalizedText, type StreakBonus } from "@questify/shared";
 import { noteCompletion } from "#src/questify/completion-signal.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
+import { streakBonusPaidOf } from "#src/streaks/event-streak.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import type { Position } from "#src/event/location.ts";
@@ -498,6 +499,8 @@ export type CompletionAnswer =
       boost: Boosted | null;
       /** The first-N bonus it earned, or missed when `place` is null (T-313); null when none. */
       firstBonus: FirstBonusPaid | null;
+      /** The event streak bonus it paid with its streak day (T-405b); null when none or from an older API. */
+      streakBonus: StreakBonus | null;
     }>
   /** A check-in refused for its position (T-303b); `distanceM` is the player's own rounded distance for not_here. */
   | Readonly<{
@@ -646,6 +649,7 @@ export function completionAnswer(answer: AuthedResult): CompletionAnswer {
     item: itemGivenOf(body["item"]),
     boost: boostedOf(body["boost"]),
     firstBonus: firstBonusPaidOf(body["firstBonus"]),
+    streakBonus: streakBonusPaidOf(body["streakBonus"]),
   };
 }
 

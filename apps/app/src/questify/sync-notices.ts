@@ -7,6 +7,7 @@ import {
 } from "@questify/shared";
 import type { Translate } from "#src/i18n/words.ts";
 import { gemsLabel } from "#src/questify/gems.ts";
+import { streakNotices } from "#src/streaks/daily-streak.ts";
 
 /** Each achievement once, at the highest tier this sync wrote (a jump writes every tier passed). */
 function highestTiers(
@@ -23,8 +24,8 @@ function highestTiers(
 }
 
 /**
- * The light toasts one sync earns: a line for each achievement that moved up and each Questify quest paid, then one
- * line for all the gems it paid. A name the catalog cannot give (it did not load) still gets a plain line, so the
+ * The light toasts one sync earns: a line for each achievement that moved up and each Questify quest paid, one for each
+ * daily streak milestone paid (T-405b), then one line for all the gems it paid. A name the catalog cannot give (it did not load) still gets a plain line, so the
  * player is told either way.
  */
 export function syncNotices(
@@ -46,7 +47,7 @@ export function syncNotices(
     sync.gems.earned > 0
       ? [t("sync.gems", { gems: gemsLabel(t, sync.gems.earned, language) })]
       : [];
-  return [...achievements, ...quests, ...gems];
+  return [...achievements, ...quests, ...streakNotices(sync.dailyStreak, t, language), ...gems];
 }
 
 /** Whether a sync wrote anything: only then do the screens read their data again. */
@@ -54,4 +55,5 @@ export const wroteSomething = (sync: QuestifySync): boolean =>
   sync.achievements.length > 0 ||
   sync.quests.length > 0 ||
   sync.levelUp !== null ||
-  sync.gems.earned > 0;
+  sync.gems.earned > 0 ||
+  (sync.dailyStreak?.rewards.length ?? 0) > 0;

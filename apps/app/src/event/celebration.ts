@@ -1,3 +1,4 @@
+import type { StreakBonus } from "@questify/shared";
 import type { FirstBonusPaid } from "#src/event/first-bonus.ts";
 import type { Stamped } from "#src/event/passport.ts";
 import type { Revealed } from "#src/event/reveal.ts";
@@ -34,6 +35,8 @@ export type ScanStep =
       boosted: boolean;
       /** The first-N bonus (T-313): won, its own coin beat after the points; missed (`place` null), a line with them. */
       firstBonus: FirstBonusPaid | null;
+      /** The event streak bonus (T-405b): its own flame beat after the points and the first-N bonus. */
+      streakBonus: StreakBonus | null;
       /** The other player's username when this scan was a meeting (T-303c), else null. */
       met: string | null;
       /** Read after the completion: the quest's title, its category when this scan finished it, another event. */
@@ -109,6 +112,7 @@ function answered(
         item: answer.item,
         boosted: "boost" in answer && answer.boost != null,
         firstBonus: answer.firstBonus,
+        streakBonus: answer.streakBonus,
         met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
         details: undefined,
       };
@@ -147,12 +151,13 @@ export function detailsAfter(
   };
 }
 
-export type Beat = "points" | "firstBonus" | "level" | "category";
+export type Beat = "points" | "firstBonus" | "streak" | "level" | "category";
 
 /**
  * The beats of a celebration in order, growing with rarity (FR-407): the quest's small one, a first-N bonus won (its
- * own coin beat, T-313), then a level-up's medium one, then a finished category's full-screen one. A replay (a dropped answer retried) carries the first answer's
- * level-up, so a player who never saw it still does.
+ * own coin beat, T-313), a streak bonus paid (its own flame beat, T-405b), then a level-up's medium one, then a
+ * finished category's full-screen one. A replay (a dropped answer retried) carries the first answer's level-up, so a
+ * player who never saw it still does.
  */
 export function celebrationBeats(
   step: Extract<ScanStep, { kind: "celebrating" }>,
@@ -162,6 +167,7 @@ export function celebrationBeats(
     ...(step.firstBonus === null || step.firstBonus.place === null
       ? []
       : (["firstBonus"] as const)),
+    ...(step.streakBonus === null ? [] : (["streak"] as const)),
     ...(step.levelUp === null ? [] : (["level"] as const)),
     ...(step.details?.finishedCategory === undefined ? [] : (["category"] as const)),
   ];

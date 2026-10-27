@@ -68,8 +68,15 @@ export function QuestifySyncProvider({ children }: Readonly<{ children: ReactNod
         setLevelUp(sync.levelUp);
       }
       setVersion((current) => current + 1);
-      // XP, the level and the gem count on the profile come from the profile read.
-      if (sync.quests.length > 0 || sync.levelUp !== null || sync.gems.earned > 0) void reload();
+      // XP, the level, the gem count and the daily streak on the profile come from the profile read.
+      if (
+        sync.quests.length > 0 ||
+        sync.levelUp !== null ||
+        sync.gems.earned > 0 ||
+        (sync.dailyStreak?.rewards.length ?? 0) > 0
+      ) {
+        void reload();
+      }
     },
     [reload],
   );
