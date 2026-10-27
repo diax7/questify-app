@@ -954,4 +954,13 @@ Play and App Store ad answers (PD-27) need a fresh look before the first sponsor
 The daily word needs a list of valid five-letter guesses per language (thousands of English words; an Arabic list is
 harder to find) and the daily words themselves. Which source and licence allow commercial use, or does the team build
 the Arabic list by hand? The build ships a small test seed only; real lists are imported in the console (T-406c) once
-this is settled.
+this is settled. (T-406 build, 2026-10-27: no seed ships at all; the tests add their own words, ADR-313.)
+
+## Q-282 — The T-406 build's small choices (2026-10-27, T-406 build)
+Recommended (ADR-313): admin ids on the daily tables without a foreign key (the migration's short lock list); an
+unknown challenge id answers `changed` like an unknown word id; the console's refusal names (`retired`, `questions`,
+`changed`, `not_period_start`); three questions per challenge checked at commit; coverage counted to 60 periods; no
+seeded words or questions; the DB suites' shifted Questify day. And the re-timed entrance burst (ADR-313 item 8): the
+streak work stays near the 20 ms budget (+15 and +20 ms), the shared daily streak row adds about 11 ms over the same
+load, while 300 extra finishes at the same instant add about 62 ms on a laptop (142 ms p95, inside the 1 s). Read the
+budget as the streak's own cost (recommended), or re-time on CranL before launch? Agree?

@@ -653,6 +653,46 @@ ADR-151):
 - Migration lock order: enrollment EXCLUSIVE, event, quest_completion SHARE ROW EXCLUSIVE, xp_entry, ledger_entry ACCESS
   EXCLUSIVE, player_xp SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; never `platform_setting` or `player`.
 
+### Daily games (migration 0069, T-406, ADR-306 to ADR-313)
+- Periods: `daily_period(kind, day)` (internal) answers `(starts_on, ends_on)`: the day itself under `daily`, Sunday to
+  Saturday under `weekly`, cut by the governing cadence row's first day and the next row's (a switch mid-week ends the
+  running week the day before, or gives a short first week). The day is T-405's `questify_day` (04:00 to 04:00 Riyadh).
+- `daily_cadence(kind challenge|word, from_day, cadence daily|weekly, set_by, created_at; PK (kind, from_day))`: seeded
+  weekly for both kinds from 2026-01-04 (a Sunday); a change is written for tomorrow only; a trigger (created after the
+  seed) refuses any INSERT, UPDATE or DELETE of a row whose `from_day` ≤ `questify_day(clock_timestamp())`, the owner
+  included, and every TRUNCATE.
+- `daily_question(id uuid, prompt_ar, prompt_en (trimmed 1–300, no control/bidi), options_ar[], options_en[] (2–4, same
+  count, each 1–120), answer 1-based within the options, status ready|retired, created_by, created_at, updated_at)`:
+  frozen by trigger once a challenge holding it has started.
+- `daily_challenge(id identity, starts_on UNIQUE, sponsor_ar, sponsor_en (both or neither, 1–60), set_by, created_at,
+  updated_at)` and `daily_challenge_question(challenge_id → daily_challenge CASCADE, position 1–3, question_id UNIQUE →
+  daily_question RESTRICT; PK (challenge_id, position))`: exactly three questions at commit (a deferred constraint
+  trigger); a question is used once ever; rows are replaced, never updated; frozen once `starts_on` has come.
+- `daily_word(id identity, language ar|en, starts_on, word (normalized), display (as written, hamza kept), set_by,
+  created_at; UNIQUE (language, starts_on), UNIQUE (language, word); CHECK word_norm(language, display) = word)`: never
+  updated (a replacement deletes and inserts, so a new id), frozen once started. `word_guess_list(language, word; PK)`:
+  the valid guesses, CHECK normalized.
+- `daily_play(id identity, player_id → player, kind, starts_on, challenge_id → daily_challenge | word_id → daily_word
+  (exactly the kind's), created_at; UNIQUE (player_id, kind, starts_on), UNIQUE (id, player_id))`: one play a period,
+  one word game whatever the language; no key to `player_xp` by design. `daily_answer(play_id, position 1–3, choice
+  1–4, correct; PK (play_id, position))`, `daily_guess(play_id, attempt 1–6, guess, marks 5 of 0/1/2; PK (play_id,
+  attempt))`, `daily_finish(id identity, play_id UNIQUE, player_id → player_xp, kind, solved (word), correct 0–3
+  (challenge), xp 0–1000; (play_id, player_id) → daily_play (id, player_id); UNIQUE (id, player_id))`. All four
+  append-only for every role, kept on the erasure tombstone (no personal data).
+- `xp_entry` gains source `daily` and `daily_finish_id bigint UNIQUE`, (daily_finish_id, player_id) → `daily_finish (id,
+  player_id)`; every shape branch gains `daily_finish_id IS NULL`, and the `daily` branch has `delta > 0` with only
+  `daily_finish_id` set. A 0-XP finish writes no entry. No `gem_entry` source and no ledger entry exist for the games.
+- Every table forces row-level security with no API or PUBLIC right. Doors (granted): `own_daily`,
+  `daily_answer_submit`, `daily_guess_submit`; console: `daily_question_save`, `daily_question_retire`,
+  `daily_challenge_set`, `daily_challenge_clear`, `daily_word_set`, `daily_word_clear`, `word_list_change`,
+  `daily_cadence_set`, `daily_console`, `daily_question_list`, `word_list_page`. Internal: `word_norm`, `daily_fold`,
+  `daily_display`, `daily_letters`, `daily_marks`, `daily_period`, `daily_coverage`, `daily_feature_on`, `daily_xp`
+  and the rest (`apps/api/test/security/outsider.int.test.ts` lists them all).
+- Amounts: `platform_setting` key `xp` fields `dailyFinishXp` 0–400 (20), `dailyRightXp` 0–200 (10), `dailyWordXp`
+  0–1000 (50), each falling back to its default when absent or out of range.
+- Migration lock order: `xp_entry` ACCESS EXCLUSIVE, `player` SHARE ROW EXCLUSIVE, `player_xp` SHARE ROW EXCLUSIVE, under
+  `lock_timeout = 10s`; nothing else (no foreign key to `staff_user`, so `set_by` and `created_by` are plain ids).
+
 ### rank_prize, event_result, result_place (migration 0034, T-214)
 - `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description
   i18n, status active|removed)`: organizers write under row-level security with column grants (`kind` fixed at
@@ -1001,7 +1041,7 @@ rows or push text.
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
 | item, level_item, player_item, player_equipment | Built T-402 (0063): catalog, distinct level rewards, ownership and equipped slots; see above | Ownership/equipment linked to player; erased with account |
 | achievement, player_achievement, event_stamp, streak | Questify layer progress (later tasks) | Linked to player |
-| daily_word, word_bank | Daily word and valid guesses per language (ADR-097) | No |
+| daily_word, word_guess_list (built, T-406, migration 0069) | Daily word per language and period, valid guesses per language (ADR-097, ADR-310); see above | No |
 | announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |
 | venue_map, map_pin, sponsor, survey, survey_answer | Maps, sponsor profiles, surveys | Answers yes |
@@ -1018,7 +1058,7 @@ rows or push text.
 | poll, poll_vote, survey_question, quest_rating | Live polls and their options, one vote per player, survey questions, optional quest ratings | Votes and answers yes |
 | community_quest, milestone | Shared goals with measure, milestones, rewards | Built (T-306b: `community_goal`, `community_step`) |
 | rank_prize, souvenir_grant | Prizes attached to final ranks with claim deadline; souvenir rules and grants | Grants link to players |
-| questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank | No |
+| questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank (built, T-406, migration 0069: see Daily games above) | No |
 | ranking_season | Monthly Questify-wide seasons and archives | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |

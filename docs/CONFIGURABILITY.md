@@ -68,6 +68,18 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-406): the daily games' switches, cadence and XP
+
+- `dailyChallenge` and `dailyWord` (platform level, on by default) join the registry and ship in `/v1/config`. Off,
+  that game reads `null` in `GET /v1/me/daily` and its doors refuse at once (`daily_unavailable`); a play left
+  unfinished pays nothing. The database reads the same keys (`daily_feature_on`, on when absent). Until T-703's
+  switches page, a Questify admin flips them through the settings service.
+- The cadence per kind (`daily` or `weekly`, weekly at launch) is data in `daily_cadence`, set from the console for the
+  next Questify day (`PUT /v1/admin/daily/cadence`).
+- The XP amounts are `platform_setting` key `xp` fields `dailyFinishXp` (0–400, default 20), `dailyRightXp` (0–200,
+  default 10) and `dailyWordXp` (0–1000, default 50); no row is added (each field defaults when absent). T-703/T-709's
+  editor must keep the same ranges.
+
 ## As built (T-405): the daily streak switch and the streak settings
 
 - `dailyStreak` (platform level, on by default) joins the registry and ships in `/v1/config`. Off, no Questify day is

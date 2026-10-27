@@ -1,5 +1,17 @@
 # Security — Questify
 
+## T-406 daily games boundary (implemented; core code review pending)
+
+The ten tables of migration 0069 force RLS with no API or PUBLIC rights; the four play tables are append-only for every
+role and started content is frozen for every role (ALWAYS triggers). `questify_app` holds three caller-bound player
+doors (`own_daily`, `daily_answer_submit`, `daily_guess_submit`; no door takes a player id) and eleven console doors that
+re-read the admin from the account (`questify_admin`, QY403 otherwise); every helper holds no grant (outsider suite).
+Hidden content: no granted door answers a question's right option before the caller answered it, or a word before the
+caller's game is over, in a result, a refusal's message, detail or hint, an audit row or a replay
+(`test/security/daily-players.int`); the period and content checks refuse future, past and stale ids before any answer
+is judged or marks computed. Audits name ids and changed field names only. A sponsor gets a disclosed name and nothing
+else: no link, no tracking, no data (finish counts are Questify's own, ADR-067, ADR-311).
+
 ## T-405 streaks boundary (implemented; core code review pending)
 
 `event_streak`, `event_streak_day`, `questify_streak_day`, `questify_streak_milestone` and `questify_streak_reward` force

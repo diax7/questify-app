@@ -1042,7 +1042,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-416 | F-57 | Must | `test/db/xp.int`, `test/db/profile-items.int`, app level bar (T-401/T-402 next reward) |
 | FR-417 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: day rows on every multi-day event, on or off; `own_event_streak` null while off); Home card (`apps/app/src/streaks/event-streak.test.ts`, `event.test`: nothing while off) and the dashboard Streak panel (`apps/web/src/lib/streak.test.ts`, `e2e/streak.spec.ts`) built T-405b |
 | FR-418 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: ledger kind `streak` with the day's first completion from day 2 through every door, score and balance, none without an amount; `test/streaks/routes.int`); shown on the success card, in the answer lines and in the history (T-405b: `celebration.test`, `amount.test`, `quests.test`, `plays.test`, `games.test`) |
-| FR-419 | F-125 | Should | partial: server built T-405 (`test/db/daily-streak.int`: any event quest completion counts the Questify day, 04:00 Riyadh); the daily challenge's day arrives with T-406; the profile line and the sync toast are built T-405b (`daily-streak.test`, `sync-notices.test`, `player-state.test`) |
+| FR-419 | F-125 | Should | partial: server built T-405 (`test/db/daily-streak.int`: any event quest completion counts the Questify day, 04:00 Riyadh); the daily challenge's and the daily word's finished plays count it too (T-406, `test/db/daily-challenge.int`); the profile line and the sync toast are built T-405b (`daily-streak.test`, `sync-notices.test`, `player-state.test`) |
 | FR-420 | F-125 | Should | partial: the platform key `dailyStreak` and its effect built T-405 (`test/db/daily-streak.int`, `test/streaks/routes.int`: off, nothing counted, shown or paid; no organizer switch); the profile hides it when `/v1/me` sends null (T-405b); the console page is T-703 |
 | FR-421 | F-125 | Should | server built T-405 (`test/db/daily-streak.int`: XP milestones once ever, no ledger or gem entry from them, no gem source exists; a level crossed pays its level gems, Q-263); items not yet (ADR-298) |
 | FR-422 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
@@ -1112,9 +1112,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-724 | F-135 | Should | server built T-404 (`test/db/gems.int`: closed source list, one entry per level, tier and paying Questify award, retroactive, amounts as data, event points, score and XP untouched, only `questify_sync` credits), core code review GO 93; the gem count on the Profile, the "+N gems" toast and the quests list (T-404b, `sync-notices.test`, `gems.test`) |
 | FR-725 | F-135, F-136 | Should | server built T-404 (no purchase or transfer door, no door names another player, no gem field in the public profile; `test/db/gems.int`), core code review GO 93; on screen the shop has no add-gems control, no link out and no gift or trade door, and says gems are earned and cannot be bought (T-404b, `GemShopScreen`, `gem-shop-flow.test`) |
 | FR-726 | F-136 | Should | partial: server built T-404 (`test/db/gem-shop.int`: deducts and adds to the locker, too few gems refused with the balance unchanged, one copy, seen price, replay); frames and titles only, no characters until character art exists (ADR-288); the shop screen with its confirmation sheet, owned and too-few-gems states (T-404b, `gem-shop-api.test`, `gem-shop-flow.test`) |
-| FR-730 | F-137 | Should | pending |
-| FR-731 | F-137 | Should | pending |
-| FR-732 | F-137 | Should | pending |
+| FR-730 | F-137 | Should | partial: server built T-406 (`test/db/daily-challenge.int`: three answers in order pay 20 + 10 a right answer once, a replay or a second play pays nothing; `test/daily/routes.int`); the screen is T-406b |
+| FR-731 | F-137 | Should | server built T-406 (`test/db/daily-challenge.int`: a finished challenge keeps the day with no event play, nothing while the streak switch is off); the screen is T-406b |
+| FR-732 | F-137 | Should | partial: server built T-406 (a sponsor name on its period's challenge only, `test/db/daily-challenge.int`, `test/daily/routes.int`); the console's field is T-406c, the app's line T-406b |
 | FR-733 | F-138 | Should | pending |
 | FR-734 | F-138 | Should | pending |
 | FR-735 | F-140 | Must | pending |
@@ -1325,7 +1325,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1730 | F-258 | Should | pending |
 | FR-1731 | F-259 | Must | pending |
 | FR-1732 | F-260 | Must | pending |
-| FR-1733 | F-261, F-137 | Should | pending |
+| FR-1733 | F-261, F-137 | Should | partial: server built T-406 (`test/db/daily-content.int`: the warning at 6 vs 7 days, no challenge → `challenge: null`, the streak still kept by an event completion); the console banner is T-406c |
 | FR-1734 | F-262 | Must | pending |
 | FR-1735 | F-263 | Must | pending |
 | FR-1736 | F-264 | Must | pending |
@@ -1402,11 +1402,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1807 | F-309 | Must | built (T-305, ADR-213) |
 | FR-1808 | F-310 | Should | default pictures built (T-305); organizer images T-305b, blocked on Q-149 |
 | FR-1809 | F-311 | Should | built (T-305, ADR-213: the window is the time limit plus 10 minutes, memory only) |
-| FR-1810 | F-312 | Should | pending |
-| FR-1811 | F-313 | Should | pending |
+| FR-1810 | F-312 | Should | partial: server built T-406 (`test/db/daily-word.int`: solved in four pays 50 XP and keeps the streak, six misses reveal the word with no XP, two-pass marks); the screen is T-406b |
+| FR-1811 | F-313 | Should | partial: server built T-406 (`test/db/daily-content.int`: each word language warns under 2 periods, no word → `word: null`); the word bank tab is T-406c |
 | FR-1812 | F-314 | Must | pending |
 | FR-1813 | F-315 | Should | pending |
-| FR-1814 | F-316, F-261, F-313 | Should | pending |
+| FR-1814 | F-316, F-261, F-313 | Should | partial: server built T-406 (`test/db/daily-content.int`: a cadence per kind from the next day, weekly at launch, the two-period warning); the console control is T-406c |
 | FR-1815 | F-317, F-179 | Must | pending |
 | FR-1816 | F-318 | Could | pending |
 | FR-1817 | F-319 | Could | pending |

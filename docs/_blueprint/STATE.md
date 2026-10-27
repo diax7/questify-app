@@ -1548,11 +1548,22 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   review 84 (approve with revisions; short re-review pending): explicit FOR UPDATE on content and the clock after the lock,
   `questionId` in the answer (`changed`), the cadence door locks today's row and drops a same-cadence pending row, XP
   field ranges that fit the 1000 CHECK, the FK to `player` kept, a 33-letter shared Arabic set and a display form.
+- 2026-10-27 **T-406 core built (plan re-review GO 92; core code review pending).** Migration 0069 (undeployed; lock list
+  `xp_entry`, `player`, `player_xp` only): the cadence per kind (weekly from 2026-01-04, changed for tomorrow, rows whose
+  day came frozen), the question bank, challenges of three questions with an optional sponsor name, daily words per
+  language and the guess lists, frozen once started for every role; plays, answers, guesses and finishes (append-only);
+  `xp_entry` source `daily` paid once per play by the finishing door after the daily streak row and before `player_xp`;
+  no points or gems. `apps/api/src/daily/` (three player routes, eleven console routes), `packages/shared/src/daily/`
+  (schemas, the 33-letter Arabic set), switches `dailyChallenge` and `dailyWord`. The re-review's four items are in the
+  plan's build notes. Entrance burst re-timed: streak work +15 to +20 ms at p95; the shared daily row +10.6 ms over the
+  same load; 300 extra concurrent finishes about +62 ms on a laptop (142 ms p95, inside 1 s; Q-282). Proposed ADR-313 /
+  Q-282. Progress 85/161 (52.80%). Mutation globs for GitHub: `apps/api/src/daily/**/*.ts`,
+  `packages/shared/src/daily/**/*.ts` (tests excluded).
 
 ## Next
 
-1. **T-406 independent core plan review** (strongest model), then the T-406 core build (re-time the entrance burst,
-   ADR-303), T-406b and T-406c. Still open: the GitHub mutation run on T-405's core files. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258, Q-279 to Q-281. No deployment/EAS/
+1. **T-406 independent core code review** (strongest model), then the GitHub mutation run on T-406's core globs, then
+   T-406b and T-406c. Still open: the GitHub mutation run on T-405's core files. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258, Q-279 to Q-281. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

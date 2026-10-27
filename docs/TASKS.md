@@ -550,7 +550,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     event explains itself); every string in both languages. Proposed ADR-304, ADR-305 / Q-269, Q-270. Phone check owed
     (RTL, Reduce Motion, the streak beat, VoiceOver/TalkBack labels). Progress 83/158 (52.53%).
   - Done when: With the streak off no player sees an event streak; with the platform switch off no player sees a daily streak.
-- [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
+- [x] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
   - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.
   - Note 2026-10-27 (T-405): the daily challenge and the daily word each write the player's `questify_streak_day` row for
     `questify_day(now())` through their own door (`INSERT … ON CONFLICT DO NOTHING`, only while `daily_streak_on()`),
@@ -563,6 +563,15 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     Proposed ADR-306 to ADR-312 / Q-272 to Q-278; Q-279 to Q-281 are for Dhia (sponsor terms, disclosure wording, word
     list licences) and block nothing. CORE: `xp_entry` source `daily` paid by the finishing door and a second writer of
     `questify_streak_day` (streak row before `player_xp`); no points, no gems.
+  - Done 2026-10-27 (core code review pending; plan re-review GO 92): migration 0069 (undeployed) with the plan's lock
+    list (`xp_entry`, `player`, `player_xp`); the ten tables (cadence, question bank, challenges and their questions,
+    words, guess lists, plays, answers, guesses, finishes), frozen once started for every role; the three player doors
+    and eleven console doors; `xp_entry` source `daily` paid once per play by the finishing door after the daily streak
+    row; `apps/api/src/daily/` (routes, refusal maps), `packages/shared/src/daily/` (schemas, the 33-letter Arabic set),
+    the `dailyChallenge` and `dailyWord` switches. Proven by `test/db/daily-challenge.int`, `daily-word.int`,
+    `daily-content.int` (`word: null`, `warn: true` at 6 days), `daily-upgrade.int`, `test/daily/routes.int`,
+    `test/security/daily-players.int` and the outsider, cross-tenant and route maps. Proposed ADR-313 / Q-282. Screens:
+    T-406b (app), T-406c (console).
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
 - [ ] **T-406b** The daily games on screen: the challenge and word screens (grid, own keyboard per language, marks), their cards on the Profile's Questify section until T-408, the sponsor line, every string — delivers FR 730, 731, 732, 1810 (on screen); depends on: T-406
   - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406b section).
@@ -579,6 +588,8 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Note 2026-10-27 (T-404): the Shop tab (FR-830) opens the gem shop (`GET /v1/me/gem-shop`, T-404b's screen); a
     player's gems never show in any ranking.
   - Note 2026-10-27 (T-405): Questify Home's streak line reads `dailyStreak` from `GET /v1/me` (null: hide it).
+  - Note 2026-10-27 (T-406): Questify Home shows the two daily cards from `GET /v1/me/daily` (each hidden when its game is
+    null), moving them off the Profile where T-406b puts them.
   - Done when: Outside an event the center button scans only join QR codes.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Done when: An organizer sees only counts of their invitations, never player lists.
@@ -590,6 +601,8 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 _Notifications, announcements, big screen, agenda and sessions, maps, sponsors and surveys._
 
 - [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
+  - Note 2026-10-27 (T-406): a daily games reminder, if any, follows ADR-300 (no countdown, no loss copy, a date not a
+    timer) and never names the word or an answer.
   - Note 2026-10-25 (T-312): one push per closed ticket with fixed text by team ("The event team answered you" / "The Questify team answered you" / "Your request was marked solved"), never the text; no push when a ticket is escalated or sent back. The profile dot (`GET /v1/me` `help.unread`) stays the in-app signal.
   - Note 2026-10-24 (T-307): a flash quest's launch (or a scheduled one's start) and a boost's start are FR-1102 event pushes; until then the app learns them from `/live`'s one-time cards.
   - Note 2026-10-24 (T-306 plan, ADR-219 Proposed): two event pushes are owed here: a live poll's push at `send_poll` (to the active members in the poll's audience who have not voted, once per poll; the in-app card already shows it), and FR-246's push at each reached community step (`community_reach`, T-306b; once per step, active members only).
@@ -704,6 +717,9 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-23 (T-209): the flag numbers (10 scans in 5 minutes) live in `flag_tuning()` (migration 0031); make them console tuning numbers here (Q-120).
   - Note 2026-10-27 (T-405): the switches page offers the platform key `dailyStreak` (FR-420, ADR-299); the milestone
     XP (`questify_streak_milestone`, append-only) gets its editor here or in T-709.
+  - Note 2026-10-27 (T-406): the switches page offers `dailyChallenge` and `dailyWord` (ADR-312); the daily XP fields of
+    `platform_setting` key `xp` (`dailyFinishXp` 0–400, `dailyRightXp` 0–200, `dailyWordXp` 0–1000) get their editor
+    here or in T-709 with the same ranges, so no payout passes `daily_finish.xp`'s 1000.
 - [ ] **T-704** Player tools: find a player, read-only record, change username, reset sign-in, merge accounts — delivers FR 1774, 1775; depends on: T-004, T-109
   - Done when: Every look at a player's record is logged.
 - [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109
@@ -723,6 +739,8 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-26 (T-403): the export covers `achievement_earned`, the Event Passport and history (`own_events`) and the player's `final_rank` rows; T-403b adds `questify_award`.
   - Note 2026-10-27 (T-404): the export covers the player's `gem_entry` record and `gem_purchase` rows (both kept on the
     tombstone) and the shop items in the locker.
+  - Note 2026-10-27 (T-406): the export covers `daily_play` with its `daily_answer`, `daily_guess` and `daily_finish`
+    rows (kept on the tombstone, no personal data) and the `xp_entry` rows of source `daily`.
   - Done when: A deletion request removes the profile and anonymizes log entries; a deleted account cannot be restored.
   - Note 2026-10-26 (T-402b export integration obligation): export must cover player_item event/rule sources, souvenir_receipt and recipient-linked souvenir_work under an explicit transient-work disclosure/retention policy. Include the owner's earned event provenance; exclude other recipients, unrelated private configuration and internal lease/error metadata. T-402b implements erasure now but adds no export infrastructure; no download assembly currently exists.
   - Note 2026-10-24 (T-217): `erase_player` does the deletion; the admin path needs a definer that issues a deletion token for a player on a verified request (or calls `erase_marks`/`erase_rows` in the same order), audited with the admin as actor.

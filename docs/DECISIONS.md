@@ -4062,3 +4062,29 @@ and read by SQL the way `daily_streak_on()` reads `dailyStreak`. Off: that game 
 The daily streak switch is separate: with it off the games still pay XP but count no streak day.
 **Why:** Configuration over code: Questify can stop either game without a release (content problems, a store question).
 **Trade-offs:** Two more switches on T-703's page.
+
+## ADR-313 — T-406 build choices: plain admin ids, `changed` for an unknown challenge, the three-question rule at commit
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 build; Q-282). Specifies ADR-307 to ADR-310.
+**Decision:** (1) `set_by` and `created_by` on the daily tables are plain ids with no foreign key to `staff_user`, so
+migration 0069 locks only `xp_entry`, `player` and `player_xp`; the audit log names the admin of every write. (2) An
+unknown challenge id answers `changed` and a known challenge of another period `period_over`, as for words (the
+re-review's rule); `GET /v1/me/daily` carries each question's `id` (the answer names it) and both move replies carry
+`replayed`. (3) Console refusals: a retired question in a challenge is 409 `retired` and an unknown one 422 `questions`
+(the position in `details.position`); a question save whose challenge changed between its read and its locks is 409
+`changed`; a day that does not start a period is 422 `invalid_daily {field: not_period_start}`; two first saves of one
+new day at once meet the unique key and the second answers 409 `changed`. (4) A challenge holds exactly three questions
+at commit (a deferred constraint trigger, a definer because it fires at COMMIT outside the door). (5) Coverage counts up
+to 60 periods ahead; the guess list is read 100 words a page by page number; no words or questions are seeded (they
+arrive through the console once Q-281 is settled). (6) The daily routes register beside the Questify player routes. (7)
+The DB suites move the clock by replacing `questify_day` in their throwaway database with a copy that adds a shift
+(`test_clock`); production SQL holds no test hook. (8) ADR-303's burst budget is read as the cost of the streak work
+and of the shared daily streak row, measured against the same load: the re-timed entrance burst
+(`test/perf/streak-timing.int`, median p95 of six rounds) gave the streak work +15.4 and +20.3 ms over the plain burst
+in two runs, and 300 daily finishes of the same players at once +10.6 ms over 300 finishes of other players (the shared
+row alone); the 300 extra concurrent transactions themselves added about 62 ms on the worker's machine (142 ms p95 in
+all, inside NFR-002's 1 s).
+**Why:** The plan's lock list and its no-leak rules; one meaning for `changed` across both games; content that is
+always complete for the coverage count and the reads; tests that can cross 04:00 without waiting for it; the extra
+finishes are new work at the same instant, not streak cost, and a laptop is not CranL.
+**Trade-offs:** A deleted staff account leaves its id on the rows it set (as the audit log does); a racing first save
+answers a retry-worthy 409 instead of waiting.

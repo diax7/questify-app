@@ -101,6 +101,16 @@ the first's Questify day row, holding no XP row). The settings door `set_event_s
 never an enrollment, a completion or an XP row. `questify_sync` pays the milestones under its usual player KEY SHARE,
 then `player_xp` FOR UPDATE.
 
+**The daily games' lock order (T-406, ADR-309).** A player door takes the player FOR KEY SHARE, then today's
+governing `daily_cadence` row FOR KEY SHARE (the period is worked out in a later statement), then the content row
+(challenge or word) FOR KEY SHARE, then its `daily_play` row (INSERT … ON CONFLICT DO NOTHING, then FOR UPDATE), appends
+the move, and only on a finish the `questify_streak_day` row (probe, then INSERT … ON CONFLICT DO NOTHING) before
+`player_xp` FOR UPDATE, as the completion trigger does. A move that does not finish takes no `player_xp` lock. The
+cadence door locks every cadence row of its kind FOR UPDATE, then reads the clock once (today, the governing row and
+tomorrow from that one read). Content doors never lock `daily_cadence` (the period start is read without a lock); they
+take an explicit FOR UPDATE on the content row (a question save its challenge first, then the question) and check the
+clock (`clock_timestamp()`) after that lock; they never lock a player, a play or an XP row.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id
