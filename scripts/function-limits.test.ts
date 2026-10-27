@@ -4,6 +4,8 @@ import {
   describeFinding,
   formatBaseline,
   parseOffenders,
+  runRatchet,
+  verifyScan,
   toBaseline,
 } from "./function-limits.mjs";
 
@@ -142,10 +144,7 @@ describe("compare", () => {
     );
 
     expect(fixedOne.failures).toEqual([]);
-    expect(fixedOne.improvements.map((item) => [item.kind, item.was])).toEqual([
-      ["shrunk", 140],
-      ["gone", 110],
-    ]);
+    expect(fixedOne.improvements.map((item) => [item.kind, item.was])).toEqual([["gone", 140]]);
     expect(addedOne.failures.map((failure) => [failure.name, failure.kind])).toEqual([
       ["<anonymous>", "new"],
     ]);
@@ -187,5 +186,134 @@ describe("toBaseline and formatBaseline", () => {
     expect(JSON.parse(text)["a.ts"].f).toEqual({ complexity: [14, 9], lines: [120] });
     expect(text).toContain('"complexity": [14, 9]');
     expect(text.endsWith("}\n")).toBe(true);
+  });
+});
+
+describe("compare with a new function that is the largest", () => {
+  it("reports it as new, not as a grown one", () => {
+    const baseline = baselineOf(
+      linesLine("a.ts", 10, "function", 120),
+      linesLine("a.ts", 200, "function", 105),
+    );
+
+    const result = run(
+      baseline,
+      linesLine("a.ts", 10, "function", 120),
+      linesLine("a.ts", 200, "function", 105),
+      linesLine("a.ts", 500, "function", 300),
+    );
+
+    expect(result.failures.map((failure) => [failure.kind, failure.value])).toEqual([["new", 300]]);
+  });
+});
+
+const ok = (stdout: string, status = 1, stderr = "") => ({ status, stdout, stderr });
+const oneOffender = complexityLine("a.ts", 1, "function `f`", 9);
+
+describe("verifyScan", () => {
+  it("reads a consistent failing run and a clean run", () => {
+    expect(verifyScan(ok(`${oneOffender}\n\n1 problem\n`))).toHaveLength(1);
+    expect(verifyScan(ok("", 0))).toEqual([]);
+    expect(verifyScan(ok("0 problems\n", 0))).toEqual([]);
+  });
+
+  it("refuses a crash, a signal and a spawn error", () => {
+    expect(() => verifyScan({ status: 2, stdout: "", stderr: "boom" })).toThrow(/did not finish/);
+    expect(() => verifyScan({ status: null, stdout: "", stderr: "" })).toThrow(/did not finish/);
+    expect(() => verifyScan({ error: new Error("ENOENT"), stdout: "", stderr: "" })).toThrow(
+      /ENOENT/,
+    );
+  });
+
+  it("refuses a broken config: status 1 with nothing read", () => {
+    const config = "Failed to parse oxlint configuration file.\n\n  x Rule 'x' not found";
+    expect(() => verifyScan(ok(config))).toThrow(/cannot be trusted/);
+    expect(() => verifyScan(ok(""))).toThrow(/exit status 1 with 0 offenders/);
+  });
+
+  it("refuses output it does not recognise, even next to good lines", () => {
+    const text = `${oneOffender}\napps/x.ts:3:1: something else [Error/eslint(no-undef)]\n1 problem\n`;
+    expect(() => verifyScan(ok(text))).toThrow(/unrecognised output: apps\/x.ts:3:1/);
+  });
+
+  it("refuses a summary that disagrees with the lines read", () => {
+    expect(() => verifyScan(ok(`${oneOffender}\n2 problems\n`))).toThrow(/summary of 2/);
+    expect(() => verifyScan(ok(oneOffender))).toThrow(/summary of none/);
+  });
+
+  it("refuses status 0 with problems, and an error stream with nothing read", () => {
+    expect(() => verifyScan(ok(`${oneOffender}\n1 problem\n`, 0))).toThrow(/status 0/);
+    expect(() => verifyScan(ok("", 0, "warning: odd"))).toThrow(/error stream/);
+  });
+});
+
+const scanOf = (...lines: string[]) => ok(`${lines.join("\n")}\n${lines.length} problems\n`);
+
+describe("runRatchet", () => {
+  const baseline = baselineOf(complexityLine("a.ts", 1, "function `f`", 12));
+
+  it("passes and only suggests --update when offenders shrank", () => {
+    const result = runRatchet({
+      baseline,
+      scan: scanOf(complexityLine("a.ts", 1, "function `f`", 9)),
+      update: false,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.newBaseline).toBeUndefined();
+    expect(result.out.join("\n")).toContain("Run with --update");
+  });
+
+  it("fails with the finding and a hint on a new offender", () => {
+    const result = runRatchet({
+      baseline,
+      scan: scanOf(
+        complexityLine("a.ts", 1, "function `f`", 12),
+        linesLine("b.ts", 4, "function", 101),
+      ),
+      update: false,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.err[0]).toBe("new offender: <anonymous> (b.ts:4) has 101 lines");
+    expect(result.err.at(-1)).toContain("1 function limit violation(s)");
+  });
+
+  it("--update lowers the baseline", () => {
+    const result = runRatchet({
+      baseline,
+      scan: scanOf(complexityLine("a.ts", 1, "function `f`", 9)),
+      update: true,
+    });
+
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.newBaseline ?? "")).toEqual({ "a.ts": { f: { complexity: [9] } } });
+  });
+
+  it("--update refuses to grow the baseline", () => {
+    const result = runRatchet({
+      baseline,
+      scan: scanOf(complexityLine("a.ts", 1, "function `f`", 13)),
+      update: true,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.newBaseline).toBeUndefined();
+  });
+
+  it("--update never writes after a broken run, and a broken run never passes", () => {
+    for (const scan of [
+      ok(""),
+      ok("", 2, "crash"),
+      ok("Failed to parse oxlint configuration file."),
+    ]) {
+      for (const update of [true, false]) {
+        const result = runRatchet({ baseline, scan, update });
+
+        expect(result.code).toBe(1);
+        expect(result.newBaseline).toBeUndefined();
+        expect(result.err[0]).toContain("cannot be trusted");
+      }
+    }
   });
 });

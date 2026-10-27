@@ -4,8 +4,10 @@
 //   node scripts/function-limits.mjs            fail on a new offender or a baselined function that grew
 //   node scripts/function-limits.mjs --update   rewrite the baseline, only when nothing grew (it only shrinks)
 // A function is identified by file, name (or "<anonymous>") and rule; several functions sharing that identity in
-// one file are matched largest to largest, so moving a function inside its file changes nothing. A renamed
-// offender counts as a new one: split it instead.
+// one file are matched by value first and then largest to largest, so moving a function inside its file changes
+// nothing. A renamed offender counts as a new one: split it instead.
+// The oxlint run is cross-checked (exit status, the "N problems" summary, no unrecognised output) so that a broken
+// config or a crash can never read as "no offenders" and wipe the baseline.
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -16,28 +18,79 @@ const ANONYMOUS = "<anonymous>";
 const RULES = ["complexity", "lines"];
 const LINE_PATTERN =
   /^(.+?):(\d+):\d+: (.+) \[Error\/eslint\((complexity|max-lines-per-function)\)\]$/;
+const SUMMARY_PATTERN = /^(\d+) problems?$/;
 
-export function parseOffenders(output) {
+function parseOffender(line, match) {
+  const [, file, lineNumber, message, eslintRule] = match;
+  const rule = eslintRule === "complexity" ? "complexity" : "lines";
+  const value = rule === "complexity" ? /complexity of (\d+)/ : /too many lines \((\d+)\)/;
+  const measured = value.exec(message);
+  if (measured === null) {
+    throw new Error(`Cannot read the measured value from the oxlint line: ${line}`);
+  }
+  return {
+    file: file.replaceAll("\\", "/"),
+    name: /`([^`]+)`/.exec(message)?.[1] ?? ANONYMOUS,
+    rule,
+    value: Number(measured[1]),
+    line: Number(lineNumber),
+  };
+}
+
+// Sorts every non-blank line of oxlint's `-f unix` output into an offender, the summary count, or "unexpected".
+export function parseScan(output) {
   const offenders = [];
+  const unexpected = [];
+  let summary;
   for (const line of output.split(/\r?\n/)) {
     const match = LINE_PATTERN.exec(line);
-    if (match === null) {
-      continue;
+    const total = SUMMARY_PATTERN.exec(line.trim());
+    if (match !== null) {
+      offenders.push(parseOffender(line, match));
+    } else if (total !== null) {
+      summary = Number(total[1]);
+    } else if (line.trim() !== "") {
+      unexpected.push(line);
     }
-    const [, file, lineNumber, message, eslintRule] = match;
-    const rule = eslintRule === "complexity" ? "complexity" : "lines";
-    const value = rule === "complexity" ? /complexity of (\d+)/ : /too many lines \((\d+)\)/;
-    const measured = value.exec(message);
-    if (measured === null) {
-      throw new Error(`Cannot read the measured value from the oxlint line: ${line}`);
-    }
-    offenders.push({
-      file: file.replaceAll("\\", "/"),
-      name: /`([^`]+)`/.exec(message)?.[1] ?? ANONYMOUS,
-      rule,
-      value: Number(measured[1]),
-      line: Number(lineNumber),
-    });
+  }
+  return { offenders, summary, unexpected };
+}
+
+export function parseOffenders(output) {
+  return parseScan(output).offenders;
+}
+
+function unverified(reason, { stdout, stderr }) {
+  const excerpt = `${stderr ?? ""}${stdout ?? ""}`.trim().split(/\r?\n/).slice(0, 5).join("\n");
+  return new Error(
+    `The oxlint run cannot be trusted (${reason}); nothing was compared or written.${
+      excerpt === "" ? "" : `\n${excerpt}`
+    }`,
+  );
+}
+
+// Returns the offenders of a run that is consistent with itself, and throws for anything else.
+// result: { status, stdout, stderr, error } as spawnSync gives it.
+export function verifyScan(result) {
+  const { status, stdout = "", stderr = "", error } = result;
+  if (error !== undefined || status === null || status > 1) {
+    throw unverified(`it did not finish: ${error?.message ?? `exit status ${status}`}`, result);
+  }
+  const { offenders, summary, unexpected } = parseScan(stdout);
+  if (unexpected.length > 0) {
+    throw unverified(`unrecognised output: ${unexpected[0]}`, result);
+  }
+  if (status === 0 && (offenders.length > 0 || (summary ?? 0) > 0)) {
+    throw unverified("exit status 0 but problems were reported", result);
+  }
+  if (status === 1 && (offenders.length === 0 || summary !== offenders.length)) {
+    throw unverified(
+      `exit status 1 with ${offenders.length} offenders read and a summary of ${summary ?? "none"}`,
+      result,
+    );
+  }
+  if (offenders.length === 0 && stderr.trim() !== "") {
+    throw unverified("nothing read and the error stream is not empty", result);
   }
   return offenders;
 }
@@ -77,61 +130,70 @@ export function formatBaseline(baseline) {
   return `${text}\n`;
 }
 
-function groupByIdentity(offenders) {
-  const groups = new Map();
-  for (const offender of offenders) {
-    const key = JSON.stringify([offender.file, offender.name, offender.rule]);
-    const group = groups.get(key) ?? [];
-    group.push(offender);
-    groups.set(key, group);
-  }
-  return new Map(
-    [...groups].map(([key, group]) => [
-      key,
-      group.toSorted((a, b) => b.value - a.value || a.line - b.line),
-    ]),
-  );
-}
-
-function baselineValues(baseline, file, name, rule) {
-  return baseline[file]?.[name]?.[rule] ?? [];
-}
-
-function baselineIdentities(baseline) {
-  const identities = [];
+// Every identity (file, name, rule) with its current offenders (largest first) and its baselined values.
+function identities(baseline, offenders) {
+  const map = new Map();
+  const entry = (file, name, rule) => {
+    const key = JSON.stringify([file, name, rule]);
+    if (!map.has(key)) {
+      map.set(key, { file, name, rule, current: [], allowed: [] });
+    }
+    return map.get(key);
+  };
   for (const [file, names] of Object.entries(baseline)) {
     for (const [name, rules] of Object.entries(names)) {
-      for (const rule of Object.keys(rules)) {
-        identities.push([file, name, rule]);
+      for (const [rule, values] of Object.entries(rules)) {
+        entry(file, name, rule).allowed = values;
       }
     }
   }
-  return identities;
+  for (const offender of offenders) {
+    entry(offender.file, offender.name, offender.rule).current.push(offender);
+  }
+  for (const item of map.values()) {
+    item.current = item.current.toSorted((a, b) => b.value - a.value || a.line - b.line);
+  }
+  return [...map.values()];
+}
+
+// Equal values cancel out first; of the rest, the largest pairs with the largest, and a surplus current function
+// is a new offender (a function that is baselined but absent is gone).
+function compareIdentity({ file, name, rule, current, allowed }) {
+  const failures = [];
+  const improvements = [];
+  const remaining = [...allowed];
+  const unmatched = [];
+  for (const offender of current) {
+    const index = remaining.indexOf(offender.value);
+    if (index >= 0) {
+      remaining.splice(index, 1);
+    } else {
+      unmatched.push(offender);
+    }
+  }
+  unmatched.forEach((offender, index) => {
+    const was = remaining[index];
+    if (was === undefined) {
+      failures.push({ ...offender, kind: "new" });
+    } else if (offender.value > was) {
+      failures.push({ ...offender, kind: "grew", was });
+    } else {
+      improvements.push({ ...offender, kind: "shrunk", was });
+    }
+  });
+  for (const was of remaining.slice(unmatched.length)) {
+    improvements.push({ file, name, rule, was, kind: "gone" });
+  }
+  return { failures, improvements };
 }
 
 export function compare(baseline, offenders) {
   const failures = [];
   const improvements = [];
-  const groups = groupByIdentity(offenders);
-  for (const group of groups.values()) {
-    const { file, name, rule } = group[0];
-    const allowed = baselineValues(baseline, file, name, rule);
-    group.forEach((offender, index) => {
-      const limit = allowed[index];
-      if (limit === undefined) {
-        failures.push({ ...offender, kind: "new" });
-      } else if (offender.value > limit) {
-        failures.push({ ...offender, kind: "grew", was: limit });
-      } else if (offender.value < limit) {
-        improvements.push({ ...offender, kind: "shrunk", was: limit });
-      }
-    });
-  }
-  for (const [file, name, rule] of baselineIdentities(baseline)) {
-    const current = groups.get(JSON.stringify([file, name, rule]))?.length ?? 0;
-    for (const was of baselineValues(baseline, file, name, rule).slice(current)) {
-      improvements.push({ file, name, rule, was, kind: "gone" });
-    }
+  for (const item of identities(baseline, offenders)) {
+    const result = compareIdentity(item);
+    failures.push(...result.failures);
+    improvements.push(...result.improvements);
   }
   return { failures, improvements };
 }
@@ -152,48 +214,62 @@ export function describeFinding(finding) {
   }
 }
 
-function runOxlint(root) {
+// The whole decision, without any I/O: { code, out, err, newBaseline } where newBaseline is the text to write.
+// scan is what spawnSync returned for the oxlint run; a run that fails verifyScan can neither pass nor update.
+export function runRatchet({ baseline, scan, update }) {
+  let offenders;
+  try {
+    offenders = verifyScan(scan);
+  } catch (error) {
+    return { code: 1, out: [], err: [error.message], newBaseline: undefined };
+  }
+  const { failures, improvements } = compare(baseline, offenders);
+  const out = improvements.map(describeFinding);
+  if (failures.length > 0) {
+    const err = failures.map(describeFinding);
+    err.push(
+      `${failures.length} function limit violation(s): split the function (docs/rules.md: 100 lines, complexity 8).`,
+    );
+    return { code: 1, out, err, newBaseline: undefined };
+  }
+  if (update) {
+    out.push(`Baseline rewritten: ${offenders.length} limit violations remain.`);
+    return { code: 0, out, err: [], newBaseline: formatBaseline(toBaseline(offenders)) };
+  }
+  const hint = improvements.length > 0 ? " Run with --update to lock in the progress." : "";
+  out.push(`Function limits hold: ${offenders.length} baselined violations, none new.${hint}`);
+  return { code: 0, out, err: [], newBaseline: undefined };
+}
+
+function scanWithOxlint(root) {
   const require = createRequire(join(root, "package.json"));
   const bin = join(dirname(require.resolve("oxlint/package.json")), "bin", "oxlint");
-  const result = spawnSync(
+  return spawnSync(
     process.execPath,
     [bin, "-c", ".oxlintrc.limits.json", "-f", "unix", "apps", "packages"],
     { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
-  if (result.error !== undefined || result.status === null || result.status > 1) {
-    throw new Error(`oxlint did not run: ${result.error?.message ?? result.stderr}`);
-  }
-  return result.stdout;
 }
 
 function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const baselinePath = join(root, "scripts", "function-limits-baseline.json");
   const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
-  const offenders = parseOffenders(runOxlint(root));
-  const { failures, improvements } = compare(baseline, offenders);
-  for (const improvement of improvements) {
-    process.stdout.write(`${describeFinding(improvement)}\n`);
+  const { code, out, err, newBaseline } = runRatchet({
+    baseline,
+    scan: scanWithOxlint(root),
+    update: argv.includes("--update"),
+  });
+  if (newBaseline !== undefined) {
+    writeFileSync(baselinePath, newBaseline);
   }
-  if (failures.length > 0) {
-    for (const failure of failures) {
-      process.stderr.write(`${describeFinding(failure)}\n`);
-    }
-    process.stderr.write(
-      `${failures.length} function limit violation(s): split the function (docs/rules.md: 100 lines, complexity 8).\n`,
-    );
-    return 1;
+  for (const line of out) {
+    process.stdout.write(`${line}\n`);
   }
-  if (argv.includes("--update")) {
-    writeFileSync(baselinePath, formatBaseline(toBaseline(offenders)));
-    process.stdout.write(`Baseline rewritten: ${offenders.length} limit violations remain.\n`);
-    return 0;
+  for (const line of err) {
+    process.stderr.write(`${line}\n`);
   }
-  const hint = improvements.length > 0 ? " Run with --update to lock in the progress." : "";
-  process.stdout.write(
-    `Function limits hold: ${offenders.length} baselined violations, none new.${hint}\n`,
-  );
-  return 0;
+  return code;
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

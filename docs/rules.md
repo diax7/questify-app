@@ -175,7 +175,7 @@ secret store; a secret scan runs on every change.
   `.oxlintrc.limits.json` (kept apart so the normal lint gate stays clean) is compared with the committed
   `scripts/function-limits-baseline.json`. A new function over a limit, or a baselined one that grew, fails; a
   renamed offender counts as new. When you touch a baselined function, split it, then run
-  `node scripts/function-limits.mjs --update`, which only ever lowers the baseline. Tests are not measured.
+  `node scripts/function-limits.mjs --update`, which only ever lowers the baseline. Tests are not measured, and neither are `scripts/*.mjs` or TypeScript files at the repo root (the ratchet scans `apps` and `packages`).
 - Zero warnings: fix every warning from every tool, or add an inline ignore with a reason.
 - Expo: development builds only (NFC needs native code); build and submit through EAS.
 - App and shared code run on the release Hermes, which lacks some built-ins Node has (`toSorted`,
