@@ -617,6 +617,16 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Note 2026-10-27 (T-406): Questify Home shows the two daily cards from `GET /v1/me/daily` (each hidden when its game is
     null), moving them off the Profile where T-406b puts them.
   - Done when: Outside an event the center button scans only join QR codes.
+  - Split 2026-10-27 (ADR-321, Q-291): T-408 is now the **CORE** server part (migration 0072: `xp_board` kept by
+    `xp_apply`, the backfill, `questify_ranking`, the admin season reads; `GET /v1/questify/ranking`,
+    `GET /v1/admin/questify/seasons[/:month]`; shared schemas; the `questifyRanking` switch) — delivers FR 611, 1786
+    (server). Plan: `docs/plans/2026-10-27-t-408-questify-home.md` (Proposed ADR-321 to ADR-324, Q-291 to Q-293).
+- [ ] **T-408b** The bar outside events, Questify Home (events live, upcoming, past; daily cards; streak line; Questify quests), Explore (public events, For you, the Questify-wide ranking) and the join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614 (on screen); depends on: T-408
+  - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408b section).
+  - Done when: Outside an event the center button scans only join QR codes (and operator invites, ADR-324); no event screen shows the Questify-wide ranking.
+- [ ] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
+  - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408c section).
+  - Done when: A past month's top 10 is unchanged after the new month starts.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.
@@ -753,6 +763,7 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: Every look at a player's record is logged.
 - [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109
   - Note 2026-10-25 (T-402 plan): apply FR-1415's viewer block filter to the new public-profile definer and ranking entry points, not only photo-wall/content reads. T-402 excludes platform-banned/deleted targets already; per-player blocks remain this task's responsibility.
+  - Note 2026-10-27 (T-408 plan): the Questify-wide ranking door `questify_ranking` (migration 0072) needs the same viewer block filter.
   - Note 2026-10-25 (T-312): Report a player tickets reach the event team only (Q-219); a report never blocks. FR-1411's moderation queue is this task's, apart from tickets.
   - Done when: A reported username goes to the event team and a platform admin can unpublish content.
   - Note 2026-10-25 (T-312 plan): T-312's Report a player ticket reaches the event team only (FR-1822); FR-1411's

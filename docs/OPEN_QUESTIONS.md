@@ -1034,3 +1034,19 @@ fixed once the quest is live, so a different gem amount means retiring it and ad
 amounts before the deploy.
 Retiring this quest and adding a new "set your interests" quest pays everyone who already has interests a second time (each quest pays once per player, not the metric); the console warns when a second one is saved beside one not retired.
 **Answered (developer, delegated by Dhia, 2026-10-27):** 100 XP and 10 gems, as built (T-407c plan review 92, GO).
+
+## Q-291 — The Questify-wide ranking's shape and the T-408 split (2026-10-27, T-408 plan)
+Recommended (ADR-321, ADR-322): split T-408 into the core server (T-408), the app (T-408b) and the console (T-408c); keep
+both boards in one `xp_board` table written by `xp_apply` and read them from PostgreSQL, adding a Redis copy only if the
+timed read of a player's place on a 100,000-player board passes 50 ms. Developer's call after the plan review.
+
+## Q-292 — For Dhia (product): monthly ranking seasons (2026-10-27, T-408 plan)
+Recommended (ADR-323): every month is a season on its own, with no button to press. It starts at 04:00 Saudi time on
+the 1st (the same edge as the daily games), the monthly ranking starts from zero, lifetime XP and levels stay, and each
+past month's top 10 stays visible in the console. No season prizes and no admin-chosen season length in v1. Say if you
+want prizes for a season's winners, a different season length, or players to see last month's winners.
+
+## Q-293 — Operator invites on the Questify home scanner (2026-10-27, T-408 plan)
+Recommended (ADR-324): the center button on Questify home opens event join codes and also operator invites, since staff
+are not yet inside the event when they scan theirs. Quest codes say to open the event first. Developer's call after the
+plan review.
