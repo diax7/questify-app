@@ -3976,3 +3976,82 @@ on every event, single-day included (the organizers spec counts nine).
 event keeps the editor's page the same shape whatever the event's length.
 **Trade-offs:** A closed weekday that a started event day falls on is refused by the server, not pre-disabled by the
 panel (the panel does not read the event's days).
+
+## ADR-306 — T-406 split: the daily ledgers and doors (core), the app screens, the console pages
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-272).
+**Decision:** T-406 (CORE) builds migration 0069, the API doors and the shared schemas: the question and word banks,
+the schedule by period, the cadence, the sponsor name, the plays and finishes, the XP source `daily`, the second writer
+of the daily streak row and the two platform switches. T-406b (STANDARD) builds the app's challenge and word screens
+and their entry cards; T-406c (STANDARD) builds the console's Daily and Word bank tabs, the cadence control and the
+menu badge. One plan (`docs/plans/2026-10-27-t-406-daily.md`) covers all three.
+**Why:** The T-404/T-405 precedent (ledger work gets the strongest model and a core review); the display half lands in
+two different apps, each a full worker load.
+**Trade-offs:** Three workers and three code reviews; the on-screen Givens are proven only by T-406b and T-406c.
+
+## ADR-307 — Daily content periods: the Questify day, Sunday weeks, a cadence per kind from the next day
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-273). Specifies ADR-099 and F-316.
+**Decision:** A period is one Questify day (04:00 to 04:00 Riyadh, ADR-297) under the daily cadence, or Sunday to
+Saturday under the weekly one. The daily challenge and the daily word each have their own cadence, kept as dated rows;
+a change takes effect from the next Questify day (a second change the same day replaces it), and a row whose day has
+come is frozen. Both start weekly (ADR-099). After a change mid-week, the running week ends the day before (to daily)
+or a short first week runs to Saturday (to weekly). Content is keyed by its period's first day; content left on a day
+that is no longer a period start is never served and the console lists it as unused.
+**Why:** One boundary for the streak and the games; the Saudi week; FR-1814's "from the next day" with no period ever
+changing under a player mid-play.
+**Trade-offs:** A cadence change can strand scheduled content until the team moves it.
+
+## ADR-308 — Daily content: a two-language question bank, three questions a period, one word a language
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-274). Specifies ADR-079 and ADR-097.
+**Decision:** The team writes each question in Arabic and English with 2 to 4 options and one right answer. A period's
+challenge is three bank questions (and an optional sponsor name); a question is used once ever. A period's word is one
+five-letter word per language, each used once ever per language, and is always a valid guess. Content whose period has
+started is frozen (the doors check the clock after locking the row, and a trigger refuses changes for every role). The
+console warns when the challenge covers fewer than 7 days or fewer than 2 periods ahead (today's period included), and
+when a word language covers fewer than 2 periods.
+**Why:** FR-730, FR-1733, FR-1811 and FR-1814; frozen content means no two players ever see different content for one
+period.
+**Trade-offs:** Under the weekly cadence the challenge warning asks for two weeks of questions (six questions).
+
+## ADR-309 — Daily rewards: fixed XP paid at the finish, never points or gems; a finished play keeps the streak
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-275). Extends ADR-297.
+**Decision:** Each answer is final and the three are answered in order; finishing the challenge pays 20 XP plus 10 per
+right answer (20 to 50). The word pays 50 XP when solved, none when not. The amounts are `platform_setting` data (the
+`xp` block, falling back per field). XP is written as `xp_entry` source `daily`, once per play, by the door that
+finishes it, under the player's `player_xp` lock taken after the daily streak row; a level crossed pays its gems at the
+next `questify_sync`. No points and no gems are ever written. A finished play (the third answer; the solving or sixth
+guess) writes the daily streak row while the platform switch is on. A retry is recognized by its natural key
+(position and choice, attempt and guess), so no Idempotency-Key is needed.
+**Why:** FR-730 promises XP for answering, FR-1810 none for a lost word; paying at once lets the answer show the XP and
+the level; the lock order matches the completion trigger's, so no deadlock with event play.
+**Trade-offs:** A player who knows nothing still earns 20 XP a period; the streak can be kept by a word not solved.
+
+## ADR-310 — The daily word's rules: five letters, Arabic folding, list-only guesses, one language a period
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-276). Specifies ADR-097.
+**Decision:** Words have five letters in both languages. Arabic input drops diacritics and the tatweel and folds أ إ آ ٱ
+to ا; ة, ى, ء, ؤ and ئ stay their own letters with their own keys. A guess must be in the language's guess list or be
+the period's word; a refused guess (length, letters, not a word) uses no try. Marks are right place, elsewhere (only
+while an unmatched copy of the letter remains) or absent. A player plays one word a period, in the language of their
+first guess. The word is sent only once the game is over.
+**Why:** The usual word-game rules that players know; the folding removes spelling traps that are not about the word.
+**Trade-offs:** Five letters limits the Arabic word choice; folding the alef forms merges words that differ only by
+hamza.
+
+## ADR-311 — A sponsored daily challenge: a disclosed name, nothing else
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-277). Applies ADR-067 and PD-27.
+**Decision:** The team may put a sponsor's name (Arabic and English) on one period's challenge; the app shows "Presented
+by {name}" / "برعاية {name}" on it. No logo until a Questify bucket exists (Q-149), no link out, no tracking, no sponsor
+login and no player data to the sponsor; the console shows Questify finish counts per period only. The questions stay
+editorial, written by the Questify team. The sponsor deal is a contract outside the app. No prize is attached to a
+daily challenge.
+**Why:** FR-732 needs the sponsor shown; Google Play's ads help treats a disclosed paid placement apart from ads, while
+sponsored native content counts as an ad, so the editorial rule keeps the "No ads" declaration (PD-27) true; no prize
+keeps the games out of contest and competition-licence rules.
+**Trade-offs:** No logo in v1 of the feature; the commercial terms (Q-279) and the disclosure wording (Q-280) are open.
+
+## ADR-312 — Platform switches for the daily challenge and the daily word
+**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-278). Extends ADR-299.
+**Decision:** Registry keys `dailyChallenge` and `dailyWord` (platform level, on by default), shipped in `/v1/config`
+and read by SQL the way `daily_streak_on()` reads `dailyStreak`. Off: that game is hidden and its doors refuse at once.
+The daily streak switch is separate: with it off the games still pay XP but count no streak day.
+**Why:** Configuration over code: Questify can stop either game without a release (content problems, a store question).
+**Trade-offs:** Two more switches on T-703's page.

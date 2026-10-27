@@ -901,3 +901,55 @@ hide the panel and the note?
 complexity, 393 over length, tests included). Turning the rules on at once would fail every build.
 **Answered (developer, delegated by Dhia, 2026-10-27):** a ratchet (T-023): a committed baseline that may only shrink,
 so new code meets the rule now and existing offenders are split when their files are next touched.
+
+## Q-272 — Split T-406 into a core part and two screen parts? (2026-10-27, T-406 plan)
+Recommended (ADR-306): T-406 builds the banks, schedule, cadence, plays, XP and doors (core); T-406b builds the app
+screens; T-406c builds the console pages (both standard). Agree, or one screens task?
+
+## Q-273 — Daily content periods and the cadence (2026-10-27, T-406 plan)
+Recommended (ADR-307): weekly periods run Sunday to Saturday on the Questify day (04:00 Riyadh); the challenge and the
+word each have their own cadence, weekly at launch, and a change starts the next day. Agree, or one cadence for both?
+
+## Q-274 — Question and word content rules (2026-10-27, T-406 plan)
+Recommended (ADR-308): each question in both languages with 2 to 4 options; three a period; a question or daily word is
+never reused; started content is frozen; the console warns under 7 days or 2 periods of questions, and under 2 periods
+of words per language. Agree, or allow reusing old questions after some time?
+
+## Q-275 — Daily XP amounts and what keeps the streak (2026-10-27, T-406 plan)
+Recommended (ADR-309): challenge 20 XP for finishing plus 10 per right answer (up to 50); word 50 XP when solved, none
+when not (a quest pays 100); never points or gems; finishing either game keeps the daily streak, even a word not solved.
+Agree, or pay more under the weekly cadence, or count only a solved word for the streak?
+
+## Q-276 — The daily word's rules (2026-10-27, T-406 plan)
+Recommended (ADR-310): five letters in both languages; Arabic folds أ إ آ ٱ to ا and ignores diacritics, while ة, ى, ء, ؤ
+and ئ are their own keys; only list words count as tries; one game a period in one language. Agree, or also fold ة with
+ه and ى with ي?
+
+## Q-277 — What a sponsored daily challenge shows (2026-10-27, T-406 plan)
+Recommended (ADR-311): only the sponsor's name, "Presented by" / "برعاية", on that period's challenge; no logo until a
+Questify bucket exists (Q-149), no link, no tracking, no data to the sponsor, questions written by the Questify team and
+no prizes. Agree?
+
+## Q-278 — Switches for the daily games (2026-10-27, T-406 plan)
+Recommended (ADR-312): platform switches `dailyChallenge` and `dailyWord`, on by default, apart from `dailyStreak`.
+Agree?
+
+## Q-279 — For Dhia (product): the commercial terms of a sponsored daily challenge (2026-10-27, T-406 plan)
+The build only lets the team put a sponsor's name on a period's challenge (ADR-311). Still to decide, outside the code:
+the price and what the sponsor receives (the label only, or also a count of players who finished that period's
+challenge, which the console shows); who sells it and how it is invoiced (outside the platform, ADR-076); which sponsor
+categories are not allowed (for example tobacco, gambling-like or adult brands, with the 13+ audience); and whether a
+sponsor may ever fund a prize for the daily challenge. A prize would make it a commercial competition (Ministry of
+Commerce licence, contest rules in the app, STORE_COMPLIANCE 1.12) and is not built. Nothing built waits on this.
+
+## Q-280 — For Dhia and counsel (legal): the disclosure wording for a sponsored challenge (2026-10-27, T-406 plan)
+Is "برعاية {name}" / "Presented by {name}" enough disclosure for a paid placement under Saudi advertising rules, or must
+it say "إعلان" / "Ad"? Google Play's help says its "Contains ads" label does not cover paid product placement but that
+placement must follow local law; sponsored native content would count as an ad. If counsel requires an ad label, the
+Play and App Store ad answers (PD-27) need a fresh look before the first sponsored challenge goes live.
+
+## Q-281 — For Dhia (product and legal): where the word lists come from (2026-10-27, T-406 plan)
+The daily word needs a list of valid five-letter guesses per language (thousands of English words; an Arabic list is
+harder to find) and the daily words themselves. Which source and licence allow commercial use, or does the team build
+the Arabic list by hand? The build ships a small test seed only; real lists are imported in the console (T-406c) once
+this is settled.

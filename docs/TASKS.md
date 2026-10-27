@@ -557,7 +557,19 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     so they keep the daily streak alive (FR-419); the word's "same for everyone that day" uses the same `questify_day`.
     Re-time the entrance burst (`apps/api/test/perf/streak-timing.int.test.ts`) once that row has a second writer: the
     budget is about 20 ms at p95 within NFR-002 (ADR-303).
+  - Plan 2026-10-27 (core, awaiting the independent CTO plan review): `docs/plans/2026-10-27-t-406-daily.md`; split into
+    T-406 (core: migration 0069, API, shared), T-406b (standard: app screens) and T-406c (standard: console pages),
+    Proposed ADR-306 to ADR-312 / Q-272 to Q-278; Q-279 to Q-281 are for Dhia (sponsor terms, disclosure wording, word
+    list licences) and block nothing. CORE: `xp_entry` source `daily` paid by the finishing door and a second writer of
+    `questify_streak_day` (streak row before `player_xp`); no points, no gems.
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
+- [ ] **T-406b** The daily games on screen: the challenge and word screens (grid, own keyboard per language, marks), their cards on the Profile's Questify section until T-408, the sponsor line, every string — delivers FR 730, 731, 732, 1810 (on screen); depends on: T-406
+  - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406b section).
+    No countdown or loss copy (ADR-300); marks never by colour alone.
+  - Done when: With no challenge or word for the period, no card is shown; a finished game says when the next one comes.
+- [ ] **T-406c** The daily content in the console: question bank, schedule by period with the sponsor name, word bank and guess-list import, cadence, warnings and the menu badge — delivers FR 732, 1733, 1811, 1814 (on screen); depends on: T-406
+  - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406c section).
+  - Done when: Fewer than 7 days of questions, or fewer than two periods of content, shows a warning and a menu badge.
 - [ ] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Note 2026-10-26 (T-403): the player's city reuses the `city` table (migration 0065); "set your interests" adds its metric to `player_metrics` and is counted by the same `questify_sync` evaluator (FR-710).
   - Done when: Promotional messages go only to opted-in players and never between 22:00 and 09:00 Saudi time.
