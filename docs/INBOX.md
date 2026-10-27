@@ -745,3 +745,4 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - Dhia, on the daily word lists (Q-281): "Open lists + our picks". Processed: Q-281 answered; task T-406d added.
 - Dhia, on Questify-wide ranking seasons (Q-292): "Automatic monthly". Processed: Q-292 answered; FR-1786 amended
   (each month resets by itself at 04:00 Riyadh time on the 1st, the console shows past months, no admin reset); ADR-323.
+- Dhia: "when you finish what you have in your hand please take a break so I can compact and switch to Sonnet model". Processed: finish T-408b (build, review, push) and the T-408 mutation result, refresh the handoff, then stop; T-408c is not started.
