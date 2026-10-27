@@ -3,7 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { HttpError } from "./http-error";
 import { MemoryIdempotencyStore } from "./idempotency-store";
-import { registerConventions } from "./conventions";
+import { loggableError, registerConventions } from "./conventions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 let app: FastifyInstance;
@@ -445,6 +445,50 @@ describe("a busy database", () => {
     const response = await app.inject({ method: "GET", url: "/other-db-error" });
     expect(response.statusCode).toBe(500);
     expect(response.body).not.toContain("duplicate key");
+  });
+});
+
+describe("the error log", () => {
+  it("keeps a database error's code and names but never its DETAIL or WHERE", () => {
+    const error = Object.assign(new Error("duplicate key value violates unique constraint"), {
+      code: "23505",
+      constraint: "word_guess_list_pkey",
+      detail: "Key (language, word)=(en, hunter) already exists.",
+      where: "PL/pgSQL function word_list_change(text,text[],text[],uuid) line 20",
+    });
+    const kept = loggableError(error);
+    expect(kept).toMatchObject({
+      type: "Error",
+      code: "23505",
+      constraint: "word_guess_list_pkey",
+    });
+    expect(kept).not.toHaveProperty("detail");
+    expect(kept).not.toHaveProperty("where");
+    expect(JSON.stringify(kept)).not.toContain("hunter");
+  });
+
+  it("logs an unexpected error without the player's input", async () => {
+    const lines: string[] = [];
+    const logged = Fastify({
+      logger: { stream: { write: (line: string) => void lines.push(line) } },
+    });
+    registerConventions(logged, {
+      minAppVersion: "1.2.0",
+      idempotencyStore: new MemoryIdempotencyStore(),
+    });
+    logged.get("/boom", async () => {
+      throw Object.assign(new Error("new row violates check constraint"), {
+        code: "23514",
+        detail: "Failing row contains (secret-guess).",
+        where: "SQL statement INSERT INTO daily_guess VALUES (secret-guess)",
+      });
+    });
+    app = logged;
+    const response = await logged.inject({ method: "GET", url: "/boom" });
+    expect(response.statusCode).toBe(500);
+    const text = lines.join("");
+    expect(text).toContain("23514");
+    expect(text).not.toContain("secret-guess");
   });
 });
 

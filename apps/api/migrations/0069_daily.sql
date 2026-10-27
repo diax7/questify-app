@@ -108,8 +108,10 @@ REVOKE ALL ON daily_cadence FROM PUBLIC, questify_app;
 INSERT INTO daily_cadence (kind, from_day, cadence) VALUES ('challenge', '2026-01-04', 'weekly'),
                                                            ('word', '2026-01-04', 'weekly');
 
--- Refuses any write of a row whose day has come (today's Questify day by the clock, not the transaction's start), the
--- owner included, so a change committing after 04:00 never lands on a day that has come.
+-- Refuses any write of a row whose day has come, the owner included. It checks at write time, by the clock (not the
+-- transaction's start), not at commit; what keeps a period consistent is the row lock: the cadence door holds every
+-- row of the kind FOR UPDATE while it writes, and a player door holds today's governing row FOR KEY SHARE while it
+-- works out the period, so a player door either runs before the change or waits for its commit.
 CREATE FUNCTION daily_cadence_guard() RETURNS trigger LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
   today date := questify_day(clock_timestamp());
@@ -306,7 +308,7 @@ ALTER TABLE daily_finish FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON daily_finish FROM PUBLIC, questify_app;
 
 -- The four play tables are append-only for every role, the owner included.
-CREATE FUNCTION daily_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION daily_append_only() RETURNS trigger LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
   RAISE EXCEPTION 'daily plays can never be changed or removed' USING ERRCODE = 'insufficient_privilege';
 END $$;

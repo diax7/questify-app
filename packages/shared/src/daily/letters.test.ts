@@ -32,6 +32,16 @@ describe("the daily word's letters", () => {
     expect(foldWord("ar", "ؤئءةى")).toBe("ؤئءةى");
   });
 
+  it("trims ASCII spaces only, as the server does: a tab or a no-break space stays and fails the word", () => {
+    const tab = ch(9);
+    const noBreak = ch(0xa0);
+    expect(foldWord("en", `${tab}crane`)).toBe(`${tab}crane`);
+    expect(foldWord("en", `crane${noBreak}`)).toBe(`crane${noBreak}`);
+    expect(normalizeWord("en", `${tab}crane`)).toBeNull();
+    expect(normalizeWord("ar", `كتابة${noBreak}`)).toBeNull();
+    expect(normalizeWord("en", "   crane  ")).toBe("crane");
+  });
+
   it("normalizes only five letters of the language", () => {
     expect(normalizeWord("en", "Crane")).toBe("crane");
     expect(normalizeWord("en", "cranes")).toBeNull();

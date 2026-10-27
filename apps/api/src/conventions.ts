@@ -26,6 +26,31 @@ type Claim = Readonly<{ scope: string; key: string }>;
  * failure (Postgres aborts one side of a rare crossed lock order, ADR-211). Answered 503 busy with Retry-After.
  */
 const DATABASE_BUSY = new Set(["55P03", "57014", "53300", "40P01", "40001"]);
+
+/**
+ * An unexpected error as it is logged: its name, message, stack and the database's code and object names, never
+ * Postgres's DETAIL or WHERE (they can carry a row's values, player input among them; rules.md hard rule 3).
+ */
+export function loggableError(error: Error): Record<string, unknown> {
+  const fields = error as unknown as Readonly<Record<string, unknown>>;
+  const kept: Record<string, unknown> = {
+    type: error.name,
+    message: error.message,
+    stack: error.stack,
+  };
+  for (const field of [
+    "code",
+    "constraint",
+    "table",
+    "schema",
+    "column",
+    "routine",
+    "statusCode",
+  ]) {
+    if (fields[field] !== undefined) kept[field] = fields[field];
+  }
+  return kept;
+}
 /**
  * Visible ASCII; `sub:`, `quiz:`, `pass:`, `meet:` and `game:` are reserved for the database's own completion keys
  * (T-301, T-302, T-304b, T-303c, T-305), and `practice:` for a practice scan's undone door, which skips the first-N
@@ -172,7 +197,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
             details: {},
           });
       }
-      app.log.error(error);
+      app.log.error({ err: loggableError(error) }, "unexpected error");
       return reply.code(500).send({
         code: "internal_error",
         message: {

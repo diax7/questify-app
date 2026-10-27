@@ -21,7 +21,7 @@ import type { HttpError } from "#src/http-error";
  * own; the database audits each write with ids and changed field names only, never a word or an answer.
  */
 
-type PgError = Readonly<{ code?: string; detail?: string; hint?: string }>;
+type PgError = Readonly<{ code?: string; detail?: string; hint?: string; constraint?: string }>;
 /** How one SQLSTATE answers: only for these DETAILs (null: any), and with which HTTP error. */
 type Rule = Readonly<{
   details: ReadonlySet<string> | null;
@@ -44,15 +44,30 @@ const RULES: ReadonlyMap<string, Rule> = new Map<string, Rule>([
     },
   ],
   ["DK422", { details: new Set(DAILY_CONTENT_FIELDS), answer: (field) => invalidDaily({ field }) }],
-  // Two saves of one new day at once: the second meets the first's unique key.
-  ["23505", { details: null, answer: () => dailyContentConflict({ reason: "changed" }) }],
   // A value the tables refuse that the shared schemas let through.
   ["23514", { details: null, answer: () => invalidDaily() }],
 ]);
 
+/**
+ * The unique keys a console door can meet in a race: two first saves of one new day (the second answers `changed`), or
+ * two saves of one word on two days (`used`). Any other unique violation is a server fault.
+ */
+const UNIQUE_KEYS: ReadonlyMap<string, "changed" | "used"> = new Map([
+  ["daily_challenge_starts_on_key", "changed"],
+  ["daily_word_language_starts_on_key", "changed"],
+  ["daily_word_language_word_key", "used"],
+] as const);
+
+/** The race a unique violation names, or undefined for any other error. */
+const raceOf = ({ code, constraint = "" }: PgError) =>
+  code === "23505" ? UNIQUE_KEYS.get(constraint) : undefined;
+
 /** A door's refusal as an HTTP answer; anything else is a server fault and is rethrown. */
 export function dailyContentRefusal(error: unknown): never {
-  const { code = "", detail = "", hint } = error as PgError;
+  const failure = error as PgError;
+  const reason = raceOf(failure);
+  if (reason !== undefined) throw dailyContentConflict({ reason });
+  const { code = "", detail = "", hint } = failure;
   const rule = RULES.get(code);
   if (rule !== undefined && (rule.details === null || rule.details.has(detail))) {
     throw rule.answer(detail, hint);

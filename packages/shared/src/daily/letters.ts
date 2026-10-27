@@ -20,9 +20,12 @@ const MARKS = /[\u064B-\u065F\u0670\u0640]/gu;
 /** The alef forms that fold to a bare alef. */
 const ALEF_FORMS = /[\u0622\u0623\u0625\u0671]/gu;
 
+/** Leading and trailing ASCII spaces only, as the server's `btrim` drops them (never a tab or a no-break space). */
+const SPACES = /^ +| +$/g;
+
 /** A word or guess as it is compared: trimmed; English lower-cased; Arabic without marks and with one alef. */
 export function foldWord(language: DailyLanguage, text: string): string {
-  const trimmed = text.trim();
+  const trimmed = text.replace(SPACES, "");
   if (language === "en") return trimmed.toLowerCase();
   return trimmed.replace(MARKS, "").replace(ALEF_FORMS, "\u0627");
 }

@@ -66,7 +66,24 @@ describe("the console daily doors' refusals (T-406)", () => {
       { field: "not_period_start" },
     ],
     [{ code: "DK422", detail: "sponsor" }, 422, "invalid_daily", { field: "sponsor" }],
-    [{ code: "23505" }, 409, "daily_content_conflict", { reason: "changed" }],
+    [
+      { code: "23505", constraint: "daily_challenge_starts_on_key" },
+      409,
+      "daily_content_conflict",
+      { reason: "changed" },
+    ],
+    [
+      { code: "23505", constraint: "daily_word_language_starts_on_key" },
+      409,
+      "daily_content_conflict",
+      { reason: "changed" },
+    ],
+    [
+      { code: "23505", constraint: "daily_word_language_word_key" },
+      409,
+      "daily_content_conflict",
+      { reason: "used" },
+    ],
     [{ code: "23514" }, 422, "invalid_daily", {}],
   ])("answers %o as %i %s", (fields, status, code, details) => {
     const answer = answerOf(pgError(fields));
@@ -79,6 +96,8 @@ describe("the console daily doors' refusals (T-406)", () => {
     { code: "DK409", detail: "nope" },
     { code: "DK422" },
     { code: "DC409", detail: "changed" },
+    { code: "23505", constraint: "word_guess_list_pkey" },
+    { code: "23505" },
     { code: "40P01" },
   ])("rethrows %o unchanged as a server fault", (fields) => {
     const fault = pgError(fields);

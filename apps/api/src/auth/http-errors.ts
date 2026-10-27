@@ -1780,8 +1780,8 @@ export const dailyConflict = make(
 export const invalidAnswer = make(
   422,
   "invalid_answer",
-  "اختر أحد الخيارات المعروضة.",
-  "Choose one of the options shown.",
+  "تعذّر قبول هذه الإجابة. حدّث اللعبة وحاول مرة أخرى.",
+  "This answer can't be accepted. Refresh the game and try again.",
 );
 /** A refused daily word guess (T-406): `reason` is length, letters or not_a_word; no try is used. */
 export const invalidGuess = make(

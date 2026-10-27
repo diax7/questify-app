@@ -3994,8 +3994,10 @@ two different apps, each a full worker load.
 Saturday under the weekly one. The daily challenge and the daily word each have their own cadence, kept as dated rows;
 a change takes effect from the next Questify day (a second change the same day replaces it; asking for the cadence
 already in force drops any pending change and answers "unchanged", so a running week never restarts), and a row whose
-day has come can be neither written nor changed (the clock is read after the door locks today's cadence row, which
-player doors hold while they work out the period). Both start weekly (ADR-099). After a change mid-week, the running week ends the day before (to daily)
+day has come can be neither written nor changed: a trigger checks the clock at write time (not at commit), and what
+keeps a period consistent is the row lock, since the cadence door locks every cadence row of the kind FOR UPDATE and
+reads the clock after that lock, while player doors hold today's governing row FOR KEY SHARE as they work out the
+period. Both start weekly (ADR-099). After a change mid-week, the running week ends the day before (to daily)
 or a short first week runs to Saturday (to weekly). Content is keyed by its period's first day; content left on a day
 that is no longer a period start is never served and the console lists it as unused.
 **Why:** One boundary for the streak and the games; the Saudi week; FR-1814's "from the next day" with no period ever
@@ -4071,18 +4073,21 @@ unknown challenge id answers `changed` and a known challenge of another period `
 re-review's rule); `GET /v1/me/daily` carries each question's `id` (the answer names it) and both move replies carry
 `replayed`. (3) Console refusals: a retired question in a challenge is 409 `retired` and an unknown one 422 `questions`
 (the position in `details.position`); a question save whose challenge changed between its read and its locks is 409
-`changed`; a day that does not start a period is 422 `invalid_daily {field: not_period_start}`; two first saves of one
-new day at once meet the unique key and the second answers 409 `changed`. (4) A challenge holds exactly three questions
+`changed`; a day that does not start a period is 422 `invalid_daily {field: not_period_start}`; a unique violation
+is answered by its constraint: two first saves of one new day (`daily_challenge_starts_on_key`,
+`daily_word_language_starts_on_key`) answer 409 `changed`, one word saved for two days at once
+(`daily_word_language_word_key`) 409 `used`, and any other unique violation is a server fault (500). (4) A challenge holds exactly three questions
 at commit (a deferred constraint trigger, a definer because it fires at COMMIT outside the door). (5) Coverage counts up
 to 60 periods ahead; the guess list is read 100 words a page by page number; no words or questions are seeded (they
 arrive through the console once Q-281 is settled). (6) The daily routes register beside the Questify player routes. (7)
 The DB suites move the clock by replacing `questify_day` in their throwaway database with a copy that adds a shift
-(`test_clock`); production SQL holds no test hook. (8) ADR-303's burst budget is read as the cost of the streak work
-and of the shared daily streak row, measured against the same load: the re-timed entrance burst
-(`test/perf/streak-timing.int`, median p95 of six rounds) gave the streak work +15.4 and +20.3 ms over the plain burst
-in two runs, and 300 daily finishes of the same players at once +10.6 ms over 300 finishes of other players (the shared
-row alone); the 300 extra concurrent transactions themselves added about 62 ms on the worker's machine (142 ms p95 in
-all, inside NFR-002's 1 s).
+(`test_clock`); production SQL holds no test hook. (8) Only the cost the streak causes counts against ADR-303's burst
+budget. The re-timed entrance burst (`test/perf/streak-timing.int`, median p95 of six rounds, two runs) put the streak
+work at +15.4 and +20.3 ms over the plain burst: at the 20 ms edge. The shared-row collision (300 daily finishes of the
+same players at once, +10.6 ms over 300 finishes of other players; about 26 to 31 ms in all) is an artificial stress
+figure, not a launch pattern; the +62 ms that 300 extra concurrent transactions add is general load, judged under
+NFR-002's 1 s (142 ms p95 in all, on the worker's machine). The CranL staging load test must include the `daily` kind,
+and the burst is re-timed whenever a new writer of `questify_streak_day` is added.
 **Why:** The plan's lock list and its no-leak rules; one meaning for `changed` across both games; content that is
 always complete for the coverage count and the reads; tests that can cross 04:00 without waiting for it; the extra
 finishes are new work at the same instant, not streak cost, and a laptop is not CranL.

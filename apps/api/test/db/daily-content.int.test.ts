@@ -610,6 +610,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("daily content and the cadence 
   });
 
   describe("the console's doors and reads", () => {
+    it("names the unique keys the API answers by name (changed, used)", async () => {
+      const rows = await f.owner<{ conname: string }>(
+        `SELECT conname FROM pg_constraint WHERE contype = 'u' AND conrelid IN ('daily_challenge'::regclass,
+           'daily_word'::regclass) ORDER BY 1`,
+      );
+      expect(rows.map((row) => row.conname)).toEqual([
+        "daily_challenge_starts_on_key",
+        "daily_word_language_starts_on_key",
+        "daily_word_language_word_key",
+      ]);
+    });
+
     it("adds and removes guess-list words in counts, refusing invalid ones", async () => {
       const result = await f.listWords(
         "en",
