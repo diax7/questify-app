@@ -19,7 +19,7 @@ jobs:
   checks:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -109,7 +109,8 @@ jobs:
         if: steps.scope.outputs.e2e == 'true'
         # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
         # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).
-        timeout-minutes: 8
+        # 171 specs ran 8.0 minutes on 2026-10-27 (run 40502683226) and hit the old 8-minute limit.
+        timeout-minutes: 12
         run: |
           set -euo pipefail
           pnpm --filter @questify/web exec playwright install chromium
