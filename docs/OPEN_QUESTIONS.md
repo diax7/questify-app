@@ -894,3 +894,10 @@ Recommended (ADR-305): one Save for the five settings, upcoming dates only, star
 event explains itself, and the owner-only note shows for editors on every event. Agree, or should the single-day event
 hide the panel and the note?
 **Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-305 accepted; code review GO 91). The weekday chips start on Sunday, the Saudi week.
+
+## Q-271 — The function limits in docs/rules.md are not enforced (2026-10-27, T-405b review)
+`docs/rules.md` caps functions at 100 lines and complexity 8, but no lint rule checks it: the T-405b review found a
+170-line `StreakPanel`, and oxlint with those two rules reports 326 offending functions outside tests (364 over
+complexity, 393 over length, tests included). Turning the rules on at once would fail every build.
+**Answered (developer, delegated by Dhia, 2026-10-27):** a ratchet (T-023): a committed baseline that may only shrink,
+so new code meets the rule now and existing offenders are split when their files are next touched.
