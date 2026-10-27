@@ -3,6 +3,7 @@ import {
   eventDayOf,
   formatEventTime,
   formatLocalDate,
+  formatLocalMonth,
   formatTimeWindow,
   isTimeZone,
   localParts,
@@ -234,5 +235,18 @@ describe("formatLocalDate", () => {
   it("never moves the day, whatever the machine's zone", () => {
     expect(formatLocalDate("2026-01-01", "en")).toBe("1 Jan 2026");
     expect(formatLocalDate("2026-12-31", "en")).toBe("31 Dec 2026");
+  });
+});
+
+describe("formatLocalMonth", () => {
+  it("names a month and its year with Western digits in both languages", () => {
+    expect(formatLocalMonth("2026-10", "en")).toBe("October 2026");
+    expect(formatLocalMonth("2026-10", "ar")).toMatch(/^.+ 2026$/);
+    expect(formatLocalMonth("2026-10", "ar")).not.toMatch(/[٠-٩]/);
+  });
+
+  it("never moves the month, whatever the machine's zone", () => {
+    expect(formatLocalMonth("2026-01", "en")).toBe("January 2026");
+    expect(formatLocalMonth("2026-12", "en")).toBe("December 2026");
   });
 });

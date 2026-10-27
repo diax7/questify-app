@@ -206,6 +206,17 @@ export function formatLocalDate(date: string, language: Language): string {
 }
 
 /**
+ * A calendar month (`2026-10`, a Questify month) for people: the month's name and the year, Gregorian, Western digits.
+ */
+export function formatLocalMonth(month: string, language: Language): string {
+  return new Intl.DateTimeFormat(LOCALES[language], {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${month}-01T00:00:00Z`));
+}
+
+/**
  * A time window for people, in the event's zone (the prize desk's hours, ADR-150): "Thu 23 Oct, 16:00–22:00", or both
  * dates when it runs past midnight; 24-hour, Western digits, Gregorian, the zone named once.
  */

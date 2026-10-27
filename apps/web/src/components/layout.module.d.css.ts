@@ -37,5 +37,9 @@ declare const styles: {
   readonly title: string;
   readonly warning: string;
   readonly wrap: string;
+  readonly disclosure: string;
+  readonly who: string;
+  readonly rankNumber: string;
+  readonly rankAvatar: string;
 };
 export default styles;

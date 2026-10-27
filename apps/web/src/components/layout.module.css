@@ -336,3 +336,38 @@
   padding-block: var(--space-sm);
   resize: vertical;
 }
+
+/* Ranking seasons in the console: a month's header button, and a ranked player's row (rank, avatar, name). */
+.disclosure {
+  inline-size: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.disclosure[aria-expanded="true"] {
+  font-weight: 700;
+  border-color: var(--color-highlight);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.rankNumber {
+  min-inline-size: 2ch;
+  font-weight: 700;
+  text-align: center;
+}
+
+.rankAvatar {
+  inline-size: 32px;
+  block-size: 32px;
+  flex: none;
+  border-radius: 50%;
+}

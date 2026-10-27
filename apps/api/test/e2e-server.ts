@@ -186,6 +186,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         flagged?: string[];
         email?: string;
         texts?: string[];
+        monthsAgo?: number;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -305,6 +306,31 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           )
           .then((result) => {
             response.writeHead(result.rowCount === 1 ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /season-board: new players with these usernames, each with its points (in order) on the Questify month board
+      // `monthsAgo` months back (0: this month); answers that month (the console's Ranking seasons, T-408c).
+      if (request.url === "/season-board") {
+        db.owner
+          .query(
+            `WITH month AS (SELECT questify_month(now() - make_interval(months => $3::int)) AS board),
+                  made AS (INSERT INTO player (username) SELECT unnest($1::text[]) RETURNING id, username),
+                  placed AS (
+                    INSERT INTO xp_board (board, player_id, xp, xp_version)
+                    SELECT month.board, made.id, p.points, 1
+                    FROM made JOIN unnest($1::text[], $2::int[]) AS p(username, points) ON p.username = made.username
+                    CROSS JOIN month
+                    RETURNING board)
+             SELECT DISTINCT board FROM placed`,
+            [body.usernames ?? [], body.points ?? [], body.monthsAgo ?? 0],
+          )
+          .then((result) => {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(JSON.stringify({ month: (result.rows[0] as { board: string }).board }));
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));
