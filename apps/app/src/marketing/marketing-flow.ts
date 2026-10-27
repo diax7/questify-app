@@ -125,3 +125,7 @@ export function preferencesNotice(outcome: PreferencesOutcome): MessageKey | nul
       return null;
   }
 }
+
+/** A saved answer holding at least one interest may meet "set your interests" (T-407c), so it syncs at once. */
+export const syncsAfterSave = (outcome: PreferencesOutcome): boolean =>
+  outcome.kind === "saved" && outcome.preferences.interests.length > 0;

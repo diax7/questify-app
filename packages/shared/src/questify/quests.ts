@@ -7,8 +7,13 @@ import { syncDailyStreakSchema } from "#src/streaks/streaks";
 const bilingual = z.object({ ar: z.string(), en: z.string() });
 
 /** What a Questify quest counts (ADR-278): a closed list, so configuration never downloads a feature. */
-export const QUESTIFY_METRICS = ["events", "cities", "quests"] as const;
+export const QUESTIFY_METRICS = ["events", "cities", "quests", "interests_set"] as const;
 export type QuestifyMetric = (typeof QUESTIFY_METRICS)[number];
+/**
+ * "Set your interests" (T-407c, ADR-320): met (1) once the player chose at least one interest. A state with no date,
+ * so its quest is always-on with target 1 (the table's CHECK and the console door refuse anything else).
+ */
+export const INTERESTS_METRIC = "interests_set" satisfies QuestifyMetric;
 
 /** A level reached for the first time, its title and the level items it gave (the completion answer's shape). */
 export const levelUpSchema = z.object({
@@ -31,11 +36,14 @@ export const questifySyncSchema = z.object({
 });
 export type QuestifySync = z.infer<typeof questifySyncSchema>;
 
-/** One Questify quest as its player sees it; a seasonal quest's progress counts inside its campaign's window. */
+/**
+ * One Questify quest as its player sees it; a seasonal quest's progress counts inside its campaign's window. The metric
+ * is any short name (ADR-320): a metric added later must not make an installed app refuse the whole list.
+ */
 export const questifyQuestSchema = z.object({
   id: z.uuid(),
   title: bilingual,
-  metric: z.enum(QUESTIFY_METRICS),
+  metric: z.string().min(1).max(32),
   target: z.number().int().positive(),
   progress: z.number().int().nonnegative(),
   xp: z.number().int().positive(),

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { OwnEvent } from "@questify/shared";
-import { clampedProgress, emblemOf, endsIn, stampState, stateText } from "#src/questify/stamps.ts";
+import { INTERESTS_METRIC } from "@questify/shared";
+import {
+  clampedProgress,
+  emblemOf,
+  endsIn,
+  opensInterests,
+  stampState,
+  stateText,
+} from "#src/questify/stamps.ts";
 
 type Case = Pick<OwnEvent, "rankState" | "rank" | "eventStatus">;
 const event = (patch: Partial<Case>): Case => ({
@@ -115,5 +123,14 @@ describe("clampedProgress", () => {
     expect(clampedProgress(5, 3)).toBe(3);
     expect(clampedProgress(2, 3)).toBe(2);
     expect(clampedProgress(-1, 3)).toBe(0);
+  });
+});
+
+describe("opensInterests (T-407c)", () => {
+  it("offers the Interests screen for an undone interests quest only", () => {
+    expect(opensInterests({ metric: INTERESTS_METRIC, done: false })).toBe(true);
+    expect(opensInterests({ metric: INTERESTS_METRIC, done: true })).toBe(false);
+    expect(opensInterests({ metric: "events", done: false })).toBe(false);
+    expect(opensInterests({ metric: "follow", done: false })).toBe(false);
   });
 });

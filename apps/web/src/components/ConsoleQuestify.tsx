@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  QUESTIFY_METRICS,
   formatNumber,
   type AdminCampaign,
   type AdminQuest,
@@ -17,6 +16,8 @@ import {
   campaignBodyOf,
   campaignDraftOf,
   invalidKey,
+  metricKey,
+  metricsFor,
   questBodyOf,
   questCanPay,
   questDraftOf,
@@ -24,6 +25,9 @@ import {
   readAdminQuestify,
   refusalKey,
   saudiStamp,
+  secondInterestsQuest,
+  targetFixed,
+  withMetric,
   type CampaignDraft,
   type QuestDraft,
 } from "#src/lib/console-questify.ts";
@@ -121,7 +125,9 @@ function CampaignForm({
 function QuestForm({
   language,
   draft,
+  campaignId,
   gemsFixed,
+  secondInterests,
   busy,
   change,
   cancel,
@@ -129,7 +135,10 @@ function QuestForm({
 }: Readonly<{
   language: Language;
   draft: QuestDraft;
+  campaignId: string | null;
   gemsFixed: boolean;
+  /** Saving adds a second "set your interests" quest, which pays everyone who chose interests again. */
+  secondInterests: boolean;
   busy: boolean;
   change: (patch: Partial<QuestDraft>) => void;
   cancel: () => void;
@@ -155,7 +164,7 @@ function QuestForm({
       label={label}
       value={draft[key]}
       invalid={false}
-      disabled={busy || (key === "gems" && gemsFixed)}
+      disabled={busy || (key === "gems" && gemsFixed) || (key === "target" && targetFixed(draft))}
       change={(value) => change({ [key]: value })}
     />
   );
@@ -169,16 +178,26 @@ function QuestForm({
           className={styles.input}
           value={draft.metric}
           disabled={busy}
-          onChange={(event) => change({ metric: event.target.value as QuestDraft["metric"] })}
+          onChange={(event) =>
+            change(withMetric(draft, event.target.value as QuestDraft["metric"]))
+          }
         >
-          {QUESTIFY_METRICS.map((metric) => (
+          {metricsFor(campaignId).map((metric) => (
             <option key={metric} value={metric}>
-              {t(`console.questify.metric.${metric}`)}
+              {t(metricKey(metric))}
             </option>
           ))}
         </select>
       </label>
+      {secondInterests ? (
+        <p className={styles.muted} role="status">
+          {t("console.questify.secondInterests")}
+        </p>
+      ) : null}
       {number("target", t("console.questify.field.target"))}
+      {targetFixed(draft) ? (
+        <p className={styles.muted}>{t("console.questify.targetFixed")}</p>
+      ) : null}
       {number("xp", t("console.questify.field.xp"))}
       {number("gems", t("console.questify.field.gems"))}
       {gemsFixed ? <p className={styles.muted}>{t("console.questify.gemsFixed")}</p> : null}
@@ -233,7 +252,7 @@ function QuestRow({
       </p>
       <p className={styles.muted}>
         {t("console.questify.row", {
-          metric: t(`console.questify.metric.${quest.metric}`),
+          metric: t(metricKey(quest.metric)),
           target: formatNumber(quest.target, language),
           xp: formatNumber(quest.xp, language),
           gems: formatNumber(quest.gems, language),
@@ -423,12 +442,14 @@ function EditorTitle({ language, editing }: Readonly<{ language: Language; editi
 /** The open form, for a campaign or a quest, in a card above the lists. */
 function Editor({
   language,
+  view,
   editing,
   setEditing,
   busy,
   submit,
 }: Readonly<{
   language: Language;
+  view: AdminQuestify | null;
   editing: Editing;
   setEditing: (next: Editing | null) => void;
   busy: boolean;
@@ -448,7 +469,9 @@ function Editor({
         <QuestForm
           {...common}
           draft={editing.draft}
+          campaignId={editing.campaignId}
           gemsFixed={editing.gemsFixed}
+          secondInterests={secondInterestsQuest(view, editing.draft, editing.id)}
           change={(patch) => setEditing({ ...editing, draft: { ...editing.draft, ...patch } })}
         />
       )}
@@ -695,6 +718,7 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
       {editing === null ? null : (
         <Editor
           language={language}
+          view={page.view}
           editing={editing}
           setEditing={setEditing}
           busy={page.busy}

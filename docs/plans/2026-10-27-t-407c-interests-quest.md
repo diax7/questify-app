@@ -7,6 +7,16 @@ and gems. Choices are **Proposed ADR-320 / Q-290**. Never push, deploy, run EAS 
 The reviewer's call (T-407 code review) holds: the metric counts **interests only**. A city alone is not "set your
 interests".
 
+**Plan review fold-in (92, GO):** Q-290 answered by the developer (100 XP, 10 gems); retiring the quest and adding a new
+one pays everyone with interests again (noted in Q-290 and ADR-320; the console warns about a second one); the tests that
+count seeded quests are updated; two more DB tests (a sync held on `player_xp` does not block a preference save; player
+B's interests never count for player A); the outsider test for `player_metrics` already exists
+(`security/outsider.int.test.ts`) and is not duplicated; the app compares against the shared `INTERESTS_METRIC`.
+
+**Deploy note:** app builds installed today parse the quest list with the closed metric list (`events`, `cities`,
+`quests`) and fail on `interests_set` once 0071 ships. Deploy the server together with a new app build that carries the
+tolerant card schema.
+
 ## What changes, and what does not
 
 - `questify_sync` (latest body in 0068), `questify_due`, `own_questify_quests` (0067) and `questify_quest_save` (0067)
@@ -128,9 +138,9 @@ veteran who chose interests; a sync in flight blocks the migration until it comm
 lock exactly `questify_quest` ACCESS EXCLUSIVE; after it, the veteran's next sync pays once; the seeded quests and old
 awards are unchanged.
 
-Security: no new table or function, so the outsider and cross-tenant lists keep their entries; the outsider suite gains
-one assertion that `player_metrics(uuid, timestamptz, timestamptz)` stays closed to `questify_outsider` and
-`questify_app` after the restatement (CREATE OR REPLACE keeps the ACL; the migration revokes anyway). Rehearsal and
+Security: no new table or function, so the outsider and cross-tenant lists keep their entries; the existing outsider
+assertion that `player_metrics(uuid, timestamptz, timestamptz)` is closed (`security/outsider.int.test.ts`) covers the
+restatement (CREATE OR REPLACE keeps the ACL; the migration revokes anyway). Rehearsal and
 gate-map guards run in the final full suite.
 
 Unit and route: shared schema (`QUESTIFY_METRICS`, the player card accepts an unknown metric, the console schemas

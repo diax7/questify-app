@@ -127,13 +127,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     await f.earn(event, await f.join(event, player), { at });
   };
 
-  it("seeds two always-on quests and pays each once with its XP, its level-up and the level items", async () => {
+  it("seeds three always-on quests and pays the play ones once with their XP, level-up and level items", async () => {
     const seeded = await f.owner<{ id: string; metric: string; target: number; xp: number }>(
       "SELECT id, metric, target, xp FROM questify_quest WHERE campaign_id IS NULL AND status = 'active' ORDER BY position",
     );
     expect(seeded.map((row) => [row.metric, row.target, row.xp])).toEqual([
       ["events", 3, 300],
       ["cities", 2, 300],
+      ["interests_set", 1, 100],
     ]);
     const player = await f.newPlayer();
     await f.play(await f.newEvent({ cityId: "sa-riyadh" }), player);
@@ -266,6 +267,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     ).toEqual([
       ["events", 3, 2, false],
       ["cities", 2, 0, false],
+      ["interests_set", 1, 0, false],
     ]);
     expect(before?.seasonal).toEqual([
       {
@@ -642,7 +644,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       "SELECT questify_admin_list() AS r",
       [],
     );
-    expect(list.alwaysOn.length).toBeGreaterThanOrEqual(2);
+    expect(list.alwaysOn.length).toBeGreaterThanOrEqual(3);
     expect(list.campaigns.find((row) => row.id === made.id)).toMatchObject({
       status: "retired",
       quests: [{ id: quest.id, status: "retired", title: { en: "New" } }],
@@ -742,5 +744,209 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     await expect(f.owner("TRUNCATE questify_award CASCADE")).rejects.toThrow(/never be changed/);
     expect(await awards(player)).toContain(quest.id);
     await retireQuest(quest.id);
+  });
+
+  /** "Set your interests" (T-407c, migration 0071, ADR-320): a lifetime state, met once one interest is chosen. */
+  const choose = (player: string, interests: string[], city: string | null = null) =>
+    f.asPlayer(player, "SELECT set_preferences($1, $2::text[]) AS r", [city, interests]);
+  const SAVE = "SELECT set_preferences(NULL, ARRAY['music']) AS r";
+  const interestsQuest = async () =>
+    (
+      await f.owner<{ id: string }>(
+        "SELECT id FROM questify_quest WHERE metric = 'interests_set' AND created_by IS NULL",
+      )
+    )[0]?.id ?? "";
+  const card = async (player: string) =>
+    (await own(player))?.alwaysOn.find((one) => one.metric === "interests_set");
+  const gemsFor = async (player: string, quest: string) =>
+    (
+      await f.owner<{ delta: number }>(
+        `SELECT g.delta FROM gem_entry g JOIN questify_award a ON a.id = g.questify_award_id
+           WHERE a.player_id = $1 AND a.quest_id = $2`,
+        [player, quest],
+      )
+    ).map((row) => row.delta);
+  const xpRows = async (player: string, quest: string) =>
+    (
+      await f.owner<{ delta: number }>(
+        `SELECT x.delta FROM xp_entry x JOIN questify_award a ON a.id = x.questify_award_id
+           WHERE a.player_id = $1 AND a.quest_id = $2`,
+        [player, quest],
+      )
+    ).map((row) => row.delta);
+
+  const insertInterests = (campaign: string | null, target: number) =>
+    f.owner(
+      `INSERT INTO questify_quest (campaign_id, metric, target, title_ar, title_en, xp)
+         VALUES ($1, 'interests_set', $2, 'مهمة', 'Quest', 10)`,
+      [campaign, target],
+    );
+  describe("set your interests (T-407c)", () => {
+    it("is seeded as one active always-on quest: target 1, 100 XP, 10 gems, third in line", async () => {
+      expect(
+        await f.owner(
+          `SELECT campaign_id, target, title_ar, title_en, xp, gems, position, status FROM questify_quest
+           WHERE metric = 'interests_set'`,
+        ),
+      ).toEqual([
+        {
+          campaign_id: null,
+          target: 1,
+          title_ar: "اختر اهتماماتك",
+          title_en: "Set your interests",
+          xp: 100,
+          gems: 10,
+          position: 3,
+          status: "active",
+        },
+      ]);
+    });
+
+    it("pays nothing with no preference row, an empty list or a city alone", async () => {
+      const quest = await interestsQuest();
+      const none = await f.newPlayer();
+      const empty = await f.newPlayer();
+      await choose(empty, []);
+      const city = await f.newPlayer();
+      await choose(city, [], "sa-riyadh");
+      for (const player of [none, empty, city]) {
+        expect(await card(player)).toMatchObject({ target: 1, progress: 0, done: false });
+        expect(await paid(player)).toEqual([]);
+        expect(await awards(player)).not.toContain(quest);
+      }
+    });
+
+    it("pays once for one interest: one award, one XP entry of 100 and 10 gems; a replay pays nothing", async () => {
+      const quest = await interestsQuest();
+      const player = await f.newPlayer();
+      await choose(player, ["sport"]);
+      expect(await card(player)).toMatchObject({ progress: 1, done: false });
+      const answer = await sync(player);
+      expect(answer.quests).toEqual([
+        { id: quest, title: { ar: "اختر اهتماماتك", en: "Set your interests" }, xp: 100 },
+      ]);
+      expect(await xpOf(player)).toBe(100);
+      expect(await xpRows(player, quest)).toEqual([100]);
+      expect(await gemsFor(player, quest)).toEqual([10]);
+      expect(await card(player)).toMatchObject({ progress: 1, done: true });
+      await choose(player, ["sport", "music", "tech"]);
+      expect(await paid(player)).toEqual([]);
+      expect(await awards(player)).toEqual([quest]);
+      expect(await xpRows(player, quest)).toEqual([100]);
+    });
+
+    it("writes one award, XP entry and gem entry when two syncs cross", async () => {
+      const quest = await interestsQuest();
+      const player = await f.newPlayer();
+      await choose(player, ["food"]);
+      const call = { context: { playerId: player }, sql: "SELECT questify_sync() AS r" };
+      const outcome = await f.crossed(call, call);
+      expect(outcome.waited).toBe(true);
+      expect((outcome.first as { r: Sync }).r.quests.map((one) => one.id)).toEqual([quest]);
+      expect((outcome.second as { r: Sync }).r.quests).toEqual([]);
+      expect(await awards(player)).toEqual([quest]);
+      expect(await xpRows(player, quest)).toEqual([100]);
+      expect(await gemsFor(player, quest)).toEqual([10]);
+    });
+
+    it("never makes a sync wait on a preference save held open; the save counts once committed", async () => {
+      const quest = await interestsQuest();
+      const player = await f.newPlayer();
+      const save = { context: { playerId: player }, sql: SAVE };
+      const call = { context: { playerId: player }, sql: "SELECT questify_sync() AS r" };
+      const outcome = await f.crossed(save, call);
+      expect(outcome.waited).toBe(false);
+      expect((outcome.second as { r: Sync }).r.quests).toEqual([]);
+      expect(await paid(player)).toEqual([quest]);
+    });
+
+    it("never makes a preference save wait on a sync held open on player_xp", async () => {
+      const quest = await interestsQuest();
+      const player = await f.newPlayer();
+      await choose(player, ["art"]);
+      const call = { context: { playerId: player }, sql: "SELECT questify_sync() AS r" };
+      const save = { context: { playerId: player }, sql: SAVE };
+      const outcome = await f.crossed(call, save);
+      expect(outcome.waited).toBe(false);
+      expect((outcome.first as { r: Sync }).r.quests.map((one) => one.id)).toEqual([quest]);
+      expect(outcome.second).toEqual({ r: { cityId: null, interests: ["music"] } });
+      expect(await awards(player)).toEqual([quest]);
+    });
+
+    it("keeps the award when interests are cleared, and pays nothing for a choice cleared before a sync", async () => {
+      const quest = await interestsQuest();
+      const kept = await f.newPlayer();
+      await choose(kept, ["travel"]);
+      await sync(kept);
+      await choose(kept, []);
+      expect(await card(kept)).toMatchObject({ progress: 0, done: true });
+      expect(await paid(kept)).toEqual([]);
+      expect(await awards(kept)).toEqual([quest]);
+      expect(await xpRows(kept, quest)).toEqual([100]);
+      expect(await gemsFor(kept, quest)).toEqual([10]);
+      const undone = await f.newPlayer();
+      await choose(undone, ["travel"]);
+      await choose(undone, []);
+      expect(await paid(undone)).toEqual([]);
+      expect(await awards(undone)).toEqual([]);
+    });
+
+    it("never counts player B's interests for player A", async () => {
+      const a = await f.newPlayer();
+      const b = await f.newPlayer();
+      await choose(b, ["gaming", "music"]);
+      expect(await card(a)).toMatchObject({ progress: 0, done: false });
+      expect(await paid(a)).toEqual([]);
+      expect(await card(b)).toMatchObject({ progress: 1 });
+    });
+
+    it("is a lifetime metric only, and never reaches the achievements", async () => {
+      const player = await f.newPlayer();
+      await choose(player, ["sport"]);
+      const metrics = async (since: Date | null, until: Date | null) =>
+        (
+          await f.owner<{ metric: string; value: number }>(
+            "SELECT metric, value FROM player_metrics($1, $2, $3)",
+            [player, since, until],
+          )
+        ).map((row) => [row.metric, row.value]);
+      expect(await metrics(null, null)).toContainEqual(["interests_set", 1]);
+      expect((await metrics(hours(-1), hours(1))).map(([metric]) => metric)).toEqual([
+        "events",
+        "quests",
+        "cities",
+      ]);
+      const achievements = await f.asPlayer<{ r: { id: string }[] }>(
+        player,
+        "SELECT own_achievements() AS r",
+      );
+      expect(achievements[0]?.r).toHaveLength(5);
+    });
+
+    it("refuses the metric in a campaign or with another target, at the table and the console door", async () => {
+      const shape = { code: "23514", constraint: "questify_quest_interests_shape" };
+      const campaign = await saveCampaign(window(hours(1), hours(2)));
+      await expect(insertInterests(null, 2)).rejects.toMatchObject(shape);
+      await expect(insertInterests(campaign.id, 1)).rejects.toMatchObject(shape);
+      await expect(
+        saveQuest({ metric: "interests_set", target: 1, campaignId: campaign.id, status: "draft" }),
+      ).rejects.toMatchObject(shape);
+      const draft = await saveQuest({ campaignId: campaign.id, status: "draft" });
+      await expect(
+        saveQuest({ metric: "interests_set", target: 1, status: "draft" }, draft.id),
+      ).rejects.toMatchObject(shape);
+      await expect(
+        saveQuest({ metric: "interests_set", target: 2, status: "draft" }),
+      ).rejects.toMatchObject(shape);
+      await retireCampaign(campaign.id);
+    });
+
+    it("refuses a player who is not active and writes nothing", async () => {
+      const player = await f.newPlayer();
+      await choose(player, ["sport"]);
+      await f.owner("UPDATE player SET status = 'banned' WHERE id = $1", [player]);
+      await expect(sync(player)).rejects.toMatchObject({ code: "PI401" });
+      expect(await awards(player)).toEqual([]);
+    });
   });
 });

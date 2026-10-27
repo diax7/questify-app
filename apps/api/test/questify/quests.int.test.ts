@@ -82,7 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests routes (T-403b
     const published = await admin("POST", `/campaigns/${campaign.id}/publish`);
     expect(adminCampaignSchema.parse(published.json().campaign).status).toBe("published");
     const list = adminQuestifySchema.parse((await admin("GET", "")).json());
-    expect(list.alwaysOn.map((row) => row.metric)).toEqual(["events", "cities"]);
+    expect(list.alwaysOn.map((row) => row.metric)).toEqual(["events", "cities", "interests_set"]);
     expect(list.campaigns.find((row) => row.id === campaign.id)?.quests).toEqual([quest]);
 
     await f.owner(

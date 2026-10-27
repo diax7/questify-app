@@ -1,4 +1,4 @@
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import type { QuestifyQuest, Theme } from "@questify/shared";
 import { ScrollView, View } from "react-native";
@@ -12,7 +12,7 @@ import { gemsLabel } from "#src/questify/gems.ts";
 import { wordsIn } from "#src/questify/PassportSection.tsx";
 import { useQuestifySync } from "#src/questify/QuestifySyncProvider.tsx";
 import { fetchQuestifyQuests } from "#src/questify/questify-api.ts";
-import { clampedProgress, endsIn } from "#src/questify/stamps.ts";
+import { clampedProgress, endsIn, opensInterests } from "#src/questify/stamps.ts";
 import { useRead } from "#src/questify/use-read.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -39,7 +39,15 @@ function QuestCard({ quest }: Readonly<{ quest: QuestifyQuest }>) {
         />
       </View>
       <View style={styles.line}>
-        <AppText muted>{quest.done ? t("questifyQuests.done") : progress}</AppText>
+        {opensInterests(quest) ? (
+          <Button
+            kind="quiet"
+            label={t("questifyQuests.chooseInterests")}
+            onPress={() => router.push("/interests")}
+          />
+        ) : (
+          <AppText muted>{quest.done ? t("questifyQuests.done") : progress}</AppText>
+        )}
         <View style={styles.rewards}>
           <AppText variant="label">{t("questifyQuests.xp", { xp: quest.xp })}</AppText>
           {quest.gems > 0 ? (

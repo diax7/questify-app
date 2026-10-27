@@ -53,6 +53,18 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await expectNoSidewaysScroll(page);
   await page.getByRole("button", { name: "إلغاء", exact: true }).click();
 
+  // "Set your interests" (T-407c): seeded always-on, met or not, so its target is fixed at 1.
+  const interests = page.getByTestId("questify-quest").filter({ hasText: "اختر اهتماماتك" });
+  await expect(interests).toContainText("اختيار الاهتمامات: 1، الخبرة 100، الجواهر 10");
+  await interests.getByRole("button", { name: "عدّل المهمة" }).click();
+  await expect(page.getByLabel("ما تحسبه المهمة")).toHaveValue("interests_set");
+  await expect(page.getByLabel("الهدف (من 1 إلى 1000)")).toBeDisabled();
+  await expect(page.getByLabel("الهدف (من 1 إلى 1000)")).toHaveValue("1");
+  await expect(page.getByText("هدف هذه المهمة 1", { exact: false })).toBeVisible();
+  await expect(page.getByText("توجد مهمة أخرى لاختيار الاهتمامات", { exact: false })).toHaveCount(0);
+  await expectNoSidewaysScroll(page);
+  await page.getByRole("button", { name: "إلغاء", exact: true }).click();
+
   // A draft may start in the past, but it cannot be published like that.
   await page.getByRole("button", { name: "موسم جديد" }).click();
   const name = `موسم الشتاء ${info.project.name}`;
@@ -97,6 +109,9 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await campaign.getByRole("button", { name: "مهمة جديدة" }).click();
   await page.getByLabel("عنوان المهمة بالعربية", { exact: true }).fill("العب في 4 مدن");
   await page.getByLabel("عنوان المهمة بالإنجليزية", { exact: true }).fill("Play in 4 cities");
+  await expect(
+    page.getByLabel("ما تحسبه المهمة").locator('option[value="interests_set"]'),
+  ).toHaveCount(0);
   await page.getByLabel("ما تحسبه المهمة").selectOption("cities");
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("0");
   await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("50");

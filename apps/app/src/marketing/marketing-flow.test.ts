@@ -12,6 +12,7 @@ import {
   rememberAnswer,
   signupBody,
   switchBody,
+  syncsAfterSave,
   ticksOf,
   toggleInterest,
 } from "#src/marketing/marketing-flow.ts";
@@ -189,5 +190,21 @@ describe("eventTitle", () => {
       "Meetup",
     );
     expect(eventTitle({ joinCode: "ABC234", name: { ar: null, en: null } }, "en")).toBe("ABC234");
+  });
+});
+
+const savedWith = (interests: string[]) =>
+  ({ kind: "saved", preferences: { cityId: null, interests } }) as const;
+
+describe("syncsAfterSave (T-407c)", () => {
+  it("syncs after a save that holds an interest", () => {
+    expect(syncsAfterSave(savedWith(["sport"]))).toBe(true);
+    expect(syncsAfterSave(savedWith(["sport", "music"]))).toBe(true);
+  });
+
+  it("does not sync after an empty save or a refused or failed one", () => {
+    expect(syncsAfterSave(savedWith([]))).toBe(false);
+    for (const kind of ["invalid", "limited", "failed", "network", "signed_out"] as const)
+      expect(syncsAfterSave({ kind })).toBe(false);
   });
 });

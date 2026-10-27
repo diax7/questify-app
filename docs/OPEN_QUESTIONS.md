@@ -1032,3 +1032,5 @@ Built (ADR-320): 100 XP and 10 gems, against 300 XP and 25 gems for "Attend 3 ev
 choosing interests takes one tap. The XP can be changed in the console at any time (later awards only); the gems are
 fixed once the quest is live, so a different gem amount means retiring it and adding a new quest. Say if you want other
 amounts before the deploy.
+Retiring this quest and adding a new "set your interests" quest pays everyone who already has interests a second time (each quest pays once per player, not the metric); the console warns when a second one is saved beside one not retired.
+**Answered (developer, delegated by Dhia, 2026-10-27):** 100 XP and 10 gems, as built (T-407c plan review 92, GO).

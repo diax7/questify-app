@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { describe, expect, it } from "vitest";
 import {
   QUESTIFY_METRICS,
+  INTERESTS_METRIC,
   adminCampaignSchema,
   adminQuestSchema,
   adminQuestifySchema,
@@ -45,7 +46,12 @@ const syncWithQuest = (change: Record<string, unknown>) => ({
 
 describe("QUESTIFY_METRICS", () => {
   it("is the closed list of what a quest counts", () => {
-    expect(QUESTIFY_METRICS).toEqual(["events", "cities", "quests"]);
+    expect(QUESTIFY_METRICS).toEqual(["events", "cities", "quests", "interests_set"]);
+  });
+
+  it("names the interests metric as one of them", () => {
+    expect(INTERESTS_METRIC).toBe("interests_set");
+    expect(QUESTIFY_METRICS).toContain(INTERESTS_METRIC);
   });
 });
 
@@ -156,10 +162,10 @@ describe("questifyQuestSchema and questifyQuestsSchema", () => {
     expect(questifyQuestSchema.parse(quest)).toEqual(quest);
   });
 
-  it("names the three metrics and refuses any other", () => {
-    for (const metric of QUESTIFY_METRICS)
+  it("takes every metric, and a later one, as a short name; refuses an empty or long one", () => {
+    for (const metric of [...QUESTIFY_METRICS, "follow", "m".repeat(32)])
       expect(questifyQuestSchema.parse({ ...quest, metric }).metric).toBe(metric);
-    for (const metric of ["", "points", null, undefined])
+    for (const metric of ["", "m".repeat(33), null, undefined, 3])
       expect(accepts(questifyQuestSchema, { ...quest, metric })).toBe(false);
   });
 
@@ -339,10 +345,10 @@ describe("questPatchSchema and questBodySchema", () => {
       expect(accepts(questPatchSchema, { ...patch, [field]: value })).toBe(false);
   });
 
-  it("names the three metrics and refuses any other", () => {
+  it("names the four metrics and refuses any other", () => {
     for (const metric of QUESTIFY_METRICS)
       expect(accepts(questPatchSchema, { ...patch, metric })).toBe(true);
-    for (const metric of ["", "points", undefined])
+    for (const metric of ["", "points", "follow", undefined])
       expect(accepts(questPatchSchema, { ...patch, metric })).toBe(false);
   });
 

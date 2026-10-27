@@ -278,6 +278,49 @@ describe("quest writes", () => {
     expect(response.statusCode).toBe(201);
   });
 
+  describe('"set your interests" (T-407c)', () => {
+    const interests = { ...questBody, metric: "interests_set", target: 1, campaignId: null };
+
+    it("creates an always-on quest with a target of 1 and replaces one", async () => {
+      const { seen } = build();
+      expect((await send("POST", "/quests", interests)).statusCode).toBe(201);
+      const { campaignId: _campaign, ...patch } = interests;
+      const replaced = await send("PUT", `/quests/${QUEST}`, patch, {
+        ...SIGNED_IN,
+        "idempotency-key": "key-2",
+      });
+      expect(replaced.statusCode).toBe(200);
+      expect(seen.map((one) => JSON.parse(String(one.values[1])))).toEqual([interests, patch]);
+    });
+
+    it.each([
+      ["a target of 2 on create", "POST", "/quests", { ...interests, target: 2 }, "target"],
+      ["a campaign on create", "POST", "/quests", { ...interests, campaignId: CAMPAIGN }, "metric"],
+      [
+        "a target of 2 on replace",
+        "PUT",
+        `/quests/${QUEST}`,
+        { ...questPatch, metric: "interests_set", target: 2 },
+        "target",
+      ],
+    ] as const)(
+      "answers 422 with the field for %s, asking nothing",
+      async (_l, method, url, body, field) => {
+        const { seen } = build();
+        const response = await send(method, url, body);
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({ code: "invalid_questify", details: { field } });
+        expect(seen).toEqual([]);
+      },
+    );
+
+    it("leaves another metric's target and campaign alone", async () => {
+      build();
+      const response = await send("POST", "/quests", { ...questBody, metric: "cities", target: 2 });
+      expect(response.statusCode).toBe(201);
+    });
+  });
+
   it("answers 400 for a quest id that is not a UUID", async () => {
     const { seen } = build();
     const response = await send("POST", "/quests/7/retire", {});

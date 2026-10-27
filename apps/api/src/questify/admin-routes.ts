@@ -1,8 +1,10 @@
 import {
+  INTERESTS_METRIC,
   campaignBodySchema,
   questBodySchema,
   questPatchSchema,
   type CampaignBody,
+  type QuestPatch,
 } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
@@ -39,6 +41,19 @@ function campaignOf(body: unknown): CampaignBody {
     throw invalidQuestify({ field: "endsAt" });
   }
   return campaign;
+}
+
+/**
+ * "Set your interests" is met or not and has no date (ADR-320): its target is 1 and it is never in a campaign. The
+ * table's CHECK, answered with the field.
+ */
+function questOf<T extends QuestPatch>(schema: z.ZodType<T>, body: unknown): T {
+  const quest = parse(schema, body);
+  if (quest.metric !== INTERESTS_METRIC) return quest;
+  if (quest.target !== 1) throw invalidQuestify({ field: "target" });
+  if ("campaignId" in quest && quest.campaignId !== null)
+    throw invalidQuestify({ field: "metric" });
+  return quest;
 }
 
 /**
@@ -87,7 +102,7 @@ export function registerConsoleQuestifyRoutes(
   });
 
   scope.post("/questify/quests", write, async (request, reply) => {
-    const body = parse(questBodySchema, request.body);
+    const body = questOf(questBodySchema, request.body);
     const quest = await saveQuest(deps.pool, adminIdOf(request), {
       id: null,
       body,
@@ -98,7 +113,7 @@ export function registerConsoleQuestifyRoutes(
 
   scope.put("/questify/quests/:questId", write, async (request) => {
     const { questId } = parse(questParams, request.params);
-    const body = parse(questPatchSchema, request.body);
+    const body = questOf(questPatchSchema, request.body);
     return {
       quest: await saveQuest(deps.pool, adminIdOf(request), {
         id: questId,

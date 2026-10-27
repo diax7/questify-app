@@ -16,8 +16,10 @@ import {
 import {
   preferencesChanged,
   preferencesNotice,
+  syncsAfterSave,
   toggleInterest,
 } from "#src/marketing/marketing-flow.ts";
+import { useQuestifySync } from "#src/questify/QuestifySyncProvider.tsx";
 import { useRead } from "#src/questify/use-read.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -56,6 +58,7 @@ function Choice({
 export function InterestsScreen() {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
+  const { syncNow } = useQuestifySync();
   const lists = useRead(async () => {
     const [interests, cities, saved] = await Promise.all([
       fetchInterests(api.session),
@@ -82,6 +85,7 @@ export function InterestsScreen() {
     setBusy(true);
     setNotice(null);
     const outcome = await savePreferences(api.session, { cityId, interests: [...chosen] });
+    if (syncsAfterSave(outcome)) syncNow();
     if (outcome.kind === "invalid") lists.retry();
     if (outcome.kind === "saved") lists.retry();
     setNotice(preferencesNotice(outcome));

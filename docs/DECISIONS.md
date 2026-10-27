@@ -4234,4 +4234,6 @@ closed. (6) The app syncs right after a save that holds an interest, and the und
 **Why:** The smallest change in the payer's path: one read-only row in `player_metrics`, no restated payer, no new lock
 edge (`set_preferences` holds `player` FOR NO KEY UPDATE, which the sync's KEY SHARE never waits on).
 **Trade-offs:** A one-tap quest gives free XP and gems to every new account (gems are per account and cannot move); a
-player who sets and clears before any sync is not paid.
+player who sets and clears before any sync is not paid. Retiring this quest and adding a new "set your interests" quest pays everyone who already has interests a second time (each quest pays once per player, not the metric); the console warns when a second one is saved beside one not retired. Installed app builds have the closed metric
+list in their schema and fail to parse the quest list once 0071 ships: the server and a new app build deploy together.
+Amounts decided under Q-290 (developer, delegated by Dhia, 2026-10-27); this ADR stays Proposed until the code review.

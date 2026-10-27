@@ -568,7 +568,8 @@ ADR-151):
   into the past, then is fixed; the end moves only later while running; an ended window is fixed; retired is final
   (ADR-280). Offered while `starts_at <= now() < ends_at`.
 - `questify_quest(id, campaign_id NULL → questify_campaign (NULL = always-on; set at creation, never moves), metric
-  events|cities|quests, target 1–1000, title_ar/en (1–80, no control/bidi), xp 1–10000, position 1–1000, status
+  events|cities|quests|interests_set (T-407c, 0071: CHECK `questify_quest_interests_shape` keeps `interests_set`
+  always-on with target 1), target 1–1000, title_ar/en (1–80, no control/bidi), xp 1–10000, position 1–1000, status
   draft|active|retired, created_by, created_at, updated_at)`, index (campaign_id). At most 20 not retired per campaign
   and 50 always-on, a count inside `questify_quest_save` (cut 3; the campaign row lock makes the campaign cap exact, the
   always-on one is admin-only). Metric and target are fixed once the quest can pay (active always-on, or its campaign
@@ -583,6 +584,9 @@ ADR-151):
 - Window (MINOR-6): `standing_credits(player, since, until)` and `player_metrics(player, since, until)` bound the
   credits to `ledger_entry.created_at` in `[since, until)` (NULL: unbounded; the one-argument versions call them with
   NULL). A bounded call answers events, quests and cities only (top10 and goals are lifetime).
+- `player_metrics(player, since, until)` gains `interests_set` (0071, lifetime only): 1 when the player's
+  `player_preference` row holds at least one interest, else 0; the city is never read. Seeded quest "Set your
+  interests" (100 XP, 10 gems, position 3; ADR-320). Clearing interests never takes the award back.
 - Evaluator: `questify_due(player)` lists active always-on quests met on lifetime metrics and active quests of a
   published campaign met inside its window, from its start until `ends_at + 3 days`, not yet awarded. `questify_sync()`
   pays each after the tiers under the same locks: one award (`ON CONFLICT DO NOTHING`), one `xp_entry` (xp read under

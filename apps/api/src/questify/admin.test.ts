@@ -18,6 +18,13 @@ describe("the console Questify doors' refusals (T-403b)", () => {
     [{ code: "QY409", detail: "frozen" }, 409, "questify_conflict", { reason: "frozen" }],
     [{ code: "QY422", detail: "campaignId" }, 422, "invalid_questify", { field: "campaignId" }],
     [{ code: "23514" }, 422, "invalid_questify", {}],
+    [{ code: "23514", constraint: "questify_quest_xp_check" }, 422, "invalid_questify", {}],
+    [
+      { code: "23514", constraint: "questify_quest_interests_shape" },
+      422,
+      "invalid_questify",
+      { field: "metric" },
+    ],
   ])("answers %o as %i %s", (error, status, code, details) => {
     const answer = answerOf(error);
     expect(answer).toBeInstanceOf(HttpError);

@@ -1,4 +1,10 @@
-import type { Language, MessageKey, OwnEvent } from "@questify/shared";
+import {
+  INTERESTS_METRIC,
+  type Language,
+  type MessageKey,
+  type OwnEvent,
+  type QuestifyQuest,
+} from "@questify/shared";
 
 /** What a stamp or a history row says about the event's result (FR-709): never a rank while the event runs. */
 export type StampState =
@@ -86,3 +92,7 @@ export function endsIn(endsAt: string, now: Date): EndsIn | null {
 /** A quest's progress for the bar: the server counts past the target, the screen never shows more than done. */
 export const clampedProgress = (progress: number, target: number): number =>
   Math.min(Math.max(progress, 0), target);
+
+/** An undone "set your interests" quest (T-407c) offers the Interests screen in place of "0 of 1". */
+export const opensInterests = (quest: Pick<QuestifyQuest, "metric" | "done">): boolean =>
+  quest.metric === INTERESTS_METRIC && !quest.done;

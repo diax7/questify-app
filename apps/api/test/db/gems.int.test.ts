@@ -245,13 +245,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("gems: the ledger and the sync 
     await retireQuest(draft.id);
   });
 
-  it("seeds the two always-on quests at 25 gems", async () => {
+  it("seeds the two play quests at 25 gems and set your interests at 10 (T-407c)", async () => {
     const seeded = await f.owner<{ metric: string; gems: number }>(
       "SELECT metric, gems FROM questify_quest WHERE created_by IS NULL ORDER BY position",
     );
     expect(seeded).toEqual([
       { metric: "events", gems: 25 },
       { metric: "cities", gems: 25 },
+      { metric: "interests_set", gems: 10 },
     ]);
   });
 

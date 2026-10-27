@@ -208,6 +208,7 @@ export {
 export type { AchievementTier, Achievement } from "./questify/achievements";
 export {
   QUESTIFY_METRICS,
+  INTERESTS_METRIC,
   levelUpSchema,
   questifySyncSchema,
   questifyQuestSchema,

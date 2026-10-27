@@ -122,6 +122,9 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
     "Questify's own quests on the console, not an event's word",
   "console.questify.gemsFixed": "Questify's own quests on the console, not an event's word",
   "console.questify.metric.quests": "Questify's own quests on the console, not an event's word",
+  "console.questify.secondInterests": "Questify's own quests on the console, not an event's word",
+  "console.questify.targetFixed": "Questify's own quests on the console, not an event's word",
+  "console.questify.invalid.metric": "Questify's own quests on the console, not an event's word",
 };
 
 describe("the dashboard's source", () => {

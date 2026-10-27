@@ -4678,6 +4678,7 @@ export const MESSAGES = {
   "questifyQuests.progress": { ar: "{progress} من {target}", en: "{progress} of {target}" },
   "questifyQuests.xp": { ar: "+{xp} XP", en: "+{xp} XP" },
   "questifyQuests.done": { ar: "اكتملت", en: "Done" },
+  "questifyQuests.chooseInterests": { ar: "اختر اهتماماتك", en: "Choose your interests" },
   "questifyQuests.empty": {
     ar: "لا توجد مهام الآن. عد لاحقًا.",
     en: "No quests right now. Check back soon.",
@@ -4859,6 +4860,15 @@ export const MESSAGES = {
   "console.questify.metric.events": { ar: "الفعاليات التي لعبها اللاعب", en: "Events played" },
   "console.questify.metric.cities": { ar: "المدن التي لعب فيها", en: "Cities played in" },
   "console.questify.metric.quests": { ar: "المهام التي أنجزها", en: "Quests completed" },
+  "console.questify.metric.interestsSet": { ar: "اختيار الاهتمامات", en: "Interests chosen" },
+  "console.questify.targetFixed": {
+    ar: "هدف هذه المهمة 1: تكتمل حين يختار اللاعب اهتمامًا واحدًا على الأقل.",
+    en: "This quest's target is 1: it is done once the player chooses at least one interest.",
+  },
+  "console.questify.secondInterests": {
+    ar: "توجد مهمة أخرى لاختيار الاهتمامات. كل لاعب اختار اهتماماته سيحصل على المكافأة مرة أخرى.",
+    en: "Another interests quest exists. Every player who already chose interests will be rewarded again.",
+  },
   "console.questify.campaignStatus.draft": { ar: "مسودة", en: "Draft" },
   "console.questify.campaignStatus.published": { ar: "منشور", en: "Published" },
   "console.questify.campaignStatus.retired": { ar: "متوقف", en: "Retired" },
@@ -4947,6 +4957,10 @@ export const MESSAGES = {
   "console.questify.invalid.position": {
     ar: "الموضع عدد صحيح من 1 إلى 1000.",
     en: "The position is a whole number from 1 to 1000.",
+  },
+  "console.questify.invalid.metric": {
+    ar: "مهمة اختيار الاهتمامات متاحة دائمًا فقط، ولا تكون ضمن موسم.",
+    en: "The interests quest is always available only, never part of a season.",
   },
   "console.questify.invalid.other": {
     ar: "راجع الحقول ثم أعد المحاولة.",

@@ -1,4 +1,6 @@
 import {
+  INTERESTS_METRIC,
+  QUESTIFY_METRICS,
   adminQuestifySchema,
   campaignBodySchema,
   formatLocalDate,
@@ -13,6 +15,7 @@ import {
   type MessageKey,
   type QuestBody,
   type QuestPatch,
+  type QuestifyMetric,
 } from "@questify/shared";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
@@ -79,7 +82,15 @@ export const questDraftOf = (quest: AdminQuest): QuestDraft => ({
 });
 
 /** The API's field names, so a problem points at one thing. */
-export type QuestifyField = "label" | "startsAt" | "endsAt" | "target" | "xp" | "gems" | "position";
+export type QuestifyField =
+  | "label"
+  | "startsAt"
+  | "endsAt"
+  | "metric"
+  | "target"
+  | "xp"
+  | "gems"
+  | "position";
 
 export type Checked<T> =
   | Readonly<{ ok: true; body: T }>
@@ -90,6 +101,7 @@ const FIELD_OF: Readonly<Record<string, QuestifyField>> = {
   title: "label",
   startsAt: "startsAt",
   endsAt: "endsAt",
+  metric: "metric",
   target: "target",
   xp: "xp",
   gems: "gems",
@@ -142,6 +154,42 @@ function questFields(draft: QuestDraft) {
  */
 export const questCanPay = (quest: AdminQuest, campaign: AdminCampaign | null): boolean =>
   campaign === null ? quest.status === "active" : campaign.status === "published";
+
+/** What a quest may count: "set your interests" has no date to place in a window, so never in a campaign (ADR-320). */
+export const metricsFor = (campaignId: string | null): readonly QuestifyMetric[] =>
+  campaignId === null
+    ? QUESTIFY_METRICS
+    : QUESTIFY_METRICS.filter((metric) => metric !== INTERESTS_METRIC);
+
+const METRIC_KEYS: Readonly<Record<QuestifyMetric, MessageKey>> = {
+  events: "console.questify.metric.events",
+  cities: "console.questify.metric.cities",
+  quests: "console.questify.metric.quests",
+  interests_set: "console.questify.metric.interestsSet",
+};
+/** The words for what a quest counts. */
+export const metricKey = (metric: QuestifyMetric): MessageKey => METRIC_KEYS[metric];
+
+/** Whether the target is fixed by the metric: "set your interests" is met or not, so its target is 1. */
+export const targetFixed = (draft: QuestDraft): boolean => draft.metric === INTERESTS_METRIC;
+
+/** The draft with another metric; "set your interests" sets its only target. */
+export const withMetric = (draft: QuestDraft, metric: QuestifyMetric): QuestDraft =>
+  metric === INTERESTS_METRIC ? { ...draft, metric, target: "1" } : { ...draft, metric };
+
+/**
+ * Whether saving this draft as "set your interests" adds a second one beside a quest not retired: each pays once, so
+ * every player who already chose interests would be paid again.
+ */
+export const secondInterestsQuest = (
+  view: AdminQuestify | null,
+  draft: QuestDraft,
+  id: string | null,
+): boolean =>
+  draft.metric === INTERESTS_METRIC &&
+  (view?.alwaysOn ?? []).some(
+    (quest) => quest.metric === INTERESTS_METRIC && quest.status !== "retired" && quest.id !== id,
+  );
 
 /** Checks a new quest's form (its campaign, or none for an always-on quest, is chosen when it is created). */
 export function questBodyOf(draft: QuestDraft, campaignId: string | null): Checked<QuestBody> {

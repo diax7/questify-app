@@ -6,6 +6,8 @@ import {
   campaignBodyOf,
   campaignDraftOf,
   invalidKey,
+  metricKey,
+  metricsFor,
   questBodyOf,
   questCanPay,
   questDraftOf,
@@ -13,6 +15,9 @@ import {
   readAdminQuestify,
   refusalKey,
   saudiStamp,
+  secondInterestsQuest,
+  targetFixed,
+  withMetric,
 } from "#src/lib/console-questify.ts";
 
 const CAMPAIGN_ID = "6f1c7a0e-0000-4000-8000-000000000001";
@@ -214,6 +219,7 @@ describe("refusalKey", () => {
     ["title", "label"],
     ["startsAt", "startsAt"],
     ["endsAt", "endsAt"],
+    ["metric", "metric"],
     ["target", "target"],
     ["xp", "xp"],
     ["gems", "gems"],
@@ -293,5 +299,53 @@ describe("questCanPay", () => {
     expect(questCanPay(quest("active"), campaignWith("draft"))).toBe(false);
     expect(questCanPay(quest("draft"), campaignWith("draft"))).toBe(false);
     expect(questCanPay(quest("retired"), null)).toBe(false);
+  });
+});
+
+const interests = (id: string, status: AdminQuest["status"]): AdminQuest => ({
+  ...quest(status),
+  id,
+  metric: "interests_set",
+  target: 1,
+});
+const view = (alwaysOn: AdminQuest[]) => ({ alwaysOn, campaigns: [] });
+
+describe('"set your interests" in the form (T-407c, ADR-320)', () => {
+  it("names every metric in both languages", () => {
+    for (const metric of metricsFor(null)) {
+      const text = MESSAGES[metricKey(metric)];
+      expect(text.ar.length, metric).toBeGreaterThan(0);
+      expect(text.en.length, metric).toBeGreaterThan(0);
+    }
+    expect(metricKey("interests_set")).toBe("console.questify.metric.interestsSet");
+  });
+
+  it("offers it for an always-on quest only", () => {
+    expect(metricsFor(null)).toEqual(["events", "cities", "quests", "interests_set"]);
+    expect(metricsFor(CAMPAIGN_ID)).toEqual(["events", "cities", "quests"]);
+  });
+
+  it("sets and fixes the target at 1 when chosen, and leaves another metric's target as typed", () => {
+    const chosen = withMetric(questDraft, "interests_set");
+    expect(chosen).toEqual({ ...questDraft, metric: "interests_set", target: "1" });
+    expect(targetFixed(chosen)).toBe(true);
+    expect(withMetric(questDraft, "cities")).toEqual({ ...questDraft, metric: "cities" });
+    expect(targetFixed(questDraft)).toBe(false);
+    expect(questBodyOf(chosen, null)).toMatchObject({
+      ok: true,
+      body: { metric: "interests_set", target: 1 },
+    });
+  });
+
+  it("warns when a second one would sit beside one not retired, never about itself", () => {
+    const draft = withMetric(questDraft, "interests_set");
+    const live = interests("6f1c7a0e-0000-4000-8000-000000000003", "active");
+    expect(secondInterestsQuest(view([live]), draft, null)).toBe(true);
+    expect(secondInterestsQuest(view([{ ...live, status: "draft" }]), draft, null)).toBe(true);
+    expect(secondInterestsQuest(view([live]), draft, live.id)).toBe(false);
+    expect(secondInterestsQuest(view([{ ...live, status: "retired" }]), draft, null)).toBe(false);
+    expect(secondInterestsQuest(view([quest("active")]), draft, null)).toBe(false);
+    expect(secondInterestsQuest(view([live]), questDraft, null)).toBe(false);
+    expect(secondInterestsQuest(null, draft, null)).toBe(false);
   });
 });
