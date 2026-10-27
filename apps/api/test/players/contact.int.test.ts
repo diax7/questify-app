@@ -92,6 +92,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
 
   /** The log lines written so far, as objects. */
   const logged = () => lines.map((line) => JSON.parse(line) as Row);
+  /** The log without its numbers: a float such as `responseTime` may hold any digit run. */
+  const loggedText = () =>
+    logged()
+      .map((row) =>
+        JSON.stringify(row, (_key, value) => (typeof value === "number" ? undefined : value)),
+      )
+      .join("");
 
   const contactOf = async (player: string) =>
     (
@@ -133,7 +140,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
         "تغيّرت بيانات دخولك في كويستفاي. إن لم تكن أنت، تواصل معنا من التطبيق.",
       );
       expect(notice?.text).not.toContain("sara");
-      const log = lines.join("");
+      const log = loggedText();
       expect(log).toContain('"event":"player.contact_changed"');
       expect(log).toContain('"event":"player.notice_sent"');
       // The contacts themselves, not digit runs: a log line's hex address tag may hold any digits.
@@ -240,7 +247,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       expect.objectContaining({ event: "player.throttled", step: "contact_window" }),
     );
     for (const contact of [email, old, fresh]) {
-      expect(lines.join("")).not.toContain(contact);
+      expect(loggedText()).not.toContain(contact);
     }
   });
 
