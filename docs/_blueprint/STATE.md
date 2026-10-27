@@ -1543,7 +1543,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   order); no points or gems; hidden answers and words never in a read before the caller finished; a sponsor is a
   disclosed name on a period's challenge (no logo, link, tracking or data; no prizes). Lock list: `xp_entry` then
   `player_xp`, nothing else. Proposed ADR-306 to ADR-312 / Q-272 to Q-278; for Dhia: Q-279 (sponsor terms), Q-280
-  (disclosure wording, counsel), Q-281 (word list licences). Progress 84/161 (52.17%; T-406b, T-406c added).
+  (disclosure wording, counsel), Q-281 (word list licences). Progress 84/161 (52.17%; T-406b, T-406c added). CTO plan
+  review 84 (approve with revisions; short re-review pending): explicit FOR UPDATE on content and the clock after the lock,
+  `questionId` in the answer (`changed`), the cadence door locks today's row and drops a same-cadence pending row, XP
+  field ranges that fit the 1000 CHECK, the FK to `player` kept, a 33-letter shared Arabic set and a display form.
 
 ## Next
 

@@ -557,7 +557,8 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     so they keep the daily streak alive (FR-419); the word's "same for everyone that day" uses the same `questify_day`.
     Re-time the entrance burst (`apps/api/test/perf/streak-timing.int.test.ts`) once that row has a second writer: the
     budget is about 20 ms at p95 within NFR-002 (ADR-303).
-  - Plan 2026-10-27 (core, awaiting the independent CTO plan review): `docs/plans/2026-10-27-t-406-daily.md`; split into
+  - Plan 2026-10-27 (core; CTO plan review 84, three MAJORs and four MINORs folded, short re-review pending):
+    `docs/plans/2026-10-27-t-406-daily.md`; split into
     T-406 (core: migration 0069, API, shared), T-406b (standard: app screens) and T-406c (standard: console pages),
     Proposed ADR-306 to ADR-312 / Q-272 to Q-278; Q-279 to Q-281 are for Dhia (sponsor terms, disclosure wording, word
     list licences) and block nothing. CORE: `xp_entry` source `daily` paid by the finishing door and a second writer of
