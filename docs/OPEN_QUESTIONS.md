@@ -962,6 +962,7 @@ The daily word needs a list of valid five-letter guesses per language (thousands
 harder to find) and the daily words themselves. Which source and licence allow commercial use, or does the team build
 the Arabic list by hand? The build ships a small test seed only; real lists are imported in the console (T-406c) once
 this is settled. (T-406 build, 2026-10-27: no seed ships at all; the tests add their own words, ADR-313. T-406c: the import is built and ships no list, ADR-315.)
+**Answered (Dhia, 2026-10-27):** "Open lists + our picks": the guess lists come from free lists whose licence allows commercial use (the developer finds and checks them, then cleans up the Arabic list), and the Questify team hand-picks the daily words (a few hundred, family-friendly). Follow-up task T-406d.
 
 ## Q-282 — The T-406 build's small choices (2026-10-27, T-406 build)
 Recommended (ADR-313): admin ids on the daily tables without a foreign key (the migration's short lock list); an
@@ -1010,6 +1011,7 @@ The law's 22:00 to 09:00 (01:00 to 12:00 in Ramadan) is for SMS. ADR-065 decline
 or email can arrive at 03:00. Recommended: keep ADR-065 for event and personal pushes, but hold promotional push and
 email to the same window, so a promotion never wakes anyone. Built as SMS only (one line, `CHANNELS_WITH_WINDOW` in
 `send-window.ts`) until Dhia answers.
+**Answered (Dhia, 2026-10-27):** "SMS only": as built. Only promotional SMS keeps the 22:00 to 09:00 window (01:00 to 12:00 in Ramadan); promotional push and email follow ADR-065 and may arrive at any hour.
 
 ## Q-288 — For Dhia and counsel (legal): the consent wording and the promotional sender (2026-10-27, T-407 plan)
 The consent text shown per channel (what is sent, who sends it, that it is optional, how to stop) is written in Arabic

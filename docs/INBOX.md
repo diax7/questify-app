@@ -741,3 +741,5 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
   for these questions that are unrelated to me. I'm just a product manager. You are the developer." Processed: CLAUDE.md
   coordinator rule 6; ADR-272 to ADR-305 accepted by the developer under this delegation.
 - Dhia, on sponsored daily challenges (Q-279): "Name only". Processed: Q-279 answered; ADR-311 stands.
+- Dhia, on promotional quiet hours (Q-287): "SMS only". Processed: Q-287 answered; push and email follow ADR-065.
+- Dhia, on the daily word lists (Q-281): "Open lists + our picks". Processed: Q-281 answered; task T-406d added.
