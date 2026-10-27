@@ -7,9 +7,21 @@ import { PLAYER_GUARD } from "#src/route-access";
 /** A bearer token is 32 random bytes in base64url (T-107 issues them, as staff sessions are made). */
 const BEARER = /^Bearer ([A-Za-z0-9_-]{43})$/;
 
+/** The hash player_session stores for a bearer token. */
+const hashOf = (token: string): Buffer => createHash("sha256").update(token).digest();
+
+/**
+ * The stored hash of the request's own access token (the `Authorization: Bearer` header), or undefined when there is
+ * none: a door that acts on this sign-in (the push device, T-501) finds its session by it.
+ */
+export function sessionHashOf(authorization: unknown): Buffer | undefined {
+  const token = typeof authorization === "string" ? BEARER.exec(authorization)?.[1] : undefined;
+  return token === undefined ? undefined : hashOf(token);
+}
+
 /** The active player a bearer token belongs to, or undefined (expired, revoked, banned, unknown). */
 export async function playerOfToken(pool: Pool, token: string): Promise<string | undefined> {
-  const hash = createHash("sha256").update(token).digest();
+  const hash = hashOf(token);
   const { rows } = await pool.query<{ owner: string | null }>(
     "SELECT player_session_owner($1) AS owner",
     [hash],

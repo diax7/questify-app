@@ -1227,6 +1227,100 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       );
     });
 
+    it("cannot reach the push store, its doors or its helpers (T-501)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.notice_kind",
+        "SELECT * FROM public.notice",
+        "SELECT * FROM public.notification",
+        "SELECT * FROM public.push_device",
+        "SELECT * FROM public.push_topic_mute",
+        "SELECT * FROM public.push_send",
+        "SELECT public.push_fan_out()",
+        "SELECT * FROM public.push_claim('{fcm}', 1)",
+        "SELECT public.push_ack('{1}', ARRAY[gen_random_uuid()], '{sent}', '{null}', '{1}')",
+        "SELECT public.push_settle()",
+        "SELECT public.push_device_register(decode('00', 'hex'), 'ios', 'a', 'production', 'ar', '1')",
+        "SELECT public.push_device_remove(decode('00', 'hex'))",
+        "SELECT public.own_notifications(NULL, 20)",
+        "SELECT public.own_unread_notifications()",
+        "SELECT public.mark_notifications_read(NULL)",
+        "SELECT public.own_push_topics()",
+        "SELECT public.set_push_topics('{}')",
+        "SELECT public.notice_create('x', NULL, NULL, gen_random_uuid(), '{}', '{}', 'x', NULL)",
+        "SELECT public.push_on()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = [
+        "mark_notifications_read",
+        "own_notifications",
+        "own_push_topics",
+        "own_unread_notifications",
+        "push_ack",
+        "push_claim",
+        "push_device_register",
+        "push_device_remove",
+        "push_fan_out",
+        "push_settle",
+        "set_push_topics",
+      ];
+      const internals = [
+        "member_sees_quest",
+        "notice_audience_ok",
+        "notice_create",
+        "notice_member_ok",
+        "notice_membership_ok",
+        "notice_reward_seen",
+        "notice_status_ok",
+        "notice_visible",
+        "push_consented",
+        "push_device_fields",
+        "push_expire_due",
+        "push_expire_leases",
+        "push_fan_out_event",
+        "push_fan_out_personal",
+        "push_live_devices",
+        "push_muted",
+        "push_on",
+        "push_pick",
+        "push_pick_round",
+        "push_plan",
+        "push_player",
+        "push_purge",
+        "push_purge_erased",
+        "push_pushable",
+        "push_queue_heads",
+        "push_ref",
+        "push_session_family",
+        "push_skip_reason",
+        "push_system_only",
+        "push_target",
+      ];
+      const listed = `ARRAY[${[...doors, ...internals].map((name) => `'${name}'`).join(", ")}]`;
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname = ANY(${listed}) ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds exactly the doors, never a helper.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(doors);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual([...doors, ...internals].toSorted());
+      for (const row of present) {
+        // push_live_devices has no SET clause so the planner inlines it (tables schema-qualified, never a definer).
+        expect(row.config, row.proname).toEqual(
+          row.proname === "push_live_devices" ? null : ["search_path=public, pg_temp"],
+        );
+        expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

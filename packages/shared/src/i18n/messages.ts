@@ -6058,6 +6058,10 @@ export const MESSAGES = {
     ar: "تعذّر تحميل الدعوة. تحقق من اتصالك ثم افتح الرابط مرة أخرى.",
     en: "We couldn't load the invitation. Check your connection and open the link again.",
   },
+  // Push and the notification center (T-501, ADR-346): the title when the event's name cannot be shown, and the text of
+  // a kind with no template (shown in the center only, never pushed).
+  "push.title": { ar: "Questify", en: "Questify" },
+  "push.generic.body": { ar: "لديك رسالة جديدة", en: "You have a new message" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

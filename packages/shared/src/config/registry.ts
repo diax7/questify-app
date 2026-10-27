@@ -115,6 +115,12 @@ export const FEATURES: FeatureRegistry = {
   nfcTags: { gated: false, level: "platform" },
   polls: { gated: false },
   /**
+   * Push notifications (T-501, ADR-345): off for the platform, nothing is claimed or sent and queued pushes expire unsent;
+   * the notification center keeps every message, and registration, mutes and settle go on. No event switch: an event's
+   * defaults for the topics are T-510's.
+   */
+  pushNotifications: { gated: false, level: "platform" },
+  /**
    * The Questify-wide ranking (T-408, FR-611, ADR-322): off for the platform, Home and Explore hide it and its door
    * answers 404 `ranking_off` at once; the boards keep being written, so turning it back on is exact.
    */

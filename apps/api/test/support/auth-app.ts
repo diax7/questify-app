@@ -163,7 +163,7 @@ export async function startApp(
   extra: Partial<
     Pick<
       AppOptions,
-      "settings" | "translations" | "rankingStore" | "idempotencyStore" | "promoSmsSender"
+      "settings" | "translations" | "rankingStore" | "idempotencyStore" | "promoSmsSender" | "push"
     >
   > = {},
 ): Promise<TestApp> {

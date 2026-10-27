@@ -231,6 +231,12 @@ export const invalidPreferences = make(
   "راجع المدينة أو الاهتمامات: الحقل المحدد غير صالح.",
   "Check the city or interests: the named field is not valid.",
 );
+export const invalidPushDevice = make(
+  422,
+  "invalid_push_device",
+  "تعذّر تسجيل الجهاز: الحقل المحدد غير صالح.",
+  "Couldn't register the device: the named field is not valid.",
+);
 export const consentTextOutdated = make(
   409,
   "consent_text_outdated",

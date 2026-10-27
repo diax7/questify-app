@@ -73,6 +73,9 @@ import { startSouvenirTick } from "#src/souvenirs/tick";
 import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
 import { registerInvitationOpenRoute } from "#src/invitation-campaigns/routes";
 import { startInvitationTick } from "#src/invitation-campaigns/tick";
+import { createPushDoors } from "#src/push/doors";
+import type { PushProvider } from "#src/push/provider";
+import { startPushWorker } from "#src/push/worker";
 import { createInvites } from "#src/organizers/accept";
 import { registerConsoleRoutes } from "#src/activation/routes";
 import { createActivation } from "#src/activation/service";
@@ -119,6 +122,11 @@ export type AppOptions = Readonly<{
   souvenirIntervalMs?: number;
   /** How often invitations are started, sent and settled (ADR-333); off when not given (tests call the doors). */
   invitationIntervalMs?: number;
+  /**
+   * The push worker (T-501, ADR-345): its own small pool and the providers built (none until T-501b's clients). Off when
+   * not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
+   */
+  push?: Readonly<{ pool: Pool; providers: readonly PushProvider[] }>;
 }>;
 
 declare module "fastify" {
@@ -227,6 +235,16 @@ function startTicks(
       log: (level, fields) => app.log[level](fields),
     });
     stops.push(tick.stop);
+  }
+  if (options.push !== undefined) {
+    const worker = startPushWorker({
+      doors: createPushDoors(options.push.pool),
+      providers: options.push.providers,
+      settings: deps.settings,
+      log: (level, fields) => app.log[level](fields),
+      production: options.config.nodeEnv === "production",
+    });
+    stops.push(worker.stop);
   }
   for (const stop of stops) app.addHook("onClose", stop);
 }

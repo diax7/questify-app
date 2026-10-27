@@ -50,6 +50,7 @@ function build(config: ConfigResult, answers: Answers = {}) {
       };
     }
     if (sql.includes("own_unread_tickets")) return { rows: [{ unread: 0 }] };
+    if (sql.includes("own_unread_notifications")) return { rows: [{ r: 7 }] };
     if (sql.includes("own_marketing")) {
       if (answers.marketingError !== undefined) throw answers.marketingError;
       return answers.marketing ?? { rows: [{ r: { channels: {}, asked: false, canOptIn: true } }] };
@@ -124,6 +125,7 @@ describe("GET /v1/me: the marketing step", () => {
       },
     });
     expect((await getMe()).json().marketing).toEqual({ asked: true, canOptIn: false });
+    expect((await getMe()).json().notifications).toEqual({ unread: 7 });
   });
 
   it("answers 401 when the database says the caller is not an active player", async () => {

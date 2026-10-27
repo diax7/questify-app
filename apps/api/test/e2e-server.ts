@@ -6,6 +6,8 @@ import { Pool } from "pg";
 import { buildApp } from "#src/app";
 import type { EmailMessage, EmailSender } from "#src/auth/email/sender";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
+import { createFakeProvider } from "#src/push/fake";
+import { PUSH_TARGETS } from "#src/push/provider";
 import { createStaff, testConfig } from "#test/support/auth-app";
 import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
@@ -75,6 +77,7 @@ async function main(): Promise<void> {
     ...testConfig(db.appUrl, { dashboardOrigin: required("E2E_WEB_ORIGIN") }),
     port,
   };
+  const pushPool = new Pool({ connectionString: db.appUrl, max: 3 });
   const app = buildApp({
     config,
     idempotencyStore: new MemoryIdempotencyStore(),
@@ -83,11 +86,14 @@ async function main(): Promise<void> {
     breachCheck: (password) => Promise.resolve(password === E2E_BREACHED_PASSWORD),
     // The promotional sender exists (so the console can approve SMS) but nothing sends: the invitation tick is off here.
     promoSmsSender: { name: "e2e-promo", send: () => Promise.resolve({ kind: "sent" }) },
+    // The push worker on the fake provider (ADR-344): the center fills as in production and nothing leaves the machine.
+    push: { pool: pushPool, providers: PUSH_TARGETS.map((target) => createFakeProvider(target)) },
     logger: false,
   });
   const stop = async (): Promise<void> => {
     await app.close();
     await pool.end();
+    await pushPool.end();
     await db.close();
     process.exit(0);
   };

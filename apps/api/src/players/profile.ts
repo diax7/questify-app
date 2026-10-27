@@ -30,6 +30,7 @@ import { withRequestContext } from "#src/db/context";
 import type { SettingsService } from "#src/settings/service";
 import { itemRefusal, readEquipment } from "#src/players/items";
 import { readMarketing } from "#src/marketing/marketing";
+import { readUnread } from "#src/push/center";
 import { readOwnDailyStreak } from "#src/streaks/streaks";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
@@ -61,6 +62,8 @@ export type MyProfile = Readonly<{
   dailyStreak: DailyStreak | null;
   /** Whether the one-time marketing consent step was answered, and whether the player may opt in (T-407, FR-735). */
   marketing: MarketingSummary;
+  /** Unread rows of the notification center, counted up to 100 (T-501): the bell's dot. */
+  notifications: Readonly<{ unread: number }>;
 }>;
 
 export type QuestifyLevel = Readonly<{
@@ -164,6 +167,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
     const gems = await readGems(client);
     const dailyStreak = await readOwnDailyStreak(client);
     const { asked, canOptIn } = await readMarketing(client);
+    const notifications = await readUnread(client);
     return {
       id: playerId,
       username: row.username,
@@ -183,6 +187,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       gems,
       dailyStreak,
       marketing: { asked, canOptIn },
+      notifications: { unread: notifications },
     };
   });
 }

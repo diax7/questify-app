@@ -62,6 +62,9 @@ function createPool(config: AppConfig): Pool {
   return new Pool(poolOptions(config));
 }
 
+/** The push worker's own pool (ADR-345 (1)): a large fan-out never takes the API's connections. */
+const PUSH_POOL_SIZE = 3;
+
 function createEmailSender(config: AppConfig, onFailover: (from: string, to: string) => void) {
   const { gmail } = config.auth;
   const primary = createGmailSender({
@@ -88,6 +91,10 @@ async function main(): Promise<void> {
   const pool = createPool(config);
   pool.on("error", (error) => {
     process.stderr.write(`Database pool error: ${error.name}\n`);
+  });
+  const pushPool = new Pool({ ...poolOptions(config), max: PUSH_POOL_SIZE });
+  pushPool.on("error", (error) => {
+    process.stderr.write(`Push pool error: ${error.name}\n`);
   });
   const redis = config.redisUrl === undefined ? undefined : createRedis(config.redisUrl, warn);
   if (redis !== undefined) {
@@ -122,6 +129,8 @@ async function main(): Promise<void> {
     communityIntervalMs: COMMUNITY_INTERVAL_MS,
     souvenirIntervalMs: 5000,
     invitationIntervalMs: INVITATION_INTERVAL_MS,
+    // No provider until T-501b's APNs and FCM clients: the center fills, every push expires unsent.
+    push: { pool: pushPool, providers: [] },
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");
@@ -130,6 +139,7 @@ async function main(): Promise<void> {
     app.log.info({ signal }, "shutting down");
     await app.close();
     await pool.end();
+    await pushPool.end();
     if (redis?.isOpen === true) {
       await redis.close();
     }

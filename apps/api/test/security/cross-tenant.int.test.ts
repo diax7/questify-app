@@ -892,6 +892,18 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; who was invited is never shown to an organizer: written by the system-only fill, claim, ack and settle, the anonymous invitation_open by bearer link, deleted by erasure and the 90-day purge (invitation-sending)",
   invitation_channel_hold:
     "no direct API rights; one row per channel with a provider code, no tenant and no person; written by the system-only ack, read by the claim and the console's detail (invitation-sending)",
+  notice_kind:
+    "platform-wide catalog of push kinds with no tenant and no direct API rights; seeded by migrations, read only by the definers (push-store)",
+  notice:
+    "no direct API rights; written only by notice_create inside a producer's own door (one insert) and read by the system-only fan-out, claim and the caller-bound own_notifications for the calling player's center rows only (push-store, cross-tenant below)",
+  notification:
+    "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
+  push_device:
+    "no direct API rights; one row per sign-in, written only by push_device_register and push_device_remove for the calling player's own live session (the bearer token's hash), read by the system-only claim; no organizer read exists (push-store, push/routes)",
+  push_topic_mute:
+    "no direct API rights; the calling player's own muted topics through own_push_topics and set_push_topics, read by the system-only fan-out and claim; no organizer read exists (push-store)",
+  push_send:
+    "no direct API rights; the push outbox, written and read only by the system-only fan-out, claim, ack and settle, which refuse every seat with an identity (push-sending)",
   gem_shop_item:
     "platform-wide catalog with no tenant, no direct API rights; seeded only, read through the caller-bound gem_shop (gem-shop)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
@@ -1448,6 +1460,63 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
       await count("owner", "invitation_campaign WHERE state = 'requested' AND id = $1", [theirs]),
     ).toBe(1);
     await db.owner.query("DELETE FROM invitation_campaign WHERE id = $1", [theirs]);
+  });
+
+  it("keeps the notification center, mutes and devices to the calling player (T-501)", async () => {
+    await db.owner.query(
+      `INSERT INTO notice_kind (kind, class, priority, ttl) VALUES ('tenant_probe', 'personal', 0, '1 day')`,
+    );
+    const { rows } = await db.owner.query<{ id: string; player_id: string }>(
+      `WITH n AS (INSERT INTO notice (kind, player_id, audience, dedupe, expires_at, fanned_at)
+                  SELECT 'tenant_probe', p, 'player', 'tenant_probe:' || p, now() + interval '1 day', now()
+                  FROM unnest(ARRAY[$1::uuid, $2::uuid]) p RETURNING id, player_id)
+       INSERT INTO notification (notice_id, player_id) SELECT id, player_id FROM n RETURNING id, player_id`,
+      [f.playerA, f.playerB],
+    );
+    const mine = rows.find((row) => row.player_id === f.playerA)?.id;
+    const theirs = rows.find((row) => row.player_id === f.playerB)?.id;
+    const listed = await asA<{ r: Array<{ id: number }> }>(
+      "player",
+      "SELECT own_notifications(NULL, 50) AS r",
+      [],
+    );
+    expect(listed.rows[0]?.r.map((row) => String(row.id))).toEqual([mine]);
+    await asA("player", "SELECT mark_notifications_read($1::bigint[])", [[theirs]]);
+    expect(await count("owner", "notification WHERE id = $1 AND read_at IS NULL", [theirs])).toBe(
+      1,
+    );
+    await asA("player", "SELECT mark_notifications_read(NULL)", []);
+    expect(await count("owner", "notification WHERE id = $1 AND read_at IS NULL", [theirs])).toBe(
+      1,
+    );
+    // A team seat has no player: no center, no topics, no device, and no table right at all.
+    for (const seat of ["organizer", "staff"] as const) {
+      expect(await refusal(asA(seat, "SELECT own_notifications(NULL, 50)", []))).toBe("PN401");
+      expect(await refusal(asA(seat, "SELECT mark_notifications_read(NULL)", []))).toBe("PN401");
+      expect(await refusal(asA(seat, "SELECT own_push_topics()", []))).toBe("PN401");
+      expect(await refusal(asA(seat, "SELECT set_push_topics('{rank}')", []))).toBe("PN401");
+      expect(await refusal(asA(seat, "SELECT push_device_remove($1)", [Buffer.alloc(32)]))).toBe(
+        "PN401",
+      );
+      expect(
+        (await asA<{ n: number }>(seat, "SELECT own_unread_notifications() AS n", [])).rows,
+      ).toEqual([{ n: 0 }]);
+    }
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const table of [
+        "notification",
+        "notice",
+        "push_device",
+        "push_send",
+        "push_topic_mute",
+        "notice_kind",
+      ]) {
+        expect(await refusal(asA(seat, `SELECT 1 FROM ${table} LIMIT 1`, [])), table).toBe("42501");
+      }
+      expect(await refusal(asA(seat, "SELECT * FROM push_claim('{fcm}', 1)", []))).toBe("PN403");
+    }
+    await db.owner.query("DELETE FROM notice WHERE kind = 'tenant_probe'");
+    await db.owner.query("DELETE FROM notice_kind WHERE kind = 'tenant_probe'");
   });
 
   it("keeps the recap to the calling player and their own events (T-410)", async () => {

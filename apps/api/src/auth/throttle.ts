@@ -10,6 +10,7 @@ export const BUCKETS = {
   dailyGuess: "daily_guess",
   marketingWrite: "marketing_write",
   marketingOptOut: "marketing_opt_out",
+  pushDevice: "push_device",
   invitationOpen: "invitation_open",
   failEmail: "fail_email",
   failAddress: "fail_address",
