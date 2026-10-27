@@ -60,6 +60,11 @@ const eventFields = {
     .regex(/^sa-[a-z0-9-]{2,30}$/)
     .nullable()
     .optional(),
+  // Up to 3 interest ids from GET /v1/interests (T-407); more, repeats or unknown ids answer invalid_event { field: interests }.
+  interests: z
+    .array(z.string().regex(/^[a-z][a-z0-9-]{1,29}$/))
+    .max(10)
+    .optional(),
 };
 const patchBody = z.strictObject(eventFields);
 const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
@@ -98,6 +103,7 @@ const view = (event: EventRecord) => ({
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
   cityId: event.cityId,
+  interests: event.interests,
 });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {

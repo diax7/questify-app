@@ -18,6 +18,8 @@ export type EventView = Readonly<{
   venueRadiusM: number;
   /** The event's city from `GET /v1/cities` (T-403); none for an online event; fixed once the event is live. */
   cityId: string | null;
+  /** The event's interests from `GET /v1/interests` (T-407), at most 3; absent from an older API. */
+  interests?: readonly string[];
   access: (typeof ACCESS)[number];
   joinMethods: readonly (typeof JOIN_METHODS)[number][];
   timezone: string;
@@ -79,6 +81,8 @@ export type EventDraft = Readonly<{
   venueRadius: string;
   /** A city id from the seeded list, or null for none (`kind` online always sends none). */
   cityId: string | null;
+  /** Interest ids from the catalog, at most 3 (T-407). */
+  interests: readonly string[];
   timezone: string;
   startsAt: string;
   endsAt: string;
@@ -98,6 +102,7 @@ export const BLANK_DRAFT: EventDraft = {
   venueLng: "",
   venueRadius: String(VENUE_RADIUS.default),
   cityId: null,
+  interests: [],
   timezone: "Asia/Riyadh",
   startsAt: "",
   endsAt: "",
@@ -117,6 +122,7 @@ export function draftOf(event: EventView): EventDraft {
     venueLng: event.venuePin === null ? "" : String(event.venuePin.lng),
     venueRadius: String(event.venueRadiusM),
     cityId: event.cityId,
+    interests: event.interests ?? [],
     timezone: event.timezone,
     startsAt: toLocalInput(new Date(event.startsAt), event.timezone),
     endsAt: toLocalInput(new Date(event.endsAt), event.timezone),
@@ -136,6 +142,7 @@ const fieldsOf = (draft: EventDraft): Record<string, unknown> => ({
   venueRadiusM: Number(draft.venueRadius),
   // An online event has no city, even when one was picked before the kind changed.
   cityId: draft.kind === "virtual" ? null : draft.cityId,
+  interests: draft.interests,
   access: draft.access,
   joinMethods: draft.joinMethods,
   dayStartHour: draft.dayStartHour,

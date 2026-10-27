@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   EventAccessFields,
   EventCityField,
+  EventInterestsField,
   EventIdentityFields,
   EventTimeFields,
   EventVenuePinFields,
@@ -32,7 +33,15 @@ import { StreakPanel } from "#src/components/StreakPanel.tsx";
 import styles from "#src/components/layout.module.css";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-const FIELDS = new Set(["name", "timezone", "startsAt", "endsAt", "joinMethods", "cityId"]);
+const FIELDS = new Set([
+  "name",
+  "timezone",
+  "startsAt",
+  "endsAt",
+  "joinMethods",
+  "cityId",
+  "interests",
+]);
 
 type Props = Readonly<{
   language: Language;
@@ -278,6 +287,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
             change={change}
             status={status}
           />
+          <EventInterestsField language={language} draft={draft} disabled={busy} change={change} />
           <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
           <EventTimeFields
             language={language}

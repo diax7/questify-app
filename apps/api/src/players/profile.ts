@@ -10,6 +10,7 @@ import {
   signupDocuments,
   type Avatar,
   type DailyStreak,
+  type MarketingSummary,
   type PlayerDocument,
   type PlayerDocumentId,
 } from "@questify/shared";
@@ -28,6 +29,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { SettingsService } from "#src/settings/service";
 import { itemRefusal, readEquipment } from "#src/players/items";
+import { readMarketing } from "#src/marketing/marketing";
 import { readOwnDailyStreak } from "#src/streaks/streaks";
 import { readUnreadTickets } from "#src/tickets/tickets";
 
@@ -57,6 +59,8 @@ export type MyProfile = Readonly<{
   gems: number;
   /** The Questify daily streak (T-405, FR-419): the owner's alone; null while the platform switch is off. */
   dailyStreak: DailyStreak | null;
+  /** Whether the one-time marketing consent step was answered, and whether the player may opt in (T-407, FR-735). */
+  marketing: MarketingSummary;
 }>;
 
 export type QuestifyLevel = Readonly<{
@@ -159,6 +163,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
     const unread = await readUnreadTickets(client, null);
     const gems = await readGems(client);
     const dailyStreak = await readOwnDailyStreak(client);
+    const { asked, canOptIn } = await readMarketing(client);
     return {
       id: playerId,
       username: row.username,
@@ -177,6 +182,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       help: { unread },
       gems,
       dailyStreak,
+      marketing: { asked, canOptIn },
     };
   });
 }

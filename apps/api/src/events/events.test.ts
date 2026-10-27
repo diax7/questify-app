@@ -34,6 +34,7 @@ const STORED: EventRecord = {
   venuePin: { lat: 24.7136, lng: 46.6753 },
   venueRadiusM: 800,
   cityId: null,
+  interests: [],
 };
 
 describe("merge", () => {
@@ -53,6 +54,7 @@ describe("merge", () => {
       venuePin: null,
       venueRadiusM: 1000,
       cityId: null,
+      interests: [],
     });
   });
 
@@ -72,6 +74,7 @@ describe("merge", () => {
       venuePin: STORED.venuePin,
       venueRadiusM: 800,
       cityId: null,
+      interests: [],
     });
   });
 
@@ -119,6 +122,16 @@ describe("merge", () => {
     });
   });
 
+  it("sets, keeps and clears the interests (T-407)", () => {
+    const tagged = { ...STORED, interests: ["sport", "music"] };
+    expect(merge(tagged, {})).toMatchObject({ interests: ["sport", "music"] });
+    expect(merge(tagged, { interests: ["art"] })).toMatchObject({ interests: ["art"] });
+    expect(merge(tagged, { interests: [] })).toMatchObject({ interests: [] });
+    expect(merge(STORED, { interests: ["art", "food", "tech"] })).toMatchObject({
+      interests: ["art", "food", "tech"],
+    });
+  });
+
   it("keeps the instants when only the zone changes, and reads new times in the new zone", () => {
     expect(merge(STORED, { timezone: "Asia/Riyadh" })).toMatchObject({
       startsAt: STORED.startsAt,
@@ -144,6 +157,8 @@ describe("merge", () => {
     ["joinMethods", STORED, { joinMethods: [] }],
     ["joinMethods", STORED, { joinMethods: ["public_list"] }],
     ["cityId", STORED, { cityId: "sa-riyadh" }],
+    ["interests", STORED, { interests: ["sport", "music", "tech", "food"] }],
+    ["interests", STORED, { interests: ["sport", "sport"] }],
     ["cityId", { ...STORED, kind: "physical", cityId: "sa-riyadh" }, { kind: "virtual" }],
     [
       "joinMethods",
@@ -186,6 +201,19 @@ const CALLER = {
   log: () => undefined,
   requestId: undefined,
 };
+
+describe("database errors the flows answer", () => {
+  it("answers an interest the catalog refuses as an invalid interests field, on create and edit", async () => {
+    const events = createEvents({ pool: failingPool("EI422") });
+    await expect(
+      events.create(ACTOR, { name: { en: "A" }, ...TIMES, interests: ["bogus"] }, CALLER),
+    ).resolves.toEqual({ kind: "invalid", field: "interests" });
+    await expect(events.update(ACTOR, STORED.id, {}, CALLER)).resolves.toEqual({
+      kind: "invalid",
+      field: "interests",
+    });
+  });
+});
 
 describe("database errors the flows do not expect", () => {
   it.each(["23514", "40001", "QE403"])("pass %s through an edit", async (code) => {

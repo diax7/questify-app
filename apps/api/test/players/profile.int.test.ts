@@ -93,6 +93,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
       help: { unread: 0 },
       gems: 0,
       dailyStreak: { days: 0, today: false, next: { days: 3, xp: 50 } },
+      marketing: { asked: false, canOptIn: false },
     });
     expect((await me(undefined)).statusCode).toBe(401);
   });

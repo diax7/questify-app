@@ -8,6 +8,8 @@ export const BUCKETS = {
   gemPurchase: "gem_purchase",
   dailyAnswer: "daily_answer",
   dailyGuess: "daily_guess",
+  marketingWrite: "marketing_write",
+  marketingOptOut: "marketing_opt_out",
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",

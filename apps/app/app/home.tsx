@@ -252,6 +252,11 @@ export default function QuestifyHomeScreen() {
             <OperatorEvents />
             <Invitations />
             <MyEvents />
+            <Button
+              kind="quiet"
+              label={t("forYou.title")}
+              onPress={() => router.push("/for-you")}
+            />
             <Button kind="quiet" label={t("nav.profile")} onPress={() => router.push("/profile")} />
           </>
         ) : null}

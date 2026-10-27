@@ -990,3 +990,35 @@ guess list import by paste or text file, in calls of at most 20,000, with the re
 warnings (a "!" on the tab, "Needs attention" on the console home). Agree? Still open for Dhia: Q-281 (where the word
 lists come from), because the import is ready and the lists are empty until it is settled.
 **Answered (developer, delegated by Dhia, 2026-10-27):** Yes, as recommended (ADR-315).
+
+## Q-285 — T-407 build choices: the split, the consent log, the opt-out link, interests and "For you" (2026-10-27, T-407 plan)
+Recommended (ADR-316, ADR-318, ADR-319): T-407 server and web, T-407b the app, T-407c the "set your interests" quest metric
+(core); consent as an append-only dated log with a state the log writes, the first answer recorded even when all
+channels stay off; one audience door for every promotion; SMS only inside CST's hours; a signed opt-out link with a web
+page that asks first; 12 seeded interests, an event holds up to 3, "For you" is a plain match of interests or city,
+at most 20. Agree?
+
+## Q-286 — For Dhia and counsel (legal): who may be asked for marketing consent (2026-10-27, T-407 plan)
+PDPL IR Art. 11 asks consent from a person with full legal capacity, and STORE_COMPLIANCE §3.1 leaves the age "to check with
+counsel" (commonly 18). Built around it (ADR-317): a player whose birth year does not prove 18 (this year minus birth
+year under 19) is never shown the consent step and cannot turn a channel on; they can turn any off. Counsel to say
+whether the age is 18, and whether a guardian's consent will ever be offered for 13 to 17. Changing the age is one number
+in `marketing_adult`.
+
+## Q-287 — For Dhia (product): should promotional push and email keep the SMS quiet hours? (2026-10-27, T-407 plan)
+The law's 22:00 to 09:00 (01:00 to 12:00 in Ramadan) is for SMS. ADR-065 declined quiet hours for push, so a promotional push
+or email can arrive at 03:00. Recommended: keep ADR-065 for event and personal pushes, but hold promotional push and
+email to the same window, so a promotion never wakes anyone. Built as SMS only (one line, `CHANNELS_WITH_WINDOW` in
+`send-window.ts`) until Dhia answers.
+
+## Q-288 — For Dhia and counsel (legal): the consent wording and the promotional sender (2026-10-27, T-407 plan)
+The consent text shown per channel (what is sent, who sends it, that it is optional, how to stop) is written in Arabic
+and English in `messages.ts` (T-407b) and versioned (`MARKETING_TEXT_VERSION`), and needs counsel's approval before
+launch (PDPL Art. 25, IR Art. 29, CST 4.6.6.1, Apple 4.5.4). The promotional SMS sender ("Questify-AD") and its
+registration are Q-034; nothing is sent yet, so nothing waits on this.
+
+## Q-289 — For counsel (legal): proof of consent after an account is deleted (2026-10-27, T-407 plan)
+Built: deleting an account erases its consent log, state and preferences (the data is personal, FR-127). If counsel says
+proof of consent must be kept for a period after deletion (for example against a CST complaint), keep only the channel,
+the yes or no, the method, the wording version and the time under the tombstone's id, with no contact, in a new
+migration.

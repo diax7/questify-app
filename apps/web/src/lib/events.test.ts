@@ -55,7 +55,16 @@ describe("draftOf", () => {
       venueLng: "",
       venueRadius: "1000",
       cityId: null,
+      interests: [],
     });
+  });
+
+  it("shows saved interests, and none when an older API sends none", () => {
+    expect(draftOf({ ...EVENT, interests: ["sport", "music"] }).interests).toEqual([
+      "sport",
+      "music",
+    ]);
+    expect(draftOf(EVENT).interests).toEqual([]);
   });
 
   it("shows a saved city by its id", () => {
@@ -89,6 +98,7 @@ describe("createBodyOf", () => {
       venuePin: null,
       venueRadiusM: 1000,
       cityId: null,
+      interests: [],
       access: "public",
       joinMethods: ["code", "qr", "link"],
       dayStartHour: 4,
@@ -121,6 +131,18 @@ describe("createBodyOf with a city", () => {
     expect(createBodyOf({ ...BLANK_DRAFT, kind: "virtual", cityId: "sa-jeddah" })["cityId"]).toBe(
       null,
     );
+  });
+});
+
+describe("interests in the bodies", () => {
+  it("sends the chosen interests on create and only a change on edit", () => {
+    const tagged = { ...BLANK_DRAFT, interests: ["sport", "art"] };
+    expect(createBodyOf(tagged)["interests"]).toEqual(["sport", "art"]);
+    expect(editBodyOf({ ...tagged, interests: ["sport"] }, tagged)).toEqual({
+      interests: ["sport"],
+    });
+    expect(editBodyOf(tagged, tagged)).toEqual({});
+    expect(editBodyOf({ ...tagged, interests: [] }, tagged)).toEqual({ interests: [] });
   });
 });
 

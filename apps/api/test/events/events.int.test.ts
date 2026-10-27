@@ -644,6 +644,47 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
     });
   });
 
+  describe("the event's interests (T-407)", () => {
+    it("sets, orders, changes and clears up to three catalog interests, and audits the change", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie, { ...DRAFT, interests: ["travel", "sport"] });
+      expect(event).toMatchObject({ interests: ["sport", "travel"] });
+      const url = `/v1/organizers/${org.id}/events/${event.id}`;
+      const moved = await call("PATCH", url, org.cookie, { interests: ["music"] });
+      expect(moved.json().event).toMatchObject({ interests: ["music"] });
+      const [entry] = await auditOf(event.id, "event.update");
+      expect(entry).toEqual({
+        before: { interests: ["sport", "travel"] },
+        after: { interests: ["music"] },
+      });
+      const kept = await call("PATCH", url, org.cookie, { venue: { en: "Hall" } });
+      expect(kept.json().event).toMatchObject({ interests: ["music"] });
+      const cleared = await call("PATCH", url, org.cookie, { interests: [] });
+      expect(cleared.json().event).toMatchObject({ interests: [] });
+    });
+
+    it("refuses a fourth interest, a repeat and an unknown one, naming the field", async () => {
+      const org = await newOrganizer();
+      const event = await created(org.id, org.cookie, { ...DRAFT, interests: ["art"] });
+      const url = `/v1/organizers/${org.id}/events/${event.id}`;
+      for (const interests of [["sport", "music", "tech", "food"], ["sport", "sport"], ["bogus"]]) {
+        const refused = await call("PATCH", url, org.cookie, { interests });
+        expect(refused.statusCode, interests.join()).toBe(422);
+        expect(refused.json()).toMatchObject({
+          code: "invalid_event",
+          details: { field: "interests" },
+        });
+        const made = await create(org.id, org.cookie, { ...DRAFT, interests });
+        expect(made.statusCode, interests.join()).toBe(422);
+      }
+      expect((await call("PATCH", url, org.cookie, { interests: ["Sport!"] })).statusCode).toBe(
+        400,
+      );
+      const still = await call("GET", url, org.cookie);
+      expect(still.json().event).toMatchObject({ interests: ["art"] });
+    });
+  });
+
   describe("the event's city (T-403)", () => {
     it("sets and clears a known city, refuses unknown and virtual ones, audits the change", async () => {
       const org = await newOrganizer();

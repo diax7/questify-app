@@ -70,6 +70,8 @@ export type AuthKeys = Readonly<{
   pairedDeviceKey: (device: string) => Buffer;
   /** Throttle key for an event (unknown pairing codes, T-309). */
   eventKey: (eventId: string) => Buffer;
+  /** The 32-byte tag that signs a promotional opt-out link for one player and channel (T-407, FR-1114). */
+  optOutTag: (playerId: string, channel: string) => Buffer;
 }>;
 
 /**
@@ -101,6 +103,7 @@ export function createAuthKeys(secret: string): AuthKeys {
   const pairingCode = keyed("device-pairing-code");
   const pairedDevice = keyed("throttle-paired-device");
   const event = keyed("throttle-event");
+  const optOut = keyed("marketing-opt-out");
   return {
     emailKey: email,
     addressKey: address,
@@ -121,5 +124,6 @@ export function createAuthKeys(secret: string): AuthKeys {
     pairingCodeHash: pairingCode,
     pairedDeviceKey: pairedDevice,
     eventKey: event,
+    optOutTag: (playerId, channel) => optOut(`${playerId}\n${channel}`),
   };
 }

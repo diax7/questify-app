@@ -655,6 +655,78 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot read or change consent, preferences or the interest list, or choose a promotion's audience (T-407)", async () => {
+      const probe = "gen_random_uuid()";
+      for (const sql of [
+        "SELECT * FROM public.interest",
+        "SELECT * FROM public.player_preference",
+        "SELECT * FROM public.marketing_consent",
+        "SELECT * FROM public.marketing_state",
+        "INSERT INTO public.marketing_consent (player_id, channel, granted, method, text_version) VALUES (gen_random_uuid(), 'sms', true, 'settings', '1')",
+        "INSERT INTO public.marketing_state (player_id, channel, opted_in, changed_at) VALUES (gen_random_uuid(), 'sms', true, now())",
+        "SELECT public.interest_list()",
+        "SELECT public.own_marketing()",
+        "SELECT public.own_preferences()",
+        "SELECT public.own_for_you()",
+        "SELECT public.set_marketing('{\"sms\":true}', 'settings', '1')",
+        "SELECT public.set_preferences(NULL, '{}')",
+        `SELECT public.marketing_opt_out(${probe}, 'sms')`,
+        "SELECT * FROM public.marketing_audience('sms', NULL, NULL, NULL, 10)",
+        `SELECT public.marketing_consent_history(${probe}, ${probe})`,
+        "SELECT public.interests_clean('{sport}', 3)",
+        "SELECT public.marketing_player()",
+        "SELECT public.marketing_adult(1990::smallint)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "interest_list",
+        "own_marketing",
+        "set_marketing",
+        "own_preferences",
+        "set_preferences",
+        "own_for_you",
+        "marketing_opt_out",
+        "marketing_audience",
+        "marketing_consent_history",
+        "interests_clean",
+        "marketing_player",
+        "marketing_adult",
+        "marketing_state_apply",
+        "marketing_consent_append_only",
+        "event_interests_guard",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the nine doors only, never the helpers or the triggers.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "interest_list",
+        "marketing_audience",
+        "marketing_consent_history",
+        "marketing_opt_out",
+        "own_for_you",
+        "own_marketing",
+        "own_preferences",
+        "set_marketing",
+        "set_preferences",
+      ]);
+      const held = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE n.nspname = 'public'
+           AND c.relname IN ('interest', 'player_preference', 'marketing_consent', 'marketing_state')
+           AND (has_table_privilege('questify_app', c.oid, p.priv) OR has_table_privilege('public', c.oid, p.priv))`,
+      );
+      expect(held).toEqual([]);
+    });
+
     it("cannot read Questify quests, run a console door or reach the quest evaluator (T-403b)", async () => {
       const probe = "gen_random_uuid()";
       for (const sql of [

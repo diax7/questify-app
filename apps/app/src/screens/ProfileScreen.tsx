@@ -139,6 +139,12 @@ function MyIdentity({ me }: { me: Me }) {
       )}
       <Button label={t("profile.edit")} kind="quiet" onPress={() => router.push("/edit-profile")} />
       <Button label={t("locker.title")} kind="quiet" onPress={() => router.push("/locker")} />
+      <Button label={t("interests.title")} kind="quiet" onPress={() => router.push("/interests")} />
+      <Button
+        label={t("marketing.settingsTitle")}
+        kind="quiet"
+        onPress={() => router.push("/notifications")}
+      />
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}
       <GemsCard gems={me.gems} />

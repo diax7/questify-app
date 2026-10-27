@@ -1,4 +1,4 @@
-import type { DailyStreak, Equipment } from "@questify/shared";
+import type { DailyStreak, Equipment, MarketingSummary } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import { levelOf, type QuestifyLevel } from "#src/questify/level.ts";
@@ -18,6 +18,8 @@ export type Me = Readonly<{
   gems?: number;
   /** The Questify daily streak (T-405b); null while the platform switch is off, absent from an older API. */
   dailyStreak?: DailyStreak | null;
+  /** Whether the one-time marketing step was answered, and whether the player may opt in (T-407); absent from an older API. */
+  marketing?: MarketingSummary;
   help?: Readonly<{ unread: number }> | undefined;
 }>;
 

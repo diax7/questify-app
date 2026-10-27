@@ -20,6 +20,7 @@ import type { PublicAccount } from "#src/auth/staff-store";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
+import { registerConsoleMarketingRoutes } from "#src/marketing/admin-routes";
 import { registerConsoleQuestifyRoutes } from "#src/questify/admin-routes";
 import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
@@ -255,6 +256,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleTicketRoutes(scope, deps.tickets);
       registerConsoleQuestifyRoutes(scope, deps.questify);
       registerConsoleDailyRoutes(scope, deps.questify);
+      registerConsoleMarketingRoutes(scope, deps.questify);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

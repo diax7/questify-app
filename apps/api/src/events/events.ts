@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { VENUE_RADIUS, isTimeZone, toInstant } from "@questify/shared";
+import { MAX_EVENT_INTERESTS, VENUE_RADIUS, isTimeZone, toInstant } from "@questify/shared";
 import { recordAudit } from "#src/audit/record";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
@@ -36,9 +36,18 @@ export type EventInput = Readonly<{
   venueRadiusM?: number | undefined;
   /** A city from the seeded list (T-403); null clears it. A virtual event has none. */
   cityId?: string | null | undefined;
+  /** Up to 3 interests from the catalog (T-407); they decide who "For you" shows the event to. */
+  interests?: readonly string[] | undefined;
 }>;
 
-export type InvalidField = "name" | "timezone" | "startsAt" | "endsAt" | "joinMethods" | "cityId";
+export type InvalidField =
+  | "name"
+  | "timezone"
+  | "startsAt"
+  | "endsAt"
+  | "joinMethods"
+  | "cityId"
+  | "interests";
 
 type Invalid = Readonly<{ kind: "invalid"; field: InvalidField }>;
 type Missing = Readonly<{ kind: "not_found" }>;
@@ -94,6 +103,9 @@ const unknownCity = (error: unknown): boolean => {
   return pg.code === "23503" && pg.constraint === "event_city_id_fkey";
 };
 
+/** An interest id the catalog does not hold, or a list the trigger refuses (migration 0070). */
+const unknownInterest = (error: unknown): boolean => (error as { code?: string }).code === "EI422";
+
 const blankToNull = (text: string | null | undefined): string | null => {
   const trimmed = text?.trim() ?? "";
   return trimmed === "" ? null : trimmed;
@@ -140,6 +152,10 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
   if (kind === "virtual" && cityId !== null) {
     return { kind: "invalid", field: "cityId" };
   }
+  const interests = input.interests ?? current?.interests ?? [];
+  if (interests.length > MAX_EVENT_INTERESTS || new Set(interests).size !== interests.length) {
+    return { kind: "invalid", field: "interests" };
+  }
   const access = input.access ?? current?.access ?? DEFAULTS.access;
   const joinMethods = [
     ...new Set(input.joinMethods ?? current?.joinMethods ?? DEFAULTS.joinMethods),
@@ -162,6 +178,7 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
     venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
     venueRadiusM: input.venueRadiusM ?? current?.venueRadiusM ?? VENUE_RADIUS.default,
     cityId,
+    interests,
   };
 }
 
@@ -184,6 +201,7 @@ const auditView = (event: EventRecord) => ({
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
   cityId: event.cityId,
+  interests: event.interests,
 });
 
 /** Only the fields that changed, before and after, so an entry reads as the change it records. */
@@ -258,6 +276,9 @@ async function create(
     if (unknownCity(error)) {
       return { kind: "invalid", field: "cityId" };
     }
+    if (unknownInterest(error)) {
+      return { kind: "invalid", field: "interests" };
+    }
     throw error;
   }
 }
@@ -301,6 +322,9 @@ async function update(
     }
     if (unknownCity(error)) {
       return { kind: "invalid", field: "cityId" };
+    }
+    if (unknownInterest(error)) {
+      return { kind: "invalid", field: "interests" };
     }
     // A zone this runtime knows but the database does not; merge refuses the zones neither knows.
     // Stryker disable all: reachable only with a database older than the runtime's zone data

@@ -4,7 +4,7 @@ import { registerConventions } from "#src/conventions";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { registerProfileRoutes } from "#src/players/profile";
 import type { ConfigResult, SettingsService } from "#src/settings/service";
-import { fakePool, type FakeAnswer } from "#test/support/fake-pool";
+import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
 
 const PLAYER = "11111111-1111-4111-8111-111111111111";
 const SIGNED_IN = { "x-test-player": "yes" };
@@ -13,6 +13,8 @@ const NOW = new Date("2030-01-01T00:00:00.000Z");
 type Answers = Readonly<{
   level?: FakeAnswer;
   gems?: FakeAnswer;
+  marketing?: FakeAnswer;
+  marketingError?: Error;
   next?: Date | null;
   rename?: FakeAnswer;
 }>;
@@ -48,6 +50,10 @@ function build(config: ConfigResult, answers: Answers = {}) {
       };
     }
     if (sql.includes("own_unread_tickets")) return { rows: [{ unread: 0 }] };
+    if (sql.includes("own_marketing")) {
+      if (answers.marketingError !== undefined) throw answers.marketingError;
+      return answers.marketing ?? { rows: [{ r: { channels: {}, asked: false, canOptIn: true } }] };
+    }
     if (sql.includes("rename_player")) return answers.rename ?? { rows: [] };
     if (sql.includes("FROM player p")) {
       return {
@@ -99,6 +105,30 @@ describe("GET /v1/me: the Questify level", () => {
   it("carries a null threshold at the top level, not zero", async () => {
     build(composed({}, {}), { level: { rows: [levelRow(null)] } });
     expect((await getMe()).json().questify.nextLevelAt).toBeNull();
+  });
+});
+
+describe("GET /v1/me: the marketing step", () => {
+  it("says whether the consent step was answered and whether the player may opt in, and no more", async () => {
+    build(composed({}, {}), {
+      marketing: {
+        rows: [
+          {
+            r: {
+              channels: { sms: { optedIn: true, changedAt: "2030-01-01T00:00:00Z" } },
+              asked: true,
+              canOptIn: false,
+            },
+          },
+        ],
+      },
+    });
+    expect((await getMe()).json().marketing).toEqual({ asked: true, canOptIn: false });
+  });
+
+  it("answers 401 when the database says the caller is not an active player", async () => {
+    build(composed({}, {}), { marketingError: pgError({ code: "PI401" }) });
+    expect((await getMe()).statusCode).toBe(401);
   });
 });
 

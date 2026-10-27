@@ -225,6 +225,30 @@ export const questifyConflict = make(
   "لا يمكن إجراء هذا التغيير الآن. راجع حالة المهمة أو الموسم.",
   "This change is not possible now. Check the quest or campaign's status.",
 );
+export const invalidPreferences = make(
+  422,
+  "invalid_preferences",
+  "راجع المدينة أو الاهتمامات: الحقل المحدد غير صالح.",
+  "Check the city or interests: the named field is not valid.",
+);
+export const consentTextOutdated = make(
+  409,
+  "consent_text_outdated",
+  "تغيّر نص الموافقة. حدّث التطبيق ثم أعد المحاولة.",
+  "The consent wording has changed. Update the app and try again.",
+);
+export const consentAge = make(
+  403,
+  "consent_age",
+  "لا يمكن تفعيل الرسائل الترويجية لهذا الحساب.",
+  "Promotional messages cannot be turned on for this account.",
+);
+export const invalidOptOut = make(
+  400,
+  "invalid_opt_out",
+  "رابط إلغاء الاشتراك غير صالح.",
+  "This opt-out link is not valid.",
+);
 export const gemItemNotFound = make(
   404,
   "gem_item_not_found",

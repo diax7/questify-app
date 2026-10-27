@@ -876,6 +876,14 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
   gem_entry:
     "no direct API rights; append-only, written only by questify_sync and gem_buy for the calling player, each row bound to the same player's source row; never shown to anyone else, no organizer read exists (gems)",
+  interest:
+    "platform-wide seeded catalog with no tenant and no direct API rights; read through interest_list (marketing)",
+  player_preference:
+    "no direct API rights; one row per player written and read only by set_preferences and own_preferences for the calling player, read by the promotional audience as ids only; no organizer or public read exists (marketing)",
+  marketing_consent:
+    "no direct API rights; append-only, written only by set_marketing for the calling player and marketing_opt_out for a signed link; read by the calling player's state and a platform admin's audited door; erased with the account (marketing)",
+  marketing_state:
+    "no direct API rights; written only by the consent log's trigger, read by own_marketing for the caller and by marketing_audience as ids of opted-in players; no organizer or public read exists (marketing)",
   gem_purchase:
     "no direct API rights; append-only, written only by gem_buy for the calling player; no organizer read exists (gem-shop)",
   gem_shop_item:

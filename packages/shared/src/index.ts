@@ -352,3 +352,33 @@ export {
   citiesSchema,
 } from "./questify/events";
 export type { RankState, OwnEvent, PublicStamp, City } from "./questify/events";
+export {
+  MARKETING_CHANNELS,
+  MARKETING_TEXT_VERSION,
+  MAX_EVENT_INTERESTS,
+  MAX_PLAYER_INTERESTS,
+  consentHistorySchema,
+  consentOutdatedSchema,
+  forYouEventSchema,
+  forYouSchema,
+  interestSchema,
+  interestsSchema,
+  invalidPreferencesSchema,
+  marketingBodySchema,
+  marketingSchema,
+  marketingSummarySchema,
+  optOutBodySchema,
+  preferencesBodySchema,
+  preferencesSchema,
+} from "./marketing/marketing";
+export type {
+  ConsentHistory,
+  ForYouEvent,
+  Interest,
+  Marketing,
+  MarketingBody,
+  MarketingChannel,
+  MarketingSummary,
+  Preferences,
+  PreferencesBody,
+} from "./marketing/marketing";

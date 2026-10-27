@@ -155,3 +155,42 @@ test("an owner picks the event's city, it clears for an online event and locks o
   await expect(city).toBeDisabled();
   await expect(page.getByText("بدأت الفعالية، فلا تتغير مدينتها.")).toBeVisible();
 });
+
+test("an owner ticks up to three interests, the fourth is blocked, and they persist in both languages", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await signUpOwner(page, info.project.name);
+  await page.getByRole("link", { name: "Events" }).click();
+  await page.getByRole("link", { name: "New event" }).click();
+  await page.getByLabel("Name in English", { exact: true }).fill("Sport Night");
+  await page.getByRole("checkbox", { name: "Sport" }).check();
+  await page.getByRole("checkbox", { name: "Music" }).check();
+  await page.getByRole("checkbox", { name: "Technology" }).check();
+  await expect(page.getByRole("checkbox", { name: "Gaming" })).toBeDisabled();
+  await expect(
+    page.getByText("You chose three interests. Remove one to choose another."),
+  ).toBeVisible();
+  await page.getByLabel("Starts", { exact: true }).fill("2030-11-01T09:00");
+  await page.getByLabel("Ends", { exact: true }).fill("2030-11-01T17:00");
+  await page.getByRole("button", { name: "Create event" }).click();
+  await expect(page.getByRole("heading", { name: "Sport Night" })).toBeVisible();
+  for (const name of ["Sport", "Music", "Technology"]) {
+    await expect(page.getByRole("checkbox", { name })).toBeChecked();
+  }
+
+  await page.getByRole("checkbox", { name: "Music" }).uncheck();
+  await page.getByRole("checkbox", { name: "Gaming" }).check();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Changes saved.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("checkbox", { name: "Music" })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Gaming" })).toBeChecked();
+
+  await page.goto(page.url().replace("/en/", "/ar/"));
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByRole("group", { name: "الاهتمامات" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "رياضة", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "ألعاب", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "موسيقى", exact: true })).toBeDisabled();
+});

@@ -1,9 +1,23 @@
 "use client";
 
-import { VENUE_RADIUS, isTimeZone, zoneLabel, type City, type Language } from "@questify/shared";
+import {
+  MAX_EVENT_INTERESTS,
+  VENUE_RADIUS,
+  isTimeZone,
+  zoneLabel,
+  type City,
+  type Interest,
+  type Language,
+} from "@questify/shared";
 import { useEffect, useMemo, useState } from "react";
 import { NumberField } from "#src/components/NumberField.tsx";
 import { cityChoices, cityName, readCities } from "#src/lib/cities.ts";
+import {
+  interestChoices,
+  interestName,
+  readInterests,
+  toggleInterest,
+} from "#src/lib/interests.ts";
 import { isRadius, pinIsValid } from "#src/lib/coordinates.ts";
 import {
   ACCESS,
@@ -139,6 +153,63 @@ export function EventCityField({
       ) : null}
       <p className={styles.muted}>{t(locked ? "events.city.locked" : "events.city.hint")}</p>
     </>
+  );
+}
+
+/** The seeded interests (ADR-319), read once; `failed` when the list could not be read. */
+function useInterests(): Readonly<{ interests: readonly Interest[]; failed: boolean }> {
+  const [state, setState] = useState<{ interests: readonly Interest[]; failed: boolean }>({
+    interests: [],
+    failed: false,
+  });
+  useEffect(() => {
+    let current = true;
+    void requestJson("GET", "/v1/interests").then((result) => {
+      const interests = result.ok ? readInterests(result.body) : undefined;
+      if (current) {
+        setState({ interests: interests ?? [], failed: interests === undefined });
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
+  return state;
+}
+
+/**
+ * The event's interests (T-407, ADR-319): up to three, ticked from the catalog. Players who like them see a public
+ * event in their "For you" list. Plain checkboxes, so a keyboard and a screen reader reach each one; the ones beyond
+ * the limit are disabled, with a sentence that says why.
+ */
+export function EventInterestsField({ language, draft, disabled, change }: FieldProps) {
+  const t = translatorFor(language);
+  const { interests, failed } = useInterests();
+  const full = draft.interests.length >= MAX_EVENT_INTERESTS;
+  return (
+    <fieldset className={styles.row}>
+      <legend>{t("events.field.interests")}</legend>
+      {interestChoices(interests, draft.interests).map((interest) => {
+        const ticked = draft.interests.includes(interest.id);
+        return (
+          <label key={interest.id} className={styles.check}>
+            <input
+              type="checkbox"
+              checked={ticked}
+              disabled={disabled || (full && !ticked)}
+              onChange={() => change({ interests: toggleInterest(draft.interests, interest.id) })}
+            />
+            <span>{interestName(interest, language)}</span>
+          </label>
+        );
+      })}
+      {failed ? (
+        <p role="alert" className={styles.alert}>
+          {t("events.interests.failed")}
+        </p>
+      ) : null}
+      <p className={styles.muted}>{t(full ? "events.interests.full" : "events.interests.hint")}</p>
+    </fieldset>
   );
 }
 

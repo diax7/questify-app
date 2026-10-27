@@ -52,6 +52,7 @@ takes a player id, so one player cannot read or write another's tiers, stamps or
 enters them (player bearer only). Earned tiers come only from server facts (standing quest XP credits, revealed final
 ranks, reached community goals) through one `played_enrollment` rule; nothing the client sends is counted.
 `achievement_earned` and `final_rank` are append-only for every role and kept on erasure tombstones (no personal data).
+T-407 adds `player_preference`, `marketing_consent` and `marketing_state`: personal data, so no API grant and no policy, written and read only by caller-bound definers, never in a public, organizer or console read except an admin's audited read of consent (channels, dates, no contact); `marketing_consent` is append-only and erased with the account; a promotion chooses recipients only through `marketing_audience` (ids of active players opted in on the channel now); the opt-out link is HMAC-signed, turns a channel off only and answers the same for every player.
 Lock order: sync takes player KEY SHARE then `player_xp`; erasure player → enrollments → `player_xp`; completions
 enrollment → `player_xp` with no later player lock: no cycle (crossed-lock tests). The unlocked pre-check keeps a sync
 with nothing due lock-free; 20 syncs a minute per player.

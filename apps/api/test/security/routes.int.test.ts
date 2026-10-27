@@ -58,6 +58,21 @@ const ROUTES: Readonly<Record<string, string>> = {
     "writes only the calling player's own play through daily_answer_submit, bound to the caller and re-checked active; no player id taken; 30 a minute per player (test/security/daily-players, test/daily/routes)",
   "POST /v1/me/daily/word/guesses":
     "writes only the calling player's own play through daily_guess_submit, bound to the caller and re-checked active; no player id taken; 30 a minute per player (test/security/daily-players, test/daily/routes)",
+  "GET /v1/me/marketing":
+    "the calling player's own consent through own_marketing; another player's never shows (test/marketing/routes, test/db/marketing)",
+  "PUT /v1/me/marketing":
+    "sets only the calling player's own channels through set_marketing, bound to the caller and re-checked active; no player id taken; the wording version checked; 60 writes an hour (test/marketing/routes, test/db/marketing)",
+  "GET /v1/me/preferences":
+    "the calling player's own city and interests through own_preferences; never public, never an organizer's (test/marketing/routes, test/db/marketing)",
+  "PUT /v1/me/preferences":
+    "replaces only the calling player's own city and interests through set_preferences, bound to the caller; no player id taken; 60 writes an hour (test/marketing/routes, test/db/marketing)",
+  "GET /v1/me/for-you":
+    "the calling player's own recommendations through own_for_you: public listed events only, never one the caller is in, no other player's data (test/marketing/routes, test/db/marketing)",
+  "GET /v1/interests": "no tenant data: the same seeded interest list for everyone",
+  "POST /v1/public/marketing/opt-out":
+    "names the player only inside a signed token (HMAC under the server's key): a forged or altered token answers 400 and touches nothing; turns a channel off only, never on; the same 204 for a known and an unknown player; 30 tries an hour per address (test/marketing/routes, src/marketing/opt-out)",
+  "GET /v1/admin/players/:playerId/marketing-consent":
+    "active platform admins only (walked below); channels and dates, no contact; the admin checked again (questify_admin) and one audit row per read (test/marketing/routes, test/db/marketing)",
   "GET /v1/admin/daily":
     "active platform admins only (walked below); platform-wide content, finish counts only, no player; the admin checked again (questify_admin) (test/daily/routes, test/db/daily-content)",
   "GET /v1/admin/daily/questions":
@@ -641,6 +656,7 @@ const PUBLIC_ROUTES = [
   "GET /readyz",
   "GET /v1/cities",
   "GET /v1/config",
+  "GET /v1/interests",
   "GET /v1/public/events",
   "GET /v1/public/events/:joinCode",
   "GET /v1/public/events/:joinCode/quests",
@@ -656,6 +672,7 @@ const PUBLIC_ROUTES = [
   "POST /v1/deletion/confirm",
   "POST /v1/deletion/verify",
   "POST /v1/device/pairing",
+  "POST /v1/public/marketing/opt-out",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",

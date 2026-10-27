@@ -1103,7 +1103,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-707 | F-58 | Must | server built T-403 (`test/db/achievements.int`: thresholds, jumps, replays, crossings), core code review pending; awarded at the next sync |
 | FR-708 | F-58 | Must | partial: server answers `tier` null for a silhouette (`test/db/achievements.int`); screens built T-403c (padlock silhouette, `stamps.test.ts`), awaiting standard review |
 | FR-709 | F-133 | Must | partial: stamps, local date and final rank (none while running) server-side (`test/db/event-passport.int`, `test/db/final-rank.int`); the event logo waits for T-602 (an emblem letter until then); screens built T-403c (`stamps.test.ts`: upcoming, live, results soon, rank, not ranked), awaiting standard review |
-| FR-710 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: seeded attend 3 events and play in 2 cities, one award and one XP entry per quest under replays and crossings; `test/questify/quests.int`), core code review pending; paid at the next sync; "set your interests" comes with T-407, "follow Questify" not built (Q-245); the quests screen built T-403c (clamped progress, "Ends in N days" in Saudi days), awaiting standard review |
+| FR-710 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: seeded attend 3 events and play in 2 cities, one award and one XP entry per quest under replays and crossings; `test/questify/quests.int`), core code review pending; paid at the next sync; "set your interests" comes with T-407c (core), "follow Questify" not built (Q-245); the quests screen built T-403c (clamped progress, "Ends in N days" in Saudi days), awaiting standard review |
 | FR-711 | F-132 | Must | server built T-403b (`test/db/questify-quests.int`: published only before the start, offered only inside the window, counts only plays inside it, 3-day late-sync grace; console doors admin-only and audited), core code review pending; console page built T-403c (`apps/web/e2e/console-questify.spec.ts`, `console-questify.test.ts`), awaiting standard review |
 | FR-720 | F-129 | Must | `test/db/profile-items.int`, `apps/app/src/questify/profile-api.test.ts` (T-402) |
 | FR-721 | F-131 | Must | `test/db/profile-items.int`, `test/db/profile-upgrade.int`, app profile-api tests (T-402) |
@@ -1115,11 +1115,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-730 | F-137 | Should | partial: server built T-406 (`test/db/daily-challenge.int`: three answers in order pay 20 + 10 a right answer once, a replay or a second play pays nothing; `test/daily/routes.int`); the screen built T-406b (`apps/app/src/daily`, `daily-state.test`, `daily-flow.test`) |
 | FR-731 | F-137 | Should | built T-406 (`test/db/daily-challenge.int`: a finished challenge keeps the day with no event play, nothing while the streak switch is off); the finish reloads the profile and syncs, so the streak and its milestones show (T-406b, `use-daily`) |
 | FR-732 | F-137 | Should | built: server T-406 (a sponsor name on its period's challenge only, `test/db/daily-challenge.int`, `test/daily/routes.int`); the app's "Presented by" line built T-406b (`daily-lines.test`, `SponsorLine`); the console's field built T-406c (`e2e/console-daily.spec.ts`, `console-daily-forms.test`) |
-| FR-733 | F-138 | Should | pending |
-| FR-734 | F-138 | Should | pending |
-| FR-735 | F-140 | Must | pending |
-| FR-736 | F-140 | Must | pending |
-| FR-737 | F-140 | Must | pending |
+| FR-733 | F-138 | Should | built T-407 (`player_preference`, `GET`/`PUT /v1/me/preferences`; `test/db/marketing.int`, `test/marketing/routes.int`) and T-407b (the Interests and city screen, from the Profile); never on a public profile, code review pending |
+| FR-734 | F-138 | Should | built T-407 (`own_for_you`, `GET /v1/me/for-you`; event interests on the dashboard form, `e2e/events.spec.ts`) and T-407b (the For you screen, from Questify home until T-408), code review pending |
+| FR-735 | F-140 | Must | built T-407 (`set_marketing`: every channel off, the first answer recorded even when all stay off) and T-407b (the one-time step after sign-up); consent wording awaits counsel (Q-288), code review pending |
+| FR-736 | F-140 | Must | built T-407 (the dated log, `GET`/`PUT /v1/me/marketing`) and T-407b (Settings → Offers and notifications, each switch saved at once), code review pending |
+| FR-737 | F-140 | Must | built T-407 as the one audience door (`marketing_audience`, opted-in players only, per channel); the senders are T-409, T-501 and T-706, which must choose recipients there, code review pending |
 | FR-738 | F-139 | Should | pending |
 | FR-739 | F-139 | Should | pending |
 | FR-740 | F-139 | Should | pending |
@@ -1215,10 +1215,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1108 | F-203 | Must | pending |
 | FR-1109 | F-43 | Must | pending |
 | FR-1110 | F-44 | Must | pending |
-| FR-1111 | F-204 | Should | pending |
-| FR-1112 | F-204 | Should | pending |
-| FR-1113 | F-204 | Should | pending |
-| FR-1114 | F-204 | Must | pending |
+| FR-1111 | F-204 | Should | audience rule built T-407 (`marketing_audience`); the senders (invitations, campaigns) come with T-409 and T-706, code review pending |
+| FR-1112 | F-204 | Should | not built: needs the registered promotional sender (Q-034) and the SMS campaign sender (T-706); the opt-in is already per channel |
+| FR-1113 | F-204 | Should | built T-407 (`marketing_consent` with channel, date, method and wording version; the admin's audited read `GET /v1/admin/players/{id}/marketing-consent`; its screen comes with T-704), code review pending |
+| FR-1114 | F-204 | Must | built T-407 (signed opt-out link, `POST /v1/public/marketing/opt-out`, the web page `/[lang]/opt-out`) and T-407b (settings switches); every promotional sender must put `optOutUrl` in each message, code review pending |
 | FR-1115 | F-202 | Should | pending |
 | FR-1201 | F-65 | Must | pending |
 | FR-1202 | F-65 | Must | pending |
@@ -1330,7 +1330,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1735 | F-263 | Must | pending |
 | FR-1736 | F-264 | Must | pending |
 | FR-1737 | F-265 | Must | pending |
-| FR-1738 | F-204 | Must | pending |
+| FR-1738 | F-204 | Must | built T-407 (`promoSendTime`: no SMS 22:00 to 09:00, 01:00 to 12:00 in Ramadan; an opt-out is effective at once); the SMS sender applies it (T-706), code review pending |
 | FR-1739 | F-77, F-110 | Must | pending |
 | FR-1740 | F-69 | Should | pending |
 | FR-1741 | F-72 | Should | pending |

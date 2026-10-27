@@ -48,8 +48,7 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | avatar | text | one of `falcon`, `fox`, `camel`, `owl`, `lantern`, `explorer-hat` (CHECK, the same list as `AVATARS`) | yes (public) | Questify's default avatars (FR-117); the player changes it freely |
 | phone_e164, email | | moved to `player_contact` (migration 0005) | **yes** | Only the player and Questify admins can read them; organizers cannot (see below) |
 | birth_year | smallint | nullable | yes | Age gate (13+); set only at sign-up, never changed by the API role |
-| city | text | nullable | yes | Optional |
-| interests | text[] | | no | Optional |
+| city, interests | | moved to `player_preference` (migration 0070, T-407) | yes | Private to the player; see "Marketing consent, interests and city" below |
 | character_id, frame_item_id, title_item_id | uuid | FK | no | Avatar parts |
 | locale | text | `ar`/`en` | no | |
 | xp, level | | moved to `player_xp` (migration 0039, T-401) | no | Lifetime; see "Questify XP" below |
@@ -507,6 +506,24 @@ ADR-151):
   either (`RH409`) **before** the status check, so the desk never learns of a ban. `desk_items` (the lookup and the
   find) shows only `active` and `hold`, never the status. `enrollment.redeem_paused_at` (0031) also refuses new
   reservations and Collect (`RP403`, after the replay check).
+
+### Marketing consent, interests and city (T-407, migration 0070 undeployed)
+
+- `interest(id ^[a-z][a-z0-9-]{1,29}$, name_ar, name_en, position unique)`: 12 seeded; read through `interest_list()`
+  (`GET /v1/interests`); no direct API rights; the console edits it with T-703/T-709.
+- `player_preference(player_id PK → player, city_id → city NULL, interests text[] ≤ 8, updated_at)`: written by
+  `set_preferences`, read by `own_preferences` and, as ids only, by `marketing_audience`. No public, organizer or console read.
+- `event.interests text[] NOT NULL DEFAULT '{}'` (≤ 3): in the API role's INSERT/UPDATE column grants; trigger
+  `event_interests_guard` (BEFORE INSERT OR UPDATE OF interests) keeps catalog ids, distinct, in catalog order (`EI422`).
+- `marketing_consent(id, player_id → player, channel push|sms|email, granted, method signup|settings|opt_out_link,
+  text_version (required when granted), created_at)`: append-only for every role (the erasure flag lets `erase_rows`
+  delete); `marketing_state(player_id, channel, opted_in, changed_at)` is written only by the AFTER INSERT trigger
+  `marketing_state_apply`; partial index on `(channel, player_id) WHERE opted_in`. Both: RLS forced, no policy, no grant.
+- Doors (granted to `questify_app`): `own_marketing`, `set_marketing` (MK422, MK403), `marketing_opt_out` (for the signed
+  link), `marketing_audience` (the only door a promotion chooses recipients through), `marketing_consent_history` (admin,
+  audited), `own_preferences`, `set_preferences` (PF422), `interest_list`, `own_for_you`. Internal: `marketing_player`
+  (row held FOR NO KEY UPDATE), `marketing_adult` (the 19-year gap, ADR-317), `interests_clean`.
+- `erase_rows` (restated from 0064) deletes the preference, state and consent rows with the account (Q-289).
 
 ### Achievements, Event Passport, event city, final ranks (T-403, migration 0065 undeployed; core code review pending)
 
@@ -1037,7 +1054,8 @@ rows or push text.
 |---|---|---|
 | player_session, player_refresh, player_login_challenge (built: T-105, T-107, migration 0013), device | Access tokens (1 hour, `refresh_family`), rotating refresh tokens (180 days; a family per device, at most 10 live; reuse ends the family), one-time code challenges (the phone or email, its keyed hash for lookup, the code's HMAC, 3 tries, 3 resends, 5 minutes; the signup token's hash for 15 minutes after a right code for a new contact). No grant on the challenge and refresh tables: definer functions only. Swept: challenges an hour after expiry, ended or used tokens 7 days after; device + push token + integrity result later | The challenge holds a phone or email for minutes; tokens are stored hashed |
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
-| consent, legal_document | Per-channel opt-ins with dates and text version; versioned terms/privacy/guidelines/DPA | Yes |
+| marketing_consent, marketing_state (built, T-407, migration 0070) | Per-channel promotional opt-ins: an append-only dated log (channel, yes or no, method, wording version, time) and the state it writes; see below | Yes (erased with the account) |
+| legal_document | Versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |
 | item, level_item, player_item, player_equipment | Built T-402 (0063): catalog, distinct level rewards, ownership and equipped slots; see above | Ownership/equipment linked to player; erased with account |
 | achievement, player_achievement, event_stamp, streak | Questify layer progress (later tasks) | Linked to player |
@@ -1100,7 +1118,9 @@ Derived from the primary flows:
 | Data | Why collected | Protection | Retention | Who may read |
 |---|---|---|---|---|
 | Phone, email | Sign-in, prize contact, consented messages | Encrypted at rest by the managed database; column access limited to the identity module; never in logs or push text | Until deletion; Q-075 | Player; support/admin (read-only, logged, ADR-094) |
-| Birth year, city, interests | Age gate, optional personalization | Same | Until deletion | Player; admin |
+| Birth year | Age gate (13+), and whether marketing may be offered (full legal capacity, ADR-317) | Same | Until deletion | Player; admin |
+| City, interests | Optional personalization: "For you" and, for opted-in players, targeted promotions (`player_preference`, T-407) | No public, organizer or console read; ids only to the promotional audience door | Until deletion | Player |
+| Marketing consent | Proof of each opt-in and opt-out per channel: date, method, wording version (`marketing_consent`, T-407; PDPL IR Art. 11) | Append-only; no contact stored; admin reads are audited | Until deletion (Q-289) | Player; admin (read-only, logged) |
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
 | Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
 | Meetings | Meet-someone quests (FR-212, FR-213) | `meeting` and `meet_pass` have no grant and no policy; a code is kept only as a hash; the scanner sees the other's username and avatar, never their id | Event data (Q-075, Q-175); deleted with either account | Nobody through the API (no team read exists) |
