@@ -172,6 +172,10 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
   balance, `1110` sender, `M0030` a sender without the "AD" ending, `M0090` a template mismatch, `M0037` address,
   `unreachable`): SMS invitations pause for 15 minutes and then try again; the console shows the hold. Fix the account
   (top up, activate the sender, register the address); nothing is lost and no message fails because of it.
+- **One campaign can hold every campaign:** a refusal that is really about one campaign's text (a template mismatch
+  `M0090`, or `M0030`) still holds the whole SMS channel, every 15 minutes, so it blocks every campaign behind it. If the
+  alert repeats with the same code while other campaigns wait, cancel that campaign in the console (its queued messages
+  are cancelled, nothing else is lost) and check the Msegat template or sender.
 - **Quiet hours:** an invitation SMS never leaves 22:00 to 09:00 Riyadh time, and in Ramadan never 22:00 to 12:00 (the
   fixed band, also checked in SQL, plus CST's Ramadan band 01:00 to 12:00); a send that crosses 22:00 resumes by itself
   at 09:00 (12:00 in Ramadan).
@@ -183,7 +187,8 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
 - **Fill timing (by hand, `apps/api/test/perf/invitation-fill-timing.int.test.ts`, 2026-10-27, the development laptop:
   Docker Desktop on Windows, busy):** at 100,000 opted-in players the console's estimate takes 0.7 s and the fill 4.0 s
   (the plan's 2 s gate is missed on this machine; ADR-334). The start therefore runs in its own transaction with a 60 s
-  statement limit (the API's is 5 s), so a slow database never kills a fill half-way. While it runs, another server
+  statement limit and a 65 s client read limit (the API pool's are 5 s and 6 s), so a slow database never kills a fill
+  half-way. While it runs, another server
   skips the fill, and an edit of that one event or a cancel of that campaign waits; no player or join waits. Measure
   again on CranL before turning the switch on, and before approving a cap above 20,000 if it took over 10 s.
 - **Other log lines:** `invitation.start {outcome}` (started, too_small, event_changed, event_over), `invitation.ack_failed

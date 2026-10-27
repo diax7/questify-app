@@ -4473,7 +4473,7 @@ not one message; the SQL band keeps a TypeScript bug from sending at night.
 the next morning (the next noon in Ramadan).
 
 ## ADR-334 — Where the T-409 build departs from its plan
-**Status:** Proposed (T-409 build, 2026-10-27; Q-303). Amends ADR-330 (2), ADR-331 (1) and ADR-333 (1) to (3) in the details below; the plan's other lines are built as written.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 code review 89, all departures accepted as built; Q-303). Amends ADR-330 (2), ADR-331 (1) and ADR-333 (1) to (3) in the details below; the plan's other lines are built as written.
 **Decision:** (1) **The start does not apply the 24-hour rule.** The request and the approval do; the start, like every
 claim, checks only that the event still qualifies (`invitation_event_ok(ev, true)`) and is not over. With the rule at the
 start, any send time the approval allows in the event's last day (up to an hour before the end) would cancel the
@@ -4501,5 +4501,15 @@ calls it up to five times. (12) The database tests are split in two files (`invi
 `invitation-sending.int`).
 **Why:** (1) and (5) make the accepted rules hold as meant; (2) keeps one lock order with no upgrade; (3) and (4) are
 the measured cost of the fill; (6) to (12) are wiring.
+**Code review fold-in (89, 2026-10-27):** the fill's limits are its own on both sides, the server's statement limit (60 s,
+`SET LOCAL`) and the client's read limit (65 s, the pool's is 6 s), proven on a pool built from `poolOptions`
+(`test/invitations/fill-limits`); the name rule also refuses default-ignorable characters and allows combining marks
+around a dot; settle's purge also deletes a row a fill inserted for a player whose erasure committed during the fill; the
+request's early name check reads only the caller's own events; a text that cannot be built is acknowledged `failed`
+(`render_error`), never `unknown`.
 **Trade-offs:** Integrity of `invitation_recipient`'s ids rests on its one writer and the trigger, not on foreign keys;
-a fill of 100,000 holds the event `FOR SHARE` for seconds (an edit of that event waits).
+a fill of 100,000 holds the event `FOR SHARE` for seconds (an edit of that event waits). The 90-day purge is kept
+(data minimisation, developer's decision at the code review): "never twice for one event" holds only while a campaign's
+rows exist, so an event still running more than 90 days after a campaign finished could invite the same player again,
+and only through a new campaign that an admin approves by hand. A name with an emoji's variation selector is refused
+(the selector is default-ignorable); the admin sees the verdict.

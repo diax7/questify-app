@@ -12,9 +12,19 @@ export const INVITATION_NAME_UNITS = 40;
 /** Why a name cannot go into an invitation. */
 export type InvitationNameIssue = "control_characters" | "looks_like_address" | "looks_like_phone";
 
-const CONTROL = /[\p{Cc}\p{Cf}]/u;
-/** A dot-like character with a letter or a digit of any script on both sides (no domain list). */
-const DOTTED = /[\p{L}\p{N}][.。．｡․۔][\p{L}\p{N}]/u;
+/**
+ * Control and format characters, and every default-ignorable one (variation selectors, the combining grapheme joiner,
+ * fillers): a browser draws none of them, so `example.\uFE0Fcom` reads as `example.com` (T-409 code review). Built on
+ * first use, not at load: the app imports this package, and the release Hermes need never compile a binary property.
+ */
+let control: RegExp | undefined;
+const controlPattern = (): RegExp =>
+  (control ??= new RegExp(String.raw`[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]`, "u"));
+/**
+ * A dot-like character with a letter or a digit of any script on both sides (no domain list), combining marks allowed
+ * around the dot (`example.\u0301com` still reads as an address).
+ */
+const DOTTED = /[\p{L}\p{N}]\p{M}*[.。．｡․۔]\p{M}*[\p{L}\p{N}]/u;
 const NOT_LETTER_OR_DIGIT = /[^\p{L}\p{N}]/gu;
 /** Nine or more decimal digits of any script in a row, once everything but letters and digits is gone. */
 const PHONE_RUN = /\p{Nd}{9,}/u;
@@ -36,7 +46,7 @@ export function trimName(name: string): string {
 
 function issueOf(text: string): InvitationNameIssue | null {
   const folded = text.normalize("NFKC");
-  if (CONTROL.test(text) || CONTROL.test(folded)) return "control_characters";
+  if (controlPattern().test(text) || controlPattern().test(folded)) return "control_characters";
   if (folded.includes("://") || folded.includes("@") || DOTTED.test(folded)) {
     return "looks_like_address";
   }

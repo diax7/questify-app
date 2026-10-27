@@ -148,7 +148,8 @@ export function eventNameProblem(
 /** Refuses a request early (422 `event_name`) when the event's live names could not be sent (FR-1112). */
 async function checkLiveNames(client: PoolClient, eventId: string): Promise<void> {
   const { rows } = await client.query<{ ar: string | null; en: string | null }>(
-    "SELECT name_ar AS ar, name_en AS en FROM event WHERE id = $1",
+    // The caller's own organizer only: another tenant's public event answers 404 from the door, never `event_name`.
+    "SELECT name_ar AS ar, name_en AS en FROM event WHERE id = $1 AND organizer_id = app_organizer_id()",
     [eventId],
   );
   const problem = rows[0] === undefined ? null : eventNameProblem(rows[0]);

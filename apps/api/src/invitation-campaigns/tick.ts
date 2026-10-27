@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from "pg";
+import type { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
 import type { AuthKeys } from "#src/auth/keys";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -22,7 +22,9 @@ export const INVITATION_SETTLE_MS = 10 * 60 * 1000;
 /** At most this many settle calls a tick while one reports `more`. */
 const SETTLE_CALLS = 5;
 /** The fill's own statement limit (the API's is 5 s, pool-options.ts). */
-export const FILL_TIMEOUT = "60s";
+export const FILL_TIMEOUT_MS = 60_000;
+/** The client's own wait for the fill, beyond the server's limit (the pool's is 6 s, pool-options.ts). */
+export const FILL_QUERY_TIMEOUT_MS = FILL_TIMEOUT_MS + 5000;
 /** Each wait is the interval, give or take a fifth, so instances started together drift apart. */
 const JITTER = 0.2;
 
@@ -77,21 +79,31 @@ export function messageOf(deps: Pick<InvitationTickDeps, "keys">, claim: Claim):
   });
 }
 
+const RENDER_FAILED: InvitationOutcome = { outcome: "failed", code: "render_error" };
+
+/** Hands one text to the sender; a sender that throws may still have reached Msegat, so that is `unknown`. */
+async function sendText(sender: SmsSender, to: string, text: string): Promise<InvitationOutcome> {
+  try {
+    return invitationOutcome(await sender.send({ to, text }));
+  } catch {
+    return { outcome: "unknown", code: "sender_error" };
+  }
+}
+
 /** Sends one claimed message and acknowledges it; contact and text never reach a log. */
 async function sendOne(
   deps: InvitationTickDeps,
   sender: SmsSender,
   claim: Claim,
 ): Promise<InvitationOutcome["outcome"]> {
-  let result: InvitationOutcome;
+  let text: string | undefined;
   try {
-    result = invitationOutcome(
-      await sender.send({ to: claim.phone, text: messageOf(deps, claim) }),
-    );
+    text = messageOf(deps, claim);
   } catch {
-    // The sender answers every failure itself; one that throws may still have reached Msegat.
-    result = { outcome: "unknown", code: "sender_error" };
+    // Nothing left: the message failed for certain, so it is not "possibly sent" and blocks no one for 7 days.
+    text = undefined;
   }
+  const result = text === undefined ? RENDER_FAILED : await sendText(sender, claim.phone, text);
   if (result.outcome === "hold") {
     deps.log("error", {
       event: "invitation.channel_hold",
@@ -138,14 +150,31 @@ async function sendRounds(
   }
 }
 
+/**
+ * Runs the fill's statement in the caller's transaction with limits of its own (ADR-334 (4)): a fill of 100,000 players
+ * takes seconds, and under the API's (the server's 5 s, the client's 6 s) it would roll back and restart every tick,
+ * holding its event FOR SHARE and its campaign FOR UPDATE each time. Both limits are raised, the server's for this
+ * transaction only.
+ */
+export async function withFillLimits<R extends QueryResultRow>(
+  client: PoolClient,
+  text: string,
+): Promise<QueryResult<R>> {
+  await client.query(`SET LOCAL statement_timeout = ${FILL_TIMEOUT_MS}`);
+  // pg reads a query's own `query_timeout` (client.js); its types leave the field out.
+  const query: QueryConfig & { query_timeout: number } = {
+    text,
+    query_timeout: FILL_QUERY_TIMEOUT_MS,
+  };
+  return client.query<R>(query);
+}
+
 /** Starts at most one due campaign, then sends; only while the switch is on and a promotional sender exists. */
 async function send(deps: InvitationTickDeps, started: number): Promise<void> {
   if (!(await switchedOn(deps))) return;
   const outcome = await system(deps.pool, async (client) => {
-    // A fill of 100,000 players takes seconds (ADR-334 (4)): it gets its own limit, not the API's 5 s, so a slow
-    // database never kills it half-way and retries it every tick.
-    await client.query(`SET LOCAL statement_timeout = '${FILL_TIMEOUT}'`);
-    const { rows } = await client.query<{ outcome: string }>(
+    const { rows } = await withFillLimits<{ outcome: string }>(
+      client,
       "SELECT invitation_start_due() AS outcome",
     );
     return rows[0]?.outcome;

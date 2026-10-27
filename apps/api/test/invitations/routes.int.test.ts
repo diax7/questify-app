@@ -165,6 +165,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations over HTTP", () => 
       expect(editor.json()).toMatchObject({ code: "owner_only" });
     });
 
+    it("answers 404, not event_name, for another organizer's public event whose name the SMS could not carry", async () => {
+      const theirs = await f.eligibleEvent(f.ids.orgB);
+      await f.owner("UPDATE event SET name_en = 'Win at pay-now.co' WHERE id = $1", [theirs]);
+      const answer = await ask(theirs);
+      expect(answer.statusCode).toBe(404);
+      expect(answer.json()).toMatchObject({ code: "not_found" });
+    });
+
     it("replays a request with the same key, and needs one", async () => {
       const event = await f.eligibleEvent();
       const key = randomUUID();

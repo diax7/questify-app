@@ -19,6 +19,8 @@ type Script = {
   /** settle's `more` answers, in order; afterwards false. */
   more?: boolean[];
   ackFails?: boolean;
+  /** Claims with no approved name, so the text cannot be built. */
+  blankNames?: boolean;
 };
 
 const NOON = Date.parse("2026-10-27T12:00:00+03:00");
@@ -37,29 +39,41 @@ const claimRow = (n: number) => ({
 
 /** A pool answering the tick's statements from `script`, recording each statement and its values. */
 function fakePool(script: Script) {
-  const statements: { sql: string; values: unknown[] }[] = [];
+  const statements: { sql: string; values: unknown[]; timeout?: number }[] = [];
   let claimed = 0;
   let settles = 0;
   let next = 0;
   const client = {
-    query: vi.fn(async (sql: string, values: unknown[] = []) => {
-      statements.push({ sql, values });
-      if (sql.includes("invitation_settle")) {
-        settles += 1;
-        return { rows: [{ summary: { more: script.more?.[settles - 1] ?? false } }] };
-      }
-      if (sql.includes("invitation_start_due"))
-        return { rows: [{ outcome: script.start ?? "idle" }] };
-      if (sql.includes("invitation_claim")) {
-        const count = script.claims[claimed] ?? 0;
-        claimed += 1;
-        return { rows: Array.from({ length: count }, () => claimRow((next += 1))) };
-      }
-      if (sql.includes("invitation_ack") && script.ackFails === true) {
-        throw Object.assign(new Error("database down"), { code: "57P01" });
-      }
-      return { rows: [] };
-    }),
+    query: vi.fn(
+      async (asked: string | { text: string; query_timeout?: number }, values: unknown[] = []) => {
+        const sql = typeof asked === "string" ? asked : asked.text;
+        statements.push({
+          sql,
+          values,
+          ...(typeof asked === "string" || asked.query_timeout === undefined
+            ? {}
+            : { timeout: asked.query_timeout }),
+        });
+        if (sql.includes("invitation_settle")) {
+          settles += 1;
+          return { rows: [{ summary: { more: script.more?.[settles - 1] ?? false } }] };
+        }
+        if (sql.includes("invitation_start_due"))
+          return { rows: [{ outcome: script.start ?? "idle" }] };
+        if (sql.includes("invitation_claim")) {
+          const count = script.claims[claimed] ?? 0;
+          claimed += 1;
+          const blank = script.blankNames === true ? { name_ar: null, name_en: null } : {};
+          return {
+            rows: Array.from({ length: count }, () => ({ ...claimRow((next += 1)), ...blank })),
+          };
+        }
+        if (sql.includes("invitation_ack") && script.ackFails === true) {
+          throw Object.assign(new Error("database down"), { code: "57P01" });
+        }
+        return { rows: [] };
+      },
+    ),
     release: vi.fn(),
   };
   return { pool: { connect: async () => client } as unknown as Pool, statements };
@@ -132,7 +146,9 @@ describe("startInvitationTick", () => {
     const fill = statements.findIndex((statement) =>
       statement.sql.includes("invitation_start_due"),
     );
-    expect(statements[fill - 1]?.sql).toBe("SET LOCAL statement_timeout = '60s'");
+    // The fill's own limits: the server's for this transaction and the client's for this query (ADR-334 (4)).
+    expect(statements[fill - 1]?.sql).toBe("SET LOCAL statement_timeout = 60000");
+    expect(statements[fill]?.timeout).toBe(65_000);
     expect(named(statements, "invitation_claim").map((s) => s.values)).toEqual([
       [["sms"], INVITATION_ROUND],
       [["sms"], INVITATION_ROUND],
@@ -274,6 +290,18 @@ describe("startInvitationTick", () => {
     expect(named(statements, "invitation_ack")[0]?.values.slice(2)).toEqual([
       "unknown",
       "sender_error",
+    ]);
+  });
+
+  it("fails a message whose text cannot be built, without sending it or counting it as possibly sent", async () => {
+    const logged: Logged[] = [];
+    const { tick, statements, sent } = start({ claims: [2], blankNames: true }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(sent).toEqual([]);
+    expect(named(statements, "invitation_ack").map((s) => s.values.slice(2))).toEqual([
+      ["failed", "render_error"],
+      ["failed", "render_error"],
     ]);
   });
 

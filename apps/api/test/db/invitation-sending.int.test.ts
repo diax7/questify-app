@@ -648,6 +648,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation sending (database)"
   });
 
   describe("erasure", () => {
+    it("deletes, at the next settle, the row of a player a fill picked while their erasure committed", async () => {
+      const { campaign, players } = await f.launch(50);
+      const erased = players[0] ?? "";
+      // The race's outcome: the fill read the player as active, erasure committed, then the fill's row landed.
+      await f.owner("UPDATE player SET status = 'deleted', username = NULL WHERE id = $1", [
+        erased,
+      ]);
+      expect(await f.settle()).toMatchObject({ purged: 1 });
+      expect(
+        await f.owner("SELECT 1 FROM invitation_recipient WHERE player_id = $1", [erased]),
+      ).toEqual([]);
+      expect(await f.recipients(campaign)).toHaveLength(49);
+      expect(await f.campaignRow(campaign)).toMatchObject({ planned: 50 });
+    });
+
     it("deletes the player's recipient rows at once and keeps the campaign's counters", async () => {
       const { campaign } = await f.launch(50);
       const [claimed] = await f.claimAt(1);

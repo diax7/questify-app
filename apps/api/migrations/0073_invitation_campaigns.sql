@@ -1140,15 +1140,26 @@ CREATE FUNCTION invitation_settle_publish(camps uuid[]) RETURNS integer
 $$;
 REVOKE ALL ON FUNCTION invitation_settle_publish(uuid[]) FROM PUBLIC;
 
--- Retention (ADR-332 (5)): every recipient row of a final campaign that finished over 90 days ago, whatever its state;
--- at most `lim` a call. The counters stay on the campaign.
+-- Retention (ADR-332 (5)): every recipient row of a final campaign that finished over 90 days ago, whatever its state,
+-- and every row of an erased player. Erasure deletes a player's rows at once, but a fill that read the player as active
+-- before the erasure committed can insert one after it (T-409 code review): such a row is never sent (the claim's
+-- promo_pool re-check skips it) and is deleted here, among the campaigns started in the last 2 days or with results
+-- still open (settle runs every 10 minutes, switch on or off). At most `lim` of each a call. The counters stay.
 CREATE FUNCTION invitation_purge(lim integer) RETURNS integer
   LANGUAGE sql SET search_path = public, pg_temp AS $$
   WITH old AS (
     SELECT q.id FROM invitation_recipient q JOIN invitation_campaign c ON c.id = q.campaign_id
     WHERE c.final_at IS NOT NULL AND c.finished_at < now() - interval '90 days'
     LIMIT lim FOR UPDATE OF q SKIP LOCKED),
-  gone AS (DELETE FROM invitation_recipient q USING old o WHERE q.id = o.id RETURNING 1)
+  erased AS (
+    SELECT q.id FROM invitation_campaign c
+    JOIN invitation_recipient q ON q.campaign_id = c.id
+    JOIN player p ON p.id = q.player_id AND p.status = 'deleted'
+    WHERE c.started_at IS NOT NULL AND (c.final_at IS NULL OR c.started_at > now() - interval '2 days')
+    LIMIT lim FOR UPDATE OF q SKIP LOCKED),
+  gone AS (
+    DELETE FROM invitation_recipient q
+    WHERE q.id IN (SELECT o.id FROM old o UNION SELECT e.id FROM erased e) RETURNING 1)
   SELECT count(*)::integer FROM gone
 $$;
 REVOKE ALL ON FUNCTION invitation_purge(integer) FROM PUBLIC;

@@ -1130,3 +1130,5 @@ on `invitation_recipient` (measured: a 100,000-row fill went from about 12 s to 
 campaign; the fill gets its own 60 s statement limit (4.0 s measured on the laptop, the 2 s gate missed there; measure
 on CranL before the switch is turned on); `M0030` and `M0090` hold the channel like the other account refusals.
 Developer's call at the T-409 code review.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as built at the T-409 code review (89); ADR-334
+Accepted, with the review's fold-in and the 90-day purge kept.

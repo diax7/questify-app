@@ -5,14 +5,20 @@ import {
   trimName,
 } from "#src/invitation-campaigns/name-rule";
 
+/** A code point as text, so invisible characters stay readable in this file. */
+const cp = (code: number): string => String.fromCodePoint(code);
+
 /** True when no surrogate stands alone (ES2023 has no String.prototype.isWellFormed). */
 const wellFormed = (text: string): boolean =>
   !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(text);
 
-/** Every code point JavaScript itself puts in `\p{Cc}` or `\p{Cf}`, never a hand-written list. */
+/**
+ * Every code point JavaScript itself puts in `\p{Cc}`, `\p{Cf}` or `\p{Default_Ignorable_Code_Point}`, never a
+ * hand-written list.
+ */
 function controlCodePoints(): number[] {
   const found: number[] = [];
-  const control = /^[\p{Cc}\p{Cf}]$/u;
+  const control = /^[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]$/u;
   for (let code = 0; code <= 0x10ffff; code += 1) {
     if (code >= 0xd800 && code <= 0xdfff) continue;
     if (control.test(String.fromCodePoint(code))) found.push(code);
@@ -21,11 +27,14 @@ function controlCodePoints(): number[] {
 }
 
 describe("invitationNameIssue (Finding 1 (b))", () => {
-  it("refuses every control and format character, generated from JavaScript's own classes", () => {
+  it("refuses every control, format and default-ignorable character, from JavaScript's own classes", () => {
     const codes = controlCodePoints();
     // The classes hold well over 150 code points, among them the ones a phishing name would use.
     expect(codes.length).toBeGreaterThan(150);
-    for (const known of [0x0, 0x7f, 0x200b, 0x200e, 0x202e, 0x2066, 0xfeff, 0xe0001]) {
+    const listed = [
+      0x0, 0x7f, 0x200b, 0x200e, 0x202e, 0x2066, 0xfeff, 0xe0001, 0xfe0f, 0x34f, 0x3164,
+    ];
+    for (const known of listed) {
       expect(codes).toContain(known);
     }
     const missed = codes.filter(
@@ -51,6 +60,16 @@ describe("invitationNameIssue (Finding 1 (b))", () => {
     "Visit ｅｘａｍｐｌｅ．ｃｏｍ",
   ])("refuses %s as an address", (name) => {
     expect(invitationNameIssue(name)).toBe("looks_like_address");
+  });
+
+  it.each([
+    [`example.${cp(0xfe0f)}com`, "control_characters"],
+    [`example.${cp(0x34f)}com`, "control_characters"],
+    [`example.${cp(0x301)}com`, "looks_like_address"],
+    [`example${cp(0x301)}.com`, "looks_like_address"],
+    [`example${cp(0x332)}.${cp(0x332)}com`, "looks_like_address"],
+  ])("refuses %j, which a browser reads as example.com (T-409 code review)", (name, issue) => {
+    expect(invitationNameIssue(name)).toBe(issue);
   });
 
   it.each(["St. Patrick", "v2 . 0", "Dr. Ahmed", "Tech Week", "مهرجان الرياض", "Season 2026-2027"])(
