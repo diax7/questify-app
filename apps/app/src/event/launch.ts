@@ -88,21 +88,25 @@ export function chooseLaunchEvent(events: readonly MyEvent[], recent: Recent): s
 const isOptionalTime = (value: unknown): boolean =>
   value === undefined || value === null || typeof value === "string";
 
+const hasListFields = (item: Record<string, unknown>): boolean =>
+  typeof item["id"] === "string" &&
+  typeof item["joinCode"] === "string" &&
+  typeof item["statusNow"] === "string" &&
+  ["active", "pending", "declined"].includes(String(item["status"])) &&
+  isRecord(item["name"]);
+
+const hasOptionalFields = (item: Record<string, unknown>): boolean =>
+  (item["timezone"] === undefined || typeof item["timezone"] === "string") &&
+  isOptionalTime(item["startsAt"]) &&
+  isOptionalTime(item["endsAt"]);
+
+const isMyEvent = (item: unknown): item is MyEvent =>
+  isRecord(item) && hasListFields(item) && hasOptionalFields(item);
+
 /** The list's events, checked one by one: an entry of another shape is left out rather than breaking the screen. */
 export function readMyEvents(body: unknown): MyEvent[] | undefined {
   if (!isRecord(body) || !Array.isArray(body["events"])) {
     return undefined;
   }
-  return body["events"].filter(
-    (item): item is MyEvent =>
-      isRecord(item) &&
-      typeof item["id"] === "string" &&
-      typeof item["joinCode"] === "string" &&
-      typeof item["statusNow"] === "string" &&
-      ["active", "pending", "declined"].includes(String(item["status"])) &&
-      (item["timezone"] === undefined || typeof item["timezone"] === "string") &&
-      isOptionalTime(item["startsAt"]) &&
-      isOptionalTime(item["endsAt"]) &&
-      isRecord(item["name"]),
-  );
+  return body["events"].filter(isMyEvent);
 }

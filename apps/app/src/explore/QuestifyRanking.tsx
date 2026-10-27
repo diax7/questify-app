@@ -1,4 +1,10 @@
-import { formatNumber, type QuestifyRankingScope, type Theme } from "@questify/shared";
+import {
+  formatNumber,
+  type Language,
+  type QuestifyRanking,
+  type QuestifyRankingScope,
+  type Theme,
+} from "@questify/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -47,18 +53,35 @@ function ScopeTabs({
   );
 }
 
+/** The spoken row: rank, name, XP and level, with the equipped title when there is one (each language punctuates it). */
+function rowLabel(
+  row: ShownQuestifyRow,
+  language: Language,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
+  const params = {
+    rank: row.rank,
+    username: row.username,
+    xp: formatNumber(row.xp, language),
+    level: row.level,
+  };
+  const title = row.equipment.title?.name[language];
+  const key =
+    `explore.ranking.rowLabel${row.isMe ? "Me" : ""}${title === undefined ? "" : "Titled"}` as const;
+  return t(key, title === undefined ? params : { ...params, title });
+}
+
 function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const xp = formatNumber(row.xp, language);
-  const params = { rank: row.rank, username: row.username, xp, level: row.level };
-  const label = t(row.isMe ? "explore.ranking.rowLabelMe" : "explore.ranking.rowLabel", params);
   const title = row.equipment.title?.name[language];
+  const label = rowLabel(row, language, t);
   return (
     <Pressable
       accessible
       accessibilityRole="button"
-      accessibilityLabel={title === undefined ? label : `${label}، ${title}`}
+      accessibilityLabel={label}
       onPress={() =>
         router.push({ pathname: "/player/[username]", params: { username: row.username } })
       }
@@ -92,6 +115,42 @@ function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
   );
 }
 
+function BoardFailure({ hasBoard, retry }: Readonly<{ hasBoard: boolean; retry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <AppText accessibilityRole="alert">
+        {t(hasBoard ? "ranking.refreshFailed" : "explore.ranking.failed")}
+      </AppText>
+      <Button kind="quiet" label={t("common.retry")} onPress={retry} />
+    </>
+  );
+}
+
+function BoardNotices({
+  ranking,
+  rowCount,
+  failed,
+  retry,
+}: Readonly<{
+  ranking: QuestifyRanking | null;
+  rowCount: number;
+  failed: boolean;
+  retry: () => void;
+}>) {
+  const { t } = useI18n();
+  if (failed) {
+    return <BoardFailure hasBoard={ranking !== null} retry={retry} />;
+  }
+  if (ranking === null) {
+    return <AppText muted>{t("common.loading")}</AppText>;
+  }
+  if (rowCount === 0) {
+    return <AppText muted>{t("explore.ranking.empty")}</AppText>;
+  }
+  return ranking.me === null ? <AppText muted>{t("explore.ranking.noRank")}</AppText> : null;
+}
+
 function Board({
   answer,
   scope,
@@ -103,28 +162,13 @@ function Board({
   failed: boolean;
   retry: () => void;
 }>) {
-  const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   // Switching tabs keeps the last answer until the new one arrives: it is shown only for its own scope.
   const ranking = answer?.ranking.scope === scope ? answer.ranking : null;
   const rows = ranking === null ? [] : questifyRankingRows(ranking);
   return (
     <>
-      {failed ? (
-        <>
-          <AppText accessibilityRole="alert">
-            {t(ranking === null ? "explore.ranking.failed" : "ranking.refreshFailed")}
-          </AppText>
-          <Button kind="quiet" label={t("common.retry")} onPress={retry} />
-        </>
-      ) : null}
-      {ranking === null && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
-      {ranking !== null && rows.length === 0 ? (
-        <AppText muted>{t("explore.ranking.empty")}</AppText>
-      ) : null}
-      {ranking !== null && ranking.me === null && rows.length > 0 ? (
-        <AppText muted>{t("explore.ranking.noRank")}</AppText>
-      ) : null}
+      <BoardNotices ranking={ranking} rowCount={rows.length} failed={failed} retry={retry} />
       <View style={styles.list}>
         {rows.map((row) => (
           <Row key={row.key} row={row} />

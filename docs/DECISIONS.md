@@ -4290,7 +4290,7 @@ fail at midnight.
 season early or change its length.
 
 ## ADR-324 — The Questify home center button opens event joins only
-**Status:** Proposed (T-408 plan, 2026-10-27; Q-293). Specifies FR-831, FR-1614.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408b code review 82, about 93 after the fold-in). Specifies FR-831, FR-1614.
 **Decision:** The scanner checks for an operator invite first (`inviteTokenOf`; it opens its invite, how staff join an
 event), then reads with the event scanner's classifier: a join link opens that event's join card (a rehearsal code
 only if a rehearsal QR exists); a quest, screen, passport-step,
@@ -4300,7 +4300,7 @@ send them to the phone's camera app.
 **Trade-offs:** Two kinds of code open from the button where FR-1614 names one.
 
 ## ADR-325 — Questify Home and Explore: what lives where
-**Status:** Proposed (T-408b build, 2026-10-27; Q-294). Specifies FR-832, FR-833.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408b code review 82, about 93 after the fold-in). Specifies FR-832, FR-833.
 **Decision:** Home holds the player's events (live, coming up, past; the newest 5 past, then the event history), the daily cards, the
 streak line, the Questify quests button and the typed code. Explore holds, in this order, For you, the Questify-wide ranking and the
 public events (a list that pages, so it comes last). The public events moved off Home, so signed-out Home is sign-in and the typed

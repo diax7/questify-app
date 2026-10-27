@@ -5594,9 +5594,17 @@ export const MESSAGES = {
     ar: "المركز {rank}، @{username}، {xp} XP، المستوى {level}",
     en: "Rank {rank}, @{username}, {xp} XP, level {level}",
   },
+  "explore.ranking.rowLabelTitled": {
+    ar: "المركز {rank}، @{username}، {xp} XP، المستوى {level}، {title}",
+    en: "Rank {rank}, @{username}, {xp} XP, level {level}, {title}",
+  },
   "explore.ranking.rowLabelMe": {
     ar: "المركز {rank}، أنت، {xp} XP، المستوى {level}",
     en: "Rank {rank}, you, {xp} XP, level {level}",
+  },
+  "explore.ranking.rowLabelMeTitled": {
+    ar: "المركز {rank}، أنت، {xp} XP، المستوى {level}، {title}",
+    en: "Rank {rank}, you, {xp} XP, level {level}, {title}",
   },
   "explore.xp": { ar: "{xp} XP", en: "{xp} XP" },
 } as const satisfies Messages;

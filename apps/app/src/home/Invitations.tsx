@@ -1,22 +1,18 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { EventRow } from "#src/home/EventRow.tsx";
+import { loadInvitations } from "#src/home/home-reads.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { fetchInvitations, type Invitation } from "#src/join/join-api.ts";
+import { useRead } from "#src/questify/use-read.ts";
 
-/** The invitations (FR-133): events whose guest list holds the player; nothing at all when there are none. */
+/**
+ * The invitations (FR-133): events whose guest list holds the player, read again each time Home gains focus (the tabs
+ * stay mounted). Nothing at all when there are none or they cannot be read.
+ */
 export function Invitations() {
   const { t } = useI18n();
-  const [invitations, setInvitations] = useState<readonly Invitation[]>([]);
-  useEffect(() => {
-    void fetchInvitations(api.session).then((answer) => {
-      if (answer.kind === "list") {
-        setInvitations(answer.invitations);
-      }
-    });
-  }, []);
+  const invitations = useRead(() => loadInvitations(api.session), []).data ?? [];
   if (invitations.length === 0) {
     return null;
   }
