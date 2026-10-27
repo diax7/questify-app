@@ -83,10 +83,17 @@ export const consentStepDue = (
   me.marketing.canOptIn &&
   !answeredHere.has(me.id);
 
-/** The routes the step may interrupt: the two places the app lands, never a join, a sign-in or a game in progress. */
+/**
+ * The routes the step may interrupt: the two places the app lands (the launch screen and the Home tab), never a join,
+ * a sign-in or a game in progress.
+ */
 export function atLanding(segments: readonly string[]): boolean {
-  const first = segments[0];
-  return first === undefined || first === "index" || first === "home";
+  const [first, second] = segments;
+  return (
+    first === undefined ||
+    first === "index" ||
+    (first === "(questify)" && (second === undefined || second === "home"))
+  );
 }
 
 /** The chosen interests after one is tapped; a tap beyond the limit changes nothing. */

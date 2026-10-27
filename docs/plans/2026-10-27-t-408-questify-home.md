@@ -266,3 +266,12 @@ DATA_MODEL, API, SRS status rows, CONFIGURABILITY (the `questifyRanking` switch)
   ends (MINOR-2), the upgrade test notes the check's ACCESS SHARE read of `player_xp` (MINOR-3), this plan's 403s read
   404 (NIT).
 - **An archived season's `level`** is the player's lifetime level today, so it may move; places and XP do not.
+
+## T-408b build notes (2026-10-27)
+
+- Public events moved off Home to Explore; signed-out Home is sign-in and the typed code. Explore order: For you, the
+  ranking, the public events (ADR-325, Q-294). The Shop tab drops its Back button.
+- `/join-scan` is a stack screen over the tabs (like the event's scanner); the bar's `scan` file only owns the button.
+- No rehearsal QR exists (`RehearsalCard` shows a typed code), so the classifier reads none; the typed code stays on Home.
+- `MyEvent` gains `startsAt` and `endsAt` (already in `GET /v1/me/events`) for the upcoming and past order.
+- FR-612 is a test: `event-isolation.test.ts` reads every event and operator file.

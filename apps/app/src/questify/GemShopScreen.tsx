@@ -6,7 +6,6 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
 import { AppText } from "#src/components/AppText.tsx";
-import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
@@ -213,7 +212,7 @@ export function GemShopScreen() {
   const { state } = usePlayer();
   const me = state.status === "signed_in" ? state.me : undefined;
   return (
-    <Screen title={t("gemShop.title")} header={<BackButton />}>
+    <Screen title={t("gemShop.title")}>
       {me === undefined ? <ProfileGate /> : <ShopBody key={me.id} me={me} />}
     </Screen>
   );

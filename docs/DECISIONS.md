@@ -4298,3 +4298,13 @@ hidden-category or meet code says to open the event first; anything else says it
 **Why:** Staff who are not yet in the event hold an invite QR; refusing it here while the event scanner takes it would
 send them to the phone's camera app.
 **Trade-offs:** Two kinds of code open from the button where FR-1614 names one.
+
+## ADR-325 — Questify Home and Explore: what lives where
+**Status:** Proposed (T-408b build, 2026-10-27; Q-294). Specifies FR-832, FR-833.
+**Decision:** Home holds the player's events (live, coming up, past; the newest 5 past, then the event history), the daily cards, the
+streak line, the Questify quests button and the typed code. Explore holds, in this order, For you, the Questify-wide ranking and the
+public events (a list that pages, so it comes last). The public events moved off Home, so signed-out Home is sign-in and the typed
+code, and Explore is where anyone browses before signing in. The Shop tab is the gem shop and drops its Back button. There is no
+separate For you screen or route.
+**Why:** One home for each kind of thing; a long, paged list does not push the ranking out of reach; a bar tab has no "back".
+**Trade-offs:** A signed-out player reaches the public events one tap further than before (the Explore tab).

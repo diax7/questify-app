@@ -639,9 +639,21 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Note (code review MINOR-1): the inactive set grows with deleted accounts, and so does the cost of taking them off
     each reader's place (`xp_board_json`, the third count in 0072's `mine`, one key lookup per inactive player); the
     Redis copy removes that cost too.
-- [ ] **T-408b** The bar outside events, Questify Home (events live, upcoming, past; daily cards; streak line; Questify quests), Explore (public events, For you, the Questify-wide ranking) and the join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614 (on screen); depends on: T-408
+- [x] **T-408b** The bar outside events, Questify Home (events live, upcoming, past; daily cards; streak line; Questify quests), Explore (public events, For you, the Questify-wide ranking) and the join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408b section).
   - Done when: Outside an event the center button scans only join QR codes (and operator invites, ADR-324); no event screen shows the Questify-wide ranking.
+  - Done 2026-10-27 (standard; code review owed): the group `app/(questify)/` with the bar Home, Explore, the center button, Shop
+    (the gem shop) and Profile in the event bar's style and fixed left-to-right order (`home`, `profile`, `gem-shop` moved into it,
+    paths unchanged; `explore` new); the center button opens `/join-scan` (`classifyJoinScan`: an operator invite first, then a join
+    link; quest, station, step, category and meet codes say to open the event first; anything else is "not an event join code";
+    no rehearsal QR exists, so none is read). Home: the player's events live, coming up and past (the newest 5 past, then the event
+    history), the two daily cards (moved off the Profile), the streak line (hidden when null), the Questify quests button, the typed
+    code; signed out, sign-in and the code. Explore: For you (a section now; `/for-you` and its button are gone), the Questify-wide
+    ranking (All time / This month, the 11-row layout, hidden when `questifyRanking` is off) and the public events; signed out,
+    the public events and a sign-in prompt. `MyEvent` gains `startsAt` and `endsAt`. Proven by `join-scan.test`, `home-groups.test`,
+    `ranking-api.test`, `event-isolation.test` (no event or operator file imports Explore or calls the ranking route, FR-612),
+    `marketing-flow.test` (`atLanding` knows the group), `event.test`, the Hermes guard and `npx expo export`. Proposed ADR-325 / Q-294.
+    Phone check owed (RTL bar and rows, the center button, VoiceOver and TalkBack on the tabs and ranking rows).
 - [ ] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408c section).
   - Done when: A past month's top 10 is unchanged after the new month starts, and changes only when one of its own credits is removed; there is no reset button (Q-292).

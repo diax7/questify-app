@@ -1054,3 +1054,7 @@ want prizes for a season's winners, a different season length, or players to see
 Recommended (ADR-324): the center button on Questify home opens event join codes and also operator invites, since staff
 are not yet inside the event when they scan theirs. Quest codes say to open the event first. Developer's call after the
 plan review. Still open: ADR-324 is decided after the T-408b code review.
+
+## Q-294 — Where the public events and For you sit on Questify Home and Explore (2026-10-27, T-408b build)
+Recommended (ADR-325): public events only on Explore (signed-out Home is sign-in and the typed code); Explore order For you, ranking,
+public events; Home lists the newest 5 past events then points to the history. Developer's call at the T-408b review.

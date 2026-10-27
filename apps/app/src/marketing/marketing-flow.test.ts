@@ -119,7 +119,10 @@ describe("atLanding", () => {
   it("lets the step interrupt the launch screen and Questify home only", () => {
     expect(atLanding([])).toBe(true);
     expect(atLanding(["index"])).toBe(true);
-    expect(atLanding(["home"])).toBe(true);
+    expect(atLanding(["(questify)", "home"])).toBe(true);
+    for (const tab of ["explore", "gem-shop", "profile"]) {
+      expect(atLanding(["(questify)", tab]), tab).toBe(false);
+    }
     for (const route of [
       "join",
       "sign-in",
@@ -127,6 +130,8 @@ describe("atLanding", () => {
       "marketing-consent",
       "event",
       "daily-word",
+      "home",
+      "join-scan",
     ]) {
       expect(atLanding([route]), route).toBe(false);
     }

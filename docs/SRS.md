@@ -1078,8 +1078,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-608 | F-23, F-61 | Must | pending |
 | FR-609 | F-23 | Must | pending |
 | FR-610 | F-61 | Should | pending |
-| FR-611 | F-154 | Should | server built T-408 (core; migration 0072, `GET /v1/questify/ranking`, `test/db/questify-ranking.int`, `test/db/questify-ranking-upgrade.int`; code review pending); screens T-408b |
-| FR-612 | F-154 | Should | pending |
+| FR-611 | F-154 | Should | server built T-408 (core; migration 0072, `GET /v1/questify/ranking`, `test/db/questify-ranking.int`, `test/db/questify-ranking-upgrade.int`; code review pending); screens built T-408b (Explore; code review pending) |
+| FR-612 | F-154 | Should | built T-408b (the Questify-wide ranking is on Explore only; `event-isolation.test` checks that no event or operator file imports Explore or calls its route); code review pending |
 | FR-613 | F-160 | Should | pending |
 | FR-620 | F-161 | Must | pending |
 | FR-621 | F-162 | Must | built for QR and NFC (T-308) |
@@ -1116,7 +1116,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-731 | F-137 | Should | built T-406 (`test/db/daily-challenge.int`: a finished challenge keeps the day with no event play, nothing while the streak switch is off); the finish reloads the profile and syncs, so the streak and its milestones show (T-406b, `use-daily`) |
 | FR-732 | F-137 | Should | built: server T-406 (a sponsor name on its period's challenge only, `test/db/daily-challenge.int`, `test/daily/routes.int`); the app's "Presented by" line built T-406b (`daily-lines.test`, `SponsorLine`); the console's field built T-406c (`e2e/console-daily.spec.ts`, `console-daily-forms.test`) |
 | FR-733 | F-138 | Should | built T-407 (`player_preference`, `GET`/`PUT /v1/me/preferences`; `test/db/marketing.int`, `test/marketing/routes.int`) and T-407b (the Interests and city screen, from the Profile); never on a public profile, code review pending |
-| FR-734 | F-138 | Should | built T-407 (`own_for_you`, `GET /v1/me/for-you`; event interests on the dashboard form, `e2e/events.spec.ts`) and T-407b (the For you screen, from Questify home until T-408), code review pending |
+| FR-734 | F-138 | Should | built T-407 (`own_for_you`, `GET /v1/me/for-you`; event interests on the dashboard form, `e2e/events.spec.ts`) and T-407b (the For you list; a section of Explore since T-408b), code review pending |
 | FR-735 | F-140 | Must | built T-407 (`set_marketing`: every channel off, the first answer recorded even when all stay off) and T-407b (the one-time step after sign-up); consent wording awaits counsel (Q-288), code review pending |
 | FR-736 | F-140 | Must | built T-407 (the dated log, `GET`/`PUT /v1/me/marketing`) and T-407b (Settings → Offers and notifications, each switch saved at once), code review pending |
 | FR-737 | F-140 | Must | built T-407 as the one audience door (`marketing_audience`, opted-in players only, per channel); the senders are T-409, T-501 and T-706, which must choose recipients there, code review pending |
@@ -1144,10 +1144,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-825 | F-64, F-170 | Should | pending |
 | FR-826 | F-170 | Should | pending |
 | FR-827 | F-170 | Should | pending |
-| FR-830 | F-171 | Must | pending |
-| FR-831 | F-171 | Must | pending |
-| FR-832 | F-172 | Must | pending |
-| FR-833 | F-173 | Must | pending |
+| FR-830 | F-171 | Must | built T-408b (`app/(questify)/_layout.tsx`); code review pending |
+| FR-831 | F-171 | Must | built T-408b (`/join-scan`, `classifyJoinScan`; `join-scan.test`); code review pending |
+| FR-832 | F-172 | Must | built T-408b (`src/home/`; `home-groups.test`); code review pending |
+| FR-833 | F-173 | Must | built T-408b (`src/explore/`); code review pending |
 | FR-901 | F-174 | Must | pending |
 | FR-902 | F-175 | Must | pending |
 | FR-903 | F-175 | Must | pending |
@@ -1278,7 +1278,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1611 | F-61 | Should | pending |
 | FR-1612 | F-23, F-157 | Must | pending |
 | FR-1613 | F-100, F-158 | Should | pending |
-| FR-1614 | F-171 | Must | pending |
+| FR-1614 | F-171 | Must | built T-408b (`classifyJoinScan` checks the operator invite first, ADR-324); code review pending |
 | FR-1615 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: closed weekdays and dates neither count nor break, a missed open day restarts at 1, the bonus with the day's first completion) |
 | FR-1616 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-1617 | F-150 | Should | `test/db/quest-items.int`, `test/rewards/quest-items.int` (T-304d, ADR-205) |

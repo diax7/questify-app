@@ -5550,6 +5550,55 @@ export const MESSAGES = {
     en: "At most 50 refused lines are shown; there may be more.",
   },
   "console.words.fileFailed": { ar: "تعذّرت قراءة الملف.", en: "The file could not be read." },
+  "nav.explore": { ar: "استكشف", en: "Explore" },
+  "home.live": { ar: "جارية الآن", en: "Live now" },
+  "home.upcoming": { ar: "قادمة", en: "Coming up" },
+  "home.past": { ar: "سابقة", en: "Past" },
+  "home.signedOut": {
+    ar: "سجّل الدخول لترى فعالياتك، أو أدخل رمز فعالية للانضمام إليها.",
+    en: "Sign in to see your events, or enter an event code to join one.",
+  },
+  "joinScan.title": { ar: "امسح رمز الانضمام", en: "Scan a join code" },
+  "joinScan.hint": {
+    ar: "وجّه الكاميرا إلى رمز QR الخاص بفعالية لتنضم إليها.",
+    en: "Point the camera at an event's QR code to join it.",
+  },
+  "joinScan.eventOnly": {
+    ar: "هذا رمز يُمسح داخل فعالية. افتح الفعالية أولًا ثم امسحه منها.",
+    en: "This code is scanned inside an event. Open the event first, then scan it there.",
+  },
+  "joinScan.notJoin": {
+    ar: "هذا ليس رمز انضمام إلى فعالية.",
+    en: "This is not an event join code.",
+  },
+  "explore.signInPrompt": {
+    ar: "سجّل الدخول لترى الفعاليات المقترحة لك وترتيب كويستفاي.",
+    en: "Sign in to see events suggested for you and the Questify ranking.",
+  },
+  "explore.ranking.title": { ar: "ترتيب كويستفاي", en: "Questify ranking" },
+  "explore.ranking.lifetime": { ar: "كل الأوقات", en: "All time" },
+  "explore.ranking.month": { ar: "هذا الشهر", en: "This month" },
+  "explore.ranking.empty": {
+    ar: "لا أحد في الترتيب بعد. اجمع الخبرة لتكون الأول!",
+    en: "Nobody is ranked yet. Earn XP to be the first!",
+  },
+  "explore.ranking.noRank": {
+    ar: "لا مكان لك في هذا الترتيب بعد. اجمع الخبرة لتظهر فيه.",
+    en: "You are not in this ranking yet. Earn XP to appear in it.",
+  },
+  "explore.ranking.failed": {
+    ar: "تعذّر تحميل الترتيب. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    en: "Couldn't load the ranking. Check your connection, then try again.",
+  },
+  "explore.ranking.rowLabel": {
+    ar: "المركز {rank}، @{username}، {xp} XP، المستوى {level}",
+    en: "Rank {rank}, @{username}, {xp} XP, level {level}",
+  },
+  "explore.ranking.rowLabelMe": {
+    ar: "المركز {rank}، أنت، {xp} XP، المستوى {level}",
+    en: "Rank {rank}, you, {xp} XP, level {level}",
+  },
+  "explore.xp": { ar: "{xp} XP", en: "{xp} XP" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

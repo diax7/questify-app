@@ -205,6 +205,19 @@ describe("readMyEvents", () => {
     expect(readMyEvents({ events: "nope" })).toBeUndefined();
     expect(readMyEvents(null)).toBeUndefined();
   });
+
+  it("keeps the dates as text or null and drops an event whose date is another shape", () => {
+    const dated = {
+      id: "e1",
+      joinCode: "AB12",
+      name: { ar: null, en: "Fest" },
+      statusNow: "scheduled",
+      status: "active",
+      startsAt: "2026-11-01T10:00:00.000Z",
+      endsAt: null,
+    };
+    expect(readMyEvents({ events: [dated, { ...dated, id: "e2", startsAt: 5 }] })).toEqual([dated]);
+  });
 });
 
 const HOME = {

@@ -17,6 +17,9 @@ export type MyEvent = Readonly<{
   status: "active" | "pending" | "declined";
   /** The event's IANA zone, for its times. */
   timezone?: string;
+  /** When it starts and ends (ISO 8601); null for a draft that has no dates yet. */
+  startsAt?: string | null;
+  endsAt?: string | null;
   /** physical, virtual or workplace; a scan never reads location in a virtual event (T-303b, FR-1744). */
   kind?: string;
 }>;
@@ -82,6 +85,9 @@ export function chooseLaunchEvent(events: readonly MyEvent[], recent: Recent): s
   return ranked[0]?.id ?? null;
 }
 
+const isOptionalTime = (value: unknown): boolean =>
+  value === undefined || value === null || typeof value === "string";
+
 /** The list's events, checked one by one: an entry of another shape is left out rather than breaking the screen. */
 export function readMyEvents(body: unknown): MyEvent[] | undefined {
   if (!isRecord(body) || !Array.isArray(body["events"])) {
@@ -95,6 +101,8 @@ export function readMyEvents(body: unknown): MyEvent[] | undefined {
       typeof item["statusNow"] === "string" &&
       ["active", "pending", "declined"].includes(String(item["status"])) &&
       (item["timezone"] === undefined || typeof item["timezone"] === "string") &&
+      isOptionalTime(item["startsAt"]) &&
+      isOptionalTime(item["endsAt"]) &&
       isRecord(item["name"]),
   );
 }

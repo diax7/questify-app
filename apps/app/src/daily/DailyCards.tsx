@@ -69,8 +69,8 @@ function WordCard({ word }: Readonly<{ word: DailyWordGame }>) {
 }
 
 /**
- * The two daily games as cards on the Profile's Questify section until Questify Home (T-408) takes them. A game with no
- * content, or switched off, shows no card; a read that fails shows none either, and the games' own screens say so.
+ * The two daily games as cards on Questify Home (T-408b). A game with no content, or switched off, shows no card; a
+ * read that fails shows none either, and the games' own screens say so.
  */
 export function DailyCards() {
   const { t } = useI18n();
