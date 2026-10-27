@@ -941,6 +941,8 @@ challenge, which the console shows); who sells it and how it is invoiced (outsid
 categories are not allowed (for example tobacco, gambling-like or adult brands, with the 13+ audience); and whether a
 sponsor may ever fund a prize for the daily challenge. A prize would make it a commercial competition (Ministry of
 Commerce licence, contest rules in the app, STORE_COMPLIANCE 1.12) and is not built. Nothing built waits on this.
+**Answered (Dhia, 2026-10-27):** "Name only": a sponsor gets the disclosed name on the challenge, nothing more (no logo,
+link, data or prize) for v1; revisit after the first real sponsor. Price and invoicing stay outside the app.
 
 ## Q-280 — For Dhia and counsel (legal): the disclosure wording for a sponsored challenge (2026-10-27, T-406 plan)
 Is "برعاية {name}" / "Presented by {name}" enough disclosure for a paid placement under Saudi advertising rules, or must

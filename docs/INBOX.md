@@ -735,3 +735,9 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 - Processed: save the current verified checkpoint and a concise takeover prompt, pause this chat's reset heartbeat,
   and stop. A new session may take over from the durable handoff; the unresolved independent-review gate is not
   waived, and no unreviewed implementation is pushed or marked complete.
+
+## 2026-10-27 - Product manager and developer roles; sponsor terms
+- Dhia: "this is your responsibility to decide what to do and to do it... If you need any help, ask the CTO. Don't stop
+  for these questions that are unrelated to me. I'm just a product manager. You are the developer." Processed: CLAUDE.md
+  coordinator rule 6; ADR-272 to ADR-305 accepted by the developer under this delegation.
+- Dhia, on sponsored daily challenges (Q-279): "Name only". Processed: Q-279 answered; ADR-311 stands.
