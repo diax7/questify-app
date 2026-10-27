@@ -1526,6 +1526,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   only lowers the baseline. It is in `ci:changed`, so `ci:full` and the CI lint step run it; no workflow change. Unit
   tests in `scripts/function-limits.test.ts` (vitest now also includes `scripts/**/*.test.ts`). No mutation (standard
   task). Split offenders when their files are next touched.
+- 2026-10-27 **Mutation chase: `completions/complete.ts` (run 40433111492, 89.93%, 22 survived and 7 uncovered).**
+  Tests only: `apps/api/src/completions/complete.test.ts` (fake pool; the DB-backed `test/completions` suites do not
+  count under Stryker). Kills the QP403 refusal, the release-failure log (event, fields, `unknown`), the missing-detail
+  reason, no release for a QR scan, the item/level/boost/bonus row guards, `locationQuestsOn` and when the location
+  switch is read. Hand-checked: 20 mutants applied one by one, each failed a test. Equivalent, left alone: line 431 (`code`
+  undefined), 435 hint default (`parseInt` of any non-number is NaN), 474 `kind` guard, the three `kind: "ready"`
+  strings (only `"refused"` is read), 539 `? false` (position already null). Expected score about 100% of the killable
+  mutants (all but 7 equivalents); the next `mutation.yml` run confirms.
 
 ## Next
 
