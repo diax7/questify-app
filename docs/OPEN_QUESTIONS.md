@@ -859,3 +859,15 @@ streak says "Start a new streak today". Agree?
 Recommended (ADR-301, developer decision for v1): a submission counts on the day a reviewer approves it, and a team's
 manual quest award counts the day and pays that day's streak bonus like any completion. Agree, or should a submission
 count on the day it was sent (which would need a later day row and a bonus paid after the fact)?
+
+## Q-267 — T-405 build choices (2026-10-27, T-405 build)
+Recommended (ADR-302): the streak bonus always moves the balance with the score (it is paid only while the event is
+live, when the shop is open); the daily streak read says whether today counts and the next unpaid milestone; saving the
+same streak settings again changes nothing and writes no audit row; the milestone table is append-only; the team's award
+list shows a removed streak bonus under the paying quest's title. Agree?
+
+## Q-268 — The streak's cost at the entrance burst (2026-10-27, T-405 build)
+Recommended (ADR-303): accept that 300 first-of-the-day completions at once are about 10 to 18 ms slower at p95 (12% to
+24%) with the event streak, its bonus and the daily streak, against the plan's 10% target, as the first-N bonus's +22.7%
+was (Q-229). Agree, or should the daily streak's row move out of the completion transaction (into the sync, losing a
+day played by someone who never opens the app before the day ends)?

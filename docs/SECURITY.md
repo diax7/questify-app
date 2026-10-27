@@ -1,5 +1,19 @@
 # Security — Questify
 
+## T-405 streaks boundary (implemented; core code review pending)
+
+`event_streak`, `event_streak_day`, `questify_streak_day`, `questify_streak_milestone` and `questify_streak_reward` force
+RLS with no API or PUBLIC rights; the four record tables are append-only for every role (ALWAYS triggers). `questify_app`
+holds five doors: `set_event_streak` (the event organizer's owner within their events, else AN404 as a missing event),
+`event_streak_settings` (owners and editors in scope), and the caller-bound `own_event_streak`, `own_streak_bonus` and
+`own_daily_streak`; every writer and helper (`streak_record`, `prev_open_day`, `daily_streak_on`, `daily_streak_length`,
+`streak_due`, `questify_day`) holds no grant (outsider suite). No door takes a player id. The daily streak is shown to
+its owner only: no public profile, ranking or organizer read carries it (cross-tenant suite: the only granted doors that
+read it are `own_daily_streak` and `questify_sync`). Day rows and bonuses come only from the quest ledger entry's trigger
+(never rehearsal); a forged bonus row fails `ledger_entry_streak_shape`; a milestone's XP row is bound by a composite key
+to the same player's reward row, and no gem or points source exists for a streak (FR-421). Crossed-lock tests cover two
+completions of one enrollment, a meet crossing a scan, one player in two events, an erasure and the settings door.
+
 ## T-403b Questify quests boundary (implemented; core code review pending)
 
 `questify_campaign`, `questify_quest` and `questify_award` force RLS with no API or PUBLIC rights. `questify_app` holds

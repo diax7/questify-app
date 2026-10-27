@@ -68,6 +68,17 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-405): the daily streak switch and the streak settings
+
+- `dailyStreak` (platform level, on by default) joins the registry and ships in `/v1/config`. Off, no Questify day is
+  counted, `/v1/me` and the sync answer `dailyStreak: null` and no milestone is paid, at once; a streak restarts after it
+  is switched back on (FR-420). The database reads the same key (`daily_streak_on()`, on when absent). Until T-703's
+  switches page, a Questify admin flips it through the settings service. No event switch.
+- The milestones are data in `questify_streak_milestone` (3→50, 7→100, 14→150, 30→250, 60→300, 100→400, 200→500,
+  365→750 XP), edited by migration until T-703/T-709 add an editor.
+- The event day streak is not in `event.config`: its on/off, bonus (1 to 100,000 points or none), closed weekdays and
+  closed dates live in `event_streak`, set only by the event owner (`PUT …/streak`), validated and audited (ADR-299).
+
 ## As built (T-310): the help desk switch
 
 - `helpDesk` (not an add-on) joins the registry, on by default. The owner turns it off per event (`PUT …/help-desk`,

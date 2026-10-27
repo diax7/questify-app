@@ -93,6 +93,14 @@ UPDATE SKIP LOCKED` per side, last (the meet claims both sides after both are pa
 row, the same advisory lock exclusive, the bonus row, then slots, never an enrollment, an item or an XP row; the quest
 save calls it after its quest write. No claim takes another lock after its slot.
 
+**The streak's lock order (T-405, ADR-296, ADR-297).** The `ledger_streak` trigger fires after `apply_ledger_entry`
+and before `ledger_xp` (triggers of one kind fire in name order), so it runs inside the payer's enrollment lock and
+before the `player_xp` lock; it takes no row lock of its own (its inserts key-share only rows the quest entry already
+names). The only wait it adds is one player's first completions of the day in two events at once (the second waits on
+the first's Questify day row, holding no XP row). The settings door `set_event_streak` locks only its `event_streak` row,
+never an enrollment, a completion or an XP row. `questify_sync` pays the milestones under its usual player KEY SHARE,
+then `player_xp` FOR UPDATE.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

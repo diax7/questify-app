@@ -79,8 +79,9 @@ Players created before 0017 have no rows and are asked again.
 - **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
   completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403),
-  `questify_award` rows and their XP entries (T-403b), `gem_entry` and `gem_purchase` rows (T-404) and handed-over
-  redemptions; they name no one.
+  `questify_award` rows and their XP entries (T-403b), `gem_entry` and `gem_purchase` rows (T-404), the streak rows
+  (`event_streak_day`, `questify_streak_day`, `questify_streak_reward`, T-405) and handed-over redemptions; they name no
+  one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
   player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
 - `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
@@ -614,6 +615,43 @@ ADR-151):
 - Migration lock order (plan review MAJOR-1, ADR-291): player EXCLUSIVE, player_xp ACCESS EXCLUSIVE, level_reached and
   achievement_earned SHARE ROW EXCLUSIVE, questify_quest, questify_award, item, player_item ACCESS EXCLUSIVE, level_item
   and souvenir_rule SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; `platform_setting` is never touched.
+
+### Streaks (migration 0068, T-405, ADR-294 to ADR-303)
+- `event_streak(event_id PK, organizer_id, (event_id, organizer_id) → event CASCADE, enabled bool default false,
+  bonus_points 1..100000 NULL, closed_weekdays smallint[] ⊆ 1..7 (≤ 6), closed_days date[] (≤ 366), updated_at)`: the
+  organizer's settings, one row or none (none: off, nothing closed). Written only by `set_event_streak`.
+- `event_streak_day(enrollment_id, day, organizer_id, event_id, days ≥ 1, completion_id NOT NULL UNIQUE →
+  quest_completion RESTRICT, entry_id UNIQUE NULL → ledger_entry RESTRICT, created_at; PK (enrollment_id, day);
+  (enrollment_id, event_id) → enrollment, (event_id, organizer_id) → event)`: one row per open event day a player
+  completed a quest; `days` the streak length that day, `entry_id` the bonus paid with it. Append-only for every role.
+  Written for every multi-day event, on or off; never for a rehearsal entry.
+- The ledger kind `streak` (CHECK `ledger_entry_streak_shape`: completion and quest of the paying entry, `score_delta > 0`,
+  balance 0 or the score, no category, community step, redemption or boost, actor system; UNIQUE (completion_id) WHERE
+  kind = 'streak'): never boosted, no XP, removable on its own (`remove_award`); counted by the ranking, today's ranking
+  and community points goals; a quest's `earned` (member_event_quests) leaves it and its removal out.
+- `questify_day(at)` = `((at AT TIME ZONE 'Asia/Riyadh') − 4 hours)::date`, one day for everyone (T-406 reuses it).
+- `questify_streak_day(player_id, day, created_at; PK (player_id, day))`: one row per Questify day with activity. No
+  foreign key by design (no player or player_xp lock in the scan path). Append-only.
+- `questify_streak_milestone(days PK 2..1000, xp 1..1000)`: seeded 3→50, 7→100, 14→150, 30→250, 60→300, 100→400,
+  200→500, 365→750. Append-only (a migration edits it until T-703/T-709).
+- `questify_streak_reward(id identity, player_id → player_xp, days → questify_streak_milestone, xp, created_at; UNIQUE
+  (player_id, days), UNIQUE (id, player_id))`: a milestone paid, once ever per player. Append-only.
+- `xp_entry` gains source `streak` and `streak_reward_id bigint UNIQUE`, (streak_reward_id, player_id) →
+  `questify_streak_reward (id, player_id)`; the shape CHECK's `streak` branch: `delta > 0`, only `streak_reward_id` set.
+  No `gem_entry` source exists for a streak (FR-421).
+- Writer: the `ledger_streak` trigger (AFTER INSERT ON ledger_entry WHEN kind = 'quest', after `apply_ledger_entry`,
+  before `ledger_xp`) calls `streak_record`: on a live multi-day event's open day, one probe ends it when today or a
+  later day is counted; else the length from the previous open day's row (`prev_open_day` skips closed weekdays and
+  dates), the bonus entry first (enabled, an amount, day ≥ 2), then the day row by a plain INSERT. While
+  `daily_streak_on()` (`platform_setting` features.dailyStreak.enabled, on when absent), one Questify day row per player
+  and day (`ON CONFLICT DO NOTHING`). Takes no row lock of its own.
+- Reads and doors: `set_event_streak` (owner, `ST409`/`ST422`/`RF409`, audited `event.streak_set`),
+  `event_streak_settings` (owners and editors), `own_event_streak`, `own_streak_bonus`, `own_daily_streak` (the caller
+  only). `questify_sync` pays the milestones (`questify_streak_reward` + `xp_entry streak` + `xp_apply`) after the
+  Questify quests and before the gems; its pre-check gains `streak_due`. Internal: `streak_record`, `streak_day_closed`,
+  `prev_open_day`, `daily_streak_on`, `daily_streak_length`, `daily_streak_of`, `streak_due`, `questify_day`.
+- Migration lock order: enrollment EXCLUSIVE, event, quest_completion SHARE ROW EXCLUSIVE, xp_entry, ledger_entry ACCESS
+  EXCLUSIVE, player_xp SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; never `platform_setting` or `player`.
 
 ### rank_prize, event_result, result_place (migration 0034, T-214)
 - `rank_prize(id, organizer_id, event_id, rank_from, rank_to (1–100), kind item|experience, name i18n, description

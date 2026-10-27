@@ -3907,3 +3907,34 @@ counts the day and, as the day's first completion, pays the event streak bonus.
 door has; a manual award is the team confirming a quest the player did.
 **Trade-offs:** A player whose submission waits overnight for review may miss the day they actually played; a team can
 keep a player's streak alive by hand (the organizer's own call).
+
+## ADR-302 — T-405 build choices: the bonus moves the balance, the reads' shapes, the settings door's replay
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 build; Q-267). Extends ADR-295 to ADR-299, ADR-301.
+**Decision:** (1) The streak bonus moves the balance with the score: the trigger pays only while the event is live, when
+its shop is always open, so ADR-296's "balance 0 while the shop is closed" cannot arise and is not written; the shape
+CHECK still allows a balance of 0 as the other system bonuses do. (2) The daily streak read is `{days, today, next}` with
+`today` a boolean (today's Questify day is counted), `next` the first unpaid milestone above the length; the sync answer
+adds the milestones it paid (`rewards`). The event streak read on Home is `{days, playedToday, closedToday,
+bonusPoints}` or null while the streak is off, the event single-day or not live. (3) `set_event_streak` answers
+`unchanged` and writes nothing (no audit row) when the settings are already these; with the route's Idempotency-Key
+this is the door's replay. Final results reuse `RF409 results_final`; the other refusals are class `ST` (`ST409`
+single_day, archived, day_started with the day; `ST422` with the field). (4) The milestone table is append-only like the
+other three streak tables (a migration that edits it disables its trigger in the same change, until T-703/T-709 add an
+editor). (5) The team's award list (`manual_awards`) shows a removed streak bonus under the paying quest's title, as it
+does a removed first-N bonus; the member record and the player's history name it by kind and streak day.
+**Why:** Each keeps the reviewed plan's rules while removing a branch no door can reach and fixing shapes the plan left
+open.
+**Trade-offs:** A later rule that pays a streak bonus after the event (none planned) would need the closed-shop branch
+back.
+
+## ADR-303 — The streak trigger's cost at the entrance burst is accepted
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 build; Q-268). Extends ADR-296, ADR-297.
+**Decision:** The streak work at the entrance burst is accepted as measured: 300 first-of-the-day completions at once
+from two pools of 10, median p95 of six rounds, against the same burst with no streak work (a single-day event, the
+daily switch off): +24.2% (75.2 → 93.4 ms) in the first run, +12.0% (78.3 → 87.6 ms) with both day rows and the bonus and
++13.8% (89.1 ms) with the day rows alone in the second, about 10 to 18 ms at p95, over the plan's 10% target. Every
+streak completion paid exactly one bonus. `apps/api/test/perf/streak-timing.int.test.ts` reruns it by hand.
+**Why:** The cost is two small inserts, one nested ledger entry (the T-313 first-N bonus measured +22.7% for one, Q-229)
+and a few primary-key reads, all inside the transaction the payer already holds; moving any of it out of the
+transaction would lose the exactness the plan needs (the day row and the bonus with the completion that earned them).
+**Trade-offs:** A large entrance burst on a multi-day event with the streak on is about 10 to 20 ms slower at p95.

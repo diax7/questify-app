@@ -511,13 +511,23 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     quest can pay) and the gems in the list row; every string in both languages. Proposed ADR-292, ADR-293 / Q-257, Q-258.
     Phone check owed (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six rings). Progress 81/157 (51.59%).
   - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
-- [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
+- [x] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.
   - Plan 2026-10-27 (core; CTO plan review 86, revisions folded, no re-review): `docs/plans/2026-10-27-t-405-streaks.md`; split
     into T-405 (core: migration 0068, API, shared) and T-405b (standard: screens, dashboard panel, strings), Proposed
     ADR-294 to ADR-301 / Q-259 to Q-266. CORE: the event bonus is a points-ledger kind paid in the completion
     transaction (a trigger on the quest entry) and the daily milestones an XP source paid by `questify_sync`; no gems.
+  - Done 2026-10-27 (core code review pending): migration 0068 (undeployed) with the plan's lock list; `event_streak`,
+    append-only `event_streak_day`, ledger kind `streak` paid by the `ledger_streak` trigger (bonus entry first, then the
+    day row by a plain INSERT; later-day guard), `questify_day`, `questify_streak_day`, `questify_streak_milestone`,
+    `questify_streak_reward`, `xp_entry` source `streak` paid by `questify_sync`; the owner-only settings door (class
+    `ST`) and the reads; readers restated with `streak` (remove_award, the operator guard, community points goals,
+    member_activity, member_ledger, a quest's `earned`). API `apps/api/src/streaks/` (team `GET`/`PUT …/streak`),
+    `streakBonus` on the completion answers, `streak` on Home, `streakDays` in the history and the team record,
+    `dailyStreak` on `/v1/me` and the sync; registry key `dailyStreak`; shared `streaks/`. Tests: `test/db/event-streak`,
+    `daily-streak`, `streaks-upgrade`, `test/streaks/routes`, unit and shared, security suites. Proposed ADR-302 / Q-267,
+    ADR-303 / Q-268 (the burst timing, +12% to +24% at p95, over the 10% target). Progress 82/158 (51.90%).
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
 - [ ] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
   - Split from T-405 2026-10-27 (ADR-294). Standard; plan: `docs/plans/2026-10-27-t-405-streaks.md` (T-405b section).
@@ -526,6 +536,9 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Done when: With the streak off no player sees an event streak; with the platform switch off no player sees a daily streak.
 - [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
   - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.
+  - Note 2026-10-27 (T-405): the daily challenge and the daily word each write the player's `questify_streak_day` row for
+    `questify_day(now())` through their own door (`INSERT … ON CONFLICT DO NOTHING`, only while `daily_streak_on()`),
+    so they keep the daily streak alive (FR-419); the word's "same for everyone that day" uses the same `questify_day`.
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
 - [ ] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Note 2026-10-26 (T-403): the player's city reuses the `city` table (migration 0065); "set your interests" adds its metric to `player_metrics` and is counted by the same `questify_sync` evaluator (FR-710).
@@ -534,6 +547,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Note 2026-10-24 (T-401): the lifetime ranking reads `player_xp.xp` (add an index); the monthly one sums `xp_entry.delta` by `created_at` (reversals included). Deleted players (tombstones) keep their rows and must be left out.
   - Note 2026-10-27 (T-404): the Shop tab (FR-830) opens the gem shop (`GET /v1/me/gem-shop`, T-404b's screen); a
     player's gems never show in any ranking.
+  - Note 2026-10-27 (T-405): Questify Home's streak line reads `dailyStreak` from `GET /v1/me` (null: hide it).
   - Done when: Outside an event the center button scans only join QR codes.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Done when: An organizer sees only counts of their invitations, never player lists.
@@ -558,6 +572,8 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-21 (T-208): event pushes go to `active` enrollments only: a player who left, was banned or is pending gets none (FR-1703).
   - Note 2026-10-23 (T-214): FR-1718's push is owed here: at `reveal_results` (migration 0034) each `result_place` with a `redemption_id` gets a personal push naming the prize and `event_result.claim_until`, and the same message in the notification center; send once (mark it on the place), never to a winner who left or was removed. The app's Home card already shows it.
   - Note 2026-10-23 (T-218): FR-1819's push is owed here: when `decide_join_request` or `accept_all_join_requests` accepts or declines a request (pending → active or declined, audited as `event.join_accept` / `event.join_decline`), the player gets a personal push saying so (a release from the waiting list is an acceptance); send once per decision, never to a player who left. Home already shows the decision.
+  - Note 2026-10-27 (T-405): streak reminder pushes follow ADR-300 (no loss or guilt copy, no countdown to the day's
+    end); the daily streak is the player's own, never shown to others.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
   - Note 2026-10-24 (T-307, CTO note 1): the "Happening now" strip (FR-806) must read running boosts and flash quests from the quests read (`flash`, `boost` on each quest and category), not from `GET …/live`: the event's live shortcut stops naming a boost or a flash quest 15 minutes after it starts (`event_has_live`'s tail), which is not its end. Or revisit that tail here.
   - Done when: Announcements never go by email or SMS.
@@ -655,6 +671,8 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: A switched-off feature hides with a message; an unreadable config makes the app use its last working copy.
   - Note 2026-10-22 (T-210, Q-111): gains FR-1730 (usage per event and organizer) and FR-1731 (support contact edited in the console); the activation and 80%/100% emails wait for the alert switches (FR-1727).
   - Note 2026-10-23 (T-209): the flag numbers (10 scans in 5 minutes) live in `flag_tuning()` (migration 0031); make them console tuning numbers here (Q-120).
+  - Note 2026-10-27 (T-405): the switches page offers the platform key `dailyStreak` (FR-420, ADR-299); the milestone
+    XP (`questify_streak_milestone`, append-only) gets its editor here or in T-709.
 - [ ] **T-704** Player tools: find a player, read-only record, change username, reset sign-in, merge accounts — delivers FR 1774, 1775; depends on: T-004, T-109
   - Done when: Every look at a player's record is logged.
 - [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109

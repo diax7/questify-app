@@ -1475,10 +1475,31 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   EXCLUSIVE first; never `platform_setting` or `player`). STORE_COMPLIANCE gate: nothing sold, no loss copy or
   countdowns. Proposed ADR-294 to ADR-301 / Q-259 to Q-266. Progress 81/158 (51.27%; T-405b added). CTO plan review 86 (approve with revisions, no re-review): the day row stays append-only (bonus entry first, then a plain INSERT), approval-day and manual completions count (ADR-301), error class ST, UNIQUE completion_id, the day-boundary race, closed weekdays frozen once started, quest_id joins in the build check.
 
+- 2026-10-27 **T-405 built (core, server; core code review pending).** Migration 0068 (undeployed; 0057 to 0067
+  untouched) takes the plan's lock list up front (enrollment EXCLUSIVE, event and quest_completion SHARE ROW EXCLUSIVE,
+  xp_entry and ledger_entry ACCESS EXCLUSIVE, player_xp SHARE ROW EXCLUSIVE; never platform_setting or player).
+  Event streak: `event_streak` (owner-only `set_event_streak`, class `ST`, `RF409` for final results, audited
+  `event.streak_set`; `event_streak_settings` for owners and editors), append-only `event_streak_day` (UNIQUE
+  completion), ledger kind `streak` (shape CHECK, unique per completion, never boosted, no XP), written by the
+  `ledger_streak` trigger (after `apply_ledger_entry`, before `ledger_xp`): the later-day probe, the length from the
+  previous open day, the bonus entry first and then the day row by a plain INSERT (no UPDATE, no ON CONFLICT). Daily
+  streak: `questify_day` (04:00 Riyadh), `questify_streak_day` (no FK), append-only milestones and rewards, `xp_entry`
+  source `streak` paid once ever by `questify_sync` (pre-check `streak_due`), the platform key `dailyStreak`. Readers
+  restated with `streak` (remove_award, the operator guard, community points goals, member_activity, member_ledger) and
+  a quest's `earned` leaves it out (the `completion_id`/`quest_id` join list is in the plan's build notes). API
+  `apps/api/src/streaks/` (`GET`/`PUT …/streak`), `streakBonus` on every answer that carries `firstBonus`, Home
+  `streak`, `streakDays` in the history and the team record, `dailyStreak` on `/v1/me` and the sync, log
+  `completion.streak_bonus {days}`; shared `streaks/`. New suites `test/db/event-streak.int` (50, the door table, ADR-301,
+  the boundary race, crossed locks), `daily-streak.int` (14), `streaks-upgrade.int` (3), `test/streaks/routes.int` (5),
+  unit and shared tests; security suites and the list guards extended. Burst timing by hand
+  (`test/perf/streak-timing.int`): +12% to +24% at p95 (10 to 18 ms) over the 10% target, Proposed ADR-303 / Q-268 to
+  accept; build choices ADR-302 / Q-267. Full suite (second run): 409 files passed, 4 skipped; 6562 tests passed, 5 skipped; 2 failed: one stale submissions unit fixture (fixed, re-run green) and the known first-N bonus Stop timing test under full-suite load (passes alone). Mutation owed on GitHub (core files only). Progress
+  82/158 (51.90%).
+
 ## Next
 
-1. **T-405 core build** (fresh worker, strongest model; plan review 86 folded), then its core code review, then T-405b. Still open from
-   T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-266. No deployment/EAS/
+1. **T-405 core code review** (independent, strongest model; check MAJOR-1 and MAJOR-2 and the burst timing, ADR-303),
+   then the GitHub mutation run on T-405's core files, then T-405b. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-268. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

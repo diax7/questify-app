@@ -1085,6 +1085,7 @@ Status: **Proposed** until the user accepts them in `DECISIONS.md`. Review so fa
 | PD-28 | **Outcome: replaced, ADR-073.** **Turning on any capability that changes the age rating or privacy answers (chat, public feed, location, analytics) requires updating App Store Connect and Play Console first.** The admin dashboard shows this as a blocking step for platform admins. | Ratings and labels must match the live app. | Apple 2.3, 2.3.6, privacy details; Google Data safety |
 | PD-29 | **Outcome: narrowed, ADR-073.** Organizer content is published without an automatic filter; Questify handles it through reports and unpublish (ADR-073, FR-1413), and challenges that risk physical harm are refused by policy. | Questify is responsible for all content in the app. | Apple 1.1, 1.4.5, 4.7 |
 | PD-30 | **Outcome: ADR-006.** **App icon and name never change per organizer.** | Metadata and icons must stay consistent; other brands may not appear in the icon or name. | Apple 2.3.8, 4.1(c) |
+| PD-31 | **Outcome: ADR-300.** **Streaks: no purchase, no loss or guilt copy, no countdowns; a platform switch turns the daily streak off.** No freeze, repair or restore exists, paid or free; a broken streak reads "Start a new streak today"; event bonuses are fixed points and daily rewards fixed XP (no chance, no cash value); the daily streak is shown to its owner only and uses no new data type (T-405). | Nothing sold (no IAP arises); streak anxiety (GAMIFICATION_PATTERNS); a kill switch without a release. | Apple 3.1.1, 2.5.2; Google Payments; PD-15, PD-19, PD-22 |
 
 ---
 
