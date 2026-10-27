@@ -106,7 +106,14 @@ its verification method.
 
 ### 3.4 After the event
 Event ended → shop window (default 3 days) → balance closes. Score, rank, passport stamp and a
-shareable recap stay. A banner on Home says how long the shop stays open.
+shareable recap stay. A banner on Home says when the shop closes (a date and time in the event's zone, never a
+countdown) and, when the prize desk's hours end first, when items and experiences stop (digital rewards stay until
+the close). Once closed the balance reads "Closed", the goal card goes, and the Rewards tab says when the shop closed
+and what stays (the points, the rank and the stamp); My rewards stays, and cancelling a hold warns that returned
+points can't be redeemed. "Your recap" on Home opens the card (the event, rank, quests done, up to 3 souvenirs;
+"Thanks for joining" for none; the rank says it comes with the results until they are revealed). Share makes an image
+on the phone and opens the share sheet, with no link and no text, or sends one fixed line on a build without the
+sharing modules (T-410b).
 
 ### 3.5 Leaving an event, deleting an account
 Profile → Settings → Leave event (confirmation explains what stays with the organizer) or Delete

@@ -4624,3 +4624,31 @@ through React Native's `Share`.
 **Trade-offs:** Two new native dependencies and a new development build to see the image; the shared image carries no
 text line; a rank stays pending while an organizer does not reveal results; the recap's quest count can differ from
 Home's progress line for repeatable quests.
+
+## ADR-340 — Where the T-410b build fills in the plan: the screens, the share split, the refusal words
+**Status:** Proposed (developer, 2026-10-27; T-410b build; Q-309). Completes ADR-338 and ADR-339 on screen.
+**Decision:** (1) **Home:** an active member sees the "Your recap" card (above the countdown) once the event is ended or
+archived, and the shop's line under the standing card: "open until {date}" with the desk line (until its end, or "stopped"
+once `deskEndsAt` is past), or "closed on {date}". The balance row reads "Closed" once the shop has closed, and the app drops
+the goal itself whatever an older API sends. Home reads itself again a second after the shop's close or the desk's end, so
+the screen changes on the server's word without a manual refresh. (2) **Rewards tab:** once closed, the catalog is not
+offered; a panel says when it closed and that the balance can no longer be redeemed while the points, rank and stamp
+stay; My rewards stays; the cancel confirmation adds the returned-points note. The tab shows no "open until" line while
+the shop is open (Home does). (3) **The card** is drawn with the current theme and language (an image is a snapshot of the
+screen) and names the souvenirs, three at most and "+N"; the quest line is «ما أنجزته من {questMany}: {count}» /
+"{questCap} done: {count}", which needs no agreement with an organizer's renamed noun (ADR-058). (4) **The share is two
+files:** `recap-share.ts` (the sharer, with the checks, the lazy load and the text share injected) and
+`recap-share-native.ts` (the real `requireOptionalNativeModule('ExpoSharing')`, `TurboModuleRegistry.get('RNViewShot')`,
+the lazy `require`s and React Native's `Share`). A package that is there but fails to load falls back to the text line. A
+source-scan test fails any value import of the two packages outside that file. (5) **Dashboard:** the closing line shows for
+a draft too (the date the shop would close on); a desk whose last window ends before the close gets the plain warning
+paragraph (no `role`, which the low-codes note owns); after the end a shorter value is refused before sending, a closed
+shop's field is read-only; each `shop_window_locked` reason has its own words (`describeProblem`), and the page reads the
+shop again after one, so a stale page shows the real date; `daysAfter` goes only when it changed.
+(6) **Test support:** the e2e control's `/event-status` takes `endedDaysAgo`, so a browser test can put an event inside or
+past its shop window. (7) **Dependencies:** `react-native-view-shot` 5.1.0 (Expo SDK 57's pin; the registry's 6.2.1 is not
+blessed for SDK 57) and `expo-sharing` ~57.0.24; neither asks for a permission or runs an install script.
+**Why:** A card, a closing date and a closed balance are what the plan promised; the split makes the crash-safe path
+testable without React Native; each refusal says what the organizer can do.
+**Trade-offs:** The shared image follows the phone's theme and language, not a fixed poster; the Rewards tab does not repeat
+the closing date while open; Home makes one more timer; a second small file for the share.

@@ -1178,3 +1178,11 @@ tracking; both native modules detected before loading, falling back to one text 
 option, a text line only, needs no new dependency but is not a card. Developer's call at the T-410 reviews.
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410 plan review (88), with its
 fold-in; ADR-339 Accepted.
+
+## Q-309 — T-410b build: the screens after the event, the share split, the refusal words (2026-10-27, T-410b build)
+Recommended (ADR-340): the recap card and the shop's line on Home for active members once the event ended; the balance
+"Closed" and no goal after the close; the Rewards tab swaps its catalog for a closed panel with the cancel note; the
+recap card follows the phone's theme and language and names up to 3 souvenirs; the share is a pure sharer plus a native
+wiring file with a source-scan guard; the dashboard shows when the shop closes, warns about a desk that ends first, keeps
+the days read-only once closed and says each refusal in words. The other option for the card, a fixed poster layout in one
+language, needs its own art and a language choice at share time. Developer's call at the T-410b code review.

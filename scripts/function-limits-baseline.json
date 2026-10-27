@@ -390,11 +390,6 @@
       "complexity": [10]
     }
   },
-  "apps/app/app/event/[eventId]/(tabs)/index.tsx": {
-    "EventHomeScreen": {
-      "complexity": [17]
-    }
-  },
   "apps/app/app/event/[eventId]/(tabs)/quests.tsx": {
     "QuestCard": {
       "complexity": [12]
@@ -1170,8 +1165,8 @@
       "complexity": [9]
     },
     "RewardsPanel": {
-      "complexity": [22],
-      "lines": [221]
+      "complexity": [21],
+      "lines": [220]
     }
   },
   "apps/web/src/components/SignUpForm.tsx": {
@@ -1312,7 +1307,7 @@
   },
   "apps/web/src/lib/sign-in-errors.ts": {
     "describeProblem": {
-      "complexity": [16]
+      "complexity": [15]
     }
   },
   "apps/web/src/lib/staff-api.ts": {

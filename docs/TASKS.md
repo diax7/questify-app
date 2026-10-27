@@ -736,7 +736,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     boundary), the community payout after the window, Home over HTTP, the outsider, cross-tenant and routes suites, and
     unit tests (`shop-window`, `goal`, `home-rows`, the recap route, the shared schemas). Mutation globs:
     `apps/api/src/rewards/shop-window.ts`, `apps/api/src/home/goal.ts`.
-- [ ] **T-410b** The screens after the event: Home's shop banner and closed balance, the Rewards tab after the close, the recap card and its share, the dashboard's shop window field — delivers FR 750, 752, 1018 (on screen); depends on: T-410
+- [x] **T-410b** The screens after the event: Home's shop banner and closed balance, the Rewards tab after the close, the recap card and its share, the dashboard's shop window field — delivers FR 750, 752, 1018 (on screen); depends on: T-410
   - Split from T-410 2026-10-27. Standard (app + web); plan: `docs/plans/2026-10-27-t-410-after-the-event.md` (T-410b
     section, ADR-338, ADR-339).
   - Plan review MAJOR 1: the share detects both native modules (`requireOptionalNativeModule('ExpoSharing')`,
@@ -746,6 +746,15 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Done when: After the end Home shows the closing date; once closed the balance reads Closed and the shop says what
     stays; the recap shows rank, quests done and souvenirs (or none) and shares as an image, or as text on an older
     build.
+  - Done 2026-10-27 (standard; code review owed; ADR-340 Proposed, Q-309): app: Home's shop line (open until, the desk
+    line or "stopped", closed on), the balance "Closed" and no goal once closed, Home read again at the close, the
+    Rewards tab's closed panel and cancel note, "Your recap" and `/event/[eventId]/recap`; the share is a pure sharer
+    (`recap-share.ts`) plus the native checks and lazy loads (`recap-share-native.ts`), with `react-native-view-shot`
+    5.1.0 and `expo-sharing` ~57.0.24. Web: the dashboard's closing line, the desk warning, the days field's rules, the
+    two refusal texts, `daysAfter` sent only when changed. Proven by unit tests (`shop-window`, `recap`,
+    `recap-share`, `recap-share-native` with its source-scan guard, Home and shop reads, `rewards`, `sign-in-errors`)
+    and `e2e/shop-window.spec.ts` (desktop and phone, Arabic and English); `npx expo export`. Phone checks owed to Dhia
+    (STATE).
 - [ ] **T-411** Archive ended events: a lifecycle tick step moves an event from Ended to Archived only when its shop is closed, no `reserved` redemption of any kind is left (shop holds, rank prizes, quest items), its results are revealed or `ends_at` + 60 days has passed, and no help-desk ticket of the event is open — delivers FR 1608 (the last step); depends on: T-410
   - Decided 2026-10-27 at the T-410 plan review (developer, ADR-337 (5), Q-306): archiving at the window's close would
     block late results, the desk's FR-1609 handovers and rank prizes due up to 60 days later, and open tickets.
