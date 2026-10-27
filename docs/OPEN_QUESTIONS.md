@@ -1072,6 +1072,7 @@ two files in `data/word-lists/` for the console import. Two things need a person
 `guess-list-ar.txt` (generated verb forms, names filed as nouns) and the Arabic extra block list in
 `scripts/build-word-lists.mjs`, and the team imports both files in the console before the first daily word goes live. If the
 Arabic list is too loose, the console's remove import prunes it. Developer's call at the T-406d review; nothing waits on it.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-327 Accepted. The Arabic skim stays with a native reader and does not block.
 
 ## Q-297 — The guess list import timing and a faster `word_list_change` (2026-10-27, T-406d build)
 Recommended (ADR-328): import in calls of 500 words (about 0.7 s each on a laptop, 5 s allowed). Found while checking that the
@@ -1081,3 +1082,4 @@ function normalize each input once and inline the normalization (the same word s
 (migration 0069, still undeployed), so it wants a plan review. Not needed while lists are imported once. The 20,000-word cap
 in `0069_daily.sql` and `daily.ts` stays as it is; `docs/API.md` states the real limit of about 3,500 words a call.
 Developer's call at the T-406d review.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-328 Accepted. The faster function stays a deferred follow-up (core SQL, needs a plan review); the console import is the fix that ships.

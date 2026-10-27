@@ -4321,7 +4321,7 @@ and the page on one screen on a phone; reading a month's rows on opening avoids 
 **Trade-offs:** Two months cannot be compared side by side. Each opening reads the month again, which is one cheap indexed read.
 
 ## ADR-327 — The daily word guess lists: SCOWL for English, Wikidata Lexemes for Arabic
-**Status:** Proposed (developer, T-406d build, Q-296). Specifies FR-1811; follows Q-281 ("open lists plus our picks").
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406d build, Q-296). Specifies FR-1811; follows Q-281 ("open lists plus our picks").
 **Decision:** The two valid-guess lists are files in `data/word-lists/`, `guess-list-en.txt` (8,863 words) and
 `guess-list-ar.txt` (119,023 words), one normalized five-letter word per line, sorted, that a platform admin imports in
 the console (Content, Word bank, Import). English comes from SCOWL (the English Speller Database), size 80 with
@@ -4346,7 +4346,7 @@ the largest word-game lists because size 85 would need a prominent in-product no
 effort; an Arabic reader should skim it (Q-296). The daily words, hand-picked by the team, come from no source.
 
 ## ADR-328 — The console imports a guess list in calls of 500 words
-**Status:** Proposed (developer, T-406d build, Q-297). Amends ADR-315.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406d build, Q-297). Amends ADR-315.
 **Decision:** The console sends a pasted or uploaded list in calls of at most 500 words (`IMPORT_CALL_WORDS`); the API
 and the database keep their limit of 20,000 words a call.
 **Why:** Measured in T-406d, `word_list_change` spends about 1.4 ms a word on a laptop (500 words 0.7 s, 5,000 words 6.4 s,
