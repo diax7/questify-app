@@ -1064,3 +1064,4 @@ public events; Home lists the newest 5 past events then points to the history. D
 ## Q-295 — The console Ranking seasons page's name and layout (2026-10-27, T-408c build)
 Recommended (ADR-326): "Ranking seasons" / «مواسم الترتيب» (not «المواسم», which names campaigns in the console), the months newest
 first with one open at a time showing its top 10, read only. Developer's call at the T-408c review.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-326 Accepted.

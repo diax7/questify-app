@@ -4310,7 +4310,7 @@ separate For you screen or route.
 **Trade-offs:** A signed-out player reaches the public events one tap further than before (the Explore tab).
 
 ## ADR-326 — The console's Ranking seasons page: its name and one open month at a time
-**Status:** Proposed (T-408c build; Q-295). Specifies FR-1786.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408c build, Q-295). Specifies FR-1786.
 **Decision:** The page is `/console/seasons`, titled "Ranking seasons" (Arabic «مواسم الترتيب»), with a link on the console
 home. It lists every Questify month newest first with its ranked count and a "Current" badge; a month opens in place to show
 its top 10 (rank, avatar, username, XP, lifetime level), one month at a time, the current month open on arrival. The top 10 is
