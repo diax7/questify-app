@@ -713,6 +713,18 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     line is in `apps/api/src/invitation-campaigns/campaigns.ts`, already a target).
 - [ ] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
   - Done when: After the window the balance closes but the score, rank and stamp remain.
+  - Split 2026-10-27 (T-410 plan): T-410 is the **CORE** server (migration 0074: the window guard on `shop_days_after`
+    and `event_recap`; the window rule in `updateShop`; Home's `shopWindow` and the closed goal; `GET
+    /v1/events/{id}/recap`; tests). Reason: the server rule is core and small, the screens, the share image and its two
+    app dependencies need their own context and a standard review. Plan: `docs/plans/2026-10-27-t-410-after-the-event.md`
+    (Proposed ADR-336 to ADR-339, Q-305 to Q-308). The balance closes by rule with no write (ADR-337); archiving at the
+    close (FR-1608) is not built here and needs its own task (Q-306).
+- [ ] **T-410b** The screens after the event: Home's shop banner and closed balance, the Rewards tab after the close, the recap card and its share, the dashboard's shop window field — delivers FR 750, 752, 1018 (on screen); depends on: T-410
+  - Split from T-410 2026-10-27. Standard (app + web); plan: `docs/plans/2026-10-27-t-410-after-the-event.md` (T-410b
+    section, ADR-338, ADR-339).
+  - Done when: After the end Home shows the closing date; once closed the balance reads Closed and the shop says what
+    stays; the recap shows rank, quests done and souvenirs (or none) and shares as an image, or as text on an older
+    build.
 
 ## Phase 5 — Live and messaging
 
@@ -737,6 +749,11 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-27 (T-405): streak reminder pushes follow ADR-300 (no loss or guilt copy, no countdown to the day's
     end); the daily streak is the player's own, never shown to others.
   - Note 2026-10-27 (T-407): a promotional push picks recipients through `marketing_audience('push', ...)`; push is never required for any feature, and the player's consent is the state in `marketing_state`, not the OS permission alone.
+  - Note 2026-10-27 (T-410 plan, ADR-338): one personal push the day before an event's shop window closes, to active
+    members with a balance above 0 while the shop switch is on: fixed text naming the event and the closing date («متجر
+    جوائز {event} مفتوح حتى {date}» / "The {event} rewards shop is open until {date}"), never an amount, no countdown or
+    loss copy (ADR-300); once per member and event; re-check the window at sending (it may have been extended), none for
+    a 0-day window.
   - Note 2026-10-27 (T-409 plan, ADR-331, ADR-332): invitations are SMS only in v1; add `push` to the invitation
     sender here (widen `invitation_campaign.channels`' CHECK, add the order between channels to the fill, one message per
     player per campaign); an invitation push's open is reported by the app and marks the recipient's `opened_at` once,

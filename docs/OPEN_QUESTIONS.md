@@ -1140,3 +1140,29 @@ only while the switch is on; the landing page has no language switch and forgets
 Developer's call at the T-409b code review.
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-409b code review (92); ADR-335
 Accepted, with the review's fold-in.
+
+## Q-305 — The shop window after the event: where, how long, and changes after the end (2026-10-27, T-410 plan)
+Recommended (ADR-336): set on the dashboard's Rewards page as today (0 to 30 days, default 3); it closes exactly at the
+end plus those days; before the end any value, after the end only longer while open, frozen once closed (the API and a
+database trigger both refuse). Developer's call at the T-410 reviews.
+
+## Q-306 — Closing the balance: a rule with no write, holds after the close, no archiving yet (2026-10-27, T-410 plan)
+Recommended (ADR-337): the balance closes by rule (`shop_state`), with no ledger entry, stored flag or job; codes never
+given go to no one, delivered codes stay; holds stay collectible until their own pickup time and their returns land in
+the closed balance (FR-1609); rank prizes keep their deadline; score, rank, stamp, souvenirs, XP, level, achievements
+and items are untouched. The event stays Ended: archiving at the close (FR-1608) would block late results, the desk's
+late handovers and help-desk tickets, so it needs its own task with its own conditions (window closed, every hold
+ended, results revealed or a time limit). The coordinator decides whether and where to add that task. Developer's call
+at the T-410 reviews.
+
+## Q-307 — What players and organizers see around the close (2026-10-27, T-410 plan)
+Recommended (ADR-338): an "open until {date}" banner on Home after the end (no countdown, no loss copy); once closed
+the balance reads "Closed" with the date and the goal card goes; the Rewards tab shows the closing date and what stays;
+a cancel after the close warns that returned points cannot be redeemed; the dashboard shows when the shop closes and
+locks the days field as ADR-336 says. Developer's call at the T-410 reviews.
+
+## Q-308 — The recap card's content and sharing (2026-10-27, T-410 plan)
+Recommended (ADR-339): event name, date and city, final rank after the reveal, quests done, up to 3 souvenirs; no
+username, score, balance, link or id; shared as an image made on the phone (`react-native-view-shot`, `expo-sharing`)
+with one fixed line, nothing uploaded and no tracking, falling back to text on an older build. The other option, a text
+line only, needs no new dependency but is not a card. Developer's call at the T-410 reviews.
