@@ -1466,6 +1466,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "event WHERE id = $1 AND shop_days_after = 9", [f.eventB])).toBe(0);
   });
 
+  it("gives no seat a hand in archiving: the step names no event and moves none by request (T-411)", async () => {
+    const events = [f.eventA, f.eventB, f.publicEventB];
+    const before = await db.owner.query<{ id: string; status: string }>(
+      "SELECT id, status FROM event WHERE id = ANY($1) ORDER BY id",
+      [events],
+    );
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      await asA(seat, "SELECT archive_ended_events()", []);
+    }
+    const after = await db.owner.query(
+      "SELECT id, status FROM event WHERE id = ANY($1) ORDER BY id",
+      [events],
+    );
+    expect(after.rows).toEqual(before.rows);
+    // Organizer A can write no status, B's event included: the column was never granted.
+    for (const event of [f.eventA, f.eventB]) {
+      expect(
+        await refusal(
+          asA("organizer", "UPDATE event SET status = 'archived' WHERE id = $1", [event]),
+        ),
+      ).toBe("42501");
+    }
+  });
+
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {
     const { rows } = await db.owner.query<{ name: string }>(
       `SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace

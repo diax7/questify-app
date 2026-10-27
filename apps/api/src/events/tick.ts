@@ -23,12 +23,65 @@ export type LifecycleTick = Readonly<{
 /** Each wait is the interval, give or take a fifth, so instances started together drift apart. */
 const JITTER = 0.2;
 
+/** One step of a run: what it logs when it fails, what it logs with its count when it did something, and the work. */
+type Step = Readonly<{ failed: string; done: string; work: (pool: Pool) => Promise<number> }>;
+
+/** One call of a database function in its own transaction with no context; answers the count it returns. */
+const counted =
+  (sql: string) =>
+  (pool: Pool): Promise<number> =>
+    withConnection(pool, (client) =>
+      withRequestContext(client, {}, async () => {
+        const { rows } = await client.query<{ count: number }>(sql);
+        return rows[0]?.count ?? 0;
+      }),
+    );
+
 /**
- * Moves events through their lifecycle on time (FR-1608): every interval, one call to `advance_event_lifecycle()` in
- * its own transaction, with no organizer context; then wipes the rehearsals that went live (ADR-160), then returns the
- * reservations whose pickup time passed (FR-508), then finishes the quizzes left open past their close (ADR-193), then
- * closes the mini-game rounds past their window (ADR-213), then deletes help-desk tickets past their 90 days (Q-210). A failure is logged and the next run tries again; it never
- * stops the server. Several instances calling at once are harmless: the updates are row-locked and idempotent.
+ * A run's steps, in order. The lifecycle moves events by time (FR-1608); the go-live wipe of rehearsal data follows the
+ * events that went live (ADR-160); reservations whose pickup time passed are returned (FR-508); quizzes left open past
+ * their close pay what they earned (ADR-193); mini-game rounds past their window count as played (ADR-213); help-desk
+ * tickets go 90 days after the later of their event's end and their sending (Q-210); last, ended events whose holds,
+ * tickets and results are settled are archived (T-411, ADR-337 (5)), after the steps that settle them.
+ */
+const STEPS: readonly Step[] = [
+  {
+    failed: "event.lifecycle_failed",
+    done: "event.lifecycle_moved",
+    work: counted("SELECT advance_event_lifecycle() AS count"),
+  },
+  {
+    failed: "event.rehearsal_wipe_failed",
+    done: "event.rehearsals_wiped",
+    work: wipeDueRehearsals,
+  },
+  { failed: "reward.expiry_failed", done: "reward.reservations_expired", work: expireReservations },
+  {
+    failed: "quiz.sweep_failed",
+    done: "quiz.attempts_finished",
+    work: (pool) => finishDueQuizzes({ pool }),
+  },
+  {
+    failed: "game.sweep_failed",
+    done: "game.rounds_closed",
+    work: (pool) => closeDueRounds({ pool }),
+  },
+  {
+    failed: "ticket.purge_failed",
+    done: "ticket.purged",
+    work: (pool) => purgeEndedTickets({ pool }),
+  },
+  {
+    failed: "event.archive_failed",
+    done: "event.archived",
+    work: counted("SELECT archive_ended_events() AS count"),
+  },
+];
+
+/**
+ * Runs the lifecycle steps every interval, each in its own transactions with no organizer context. A step's failure is
+ * logged by name and SQLSTATE (no personal data) and never stops the others or the server; the next run tries again.
+ * Several instances running at once are harmless: every step is row-locked and idempotent.
  */
 export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
   const random = deps.random ?? Math.random;
@@ -36,67 +89,21 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
   let running: Promise<void> | undefined;
   let stopped = false;
 
-  /** One step of a run: its failure is logged by name and SQLSTATE (no personal data) and never stops the others. */
-  const step = async (failed: string, work: () => Promise<void>): Promise<void> => {
-    try {
-      await work();
-    } catch (error) {
-      deps.log("error", {
-        event: failed,
-        reason: error instanceof Error ? error.name : "unknown",
-        code: (error as { code?: unknown } | undefined)?.code ?? null,
-      });
-    }
-  };
-
   const run = async (): Promise<void> => {
-    await step("event.lifecycle_failed", async () => {
-      const moved = await withConnection(deps.pool, (client) =>
-        withRequestContext(client, {}, async () => {
-          const { rows } = await client.query<{ moved: number }>(
-            "SELECT advance_event_lifecycle() AS moved",
-          );
-          return rows[0]?.moved ?? 0;
-        }),
-      );
-      if (moved > 0) {
-        deps.log("info", { event: "event.lifecycle_moved", count: moved });
+    for (const step of STEPS) {
+      try {
+        const count = await step.work(deps.pool);
+        if (count > 0) {
+          deps.log("info", { event: step.done, count });
+        }
+      } catch (error) {
+        deps.log("error", {
+          event: step.failed,
+          reason: error instanceof Error ? error.name : "unknown",
+          code: (error as { code?: unknown } | undefined)?.code ?? null,
+        });
       }
-    });
-    // The go-live wipe of rehearsal data (ADR-160): one event per transaction, after the events moved to live.
-    await step("event.rehearsal_wipe_failed", async () => {
-      const wiped = await wipeDueRehearsals(deps.pool);
-      if (wiped > 0) {
-        deps.log("info", { event: "event.rehearsals_wiped", count: wiped });
-      }
-    });
-    await step("reward.expiry_failed", async () => {
-      const returned = await expireReservations(deps.pool);
-      if (returned > 0) {
-        deps.log("info", { event: "reward.reservations_expired", count: returned });
-      }
-    });
-    // Quizzes left open past their close pay what they earned (ADR-193).
-    await step("quiz.sweep_failed", async () => {
-      const finished = await finishDueQuizzes({ pool: deps.pool });
-      if (finished > 0) {
-        deps.log("info", { event: "quiz.attempts_finished", count: finished });
-      }
-    });
-    // Mini-game rounds left open past their window count as played (ADR-213).
-    await step("game.sweep_failed", async () => {
-      const closed = await closeDueRounds({ pool: deps.pool });
-      if (closed > 0) {
-        deps.log("info", { event: "game.rounds_closed", count: closed });
-      }
-    });
-    // Help-desk tickets 90 days after the later of their event's end and their sending (Q-210), 1000 a run.
-    await step("ticket.purge_failed", async () => {
-      const purged = await purgeEndedTickets({ pool: deps.pool });
-      if (purged > 0) {
-        deps.log("info", { event: "ticket.purged", count: purged });
-      }
-    });
+    }
   };
 
   const schedule = (): void => {

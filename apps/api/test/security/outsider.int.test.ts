@@ -1183,6 +1183,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(recap).toEqual({ definer: true, config: ["search_path=public, pg_temp"] });
     });
 
+    it("cannot run the archive step, read its rule or reach its guards (T-411)", async () => {
+      for (const sql of [
+        "SELECT public.archive_ended_events()",
+        "SELECT public.archive_due(NULL::public.event)",
+        "SELECT public.redemption_event_open()",
+        "SELECT public.ticket_event_open()",
+        "SELECT public.event_archived_final()",
+        "UPDATE public.event SET status = 'archived'",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "archive_ended_events",
+        "archive_due",
+        "redemption_event_open",
+        "ticket_event_open",
+        "event_archived_final",
+      ];
+      const listed = `ARRAY[${names.map((name) => `'${name}'`).join(", ")}]`;
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname = ANY(${listed}) ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the step only, never the rule or a trigger function.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "archive_ended_events",
+      ]);
+      const shapes = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(shapes).toEqual(
+        names.toSorted().map((proname) => ({
+          proname,
+          definer: proname === "archive_ended_events",
+          config: ["search_path=public, pg_temp"],
+        })),
+      );
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

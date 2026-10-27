@@ -6,7 +6,7 @@ type Logged = { level: string; fields: Record<string, unknown> };
 
 /**
  * A pool whose connection answers the tick's statements; `moved` is what the lifecycle call returns, `expiry` what each
- * call returning a reservation does (nothing due by default).
+ * call returning a reservation does (nothing due by default), `archived` what the archive step returns (none).
  */
 function fakePool(
   moved: () => number | Error,
@@ -14,6 +14,7 @@ function fakePool(
   rehearsals: { due: string[]; wiped: boolean } = { due: [], wiped: true },
   quizzes: () => string | null = () => null,
   rounds: () => string | null = () => null,
+  archived: () => number | Error = () => 0,
 ) {
   const statements: string[] = [];
   const client = {
@@ -24,7 +25,14 @@ function fakePool(
         if (result instanceof Error) {
           throw result;
         }
-        return { rows: [{ moved: result }] };
+        return { rows: [{ count: result }] };
+      }
+      if (sql.includes("archive_ended_events")) {
+        const result = archived();
+        if (result instanceof Error) {
+          throw result;
+        }
+        return { rows: [{ count: result }] };
       }
       if (sql.includes("due_rehearsal_wipes")) {
         return { rows: rehearsals.due.map((id) => ({ event_id: id })) };
@@ -143,6 +151,7 @@ describe("startLifecycleTick", () => {
       { level: "error", fields: { event: "quiz.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "ticket.purge_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "event.archive_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
   });
@@ -181,11 +190,11 @@ describe("startLifecycleTick", () => {
     expect(stopped).toBe(false);
     finish?.();
     await stopping;
-    // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, and the ticket
-    // sweep; nothing after the stop.
-    expect(connects).toBe(6);
+    // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
+    // sweep and the archive step; nothing after the stop.
+    expect(connects).toBe(7);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(6);
+    expect(connects).toBe(7);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -305,6 +314,56 @@ describe("startLifecycleTick", () => {
       },
     ]);
     await second.stop();
+  });
+
+  it("archives last, after the steps that settle holds and tickets, and logs only the count", async () => {
+    const counts = [2, 0];
+    const { pool, statements } = fakePool(
+      () => 0,
+      () => null,
+      { due: [], wiped: true },
+      () => null,
+      () => null,
+      () => counts.shift() ?? 0,
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(2000);
+    const at = (name: string) => statements.findIndex((sql) => sql.includes(name));
+    expect(statements.filter((sql) => sql.includes("archive_ended_events"))).toHaveLength(2);
+    for (const before of [
+      "advance_event_lifecycle",
+      "expire_one_reservation",
+      "purge_ended_tickets",
+    ]) {
+      expect(at(before), before).toBeGreaterThanOrEqual(0);
+      expect(at("archive_ended_events"), before).toBeGreaterThan(at(before));
+    }
+    expect(logged).toEqual([{ level: "info", fields: { event: "event.archived", count: 2 } }]);
+    await tick.stop();
+  });
+
+  it("logs a failed archive step by its name and SQLSTATE, after the other steps ran", async () => {
+    const failure = Object.assign(new Error("secret"), { name: "DatabaseError", code: "40001" });
+    const { pool } = fakePool(
+      () => 1,
+      () => null,
+      { due: [], wiped: true },
+      () => null,
+      () => null,
+      () => failure,
+    );
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "event.lifecycle_moved", count: 1 } },
+      {
+        level: "error",
+        fields: { event: "event.archive_failed", reason: "DatabaseError", code: "40001" },
+      },
+    ]);
+    await tick.stop();
   });
 
   it("wipes each due rehearsal in its own call, and logs only how many it wiped", async () => {

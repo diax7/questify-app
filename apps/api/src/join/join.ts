@@ -106,10 +106,10 @@ export type JoinOutcome =
   /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
   | Readonly<{ kind: "invalid_answers"; field: string | null }>;
 
-/** A rehearsal account's event may still be a Draft (T-211). */
+/** A rehearsal account's event may still be a Draft (T-211); a played one stays listed once archived (T-411). */
 export type MyEvent = Omit<PublicEvent, "statusNow"> &
   Readonly<{
-    statusNow: PublicEvent["statusNow"] | "draft";
+    statusNow: PublicEvent["statusNow"] | "draft" | "archived";
     status: "active" | "pending" | "declined";
     /** On the waiting list of a full event (FR-1821). */
     waitlisted: boolean;
