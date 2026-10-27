@@ -246,12 +246,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         quests: [],
         levelUp: null,
         gems: { earned: 10, balance: 10 },
+        dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
       });
       expect((outcome.second as { r: unknown }).r).toEqual({
         achievements: [],
         quests: [],
         levelUp: null,
         gems: { earned: 0, balance: 10 },
+        dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
       });
       expect(await f.earned(player)).toEqual(["events-attended:bronze"]);
     });

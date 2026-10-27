@@ -275,6 +275,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit; a boost of another event answers 404 (BN404 in delete_boost) (test/boosts/routes, test/db/flash-boosts)",
   "POST /v1/organizers/:organizerId/events/:eventId/boosts/:boostId/end":
     "members inside their event limit; a boost of another event answers 404 (BN404 in end_boost) (test/boosts/routes, test/db/flash-boosts)",
+  "GET /v1/organizers/:organizerId/events/:eventId/streak":
+    "members of that organizer only, inside their event limit; another organizer's event answers 404 (AN404 in event_streak_settings) (test/streaks/routes, test/db/event-streak)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/streak":
+    "owner of that organizer only (owner route, walked below; an editor or another organizer answers AN404 in set_event_streak); changes only that event's streak (test/streaks/routes, test/db/event-streak)",
   "PUT /v1/organizers/:organizerId/events/:eventId/mini-games":
     "owner of that organizer only (owner route, walked below); changes only the miniGames switch of that event (test/plays/games)",
   "GET /v1/quests/:questId/game":

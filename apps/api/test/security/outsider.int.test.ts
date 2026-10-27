@@ -526,6 +526,76 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ]);
     });
 
+    it("cannot read or write a streak, set or read one, or reach the streak helpers (T-405)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.event_streak",
+        "SELECT * FROM public.event_streak_day",
+        "SELECT * FROM public.questify_streak_day",
+        "SELECT * FROM public.questify_streak_milestone",
+        "SELECT * FROM public.questify_streak_reward",
+        "INSERT INTO public.questify_streak_day (player_id, day) VALUES (gen_random_uuid(), current_date)",
+        "SELECT public.set_event_streak(gen_random_uuid(), true, 5, '{}', '{}', gen_random_uuid())",
+        "SELECT public.event_streak_settings(gen_random_uuid())",
+        "SELECT * FROM public.own_event_streak(gen_random_uuid())",
+        "SELECT * FROM public.own_streak_bonus(1)",
+        "SELECT public.own_daily_streak()",
+        "SELECT public.questify_day(now())",
+        "SELECT public.daily_streak_on()",
+        "SELECT public.daily_streak_length(gen_random_uuid())",
+        "SELECT public.daily_streak_of(gen_random_uuid())",
+        "SELECT public.streak_due(gen_random_uuid())",
+        "SELECT public.streak_record(NULL::public.ledger_entry)",
+        "SELECT public.streak_day_closed(NULL::public.event_streak, current_date)",
+        "SELECT public.prev_open_day(NULL::public.event, NULL::public.event_streak, current_date)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const names = [
+        "set_event_streak",
+        "event_streak_settings",
+        "own_event_streak",
+        "own_streak_bonus",
+        "own_daily_streak",
+        "questify_day",
+        "daily_streak_on",
+        "daily_streak_length",
+        "daily_streak_of",
+        "streak_due",
+        "streak_record",
+        "streak_day_closed",
+        "prev_open_day",
+        "ledger_streak",
+        "streak_append_only",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the settings door, its read and the three own reads only.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "event_streak_settings",
+        "own_daily_streak",
+        "own_event_streak",
+        "own_streak_bonus",
+        "set_event_streak",
+      ]);
+      // No table right for the API role or PUBLIC on the five new tables.
+      const held = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE n.nspname = 'public'
+           AND c.relname IN ('event_streak', 'event_streak_day', 'questify_streak_day', 'questify_streak_milestone',
+                             'questify_streak_reward')
+           AND (has_table_privilege('questify_app', c.oid, p.priv) OR has_table_privilege('public', c.oid, p.priv))`,
+      );
+      expect(held).toEqual([]);
+    });
+
     it("cannot sync, read achievements, events or cities, or reach the evaluator's helpers (T-403)", async () => {
       for (const sql of [
         "SELECT * FROM public.city",

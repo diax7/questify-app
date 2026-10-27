@@ -136,6 +136,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("gems: the ledger and the sync 
       quests: [],
       levelUp: null,
       gems: { earned: 0, balance: 30 },
+      // The daily streak (T-405): the plays above counted today.
+      dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
     });
     expect(await entries(player)).toHaveLength(2);
   });

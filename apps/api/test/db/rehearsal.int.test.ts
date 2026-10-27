@@ -1056,6 +1056,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.quest_bonus_slot",
         "ledger_entry.quest_bonus_slot",
         "quest_completion.quest_bonus_slot",
+        // A streak day row is never written for a rehearsal entry (ledger_streak skips it), so none names what the wipe
+        // deletes (T-405, test/db/event-streak).
+        "enrollment.event_streak_day",
+        "ledger_entry.event_streak_day",
+        "quest_completion.event_streak_day",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1088,6 +1093,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "console_ticket", // Questify reads one ticket (an audit row only); the event's status is shown, not judged (T-312)
         "souvenir_evaluate", // real-only lifetime grants, no rehearsal row or wipe lock after player/enrollment
         "souvenir_scan_batch", // waits for live, then queues real members only; it writes no row the wipe deletes
+        "streak_record", // internal: the ledger_streak trigger inside a payer that wiped first; skips rehearsal entries (T-405)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

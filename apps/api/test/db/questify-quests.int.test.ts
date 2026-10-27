@@ -154,6 +154,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       quests: [],
       levelUp: null,
       gems: { earned: 0, balance: 130 },
+      // The daily streak (T-405): the plays above counted today.
+      dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
     });
     const rows = await f.owner(
       `SELECT x.delta, x.ledger_entry_id, x.quest_id, x.reverses, a.quest_id AS award_quest
@@ -197,6 +199,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       quests: [],
       levelUp: null,
       gems: { earned: 0, balance: 30 },
+      // The daily streak (T-405): the plays above counted today.
+      dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
     });
     expect(await awards(player)).toEqual([quest.id]);
     await retireQuest(quest.id);

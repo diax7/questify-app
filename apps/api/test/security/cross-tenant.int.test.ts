@@ -70,6 +70,12 @@ const SIGNUP_B = "new.owner@tabuk.test";
 /** Each seeded rehearsal has its own code (codes are unique across events). */
 let rehearsalSeeds = 0;
 const hash = () => `\\x${randomBytes(32).toString("hex")}`;
+/** A call's SQLSTATE, or "none" when it succeeds. */
+const refusal = async (work: Promise<unknown>) =>
+  work.then(
+    () => "none",
+    (error: { code?: string }) => error.code,
+  );
 
 const OWNED: Readonly<Record<string, Owned>> = {
   organizer: {
@@ -972,6 +978,16 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by set_quest_first_bonus inside the caller's event (award_event_of) and deleted with its quest or a draft event; read as counts by first_bonus_left (an active member of the event or its team in scope, nothing for anyone else), live_state and member_event_quests for the calling member, and own_first_bonus for the caller's own completion (test/db/first-bonus crosses organizers and players)",
   quest_bonus_slot:
     "no right for the API role at all; holds no personal data beyond an enrollment id the ledger already names; claimed only by pay_first_bonus inside the payers for the paying enrollment, freed by the rehearsal wipe, added and removed by set_quest_first_bonus inside the caller's event; read as counts by first_bonus_left and as the calling member's own place by member_event_quests and own_first_bonus, and by the team through member_ledger (award_event_of) (test/db/first-bonus)",
+  event_streak:
+    "no right for the API role at all; written by set_event_streak only for an owner of the event's organizer within their events (AN404 otherwise), read by event_streak_settings (award_event_of), own_event_streak for an active member and the ledger_streak trigger (test/security cross-tenant streak doors, test/db/event-streak)",
+  event_streak_day:
+    "no right for the API role at all; append-only; holds no personal data beyond an enrollment id the ledger already names; written only by the ledger_streak trigger for the paying enrollment; read as the calling member's own by own_event_streak and own_streak_bonus, and by the team through member_ledger (award_event_of) (test/db/event-streak)",
+  questify_streak_day:
+    "no right for the API role at all; append-only, no tenant: a player's own Questify days, written by the ledger_streak trigger for the paying enrollment's player; read only for the caller by own_daily_streak and questify_sync, never by an organizer (test/security cross-tenant streak doors, test/db/daily-streak)",
+  questify_streak_milestone:
+    "platform-wide data with no tenant and no direct API rights; append-only; seeded by migration, read through the caller-bound own_daily_streak and questify_sync (test/db/daily-streak)",
+  questify_streak_reward:
+    "no right for the API role at all; append-only, no tenant: written only by questify_sync for the calling player under their player_xp lock, read only for the caller (test/db/daily-streak)",
   kiosk_scan:
     "no right for the API role at all; holds no personal data (a completion id, a device id, tenant ids); written only by kiosk_complete_quest for app_device_id's own kiosk beside the completion it paid, read as a count by device_json in the caller's event or own pairings (test/db/kiosks)",
   paired_device:
@@ -1314,6 +1330,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         : await asA<{ n: number }>(seat, query, values);
     return result.rows[0]?.n ?? -1;
   };
+
+  it("keeps the streak doors inside their tenant and their player (T-405)", async () => {
+    const organizer = contextFor(f, "organizer");
+    expect(
+      await refusal(
+        asA("organizer", "SELECT set_event_streak($1, true, 5, '{}', '{}', $2)", [
+          f.eventB,
+          randomUUID(),
+        ]),
+      ),
+    ).toBe("AN404");
+    expect(await refusal(asA("organizer", "SELECT event_streak_settings($1)", [f.eventB]))).toBe(
+      "AN404",
+    );
+    expect(await refusal(asA("organizer", "SELECT event_streak_settings($1)", [f.eventA]))).toBe(
+      "none",
+    );
+    expect(await count("owner", "event_streak WHERE event_id = $1", [f.eventB])).toBe(0);
+    expect((await asA("player", "SELECT * FROM own_event_streak($1)", [f.eventB])).rows).toEqual(
+      [],
+    );
+    expect(
+      (await asA("player", "SELECT * FROM own_event_streak($1)", [f.eventA])).rows,
+    ).toHaveLength(1);
+    // An organizer seat has no player: no daily streak and no streak bonus of anyone's completion.
+    const seen = await withRequestContext(db.app, organizer, async () =>
+      db.app.query("SELECT own_daily_streak() AS d"),
+    );
+    expect(seen.rows).toEqual([{ d: null }]);
+    // No door the API role holds reads the Questify days apart from the caller-bound two.
+    const { rows } = await db.owner.query<{ name: string }>(
+      `SELECT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND has_function_privilege('questify_app', p.oid, 'EXECUTE')
+         AND p.prosrc ~ '(questify_streak_day|daily_streak_of|daily_streak_length|questify_streak_reward)'
+       ORDER BY 1`,
+    );
+    expect(rows.map((row) => row.name)).toEqual(["own_daily_streak", "questify_sync"]);
+  });
 
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {
     const { rows } = await db.owner.query<{ name: string }>(
