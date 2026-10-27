@@ -679,7 +679,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     played, one open at a time, no sideways scroll, no reset button, a non-admin gets 404). The test API server gains a
     test-only `/season-board` control. Proposed ADR-326 / Q-295 (the page's name and layout). No mutation globs (standard).
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
-  - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
+  - Note 2026-10-27 (T-407; **superseded by ADR-331 (7)**: recipients come from `promo_pool`, the one consent rule that `marketing_audience` now wraps, read by the fill and the claim): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.
   - Split 2026-10-27 (ADR-329, Q-298): T-409 is the **CORE** server (migration 0073: `invitation_campaign`,
     `invitation_recipient`, `promo_pool` with `marketing_audience` restated system-only, the consent's `language`; the
@@ -690,8 +690,13 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Plan review 2026-10-27 (84, NO-GO until findings 1 and 2; all 16 folded into the plan's fold-in table): the event
     names are copied onto the campaign at approval and the SMS is rendered only from that copy, URL or phone names
     refused (finding 1); a cancel leaves no row stuck: requeue only while `sending`, settle expires every lease, every
-    cancel sets `finished_at`, the purge reaches every row (finding 2). v1: public events only, SMS only. Short re-review
-    next. The RUNBOOK's T-409 section says when the switch may be turned on.
+    cancel sets `finished_at`, the purge reaches every row (finding 2). v1: public events only, SMS only. The RUNBOOK's
+    T-409 section says when the switch may be turned on.
+  - Plan re-review 2026-10-27 (86, NO-GO until MAJOR 1 and 2; all folded, see the plan's "Second plan review" table; no
+    third plan review): approve carries the names the console showed and fails `event_renamed` if they changed, and the
+    name rule is NFKC, no format characters, no dot between letters or digits, no run of 9+ digits, also on the cut text
+    (MAJOR 1); settle, running with the switch off, skips the queued rows of a sending campaign whose event is over and
+    ends it `sent` with `event_over` (MAJOR 2). **The code review checks MAJOR 1 and 2 by their named tests.**
 - [ ] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i` (token in the fragment) — delivers FR 738, 739 (on screen); depends on: T-409
   - Split from T-409 2026-10-27 (ADR-329). Standard; plan: `docs/plans/2026-10-27-t-409-questify-invitations.md` (T-409b section).
   - Done when: An owner requests and cancels a campaign and sees only bucketed counts; an admin approves with a cap and sees the moved send time; the landing page counts one open per recipient.

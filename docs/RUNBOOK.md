@@ -172,8 +172,13 @@ Written with the T-409 plan; the build confirms each line and adds the measured 
   balance, `1110` sender, `M0037` address, `unreachable`): SMS invitations pause for 15 minutes and then try again; the
   console shows the hold. Fix the account (top up, activate the sender, register the address); nothing is lost and no
   message fails because of it.
-- **Quiet hours:** promotional SMS never leaves 22:00 to 09:00 Riyadh time (01:00 to 12:00 in Ramadan); a send that
-  crosses 22:00 resumes in the morning by itself.
+- **Quiet hours:** an invitation SMS never leaves 22:00 to 09:00 Riyadh time, and in Ramadan never 22:00 to 12:00 (the
+  fixed band, also checked in SQL, plus CST's Ramadan band 01:00 to 12:00); a send that crosses 22:00 resumes by itself
+  at 09:00 (12:00 in Ramadan).
+- **Queued messages never wait forever:** if the event ends while messages are still queued (the switch was off,
+  `MSEGAT_PROMO_SENDER` unset, a hold, quiet hours), the settle step, which runs even with the switch off, skips them and
+  ends the campaign as sent with the reason "event over"; the console shows how many were skipped.
+- **Startup check:** the API refuses to start when `MSEGAT_PROMO_SENDER` equals `MSEGAT_SENDER`.
 
 ## Usernames and the word lists (T-109, ADR-119)
 

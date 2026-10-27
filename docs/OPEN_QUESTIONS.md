@@ -1093,25 +1093,28 @@ platform, so this applies it rather than asking anew. T-409 also splits into the
 
 ## Q-299 — Invitation campaigns: eligible events, criteria and states (2026-10-27, T-409 plan)
 Recommended (ADR-330): owner requests; public events only in v1 (developer's decision at the plan review: unlisted and
-private left out), joinable by link, ending at least a day later, with names free of links and phone numbers; one open
-campaign per event; city, up to 3 interests and history (`none`, `recent`, `own`); the admin's cap is the maximum number
-of messages; fewer than 50 matching players means nothing is sent. Developer's call at the T-409 reviews.
+private left out), joinable by link, ending at least a day later; one open campaign per event; city, up to 3 interests
+and history (`none`, `recent`, `own`); the admin's cap is the maximum number of messages; fewer than 50 matching players
+means nothing is sent; when the event ends with messages still queued, the rest are skipped and the campaign ends as
+sent (`event_over`). Developer's call at the T-409 reviews.
 
-## Q-300 — Invitation channels, frequency, frozen text and message language (2026-10-27, T-409 plan)
+## Q-300 — Invitation channels, frequency, the approved text and message language (2026-10-27, T-409 plan)
 Recommended (ADR-331): SMS only in v1 (push with T-501, email with T-706); one message per player per campaign; at most
-one invitation per player per week; a short fixed template rendered from the event names copied at approval; the
-message in the language of the player's latest consent on that channel; one consent rule (`promo_pool`) behind
-`marketing_audience`, now system-only. SMS cannot be approved until the "-AD" sender is registered (Q-034). Developer's
-call at the T-409 reviews.
+one invitation per player per week; a short fixed template; the admin approves the exact text (approval fails with
+`event_renamed` if the names changed since the preview) and it is frozen; a name rule filters links, phone numbers and
+hidden characters, but the admin is the gate; the message in the language of the player's latest consent on that
+channel; one consent rule (`promo_pool`) behind `marketing_audience`, now system-only. SMS cannot be approved until the
+"-AD" sender is registered (Q-034). Developer's call at the T-409 reviews.
 
 ## Q-301 — Invitation results and what they can imply (2026-10-27, T-409 plan)
 Recommended (ADR-332): opened through Questify's own link page (token in the fragment, no pixel or SDK), joined matched
 on the server, organizer numbers published daily, rounded down to tens with "fewer than 10" below that, at least 50
-recipients per send, recipient rows kept 90 days. On a quiet event the joined count can still let an organizer guess
-that a new member was invited; that comes with FR-739. The privacy policy gains the line in ADR-332 (T-807). Developer's
-call at the T-409 reviews.
+recipients per send, recipient rows kept 90 days. Because organizers see the send date and each member's join time, a
+burst of joins after a send can hint at who was invited on any event; that comes with FR-739. The privacy policy gains
+the line in ADR-332 (T-807). Developer's call at the T-409 reviews.
 
 ## Q-302 — How invitations are sent (2026-10-27, T-409 plan)
 Recommended (ADR-333): the existing in-process tick in rounds of 5 with leases, at most one message per player (an
-uncertain send is never repeated), one 15-minute hold for the SMS channel when the account is refused, quiet hours
-checked in TypeScript and again in SQL, no pg-boss yet. Developer's call at the T-409 reviews.
+uncertain send is never repeated, a late answer never rewrites it), one 15-minute hold for the SMS channel when the
+account is refused, quiet hours in TypeScript and again in SQL (22:00 to 12:00 in Ramadan), settle running even with the
+switch off, no pg-boss yet. Developer's call at the T-409 reviews.
