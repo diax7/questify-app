@@ -4308,3 +4308,14 @@ code, and Explore is where anyone browses before signing in. The Shop tab is the
 separate For you screen or route.
 **Why:** One home for each kind of thing; a long, paged list does not push the ranking out of reach; a bar tab has no "back".
 **Trade-offs:** A signed-out player reaches the public events one tap further than before (the Explore tab).
+
+## ADR-326 — The console's Ranking seasons page: its name and one open month at a time
+**Status:** Proposed (T-408c build; Q-295). Specifies FR-1786.
+**Decision:** The page is `/console/seasons`, titled "Ranking seasons" (Arabic «مواسم الترتيب»), with a link on the console
+home. It lists every Questify month newest first with its ranked count and a "Current" badge; a month opens in place to show
+its top 10 (rank, avatar, username, XP, lifetime level), one month at a time, the current month open on arrival. The top 10 is
+read when a month opens, not with the list. The page is read only. A month with nobody ranked says so.
+**Why:** The console's Arabic already calls campaigns «المواسم» (Questify quests page), so a bare «المواسم» would name two
+pages alike; the English "Seasons" stays out of the same confusion by saying "Ranking". One open month keeps the list short
+and the page on one screen on a phone; reading a month's rows on opening avoids fetching ten boards for a list of months.
+**Trade-offs:** Two months cannot be compared side by side. Each opening reads the month again, which is one cheap indexed read.

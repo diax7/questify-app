@@ -904,6 +904,7 @@ Daily questions, Templates, Questify quests, Level titles, XP table.
 - The warning shows when fewer than 7 days are queued (FR-1733). A day with no question shows no
   challenge to players; the streak still counts other activity.
 - Built T-406c (ADR-315): the page `/console/content` holds two tabs, Daily challenge (schedule by period, question bank, sponsor name, period control) and Word bank (daily words, guess list and its import); the other tabs below come with their own tasks, and a "Needs attention" mark on the console home replaces the menu badge.
+- Built T-408c (ADR-326): the page `/console/seasons`, "Ranking seasons" («مواسم الترتيب»), lists every Questify month newest first with its ranked count and the current one marked; a month opens in place to show its top 10 (rank, avatar, username, XP, level), one open at a time, the current one on arrival. Read only: seasons turn over by themselves (FR-1786, ADR-323), so there is no reset or schedule control. It is Arabic «مواسم الترتيب» and not «المواسم», which the Questify quests page already uses for campaigns.
 - Templates: conference, festival, campus, corporate; each holds categories, quests, rewards in
   Arabic and English. Editing a template does not change events already made from it. The edit
   screen says so.

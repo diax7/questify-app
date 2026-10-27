@@ -654,10 +654,18 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `ranking-api.test`, `event-isolation.test` (no event or operator file imports Explore or calls the ranking route, FR-612),
     `marketing-flow.test` (`atLanding` knows the group), `event.test`, the Hermes guard and `npx expo export`. Proposed ADR-325 / Q-294.
     Phone check owed (RTL bar and rows, the center button, VoiceOver and TalkBack on the tabs and ranking rows).
-- [ ] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
+- [x] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408c section).
   - Done when: A past month's top 10 is unchanged after the new month starts, and changes only when one of its own credits is removed; there is no reset button (Q-292).
   - Note (T-408 code review MINOR-2, done in 0072): `GET /v1/admin/questify/seasons` lists every month from the earliest board to now, a month nobody played with 0 players.
+  - Done 2026-10-27 (standard; code review owed): `/console/seasons` ("Ranking seasons", «مواسم الترتيب»; platform admins; a link on the
+    console home): every Questify month newest first with its ranked count and the current one marked; one month open at a time
+    (the current one on arrival), showing its top 10 (rank, avatar, username, XP, level) read when it opens, or "nobody is ranked in
+    <month>"; read only, no reset button (Q-292). `formatLocalMonth` joins `formatLocalDate` in `packages/shared`. Proven by
+    `console-seasons.test` (shapes: 10 rows at most, no id, no row without XP), `event-time.test`, and `e2e/console-seasons.spec.ts`
+    (Arabic and English, desktop and phone: current month opens first, a past month's own count and top 10 in order, a month nobody
+    played, one open at a time, no sideways scroll, no reset button, a non-admin gets 404). The test API server gains a
+    test-only `/season-board` control. Proposed ADR-326 / Q-295 (the page's name and layout). No mutation globs (standard).
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.

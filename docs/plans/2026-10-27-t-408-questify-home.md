@@ -275,3 +275,15 @@ DATA_MODEL, API, SRS status rows, CONFIGURABILITY (the `questifyRanking` switch)
 - No rehearsal QR exists (`RehearsalCard` shows a typed code), so the classifier reads none; the typed code stays on Home.
 - `MyEvent` gains `startsAt` and `endsAt` (already in `GET /v1/me/events`) for the upcoming and past order.
 - FR-612 is a test: `event-isolation.test.ts` reads every event and operator file.
+
+## T-408c build notes (2026-10-27)
+
+- Page `apps/web/src/app/[lang]/console/seasons/page.tsx` and `ConsoleSeasons` (client, like the other console pages): one read of
+  `GET /v1/admin/questify/seasons`, then `GET /v1/admin/questify/seasons/{month}` when a month opens. Answers go through the shared
+  zod schemas (`questifySeasonsSchema`, `questifySeasonSchema`), so a changed API shows the error state, not a broken page.
+- `formatLocalMonth` (shared, beside `formatLocalDate`): Gregorian month and year with Western digits in both languages.
+- Strings `console.seasons.*`; the XP and level texts reuse `explore.xp` and `level.number`. Arabic title «مواسم الترتيب» because
+  «المواسم» already means campaigns on the Questify quests page (ADR-326 / Q-295).
+- Avatars use the six pictures in `apps/web/public/avatars` (the kiosk's); the table is a list of cards, so it reflows at 360 px.
+- Browser test data: the test API server's control port gains `/season-board` (players placed on a month's board), because a
+  past month cannot be made with the real writers. Each project and test seeds its own past months, which keeps those counts exact.

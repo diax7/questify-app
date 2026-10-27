@@ -1585,6 +1585,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   100, admin.ts 94.12, shared questify/ranking.ts 91.30. All at 90 or above. T-408b code review 82 (one BLOCKER, function
   limits, and one MAJOR, Home re-reads on focus), both fixed in 11d6e25 and `lint:limits` checked by the coordinator;
   ADR-324 and ADR-325 accepted.
+- 2026-10-27 **T-408c built (standard; code review owed).** The console's Ranking seasons page `/console/seasons` («مواسم الترتيب»; a link on the console home): every Questify month newest first with its ranked count and the current one marked, one month open at a time (the current one on arrival) showing its top 10 (rank, avatar, username, XP, level), read only with no reset button (Q-292). `ConsoleSeasons`, `lib/console-seasons.ts` (reads through the shared schemas), shared `formatLocalMonth`, strings `console.seasons.*`; the test API server gains a test-only `/season-board` control. Proven by `console-seasons.test`, `event-time.test`, and `e2e/console-seasons.spec.ts` (Arabic and English, desktop and phone: opens on the current month, a past month's count and top 10 in order, a month nobody played, one open at a time, no sideways scroll, no reset button, a non-admin gets 404). Proposed ADR-326 / Q-295 (the name «مواسم الترتيب», because «المواسم» already means campaigns in the console). Progress 93/167 (55.69%). No mutation globs (standard).
 
 
 
@@ -1592,9 +1593,9 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
-   T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. **Next: T-408c** (console Seasons
-   page, standard), then T-408d when the RUNBOOK ranked-count check fires, T-406d (word lists, Q-281 answered), then
-   T-409. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent wording), Q-289 (proof
+   T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
+   built, its code review is owed. **Next:** T-408d when the RUNBOOK ranked-count check fires, T-406d (word lists, Q-281
+   answered), then T-409. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent wording), Q-289 (proof
    after deletion); nothing waits on them. No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b, T-407b
    and T-408b. **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central replay-before-scope
    fix for other idempotent organizer routes.
