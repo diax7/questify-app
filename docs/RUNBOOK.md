@@ -4,7 +4,13 @@
 
 ## Local checks
 
-- `pnpm ci:changed`: lint, format check, types and all tests (what the pull-request gate runs).
+- `pnpm ci:changed`: lint, the function-limit ratchet, format check, types and all tests (what the pull-request gate
+  runs).
+- `pnpm lint:limits`: the ratchet for the 100-line and complexity-8 limits of `docs/rules.md` (T-023). It fails on a
+  function over a limit that is not in `scripts/function-limits-baseline.json`, or on a baselined one that grew
+  (the message names the file, line and values). Fix it by splitting the function. It lists shrunk or removed
+  offenders without failing; `node scripts/function-limits.mjs --update` then rewrites the baseline, only downward
+  (it refuses while anything grew). Commit the baseline with the change. A renamed offender counts as new.
 - `pnpm ci:full`: `ci:changed` plus the dependency audit. The mutation check is not run here (ADR-174): it runs only
   on GitHub, see below.
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set

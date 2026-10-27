@@ -1,4 +1,12 @@
 {
   "printWidth": 100,
-  "ignorePatterns": ["docs", "node_modules", "dist", "coverage", ".expo", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "docs",
+    "scripts/function-limits-baseline.json",
+    "node_modules",
+    "dist",
+    "coverage",
+    ".expo",
+    "pnpm-lock.yaml"
+  ]
 }

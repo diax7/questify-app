@@ -1519,6 +1519,13 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Arabic) and the organizers spec's note count (8 to 9), `npx expo export`. Proposed ADR-304, ADR-305 / Q-269, Q-270.
   Phone check owed (RTL, Reduce Motion, the streak beat, VoiceOver/TalkBack labels). No mutation (standard task).
   Progress 83/158 (52.53%).
+- 2026-10-27 **T-023 done (standard, infrastructure).** The function limits of `docs/rules.md` now have a ratchet
+  (Q-271): `scripts/function-limits.mjs` (`pnpm lint:limits`) runs oxlint with `.oxlintrc.limits.json` (only the
+  ratchet reads it; tests, `apps/*/test` and e2e left out) and compares with `scripts/function-limits-baseline.json`
+  (323 limit violations today). A new offender or a grown value fails; shrunk or gone ones are listed; `--update`
+  only lowers the baseline. It is in `ci:changed`, so `ci:full` and the CI lint step run it; no workflow change. Unit
+  tests in `scripts/function-limits.test.ts` (vitest now also includes `scripts/**/*.test.ts`). No mutation (standard
+  task). Split offenders when their files are next touched.
 
 ## Next
 

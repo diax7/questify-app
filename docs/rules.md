@@ -171,6 +171,11 @@ secret store; a secret scan runs on every change.
   `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`,
   `isolatedModules`.
 - Limits: at most 100 lines per function, cyclomatic complexity 8, 5 positional parameters, width 100.
+  The first two are held by a ratchet (`pnpm lint:limits`, part of `ci:changed`; T-023): oxlint with
+  `.oxlintrc.limits.json` (kept apart so the normal lint gate stays clean) is compared with the committed
+  `scripts/function-limits-baseline.json`. A new function over a limit, or a baselined one that grew, fails; a
+  renamed offender counts as new. When you touch a baselined function, split it, then run
+  `node scripts/function-limits.mjs --update`, which only ever lowers the baseline. Tests are not measured.
 - Zero warnings: fix every warning from every tool, or add an inline ignore with a reason.
 - Expo: development builds only (NFC needs native code); build and submit through EAS.
 - App and shared code run on the release Hermes, which lacks some built-ins Node has (`toSorted`,

@@ -1,0 +1,1361 @@
+{
+  "apps/api/src/activation/service.ts": {
+    "createActivation": {
+      "lines": [122]
+    }
+  },
+  "apps/api/src/app.ts": {
+    "buildApp": {
+      "complexity": [12],
+      "lines": [251]
+    }
+  },
+  "apps/api/src/audience/rules.ts": {
+    "fieldsInUse": {
+      "complexity": [15]
+    }
+  },
+  "apps/api/src/audit/entry.ts": {
+    "findSecretKey": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/audit/record.ts": {
+    "recordAudit": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/auth/breached.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/auth/email/gmail.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "createGmailSender": {
+      "lines": [102]
+    }
+  },
+  "apps/api/src/auth/sign-in.ts": {
+    "<anonymous>": {
+      "complexity": [10, 9]
+    }
+  },
+  "apps/api/src/auth/sign-up.ts": {
+    "start": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/awards/routes.ts": {
+    "refuse": {
+      "complexity": [20]
+    }
+  },
+  "apps/api/src/boosts/boosts.ts": {
+    "boostRefusalOf": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/boosts/routes.ts": {
+    "refuse": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/community/goals.ts": {
+    "<anonymous>": {
+      "complexity": [12]
+    },
+    "refusalOf": {
+      "complexity": [17]
+    }
+  },
+  "apps/api/src/community/routes.ts": {
+    "refuse": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/community/tick.ts": {
+    "startCommunityTick": {
+      "lines": [101]
+    }
+  },
+  "apps/api/src/completions/complete.ts": {
+    "completeQuest": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/completions/routes.ts": {
+    "answer": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/conventions.ts": {
+    "registerConventions": {
+      "lines": [132]
+    }
+  },
+  "apps/api/src/db/migrate.ts": {
+    "migrate": {
+      "complexity": [11]
+    }
+  },
+  "apps/api/src/db/pre-identity.ts": {
+    "lookupSetting": {
+      "complexity": [11]
+    }
+  },
+  "apps/api/src/desk/routes.ts": {
+    "refuse": {
+      "complexity": [16]
+    }
+  },
+  "apps/api/src/devices/claims.ts": {
+    "<anonymous>": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/devices/errors.ts": {
+    "deviceErrorOf": {
+      "complexity": [15]
+    }
+  },
+  "apps/api/src/events/events.ts": {
+    "merge": {
+      "complexity": [56]
+    }
+  },
+  "apps/api/src/events/routes.ts": {
+    "registerEventRoutes": {
+      "lines": [101]
+    }
+  },
+  "apps/api/src/home/home.ts": {
+    "questRows": {
+      "complexity": [13]
+    }
+  },
+  "apps/api/src/join/routes.ts": {
+    "<anonymous>": {
+      "complexity": [11]
+    },
+    "joinAnswer": {
+      "complexity": [14]
+    }
+  },
+  "apps/api/src/join/setup-routes.ts": {
+    "answer": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/join/setup.ts": {
+    "cleanFields": {
+      "complexity": [21]
+    }
+  },
+  "apps/api/src/migrate-cli.ts": {
+    "verifyAppRole": {
+      "complexity": [19]
+    }
+  },
+  "apps/api/src/moderation/routes.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/nfc/routes.ts": {
+    "refuseNfc": {
+      "complexity": [13]
+    }
+  },
+  "apps/api/src/nfc/tags.ts": {
+    "nfcRefusalOf": {
+      "complexity": [11]
+    }
+  },
+  "apps/api/src/operators/practice.ts": {
+    "judged": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/operators/routes.ts": {
+    "registerOperatorPlayerRoutes": {
+      "lines": [168]
+    },
+    "registerOperatorRoutes": {
+      "lines": [109]
+    }
+  },
+  "apps/api/src/organizers/routes.ts": {
+    "answerInvite": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/organizers/team.ts": {
+    "admitInvite": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/players/items.ts": {
+    "readLocker": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/players/profile.ts": {
+    "renameMe": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/players/sms.ts": {
+    "<anonymous>": {
+      "complexity": [11]
+    }
+  },
+  "apps/api/src/plays/games.ts": {
+    "finishOf": {
+      "complexity": [9]
+    },
+    "sendResult": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/plays/meet.ts": {
+    "meetRefusalOf": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/plays/quizzes.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/plays/routes.ts": {
+    "flashValueOf": {
+      "complexity": [11]
+    },
+    "refuse": {
+      "complexity": [28]
+    },
+    "registerPlayRoutes": {
+      "lines": [102]
+    }
+  },
+  "apps/api/src/quests/builder.ts": {
+    "mergeQuest": {
+      "complexity": [55]
+    },
+    "withEvent": {
+      "complexity": [24]
+    }
+  },
+  "apps/api/src/quests/categories.ts": {
+    "<anonymous>": {
+      "complexity": [19]
+    },
+    "rulesOf": {
+      "complexity": [16]
+    }
+  },
+  "apps/api/src/quests/passports.ts": {
+    "passportSteps": {
+      "complexity": [14]
+    }
+  },
+  "apps/api/src/quests/quests.ts": {
+    "<anonymous>": {
+      "complexity": [10, 9]
+    }
+  },
+  "apps/api/src/quests/routes.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "answer": {
+      "complexity": [27]
+    }
+  },
+  "apps/api/src/ranking/routes.ts": {
+    "<anonymous>": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/rehearsal/rehearsal.ts": {
+    "cardOf": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/rehearsal/service.ts": {
+    "createRehearsal": {
+      "lines": [104]
+    }
+  },
+  "apps/api/src/results/results.ts": {
+    "<anonymous>": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/results/routes.ts": {
+    "refuse": {
+      "complexity": [17]
+    }
+  },
+  "apps/api/src/rewards/builder.ts": {
+    "<anonymous>": {
+      "complexity": [22, 11]
+    },
+    "mergeReward": {
+      "complexity": [36]
+    },
+    "windowsIn": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/rewards/quest-items.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/rewards/routes.ts": {
+    "answer": {
+      "complexity": [13]
+    },
+    "refusal": {
+      "complexity": [12]
+    }
+  },
+  "apps/api/src/rewards/shop.ts": {
+    "<anonymous>": {
+      "complexity": [13]
+    }
+  },
+  "apps/api/src/route-access.ts": {
+    "<anonymous>": {
+      "complexity": [20]
+    }
+  },
+  "apps/api/src/settings/service.ts": {
+    "createSettingsService": {
+      "lines": [260]
+    }
+  },
+  "apps/api/src/souvenirs/tick.ts": {
+    "<anonymous>": {
+      "complexity": [15]
+    }
+  },
+  "apps/api/src/streaks/streaks.ts": {
+    "streakRefusalOf": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/submissions/routes.ts": {
+    "refuse": {
+      "complexity": [24]
+    }
+  },
+  "apps/api/src/submissions/submissions.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/api/src/tickets/routes.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "refuse": {
+      "complexity": [25]
+    },
+    "registerTicketPlayerRoutes": {
+      "lines": [107]
+    }
+  },
+  "apps/api/src/tickets/tickets.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "run": {
+      "complexity": [10]
+    }
+  },
+  "apps/api/src/translations/service.ts": {
+    "save": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/app/account.tsx": {
+    "AccountScreen": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/app/delete-account.tsx": {
+    "DeleteAccountScreen": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/app/event/[eventId]/(tabs)/index.tsx": {
+    "EventHomeScreen": {
+      "complexity": [17]
+    }
+  },
+  "apps/app/app/event/[eventId]/(tabs)/quests.tsx": {
+    "QuestCard": {
+      "complexity": [12]
+    },
+    "QuestsScreen": {
+      "complexity": [16]
+    },
+    "noteText": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/app/event/[eventId]/(tabs)/rewards.tsx": {
+    "<anonymous>": {
+      "complexity": [12]
+    },
+    "RedeemSheet": {
+      "complexity": [19]
+    },
+    "RewardCard": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/app/event/[eventId]/game.tsx": {
+    "GameScreen": {
+      "complexity": [14]
+    }
+  },
+  "apps/app/app/event/[eventId]/history.tsx": {
+    "HistoryScreen": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/app/event/[eventId]/ranking.tsx": {
+    "RankingScreen": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/app/event/[eventId]/scan-quest.tsx": {
+    "<anonymous>": {
+      "complexity": [12]
+    },
+    "Celebration": {
+      "complexity": [24]
+    },
+    "ScanQuestScreen": {
+      "complexity": [22],
+      "lines": [209]
+    }
+  },
+  "apps/app/app/invite/[eventId].tsx": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "InviteScreen": {
+      "complexity": [15],
+      "lines": [111]
+    }
+  },
+  "apps/app/app/join/[code].tsx": {
+    "<anonymous>": {
+      "complexity": [11]
+    },
+    "JoinCardScreen": {
+      "complexity": [19]
+    }
+  },
+  "apps/app/app/operator/[eventId]/(tabs)/desk.tsx": {
+    "DeskTab": {
+      "complexity": [10]
+    },
+    "ItemRow": {
+      "complexity": [19]
+    }
+  },
+  "apps/app/app/operator/[eventId]/(tabs)/inbox.tsx": {
+    "InboxCard": {
+      "complexity": [9]
+    },
+    "InboxTab": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/app/operator/[eventId]/(tabs)/index.tsx": {
+    "OperatorHomeScreen": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/app/operator/[eventId]/(tabs)/tools.tsx": {
+    "OperatorToolsScreen": {
+      "complexity": [15]
+    }
+  },
+  "apps/app/app/operator/[eventId]/nfc-write.tsx": {
+    "NfcWriteScreen": {
+      "complexity": [14],
+      "lines": [156]
+    },
+    "Outcome": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/app/operator/[eventId]/pair-device.tsx": {
+    "ConfirmPairing": {
+      "complexity": [9]
+    },
+    "PairDeviceScreen": {
+      "lines": [102]
+    }
+  },
+  "apps/app/app/operator/[eventId]/review.tsx": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "OperatorReviewScreen": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/app/operator/[eventId]/rotating-qr.tsx": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/app/operator/[eventId]/station-scan.tsx": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "StationScanScreen": {
+      "complexity": [19],
+      "lines": [138]
+    }
+  },
+  "apps/app/app/operator/[eventId]/ticket/[ticketId].tsx": {
+    "OperatorTicketScreen": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/app/sign-in.tsx": {
+    "<anonymous>": {
+      "complexity": [14]
+    }
+  },
+  "apps/app/src/account/contact-api.ts": {
+    "verifyContactCode": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/account/contact-flow.ts": {
+    "contactStep": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/account/deletion-api.ts": {
+    "verifyDeletionCode": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/account/deletion-flow.ts": {
+    "deletionStep": {
+      "complexity": [15]
+    }
+  },
+  "apps/app/src/api/client.ts": {
+    "request": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/api/session.ts": {
+    "createSession": {
+      "lines": [153]
+    }
+  },
+  "apps/app/src/auth/player-state.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/auth/sign-in-api.ts": {
+    "requestCode": {
+      "complexity": [9]
+    },
+    "verifyCode": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/auth/sign-in-flow.ts": {
+    "signInStep": {
+      "complexity": [15]
+    }
+  },
+  "apps/app/src/components/Avatar.tsx": {
+    "Avatar": {
+      "complexity": [16]
+    }
+  },
+  "apps/app/src/config/remote.ts": {
+    "loadConfig": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/ChoiceList.tsx": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/DeskItems.tsx": {
+    "DeskItems": {
+      "lines": [110]
+    }
+  },
+  "apps/app/src/event/GameEntry.tsx": {
+    "GameEntry": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/LivePolls.tsx": {
+    "<anonymous>": {
+      "complexity": [14]
+    }
+  },
+  "apps/app/src/event/LocationEntry.tsx": {
+    "LocationEntry": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/src/event/PollEntry.tsx": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "PollEntry": {
+      "complexity": [17],
+      "lines": [117]
+    }
+  },
+  "apps/app/src/event/QuestSheet.tsx": {
+    "QuestEntry": {
+      "complexity": [10]
+    },
+    "QuestSheet": {
+      "complexity": [14]
+    },
+    "Verification": {
+      "complexity": [14]
+    },
+    "outcomeText": {
+      "complexity": [19]
+    },
+    "stateLine": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/QuizEntry.tsx": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "QuizEntry": {
+      "complexity": [26]
+    }
+  },
+  "apps/app/src/event/Requests.tsx": {
+    "RequestCard": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/ShareEntry.tsx": {
+    "ShareEntry": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/SubmissionEntry.tsx": {
+    "SubmissionEntry": {
+      "complexity": [16]
+    }
+  },
+  "apps/app/src/event/SurveyEntry.tsx": {
+    "QuestionField": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/activity-api.ts": {
+    "readEntry": {
+      "complexity": [14]
+    }
+  },
+  "apps/app/src/event/celebration.ts": {
+    "answered": {
+      "complexity": [10]
+    },
+    "detailsAfter": {
+      "complexity": [9]
+    },
+    "scanStep": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/community.ts": {
+    "communityOf": {
+      "complexity": [11]
+    },
+    "rewardText": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/games.ts": {
+    "gameSheetOf": {
+      "complexity": [9]
+    },
+    "roundAnswerOf": {
+      "complexity": [14]
+    }
+  },
+  "apps/app/src/event/help.ts": {
+    "<anonymous>": {
+      "complexity": [24]
+    },
+    "sendAnswer": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/home-api.ts": {
+    "rankingAnswer": {
+      "complexity": [9]
+    },
+    "readHome": {
+      "complexity": [15]
+    },
+    "readRanking": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/event/live-code.ts": {
+    "fetchLiveCode": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/event/location.ts": {
+    "checkInRead": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/meet.ts": {
+    "passStateOf": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/plays.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "quizViewOf": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/event/polls.ts": {
+    "livePollSecondsOf": {
+      "complexity": [10]
+    },
+    "pollViewOf": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/event/quests-api.ts": {
+    "<anonymous>": {
+      "complexity": [12]
+    },
+    "categoryNotes": {
+      "complexity": [14]
+    },
+    "refusal": {
+      "complexity": [20]
+    },
+    "rulesOf": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/event/rules-api.ts": {
+    "readRules": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/event/scan.ts": {
+    "readScan": {
+      "complexity": [18]
+    }
+  },
+  "apps/app/src/event/shop-api.ts": {
+    "rewardAction": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/event/submissions.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "sendAnswer": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/event/survey-share.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/games/TapRushGame.tsx": {
+    "<anonymous>": {
+      "complexity": [9, 9]
+    }
+  },
+  "apps/app/src/games/testing/realtime-play.ts": {
+    "playTapRush": {
+      "complexity": [15]
+    }
+  },
+  "apps/app/src/help/TicketCenter.tsx": {
+    "<anonymous>": {
+      "complexity": [20]
+    },
+    "CardForm": {
+      "complexity": [23]
+    }
+  },
+  "apps/app/src/help/center.ts": {
+    "initialOf": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/src/join/deep-link.ts": {
+    "routeForIncoming": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/src/join/join-api.ts": {
+    "joinOutcome": {
+      "complexity": [14]
+    },
+    "readEvent": {
+      "complexity": [9]
+    },
+    "readRules": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/join/rehearsal-api.ts": {
+    "rehearsalCardAnswer": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/nfc/native.ts": {
+    "<anonymous>": {
+      "complexity": [9]
+    },
+    "writeNdef": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/nfc/tag.ts": {
+    "tagTokenOf": {
+      "complexity": [10]
+    },
+    "uriOfMessage": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/operator/StationTodayBlock.tsx": {
+    "StationTodayBlock": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/operator/desk.ts": {
+    "itemAction": {
+      "complexity": [9]
+    },
+    "lookupOf": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/operator/inbox.ts": {
+    "<anonymous>": {
+      "complexity": [14]
+    },
+    "ticketOf": {
+      "complexity": [18]
+    }
+  },
+  "apps/app/src/operator/review.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/questify/AchievementsSection.tsx": {
+    "Tile": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/src/questify/GemShopScreen.tsx": {
+    "ShopBody": {
+      "complexity": [16]
+    }
+  },
+  "apps/app/src/questify/QuestifyQuestsScreen.tsx": {
+    "QuestifyQuestsScreen": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/questify/QuestifySyncProvider.tsx": {
+    "<anonymous>": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/questify/gem-shop-api.ts": {
+    "buyGemItem": {
+      "complexity": [12]
+    }
+  },
+  "apps/app/src/questify/gem-shop-flow.ts": {
+    "stepAfter": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/questify/gems.ts": {
+    "gemsKey": {
+      "complexity": [9]
+    }
+  },
+  "apps/app/src/questify/level.ts": {
+    "levelOf": {
+      "complexity": [10]
+    }
+  },
+  "apps/app/src/screens/EditProfileScreen.tsx": {
+    "EditProfileScreen": {
+      "complexity": [17]
+    }
+  },
+  "apps/app/src/screens/ProfileScreen.tsx": {
+    "ProfileScreen": {
+      "complexity": [11]
+    }
+  },
+  "apps/app/src/screens/PublicProfileScreen.tsx": {
+    "PublicProfileScreen": {
+      "complexity": [13]
+    }
+  },
+  "apps/app/src/streaks/days.ts": {
+    "daysKey": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/app/[lang]/e/[code]/page.tsx": {
+    "EventPage": {
+      "complexity": [13]
+    }
+  },
+  "apps/web/src/app/[lang]/e/[code]/rules/page.tsx": {
+    "RulesPage": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/ActivationCard.tsx": {
+    "DraftActions": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/AwardsPanel.tsx": {
+    "AwardsPanel": {
+      "complexity": [9]
+    },
+    "BulkCard": {
+      "complexity": [16],
+      "lines": [132]
+    }
+  },
+  "apps/web/src/components/BoostsPanel.tsx": {
+    "BoostsPanel": {
+      "complexity": [9],
+      "lines": [123]
+    }
+  },
+  "apps/web/src/components/CodeStep.tsx": {
+    "CodeStep": {
+      "complexity": [9],
+      "lines": [129]
+    }
+  },
+  "apps/web/src/components/CodesPanel.tsx": {
+    "CodesPanel": {
+      "complexity": [11],
+      "lines": [212]
+    }
+  },
+  "apps/web/src/components/CommunityGoalForm.tsx": {
+    "CommunityGoalForm": {
+      "lines": [126]
+    },
+    "ScopeFields": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/CommunityPanel.tsx": {
+    "CommunityPanel": {
+      "lines": [120]
+    }
+  },
+  "apps/web/src/components/ConsoleEvent.tsx": {
+    "ActivateForm": {
+      "lines": [106]
+    },
+    "ConsoleEvent": {
+      "lines": [109]
+    }
+  },
+  "apps/web/src/components/ConsoleQuestify.tsx": {
+    "callFor": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/ConsoleTickets.tsx": {
+    "ConsoleTickets": {
+      "complexity": [11]
+    }
+  },
+  "apps/web/src/components/DeleteAccountForm.tsx": {
+    "nextStep": {
+      "complexity": [10]
+    }
+  },
+  "apps/web/src/components/DevicePairing.tsx": {
+    "poll": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/DevicesPanel.tsx": {
+    "ConfirmFields": {
+      "complexity": [9]
+    },
+    "DevicesPanel": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/EventFields.tsx": {
+    "EventTimeFields": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/EventForm.tsx": {
+    "EventForm": {
+      "complexity": [29],
+      "lines": [352]
+    }
+  },
+  "apps/web/src/components/EventWords.tsx": {
+    "EventWords": {
+      "lines": [110]
+    }
+  },
+  "apps/web/src/components/ExclusionsPanel.tsx": {
+    "ExclusionsPanel": {
+      "lines": [136]
+    }
+  },
+  "apps/web/src/components/FirstBonusFields.tsx": {
+    "FirstBonusFields": {
+      "complexity": [9],
+      "lines": [102]
+    }
+  },
+  "apps/web/src/components/FlagsPanel.tsx": {
+    "FlagsPanel": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/components/HelpDeskPanel.tsx": {
+    "HelpDeskPanel": {
+      "complexity": [9]
+    },
+    "TicketRow": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/components/InviteFlow.tsx": {
+    "InviteFlow": {
+      "complexity": [15],
+      "lines": [140]
+    }
+  },
+  "apps/web/src/components/KioskScanner.tsx": {
+    "Kiosk": {
+      "complexity": [13]
+    }
+  },
+  "apps/web/src/components/NfcTagsPanel.tsx": {
+    "NfcTagsPanel": {
+      "complexity": [11]
+    },
+    "TagCard": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/components/OperatorsPanel.tsx": {
+    "OperatorRow": {
+      "lines": [113]
+    },
+    "OperatorsPanel": {
+      "lines": [106]
+    }
+  },
+  "apps/web/src/components/PlayerAwards.tsx": {
+    "PlayerAwards": {
+      "complexity": [10],
+      "lines": [119]
+    }
+  },
+  "apps/web/src/components/PlayersPanel.tsx": {
+    "PlayerRow": {
+      "complexity": [15]
+    },
+    "PlayersPanel": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/PollControls.tsx": {
+    "PollControls": {
+      "complexity": [10]
+    }
+  },
+  "apps/web/src/components/QuestBuilder.tsx": {
+    "QuestBuilder": {
+      "complexity": [35],
+      "lines": [289]
+    }
+  },
+  "apps/web/src/components/QuestBuilderParts.tsx": {
+    "CategoryCard": {
+      "lines": [133]
+    },
+    "CategoryRuleFields": {
+      "lines": [117]
+    },
+    "DeleteDialog": {
+      "complexity": [10]
+    },
+    "QuestRow": {
+      "complexity": [19],
+      "lines": [134]
+    }
+  },
+  "apps/web/src/components/QuestForm.tsx": {
+    "QuestForm": {
+      "complexity": [13],
+      "lines": [184]
+    }
+  },
+  "apps/web/src/components/RehearsalCard.tsx": {
+    "RehearsalCard": {
+      "complexity": [14],
+      "lines": [153]
+    }
+  },
+  "apps/web/src/components/ResultsPanel.tsx": {
+    "StepControls": {
+      "complexity": [13]
+    }
+  },
+  "apps/web/src/components/RewardsPanel.tsx": {
+    "DeskForm": {
+      "lines": [150]
+    },
+    "RewardForm": {
+      "complexity": [13],
+      "lines": [193]
+    },
+    "RewardRow": {
+      "complexity": [9]
+    },
+    "RewardsPanel": {
+      "complexity": [22],
+      "lines": [221]
+    }
+  },
+  "apps/web/src/components/SignUpForm.tsx": {
+    "SignUpForm": {
+      "lines": [102]
+    }
+  },
+  "apps/web/src/components/SouvenirPreview.tsx": {
+    "SouvenirPreview": {
+      "complexity": [10]
+    }
+  },
+  "apps/web/src/components/SouvenirsPanel.tsx": {
+    "SouvenirContents": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/StationScreen.tsx": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "Station": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/components/SubmissionsPanel.tsx": {
+    "SubmissionsPanel": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/components/TeamPanel.tsx": {
+    "TeamPanel": {
+      "lines": [153]
+    }
+  },
+  "apps/web/src/components/useQuestBuilder.ts": {
+    "useQuestBuilder": {
+      "lines": [118]
+    }
+  },
+  "apps/web/src/lib/activation.ts": {
+    "readActivation": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/lib/boosts.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    }
+  },
+  "apps/web/src/lib/community.ts": {
+    "<anonymous>": {
+      "complexity": [10]
+    },
+    "goalBodyOf": {
+      "complexity": [11]
+    },
+    "targetChoices": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/lib/console.ts": {
+    "readConsoleEvent": {
+      "complexity": [15]
+    }
+  },
+  "apps/web/src/lib/device.ts": {
+    "deviceAnswerOf": {
+      "complexity": [14]
+    }
+  },
+  "apps/web/src/lib/devices.ts": {
+    "lineOf": {
+      "complexity": [14]
+    }
+  },
+  "apps/web/src/lib/event-card.ts": {
+    "fetchCard": {
+      "complexity": [10]
+    },
+    "readCard": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/lib/event-rules.ts": {
+    "fetchRules": {
+      "complexity": [10]
+    },
+    "readRules": {
+      "complexity": [13]
+    }
+  },
+  "apps/web/src/lib/event-terms.ts": {
+    "fetchEventTerms": {
+      "complexity": [10]
+    }
+  },
+  "apps/web/src/lib/flags.ts": {
+    "flagDetailOf": {
+      "complexity": [9]
+    }
+  },
+  "apps/web/src/lib/forward.ts": {
+    "forward": {
+      "complexity": [15]
+    }
+  },
+  "apps/web/src/lib/legal.ts": {
+    "legalBlocks": {
+      "complexity": [11]
+    }
+  },
+  "apps/web/src/lib/nfc-tags.ts": {
+    "<anonymous>": {
+      "complexity": [14]
+    }
+  },
+  "apps/web/src/lib/quests.ts": {
+    "questDraftOf": {
+      "complexity": [22]
+    },
+    "questProblem": {
+      "complexity": [30]
+    }
+  },
+  "apps/web/src/lib/rehearsal.ts": {
+    "readRehearsal": {
+      "complexity": [11]
+    }
+  },
+  "apps/web/src/lib/rewards.ts": {
+    "deskProblem": {
+      "complexity": [10]
+    },
+    "rewardProblem": {
+      "complexity": [12]
+    }
+  },
+  "apps/web/src/lib/sign-in-errors.ts": {
+    "describeProblem": {
+      "complexity": [16]
+    }
+  },
+  "apps/web/src/lib/staff-api.ts": {
+    "fetchMe": {
+      "complexity": [11]
+    }
+  },
+  "apps/web/src/lib/surveys.ts": {
+    "<anonymous>": {
+      "complexity": [11]
+    }
+  },
+  "apps/web/src/proxy.ts": {
+    "proxy": {
+      "complexity": [9]
+    }
+  },
+  "packages/shared/src/config/compose.ts": {
+    "<anonymous>": {
+      "complexity": [18]
+    }
+  },
+  "packages/shared/src/join/options.ts": {
+    "cleanOptions": {
+      "complexity": [14]
+    }
+  },
+  "packages/shared/src/players/username.ts": {
+    "checkUsername": {
+      "complexity": [10]
+    }
+  },
+  "packages/shared/src/quests/registry.ts": {
+    "parseVerification": {
+      "complexity": [11]
+    }
+  },
+  "packages/shared/src/souvenirs.ts": {
+    "<anonymous>": {
+      "complexity": [15]
+    }
+  }
+}

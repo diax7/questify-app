@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "lint": "oxlint --deny-warnings .",
+    "lint:limits": "node scripts/function-limits.mjs",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "audit": "pnpm audit --audit-level moderate",
-    "ci:changed": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "ci:changed": "pnpm lint && pnpm lint:limits && pnpm format:check && pnpm typecheck && pnpm test",
     "ci:full": "pnpm ci:changed && pnpm audit",
     "mutation": "stryker run",
     "sbom:generate": "pnpm sbom --sbom-format cyclonedx --prod --lockfile-only > sbom.cdx.json"
