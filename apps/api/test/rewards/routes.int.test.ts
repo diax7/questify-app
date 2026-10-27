@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createStaff,
   signInFully,
@@ -59,6 +59,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
   async function owner<T extends Record<string, unknown>>(sql: string, values: unknown[] = []) {
     return (await db.owner.query<T>(sql, values)).rows;
   }
+
+  /** The event's shop close as the database computes it, as JSON sends it. */
+  const closesAtOf = async (event: string): Promise<string | undefined> =>
+    (
+      await owner<{ at: Date }>(
+        "SELECT ends_at + make_interval(days => shop_days_after) AS at FROM event WHERE id = $1",
+        [event],
+      )
+    )[0]?.at.toISOString();
+
+  /** An ended event of the organizer whose window closes `closesIn` from now (negative: closed that long ago). */
+  const endedEvent = async (closesIn: string): Promise<{ id: string; url: string }> => {
+    counter += 1;
+    const [event] = await owner<{ id: string }>(
+      `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+       VALUES ($1, 'Hall B', $2, 'After', 'live', now() - interval '10 days',
+               now() + $3::interval - interval '3 days') RETURNING id`,
+      [orgId, `AFTER${counter}`, closesIn],
+    );
+    return {
+      id: event?.id ?? "",
+      url: `/v1/organizers/${orgId}/events/${event?.id}/shop`,
+    };
+  };
+  const daysOf = async (event: string) =>
+    (await owner<{ d: number }>("SELECT shop_days_after AS d FROM event WHERE id = $1", [event]))[0]
+      ?.d;
+  const audits = async (event: string) =>
+    (
+      await owner("SELECT 1 FROM audit_log WHERE target_id = $1 AND action = 'event.shop.update'", [
+        event,
+      ])
+    ).length;
 
   const call = (
     method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
@@ -153,6 +186,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         spendLowersRank: false,
         desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
         handoverConfirm: "collect_first",
+        state: "open",
+        closesAt: await closesAtOf(eventId),
       });
       expect(listed.rewards.map((r) => r.id)).toContain(reward.id);
       const edited = await call("PATCH", `${base}/rewards/${reward.id}`, {
@@ -249,6 +284,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
           spendLowersRank: false,
           desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
           handoverConfirm: "collect_first",
+          state: "open",
+          closesAt: await closesAtOf(eventId),
         },
       });
       expect((await call("PUT", `${base}/shop`, { pickupMinutes: 5 })).statusCode).toBe(400);
@@ -454,6 +491,98 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         [quiet?.id],
       );
       expect(audited).toHaveLength(2);
+    });
+  });
+
+  describe("the shop's window after the end (T-410, ADR-336)", () => {
+    it("takes a longer window while open, answers its close, and refuses a shorter one", async () => {
+      const event = await endedEvent("1 day");
+      const longer = await call("PUT", event.url, { daysAfter: 5 });
+      expect(longer.statusCode).toBe(200);
+      expect(longer.json()).toMatchObject({
+        shop: { daysAfter: 5, state: "open", closesAt: await closesAtOf(event.id) },
+      });
+      const shorter = await call("PUT", event.url, { daysAfter: 4 });
+      expect(shorter.statusCode).toBe(409);
+      expect(shorter.json()).toMatchObject({
+        code: "shop_window_locked",
+        details: { reason: "shorter" },
+        message: { ar: expect.stringContaining("أيام بقاء المتجر"), en: expect.any(String) },
+      });
+      expect((await call("PUT", event.url, { daysAfter: 5, pickupMinutes: 60 })).statusCode).toBe(
+        200,
+      );
+      expect((await call("PUT", event.url, { pickupMinutes: 90 })).statusCode).toBe(200);
+      expect(await daysOf(event.id)).toBe(5);
+      expect(await audits(event.id)).toBe(3);
+    });
+
+    it("freezes a closed window on the database's clock, the API's own clock unasked", async () => {
+      const event = await endedEvent("-1 minute");
+      // The API's clock runs 5 minutes behind: by it the shop would still be open.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.now() - 5 * 60_000);
+      try {
+        for (const daysAfter of [10, 4, 1]) {
+          const refused = await call("PUT", event.url, { daysAfter });
+          expect(refused.statusCode, String(daysAfter)).toBe(409);
+          expect(refused.json()).toMatchObject({
+            code: "shop_window_locked",
+            details: { reason: "closed" },
+          });
+        }
+        const same = await call("PUT", event.url, { daysAfter: 3, rules: { en: "Thanks." } });
+        expect(same.statusCode).toBe(200);
+        expect(same.json()).toMatchObject({ shop: { state: "closed", daysAfter: 3 } });
+        const listed = await call("GET", event.url.replace(/shop$/, "rewards"));
+        expect(listed.json()).toMatchObject({
+          shop: { state: "closed", closesAt: await closesAtOf(event.id) },
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(await daysOf(event.id)).toBe(3);
+      expect(await audits(event.id)).toBe(1);
+    });
+
+    it("answers closed when the guard refuses a request whose transaction began before the close", async () => {
+      const event = await endedEvent("1 day");
+      const [{ closes } = { closes: new Date() }] = await owner<{ closes: Date }>(
+        `UPDATE event SET ends_at = clock_timestamp() + interval '1 second' - interval '3 days' WHERE id = $1
+         RETURNING ends_at + interval '3 days' AS closes`,
+        [event.id],
+      );
+      await db.owner.query("BEGIN");
+      let pending: Promise<LightMyRequestResponse> | undefined;
+      try {
+        await db.owner.query("SELECT 1 FROM event WHERE id = $1 FOR UPDATE", [event.id]);
+        pending = call("PUT", event.url, { daysAfter: 5 });
+        let waiting: { started: Date; query: string }[] = [];
+        for (let attempt = 0; attempt < 100 && waiting.length === 0; attempt += 1) {
+          // A transaction reads one snapshot of the statistics unless it is cleared first.
+          await owner("SELECT pg_stat_clear_snapshot()");
+          waiting = await owner<{ started: Date; query: string }>(
+            `SELECT xact_start AS started, query FROM pg_stat_activity
+             WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+          );
+          if (waiting.length === 0) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(waiting[0]?.query).toContain("FOR NO KEY UPDATE");
+        // updateShop waits on the event lock in a transaction begun before the close: by its `now()` the shop is open.
+        expect(waiting).toHaveLength(1);
+        expect(waiting[0]?.started.getTime()).toBeLessThan(closes.getTime());
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      } finally {
+        await db.owner.query("COMMIT");
+      }
+      const refused = await pending;
+      expect(refused?.statusCode).toBe(409);
+      expect(refused?.json()).toMatchObject({
+        code: "shop_window_locked",
+        details: { reason: "closed" },
+      });
+      expect(await daysOf(event.id)).toBe(3);
+      expect(await audits(event.id)).toBe(0);
     });
   });
 

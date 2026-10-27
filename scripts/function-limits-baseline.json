@@ -302,7 +302,7 @@
   },
   "apps/api/src/rewards/builder.ts": {
     "<anonymous>": {
-      "complexity": [22, 11]
+      "complexity": [16, 11]
     },
     "mergeReward": {
       "complexity": [36]
@@ -317,9 +317,6 @@
     }
   },
   "apps/api/src/rewards/routes.ts": {
-    "answer": {
-      "complexity": [13]
-    },
     "refusal": {
       "complexity": [12]
     }

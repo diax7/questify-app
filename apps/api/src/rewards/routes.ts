@@ -17,6 +17,7 @@ import {
   rewardLimitReached,
   rewardNotOpen,
   shopClosed,
+  shopWindowLocked,
   settingLocked,
   soldOut,
   stockBelowReserved,
@@ -132,41 +133,41 @@ const rewardView = (reward: RewardRecord) => ({
   lowCodes: codesRunLow(reward),
 });
 
+type BuilderRefusal = Exclude<RewardDone<never>, { kind: "done" }>;
+
+/** Each refusal of the dashboard's reward doors as the HTTP error it answers. */
+const BUILDER_REFUSALS: {
+  readonly [K in BuilderRefusal["kind"]]: (result: Extract<BuilderRefusal, { kind: K }>) => Error;
+} = {
+  not_found: () => notFound(),
+  event_archived: () => eventArchived(),
+  invalid: (result) => invalidReward({ field: result.field }),
+  limit_reached: (result) => limitReached({ limit: result.limit }),
+  stock_below_reserved: (result) => stockBelowReserved({ unitsOut: result.unitsOut }),
+  stock_from_codes: () => stockFromCodes(),
+  not_digital: () => notDigital(),
+  too_many_codes: (result) => tooManyCodes({ room: result.room }),
+  owner_only: () => ownerOnly(),
+  setting_locked: () => settingLocked(),
+  desk_needed: () => deskNeeded(),
+  shop_window_locked: (result) => shopWindowLocked({ reason: result.reason }),
+};
+
 function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
-  switch (result.kind) {
-    case "done":
-      return ok(result.value);
-    case "not_found":
-      throw notFound();
-    case "event_archived":
-      throw eventArchived();
-    case "invalid":
-      throw invalidReward({ field: result.field });
-    case "limit_reached":
-      throw limitReached({ limit: result.limit });
-    case "stock_below_reserved":
-      throw stockBelowReserved({ unitsOut: result.unitsOut });
-    case "stock_from_codes":
-      throw stockFromCodes();
-    case "not_digital":
-      throw notDigital();
-    case "too_many_codes":
-      throw tooManyCodes({ room: result.room });
-    case "owner_only":
-      throw ownerOnly();
-    case "setting_locked":
-      throw settingLocked();
-    case "desk_needed":
-      throw deskNeeded();
+  if (result.kind === "done") {
+    return ok(result.value);
   }
+  const refuse = BUILDER_REFUSALS[result.kind] as (refused: BuilderRefusal) => Error;
+  throw refuse(result);
 }
 
 /**
  * The dashboard's rewards (T-201): `GET`/`POST …/events/:eventId/rewards`, `PATCH`/`DELETE …/rewards/:rewardId`, and
  * `POST …/rewards/:rewardId/codes` to add a digital reward's codes (an Idempotency-Key; a replay answers the first
- * result), and `PUT …/events/:eventId/shop` for the pickup time, the days after the end, the rules, the prize desk
- * (place, pin, hours, how players confirm) and, for the owner only, whether spending lowers the ranking. Owners and
- * editors.
+ * result), and `PUT …/events/:eventId/shop` for the pickup time, the days after the end (after the end only longer,
+ * frozen once the shop has closed: 409 `shop_window_locked`), the rules, the prize desk (place, pin, hours, how players
+ * confirm) and, for the owner only, whether spending lowers the ranking. Both answer the shop with its `state` and
+ * `closesAt`. Owners and editors.
  */
 export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: RewardDeps): void {
   scope.get("/events/:eventId/rewards", member, async (request) => {

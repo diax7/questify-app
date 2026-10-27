@@ -892,6 +892,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       ).toEqual([{ score_delta: "20", balance_delta: "0" }]);
     });
 
+    it("credits the score only once the window after the end has closed, the event still ended (T-410)", async () => {
+      const { event, quest, goal } = await reachedFor();
+      const who = await member(event);
+      await earn(who, quest, 10);
+      await settle(goal);
+      const before = await owner<{ balance: string }>(
+        "SELECT balance FROM enrollment WHERE id = $1",
+        [who.enrollment],
+      );
+      await owner(
+        `UPDATE event SET starts_at = now() - interval '10 days',
+                          ends_at = now() - interval '1 minute' - make_interval(days => shop_days_after)
+         WHERE id = $1`,
+        [event],
+      );
+      expect(
+        await owner(
+          "SELECT event_status_now(status, starts_at, ends_at) AS s FROM event WHERE id = $1",
+          [event],
+        ),
+      ).toEqual([{ s: "ended" }]);
+      await pay(event);
+      expect(
+        await owner(
+          "SELECT score_delta, balance_delta FROM ledger_entry WHERE enrollment_id = $1 AND kind = 'community'",
+          [who.enrollment],
+        ),
+      ).toEqual([{ score_delta: "20", balance_delta: "0" }]);
+      expect(await owner("SELECT balance FROM enrollment WHERE id = $1", [who.enrollment])).toEqual(
+        before,
+      );
+    });
+
     it("removes a community reward as an award, copying its step, and names it by the goal", async () => {
       const { event, quest, goal } = await reachedFor();
       const who = await member(event);

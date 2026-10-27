@@ -93,10 +93,12 @@ type Rows = Readonly<{
   unread?: number;
   bonuses?: readonly Record<string, unknown>[];
   streak?: readonly Record<string, unknown>[];
+  shop?: readonly Record<string, unknown>[];
+  rewards?: readonly Record<string, unknown>[];
 }>;
 
 /** The home's dependencies over a database that answers each read with these rows. */
-function homeDeps(rows: Rows) {
+function homeDeps(rows: Rows, config: SettingsService = settings) {
   const { pool } = fakePool((sql) => {
     if (sql.includes("FROM enrollment n JOIN event e")) {
       return { rows: [standing(rows.standing)] };
@@ -120,14 +122,17 @@ function homeDeps(rows: Rows) {
       return { rows: rows.activity ?? [] };
     }
     if (sql.includes("shop_rewards")) {
-      return { rows: [] };
+      return { rows: rows.rewards ?? [] };
+    }
+    if (sql.includes("event_shop")) {
+      return { rows: rows.shop ?? [] };
     }
     if (sql.includes("own_event_streak")) {
       return { rows: rows.streak ?? [] };
     }
     throw new Error(`unexpected query: ${sql}`);
   });
-  return { pool, settings, firstBonus: createFirstBonusCache() };
+  return { pool, settings: config, firstBonus: createFirstBonusCache() };
 }
 
 const questsOf = async (
@@ -308,6 +313,78 @@ describe("the event home's switches and prize", () => {
     expect((await readHome(off, PLAYER, EVENT))?.streak).toBeNull();
     const pending = homeDeps({ standing: { status: "pending" }, streak: [streak] });
     expect((await readHome(pending, PLAYER, EVENT))?.streak).toBeNull();
+  });
+});
+
+describe("the event home's shop window (T-410, ADR-338)", () => {
+  const closes = new Date("2026-11-04T12:00:00Z");
+  const shop = (state: string, deskCloses: Date[] | null = null) => [
+    { state, closes_at: closes, desk_closes: deskCloses },
+  ];
+  const hoodie = {
+    id: "r1",
+    name_ar: null,
+    name_en: "Hoodie",
+    price: 500,
+    stock_left: 5,
+    per_player_limit: null,
+    held_by_me: 0,
+    closes_at: null,
+    community_lock: null,
+  };
+  const shopOff = {
+    forEvent: async (): Promise<ConfigResult> =>
+      ({
+        kind: "ok",
+        config: { features: { shop: { enabled: false } } },
+        etag: "x",
+      }) as unknown as ConfigResult,
+  } as unknown as SettingsService;
+
+  it("carries the window event_shop gives, with the desk's end before the close", async () => {
+    const desk = new Date("2026-11-02T18:00:00Z");
+    const home = await readHome(
+      homeDeps({ shop: shop("open", [desk]), rewards: [hoodie] }),
+      PLAYER,
+      EVENT,
+    );
+    expect(home?.shopWindow).toEqual({
+      state: "open",
+      closesAt: "2026-11-04T12:00:00.000Z",
+      deskEndsAt: "2026-11-02T18:00:00.000Z",
+    });
+    expect(home?.goal).toMatchObject({ rewardId: "r1", left: 460 });
+  });
+
+  it("drops the goal once the shop has closed, and keeps the balance as a number", async () => {
+    const home = await readHome(
+      homeDeps({ shop: shop("closed"), rewards: [hoodie] }),
+      PLAYER,
+      EVENT,
+    );
+    expect(home?.shopWindow).toMatchObject({ state: "closed", deskEndsAt: null });
+    expect(home?.goal).toBeNull();
+    expect(home?.standing).toMatchObject({ balance: 40 });
+  });
+
+  it("sends no window or goal while the shop switch is off, or without a shop row", async () => {
+    const off = await readHome(
+      homeDeps({ shop: shop("open"), rewards: [hoodie] }, shopOff),
+      PLAYER,
+      EVENT,
+    );
+    expect(off).toMatchObject({ shopWindow: null, goal: null });
+    const none = await readHome(homeDeps({ rewards: [hoodie] }), PLAYER, EVENT);
+    expect(none).toMatchObject({ shopWindow: null, goal: null });
+  });
+
+  it("sends no window to a pending member", async () => {
+    const pending = await readHome(
+      homeDeps({ standing: { status: "pending" }, shop: shop("open") }),
+      PLAYER,
+      EVENT,
+    );
+    expect(pending?.shopWindow).toBeNull();
   });
 });
 

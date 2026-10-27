@@ -371,6 +371,10 @@ export {
   citiesSchema,
 } from "./questify/events";
 export type { RankState, OwnEvent, PublicStamp, City } from "./questify/events";
+export { eventRecapSchema, recapRankSchema } from "./questify/recap";
+export type { EventRecap, RecapRank } from "./questify/recap";
+export { SHOP_STATES, shopWindowSchema } from "./rewards/shop-window";
+export type { ShopState, ShopWindow } from "./rewards/shop-window";
 export {
   MARKETING_CHANNELS,
   MARKETING_TEXT_VERSION,

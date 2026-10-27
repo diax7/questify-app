@@ -1450,6 +1450,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     await db.owner.query("DELETE FROM invitation_campaign WHERE id = $1", [theirs]);
   });
 
+  it("keeps the recap to the calling player and their own events (T-410)", async () => {
+    const recap = "SELECT status_now FROM event_recap($1)";
+    expect((await asA("player", recap, [f.eventA])).rows).toEqual([{ status_now: "live" }]);
+    for (const event of [f.eventB, f.publicEventB]) {
+      expect((await asA("player", recap, [event])).rows).toEqual([]);
+    }
+    // A team seat has no player: no recap of anyone, its own events included.
+    for (const seat of ["organizer", "staff"] as const) {
+      expect((await asA(seat, recap, [f.eventA])).rows).toEqual([]);
+    }
+    // B's event: organizer A can neither change its window nor see it move.
+    const days = "UPDATE event SET shop_days_after = 9 WHERE id = $1 RETURNING id";
+    expect((await asA("organizer", days, [f.eventB])).rows).toEqual([]);
+    expect(await count("owner", "event WHERE id = $1 AND shop_days_after = 9", [f.eventB])).toBe(0);
+  });
+
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {
     const { rows } = await db.owner.query<{ name: string }>(
       `SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace

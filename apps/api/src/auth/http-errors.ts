@@ -605,6 +605,13 @@ export const shopClosed = make(
   "متجر الجوائز مغلق الآن.",
   "The rewards shop is closed right now.",
 );
+/** The days after the end cannot change this way (T-410, ADR-336): `reason` closed or shorter. */
+export const shopWindowLocked = make(
+  409,
+  "shop_window_locked",
+  "بعد نهاية الفعالية يمكن زيادة أيام بقاء المتجر فقط، ولا يمكن تغييرها بعد إغلاقه.",
+  "After the event ends, the shop can only stay open longer, and its days can't change once it has closed.",
+);
 export const rewardNotOpen = make(
   403,
   "reward_not_open",
@@ -993,6 +1000,13 @@ export const resultsNotEnded = make(
   "not_ended",
   "تُؤكَّد النتائج بعد انتهاء الفعالية.",
   "Results can be confirmed once the event has ended.",
+);
+/** A recap asked for before its event ended (T-410): the code results use, with the recap's own words. */
+export const recapNotEnded = make(
+  409,
+  "not_ended",
+  "يظهر ملخّصك بعد نهاية الفعالية.",
+  "Your recap appears once the event ends.",
 );
 export const resultsChanged = make(
   409,

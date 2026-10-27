@@ -245,7 +245,55 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home over HTTP", () 
       ]);
       const player = await newPlayer(event.id);
       const home = await asPlayer(player.token, `/v1/events/${event.id}/home`);
-      expect(home.json<{ goal: unknown }>().goal).toBeNull();
+      expect(home.json<{ goal: unknown; shopWindow: unknown }>()).toMatchObject({
+        goal: null,
+        shopWindow: null,
+      });
+    });
+
+    it("sends the shop's window with the desk's end, and no goal once it has closed (T-410)", async () => {
+      const event = await newEvent({ startsIn: "-3 days", endsIn: "-1 day" });
+      await owner(
+        `INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Hoodie', 500, 5)`,
+        [event.id],
+      );
+      const [{ desk } = { desk: new Date() }] = await owner<{ desk: Date }>(
+        `UPDATE event SET desk_location_en = 'Hall B',
+                          desk_hours = tstzmultirange(tstzrange(now() - interval '1 hour', now() + interval '1 hour'))
+         WHERE id = $1 RETURNING upper(desk_hours) AS desk`,
+        [event.id],
+      );
+      const player = await newPlayer(event.id);
+      const read = async () =>
+        (await asPlayer(player.token, `/v1/events/${event.id}/home`)).json<{
+          shopWindow: unknown;
+          goal: unknown;
+          standing: unknown;
+        }>();
+      const closes = async () =>
+        (
+          await owner<{ at: Date }>(
+            "SELECT ends_at + make_interval(days => shop_days_after) AS at FROM event WHERE id = $1",
+            [event.id],
+          )
+        )[0]?.at.toISOString();
+      const open = await read();
+      expect(open.shopWindow).toEqual({
+        state: "open",
+        closesAt: await closes(),
+        deskEndsAt: desk.toISOString(),
+      });
+      expect(open.goal).toMatchObject({ price: 500 });
+      await owner(
+        `UPDATE event SET starts_at = now() - interval '10 days',
+                          ends_at = now() - interval '1 minute' - make_interval(days => shop_days_after)
+         WHERE id = $1`,
+        [event.id],
+      );
+      const closed = await read();
+      expect(closed.shopWindow).toMatchObject({ state: "closed", closesAt: await closes() });
+      expect(closed.goal).toBeNull();
+      expect(closed.standing).toMatchObject({ status: "active", balance: 0 });
     });
 
     it("says when the ranking is off", async () => {

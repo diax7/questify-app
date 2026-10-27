@@ -1,3 +1,4 @@
+import type { ShopState } from "@questify/shared";
 import type { CommunityLock } from "#src/community/lock-note";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
@@ -48,17 +49,22 @@ const reachable = (reward: GoalReward, now: Date): boolean =>
   reward.stockLeft > 0 && stillOpen(reward, now) && reward.communityLock === null;
 
 /**
- * The goal (FR-803, FR-1616, ADR-161): the pinned reward while it is in the shop, not closed and under the player's
- * limit, whatever its stock (a sold-out pin says so) or community lock (it carries the lock's note); otherwise the
- * cheapest reachable reward the player cannot yet afford, never a community-locked one, the first in shop order on a
- * tie; otherwise none.
+ * The goal (FR-803, FR-1616, ADR-161): none once the shop has closed (ADR-337: the balance can no longer be redeemed);
+ * else the pinned reward while it is in the shop, not closed and under the player's limit, whatever its stock (a
+ * sold-out pin says so) or community lock (it carries the lock's note); otherwise the cheapest reachable reward the
+ * player cannot yet afford, never a community-locked one, the first in shop order on a tie; otherwise none. `shop` is
+ * the state `event_shop` gives this player.
  */
 export function pickGoal(
   rewards: readonly GoalReward[],
   pinnedId: string | null,
   balance: number,
   now: Date,
+  shop: ShopState,
 ): Goal | null {
+  if (shop === "closed") {
+    return null;
+  }
   const pinned = rewards.find((reward) => reward.id === pinnedId && stillOpen(reward, now));
   if (pinned !== undefined) {
     return goalOf(pinned, balance, true);

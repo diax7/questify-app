@@ -1,4 +1,4 @@
-import type { EventStreak } from "@questify/shared";
+import type { EventStreak, ShopWindow } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { lockNoteOf, type CommunityLock } from "#src/community/lock-note";
 import { withConnection } from "#src/db/connection";
@@ -16,6 +16,7 @@ import {
 } from "#src/quests/switched-off";
 import { resultsFor, type MyPrize } from "#src/results/results";
 import type { SettingsService } from "#src/settings/service";
+import { homeWindowOf, type EventShopRow } from "#src/rewards/shop-window";
 import { readOwnEventStreak } from "#src/streaks/streaks";
 import { readPendingPoints } from "#src/submissions/submissions";
 import { readUnreadTickets } from "#src/tickets/tickets";
@@ -150,8 +151,16 @@ export type Home = Readonly<{
     /** The team declined the request (ADR-167): Home says so, nothing else. */
     | Readonly<{ status: "declined" }>;
   upNext: UpNext | null;
-  /** The pinned reward or the next reachable one (FR-803, T-213); null with no shop or nothing to reach. */
+  /**
+   * The pinned reward or the next reachable one (FR-803, T-213); null with no shop, once it has closed (T-410), or with
+   * nothing to reach.
+   */
   goal: Goal | null;
+  /**
+   * The shop's window as the shop shows it to this player (T-410, ADR-338): its state, when it closes and when the
+   * desk's hours end before that; null while the shop switch is off and for a member who is not active.
+   */
+  shopWindow: ShopWindow | null;
   /** The caller's rank prize while it waits at the desk, once the winners are revealed (FR-1718, T-214). */
   win: MyPrize | null;
   rankingOn: boolean;
@@ -498,6 +507,9 @@ async function goalRewards(client: PoolClient, eventId: string): Promise<GoalRew
   }));
 }
 
+/** Home with the shop switch off, or with no shop row for the caller: no window and no goal. */
+const NO_SHOP = { shopWindow: null, goal: null } as const;
+
 /**
  * The event Home (FR-801, FR-804): the event, the player's standing and progress, Up next, the goal (FR-803), and
  * whether the ranking is on. A pending member gets the event and "pending" only; anyone not active or pending gets null (403).
@@ -540,6 +552,7 @@ export async function readHome(
             : { status: "declined" as const },
         upNext: null,
         goal: null,
+        shopWindow: null,
         win: null,
         streak: null,
       };
@@ -566,14 +579,45 @@ export async function readHome(
         playStatus(row.status_now, row.rehearsal),
         row.now,
       ),
-      goal: shopOn
-        ? pickGoal(await goalRewards(client, eventId), row.goal_reward_id, balance, row.now)
-        : null,
+      ...(shopOn ? await shopAndGoal(client, eventId, row) : NO_SHOP),
       win: row.status_now === "ended" ? await waitingPrize(client, eventId) : null,
       streak: await readOwnEventStreak(client, eventId),
     };
   });
   return home === null ? null : { ...home, rankingOn };
+}
+
+/**
+ * The shop's window as `event_shop` shows it to the caller and the goal it allows (none once the shop has closed);
+ * neither without a shop row.
+ */
+async function shopAndGoal(
+  client: PoolClient,
+  eventId: string,
+  row: StandingRow,
+): Promise<Readonly<{ shopWindow: ShopWindow | null; goal: Goal | null }>> {
+  const shopWindow = await readShopWindow(client, eventId);
+  if (shopWindow === null) {
+    return NO_SHOP;
+  }
+  const rewards = await goalRewards(client, eventId);
+  const goal = pickGoal(
+    rewards,
+    row.goal_reward_id,
+    Number(row.balance),
+    row.now,
+    shopWindow.state,
+  );
+  return { shopWindow, goal };
+}
+
+/** The shop's window as `event_shop` shows it to the caller (open to a rehearsal account); null without a row. */
+async function readShopWindow(client: PoolClient, eventId: string): Promise<ShopWindow | null> {
+  const { rows } = await client.query<EventShopRow>(
+    "SELECT state, closes_at, desk_closes FROM event_shop($1)",
+    [eventId],
+  );
+  return rows[0] === undefined ? null : homeWindowOf(rows[0]);
 }
 
 /** The caller's revealed rank prize while it is still to collect. */

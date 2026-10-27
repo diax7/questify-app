@@ -1153,6 +1153,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(pool).toEqual({ definer: false, config: null, can: false });
     });
 
+    it("cannot read a recap, reach the window guard or change an event's window (T-410)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.event_recap(gen_random_uuid())",
+        "SELECT public.event_shop_window_guard()",
+        "UPDATE public.event SET shop_days_after = 30",
+        "SELECT * FROM public.reserve_reward(gen_random_uuid(), 'k')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN ('event_recap', 'event_shop_window_guard', 'reserve_reward')
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the two doors, never the trigger function.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
+        "event_recap",
+        "reserve_reward",
+      ]);
+      const [recap] = await rows<{ definer: boolean; config: string[] | null }>(
+        `SELECT p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = 'event_recap' AND p.pronamespace = 'public'::regnamespace`,
+      );
+      expect(recap).toEqual({ definer: true, config: ["search_path=public, pg_temp"] });
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

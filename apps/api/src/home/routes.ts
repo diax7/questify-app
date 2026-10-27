@@ -17,6 +17,7 @@ import {
   type QuestState,
   type RunningBoost,
 } from "#src/home/home";
+import { registerRecapRoutes } from "#src/recap/routes";
 
 const eventParams = z.object({ eventId: z.uuid() });
 const activityQuery = z.strictObject({
@@ -79,13 +80,14 @@ function playerIdOf(request: { player?: { id: string } | undefined }): string {
 }
 
 /**
- * Inside an event (T-113, T-114): its Home (FR-801, FR-804) and its quests (FR-221, FR-230). Only the event's active
- * members read the quests, each with its state on the database's clock; a pending member reads Home's event and
- * "pending" (or "declined", ADR-167), and the quests answer `membership_pending` to a pending one. Anyone else, a stranger
- * or a left, removed, banned or declined member,
- * is 403 `not_enrolled`, the same answer whether or not the event exists.
+ * Inside an event (T-113, T-114): its Home (FR-801, FR-804), its quests (FR-221, FR-230) and its recap (T-410,
+ * `recap/routes.ts`). Only the event's active members read the quests, each with its state on the database's clock; a
+ * pending member reads Home's event and "pending" (or "declined", ADR-167), and the quests answer `membership_pending`
+ * to a pending one. Anyone else, a stranger or a left, removed, banned or declined member, is 403 `not_enrolled`, the
+ * same answer whether or not the event exists.
  */
 export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
+  registerRecapRoutes(app, deps);
   app.get("/v1/events/:eventId/home", { config: { access: "player" } }, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const home = await readHome(deps, playerIdOf(request), eventId);

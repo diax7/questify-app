@@ -1,4 +1,4 @@
-import { toInstant } from "@questify/shared";
+import { toInstant, type ShopState } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
@@ -7,6 +7,7 @@ import type { Actor } from "#src/events/events";
 import { audit, bilingual, changes, NO_TEXT } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
 import { markCode, normalizeCode, sealCode, type RewardCodeKey } from "#src/rewards/codes";
+import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
 
 /** At most this many rewards per event (removed ones not counted). */
 export const REWARD_LIMIT = 100;
@@ -81,6 +82,15 @@ export type ShopSettings = Readonly<{
   handoverConfirm: HandoverConfirm;
 }>;
 
+/**
+ * The shop's window as the dashboard reads it (T-410, ADR-338): the state `shop_state` gives now and when it closes
+ * (`ends_at` + the days after; null while the event has no end).
+ */
+export type ShopWindowView = Readonly<{ state: ShopState; closesAt: string | null }>;
+
+/** The shop settings with the window they make. */
+export type ShopView = ShopSettings & ShopWindowView;
+
 export type ShopInput = Readonly<{
   pickupMinutes?: number | undefined;
   daysAfter?: number | undefined;
@@ -114,7 +124,9 @@ export type RewardDone<T> =
   | Readonly<{ kind: "too_many_codes"; room: number }>
   | Readonly<{ kind: "owner_only" }>
   | Readonly<{ kind: "setting_locked" }>
-  | Readonly<{ kind: "desk_needed" }>;
+  | Readonly<{ kind: "desk_needed" }>
+  /** The days after the end cannot change this way (ADR-336): the shop has closed, or the window would shrink. */
+  | Readonly<{ kind: "shop_window_locked"; reason: WindowRefusal }>;
 
 export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKey }>;
 
@@ -422,6 +434,8 @@ type ShopRow = {
   desk_opens: Date[] | null;
   desk_closes: Date[] | null;
   handover_confirm: HandoverConfirm;
+  state: ShopState;
+  closes_at: Date | null;
 };
 
 /** The desk's windows from the two sorted arrays the database answers, or null when the hours are off. */
@@ -455,17 +469,28 @@ const shopOf = (row: ShopRow): ShopSettings => ({
   handoverConfirm: row.handover_confirm,
 });
 
-async function readShop(client: PoolClient, eventId: string): Promise<ShopSettings> {
+type ShopRead = Readonly<{ settings: ShopSettings; window: ShopWindowView }>;
+
+/** The settings and the window, both on the database's clock (`now()`, this transaction's start). */
+async function readShop(client: PoolClient, eventId: string): Promise<ShopRead> {
   const { rows } = await client.query<ShopRow>(
     `SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en, spend_lowers_rank, desk_location_ar,
             desk_location_en, desk_lat, desk_lng, handover_confirm,
             (SELECT array_agg(lower(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_opens,
-            (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_closes
+            (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_closes,
+            shop_state(status, starts_at, ends_at, shop_days_after) AS state,
+            ends_at + make_interval(days => shop_days_after) AS closes_at
      FROM event WHERE id = $1`,
     [eventId],
   );
-  return shopOf(rows[0] as ShopRow);
+  const row = rows[0] as ShopRow;
+  return {
+    settings: shopOf(row),
+    window: { state: row.state, closesAt: row.closes_at?.toISOString() ?? null },
+  };
 }
+
+const viewOf = (read: ShopRead): ShopView => ({ ...read.settings, ...read.window });
 
 const hasPlace = (desk: DeskSettings): boolean =>
   desk.location.ar !== null || desk.location.en !== null;
@@ -538,7 +563,7 @@ export function listRewards(
   deps: RewardDeps,
   actor: Actor,
   eventId: string,
-): Promise<RewardDone<Readonly<{ shop: ShopSettings; rewards: RewardRecord[] }>>> {
+): Promise<RewardDone<Readonly<{ shop: ShopView; rewards: RewardRecord[] }>>> {
   return withConnection(deps.pool, (client) =>
     withRequestContext(
       client,
@@ -555,16 +580,73 @@ export function listRewards(
           `SELECT ${COLUMNS} FROM reward WHERE event_id = $1 AND status = 'active' ORDER BY position, id`,
           [eventId],
         );
-        return done({ shop: await readShop(client, eventId), rewards: rows.map(recordOf) });
+        return done({ shop: viewOf(await readShop(client, eventId)), rewards: rows.map(recordOf) });
       },
     ),
   );
 }
 
+/** The desk's pin and hours as the UPDATE takes them: the pin's numbers, then the windows' arrays; null when off. */
+function deskColumns(
+  desk: DeskSettings,
+): [number | null, number | null, string[] | null, string[] | null] {
+  const { pin, hours } = desk;
+  return [
+    pin === null ? null : pin.lat,
+    pin === null ? null : pin.lng,
+    hours === null ? null : hours.map((window) => window.opensAt),
+    hours === null ? null : hours.map((window) => window.closesAt),
+  ];
+}
+
+/**
+ * Writes the settings. The window guard's refusal (SW409, judged on the database's own clock, so it wins at the
+ * boundary) comes back as its reason with the write undone; anything else is thrown.
+ */
+async function writeShop(
+  client: PoolClient,
+  eventId: string,
+  after: ShopSettings,
+): Promise<WindowRefusal | undefined> {
+  const { desk } = after;
+  await client.query("SAVEPOINT shop_window");
+  try {
+    await client.query(
+      `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5,
+              spend_lowers_rank = $6, desk_location_ar = $7, desk_location_en = $8, handover_confirm = $9,
+              desk_lat = $10, desk_lng = $11,
+              desk_hours = (SELECT range_agg(tstzrange(w.o, w.c))
+                            FROM unnest($12::timestamptz[], $13::timestamptz[]) AS w(o, c))
+       WHERE id = $1`,
+      [
+        eventId,
+        after.pickupMinutes,
+        after.daysAfter,
+        after.rules.ar,
+        after.rules.en,
+        after.spendLowersRank,
+        desk.location.ar,
+        desk.location.en,
+        after.handoverConfirm,
+        ...deskColumns(desk),
+      ],
+    );
+  } catch (error) {
+    const refusal = windowRefusalOf(error);
+    if (refusal === undefined) {
+      throw error;
+    }
+    await client.query("ROLLBACK TO SAVEPOINT shop_window");
+    return refusal;
+  }
+  return undefined;
+}
+
 /**
  * Sets the pickup time, the days the shop stays open after the end, the shop's rules (ADR-048, ADR-049, FR-515) and
  * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Sending
- * its current value is no change, so an editor saves the rest freely. The database's guard backs both refusals.
+ * a current value is no change, so an editor saves the rest freely. After the end the days only grow, and once the
+ * shop has closed they are frozen (ADR-336: `windowRefusal` on the database's clock, then the guard on its own).
  */
 export function updateShop(
   deps: RewardDeps,
@@ -572,9 +654,9 @@ export function updateShop(
   eventId: string,
   input: ShopInput,
   caller: Caller,
-): Promise<RewardDone<ShopSettings>> {
+): Promise<RewardDone<ShopView>> {
   return withRewardEvent(deps, actor, eventId, async (client, event) => {
-    const before = await readShop(client, eventId);
+    const { settings: before, window } = await readShop(client, eventId);
     const desk = mergeDesk(before.desk, input.desk, event.timezone);
     if (desk === "invalid_hours") {
       return { kind: "invalid", field: "deskHours" };
@@ -599,29 +681,16 @@ export function updateShop(
         return { kind: "setting_locked" };
       }
     }
-    await client.query(
-      `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5,
-              spend_lowers_rank = $6, desk_location_ar = $7, desk_location_en = $8, desk_lat = $9,
-              desk_lng = $10, handover_confirm = $11,
-              desk_hours = (SELECT range_agg(tstzrange(w.o, w.c))
-                            FROM unnest($12::timestamptz[], $13::timestamptz[]) AS w(o, c))
-       WHERE id = $1`,
-      [
-        eventId,
-        after.pickupMinutes,
-        after.daysAfter,
-        after.rules.ar,
-        after.rules.en,
-        after.spendLowersRank,
-        desk.location.ar,
-        desk.location.en,
-        desk.pin?.lat ?? null,
-        desk.pin?.lng ?? null,
-        after.handoverConfirm,
-        desk.hours?.map((window) => window.opensAt) ?? null,
-        desk.hours?.map((window) => window.closesAt) ?? null,
-      ],
-    );
+    const refused =
+      windowRefusal({
+        state: window.state,
+        statusNow: event.statusNow,
+        current: before.daysAfter,
+        wanted: after.daysAfter,
+      }) ?? (await writeShop(client, eventId, after));
+    if (refused !== undefined) {
+      return { kind: "shop_window_locked", reason: refused };
+    }
     const diff = changes(before, after);
     if (Object.keys(diff.after).length > 0) {
       await audit(client, actor, caller, {
@@ -631,7 +700,7 @@ export function updateShop(
         ...diff,
       });
     }
-    return done(after);
+    return done(viewOf(await readShop(client, eventId)));
   });
 }
 

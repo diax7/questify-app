@@ -231,7 +231,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/organizers/:organizerId/events/:eventId/rewards/:rewardId/codes":
     "a reward of another event answers 404; add_reward_codes checks the caller's organizer and events again; codes are sealed before the database and never audited (test/rewards/codes-routes, test/rewards/spend-and-codes)",
   "PUT /v1/organizers/:organizerId/events/:eventId/shop":
-    "members of that organizer within their event limit; another organizer's event answers 404; audited (test/rewards/routes)",
+    "members of that organizer within their event limit; another organizer's event answers 404; the window rule on the database's clock and its guard (SW409); audited (test/rewards/routes, test/db/shop-window)",
   "GET /v1/events/:eventId/shop":
     "an active member of that event only, through event_shop, shop_rewards and my_redemptions bound to the session; anyone else 404 (test/rewards/routes, test/rewards/rewards)",
   "POST /v1/rewards/:rewardId/reserve":
@@ -402,6 +402,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the bearer's own enrollments only, read under row-level security (test/join/join)",
   "POST /v1/events/:eventId/leave":
     "leaves only the bearer's own enrollment, read and written under row-level security (test/join/leave)",
+  "GET /v1/events/:eventId/recap":
+    "the bearer's own recap through event_recap bound to the session (profile_player); anyone but a member who played, an unknown event or a rehearsal account answers 404; private, no-store (test/db/event-recap, src/recap)",
   "GET /v1/events/:eventId/home":
     "the bearer's own enrollment in that event only, read under row-level security; strangers and former members answer not_enrolled whether or not the event exists (test/home/home)",
   "GET /v1/events/:eventId/activity":
