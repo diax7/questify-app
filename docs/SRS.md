@@ -1272,7 +1272,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1605 | F-117 | Must | pending |
 | FR-1606 | F-223 | Should | pending |
 | FR-1607 | F-216 | Must | pending |
-| FR-1608 | F-194 | Must | partly built (T-102: Scheduled → Live → Ended, `test/db/event-lifecycle.int`; Ended → Archived is T-411, ADR-337) |
+| FR-1608 | F-194 | Must | built (T-102: Scheduled → Live → Ended, `test/db/event-lifecycle.int`; T-411: Ended → Archived by the tick's last step under ADR-337 (5) and ADR-341, `test/db/event-archive.int`, `test/events/archived.int`); code review pending |
 | FR-1609 | F-142, F-145 | Must | built (T-202, T-206: holds keep their own deadline); tested across the close T-410 (handover, timeout and cancel after it, a rank prize, `test/db/shop-window.int`) |
 | FR-1610 | F-164 | Must | pending |
 | FR-1611 | F-61 | Should | pending |

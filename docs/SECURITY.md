@@ -1,5 +1,16 @@
 # Security — Questify
 
+## T-411 archiving boundary (implemented; code review pending)
+
+Migration 0075 adds no table and one grant. `archive_ended_events` (definer, pinned search path, `questify_app` only)
+takes no argument and moves an event only by the rule (`archive_due`, internal, no grant): any seat that calls it can
+archive nothing that is not due, and no seat can write `status` (never granted). The trigger functions
+`redemption_event_open`, `ticket_event_open` and `event_archived_final` hold no grant; the first two refuse a
+reservation or ticket in an archived event and lock the event row against the step, the last refuses leaving
+`archived` for every role, the owner connection included. Proven by the outsider suite (no execute, no grant to PUBLIC,
+the step the only grant), the cross-tenant suite (every seat's call leaves both tenants' events as they were; no seat
+updates a status) and `test/db/event-archive.int`.
+
 ## T-410 after-the-event boundary (implemented; core code review pending)
 
 Migration 0074 adds no table and one grant. `event_recap` (definer, pinned search path, `questify_app` only) is bound to

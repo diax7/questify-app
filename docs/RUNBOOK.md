@@ -85,6 +85,14 @@ through their lifecycle. Once is harmless: the next tick catches up, and every s
 no one waits on the tick. Repeated for more than five minutes: check the database (`55P03` is a lock timeout, `08…` a
 lost connection); to move due events by hand, run `SELECT advance_event_lifecycle();` with the API's role.
 
+**`event.archive_failed` in the log** (T-411): the tick's last step could not archive ended events. Nothing waits on
+it: every player read works in both states, and an event left Ended only stays editable by its team a while longer.
+Repeated: check the database as above; by hand, `SELECT archive_ended_events();` with the API's role (it
+archives only what the rule allows, 100 a call). An event that stays Ended long after its close is waiting for one of
+ADR-341's conditions: `SELECT archive_due(e) FROM event e WHERE id = '<event>'` as the owner, then look for a
+`reserved` redemption, an open ticket (an escalated one waits for Questify's answer), or results not revealed within 60
+days of the end. `event.archived` (info) counts the events archived in a run.
+
 **`quest.refused` spikes in the log** (T-105): the `reason` says which. Many `forged` or `not_questify` from one player
 means someone is trying made-up QR contents; many `old` after a "New code" means a printed sheet was not replaced.
 A player stopped by the wrong-code limit (`too_many_attempts`) waits out the 10-minute window; there is no command to

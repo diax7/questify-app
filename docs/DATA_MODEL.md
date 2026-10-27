@@ -200,6 +200,20 @@ on the status now: scheduled keeps a future start; live keeps its start, zone an
 later; ended keeps everything. Only drafts are deleted (policy), and a deleted event leaves the editor limits that named
 it, except a limit's last event, which stays so the editor sees nothing rather than everything.
 
+**Archiving (T-411, migration 0075, ADR-337 (5), ADR-341; undeployed).** The lifecycle tick's last step,
+`archive_ended_events()` (definer, the API's role only, no argument), moves an `ended` event to `archived` when
+`archive_due(event)` holds: the shop is closed (`shop_state`), no `redemption` of the event is `reserved` (shop holds,
+rank prizes, quest items), `event_result.revealed_at` is set or `ends_at + 60 days <= now()`, and no `ticket` of the
+event is `open` (either queue). Up to 100 a run, oldest end first, `FOR UPDATE SKIP LOCKED`, the rule checked again by
+the UPDATE after the lock; audited as `event.lifecycle` (`system`, `{status: ended}` → `{status: archived}`). Indexes
+`event_due_to_archive (ends_at) WHERE status = 'ended'` and `redemption_reserved_event (event_id) WHERE status =
+'reserved'`. Two BEFORE INSERT guards, `redemption_event_open` and `ticket_event_open` (an event ticket only), read the
+event `FOR KEY SHARE` and refuse an archived one with the door's own refusal (`RS403 closed`, `RF409 not_ended`,
+`QN403 ended`, `HT403 sending_closed`): a door in flight either makes the step skip the event or waits and is refused.
+`event_archived_final` (BEFORE UPDATE OF `status`) refuses leaving `archived` for every role (`QE409 archived`).
+Archived is read-only for organizers (`event_archived`) and closed to joining and new tickets; the player still reads
+the event list, Home, the recap, the passport, the public stamp, results, the points record, My rewards and tickets.
+
 **Activation and limits (T-210, migration 0027, ADR-140 to ADR-142).** `event` gains `player_limit_mode` (none, soft,
 hard), `player_limit` (1 to 1,000,000; NULL exactly with none), `activated_at` and `activated_by`; none is in the API
 role's grants. `event_activation_request(event_id PK, organizer_id, state pending|rejected, requested_by, requested_at,
@@ -518,7 +532,7 @@ ADR-151):
   points move the score only (FR-1710). Holds made before the close keep their own `reserved_until` and are handed
   over at the desk; a timeout or cancel returns the points into the closed balance. Unassigned digital codes stay in
   their reward (event-data retention, Q-075). Nothing at the close touches score, `final_rank`, the stamp,
-  `player_item`, XP or achievements (FR-751). The event stays Ended; archiving is T-411. `reserve_reward` is restated
+  `player_item`, XP or achievements (FR-751). The event stays Ended until T-411's archive step (above). `reserve_reward` is restated
   in 0074: 0054's rehearsal flag was NULL once the event had ended, so in the days after the end a digital reward was
   delivered with no code and no unit counted, and items skipped the desk's hours; the flag is now never NULL.
 - `event_recap(event)` (0074, T-410, ADR-339): the caller's recap, one row while their membership counts as played for

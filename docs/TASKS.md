@@ -755,9 +755,15 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `recap-share`, `recap-share-native` with its source-scan guard, Home and shop reads, `rewards`, `sign-in-errors`)
     and `e2e/shop-window.spec.ts` (desktop and phone, Arabic and English); `npx expo export`. Phone checks owed to Dhia
     (STATE).
-- [ ] **T-411** Archive ended events: a lifecycle tick step moves an event from Ended to Archived only when its shop is closed, no `reserved` redemption of any kind is left (shop holds, rank prizes, quest items), its results are revealed or `ends_at` + 60 days has passed, and no help-desk ticket of the event is open — delivers FR 1608 (the last step); depends on: T-410
+- [x] **T-411** Archive ended events: a lifecycle tick step moves an event from Ended to Archived only when its shop is closed, no `reserved` redemption of any kind is left (shop holds, rank prizes, quest items), its results are revealed or `ends_at` + 60 days has passed, and no help-desk ticket of the event is open — delivers FR 1608 (the last step); depends on: T-410
   - Decided 2026-10-27 at the T-410 plan review (developer, ADR-337 (5), Q-306): archiving at the window's close would
     block late results, the desk's FR-1609 handovers and rank prizes due up to 60 days later, and open tickets.
+  - Done 2026-10-28 (code review owed; plan note in `docs/plans/2026-10-27-t-410-after-the-event.md`, ADR-341 Proposed,
+    Q-310): migration 0075 (`archive_ended_events`, the tick's last step; `archive_due`; the insert guards
+    `redemption_event_open` and `ticket_event_open`, which lock the event against the step and refuse an archived one
+    with each door's own refusal; `event_archived_final`); the tick's steps as a table in `src/events/tick.ts`. Proven
+    by `test/db/event-archive.int`, `test/events/archived.int` (the player's reads over HTTP after archiving), the
+    tick's unit test, the outsider and cross-tenant suites. Mutation glob: `apps/api/src/events/tick.ts`.
   - Done when: An ended event with a hold, an open ticket or unrevealed results inside 60 days stays Ended; once none
     is left it is Archived by the tick and audited like the other lifecycle moves.
 
