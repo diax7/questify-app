@@ -14,6 +14,13 @@ Choices are **Proposed ADR-321 to ADR-324 / Q-291 to Q-293**. Never push, deploy
 
 T-408 is planned in full below; T-408b and T-408c get a short section each and a code review only.
 
+**Plan review fold-in (88; GO at about 94 once MAJOR-1 is folded, no re-review):** MAJOR-1: a removal lands in the
+month of the credit it reverses, so month rows never go negative (below). Versions only grow
+(`greatest(xp_board.xp_version, EXCLUDED.xp_version)`). The timing measurement and its fallback are defined (below).
+Each door is one SQL statement (one snapshot). The backfill check also asserts month rows add up to `all` and each month
+equals the ledger by month. T-408b's classifier checks `inviteTokenOf` first; rehearsal codes only if a rehearsal QR
+exists; FR-1614 gains a clarification line. Q-292 answered by Dhia: "Automatic monthly" (FR-1786 amended).
+
 ---
 
 ## T-408 (CORE)
@@ -30,20 +37,26 @@ xp_board(board text, player_id uuid → player_xp, xp bigint, xp_version bigint,
 
 - **Lifetime** (`'all'`): `xp` equals `player_xp.xp` (a DB test and the migration's own check assert it); it is
   duplicated here so one index orders it with its tie version. `xp ≥ 0` always.
-- **Month** (`'YYYY-MM'`): the sum of `xp_entry.delta` whose `created_at` falls in that Questify month (T-401 note:
-  reversals included). A removal in November of an October credit lands in November, so a month row may be negative;
-  October never changes after it ends (ADR-323). Questify awards, daily games and streak milestones count (T-403 note).
-- **Tie rule (FR-606):** lower `xp_version` first: the id of the XP entry applied last to that row ("reached that score
-  first"). Unique per row, so the order is total and no two players share a rank.
+- **Month** (`'YYYY-MM'`): the sum of the XP credited in that Questify month, less the removals of those credits
+  (MAJOR-1): an entry counts in the month of its own `created_at`, except a removal, which counts in the month of the
+  credit it reverses (`reverses` → that credit's `created_at`). So a month row is never negative, and a past month
+  changes only when one of its own credits is removed (ADR-323). Questify awards, daily games and streak milestones
+  count (T-403 note). Lifetime is unaffected.
+- **Tie rule (FR-606):** lower `xp_version` first: the highest entry id applied to that row
+  (`greatest(xp_board.xp_version, EXCLUDED.xp_version)`, so it only grows; "reached that score first"). Unique per row,
+  so the order is total and no two players share a rank.
 - **Why not `ALTER TABLE player_xp ADD xp_version`:** the ALTER needs ACCESS EXCLUSIVE on `player_xp`, which conflicts
   with the row locks the daily finish and `questify_sync` hold on `player_xp` before they insert into `xp_entry`; any
   lock order the migration picks can then deadlock with one live path. A new table needs only SHARE ROW EXCLUSIVE on
   `player_xp` (for its key), which never conflicts with `FOR UPDATE` row locks (the 0069 pattern).
 - **Why not Redis:** the event ranking's Redis copy exists for 50,000 players scanning in one hour (ADR-118). The
   Questify-wide board changes per player at the pace of their XP and is read on Home and Explore; PostgreSQL answers
-  the top 10 from the index and the reader's place by counting the rows above it (O(rank)). The build times both on a
-  seeded 100,000-player board and records the numbers in ADR-322; a Redis copy is a later task if that read passes
-  50 ms (Q-291). The response has **no `total`**: counting every ranked player per read is the one O(N) step, and
+  the top 10 from the index and the reader's place by counting the rows above it (O(rank)). **Timing (review item 3):**
+  a scratch script seeds 100,000 ranked players on both boards, runs `ANALYZE`, then calls the door as the last-placed
+  reader 200 times per board and records p95 and the machine (Dhia's PC, Docker Postgres 17) in ADR-322. The gate is
+  50 ms p95 at 100,000 players. Over it, the first fallback (before any Redis copy) is an index-only count of the rows
+  ahead minus the inactive players ahead, with a partial index on `player (id) WHERE status <> 'active'`; Redis is a
+  later task only if that also fails (Q-291). The response has **no `total`**: counting every ranked player per read is the one O(N) step, and
   FR-611 does not ask for it.
 - **Eligible (ADR-322):** `player.status = 'active'` (deleted tombstones and banned players are never shown and never
   push anyone down) and `xp > 0` on that board. No hide option (FR-605). Gems never appear (T-404 note). The viewer
@@ -70,16 +83,20 @@ LOCK TABLE player_xp IN SHARE ROW EXCLUSIVE MODE;
    ```sql
    INSERT INTO xp_board (board, player_id, xp, xp_version)
    SELECT b.board, who, delta, made
-   FROM xp_entry e, LATERAL (VALUES ('all'), (questify_month(e.created_at))) b(board)
+   FROM xp_entry e LEFT JOIN xp_entry c ON c.id = e.reverses,
+        LATERAL (VALUES ('all'), (questify_month(coalesce(c.created_at, e.created_at)))) b(board)
    WHERE e.id = made
    ON CONFLICT (board, player_id) DO UPDATE
-     SET xp = xp_board.xp + EXCLUDED.xp, xp_version = EXCLUDED.xp_version;
+     SET xp = xp_board.xp + EXCLUDED.xp,
+         xp_version = greatest(xp_board.xp_version, EXCLUDED.xp_version);
    ```
-   The month comes from the entry's own `created_at`, not `now()`, so the board always equals the ledger grouped by
-   month (and tests can place entries either side of a month edge). A missing entry raises (a broken caller).
+   The month comes from the entries' own `created_at` (the credit's for a removal), not `now()`, so the board always
+   equals the ledger grouped by `xp_month_of(entry)` (and tests can place entries either side of a month edge). A
+   missing entry raises (a broken caller).
 4. Backfill under the locks: one `'all'` row per player with entries (`sum(delta)`, `max(id)`), one month row per
-   (Questify month, player). Then a check that raises (aborting the migration) if any `'all'` row differs from
-   `player_xp.xp` or any player with `xp > 0` lacks one.
+   (`xp_month_of` month, player), the same rule as `xp_apply`. Then a check that raises (aborting the migration) if any
+   `'all'` row differs from `player_xp.xp`, any player with `xp > 0` lacks one, a player's month rows do not add up to
+   their `'all'` row, or a month row differs from the ledger grouped by month; and no month row is negative.
 5. Doors (SECURITY DEFINER, REVOKE FROM PUBLIC in the same group, granted to `questify_app` only):
    - `questify_ranking(scope text) RETURNS jsonb`: the caller is `profile_player()`; NULL raises `PI401` (as the sync).
      `scope` `lifetime` → `'all'`, `month` → `questify_month(now())`; anything else raises `22023`. Answers
@@ -92,8 +109,9 @@ LOCK TABLE player_xp IN SHARE ROW EXCLUSIVE MODE;
    - `questify_season_top(month text) RETURNS jsonb` (admin): that month's top 10 by the same rule and its ranked count;
      a malformed month raises `22023`, an unknown one answers an empty list. Only the top 10, which players saw too;
      ranks below 10 stay visible only to their own player (ADR-052), so no audit line is needed.
-6. Internal (no grant): `questify_month`, `xp_board_rows(board, size)` and `xp_board_place(board, who)` if the doors
-   need a shared body (one rule written once).
+   Each door is one SQL statement (`LANGUAGE sql STABLE`), so its rows and `me` come from one snapshot (review item 4).
+6. Internal (no grant): `questify_month`, `xp_month_of(entry id)` (the board month of an entry: the reversed credit's
+   for a removal), and `xp_board_json(board, who)` (the rows and `me`, one rule written once).
 
 ### Lock order
 
@@ -107,8 +125,8 @@ LOCK TABLE player_xp IN SHARE ROW EXCLUSIVE MODE;
 
 A player's board rows are only written while that player's `player_xp` row lock is held, so two writers for one player
 serialize before the board, and no cycle can pass through `xp_board`. Version note: a scan that inserted its entry
-before a sync that commits first applies later with a lower id; the row keeps the id of the entry applied last. The
-order stays total; the tie then follows apply order within that one player's row only.
+before a sync that commits first applies later with a lower id; `greatest` keeps the higher id, so a row's version is
+always the highest entry id on it, which tests can check exactly.
 
 Migration vs live traffic: in-flight XP writers hold `xp_entry` ROW EXCLUSIVE and finish first; a daily finish or sync
 already holding a `player_xp` row lock waits on `xp_entry` behind the migration, which does not wait on it (SHARE ROW
@@ -138,12 +156,12 @@ DB, new `test/db/questify-ranking.int.test.ts`:
    `me.rank` and the top 10 equal `row_number() OVER (ORDER BY xp DESC, xp_version)` over eligible rows, both scopes.
 3. Banned and deleted players: absent from rows, never counted ahead of anyone, their own call raises `PI401`; a
    deleted player's board rows stay.
-4. Zero and negative: no XP → `me` null; a removal this month of last month's credit → this month's row negative and
-   unranked, last month's board unchanged, lifetime reduced.
+4. Zero and removals: no XP → `me` null; a removal this month of last month's credit → last month's row loses it (its
+   version grows), this month's row is unchanged, lifetime reduced, no month row is ever negative.
 5. Month edge: entries at 03:59 and 04:00 Riyadh time on the 1st land in the previous and the new month; a 01:00
    daily play counts in its Questify day's month.
 6. Every writer keeps the boards equal to the ledger (`'all'` = `player_xp.xp` = `sum(delta)`; each month =
-   `sum(delta)` grouped by `questify_month(created_at)`; versions = last applied id): event scan, operator scan, team
+   `sum(delta)` grouped by `xp_month_of`; versions = the highest entry id on the row): event scan, operator scan, team
    award, removal, Questify award via sync, streak milestone, daily challenge and word finishes. Rehearsal pays nothing
    and writes no board row.
 7. Races: two scans in two events for one player crossing; a sync crossing a scan; a daily finish crossing a scan;
@@ -151,7 +169,8 @@ DB, new `test/db/questify-ranking.int.test.ts`:
 8. Doors: no player-id parameter; a staff or anonymous context gets `PI401`; output keys are exactly the listed ones
    (no id, contact, gems); `scope` other than the two raises `22023`; size fixed at 10.
 9. Admin doors: a player context and no context raise `QY403`; the seasons list counts ranked players per month; a
-   past month's top 10 is unchanged after new entries and a later removal; a malformed month raises `22023`.
+   past month's top 10 is unchanged after new entries, and changes only when one of its own credits is removed; a
+   malformed month raises `22023`.
 
 Upgrade, new `test/db/questify-ranking-upgrade.int.test.ts` (the `daily-upgrade` pattern): a database at 0071 with
 veterans across two months (scans, a removal, a Questify award, a daily finish) → after 0072 the boards equal the
@@ -178,11 +197,13 @@ and `apps/api/src/questify/admin-routes.ts`, `packages/shared/src/questify/ranki
   event bar's style and fixed left-to-right order (ADR-110 note, Q-100). `home.tsx`, `profile.tsx` and `gem-shop.tsx`
   move into the group (paths unchanged, so deep links and `router.replace("/home")` keep working); `explore.tsx` is new.
   Shop opens the gem shop (T-404b), never an event's shop.
-- **Center button (FR-831, FR-1614, ADR-324):** `/join-scan`, the shared `Camera` permission card. `readScan` (event
-  scanner's classifier) decides: a join link or a rehearsal code → `/join/[code]` (`via: qr`); an operator invite →
-  its invite screen (that is how staff join an event); a quest, screen, step, hidden-category or meet code → "Open the
+- **Center button (FR-831, FR-1614, ADR-324):** `/join-scan`, the shared `Camera` permission card. The new classifier
+  checks `inviteTokenOf` first (an operator invite → its invite screen; that is how staff join an event), then
+  `readScan` (the event scanner's classifier): a join link → `/join/[code]` (`via: qr`); a rehearsal code only if a
+  rehearsal QR exists (the build checks; today it is typed); a quest, screen, step, hidden-category or meet code → "Open the
   event first to scan quest codes"; anything else → "This is not an event join code". Pure classifier in
-  `src/join/join-scan.ts` with unit tests.
+  `src/join/join-scan.ts` with unit tests. SRS FR-1614 carries a clarification line on operator invites (done with the
+  T-408 plan fold-in).
 - **Home (FR-832):** the player's events from `GET /v1/me/events` grouped Live (`statusNow = live`), Upcoming
   (`scheduled`, soonest first) and Past (ended or archived, newest first), pending and declined rows with their note;
   tapping opens the event. The two daily cards from `GET /v1/me/daily` (moved off the Profile; each hidden when null),
@@ -200,22 +221,24 @@ and `apps/api/src/questify/admin-routes.ts`, `packages/shared/src/questify/ranki
 ## T-408c (standard, console)
 
 `/console/seasons` (platform admins): the months newest first with their ranked count and the current one marked, and
-a month's top 10 (username, avatar, XP, level). Strings in both languages; a console unit test and
+a month's top 10 (username, avatar, XP, level). No reset button: seasons turn over by themselves (Q-292). Strings in both languages; a console unit test and
 `e2e/console-seasons.spec.ts` (desktop and phone, Arabic and English).
 
 ## Proposed decisions and questions
 
 - **ADR-321** The split above (core server T-408, app T-408b, console T-408c). Q-291.
 - **ADR-322** The Questify-wide boards: `xp_board` (`'all'` and Questify months) kept by `xp_apply` under the
-  `player_xp` row lock; read from PostgreSQL, no Redis copy until the timed read passes 50 ms; tie by the entry applied
-  last; eligible = active player with XP above 0 on that board; no `total`; the `questifyRanking` platform switch.
+  `player_xp` row lock, a removal in its credit's month; read from PostgreSQL, timed (p95 at 100,000 players, gate
+  50 ms; index-only fallback before any Redis copy); tie by the highest entry id on the row; eligible = active player with XP above 0 on that board; no `total`; the `questifyRanking` platform switch.
   Q-291.
 - **ADR-323** Seasons (FR-1786) are Questify months: the month changes at 04:00 Riyadh time on the 1st (the Questify
   day's edge), the new board starts empty by its key with no job, and every past month's board stays as its archive
-  (read with today's rule, so a player banned or deleted later drops out of it). Lifetime XP and levels are never
-  touched. The console shows each season's top 10. No admin-set schedule, season length or season prizes in v1. Q-292
-  (for Dhia: product; FR-611 says "calendar month", read here as the Questify month).
-- **ADR-324** The Questify home center button opens join links and rehearsal codes, and operator invites; quest-type
+  (read with today's rule, so a player banned or deleted later drops out of it); a past board changes only when one of
+  its own credits is removed. Lifetime XP and levels are never touched. The console shows each season's top 10. No
+  admin reset, schedule, season length or season prizes. Q-292 answered by Dhia 2026-10-27: "Automatic monthly"
+  (FR-1786 amended).
+- **ADR-324** The Questify home center button opens operator invites (checked first) and join links (rehearsal codes
+  only if a rehearsal QR exists); quest-type
   codes say to open the event first; anything else is "not an event join code". Q-293.
 
 ## Docs touched

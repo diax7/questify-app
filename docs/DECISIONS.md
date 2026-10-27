@@ -4250,26 +4250,32 @@ do not, and one worker cannot carry all three well.
 ## ADR-322 — The Questify-wide ranking: one board table kept by xp_apply, read from PostgreSQL
 **Status:** Proposed (T-408 plan, 2026-10-27; Q-291). Specifies FR-611, FR-605, FR-606, FR-120; T-401's note.
 **Decision:** (1) `xp_board(board, player_id, xp, xp_version)`, board `all` (lifetime, equal to `player_xp.xp`) or a
-Questify month `YYYY-MM` (the sum of that month's `xp_entry.delta` by `created_at`, reversals included, so it may be
-negative), index `(board, xp DESC, xp_version) WHERE xp > 0`. (2) Written only by `xp_apply` while it holds the
+Questify month `YYYY-MM` (the XP credited that month by `created_at`, less the removals of those credits: a removal
+counts in the month of the credit it reverses, so a month row is never negative; plan review MAJOR-1), index `(board, xp DESC, xp_version) WHERE xp > 0`. (2) Written only by `xp_apply` while it holds the
 player's `player_xp` row lock, so the boards equal the ledger in every transaction; the month comes from the entry's
-`created_at`. (3) Ties: the lower `xp_version` (the id of the entry applied last) first. (4) Ranked: an active player
+`created_at` (the reversed credit's for a removal). (3) Ties: the lower `xp_version` first, the highest entry id applied
+to the row (`greatest`, so it only grows). (4) Ranked: an active player
 with XP above 0 on that board; deleted tombstones and banned players never show and never push anyone down. No hide
 option, no gems, no player id in any answer. (5) Read from PostgreSQL (top 10 from the index, the reader's place by
-counting the rows ahead); no `total`. (6) A platform switch, `questifyRanking`, hides it; the boards keep being written.
+counting the rows ahead), each door one SQL statement so rows and `me` share one snapshot; no `total`. (6) A platform switch, `questifyRanking`, hides it; the boards keep being written.
 **Why:** A new table needs only SHARE ROW EXCLUSIVE on `player_xp`, while adding a column to it would need ACCESS
 EXCLUSIVE and could deadlock with the daily finish or the sync during the migration. Redis exists for the event
 ranking's scan bursts (ADR-118); the Questify board moves at the pace of one player's XP.
-**Trade-offs:** The reader's place costs O(rank); the build times it on a seeded 100,000-player board, and a Redis copy
-becomes a task if it passes 50 ms. The lifetime XP is stored twice (a DB check keeps them equal).
+**Trade-offs:** The reader's place costs O(rank). Timing: 100,000 ranked players on both boards, `ANALYZE`, the
+last-placed reader 200 times per board, p95 on Dhia's PC (Docker Postgres); gate 50 ms. Over it, the first fallback is
+an index-only count of the rows ahead minus the inactive players ahead (a partial index on `player WHERE status <>
+'active'`); a Redis copy only if that fails too. The lifetime XP is stored twice (a DB check keeps them equal).
 
 ## ADR-323 — Ranking seasons are Questify months, archived by keeping their boards
-**Status:** Proposed (T-408 plan, 2026-10-27; Q-292, for Dhia). Specifies FR-1786, FR-611.
+**Status:** Proposed (T-408 plan, 2026-10-27; plan review 88, MAJOR-1 folded). Q-292 answered by Dhia, 2026-10-27:
+"Automatic monthly". Specifies FR-1786 (amended), FR-611.
 **Decision:** A season is a Questify month: it changes at 04:00 Riyadh time on the 1st, the Questify day's edge
 (ADR-297), so a late-night daily play counts in the month of its Questify day. The new month's board starts empty by its
 key, with no job and nothing deleted; every past month's board stays as that season's archive, read with today's rule
-(a player banned or deleted later drops out of it). Lifetime XP and levels are never touched. The console lists the
-seasons with their ranked counts and shows each one's top 10. No admin-set schedule, season length or season prize in v1.
+(a player banned or deleted later drops out of it). A past board changes only when one of its own credits is removed
+(the removal counts in the credit's month, ADR-322). Lifetime XP and levels are never touched. The console lists the
+seasons with their ranked counts and shows each one's top 10. No admin reset, admin-set schedule, season length or
+season prize.
 **Why:** The smallest thing that meets FR-1786: the reset and the archive fall out of the board's key, so nothing can
 fail at midnight.
 **Trade-offs:** FR-611 says "calendar month"; the season starts four hours after midnight. An admin cannot reset a
@@ -4277,8 +4283,9 @@ season early or change its length.
 
 ## ADR-324 — The Questify home center button opens event joins only
 **Status:** Proposed (T-408 plan, 2026-10-27; Q-293). Specifies FR-831, FR-1614.
-**Decision:** The scanner reads with the event scanner's classifier: a join link or a rehearsal code opens that event's
-join card; an operator invite opens its invite (how staff join an event); a quest, screen, passport-step,
+**Decision:** The scanner checks for an operator invite first (`inviteTokenOf`; it opens its invite, how staff join an
+event), then reads with the event scanner's classifier: a join link opens that event's join card (a rehearsal code
+only if a rehearsal QR exists); a quest, screen, passport-step,
 hidden-category or meet code says to open the event first; anything else says it is not an event join code.
 **Why:** Staff who are not yet in the event hold an invite QR; refusing it here while the event scanner takes it would
 send them to the phone's camera app.

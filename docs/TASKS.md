@@ -626,7 +626,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Done when: Outside an event the center button scans only join QR codes (and operator invites, ADR-324); no event screen shows the Questify-wide ranking.
 - [ ] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408c section).
-  - Done when: A past month's top 10 is unchanged after the new month starts.
+  - Done when: A past month's top 10 is unchanged after the new month starts, and changes only when one of its own credits is removed; there is no reset button (Q-292).
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.

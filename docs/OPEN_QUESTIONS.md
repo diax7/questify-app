@@ -1045,6 +1045,7 @@ Recommended (ADR-323): every month is a season on its own, with no button to pre
 the 1st (the same edge as the daily games), the monthly ranking starts from zero, lifetime XP and levels stay, and each
 past month's top 10 stays visible in the console. No season prizes and no admin-chosen season length in v1. Say if you
 want prizes for a season's winners, a different season length, or players to see last month's winners.
+**Answered (Dhia, 2026-10-27):** "Automatic monthly". FR-1786 amended; ADR-323.
 
 ## Q-293 — Operator invites on the Questify home scanner (2026-10-27, T-408 plan)
 Recommended (ADR-324): the center button on Questify home opens event join codes and also operator invites, since staff
