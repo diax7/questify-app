@@ -1090,6 +1090,7 @@ and an admin approves it in the console with a message cap; no price or payment 
 nothing about invitations appears in the app. ADR-076 (accepted by Dhia) already keeps prices and payment off the
 platform, so this applies it rather than asking anew. T-409 also splits into the server (core) and the web pages
 (T-409b). Developer's call at the T-409 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-329 Accepted.
 
 ## Q-299 — Invitation campaigns: eligible events, criteria and states (2026-10-27, T-409 plan)
 Recommended (ADR-330): owner requests; public events only in v1 (developer's decision at the plan review: unlisted and
@@ -1097,6 +1098,7 @@ private left out), joinable by link, ending at least a day later; one open campa
 and history (`none`, `recent`, `own`); the admin's cap is the maximum number of messages; fewer than 50 matching players
 means nothing is sent; when the event ends with messages still queued, the rest are skipped and the campaign ends as
 sent (`event_over`). Developer's call at the T-409 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-330 Accepted.
 
 ## Q-300 — Invitation channels, frequency, the approved text and message language (2026-10-27, T-409 plan)
 Recommended (ADR-331): SMS only in v1 (push with T-501, email with T-706); one message per player per campaign; at most
@@ -1105,6 +1107,7 @@ one invitation per player per week; a short fixed template; the admin approves t
 hidden characters, but the admin is the gate; the message in the language of the player's latest consent on that
 channel; one consent rule (`promo_pool`) behind `marketing_audience`, now system-only. SMS cannot be approved until the
 "-AD" sender is registered (Q-034). Developer's call at the T-409 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-331 Accepted.
 
 ## Q-301 — Invitation results and what they can imply (2026-10-27, T-409 plan)
 Recommended (ADR-332): opened through Questify's own link page (token in the fragment, no pixel or SDK), joined matched
@@ -1112,9 +1115,11 @@ on the server, organizer numbers published daily, rounded down to tens with "few
 recipients per send, recipient rows kept 90 days. Because organizers see the send date and each member's join time, a
 burst of joins after a send can hint at who was invited on any event; that comes with FR-739. The privacy policy gains
 the line in ADR-332 (T-807). Developer's call at the T-409 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-332 Accepted.
 
 ## Q-302 — How invitations are sent (2026-10-27, T-409 plan)
 Recommended (ADR-333): the existing in-process tick in rounds of 5 with leases, at most one message per player (an
 uncertain send is never repeated, a late answer never rewrites it), one 15-minute hold for the SMS channel when the
 account is refused, quiet hours in TypeScript and again in SQL (22:00 to 12:00 in Ramadan), settle running even with the
 switch off, no pg-boss yet. Developer's call at the T-409 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-333 Accepted.

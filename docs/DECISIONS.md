@@ -4361,7 +4361,7 @@ with new Idempotency-Keys, which is accepted: adds change nothing already there,
 input once, without the nested functions) would allow bigger calls; it touches core SQL and waits for a reason (Q-297).
 
 ## ADR-329 — Questify invitations are requested on the web and approved in the console; T-409 splits in two
-**Status:** Proposed (T-409 plan, 2026-10-27; plan reviews 84 and 86 folded; Q-298). Specifies FR-738, FR-740, F-139 under ADR-047, ADR-064 and ADR-076.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 plan; plan reviews 84 and 86 folded; Q-298). Specifies FR-738, FR-740, F-139 under ADR-047, ADR-064 and ADR-076.
 **Decision:** (1) "Billed on the web" means: the organizer's owner requests an invitation campaign in the web dashboard;
 the Questify team agrees the price with the organizer outside the platform (ADR-076); a Questify admin approves it in
 the console with the channels, a message cap and a send time, or refuses it with a note. The platform holds no price,
@@ -4376,7 +4376,7 @@ not.
 **Trade-offs:** No self-serve purchase; every campaign waits for a person. Two reviews instead of one.
 
 ## ADR-330 — Invitation campaigns: who asks, for which events, by which criteria, through which states
-**Status:** Proposed (T-409 plan, 2026-10-27; plan reviews 84 and 86 folded; Q-299). Specifies FR-738, ADR-047, ADR-077.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 plan; plan reviews 84 and 86 folded; Q-299). Specifies FR-738, ADR-047, ADR-077.
 **Decision:** (1) The owner requests and cancels; owners and editors in scope read the results; admins approve, refuse
 and cancel. (2) Eligible events in v1 (`invitation_event_ok`): **public events only** (unlisted and private are left
 out; developer's decision at the plan review), scheduled or live, ending at least 24 hours later, joinable by link, not
@@ -4398,7 +4398,7 @@ attendees without giving it any list; nothing may wait forever for a sender that
 whose event ends first sends fewer messages than its cap.
 
 ## ADR-331 — Invitations go by SMS in v1; the admin approves the exact text, which is frozen; the player's consent language
-**Status:** Proposed (T-409 plan, 2026-10-27; plan reviews 84 and 86 folded; Q-300). Specifies FR-737, FR-1111, FR-1112, FR-1114; amends ADR-318 (1) and supersedes the T-407 note on T-409 ("only through `marketing_audience`").
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 plan; plan reviews 84 and 86 folded; Q-300). Specifies FR-737, FR-1111, FR-1112, FR-1114; amends ADR-318 (1) and supersedes the T-407 note on T-409 ("only through `marketing_audience`").
 **Decision:** (1) SMS only in v1, from a promotional Msegat sender configured as `MSEGAT_PROMO_SENDER` (the registered
 "-AD" name, Q-034); without it SMS cannot be approved, and the server refuses to start when it equals the service
 sender `MSEGAT_SENDER`. The `channels` column stays; T-501 adds push and the order between channels; email waits for
@@ -4427,7 +4427,7 @@ an organizer who renames the event after approval sends the old name; a rename b
 admin approve again.
 
 ## ADR-332 — Invitation results are rounded daily counts, and what they can still imply
-**Status:** Proposed (T-409 plan, 2026-10-27; plan reviews 84 and 86 folded; Q-301). Specifies FR-739, ADR-047, PD-27.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 plan; plan reviews 84 and 86 folded; Q-301). Specifies FR-739, ADR-047, PD-27.
 **Decision:** (1) Sent = handed to the provider (sent or unknown). (2) Opened = the invitation link opened: the landing
 page reads the token from the URL fragment (`/{lang}/i#{token}`, never in a server log or a `Referer`), clears it and
 posts it, marking the recipient once; no pixel, no SDK, no third party; its own rate-limit bucket. (3) Joined = a
@@ -4449,7 +4449,7 @@ the daily delay make the guess coarser, not impossible.
 forwarded links.
 
 ## ADR-333 — Invitations are sent by the in-process tick, at most once per player
-**Status:** Proposed (T-409 plan, 2026-10-27; plan reviews 84 and 86 folded; Q-302). Specifies rule 5 (timeouts, safe retry, fallback) and FR-1738.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409 plan; plan reviews 84 and 86 folded; Q-302). Specifies rule 5 (timeouts, safe retry, fallback) and FR-1738.
 **Decision:** (1) The jittered in-process tick of T-306b and T-402b runs every 5 seconds with a 3-second budget while the
 switch is on: start one due campaign (a second server that cannot take `pg_try_advisory_xact_lock` skips the fill), then
 rounds of 5 (claim up to 5, send them concurrently, acknowledge each as it returns) while the budget lasts; settle runs
