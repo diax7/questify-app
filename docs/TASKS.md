@@ -681,6 +681,15 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.
+  - Split 2026-10-27 (ADR-329, Q-298): T-409 is the **CORE** server (migration 0073: `invitation_campaign`,
+    `invitation_recipient`, `promo_pool` with `marketing_audience` restated system-only, the consent's `language`; the
+    owner's request, the admin's approval with a message cap, the in-process sender over a promotional Msegat sender,
+    bucketed daily results; organizer, console and public routes; the `invitationCampaigns` switch). Plan:
+    `docs/plans/2026-10-27-t-409-questify-invitations.md` (Proposed ADR-329 to ADR-333, Q-298 to Q-302). SMS cannot be
+    approved until the "-AD" sender is registered (Q-034).
+- [ ] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i/[token]` — delivers FR 738, 739 (on screen); depends on: T-409
+  - Split from T-409 2026-10-27 (ADR-329). Standard; plan: `docs/plans/2026-10-27-t-409-questify-invitations.md` (T-409b section).
+  - Done when: An owner requests and cancels a campaign and sees only bucketed counts; an admin approves with a cap and sees the moved send time; the landing page counts one open per recipient.
 - [ ] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
   - Done when: After the window the balance closes but the score, rank and stamp remain.
 
@@ -707,6 +716,9 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-27 (T-405): streak reminder pushes follow ADR-300 (no loss or guilt copy, no countdown to the day's
     end); the daily streak is the player's own, never shown to others.
   - Note 2026-10-27 (T-407): a promotional push picks recipients through `marketing_audience('push', ...)`; push is never required for any feature, and the player's consent is the state in `marketing_state`, not the OS permission alone.
+  - Note 2026-10-27 (T-409 plan, ADR-331, ADR-332): add `push` to the invitation sender's available channels (first in
+    the order push, email, SMS); an invitation push's open is reported by the app and marks the recipient's `opened_at`
+    once, like the landing page.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
   - Note 2026-10-24 (T-307, CTO note 1): the "Happening now" strip (FR-806) must read running boosts and flash quests from the quests read (`flash`, `boost` on each quest and category), not from `GET …/live`: the event's live shortcut stops naming a boost or a flash quest 15 minutes after it starts (`event_has_live`'s tail), which is not its end. Or revisit that tail here.
   - Done when: Announcements never go by email or SMS.
@@ -822,6 +834,10 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-21 (T-109): the word lists live in `username_word` (letters only, folded; the table refuses anything else); the console edits them through definers and shows `username_history` to admins (FR-1702, FR-1779).
 - [ ] **T-706** Messaging tools: templates with CST rules, push to a group, campaigns, support contact details — delivers FR 1777, 1780, 1731; depends on: T-407
   - Note 2026-10-27 (T-407): a promotional send picks recipients through `marketing_audience` only, schedules SMS with `promoSendTime` (moved to the window's end, or refused with the reason), and cannot save a template without `optOutUrl`. Dhia answered Q-287: the quiet hours are for SMS only (`CHANNELS_WITH_WINDOW`); the "-AD" sender is Q-034.
+  - Note 2026-10-27 (T-409 plan, ADR-331): `marketing_audience` is system-only over `promo_pool` (one consent rule);
+    reuse T-409's promotional Msegat sender and its lease-and-ack pattern; decide the promotional email sender here
+    (separate from the sign-in mailbox, `List-Unsubscribe`, residency), which also turns on email for invitations, and
+    whether campaigns share the one-invitation-a-week cap.
   - Done when: A promotional template without an opt-out cannot be saved.
   - Note 2026-10-21 (T-110): the support contact details fill `/{lang}/contact` (it says they are being prepared until then) and the legal drafts' placeholders; a release gate (STORE_COMPLIANCE §4).
 - [ ] **T-707** Legal documents with versions and forced re-acceptance; help and FAQ content — delivers FR 1781, 1782; depends on: T-110
