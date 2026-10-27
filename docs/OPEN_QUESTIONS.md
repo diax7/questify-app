@@ -52,7 +52,7 @@ overlap the ones above were merged into them.
 | Q-070 | Deferred deep link on iOS (F-71): is "the event page copies the code, the app offers a one-tap paste button" reliable and allowed, with no fingerprinting or tracking SDK (PD-27)? Android uses the Play install referrer **Stage 6 proposal:** the event page copies the link on tap; after install a "Paste event code" button reads it; Android uses the install referrer. No fingerprinting: shared venue Wi-Fi makes it unreliable. Confirm in the grill | Decides whether "scan → install → land in the event" works on iPhone or needs a second scan | 6 |
 | Q-071 | NFC (F-105): which tag type; iOS and Android read/write limits; how the app proves a tap came from a real tag rather than a shared link; share of Saudi Android phones without NFC **Stage 6 note:** static NFC tags can be copied, so a tap is a weaker proof than a scan. **Answered 2026-10-24 (T-308 plan, ADR-234, ADR-237; Dhia: basic tags only, Q-198):** `react-native-nfc-manager` v4.1.0 reads and writes NDEF on both phones. iOS: in-app reading always shows the system sheet; background reading only for universal links (iPhone XS+). No Saudi figure for phones without NFC; budget Android lines still lack it. Basic tags (NTAG213/215): a signed URL, a tap whose sticker id differs is paid and flagged; the QR always stays on. Sources in the plan | Decides whether NFC quests work on every phone and how far they can be trusted | 6 |
 | Q-074 | Tuning values and their defaults: My QR grace period; the rotation interval of screen QR codes (30–60 s); thresholds for the flags ("far from the venue", impossible speed, bursts); "running low" for stock and uploaded codes; how long pickups stay reserved by default | The SRS states the behaviors; the numbers need real-world testing. Organizers adjust some per event | 6 |
-| Q-075 | Retention periods per data type: location readings, photos, help tickets, logs, closed-event data, inactive accounts, organizer exports, the deletion fingerprint (FR-1704) | The privacy policy must state a period per type (`STORE_COMPLIANCE.md` §4); PDPL minimization | 8 (counsel, with Q-051) |
+| Q-075 | Retention periods per data type: location readings, photos, help tickets, logs, closed-event data, inactive accounts, organizer exports, the deletion fingerprint (FR-1704). Closed-event data never includes the permanent record FR-751 keeps: score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements stay (ADR-337, T-410) | The privacy policy must state a period per type (`STORE_COMPLIANCE.md` §4); PDPL minimization | 8 (counsel, with Q-051) |
 | Q-076 | Wallet passes: does Apple allow an organizer's logo and name on a Questify-signed pass, and does a Pass Type ID on the personal developer account (ADR-010) work for this? Do both wallets accept the Questify frame design? **Stage 6:** the signing certificate can be made without a Mac (OpenSSL on Windows plus the Apple developer web portal). Whether the personal account works for a Pass Type ID is not checked | The pass design depends on it | 6 / 8. **User states yes, Apple allows an event logo on a wallet pass (2026-10-17); not independently checked.** |
 | Q-077 | When is the first event, and what is cut if the build runs long? The user chose no review point and no cut order (Stage 5, 2026-10-17). **2026-10-21: no pilot event yet; keep building in task order (user).** | v1 holds about 510 requirements for a team of one developer plus Claude; without a date or a cut order the first event can slip indefinitely | 8 |
 | Q-078 | The stores list the individual (Dhia) as seller (ADR-010), but a company signs the organizer contracts and invoices (ADR-076). Which party is named as the controller of player data in the privacy policy and terms, and who is responsible to organizers and players? | Decides the wording of the privacy policy, terms and organizer DPA (with Q-043) | 8, counsel |
@@ -1144,25 +1144,37 @@ Accepted, with the review's fold-in.
 ## Q-305 — The shop window after the event: where, how long, and changes after the end (2026-10-27, T-410 plan)
 Recommended (ADR-336): set on the dashboard's Rewards page as today (0 to 30 days, default 3); it closes exactly at the
 end plus those days; before the end any value, after the end only longer while open, frozen once closed (the API and a
-database trigger both refuse). Developer's call at the T-410 reviews.
+database trigger both refuse); the dashboard sends the days only when that field changed. Developer's call at the T-410
+reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410 plan review (88), with its
+fold-in; ADR-336 Accepted.
 
 ## Q-306 — Closing the balance: a rule with no write, holds after the close, no archiving yet (2026-10-27, T-410 plan)
 Recommended (ADR-337): the balance closes by rule (`shop_state`), with no ledger entry, stored flag or job; codes never
 given go to no one, delivered codes stay; holds stay collectible until their own pickup time and their returns land in
 the closed balance (FR-1609); rank prizes keep their deadline; score, rank, stamp, souvenirs, XP, level, achievements
-and items are untouched. The event stays Ended: archiving at the close (FR-1608) would block late results, the desk's
-late handovers and help-desk tickets, so it needs its own task with its own conditions (window closed, every hold
-ended, results revealed or a time limit). The coordinator decides whether and where to add that task. Developer's call
-at the T-410 reviews.
+and items are untouched, and event-data retention (Q-075) must exclude them. The event stays Ended: archiving at the
+close (FR-1608) would block late results, the desk's late handovers and help-desk tickets. Developer's call at the
+T-410 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted at the T-410 plan review (88); ADR-337 Accepted.
+Archiving is deferred to **T-411** (added to TASKS): a tick step archives an ended event only when the shop is closed,
+no `reserved` redemption of any kind is left, results are revealed or `ends_at` + 60 days has passed, and no help-desk
+ticket is open. FR-1608 is marked partly delivered in the SRS.
 
 ## Q-307 — What players and organizers see around the close (2026-10-27, T-410 plan)
-Recommended (ADR-338): an "open until {date}" banner on Home after the end (no countdown, no loss copy); once closed
-the balance reads "Closed" with the date and the goal card goes; the Rewards tab shows the closing date and what stays;
-a cancel after the close warns that returned points cannot be redeemed; the dashboard shows when the shop closes and
-locks the days field as ADR-336 says. Developer's call at the T-410 reviews.
+Recommended (ADR-338): an "open until {date}" banner on Home after the end (no countdown, no loss copy), with a line
+when the desk's hours end before the close (items and experiences stop then); once closed the balance reads "Closed"
+with the date and the goal card goes; the Rewards tab shows the closing date and what stays; a cancel after the close
+warns that returned points cannot be redeemed; the dashboard shows when the shop closes, warns when the desk's hours end
+first, and locks the days field as ADR-336 says. Developer's call at the T-410 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410 plan review (88), with its
+fold-in; ADR-338 Accepted.
 
 ## Q-308 — The recap card's content and sharing (2026-10-27, T-410 plan)
-Recommended (ADR-339): event name, date and city, final rank after the reveal, quests done, up to 3 souvenirs; no
-username, score, balance, link or id; shared as an image made on the phone (`react-native-view-shot`, `expo-sharing`)
-with one fixed line, nothing uploaded and no tracking, falling back to text on an older build. The other option, a text
-line only, needs no new dependency but is not a card. Developer's call at the T-410 reviews.
+Recommended (ADR-339): event name, date and city, final rank after the reveal, quests done (from the ledger, removals
+excluded), up to 3 souvenirs; for members who played, `left` included; no username, score, balance, link or id; shared
+as an image made on the phone (`react-native-view-shot`, `expo-sharing`) with no text line, nothing uploaded and no
+tracking; both native modules detected before loading, falling back to one text line on an older build. The other
+option, a text line only, needs no new dependency but is not a card. Developer's call at the T-410 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410 plan review (88), with its
+fold-in; ADR-339 Accepted.

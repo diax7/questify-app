@@ -717,14 +717,28 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     and `event_recap`; the window rule in `updateShop`; Home's `shopWindow` and the closed goal; `GET
     /v1/events/{id}/recap`; tests). Reason: the server rule is core and small, the screens, the share image and its two
     app dependencies need their own context and a standard review. Plan: `docs/plans/2026-10-27-t-410-after-the-event.md`
-    (Proposed ADR-336 to ADR-339, Q-305 to Q-308). The balance closes by rule with no write (ADR-337); archiving at the
-    close (FR-1608) is not built here and needs its own task (Q-306).
+    (ADR-336 to ADR-339 and Q-305 to Q-308, accepted at the plan review). The balance closes by rule with no write
+    (ADR-337); archiving at the close (FR-1608) is T-411.
+  - Plan review 2026-10-27 (88, GO; no BLOCKER, no re-review; all ten folded into the plan's "Plan review" table):
+    `quests_done` from the ledger with removals excluded, not XP credits; `event_recap` matches the passport's members
+    (`left` in, `joined_via IS DISTINCT FROM 'rehearsal'`); `shopWindow.deskEndsAt`; the `SW409` mapping in
+    `shop-window.ts`; boundary tests at `clock_timestamp()` + 1 s with a margin. **The code review checks the recap's
+    quest count and membership by their named tests.**
 - [ ] **T-410b** The screens after the event: Home's shop banner and closed balance, the Rewards tab after the close, the recap card and its share, the dashboard's shop window field — delivers FR 750, 752, 1018 (on screen); depends on: T-410
   - Split from T-410 2026-10-27. Standard (app + web); plan: `docs/plans/2026-10-27-t-410-after-the-event.md` (T-410b
     section, ADR-338, ADR-339).
+  - Plan review MAJOR 1: the share detects both native modules (`requireOptionalNativeModule('ExpoSharing')`,
+    `TurboModuleRegistry.get('RNViewShot')`) before loading either package; a unit test with them missing asserts the
+    text share. The image goes without a text line; the previous capture is released on the next capture or on
+    leaving. The dashboard sends `daysAfter` only when that field changed.
   - Done when: After the end Home shows the closing date; once closed the balance reads Closed and the shop says what
     stays; the recap shows rank, quests done and souvenirs (or none) and shares as an image, or as text on an older
     build.
+- [ ] **T-411** Archive ended events: a lifecycle tick step moves an event from Ended to Archived only when its shop is closed, no `reserved` redemption of any kind is left (shop holds, rank prizes, quest items), its results are revealed or `ends_at` + 60 days has passed, and no help-desk ticket of the event is open — delivers FR 1608 (the last step); depends on: T-410
+  - Decided 2026-10-27 at the T-410 plan review (developer, ADR-337 (5), Q-306): archiving at the window's close would
+    block late results, the desk's FR-1609 handovers and rank prizes due up to 60 days later, and open tickets.
+  - Done when: An ended event with a hold, an open ticket or unrevealed results inside 60 days stays Ended; once none
+    is left it is Archived by the tick and audited like the other lifecycle moves.
 
 ## Phase 5 — Live and messaging
 

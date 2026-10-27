@@ -4543,7 +4543,7 @@ T-409 mutation run; the landing page cannot be switched to the other language af
 landing page must open the link from the message again.
 
 ## ADR-336 — The shop window: set per event, only longer after the end, frozen once closed
-**Status:** Proposed (T-410 plan, 2026-10-27; Q-305). Specifies FR-750, FR-1018 under ADR-048.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-410 plan; plan review 88 folded; Q-305). Specifies FR-750, FR-1018 under ADR-048.
 **Decision:** (1) The organizer sets the days the shop stays open after the end on the dashboard's Rewards page (exists
 since T-201): owner or editor in scope, 0 to 30 whole days, default 3; 0 closes the shop when the event ends. (2) The
 shop closes exactly at `ends_at + shop_days_after` days (`shop_state`, unchanged): a request whose transaction began
@@ -4551,8 +4551,10 @@ before that moment is served as open, one that begins at or after it is refused.
 (3) Before the end any value 0 to 30. After the end, while open, the window may only grow (still at most 30 days after
 the end); shorter is refused (`409 shop_window_locked {reason: shorter}`). Once closed it is frozen, longer included
 (`{reason: closed}`). Sending the current value is no change. (4) Enforced in the API (`apps/api/src/rewards/shop-window.ts`,
-under the event lock `updateShop` already takes) and by a DB trigger on `shop_days_after` for the API's role, judged on
-`clock_timestamp()` so an edit begun before the close cannot reopen it (`SW409`). (5) No door moves an ended event back
+under the event lock `updateShop` already takes, with the state and "now" read from SQL, never the API's clock; the same
+file maps the database's `SW409` reasons) and by a DB trigger on `shop_days_after` for the API's role, judged on
+`clock_timestamp()` so an edit begun before the close cannot reopen it (`SW409`). The dashboard sends the days only when
+that field changed, so a page loaded before a co-editor lengthened the window still saves its other settings. (5) No door moves an ended event back
 to live and an ended event's times are frozen, so with the days frozen the close is permanent.
 **Why:** Today a closed shop reopens if the days are raised, with the old balance still spendable; players are shown a
 closing date that must not move earlier; organizers sometimes need more time for players to redeem.
@@ -4560,7 +4562,7 @@ closing date that must not move earlier; organizers sometimes need more time for
 cannot be reopened (a later admin tool would need its own decision).
 
 ## ADR-337 — The event balance closes by rule, with no write; holds, codes and prizes keep their own rules; no archiving yet
-**Status:** Proposed (T-410 plan, 2026-10-27; Q-306). Specifies FR-750, FR-751, FR-1018 under ADR-048; relies on FR-1609.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-410 plan; plan review 88 folded; Q-306). Specifies FR-750, FR-751, FR-1018 under ADR-048; relies on FR-1609.
 **Decision:** (1) The balance closes when the shop window closes, as a rule: no ledger entry, no stored flag, no job.
 From then the shop refuses (exists), every earning door adds to the score only (exists, FR-1710), Home drops the goal
 and the app shows the balance as closed. The ledger stays append-only and the balance column still equals its sum.
@@ -4572,42 +4574,53 @@ stay unassigned and go to no one (kept encrypted until event-data retention, Q-0
 shop holds not yet picked up stay collectible until their own pickup time, and a timeout or cancel returns the unit and
 the points into the closed balance (FR-1603, FR-1609; with spend-lowers-rank the return mirrors its spend on the
 score); rank prizes, quest-item handovers, desk holds and paused redeeming keep their own rules. (4) Score, final rank,
-passport stamp, souvenirs and items, XP, level and achievements are never touched by the close; erasure keeps its rules.
-(5) The event stays Ended after the close: archiving (FR-1608's last step) is not built here, because an archived event
-refuses the results' confirmation and reveal, leaves the operators' list (the desk could not hand over late holds or
-rank prizes due up to 60 days later) and closes help-desk tickets.
+passport stamp, souvenirs and items, XP, level and achievements are never touched by the close; erasure keeps its rules;
+the future event-data retention (Q-075) must exclude score, `final_rank`, `souvenir_receipt`, `player_item`, XP and
+achievements. (5) The event stays Ended after the close: archiving (FR-1608's last step) is not built here, because an
+archived event refuses the results' confirmation and reveal, leaves the operators' list (the desk could not hand over
+late holds or rank prizes due up to 60 days later) and closes help-desk tickets. Deferred to **T-411**: a tick step
+archives an ended event only when the shop is closed, no `reserved` redemption of any kind is left, results are
+revealed or `ends_at` + 60 days has passed, and no help-desk ticket is open (developer's decision at the plan review).
 **Why:** The rule already lives in one place (`shop_state`) and every door already obeys it; a write at the close adds
 races and rows and removes nothing that matters, since the points record already explains every point.
 **Trade-offs:** A leftover number stays on each enrollment for good (shown as closed, never spendable); a return after
-the close gives the player nothing usable; FR-1608 stays partly delivered until archiving gets its own task.
+the close gives the player nothing usable; FR-1608 stays partly delivered until T-411.
 
 ## ADR-338 — What players and organizers see around the close
-**Status:** Proposed (T-410 plan, 2026-10-27; Q-307). Specifies FR-750, FR-1018 on screen; follows ADR-300's copy rule.
-**Decision:** (1) Home carries `shopWindow {state, closesAt}` (null when the shop switch is off). After the end while
-open, a banner gives the closing date and time in the event's zone, never a countdown and never loss copy. (2) Once
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-410 plan; plan review 88 folded; Q-307). Specifies FR-750, FR-1018 on screen; follows ADR-300's copy rule.
+**Decision:** (1) Home carries `shopWindow {state, closesAt, deskEndsAt}` (null when the shop switch is off). After the
+end while open, a banner gives the closing date and time in the event's zone, never a countdown and never loss copy;
+when the desk's last hours end before the close, a second line says items and experiences can be reserved until then
+(`desk_finished`), digital rewards until the close. (2) Once
 closed, Home's balance row reads "Closed" instead of a number with the closing date, and there is no goal card. (3) The
 Rewards tab replaces the catalog with the closing date and "your {currency}, rank and stamp stay"; My rewards stays.
 (4) Cancelling a hold after the close warns that returned points cannot be redeemed. (5) The dashboard's shop settings
-show when the shop closes or closed, accept only higher days after the end and none once closed. (6) No push until
+show when the shop closes or closed, accept only higher days after the end and none once closed, and warn when the
+desk's last hours end before the shop closes. (6) No push until
 T-501, which owes one the day before the close.
 **Why:** FR-750 says the balance shows as closed; a date tells players what they need without pressure; a number that
 cannot be spent reads like money lost.
 **Trade-offs:** A player who wants to know their unspent leftover adds it up from the points record.
 
 ## ADR-339 — The recap card: what it shows, and sharing it as an image made on the phone
-**Status:** Proposed (T-410 plan, 2026-10-27; Q-308). Specifies FR-752, F-141 under ADR-048.
-**Decision:** (1) From the end, an active member who is not a rehearsal account opens "Your recap" from Home. (2) It
-shows the event's name, local start date and city; the final rank once results are revealed (the passport's rule,
-ADR-276), "comes with the results" while pending, nothing when unranked; quests done = distinct quests with a standing
-completion (the achievements' metric); this event's souvenirs, up to 3 and "+N", left out when there are none; "Thanks
-for joining" instead of zero quests. (3) Never: username, character, score, balance, player count, join code, link,
-QR, any id. (4) Share captures the card as a PNG on the phone (`react-native-view-shot`) and opens the system share
-sheet (`expo-sharing`) with one fixed line; nothing is uploaded, no link, no tracking parameter, no analytics event,
-the temporary file is deleted; without the native modules (an older build) it shares the line through React Native's
-`Share`. Never rewarded. (5) Arabic and English, right to left, Western digits, Gregorian dates. (6) `GET
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-410 plan; plan review 88 folded; Q-308). Specifies FR-752, F-141 under ADR-048.
+**Decision:** (1) From the end, a member who played, as the passport counts it (not pending, declined, banned or
+removed; `joined_via IS DISTINCT FROM 'rehearsal'`; `left` included), may read the recap; active members open "Your
+recap" from Home. (2) It shows the event's name, local start date and city; the final rank once results are revealed
+(the passport's rule, ADR-276), "comes with the results" while pending, nothing when unranked; quests done = distinct
+quests among this enrollment's `quest` ledger entries that no removal reverses (not XP credits, which a removed first
+completion loses for good); this event's souvenirs, up to 3 and "+N", left out when there are none; "Thanks for
+joining" instead of zero quests. (3) Never: username, character, score, balance, player count, join code, link, QR,
+any id. (4) Share captures the card as a PNG on the phone (`react-native-view-shot`) and opens the system share sheet
+with the image alone (`expo-sharing` takes no text; the card names the event); nothing is uploaded, no link, no
+tracking parameter, no analytics event; the previous capture is released before the next one and when the screen
+closes, never as the call returns. Both native modules are detected before either package is loaded
+(`requireOptionalNativeModule('ExpoSharing')`, `TurboModuleRegistry.get('RNViewShot')`, then a lazy `require`); when
+either is missing (an older build) one fixed line is shared through React Native's `Share`. Never rewarded. (5) Arabic and English, right to left, Western digits, Gregorian dates. (6) `GET
 /v1/events/{id}/recap` reads it through one definer, `event_recap`; nothing is stored.
 **Why:** A card worth sharing is an image (ADR-048, the go-to-market's shareable recaps); making it on the phone keeps
 the player's result off any public URL; the two modules are the standard Expo way and Android cannot share a file
 through React Native's `Share`.
-**Trade-offs:** Two new native dependencies and a new development build to see the image; a rank stays pending while
-an organizer does not reveal results; the recap's quest count can differ from Home's progress line for repeatable quests.
+**Trade-offs:** Two new native dependencies and a new development build to see the image; the shared image carries no
+text line; a rank stays pending while an organizer does not reveal results; the recap's quest count can differ from
+Home's progress line for repeatable quests.
