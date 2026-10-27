@@ -961,7 +961,7 @@ Play and App Store ad answers (PD-27) need a fresh look before the first sponsor
 The daily word needs a list of valid five-letter guesses per language (thousands of English words; an Arabic list is
 harder to find) and the daily words themselves. Which source and licence allow commercial use, or does the team build
 the Arabic list by hand? The build ships a small test seed only; real lists are imported in the console (T-406c) once
-this is settled. (T-406 build, 2026-10-27: no seed ships at all; the tests add their own words, ADR-313.)
+this is settled. (T-406 build, 2026-10-27: no seed ships at all; the tests add their own words, ADR-313. T-406c: the import is built and ships no list, ADR-315.)
 
 ## Q-282 — The T-406 build's small choices (2026-10-27, T-406 build)
 Recommended (ADR-313): admin ids on the daily tables without a foreign key (the migration's short lock list); an
@@ -981,3 +981,11 @@ finish reloads the profile, syncs and shows the level-up card; the next-date lin
 a weekday). Agree? Phone check owed: the RTL grid, the Arabic keyboard size on a small phone, VoiceOver and TalkBack
 on tiles and options.
 **Answered (developer, delegated by Dhia, 2026-10-27):** Yes, as recommended (ADR-314).
+
+## Q-284 — The T-406c console's small choices (2026-10-27, T-406c build)
+Recommended (ADR-315): one Content page with a Daily challenge tab and a Word bank tab; a 56-day schedule by period with
+started periods read-only; the period control on each tab ("Applies from tomorrow", a same-length request drops the
+pending change); stranded content is removed and scheduled again instead of "Move it" (no door moves a row); the
+guess list import by paste or text file, in calls of at most 20,000, with the refused lines shown; text marks for
+warnings (a "!" on the tab, "Needs attention" on the console home). Agree? Still open for Dhia: Q-281 (where the word
+lists come from), because the import is ready and the lists are empty until it is settled.

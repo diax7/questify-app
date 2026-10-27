@@ -4122,3 +4122,28 @@ width and Enter and Delete on their own row; a lost connection says what is kept
 RTL, Reduce Motion through `PopIn`); the same patterns as the gem shop (pure flow functions, one reader per screen).
 **Trade-offs:** The next-date line trusts the phone's clock (display only; the server decides what counts), and says
 "tomorrow" even when the next period has no content yet; the cards vanish on a failed read; no hardware keyboard support.
+
+## ADR-315 — T-406c build choices: the Content page, the period control, "Remove" for stranded content and the import
+**Status:** Proposed (developer, 2026-10-27; Q-284). Specifies ADR-307, ADR-308, ADR-311 on the console.
+**Decision:** (1) The console gains one page, `/console/content` ("Content"), for platform admins, with two tabs: Daily
+challenge and Word bank. The other tabs of the wireframe (templates, level titles, XP table) come with their own tasks;
+the Questify quests keep their page. (2) The schedule asks for 56 days from today's Questify day and lists every period
+of the kind, so a period with no content is marked ("No challenge on this day / this week"); a period whose first day has
+come is shown as Started and is read-only; a future one has Choose questions, Edit and Remove. (3) A period's editor
+picks three ready questions that no other challenge holds, takes the sponsor name in both languages (both or neither) and
+previews the questions with the right option marked and the sponsor line in both languages. (4) The question bank is read
+in full (pages of 100); a question can be edited until its challenge starts and retired only while no challenge holds it,
+after a confirmation. (5) The period control sits on each tab: a daily or weekly choice, "A change applies from tomorrow",
+the pending change, and after a save either the day it applies from, "nothing changed" (asking for the current length drops a
+pending change), and the count of items left on days that no longer start a period. (6) Stranded content (the API's
+`unused`) is listed with **Remove** and an explanation to schedule it again on a period start: the plan said "Move it", but
+the console read does not return a stranded row's content and no door moves one, so a one-click move would need a new door.
+(7) The guess list import takes one word per line, pasted or from a text file (at most 5 MB), drops blanks and repeats,
+holds back lines over 40 characters (the API would refuse the whole call), sends at most 20,000 words per call, stops at
+the first failure, and shows the refused lines (the first 50); the same box removes words. No word list ships (Q-281). (8)
+Warnings use the server's flags: the challenge warns under 7 days or 2 periods, each word language under 2 periods; a tab
+carries a "!" mark and the console home's Content link a "Needs attention" mark while any warns. (9) Every write carries an
+Idempotency-Key, one at a time, and the page reads the schedule again after it.
+**Why:** The plan's surfaces (T-406c) on the doors T-406 built, with no new door; marks in text so colour is never alone.
+**Trade-offs:** No one-click move of stranded content; a bank of thousands is read in several calls; the 56-day window under
+a daily cadence is a long list; the mark on the console home costs one extra read per visit.

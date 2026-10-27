@@ -903,6 +903,7 @@ Daily questions, Templates, Questify quests, Level titles, XP table.
 
 - The warning shows when fewer than 7 days are queued (FR-1733). A day with no question shows no
   challenge to players; the streak still counts other activity.
+- Built T-406c (ADR-315): the page `/console/content` holds two tabs, Daily challenge (schedule by period, question bank, sponsor name, period control) and Word bank (daily words, guess list and its import); the other tabs below come with their own tasks, and a "Needs attention" mark on the console home replaces the menu badge.
 - Templates: conference, festival, campus, corporate; each holds categories, quests, rewards in
   Arabic and English. Editing a template does not change events already made from it. The edit
   screen says so.

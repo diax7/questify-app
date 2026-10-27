@@ -1570,10 +1570,11 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   (the keys equal the shared 33-letter set), the Hermes guard, the function limits and `npx expo export`. Proposed
   ADR-314 / Q-283. Phone check owed (RTL grid, keyboard size, VoiceOver and TalkBack). Progress 86/161 (53.42%). No
   mutation globs (standard).
+- 2026-10-27 **T-406c built (standard).** The daily content in the console: `/console/content` (Content) with a Daily challenge tab (the warning banner, the period control from tomorrow, the schedule by period with empty periods marked and started ones read-only, an editor of three ready questions with the sponsor name in both languages and a preview, the question bank with edit and retire, unused content with Remove) and a Word bank tab (per-language warnings, the period control, the daily words by period, the guess list with search and pages, and the import by paste or text file in calls of at most 20,000 with the refused lines shown; no list ships, Q-281). The console home links to Content with a "Needs attention" mark while content runs low. Strings in both languages. Proven by `console-daily.test`, `console-daily-forms.test` and `e2e/console-daily.spec.ts` (desktop and phone, Arabic and English); `console-questify.spec.ts` still green. Proposed ADR-315 / Q-284. Progress 87/161 (54.04%). No mutation globs (standard).
 
 ## Next
 
-1. **T-406c** (console pages; T-406b is reviewed, 91); the GitHub mutation run on T-406's core
+1. **T-406c** is built and awaits its code review; the GitHub mutation run on T-406's core
    globs (run 40467748184) is being read. T-404 and T-405 mutation scores are recorded above. Waiting for Dhia: Q-280
    (counsel, sponsor wording), Q-281 (word list source and licence). No deployment/EAS/local Stryker; phone/CranL
    obligations remain deferred (T-403c's and T-406b's phone checks included). Follow-up: Q-237 central

@@ -1,3 +1,4 @@
+import { ConsoleContentLink } from "#src/components/ConsoleContent.tsx";
 import { ConsoleQuestifyLink } from "#src/components/ConsoleQuestify.tsx";
 import { ConsoleQueue } from "#src/components/ConsoleQueue.tsx";
 import { ConsoleShell } from "#src/components/ConsoleShell.tsx";
@@ -6,7 +7,7 @@ import { consolePage } from "#src/lib/console-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
-/** The console's home: the links to Tickets with the open count (T-312) and to the Questify quests (T-403c), the activation queue and the lookup by join code (T-210). Platform admins only. */
+/** The console's home: the links to Tickets with the open count (T-312) and to the Questify quests (T-403c), to the daily Content with its warning badge (T-406c), the activation queue and the lookup by join code (T-210). Platform admins only. */
 export default async function ConsoleHome({ params }: Props) {
   const { lang } = await params;
   const page = await consolePage(lang);
@@ -14,6 +15,7 @@ export default async function ConsoleHome({ params }: Props) {
     <ConsoleShell page={page} path="/console">
       <ConsoleTicketsLink language={page.language} />
       <ConsoleQuestifyLink language={page.language} />
+      <ConsoleContentLink language={page.language} />
       <ConsoleQueue language={page.language} />
     </ConsoleShell>
   );

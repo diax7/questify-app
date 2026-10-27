@@ -30,6 +30,7 @@ import {
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
+import { useRequestKey } from "#src/lib/use-request-key.ts";
 import styles from "#src/components/layout.module.css";
 
 const API = "/v1/admin/questify";
@@ -53,25 +54,6 @@ const either = (text: Readonly<{ ar: string; en: string }>, language: Language):
 function problemOf(body: unknown, language: Language, t: Translate): string {
   const key = refusalKey(body);
   return key === undefined ? describeProblem(body, language, t).text : t(key);
-}
-
-/**
- * One Idempotency-Key per distinct request: a retry of the same one after a dropped answer replays the first answer
- * (a campaign is never made twice), a changed request takes a new key, and a finished one forgets its key.
- */
-function useRequestKey() {
-  const last = useRef<{ signature: string; key: string } | null>(null);
-  return {
-    keyFor: (signature: string): string => {
-      if (last.current?.signature !== signature) {
-        last.current = { signature, key: crypto.randomUUID() };
-      }
-      return last.current.key;
-    },
-    forget: () => {
-      last.current = null;
-    },
-  };
 }
 
 function CampaignForm({

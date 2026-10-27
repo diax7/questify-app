@@ -292,3 +292,29 @@ export const dailyConsoleSchema = z.object({
   ),
 });
 export type DailyConsole = z.infer<typeof dailyConsoleSchema>;
+
+/** `GET /v1/admin/daily/questions`: one page of the bank, newest first. */
+export const adminDailyQuestionsSchema = z.object({ questions: z.array(adminDailyQuestionSchema) });
+
+/** `GET /v1/admin/daily/word-list/{language}`: up to 100 words of one page and how many words match. */
+export const wordListPageSchema = z.object({ words: z.array(z.string()), total: count });
+export type WordListPage = z.infer<typeof wordListPageSchema>;
+
+/** `POST /v1/admin/daily/word-list/{language}`: what the change did; `refused` holds the first 50 invalid inputs. */
+export const wordListChangeSchema = z.object({
+  added: count,
+  removed: count,
+  refused: z.array(z.string()),
+  total: count,
+});
+export type WordListChange = z.infer<typeof wordListChangeSchema>;
+
+/** `PUT /v1/admin/daily/cadence`: the day it applies from, or `unchanged`; how much content sits on non-start days. */
+export const dailyCadenceChangeSchema = z.object({
+  kind: z.enum(DAILY_KINDS),
+  cadence: z.enum(DAILY_CADENCES),
+  from: day.optional(),
+  unchanged: z.literal(true).optional(),
+  unused: count,
+});
+export type DailyCadenceChange = z.infer<typeof dailyCadenceChangeSchema>;

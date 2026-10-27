@@ -3,6 +3,7 @@ declare const styles: {
   readonly actions: string;
   readonly stack: string;
   readonly alert: string;
+  readonly area: string;
   readonly badge: string;
   readonly bar: string;
   readonly brand: string;
@@ -28,8 +29,12 @@ declare const styles: {
   readonly quiet: string;
   readonly row: string;
   readonly subtitle: string;
+  readonly tab: string;
+  readonly tabCurrent: string;
+  readonly tabs: string;
   readonly textLink: string;
   readonly title: string;
+  readonly warning: string;
   readonly wrap: string;
 };
 export default styles;

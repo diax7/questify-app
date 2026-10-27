@@ -294,9 +294,11 @@ export {
   DAILY_KINDS,
   WORD_LIST_MAX,
   adminDailyQuestionSchema,
+  adminDailyQuestionsSchema,
   dailyAnswerBodySchema,
   dailyAnswerReplySchema,
   dailyCadenceBodySchema,
+  dailyCadenceChangeSchema,
   dailyChallengeBodySchema,
   dailyChallengeSchema,
   dailyConflictSchema,
@@ -313,6 +315,8 @@ export {
   marksSchema,
   ownDailySchema,
   wordListBodySchema,
+  wordListChangeSchema,
+  wordListPageSchema,
 } from "./daily/daily";
 export type {
   AdminDailyQuestion,
@@ -320,6 +324,7 @@ export type {
   DailyAnswerReply,
   DailyCadence,
   DailyCadenceBody,
+  DailyCadenceChange,
   DailyChallenge,
   DailyChallengeBody,
   DailyConflictReason,
@@ -335,6 +340,8 @@ export type {
   DailyWordGame,
   OwnDaily,
   WordListBody,
+  WordListChange,
+  WordListPage,
 } from "./daily/daily";
 export {
   RANK_STATES,
