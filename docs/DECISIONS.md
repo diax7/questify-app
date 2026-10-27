@@ -3978,7 +3978,7 @@ event keeps the editor's page the same shape whatever the event's length.
 panel (the panel does not read the event's days).
 
 ## ADR-306 — T-406 split: the daily ledgers and doors (core), the app screens, the console pages
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-272).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-272).
 **Decision:** T-406 (CORE) builds migration 0069, the API doors and the shared schemas: the question and word banks,
 the schedule by period, the cadence, the sponsor name, the plays and finishes, the XP source `daily`, the second writer
 of the daily streak row and the two platform switches. T-406b (STANDARD) builds the app's challenge and word screens
@@ -3989,7 +3989,7 @@ two different apps, each a full worker load.
 **Trade-offs:** Three workers and three code reviews; the on-screen Givens are proven only by T-406b and T-406c.
 
 ## ADR-307 — Daily content periods: the Questify day, Sunday weeks, a cadence per kind from the next day
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-273). Specifies ADR-099 and F-316.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-273). Specifies ADR-099 and F-316.
 **Decision:** A period is one Questify day (04:00 to 04:00 Riyadh, ADR-297) under the daily cadence, or Sunday to
 Saturday under the weekly one. The daily challenge and the daily word each have their own cadence, kept as dated rows;
 a change takes effect from the next Questify day (a second change the same day replaces it; asking for the cadence
@@ -4005,7 +4005,7 @@ changing under a player mid-play.
 **Trade-offs:** A cadence change can strand scheduled content until the team moves it.
 
 ## ADR-308 — Daily content: a two-language question bank, three questions a period, one word a language
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-274). Specifies ADR-079 and ADR-097.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-274). Specifies ADR-079 and ADR-097.
 **Decision:** The team writes each question in Arabic and English with 2 to 4 options and one right answer. A period's
 challenge is three bank questions (and an optional sponsor name); a question is used once ever. A period's word is one
 five-letter word per language, each used once ever per language, and is always a valid guess. Content whose period has
@@ -4019,7 +4019,7 @@ period.
 **Trade-offs:** Under the weekly cadence the challenge warning asks for two weeks of questions (six questions).
 
 ## ADR-309 — Daily rewards: fixed XP paid at the finish, never points or gems; a finished play keeps the streak
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-275). Extends ADR-297.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-275). Extends ADR-297.
 **Decision:** Each answer is final and the three are answered in order; finishing the challenge pays 20 XP plus 10 per
 right answer (20 to 50). The word pays 50 XP when solved, none when not. The amounts are `platform_setting` data (the
 `xp` block, falling back per field), within ranges that keep any payout at most 1000 XP: finishing 0–400, each right
@@ -4033,7 +4033,7 @@ the level; the lock order matches the completion trigger's, so no deadlock with 
 **Trade-offs:** A player who knows nothing still earns 20 XP a period; the streak can be kept by a word not solved.
 
 ## ADR-310 — The daily word's rules: five letters, Arabic folding, list-only guesses, one language a period
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-276). Specifies ADR-097.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-276). Specifies ADR-097.
 **Decision:** Words have five letters in both languages. Arabic input drops diacritics and the tatweel and folds أ إ آ ٱ
 to ا; the alphabet is an explicit set of 33 letters (the 28 letters plus ة, ى, ء, ؤ and ئ, each its own key), the same
 list in the database and in the shared package, tested to match. The word keeps its written form (hamza included) for
@@ -4046,7 +4046,7 @@ first guess. The word is sent only once the game is over.
 hamza.
 
 ## ADR-311 — A sponsored daily challenge: a disclosed name, nothing else
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-277). Applies ADR-067 and PD-27.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-277). Applies ADR-067 and PD-27.
 **Decision:** The team may put a sponsor's name (Arabic and English) on one period's challenge; the app shows "Presented
 by {name}" / "برعاية {name}" on it. No logo until a Questify bucket exists (Q-149), no link out, no tracking, no sponsor
 login and no player data to the sponsor; the console shows Questify finish counts per period only. The questions stay
@@ -4058,7 +4058,7 @@ keeps the games out of contest and competition-licence rules.
 **Trade-offs:** No logo in v1 of the feature; the commercial terms (Q-279) and the disclosure wording (Q-280) are open.
 
 ## ADR-312 — Platform switches for the daily challenge and the daily word
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 plan; Q-278). Extends ADR-299.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-278). Extends ADR-299.
 **Decision:** Registry keys `dailyChallenge` and `dailyWord` (platform level, on by default), shipped in `/v1/config`
 and read by SQL the way `daily_streak_on()` reads `dailyStreak`. Off: that game is hidden and its doors refuse at once.
 The daily streak switch is separate: with it off the games still pay XP but count no streak day.
@@ -4066,7 +4066,7 @@ The daily streak switch is separate: with it off the games still pay XP but coun
 **Trade-offs:** Two more switches on T-703's page.
 
 ## ADR-313 — T-406 build choices: plain admin ids, `changed` for an unknown challenge, the three-question rule at commit
-**Status:** Proposed (worker recommendation, 2026-10-27, T-406 build; Q-282). Specifies ADR-307 to ADR-310.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406 CTO code review 94, about 96 after the fold-in; Q-282). Specifies ADR-307 to ADR-310.
 **Decision:** (1) `set_by` and `created_by` on the daily tables are plain ids with no foreign key to `staff_user`, so
 migration 0069 locks only `xp_entry`, `player` and `player_xp`; the audit log names the admin of every write. (2) An
 unknown challenge id answers `changed` and a known challenge of another period `period_over`, as for words (the

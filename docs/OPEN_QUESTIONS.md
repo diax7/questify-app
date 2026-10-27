@@ -905,34 +905,41 @@ so new code meets the rule now and existing offenders are split when their files
 ## Q-272 — Split T-406 into a core part and two screen parts? (2026-10-27, T-406 plan)
 Recommended (ADR-306): T-406 builds the banks, schedule, cadence, plays, XP and doors (core); T-406b builds the app
 screens; T-406c builds the console pages (both standard). Agree, or one screens task?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: the split as recommended (ADR-306).
 
 ## Q-273 — Daily content periods and the cadence (2026-10-27, T-406 plan)
 Recommended (ADR-307): weekly periods run Sunday to Saturday on the Questify day (04:00 Riyadh); the challenge and the
 word each have their own cadence, weekly at launch, and a change starts the next day. Agree, or one cadence for both?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: Sunday weeks on the Questify day, a cadence per kind, a change from the next day (ADR-307). The row locks, not the freeze trigger, keep a period consistent.
 
 ## Q-274 — Question and word content rules (2026-10-27, T-406 plan)
 Recommended (ADR-308): each question in both languages with 2 to 4 options; three a period; a question or daily word is
 never reused; started content is frozen; the console warns under 7 days or 2 periods of questions, and under 2 periods
 of words per language. Agree, or allow reusing old questions after some time?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: no reuse, frozen once started, the coverage warnings as recommended (ADR-308).
 
 ## Q-275 — Daily XP amounts and what keeps the streak (2026-10-27, T-406 plan)
 Recommended (ADR-309): challenge 20 XP for finishing plus 10 per right answer (up to 50); word 50 XP when solved, none
 when not (a quest pays 100); never points or gems; finishing either game keeps the daily streak, even a word not solved.
 Agree, or pay more under the weekly cadence, or count only a solved word for the streak?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: the XP amounts as recommended, never points or gems; a finished play keeps the streak (ADR-309).
 
 ## Q-276 — The daily word's rules (2026-10-27, T-406 plan)
 Recommended (ADR-310): five letters in both languages; Arabic folds أ إ آ ٱ to ا and ignores diacritics, while ة, ى, ء, ؤ
 and ئ are their own keys; only list words count as tries; one game a period in one language. Agree, or also fold ة with
 ه and ى with ي?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: the folding as recommended; ة and ى stay their own keys (ADR-310).
 
 ## Q-277 — What a sponsored daily challenge shows (2026-10-27, T-406 plan)
 Recommended (ADR-311): only the sponsor's name, "Presented by" / "برعاية", on that period's challenge; no logo until a
 Questify bucket exists (Q-149), no link, no tracking, no data to the sponsor, questions written by the Questify team and
 no prizes. Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: the disclosed name only (ADR-311), in line with Dhia's Q-279 answer; the wording itself stays open in Q-280.
 
 ## Q-278 — Switches for the daily games (2026-10-27, T-406 plan)
 Recommended (ADR-312): platform switches `dailyChallenge` and `dailyWord`, on by default, apart from `dailyStreak`.
 Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes: `dailyChallenge` and `dailyWord`, on by default (ADR-312).
 
 ## Q-279 — For Dhia (product): the commercial terms of a sponsored daily challenge (2026-10-27, T-406 plan)
 The build only lets the team put a sponsor's name on a period's challenge (ADR-311). Still to decide, outside the code:
@@ -964,3 +971,4 @@ seeded words or questions; the DB suites' shifted Questify day. And the re-timed
 streak work stays near the 20 ms budget (+15 and +20 ms), the shared daily streak row adds about 11 ms over the same
 load, while 300 extra finishes at the same instant add about 62 ms on a laptop (142 ms p95, inside the 1 s). Read the
 budget as the streak's own cost (recommended), or re-time on CranL before launch? Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes, with the review's changes (ADR-313): a unique violation maps by constraint name; only the streak's own cost counts against ADR-303, the shared-row collision is a stress figure and general load sits under NFR-002; the CranL staging load test includes the `daily` kind, and a new writer of `questify_streak_day` re-runs the timing.
