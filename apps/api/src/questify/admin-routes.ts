@@ -3,6 +3,7 @@ import {
   campaignBodySchema,
   questBodySchema,
   questPatchSchema,
+  questifyMonthSchema,
   type CampaignBody,
   type QuestPatch,
 } from "@questify/shared";
@@ -13,7 +14,9 @@ import { invalidQuestify, notFound } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import {
   listQuestify,
+  listSeasons,
   publishCampaign,
+  readSeason,
   retireCampaign,
   retireQuest,
   saveCampaign,
@@ -25,6 +28,7 @@ const read = { config: { access: "admin" }, bodyLimit: BODY_LIMIT } as const;
 const write = { ...read, config: { ...read.config, idempotent: true } } as const;
 const campaignParams = z.object({ campaignId: z.uuid() });
 const questParams = z.object({ questId: z.uuid() });
+const seasonParams = z.object({ month: questifyMonthSchema });
 
 /** The admin of a request that passed the console hook (activation/routes.ts). */
 function adminIdOf(request: FastifyRequest): string {
@@ -66,6 +70,14 @@ export function registerConsoleQuestifyRoutes(
   deps: Readonly<{ pool: Pool }>,
 ): void {
   scope.get("/questify", read, async (request) => listQuestify(deps.pool, adminIdOf(request)));
+  // The ranking's seasons (T-408, FR-1786, ADR-323): read only; a season turns over by itself, with no reset.
+  scope.get("/questify/seasons", read, async (request) =>
+    listSeasons(deps.pool, adminIdOf(request)),
+  );
+  scope.get("/questify/seasons/:month", read, async (request) => {
+    const { month } = parse(seasonParams, request.params);
+    return readSeason(deps.pool, adminIdOf(request), month);
+  });
 
   scope.post("/questify/campaigns", write, async (request, reply) => {
     const body = campaignOf(request.body);

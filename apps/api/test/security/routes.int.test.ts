@@ -34,6 +34,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own progress and awards through own_questify_quests; the catalog has no tenant (questify-quests, test/questify)",
   "GET /v1/admin/questify":
     "active platform admins only (walked below); the platform-wide catalog, no personal data; the admin checked again (app_admin_id) (questify-quests, test/questify)",
+  "GET /v1/admin/questify/seasons":
+    "active platform admins only (walked below); read only; month counts, no personal data; the admin checked again in questify_seasons (questify-ranking)",
+  "GET /v1/admin/questify/seasons/:month":
+    "active platform admins only (walked below); read only; a season's top 10 with usernames, the same rows players saw; the admin checked again in questify_season_top (questify-ranking)",
+  "GET /v1/questify/ranking":
+    "Questify-wide, no tenant; caller-bound through questify_ranking (no player id taken); others shown by username, avatar, XP and level only; low places only to their own player (questify-ranking)",
   "POST /v1/admin/questify/campaigns":
     "active platform admins only (walked below); Idempotency-Key; the admin checked again in questify_campaign_save and audited with ids and field names (questify-quests)",
   "PUT /v1/admin/questify/campaigns/:campaignId":

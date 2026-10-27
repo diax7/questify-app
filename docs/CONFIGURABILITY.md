@@ -68,6 +68,15 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-408): the Questify-wide ranking switch and its seasons
+
+- `questifyRanking` (platform level, on by default) joins the registry and ships in `/v1/config`. Off,
+  `GET /v1/questify/ranking` answers 404 `ranking_off` at once (the database reads the same key,
+  `questify_ranking_on()`, on when absent) and the app hides the ranking (T-408b); the boards keep being written, so
+  turning it back on is exact. Until T-703's switches page, a Questify admin flips it through the settings service.
+- Seasons are not configurable (ADR-323, Q-292 "Automatic monthly"): each Questify month is a season, starting at 04:00
+  Riyadh time on the 1st; no reset, length or prize settings.
+
 ## As built (T-406): the daily games' switches, cadence and XP
 
 - `dailyChallenge` and `dailyWord` (platform level, on by default) join the registry and ship in `/v1/config`. Off,

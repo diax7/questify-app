@@ -608,7 +608,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Plan 2026-10-27: `docs/plans/2026-10-27-t-407c-interests-quest.md` (migration 0071, Proposed ADR-320, Q-290); plan review 92 GO, folded.
   - Done 2026-10-27 (core; code review owed): migration 0071 (undeployed), `interests_set` in `player_metrics`, the seeded quest (100 XP, 10 gems), the console's metric with a fixed target and a second-quest warning, the app's "Choose your interests" button and the sync after a save. **Deploy the server with a new app build** (installed builds refuse the new metric). Mutation owed on GitHub.
   - Done when: A player who saves interests gets the quest's XP once, never twice, and clearing them later takes nothing back.
-- [ ] **T-408** Questify home and Explore: events grouped live, upcoming and past, Questify-wide ranking (lifetime and monthly), join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614, 1786; depends on: T-401
+- [x] **T-408** Questify home and Explore: events grouped live, upcoming and past, Questify-wide ranking (lifetime and monthly), join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614, 1786; depends on: T-401
   - Note 2026-10-24 (T-401): the lifetime ranking reads `player_xp.xp` (add an index); the monthly one sums `xp_entry.delta` by `created_at` (reversals included). Deleted players (tombstones) keep their rows and must be left out.
   - Note 2026-10-27 (T-404): the Shop tab (FR-830) opens the gem shop (`GET /v1/me/gem-shop`, T-404b's screen); a
     player's gems never show in any ranking.
@@ -621,6 +621,19 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `xp_apply`, the backfill, `questify_ranking`, the admin season reads; `GET /v1/questify/ranking`,
     `GET /v1/admin/questify/seasons[/:month]`; shared schemas; the `questifyRanking` switch) — delivers FR 611, 1786
     (server). Plan: `docs/plans/2026-10-27-t-408-questify-home.md` (Proposed ADR-321 to ADR-324, Q-291 to Q-293).
+  - Done 2026-10-27 (core; plan review 88, MAJOR-1 and the minors folded; code review owed): migration 0072
+    (undeployed) with `xp_board` (`all` and Questify months, no foreign key), `xp_apply` restated (a removal on its
+    credit's month, versions by `greatest`), `xp_backfill` dropped, the backfill and its abort check,
+    `player_inactive_idx`, the three doors and their helpers; `GET /v1/questify/ranking`,
+    `GET /v1/admin/questify/seasons[/:month]`, `questifyRanking`. Proven by `test/db/questify-ranking.int` (order,
+    a 300-player reference check, who is left out, every writer and four races equal to the ledger, the doors, months
+    and MAJOR-1), `test/db/questify-ranking-upgrade.int` (backfill, lock list, live traffic, abort), the outsider,
+    cross-tenant and route inventories, unit and route tests. Timing: p95 about 60 ms at 100,000 (gate 50 ms, T-408d).
+- [ ] **T-408d** A Redis copy of the Questify-wide boards for the reader's place (ADR-322's timing gate) — delivers FR 611 (scale); depends on: T-408
+  - Added 2026-10-27 (T-408 build): the reader's place counts the rows ahead in PostgreSQL, p95 about 60 ms at 100,000
+    ranked players against a 50 ms gate. Due before the boards pass 50,000 ranked players: a sorted set per board,
+    rebuilt from `xp_board` the way the event ranking rebuilds from the ledger (ADR-118), kept by the API after each
+    XP-paying call, PostgreSQL the fallback.
 - [ ] **T-408b** The bar outside events, Questify Home (events live, upcoming, past; daily cards; streak line; Questify quests), Explore (public events, For you, the Questify-wide ranking) and the join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408b section).
   - Done when: Outside an event the center button scans only join QR codes (and operator invites, ADR-324); no event screen shows the Questify-wide ranking.

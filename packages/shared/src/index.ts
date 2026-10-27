@@ -252,6 +252,23 @@ export type {
   SyncGems,
 } from "./questify/gems";
 export {
+  QUESTIFY_RANKING_SCOPES,
+  questifyMonthSchema,
+  questifyRankingQuerySchema,
+  questifyRankingRowSchema,
+  questifyRankingSchema,
+  questifySeasonSchema,
+  questifySeasonsSchema,
+} from "./questify/ranking";
+export type {
+  QuestifyRanking,
+  QuestifyRankingMe,
+  QuestifyRankingRow,
+  QuestifyRankingScope,
+  QuestifySeason,
+  QuestifySeasons,
+} from "./questify/ranking";
+export {
   CLOSED_DAYS_MAX,
   CLOSED_WEEKDAYS_MAX,
   STREAK_BONUS_MAX,

@@ -107,6 +107,11 @@ export const FEATURES: FeatureRegistry = {
    */
   nfcTags: { gated: false, level: "platform" },
   polls: { gated: false },
+  /**
+   * The Questify-wide ranking (T-408, FR-611, ADR-322): off for the platform, Home and Explore hide it and its door
+   * answers 404 `ranking_off` at once; the boards keep being written, so turning it back on is exact.
+   */
+  questifyRanking: { gated: false, level: "platform" },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },
   /** Today's ranking for a multi-day event (T-216, FR-608): the owner turns it off and on. */

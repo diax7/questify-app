@@ -5,6 +5,8 @@ import type {
   CampaignBody,
   QuestBody,
   QuestPatch,
+  QuestifySeason,
+  QuestifySeasons,
 } from "@questify/shared";
 import type { Pool } from "pg";
 import { invalidQuestify, notFound, questifyConflict } from "#src/auth/http-errors";
@@ -93,3 +95,12 @@ export const saveQuest = (
 /** Retires a quest at any time; its awards stay. */
 export const retireQuest = (pool: Pool, adminId: string, act: Act): Promise<AdminQuest> =>
   door(pool, adminId, "SELECT questify_quest_retire($1, $2) AS r", [act.id, act.requestId]);
+
+/** Every season (FR-1786, ADR-323): each Questify month with a board and the current one, newest first. */
+export const listSeasons = async (pool: Pool, adminId: string): Promise<QuestifySeasons> => ({
+  seasons: await door(pool, adminId, "SELECT questify_seasons() AS r", []),
+});
+
+/** One season's archive: its ranked count and its top 10, read with today's rule. */
+export const readSeason = (pool: Pool, adminId: string, month: string): Promise<QuestifySeason> =>
+  door(pool, adminId, "SELECT questify_season_top($1) AS r", [month]);

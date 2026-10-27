@@ -4258,13 +4258,20 @@ to the row (`greatest`, so it only grows). (4) Ranked: an active player
 with XP above 0 on that board; deleted tombstones and banned players never show and never push anyone down. No hide
 option, no gems, no player id in any answer. (5) Read from PostgreSQL (top 10 from the index, the reader's place by
 counting the rows ahead), each door one SQL statement so rows and `me` share one snapshot; no `total`. (6) A platform switch, `questifyRanking`, hides it; the boards keep being written.
-**Why:** A new table needs only SHARE ROW EXCLUSIVE on `player_xp`, while adding a column to it would need ACCESS
-EXCLUSIVE and could deadlock with the daily finish or the sync during the migration. Redis exists for the event
-ranking's scan bursts (ADR-118); the Questify board moves at the pace of one player's XP.
-**Trade-offs:** The reader's place costs O(rank). Timing: 100,000 ranked players on both boards, `ANALYZE`, the
-last-placed reader 200 times per board, p95 on Dhia's PC (Docker Postgres); gate 50 ms. Over it, the first fallback is
-an index-only count of the rows ahead minus the inactive players ahead (a partial index on `player WHERE status <>
-'active'`); a Redis copy only if that fails too. The lifetime XP is stored twice (a DB check keeps them equal).
+**Why:** A new table leaves `player_xp` alone, while adding a column to it would need ACCESS EXCLUSIVE and could
+deadlock with the daily finish or the sync during the migration. As built, the table has no foreign key either: the
+upgrade test showed the key's check taking KEY SHARE on `player_xp` rows that a daily finish holds FOR UPDATE while it
+waits on `xp_entry` behind the migration. 0072 locks `xp_entry` ACCESS EXCLUSIVE, then `player` SHARE (for
+`player_inactive_idx`; no writer of `player` touches `xp_entry`). Redis exists for the event ranking's scan bursts
+(ADR-118); the Questify board moves at the pace of one player's XP.
+**Trade-offs:** The reader's place costs O(rank). Timing (`test/perf/questify-ranking-timing.int.test.ts`, by hand):
+100,000 ranked players on both boards (1% banned), `VACUUM ANALYZE`, the last-placed reader 200 times per board, on
+Dhia's PC (16 threads, Docker PostgreSQL 17.11, other workers' suites running): first build, p95 107 ms (lifetime) and
+108 ms (month). With the planned fallback (an index-only count of the rows ahead, less the inactive players ahead found
+through `player_inactive_idx`, each looked up by key): p50 47 and 48 ms, p95 59 and 62 ms. The 50 ms gate is not met
+at 100,000; the count of about 100,000 index entries (about 30 ms) is what is left. Launch traffic is far below that
+size, so the Redis copy is task T-408d, due before the boards pass 50,000 ranked players. The lifetime XP is stored
+twice (a DB check keeps them equal).
 
 ## ADR-323 — Ranking seasons are Questify months, archived by keeping their boards
 **Status:** Proposed (T-408 plan, 2026-10-27; plan review 88, MAJOR-1 folded). Q-292 answered by Dhia, 2026-10-27:

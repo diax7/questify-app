@@ -1078,7 +1078,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-608 | F-23, F-61 | Must | pending |
 | FR-609 | F-23 | Must | pending |
 | FR-610 | F-61 | Should | pending |
-| FR-611 | F-154 | Should | pending |
+| FR-611 | F-154 | Should | server built T-408 (core; migration 0072, `GET /v1/questify/ranking`, `test/db/questify-ranking.int`, `test/db/questify-ranking-upgrade.int`; code review pending); screens T-408b |
 | FR-612 | F-154 | Should | pending |
 | FR-613 | F-160 | Should | pending |
 | FR-620 | F-161 | Must | pending |
@@ -1378,7 +1378,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1783 | F-291 | Should | pending |
 | FR-1784 | F-292 | Should | pending |
 | FR-1785 | F-293 | Must | pending |
-| FR-1786 | F-294 | Should | pending |
+| FR-1786 | F-294 | Should | server built T-408 (month boards of `xp_board`, `GET /v1/admin/questify/seasons[/:month]`; code review pending); console page T-408c |
 | FR-1787 | F-295 | Must | pending |
 | FR-1788 | F-296 | Must | pending |
 | FR-1789 | F-296 | Must | pending |

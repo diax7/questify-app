@@ -245,3 +245,19 @@ a month's top 10 (username, avatar, XP, level). No reset button: seasons turn ov
 
 TASKS (T-408 split into T-408, T-408b, T-408c; T-705 note: the block filter on `questify_ranking`), DECISIONS, OPEN_QUESTIONS,
 DATA_MODEL, API, SRS status rows, CONFIGURABILITY (the `questifyRanking` switch), STATE.
+
+## Build notes (2026-10-27)
+
+- **No foreign key on `xp_board`, and no lock on `player_xp`.** The upgrade test reproduced the deadlock the plan's
+  SHARE ROW EXCLUSIVE was meant to avoid, one level down: the key's check takes KEY SHARE on each `player_xp` row the
+  backfill writes, and a daily finish holding its row FOR UPDATE waits on `xp_entry` behind the migration. The rows
+  come only from `xp_apply` and the backfill (both from `xp_entry`, which keys on `player_xp`), and no `player_xp` row
+  is ever deleted, so the key added nothing.
+- **Lock list as built:** `xp_entry` ACCESS EXCLUSIVE, then `player` SHARE (for `player_inactive_idx`, the timing
+  fallback; no writer of `player` touches `xp_entry`, asserted in the upgrade test).
+- **`xp_backfill` dropped:** 0039's one-time backfill wrote `xp_entry` and `player_xp` without `xp_apply`; the
+  "every writer of `xp_entry` calls `xp_apply`" test found it. Its two test references were removed.
+- **Admin refusals answer 404**, as every console door does (`refusalOf`: `QY403` → 404), not 403.
+- **Timing (review item 3):** first build p95 107/108 ms at 100,000; with the index-only fallback p95 59/62 ms, p50
+  47/48 ms (ADR-322). The gate is not met; the Redis copy is T-408d, due before 50,000 ranked players.
+- **An archived season's `level`** is the player's lifetime level today, so it may move; places and XP do not.

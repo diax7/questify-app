@@ -67,7 +67,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.backfill_level_items()",
         "SELECT public.xp_credit(NULL::public.ledger_entry)",
         "SELECT public.xp_reverse(NULL::public.ledger_entry)",
-        "SELECT public.xp_backfill()",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }
@@ -975,6 +974,63 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
            AND c.relname IN (${dailyTables.map((table) => `'${table}'`).join(", ")})`,
       );
       expect(secured).toHaveLength(dailyTables.length);
+    });
+
+    it("cannot read the XP boards, the Questify-wide ranking or its seasons, or reach their helpers (T-408)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.xp_board",
+        "INSERT INTO public.xp_board (board, player_id, xp, xp_version) VALUES ('all', gen_random_uuid(), 1, 1)",
+        "SELECT public.questify_ranking('lifetime')",
+        "SELECT public.questify_seasons()",
+        "SELECT public.questify_season_top('2026-10')",
+        "SELECT public.questify_month(now())",
+        "SELECT public.xp_month_of(1)",
+        "SELECT public.questify_ranking_on()",
+        "SELECT public.questify_board_of('lifetime')",
+        "SELECT public.xp_board_row(gen_random_uuid(), 1, 1)",
+        "SELECT public.xp_board_json('all', NULL)",
+        "SELECT public.questify_season_board('2026-10')",
+        "SELECT public.xp_board_count('all')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = ["questify_ranking", "questify_seasons", "questify_season_top"];
+      const internals = [
+        "questify_month",
+        "xp_month_of",
+        "questify_ranking_on",
+        "questify_board_of",
+        "xp_board_row",
+        "xp_board_json",
+        "questify_season_board",
+        "xp_board_count",
+        "xp_apply",
+      ];
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})
+           ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the three doors only, never the helpers or xp_apply.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(
+        [...doors].toSorted(),
+      );
+      const held = await rows<{ priv: string }>(
+        `SELECT p.priv FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE n.nspname = 'public' AND c.relname = 'xp_board'
+           AND (has_table_privilege('questify_app', c.oid, p.priv) OR has_table_privilege('public', c.oid, p.priv))`,
+      );
+      expect(held).toEqual([]);
+      const secured = await rows<{ relname: string }>(
+        `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relname = 'xp_board' AND c.relrowsecurity AND c.relforcerowsecurity`,
+      );
+      expect(secured).toHaveLength(1);
     });
 
     it("cannot create anything", async () => {

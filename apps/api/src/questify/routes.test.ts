@@ -134,6 +134,44 @@ describe("POST /v1/me/questify/sync", () => {
   });
 });
 
+describe("GET /v1/questify/ranking", () => {
+  const board = { board: "all", rows: [], me: null };
+
+  it("reads the lifetime board by default and the month board when asked, never cached", async () => {
+    const { seen } = build(() => ({ rows: [{ r: board }] }));
+    const response = await call("GET", "/v1/questify/ranking");
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe(NO_STORE);
+    expect(response.json()).toEqual({ scope: "lifetime", month: null, rows: [], me: null });
+    build(() => ({ rows: [{ r: { ...board, board: "2026-10" } }] }));
+    expect((await call("GET", "/v1/questify/ranking?scope=month")).json()).toMatchObject({
+      scope: "month",
+      month: "2026-10",
+    });
+    expect(asked(seen, "questify_ranking($1)").map((one) => one.values)).toEqual([["lifetime"]]);
+  });
+
+  it("answers 400 for another scope or an unknown query key, asking the database nothing", async () => {
+    for (const url of ["/v1/questify/ranking?scope=season", "/v1/questify/ranking?page=2"]) {
+      const { seen } = build(() => ({ rows: [{ r: board }] }));
+      expect((await call("GET", url)).statusCode).toBe(400);
+      expect(asked(seen, "questify_ranking")).toEqual([]);
+    }
+  });
+
+  it("answers 401 without a player, and 404 ranking_off while the switch is off", async () => {
+    const { seen } = build(() => ({ rows: [] }));
+    expect((await call("GET", "/v1/questify/ranking", {})).statusCode).toBe(401);
+    expect(seen).toEqual([]);
+    build(() => {
+      throw Object.assign(new Error("off"), { code: "QW404" });
+    });
+    const off = await call("GET", "/v1/questify/ranking");
+    expect(off.statusCode).toBe(404);
+    expect(off.json()).toMatchObject({ code: "ranking_off" });
+  });
+});
+
 describe("GET /v1/me/gem-shop", () => {
   it("answers the caller's balance and the items, never cached", async () => {
     const shop = { gems: 30, items: [{ ...ITEM, price: 40, owned: false }] };

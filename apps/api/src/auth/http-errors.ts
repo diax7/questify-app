@@ -448,6 +448,13 @@ export const rankingOff = make(
   "الترتيب مخفي في هذه الفعالية.",
   "The ranking is hidden for this event.",
 );
+/** The Questify-wide ranking while its platform switch is off (T-408, ADR-322). */
+export const questifyRankingOff = make(
+  404,
+  "ranking_off",
+  "ترتيب Questify غير متاح الآن.",
+  "The Questify ranking is not available right now.",
+);
 export const todayRankingOff = make(
   404,
   "today_ranking_off",

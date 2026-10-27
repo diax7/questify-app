@@ -1,4 +1,4 @@
-import { gemPurchaseBodySchema } from "@questify/shared";
+import { gemPurchaseBodySchema, questifyRankingQuerySchema } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack } from "#src/devices/limits";
 import { buyGemItem, readGemShop } from "#src/questify/gems";
+import { readQuestifyRanking } from "#src/questify/ranking";
 import {
   readAchievements,
   readCities,
@@ -45,7 +46,7 @@ const own = (request: FastifyRequest) => {
 };
 
 /**
- * Questify-wide player doors (T-403, T-403b, T-404, T-406): the sync evaluator, achievements, Questify quests, the Event
+ * Questify-wide player doors (T-403, T-403b, T-404, T-406, T-408): the sync evaluator, achievements, Questify quests, the ranking, the Event
  * Passport and history, the gem shop and its purchase door, the daily games, the marketing and preferences doors (T-407), and the public city list. Player routes take a player bearer token only, so a staff session never enters them.
  */
 export function registerQuestifyRoutes(
@@ -81,6 +82,12 @@ export function registerQuestifyRoutes(
         limit: query.limit,
       }),
     );
+  });
+  // The Questify-wide ranking (T-408, FR-611): any active player, outside events (FR-612 is the app's).
+  app.get("/v1/questify/ranking", player, async (request, reply) => {
+    const { scope } = parse(questifyRankingQuerySchema, request.query ?? {});
+    reply.header("cache-control", "private, no-store");
+    return as(own(request), (client) => readQuestifyRanking(client, scope));
   });
   app.get("/v1/me/gem-shop", player, async (request, reply) => {
     reply.header("cache-control", "private, no-store");

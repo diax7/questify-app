@@ -79,8 +79,8 @@ Players created before 0017 have no rows and are asked again.
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
   completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403),
   `questify_award` rows and their XP entries (T-403b), `gem_entry` and `gem_purchase` rows (T-404), the streak rows
-  (`event_streak_day`, `questify_streak_day`, `questify_streak_reward`, T-405) and handed-over redemptions; they name no
-  one.
+  (`event_streak_day`, `questify_streak_day`, `questify_streak_reward`, T-405), the ranking boards (`xp_board`, T-408)
+  and handed-over redemptions; they name no one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
   player's flags, operator assignments; `ledger_note.reason` of their entries cleared. `bulk_award.reason` stays (Q-144).
 - `player_fingerprint (player_id, fingerprint, created_at)`: the keyed fingerprint (`deletionFingerprint`, an HMAC
@@ -674,6 +674,28 @@ ADR-151):
 - Migration lock order: enrollment EXCLUSIVE, event, quest_completion SHARE ROW EXCLUSIVE, xp_entry, ledger_entry ACCESS
   EXCLUSIVE, player_xp SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; never `platform_setting` or `player`.
 
+### The Questify-wide ranking (migration 0072, T-408, ADR-322, ADR-323; undeployed, core code review pending)
+
+- `xp_board(board, player_id, xp ≥ 0, xp_version > 0)`, PK (board, player_id); `board` is `all` (lifetime, equal to
+  `player_xp.xp`) or a Questify month `YYYY-MM` (`questify_month(at)`: the month of `questify_day(at)`, so a month starts
+  at 04:00 Riyadh time on the 1st). A month holds the XP credited in it less the removals of those credits: an entry
+  counts on `xp_month_of(entry)`, its own month, or for a removal the month of the credit it reverses, so a month row
+  is never negative and a past month changes only when one of its own credits is removed. `xp_version` is the highest
+  entry id applied to the row (`greatest`); the lower ranks first on a tie (FR-606). Index `(board, xp DESC,
+  xp_version) WHERE xp > 0`. No foreign key (checking one would take KEY SHARE on `player_xp` rows that the daily finish
+  and the sync hold FOR UPDATE); rows come only from `xp_apply` and the 0072 backfill. RLS forced, no grant; kept on
+  the tombstone. This is the baseline's `ranking_season`: each month board is a season and its archive.
+- `xp_apply` (restated) writes both boards after its `player_xp` UPDATE, under that row lock (an UPDATE, or an INSERT
+  for a new row). `xp_backfill` (0039, a one-time backfill that bypassed `xp_apply`) is dropped. The backfill fills
+  both boards under `xp_entry` ACCESS EXCLUSIVE and aborts unless they equal the ledger.
+- `player_inactive_idx` on `player (id) WHERE status <> 'active'`: a reader's place counts the rows ahead from the board
+  index alone, then takes off the inactive players among them.
+- Doors: `questify_ranking(scope)` (player, caller-bound through `profile_player()`; `PI401`, `QW404` while
+  `features.questifyRanking.enabled` is false, `22023` for another scope); `questify_seasons()` and
+  `questify_season_top(month)` (admin, `questify_admin()`, `QY403`). Internal: `questify_month`, `xp_month_of`,
+  `questify_ranking_on`, `questify_board_of`, `xp_board_row`, `xp_board_json`, `questify_season_board`,
+  `xp_board_count`. Ranked: an active player with XP above 0 on that board.
+
 ### Daily games (migration 0069, T-406, ADR-306 to ADR-313)
 - Periods: `daily_period(kind, day)` (internal) answers `(starts_on, ends_on)`: the day itself under `daily`, Sunday to
   Saturday under `weekly`, cut by the governing cadence row's first day and the next row's (a switch mid-week ends the
@@ -1081,7 +1103,7 @@ rows or push text.
 | community_quest, milestone | Shared goals with measure, milestones, rewards | Built (T-306b: `community_goal`, `community_step`) |
 | rank_prize, souvenir_grant | Prizes attached to final ranks with claim deadline; souvenir rules and grants | Grants link to players |
 | questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank (built, T-406, migration 0069: see Daily games above) | No |
-| ranking_season | Monthly Questify-wide seasons and archives | No |
+| ranking_season | Monthly Questify-wide seasons and archives: built as the month boards of `xp_board` (T-408, migration 0072) | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |
 | operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |

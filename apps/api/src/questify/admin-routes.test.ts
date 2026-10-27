@@ -83,6 +83,40 @@ describe("GET /v1/admin/questify", () => {
   });
 });
 
+describe("the ranking's seasons (T-408)", () => {
+  it("lists the seasons from the door as the signed-in admin", async () => {
+    const seasons = [{ month: "2026-10", players: 3, current: true }];
+    const { seen } = build(seasons);
+    const response = await send("GET", "/seasons");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ seasons });
+    expect(seen.map((one) => one.sql)).toEqual(["SELECT questify_seasons() AS r"]);
+  });
+
+  it("reads one season by its month", async () => {
+    const season = { month: "2026-09", players: 0, rows: [] };
+    const { seen } = build(season);
+    const response = await send("GET", "/seasons/2026-09");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(season);
+    expect(seen).toEqual([{ sql: "SELECT questify_season_top($1) AS r", values: ["2026-09"] }]);
+  });
+
+  it("answers 400 for a malformed month and asks nothing", async () => {
+    for (const month of ["2026-13", "2026-9", "current"]) {
+      const { seen } = build();
+      expect((await send("GET", `/seasons/${month}`)).statusCode).toBe(400);
+      expect(seen).toEqual([]);
+    }
+  });
+
+  it("answers 404 and asks nothing without a staff member", async () => {
+    const { seen } = build();
+    expect((await send("GET", "/seasons", undefined, {} as typeof SIGNED_IN)).statusCode).toBe(404);
+    expect(seen).toEqual([]);
+  });
+});
+
 describe("campaign writes", () => {
   it("creates a draft with a null id, the parsed body and the request id, answering 201", async () => {
     const saved = { id: CAMPAIGN, status: "draft" };

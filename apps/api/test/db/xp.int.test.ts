@@ -434,19 +434,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify XP (database)", () =>
       }
     });
 
-    it("counts nothing twice when the backfill runs again", async () => {
-      const before = await owner("SELECT player_id, xp, level FROM player_xp ORDER BY player_id");
-      const entries = await owner("SELECT count(*)::int AS n FROM xp_entry");
-      const levels = await owner("SELECT count(*)::int AS n FROM level_reached");
-      await owner("SELECT xp_backfill()");
-      await owner("SELECT xp_backfill()");
-      expect(await owner("SELECT player_id, xp, level FROM player_xp ORDER BY player_id")).toEqual(
-        before,
-      );
-      expect(await owner("SELECT count(*)::int AS n FROM xp_entry")).toEqual(entries);
-      expect(await owner("SELECT count(*)::int AS n FROM level_reached")).toEqual(levels);
-    });
-
     it("gives a deleted or unknown caller no level", async () => {
       expect(await query({ playerId: randomUUID() }, "SELECT * FROM own_level(NULL)")).toEqual([]);
     });
@@ -462,7 +449,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify XP (database)", () =>
         "SELECT * FROM level_title",
         "SELECT quest_xp()",
         "SELECT xp_level_of(5)",
-        "SELECT xp_backfill()",
         "SELECT xp_credit(NULL::ledger_entry)",
         "SELECT xp_reverse(NULL::ledger_entry)",
         "SELECT xp_apply(gen_random_uuid(), 1, 1)",

@@ -928,6 +928,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; reached only through definers bound to its token or deletion token (test/db/account-deletion)",
   player_xp:
     "no right for the API role at all; Questify-wide, not an organizer's; written by the ledger's XP trigger, read only through own_level for the calling player (test/db/xp)",
+  xp_board:
+    "no right for the API role at all; Questify-wide, not an organizer's; a cache of xp_entry written only by xp_apply under the player's player_xp lock, read through questify_ranking and the admin's season doors (test/db/questify-ranking)",
   xp_entry:
     "no right for the API role at all; append-only, written by the ledger's XP trigger (test/db/xp)",
   level_reached:
