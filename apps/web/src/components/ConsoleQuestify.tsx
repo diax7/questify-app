@@ -28,7 +28,7 @@ import {
   type QuestDraft,
 } from "#src/lib/console-questify.ts";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
-import { requestJson, type PostResult } from "#src/lib/post-json.ts";
+import { isTransientFailure, requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { useRequestKey } from "#src/lib/use-request-key.ts";
 import styles from "#src/components/layout.module.css";
@@ -378,6 +378,9 @@ function usePage(language: Language) {
       "idempotency-key": request.keyFor(signature),
     });
     if (!result.ok) {
+      if (!isTransientFailure(result)) {
+        request.forget();
+      }
       setProblem(problemOf(result.body, language, t));
       setBusy(false);
       return false;
