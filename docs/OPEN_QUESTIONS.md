@@ -1201,3 +1201,51 @@ it would run before the reservation timeout and ticket purge of the same run), o
 re-review), with a fifth condition: no event is archived before 30 days after its end, the help desk's sending window
 (ADR-248), which also gives organizers 30 days to review pending submissions. No per-event exception block (a known
 risk recorded in ADR-341). ADR-341 Accepted.
+
+## Q-311 — How T-501 splits (2026-10-28, T-501 plan)
+Recommended (ADR-342): seven slices (store and worker; the APNs and FCM clients; the app; personal pushes; event pushes;
+reminders and invitations; the hidden-category hint), with T-312b merged into the app slice. The other option, one
+server slice with the clients inside, gives one very large core review mixing data rules with outside calls.
+Developer's call at the T-501 reviews.
+
+## Q-312 — The push store's shape (2026-10-28, T-501 plan)
+Recommended (ADR-343): a notice per event, a center row per recipient as the record of every message, an outbox per
+device, devices tied to the sign-in, kinds as seeded rows, 180-day center retention. The other option, event-wide
+messages read by union at view time with a per-player read mark, stores fewer rows but makes "every message, read and
+unread" and membership at the time of sending harder to prove. Developer's call at the T-501 reviews.
+
+## Q-313 — Direct APNs and FCM, and running without keys (2026-10-28, T-501 plan)
+Recommended (ADR-344): direct clients on Node's own HTTP/2, fetch and crypto; all-or-none configuration; start and send
+nothing when no keys are set (until Dhia's Apple and Google accounts exist). The other options: a library per provider
+(more dependencies), or refuse to start without keys (production could not run before the accounts exist). Developer's
+call at the T-501b review.
+
+## Q-314 — The push worker and its retry rule (2026-10-28, T-501 plan)
+Recommended (ADR-345): the in-process loop with leases (no pg-boss), priority for personal pushes, a bounded retry
+inside one lease under the same collapse id, expiry by kind, provider holds and a mass-invalid guard. The other options:
+pg-boss (a second job store and a dependency), or T-409's strict "never retry after a timeout" (no safe retry for a
+free, mergeable message). Developer's call at the T-501 reviews.
+
+## Q-315 — What a push may say (2026-10-28, T-501 plan)
+Recommended (ADR-346): fixed templates per kind, only public names (event, quest, category, reward) and dates, the
+name rule with a nameless fallback, ids only in the payload. The other option, generic texts with no names at all, is
+safer still but makes every push read the same ("Something happened in your event"). Developer's call at the T-501
+reviews; counsel's data-transfer list (Q-043) already names push text.
+
+## Q-316 — Who receives, topics and mute (2026-10-28, T-501 plan)
+Recommended (ADR-347): active players and active members only (per-kind exceptions for the join decision and help-desk
+answers), rehearsal enrollments only before the event is live, four topics with personal pushes not mutable in the app,
+mute stops the push but keeps the center row unread, mutes per player across events, no quiet hours or brake (Q-287).
+The other option for mute, hiding muted messages from the center, conflicts with "the center holds every message".
+Developer's call at the T-501 reviews; the topic list itself is FR-1115's.
+
+## Q-317 — Promotional push and the invitation channel order (2026-10-28, T-501 plan)
+Recommended (ADR-348): consent from `promo_pool('push')` at fan-out and claim; the opt-out in the center row and Settings;
+invitations by push first when possible, else SMS, one message per player per campaign. The other option, SMS first,
+costs money per message for players who also accepted push. Developer's call at the T-501f review.
+
+## Q-318 — The app's permission moment, center route and taps (2026-10-28, T-501 plan)
+Recommended (ADR-349): the explainer after a join, Not now waits 30 days, the center at `/notifications` with the offers
+screen moved to `/settings/notifications`, a fixed route table for taps, `expo-notifications` as the new dependency.
+The other option, asking once and never again after Not now, loses players who joined before they cared. Developer's
+call at the T-501c review.

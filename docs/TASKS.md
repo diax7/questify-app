@@ -406,6 +406,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-312-ticket-center.md`, migration 0061, ADR-255 to ADR-259 and Q-218 to Q-222 Proposed. Split (ADR-255): the notification history (FR-1824's second half) moves to T-312b, after T-501. A platform admin reads exactly `queue = 'questify'` (Q-211 answered); new dependency `expo-device` for the phone model (ADR-259).
   - Done 2026-10-25 (CTO plan re-review 91/100, GO with the routing CHECK fixed: a NULL `escalated_at` no longer passes; forged-insert test added; the return CHECK tightened). Migration 0061; `apps/api/src/tickets/**` (console store and routes new); app ticket center (`app/help.tsx`, `src/help/**`, `expo-device` 57.0.2 loaded lazily; a new development build is Dhia's step); dashboard With Questify and Escalate; console Tickets. As built: the failed-username cap uses the API's Postgres throttle (`ticket_lookup`), not Redis, so there is no "Redis down" path; the console answers 401 with no staff session (its hook's T-210 contract) and 404 to any signed-in non-admin; `console_tickets` and `console_ticket` take the request id for their audit rows; `waitingByKind` counts open tickets in either queue (T-616 builds on it).
 - [ ] **T-312b** Notification history in the profile: every notification received, read and unread, newest first, on T-501's notification center — delivers FR 1824 (second half); depends on: T-501, T-312
+  - Merged 2026-10-28 into T-501c (ADR-342): the center screen T-501c builds is this history (newest first, read and unread), and Profile → Notifications opens it. Ticked with T-501c.
   - Split from T-312 2026-10-24 (ADR-255): no notification is stored before T-501; this is the profile row and the full list on T-501's table, not a second store. Standard bar.
   - Done when: A player with 30 earlier notifications sees all 30, newest first, from Profile.
 - [x] **T-313** First-N bonus on a quest, counted inside the completion transaction, with a live 'bonuses left' count — delivers FR 1840; depends on: T-105. Done 2026-10-25 (migration 0062, ADR-260 to ADR-263; Opus code review and mutation owed)
@@ -804,10 +805,42 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     sender here (widen `invitation_campaign.channels`' CHECK, add the order between channels to the fill, one message per
     player per campaign); an invitation push's open is reported by the app and marks the recipient's `opened_at` once,
     like the landing page.
+  - Plan 2026-10-28 (core): `docs/plans/2026-10-28-t-501-push.md`, migration 0076, ADR-342 to ADR-349 and Q-311 to
+    Q-318 Proposed. Split (ADR-342): **T-501** is the CORE store and worker (`notice`, the center `notification`, the
+    outbox `push_send`, `push_device` per sign-in, `push_topic_mute`, `notice_kind` rows; the fan-out, claim, ack and
+    settle doors; a fake provider; the center, mute and device routes; `/v1/me` unread; templates and payload; erasure);
+    the real clients, the app and the owed pushes are T-501b to T-501g. The notes above are wired by the slice named in
+    the plan's "Owed pushes" table. Real pushes wait for Dhia's APNs key and Firebase project (nothing else does).
+- [ ] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
+  - Split from T-501 2026-10-28 (ADR-342, ADR-344, ADR-345). CORE; plan: `docs/plans/2026-10-28-t-501-push.md` (T-501b
+    section). No new server dependency; the Gmail sender's service-account token code moves to `auth/google-token.ts`.
+  - Done when: With no keys set the server starts and sends nothing; a token the provider calls invalid stops receiving pushes, and a round of mostly invalid answers holds the provider instead.
+- [ ] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
+  - Split from T-501 2026-10-28 (ADR-342, ADR-349). Standard; plan: `docs/plans/2026-10-28-t-501-push.md` ("The app").
+    Absorbs T-312b. New dependency `expo-notifications` (a new development build). The phone check needs Dhia's Apple
+    and Firebase setup; the center works without them.
+  - Done when: No permission prompt before the first join; refusing it blocks nothing and the center still lists every message, newest first, unread marked.
+- [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
+  - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6 (AFTER
+    triggers on the source tables, due scans for times; once-only by the notice's `dedupe`).
+  - Done when: Each decision, answer and revealed prize gives exactly one push and one center row, never to a player who left or was erased.
+- [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
+  - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes".
+  - Done when: Only active members get event pushes, once each; a muted topic still lands in the center.
+- [ ] **T-501f** Reminders and promotion by push: daily streak reminder, shop closing, push as an invitation channel — delivers FR 1102 (streak), 1111 (push); depends on: T-501e
+  - Split from T-501 2026-10-28 (ADR-342, ADR-348). CORE; rows 13 to 16 of the T-501 plan's "Owed pushes" (the daily
+    games reminder is folded into the streak reminder).
+  - Done when: A promotional push reaches only players opted in on push now; an invitation goes by push or SMS, never both.
+- [ ] **T-501g** Hidden-category hint push reveals the category to its recipients — delivers FR 238; depends on: T-501e
+  - Split from T-501 2026-10-28 (ADR-342). CORE (Could); row 17 of the T-501 plan's "Owed pushes"; a dashboard button
+    on a hidden category.
+  - Done when: Players who receive the hint see the category; players who joined after it do not, unless they scan its secret QR.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
+  - Note 2026-10-28 (T-501 plan, ADR-347): an announcement is a `notice_kind` row (`announcement`, topic `announcements`) sent through `notice_create`; its title and a cut body are frozen on the notice in both languages; run T-409's name rule as a filter and put a rate limit on the send door itself (no push brake exists, ADR-065).
   - Note 2026-10-24 (T-307, CTO note 1): the "Happening now" strip (FR-806) must read running boosts and flash quests from the quests read (`flash`, `boost` on each quest and category), not from `GET …/live`: the event's live shortcut stops naming a boost or a flash quest 15 minutes after it starts (`event_has_live`'s tail), which is not its end. Or revisit that tail here.
   - Done when: Announcements never go by email or SMS.
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
+  - Note 2026-10-28 (T-501 plan): the top-10 push is a personal `notice_kind` with topic `rank` (mutable, FR-1115); no rank number in the text (ADR-346).
   - Done when: A player entering the top 10 gets one push; organizer alert types are switchable per team member.
 - [ ] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community, poll and photo wall scenes — delivers FR 630, 631, 632, 633, 634, 635, 636, 637, 1613; depends on: T-309, T-106
   - Note 2026-10-23 (T-211): FR-1721 says the team opens the big screen in rehearsal. Pairing must accept a Draft or Scheduled event while its rehearsal is open (`event_rehearsal`, `live_wiped_at` null), and its ranking then shows the rehearsal accounts (they rank through the same cache; the wipe marks the event for repair).
@@ -833,6 +866,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-509** Cheers: five fixed reactions, cheers moment started by the owner, big-screen Cheers scene, rate limit, on/off per event — delivers FR 1841; depends on: T-504
   - Done when: No cheer button shows unless a moment is live; a player cannot send more than the per-minute limit.
 - [ ] **T-510** Default notification topics per event — delivers FR 1836; depends on: T-501
+  - Note 2026-10-28 (T-501 plan, ADR-347 (6)): mutes are per player across events (`push_topic_mute`); the event's defaults are a layer under the player's own choice, read at fan-out and at the claim.
   - Done when: A new player's topic defaults follow the event's settings and can still be muted.
 
 ## Phase 6 — Organizer power
@@ -881,6 +915,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
   - Note 2026-10-24 (T-310): the tickets inbox builds on `event_tickets` / `event_ticket_counts` (migration 0059) and the dashboard's Help desk page; counts by type and the prize-problems view are added on top.
   - Note 2026-10-23 (T-218): the queue's API exists: `GET …/join-requests`, accept, decline and `accept-all` (member access, audited). The Players page shows a Requests section; the reports inbox reuses it.
 - [ ] **T-617** Operator activity view and staff briefing push to operators only — delivers FR 1844; depends on: T-204, T-501
+  - Note 2026-10-28 (T-501 plan): FR-1101's operator-invite push and the staff briefing are personal kinds here; the invite push needs an in-app list of the player's open invites (the SMS link carries the invite until then).
   - Done when: The view shows scans per hour and last activity per operator; a briefing reaches only operators.
 - [ ] **T-618** Go-live readiness checklist (owner dashboard and Questify team view) — delivers FR 1845; depends on: T-211
   - Note 2026-10-23 (T-211): "Rehearsed on a phone" is `event_rehearsal.first_play_at` (kept after an erase), or the card's live `firstPlayAt` before any erase.
