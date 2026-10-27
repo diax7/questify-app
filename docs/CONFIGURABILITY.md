@@ -211,6 +211,15 @@ for an event.
 - **The shop catalog:** items, prices, order and retirement are seeded by migration until T-709 (FR-1403). Nothing is
   sold for money; gems are earned only by playing (STORE_COMPLIANCE 1.6).
 
+## As built (T-410): the shop's window after the event
+
+- **Per event, on the dashboard's Rewards page (ADR-336, FR-1018):** the days the rewards shop stays open after the
+  event ends, 0 to 30 whole days, default 3 (0 closes it at the end); owner or editor in scope. Before the end any
+  value; after the end only a longer window; once closed it is frozen, lengthening included (409 `shop_window_locked`,
+  enforced again by a database guard). The dashboard and Home show when it closes in the event's zone (T-410b).
+- **The close is a rule, not a setting:** nothing is written at the close (ADR-337), and no switch reopens a closed
+  shop. The event's `shop` feature switch still hides the shop and Home's window entirely.
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |

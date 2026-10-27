@@ -24,6 +24,27 @@ review and code review, mutation on GitHub for the files below. T-410b is Standa
 | 9 | Deterministic boundary tests on 2-core CI; no due spend-lowers-rank hold in the FR-751 snapshot; time from SQL | Tests; The window (4) |
 | 10 | The `SW409` reason mapping falls under the mutation glob | The window (4); API; Mutation globs |
 
+## Build notes (T-410, 2026-10-27)
+
+- **A bug the after-the-end tests found, fixed in 0074:** `reserve_reward` (0054) set `rehearsing := play_phase(...) =
+  'rehearsal'`, which is NULL once the event has ended, so every `NOT rehearsing` test was skipped in the window after
+  the end: a digital reward was delivered with no code and no unit counted (the app would show a test code), and an
+  item skipped the desk's hours (no `desk_finished`, no pickup moved to the next opening). 0074 restates 0054's body with
+  `coalesce(..., false)`; nothing else changes. Proven by three tests in `test/db/shop-window.int` that fail on 0054.
+- The rule's `statusNow` check is `ended` only: an archived event's shop is always `closed`, which is refused first.
+- The guard's `closed` test reads `NOT coalesce(ends_at + days > clock_timestamp(), false)`, the exact negation of
+  `shop_state`'s open test, so the two agree on every row.
+- An `ends_at` change after the close stays `event_times_guard`'s (`QE409`); the window guard watches the days only.
+  Extending a live event's end in a transaction begun before its end remains allowed (the times guard judges on
+  `now()`), which can move a days-0 close by that one edit; it is the end moving while the event was live, not a
+  reopening.
+- The recap route registers inside `registerHomeRoutes` (the event's player routes); its 404 is `not_found`.
+- Balance writers re-checked at the build: the only spender is `reserve_reward` (`RS403 closed`); quest payments,
+  category and first-N bonuses, community payouts and quiz finishes write `balance_delta = 0` once `shop_state` is
+  `closed`; manual and bulk awards and the streak bonus run only while live; the welcome credit needs a first activation,
+  which `join_event` and `decide_join_request` refuse after the end; returns (`redeem_return`) put back what a hold took
+  (FR-1609) and `remove_award` takes at most the balance held.
+
 ## What already exists (read from the code, 2026-10-27)
 
 - `event.shop_days_after` (0 to 30 whole days, default 3; migration 0024), set on the dashboard's Rewards page

@@ -1123,9 +1123,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-738 | F-139 | Should | server built T-409 (migration 0073: the owner's request, the admin's approval with frozen names, the fill through `promo_pool`, the SMS sender tick; `invitationCampaigns` switch off until the RUNBOOK's three conditions); the web pages built T-409b (the dashboard's Invitations page, the console's queue and detail); code review pending |
 | FR-739 | F-139 | Should | server built T-409 (rounded daily counts sent, opened, joined; never a player; the landing page's open door); pages built T-409b (rounded counts "120+" / "Fewer than 10" on the dashboard, exact ones in the console, the landing page `/{lang}/i`); code review pending |
 | FR-740 | F-139 | Should | built T-409 (requested on the web, approved in the console, no price on the platform; `no-invitation-purchase.test` keeps the routes out of the app); code review pending |
-| FR-750 | F-142 | Must | pending |
-| FR-751 | F-142 | Must | pending |
-| FR-752 | F-141 | Should | pending |
+| FR-750 | F-142 | Must | server built T-410 (migration 0074: the window guard, the API's rule, Home's `shopWindow` and no goal once closed; the balance closes by rule; `test/db/shop-window.int`); the screens are T-410b; code review pending |
+| FR-751 | F-142 | Must | built T-410 (the close writes nothing; score, final rank, stamp, souvenirs, XP, level, achievements and items proven untouched across the close, `test/db/shop-window.int`); code review pending |
+| FR-752 | F-141 | Should | server built T-410 (`event_recap`, `GET /v1/events/{id}/recap`, `test/db/event-recap.int`); the card and its share are T-410b; code review pending |
 | FR-801 | F-50 | Must | pending |
 | FR-802 | F-50, F-09 | Must | pending |
 | FR-803 | F-50, F-126, F-151 | Must | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
@@ -1187,7 +1187,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1015 | F-189 | Must | pending |
 | FR-1016 | F-190 | Must | pending |
 | FR-1017 | F-194 | Must | pending |
-| FR-1018 | F-194 | Must | pending |
+| FR-1018 | F-194 | Must | server built T-410 (as FR-750; the dashboard's shop read carries `state` and `closesAt`); the dashboard field is T-410b; code review pending |
 | FR-1019 | F-195 | Must | pending |
 | FR-1020 | F-195, F-44 | Must | pending |
 | FR-1021 | F-195, F-194 | Must | pending |
@@ -1273,7 +1273,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1606 | F-223 | Should | pending |
 | FR-1607 | F-216 | Must | pending |
 | FR-1608 | F-194 | Must | partly built (T-102: Scheduled → Live → Ended, `test/db/event-lifecycle.int`; Ended → Archived is T-411, ADR-337) |
-| FR-1609 | F-142, F-145 | Must | pending |
+| FR-1609 | F-142, F-145 | Must | built (T-202, T-206: holds keep their own deadline); tested across the close T-410 (handover, timeout and cancel after it, a rank prize, `test/db/shop-window.int`) |
 | FR-1610 | F-164 | Must | pending |
 | FR-1611 | F-61 | Should | pending |
 | FR-1612 | F-23, F-157 | Must | pending |

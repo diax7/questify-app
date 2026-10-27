@@ -506,6 +506,26 @@ ADR-151):
   either (`RH409`) **before** the status check, so the desk never learns of a ban. `desk_items` (the lookup and the
   find) shows only `active` and `hold`, never the status. `enrollment.redeem_paused_at` (0031) also refuses new
   reservations and Collect (`RP403`, after the replay check).
+- **After the event (migration 0074, T-410, ADR-336, ADR-337; undeployed, core code review pending).** The shop's
+  window is `ends_at + shop_days_after` days, and `shop_state()` stays the one definition of open and closed (0 to 30
+  days; 0 closes the shop at the end). `event_shop_window_guard` (BEFORE UPDATE OF `shop_days_after`, the API's role
+  only, as `event_times_guard`): after the end the days only grow (`SW409 shorter`); once closed, or archived, they
+  never change, lengthening included (`SW409 closed`). It judges on `clock_timestamp()`, so an edit whose transaction
+  began before the close cannot reopen it; the API's rule (`rewards/shop-window.ts`) reads the same state in SQL and
+  maps the guard's DETAIL. With the end frozen by `event_times_guard` and no door writing `status`, the close is
+  permanent. **The close is a rule, not a write:** no ledger entry, flag or job; `enrollment.balance` still equals the
+  sum of `balance_delta` and is spendable nowhere (only `reserve_reward` spends it and refuses `RS403 closed`); new
+  points move the score only (FR-1710). Holds made before the close keep their own `reserved_until` and are handed
+  over at the desk; a timeout or cancel returns the points into the closed balance. Unassigned digital codes stay in
+  their reward (event-data retention, Q-075). Nothing at the close touches score, `final_rank`, the stamp,
+  `player_item`, XP or achievements (FR-751). The event stays Ended; archiving is T-411. `reserve_reward` is restated
+  in 0074: 0054's rehearsal flag was NULL once the event had ended, so in the days after the end a digital reward was
+  delivered with no code and no unit counted, and items skipped the desk's hours; the flag is now never NULL.
+- `event_recap(event)` (0074, T-410, ADR-339): the caller's recap, one row while their membership counts as played for
+  the passport (not pending, declined, banned or removed; not a rehearsal account; `left` included; `joined_via` NULL
+  before 0018), none otherwise: the event's name, local start date and city, the rank by `own_events`' rule, the
+  distinct quests of the membership's `quest` entries no removal reverses, and the event's souvenirs in earned order.
+  Definer, pinned, granted to the API role only; no table.
 
 ### Marketing consent, interests and city (T-407, migration 0070 undeployed)
 
@@ -1179,6 +1199,7 @@ Derived from the primary flows:
 | Marketing consent | Proof of each opt-in and opt-out per channel: date, method, wording version (`marketing_consent`, T-407; PDPL IR Art. 11) | Append-only; no contact stored; admin reads are audited | Until deletion (Q-289) | Player; admin (read-only, logged) |
 | Invitations received | Which Questify invitation a player was sent and whether they opened it and joined (`invitation_recipient`, T-409) | Never shown to an organizer (rounded daily counts only); no contact or text stored | 90 days after the campaign finished, or until deletion | Player (not shown); admin sees counts only |
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
+| The permanent record (T-410, FR-751) | What a player keeps after an event: score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements | Untouched by the shop's close; erasure still applies (`erase_rows`) | **Kept: the future event-data retention (Q-075) must exclude them** | The player; the passport's public view (ADR-276) |
 | Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
 | Meetings | Meet-someone quests (FR-212, FR-213) | `meeting` and `meet_pass` have no grant and no policy; a code is kept only as a hash; the scanner sees the other's username and avatar, never their id | Event data (Q-075, Q-175); deleted with either account | Nobody through the API (no team read exists) |
 | Mini-game rounds | Mini-game quests (FR-1805 to FR-1809) | `game_round` has no grant and no policy; the inputs are never stored; the replay's reason reaches only the event's team, as flag lines | Event data (Q-075); deleted with the account | The player (their own sheet); the event's team as flag lines |

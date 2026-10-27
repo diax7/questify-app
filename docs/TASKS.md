@@ -711,7 +711,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     unit tests (`invitations`, `console-invitations`, `invitation-landing`), `campaigns.test` and
     `e2e/invitations.spec.ts` (desktop and phone, Arabic and English). No mutation globs beyond T-409's (the changed
     line is in `apps/api/src/invitation-campaigns/campaigns.ts`, already a target).
-- [ ] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
+- [x] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
   - Done when: After the window the balance closes but the score, rank and stamp remain.
   - Split 2026-10-27 (T-410 plan): T-410 is the **CORE** server (migration 0074: the window guard on `shop_days_after`
     and `event_recap`; the window rule in `updateShop`; Home's `shopWindow` and the closed goal; `GET
@@ -724,6 +724,18 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     (`left` in, `joined_via IS DISTINCT FROM 'rehearsal'`); `shopWindow.deskEndsAt`; the `SW409` mapping in
     `shop-window.ts`; boundary tests at `clock_timestamp()` + 1 s with a margin. **The code review checks the recap's
     quest count and membership by their named tests.**
+  - Done 2026-10-27 (core; code review owed): migration 0074 (`event_shop_window_guard` on `clock_timestamp()`,
+    `event_recap`, and `reserve_reward` restated: 0054's rehearsal flag was NULL after the end, so a digital reward bought
+    in the window was delivered with no code and no unit, and items skipped the desk's hours); the window rule and the
+    `SW409` mapping in `apps/api/src/rewards/shop-window.ts` (state and time from SQL, savepoint on the guard's refusal);
+    the dashboard's shop read and write carry `state` and `closesAt`; Home's `shopWindow` (`deskEndsAt` before the close)
+    and no goal once closed (`goal.ts`); `GET /v1/events/{id}/recap` (`src/recap`, `private, no-store`); shared
+    `shopWindowSchema` and `eventRecapSchema`. Proven by `test/db/shop-window.int` (guard, boundary races at
+    `clock_timestamp()` + 1 s, no reopening, FR-1609 after the close, FR-1710 earnings, the FR-751 snapshot),
+    `test/db/event-recap.int`, `test/rewards/routes.int` (the 409s, the API's clock unasked, the guard winning at the
+    boundary), the community payout after the window, Home over HTTP, the outsider, cross-tenant and routes suites, and
+    unit tests (`shop-window`, `goal`, `home-rows`, the recap route, the shared schemas). Mutation globs:
+    `apps/api/src/rewards/shop-window.ts`, `apps/api/src/home/goal.ts`.
 - [ ] **T-410b** The screens after the event: Home's shop banner and closed balance, the Rewards tab after the close, the recap card and its share, the dashboard's shop window field — delivers FR 750, 752, 1018 (on screen); depends on: T-410
   - Split from T-410 2026-10-27. Standard (app + web); plan: `docs/plans/2026-10-27-t-410-after-the-event.md` (T-410b
     section, ADR-338, ADR-339).

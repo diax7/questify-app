@@ -1,5 +1,18 @@
 # Security — Questify
 
+## T-410 after-the-event boundary (implemented; core code review pending)
+
+Migration 0074 adds no table and one grant. `event_recap` (definer, pinned search path, `questify_app` only) is bound to
+the caller through `profile_player()` and takes no player id: it answers one row for the caller's own membership that
+counts as played, nothing for another player, another organizer's event, a team seat, a rehearsal account, a banned
+player or a pending, declined, banned or removed member, and only what the player already sees (no username, score,
+balance, player count, join code or other id; `GET /v1/events/{id}/recap` is `private, no-store`). The trigger
+function `event_shop_window_guard` holds no grant; it refuses the API's role (organizers and admins alike) any change
+to a closed window and any shorter one after the end, on `clock_timestamp()`; no other role can update `event` but the
+owner connection. The close itself is a rule over `shop_state` (no stored flag to tamper with). Proven by the outsider
+suite (no PUBLIC rights; the grant list), the cross-tenant suite (the recap across players and organizers, another
+organizer's window), the routes inventory, `test/db/shop-window.int` and `test/db/event-recap.int`.
+
 ## T-406 daily games boundary (implemented; core code review pending)
 
 The ten tables of migration 0069 force RLS with no API or PUBLIC rights; the four play tables are append-only for every
