@@ -388,3 +388,12 @@ T-807 privacy line), `stryker.config.json` (the globs below).
 4. Restating T-407's `set_marketing` (defaulted fourth argument) and `marketing_audience` (system only).
 5. An opt-out or erasure racing a claim: a message can still leave within seconds (inside FR-1738's 24 h).
 6. The hot campaign row: every ack and open updates its counters.
+
+## Build notes (2026-10-27)
+
+Built as planned, with the departures in ADR-334 / Q-303 (proposed): the start skips the 24-hour rule; the claim locks
+campaigns `FOR NO KEY UPDATE`; `invitation_recipient` has no foreign keys (bigint id, a trigger for a deleted campaign);
+the fill took 4.0 s at 100,000 players on the laptop (estimate 0.7 s) and runs with its own 60 s statement limit;
+`M0030` and `M0090` hold the channel too. Tests: `test/db/invitation-campaigns.int` (requests, approval, Finding 1, the
+fill, organizer answers, audit rows) and `test/db/invitation-sending.int` (claim, ack, Finding 2, settle, open, erasure),
+`test/invitations/routes.int`, the security suites, unit tests beside the code and in `packages/shared`.

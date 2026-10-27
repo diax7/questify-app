@@ -150,9 +150,9 @@ that is shared or written to disk (today's is in memory, per process).
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
-## Questify invitations (T-409, ADR-329 to ADR-333; planned, not built yet)
+## Questify invitations (T-409, ADR-329 to ADR-334; server built, web pages T-409b)
 
-Written with the T-409 plan; the build confirms each line and adds the measured fill timing.
+Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns/`).
 
 - **Setting:** `MSEGAT_PROMO_SENDER`, the registered promotional "...-AD" sender name (Q-034), used with the same
   `MSEGAT_USERNAME`/`MSEGAT_API_KEY`. Unset: SMS is unavailable for invitations and the console cannot approve one. Never
@@ -169,16 +169,27 @@ Written with the T-409 plan; the build confirms each line and adds the measured 
   keeps running. Turning it on again resumes `sending` campaigns where they stopped. To stop one campaign, cancel it in
   the console instead.
 - **Alert:** `invitation.channel_hold {channel, code}` at error level means Msegat refused for the account (`1060`
-  balance, `1110` sender, `M0037` address, `unreachable`): SMS invitations pause for 15 minutes and then try again; the
-  console shows the hold. Fix the account (top up, activate the sender, register the address); nothing is lost and no
-  message fails because of it.
+  balance, `1110` sender, `M0030` a sender without the "AD" ending, `M0090` a template mismatch, `M0037` address,
+  `unreachable`): SMS invitations pause for 15 minutes and then try again; the console shows the hold. Fix the account
+  (top up, activate the sender, register the address); nothing is lost and no message fails because of it.
 - **Quiet hours:** an invitation SMS never leaves 22:00 to 09:00 Riyadh time, and in Ramadan never 22:00 to 12:00 (the
   fixed band, also checked in SQL, plus CST's Ramadan band 01:00 to 12:00); a send that crosses 22:00 resumes by itself
   at 09:00 (12:00 in Ramadan).
 - **Queued messages never wait forever:** if the event ends while messages are still queued (the switch was off,
   `MSEGAT_PROMO_SENDER` unset, a hold, quiet hours), the settle step, which runs even with the switch off, skips them and
   ends the campaign as sent with the reason "event over"; the console shows how many were skipped.
-- **Startup check:** the API refuses to start when `MSEGAT_PROMO_SENDER` equals `MSEGAT_SENDER`.
+- **Startup check:** the API refuses to start when `MSEGAT_PROMO_SENDER` equals `MSEGAT_SENDER` (case and spaces
+  ignored), or when it is set without the Msegat account.
+- **Fill timing (by hand, `apps/api/test/perf/invitation-fill-timing.int.test.ts`, 2026-10-27, the development laptop:
+  Docker Desktop on Windows, busy):** at 100,000 opted-in players the console's estimate takes 0.7 s and the fill 4.0 s
+  (the plan's 2 s gate is missed on this machine; ADR-334). The start therefore runs in its own transaction with a 60 s
+  statement limit (the API's is 5 s), so a slow database never kills a fill half-way. While it runs, another server
+  skips the fill, and an edit of that one event or a cancel of that campaign waits; no player or join waits. Measure
+  again on CranL before turning the switch on, and before approving a cap above 20,000 if it took over 10 s.
+- **Other log lines:** `invitation.start {outcome}` (started, too_small, event_changed, event_over), `invitation.ack_failed
+  {code}` (the message's lease expires within a minute and it is counted as unknown, never resent),
+  `invitation.settle_failed` / `invitation.send_failed {code}` (the next tick tries again). None carries a phone, a
+  text or a player.
 
 ## Usernames and the word lists (T-109, ADR-119)
 

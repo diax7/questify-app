@@ -367,7 +367,7 @@ Questify's default words, not an event's renamed words (ADR-058).
 | FR-737 | The system shall send promotional push, SMS and email only to players opted in on that channel. | Must | F-140 | Given a player opted in to push only, when Questify sends a promotion on all channels, then the player receives the push but no SMS or email. Given a player opted in to nothing, when a promotion is sent, then they receive nothing. |
 | FR-738 | The dashboard shall let an organizer request a Questify invitation to players chosen by interests, city or event history, for one of their events. | Should | F-139 | Given an organizer requests invitations for players interested in tech in Jeddah, when Questify sends them, then only opted-in players matching those criteria are invited. Given a matching player who has not opted in to promotional messages, when invitations are sent, then that player receives none. |
 | FR-739 | The dashboard shall show an organizer only the results of their Questify invitations (counts sent, opened and joined), never the identities of the invited players. | Should | F-139 | Given an invitation campaign has run, when the organizer opens its results, then they see the numbers sent, opened and joined. Given the organizer looks for who was invited, when they browse the results or exports, then no player names, usernames, phones or emails are available. |
-| FR-740 | The system shall bill Questify invitations to the organizer on the web, never inside the mobile app. | Should | F-139 | Given an organizer requests an invitation campaign, when it is confirmed, then the charge is handled on the web dashboard. Given any player or operator in the mobile app, when they use any screen, then no invitation purchase appears. |
+| FR-740 | The system shall bill Questify invitations to the organizer on the web, never inside the mobile app. | Should | F-139 | Given an organizer requests an invitation campaign, when it is confirmed, then the charge is handled on the web dashboard. Given any player or operator in the mobile app, when they use any screen, then no invitation purchase appears. Clarification (T-409, ADR-329): "confirmed" is a Questify admin's approval in the console; the charge is the off-platform invoice of ADR-064 and ADR-076, and the platform holds no price. |
 
 #### After the event
 
@@ -1120,9 +1120,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-735 | F-140 | Must | built T-407 (`set_marketing`: every channel off, the first answer recorded even when all stay off) and T-407b (the one-time step after sign-up); consent wording awaits counsel (Q-288), code review pending |
 | FR-736 | F-140 | Must | built T-407 (the dated log, `GET`/`PUT /v1/me/marketing`) and T-407b (Settings → Offers and notifications, each switch saved at once), code review pending |
 | FR-737 | F-140 | Must | built T-407 as the one audience door (`marketing_audience`, opted-in players only, per channel); the senders are T-409, T-501 and T-706, which must choose recipients there, code review pending |
-| FR-738 | F-139 | Should | pending |
-| FR-739 | F-139 | Should | pending |
-| FR-740 | F-139 | Should | pending |
+| FR-738 | F-139 | Should | server built T-409 (migration 0073: the owner's request, the admin's approval with frozen names, the fill through `promo_pool`, the SMS sender tick; `invitationCampaigns` switch off until the RUNBOOK's three conditions); the web pages are T-409b; code review pending |
+| FR-739 | F-139 | Should | server built T-409 (rounded daily counts sent, opened, joined; never a player; the landing page's open door); pages T-409b; code review pending |
+| FR-740 | F-139 | Should | built T-409 (requested on the web, approved in the console, no price on the platform; `no-invitation-purchase.test` keeps the routes out of the app); code review pending |
 | FR-750 | F-142 | Must | pending |
 | FR-751 | F-142 | Must | pending |
 | FR-752 | F-141 | Should | pending |
@@ -1215,8 +1215,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1108 | F-203 | Must | pending |
 | FR-1109 | F-43 | Must | pending |
 | FR-1110 | F-44 | Must | pending |
-| FR-1111 | F-204 | Should | audience rule built T-407 (`marketing_audience`); the senders (invitations, campaigns) come with T-409 and T-706, code review pending |
-| FR-1112 | F-204 | Should | not built: needs the registered promotional sender (Q-034) and the SMS campaign sender (T-706); the opt-in is already per channel |
+| FR-1111 | F-204 | Should | audience rule built T-407; T-409 moved it into `promo_pool`, read by the invitation fill and again at every claim, and made `marketing_audience` system-only; campaigns come with T-706, code review pending |
+| FR-1112 | F-204 | Should | built for invitations T-409 (`MSEGAT_PROMO_SENDER`, never the service sender: the API refuses to start when they match); waits for the registered "-AD" name (Q-034); campaigns T-706 |
 | FR-1113 | F-204 | Should | built T-407 (`marketing_consent` with channel, date, method and wording version; the admin's audited read `GET /v1/admin/players/{id}/marketing-consent`; its screen comes with T-704), code review pending |
 | FR-1114 | F-204 | Must | built T-407 (signed opt-out link, `POST /v1/public/marketing/opt-out`, the web page `/[lang]/opt-out`) and T-407b (settings switches); every promotional sender must put `optOutUrl` in each message, code review pending |
 | FR-1115 | F-202 | Should | pending |
@@ -1330,7 +1330,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1735 | F-263 | Must | pending |
 | FR-1736 | F-264 | Must | pending |
 | FR-1737 | F-265 | Must | pending |
-| FR-1738 | F-204 | Must | built T-407 (`promoSendTime`: no SMS 22:00 to 09:00, 01:00 to 12:00 in Ramadan; an opt-out is effective at once); the SMS sender applies it (T-706), code review pending |
+| FR-1738 | F-204 | Must | built T-407 (`promoSendTime`: no SMS 22:00 to 09:00, 01:00 to 12:00 in Ramadan; an opt-out is effective at once); applied by the invitation sender T-409 (both bands in TypeScript, the fixed band again in SQL; 22:00 to 12:00 in Ramadan) and by T-706, code review pending |
 | FR-1739 | F-77, F-110 | Must | pending |
 | FR-1740 | F-69 | Should | pending |
 | FR-1741 | F-72 | Should | pending |

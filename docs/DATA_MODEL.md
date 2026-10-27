@@ -524,6 +524,35 @@ ADR-151):
   audited), `own_preferences`, `set_preferences` (PF422), `interest_list`, `own_for_you`. Internal: `marketing_player`
   (row held FOR NO KEY UPDATE), `marketing_adult` (the 19-year gap, ADR-317), `interests_clean`.
 - `erase_rows` (restated from 0064) deletes the preference, state and consent rows with the account (Q-289).
+- Migration 0073 (T-409): `marketing_consent.language` and `marketing_state.language` (`ar`/`en`, NULL read as Arabic)
+  record the language a consent was given in; `set_marketing(channels, how, version, lang DEFAULT NULL)`. The consent rule
+  is one plain SQL function, `promo_pool(ch, city, any_of) → (player_id, phone, language)` (active, `marketing_adult`,
+  opted in on the channel now, a phone for SMS; no definer, no SET, no grant); `marketing_audience` is restated over it and
+  refuses any caller but the system context (MK403). `marketing_adult` lost its SET clause so it inlines.
+
+### Questify invitations (T-409, migration 0073 undeployed; core code review pending)
+
+- `invitation_campaign(id, organizer_id, event_id → event (with organizer) CASCADE, request_id UNIQUE, fingerprint,
+  requested_by → staff_user, requested_at, city_id → city, interests text[] ≤ 3, history none|recent|own, size 50–100,000,
+  send_after, state requested|approved|sending|sent|cancelled|refused, channels ⊆ {sms}, cap 50–100,000, send_at,
+  name_ar, name_en (copied at approval; every SMS is rendered from them), admin_note 1–500, decided_by, decided_at,
+  started_at, finished_at, final_at, end_reason owner|admin|too_small|event_changed|event_over, planned, sent, unknown,
+  failed, skipped, cancelled, opened, joined ≥ 0, published_sent, published_opened, published_joined, published_at)`:
+  shape checks per state; one open campaign per event (partial unique index); counters only grow. Organizers read only the
+  `published_*` copies, rounded in SQL (`invitation_bucket`).
+- `invitation_recipient(id bigint identity, link uuid UNIQUE (the bearer token in the message's fragment), campaign_id,
+  player_id, channel, state queued|sending|sent|unknown|failed|skipped|cancelled, lease_token, lease_until, error_code
+  (a provider code only), skip_reason opted_out|member|event_over|event_changed, created_at, sent_at, opened_at,
+  joined_at)`: **personal data** (who was invited); no contact or text stored (the claim reads them fresh through
+  `promo_pool`); deleted 90 days after its campaign finished (whatever its state) and at once by erasure. No foreign keys
+  (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign, leases by expiry, rows by
+  player and `sent_at` (the 7-day limit).
+- `invitation_channel_hold(channel PK, hold_until, code)`: one 15-minute hold per channel after an account refusal.
+- All three: RLS forced, no policy, no grant. Doors (granted to `questify_app`): `invitation_request`,
+  `invitation_cancel`, `invitation_list` (team), `invitation_admin_queue`, `invitation_admin_get`, `invitation_approve`,
+  `invitation_refuse`, `invitation_admin_cancel` (admin), `invitation_start_due`, `invitation_claim`, `invitation_ack`,
+  `invitation_settle` (system context only), `invitation_open` (anonymous, by link). Codes `IV403`, `IV404`, `IV409`
+  (reason in DETAIL), `IV422` (field in DETAIL). Lock order: `docs/rules.md`.
 
 ### Achievements, Event Passport, event city, final ranks (T-403, migration 0065 undeployed; core code review pending)
 
@@ -1107,7 +1136,8 @@ rows or push text.
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |
 | operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |
-| invitation_campaign | Questify invitations by interest and city, with counts | No (counts only) |
+| invitation_campaign (built, T-409, migration 0073) | Questify invitations to opted-in players by city, interests and history: the request, the admin's approval with the frozen names, exact counters and their rounded daily copies (see above) | No (counts only) |
+| invitation_recipient (built, T-409, migration 0073) | One row per invited player: the state of the message, its link token and when it was sent, opened and joined | Yes (deleted 90 days after the campaign finished, and at erasure) |
 | organizer_acceptance | Versioned acceptance of organizer terms, DPA and policy with time | Staff user |
 | event_template | Template structures used to start an event | No |
 | photo_consent | Per-photo permission for the photo wall | Linked to submission |
@@ -1147,6 +1177,7 @@ Derived from the primary flows:
 | Birth year | Age gate (13+), and whether marketing may be offered (full legal capacity, ADR-317) | Same | Until deletion | Player; admin |
 | City, interests | Optional personalization: "For you" and, for opted-in players, targeted promotions (`player_preference`, T-407) | No public, organizer or console read; ids only to the promotional audience door | Until deletion | Player |
 | Marketing consent | Proof of each opt-in and opt-out per channel: date, method, wording version (`marketing_consent`, T-407; PDPL IR Art. 11) | Append-only; no contact stored; admin reads are audited | Until deletion (Q-289) | Player; admin (read-only, logged) |
+| Invitations received | Which Questify invitation a player was sent and whether they opened it and joined (`invitation_recipient`, T-409) | Never shown to an organizer (rounded daily counts only); no contact or text stored | 90 days after the campaign finished, or until deletion | Player (not shown); admin sees counts only |
 | Join answers | Organizer's disclosed fields (PD-17) | Visible only to that organizer's team; listed on the join card | Event data retention (Q-075) | Organizer team of that event |
 | Location readings | Check-ins and fair-play flags, read only while the app is open (ADR-072) | Never stored as a point: rounded venue distance, accuracy and mocked mark in `completion_position` (no API role reads it; T-303b, ADR-206); no tracking history; never in logs | Event data (Q-075, Q-171); deleted with the account | The event's team, as flag lines only |
 | Meetings | Meet-someone quests (FR-212, FR-213) | `meeting` and `meet_pass` have no grant and no policy; a code is kept only as a hash; the scanner sees the other's username and avatar, never their id | Event data (Q-075, Q-175); deleted with either account | Nobody through the API (no team read exists) |

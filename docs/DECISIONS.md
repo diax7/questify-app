@@ -4471,3 +4471,35 @@ money and annoys, a lost one costs little; an account problem is the same for ev
 not one message; the SQL band keeps a TypeScript bug from sending at night.
 **Trade-offs:** A crash after the provider accepts a message counts it as `unknown`; a long send crossing 22:00 resumes
 the next morning (the next noon in Ramadan).
+
+## ADR-334 — Where the T-409 build departs from its plan
+**Status:** Proposed (T-409 build, 2026-10-27; Q-303). Amends ADR-330 (2), ADR-331 (1) and ADR-333 (1) to (3) in the details below; the plan's other lines are built as written.
+**Decision:** (1) **The start does not apply the 24-hour rule.** The request and the approval do; the start, like every
+claim, checks only that the event still qualifies (`invitation_event_ok(ev, true)`) and is not over. With the rule at the
+start, any send time the approval allows in the event's last day (up to an hour before the end) would cancel the
+campaign. (2) **The claim locks the sending campaigns `FOR NO KEY UPDATE`, not `FOR KEY SHARE`**, in one statement in id
+order with every campaign that has an expired lease: it moves the skipped counter, and a `KEY SHARE` upgraded to an
+update could deadlock with an admin's cancel (`FOR UPDATE`). Two servers' claims run one after the other (milliseconds).
+Settle locks every campaign it may change `FOR UPDATE`, also in one statement. (3) **`invitation_recipient` has no foreign
+keys and a `bigint` identity id.** Measured on 100,000 inserted rows (scratch benchmark, 2026-10-27): 11.8 s with both
+keys and a uuid id, 6.8 s with the campaign key only, 2.3 s with neither; the player key also took `FOR KEY SHARE` on
+every player a fill picks, which the lock order forbids. Rows are written only by the fill under its campaign's lock for
+players read through `promo_pool`; players are never deleted; a trigger deletes a deleted campaign's rows (an admin
+deleting the event). `marketing_adult` (no table read) and `invitation_candidates` lose their SET clauses so the planner
+inlines them; the fill sorts with `work_mem` 64 MB. (4) **The fill took 4.0 s at 100,000 players on the development
+laptop** (the console's estimate 0.7 s), missing the plan's 2 s gate there: the tick runs the start with its own 60 s
+statement limit (the API's is 5 s), and the RUNBOOK asks for a measurement on CranL before the switch is turned on. (5)
+**Account refusals also include `M0030`** (a sender without the "AD" ending) **and `M0090`** (a template mismatch): both are
+account configuration that would otherwise fail every message of a paid campaign. (6) `availableChannels` reads whether
+the promotional sender was built (`AppOptions.promoSmsSender`, from `MSEGAT_PROMO_SENDER`), not the config object. (7) The
+owner's withdraw route is `DELETE …/events/{eventId}/invitation-campaigns/{campaignId}`, and its door checks that the
+campaign is the event's. (8) The claim returns the recipient's link (the message's token) and no join code (unused). (9)
+The organizer's first published numbers come on the first Questify day after the start day, never on the start day
+itself, then daily and at the close. (10) An open counts only while the results are open and the event is not over; a
+queued message's link shows the card without counting. (11) Settle answers `more` when a bound was reached and the tick
+calls it up to five times. (12) The database tests are split in two files (`invitation-campaigns.int`,
+`invitation-sending.int`).
+**Why:** (1) and (5) make the accepted rules hold as meant; (2) keeps one lock order with no upgrade; (3) and (4) are
+the measured cost of the fill; (6) to (12) are wiring.
+**Trade-offs:** Integrity of `invitation_recipient`'s ids rests on its one writer and the trigger, not on foreign keys;
+a fill of 100,000 holds the event `FOR SHARE` for seconds (an edit of that event waits).

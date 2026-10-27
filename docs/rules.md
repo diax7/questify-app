@@ -111,6 +111,19 @@ tomorrow from that one read). Content doors never lock `daily_cadence` (the peri
 take an explicit FOR UPDATE on the content row (a question save its challenge first, then the question) and check the
 clock (`clock_timestamp()`) after that lock; they never lock a player, a play or an XP row.
 
+**The invitation sender's lock order (T-409, ADR-333, ADR-334).** Event (`FOR SHARE`: request, approve, start) →
+campaigns → recipient rows → the channel hold row. Campaigns: `FOR UPDATE` for a state change by a door (approve,
+refuse, either cancel, the start); every path that touches more than one campaign takes all of them in one statement in
+id order before any row: the claim locks every sending campaign and every campaign with an expired lease `FOR NO KEY
+UPDATE` (not `FOR KEY SHARE`: it moves the skipped counter, and a later upgrade could deadlock with a cancel), and settle
+locks every campaign it may change (approved, sending, ended with results open, an expired lease) `FOR UPDATE`.
+Acknowledgement and open read the row's campaign id unlocked, then take that one campaign `FOR NO KEY UPDATE`, then the
+row. Recipient rows: `FOR UPDATE`, `SKIP LOCKED` in the claim, lease expiry, the skips, the joined pass and the purge.
+The fill takes `pg_try_advisory_xact_lock(hashtext('invitation_fill'))` before anything and skips the tick when it is
+taken. No T-409 door locks a player, an enrollment, a consent row or a ledger row (`invitation_recipient` has no foreign
+key, ADR-334, so no check locks a player); erasure deletes recipient rows under its own player lock and never touches a
+campaign. No outside call runs inside a transaction.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

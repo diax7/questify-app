@@ -1123,3 +1123,10 @@ uncertain send is never repeated, a late answer never rewrites it), one 15-minut
 account is refused, quiet hours in TypeScript and again in SQL (22:00 to 12:00 in Ramadan), settle running even with the
 switch off, no pg-boss yet. Developer's call at the T-409 reviews.
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-333 Accepted.
+
+## Q-303 — T-409 build: departures from the plan (2026-10-27, T-409 build)
+Recommended (ADR-334): the start skips the 24-hour rule; the claim locks campaigns `FOR NO KEY UPDATE`; no foreign keys
+on `invitation_recipient` (measured: a 100,000-row fill went from about 12 s to about 4 s) with a trigger for a deleted
+campaign; the fill gets its own 60 s statement limit (4.0 s measured on the laptop, the 2 s gate missed there; measure
+on CranL before the switch is turned on); `M0030` and `M0090` hold the channel like the other account refusals.
+Developer's call at the T-409 code review.

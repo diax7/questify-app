@@ -283,6 +283,25 @@ granted to nobody. Outsider suite: every new function refused to `questify_outsi
 | The kiosk's answer kept for retries | The idempotency store keeps each kiosk scan's answer (green or orange, with the @username and avatar; red with the reason only) under the principal `device:{id}` and the scan's key, in the API server's own memory (CranL, `riyadh-1`; never a third party), for 24 hours, then it is gone; no code, player id or score is in it |
 | Personal data on a public screen | The @username and the Questify avatar on green and orange only (public on the boards already, FR-120); never a score, balance, rank, status, ban or name; a red card names no one |
 
+### Questify invitations (T-409, ADR-329 to ADR-334)
+
+Core: consent, player privacy, tenant isolation and admin powers. A promotional SMS goes only to an opted-in adult, only
+with the exact text a Questify admin approved, and an organizer never learns who was invited.
+
+| Risk | Control | Proof |
+|---|---|---|
+| A message to someone who did not opt in (FR-1111) | One consent rule, `promo_pool` (active, of full capacity, opted in on SMS now, a phone), read by the fill and again by the claim for every message; `marketing_audience` is restated over it and is system-only | `test/db/invitation-campaigns` (the fill's exclusions), `test/db/invitation-sending` (opted out, phone removed, banned since the fill), `test/db/marketing` |
+| A phishing line under Questify's sender | No organizer text; the admin approves the rendered message, `event_renamed` when the names changed since the preview, the names copied and frozen; the name rule refuses addresses, phone numbers and hidden characters (NFKC, also on the cut text); the promotional sender is never the service one (startup check) | `name-rule.test.ts`, `message.test.ts`, `config.test.ts`, "preview, rename, approve → 409", "rename after approval sends the approved text" |
+| An organizer learning who was invited (FR-739) | Organizer answers carry only published counts rounded in SQL (`fewerThan 10` / multiples of 10), parsed with a strict schema; at least 50 recipients a send; audit rows without counts; a joins-after-send hint stays possible and is stated (ADR-332, T-807 line) | the property test over random counters, the audit-row test, `invitations/routes` |
+| Another tenant's campaign, or a limited editor outside the event | `invitation_team_event` (tenant, scope, active owner or editor; IV404), the owner checked again (IV403) | `test/security/cross-tenant`, `test/db/invitation-campaigns`, `invitations/routes` |
+| A duplicate SMS | A 60-second lease with a fresh token; expiry makes the row `unknown` and clears the token; an acknowledgement needs the same token; `unknown` is never sent again; the sender retries only a request that never left | the Finding 2 tests |
+| SMS at night (FR-1738) | TypeScript's two bands plus SQL's fixed band on the claim's own clock, with the lease's 60 s margin | `quiet-hours.test.ts`, the claim's time table in `test/db/invitation-sending` |
+| A guessed or forwarded invitation link | 122-bit random link token in the URL fragment (never in a server log or `Referer`); the open door answers the public event card only; 120 tries an hour per address before the token is read | `invitations/routes`, `test/db/invitation-sending` |
+| Personal data kept too long | Recipient rows deleted 90 days after the campaign finished whatever their state, at once by erasure; no contact or text stored | the purge and erasure tests |
+
+The three tables keep row-level security forced with no grant; the API role holds only the 13 doors; `promo_pool` and
+every helper are granted to nobody (outsider suite, by name).
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

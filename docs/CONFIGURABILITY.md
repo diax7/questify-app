@@ -68,6 +68,18 @@ for an event.
   quest and refuses it at every door at once, and none can be launched. Boosts off for the event stops every boost
   paying at once; off for the platform, no new boost is saved while running ones finish (ADR-233).
 
+## As built (T-409): Questify invitations
+
+- `invitationCampaigns` (platform level, **off by default**) joins the registry and ships in `/v1/config` (the app shows
+  nothing for it, FR-740). The database reads the same key (`invitation_on()`, off when absent). Off: owners cannot
+  request a campaign (403 `feature_off`) and the tick neither starts nor claims anything, at once; settle keeps counting
+  joins, publishing and purging. The RUNBOOK says when it may be turned on.
+- `MSEGAT_PROMO_SENDER` (environment): the registered promotional "-AD" sender; without it SMS cannot be approved.
+- Code constants until T-703's tuning: 50 to 100,000 messages a campaign (and at least 50 matched players to send), at
+  most 3 interests, one invitation per player per 7 days, the 24-hour rule for an eligible event, rounds of 5, a
+  60-second lease, a 15-minute channel hold, counts rounded to 10, the joined window of 30 days, rows kept 90 days, the
+  open door's 120 tries an hour per address.
+
 ## As built (T-408): the Questify-wide ranking switch and its seasons
 
 - `questifyRanking` (platform level, on by default) joins the registry and ships in `/v1/config`. Off,
