@@ -1817,7 +1817,6 @@ daffs
 daffy
 dagga
 daggy
-dagos
 dahls
 daily
 dairy
@@ -1843,7 +1842,6 @@ darer
 dares
 daric
 darks
-darky
 darns
 darts
 dashi
@@ -2486,7 +2484,6 @@ fados
 faena
 faery
 faffs
-faggy
 fagin
 fails
 faint
@@ -3062,7 +3059,6 @@ ginks
 ginny
 ginzo
 gipon
-gippo
 girds
 giris
 girls
@@ -3596,7 +3592,6 @@ honey
 hongi
 hongs
 honks
-honky
 honor
 hooch
 hoods
@@ -3882,7 +3877,6 @@ jessy
 jests
 jetes
 jetty
-jewed
 jewel
 jibbs
 jibed
@@ -3967,7 +3961,6 @@ juvie
 kabab
 kabob
 kadis
-kafir
 kagus
 kaiak
 kaifs
@@ -4918,7 +4911,6 @@ monde
 mondo
 money
 mongo
-mongs
 monks
 monos
 monte
@@ -5846,8 +5838,6 @@ pongs
 pooch
 poods
 pooed
-poofs
-poofy
 poohs
 pooka
 pools
@@ -7230,7 +7220,6 @@ spats
 spawn
 spays
 spaza
-spazz
 speak
 spean
 spear

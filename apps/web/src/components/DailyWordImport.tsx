@@ -2,7 +2,8 @@
 
 import { formatNumber, type DailyLanguage, type Language } from "@questify/shared";
 import { translatorFor } from "#src/lib/language.ts";
-import { useWordImport, type ImportOutcome } from "#src/lib/use-word-import.ts";
+import { useWordImport } from "#src/lib/use-word-import.ts";
+import type { ImportOutcome } from "#src/lib/word-import-run.ts";
 import styles from "#src/components/layout.module.css";
 
 /** What the list of refused lines leaves out: the lines past the 50 the API shows, or that it may have left out. */

@@ -595,7 +595,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   `docs/legal/THIRD_PARTY.md` (the existing notices file, not a second one), clean the Arabic list to the 33-letter set and
   `word_norm`, and keep the files ready for the console import (T-406c); the daily words themselves are the team's
   hand-picked list — delivers FR 731 (content); depends on: T-406c
-  - Done 2026-10-27 (code review owed): `data/word-lists/guess-list-en.txt` (8,874 words, SCOWL size 80, the permission notice
+  - Done 2026-10-27 (code review owed): `data/word-lists/guess-list-en.txt` (8,863 words, SCOWL size 80, the permission notice
     in `NOTICE.txt`) and `guess-list-ar.txt` (119,023 words, Wikidata Lexemes, CC0), normalized five-letter words, sorted,
     offensive and vulgar words, names, abbreviations and repeats removed; `scripts/build-word-lists.mjs` rebuilds them;
     sources, exact licences, checksums, attribution and the sources refused are in `docs/legal/THIRD_PARTY.md`. Proven by

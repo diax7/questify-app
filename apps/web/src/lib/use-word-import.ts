@@ -1,40 +1,29 @@
 "use client";
 
-import type { DailyLanguage, Language } from "@questify/shared";
+import { formatNumber, type DailyLanguage, type Language } from "@questify/shared";
 import { useMemo, useState, type ChangeEvent } from "react";
 import { API, readListChange } from "#src/lib/console-daily.ts";
-import {
-  REFUSED_SHOWN,
-  chunkWords,
-  parseWordLines,
-  shownRefusals,
-} from "#src/lib/console-daily-forms.ts";
+import { parseWordLines } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
 import { problemText } from "#src/lib/use-daily-console.ts";
 import { useRequestKey } from "#src/lib/use-request-key.ts";
+import {
+  runImport,
+  startOutcome,
+  type ImportCall,
+  type ImportOutcome,
+} from "#src/lib/word-import-run.ts";
 
 /** A pasted list is a text file of at most this size (far more than any list of five-letter words). */
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-export type ImportOutcome = Readonly<{
-  added: number;
-  removed: number;
-  total: number;
-  /** The first refused lines (at most `REFUSED_SHOWN`). */
-  refused: readonly string[];
-  /** Every refused line the API reported, shown or not. */
-  refusedCount: number;
-  /** A call reported the most it ever does, so there may be more refused lines than were reported. */
-  refusedCapped: boolean;
-  tooLong: number;
-  longSamples: readonly string[];
-}>;
-
 /**
  * Sends a pasted list to the guess list, to add or remove, in calls of at most `IMPORT_CALL_WORDS` words. It stops at the first
- * failure and keeps what the earlier calls did. Each call carries an Idempotency-Key, so a retry after a dropped
- * answer replays instead of repeating; a refusal ends the key, so the retry after it is a new request.
+ * failure and keeps what the earlier calls did, and says how far it got. Each call carries an Idempotency-Key, so a
+ * retry after a dropped answer replays instead of repeating; a refusal ends the key, so the retry after it is a new
+ * request. Sending the list again after a stop repeats the calls that went through with new keys: adds change nothing
+ * already there, and each call leaves one audit row (ADR-328).
  */
 export function useWordImport(
   language: Language,
@@ -49,25 +38,9 @@ export function useWordImport(
   const request = useRequestKey();
   const parsed = useMemo(() => parseWordLines(text), [text]);
 
-  const send = async (mode: "add" | "remove") => {
-    if (parsed.words.length === 0) {
-      setProblem(t("console.words.importEmpty"));
-      return;
-    }
-    setBusy(true);
-    setProblem(null);
-    setOutcome(null);
-    let done: ImportOutcome = {
-      added: 0,
-      removed: 0,
-      total: 0,
-      refused: [],
-      refusedCount: 0,
-      refusedCapped: false,
-      tooLong: parsed.tooLong,
-      longSamples: parsed.longSamples,
-    };
-    for (const chunk of chunkWords(parsed.words)) {
+  const callFor =
+    (mode: "add" | "remove"): ImportCall =>
+    async (chunk) => {
       const body = mode === "add" ? { add: chunk, remove: [] } : { add: [], remove: chunk };
       const result = await requestJson("POST", `${API}/word-list/${listLanguage}`, body, {
         "idempotency-key": request.keyFor(`${mode} ${listLanguage}\n${chunk.join("\n")}`),
@@ -77,21 +50,30 @@ export function useWordImport(
         if (!isTransientFailure(result)) {
           request.forget();
         }
-        setProblem(problemText(result.body, language));
-        break;
+        return { problem: problemText(result.body, language) };
       }
       request.forget();
-      done = {
-        ...done,
-        added: done.added + change.added,
-        removed: done.removed + change.removed,
-        total: change.total,
-        refused: shownRefusals([...done.refused, ...change.refused]),
-        refusedCount: done.refusedCount + change.refused.length,
-        refusedCapped: done.refusedCapped || change.refused.length >= REFUSED_SHOWN,
-      };
-      setOutcome(done);
-      changed(change.total);
+      return { change };
+    };
+
+  const send = async (mode: "add" | "remove") => {
+    if (parsed.words.length === 0) {
+      setProblem(t("console.words.importEmpty"));
+      return;
+    }
+    setBusy(true);
+    setProblem(null);
+    setOutcome(null);
+    const run = await runImport(parsed.words, startOutcome(parsed), callFor(mode), (progress) => {
+      setOutcome(progress);
+      changed(progress.total);
+    });
+    if (run.problem !== null) {
+      const stopped = t("console.words.importStopped", {
+        done: formatNumber(run.sent, language),
+        total: formatNumber(parsed.words.length, language),
+      });
+      setProblem(run.sent === 0 ? run.problem : `${run.problem} ${stopped}`);
     }
     setBusy(false);
   };

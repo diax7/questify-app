@@ -4322,7 +4322,7 @@ and the page on one screen on a phone; reading a month's rows on opening avoids 
 
 ## ADR-327 — The daily word guess lists: SCOWL for English, Wikidata Lexemes for Arabic
 **Status:** Proposed (developer, T-406d build, Q-296). Specifies FR-1811; follows Q-281 ("open lists plus our picks").
-**Decision:** The two valid-guess lists are files in `data/word-lists/`, `guess-list-en.txt` (8,874 words) and
+**Decision:** The two valid-guess lists are files in `data/word-lists/`, `guess-list-en.txt` (8,863 words) and
 `guess-list-ar.txt` (119,023 words), one normalized five-letter word per line, sorted, that a platform admin imports in
 the console (Content, Word bank, Import). English comes from SCOWL (the English Speller Database), size 80 with
 American, British and Canadian spellings, keeping only lower-case words. Arabic comes from the Arabic lexemes of Wikidata
@@ -4354,5 +4354,8 @@ the English list in one call 11 s), because `word_norm` runs three times per wor
 carry their own `search_path`. The API gives a statement 5 s (`pool-options.ts`), so the 20,000-word calls the console sent
 would time out for any list above about 3,500 words, and neither shipped list would import. 500 words leave a margin of
 seven.
-**Trade-offs:** The Arabic list takes about 240 calls, about three minutes, once. A faster `word_list_change` (normalize each
+**Trade-offs:** The Arabic list takes about 240 calls, about three minutes, once. When a call fails the console keeps the counts
+of the calls before it and says how far it got ("Stopped after N of M words"); sending the list again repeats those calls
+with new Idempotency-Keys, which is accepted: adds change nothing already there, and each call leaves one audit row (about
+239 for a full Arabic import). A faster `word_list_change` (normalize each
 input once, without the nested functions) would allow bigger calls; it touches core SQL and waits for a reason (Q-297).

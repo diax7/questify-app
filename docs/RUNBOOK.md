@@ -170,8 +170,10 @@ that is shared or written to disk (today's is in memory, per process).
 - **Import once per language before the first daily word goes live:** console → Content → Word bank → pick the language →
   Import → choose `data/word-lists/guess-list-en.txt` or `guess-list-ar.txt` → Add. The console sends 500 words a call
   (the database spends about 1.4 ms a word and the API allows a statement 5 s): English takes about 15 seconds, Arabic
-  (119,023 words) about 3 minutes. The page shows the running total; a stopped import keeps what it added, and adding the
-  same file again changes nothing already there.
+  (119,023 words) about 3 minutes. The page shows the running total. If a call fails, the page keeps what the earlier calls did and says "Stopped after
+  N of M words"; send the same file again to continue. That repeats the calls that went through (new Idempotency-Keys, so
+  they run again): harmless, since adding changes nothing already there, but each call leaves an audit row (about 239 for a
+  full Arabic import).
 - **Pruning or growing a list:** paste or upload words and use Remove (or Add); the lines the database refuses are shown.
   A removal never touches a guess already made or a daily word.
 - **Rebuilding the files** (a newer SCOWL or Wikidata dump): `scripts/build-word-lists.mjs` (usage in its header),

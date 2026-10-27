@@ -70,3 +70,9 @@ describe.each(LISTS)("the $language guess list file", ({ language, minimum, comm
     expect(chunkWords(parsed.words).every((call) => call.length <= IMPORT_CALL_WORDS)).toBe(true);
   });
 });
+
+describe("the notice beside the lists", () => {
+  it("carries the SCOWL copyright line the English list requires", () => {
+    expect(readFileSync(join(DIRECTORY, "NOTICE.txt"), "utf8")).toContain("Kevin Atkinson");
+  });
+});

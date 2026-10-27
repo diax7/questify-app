@@ -40,7 +40,7 @@ were not. The daily words themselves are the team's own hand-picked list and com
 ### Arabic: Wikidata Lexemes
 
 - **Source:** the Wikidata lexeme dump <https://dumps.wikimedia.org/wikidatawiki/entities/latest-lexemes.json.gz>, file
-  dated 2026-10-21, 655,273,999 bytes, SHA-256
+  dated 2026-10-21 (the same file as <https://dumps.wikimedia.org/wikidatawiki/entities/20261021/wikidata-20261021-lexemes.json.gz>), 655,273,999 bytes, SHA-256
   `85ebe293f2357f69776fd06edc4fb4c23f26403f3489b8ff9e1014322dc3f4c2`. Its 85,930 lexemes of language Q13955 (Arabic)
   carry about 1.8 million forms.
 - **Licence, read at <https://www.wikidata.org/wiki/Wikidata:Licensing> and <https://dumps.wikimedia.org/legal.html>:**
@@ -67,7 +67,7 @@ were not. The daily words themselves are the team's own hand-picked list and com
 `node scripts/build-word-lists.mjs en <scowl list> <scowl-pre.txt> <ldnoobw en> data/word-lists/guess-list-en.txt` and
 `node scripts/build-word-lists.mjs ar <latest-lexemes.json.gz> <ldnoobw ar> data/word-lists/guess-list-ar.txt` rebuild
 the files from the downloads (each download in its own folder, read as text only). Built from the files above, the
-outputs have SHA-256 `142317d6ce2c63559799431bbebe82b5fcc7ff11c8808c23f193b273eb155fba` (English, 8,874 words) and
+outputs have SHA-256 `964a47ff02f05903f3a8b2d1a60bf4936274905aa2526dbf785ca472fd2770d4` (English, 8,863 words) and
 `441ea0b05edcf3ed3f2f2fd2bc06c2e96f4f8c78b30e67d15004fcb99e4c77c5` (Arabic, 119,023 words).
 `apps/web/src/lib/word-list-files.test.ts` checks the format of both files and that the console import takes them whole.
 

@@ -5549,6 +5549,10 @@ export const MESSAGES = {
     ar: "تُعرض 50 سطرًا مرفوضًا على الأكثر، وقد يكون هناك غيرها.",
     en: "At most 50 refused lines are shown; there may be more.",
   },
+  "console.words.importStopped": {
+    ar: "توقّف الإرسال بعد {done} من {total} كلمة. أعد إرسال القائمة للمتابعة.",
+    en: "Stopped after {done} of {total} words. Send the list again to continue.",
+  },
   "console.words.fileFailed": { ar: "تعذّرت قراءة الملف.", en: "The file could not be read." },
   "nav.explore": { ar: "استكشف", en: "Explore" },
   "home.live": { ar: "جارية الآن", en: "Live now" },

@@ -1078,5 +1078,6 @@ Recommended (ADR-328): import in calls of 500 words (about 0.7 s each on a lapto
 shipped lists import: `word_list_change` costs about 1.4 ms a word because `word_norm` runs three times per word through
 nested functions with their own `search_path`, so the 20,000-word calls T-406c sent would time out. A follow-up could make the
 function normalize each input once and inline the normalization (the same word set, 100 times faster); it is core SQL
-(migration 0069, still undeployed), so it wants a plan review. Not needed while lists are imported once. Developer's call
-at the T-406d review.
+(migration 0069, still undeployed), so it wants a plan review. Not needed while lists are imported once. The 20,000-word cap
+in `0069_daily.sql` and `daily.ts` stays as it is; `docs/API.md` states the real limit of about 3,500 words a call.
+Developer's call at the T-406d review.
