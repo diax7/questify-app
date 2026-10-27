@@ -213,6 +213,39 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
   `invitation.settle_failed` / `invitation.send_failed {code}` (the next tick tries again). None carries a phone, a
   text or a player.
 
+## Push notifications (T-501, T-501b; planned, not built)
+
+Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Proposed). The build fills in the log lines and the
+timing check.
+
+- **Settings (all-or-none per provider):** `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` from the Apple
+  Developer account, PEM or base64), `APNS_TOPIC` (`app.questify.mobile`); `FCM_SERVICE_ACCOUNT` (the Firebase
+  project's service account JSON, or its base64). A partial or malformed set stops the server at start. None set: the
+  server starts, logs `push.provider_missing` once, and sends nothing for that platform; the in-app center still holds
+  every message. Keys live only in the CranL secret store.
+- **Switch:** `pushNotifications` (on when absent). Off, nothing is sent; the center, mutes and registration keep
+  working.
+- **Alerts (error level):** `push.provider_hold {target, code}` (an account or quota refusal, or the breaker),
+  `push.mass_invalid {target}` (most of a round came back as an ambiguous token error: check the APNs environment, the
+  bundle id or the Firebase project), `push.fcm_auth_failed`.
+
+### Push go-live checklist (gates T-806; run once Dhia's keys exist)
+
+Record the date, the build numbers and the phones used under each line. Every line must pass before the store
+submission (T-806) is marked done.
+
+1. The APNs provider token is accepted on both hosts: a development build receives through
+   `api.sandbox.push.apple.com`, an internal or TestFlight build through `api.push.apple.com`; FCM accepts the service
+   account.
+2. A real iPhone and a real Android phone each receive a personal push and an event push, in Arabic (right to left on
+   the lock screen, Western digits) and in English.
+3. After uninstalling the app on each phone, the next push comes back as APNs 410 `Unregistered` and FCM 404
+   `UNREGISTERED`, in the shapes T-501b maps, and the device is marked invalid.
+4. Sending the same notification twice replaces the first on both phones (APNs collapse id, Android tag).
+5. A tap with the app killed opens the right screen: confirm where `expo-notifications` puts the direct-APNs custom key
+   `q` (`trigger.payload` or `content.data`) and the FCM `data`, and that the app reads them there.
+6. With the permission refused, the center still lists the message and Settings shows the off state.
+
 ## Usernames and the word lists (T-109, ADR-119)
 
 - **Editing the lists until the console has a screen (FR-1779):** with the owner connection, add a word with

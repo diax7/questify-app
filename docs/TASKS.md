@@ -811,25 +811,35 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     settle doors; a fake provider; the center, mute and device routes; `/v1/me` unread; templates and payload; erasure);
     the real clients, the app and the owed pushes are T-501b to T-501g. The notes above are wired by the slice named in
     the plan's "Owed pushes" table. Real pushes wait for Dhia's APNs key and Firebase project (nothing else does).
+  - Plan review 2026-10-28 (CTO 80, NO-GO until 8 MAJOR): folded in the plan's "Plan review" table and "The eight
+    review findings": audience by the event's status (ended reaches members, archived none), producers insert only
+    the notice, sends never outlive their lease and an outage requeues (breaker, `attempts`), uninstalls always clean
+    up, the APNs environment read on the phone, erasure deletes personal notices, `sees_category` before naming a quest
+    or category, the RUNBOOK go-live checklist. Short re-review owed; ADR-342 to ADR-349 stay Proposed until it passes.
 - [ ] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-344, ADR-345). CORE; plan: `docs/plans/2026-10-28-t-501-push.md` (T-501b
     section). No new server dependency; the Gmail sender's service-account token code moves to `auth/google-token.ts`.
-  - Done when: With no keys set the server starts and sends nothing; a token the provider calls invalid stops receiving pushes, and a round of mostly invalid answers holds the provider instead.
+  - Done when: With no keys set the server starts and sends nothing; an `Unregistered` answer always removes the token, a round of mostly ambiguous token answers holds only that target, and a provider outage requeues messages instead of losing them.
 - [ ] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-349). Standard; plan: `docs/plans/2026-10-28-t-501-push.md` ("The app").
-    Absorbs T-312b. New dependency `expo-notifications` (a new development build). The phone check needs Dhia's Apple
-    and Firebase setup; the center works without them.
+    Absorbs T-312b. New dependencies `expo-notifications` and `expo-application` (the APNs environment; a new
+    development build). The phone check needs Dhia's Apple and Firebase setup and is the RUNBOOK's push go-live
+    checklist (T-806 waits for it); the center works without them.
   - Done when: No permission prompt before the first join; refusing it blocks nothing and the center still lists every message, newest first, unread marked.
 - [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
-  - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6 (AFTER
-    triggers on the source tables, due scans for times; once-only by the notice's `dedupe`).
+  - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
+    call only `notice_create` (one insert): statement-level triggers with transition tables for bulk writes, a
+    row-level `WHEN` trigger on `enrollment` (accept-all of 5,000 measured under 5 s), due scans for times, no per-row
+    `EXCEPTION` block; each producer has a "broken kind cannot roll back the door" test (plan § Review 2).
   - Done when: Each decision, answer and revealed prize gives exactly one push and one center row, never to a player who left or was erased.
 - [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
-  - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes".
+  - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in
+    T-501d; a notice naming a quest or category reaches only members who can see it (plan § Review 7).
   - Done when: Only active members get event pushes, once each; a muted topic still lands in the center.
 - [ ] **T-501f** Reminders and promotion by push: daily streak reminder, shop closing, push as an invitation channel — delivers FR 1102 (streak), 1111 (push); depends on: T-501e
   - Split from T-501 2026-10-28 (ADR-342, ADR-348). CORE; rows 13 to 16 of the T-501 plan's "Owed pushes" (the daily
-    games reminder is folded into the streak reminder).
+    games reminder is folded into the streak reminder). A promotional tap opens its center row with the opt-out
+    (FR-1114); decide that screen here.
   - Done when: A promotional push reaches only players opted in on push now; an invitation goes by push or SMS, never both.
 - [ ] **T-501g** Hidden-category hint push reveals the category to its recipients — delivers FR 238; depends on: T-501e
   - Split from T-501 2026-10-28 (ADR-342). CORE (Could); row 17 of the T-501 plan's "Owed pushes"; a dashboard button
@@ -1011,7 +1021,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-806** Store submission: privacy labels, age rating, data-safety form, screenshots, review notes, the review demo event — delivers no FR (infrastructure or quality gate); depends on: T-710
   - Note 2026-10-27 (T-404, CTO code review): before submission, play the demo account to level 3 (at least 40 gems)
     so the reviewer can get one gem shop item (STORE_COMPLIANCE 1.3 review note).
-  - Done when: Both stores accept the submission for review.
+  - Note 2026-10-28 (T-501 plan review, ADR-342 (4)): the RUNBOOK's push go-live checklist (real keys on both APNs
+    hosts and FCM, a real iPhone and Android phone, uninstall answers, collapse, cold-start taps, Arabic on the lock
+    screen) must have passed and be recorded first: review needs push live (STORE_COMPLIANCE).
+  - Done when: Both stores accept the submission for review, and the RUNBOOK's push go-live checklist has passed.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A written answer exists for each batched question or it stays listed in OPEN_QUESTIONS.
   - Note 2026-10-21 (T-110): add Q-095 (minors accepting before the birth year, keeping acceptance records after erasure) to the batch; the company details fill the contact page and the drafts' placeholders.

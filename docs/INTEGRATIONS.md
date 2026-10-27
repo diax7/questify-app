@@ -125,8 +125,11 @@
   the notification layer instead of through a relay service, so notification text does not also pass
   through a third party (ADR-086).
 - **Auth and secrets:** APNs `.p8` key and the FCM service account in the secret store.
-- **Failure behavior:** invalid tokens are removed on feedback; a failed batch is retried with
-  backoff; the notification center in the app always holds the message (F-201).
+- **Failure behavior (T-501 plan, ADR-345):** APNs 410 `Unregistered` and FCM `UNREGISTERED` remove the
+  token; the ambiguous token answers do too unless most of a round returns them, which holds that target instead. A
+  definite 500 or 503 is requeued and sent again under the same collapse id until the message expires; a breaker holds
+  a failing target from 30 s up to 15 minutes; only a timeout after the request was written is recorded as unknown and
+  never resent. The notification center in the app always holds the message (F-200).
 - **Data and PII:** device token and message text go through Apple and Google, who are outside Saudi.
   The text carries no phone, email or points detail beyond what the player has chosen to receive; this
   is on the counsel list with the wallet data (Q-043).
