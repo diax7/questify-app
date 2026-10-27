@@ -9,6 +9,7 @@ import {
   approvalDraftOf,
   type ApprovalProblem,
 } from "#src/lib/console-invitations.ts";
+import { riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
 
@@ -46,7 +47,14 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
     const checked = approvalBodyOf(draft, detail);
     if ("problem" in checked) {
       setWrong(checked.problem);
-    } else {
+    } else if (
+      window.confirm(
+        t("console.invCampaign.approveConfirm", {
+          cap: checked.body.cap,
+          time: riyadhTime(checked.body.sendAt, language),
+        }),
+      )
+    ) {
       await approve(checked.body);
     }
   };
@@ -152,7 +160,11 @@ export function CloseForm({ language, detail, busy, close }: NoteProps) {
             type="button"
             className={styles.quiet}
             disabled={busy || !ready}
-            onClick={() => void close("refuse", note.trim())}
+            onClick={() => {
+              if (window.confirm(t("console.invCampaign.refuseConfirm"))) {
+                void close("refuse", note.trim());
+              }
+            }}
           >
             {t("console.invCampaign.refuse")}
           </button>

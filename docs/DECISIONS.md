@@ -4515,7 +4515,7 @@ and only through a new campaign that an admin approves by hand. A name with an e
 (the selector is default-ignorable); the admin sees the verdict.
 
 ## ADR-335 — The web pages for Questify invitations: what they show and where they differ from the plan
-**Status:** Proposed (worker, T-409b build, 2026-10-27; Q-304). Specifies FR-738 and FR-739 on screen under ADR-329 to ADR-334.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-409b code review 92; Q-304). Specifies FR-738 and FR-739 on screen under ADR-329 to ADR-334.
 **Decision:** (1) **The console detail renders the SMS text from the frozen names once a request is approved.** While a
 request is `requested` it renders the event's current names (what Approve will freeze); in every later state it renders
 `approvedNames`, so the console shows what goes out whatever the event is called now; a request refused or cancelled before
@@ -4531,7 +4531,11 @@ itself opens either way, says invitations are not open yet when the switch is of
 (6) The landing page has no language switch (it would drop the token, which is held in memory only), reads the token from
 the fragment once, removes it from the address, sends it once, and shows the live public event card; after a reload it
 says the link is incomplete. It carries no player data: the page is the same for everyone. (7) The console home links to
-the queue with the number of requests waiting.
+the queue with the number of requests waiting. (8) Code review fold-in: Approve and Refuse ask for a browser
+confirmation first (Approve names the cap and the time, since one click can commit up to 100,000 messages); a failed
+first read of a request goes to sign-in when the session ended and says the page could not load after a dropped
+connection or a server fault, "not found" only when the API says so; the name-rule warnings show only while a request is
+`requested`; counters and sizes are grouped with Western digits.
 **Why:** The text an admin approves and the text the console later shows must be the same text; a disabled button with its
 reason is quicker than a refused request; the zone of a time must never be guessed; one word for one thing.
 **Trade-offs:** The server code that was reviewed (T-409) changed by one line after its review, so it is named in the

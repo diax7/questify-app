@@ -278,6 +278,15 @@ describe("campaignDetail", () => {
     },
   );
 
+  it("has no text for a campaign cancelled before it was approved", async () => {
+    const detail = await detailOf(
+      { state: "cancelled", endReason: "owner", approvedNames: { ar: null, en: null } },
+      { ar: "مهرجان", en: "Festival" },
+    );
+    expect(detail.messages).toEqual({ ar: null, en: null });
+    expect(detail.names.en.name).toBe("Festival");
+  });
+
   it("has no text for a campaign that was never approved", async () => {
     const detail = await detailOf(
       { state: "refused", approvedNames: { ar: null, en: null } },

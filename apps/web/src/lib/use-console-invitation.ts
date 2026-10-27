@@ -6,9 +6,10 @@ import {
   invitationPath,
   isRenamed,
   readApproved,
+  detailFailure,
   readDetail,
 } from "#src/lib/console-invitations.ts";
-import { eventRefusalText, riyadhTime } from "#src/lib/invitations.ts";
+import { eventRefusalText, riyadhTime, sessionLost } from "#src/lib/invitations.ts";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
@@ -26,7 +27,7 @@ function problemText(body: unknown, language: Language, t: Translate): string {
   );
 }
 
-export type DetailState = AdminInvitationDetail | "loading" | "missing";
+export type DetailState = AdminInvitationDetail | "loading" | "missing" | "failed";
 
 /**
  * One request in the console: read on arrival and after every write (a 409 means the page is out of date, a rename
@@ -41,9 +42,13 @@ export function useConsoleInvitation(language: Language, campaignId: string) {
 
   const load = async (): Promise<void> => {
     const result = await requestJson("GET", path);
+    if (!result.ok && sessionLost(result.body)) {
+      window.location.assign(`/${language}/sign-in?ended=1`);
+      return;
+    }
     const read = result.ok ? readDetail(result.body) : undefined;
     // A read that fails after the page was shown keeps what was shown; the next write or visit reads again.
-    setDetail((shown) => read ?? (typeof shown === "string" ? "missing" : shown));
+    setDetail((shown) => read ?? (typeof shown === "string" ? detailFailure(result) : shown));
   };
 
   useEffect(() => {

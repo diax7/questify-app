@@ -1138,3 +1138,5 @@ Recommended (ADR-335): the console shows the approved (frozen) text after approv
 reviewed `campaignDetail`; times in Riyadh time; «طلب دعوات» / "invitation request"; the event page links to Invitations
 only while the switch is on; the landing page has no language switch and forgets its token after the first read.
 Developer's call at the T-409b code review.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-409b code review (92); ADR-335
+Accepted, with the review's fold-in.

@@ -81,6 +81,8 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
 }, info) => {
   test.setTimeout(240_000);
   const scene = await setUp(page, info.project.name);
+  const asked: string[] = [];
+  page.on("dialog", (dialog) => asked.push(dialog.message()));
   const dashboard = `/en/organizers/${scene.organizerId}/events/${scene.eventId}/invitations`;
 
   // The event page links to the page while the switch is on.
@@ -181,6 +183,17 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
   await expect(page.getByTestId("name-ar")).toContainText("اسم آخر");
   await expect(page.getByTestId("message-text-ar")).toContainText("دعوة إلى ملتقى الرياض: ");
   await expect(page.getByTestId("approved-names")).toContainText("ملتقى الرياض");
+  // Approve asked first, each time, with the cap and the time asked for.
+  expect(asked).toHaveLength(2);
+  for (const question of asked) {
+    expect(question).toMatch(/^Send up to 50 messages from .*(Riyadh time)?$/);
+  }
+  // A name the rule would refuse today changes nothing for an approved request: no warning beside a frozen text.
+  await control(page, "/invitation-event", { eventId: scene.eventId, nameAr: "اتصل 0501234567" });
+  await page.reload();
+  await expect(page.getByTestId("message-text-ar")).toContainText("دعوة إلى ملتقى الرياض: ");
+  await expect(page.getByText("can't go in a text message")).toHaveCount(0);
+  await control(page, "/invitation-event", { eventId: scene.eventId, nameAr: "اسم آخر" });
 
   // The owner sees the state, the note and no counts; once sending has started, only rounded ones.
   await page.goto(dashboard);
@@ -189,14 +202,15 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
   await expect(card).toContainText("Note from Questify: Agreed by phone");
   await expect(page.getByTestId("invitation-counts")).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Withdraw the request" })).toBeVisible();
-  await control(page, "/invitation-started", { campaignId, sent: 127, opened: 7, joined: 34 });
+  await control(page, "/invitation-started", { campaignId, sent: 1277, opened: 7, joined: 34 });
   await page.reload();
   await expect(card.getByText("Sending", { exact: true })).toBeVisible();
-  await expect(page.getByTestId("count-sent")).toHaveText("120+");
+  await expect(page.getByTestId("count-sent")).toHaveText("1,270+");
   await expect(page.getByTestId("count-opened")).toHaveText("Fewer than 10");
   await expect(page.getByTestId("count-joined")).toHaveText("30+");
   await expect(page.getByText("Counts as of")).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("127");
+  await expect(page.locator("body")).not.toContainText("1,277");
+  await expect(page.locator("body")).not.toContainText("1277");
   await expect(card.getByRole("button", { name: "Withdraw the request" })).toHaveCount(0);
 
   // The link counts one open, however many times it is opened; the page shows the event and removes the token.
@@ -223,7 +237,7 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
   await expectNoSidewaysScroll(second.page);
   await second.close();
   await page.goto(`/en/console/invitations/${campaignId}`);
-  await expect(page.getByTestId("counter-sent")).toHaveText("127");
+  await expect(page.getByTestId("counter-sent")).toHaveText("1,277");
   await expect(page.getByTestId("counter-opened")).toHaveText("1");
 
   // A link that is not ours, or has no token, says so and shows nothing.
@@ -254,6 +268,8 @@ test("in Arabic an owner asks and withdraws, the admin refuses with a note, and 
 }, info) => {
   test.setTimeout(180_000);
   const scene = await setUp(page, info.project.name);
+  const asked: string[] = [];
+  page.on("dialog", (dialog) => asked.push(dialog.message()));
   await page.goto(`/ar/organizers/${scene.organizerId}/events/${scene.eventId}/invitations`);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { name: "الدعوات", level: 1 })).toBeVisible();
@@ -298,6 +314,7 @@ test("in Arabic an owner asks and withdraws, the admin refuses with a note, and 
   await refuse.click();
   await expect(page.getByRole("status")).toHaveText("رُفض الطلب. يرى المنظّم ملاحظتك.");
   await expect(page.getByTestId("detail-state")).toHaveText("مرفوض");
+  expect(asked.at(-1)).toBe("رفض الطلب؟ يرى المنظّم ملاحظتك ولا يمكن التراجع.");
   await page.goto(`/ar/organizers/${scene.organizerId}/events/${scene.eventId}/invitations`);
   const refused = page.locator('[data-testid="invitation"][data-state="refused"]');
   await expect(refused).toContainText("مرفوض");

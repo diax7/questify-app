@@ -3,6 +3,7 @@ import {
   BLANK_REQUEST,
   countText,
   eventRefusalText,
+  invitationsOpen,
   invitationProblemText,
   invitationsPath,
   readCampaign,
@@ -88,6 +89,24 @@ describe("invitationsPath", () => {
   });
 });
 
+describe("invitationsOpen", () => {
+  it("links to the page only when the list was read and the switch is on", () => {
+    expect(invitationsOpen({ ok: true, status: 200, body: { enabled: true, campaigns: [] } })).toBe(
+      true,
+    );
+    expect(
+      invitationsOpen({ ok: true, status: 200, body: { enabled: false, campaigns: [] } }),
+    ).toBe(false);
+  });
+
+  it("hides the link when the list could not be read", () => {
+    expect(invitationsOpen({ ok: false, status: 404, body: undefined })).toBe(false);
+    expect(invitationsOpen({ ok: false, status: 0, body: undefined })).toBe(false);
+    expect(invitationsOpen({ ok: true, status: 200, body: { enabled: true } })).toBe(false);
+    expect(invitationsOpen({ ok: true, status: 200, body: undefined })).toBe(false);
+  });
+});
+
 describe("sessionLost", () => {
   it.each(["unauthenticated", "session_expired"])("is true for %s", (code) => {
     expect(sessionLost({ code })).toBe(true);
@@ -110,6 +129,14 @@ describe("countText", () => {
   it("uses Western digits in Arabic", () => {
     expect(countText({ fewerThan: 10 }, "ar", ar)).toBe("أقل من 10");
     expect(countText({ atLeast: 120 }, "ar", ar)).toBe("120 أو أكثر");
+  });
+});
+
+describe("a request's size and cap in words", () => {
+  it("groups thousands and keeps Western digits in both languages", () => {
+    expect(en("invCampaign.card.size", { count: 100_000 })).toBe("Invitations asked for: 100,000");
+    expect(ar("invCampaign.card.size", { count: 100_000 })).toBe("عدد الدعوات المطلوب: 100,000");
+    expect(en("invCampaign.card.approved", { count: 1200, time: "T" })).toContain("1,200 messages");
   });
 });
 

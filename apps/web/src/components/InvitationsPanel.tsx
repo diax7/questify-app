@@ -3,7 +3,7 @@ import type { InvitationCampaigns, Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { InvitationCard } from "#src/components/InvitationCard.tsx";
 import { InvitationForm } from "#src/components/InvitationForm.tsx";
-import { invitationsPath, readCampaigns } from "#src/lib/invitations.ts";
+import { invitationsOpen, invitationsPath } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { useInvitationCatalogs } from "#src/lib/use-invitation-catalogs.ts";
@@ -142,9 +142,8 @@ export function InvitationsLink({
   useEffect(() => {
     let current = true;
     void requestJson("GET", invitationsPath(organizerId, eventId)).then((result) => {
-      const read = result.ok ? readCampaigns(result.body) : undefined;
-      if (current && read !== undefined) {
-        setEnabled(read.enabled);
+      if (current) {
+        setEnabled(invitationsOpen(result));
       }
     });
     return () => {

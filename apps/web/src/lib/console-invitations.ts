@@ -13,6 +13,7 @@ import {
 } from "@questify/shared";
 import { SAUDI_ZONE } from "#src/lib/console-questify.ts";
 import { wholeNumber } from "#src/lib/invitations.ts";
+import { isTransientFailure, type PostResult } from "#src/lib/post-json.ts";
 import type { Translate } from "#src/lib/language.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
@@ -45,6 +46,14 @@ export function readApproved(
 ): Readonly<{ campaign: AdminInvitationCampaign; sendAtMoved: boolean }> | undefined {
   const parsed = invitationApprovedSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * What a failed first read of a request means for the page: "failed" when the page could not be loaded (a dropped
+ * connection, a server fault, or an answer that is not a request), "missing" when the API answered that there is none.
+ */
+export function detailFailure(result: PostResult): "failed" | "missing" {
+  return result.ok || isTransientFailure(result) ? "failed" : "missing";
 }
 
 /** How many requests wait for a decision, for the console home's link. */

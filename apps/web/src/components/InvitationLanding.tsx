@@ -86,20 +86,22 @@ export function InvitationLanding({ language }: Readonly<{ language: Language }>
 
   return (
     <section className={styles.panel} aria-labelledby="invitation-title">
-      {state.kind === "reading" ? (
-        <p role="status" className={styles.muted}>
-          {t("common.loading")}
-        </p>
-      ) : null}
-      {state.kind === "found" ? <EventCard language={language} event={state.event} /> : null}
-      {state.kind === "found" || state.kind === "reading" ? null : (
+      {state.kind === "found" ? (
+        <EventCard language={language} event={state.event} />
+      ) : (
         <>
           <h1 id="invitation-title" className={styles.title}>
             {t("invCampaignPage.title")}
           </h1>
-          <p role="alert" className={styles.alert}>
-            {t(NOTES[state.kind])}
-          </p>
+          {state.kind === "reading" ? (
+            <p role="status" className={styles.muted}>
+              {t("common.loading")}
+            </p>
+          ) : (
+            <p role="alert" className={styles.alert}>
+              {t(NOTES[state.kind])}
+            </p>
+          )}
         </>
       )}
     </section>

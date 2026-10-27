@@ -4,6 +4,7 @@ import {
   approvalBodyOf,
   approvalDraftOf,
   approvalRefusalText,
+  detailFailure,
   invitationPath,
   isCampaignId,
   isOpen,
@@ -98,6 +99,20 @@ describe("the readers", () => {
     ["no body", () => readDetail(undefined)],
   ])("refuse %s", (_name, read) => {
     expect(read()).toBeUndefined();
+  });
+});
+
+describe("detailFailure", () => {
+  it("says the page could not load after a dropped connection, a server fault or an unreadable answer", () => {
+    expect(detailFailure({ ok: false, status: 0, body: undefined })).toBe("failed");
+    expect(detailFailure({ ok: false, status: 502, body: undefined })).toBe("failed");
+    expect(detailFailure({ ok: false, status: 503, body: { code: "unavailable" } })).toBe("failed");
+    expect(detailFailure({ ok: true, status: 200, body: { campaign: 1 } })).toBe("failed");
+  });
+
+  it("says there is no such request when the API answered that", () => {
+    expect(detailFailure({ ok: false, status: 404, body: { code: "not_found" } })).toBe("missing");
+    expect(detailFailure({ ok: false, status: 400, body: undefined })).toBe("missing");
   });
 });
 

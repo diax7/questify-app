@@ -181,8 +181,9 @@ const rendered = z.strictObject({ text: z.string(), parts: z.number().int().min(
 
 /**
  * `GET /v1/admin/invitation-campaigns/{id}`: the campaign, the event's current names with the name rule's verdict,
- * the messages rendered from those names (placeholder tokens, never a real one), the audience estimate, the channels
- * this server can send and the channel hold.
+ * the messages (placeholder tokens, never a real one), the audience estimate, the channels this server can send and
+ * the channel hold. The messages are rendered from the current names while the campaign is `requested` (what Approve
+ * will freeze) and from the frozen `approvedNames` in every later state; a campaign never approved has none.
  */
 export const adminInvitationDetailSchema = z.strictObject({
   campaign: adminInvitationCampaignSchema,

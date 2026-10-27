@@ -80,6 +80,11 @@ export function ConsoleInvitation({
           {t("common.loading")}
         </p>
       ) : null}
+      {detail === "failed" ? (
+        <p role="alert" className={styles.alert}>
+          {t("console.invCampaign.loadFailed")}
+        </p>
+      ) : null}
       {detail === "missing" ? (
         <p role="alert" className={styles.alert}>
           {t("console.invCampaign.notFound")}

@@ -701,8 +701,8 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [x] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i` (token in the fragment) — delivers FR 738, 739 (on screen); depends on: T-409
   - Split from T-409 2026-10-27 (ADR-329). Standard; plan: `docs/plans/2026-10-27-t-409-questify-invitations.md` (T-409b section).
   - Done when: An owner requests and cancels a campaign and sees only bucketed counts; an admin approves with a cap and sees the moved send time; the landing page counts one open per recipient.
-  - Done 2026-10-27 (standard; code review owed; plan `docs/plans/2026-10-27-t-409b-invitation-pages.md`, ADR-335 / Q-304
-    proposed): the dashboard's Invitations page per event (`/organizers/{o}/events/{e}/invitations`, linked from the event
+  - Done 2026-10-27 (standard; code review 92 folded; plan `docs/plans/2026-10-27-t-409b-invitation-pages.md`, ADR-335 / Q-304
+    accepted): the dashboard's Invitations page per event (`/organizers/{o}/events/{e}/invitations`, linked from the event
     page while the switch is on; the owner asks and withdraws, owners and editors read rounded counts only), the console's
     queue and detail (`/console/invitations`, `/console/invitations/{id}`: names with verdicts, the exact text, the
     audience now, the hold banner, Approve with the names it showed, the moved send time, Refuse, Cancel, the

@@ -1,5 +1,5 @@
 "use client";
-import type { AdminInvitationDetail, Language } from "@questify/shared";
+import { formatNumber, type AdminInvitationDetail, type Language } from "@questify/shared";
 import { Criteria, Decision } from "#src/components/InvitationCard.tsx";
 import { nameIn } from "#src/lib/console.ts";
 import { NAME_REASON_KEYS, NOT_ELIGIBLE_KEYS, riyadhTime } from "#src/lib/invitations.ts";
@@ -59,7 +59,7 @@ export function Warnings({ language, detail }: PartProps) {
       )}
       {(["ar", "en"] as const).map((one) => {
         const { issue } = detail.names[one];
-        return issue === null ? null : (
+        return issue === null || detail.campaign.state !== "requested" ? null : (
           <p key={one} role="alert" className={styles.warning}>
             {t(`invCampaign.nameProblem.${one}`, { reason: t(NAME_REASON_KEYS[issue]) })}
           </p>
@@ -86,7 +86,7 @@ export function Names({ language, detail }: PartProps) {
             ) : (
               <bdi dir="auto">{name}</bdi>
             )}
-            {name === null || issue !== null ? null : (
+            {name === null || issue !== null || detail.campaign.state !== "requested" ? null : (
               <span className={styles.muted}> · {t("console.invCampaign.nameOk")}</span>
             )}
           </p>
@@ -164,12 +164,12 @@ export function Counters({ language, detail }: PartProps) {
         {rows.map(([name, value]) => (
           <li key={name}>
             {t(`console.invCampaign.counter.${name}`)}:{" "}
-            <strong data-testid={`counter-${name}`}>{value}</strong>
+            <strong data-testid={`counter-${name}`}>{formatNumber(value, language)}</strong>
           </li>
         ))}
         <li>
           {t("console.invCampaign.counter.queued")}:{" "}
-          <strong data-testid="counter-queued">{detail.queued}</strong>
+          <strong data-testid="counter-queued">{formatNumber(detail.queued, language)}</strong>
         </li>
       </ul>
     </div>

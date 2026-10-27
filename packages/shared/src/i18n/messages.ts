@@ -5949,6 +5949,18 @@ export const MESSAGES = {
     ar: "إلغاء الطلب؟ الرسائل التي سُلّمت للمرسِل تصل كما هي.",
     en: "Cancel this request? Messages already handed to the sender still go out.",
   },
+  "console.invCampaign.approveConfirm": {
+    ar: "إرسال حتى {cap} رسالة ابتداءً من {time}؟",
+    en: "Send up to {cap} messages from {time}?",
+  },
+  "console.invCampaign.refuseConfirm": {
+    ar: "رفض الطلب؟ يرى المنظّم ملاحظتك ولا يمكن التراجع.",
+    en: "Refuse this request? The organizer sees your note, and it cannot be undone.",
+  },
+  "console.invCampaign.loadFailed": {
+    ar: "تعذّر تحميل الطلب. أعد تحميل الصفحة.",
+    en: "We couldn't load this request. Reload the page.",
+  },
   "invCampaignPage.title": { ar: "دعوة إلى فعالية", en: "Event invitation" },
   "invCampaignPage.lead": {
     ar: "دعوة إلى فعالية على Questify",

@@ -19,6 +19,7 @@ import {
 } from "@questify/shared";
 import { SAUDI_ZONE } from "#src/lib/console-questify.ts";
 import type { Translate } from "#src/lib/language.ts";
+import type { PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
 /** The API path of one event's invitation requests (T-409). */
@@ -38,6 +39,11 @@ export function readCampaigns(body: unknown): InvitationCampaigns | undefined {
 export function readCampaign(body: unknown): InvitationCampaign | undefined {
   const parsed = invitationCampaignSchema.safeParse(isRecord(body) ? body["campaign"] : undefined);
   return parsed.success ? parsed.data : undefined;
+}
+
+/** Whether the event page should link to Invitations: only when the list was read and the platform switch is on. */
+export function invitationsOpen(result: PostResult): boolean {
+  return result.ok && readCampaigns(result.body)?.enabled === true;
 }
 
 /** Whether a failed answer says the staff session is over (the page then goes to the sign-in page). */
