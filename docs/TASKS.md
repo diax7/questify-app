@@ -698,9 +698,19 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     name rule is NFKC, no format characters, no dot between letters or digits, no run of 9+ digits, also on the cut text
     (MAJOR 1); settle, running with the switch off, skips the queued rows of a sending campaign whose event is over and
     ends it `sent` with `event_over` (MAJOR 2). **The code review checks MAJOR 1 and 2 by their named tests.**
-- [ ] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i` (token in the fragment) — delivers FR 738, 739 (on screen); depends on: T-409
+- [x] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i` (token in the fragment) — delivers FR 738, 739 (on screen); depends on: T-409
   - Split from T-409 2026-10-27 (ADR-329). Standard; plan: `docs/plans/2026-10-27-t-409-questify-invitations.md` (T-409b section).
   - Done when: An owner requests and cancels a campaign and sees only bucketed counts; an admin approves with a cap and sees the moved send time; the landing page counts one open per recipient.
+  - Done 2026-10-27 (standard; code review owed; plan `docs/plans/2026-10-27-t-409b-invitation-pages.md`, ADR-335 / Q-304
+    proposed): the dashboard's Invitations page per event (`/organizers/{o}/events/{e}/invitations`, linked from the event
+    page while the switch is on; the owner asks and withdraws, owners and editors read rounded counts only), the console's
+    queue and detail (`/console/invitations`, `/console/invitations/{id}`: names with verdicts, the exact text, the
+    audience now, the hold banner, Approve with the names it showed, the moved send time, Refuse, Cancel, the
+    `event_renamed` reload) and the landing page `/[lang]/i` (token in the fragment, read once, sent once). One line of
+    the reviewed server code changed: the console detail renders the frozen text after approval (ADR-335 (1)). Proven by
+    unit tests (`invitations`, `console-invitations`, `invitation-landing`), `campaigns.test` and
+    `e2e/invitations.spec.ts` (desktop and phone, Arabic and English). No mutation globs beyond T-409's (the changed
+    line is in `apps/api/src/invitation-campaigns/campaigns.ts`, already a target).
 - [ ] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
   - Done when: After the window the balance closes but the score, rank and stamp remain.
 

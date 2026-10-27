@@ -4513,3 +4513,27 @@ a fill of 100,000 holds the event `FOR SHARE` for seconds (an edit of that event
 rows exist, so an event still running more than 90 days after a campaign finished could invite the same player again,
 and only through a new campaign that an admin approves by hand. A name with an emoji's variation selector is refused
 (the selector is default-ignorable); the admin sees the verdict.
+
+## ADR-335 — The web pages for Questify invitations: what they show and where they differ from the plan
+**Status:** Proposed (worker, T-409b build, 2026-10-27; Q-304). Specifies FR-738 and FR-739 on screen under ADR-329 to ADR-334.
+**Decision:** (1) **The console detail renders the SMS text from the frozen names once a request is approved.** While a
+request is `requested` it renders the event's current names (what Approve will freeze); in every later state it renders
+`approvedNames`, so the console shows what goes out whatever the event is called now; a request refused or cancelled before
+approval has no text (`messages: null`). This changes `campaignDetail` in the T-409 server code by one line (tested in
+`campaigns.test.ts` and, from the browser, in `e2e/invitations.spec.ts`). (2) Approve is off, with the reason written next
+to it, when SMS is not set up on the server, the event no longer qualifies, a name fails the name rule, or the event has no
+name; the API still refuses each. Refuse and Cancel need a note (1 to 500 characters, the owner reads it); Cancel and the
+owner's Withdraw ask for a browser confirmation (the ticket page's precedent). (3) Times in the owner's earliest-send field
+and the console's send-time field are Riyadh time (the quiet hours are Riyadh hours); every displayed time names the zone.
+(4) The Arabic word is «طلب دعوات» and the English "invitation request", never «حملة»/"campaign": the console already calls
+Questify's quest seasons campaigns. (5) The event page links to Invitations only while the platform switch is on; the page
+itself opens either way, says invitations are not open yet when the switch is off, and keeps showing earlier requests.
+(6) The landing page has no language switch (it would drop the token, which is held in memory only), reads the token from
+the fragment once, removes it from the address, sends it once, and shows the live public event card; after a reload it
+says the link is incomplete. It carries no player data: the page is the same for everyone. (7) The console home links to
+the queue with the number of requests waiting.
+**Why:** The text an admin approves and the text the console later shows must be the same text; a disabled button with its
+reason is quicker than a refused request; the zone of a time must never be guessed; one word for one thing.
+**Trade-offs:** The server code that was reviewed (T-409) changed by one line after its review, so it is named in the
+T-409 mutation run; the landing page cannot be switched to the other language after opening; a recipient who reloads the
+landing page must open the link from the message again.

@@ -150,9 +150,15 @@ that is shared or written to disk (today's is in memory, per process).
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
-## Questify invitations (T-409, ADR-329 to ADR-334; server built, web pages T-409b)
+## Questify invitations (T-409, T-409b, ADR-329 to ADR-335; server and web pages built)
 
-Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns/`).
+Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns/`) and the T-409b build (the pages).
+
+- **Where people work:** an organizer's owner asks on the event's Invitations page (the event page links to it only
+  while the switch is on); a Questify admin opens the console's Invitations (the home links to it with the number of
+  requests waiting), reads the names and the exact text, sets the cap and the send time (Riyadh time; a time in quiet
+  hours moves, and the page says so) and approves, or refuses or cancels with a note the owner reads. The invitation
+  links in the SMS open `/{lang}/i#{token}`.
 
 - **Setting:** `MSEGAT_PROMO_SENDER`, the registered promotional "...-AD" sender name (Q-034), used with the same
   `MSEGAT_USERNAME`/`MSEGAT_API_KEY`. Unset: SMS is unavailable for invitations and the console cannot approve one. Never
@@ -160,8 +166,8 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
 - **Deploy order for migration 0073:** `set_marketing` gains a fourth argument with a default (`lang text DEFAULT
   NULL`, NULL read as Arabic), so the running API's 3-argument calls keep working: run the migration, then deploy the
   API. Consents saved in between simply have no language and get Arabic messages.
-- **Turning `invitationCampaigns` on** (console switch, off when absent), only when all three hold: T-409b (the dashboard,
-  console and landing pages) is live; the privacy policy carries the T-807 line on invitation counts (ADR-332); the
+- **Turning `invitationCampaigns` on** (console switch, off when absent), only when all three hold: the T-409b pages (the dashboard,
+  console and landing pages) are deployed; the privacy policy carries the T-807 line on invitation counts (ADR-332); the
   Q-034 promotional sender is registered with the operators and `MSEGAT_PROMO_SENDER` is set (and Msegat's static-IP
   check, `M0037`, passes for the API's address).
 - **Kill switch:** turning `invitationCampaigns` off refuses new requests and stops the tick from starting or claiming

@@ -1132,3 +1132,9 @@ on CranL before the switch is turned on); `M0030` and `M0090` hold the channel l
 Developer's call at the T-409 code review.
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as built at the T-409 code review (89); ADR-334
 Accepted, with the review's fold-in and the 90-day purge kept.
+
+## Q-304 — The Invitations pages: the frozen text in the console, Riyadh time, wording (2026-10-27, T-409b build)
+Recommended (ADR-335): the console shows the approved (frozen) text after approval, which needs a one-line change to the
+reviewed `campaignDetail`; times in Riyadh time; «طلب دعوات» / "invitation request"; the event page links to Invitations
+only while the switch is on; the landing page has no language switch and forgets its token after the first read.
+Developer's call at the T-409b code review.
