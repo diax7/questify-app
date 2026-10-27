@@ -20,6 +20,7 @@ const PREFIX = "questify-pre-ranking-";
  * The lock list: xp_entry (every XP payer writes it before player_xp.xp), then player SHARE for its new index (no
  * writer of player touches xp_entry). No key to player_xp, so no player_xp row lock.
  */
+// The backfill check also reads player_xp, but only with ACCESS SHARE (a plain read), so it is not listed.
 const LOCKS = [
   ["xp_entry", "ACCESS EXCLUSIVE"],
   ["player", "SHARE"],

@@ -254,6 +254,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify-wide ranking (dat
       const seasons = await f.door<Season[]>("SELECT questify_seasons() AS r");
       const [now] = await f.owner<{ m: string }>("SELECT questify_month(now()) AS m");
       expect(seasons.find((one) => one.month === now?.m)).toMatchObject({ current: true });
+      // Every month from the earliest board to now, newest first; a month nobody played counts 0.
+      expect(seasons.at(-1)?.month).toBe("1999-04");
+      expect(seasons.find((one) => one.month === "1999-06")).toEqual({
+        month: "1999-06",
+        players: 0,
+        current: false,
+      });
+      const months = seasons.map((one) => one.month);
+      expect(months).toEqual([...months].toSorted().toReversed());
+      expect(new Set(months).size).toBe(months.length);
       expect(seasons.find((one) => one.month === "1999-05")).toMatchObject({
         current: false,
         players: Number((await h.reference("1999-05")).length),

@@ -232,15 +232,23 @@ $$;
 REVOKE ALL ON FUNCTION questify_ranking(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION questify_ranking(text) TO questify_app;
 
--- Every season (FR-1786): each month board and the current month, newest first, with its ranked count. Admin only.
+-- Every season (FR-1786): each month from the earliest month board to the current month, newest first, with its ranked
+-- count (0 for a month nobody played). The first and last month boards come from the key's two ends ('all' sorts after
+-- every month), so no board row is read to list them. Admin only.
 CREATE FUNCTION questify_seasons() RETURNS jsonb
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT coalesce(jsonb_agg(jsonb_build_object('month', s.board, 'players', xp_board_count(s.board),
                                                'current', s.board = now_month.board)
                             ORDER BY s.board DESC), '[]'::jsonb)
   FROM (SELECT questify_admin() AS admin, questify_month(now()) AS board) now_month
-  JOIN (SELECT DISTINCT b.board FROM xp_board b WHERE b.board <> 'all'
-        UNION SELECT questify_month(now())) s ON now_month.admin IS NOT NULL
+  CROSS JOIN LATERAL (
+    SELECT to_char(m, 'YYYY-MM') AS board
+    FROM generate_series(
+      to_date(least(now_month.board, (SELECT min(b.board) FROM xp_board b WHERE b.board < 'all')), 'YYYY-MM'),
+      to_date(greatest(now_month.board, (SELECT max(b.board) FROM xp_board b WHERE b.board < 'all')), 'YYYY-MM'),
+      interval '1 month') m
+  ) s
+  WHERE now_month.admin IS NOT NULL
 $$;
 REVOKE ALL ON FUNCTION questify_seasons() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION questify_seasons() TO questify_app;

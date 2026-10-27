@@ -187,6 +187,13 @@ that is shared or written to disk (today's is in memory, per process).
   catches it within 5 minutes.
 - **Local runs:** `docker compose up -d` starts Redis on 56379; set `TEST_REDIS_URL=redis://127.0.0.1:56379` for the
   ranking tests (they skip without it).
+- **Questify-wide ranking size, monthly check (T-408, ADR-322):** the Questify-wide ranking reads PostgreSQL only
+  (no Redis copy yet). With the owner connection: `SELECT count(*) FROM xp_board b JOIN player p ON p.id = b.player_id
+  WHERE b.board = 'all' AND b.xp > 0 AND p.status = 'active';` and `SELECT count(*) FROM player WHERE status <>
+  'active';`. When the first passes about 30,000 (measured p95 37 ms at 100,000 against a 50 ms gate), start T-408d,
+  the Redis copy; a fast-growing second (deleted accounts) brings that forward. To re-time it:
+  `QUESTIFY_RANKING_TIMING=/path/out.txt npx vitest run apps/api/test/perf/questify-ranking-timing.int.test.ts`, with
+  nothing else running.
 
 ## Email sending (ADR-112)
 

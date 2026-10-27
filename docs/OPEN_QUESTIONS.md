@@ -1039,8 +1039,9 @@ Retiring this quest and adding a new "set your interests" quest pays everyone wh
 Recommended (ADR-321, ADR-322): split T-408 into the core server (T-408), the app (T-408b) and the console (T-408c); keep
 both boards in one `xp_board` table written by `xp_apply` and read them from PostgreSQL, adding a Redis copy only if the
 timed read of a player's place on a 100,000-player board passes 50 ms. Developer's call after the plan review.
-Build note (2026-10-27): p95 about 60 ms at 100,000 with the index-only fallback (ADR-322); the Redis copy is T-408d,
-due before the boards pass 50,000 ranked players.
+Build note (2026-10-27): p95 about 37 ms at 100,000 with the index-only fallback, run on its own (ADR-322); the Redis
+copy is T-408d, triggered by the RUNBOOK check at about 30,000 ranked players.
+**Answered (developer, delegated by Dhia, 2026-10-27):** ADR-321 and ADR-322 accepted as built (T-408 code review 93).
 
 ## Q-292 — For Dhia (product): monthly ranking seasons (2026-10-27, T-408 plan)
 Recommended (ADR-323): every month is a season on its own, with no button to press. It starts at 04:00 Saudi time on
@@ -1052,4 +1053,4 @@ want prizes for a season's winners, a different season length, or players to see
 ## Q-293 — Operator invites on the Questify home scanner (2026-10-27, T-408 plan)
 Recommended (ADR-324): the center button on Questify home opens event join codes and also operator invites, since staff
 are not yet inside the event when they scan theirs. Quest codes say to open the event first. Developer's call after the
-plan review.
+plan review. Still open: ADR-324 is decided after the T-408b code review.

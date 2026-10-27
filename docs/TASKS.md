@@ -628,18 +628,24 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `GET /v1/admin/questify/seasons[/:month]`, `questifyRanking`. Proven by `test/db/questify-ranking.int` (order,
     a 300-player reference check, who is left out, every writer and four races equal to the ledger, the doors, months
     and MAJOR-1), `test/db/questify-ranking-upgrade.int` (backfill, lock list, live traffic, abort), the outsider,
-    cross-tenant and route inventories, unit and route tests. Timing: p95 about 60 ms at 100,000 (gate 50 ms, T-408d).
+    cross-tenant and route inventories, unit and route tests. Timing run on its own: p95 about 37 ms at 100,000 (gate
+    50 ms met). Code review 93 GO, minors folded; ADR-321 to ADR-323 accepted.
 - [ ] **T-408d** A Redis copy of the Questify-wide boards for the reader's place (ADR-322's timing gate) — delivers FR 611 (scale); depends on: T-408
-  - Added 2026-10-27 (T-408 build): the reader's place counts the rows ahead in PostgreSQL, p95 about 60 ms at 100,000
-    ranked players against a 50 ms gate. Due before the boards pass 50,000 ranked players: a sorted set per board,
-    rebuilt from `xp_board` the way the event ranking rebuilds from the ledger (ADR-118), kept by the API after each
-    XP-paying call, PostgreSQL the fallback.
+  - Added 2026-10-27 (T-408 build): the reader's place counts the rows ahead in PostgreSQL: p95 about 37 ms at 100,000
+    ranked players run on its own (the 50 ms gate), about 60 ms while other work runs. **Trigger:** the RUNBOOK's
+    monthly check ("Rankings and Redis") of the lifetime board's ranked count; start this task when it passes about
+    30,000. A sorted set per board, rebuilt from `xp_board` the way the event ranking rebuilds from the ledger
+    (ADR-118), kept by the API after each XP-paying call, PostgreSQL the fallback.
+  - Note (code review MINOR-1): the inactive set grows with deleted accounts, and so does the cost of taking them off
+    each reader's place (`xp_board_json`, the third count in 0072's `mine`, one key lookup per inactive player); the
+    Redis copy removes that cost too.
 - [ ] **T-408b** The bar outside events, Questify Home (events live, upcoming, past; daily cards; streak line; Questify quests), Explore (public events, For you, the Questify-wide ranking) and the join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408b section).
   - Done when: Outside an event the center button scans only join QR codes (and operator invites, ADR-324); no event screen shows the Questify-wide ranking.
 - [ ] **T-408c** The console's Seasons page: each Questify month with its ranked count and its top 10 — delivers FR 1786 (on screen); depends on: T-408
   - Split from T-408 2026-10-27 (ADR-321). Standard; plan: `docs/plans/2026-10-27-t-408-questify-home.md` (T-408c section).
   - Done when: A past month's top 10 is unchanged after the new month starts, and changes only when one of its own credits is removed; there is no reset button (Q-292).
+  - Note (T-408 code review MINOR-2, done in 0072): `GET /v1/admin/questify/seasons` lists every month from the earliest board to now, a month nobody played with 0 players.
 - [ ] **T-409** Questify invitations to chosen players, results counts, billed on the web — delivers FR 738, 739, 740; depends on: T-407
   - Note 2026-10-27 (T-407): an invitation is promotional. Choose recipients only through `marketing_audience(channel, city, any_of, after, page)` (opted-in players, per channel, ids only; city and interests are the player's private `player_preference`), hold `promoSendTime` for SMS, and put `optOutUrl` in every message. The organizer sees counts only, never the ids.
   - Done when: An organizer sees only counts of their invitations, never player lists.

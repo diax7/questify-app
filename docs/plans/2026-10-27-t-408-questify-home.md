@@ -143,7 +143,7 @@ EXCLUSIVE vs ROW SHARE); after the commit it runs the new `xp_apply` and its ent
   `GET /v1/questify/ranking?scope=lifetime|month` (default `lifetime`; access `player`; `no-store`) in
   `src/questify/routes.ts`. 400 on another scope.
 - `GET /v1/admin/questify/seasons` and `GET /v1/admin/questify/seasons/:month` in `src/questify/admin-routes.ts`
-  (read access, as `GET /v1/admin/questify`); `QY403` → 403; 400 on a malformed month.
+  (read access, as `GET /v1/admin/questify`); `QY403` → 404; 400 on a malformed month.
 - API.md rows, DATA_MODEL (`xp_board`; `ranking_season` in the baseline table becomes "built as `xp_board` month
   boards"), SRS status rows.
 
@@ -184,7 +184,7 @@ two admin doors refuse a player), cross-tenant lists, route inventory (`/v1/ques
 
 Unit and route: shared schemas (scopes, month pattern, a row with an extra key refused); `ranking.test.ts` (`PI401` →
 401, mapping); routes (default scope, 400 bad scope, 404 `ranking_off` when the switch is off, 401 signed out,
-`no-store`); admin routes (403, 400 month, shape).
+`no-store`); admin routes (404, 400 month, shape).
 
 Mutation (GitHub, core only): `apps/api/src/questify/ranking.ts`, the ranking parts of `apps/api/src/questify/routes.ts`
 and `apps/api/src/questify/admin-routes.ts`, `packages/shared/src/questify/ranking.ts`.
@@ -259,5 +259,10 @@ DATA_MODEL, API, SRS status rows, CONFIGURABILITY (the `questifyRanking` switch)
   "every writer of `xp_entry` calls `xp_apply`" test found it. Its two test references were removed.
 - **Admin refusals answer 404**, as every console door does (`refusalOf`: `QY403` → 404), not 403.
 - **Timing (review item 3):** first build p95 107/108 ms at 100,000; with the index-only fallback p95 59/62 ms, p50
-  47/48 ms (ADR-322). The gate is not met; the Redis copy is T-408d, due before 50,000 ranked players.
+  47/48 ms while other suites ran. Re-run on its own (code review MINOR-1): p95 36.9 ms (lifetime) and 37.5 ms
+  (month), p50 31/32 ms: the 50 ms gate is met (ADR-322). T-408d stays as the scale step, triggered by the RUNBOOK
+  check at about 30,000 ranked players.
+- **Code review 93 (GO) fold-in:** `questify_seasons` lists the months from the earliest board to now from the key's
+  ends (MINOR-2), the upgrade test notes the check's ACCESS SHARE read of `player_xp` (MINOR-3), this plan's 403s read
+  404 (NIT).
 - **An archived season's `level`** is the player's lifetime level today, so it may move; places and XP do not.

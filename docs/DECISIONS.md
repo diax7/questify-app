@@ -4239,7 +4239,7 @@ list in their schema and fail to parse the quest list once 0071 ships: the serve
 Amounts decided under Q-290 (developer, delegated by Dhia, 2026-10-27); this ADR stays Proposed until the code review.
 
 ## ADR-321 — T-408 splits into the core ranking server, the app screens and the console page
-**Status:** Proposed (T-408 plan, 2026-10-27; Q-291). Specifies FR-611, FR-612, FR-830 to FR-833, FR-1614, FR-1786.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408 code review 93, about 95 after the fold-in; Q-291). Specifies FR-611, FR-612, FR-830 to FR-833, FR-1614, FR-1786.
 **Decision:** T-408 (CORE): migration 0072, the ranking doors, `GET /v1/questify/ranking`, the admin season reads,
 shared schemas and the `questifyRanking` switch. T-408b (standard): the bar outside events, Questify Home, Explore and
 the join-QR scanner. T-408c (standard): the console's Seasons page. Plan: `docs/plans/2026-10-27-t-408-questify-home.md`.
@@ -4248,7 +4248,7 @@ do not, and one worker cannot carry all three well.
 **Trade-offs:** Three reviews instead of one; the screens wait for the server.
 
 ## ADR-322 — The Questify-wide ranking: one board table kept by xp_apply, read from PostgreSQL
-**Status:** Proposed (T-408 plan, 2026-10-27; Q-291). Specifies FR-611, FR-605, FR-606, FR-120; T-401's note.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408 code review 93, about 95 after the fold-in; Q-291). Specifies FR-611, FR-605, FR-606, FR-120; T-401's note.
 **Decision:** (1) `xp_board(board, player_id, xp, xp_version)`, board `all` (lifetime, equal to `player_xp.xp`) or a
 Questify month `YYYY-MM` (the XP credited that month by `created_at`, less the removals of those credits: a removal
 counts in the month of the credit it reverses, so a month row is never negative; plan review MAJOR-1), index `(board, xp DESC, xp_version) WHERE xp > 0`. (2) Written only by `xp_apply` while it holds the
@@ -4268,14 +4268,15 @@ waits on `xp_entry` behind the migration. 0072 locks `xp_entry` ACCESS EXCLUSIVE
 100,000 ranked players on both boards (1% banned), `VACUUM ANALYZE`, the last-placed reader 200 times per board, on
 Dhia's PC (16 threads, Docker PostgreSQL 17.11, other workers' suites running): first build, p95 107 ms (lifetime) and
 108 ms (month). With the planned fallback (an index-only count of the rows ahead, less the inactive players ahead found
-through `player_inactive_idx`, each looked up by key): p50 47 and 48 ms, p95 59 and 62 ms. The 50 ms gate is not met
-at 100,000; the count of about 100,000 index entries (about 30 ms) is what is left. Launch traffic is far below that
-size, so the Redis copy is task T-408d, due before the boards pass 50,000 ranked players. The lifetime XP is stored
+through `player_inactive_idx`, each looked up by key): p50 47 and 48 ms, p95 59 and 62 ms while other suites ran; run
+on its own (code review MINOR-1): p50 31 and 32 ms, **p95 36.9 ms (lifetime) and 37.5 ms (month)**, so the 50 ms gate
+is met at 100,000. Most of it is the count of about 100,000 index entries; taking off the inactive players grows with
+deleted accounts. The Redis copy is task T-408d, triggered by the RUNBOOK check at about 30,000 ranked players. The lifetime XP is stored
 twice (a DB check keeps them equal).
 
 ## ADR-323 — Ranking seasons are Questify months, archived by keeping their boards
-**Status:** Proposed (T-408 plan, 2026-10-27; plan review 88, MAJOR-1 folded). Q-292 answered by Dhia, 2026-10-27:
-"Automatic monthly". Specifies FR-1786 (amended), FR-611.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-408 code review 93, about 95 after the fold-in; Q-292
+answered by Dhia, 2026-10-27: "Automatic monthly"). Specifies FR-1786 (amended), FR-611.
 **Decision:** A season is a Questify month: it changes at 04:00 Riyadh time on the 1st, the Questify day's edge
 (ADR-297), so a late-night daily play counts in the month of its Questify day. The new month's board starts empty by its
 key, with no job and nothing deleted; every past month's board stays as that season's archive, read with today's rule
