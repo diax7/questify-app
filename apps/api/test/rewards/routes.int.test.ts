@@ -548,7 +548,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
     it("answers closed when the guard refuses a request whose transaction began before the close", async () => {
       const event = await endedEvent("1 day");
       const [{ closes } = { closes: new Date() }] = await owner<{ closes: Date }>(
-        `UPDATE event SET ends_at = clock_timestamp() + interval '1 second' - interval '3 days' WHERE id = $1
+        `UPDATE event SET ends_at = clock_timestamp() + interval '2 seconds' - interval '3 days' WHERE id = $1
          RETURNING ends_at + interval '3 days' AS closes`,
         [event.id],
       );
@@ -571,7 +571,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         // updateShop waits on the event lock in a transaction begun before the close: by its `now()` the shop is open.
         expect(waiting).toHaveLength(1);
         expect(waiting[0]?.started.getTime()).toBeLessThan(closes.getTime());
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 2500));
       } finally {
         await db.owner.query("COMMIT");
       }

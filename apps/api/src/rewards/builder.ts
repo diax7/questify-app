@@ -639,6 +639,7 @@ async function writeShop(
     await client.query("ROLLBACK TO SAVEPOINT shop_window");
     return refusal;
   }
+  await client.query("RELEASE SAVEPOINT shop_window");
   return undefined;
 }
 

@@ -79,7 +79,7 @@ GRANT EXECUTE ON FUNCTION event_recap(uuid) TO questify_app;
 -- As 0054, with the rehearsal flag never NULL. play_phase is NULL once the event has ended, so 0054's flag was NULL in
 -- the days after the end and every `NOT rehearsing` test was skipped: a digital reward bought then was delivered
 -- with no code and no unit counted, and an item skipped the desk's hours (`desk_finished`, the next opening). Found
--- by T-410's after-the-end tests; nothing else changes.
+-- by T-410's after-the-end tests; nothing else changes. No repair: no real players yet.
 CREATE OR REPLACE FUNCTION reserve_reward(target uuid, request_key text)
   RETURNS TABLE (redemption_id uuid, kind text, status text, price integer, reserved_until timestamptz,
                  balance bigint, stock_left integer, replayed boolean, code_cipher bytea)

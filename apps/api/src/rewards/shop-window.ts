@@ -47,8 +47,9 @@ export type EventShopRow = Readonly<{
 }>;
 
 /**
- * Home's shop window (ADR-338): the state and the close as the shop shows them to this player, and the end of the
- * desk's last window when it comes before the close (items and experiences stop there; digital rewards stay).
+ * Home's shop window (ADR-338): the state and the close as the shop shows them to this player, and, only while the
+ * shop is open, the end of the desk's last window when it comes before the close (items and experiences stop there;
+ * digital rewards stay). That end may already be past while the shop is open: the app then says items have stopped.
  */
 export function homeWindowOf(row: EventShopRow): ShopWindow {
   const closes = row.closes_at;
@@ -56,10 +57,10 @@ export function homeWindowOf(row: EventShopRow): ShopWindow {
     (last, end) => (last === null || end > last ? end : last),
     null,
   );
+  const before = row.state === "open" && deskEnd !== null && closes !== null && deskEnd < closes;
   return {
     state: row.state,
     closesAt: closes === null ? null : closes.toISOString(),
-    deskEndsAt:
-      deskEnd !== null && closes !== null && deskEnd < closes ? deskEnd.toISOString() : null,
+    deskEndsAt: before ? deskEnd.toISOString() : null,
   };
 }

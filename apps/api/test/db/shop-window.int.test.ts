@@ -15,8 +15,8 @@ type Member = { player: string; enrollment: string; entry: string };
 
 const as = (player: string): RequestContext => ({ playerId: player });
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-/** The close is put 1 s ahead and the test sleeps this long: a 0.5 s margin, so 2-core CI never races. */
-const PAST_THE_CLOSE_MS = 1500;
+/** The close is put 2 s ahead (1 s and more for setup) and the test sleeps this long: a 0.5 s margin on 2-core CI. */
+const PAST_THE_CLOSE_MS = 2500;
 
 const refusal = async (work: Promise<unknown>): Promise<string> => {
   try {
@@ -107,11 +107,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the shop window (database)", (
         [event],
       )
     )[0]?.s;
-  /** Puts the close 1 s ahead of clock_timestamp(), keeping the days (the owner connection, past every guard). */
-  const closeInASecond = async (event: string): Promise<Date> =>
+  /** Puts the close 2 s ahead of clock_timestamp(), keeping the days (the owner connection, past every guard). */
+  const closeInTwoSeconds = async (event: string): Promise<Date> =>
     (
       await owner<{ closes: Date }>(
-        `UPDATE event SET ends_at = clock_timestamp() + interval '1 second' - make_interval(days => shop_days_after)
+        `UPDATE event SET ends_at = clock_timestamp() + interval '2 seconds' - make_interval(days => shop_days_after)
          WHERE id = $1 RETURNING ends_at + make_interval(days => shop_days_after) AS closes`,
         [event],
       )
@@ -248,7 +248,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the shop window (database)", (
     return seen;
   };
 
-  /** Opens a transaction as `context` now; `work` runs in it once the close (1 s ahead) has passed by the margin. */
+  /** Opens a transaction as `context` now; `work` runs in it once the close (2 s ahead) has passed by the margin. */
   const beganBeforeTheClose = async <T>(
     context: Readonly<Record<string, string>>,
     closes: Date,
@@ -350,7 +350,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the shop window (database)", (
 
     it("judges on clock_timestamp(): an edit whose transaction began before the close is refused after it", async () => {
       const event = await newEvent();
-      const closes = await closeInASecond(event);
+      const closes = await closeInTwoSeconds(event);
       const context = { "app.organizer_id": ids.orgA, "app.staff_user_id": ownerA };
       const outcome = await beganBeforeTheClose(context, closes, async (client) => {
         // On the transaction's own clock the shop is still open, so the API's rule alone would let this through.
@@ -418,7 +418,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the shop window (database)", (
       const event = await newEvent();
       const who = await newPlayer(event);
       const prize = await newReward(event, "item", 120);
-      const closes = await closeInASecond(event);
+      const closes = await closeInTwoSeconds(event);
       const made = await beganBeforeTheClose(
         { "app.player_id": who.player },
         closes,

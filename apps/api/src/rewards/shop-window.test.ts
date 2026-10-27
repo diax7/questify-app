@@ -105,4 +105,13 @@ describe("homeWindowOf (ADR-338)", () => {
     expect(homeWindowOf(row({ desk_closes: [] })).deskEndsAt).toBeNull();
     expect(homeWindowOf(row({ closes_at: null, desk_closes: [early] })).deskEndsAt).toBeNull();
   });
+
+  it("gives the desk's end only while the shop is open, never once closed or before it opens", () => {
+    const early = new Date("2030-01-02T18:00:00Z");
+    expect(homeWindowOf(row({ state: "closed", desk_closes: [early] })).deskEndsAt).toBeNull();
+    expect(homeWindowOf(row({ state: "not_open", desk_closes: [early] })).deskEndsAt).toBeNull();
+    expect(homeWindowOf(row({ state: "open", desk_closes: [early] })).deskEndsAt).toBe(
+      "2030-01-02T18:00:00.000Z",
+    );
+  });
 });
