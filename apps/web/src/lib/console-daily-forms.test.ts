@@ -185,15 +185,15 @@ describe("chunkWords", () => {
   it.each([
     [0, []],
     [1, [1]],
-    [20_000, [20_000]],
-    [20_001, [20_000, 1]],
-    [45_000, [20_000, 20_000, 5_000]],
-  ])("splits %i words into calls of at most 20,000", (count, sizes) => {
+    [500, [500]],
+    [501, [500, 1]],
+    [1_250, [500, 500, 250]],
+  ])("splits %i words into calls of at most 500", (count, sizes) => {
     expect(chunkWords(words(count)).map((call) => call.length)).toEqual(sizes);
   });
 
   it("keeps every word once and in order", () => {
-    expect(chunkWords(words(20_003)).flat()).toEqual(words(20_003));
+    expect(chunkWords(words(1_203)).flat()).toEqual(words(1_203));
   });
 });
 

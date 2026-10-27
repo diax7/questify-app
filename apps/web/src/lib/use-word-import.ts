@@ -32,7 +32,7 @@ export type ImportOutcome = Readonly<{
 }>;
 
 /**
- * Sends a pasted list to the guess list, to add or remove, in calls of at most 20,000 words. It stops at the first
+ * Sends a pasted list to the guess list, to add or remove, in calls of at most `IMPORT_CALL_WORDS` words. It stops at the first
  * failure and keeps what the earlier calls did. Each call carries an Idempotency-Key, so a retry after a dropped
  * answer replays instead of repeating; a refusal ends the key, so the retry after it is a new request.
  */

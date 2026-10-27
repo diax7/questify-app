@@ -1,5 +1,4 @@
 import {
-  WORD_LIST_MAX,
   dailyChallengeBodySchema,
   dailyQuestionBodySchema,
   normalizeWord,
@@ -164,11 +163,17 @@ export function parseWordLines(text: string): ImportLines {
   return { words: [...seen], tooLong, longSamples };
 }
 
-/** The calls a list needs: the API takes at most `WORD_LIST_MAX` words in one. */
+/**
+ * Words in one import call. The API allows `WORD_LIST_MAX`, but the database spends about 1.4 ms a word (T-406d
+ * measured it) and the API gives a statement 5 s, so a call of 20,000 words times out; 500 take about 0.7 s.
+ */
+export const IMPORT_CALL_WORDS = 500;
+
+/** The calls a list needs, each of at most `IMPORT_CALL_WORDS` words. */
 export function chunkWords(words: readonly string[]): string[][] {
   const calls: string[][] = [];
-  for (let start = 0; start < words.length; start += WORD_LIST_MAX) {
-    calls.push(words.slice(start, start + WORD_LIST_MAX));
+  for (let start = 0; start < words.length; start += IMPORT_CALL_WORDS) {
+    calls.push(words.slice(start, start + IMPORT_CALL_WORDS));
   }
   return calls;
 }
