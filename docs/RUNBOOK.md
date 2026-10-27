@@ -213,10 +213,12 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
   `invitation.settle_failed` / `invitation.send_failed {code}` (the next tick tries again). None carries a phone, a
   text or a player.
 
-## Push notifications (T-501, T-501b; planned, not built)
+## Push notifications (T-501 built: store, center, worker; T-501b clients planned)
 
-Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Accepted). The build fills in the log lines and the
-timing check.
+Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Accepted; the build's details ADR-350). Migration 0076
+(undeployed). The push worker runs inside the API container on its own pool of 3 connections: it fans out (personal
+notices first), claims rounds of 200 under 60-second leases, sends in waves of 50 and settles every 10 minutes. Until
+T-501b no provider exists: the center fills and every push expires unsent.
 
 - **Settings (all-or-none per provider):** `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` from the Apple
   Developer account, PEM or base64), `APNS_TOPIC` (`app.questify.mobile`); `FCM_SERVICE_ACCOUNT` (the Firebase
@@ -227,7 +229,19 @@ timing check.
   working.
 - **Alerts (error level):** `push.provider_hold {target, code}` (an account or quota refusal, or the breaker),
   `push.mass_invalid {target}` (most of a round came back as an ambiguous token error: check the APNs environment, the
-  bundle id or the Firebase project), `push.fcm_auth_failed`.
+  bundle id or the Firebase project), `push.fcm_auth_failed` (T-501b). A failing step logs `push.fan_out_failed`,
+  `push.round_failed`, `push.settle_failed` or `push.ack_failed` with the SQLSTATE only (never a token, a text or a
+  player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
+  sent twice).
+- **Start-up (warn level, production):** `push.provider_missing {platform}` once per start for each platform with no
+  provider (both until T-501b).
+- **Timing check:** `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-timing.int.test.ts` (by hand,
+  after a change to the fan-out, the claim or their indexes). Gates: each fan-out call under 1 s and 50,000 members
+  under 30 s; claim plus ack of 200 under 200 ms with 60,000 rows queued. 2026-10-28 on the laptop: 19.5 s in 27 calls
+  (slowest 871 ms); 85 ms median (ADR-350 (10)). Measure again on CranL before NFR-004's load test.
+- **Outbox health (SQL as the owner):** `SELECT target, state, count(*) FROM push_send GROUP BY 1, 2;` many `queued`
+  rows on one target with nothing `sent` means that target is held or has no provider; `SELECT count(*) FROM notice
+  WHERE fanned_at IS NULL;` should stay near 0.
 
 ### Push go-live checklist (gates T-806; run once Dhia's keys exist)
 

@@ -320,8 +320,13 @@ the door on the database clock (the current one, or the previous one for its fir
 
 | Operation | Auth | Request → Response | Errors |
 |---|---|---|---|
-| `GET /v1/notifications`, `PATCH /v1/notifications/settings` | player | the notification center list (T-501) and its per-topic mutes; the promotional channel opt-ins are `GET`/`PUT /v1/me/marketing` (T-407, above) | |
-| `POST /v1/devices` | player | register push token + integrity attestation | |
+| `PUT /v1/me/push-device` | player | `{platform: ios\|android, token, environment?: sandbox\|production, language: ar\|en, appVersion}` → 204 (T-501, ADR-343 (5)): this sign-in's device, bound to the request's own access session (its refresh family), one row per sign-in; an iOS token is hex (stored lower-case) and names its APNs environment (read from the build, ADR-344 (5)), an Android (FCM) token names none; a token held by another sign-in moves here (a shared phone) and the other player's queued pushes go with it; a new token or environment clears an invalid mark. 20 an hour per player; the token never reaches a log or an error. `no-store` | 400 `invalid_request`, 401, 422 `invalid_push_device` (`details.field`), 429 |
+| `DELETE /v1/me/push-device` | player | → 204: removes this sign-in's device (the app calls it before signing out); idempotent. A signed-out family stops pushes at once anyway | 401 |
+| `GET /v1/me/notifications?before=&limit=` | player | → `{items: [{id, kind, topic \| null, eventId \| null, title, body, createdAt, read, optOut}], nextBefore \| null, unread}` (T-501, FR-1104, FR-1824): the caller's center, newest first, `limit` 1 to 50 (default 20), rows with an id below `before`; the text is the kind's fixed template rendered in the request's `accept-language` (Arabic when absent; a kind without a template shows "You have a new message"); `optOut` marks a promotional row (FR-1114); `unread` counts up to 100. A refused OS permission or a muted topic changes nothing here. `private, no-store` | 400, 401 |
+| `POST /v1/me/notifications/read` | player | `{ids: [1..100 ids]}` or `{all: true}` → `{unread}`: marks the caller's own rows; another player's ids change nothing | 400, 401 |
+| `GET` / `PUT /v1/me/push-topics` | player | → `{announcements, rank, community, reminders}` (true = on); `PUT` takes any non-empty subset and keeps the others (FR-1115). A muted topic stops the push, never the center row; a kind without a topic cannot be muted | 400, 401 |
+| `GET /v1/me` (notifications) | player | gains `notifications: {unread}` (T-501): the bell's dot | |
+| (no route) | | The platform switch `pushNotifications` (`level: "platform"`, on when absent): off, nothing is claimed and queued pushes expire unsent; the center, registration, mutes, the fan-out and settle go on. Device integrity attestation stays its own later route | |
 | `GET /v1/wallet/apple/{eventId}`, `/wallet/google/{eventId}` | player | signed `.pkpass` / Save-to-Wallet link | 503 if certificate unavailable |
 | `POST /v1/wallet/apple/v1/...` (Apple web service) | provider | register/unregister device, list updated passes, fetch pass | per Apple spec |
 

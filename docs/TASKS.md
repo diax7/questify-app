@@ -777,7 +777,20 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 
 _Notifications, announcements, big screen, agenda and sessions, maps, sponsors and surveys._
 
-- [ ] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
+- [x] **T-501** Push infrastructure: APNs and FCM directly, permission asked after joining, personal and event pushes, notification center, per-topic mute — delivers FR 1101, 1102, 1103, 1104, 1105, 1106, 1115; depends on: T-107
+  - Done 2026-10-28 (core; built to the plan after two plan reviews, 80 and 88; code review owed). Migration 0076 (new
+    file, undeployed): `notice_kind` (no kind seeded), `notice`, `notification` (the center), `push_device` (one per
+    sign-in), `push_topic_mute`, `push_send` (the outbox), deny-by-default; `notice_create` (one insert, a mismatch
+    inserts nothing); the fan-out (personal first, 2,000 enrollments a call, status, membership and visibility rules),
+    the claim (loose index scan, 100 per notice, re-checks with reasons, 60 s leases), the bulk acknowledgement
+    (`least(n, 8)`, invalid tokens unless re-registered), settle (expiry, the erased-player cleanup, purges by primary
+    key), the device, center and topic doors, `erase_rows` with the five deletes. API `src/push`: the worker on its own
+    pool (waves of 50 acknowledged each, the monotonic deadline, in-lease retries, the breaker, holds, the mass-invalid
+    guard, settle every 10 minutes, the switch), the fake provider, the payload builders for T-501b, six player routes and
+    `GET /v1/me` `notifications.unread`. Shared: schemas and the template renderer (allowlist, name rule, nameless
+    variant; no kind template yet). The FR are partly delivered until T-501b to T-501g (SRS). ADR-350 and Q-319
+    Proposed (build departures). Mutation globs: `apps/api/src/push/**/*.ts` (not `fake.ts`), `packages/shared/src/push/**/*.ts`,
+    `apps/api/src/players/profile.ts`, `apps/api/src/players/guard.ts`.
   - Note 2026-10-27 (T-406): a daily games reminder, if any, follows ADR-300 (no countdown, no loss copy, a date not a
     timer) and never names the word or an answer.
   - Note 2026-10-25 (T-312): one push per closed ticket with fixed text by team ("The event team answered you" / "The Questify team answered you" / "Your request was marked solved"), never the text; no push when a ticket is escalated or sent back. The profile dot (`GET /v1/me` `help.unread`) stays the in-app signal.
@@ -824,12 +837,18 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-344, ADR-345). CORE; plan: `docs/plans/2026-10-28-t-501-push.md` (T-501b
     section). No new server dependency; the Gmail sender's service-account token code moves to `auth/google-token.ts`.
+  - Note 2026-10-28 (T-501 build, ADR-350 (6)): ready for this slice: the `PushProvider` interface (`src/push/provider.ts`,
+    `requeue` carries `written`), the request builders `apnsRequest` and `fcmRequest` (`src/push/message.ts`), the worker's
+    breaker, holds and mass-invalid guard (`src/push/targets.ts`, `round.ts`), and `server.ts` passing `providers: []`. The
+    provider settings, their all-or-none and key checks and the startup token check are this slice's.
   - Done when: With no keys set the server starts and sends nothing; an `Unregistered` answer always removes the token, a round of mostly ambiguous token answers holds only that target, and a provider outage requeues messages instead of losing them.
 - [ ] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-349). Standard; plan: `docs/plans/2026-10-28-t-501-push.md` ("The app").
     Absorbs T-312b. New dependencies `expo-notifications` and `expo-application` (the APNs environment; a new
     development build). The phone check needs Dhia's Apple and Firebase setup and is the RUNBOOK's push go-live
     checklist (T-806 waits for it); the center works without them.
+  - Note 2026-10-28 (T-501 build): the center's items carry no reference ids yet (the plan's shape); add `refs` (ids only,
+    `refIds` in `src/push/message.ts`) to `GET /v1/me/notifications` when a tapped center row needs its route.
   - Done when: No permission prompt before the first join; refusing it blocks nothing and the center still lists every message, newest first, unread marked.
 - [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
@@ -837,6 +856,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     row-level `WHEN` trigger on `enrollment` (`pending` or `declined` → `active`/`declined`, never an operator or rehearsal
     account; accept-all of 5,000 measured under 5 s), due scans for times, no per-row
     `EXCEPTION` block; each producer has a "broken kind cannot roll back the door" test (plan § Review 2).
+  - Note 2026-10-28 (T-501 build): each kind is a `notice_kind` row in the slice's migration plus a template in
+    `PUSH_TEMPLATES` (`packages/shared/src/push/templates.ts`, `push.<kind>.body` and `.nameless` in `messages.ts`); the
+    push-store suite fails while a kind row has no template. A kind's own audience filter restates `notice_audience_ok`
+    (plain SQL); the per-member rules are PL/pgSQL (ADR-350 (8)).
   - Done when: Each decision, answer and revealed prize gives exactly one push and one center row, never to a player who left or was erased.
 - [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
   - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in

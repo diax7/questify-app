@@ -589,6 +589,41 @@ ADR-151):
   `invitation_settle` (system context only), `invitation_open` (anonymous, by link). Codes `IV403`, `IV404`, `IV409`
   (reason in DETAIL), `IV422` (field in DETAIL). Lock order: `docs/rules.md`.
 
+### Push notifications and the notification center (T-501, migration 0076 undeployed; core code review pending)
+
+- `notice_kind(kind PK [a-z_], class personal|event|promo, topic announcements|rank|community|reminders NULL (not
+  mutable), membership active|decided|none, before_start, priority 0|1|2 by class, ttl 1 minute–7 days)`: one row per
+  kind, seeded by the slice that wires it (0076 seeds none); every row must have a template in
+  `packages/shared/src/push/templates.ts` (a database test checks).
+- `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
+  (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
+  (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment
+  id), fanned_at, expires_at, created_at)`: one row per thing that happened, written only by `notice_create` (one
+  insert; a mismatch inserts nothing). Indexes: unfanned by audience and id; by player.
+- `notification(id bigint identity, notice_id → notice CASCADE, player_id (no foreign key: the fan-out never locks
+  players), event_id, created_at, read_at, UNIQUE (notice_id, player_id))`: **the center**, one row per recipient, the
+  record of every message whether pushed or not. Indexes: (player_id, id DESC); unread by player.
+- `push_device(id, player_id → player, family UNIQUE (the sign-in's refresh family), platform ios|android, token
+  (iOS hex lower-case 64–200; Android 20–2048 of `[A-Za-z0-9_:-]`), environment sandbox|production (iOS only),
+  language ar|en, app_version, token_set_at, seen_at, invalid_at, invalid_code, UNIQUE (platform, token))`: one per
+  sign-in on a phone; pushable only while its family holds a live refresh token, it is not marked invalid and it was
+  seen in the last 60 days.
+- `push_topic_mute(player_id → player, topic, muted_at, PK (player_id, topic))`.
+- `push_send(id bigint identity, notification_id → notification CASCADE, device_id → push_device CASCADE, notice_id,
+  target apns:production|apns:sandbox|fcm, priority, expires_at, state queued|sending|sent|unknown|failed|expired|skipped,
+  attempts 0–8 (requests written), lease_token, lease_until, code (a provider code or a skip reason only), created_at,
+  sent_at, finished_at)`: the outbox. Indexes: (target, priority, notice_id, id) and (expires_at) where queued, leases by
+  expiry, by device.
+- `player (deleted_at) WHERE status = 'deleted'`: settle's bounded scan of recent erasures.
+- All six: RLS forced, no policy, no grant. Doors (granted to `questify_app`): `push_device_register`,
+  `push_device_remove`, `own_notifications`, `own_unread_notifications`, `mark_notifications_read`, `own_push_topics`,
+  `set_push_topics` (the calling player), `push_fan_out`, `push_claim`, `push_ack`, `push_settle` (system context only).
+  Codes `PN401`, `PN403` (`system_only`), `PN422` (field in DETAIL). Retention: center rows 180 days, outbox rows 7 days
+  after their end, a notice once it is 180 days old with no center row, devices 7 days after an invalid mark, 60 days
+  unseen or once their sign-in ended; erasure deletes the player's personal notices, center rows, sends, devices and
+  mutes, and settle removes what a racing fan-out wrote for a player erased in the last 24 hours. Lock order:
+  `docs/rules.md`.
+
 ### Achievements, Event Passport, event city, final ranks (T-403, migration 0065 undeployed; core code review pending)
 
 - `city(id ^sa-[a-z0-9-]{2,30}$, name_ar, name_en (1–60, no control/bidi), position unique)`: 20 seeded Saudi cities,
@@ -1150,7 +1185,7 @@ rows or push text.
 | item, level_item, player_item, player_equipment | Built T-402 (0063): catalog, distinct level rewards, ownership and equipped slots; see above | Ownership/equipment linked to player; erased with account |
 | achievement, player_achievement, event_stamp, streak | Questify layer progress (later tasks) | Linked to player |
 | daily_word, word_guess_list (built, T-406, migration 0069) | Daily word per language and period, valid guesses per language (ADR-097, ADR-310); see above | No |
-| announcement, notification, notification_delivery, campaign | Messages, per-player delivery state, scheduled sends | Delivery rows yes |
+| notice_kind, notice, notification, push_send, push_device, push_topic_mute (built, T-501, migration 0076) | Push kinds, one notice per thing that happened, the center (one row per recipient), the outbox, one device per sign-in, muted topics; see above. `announcement` and `campaign` stay T-502's and later | Center rows, devices and mutes yes (erased with the account) |
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |
 | venue_map, map_pin, sponsor, survey, survey_answer | Maps, sponsor profiles, surveys | Answers yes |
 | translation | One row per key an admin changed: `key`, `ar`, `en` (each null when that language uses the shipped text), who and when. A row with neither language is deleted. Anyone using the app may read; only a Questify admin writes | No |
@@ -1200,7 +1235,7 @@ Derived from the primary flows:
 - `player`: unique (username), unique (phone_e164), unique (email); trigram index for admin search.
 - `event`: unique (join_code); index (organizer_id, status).
 - `redemption`: index (reward_id, status), (reserved_until) for the expiry job.
-- `notification_delivery`: index (status, scheduled_at) for the sender.
+- `push_send`: index (target, priority, notice_id, id) and (expires_at) where queued, for the claim and settle (T-501).
 - Every tenant table: index starting with `organizer_id` or `event_id`, and a row-level-security
   policy on the same key.
 
@@ -1222,7 +1257,8 @@ Derived from the primary flows:
 | Password hashes | Staff sign-in | argon2id; never exported | Until account removal | Nobody |
 | Uploaded prize codes | Digital prizes | Encrypted column, shown only at handover | Until used or event end | Prize desk at handover |
 | Login codes | One-time sign-in | Stored hashed; 5-minute expiry; attempt limit | Minutes | Nobody |
-| Device and push tokens | Notifications, device-integrity flags | Revoked on sign-out | Until sign-out or deletion | System |
+| Device and push tokens | Notifications (`push_device`, T-501), device-integrity flags later | One row per sign-in; pushes stop at sign-out at once, the row is removed within minutes (settle); never in a log, an error or an answer; sent only to Apple or Google with the message (data abroad: the token and the fixed text) | Until sign-out, 60 days unseen, 7 days after an invalid mark, or deletion | System |
+| Notification center | Every message a player received (`notification`, T-501): ids and the frozen public names only, never a person, an amount or an answer | Read only by the player; erased with the account | 180 days | Player |
 | Audit logs | Accountability (NFR-019) | Append-only; on deletion the player's entries are anonymized | Q-075 | Admin |
 | Deletion fingerprint | Keep bans after deletion (ADR-084) | One-way hash only | Q-075; counsel Q-051 | System |
 | Wallet pass data | Logo, name, dates, @username, score, balance, level, rank, last-updated on a pass (ADR-091; data abroad, Q-043) | Minimal fields; counsel review | As the pass exists | Apple/Google, the player |

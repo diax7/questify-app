@@ -327,6 +327,25 @@ with the exact text a Questify admin approved, and an organizer never learns who
 The three tables keep row-level security forced with no grant; the API role holds only the 13 doors; `promo_pool` and
 every helper are granted to nobody (outsider suite, by name).
 
+### Push notifications and the center (T-501, ADR-343 to ADR-350)
+
+Core: personal data out of push text, consent, tenant isolation and outside calls. What reaches Apple or Google is a
+token and a fixed text; everything else stays in the center, read only by its player.
+
+| Risk | Control | Proof |
+|---|---|---|
+| Personal data in a push (rule 3) | Fixed templates per kind; placeholders only from an allowlist (`event`, `quest`, `category`, `reward` frozen as public names, `date`, `time`, the event's words); names cut to 40 and run through the T-409 name rule, else the nameless variant; the title is the event's name or "Questify"; the payload holds ids only (`n`, `k`, `e`, `r`), never a URL | `packages/shared/src/push/templates.test.ts` (allowlist, nameless variant, random-name property test), `apps/api/src/push/message.test.ts` (ids only, under 4 KB in both scripts) |
+| A push to someone who left, was banned, erased, or is pending (FR-1703) | The fan-out writes a center row only for an active player passing the kind's membership rule and the event's status rule; the claim checks the player, membership, device, mute, consent and archive again and skips with the reason | `test/db/push-store` (§ Review 1), `test/db/push-sending` (every skip reason) |
+| A hidden or targeted quest, category or reward named to someone who cannot see it | `notice_visible`: `sees_category`, `member_sees_quest` (member_event_quests' listing rule and the window, compared over the same fixtures), the reward's audience; at fan-out and at the claim | `test/db/push-store` (§ Review 7) |
+| A promotion without consent (FR-1111) | A promotional kind plans and sends only through `promo_pool('push')`, at fan-out and at the claim; the OS permission is never consent | "a token alone is not consent", "consent withdrawn after planning" |
+| Taking over someone's pushes | A device is bound to the request's own live sign-in (the bearer token's hash and the caller); a token moves only to whoever registers it with their own session; sign-out, the 10-family limit and a reused refresh token stop pushes at once; 20 registrations an hour | `test/db/push-store` (devices), `test/push/routes` |
+| Another player's center | Every center door binds the caller and checks an active player; a team or admin seat has no center; the six tables have no grant | `test/security/cross-tenant` (T-501), `test/security/outsider` (exact grant list) |
+| A duplicate or lost push in an outage | One collapse id per message on every attempt; no attempt starts that could outlive its lease (the worker's own monotonic clock); a definite 5xx requeues, only a timeout after writing is `unknown`; the breaker holds a failing target; account refusals hold, never fail; ambiguous invalid-token waves hold the target instead of deleting tokens | `apps/api/src/push/send.test.ts`, `round.test.ts`, `targets.test.ts`, `test/db/push-sending` |
+| Data kept too long | Center rows 180 days; outbox rows 7 days after their end; devices removed after sign-out, 60 days unseen or 7 days after an invalid mark; erasure deletes notices, center rows, sends, devices and mutes, and settle removes what a racing fan-out wrote | `test/db/push-store` (erasure, retention) |
+
+The six tables keep row-level security forced with no grant; the API role holds only the 11 doors; every helper is
+granted to nobody (outsider suite, by name).
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |
@@ -352,7 +371,8 @@ suspicion, and before certificate expiry. A pre-commit and CI secret scan runs o
 
 - In transit: TLS everywhere, HSTS on web pages.
 - At rest: encrypted storage by the cloud; extra column encryption for prize codes.
-- Residency: all personal data in Saudi Arabia (ADR-070); the exceptions are push tokens/text,
+- Residency: all personal data in Saudi Arabia (ADR-070); the exceptions are push tokens/text (the device token and
+  a fixed template with public names only, sent straight to APNs and FCM with no relay, T-501),
   wallet pass content, device-integrity attestations (Apple App Attest, Google Play Integrity), the Play Install Referrer, any foreign email provider (staff mail, and player sign-in codes by email until Q-034 is
   answered: only the address and the code pass through, ADR-117) and the Pwned Passwords range API (5 hex characters of a password's SHA-1, no personal data), each listed in the data map (NFR-020) and on the
   counsel list.

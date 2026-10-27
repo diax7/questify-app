@@ -124,6 +124,19 @@ taken. No T-409 door locks a player, an enrollment, a consent row or a ledger ro
 key, ADR-334, so no check locks a player); erasure deletes recipient rows under its own player lock and never touches a
 campaign. No outside call runs inside a transaction.
 
+**The push store's lock order (T-501, ADR-345).** A producer inserts one notice (`notice_create`) **after** every lock
+its own door takes and reads nothing of the push store, so the notice comes last in every producer's order. The
+fan-out: notice `FOR UPDATE SKIP LOCKED` → center rows (insert) → sends (insert, which takes `FOR KEY SHARE` on the
+device rows through the foreign key); enrollments, players, categories, mutes, devices and consent are read without
+locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LOCKED`, nothing else locked. The
+acknowledgement: sends by id, then devices `FOR UPDATE` in id order when marking invalid. Register: the device row by
+family `FOR UPDATE`, then the other row holding the token (deleted); two sign-ins racing for one token retry once. No
+push door locks a player, an enrollment, a consent row or a ledger row; the foreign keys on `push_device` and
+`push_topic_mute` take `FOR KEY SHARE` on the player, which no player write conflicts with. No outside call runs inside
+a transaction. The notice carries no counters (no hot row). A fan-out planning a send for a device that a register is
+replacing can deadlock with it; PostgreSQL ends one and the other side retries (the worker's next loop, the app's next
+launch).
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

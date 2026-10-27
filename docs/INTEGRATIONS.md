@@ -124,7 +124,11 @@
 - **Chosen because:** these are the only ways to reach a locked phone. We call them **directly** from
   the notification layer instead of through a relay service, so notification text does not also pass
   through a third party (ADR-086).
-- **Auth and secrets:** APNs `.p8` key and the FCM service account in the secret store.
+- **Auth and secrets:** APNs `.p8` key and the FCM service account in the secret store. Configuration (read by T-501b's
+  clients, all-or-none per provider; a partial or malformed set refuses to start): `APNS_KEY_ID`, `APNS_TEAM_ID`,
+  `APNS_PRIVATE_KEY` (the `.p8` PEM or its base64), `APNS_TOPIC` (the bundle id); `FCM_SERVICE_ACCOUNT` (the JSON or its
+  base64). None set: the server starts, builds no provider, and in production logs `push.provider_missing {platform}`
+  once per start (built in T-501: until T-501b both platforms log it and every push expires into the center unsent).
 - **Failure behavior (T-501 plan, ADR-345):** APNs 410 `Unregistered` and FCM `UNREGISTERED` remove the
   token; the ambiguous token answers do too unless most of a round returns them, which holds that target instead. A
   definite 500 or 503 is requeued and sent again under the same collapse id until the message expires; a breaker holds

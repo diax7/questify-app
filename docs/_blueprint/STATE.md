@@ -1607,14 +1607,29 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   audit names the system); ADR-341 corrects the ticket purge's 90 days, records the reveal race and the decision
   against a per-event exception block (one failing row would stall the batch; RUNBOOK). ADR-341 Accepted, Q-310
   answered.
-
-
+- 2026-10-28 **T-501 built (core; plan reviews 80 → 88 GO folded; core code review owed).** The push store, the
+  notification center and the sending worker, with no kind wired and no real provider yet. Migration 0076 (new file,
+  undeployed; CranL is at 0056): `notice_kind` (none seeded), `notice`, `notification` (the center), `push_device` (one per
+  sign-in), `push_topic_mute`, `push_send` (the outbox), all RLS forced with no grant; `notice_create` (one insert, a
+  mismatch inserts nothing); the fan-out (personal first; 2,000 enrollments a call; the event's status, membership and
+  visibility rules); the claim (a loose index scan, at most 100 rows from one notice, every re-check with its reason, 60 s
+  leases); the bulk acknowledgement (`least(n, 8)`, invalid tokens unless re-registered after the claim); settle (lease
+  and queue expiry, the cleanup after recent erasures, purges walking the primary key); the device, center and topic
+  doors; `erase_rows` with the five deletes; a deleted-player index. API `src/push`: the worker on its own pool of 3 (waves
+  of 50 each acknowledged, the deadline on its monotonic clock, in-lease retries, the breaker, holds, the mass-invalid
+  guard, settle every 10 minutes, the platform switch `pushNotifications`), the fake provider, the APNs and FCM request
+  builders for T-501b, six player routes and `GET /v1/me` `notifications.unread`. Shared: the schemas and the template
+  renderer (allowlist, name rule, nameless variant, generic text). Timing on the laptop: 50,000 members fanned out in
+  19.5 s (slowest call 871 ms), claim plus ack of 200 with 60,000 queued 85 ms (ADR-345, ADR-350 (10)). ADR-350 and
+  Q-319 Proposed (the build's details). Tests: `test/db/push-store.int` (38), `test/db/push-sending.int` (13), `test/push/routes.int` (8), the worker, round, send, breaker, payload, center, FR-1106 and template units, the outsider, cross-tenant and route inventories, the rehearsal guard; full Vitest once: 8194 passed / 8 skipped with one failure (a test reading two sends in id order; the fan-out now inserts in notice order) fixed and the push suites re-run green (104/104); lint, format, types, function limits clean; the e2e API runs the worker on the fake provider. Mutation globs (GitHub): `apps/api/src/push/**/*.ts` (not
+  `fake.ts`), `packages/shared/src/push/**/*.ts`, `apps/api/src/players/profile.ts`, `apps/api/src/players/guard.ts`.
+  Not pushed.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built; its core code review is owed (ADR-350, Q-319), then T-501b (the APNs and FCM clients, planned in the same plan) and T-501c (the app).** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console

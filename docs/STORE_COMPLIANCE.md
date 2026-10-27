@@ -434,6 +434,11 @@ What this means for Questify:
   disclose it at the point of submission and get explicit permission, or run moderation in-house.
 - **Push and location can never be required** to play, to earn redeemable points, or to redeem.
   No points for enabling notifications. Every location quest has a QR or staff-check alternative.
+  As built (T-501, server): registering a device writes no ledger, XP or gem row (a database test, FR-1106); every
+  message lands in the in-app notification center whether the OS permission was refused or the topic muted (FR-1104);
+  push text is a fixed template with public names only and the payload carries ids only (4.5.4: no sensitive data);
+  a promotional push needs the recorded push consent, never the OS permission alone (4.5.4, FR-1111). The permission
+  is asked only after a join (FR-1105) in the app slice, T-501c.
 - No ads and no tracking SDKs in v1, so no ATT prompt. Adding either changes labels and ratings.
 
 ### 1.12 Guideline 5.3 — Contests, sweepstakes and prizes
@@ -482,7 +487,7 @@ Likely Questify label (planning estimate, to be confirmed against the final SDK 
 |---|---|---|
 | Contact Info: phone number, email, name/display name | Yes | App functionality |
 | User Content: photos, text submissions, quiz answers, votes | Yes | App functionality |
-| Identifiers: user ID; push token | Yes | App functionality |
+| Identifiers: user ID; push token (one per signed-in phone, removed at sign-out; T-501) | Yes | App functionality |
 | Location: coarse or precise (only if location quests ship) | Yes | App functionality |
 | Customer Support: help-desk questions and problem reports (T-310), not tracking | Yes | App functionality |
 | Customer Support: app problems with the phone's model, OS and app version, and suggestions (T-312), sent only inside a request the player writes; **Other Diagnostic Data** is not claimed (nothing is sent automatically) | Yes | App functionality |

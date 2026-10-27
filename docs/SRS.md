@@ -1205,12 +1205,12 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1033 | F-197 | Must | pending |
 | FR-1034 | F-197 | Must | pending |
 | FR-1035 | F-197 | Must | pending |
-| FR-1101 | F-199 | Must | pending |
-| FR-1102 | F-199 | Must | pending |
-| FR-1103 | F-199 | Must | pending |
-| FR-1104 | F-200 | Must | pending |
-| FR-1105 | F-201 | Must | pending |
-| FR-1106 | F-201 | Must | pending |
+| FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery with no kind wired; the messages are T-501d and T-501f, real delivery T-501b): `test/db/push-store.int`, `test/db/push-sending.int` |
+| FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; the messages are T-501e and T-501f): `test/db/push-store.int` |
+| FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; real delivery T-501b): `apps/api/src/push/worker.test.ts` |
+| FR-1104 | F-200 | Must | partly built (T-501: every message a center row, read and unread, the routes; the screen is T-501c): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int` |
+| FR-1105 | F-201 | Must | pending (the app slice, T-501c; the server takes a device only from a signed-in session, T-501) |
+| FR-1106 | F-201 | Must | partly built (T-501: registering writes no ledger, XP or gem row; nothing reads the device to pay or open; the app half is T-501c): `test/db/push-store.int` |
 | FR-1107 | F-203 | Must | pending |
 | FR-1108 | F-203 | Must | pending |
 | FR-1109 | F-43 | Must | pending |
@@ -1219,7 +1219,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1112 | F-204 | Should | built for invitations T-409 (`MSEGAT_PROMO_SENDER`, never the service sender: the API refuses to start when they match); waits for the registered "-AD" name (Q-034); campaigns T-706 |
 | FR-1113 | F-204 | Should | built T-407 (`marketing_consent` with channel, date, method and wording version; the admin's audited read `GET /v1/admin/players/{id}/marketing-consent`; its screen comes with T-704), code review pending |
 | FR-1114 | F-204 | Must | built T-407 (signed opt-out link, `POST /v1/public/marketing/opt-out`, the web page `/[lang]/opt-out`) and T-407b (settings switches); every promotional sender must put `optOutUrl` in each message, code review pending |
-| FR-1115 | F-202 | Should | pending |
+| FR-1115 | F-202 | Should | partly built (T-501: the four topics per player, mute stops the push and keeps the center row; the switches are T-501c): `test/db/push-store.int`, `test/push/routes.int` |
 | FR-1201 | F-65 | Must | pending |
 | FR-1202 | F-65 | Must | pending |
 | FR-1203 | F-65 | Must | pending |

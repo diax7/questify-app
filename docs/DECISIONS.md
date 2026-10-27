@@ -4791,6 +4791,8 @@ merged on the phone, so a requeue after a definite failure is safe; a lease must
 at-most-once turns an outage into lost messages; post-event uninstalls are normal and must not stall every tenant.
 **Trade-offs:** a requeued message can show twice on a phone that ignores the collapse id; one instance sends about 300
 to 500 pushes a second; a long outage ends with messages expiring into the center only.
+**Measured (T-501 build, 2026-10-28, laptop, ADR-350 (10)):** fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay; measured again on CranL before
+NFR-004's load test.
 
 ## ADR-346 — Push text: fixed templates, an allowlist of public names, ids only in the payload
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
@@ -4868,3 +4870,37 @@ device token and taps) and `expo-application` (the APNs environment).
 arbitrary link; internal builds use production APNs.
 **Trade-offs:** two more native modules (a new development build); a player who taps Not now is asked again only after
 30 days and a new join.
+
+## ADR-350 — Where the T-501 build fills in the push plan
+**Status:** Proposed (worker, 2026-10-28; T-501 build, `docs/plans/2026-10-28-t-501-push.md`; Q-319). Refines ADR-343
+to ADR-347 where the plan left a detail open or could not hold as written; the code review decides.
+**Decision:** (1) `member_sees_quest` is `member_event_quests`' own listing rule (the category seen, the quest
+`visible`, a flash quest shown by `flash_shown`) **plus** the window (opened, not closed): `member_event_quests` lists
+an ordinary quest that has not opened or has closed, with its times, so "the same answer" is checked against its rows
+filtered by their own `opens_at` and `closes_at`. (2) Android tokens are capped at **2,048** characters (the plan said
+4,096): a btree entry of `UNIQUE (platform, token)` is limited to about 2.7 kB, and PostgreSQL's regular expressions
+stop at 255 repetitions, so the length is a `char_length` check. FCM tokens are about 160 characters. (3) A
+registration that changes the **environment** (not only the token) also sets `token_set_at` and clears the invalid
+mark, so a late invalid answer from the old APNs host never marks the device again; queued sends move to the new target
+in the same statement. (4) `PushResult`'s `requeue` carries `written` (a definite 5xx counts an attempt, a request never
+written does not), and the worker races every attempt against its 10-second limit, so a provider that never answers is
+a timeout (`unknown`) and no attempt outlives its lease. (5) Ambiguous invalid-token answers are acknowledged at the end
+of their target's round, so the guard can still hold them; held, they are requeued with the attempt counted (a request
+was written). (6) The provider settings (`APNS_*`, `FCM_SERVICE_ACCOUNT`), their all-or-none and key checks and the
+startup token check stay with T-501b's clients, which read them (the plan's split table; its test list had named the
+config check under T-501). T-501 runs the worker with no provider: it fans out, fills the center and settles, every push
+expires unsent, and in production `push.provider_missing {platform}` is logged once per start for each platform.
+(7) `notice_create` also inserts nothing for a missing once-only marker, a personal or promotional kind without a
+player, an event kind with a player or without an event, and another organizer's event: no CHECK or foreign key a
+producer's data can fail. (8) The per-member rules (`notice_membership_ok`, `notice_visible`, `notice_member_ok`,
+`member_sees_quest`, `push_skip_reason`) are PL/pgSQL, not SQL: a PostgreSQL 17 SQL function with a `SET` clause is
+planned again on every call, which made one fan-out call of 2,000 members take 3.5 s; the device rule is one inlinable
+set (`push_live_devices`, no `SET`, tables schema-qualified, as `promo_pool`), joined by the plan and checked by
+`push_pushable`. (9) The center is rendered in the request's `accept-language`, Arabic when absent; a kind with no
+template is acknowledged `failed` (`no_template`) with no request; the worker's pool is 3 connections built from
+`poolOptions`. (10) Timing (laptop, Docker PostgreSQL 17, `test/perf/push-timing.int`): fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay.
+**Why:** each point keeps the plan's rule where the plan's literal wording could not hold (an index limit, a function
+that lists unopened quests, a regex limit) or names what the plan left to the build.
+**Trade-offs:** the visibility helpers are PL/pgSQL rather than plain SQL, so a wiring slice restating
+`notice_audience_ok` keeps it plain SQL but these stay PL/pgSQL; an FCM token above 2,048 characters is refused (none
+exists today); the config check lands one slice later than the plan's test list said.

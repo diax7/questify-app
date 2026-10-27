@@ -1272,3 +1272,13 @@ The other option, asking once and never again after Not now, loses players who j
 call at the T-501c review.
 **Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
 re-review (88, GO), with their fold-ins; ADR-349 Accepted, with the environment rule of Q-313 and the `enrollment` trigger's filter (`declined → active` in, operators and rehearsal accounts out).
+
+## Q-319 — Where the T-501 build fills in the push plan (2026-10-28, T-501 build)
+Recommended (ADR-350): the quest visibility test is `member_event_quests`' listing rule plus the open window; Android
+tokens up to 2,048 characters (an index limit); a new APNs environment counts as a new token; `requeue` says whether
+the request was written and every attempt is raced against its 10 s limit; ambiguous token answers wait for the round's
+end; the provider settings and their startup check stay with T-501b's clients, T-501 logging `push.provider_missing`;
+`notice_create` refuses every mismatch by inserting nothing; the per-member rules in PL/pgSQL for speed; the center in
+the request's language. The other options: follow the plan's literal wording (an index that refuses long tokens at
+insert, a quest test that disagrees with the quests list for unopened quests, a 3.5 s fan-out call), or build the
+provider settings now with no client to use them. Developer's call at the T-501 code review.
