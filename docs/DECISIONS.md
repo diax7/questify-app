@@ -4222,7 +4222,7 @@ evaluator is core and has its own review.
 **Trade-offs:** Fixed catalog until the console edits it; an event with no interests is shown by city only.
 
 ## ADR-320 — "Set your interests" is an always-on, met-or-not Questify quest metric
-**Status:** Proposed (T-407c plan, 2026-10-27; Q-290). Specifies FR-710, ADR-278, ADR-319.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407c plan review 92, code review 87 with one BLOCKER fixed, re-review 93 GO; Q-290). Specifies FR-710, ADR-278, ADR-319.
 **Decision:** (1) A new `questify_quest.metric` value, `interests_set`: `player_metrics` answers 1 when the player's
 `player_preference` row holds at least one interest, else 0; the city is never read (the T-407 reviewer's call). (2) It
 is lifetime only (no row for a bounded call), and a named table CHECK keeps it always-on with target 1, since it is a
