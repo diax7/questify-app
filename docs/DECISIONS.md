@@ -4658,3 +4658,30 @@ recap" is never offered to a rehearsal account; the desk warning goes once the s
 testable without React Native; each refusal says what the organizer can do.
 **Trade-offs:** The shared image follows the phone's theme and language, not a fixed poster; the Rewards tab does not repeat
 the closing date while open; Home makes one more timer; a second small file for the share.
+
+## ADR-341 — Archiving ended events: one tick step, guarded doors, and archived is final
+**Status:** Proposed (T-411 build, 2026-10-28; Q-310). Delivers FR-1608's last step under ADR-337 (5).
+**Decision:** (1) `archive_ended_events()` is the lifecycle tick's last step, after the reservation timeout and the ticket
+purge, so a hold that timed out in the same run no longer blocks. It takes no argument (anyone may call it; it applies
+the rule), archives up to 100 due events a run, oldest end first, and audits each move as the other lifecycle moves
+(`system`, `event.lifecycle`, ended → archived). (2) The rule is ADR-337 (5)'s, in one internal function
+(`archive_due`): stored `ended`, shop closed by `shop_state`, no `reserved` redemption of any kind, results revealed or
+`ends_at + 60 days` reached (that moment included), no open ticket of the event in either queue (an escalated ticket
+still waits for Questify). An event the lifecycle has not yet moved to `ended` waits for that move, which the same run
+makes first. (3) Concurrency: the step takes each event `FOR UPDATE SKIP LOCKED` and checks the rule again in the UPDATE,
+after the lock; two BEFORE INSERT guards (`redemption_event_open`, `ticket_event_open`) read the event `FOR KEY SHARE`,
+so a reservation, rank prize, quest item or ticket in flight either makes the step pass the event by this run or waits
+for it and is refused as archived, with the door's own refusal (`RS403 closed`, `RF409 not_ended`, `QN403 ended`,
+`HT403 sending_closed`): the API needs no new mapping. A reservation whose transaction began a moment before the shop
+closed and waited on the step is therefore refused, where it would have been served had nothing archived the event in
+that instant. (4) Archived is final for every role: the API's role never had a right on `status`, no definer moves an
+event out of archived, and `event_archived_final` refuses it for the owner connection too (`QE409 archived`).
+(5) What archived means stays as built: organizer writes refuse it (`event_archived`), joining and new tickets refuse
+it, the operators' list leaves it out; the player keeps every read (event list, Home with the shop closed, recap,
+passport, public stamp, results, points record, My rewards, tickets, profile, locker, achievements), proven over HTTP.
+**Why:** The step must never strand a hold, a prize or a ticket that only the desk or the team could settle, and a door
+that checked the status a moment earlier must not slip a new one in after the move; reusing each door's own refusal
+keeps the API unchanged. A final state that a support query could reverse would make every "archived" refusal soft.
+**Trade-offs:** A team that never answers a ticket delays archiving until the ticket is purged (90 days after the end);
+an event that is never revealed is archived at 60 days and can no longer be confirmed or revealed; un-archiving a mistake
+would need a new migration and its own decision.

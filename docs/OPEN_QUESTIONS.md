@@ -1189,3 +1189,11 @@ language, needs its own art and a language choice at share time. Developer's cal
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410b code review (89); ADR-340
 Accepted, with the review's fold-in. The device check stays owed to Dhia (STATE): the restyled card (wood frame, parchment
 panel, gold edge) as it looks in the shared image on Android and iOS.
+
+## Q-310 — Archiving ended events: the step, the guards and a final Archived (2026-10-28, T-411 build)
+Recommended (ADR-341): the tick's last step archives an ended event when ADR-337 (5)'s four conditions hold, up to 100 a
+run, audited like the other moves; insert guards on redemptions and event tickets lock the event against the step and
+refuse an archived one with each door's own refusal; an escalated ticket still open blocks archiving; nothing moves an
+event out of Archived, for any role. The other options: archive in `advance_event_lifecycle` itself (one function, but
+it would run before the reservation timeout and ticket purge of the same run), or restate each door to lock the event
+(four large functions restated instead of two small guards). Developer's call at the T-411 code review.

@@ -366,3 +366,36 @@ score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements), TA
    passport).
 7. **Quests done** counts quests completed at least once (ledger, removals excluded); Home's progress line counts a
    repeatable quest only at its cap, so the two can differ.
+
+## T-411 — archiving ended events (plan note, 2026-10-28; ADR-341 Proposed, Q-310)
+
+Delivers FR-1608's last step under ADR-337 (5). Small and fully specified, so a note, not a plan review. Migration
+**0075** (new file; CranL is at 0056).
+
+- **The step.** `archive_ended_events()` (definer, granted to the API's role like `advance_event_lifecycle`, no
+  argument: it applies only the rules) is the lifecycle tick's last step, after the reservation timeout and the ticket
+  purge, so a hold that timed out in the same run no longer blocks. It picks at most 100 `ended` events for which
+  `archive_due(event)` holds, oldest end first, `FOR UPDATE SKIP LOCKED`; for each it runs one `UPDATE … WHERE
+  archive_due(e)` (a statement that starts after the lock, so it sees every commit before it) and writes the same
+  audit row as the other moves (`system`, `event.lifecycle`, `{status: ended}` → `{status: archived}`).
+- **`archive_due(ev)`** (plain SQL, internal): `status = 'ended'`; `shop_state(...) = 'closed'`; `event_result.revealed_at`
+  set or `ends_at + 60 days <= now()`; no `redemption` of the event `reserved` (shop holds, rank prizes, quest items: one
+  table); no `ticket` of the event `open` (either queue). Every blocker clears on its own: holds and prizes time out,
+  tickets are purged 90 days after the end, results fall back to the 60 days.
+- **Races (the handover risk).** Two triggers read the event row `FOR KEY SHARE` before a redemption or an event ticket
+  is inserted and refuse an archived event with the door's own refusal (`RS403 closed` for a shop reward, `RF409
+  not_ended` for a rank prize, `QN403 ended` for a quest item, `HT403 sending_closed` for a ticket). The step's `FOR
+  UPDATE` conflicts with that lock: a door that read first makes the step skip the event this run; a door that reads
+  after waits for the step and then sees Archived. So nothing reserved or open is ever left in an archived event.
+- **Final.** The API's role has no right on `status` (0009); no definer moves an event out of Archived; a trigger now
+  refuses that for every role (`QE409 archived`).
+- **What Archived means (checked in the code).** Organizer writes refuse it (`event_archived`), joining and new tickets
+  refuse it, the operators' list leaves it (nothing is left to hand over). The player keeps everything: `/v1/me/events`,
+  Home (shop `closed`), recap, passport (`own_events`, ended or archived), the public stamp, results, points record, My
+  rewards, tickets, profile, locker and achievements all read an archived event. `MyEvent.statusNow`'s type in
+  `join.ts` gains `archived` (the list already returned it).
+- **Tests.** `test/db/event-archive.int` (each blocker alone, every redemption kind, both ticket queues, the open shop,
+  60 days to the microsecond, clearing, twice, two at once, a reservation and a ticket during the step in both orders,
+  the audit row, organizer and editor refused, the final trigger, the triggers' refusals), `test/events/archived.int`
+  (the player's reads over HTTP after archiving), the tick's unit test, the outsider and cross-tenant suites.
+- **Mutation globs (core):** `apps/api/src/events/tick.ts`.
