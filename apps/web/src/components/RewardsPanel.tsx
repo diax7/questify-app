@@ -2,6 +2,7 @@
 
 import {
   DEFAULT_TERMS,
+  formatEventTime,
   formatNumber,
   readEventTerms,
   termFor,
@@ -20,7 +21,10 @@ import {
   SECTIONS,
   blankReward,
   createRewardBody,
+  daysFieldInvalid,
+  daysRule,
   deskDraftOf,
+  deskEndsBeforeClose,
   deskIsSet,
   deskProblem,
   deskRequest,
@@ -31,9 +35,10 @@ import {
   parseCodes,
   rewardDraftOf,
   rewardProblem,
-  shopProblem,
+  shopDraftProblem,
   shopRequest,
   type CodesProblem,
+  type DaysRule,
   type DeskDraft,
   type DeskField,
   type RewardDraft,
@@ -446,11 +451,17 @@ function DeskForm({
   );
 }
 
-/** The pickup time, the days the shop stays open after the end, and the shop's rules (ADR-048, ADR-049, FR-515). */
+/**
+ * The pickup time, the days the shop stays open after the end, and the shop's rules (ADR-048, ADR-049, FR-515). The
+ * closing line and the days field's rule follow ADR-336 and ADR-338: after the end the days only grow, once closed they
+ * are frozen. `zone` is the event's time zone and whether it has ended; the closing line waits for it, so no time is
+ * read in the wrong zone.
+ */
 function ShopForm({
   language,
   initial,
   rankLock,
+  zone,
   busy,
   submit,
 }: Readonly<{
@@ -458,15 +469,17 @@ function ShopForm({
   initial: ShopSettings;
   /** Why the ranking choice cannot change here, if it cannot (FR-1847). */
   rankLock: "locked" | "ownerOnly" | undefined;
+  zone: Readonly<{ timezone: string; ended: boolean }> | undefined;
   busy: boolean;
   submit: (shop: ShopSettings) => void;
 }>) {
   const t = translatorFor(language);
   const [draft, setDraft] = useState(initial);
   const [invalid, setInvalid] = useState<ShopField | undefined>(undefined);
+  const rule = daysRule(initial, zone?.ended ?? false);
   const send = (event: FormEvent) => {
     event.preventDefault();
-    const problem = shopProblem(draft);
+    const problem = shopDraftProblem(draft, initial, rule);
     setInvalid(problem);
     if (problem === undefined) {
       submit(draft);
@@ -485,10 +498,12 @@ function ShopForm({
         <NumberField
           label={t("rewards.daysAfter")}
           value={draft.daysAfter}
-          invalid={invalid === "daysAfter"}
+          invalid={daysFieldInvalid(invalid)}
+          disabled={rule === "frozen"}
           change={(text) => setDraft({ ...draft, daysAfter: Number(text) })}
         />
       </div>
+      <ShopWindowNotes language={language} shop={initial} rule={rule} timezone={zone?.timezone} />
       <div className={styles.row}>
         <TextField
           label={t("rewards.rulesAr")}
@@ -531,6 +546,71 @@ function ShopForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/** The shop settings form for the loaded shop and event: it starts over when the window or the ranking lock moves. */
+function ShopSection({
+  language,
+  shop,
+  rankLock,
+  event,
+  busy,
+  save,
+}: Readonly<{
+  language: Language;
+  shop: ShopSettings;
+  rankLock: "locked" | "ownerOnly" | undefined;
+  event: Readonly<{ timezone: string; statusNow: string }> | undefined;
+  busy: boolean;
+  /** Sends the body of `PUT …/shop`. */
+  save: (body: Record<string, unknown>) => void;
+}>) {
+  const ended = event?.statusNow === "ended" || event?.statusNow === "archived";
+  return (
+    <ShopForm
+      key={`${rankLock ?? "open"}:${shop.state}:${shop.daysAfter}`}
+      language={language}
+      initial={shop}
+      rankLock={rankLock}
+      zone={event === undefined ? undefined : { timezone: event.timezone, ended }}
+      busy={busy}
+      submit={(draft) => save(shopRequest(draft, shop))}
+    />
+  );
+}
+
+/** When the shop closes, what the days field may do, and the warning when the desk's hours end first. */
+function ShopWindowNotes({
+  language,
+  shop,
+  rule,
+  timezone,
+}: Readonly<{
+  language: Language;
+  shop: ShopSettings;
+  rule: DaysRule;
+  timezone: string | undefined;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      {shop.closesAt === null || timezone === undefined ? null : (
+        <p className={styles.muted}>
+          {t(shop.state === "closed" ? "rewards.shopClosed" : "rewards.shopCloses", {
+            date: formatEventTime(new Date(shop.closesAt), timezone, language),
+          })}
+        </p>
+      )}
+      {rule === "free" ? null : (
+        <p className={styles.muted}>
+          {t(rule === "frozen" ? "rewards.daysAfter.closed" : "rewards.daysAfter.afterEnd")}
+        </p>
+      )}
+      {deskEndsBeforeClose(shop) ? (
+        <p className={styles.warning}>{t("rewards.deskEndsEarly")}</p>
+      ) : null}
+    </>
   );
 }
 
@@ -815,6 +895,9 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
       setEditing(undefined);
       setNotice(typeof done === "function" ? done(result.body) : t(done));
       await load();
+    } else if (errorCodeOf(result.body) === "shop_window_locked") {
+      // The page was stale (a co-editor lengthened the window, or it closed): show the real closing date.
+      await load();
     }
     setBusy(false);
     return ok;
@@ -956,17 +1039,14 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
               />
             ))}
           </ul>
-          <ShopForm
-            key={rankLock ?? "open"}
+          <ShopSection
             language={language}
-            initial={loaded.shop}
+            shop={loaded.shop}
             rankLock={rankLock}
+            event={event}
             busy={busy}
-            submit={(shop) =>
-              void run(
-                () => requestJson("PUT", `${base}/shop`, shopRequest(shop)),
-                "rewards.shopSaved",
-              )
+            save={(body) =>
+              void run(() => requestJson("PUT", `${base}/shop`, body), "rewards.shopSaved")
             }
           />
         </>

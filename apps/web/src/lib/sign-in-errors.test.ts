@@ -108,3 +108,51 @@ describe("describeProblem for a refused new password (T-020)", () => {
     expect(problem.text).toBe("The server's message.");
   });
 });
+
+const lockedText = (reason: string) =>
+  describeProblem(envelope("shop_window_locked", { reason }), "en", translatorFor("en")).text;
+
+describe("describeProblem for a refused change of the shop's days (T-410b, ADR-336)", () => {
+  it.each([
+    ["shorter", "rewards.windowLocked.shorter"],
+    ["closed", "rewards.windowLocked.closed"],
+  ] as const)("names the %s reason in the page's language", (reason, key) => {
+    const ar = describeProblem(
+      envelope("shop_window_locked", { reason }),
+      "ar",
+      translatorFor("ar"),
+    );
+    const en = describeProblem(
+      envelope("shop_window_locked", { reason }),
+      "en",
+      translatorFor("en"),
+    );
+    expect(ar).toEqual({ text: translatorFor("ar")(key), restart: false });
+    expect(en).toEqual({ text: translatorFor("en")(key), restart: false });
+    expect(ar.text).not.toBe("رسالة الخادم.");
+    expect(en.text).not.toBe("The server's message.");
+  });
+
+  it("says the two reasons differently", () => {
+    expect(lockedText("shorter")).not.toBe(lockedText("closed"));
+  });
+
+  it("falls back to the API's words for a reason it does not know, or none", () => {
+    const t = translatorFor("en");
+    expect(describeProblem(envelope("shop_window_locked", { reason: "later" }), "en", t).text).toBe(
+      "The server's message.",
+    );
+    expect(describeProblem(envelope("shop_window_locked"), "en", t).text).toBe(
+      "The server's message.",
+    );
+  });
+
+  it("does not read another code's reason as a window refusal", () => {
+    const problem = describeProblem(
+      envelope("invalid_credentials", { reason: "closed" }),
+      "en",
+      translatorFor("en"),
+    );
+    expect(problem.text).toBe("The server's message.");
+  });
+});

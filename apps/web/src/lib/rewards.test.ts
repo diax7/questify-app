@@ -14,9 +14,12 @@ import {
   parseCodes,
   rewardDraftOf,
   rewardProblem,
+  daysRule,
+  deskEndsBeforeClose,
   shopProblem,
   shopRequest,
   type RewardView,
+  type ShopSettings,
 } from "#src/lib/rewards.ts";
 
 const VIEW: RewardView = {
@@ -106,40 +109,125 @@ describe("rewardProblem", () => {
 
 const NO_DESK = { location: { ar: null, en: null }, pin: null, hours: null };
 
-describe("shopProblem", () => {
-  const rules = { ar: null, en: null };
+const SETTINGS: ShopSettings = {
+  state: "open",
+  closesAt: "2030-01-04T10:00:00.000Z",
+  pickupMinutes: 120,
+  daysAfter: 3,
+  rules: { ar: null, en: null },
+  spendLowersRank: false,
+  desk: NO_DESK,
+  handoverConfirm: "collect_first",
+};
 
+describe("shopProblem", () => {
   it("keeps the pickup time and the days after inside their ranges", () => {
-    const off = {
-      rules,
-      spendLowersRank: false,
-      desk: NO_DESK,
-      handoverConfirm: "collect_first" as const,
-    };
-    expect(shopProblem({ pickupMinutes: 15, daysAfter: 0, ...off })).toBeUndefined();
-    expect(shopProblem({ pickupMinutes: 10_080, daysAfter: 30, ...off })).toBeUndefined();
-    expect(shopProblem({ pickupMinutes: 14, daysAfter: 3, ...off })).toBe("pickupMinutes");
-    expect(shopProblem({ pickupMinutes: 120, daysAfter: 31, ...off })).toBe("daysAfter");
+    expect(shopProblem({ ...SETTINGS, pickupMinutes: 15, daysAfter: 0 })).toBeUndefined();
+    expect(shopProblem({ ...SETTINGS, pickupMinutes: 10_080, daysAfter: 30 })).toBeUndefined();
+    expect(shopProblem({ ...SETTINGS, pickupMinutes: 14 })).toBe("pickupMinutes");
+    expect(shopProblem({ ...SETTINGS, daysAfter: 31 })).toBe("daysAfter");
+    expect(shopProblem({ ...SETTINGS, daysAfter: -1 })).toBe("daysAfter");
+    expect(shopProblem({ ...SETTINGS, daysAfter: 1.5 })).toBe("daysAfter");
+  });
+
+  it("before the end, any days in range are fine", () => {
+    expect(shopProblem({ ...SETTINGS, daysAfter: 0 })).toBeUndefined();
+  });
+
+  it("after the end, refuses fewer days than the shop has and allows the same or more (ADR-336)", () => {
+    const after = { storedDays: 3 };
+    expect(shopProblem({ ...SETTINGS, daysAfter: 2 }, after)).toBe("daysAfterShorter");
+    expect(shopProblem({ ...SETTINGS, daysAfter: 0 }, after)).toBe("daysAfterShorter");
+    expect(shopProblem({ ...SETTINGS, daysAfter: 3 }, after)).toBeUndefined();
+    expect(shopProblem({ ...SETTINGS, daysAfter: 4 }, after)).toBeUndefined();
+    expect(shopProblem({ ...SETTINGS, daysAfter: 30 }, after)).toBeUndefined();
+  });
+
+  it("names a pickup time or a range problem before the shorter window", () => {
+    expect(shopProblem({ ...SETTINGS, pickupMinutes: 5, daysAfter: 1 }, { storedDays: 3 })).toBe(
+      "pickupMinutes",
+    );
+    expect(shopProblem({ ...SETTINGS, daysAfter: 31 }, { storedDays: 3 })).toBe("daysAfter");
+  });
+});
+
+describe("daysRule", () => {
+  it("lets the days change freely before the end, only grow after it, and not at all once closed", () => {
+    expect(daysRule(SETTINGS, false)).toBe("free");
+    expect(daysRule({ ...SETTINGS, state: "not_open" }, false)).toBe("free");
+    expect(daysRule(SETTINGS, true)).toBe("onlyLonger");
+    expect(daysRule({ ...SETTINGS, state: "closed" }, true)).toBe("frozen");
+    expect(daysRule({ ...SETTINGS, state: "closed" }, false)).toBe("frozen");
   });
 });
 
 describe("shopRequest", () => {
   it("sends empty rules as empty text, never null, and the ranking choice", () => {
-    expect(
-      shopRequest({
-        pickupMinutes: 90,
-        daysAfter: 2,
-        rules: { ar: null, en: "One each" },
-        spendLowersRank: true,
-        desk: NO_DESK,
-        handoverConfirm: "collect_first",
-      }),
-    ).toEqual({
+    const edited = {
+      ...SETTINGS,
+      pickupMinutes: 90,
+      daysAfter: 2,
+      rules: { ar: null, en: "One each" },
+      spendLowersRank: true,
+    };
+    expect(shopRequest(edited, SETTINGS)).toEqual({
       pickupMinutes: 90,
       daysAfter: 2,
       rules: { ar: "", en: "One each" },
       spendLowersRank: true,
     });
+  });
+
+  it("sends the days only when they changed from what the page loaded (ADR-336)", () => {
+    const sent = shopRequest({ ...SETTINGS, pickupMinutes: 90 }, SETTINGS);
+    expect(sent).not.toHaveProperty("daysAfter");
+    expect(sent).toMatchObject({ pickupMinutes: 90, spendLowersRank: false });
+    expect(shopRequest({ ...SETTINGS, daysAfter: 5 }, SETTINGS)).toMatchObject({ daysAfter: 5 });
+  });
+
+  it("sends a change to 0 days, because 0 is a value and not 'unchanged'", () => {
+    expect(shopRequest({ ...SETTINGS, daysAfter: 0 }, SETTINGS)).toMatchObject({ daysAfter: 0 });
+  });
+
+  it("never sends the days of a closed shop that the person could not change", () => {
+    const closed = { ...SETTINGS, state: "closed" as const };
+    expect(shopRequest({ ...closed, pickupMinutes: 60 }, closed)).not.toHaveProperty("daysAfter");
+  });
+});
+
+const hoursEndingAt = (...ends: string[]) =>
+  ends.map((end) => ({ opensAt: "2030-01-01T08:00:00.000Z", closesAt: end }));
+
+describe("deskEndsBeforeClose (ADR-338)", () => {
+  const closes = "2030-01-04T10:00:00.000Z";
+  const shop = (ends: string[] | null, closesAt: string | null = closes): ShopSettings => ({
+    ...SETTINGS,
+    closesAt,
+    desk: { ...NO_DESK, hours: ends === null ? null : hoursEndingAt(...ends) },
+  });
+
+  it("warns when the desk's last window ends before the shop closes", () => {
+    expect(deskEndsBeforeClose(shop(["2030-01-02T18:00:00.000Z"]))).toBe(true);
+    expect(
+      deskEndsBeforeClose(shop(["2030-01-02T18:00:00.000Z", "2030-01-03T18:00:00.000Z"])),
+    ).toBe(true);
+  });
+
+  it("judges by the latest end, whatever order the windows come in", () => {
+    expect(
+      deskEndsBeforeClose(shop(["2030-01-05T18:00:00.000Z", "2030-01-02T18:00:00.000Z"])),
+    ).toBe(false);
+  });
+
+  it("does not warn when the desk ends at or after the close", () => {
+    expect(deskEndsBeforeClose(shop([closes]))).toBe(false);
+    expect(deskEndsBeforeClose(shop(["2030-01-06T18:00:00.000Z"]))).toBe(false);
+  });
+
+  it("does not warn for a desk open the whole time, no windows, or a shop without a close date", () => {
+    expect(deskEndsBeforeClose(shop(null))).toBe(false);
+    expect(deskEndsBeforeClose(shop([]))).toBe(false);
+    expect(deskEndsBeforeClose(shop(["2030-01-02T18:00:00.000Z"], null))).toBe(false);
   });
 });
 
@@ -181,6 +269,8 @@ describe("digital rewards (T-203)", () => {
 
 describe("the prize desk (FR-1716, ADR-150)", () => {
   const SHOP = {
+    state: "open" as const,
+    closesAt: null,
     pickupMinutes: 120,
     daysAfter: 3,
     rules: { ar: null, en: null },

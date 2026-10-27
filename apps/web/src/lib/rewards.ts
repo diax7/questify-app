@@ -40,7 +40,13 @@ export type DeskView = Readonly<{
   hours: ReadonlyArray<Readonly<{ opensAt: string; closesAt: string }>> | null;
 }>;
 
+/** The shop's state now, as the API answers it (`shop_state`, ADR-048). */
+export type ShopState = "not_open" | "open" | "closed";
+
 export type ShopSettings = Readonly<{
+  /** The shop's state now and when it closes (the event's end plus `daysAfter`; null without an end), T-410. */
+  state: ShopState;
+  closesAt: string | null;
   pickupMinutes: number;
   daysAfter: number;
   rules: Bilingual;
@@ -162,24 +168,76 @@ export function rewardProblem(draft: RewardDraft, unitsOut = 0): RewardField | u
   return undefined;
 }
 
-export type ShopField = "pickupMinutes" | "daysAfter";
+export type ShopField = "pickupMinutes" | "daysAfter" | "daysAfterShorter";
 
-/** The shop settings' ranges (ADR-048, ADR-049): pickup 15 minutes to 7 days, the shop 0 to 30 days after the end. */
-export function shopProblem(settings: ShopSettings): ShopField | undefined {
+/**
+ * The shop settings' ranges (ADR-048, ADR-049): pickup 15 minutes to 7 days, the shop 0 to 30 days after the end. After
+ * the event ended, `afterEnd` carries the days the shop has now, and fewer is refused before sending (ADR-336: players
+ * were shown the date, so the window only grows).
+ */
+export function shopProblem(
+  settings: ShopSettings,
+  afterEnd?: Readonly<{ storedDays: number }>,
+): ShopField | undefined {
   if (!between(settings.pickupMinutes, 15, 10_080)) {
     return "pickupMinutes";
   }
-  return between(settings.daysAfter, 0, 30) ? undefined : "daysAfter";
+  if (!between(settings.daysAfter, 0, 30)) {
+    return "daysAfter";
+  }
+  return afterEnd !== undefined && settings.daysAfter < afterEnd.storedDays
+    ? "daysAfterShorter"
+    : undefined;
 }
 
-/** The body of `PUT …/shop`: rules left empty are sent as empty text, which clears them (the API takes no null). */
-export function shopRequest(settings: ShopSettings): Record<string, unknown> {
+/** How the days after the end may change here: freely before the end, only longer after it, not at all once closed. */
+export type DaysRule = "free" | "onlyLonger" | "frozen";
+
+/** The form's check: the ranges, and after the end (`onlyLonger`) no fewer days than the loaded settings have. */
+export function shopDraftProblem(
+  draft: ShopSettings,
+  loaded: ShopSettings,
+  rule: DaysRule,
+): ShopField | undefined {
+  return shopProblem(draft, rule === "onlyLonger" ? { storedDays: loaded.daysAfter } : undefined);
+}
+
+/** True for either problem with the days field, so it is marked invalid. */
+export const daysFieldInvalid = (problem: ShopField | undefined): boolean =>
+  problem === "daysAfter" || problem === "daysAfterShorter";
+
+export function daysRule(shop: ShopSettings, ended: boolean): DaysRule {
+  if (shop.state === "closed") {
+    return "frozen";
+  }
+  return ended ? "onlyLonger" : "free";
+}
+
+/**
+ * The body of `PUT …/shop`: rules left empty are sent as empty text, which clears them (the API takes no null).
+ * `daysAfter` goes only when the person changed it from `loaded`, the settings the page read: a page loaded before a
+ * co-editor lengthened the window can still save its other settings (ADR-336), and a closed shop's days are never sent.
+ */
+export function shopRequest(settings: ShopSettings, loaded: ShopSettings): Record<string, unknown> {
   return {
     pickupMinutes: settings.pickupMinutes,
-    daysAfter: settings.daysAfter,
+    ...(settings.daysAfter === loaded.daysAfter ? {} : { daysAfter: settings.daysAfter }),
     rules: { ar: settings.rules.ar ?? "", en: settings.rules.en ?? "" },
     spendLowersRank: settings.spendLowersRank,
   };
+}
+
+/**
+ * True when the prize desk's last window ends before the shop closes (ADR-338): items and experiences stop there, while
+ * digital rewards stay until the close. False for a desk open the whole time and for a shop without a close date.
+ */
+export function deskEndsBeforeClose(shop: ShopSettings): boolean {
+  const hours = shop.desk.hours;
+  if (shop.closesAt === null || hours === null || hours.length === 0) {
+    return false;
+  }
+  const lastEnd = Math.max(...hours.map((window) => Date.parse(window.closesAt)));
+  return lastEnd < Date.parse(shop.closesAt);
 }
 
 /** At most this many codes in one upload, as the API takes them (API.md). */

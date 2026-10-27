@@ -234,8 +234,8 @@ async function invitationControl(
 }
 
 /**
- * Test-only control on its own local port: `POST /event-status {eventId, status}` moves an event the way Questify's
- * activation will (T-210), so a browser test can work on a live event. Never part of the API.
+ * Test-only control on its own local port: `POST /event-status {eventId, status, endedDaysAgo?}` moves an event the way
+ * Questify's activation will (T-210), so a browser test can work on a live event. Never part of the API.
  */
 function startControl(port: number, db: Awaited<ReturnType<typeof createTestDatabase>>): void {
   const server = createServer((request, response) => {
@@ -260,6 +260,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         nameAr?: string;
         nameEn?: string;
         days?: number;
+        endedDaysAgo?: number;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -501,11 +502,13 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
+      // `ended` ended a day ago, or `endedDaysAgo` days ago (the shop window's open and closed cases, T-410b).
+      const endedAgo = Math.trunc(body.endedDaysAgo ?? 1);
       const times =
         body.status === "live"
           ? ["-1 hour", "1 day"]
           : body.status === "ended"
-            ? ["-2 days", "-1 day"]
+            ? [`-${endedAgo + 1} days`, `-${endedAgo} days`]
             : ["1 day", "2 days"];
       db.owner
         .query(

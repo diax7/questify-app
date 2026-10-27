@@ -21,6 +21,12 @@ const WEAK_REASONS: Readonly<Record<string, MessageKey>> = {
   breached: "staff.weak.breached",
 };
 
+/** Why the API refused to change the shop's days (`shop_window_locked`, ADR-336), in the person's words. */
+const WINDOW_LOCKED_REASONS: Readonly<Record<string, MessageKey>> = {
+  shorter: "rewards.windowLocked.shorter",
+  closed: "rewards.windowLocked.closed",
+};
+
 /** Codes after which the code step cannot go on. */
 const RESTART_CODES = new Set(["challenge_expired", "resend_limit"]);
 
@@ -39,6 +45,17 @@ export function errorCodeOf(body: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
+/** The person's words for a refusal the API explains with a `reason` in its details; undefined for any other. */
+function reasonWords(code: string, details: Record<string, unknown>): MessageKey | undefined {
+  const reasons =
+    code === "weak_password"
+      ? WEAK_REASONS
+      : code === "shop_window_locked"
+        ? WINDOW_LOCKED_REASONS
+        : undefined;
+  return reasons?.[String(details["reason"])];
+}
+
 /**
  * What to tell the person after a failed sign-in step. The API already words every error in both languages; this
  * adds the wait or the attempts left from its details. Anything that is not the API's error body (a proxy page, a
@@ -52,9 +69,9 @@ export function describeProblem(body: unknown, language: Language, t: Translate)
     return { text: t("error.network"), restart: false };
   }
   const details = isRecord(body) && isRecord(body["details"]) ? body["details"] : {};
-  const weak = code === "weak_password" ? WEAK_REASONS[String(details["reason"])] : undefined;
-  if (weak !== undefined) {
-    return { text: t(weak), restart: false };
+  const reasoned = reasonWords(code, details);
+  if (reasoned !== undefined) {
+    return { text: t(reasoned), restart: false };
   }
   const extra: string[] = [];
   const wait = details["retryAfterSeconds"];
