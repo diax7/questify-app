@@ -1461,7 +1461,9 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   `next_change_at` of a 429, and "no settings read for the rename when the username is not sent". Equivalent, left alone:
   line 244 (`?? { outcome, next_change_at }`: with no row the switch matches nothing either way), line 116 (the fallback
   equals `TUNING.usernameChangeDays.default`, 30), line 287 (`rules` is null exactly when `body.username` is undefined, so
-  `&&`, `||` and either `true` behave the same). Expected score about 96%; confirm on the next run.
+  `&&`, `||` and either `true` behave the same). Expected score about 96%; confirmed by run 40422438219: **95.83%**
+  (6 survived, 2 no coverage). T-404 mutation closed: questify `gems.ts` 95.00, `questify.ts` 98.70, `routes.ts` 100,
+  players `items.ts` 100, shared `questify/gems.ts` 100, `questify/quests.ts` 100, `players/items.ts` 92.98.
 - 2026-10-27 **T-405 plan written (core; awaiting the independent CTO plan review).** `docs/plans/2026-10-27-t-405-streaks.md`:
   split into T-405 (core: migration 0068, API, shared) and T-405b (standard: screens, dashboard Streak panel, strings;
   added to TASKS). Event streak: day rows per enrollment and open event day (organizer closed weekdays and dates neither
