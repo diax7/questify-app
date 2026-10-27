@@ -210,6 +210,28 @@ describe("approveCampaign", () => {
   });
 });
 
+const detailOf = (
+  campaign: Record<string, unknown>,
+  names: { ar: string | null; en: string | null },
+) => {
+  const { pool } = fakePool(() => ({
+    rows: [
+      {
+        r: {
+          campaign: { ...campaignJson, ...campaign },
+          eventIssue: null,
+          eventEndsAt: STAMP,
+          names,
+          estimate: null,
+          queued: 0,
+          hold: null,
+        },
+      },
+    ],
+  }));
+  return campaignDetail({ pool, promoSms: SENDER }, ADMIN, CAMPAIGN);
+};
+
 describe("campaignDetail", () => {
   it("adds the name rule's verdicts, the rendered messages and the channels to the door's answer", async () => {
     const { pool } = fakePool(() => ({
@@ -235,6 +257,33 @@ describe("campaignDetail", () => {
     expect(detail.messages.ar?.text.startsWith("دعوة إلى مهرجان: ")).toBe(true);
     expect(detail.messages.en?.parts).toBeLessThanOrEqual(3);
     expect(detail.availableChannels).toEqual(["sms"]);
+  });
+
+  it("renders a requested campaign's messages from the event's current names", async () => {
+    const detail = await detailOf(
+      { state: "requested", approvedNames: { ar: null, en: null } },
+      { ar: "اسم جديد", en: "New name" },
+    );
+    expect(detail.messages.ar?.text.startsWith("دعوة إلى اسم جديد: ")).toBe(true);
+    expect(detail.messages.en?.text.startsWith("Invitation to New name: ")).toBe(true);
+  });
+
+  it.each(["approved", "sending", "sent", "cancelled"])(
+    "renders a %s campaign's messages from the frozen names, whatever the event is called now",
+    async (state) => {
+      const detail = await detailOf({ state }, { ar: "اسم جديد", en: "New name" });
+      expect(detail.names.en.name).toBe("New name");
+      expect(detail.messages.ar?.text.startsWith("دعوة إلى مهرجان: ")).toBe(true);
+      expect(detail.messages.en?.text.startsWith("Invitation to Festival: ")).toBe(true);
+    },
+  );
+
+  it("has no text for a campaign that was never approved", async () => {
+    const detail = await detailOf(
+      { state: "refused", approvedNames: { ar: null, en: null } },
+      { ar: "مهرجان", en: "Festival" },
+    );
+    expect(detail.messages).toEqual({ ar: null, en: null });
   });
 });
 

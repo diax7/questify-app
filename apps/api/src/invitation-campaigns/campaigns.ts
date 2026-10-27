@@ -239,7 +239,9 @@ const verdict = (name: string | null) => ({
 
 /**
  * One campaign for the console: the door's answer plus the event's current names with the name rule's verdicts and
- * the messages rendered from them (placeholder tokens), so the admin approves the exact text (Finding 1).
+ * the messages (placeholder tokens). Until approval they are rendered from the current names, so the admin approves
+ * the exact text (Finding 1); after it, from the frozen copy, so they are what goes out whatever the event is called
+ * now. A request refused or withdrawn before approval has no text.
  */
 export async function campaignDetail(
   deps: InvitationDeps,
@@ -253,10 +255,11 @@ export async function campaignDetail(
     (client) => one(client, "SELECT invitation_admin_get($1) AS r", [campaignId]),
     rawDetailSchema,
   );
+  const sent = raw.campaign.state === "requested" ? raw.names : raw.campaign.approvedNames;
   return adminInvitationDetailSchema.parse({
     ...raw,
     names: { ar: verdict(raw.names.ar), en: verdict(raw.names.en) },
-    messages: { ar: previewInvitation(raw.names, "ar"), en: previewInvitation(raw.names, "en") },
+    messages: { ar: previewInvitation(sent, "ar"), en: previewInvitation(sent, "en") },
     availableChannels: availableChannels(deps),
   });
 }
