@@ -9,6 +9,7 @@ import type {
 } from "@questify/shared";
 import { DAILY_CADENCES } from "@questify/shared";
 import { useState, type FormEvent } from "react";
+import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import {
   LANGUAGE_NAME_KEY,
   formatDay,
@@ -19,6 +20,40 @@ import {
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import type { DailyWrite } from "#src/lib/use-daily-console.ts";
 import styles from "#src/components/layout.module.css";
+
+/** The confirmation before a scheduled challenge, word or stranded item is deleted for good. */
+export function RemoveDialog({
+  language,
+  path,
+  busy,
+  write,
+  close,
+}: Readonly<{
+  language: Language;
+  /** The DELETE path under the daily API, e.g. `/challenges/2026-11-01`. */
+  path: string;
+  busy: boolean;
+  write: DailyWrite;
+  close: () => void;
+}>) {
+  const t = translatorFor(language);
+  const remove = async () => {
+    await write({ method: "DELETE", path, done: t("console.daily.removed") });
+    close();
+  };
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t("console.daily.removeTitle")}
+      body={t("console.daily.removeBody")}
+      confirmLabel={t("console.daily.remove")}
+      noteLabel={null}
+      busy={busy}
+      cancel={close}
+      confirm={() => void remove()}
+    />
+  );
+}
 
 /** The warnings for one kind: the challenge, or the words (each language that runs low, on its own). */
 export function DailyWarnings({
@@ -139,6 +174,7 @@ export function DailyUnused({
   write: DailyWrite;
 }>) {
   const t = translatorFor(language);
+  const [removing, setRemoving] = useState<string | null>(null);
   const rows = unused.filter((row) => row.kind === kind);
   if (rows.length === 0) {
     return null;
@@ -149,6 +185,15 @@ export function DailyUnused({
         {t("console.daily.unused")}
       </h2>
       <p className={styles.muted}>{t("console.daily.unusedBody")}</p>
+      {removing === null ? null : (
+        <RemoveDialog
+          language={language}
+          path={removing}
+          busy={busy}
+          write={write}
+          close={() => setRemoving(null)}
+        />
+      )}
       <ul className={styles.list}>
         {rows.map((row) => (
           <li
@@ -169,14 +214,11 @@ export function DailyUnused({
               className={styles.quiet}
               disabled={busy}
               onClick={() =>
-                void write({
-                  method: "DELETE",
-                  path:
-                    row.language === null
-                      ? `/challenges/${row.startsOn}`
-                      : `/words/${row.language}/${row.startsOn}`,
-                  done: t("console.daily.removed"),
-                })
+                setRemoving(
+                  row.language === null
+                    ? `/challenges/${row.startsOn}`
+                    : `/words/${row.language}/${row.startsOn}`,
+                )
               }
             >
               {t("console.daily.remove")}

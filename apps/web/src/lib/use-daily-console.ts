@@ -9,9 +9,10 @@ import {
   readQuestions,
   refusalOf,
   scheduleRange,
+  touchesBank,
 } from "#src/lib/console-daily.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
+import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { useRequestKey } from "#src/lib/use-request-key.ts";
 
@@ -69,23 +70,26 @@ export function useDailyConsole(language: Language) {
   const [busy, setBusy] = useState(false);
   const request = useRequestKey();
 
-  const load = async (): Promise<void> => {
+  /** Reads the schedule, and the whole bank unless only the schedule can have changed. */
+  const load = async (withBank = true): Promise<void> => {
     const { from, to } = scheduleRange(today);
     const [schedule, bank] = await Promise.all([
       requestJson("GET", `${API}?from=${from}&to=${to}`),
-      loadBank(),
+      withBank ? loadBank() : Promise.resolve(null),
     ]);
     const read = schedule.ok ? readDailyConsole(schedule.body) : undefined;
     if (read === undefined) {
       setProblem(problemText(schedule.body, language));
       return;
     }
-    if ("failed" in bank) {
+    if (bank !== null && "failed" in bank) {
       setProblem(problemText(bank.failed, language));
       return;
     }
     setView(read);
-    setQuestions(bank.questions);
+    if (bank !== null) {
+      setQuestions(bank.questions);
+    }
   };
   const loaded = useRef(false);
   useEffect(() => {
@@ -106,6 +110,9 @@ export function useDailyConsole(language: Language) {
       "idempotency-key": request.keyFor(signature),
     });
     if (!result.ok) {
+      if (!isTransientFailure(result)) {
+        request.forget();
+      }
       setProblem(problemText(result.body, language));
       setBusy(false);
       return null;
@@ -114,7 +121,7 @@ export function useDailyConsole(language: Language) {
     if (call.done !== undefined) {
       setNotice(call.done);
     }
-    await load();
+    await load(touchesBank(call.path));
     setBusy(false);
     return { body: result.body };
   };

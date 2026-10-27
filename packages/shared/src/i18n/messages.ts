@@ -5223,7 +5223,7 @@ export const MESSAGES = {
   },
   "console.daily.unused": { ar: "محتوى غير مستخدم", en: "Unused content" },
   "console.daily.unusedBody": {
-    ar: "حُفظ هذا المحتوى في أيام لا تبدأ فيها فترة بحسب المدة الحالية، فلا يراه اللاعبون. أزل العنصر ثم أضفه من جديد في يوم تبدأ فيه فترة.",
+    ar: "حُفظ هذا المحتوى في أيام لا تبدأ فيها فترة بحسب المدة الحالية، فلا يراه اللاعبون. احذف العنصر ثم أضفه من جديد في يوم تبدأ فيه فترة.",
     en: "This content sits on days that don't start a period under the current length, so players never see it. Remove it, then schedule it again on a day that starts a period.",
   },
   "console.daily.unusedChallenge": { ar: "تحدٍّ في {date}", en: "Challenge on {date}" },
@@ -5231,8 +5231,8 @@ export const MESSAGES = {
     ar: "كلمة ({language}) في {date}",
     en: "{language} word on {date}",
   },
-  "console.daily.removed": { ar: "أُزيل من الجدول.", en: "Removed from the schedule." },
-  "console.daily.remove": { ar: "أزل", en: "Remove" },
+  "console.daily.removed": { ar: "حُذف من الجدول.", en: "Removed from the schedule." },
+  "console.daily.remove": { ar: "احذف", en: "Remove" },
   "console.daily.schedule": { ar: "الجدول", en: "Schedule" },
   "console.daily.setChallenge": { ar: "اختر الأسئلة", en: "Choose questions" },
   "console.daily.emptyDay": { ar: "لا تحدي في هذا اليوم.", en: "No challenge on this day." },
@@ -5281,8 +5281,8 @@ export const MESSAGES = {
   "console.daily.retire": { ar: "أوقف السؤال", en: "Retire question" },
   "console.daily.retireTitle": { ar: "إيقاف السؤال نهائيًا؟", en: "Retire this question for good?" },
   "console.daily.retireBody": {
-    ar: "يخرج السؤال من البنك ولا يعود، ولا يمكن جدولته بعد الآن.",
-    en: "The question leaves the bank for good and can't be scheduled again.",
+    ar: "يبقى السؤال في القائمة بحالة «متوقف» ولا يُستخدم مجددًا.",
+    en: "The question stays in the list as Retired and is never used again.",
   },
   "console.daily.status.ready": { ar: "جاهز", en: "Ready" },
   "console.daily.status.retired": { ar: "متوقف", en: "Retired" },
@@ -5301,7 +5301,7 @@ export const MESSAGES = {
     en: "That period has started, so its content can't change.",
   },
   "console.daily.conflict.scheduled": {
-    ar: "هذا السؤال داخل تحدٍّ مجدول. أزل التحدي من الجدول أولًا.",
+    ar: "هذا السؤال داخل تحدٍّ مجدول. احذف التحدي من الجدول أولًا.",
     en: "That question is in a scheduled challenge. Remove the challenge from the schedule first.",
   },
   "console.daily.conflict.retired": {
@@ -5371,7 +5371,7 @@ export const MESSAGES = {
   "console.words.page": { ar: "صفحة {page} من {pages}", en: "Page {page} of {pages}" },
   "console.words.import": { ar: "استيراد كلمات", en: "Import words" },
   "console.words.importHelp": {
-    ar: "كلمة في كل سطر، من 5 أحرف. تقبل هذه الكلمات تخمينات فقط، وتُضاف كلمة اليوم إلى القائمة تلقائيًا عند جدولتها.",
+    ar: "كلمة في كل سطر، من 5 أحرف. تُقبل هذه الكلمات كتخمينات فقط، وتُضاف كلمة اليوم إلى القائمة تلقائيًا عند جدولتها.",
     en: "One word per line, 5 letters. These words are accepted as guesses only; a daily word joins the list automatically when you schedule it.",
   },
   "console.words.importField": { ar: "الكلمات (كلمة في كل سطر)", en: "Words (one per line)" },
@@ -5388,8 +5388,8 @@ export const MESSAGES = {
     en: "Added: {added}. Removed: {removed}. Words in the list now: {total}.",
   },
   "console.words.importTooLong": {
-    ar: "تُركت أسطر أطول من 40 حرفًا: {count}.",
-    en: "Lines longer than 40 characters were skipped: {count}.",
+    ar: "تُركت أسطر أطول من 40 حرفًا: {count}. هذه أولها:",
+    en: "Lines longer than 40 characters were skipped: {count}. The first ones:",
   },
   "console.words.importRefused": {
     ar: "رُفضت هذه الأسطر لأنها ليست 5 أحرف من حروف اللغة:",
@@ -5399,6 +5399,20 @@ export const MESSAGES = {
     ar: "الملف أكبر من 5 ميغابايت.",
     en: "The file is larger than 5 MB.",
   },
+  "console.daily.removeTitle": { ar: "حذف نهائي؟", en: "Delete for good?" },
+  "console.daily.removeBody": {
+    ar: "يُحذف هذا المحتوى نهائيًا. تعود أسئلة التحدي إلى البنك، أما الكلمة فتُكتب من جديد.",
+    en: "This is deleted for good. A challenge's questions go back to the bank; a word has to be typed again.",
+  },
+  "console.words.importRefusedMore": {
+    ar: "أسطر مرفوضة أخرى لم تُعرض: {count} على الأقل.",
+    en: "At least {count} more refused lines are not shown.",
+  },
+  "console.words.importRefusedMaybe": {
+    ar: "تُعرض 50 سطرًا مرفوضًا على الأكثر، وقد يكون هناك غيرها.",
+    en: "At most 50 refused lines are shown; there may be more.",
+  },
+  "console.words.fileFailed": { ar: "تعذّرت قراءة الملف.", en: "The file could not be read." },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

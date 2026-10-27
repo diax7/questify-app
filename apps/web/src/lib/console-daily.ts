@@ -43,6 +43,9 @@ export function scheduleRange(today: string): Readonly<{ from: string; to: strin
   return { from: today, to: addDays(today, SCHEDULE_DAYS - 1) };
 }
 
+/** Whether a write can change the question bank: a question, or a challenge (it holds questions). */
+export const touchesBank = (path: string): boolean => /^\/(questions|challenges)(\/|$)/.test(path);
+
 /** Whether a period starting on `startsOn` has begun, so its content can no longer change. */
 export const hasStarted = (startsOn: string, today: string): boolean => startsOn <= today;
 

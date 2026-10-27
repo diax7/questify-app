@@ -989,3 +989,4 @@ pending change); stranded content is removed and scheduled again instead of "Mov
 guess list import by paste or text file, in calls of at most 20,000, with the refused lines shown; text marks for
 warnings (a "!" on the tab, "Needs attention" on the console home). Agree? Still open for Dhia: Q-281 (where the word
 lists come from), because the import is ready and the lists are empty until it is settled.
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes, as recommended (ADR-315).

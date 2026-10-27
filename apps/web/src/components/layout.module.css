@@ -318,6 +318,18 @@
   border-inline-start: 4px solid var(--color-highlight);
 }
 
+/* Text for screen readers only. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* A multi-line text field (a pasted word list). */
 .area {
   min-height: 160px;

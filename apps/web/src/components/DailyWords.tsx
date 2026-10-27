@@ -8,6 +8,7 @@ import {
   type Language,
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
+import { RemoveDialog } from "#src/components/DailyCommon.tsx";
 import { LANGUAGE_NAME_KEY, formatPeriod, hasStarted } from "#src/lib/console-daily.ts";
 import { wordBodyOf } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
@@ -159,6 +160,7 @@ export function DailyWords({
 }: Readonly<{ language: Language; state: DailyConsoleState; view: DailyConsole }>) {
   const t = translatorFor(language);
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const periods = view.periods.filter((period) => period.kind === "word");
 
   const save = async (event: FormEvent) => {
@@ -186,6 +188,15 @@ export function DailyWords({
       <h2 id="daily-words" className={styles.subtitle}>
         {t("console.daily.words")}
       </h2>
+      {removing === null ? null : (
+        <RemoveDialog
+          language={language}
+          path={removing}
+          busy={state.busy}
+          write={state.write}
+          close={() => setRemoving(null)}
+        />
+      )}
       <ul className={styles.list}>
         {periods.map((period) => {
           const started = hasStarted(period.startsOn, state.today);
@@ -220,13 +231,7 @@ export function DailyWords({
                     edit={(text) =>
                       setEditing({ startsOn: period.startsOn, language: wordLanguage, text })
                     }
-                    clear={() =>
-                      void state.write({
-                        method: "DELETE",
-                        path: `/words/${wordLanguage}/${period.startsOn}`,
-                        done: t("console.daily.removed"),
-                      })
-                    }
+                    clear={() => setRemoving(`/words/${wordLanguage}/${period.startsOn}`)}
                   />
                 ),
               )}

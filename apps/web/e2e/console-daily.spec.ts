@@ -55,6 +55,9 @@ test("an admin fills the bank, schedules a sponsored challenge and sees the warn
     "أسئلة التحدي المجدولة أقل من المطلوب",
   );
   await expect(page.getByTestId("daily-period").first()).toContainText("لا تحدي في هذا الأسبوع.");
+  // The current week has started: it offers no action at all.
+  await expect(page.getByTestId("daily-period").first()).toContainText("بدأ");
+  await expect(page.getByTestId("daily-period").first().getByRole("button")).toHaveCount(0);
   await expectNoSidewaysScroll(page);
 
   // A question that is not complete is named before anything is sent.
@@ -142,10 +145,14 @@ test("in English an admin sets the daily words, imports a guess list and searche
   const mine = info.project.name === "phone" ? WORDS.phone : WORDS.desktop;
   await asAdmin(page, info.project.name);
   await page.goto("/en/console/content");
-  await page.getByRole("tab", { name: /Word bank/ }).click();
+  await page.getByRole("button", { name: /Word bank/ }).click();
   await expect(page.getByTestId("daily-warning")).toHaveCount(2);
   await expect(page.getByTestId("daily-warning").first()).toContainText("Daily words in Arabic");
   await expect(page.getByTestId("daily-warning").nth(1)).toContainText("Daily words in English");
+
+  // The current period has started: it offers no action at all.
+  await expect(page.getByTestId("daily-word-period").first()).toContainText("Started");
+  await expect(page.getByTestId("daily-word-period").first().getByRole("button")).toHaveCount(0);
 
   const free = page
     .getByTestId("daily-word-period")
@@ -168,6 +175,37 @@ test("in English an admin sets the daily words, imports a guess list and searche
   await page.getByRole("button", { name: "Save word" }).click();
   await expect(period.getByTestId("daily-word-en")).toContainText(mine.en);
   await expectNoSidewaysScroll(page);
+
+  // A word is a daily word once: the same English word in another period is refused in words.
+  await page
+    .getByTestId("daily-word-period")
+    .filter({ has: page.getByRole("button", { name: "Set the word" }) })
+    .filter({ hasNotText: dates })
+    .first()
+    .getByTestId("daily-word-en")
+    .getByRole("button", { name: "Set the word" })
+    .click();
+  await page.getByLabel("English word (5 letters)").fill(mine.en);
+  await page.getByRole("button", { name: "Save word" }).click();
+  await expect(
+    page.getByText("That word was already a daily word. A word is used once."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+
+  // Remove asks first and says it is for good; after it the word can be set again.
+  await period.getByTestId("daily-word-ar").getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Delete for good?");
+  await expect(page.getByRole("alertdialog")).toContainText("This is deleted for good.");
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(period.getByTestId("daily-word-ar")).toContainText(mine.ar);
+  await period.getByTestId("daily-word-ar").getByRole("button", { name: "Remove" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText("Removed from the schedule.")).toBeVisible();
+  await expect(period.getByTestId("daily-word-ar")).toContainText("No word");
+  await period.getByTestId("daily-word-ar").getByRole("button", { name: "Set the word" }).click();
+  await page.getByLabel("Arabic word (5 letters)").fill(mine.ar);
+  await page.getByRole("button", { name: "Save word" }).click();
+  await expect(period.getByTestId("daily-word-ar")).toContainText(mine.ar);
 
   // Import: the lines that are not five letters are shown back, the others join the list.
   const [first, second, third] = mine.list;

@@ -5,6 +5,19 @@ import { translatorFor } from "#src/lib/language.ts";
 import { useWordImport, type ImportOutcome } from "#src/lib/use-word-import.ts";
 import styles from "#src/components/layout.module.css";
 
+/** What the list of refused lines leaves out: the lines past the 50 the API shows, or that it may have left out. */
+function HiddenRefusals({
+  language,
+  outcome,
+}: Readonly<{ language: Language; outcome: ImportOutcome }>) {
+  const t = translatorFor(language);
+  const hidden = outcome.refusedCount - outcome.refused.length;
+  if (hidden > 0) {
+    return <p>{t("console.words.importRefusedMore", { count: formatNumber(hidden, language) })}</p>;
+  }
+  return outcome.refusedCapped ? <p>{t("console.words.importRefusedMaybe")}</p> : null;
+}
+
 function Outcome({ language, outcome }: Readonly<{ language: Language; outcome: ImportOutcome }>) {
   const t = translatorFor(language);
   return (
@@ -17,9 +30,18 @@ function Outcome({ language, outcome }: Readonly<{ language: Language; outcome: 
         })}
       </p>
       {outcome.tooLong === 0 ? null : (
-        <p>
-          {t("console.words.importTooLong", { count: formatNumber(outcome.tooLong, language) })}
-        </p>
+        <>
+          <p>
+            {t("console.words.importTooLong", { count: formatNumber(outcome.tooLong, language) })}
+          </p>
+          <ul data-testid="word-import-long">
+            {outcome.longSamples.map((line, index) => (
+              <li key={`${String(index)}-${line}`} dir="auto">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       {outcome.refused.length === 0 ? null : (
         <>
@@ -31,6 +53,7 @@ function Outcome({ language, outcome }: Readonly<{ language: Language; outcome: 
               </li>
             ))}
           </ul>
+          <HiddenRefusals language={language} outcome={outcome} />
         </>
       )}
     </div>

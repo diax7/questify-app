@@ -15,6 +15,7 @@ import {
   refusalOf,
   scheduleRange,
   textIn,
+  touchesBank,
   warningsOf,
 } from "#src/lib/console-daily.ts";
 
@@ -69,6 +70,19 @@ describe("formatPeriod", () => {
     expect(text).toMatch(/25/);
     expect(text).toMatch(/2026/);
     expect(text).not.toMatch(/[٠-٩]/);
+  });
+});
+
+describe("touchesBank", () => {
+  it.each([
+    ["/questions", true],
+    ["/questions/6f1c7a0e-0000-4000-8000-000000000001/retire", true],
+    ["/challenges/2026-11-01", true],
+    ["/words/ar/2026-11-01", false],
+    ["/cadence", false],
+    ["/word-list/en", false],
+  ])("%s -> %s", (path, expected) => {
+    expect(touchesBank(path)).toBe(expected);
   });
 });
 

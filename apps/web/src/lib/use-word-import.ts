@@ -1,11 +1,16 @@
 "use client";
 
 import type { DailyLanguage, Language } from "@questify/shared";
-import { useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { API, readListChange } from "#src/lib/console-daily.ts";
-import { chunkWords, parseWordLines, shownRefusals } from "#src/lib/console-daily-forms.ts";
+import {
+  REFUSED_SHOWN,
+  chunkWords,
+  parseWordLines,
+  shownRefusals,
+} from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
+import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
 import { problemText } from "#src/lib/use-daily-console.ts";
 import { useRequestKey } from "#src/lib/use-request-key.ts";
 
@@ -16,14 +21,20 @@ export type ImportOutcome = Readonly<{
   added: number;
   removed: number;
   total: number;
+  /** The first refused lines (at most `REFUSED_SHOWN`). */
   refused: readonly string[];
+  /** Every refused line the API reported, shown or not. */
+  refusedCount: number;
+  /** A call reported the most it ever does, so there may be more refused lines than were reported. */
+  refusedCapped: boolean;
   tooLong: number;
+  longSamples: readonly string[];
 }>;
 
 /**
  * Sends a pasted list to the guess list, to add or remove, in calls of at most 20,000 words. It stops at the first
  * failure and keeps what the earlier calls did. Each call carries an Idempotency-Key, so a retry after a dropped
- * answer replays instead of repeating.
+ * answer replays instead of repeating; a refusal ends the key, so the retry after it is a new request.
  */
 export function useWordImport(
   language: Language,
@@ -36,9 +47,9 @@ export function useWordImport(
   const [problem, setProblem] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
   const request = useRequestKey();
+  const parsed = useMemo(() => parseWordLines(text), [text]);
 
   const send = async (mode: "add" | "remove") => {
-    const parsed = parseWordLines(text);
     if (parsed.words.length === 0) {
       setProblem(t("console.words.importEmpty"));
       return;
@@ -51,7 +62,10 @@ export function useWordImport(
       removed: 0,
       total: 0,
       refused: [],
+      refusedCount: 0,
+      refusedCapped: false,
       tooLong: parsed.tooLong,
+      longSamples: parsed.longSamples,
     };
     for (const chunk of chunkWords(parsed.words)) {
       const body = mode === "add" ? { add: chunk, remove: [] } : { add: [], remove: chunk };
@@ -60,6 +74,9 @@ export function useWordImport(
       });
       const change = result.ok ? readListChange(result.body) : undefined;
       if (change === undefined) {
+        if (!isTransientFailure(result)) {
+          request.forget();
+        }
         setProblem(problemText(result.body, language));
         break;
       }
@@ -70,6 +87,8 @@ export function useWordImport(
         removed: done.removed + change.removed,
         total: change.total,
         refused: shownRefusals([...done.refused, ...change.refused]),
+        refusedCount: done.refusedCount + change.refused.length,
+        refusedCapped: done.refusedCapped || change.refused.length >= REFUSED_SHOWN,
       };
       setOutcome(done);
       changed(change.total);
@@ -87,18 +106,13 @@ export function useWordImport(
       setProblem(t("console.words.fileTooBig"));
       return;
     }
-    setProblem(null);
-    setText(await file.text());
+    try {
+      setText(await file.text());
+      setProblem(null);
+    } catch {
+      setProblem(t("console.words.fileFailed"));
+    }
   };
 
-  return {
-    text,
-    setText,
-    busy,
-    problem,
-    outcome,
-    send,
-    load,
-    ready: parseWordLines(text).words.length,
-  };
+  return { text, setText, busy, problem, outcome, send, load, ready: parsed.words.length };
 }

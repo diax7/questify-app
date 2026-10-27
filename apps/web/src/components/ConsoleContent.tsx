@@ -102,20 +102,20 @@ export function ConsoleContent({ language }: Readonly<{ language: Language }>) {
       <h1 id="console-content-title" className={styles.title}>
         {t("console.content.title")}
       </h1>
-      <div className={styles.tabs} role="tablist" aria-label={t("console.content.sections")}>
+      <div className={styles.tabs} role="group" aria-label={t("console.content.sections")}>
         {tabs.map(({ id, kind }) => (
           <button
             key={id}
             type="button"
-            role="tab"
-            aria-selected={tab === id}
+            aria-pressed={tab === id}
             className={`${styles.tab} ${tab === id ? styles.tabCurrent : ""}`}
             onClick={() => setTab(id)}
           >
             {t(`console.content.tab.${id}`)}
             {needs(kind) ? (
-              <span className={styles.badge} aria-label={t("console.content.needsAttention")}>
-                !
+              <span className={styles.badge}>
+                <span aria-hidden="true">!</span>
+                <span className={styles.srOnly}>{t("console.content.needsAttention")}</span>
               </span>
             ) : null}
           </button>

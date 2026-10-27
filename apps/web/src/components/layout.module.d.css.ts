@@ -28,6 +28,7 @@ declare const styles: {
   readonly prose: string;
   readonly quiet: string;
   readonly row: string;
+  readonly srOnly: string;
   readonly subtitle: string;
   readonly tab: string;
   readonly tabCurrent: string;

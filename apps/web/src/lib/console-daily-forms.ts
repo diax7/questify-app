@@ -129,18 +129,23 @@ export function wordBodyOf(
 /** A longer line is never a word and would fail the whole call, so it is held back here. */
 const MAX_LINE = 40;
 /** The API reports at most this many refused inputs. */
-const REFUSED_SHOWN = 50;
+export const REFUSED_SHOWN = 50;
+/** How many too-long lines are quoted back. */
+const LONG_SHOWN = 5;
 
 export type ImportLines = Readonly<{
   /** The distinct lines to send, in order. */
   words: readonly string[];
   /** The count of lines held back for being too long. */
   tooLong: number;
+  /** The first few of them, cut to the length the API takes, so the admin can find them. */
+  longSamples: readonly string[];
 }>;
 
 /** The lines of a pasted list: one word per line, blank lines and repeats dropped. */
 export function parseWordLines(text: string): ImportLines {
   const seen = new Set<string>();
+  const longSamples: string[] = [];
   let tooLong = 0;
   for (const line of text.split(/\r\n|\r|\n/)) {
     const word = line.trim();
@@ -149,11 +154,14 @@ export function parseWordLines(text: string): ImportLines {
     }
     if ([...word].length > MAX_LINE) {
       tooLong += 1;
+      if (longSamples.length < LONG_SHOWN) {
+        longSamples.push(`${[...word].slice(0, MAX_LINE).join("")}…`);
+      }
     } else {
       seen.add(word);
     }
   }
-  return { words: [...seen], tooLong };
+  return { words: [...seen], tooLong, longSamples };
 }
 
 /** The calls a list needs: the API takes at most `WORD_LIST_MAX` words in one. */

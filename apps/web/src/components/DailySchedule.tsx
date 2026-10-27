@@ -8,6 +8,7 @@ import {
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { ChallengeEditor } from "#src/components/DailyChallengeEditor.tsx";
+import { RemoveDialog } from "#src/components/DailyCommon.tsx";
 import { formatPeriod, hasStarted, textIn } from "#src/lib/console-daily.ts";
 import {
   BLANK_CHALLENGE,
@@ -134,6 +135,7 @@ export function DailySchedule({
 }>) {
   const t = translatorFor(language);
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const periods = view.periods.filter((period) => period.kind === "challenge");
 
   const save = async (event: FormEvent) => {
@@ -174,6 +176,15 @@ export function DailySchedule({
           submit={(event) => void save(event)}
         />
       )}
+      {removing === null ? null : (
+        <RemoveDialog
+          language={language}
+          path={removing}
+          busy={state.busy}
+          write={state.write}
+          close={() => setRemoving(null)}
+        />
+      )}
       <ul className={styles.list}>
         {periods.map((period) => (
           <PeriodCard
@@ -190,13 +201,7 @@ export function DailySchedule({
                 draft: draftOf(period),
               })
             }
-            clear={() =>
-              void state.write({
-                method: "DELETE",
-                path: `/challenges/${period.startsOn}`,
-                done: t("console.daily.removed"),
-              })
-            }
+            clear={() => setRemoving(`/challenges/${period.startsOn}`)}
           />
         ))}
       </ul>

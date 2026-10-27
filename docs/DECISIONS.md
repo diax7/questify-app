@@ -4124,7 +4124,7 @@ RTL, Reduce Motion through `PopIn`); the same patterns as the gem shop (pure flo
 "tomorrow" even when the next period has no content yet; the cards vanish on a failed read; no hardware keyboard support.
 
 ## ADR-315 — T-406c build choices: the Content page, the period control, "Remove" for stranded content and the import
-**Status:** Proposed (developer, 2026-10-27; Q-284). Specifies ADR-307, ADR-308, ADR-311 on the console.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406c code review 91, about 94 after the fold-in; Q-284). Specifies ADR-307, ADR-308, ADR-311 on the console.
 **Decision:** (1) The console gains one page, `/console/content` ("Content"), for platform admins, with two tabs: Daily
 challenge and Word bank. The other tabs of the wireframe (templates, level titles, XP table) come with their own tasks;
 the Questify quests keep their page. (2) The schedule asks for 56 days from today's Questify day and lists every period
@@ -4143,7 +4143,10 @@ holds back lines over 40 characters (the API would refuse the whole call), sends
 the first failure, and shows the refused lines (the first 50); the same box removes words. No word list ships (Q-281). (8)
 Warnings use the server's flags: the challenge warns under 7 days or 2 periods, each word language under 2 periods; a tab
 carries a "!" mark and the console home's Content link a "Needs attention" mark while any warns. (9) Every write carries an
-Idempotency-Key, one at a time, and the page reads the schedule again after it.
+Idempotency-Key, one at a time, and the page reads the schedule again after it (the bank too only after a question or
+challenge write); the key is kept only after a dropped connection or a 5xx, so a retry after a refusal is a new request.
+(10) Remove always asks first, and the dialog says the content is deleted for good (a challenge's questions go back to the
+bank; a word has to be typed again). (11) The tabs are plain buttons with `aria-pressed`; the "!" mark has screen-reader text.
 **Why:** The plan's surfaces (T-406c) on the doors T-406 built, with no new door; marks in text so colour is never alone.
 **Trade-offs:** No one-click move of stranded content; a bank of thousands is read in several calls; the 56-day window under
 a daily cadence is a long list; the mark on the console home costs one extra read per visit.

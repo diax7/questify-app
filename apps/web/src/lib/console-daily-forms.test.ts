@@ -149,6 +149,7 @@ describe("parseWordLines", () => {
     expect(parseWordLines("crane\r\n  slate \n\n\ncrane\rirate")).toEqual({
       words: ["crane", "slate", "irate"],
       tooLong: 0,
+      longSamples: [],
     });
   });
 
@@ -157,7 +158,16 @@ describe("parseWordLines", () => {
     expect(parseWordLines(`crane\n${long}\n${"b".repeat(40)}`)).toEqual({
       words: ["crane", "b".repeat(40)],
       tooLong: 1,
+      longSamples: [`${"a".repeat(40)}…`],
     });
+  });
+
+  it("quotes back only the first five long lines", () => {
+    const lines = Array.from({ length: 8 }, (_, index) => `${String(index)}${"x".repeat(45)}`);
+    const parsed = parseWordLines(lines.join("\n"));
+    expect(parsed.tooLong).toBe(8);
+    expect(parsed.longSamples).toHaveLength(5);
+    expect(parsed.longSamples[0]).toBe(`0${"x".repeat(39)}…`);
   });
 
   it("counts letters, not bytes, so an Arabic line of 40 letters is kept", () => {
@@ -165,7 +175,7 @@ describe("parseWordLines", () => {
   });
 
   it("is empty for an empty paste", () => {
-    expect(parseWordLines("  \n \n")).toEqual({ words: [], tooLong: 0 });
+    expect(parseWordLines("  \n \n")).toEqual({ words: [], tooLong: 0, longSamples: [] });
   });
 });
 
