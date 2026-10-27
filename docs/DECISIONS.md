@@ -4361,76 +4361,96 @@ with new Idempotency-Keys, which is accepted: adds change nothing already there,
 input once, without the nested functions) would allow bigger calls; it touches core SQL and waits for a reason (Q-297).
 
 ## ADR-329 — Questify invitations are requested on the web and approved in the console; T-409 splits in two
-**Status:** Proposed (T-409 plan, 2026-10-27; Q-298). Specifies FR-738, FR-740, F-139 under ADR-047, ADR-064 and ADR-076.
+**Status:** Proposed (T-409 plan, 2026-10-27; plan review 84 folded; Q-298). Specifies FR-738, FR-740, F-139 under ADR-047, ADR-064 and ADR-076.
 **Decision:** (1) "Billed on the web" means: the organizer's owner requests an invitation campaign in the web dashboard;
-the Questify team agrees the price with the organizer outside the platform; a Questify admin approves it in the console
-with the channels, a message cap and a send time, or refuses it with a note. The platform holds no price, invoice, VAT
-or payment field; the dashboard says nothing is charged there. The mobile app has no invitation screen, link or
-purchase (PD-22). There is no add-on gate: the admin's approval is the commercial gate. (2) T-409 (core) is the server:
-migration 0073, the doors, the sender, the routes, the shared schemas and the `invitationCampaigns` switch. T-409b
-(standard) is the web: the dashboard page, the console pages and the invitation landing page. Plan:
+the Questify team agrees the price with the organizer outside the platform (ADR-076); a Questify admin approves it in
+the console with the channels, a message cap and a send time, or refuses it with a note. The platform holds no price,
+invoice, VAT or payment field; the dashboard says nothing is charged there. The mobile app has no invitation screen,
+link or purchase (PD-22). There is no add-on gate: the admin's approval is the commercial gate. (2) T-409 (core) is the
+server: migration 0073, the doors, the sender, the routes, the shared schemas and the `invitationCampaigns` switch.
+T-409b (standard) is the web: the dashboard page, the console pages and the invitation landing page. Plan:
 `docs/plans/2026-10-27-t-409-questify-invitations.md`.
-**Why:** ADR-076 keeps commerce off the platform; the activation request (T-210) is the same request-then-approve
-shape. The server touches consent, tenant isolation and admin powers (core); the pages do not.
+**Why:** ADR-076, accepted by Dhia, already keeps prices and payment off the platform; the activation request (T-210) is
+the same request-then-approve shape. The server touches consent, tenant isolation and admin powers (core); the pages do
+not.
 **Trade-offs:** No self-serve purchase; every campaign waits for a person. Two reviews instead of one.
 
 ## ADR-330 — Invitation campaigns: who asks, for which events, by which criteria, through which states
-**Status:** Proposed (T-409 plan, 2026-10-27; Q-299). Specifies FR-738, ADR-047, ADR-077.
+**Status:** Proposed (T-409 plan, 2026-10-27; plan review 84 folded; Q-299). Specifies FR-738, ADR-047, ADR-077.
 **Decision:** (1) The owner requests and cancels; owners and editors in scope read the results; admins approve, refuse
-and cancel. (2) Eligible events: scheduled or live, ending at least 24 hours later, public or unlisted, joinable by link,
-not guest-list-only, no email-domain lock (checked at request, approval and start). (3) One open campaign per event.
-(4) Criteria, all optional: one city, up to 3 interests (the player's stated interests, any of), and history `none`,
-`recent` (joined any event in the last 365 days) or `own` (joined another event of this organizer); never a named event
-of another organizer. (5) The owner asks for a size (50 to 100,000); the admin sets the cap, the hard maximum of
-messages. (6) States `requested`, `approved`, `sending`, `sent`, `cancelled`, `refused`; a campaign that matches fewer
-than 50 players or whose event no longer qualifies at the start is cancelled by the system. (7) A platform switch,
-`invitationCampaigns`, off when absent.
-**Why:** The invitee must be able to join from the link at once; one open campaign and a human approval stop probing and
-spam; "own" re-engages the organizer's past attendees without giving it any list.
-**Trade-offs:** Private events cannot be promoted this way; history targeting is coarse.
+and cancel. (2) Eligible events in v1: **public events only** (unlisted and private are left out; developer's decision
+at the plan review), scheduled or live, ending at least 24 hours later, joinable by link, not guest-list-only, no
+email-domain lock, and names without a URL, domain, email or phone number (checked at request, approval and start).
+(3) One open campaign per event. (4) Criteria, all optional: one city, up to 3 interests (the player's stated interests,
+any of), and history `none`, `recent` (joined any event in the last 365 days) or `own` (joined another event of this
+organizer); never a named event of another organizer. (5) The owner asks for a size (50 to 100,000); the admin sets the
+cap, the hard maximum of messages. (6) States `requested`, `approved`, `sending`, `sent`, `cancelled`, `refused`; a
+campaign that matches fewer than 50 players or whose event no longer qualifies at the start is cancelled by the system.
+Every cancel sets `finished_at`, so the 90-day purge reaches its rows. (7) A platform switch, `invitationCampaigns`, off
+when absent; off also stops starting and claiming (a kill switch).
+**Why:** The invitee must be able to join from the link at once, and an unlisted event is one its organizer chose not to
+advertise; one open campaign and a human approval stop probing and spam; "own" re-engages the organizer's past
+attendees without giving it any list.
+**Trade-offs:** Unlisted and private events cannot be promoted this way; history targeting is coarse.
 
-## ADR-331 — Invitations go by SMS now, one message per player, in the language of their consent
-**Status:** Proposed (T-409 plan, 2026-10-27; Q-300). Specifies FR-737, FR-1111, FR-1112, FR-1114; amends ADR-318 (1).
-**Decision:** (1) SMS only for now, from a promotional Msegat sender configured as `MSEGAT_PROMO_SENDER` (the registered
-"-AD" name, Q-034); without it SMS cannot be approved. Push joins with T-501; email waits for T-706's promotional email
-sender (separate from the sign-in mailbox, with `List-Unsubscribe`). (2) One message per player per campaign, on the
-first approved channel the player is opted in on and reachable by (push, email, SMS); at most one invitation per player
-per 7 days. (3) A fixed bilingual template with the event's name, the invitation link and `optOutUrl`; the organizer
-writes no text. (4) The message's language is the language of the player's latest consent row on that channel:
-`marketing_consent` and `marketing_state` gain `language`, recorded from the request's `accept-language` (Arabic for rows
-before 0073). (5) The consent rule lives in one internal function, `promo_pool`; `marketing_audience` is restated over
-it and allowed only in system context; the invitation fill reads `promo_pool`.
-**Why:** SMS is the only promotional channel that can exist before T-501; one message per player per campaign and a
-weekly cap keep promotions from becoming spam (ADR-065's warning); a fixed text keeps CST content and sender rules in one
-reviewed place; the consent's language is the best signal the server has.
-**Trade-offs:** No email reach yet; a player who consented before 0073 gets Arabic until they change a setting.
+## ADR-331 — Invitations go by SMS in v1, with the text frozen at approval, in the language of the player's consent
+**Status:** Proposed (T-409 plan, 2026-10-27; plan review 84 folded; Q-300). Specifies FR-737, FR-1111, FR-1112, FR-1114; amends ADR-318 (1).
+**Decision:** (1) SMS only in v1, from a promotional Msegat sender configured as `MSEGAT_PROMO_SENDER` (the registered
+"-AD" name, Q-034); without it SMS cannot be approved. The `channels` column stays; T-501 adds push and the order
+between channels; email waits for T-706's promotional email sender (separate from the sign-in mailbox, with
+`List-Unsubscribe`). (2) One message per player per campaign. At most one invitation per player per 7 days: a `queued`
+or `sending` row always counts, a `sent` or `unknown` row counts while its `sent_at` is within 7 days. (3) A fixed
+template, no brand prefix (the "-AD" sender name identifies Questify), gender-neutral, at most 3 SMS parts: «دعوة إلى
+{event}: {link}» then «إيقاف العروض: {optOut}» (English alike). The organizer writes no text. (4) **The event's names are
+copied onto the campaign at approval and the message is rendered only from that copy**; a later rename changes nothing
+sent. Names that look like a URL, domain, email or phone number are refused. (5) The message's language is the language
+of the player's latest consent row on that channel: `marketing_consent` and `marketing_state` gain `language`, recorded
+by `set_marketing(..., lang text DEFAULT NULL)` from the request's `accept-language`; NULL (older rows, or a 3-argument
+call during the deploy) is read as Arabic. (6) The consent rule lives in one plain `LANGUAGE sql STABLE` function,
+`promo_pool` (not a definer, no grant); `marketing_audience` is restated over it and allowed only in system context; the
+fill and the claim's re-check name it.
+**Why:** SMS is the only promotional channel before T-501; a weekly limit keeps promotions from becoming spam (ADR-065's
+warning); a fixed text frozen at approval keeps what the admin approved exactly what is sent, under CST's content and
+sender rules; the consent's language is the best signal the server has.
+**Trade-offs:** No email or push reach yet; a player who consented before 0073 gets Arabic until they change a setting;
+an organizer who renames the event after approval sends the old name.
 
-## ADR-332 — Invitation results are counts nobody can trace to a person
-**Status:** Proposed (T-409 plan, 2026-10-27; Q-301). Specifies FR-739, ADR-047, PD-27.
+## ADR-332 — Invitation results are rounded daily counts, and what they can still imply
+**Status:** Proposed (T-409 plan, 2026-10-27; plan review 84 folded; Q-301). Specifies FR-739, ADR-047, PD-27.
 **Decision:** (1) Sent = handed to the provider (sent or unknown). (2) Opened = the invitation link opened: the landing
-page posts its token from the browser on load, marking the recipient once; no pixel, no SDK, no third party; push opens
-come with T-501. (3) Joined = a recipient with an enrollment in the event (not pending or declined) joined after their
-message, counted on the server until the event ends or 30 days after sending; no enrollment is marked as invited. (4)
-Organizers see only daily-published numbers, bucketed in SQL: below 10 shown as "fewer than 10", otherwise rounded down
-to a multiple of 10; a campaign that matches fewer than 50 players is not sent; organizer-readable audit rows carry no
-counts. Admins see exact counts. (5) Recipient rows are deleted 90 days after sending; the counts stay on the campaign;
-erasure deletes a player's rows at once.
-**Why:** Counts alone never name anyone; the remaining risk is joining a count's change with the member list, which the
-threshold, the rounding, the daily delay and the absent marker blur.
-**Trade-offs:** Organizers see coarse, day-old numbers; opened undercounts players whose browser blocks scripts and
-counts forwarded links.
+page reads the token from the URL fragment (`/{lang}/i#{token}`, never in a server log or a `Referer`), clears it and
+posts it, marking the recipient once; no pixel, no SDK, no third party; its own rate-limit bucket. (3) Joined = a
+recipient with an enrollment in the event (not pending or declined) joined after their message, counted on the server
+until the event ends or 30 days after sending; no enrollment is marked as invited. (4) Organizers see only
+daily-published numbers, bucketed in SQL: below 10 shown as "fewer than 10", otherwise rounded down to a multiple of 10;
+a campaign that matches fewer than 50 players is not sent; organizer-readable audit rows carry no counts. Admins see
+exact counts. (5) Recipient rows are deleted 90 days after the campaign finished (whatever their state); the counts stay
+on the campaign; erasure deletes a player's rows at once. (6) The privacy policy says so (T-807): "When an organizer
+pays Questify to invite players, the organizer sees how many received, opened and joined, in rounded daily numbers,
+never who."
+**Why:** No answer names a player or numbers a group under 10. This does not make the counts untraceable: on a quiet
+event, an organizer who sees the joined count rise while few people joined can guess that a given new member was
+invited, and so opted in and matched the criteria. That comes with publishing a joined count at all (FR-739); the
+rounding, the minimum of 50 and the daily delay make the guess coarser, not impossible.
+**Trade-offs:** Organizers see coarse, day-old numbers; opened undercounts browsers that block scripts and counts
+forwarded links.
 
 ## ADR-333 — Invitations are sent by the in-process tick, at most once per player
-**Status:** Proposed (T-409 plan, 2026-10-27; Q-302). Specifies rule 5 (timeouts, safe retry, fallback) and FR-1738.
-**Decision:** (1) The jittered in-process tick of T-306b and T-402b runs every 5 seconds with a 3-second budget: start one
-due campaign (fills serialized by an advisory lock), claim up to 50 recipients with 60-second leases (`SKIP LOCKED`), send
-five at a time, acknowledge each, release what the budget left; settle every 10 minutes. pg-boss is not introduced. (2)
-At most once: a lease that expires while sending becomes `unknown` and is never sent again; the sender retries only a
-request that provably never left. (3) A refusal for the number fails that message; a refusal for the account (balance,
-sender, address, unreachable) puts it back and holds the campaign for 15 minutes; the third attempt fails it. (4) SMS is
-claimed only when both now and now plus the lease are outside the quiet window; approval moves a send time out of it and
-says so. (5) Each message is re-checked at the claim (consent, account, contact, membership, event end).
+**Status:** Proposed (T-409 plan, 2026-10-27; plan review 84 folded; Q-302). Specifies rule 5 (timeouts, safe retry, fallback) and FR-1738.
+**Decision:** (1) The jittered in-process tick of T-306b and T-402b runs every 5 seconds with a 3-second budget while the
+switch is on: start one due campaign (a second server that cannot take `pg_try_advisory_xact_lock` skips the fill), then
+rounds of 5 (claim 5, send them in parallel, acknowledge each) while the budget lasts; settle every 10 minutes. No
+release door: every claimed row is sent in its round. pg-boss is not introduced. (2) At most once: a lease that expires
+while sending becomes `unknown` (the claim and settle expire leases on every campaign with `SKIP LOCKED`) and is never
+sent again. (3) A refusal for the number fails that message. A refusal for the account (balance, sender, address,
+unreachable) holds the whole SMS channel for 15 minutes, stops the round, puts the message back without counting an
+attempt (only while its campaign is still sending, otherwise it is cancelled) and logs an error-level alert. (4) Quiet
+hours twice: the API passes SMS only outside `promoSendTime`'s window (Ramadan included) for now and now plus the
+lease, and `invitation_claim` itself refuses SMS between 22:00 and 09:00 Riyadh time. (5) Each message is re-checked at
+the claim through `promo_pool` (consent), membership and the event's end. (6) Lock order: event, campaign, recipient
+rows, channel hold; no player, enrollment, consent or ledger row is locked (added to `docs/rules.md` with the build).
 **Why:** The tick and lease pattern already runs in production code and is tested; a duplicate promotional SMS costs
-money and annoys, a lost one costs little.
+money and annoys, a lost one costs little; an account problem is the same for every message, so it pauses the channel,
+not one message.
 **Trade-offs:** A crash after the provider accepts a message counts it as `unknown`; a long send crossing 22:00 resumes
 the next morning.

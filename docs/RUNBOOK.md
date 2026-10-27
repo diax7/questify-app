@@ -150,6 +150,31 @@ that is shared or written to disk (today's is in memory, per process).
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## Questify invitations (T-409, ADR-329 to ADR-333; planned, not built yet)
+
+Written with the T-409 plan; the build confirms each line and adds the measured fill timing.
+
+- **Setting:** `MSEGAT_PROMO_SENDER`, the registered promotional "...-AD" sender name (Q-034), used with the same
+  `MSEGAT_USERNAME`/`MSEGAT_API_KEY`. Unset: SMS is unavailable for invitations and the console cannot approve one. Never
+  set it to the service sender (`MSEGAT_SENDER`) or the reverse (FR-1112).
+- **Deploy order for migration 0073:** `set_marketing` gains a fourth argument with a default (`lang text DEFAULT
+  NULL`, NULL read as Arabic), so the running API's 3-argument calls keep working: run the migration, then deploy the
+  API. Consents saved in between simply have no language and get Arabic messages.
+- **Turning `invitationCampaigns` on** (console switch, off when absent), only when all three hold: T-409b (the dashboard,
+  console and landing pages) is live; the privacy policy carries the T-807 line on invitation counts (ADR-332); the
+  Q-034 promotional sender is registered with the operators and `MSEGAT_PROMO_SENDER` is set (and Msegat's static-IP
+  check, `M0037`, passes for the API's address).
+- **Kill switch:** turning `invitationCampaigns` off refuses new requests and stops the tick from starting or claiming
+  anything at once; messages already handed to Msegat finish, and the settle step (joined counts, publishing, purging)
+  keeps running. Turning it on again resumes `sending` campaigns where they stopped. To stop one campaign, cancel it in
+  the console instead.
+- **Alert:** `invitation.channel_hold {channel, code}` at error level means Msegat refused for the account (`1060`
+  balance, `1110` sender, `M0037` address, `unreachable`): SMS invitations pause for 15 minutes and then try again; the
+  console shows the hold. Fix the account (top up, activate the sender, register the address); nothing is lost and no
+  message fails because of it.
+- **Quiet hours:** promotional SMS never leaves 22:00 to 09:00 Riyadh time (01:00 to 12:00 in Ramadan); a send that
+  crosses 22:00 resumes in the morning by itself.
+
 ## Usernames and the word lists (T-109, ADR-119)
 
 - **Editing the lists until the console has a screen (FR-1779):** with the owner connection, add a word with

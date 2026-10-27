@@ -687,7 +687,12 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     bucketed daily results; organizer, console and public routes; the `invitationCampaigns` switch). Plan:
     `docs/plans/2026-10-27-t-409-questify-invitations.md` (Proposed ADR-329 to ADR-333, Q-298 to Q-302). SMS cannot be
     approved until the "-AD" sender is registered (Q-034).
-- [ ] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i/[token]` — delivers FR 738, 739 (on screen); depends on: T-409
+  - Plan review 2026-10-27 (84, NO-GO until findings 1 and 2; all 16 folded into the plan's fold-in table): the event
+    names are copied onto the campaign at approval and the SMS is rendered only from that copy, URL or phone names
+    refused (finding 1); a cancel leaves no row stuck: requeue only while `sending`, settle expires every lease, every
+    cancel sets `finished_at`, the purge reaches every row (finding 2). v1: public events only, SMS only. Short re-review
+    next. The RUNBOOK's T-409 section says when the switch may be turned on.
+- [ ] **T-409b** The web pages for Questify invitations: the dashboard's Invitations page per event, the console's queue and detail, the landing page `/[lang]/i` (token in the fragment) — delivers FR 738, 739 (on screen); depends on: T-409
   - Split from T-409 2026-10-27 (ADR-329). Standard; plan: `docs/plans/2026-10-27-t-409-questify-invitations.md` (T-409b section).
   - Done when: An owner requests and cancels a campaign and sees only bucketed counts; an admin approves with a cap and sees the moved send time; the landing page counts one open per recipient.
 - [ ] **T-410** After the event: shop window, closing the balance, keeping score and stamp, recap card — delivers FR 750, 751, 752, 1018; depends on: T-201
@@ -716,9 +721,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Note 2026-10-27 (T-405): streak reminder pushes follow ADR-300 (no loss or guilt copy, no countdown to the day's
     end); the daily streak is the player's own, never shown to others.
   - Note 2026-10-27 (T-407): a promotional push picks recipients through `marketing_audience('push', ...)`; push is never required for any feature, and the player's consent is the state in `marketing_state`, not the OS permission alone.
-  - Note 2026-10-27 (T-409 plan, ADR-331, ADR-332): add `push` to the invitation sender's available channels (first in
-    the order push, email, SMS); an invitation push's open is reported by the app and marks the recipient's `opened_at`
-    once, like the landing page.
+  - Note 2026-10-27 (T-409 plan, ADR-331, ADR-332): invitations are SMS only in v1; add `push` to the invitation
+    sender here (widen `invitation_campaign.channels`' CHECK, add the order between channels to the fill, one message per
+    player per campaign); an invitation push's open is reported by the app and marks the recipient's `opened_at` once,
+    like the landing page.
 - [ ] **T-502** Announcements: write in both languages, send now or schedule, push and in-app only; Home strip — delivers FR 1107, 1108, 806, 807; depends on: T-501
   - Note 2026-10-24 (T-307, CTO note 1): the "Happening now" strip (FR-806) must read running boosts and flash quests from the quests read (`flash`, `boost` on each quest and category), not from `GET …/live`: the event's live shortcut stops naming a boost or a flash quest 15 minutes after it starts (`event_has_live`'s tail), which is not its end. Or revisit that tail here.
   - Done when: Announcements never go by email or SMS.
