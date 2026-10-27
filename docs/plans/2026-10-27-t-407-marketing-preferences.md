@@ -17,7 +17,7 @@ shared with a payer. The one core-adjacent item, the "set your interests" Questi
 |---|---|---|
 | **T-407** | Migration 0070, shared schemas, API doors, the send window and audience door, the event interests field and the opt-out page on the web | 0070 |
 | **T-407b** | App: the consent step, Settings → Notifications, interests and city, the "For you" list; every string | none |
-| **T-407c** | CORE: the `interests_set` metric for the Questify quest "set your interests" | later |
+| **T-407c** | CORE: the `interests_set` metric for the Questify quest "set your interests" (plan `2026-10-27-t-407c-interests-quest.md`) | 0071 |
 
 The T-405/T-406 precedent (server, then screens). T-407 is checked when its API, DB and security suites pass.
 

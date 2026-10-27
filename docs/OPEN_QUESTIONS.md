@@ -1026,3 +1026,9 @@ Built: deleting an account erases its consent log, state and preferences (the da
 proof of consent must be kept for a period after deletion (for example against a CST complaint), keep only the channel,
 the yes or no, the method, the wording version and the time under the tombstone's id, with no contact, in a new
 migration.
+
+## Q-290 — For Dhia (product): the "set your interests" quest's reward (2026-10-27, T-407c plan)
+Built (ADR-320): 100 XP and 10 gems, against 300 XP and 25 gems for "Attend 3 events" and "Play in 2 cities", because
+choosing interests takes one tap. The XP can be changed in the console at any time (later awards only); the gems are
+fixed once the quest is live, so a different gem amount means retiring it and adding a new quest. Say if you want other
+amounts before the deploy.

@@ -605,6 +605,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-407c** The "set your interests" Questify quest: a new `interests_set` metric counted by `questify_sync` and a seeded always-on quest — delivers FR 710 (its "set your interests" example); depends on: T-407
   - Split from T-407 2026-10-27 (ADR-319). **CORE**: `player_metrics` and the sync evaluator pay XP into the ledger, so it gets a core plan review and code review and mutation on GitHub. Small: one CHECK on `questify_quest.metric`, one `player_metrics` branch (a row in `player_preference` with at least one interest or a city), one seeded quest, the quest list's copy.
   - Reviewer's call (T-407 code review): the metric counts **interests only**, not a city (a city alone is not "set your interests").
+  - Plan 2026-10-27: `docs/plans/2026-10-27-t-407c-interests-quest.md` (migration 0071, Proposed ADR-320, Q-290); awaiting the CTO plan review.
   - Done when: A player who saves interests gets the quest's XP once, never twice, and clearing them later takes nothing back.
 - [ ] **T-408** Questify home and Explore: events grouped live, upcoming and past, Questify-wide ranking (lifetime and monthly), join-QR scanner on the center button — delivers FR 611, 612, 830, 831, 832, 833, 1614, 1786; depends on: T-401
   - Note 2026-10-24 (T-401): the lifetime ranking reads `player_xp.xp` (add an index); the monthly one sums `xp_entry.delta` by `created_at` (reversals included). Deleted players (tombstones) keep their rows and must be left out.

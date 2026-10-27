@@ -4220,3 +4220,18 @@ and is T-407c, which counts interests only, not a city (the reviewer's call). Th
 **Why:** FR-734's examples are exactly this match; a closed catalog keeps matching exact and the choice quick; the XP
 evaluator is core and has its own review.
 **Trade-offs:** Fixed catalog until the console edits it; an event with no interests is shown by city only.
+
+## ADR-320 — "Set your interests" is an always-on, met-or-not Questify quest metric
+**Status:** Proposed (T-407c plan, 2026-10-27; Q-290). Specifies FR-710, ADR-278, ADR-319.
+**Decision:** (1) A new `questify_quest.metric` value, `interests_set`: `player_metrics` answers 1 when the player's
+`player_preference` row holds at least one interest, else 0; the city is never read (the T-407 reviewer's call). (2) It
+is lifetime only (no row for a bounded call), and a named table CHECK keeps it always-on with target 1, since it is a
+state with no date to place in a campaign window. (3) One seeded active quest, "Set your interests" / «اختر اهتماماتك»,
+100 XP and 10 gems, position 3; a player who already chose interests is paid at the next sync (ADR-279). (4) Paid once
+ever through the existing evaluator; clearing interests never takes it back. (5) The player-facing quest card schema
+takes any bounded metric string, so a metric added later cannot break an installed app's list; the console schemas stay
+closed. (6) The app syncs right after a save that holds an interest, and the undone card links to the Interests screen.
+**Why:** The smallest change in the payer's path: one read-only row in `player_metrics`, no restated payer, no new lock
+edge (`set_preferences` holds `player` FOR NO KEY UPDATE, which the sync's KEY SHARE never waits on).
+**Trade-offs:** A one-tap quest gives free XP and gems to every new account (gems are per account and cannot move); a
+player who sets and clears before any sync is not paid.
