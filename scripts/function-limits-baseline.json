@@ -1044,8 +1044,8 @@
   },
   "apps/web/src/components/EventForm.tsx": {
     "EventForm": {
-      "complexity": [29],
-      "lines": [352]
+      "complexity": [28],
+      "lines": [306]
     }
   },
   "apps/web/src/components/EventWords.tsx": {

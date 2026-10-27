@@ -61,7 +61,7 @@ async function main(): Promise<void> {
   const ids = await seedTwoTenants(db.owner);
   // One editor account per test and browser size (an organizer has one owner), so the per-account limits (5 codes an hour) never cross tests.
   for (const size of ["desktop", "phone"]) {
-    for (const name of ["ar", "en", "keys", "resend", "reset", "change", "creator"]) {
+    for (const name of ["ar", "en", "keys", "resend", "reset", "change", "creator", "invite"]) {
       const id = await createStaff(db.owner, { email: `${name}.${size}@najd.test` });
       await db.owner.query(
         "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
@@ -81,6 +81,8 @@ async function main(): Promise<void> {
     pool,
     emailSender: new FileEmailSender(required("E2E_CODES_FILE")),
     breachCheck: (password) => Promise.resolve(password === E2E_BREACHED_PASSWORD),
+    // The promotional sender exists (so the console can approve SMS) but nothing sends: the invitation tick is off here.
+    promoSmsSender: { name: "e2e-promo", send: () => Promise.resolve({ kind: "sent" }) },
     logger: false,
   });
   const stop = async (): Promise<void> => {
@@ -167,6 +169,70 @@ async function seedLocationFlags(
   await raise(fastPlayer, "impossible_speed", [first, second]);
 }
 
+type InvitationControlBody = {
+  eventId?: string;
+  campaignId?: string;
+  sent?: number;
+  opened?: number;
+  joined?: number;
+  nameAr?: string;
+  nameEn?: string;
+  days?: number;
+};
+
+/**
+ * Test-only writes for the invitation pages (T-409b): the switch, a campaign that has started (with the published
+ * counts the daily settle would copy), a recipient whose link the landing page can open, and an event that is
+ * renamed or scheduled for longer.
+ */
+async function invitationControl(
+  db: Awaited<ReturnType<typeof createTestDatabase>>,
+  url: string,
+  body: InvitationControlBody,
+): Promise<object | undefined> {
+  if (url === "/invitations-switch") {
+    await db.owner.query(
+      `INSERT INTO platform_setting (key, value)
+       VALUES ('features', jsonb_build_object('invitationCampaigns', jsonb_build_object('enabled', true)))
+       ON CONFLICT (key) DO UPDATE SET value = platform_setting.value || excluded.value`,
+    );
+    return undefined;
+  }
+  if (url === "/invitation-started") {
+    const update = await db.owner.query(
+      `UPDATE invitation_campaign
+       SET state = 'sending', started_at = now(), planned = coalesce($2::int, 0), sent = coalesce($2::int, 0),
+           published_sent = $2::int, published_opened = $3::int, published_joined = $4::int,
+           published_at = CASE WHEN $2::int IS NULL THEN NULL ELSE now() END
+       WHERE id = $1 AND state = 'approved'`,
+      [body.campaignId, body.sent ?? null, body.opened ?? null, body.joined ?? null],
+    );
+    if (update.rowCount !== 1) throw new Error("no approved campaign to start");
+    return undefined;
+  }
+  if (url === "/invitation-link") {
+    const made = await db.owner.query<{ token: string }>(
+      `WITH who AS (INSERT INTO player (username) VALUES ('inv_' || substr(md5(random()::text), 1, 12)) RETURNING id),
+            made AS (INSERT INTO invitation_recipient (campaign_id, player_id, channel, state, sent_at)
+                     SELECT $1, who.id, 'sms', 'sent', now() FROM who RETURNING link)
+       SELECT translate(encode(decode(replace(link::text, '-', ''), 'hex'), 'base64'), '+/=', '-_') AS token
+       FROM made`,
+      [body.campaignId],
+    );
+    return { token: made.rows[0]?.token };
+  }
+  const changed = await db.owner.query(
+    `UPDATE event SET name_ar = coalesce($2, name_ar), name_en = coalesce($3, name_en),
+       status = CASE WHEN $4::int IS NULL THEN status ELSE 'scheduled' END,
+       starts_at = CASE WHEN $4::int IS NULL THEN starts_at ELSE now() + interval '1 day' END,
+       ends_at = CASE WHEN $4::int IS NULL THEN ends_at ELSE now() + make_interval(days => $4::int) END
+     WHERE id = $1`,
+    [body.eventId, body.nameAr ?? null, body.nameEn ?? null, body.days ?? null],
+  );
+  if (changed.rowCount !== 1) throw new Error("no such event");
+  return undefined;
+}
+
 /**
  * Test-only control on its own local port: `POST /event-status {eventId, status}` moves an event the way Questify's
  * activation will (T-210), so a browser test can work on a live event. Never part of the API.
@@ -187,6 +253,13 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         email?: string;
         texts?: string[];
         monthsAgo?: number;
+        campaignId?: string;
+        sent?: number;
+        opened?: number;
+        joined?: number;
+        nameAr?: string;
+        nameEn?: string;
+        days?: number;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -288,6 +361,22 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           )
           .then((result) => {
             response.writeHead(result.rowCount === (body.usernames ?? []).length ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /invitations-switch: turns the platform switch for Questify invitations on (T-409b); it stays on for the run.
+      // /invitation-started, /invitation-link and /invitation-event: the parts of a campaign's life the sender tick
+      // would write (started, a recipient's link, the daily published counts), and an owner's rename or a longer event.
+      if (request.url?.startsWith("/invitation") === true) {
+        invitationControl(db, request.url, body)
+          .then((answer) => {
+            response.writeHead(answer === undefined ? 204 : 200, {
+              "content-type": "application/json",
+            });
+            response.end(answer === undefined ? undefined : JSON.stringify(answer));
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

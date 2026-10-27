@@ -5628,6 +5628,350 @@ export const MESSAGES = {
   },
   "console.seasons.xp": { ar: "{xp} XP في الشهر", en: "{xp} XP in the month" },
   "console.seasons.level": { ar: "المستوى الإجمالي: {level}", en: "Lifetime level: {level}" },
+  "invCampaign.link": { ar: "الدعوات", en: "Invitations" },
+  "invCampaign.title": { ar: "الدعوات", en: "Invitations" },
+  "invCampaign.intro": {
+    ar: "اطلب من Questify دعوة لاعبين وافقوا على تلقي العروض. حدّد من تريد دعوته وكم عددهم، وفريق Questify يتولى الباقي.",
+    en: "Ask Questify to invite players who agreed to receive offers. Choose who to invite and how many, and the Questify team takes it from there.",
+  },
+  "invCampaign.noCharge": {
+    ar: "لا يُدفع شيء هنا. يتواصل معك فريق Questify بشأن السعر قبل اعتماد الطلب.",
+    en: "Nothing is charged here: the Questify team contacts you about the price before approving.",
+  },
+  "invCampaign.privacy": {
+    ar: "لا ترى سوى أعداد مقرّبة تتحدث مرة في اليوم، ولا ترى من دُعي.",
+    en: "You see only rounded counts, updated once a day, and never who was invited.",
+  },
+  "invCampaign.off": { ar: "الدعوات غير متاحة بعد.", en: "Invitations aren't open yet." },
+  "invCampaign.ownerOnly": {
+    ar: "المالك وحده يطلب الدعوات أو يسحب الطلب.",
+    en: "Only the owner can ask for invitations or withdraw a request.",
+  },
+  "invCampaign.openExists": {
+    ar: "لهذه الفعالية طلب مفتوح. اسحبه أو انتظر انتهاءه لتقدّم طلبًا جديدًا.",
+    en: "This event already has an open request. Withdraw it or wait until it ends to ask again.",
+  },
+  "invCampaign.empty": { ar: "لا طلبات بعد.", en: "No requests yet." },
+  "invCampaign.loadFailed": {
+    ar: "تعذّر تحميل الدعوات. أعد تحميل الصفحة.",
+    en: "Couldn't load the invitations. Reload the page.",
+  },
+  "invCampaign.requested": {
+    ar: "أُرسل الطلب. سيتواصل معك فريق Questify بشأن السعر.",
+    en: "Request sent. The Questify team will contact you about the price.",
+  },
+  "invCampaign.withdraw": { ar: "اسحب الطلب", en: "Withdraw the request" },
+  "invCampaign.withdrawConfirm": {
+    ar: "سحب الطلب؟ يمكنك تقديم طلب جديد لاحقًا.",
+    en: "Withdraw this request? You can ask again later.",
+  },
+  "invCampaign.catalogsFailed": {
+    ar: "تعذّر تحميل المدن أو الاهتمامات كلها. أعد تحميل الصفحة.",
+    en: "Couldn't load all the cities or interests. Reload the page.",
+  },
+  "invCampaign.form.title": { ar: "اطلب دعوات", en: "Ask for invitations" },
+  "invCampaign.field.city": { ar: "المدينة", en: "City" },
+  "invCampaign.city.any": { ar: "أي مدينة", en: "Any city" },
+  "invCampaign.field.interests": { ar: "الاهتمامات (حتى 3)", en: "Interests (up to 3)" },
+  "invCampaign.interests.hint": {
+    ar: "يُدعى من اختار منها واحدًا على الأقل.",
+    en: "Players who chose at least one of these are invited.",
+  },
+  "invCampaign.field.history": { ar: "الفعاليات السابقة", en: "Past events" },
+  "invCampaign.history.none": { ar: "أي لاعب", en: "Any player" },
+  "invCampaign.history.recent": {
+    ar: "لاعبون انضموا إلى فعالية خلال السنة الماضية",
+    en: "Players who joined an event in the last year",
+  },
+  "invCampaign.history.own": {
+    ar: "لاعبون انضموا إلى فعالية أخرى لك",
+    en: "Players who joined another of your events",
+  },
+  "invCampaign.field.size": { ar: "عدد الدعوات", en: "Number of invitations" },
+  "invCampaign.size.hint": {
+    ar: "من 50 إلى 100,000. إن طابق أقل من 50 لاعبًا فلن يُرسل شيء.",
+    en: "From 50 to 100,000. If fewer than 50 players match, nothing is sent.",
+  },
+  "invCampaign.invalid.size": {
+    ar: "أدخل عددًا صحيحًا بين 50 و100,000.",
+    en: "Enter a whole number from 50 to 100,000.",
+  },
+  "invCampaign.field.sendAfter": {
+    ar: "أقرب موعد للإرسال (بتوقيت الرياض، اختياري)",
+    en: "Earliest send (Riyadh time, optional)",
+  },
+  "invCampaign.sendAfter.hint": {
+    ar: "يحدد فريق Questify الموعد النهائي، ولا تُرسل الرسائل ليلًا.",
+    en: "Questify chooses the final time and never sends at night.",
+  },
+  "invCampaign.invalid.sendAfter": {
+    ar: "أدخل تاريخًا ووقتًا صحيحين.",
+    en: "Enter a valid date and time.",
+  },
+  "invCampaign.submit": { ar: "أرسل الطلب", en: "Send the request" },
+  "invCampaign.state.requested": { ar: "بانتظار الاعتماد", en: "Waiting for approval" },
+  "invCampaign.state.approved": { ar: "معتمد", en: "Approved" },
+  "invCampaign.state.sending": { ar: "قيد الإرسال", en: "Sending" },
+  "invCampaign.state.sent": { ar: "اكتمل الإرسال", en: "Sent" },
+  "invCampaign.state.cancelled": { ar: "ملغى", en: "Cancelled" },
+  "invCampaign.state.refused": { ar: "مرفوض", en: "Refused" },
+  "invCampaign.card.requestedAt": { ar: "طُلب في {time}", en: "Asked on {time}" },
+  "invCampaign.card.city": { ar: "المدينة: {city}", en: "City: {city}" },
+  "invCampaign.card.interests": { ar: "الاهتمامات: {interests}", en: "Interests: {interests}" },
+  "invCampaign.card.size": {
+    ar: "عدد الدعوات المطلوب: {count}",
+    en: "Invitations asked for: {count}",
+  },
+  "invCampaign.card.sendAfter": { ar: "ليس قبل {time}", en: "Not before {time}" },
+  "invCampaign.card.approved": {
+    ar: "معتمد: حتى {count} رسالة، ابتداءً من {time}",
+    en: "Approved: up to {count} messages, sending from {time}",
+  },
+  "invCampaign.card.note": { ar: "ملاحظة من Questify:", en: "Note from Questify:" },
+  "invCampaign.card.daily": { ar: "تتحدث الأعداد مرة في اليوم.", en: "Counts update once a day." },
+  "invCampaign.card.published": {
+    ar: "الأعداد حتى {time}، وتتحدث مرة في اليوم.",
+    en: "Counts as of {time}; they update once a day.",
+  },
+  "invCampaign.end.owner": { ar: "سُحب الطلب.", en: "The request was withdrawn." },
+  "invCampaign.end.admin": {
+    ar: "أنهى فريق Questify هذا الطلب.",
+    en: "The Questify team ended this request.",
+  },
+  "invCampaign.end.tooSmall": {
+    ar: "طابق أقل من 50 لاعبًا فلم يُرسل شيء.",
+    en: "Fewer than 50 players matched, so nothing was sent.",
+  },
+  "invCampaign.end.eventChanged": {
+    ar: "تغيّرت إعدادات الفعالية فلم تعد تقبل الدعوات.",
+    en: "The event's settings changed and it no longer takes invitations.",
+  },
+  "invCampaign.end.eventOver": {
+    ar: "انتهت الفعالية أولًا فلم يُرسل الباقي.",
+    en: "The event ended first, so the rest was not sent.",
+  },
+  "invCampaign.count.sent": { ar: "أُرسلت إليهم", en: "Sent" },
+  "invCampaign.count.opened": { ar: "فتحوا الرابط", en: "Opened the link" },
+  "invCampaign.count.joined": { ar: "انضموا إلى الفعالية", en: "Joined the event" },
+  "invCampaign.count.none": { ar: "لم يُنشر بعد", en: "Not published yet" },
+  "invCampaign.count.fewer": { ar: "أقل من {count}", en: "Fewer than {count}" },
+  "invCampaign.count.atLeast": { ar: "{count} أو أكثر", en: "{count}+" },
+  "invCampaign.notEligible.notPublic": {
+    ar: "الدعوات للفعاليات التي يجدها الجميع فقط. اضبط «من يجد الفعالية» على «الجميع».",
+    en: "Only events that everyone can find can send invitations. Set “Who can find it” to Everyone.",
+  },
+  "invCampaign.notEligible.notRunning": {
+    ar: "يجب أن تكون الفعالية مجدولة أو جارية.",
+    en: "The event must be scheduled or live.",
+  },
+  "invCampaign.notEligible.endsSoon": {
+    ar: "يجب أن تنتهي الفعالية بعد 24 ساعة على الأقل من الآن.",
+    en: "The event must end at least 24 hours from now.",
+  },
+  "invCampaign.notEligible.linkOff": {
+    ar: "فعّل الانضمام بالرابط لهذه الفعالية.",
+    en: "Turn on joining by link for this event.",
+  },
+  "invCampaign.notEligible.guestListOnly": {
+    ar: "لا تقبل الفعالية المقصورة على قائمة الضيوف دعوات.",
+    en: "An event that is for its guest list only can't send invitations.",
+  },
+  "invCampaign.notEligible.emailDomains": {
+    ar: "لا تقبل الفعالية التي تشترط بريدًا من نطاقات محددة دعوات.",
+    en: "An event that asks for an email from certain domains can't send invitations.",
+  },
+  "invCampaign.language.ar": { ar: "العربية", en: "Arabic" },
+  "invCampaign.language.en": { ar: "الإنجليزية", en: "English" },
+  "invCampaign.nameProblem.ar": {
+    ar: "لا يصلح اسم الفعالية العربي لرسالة نصية: {reason}.",
+    en: "The event's Arabic name can't go in a text message: {reason}.",
+  },
+  "invCampaign.nameProblem.en": {
+    ar: "لا يصلح اسم الفعالية الإنجليزي لرسالة نصية: {reason}.",
+    en: "The event's English name can't go in a text message: {reason}.",
+  },
+  "invCampaign.nameFix": { ar: "غيّر الاسم ثم أعد الطلب.", en: "Change the name, then ask again." },
+  "invCampaign.nameReason.controlCharacters": {
+    ar: "فيه أحرف مخفية",
+    en: "it has hidden characters",
+  },
+  "invCampaign.nameReason.looksLikeAddress": {
+    ar: "يشبه رابطًا أو بريدًا إلكترونيًا",
+    en: "it looks like a web address or an email",
+  },
+  "invCampaign.nameReason.looksLikePhone": {
+    ar: "يشبه رقم هاتف",
+    en: "it looks like a phone number",
+  },
+  "console.invCampaign.title": { ar: "الدعوات", en: "Invitations" },
+  "console.invCampaign.linkCount": { ar: "الدعوات ({count})", en: "Invitations ({count})" },
+  "console.invCampaign.intro": {
+    ar: "طلبات المنظّمين. اعتمد الطلب بتحديد القناة وحدّ الرسائل وموعد الإرسال، أو ارفضه مع ملاحظة.",
+    en: "Requests from organizers. Approve one with the channel, a message limit and a send time, or refuse it with a note.",
+  },
+  "console.invCampaign.open": { ar: "طلبات مفتوحة", en: "Open requests" },
+  "console.invCampaign.closed": { ar: "طلبات منتهية", en: "Closed requests" },
+  "console.invCampaign.empty": { ar: "لا طلبات.", en: "No requests." },
+  "console.invCampaign.requestedAt": { ar: "طُلب في {time}", en: "Asked on {time}" },
+  "console.invCampaign.progress": {
+    ar: "المُرسَل: {sent} من {planned}",
+    en: "Sent: {sent} of {planned}",
+  },
+  "console.invCampaign.back": { ar: "كل الدعوات", en: "All invitations" },
+  "console.invCampaign.detailTitle": { ar: "طلب دعوات", en: "Invitation request" },
+  "console.invCampaign.notFound": { ar: "لم نجد هذا الطلب.", en: "We couldn't find this request." },
+  "console.invCampaign.noteLine": { ar: "الملاحظة للمنظّم:", en: "Note to the organizer:" },
+  "console.invCampaign.estimate": {
+    ar: "اللاعبون المطابقون الآن: {count}",
+    en: "Players matching now: {count}",
+  },
+  "console.invCampaign.hold": {
+    ar: "توقف إرسال الرسائل النصية حتى {time}. افحص حساب Msegat. الرمز: {code}.",
+    en: "SMS sending is paused until {time}. Check the Msegat account. Code: {code}.",
+  },
+  "console.invCampaign.names": { ar: "اسما الفعالية", en: "The event's names" },
+  "console.invCampaign.nameNone": { ar: "لا اسم بهذه اللغة", en: "No name in this language" },
+  "console.invCampaign.nameOk": { ar: "يصلح للإرسال", en: "can be sent" },
+  "console.invCampaign.namesApproved": {
+    ar: "الاسمان المثبتان عند الاعتماد:",
+    en: "Names frozen at approval:",
+  },
+  "console.invCampaign.messages.toApprove": {
+    ar: "النص الذي سيصل اللاعبين",
+    en: "The text players will get",
+  },
+  "console.invCampaign.messages.approved": { ar: "النص المعتمد", en: "The approved text" },
+  "console.invCampaign.messages.hintOpen": {
+    ar: "رمز الرابط هنا للمعاينة فقط، ويصل كل لاعب برمزه. اقرأ النص كاملًا قبل الاعتماد.",
+    en: "The link's code is a placeholder; each player gets their own. Read the text in full before you approve.",
+  },
+  "console.invCampaign.messages.hintFrozen": {
+    ar: "هذا النص ثابت: تغيير اسم الفعالية لا يغيّره. رمز الرابط هنا للمعاينة فقط.",
+    en: "This text is frozen: renaming the event changes nothing. The link's code is a placeholder.",
+  },
+  "console.invCampaign.messages.label": {
+    ar: "{language} (أجزاء الرسالة: {parts})",
+    en: "{language} (SMS parts: {parts})",
+  },
+  "console.invCampaign.counters": { ar: "الأعداد الدقيقة", en: "Exact counts" },
+  "console.invCampaign.counter.planned": { ar: "المخطط إرساله", en: "Planned" },
+  "console.invCampaign.counter.sent": { ar: "أُرسلت", en: "Sent" },
+  "console.invCampaign.counter.unknown": {
+    ar: "حالتها غير معروفة",
+    en: "Unknown (may have arrived)",
+  },
+  "console.invCampaign.counter.failed": { ar: "فشل إرسالها", en: "Failed" },
+  "console.invCampaign.counter.skipped": { ar: "تُخطّيت", en: "Skipped" },
+  "console.invCampaign.counter.cancelled": { ar: "أُلغيت", en: "Cancelled" },
+  "console.invCampaign.counter.opened": { ar: "فتحوا الرابط", en: "Opened the link" },
+  "console.invCampaign.counter.joined": { ar: "انضموا إلى الفعالية", en: "Joined the event" },
+  "console.invCampaign.counter.queued": { ar: "بانتظار الإرسال", en: "Waiting to send" },
+  "console.invCampaign.approve.title": { ar: "اعتماد الطلب", en: "Approve the request" },
+  "console.invCampaign.approve.button": { ar: "اعتمد الطلب", en: "Approve" },
+  "console.invCampaign.block.noSms": {
+    ar: "الرسائل النصية غير مفعّلة على الخادم، فلا يمكن اعتماد الطلب الآن.",
+    en: "SMS isn't set up on this server, so the request can't be approved yet.",
+  },
+  "console.invCampaign.block.event": {
+    ar: "لا تقبل الفعالية دعوات الآن (انظر أعلاه). ارفض الطلب أو انتظر المنظّم ليصلح ذلك.",
+    en: "The event can't take invitations now (see above). Refuse the request or wait for the organizer to fix it.",
+  },
+  "console.invCampaign.block.name": {
+    ar: "أحد الاسمين أعلاه لا يصلح لرسالة نصية. اطلب من المنظّم تغييره، أو ارفض الطلب.",
+    en: "A name above can't go in an SMS. Ask the organizer to change it, or refuse the request.",
+  },
+  "console.invCampaign.block.noName": {
+    ar: "ليس للفعالية اسم يُرسل. اطلب من المنظّم تسميتها، أو ارفض الطلب.",
+    en: "The event has no name to send. Ask the organizer to name it, or refuse the request.",
+  },
+  "console.invCampaign.channel.sms": { ar: "رسائل نصية", en: "SMS" },
+  "console.invCampaign.field.cap": { ar: "أقصى عدد من الرسائل", en: "Most messages to send" },
+  "console.invCampaign.field.sendAt": {
+    ar: "موعد الإرسال (بتوقيت الرياض)",
+    en: "Send time (Riyadh time)",
+  },
+  "console.invCampaign.sendAt.hint": {
+    ar: "الموعد الواقع في ساعات الهدوء (من 22:00 إلى 09:00، وحتى 12:00 في رمضان) يُنقل إلى أول ساعة مسموحة.",
+    en: "A time inside quiet hours (22:00 to 09:00, and to 12:00 in Ramadan) moves to the first allowed hour.",
+  },
+  "console.invCampaign.field.note": {
+    ar: "ملاحظة للمنظّم (اختيارية)",
+    en: "Note for the organizer (optional)",
+  },
+  "console.invCampaign.field.closeNote": {
+    ar: "ملاحظة للمنظّم (مطلوبة للرفض أو الإلغاء)",
+    en: "Note for the organizer (required to refuse or cancel)",
+  },
+  "console.invCampaign.invalid.channels": {
+    ar: "اختر قناة واحدة على الأقل.",
+    en: "Choose at least one channel.",
+  },
+  "console.invCampaign.invalid.cap": {
+    ar: "أدخل عددًا صحيحًا بين 50 و100,000.",
+    en: "Enter a whole number from 50 to 100,000.",
+  },
+  "console.invCampaign.invalid.sendAt": {
+    ar: "اختر موعدًا بين الآن وقبل نهاية الفعالية بساعة.",
+    en: "Choose a time from now until one hour before the event ends.",
+  },
+  "console.invCampaign.invalid.note": {
+    ar: "الملاحظة 500 حرف على الأكثر.",
+    en: "The note can have at most 500 characters.",
+  },
+  "console.invCampaign.invalid.name": {
+    ar: "اسم لا يصلح للإرسال. راجع الاسمين أعلاه.",
+    en: "A name can't be sent. Read the names above.",
+  },
+  "console.invCampaign.noSms": {
+    ar: "الرسائل النصية غير مفعّلة على الخادم.",
+    en: "SMS isn't set up on this server.",
+  },
+  "console.invCampaign.renamed": {
+    ar: "تغيّر اسم الفعالية بعد أن فتحت الصفحة. اقرأ النص الجديد ثم اعتمد من جديد.",
+    en: "The event was renamed after you opened this page. Read the new text, then approve again.",
+  },
+  "console.invCampaign.approved": {
+    ar: "اعتُمد الطلب. النص الآن ثابت.",
+    en: "Approved. The text is now frozen.",
+  },
+  "console.invCampaign.sendAtMoved": {
+    ar: "اعتُمد الطلب. نُقل موعد الإرسال إلى {time} لتجنّب ساعات الهدوء.",
+    en: "Approved. The send time moved to {time} to stay out of quiet hours.",
+  },
+  "console.invCampaign.refused": {
+    ar: "رُفض الطلب. يرى المنظّم ملاحظتك.",
+    en: "Refused. The organizer sees your note.",
+  },
+  "console.invCampaign.cancelled": { ar: "أُلغي الطلب.", en: "Cancelled." },
+  "console.invCampaign.refuse": { ar: "ارفض الطلب", en: "Refuse the request" },
+  "console.invCampaign.cancel": { ar: "ألغِ الطلب", en: "Cancel the request" },
+  "console.invCampaign.cancelConfirm": {
+    ar: "إلغاء الطلب؟ الرسائل التي سُلّمت للمرسِل تصل كما هي.",
+    en: "Cancel this request? Messages already handed to the sender still go out.",
+  },
+  "invCampaignPage.title": { ar: "دعوة إلى فعالية", en: "Event invitation" },
+  "invCampaignPage.lead": {
+    ar: "دعوة إلى فعالية على Questify",
+    en: "You're invited to an event on Questify",
+  },
+  "invCampaignPage.open": { ar: "افتح في Questify", en: "Open in Questify" },
+  "invCampaignPage.openHint": {
+    ar: "ليس عندك التطبيق؟ تجد روابط تثبيته في الصفحة التالية.",
+    en: "No app yet? The next page has the links to install it.",
+  },
+  "invCampaignPage.missing": {
+    ar: "الرابط ناقص. افتح الرابط من الرسالة مرة أخرى.",
+    en: "This link is incomplete. Open the link from your message again.",
+  },
+  "invCampaignPage.ended": { ar: "انتهت هذه الدعوة.", en: "This invitation has ended." },
+  "invCampaignPage.throttled": {
+    ar: "محاولات كثيرة. انتظر قليلًا ثم افتح الرابط مرة أخرى.",
+    en: "Too many tries. Wait a little, then open the link again.",
+  },
+  "invCampaignPage.unavailable": {
+    ar: "تعذّر تحميل الدعوة. تحقق من اتصالك ثم افتح الرابط مرة أخرى.",
+    en: "We couldn't load the invitation. Check your connection and open the link again.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

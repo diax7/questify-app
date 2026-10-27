@@ -1,6 +1,6 @@
 "use client";
 
-import { readEventTerms, termFor, type Language } from "@questify/shared";
+import { readEventTerms, type Language } from "@questify/shared";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -27,7 +27,7 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
-import { HelpDeskLink } from "#src/components/HelpDeskPanel.tsx";
+import { EventNavLinks } from "#src/components/EventNavLinks.tsx";
 import { StreakPanel } from "#src/components/StreakPanel.tsx";
 import styles from "#src/components/layout.module.css";
 
@@ -214,53 +214,7 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
         {event === null ? t("events.new") : name}
       </h1>
       {event === null ? null : (
-        <p className={styles.row}>
-          <span className={styles.badge}>{t(`events.status.${status}`)}</span>
-          <span dir="ltr">{t("events.joinCode", { code: event.joinCode })}</span>
-          {status === "draft" ? (
-            <span className={styles.muted}>{t("events.draftNote")}</span>
-          ) : null}
-          <a className={styles.textLink} href={`${pages}/${event.id}/quests`}>
-            {t("quests.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/rewards`}>
-            {t("rewards.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/players`}>
-            {t("players.title", { players: termFor(terms.player, language) })}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/operators`}>
-            {t("operators.link")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/awards`}>
-            {t("awards.link")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/submissions`}>
-            {t("submissions.link")}
-          </a>
-          <HelpDeskLink language={language} organizerId={organizerId} eventId={event.id} />
-          <a className={styles.textLink} href={`${pages}/${event.id}/flags`}>
-            {t("flags.link")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/prizes`}>
-            {t("prizes.link")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/community`}>
-            {t("community.page.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/souvenirs`}>
-            {t("souvenir.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/boosts`}>
-            {t("boosts.page.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/joining`}>
-            {t("joining.title")}
-          </a>
-          <a className={styles.textLink} href={`${pages}/${event.id}/devices`}>
-            {t("devices.link")}
-          </a>
-        </p>
+        <EventNavLinks language={language} organizerId={organizerId} event={event} />
       )}
       {problem === null ? null : (
         <p role="alert" className={styles.alert}>
