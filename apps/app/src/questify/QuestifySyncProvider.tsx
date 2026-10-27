@@ -36,9 +36,15 @@ type SyncValue = Readonly<{
   syncNow: () => void;
   /** Counts the syncs that wrote something, so a screen reads its data again after one. */
   version: number;
+  /** Shows the level-up card for a level a daily game's finish reached (the sync does not report it again). */
+  celebrate: (levelUp: LevelUp) => void;
 }>;
 
-const SyncContext = createContext<SyncValue>({ syncNow: () => undefined, version: 0 });
+const SyncContext = createContext<SyncValue>({
+  syncNow: () => undefined,
+  version: 0,
+  celebrate: () => undefined,
+});
 
 export const useQuestifySync = (): SyncValue => useContext(SyncContext);
 
@@ -115,7 +121,10 @@ export function QuestifySyncProvider({ children }: Readonly<{ children: ReactNod
   const dismissNotice = useCallback(() => setNotices((current) => current.slice(1)), []);
   const dismissLevelUp = useCallback(() => setLevelUp(null), []);
   const syncNow = useCallback(() => scheduler.current?.focus(), []);
-  const value = useMemo<SyncValue>(() => ({ syncNow, version }), [syncNow, version]);
+  const value = useMemo<SyncValue>(
+    () => ({ syncNow, version, celebrate: setLevelUp }),
+    [syncNow, version],
+  );
   return (
     <SyncContext.Provider value={value}>
       <View style={styles.fill}>

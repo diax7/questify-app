@@ -5034,6 +5034,143 @@ export const MESSAGES = {
     ar: "إعدادات السلسلة غير صحيحة.",
     en: "The streak settings aren't valid.",
   },
+  // ---------------------------------------------------------------- daily games (T-406b, ADR-300: dates, never timers)
+  "daily.title": { ar: "ألعاب اليوم", en: "Daily games" },
+  "daily.play": { ar: "العب", en: "Play" },
+  "daily.continue": { ar: "تابع اللعب", en: "Keep playing" },
+  "daily.seeResult": { ar: "اعرض النتيجة", en: "See result" },
+  "daily.sponsor": { ar: "برعاية {name}", en: "Presented by {name}" },
+  "daily.failed": {
+    ar: "تعذّر تحميل ألعاب اليوم. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load the daily games. Check your connection and try again.",
+  },
+  "daily.periodOver": {
+    ar: "انتهت هذه الجولة. نعرض الجولة الحالية.",
+    en: "That round has ended. Showing the current one.",
+  },
+  "daily.changed": {
+    ar: "حُدّث المحتوى. نعرض الأحدث.",
+    en: "The content was updated. Showing the latest.",
+  },
+  "daily.otherLanguage": {
+    ar: "لعبت كلمة هذه الجولة بلغة أخرى.",
+    en: "You already played this round's word in the other language.",
+  },
+  "daily.unavailable": {
+    ar: "هذه اللعبة غير متاحة الآن.",
+    en: "This game isn't available right now.",
+  },
+  "daily.limited": {
+    ar: "محاولات كثيرة في وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.",
+    en: "Too many tries. Wait a moment, then try again.",
+  },
+  "daily.networkFailed": {
+    ar: "تعذّر الاتصال. حاول مرة أخرى، ولن تضيع إجابتك.",
+    en: "Couldn't connect. Try again. Nothing is lost.",
+  },
+  "daily.challenge.title": { ar: "تحدي اليوم", en: "Daily challenge" },
+  "daily.challenge.none": {
+    ar: "لا يوجد تحدٍّ الآن. عد لاحقًا.",
+    en: "There's no challenge right now. Check back later.",
+  },
+  "daily.challenge.cardNew": {
+    ar: "أجب عن ثلاثة أسئلة لتكسب XP.",
+    en: "Answer three questions to earn XP.",
+  },
+  "daily.challenge.cardProgress": {
+    ar: "أجبت عن {answered} من {total}",
+    en: "{answered} of {total} answered",
+  },
+  "daily.challenge.cardDone": {
+    ar: "أنهيت التحدي: {correct} من {total} صحيحة. ‎+{xp} XP",
+    en: "Done: {correct} of {total} right. +{xp} XP",
+  },
+  "daily.challenge.question": {
+    ar: "السؤال {position} من {total}",
+    en: "Question {position} of {total}",
+  },
+  "daily.challenge.nextQuestion": { ar: "السؤال التالي", en: "Next question" },
+  "daily.challenge.answerRight": { ar: "إجابة صحيحة", en: "Right answer" },
+  "daily.challenge.answerWrong": { ar: "إجابة غير صحيحة", en: "Not quite" },
+  "daily.challenge.optionRight": { ar: "الإجابة الصحيحة", en: "The right answer" },
+  "daily.challenge.optionYours": { ar: "إجابتك", en: "Your answer" },
+  "daily.challenge.optionLabel": { ar: "{text}، {state}", en: "{text}, {state}" },
+  "daily.challenge.resultTitle": { ar: "انتهى التحدي", en: "Challenge done" },
+  "daily.challenge.resultScore": {
+    ar: "{correct} من {total} صحيحة",
+    en: "{correct} of {total} right",
+  },
+  "daily.challenge.nextTomorrow": {
+    ar: "التحدي التالي غدًا.",
+    en: "The next challenge is tomorrow.",
+  },
+  "daily.challenge.nextOn": {
+    ar: "التحدي التالي يوم {weekday}.",
+    en: "The next challenge is on {weekday}.",
+  },
+  "daily.challenge.nextOnNextWeek": {
+    ar: "التحدي التالي يوم {weekday} القادم.",
+    en: "The next challenge is next {weekday}.",
+  },
+  "daily.word.title": { ar: "كلمة اليوم", en: "Daily word" },
+  "daily.word.none": {
+    ar: "لا توجد كلمة الآن. عد لاحقًا.",
+    en: "There's no word right now. Check back later.",
+  },
+  "daily.word.cardNew": {
+    ar: "خمّن كلمة من خمسة أحرف لتكسب XP.",
+    en: "Guess the five-letter word to earn XP.",
+  },
+  "daily.word.cardProgress": {
+    ar: "استخدمت {used} من {total} محاولات",
+    en: "{used} of {total} tries used",
+  },
+  "daily.word.cardSolved": {
+    ar: "خمّنتها في المحاولة {attempts}. ‎+{xp} XP",
+    en: "Solved on try {attempts}. +{xp} XP",
+  },
+  "daily.word.cardMissed": { ar: "لم تصب الكلمة هذه المرة.", en: "You didn't get it this time." },
+  "daily.word.language": { ar: "لغة الكلمة", en: "Word language" },
+  "daily.word.languageOnce": {
+    ar: "يمكنك لعب إحدى الكلمتين فقط.",
+    en: "You can play only one of the two words.",
+  },
+  "daily.word.attempt": { ar: "المحاولة {attempt} من {total}", en: "Try {attempt} of {total}" },
+  "daily.word.grid": { ar: "شبكة التخمين", en: "Guess grid" },
+  "daily.word.keyboard": { ar: "لوحة المفاتيح", en: "Keyboard" },
+  "daily.word.enter": { ar: "إدخال", en: "Enter" },
+  "daily.word.delete": { ar: "حذف", en: "Delete" },
+  "daily.word.tile": { ar: "{letter}، {mark}", en: "{letter}, {mark}" },
+  "daily.word.tileEmpty": { ar: "فارغ", en: "Empty" },
+  "daily.word.markRight": { ar: "في مكانه الصحيح", en: "right place" },
+  "daily.word.markElsewhere": { ar: "في الكلمة لكن في مكان آخر", en: "in the word, other place" },
+  "daily.word.markAbsent": { ar: "ليس في الكلمة", en: "not in the word" },
+  "daily.word.refusedLength": {
+    ar: "اكتب خمسة أحرف بالضبط.",
+    en: "Use exactly five letters.",
+  },
+  "daily.word.refusedLetters": {
+    ar: "استخدم حروف هذه اللغة فقط.",
+    en: "Use letters of this language only.",
+  },
+  "daily.word.refusedNotAWord": {
+    ar: "الكلمة ليست في القائمة. لم تُحتسب محاولة.",
+    en: "Not in the word list. No try was used.",
+  },
+  "daily.word.solvedTitle": { ar: "أصبت الكلمة", en: "You got it" },
+  "daily.word.solvedIn": { ar: "خمّنتها في المحاولة {attempts}", en: "Solved on try {attempts}" },
+  "daily.word.missedTitle": { ar: "لم تصب هذه المرة", en: "Not this time" },
+  "daily.word.revealed": { ar: "الكلمة هي {word}", en: "The word was {word}" },
+  "daily.word.nextTomorrow": { ar: "الكلمة التالية غدًا.", en: "The next word is tomorrow." },
+  "daily.word.nextOn": {
+    ar: "الكلمة التالية يوم {weekday}.",
+    en: "The next word is on {weekday}.",
+  },
+  "daily.word.nextOnNextWeek": {
+    ar: "الكلمة التالية يوم {weekday} القادم.",
+    en: "The next word is next {weekday}.",
+  },
+  "daily.xp": { ar: "‎+{xp} XP", en: "+{xp} XP" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

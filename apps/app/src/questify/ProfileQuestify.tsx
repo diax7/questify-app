@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { View } from "react-native";
 import { Button } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { DailyCards } from "#src/daily/DailyCards.tsx";
 import { OwnAchievements } from "#src/questify/AchievementsSection.tsx";
 import { OwnPassport } from "#src/questify/PassportSection.tsx";
 import { useQuestifySync } from "#src/questify/QuestifySyncProvider.tsx";
@@ -21,6 +22,7 @@ export function ProfileQuestify() {
   );
   return (
     <View style={{ gap: 16 }}>
+      <DailyCards />
       <OwnAchievements />
       <OwnPassport />
       <Button

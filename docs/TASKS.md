@@ -573,10 +573,17 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     `test/security/daily-players.int` and the outsider, cross-tenant and route maps. Proposed ADR-313 / Q-282. Screens:
     T-406b (app), T-406c (console).
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.
-- [ ] **T-406b** The daily games on screen: the challenge and word screens (grid, own keyboard per language, marks), their cards on the Profile's Questify section until T-408, the sponsor line, every string — delivers FR 730, 731, 732, 1810 (on screen); depends on: T-406
+- [x] **T-406b** The daily games on screen: the challenge and word screens (grid, own keyboard per language, marks), their cards on the Profile's Questify section until T-408, the sponsor line, every string — delivers FR 730, 731, 732, 1810 (on screen); depends on: T-406
   - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406b section).
     No countdown or loss copy (ADR-300); marks never by colour alone.
   - Done when: With no challenge or word for the period, no card is shown; a finished game says when the next one comes.
+  - Done 2026-10-27 (code review pending): `apps/app/src/daily/` (the challenge screen with a reveal after each answer,
+    the word screen with a six-row grid in the word's language and the app's own keyboard, 33 Arabic keys or 26 English,
+    marks by colour, glyph and border, the sponsor line, the next-date line), two cards on the Profile's Questify section
+    until T-408, a finish reloads the profile, syncs and shows the level-up card, every string in both languages.
+    Proven by `daily-api.test`, `daily-state.test`, `daily-lines.test`, `daily-flow.test`, `keyboard.test` (the keys
+    equal the shared 33-letter set) and `npx expo export`. Proposed ADR-314 / Q-283. Phone check owed (RTL grid,
+    keyboard size, VoiceOver and TalkBack).
 - [ ] **T-406c** The daily content in the console: question bank, schedule by period with the sponsor name, word bank and guess-list import, cadence, warnings and the menu badge — delivers FR 732, 1733, 1811, 1814 (on screen); depends on: T-406
   - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406c section).
   - Done when: Fewer than 7 days of questions, or fewer than two periods of content, shows a warning and a menu badge.

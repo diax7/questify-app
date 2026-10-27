@@ -4093,3 +4093,29 @@ always complete for the coverage count and the reads; tests that can cross 04:00
 finishes are new work at the same instant, not streak cost, and a laptop is not CranL.
 **Trade-offs:** A deleted staff account leaves its id on the rows it set (as the audit log does); a racing first save
 answers a retry-worthy 409 instead of waiting.
+
+## ADR-314 — T-406b build choices: the games' screens, the keyboard, the marks and the next-date line
+**Status:** Proposed (T-406b worker, 2026-10-27; Q-283). Specifies ADR-309, ADR-310 and ADR-300 on screen.
+**Decision:** (1) Until Questify Home (T-408) the two games are two cards under "Daily games" at the top of the Profile's
+Questify section, read from `GET /v1/me/daily`; a game that is `null` (switched off or no content) shows no card, and a
+failed read shows none (the games' own screens say "could not load" with a retry). The cards promise no XP amount before
+a finish (amounts are data, ADR-309); the XP shows once earned. (2) Each game is its own screen (`/daily-challenge`,
+`/daily-word`), read again on every focus and after each move. (3) The challenge shows one question at a time; an answer
+is final and is followed by a reveal (the right option marked by colour, a tick and a label; a wrong choice by a dashed
+border, a cross and a label) that stays until the player taps Next or See result. (4) The word's grid and keyboard
+follow the word's language, not the app's (an Arabic word fills right to left in an English app); tiles hold one letter
+each, so Arabic shows isolated forms; the keyboard is the app's own, with all 33 Arabic keys (4 rows) or 26 English keys,
+and a key shows the best mark its letter earned. (5) Marks use colour, a corner glyph (tick, ring, cross) and the border
+style, with a legend; every tile reads "ب, right place" to a screen reader. (6) A refused guess (length, letters, not in
+the list) keeps the typed letters and uses no try; a conflict reads the games again; a lost reply keeps the screen as it is
+and the same move can be sent again (the natural keys make it safe). (7) A finishing move reloads the profile (XP, level,
+streak), runs a sync (level gems, streak milestones) and shows the level-up card through the sync provider (`celebrate`),
+because the sync does not report a level the door already paid. (8) "When the next one comes" is a date, never a timer:
+"tomorrow", else "on {weekday}", or "next {weekday}" when that is today's weekday; it is worked out from the phone's clock
+as a Questify day (Riyadh UTC+3, day starting 04:00) and reuses the weekday names of the streak settings. (9) The
+revealed word is wrapped in a direction isolate so an Arabic word in an English sentence (or the reverse) keeps its
+order. (10) A game's state is held on the server only; nothing is stored on the phone.
+**Why:** The plan's surfaces with the accessibility rules of the task (marks never by colour alone, screen-reader labels,
+RTL, Reduce Motion through `PopIn`); the same patterns as the gem shop (pure flow functions, one reader per screen).
+**Trade-offs:** The next-date line trusts the phone's clock (display only; the server decides what counts), and says
+"tomorrow" even when the next period has no content yet; the cards vanish on a failed read; no hardware keyboard support.

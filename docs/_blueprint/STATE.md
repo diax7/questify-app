@@ -1559,11 +1559,22 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   same load; 300 extra concurrent finishes about +62 ms on a laptop (142 ms p95, inside 1 s; Q-282). Proposed ADR-313 /
   Q-282. Progress 85/161 (52.80%). Mutation globs for GitHub: `apps/api/src/daily/**/*.ts`,
   `packages/shared/src/daily/**/*.ts` (tests excluded).
+- 2026-10-27 **T-406b built (standard; code review pending).** The daily games on screen: `apps/app/src/daily/` (the
+  challenge screen: one question at a time, a reveal after each answer with the right option by colour, tick and label,
+  the sponsor line, an end card with the score, the XP and the next date; the word screen: a six-row grid in the word's
+  language, the app's own keyboard with 33 Arabic or 26 English keys, marks by colour, glyph and border with a legend,
+  screen-reader labels per tile, the reveal at the end, the language choice before the first guess), two cards under
+  "Daily games" on the Profile's Questify section until T-408, hidden when a game is null. A finish reloads the profile,
+  syncs and shows the level-up card (`celebrate` on the sync provider). Strings in both languages (`daily.*`). No
+  countdown or loss copy. Proven by `daily-api`, `daily-state`, `daily-lines`, `daily-flow` and `keyboard` tests
+  (the keys equal the shared 33-letter set), the Hermes guard, the function limits and `npx expo export`. Proposed
+  ADR-314 / Q-283. Phone check owed (RTL grid, keyboard size, VoiceOver and TalkBack). Progress 86/161 (53.42%). No
+  mutation globs (standard).
 
 ## Next
 
-1. **T-406 independent core code review** (strongest model), then the GitHub mutation run on T-406's core globs, then
-   T-406b and T-406c. Still open: the GitHub mutation run on T-405's core files. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258, Q-279 to Q-281. No deployment/EAS/
+1. **T-406 independent core code review** (strongest model), then the GitHub mutation run on T-406's core globs, a
+   standard code review of T-406b (with the Arabic pass), then T-406c. Still open: the GitHub mutation run on T-405's core files. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258, Q-279 to Q-281. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

@@ -972,3 +972,11 @@ streak work stays near the 20 ms budget (+15 and +20 ms), the shared daily strea
 load, while 300 extra finishes at the same instant add about 62 ms on a laptop (142 ms p95, inside the 1 s). Read the
 budget as the streak's own cost (recommended), or re-time on CranL before launch? Agree?
 **Answered (developer, delegated by Dhia, 2026-10-27):** Yes, with the review's changes (ADR-313): a unique violation maps by constraint name; only the streak's own cost counts against ADR-303, the shared-row collision is a stress figure and general load sits under NFR-002; the CranL staging load test includes the `daily` kind, and a new writer of `questify_streak_day` re-runs the timing.
+
+## Q-283 — The T-406b screens' small choices (2026-10-27, T-406b build)
+Recommended (ADR-314): two cards on the Profile until Questify Home, hidden when a game is null or the read fails and
+promising no XP amount before a finish; a reveal after every answer that waits for Next; the grid and keyboard in the
+word's language; marks by colour plus a glyph plus a border style, with a legend; a refused guess keeps the letters; a
+finish reloads the profile, syncs and shows the level-up card; the next-date line from the phone's clock ("tomorrow" or
+a weekday). Agree? Phone check owed: the RTL grid, the Arabic keyboard size on a small phone, VoiceOver and TalkBack
+on tiles and options.

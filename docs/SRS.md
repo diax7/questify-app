@@ -1112,9 +1112,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-724 | F-135 | Should | server built T-404 (`test/db/gems.int`: closed source list, one entry per level, tier and paying Questify award, retroactive, amounts as data, event points, score and XP untouched, only `questify_sync` credits), core code review GO 93; the gem count on the Profile, the "+N gems" toast and the quests list (T-404b, `sync-notices.test`, `gems.test`) |
 | FR-725 | F-135, F-136 | Should | server built T-404 (no purchase or transfer door, no door names another player, no gem field in the public profile; `test/db/gems.int`), core code review GO 93; on screen the shop has no add-gems control, no link out and no gift or trade door, and says gems are earned and cannot be bought (T-404b, `GemShopScreen`, `gem-shop-flow.test`) |
 | FR-726 | F-136 | Should | partial: server built T-404 (`test/db/gem-shop.int`: deducts and adds to the locker, too few gems refused with the balance unchanged, one copy, seen price, replay); frames and titles only, no characters until character art exists (ADR-288); the shop screen with its confirmation sheet, owned and too-few-gems states (T-404b, `gem-shop-api.test`, `gem-shop-flow.test`) |
-| FR-730 | F-137 | Should | partial: server built T-406 (`test/db/daily-challenge.int`: three answers in order pay 20 + 10 a right answer once, a replay or a second play pays nothing; `test/daily/routes.int`); the screen is T-406b |
-| FR-731 | F-137 | Should | server built T-406 (`test/db/daily-challenge.int`: a finished challenge keeps the day with no event play, nothing while the streak switch is off); the screen is T-406b |
-| FR-732 | F-137 | Should | partial: server built T-406 (a sponsor name on its period's challenge only, `test/db/daily-challenge.int`, `test/daily/routes.int`); the console's field is T-406c, the app's line T-406b |
+| FR-730 | F-137 | Should | partial: server built T-406 (`test/db/daily-challenge.int`: three answers in order pay 20 + 10 a right answer once, a replay or a second play pays nothing; `test/daily/routes.int`); the screen built T-406b (`apps/app/src/daily`, `daily-state.test`, `daily-flow.test`) |
+| FR-731 | F-137 | Should | built T-406 (`test/db/daily-challenge.int`: a finished challenge keeps the day with no event play, nothing while the streak switch is off); the finish reloads the profile and syncs, so the streak and its milestones show (T-406b, `use-daily`) |
+| FR-732 | F-137 | Should | partial: server built T-406 (a sponsor name on its period's challenge only, `test/db/daily-challenge.int`, `test/daily/routes.int`); the app's "Presented by" line built T-406b (`daily-lines.test`, `SponsorLine`); the console's field is T-406c |
 | FR-733 | F-138 | Should | pending |
 | FR-734 | F-138 | Should | pending |
 | FR-735 | F-140 | Must | pending |
@@ -1402,7 +1402,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1807 | F-309 | Must | built (T-305, ADR-213) |
 | FR-1808 | F-310 | Should | default pictures built (T-305); organizer images T-305b, blocked on Q-149 |
 | FR-1809 | F-311 | Should | built (T-305, ADR-213: the window is the time limit plus 10 minutes, memory only) |
-| FR-1810 | F-312 | Should | partial: server built T-406 (`test/db/daily-word.int`: solved in four pays 50 XP and keeps the streak, six misses reveal the word with no XP, two-pass marks); the screen is T-406b |
+| FR-1810 | F-312 | Should | partial: server built T-406 (`test/db/daily-word.int`: solved in four pays 50 XP and keeps the streak, six misses reveal the word with no XP, two-pass marks); the screen built T-406b (grid in the word's language, own keyboard, marks by colour plus glyph, `keyboard.test`, `daily-state.test`) |
 | FR-1811 | F-313 | Should | partial: server built T-406 (`test/db/daily-content.int`: each word language warns under 2 periods, no word → `word: null`); the word bank tab is T-406c |
 | FR-1812 | F-314 | Must | pending |
 | FR-1813 | F-315 | Should | pending |
