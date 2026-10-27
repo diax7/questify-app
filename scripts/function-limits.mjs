@@ -214,11 +214,29 @@ export function describeFinding(finding) {
   }
 }
 
+const REQUIRED_RULES = {
+  complexity: ["error", 8],
+  "max-lines-per-function": ["error", { max: 100, skipBlankLines: true, skipComments: true }],
+};
+
+// The limits config must still define both rules with the values of docs/rules.md; a config that drops one would
+// make its offenders look "gone" and let --update erase them from the baseline.
+export function verifyConfig(config) {
+  for (const [rule, required] of Object.entries(REQUIRED_RULES)) {
+    if (JSON.stringify(config?.rules?.[rule]) !== JSON.stringify(required)) {
+      throw new Error(
+        `.oxlintrc.limits.json must define ${rule} as ${JSON.stringify(required)}; nothing was compared or written.`,
+      );
+    }
+  }
+}
+
 // The whole decision, without any I/O: { code, out, err, newBaseline } where newBaseline is the text to write.
 // scan is what spawnSync returned for the oxlint run; a run that fails verifyScan can neither pass nor update.
-export function runRatchet({ baseline, scan, update }) {
+export function runRatchet({ baseline, config, scan, update }) {
   let offenders;
   try {
+    verifyConfig(config);
     offenders = verifyScan(scan);
   } catch (error) {
     return { code: 1, out: [], err: [error.message], newBaseline: undefined };
@@ -255,8 +273,10 @@ function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const baselinePath = join(root, "scripts", "function-limits-baseline.json");
   const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+  const config = JSON.parse(readFileSync(join(root, ".oxlintrc.limits.json"), "utf8"));
   const { code, out, err, newBaseline } = runRatchet({
     baseline,
+    config,
     scan: scanWithOxlint(root),
     update: argv.includes("--update"),
   });

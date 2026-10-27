@@ -249,12 +249,20 @@ describe("verifyScan", () => {
 
 const scanOf = (...lines: string[]) => ok(`${lines.join("\n")}\n${lines.length} problems\n`);
 
+const validConfig = {
+  rules: {
+    complexity: ["error", 8],
+    "max-lines-per-function": ["error", { max: 100, skipBlankLines: true, skipComments: true }],
+  },
+};
+
 describe("runRatchet", () => {
   const baseline = baselineOf(complexityLine("a.ts", 1, "function `f`", 12));
 
   it("passes and only suggests --update when offenders shrank", () => {
     const result = runRatchet({
       baseline,
+      config: validConfig,
       scan: scanOf(complexityLine("a.ts", 1, "function `f`", 9)),
       update: false,
     });
@@ -267,6 +275,7 @@ describe("runRatchet", () => {
   it("fails with the finding and a hint on a new offender", () => {
     const result = runRatchet({
       baseline,
+      config: validConfig,
       scan: scanOf(
         complexityLine("a.ts", 1, "function `f`", 12),
         linesLine("b.ts", 4, "function", 101),
@@ -282,6 +291,7 @@ describe("runRatchet", () => {
   it("--update lowers the baseline", () => {
     const result = runRatchet({
       baseline,
+      config: validConfig,
       scan: scanOf(complexityLine("a.ts", 1, "function `f`", 9)),
       update: true,
     });
@@ -293,6 +303,7 @@ describe("runRatchet", () => {
   it("--update refuses to grow the baseline", () => {
     const result = runRatchet({
       baseline,
+      config: validConfig,
       scan: scanOf(complexityLine("a.ts", 1, "function `f`", 13)),
       update: true,
     });
@@ -308,11 +319,44 @@ describe("runRatchet", () => {
       ok("Failed to parse oxlint configuration file."),
     ]) {
       for (const update of [true, false]) {
-        const result = runRatchet({ baseline, scan, update });
+        const result = runRatchet({ baseline, config: validConfig, scan, update });
 
         expect(result.code).toBe(1);
         expect(result.newBaseline).toBeUndefined();
         expect(result.err[0]).toContain("cannot be trusted");
+      }
+    }
+  });
+
+  it("refuses a limits config that drops or loosens a rule, with or without --update", () => {
+    const withoutComplexity = {
+      "max-lines-per-function": validConfig.rules["max-lines-per-function"],
+    };
+    const withoutLines = { complexity: validConfig.rules.complexity };
+    const looser = { rules: { ...validConfig.rules, complexity: ["error", 9] } };
+    const unskipped = {
+      rules: { ...validConfig.rules, "max-lines-per-function": ["error", { max: 100 }] },
+    };
+    const noRules = {};
+
+    for (const config of [
+      { rules: withoutComplexity },
+      { rules: withoutLines },
+      looser,
+      unskipped,
+      noRules,
+    ]) {
+      for (const update of [true, false]) {
+        const result = runRatchet({
+          baseline,
+          config,
+          scan: scanOf(complexityLine("a.ts", 1, "function `f`", 12)),
+          update,
+        });
+
+        expect(result.code).toBe(1);
+        expect(result.newBaseline).toBeUndefined();
+        expect(result.err[0]).toContain(".oxlintrc.limits.json must define");
       }
     }
   });
