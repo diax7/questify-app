@@ -1208,6 +1208,8 @@ reminders and invitations; the hidden-category hint), with T-312b merged into th
 RUNBOOK's push checklist on real phones (in T-806's Done-when). The other option, one server slice with the clients
 inside, gives one very large core review mixing data rules with outside calls. Developer's call at the T-501 reviews
 (plan review 80 folded 2026-10-28; re-review owed).
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-342 Accepted; go-live waits for the RUNBOOK push checklist (T-806).
 
 ## Q-312 — The push store's shape (2026-10-28, T-501 plan)
 Recommended (ADR-343): a notice per event, a center row per recipient as the record of every message, an outbox per
@@ -1215,6 +1217,8 @@ device, devices tied to the sign-in, kinds as seeded rows, 180-day center retent
 and the worker writes every center row and send (plan review finding 2). The other option, event-wide messages read by
 union at view time with a per-player read mark, stores fewer rows but makes "every message, read and unread" and
 membership at the time of sending harder to prove. Developer's call at the T-501 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-343 Accepted, with settle also removing the personal notices and center rows a racing producer wrote for a player deleted in the last 24 hours.
 
 ## Q-313 — Direct APNs and FCM, and running without keys (2026-10-28, T-501 plan)
 Recommended (ADR-344): direct clients on Node's own HTTP/2, fetch and crypto; all-or-none configuration; start and send
@@ -1222,6 +1226,8 @@ nothing when no keys are set (until Dhia's Apple and Google accounts exist); the
 from the build profile (plan review finding 5). The other options: a library per provider (more dependencies), or
 refuse to start without keys (production could not run before the accounts exist). Developer's call at the T-501b
 review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-344 Accepted, with the re-review's environment rule: `development` → sandbox; `production`, `null` (every App Store and TestFlight install) or an error → production.
 
 ## Q-314 — The push worker and its retry rule (2026-10-28, T-501 plan)
 Recommended (ADR-345): the in-process loop with its own small pool and leases (no pg-boss), priority and a per-notice
@@ -1229,12 +1235,16 @@ cap, waves acked as they end, no attempt that could outlive its lease, a requeue
 after a write, a breaker, holds per APNs environment, and a guard that counts only ambiguous token answers (plan review
 findings 3 and 4). The other options: pg-boss (a second job store and a dependency), or T-409's strict "never retry"
 (an outage would lose every queued push). Developer's call at the T-501 reviews.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-345 Accepted, with the re-review's fold-in: in-lease tries capped at `8 − attempts`, a per-notice `LATERAL` claim, the deadline on the worker's monotonic clock, and the APNs never-processed answers requeued.
 
 ## Q-315 — What a push may say (2026-10-28, T-501 plan)
 Recommended (ADR-346): fixed gender-neutral templates per kind, only public names (event, quest, category, reward) and
 dates, the name rule with a nameless fallback, ids only in the payload. The other option, generic texts with no names
 at all, is safer still but makes every push read the same ("Something happened in your event"). Developer's call at the
 T-501 reviews; counsel's data-transfer list (Q-043) already names push text.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-346 Accepted.
 
 ## Q-316 — Who receives, what it may name, topics and mute (2026-10-28, T-501 plan)
 Recommended (ADR-347): active players and active members only (per-kind exceptions for the join decision and help-desk
@@ -1243,12 +1253,16 @@ no one once archived (plan review finding 1); no row naming a quest or category 
 topics owned by the kind; mute stops the push but keeps the center row unread; mutes per player across events; no quiet
 hours or brake (Q-287). The other option for mute, hiding muted messages from the center, conflicts with "the center
 holds every message". Developer's call at the T-501 reviews; the topic list itself is FR-1115's.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-347 Accepted, with event notices naming a quest checked by `member_event_quests`' visibility test and a named reward by its audience.
 
 ## Q-317 — Promotional push and the invitation channel order (2026-10-28, T-501 plan)
 Recommended (ADR-348): consent from `promo_pool('push')` at fan-out and claim; a promotional tap opens its center row,
 which holds the opt-out; invitations by push first when possible, else SMS, one message per player per campaign. The
 other option, SMS first, costs money per message for players who also accepted push. Developer's call at the T-501f
 review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-348 Accepted.
 
 ## Q-318 — The app's permission moment, environment, center route and taps (2026-10-28, T-501 plan)
 Recommended (ADR-349): the explainer after a join, Not now waits 30 days, the APNs environment from `expo-application`,
@@ -1256,3 +1270,5 @@ the center at `/notifications` with the offers screen moved to `/settings/notifi
 private lock-screen channels for personal and offers, `expo-notifications` and `expo-application` as new dependencies.
 The other option, asking once and never again after Not now, loses players who joined before they cared. Developer's
 call at the T-501c review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted as recommended at the T-501 plan review (80) and
+re-review (88, GO), with their fold-ins; ADR-349 Accepted, with the environment rule of Q-313 and the `enrollment` trigger's filter (`declined → active` in, operators and rehearsal accounts out).

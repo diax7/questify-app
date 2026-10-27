@@ -114,7 +114,8 @@ L1 elsewhere, MASVS for the app (`docs/QUALITY_BASELINE.md`).
 
 - Player app: Expo SDK 57 (React Native) + TypeScript, development builds, EAS Build and Submit.
 - Server: Node 22 + Fastify, one modular monolith; PostgreSQL with a shared schema and row-level security;
-  Redis-compatible ranking cache; pg-boss jobs.
+  Redis-compatible ranking cache; in-process scheduled ticks over PostgreSQL with leases (ADR-333, ADR-345; pg-boss
+  only if a job later needs it).
 - Web: one Next.js app (event page, station, big screen, dashboard, console).
 - Hosting: CranL Pro, `riyadh-1` (ADR-107). SMS: Msegat (ADR-103).
 

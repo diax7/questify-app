@@ -816,6 +816,11 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     the notice, sends never outlive their lease and an outage requeues (breaker, `attempts`), uninstalls always clean
     up, the APNs environment read on the phone, erasure deletes personal notices, `sees_category` before naming a quest
     or category, the RUNBOOK go-live checklist. Short re-review owed; ADR-342 to ADR-349 stay Proposed until it passes.
+  - Plan re-review 2026-10-28 (CTO 88, GO once folded; no further re-review): folded in the plan's "Second plan
+    review" table (the iOS environment: `null` and errors mean production; in-lease tries capped at `8 − attempts`; a
+    per-notice `LATERAL` claim; the deadline on the worker's monotonic clock; more APNs answers; the `enrollment`
+    trigger's filter; quest windows and reward audiences; settle's cleanup of recent erasures). ADR-342 to ADR-349
+    Accepted, Q-311 to Q-318 answered (developer, delegated by Dhia, 2026-10-28). Ready to build.
 - [ ] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-344, ADR-345). CORE; plan: `docs/plans/2026-10-28-t-501-push.md` (T-501b
     section). No new server dependency; the Gmail sender's service-account token code moves to `auth/google-token.ts`.
@@ -829,7 +834,8 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
     call only `notice_create` (one insert): statement-level triggers with transition tables for bulk writes, a
-    row-level `WHEN` trigger on `enrollment` (accept-all of 5,000 measured under 5 s), due scans for times, no per-row
+    row-level `WHEN` trigger on `enrollment` (`pending` or `declined` → `active`/`declined`, never an operator or rehearsal
+    account; accept-all of 5,000 measured under 5 s), due scans for times, no per-row
     `EXCEPTION` block; each producer has a "broken kind cannot roll back the door" test (plan § Review 2).
   - Done when: Each decision, answer and revealed prize gives exactly one push and one center row, never to a player who left or was erased.
 - [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d

@@ -4699,8 +4699,8 @@ the escalation and the return (`purge_ended_tickets`, 0061); an event that is ne
 would need a new migration and its own decision.
 
 ## ADR-342 — T-501 splits into seven slices; T-312b folds into the app slice
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan, `docs/plans/2026-10-28-t-501-push.md`;
-plan review 80 folded, re-review owed; Q-311).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan, `docs/plans/2026-10-28-t-501-push.md`;
+plan review 80 and re-review 88 folded; Q-311).
 **Decision:** (1) **T-501** (core): the store, the doors, the push worker with a fake provider, the center, mute and
 device routes. **T-501b** (core): the real APNs and FCM clients and their configuration. **T-501c** (standard): the app
 (permission, token, center screen, mutes, deep links). **T-501d** (core): the owed personal pushes. **T-501e** (core):
@@ -4715,7 +4715,7 @@ devices can prove them.
 **Trade-offs:** seven reviews instead of one; FR-1101 and FR-1102 stay partly delivered until T-501f.
 
 ## ADR-343 — The push store: a notice, one center row per recipient, an outbox, a device per sign-in
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-312). Specifies FR-1104, FR-1824 and the DATA_MODEL placeholder `notification, notification_delivery`.
 **Decision:** (1) `notice`: one row per thing that happened, with its kind, event, ids (`refs`), frozen public names
 (`params`, cut in SQL to 40 characters), a unique `dedupe` key (the once-only marker) and an expiry (the kind's time to
@@ -4733,7 +4733,8 @@ reused refresh token stop pushes with no change to sign-in code. (6) `push_topic
 widening CHECKs; every row must have a template (a DB test), and one without renders generic center text. (8)
 Retention: center rows 180 days, outbox rows 7 days after their end, devices 60 days unseen or 7 days after invalid;
 purges walk the primary key from the oldest id. (9) Erasure deletes the player's personal notices (cascading), center
-rows, sends, devices and mutes; settle deletes center rows a racing fan-out wrote for a deleted player. (10) The notice
+rows, sends, devices and mutes; settle deletes the personal notices and center rows a racing producer or fan-out wrote for a player deleted in the
+last 24 hours (a bounded scan of recent erasures). (10) The notice
 holds no counters (no hot row).
 **Why:** one record per recipient makes "the center holds every message" literal and the history a plain indexed read;
 tying devices to the sign-in reuses the session rules that already exist; a producer that only inserts one row cannot
@@ -4743,7 +4744,7 @@ slow, lock or roll back the door it rides on.
 message appears about a second after the decision.
 
 ## ADR-344 — APNs and FCM called directly behind one provider interface; nothing sent without keys
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-313). Specifies ADR-086 and INTEGRATIONS "Push".
 **Decision:** (1) APNs over HTTP/2 with a token-based ES256 provider token (re-signed every 40 minutes), FCM HTTP v1 with
 a service account's OAuth token; `node:http2`, `fetch` and `node:crypto` only (no new server dependency); the Gmail
@@ -4753,28 +4754,34 @@ sender's service-account token code is shared. (2) One `PushProvider` interface 
 refuses to start; none set starts, sends nothing for that platform and logs it once at warn level in production. (4)
 The startup check signs the APNs token once and fetches the FCM token in the background (failure holds FCM). (5) The
 APNs environment is the device's own, read by the app with `expo-application`'s
-`getIosPushNotificationServiceEnvironmentAsync()` at registration (null on a simulator: not registered; unreadable:
-production), because internal (ad hoc) builds use production APNs whatever their EAS profile.
+`getIosPushNotificationServiceEnvironmentAsync()` at registration: `development` → sandbox; `production`, `null` or
+an error → production (Expo's own rule for `getExpoPushTokenAsync`), because internal (ad hoc) builds use production
+APNs whatever their EAS profile, and App Store and current TestFlight builds carry no provisioning profile to read
+(`null`). A TestFlight install registering as production and receiving is a RUNBOOK go-live line.
 **Why:** no relay sees the text (INTEGRATIONS); Dhia's Apple and Google accounts do not exist yet, so the store and
 the center must work and be tested without them; the build profile does not tell the environment.
 **Trade-offs:** two protocol clients to maintain; the first real push waits for Dhia's keys and the RUNBOOK checklist.
 
 ## ADR-345 — Sending: an in-process worker, leases that sends never outlive, requeue on outages, a breaker
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-314). Specifies rule 5 and NFR-004; the pattern of ADR-333 with the departures below.
 **Decision:** (1) An in-process worker loop in the API container (ADR-109), not pg-boss, with **its own small pool**
 (from `poolOptions`, at most 3 connections): fan-out (personal notices first, then 2,000 enrollments a call with a cursor
-on the notice), then claim rounds of up to 200 rows, **at most 100 from one notice**, by priority (personal, event,
-promotional) then id; a picked row past its expiry becomes `expired` (settle expires the rest by index). Several
+on the notice), then claim rounds of up to 200 rows, **at most 100 from one notice** (a per-notice `LATERAL` pick over
+the index `(target, priority, notice_id, id) WHERE state = 'queued'`, no sort over the queue), by priority (personal,
+event, promotional) then notice then id; a picked row past its expiry becomes `expired` (settle expires the rest by index). Several
 instances share the outbox through `SKIP LOCKED`. (2) Sends go in waves of at most 50 per target, **each wave acked as
-it ends**. (3) **No attempt starts that could end after the row's lease** (its 10 s timeout plus 2 s must fit); such a
-row is requeued. (4) Outcomes: a definite 500 or 503 (after in-lease retries) is **requeued** and sent again until its
-expiry; a connection that failed before writing is requeued with no attempt counted; only a timeout or reset **after
-the request was written** is `unknown`, never resent; every attempt carries the same collapse id and Android tag;
+it ends**. (3) **No attempt starts that could end after the row's lease**: the deadline is the worker's monotonic clock
+read before the claim, plus the 60 s lease minus 2 s (the host's clock is never compared with the database's); such a
+row is requeued. In-lease tries are capped at `8 − attempts` and the ack writes `least(n, 8)`, so one row can never
+break its wave's ack. (4) Outcomes: a definite 500 or 503 (after in-lease retries) is **requeued** and sent again until its
+expiry; a connection that failed before writing is requeued with no attempt counted; a request APNs never processed
+(`REFUSED_STREAM`, a stream above a `GOAWAY`, 503 `Shutdown`, 400 `IdleTimeout`) is requeued; only a timeout or reset
+**after the request was written** is `unknown`, never resent; every attempt carries the same collapse id and Android tag;
 `attempts` counts requests written, 8 means `failed`. At most once across leases as ADR-333 (2). (5) A breaker per
 target: 10 consecutive 5xx or timeouts hold it 30 s, doubling to 15 minutes; one success resets it. Account and quota
 refusals hold the target (15 minutes; FCM quota `Retry-After`, at least 60 s); held rows are requeued with no attempt
-counted. (6) Invalid tokens: APNs 410 `Unregistered` and FCM `UNREGISTERED` always invalidate and are not counted by
+counted. (6) Invalid tokens: APNs 410 `Unregistered` and `ExpiredToken` and FCM `UNREGISTERED` always invalidate and are not counted by
 the guard; the ambiguous codes (`BadDeviceToken`, `DeviceTokenNotForTopic`, `SENDER_ID_MISMATCH`, token-named
 `INVALID_ARGUMENT`) invalidate unless 20 or more answers in a round from one target are more than half ambiguous, which
 holds that target and invalidates none; a device re-registered after the claim is never invalidated. (7) Gate: 50,000
@@ -4786,7 +4793,7 @@ at-most-once turns an outage into lost messages; post-event uninstalls are norma
 to 500 pushes a second; a long outage ends with messages expiring into the center only.
 
 ## ADR-346 — Push text: fixed templates, an allowlist of public names, ids only in the payload
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-315). Specifies rule 3, SECURITY "Data protection" and Apple 4.5.4.
 **Decision:** (1) Every kind has a fixed title and body in both languages (ux-araby, gender-neutral phrasing such as
 «يمكنك استلامها قبل {date}», Western digits, the event's terminology tokens). (2) Placeholders are only the event's, a
@@ -4800,13 +4807,15 @@ nothing else; the app maps them to its own routes, so no server-sent link is eve
 **Trade-offs:** pushes are generic ("Your submission was approved", no points); the detail is one tap away.
 
 ## ADR-347 — Who receives a push, what it may name, the four mutable topics, and no quiet hours
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-316). Specifies FR-1102, FR-1103, FR-1115, FR-1703 and the T-208 note; keeps ADR-065 and Q-287 (Dhia: no quiet
 hours for any push).
 **Decision:** (1) The player must be `active`, at fan-out and at the claim. (2) Event kinds go to `active` enrollments
-only (not excluded); the join decision reaches `active` or `declined`; a help-desk answer needs no membership. When a
-notice names a quest or a category, a member who cannot see it (`sees_category`: its audience and, if hidden, revealed
-by them; a quest through its category) gets no center row and no send, checked at fan-out and at the claim. (3) The
+only (not excluded); the join decision reaches `active` or `declined`; a help-desk answer needs no membership. When an
+event notice names a quest, a category or a reward, a member who cannot see it gets no center row and no send, checked at fan-out and at the claim: a category by `sees_category` (its audience and, if hidden, revealed by
+them), a quest by `member_sees_quest` (`member_event_quests`' visibility test: visible, opened, not closed, its
+category seen), a reward by its audience. A personal notice names what the player already acted on and needs
+`sees_category` only. (3) The
 event's status now decides the audience: `draft` and `scheduled` reach rehearsal enrollments only (the "starting soon"
 kind reaches real members and skips them); `live` and `ended` reach every active member; `archived` reaches no one. (4)
 Topics: `announcements` (announcements, flash quests, boosts, polls, category opening, the hint), `rank`, `community`
@@ -4823,7 +4832,7 @@ Dhia answered the quiet-hours question.
 soon" push during rehearsal; a member who reveals a category after its notice was sent never gets that row.
 
 ## ADR-348 — A promotional push needs the recorded consent and a device; its tap opens the center row with the opt-out
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-317). Specifies FR-1111, FR-1114, ADR-318 and ADR-331 for push.
 **Decision:** (1) A promotional kind reaches only players in `promo_pool('push', ...)` (opted in on push now, an adult by
 ADR-317), checked at fan-out and again at the claim; the OS permission alone is never consent. (2) Its center row shows
@@ -4838,7 +4847,7 @@ the app (Apple 4.5.4, FR-1114).
 the phone.
 
 ## ADR-349 — The app asks after joining, reads its APNs environment, and routes taps itself
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 folded, re-review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 plan; plan review 80 and re-review 88 folded;
 Q-318). Specifies FR-1105, FR-1106, FR-1824, PD-08 and STORE_COMPLIANCE §3.
 **Decision:** (1) After a successful join, with the permission undetermined, the app shows its explainer ("Get told
 when flash quests drop") with Turn on and Not now; only Turn on shows the system prompt; Not now waits 30 days; never at
@@ -4850,7 +4859,10 @@ fixed shared table gives for the kind and marks that row read; an unknown kind a
 center row. (5) Android channels per topic, `personal` and `offers` are created before the prompt; `personal` and
 `offers` show no content on a locked screen (`lockscreenVisibility: PRIVATE`). (6) Registration at launch when granted
 and on a token change, otherwise at most once a day; iOS tokens lower-cased; sign-out removes the device first. (7) The
-APNs environment is read with `expo-application` (ADR-344 (5)). New dependencies: `expo-notifications` (the native
+APNs environment is read with `expo-application` (ADR-344 (5)): `development` → sandbox, anything else (including
+`null`, which every App Store and TestFlight install answers) → production; only a physical device registers.
+(8) The `enrollment` producer's `WHEN` filter (T-501d) covers `declined → active` and leaves out operators and
+rehearsal accounts (plan § Review 2). New dependencies: `expo-notifications` (the native
 device token and taps) and `expo-application` (the APNs environment).
 **Why:** FR-1105's wording; Apple 4.5.4 and 5.1.1; a route table in the app means a payload can never open an
 arbitrary link; internal builds use production APNs.

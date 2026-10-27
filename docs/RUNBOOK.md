@@ -215,7 +215,7 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
 
 ## Push notifications (T-501, T-501b; planned, not built)
 
-Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Proposed). The build fills in the log lines and the
+Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Accepted). The build fills in the log lines and the
 timing check.
 
 - **Settings (all-or-none per provider):** `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` from the Apple
@@ -237,14 +237,15 @@ submission (T-806) is marked done.
 1. The APNs provider token is accepted on both hosts: a development build receives through
    `api.sandbox.push.apple.com`, an internal or TestFlight build through `api.push.apple.com`; FCM accepts the service
    account.
-2. A real iPhone and a real Android phone each receive a personal push and an event push, in Arabic (right to left on
+2. A TestFlight install registers as `production` (its environment reads `null`, ADR-344 (5)) and receives a push.
+3. A real iPhone and a real Android phone each receive a personal push and an event push, in Arabic (right to left on
    the lock screen, Western digits) and in English.
-3. After uninstalling the app on each phone, the next push comes back as APNs 410 `Unregistered` and FCM 404
+4. After uninstalling the app on each phone, the next push comes back as APNs 410 `Unregistered` and FCM 404
    `UNREGISTERED`, in the shapes T-501b maps, and the device is marked invalid.
-4. Sending the same notification twice replaces the first on both phones (APNs collapse id, Android tag).
-5. A tap with the app killed opens the right screen: confirm where `expo-notifications` puts the direct-APNs custom key
+5. Sending the same notification twice replaces the first on both phones (APNs collapse id, Android tag).
+6. A tap with the app killed opens the right screen: confirm where `expo-notifications` puts the direct-APNs custom key
    `q` (`trigger.payload` or `content.data`) and the FCM `data`, and that the app reads them there.
-6. With the permission refused, the center still lists the message and Settings shows the off state.
+7. With the permission refused, the center still lists the message and Settings shows the off state.
 
 ## Usernames and the word lists (T-109, ADR-119)
 
