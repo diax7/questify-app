@@ -47,7 +47,10 @@ function useIdempotencyKey(): (body: unknown) => string {
   };
 }
 
-/** The preview line: nothing, the streak alone, or the streak with its bonus in the event's currency word. */
+/**
+ * The preview line: nothing, the streak alone, or the streak with its bonus in the event's currency word. Not a live
+ * region: it changes with every keystroke, and only the save's answer is announced.
+ */
 function PreviewLine({
   language,
   draft,
@@ -56,7 +59,7 @@ function PreviewLine({
   const t = useTranslator(language);
   const preview = previewOf(draft);
   return (
-    <p role="status" className={styles.muted}>
+    <p className={styles.muted}>
       {preview.key === "events.streak.preview.bonus"
         ? t(preview.key, {
             points: preview.points,
@@ -167,7 +170,7 @@ function ReadOnly({
     .join(separator);
   return (
     <>
-      <p role="status" className={styles.muted}>
+      <p className={styles.muted}>
         {t(settings.enabled ? "events.streak.on" : "events.streak.off")}
       </p>
       <PreviewLine language={language} draft={draftOf(settings)} terms={terms} />
@@ -186,12 +189,20 @@ function ReadOnly({
   );
 }
 
-/**
- * The event's day streak (T-405b, FR-417, FR-418, FR-1615): the owner turns it on, sets an optional daily bonus from
- * day 2, closes weekdays and upcoming dates, and saves the whole thing; an editor reads it. A single-day event says why
- * there is no streak. Days that have started can't change, so the API's refusals are said in words by reason.
- */
-export function StreakPanel({ language, organizerId, eventId, myRole, terms }: Props) {
+type Panel = Readonly<{
+  loaded: Loaded | "loading" | "failed";
+  busy: boolean;
+  problem: string | null;
+  saved: boolean;
+  invalidBonus: boolean;
+  load: () => Promise<void>;
+  edit: (draft: StreakDraft) => void;
+  clearBonusProblem: () => void;
+  save: (event: FormEvent) => Promise<void>;
+}>;
+
+/** Reads the settings once per event and saves the whole draft; the API's refusals become words. */
+function useStreakPanel(language: Language, organizerId: string, eventId: string): Panel {
   const t = useTranslator(language);
   const [loaded, setLoaded] = useState<Loaded | "loading" | "failed">("loading");
   const [busy, setBusy] = useState(false);
@@ -213,10 +224,10 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
   const load = async () => {
     setLoaded("loading");
     const result = await requestJson("GET", path);
-    const settings = result.ok ? settingsOf(result.body) : undefined;
     if (!result.ok && lostSession(result.body)) {
       return;
     }
+    const settings = result.ok ? settingsOf(result.body) : undefined;
     setLoaded(settings === undefined ? "failed" : { settings, draft: draftOf(settings) });
   };
 
@@ -230,6 +241,13 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
       setLoaded({ ...loaded, draft });
       setSaved(false);
     }
+  };
+
+  const refusalText = (body: unknown): string => {
+    const refusal = refusalOf(body);
+    return refusal === undefined
+      ? describeProblem(body, language, t).text
+      : t(refusal.key, refusal.day === undefined ? {} : { day: isolatedDay(refusal.day) });
   };
 
   const save = async (event: FormEvent) => {
@@ -255,108 +273,156 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
     }
     const settings = result.ok ? settingsOf(result.body) : undefined;
     if (settings === undefined) {
-      const refusal = refusalOf(result.body);
-      setProblem(
-        refusal === undefined
-          ? describeProblem(result.body, language, t).text
-          : t(refusal.key, refusal.day === undefined ? {} : { day: isolatedDay(refusal.day) }),
-      );
+      setProblem(refusalText(result.body));
       return;
     }
     setLoaded({ settings, draft: draftOf(settings) });
     setSaved(true);
   };
 
+  return {
+    loaded,
+    busy,
+    problem,
+    saved,
+    invalidBonus,
+    load,
+    edit,
+    clearBonusProblem: () => setInvalidBonus(false),
+    save,
+  };
+}
+
+/** The owner's form: the switch, the bonus, the closed weekdays and dates, the preview and Save. */
+function OwnerForm({
+  language,
+  loaded,
+  panel,
+  terms,
+}: Readonly<{ language: Language; loaded: Loaded; panel: Panel; terms: EventTerms }>) {
+  const t = useTranslator(language);
+  const { draft, settings } = loaded;
+  return (
+    <form className={styles.form} onSubmit={(event) => void panel.save(event)}>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={draft.enabled}
+          disabled={panel.busy}
+          onChange={(changed) => panel.edit({ ...draft, enabled: changed.target.checked })}
+        />
+        <span>{t("events.streak.label")}</span>
+      </label>
+      <NumberField
+        label={t("events.streak.bonus", { currency: termFor(terms.currency, language) })}
+        value={draft.bonus}
+        invalid={panel.invalidBonus}
+        disabled={panel.busy}
+        change={(bonus) => {
+          panel.clearBonusProblem();
+          panel.edit({ ...draft, bonus });
+        }}
+      />
+      <p className={styles.muted}>{t("events.streak.bonusHint")}</p>
+      <fieldset className={styles.choices}>
+        <legend>{t("events.streak.weekdays")}</legend>
+        {WEEKDAYS.map(({ day, label }) => (
+          <label key={day} className={styles.check}>
+            <input
+              type="checkbox"
+              checked={draft.closedWeekdays.includes(day)}
+              disabled={panel.busy}
+              onChange={() => panel.edit(toggleWeekday(draft, day))}
+            />
+            <span>{t(label)}</span>
+          </label>
+        ))}
+        <p className={styles.muted}>{t("events.streak.weekdaysHint")}</p>
+      </fieldset>
+      <ClosedDates
+        language={language}
+        draft={draft}
+        today={settings.today}
+        busy={panel.busy}
+        change={panel.edit}
+      />
+      <PreviewLine language={language} draft={draft} terms={terms} />
+      <button type="submit" className={styles.button} disabled={panel.busy}>
+        {t("events.streak.save")}
+      </button>
+    </form>
+  );
+}
+
+/** The panel while the settings load, when they could not be read, and once they have. */
+function PanelBody({
+  language,
+  myRole,
+  terms,
+  panel,
+}: Readonly<{
+  language: Language;
+  myRole: "owner" | "editor";
+  terms: EventTerms;
+  panel: Panel;
+}>) {
+  const t = useTranslator(language);
+  const { loaded } = panel;
+  if (loaded === "loading") {
+    return <p className={styles.muted}>{t("common.loading")}</p>;
+  }
+  if (loaded === "failed") {
+    return (
+      <>
+        <p role="alert" className={styles.alert}>
+          {t("events.streak.failed")}
+        </p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.quiet} onClick={() => void panel.load()}>
+            {t("common.retry")}
+          </button>
+        </div>
+      </>
+    );
+  }
+  const body = !loaded.settings.multiDay ? (
+    <p className={styles.muted}>{t("events.streak.singleDay")}</p>
+  ) : myRole === "owner" ? (
+    <OwnerForm language={language} loaded={loaded} panel={panel} terms={terms} />
+  ) : (
+    <ReadOnly language={language} settings={loaded.settings} terms={terms} />
+  );
+  return (
+    <>
+      <p className={styles.muted}>{t("events.streak.intro")}</p>
+      {body}
+      {myRole === "owner" ? null : <p className={styles.muted}>{t("events.ranking.ownerOnly")}</p>}
+      {panel.saved ? (
+        <p role="status" className={styles.notice}>
+          {t("events.streak.saved")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The event's day streak (T-405b, FR-417, FR-418, FR-1615): the owner turns it on, sets an optional daily bonus from
+ * day 2, closes weekdays and upcoming dates, and saves the whole thing; an editor reads it. A single-day event says why
+ * there is no streak. Days that have started can't change, so the API's refusals are said in words by reason.
+ */
+export function StreakPanel({ language, organizerId, eventId, myRole, terms }: Props) {
+  const t = useTranslator(language);
+  const panel = useStreakPanel(language, organizerId, eventId);
   return (
     <section className={styles.formCard} aria-labelledby="streak-title">
       <h2 id="streak-title" className={styles.subtitle}>
         {t("events.streak.title")}
       </h2>
-      {loaded === "loading" ? <p className={styles.muted}>{t("common.loading")}</p> : null}
-      {loaded === "failed" ? (
-        <>
-          <p role="alert" className={styles.alert}>
-            {t("events.streak.failed")}
-          </p>
-          <div className={styles.actions}>
-            <button type="button" className={styles.quiet} onClick={() => void load()}>
-              {t("common.retry")}
-            </button>
-          </div>
-        </>
-      ) : null}
-      {typeof loaded === "object" ? (
-        <>
-          <p className={styles.muted}>{t("events.streak.intro")}</p>
-          {!loaded.settings.multiDay ? (
-            <p role="status" className={styles.muted}>
-              {t("events.streak.singleDay")}
-            </p>
-          ) : myRole === "owner" ? (
-            <form className={styles.form} onSubmit={(event) => void save(event)}>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={loaded.draft.enabled}
-                  disabled={busy}
-                  onChange={(changed) => edit({ ...loaded.draft, enabled: changed.target.checked })}
-                />
-                <span>{t("events.streak.label")}</span>
-              </label>
-              <NumberField
-                label={t("events.streak.bonus", { currency: termFor(terms.currency, language) })}
-                value={loaded.draft.bonus}
-                invalid={invalidBonus}
-                disabled={busy}
-                change={(bonus) => {
-                  setInvalidBonus(false);
-                  edit({ ...loaded.draft, bonus });
-                }}
-              />
-              <p className={styles.muted}>{t("events.streak.bonusHint")}</p>
-              <fieldset className={styles.choices}>
-                <legend>{t("events.streak.weekdays")}</legend>
-                {WEEKDAYS.map(({ day, label }) => (
-                  <label key={day} className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={loaded.draft.closedWeekdays.includes(day)}
-                      disabled={busy}
-                      onChange={() => edit(toggleWeekday(loaded.draft, day))}
-                    />
-                    <span>{t(label)}</span>
-                  </label>
-                ))}
-                <p className={styles.muted}>{t("events.streak.weekdaysHint")}</p>
-              </fieldset>
-              <ClosedDates
-                language={language}
-                draft={loaded.draft}
-                today={loaded.settings.today}
-                busy={busy}
-                change={edit}
-              />
-              <PreviewLine language={language} draft={loaded.draft} terms={terms} />
-              <button type="submit" className={styles.button} disabled={busy}>
-                {t("events.streak.save")}
-              </button>
-            </form>
-          ) : (
-            <ReadOnly language={language} settings={loaded.settings} terms={terms} />
-          )}
-          {myRole === "owner" ? null : (
-            <p className={styles.muted}>{t("events.ranking.ownerOnly")}</p>
-          )}
-          {saved ? (
-            <p role="status" className={styles.notice}>
-              {t("events.streak.saved")}
-            </p>
-          ) : null}
-        </>
-      ) : null}
-      {problem === null ? null : (
+      <PanelBody language={language} myRole={myRole} terms={terms} panel={panel} />
+      {panel.problem === null ? null : (
         <p role="alert" className={styles.alert}>
-          {problem}
+          {panel.problem}
         </p>
       )}
     </section>

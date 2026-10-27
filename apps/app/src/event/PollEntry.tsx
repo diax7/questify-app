@@ -11,6 +11,7 @@ import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import { castVote, secondsLeft } from "#src/event/plays.ts";
 import { clockText, fetchPoll, sharesOf, toggleChoice, type PollView } from "#src/event/polls.ts";
+import { streakBonusLine } from "#src/streaks/event-streak.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -137,11 +138,14 @@ export function PollEntry({
     const answer = await castVote(api.session, questId, chosen, key);
     setBusy(false);
     if (answer.kind === "voted") {
-      setSaid(
+      // A 0-point poll can still pay a streak bonus (T-405b): its line shows on its own.
+      const paid =
         answer.points > 0
-          ? `${t("poll.thanks")} ${paidText(t, terms, language, answer)}`
-          : t("poll.thanks"),
-      );
+          ? paidText(t, terms, language, answer)
+          : answer.streakBonus === null
+            ? null
+            : streakBonusLine(t, answer.streakBonus);
+      setSaid(paid === null ? t("poll.thanks") : `${t("poll.thanks")} ${paid}`);
       onPaid();
       onVoted();
       await load();

@@ -887,8 +887,10 @@ Recommended (ADR-304): the Home card says "N days in a row" (not "Day N"), reads
 flame, the scan celebration gets its own streak beat, every other answer carries a "Streak day N! +P" line, the profile's
 daily streak sits beside the gems with the next reward, and one toast shows per milestone paid. Agree, or should the
 card say "Day N" as the plan's wording did?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-304 accepted; code review GO 91). The streak bonus lines use the event's quest word in Arabic as in English.
 
 ## Q-270 — The dashboard's Day streak panel (2026-10-27, T-405b build)
 Recommended (ADR-305): one Save for the five settings, upcoming dates only, started dates listed and fixed, a single-day
 event explains itself, and the owner-only note shows for editors on every event. Agree, or should the single-day event
 hide the panel and the note?
+**Answered (developer, delegated by Dhia, 2026-10-27):** as recommended (ADR-305 accepted; code review GO 91). The weekday chips start on Sunday, the Saudi week.

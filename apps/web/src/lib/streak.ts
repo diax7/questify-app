@@ -10,15 +10,15 @@ import {
   type StreakSettingsBody,
 } from "@questify/shared";
 
-/** The seven ISO weekdays (1 is Monday) with the words that name them. */
+/** The seven ISO weekdays (1 is Monday) in the Saudi week, which starts on Sunday, with the words that name them. */
 export const WEEKDAYS = [
+  { day: 7, label: "events.streak.sunday" },
   { day: 1, label: "events.streak.monday" },
   { day: 2, label: "events.streak.tuesday" },
   { day: 3, label: "events.streak.wednesday" },
   { day: 4, label: "events.streak.thursday" },
   { day: 5, label: "events.streak.friday" },
   { day: 6, label: "events.streak.saturday" },
-  { day: 7, label: "events.streak.sunday" },
 ] as const satisfies ReadonlyArray<Readonly<{ day: number; label: MessageKey }>>;
 
 /** What the form holds: the bonus as typed, so an empty box means "no bonus". */

@@ -82,7 +82,7 @@ describe("streakCardText", () => {
 
   it("puts the amount's sign first in an Arabic line, with Western digits", () => {
     const text = streakCardText({ ...open, bonusPoints: 1000 }, tIn("ar"), DEFAULT_TERMS, "ar");
-    expect(text.bonus).toBe("نقاط: ‎+1,000 مع أول إنجاز في كل يوم، من اليوم الثاني.");
+    expect(text.bonus).toBe("نقاط: ‎+1,000 مع أول مهمة كل يوم، من اليوم الثاني.");
     expect(text.bonus).not.toMatch(/[٠-٩]/);
   });
 

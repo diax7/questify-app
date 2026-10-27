@@ -3945,7 +3945,7 @@ players feel.
 **Trade-offs:** A large entrance burst on a multi-day event with the streak on is about 10 to 20 ms slower at p95.
 
 ## ADR-304 — T-405b app copy and layout: days in a row, a closed day first, the redone flame, one line in every answer
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405b build; Q-269). Extends ADR-300, ADR-302.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, T-405b build; Q-269). Extends ADR-300, ADR-302.
 **Decision:** (1) The card's headline is "{N} days in a row" (Arabic «{N} أيام على التوالي», with the dual and the singular
 noun from 11 days) in place of the plan's "Day {N}": the stored length stays true on a day the player has not played yet,
 where "Day 3" would read as today. The success card keeps "Streak day {N}! +{points}". (2) The state is read in the order
@@ -3964,7 +3964,7 @@ lines) while showing the streak where a player already looks.
 goes off; the next read hides it.
 
 ## ADR-305 — T-405b dashboard Day streak panel: one Save, upcoming dates only, the owner-only note on every event
-**Status:** Proposed (worker recommendation, 2026-10-27, T-405b build; Q-270). Extends ADR-299.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, T-405b build; Q-270). Extends ADR-299.
 **Decision:** The panel sits on the event page after the other switches. Its five settings go to the server as one body
 (`PUT …/streak` takes all or nothing), so it has one Save button with an Idempotency-Key per distinct body, not the
 tick-to-save of the single switches. Closed weekdays are chips (at most six); closed dates may be added only for days

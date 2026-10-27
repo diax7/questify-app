@@ -4916,7 +4916,7 @@ export const MESSAGES = {
     en: "The event is closed today. Your streak is safe.",
   },
   "streak.bonus": {
-    ar: "{currency}: ‎+{points} مع أول إنجاز في كل يوم، من اليوم الثاني.",
+    ar: "{currency}: ‎+{points} مع أول {questOne} كل يوم، من اليوم الثاني.",
     en: "+{points} {currency} with your first {questOne} each day, from day 2.",
   },
   "streak.bonusPaid": {
@@ -4993,7 +4993,7 @@ export const MESSAGES = {
     en: "Preview: players see their streak, with no bonus.",
   },
   "events.streak.preview.bonus": {
-    ar: "المعاينة: يرى اللاعبون سلسلتهم، ويحصلون عند أول إنجاز كل يوم، من اليوم الثاني، على {currency}: ‎+{points}.",
+    ar: "المعاينة: يرى اللاعبون سلسلتهم، ويحصلون عند أول {questOne} كل يوم، من اليوم الثاني، على {currency}: ‎+{points}.",
     en: "Preview: players see their streak, and their first {questOne} each day pays +{points} {currency} from day 2.",
   },
   "events.streak.save": { ar: "احفظ إعدادات السلسلة", en: "Save the streak settings" },
