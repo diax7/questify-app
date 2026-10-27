@@ -4152,7 +4152,7 @@ bank; a word has to be typed again). (11) The tabs are plain buttons with `aria-
 a daily cadence is a long list; the mark on the console home costs one extra read per visit.
 
 ## ADR-316 — T-407 split, and marketing consent as a dated log with a state the log writes
-**Status:** Proposed (worker recommendation, 2026-10-27, T-407 plan; Q-285). Specifies ADR-065 and F-140.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407 code review 86, about 93 after the fold-in; Q-285). Specifies ADR-065 and F-140.
 **Decision:** (1) T-407 is split: **T-407** the server, the shared schemas, the web (the event form's interests, the
 opt-out page); **T-407b** the app screens; **T-407c** (core, small) the "set your interests" Questify quest metric. (2)
 Consent is per channel (push, SMS, email), off until a recorded yes. Every change is one row in an append-only log
@@ -4162,8 +4162,11 @@ partial index on the opted-in rows serves the audience. (3) The first answer is 
 when every one stays off, so "Skip" at sign-up is three dated opt-outs (FR-735) and the app asks only once (`asked`
 comes from the state rows); later saves record only channels that changed. (4) The sign-up step is an app screen shown
 once after sign-up, driven by `GET /v1/me` `marketing {asked, canOptIn}`; no sign-in function changes. (5) A consent
-sent with a wording version other than the one in force is refused (409 `consent_text_outdated`), so a yes is always a
-yes to the text on screen. (6) A platform admin reads a player's channels and log through one audited door (no contact
+that turns a channel on, sent with a wording version other than the one in force, is refused (409 `consent_text_outdated`),
+so a yes is always a yes to the text on screen. A body that only turns channels off saves whatever the version (review
+finding 1): otherwise the Settings opt-out from an old app, or "No offers, thanks" after a wording change, would be refused
+and the one-time step could not be dismissed. The app also remembers an answer saved in this run, so a failed profile
+read afterwards cannot show the step again. The wording is versioned: its text changed in review, so the version is "2". (6) A platform admin reads a player's channels and log through one audited door (no contact
 shown). (7) Consent is erased with the account (Q-289).
 **Why:** PDPL IR Art. 11 and 12 (per purpose, documented with time and method, withdrawal as easy as consent), CST 4.6.6
 (proof of consent, opt-out), FR-1113, and a race-free state for the sender that needs no log scan.
@@ -4171,11 +4174,13 @@ shown). (7) Consent is erased with the account (Q-289).
 needs an app release (the wording ships in the app, ADR-073).
 
 ## ADR-317 — A possible minor is never offered or accepted for marketing; a signed link opts out with no sign-in
-**Status:** Proposed (worker recommendation, 2026-10-27, T-407 plan; Q-286, Q-288). Specifies STORE_COMPLIANCE §3.1.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407 code review 86, about 93 after the fold-in; Q-285). Specifies STORE_COMPLIANCE §3.1. Q-286 and Q-288 stay open for Dhia and counsel.
 **Decision:** (1) Marketing consent needs full legal capacity (IR Art. 11), and the age that means is "to check with
 counsel". Build-around: a player may opt in only when this Riyadh year minus the birth year is at least 19 (a birth
 year alone proves 18 only from the year after). Anyone else is refused (403 `consent_age`), is not shown the sign-up
-step (`canOptIn` false), and can still turn any channel off. One number in `marketing_adult`; no guardian flow is built.
+step (`canOptIn` false), and can still turn any channel off. One number in `marketing_adult`; no guardian flow is built. `marketing_audience`
+re-checks `marketing_adult` (a join on the birth year), so a promotion cannot reach a player below the age by construction,
+whatever state an older opt-in left (review finding 3).
 (2) Every promotional message carries an opt-out link: a stateless token (player id, channel and a 16-byte HMAC tag
 keyed from `AUTH_SECRET`, purpose `marketing-opt-out`), no expiry, constant-time check. `POST
 /v1/public/marketing/opt-out` answers 204 for any validly signed token (a known player, an unknown one and one already
@@ -4188,7 +4193,7 @@ giving consent" (IR Art. 12).
 (it already signs everyone out).
 
 ## ADR-318 — Promotions choose recipients at one door and SMS keeps CST's quiet hours
-**Status:** Proposed (worker recommendation, 2026-10-27, T-407 plan; Q-287). Specifies ADR-065, FR-737, FR-1111, FR-1738.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407 code review 86, about 93 after the fold-in; Q-285). Specifies ADR-065, FR-737, FR-1111, FR-1738. Q-287 answered by Dhia: SMS only.
 **Decision:** (1) Every promotional sender (T-409, T-501, T-706) chooses its recipients through `marketing_audience`:
 active players opted in on the channel now, optionally in a city or holding any of some interests, by player id,
 at most 1000 a page, ids only. It reads at send time, so an opt-out takes effect at once (inside FR-1738's 24 hours).
@@ -4201,7 +4206,7 @@ as ADR-065 decided; a one-line set decides which channels have one.
 push at 03:00 is allowed until Dhia says otherwise.
 
 ## ADR-319 — Interests are a seeded catalog, an event holds up to three, and "For you" is a plain match
-**Status:** Proposed (worker recommendation, 2026-10-27, T-407 plan; Q-285). Specifies FR-733, FR-734, FR-710.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407 code review 86, about 93 after the fold-in; Q-285). Specifies FR-733, FR-734, FR-710.
 **Decision:** (1) `interest`: 12 seeded, bilingual, ordered ids (sport, music, tech, gaming, food, art, culture,
 learning, business, family, wellness, travel); read-only until the console edits catalogs (T-703/T-709), like `city`.
 (2) A player's city (from `city`) and up to 8 interests live in `player_preference`, private to the player: no public
@@ -4210,8 +4215,8 @@ team through the existing column grant; a trigger keeps them to catalog ids, dis
 lists events the public list shows (public, listing itself, scheduled or live) that the caller has not joined and that
 share an interest with the caller or lie in the caller's city; order: both, then interests, then city; inside a group
 more shared interests, then the soonest start; at most 20, no cursor. No interests and no city: an empty list. (5) The
-"set your interests" Questify quest (FR-710) needs a new metric counted by `questify_sync`, which pays XP; it is core
-and is T-407c.
+The "set your interests" Questify quest (FR-710) needs a new metric counted by `questify_sync`, which pays XP; it is core
+and is T-407c, which counts interests only, not a city (the reviewer's call). The list is named "Suggested for you" / «مقترحة لك» on screen.
 **Why:** FR-734's examples are exactly this match; a closed catalog keeps matching exact and the choice quick; the XP
 evaluator is core and has its own review.
 **Trade-offs:** Fixed catalog until the console edits it; an event with no interests is shown by city only.

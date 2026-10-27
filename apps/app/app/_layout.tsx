@@ -62,7 +62,7 @@ function ConsentGate() {
   const due =
     state.status === "signed_in" &&
     (state.me?.legal.toAccept.length ?? 0) === 0 &&
-    consentStepDue(state.me?.marketing);
+    consentStepDue(state.me);
   useEffect(() => {
     if (due && atLanding(segments)) {
       router.replace("/marketing-consent");

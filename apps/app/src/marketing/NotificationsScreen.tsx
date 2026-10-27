@@ -18,21 +18,13 @@ import { fetchMarketing, saveMarketing } from "#src/marketing/marketing-api.ts";
 import { consentNotice, switchBody, ticksOf } from "#src/marketing/marketing-flow.ts";
 import { useRead } from "#src/questify/use-read.ts";
 
-/**
- * Settings → Offers and notifications (FR-736, FR-1114): the three channels, each saved the moment its switch moves, so
- * turning one off is as easy as turning it on. One save runs at a time; a failed save leaves the switch where the
- * server last had it.
- */
-export function NotificationsScreen() {
-  const { t } = useI18n();
-  const read = useRead(() => fetchMarketing(api.session), []);
+/** The saved state after the player's own switches, the save in flight and its notice (one save at a time). */
+function useChannelSave(fresh: Marketing | null) {
   const [saved, setSaved] = useState<Marketing | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<MessageKey | null>(null);
-  const current = saved ?? read.data;
   // A fresher read (the screen gained focus again) replaces what an earlier save here left.
-  useEffect(() => setSaved(null), [read.data]);
-
+  useEffect(() => setSaved(null), [fresh]);
   const change = async (channel: MarketingChannel, on: boolean) => {
     if (busy) return;
     setBusy(true);
@@ -43,8 +35,47 @@ export function NotificationsScreen() {
     setNotice(consentNotice(outcome));
     setBusy(false);
   };
+  return { current: saved ?? fresh, busy, notice, change };
+}
 
-  const ticks = current === null ? null : ticksOf(current);
+/** The three switches, and why they may be stuck off. */
+function Switches({
+  current,
+  busy,
+  change,
+}: Readonly<{
+  current: Marketing;
+  busy: boolean;
+  change: (channel: MarketingChannel, on: boolean) => Promise<void>;
+}>) {
+  const { t } = useI18n();
+  const ticks = ticksOf(current);
+  return (
+    <>
+      {current.canOptIn ? null : <AppText muted>{t("marketing.ageLimited")}</AppText>}
+      {MARKETING_CHANNELS.map((channel) => (
+        <ChannelRow
+          key={channel}
+          channel={channel}
+          on={ticks[channel]}
+          disabled={busy || (!current.canOptIn && !ticks[channel])}
+          onChange={(on) => void change(channel, on)}
+        />
+      ))}
+      <AppText muted>{t("marketing.stop")}</AppText>
+    </>
+  );
+}
+
+/**
+ * Settings → Offers and notifications (FR-736, FR-1114): the three channels, each saved the moment its switch moves, so
+ * turning one off is as easy as turning it on. One save runs at a time; a failed save leaves the switch where the
+ * server last had it.
+ */
+export function NotificationsScreen() {
+  const { t } = useI18n();
+  const read = useRead(() => fetchMarketing(api.session), []);
+  const { current, busy, notice, change } = useChannelSave(read.data);
   return (
     <Screen title={t("marketing.settingsTitle")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 16 }}>
@@ -55,21 +86,7 @@ export function NotificationsScreen() {
             <Button kind="quiet" label={t("common.retry")} onPress={read.retry} />
           </>
         ) : null}
-        {current === null || ticks === null ? null : (
-          <>
-            {current.canOptIn ? null : <AppText muted>{t("marketing.ageLimited")}</AppText>}
-            {MARKETING_CHANNELS.map((channel) => (
-              <ChannelRow
-                key={channel}
-                channel={channel}
-                on={ticks[channel]}
-                disabled={busy || (!current.canOptIn && !ticks[channel])}
-                onChange={(on) => void change(channel, on)}
-              />
-            ))}
-            <AppText muted>{t("marketing.stop")}</AppText>
-          </>
-        )}
+        {current === null ? null : <Switches current={current} busy={busy} change={change} />}
         {notice === null ? null : (
           <AppText accessibilityRole="alert" accessibilityLiveRegion="polite">
             {t(notice)}

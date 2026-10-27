@@ -55,6 +55,8 @@ function build(
 const asked = (seen: Seen[], name: string) => seen.filter((one) => one.sql.includes(name));
 const put = (url: string, payload: unknown, headers: Record<string, string> = SIGNED_IN) =>
   app.inject({ method: "PUT", url, headers, payload: payload as object });
+const forgedToken = () =>
+  optOutToken(createAuthKeys("z".repeat(40)), { playerId: OTHER, channel: "sms" });
 const consent = (overrides: object = {}) => ({
   textVersion: MARKETING_TEXT_VERSION,
   method: "settings",
@@ -130,6 +132,25 @@ describe("PUT /v1/me/marketing", () => {
       code: "consent_text_outdated",
       details: { textVersion: MARKETING_TEXT_VERSION },
     });
+    expect(asked(seen, "set_marketing")).toEqual([]);
+  });
+
+  it("saves an all-off body whatever the wording version: the Settings opt-out from an old app, and the skip after a wording change", async () => {
+    const { seen } = build(() => ({ rows: [{ r: STATE }] }));
+    for (const method of ["settings", "signup"]) {
+      const off = consent({ textVersion: "0.9", method, channels: { push: false, sms: false } });
+      expect((await put("/v1/me/marketing", off)).statusCode, method).toBe(200);
+    }
+    expect(asked(seen, "set_marketing")).toHaveLength(2);
+  });
+
+  it("still refuses a yes to old wording even when other channels in the body are off", async () => {
+    const { seen } = build(() => ({ rows: [{ r: STATE }] }));
+    const response = await put(
+      "/v1/me/marketing",
+      consent({ textVersion: "0.9", channels: { push: false, sms: true } }),
+    );
+    expect(response.statusCode).toBe(409);
     expect(asked(seen, "set_marketing")).toEqual([]);
   });
 
@@ -262,6 +283,17 @@ describe("POST /v1/public/marketing/opt-out", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "invalid_opt_out" });
     expect(asked(seen, "marketing_opt_out")).toEqual([]);
+  });
+
+  it("throttles forged tokens too: at the limit the answer is 429, not 400", async () => {
+    build(() => ({ rows: [{ r: "opted_out" }] }), { count: 30, retry_after: 40 });
+    expect((await optOut({ token: forgedToken() })).statusCode).toBe(429);
+  });
+
+  it("counts a forged token as an attempt before it is refused", async () => {
+    const { seen } = build(() => ({ rows: [{ r: "opted_out" }] }));
+    expect((await optOut({ token: forgedToken() })).statusCode).toBe(400);
+    expect(asked(seen, "INSERT INTO auth_throttle")).toHaveLength(1);
   });
 
   it.each([{}, { token: "x" }, { token: "a".repeat(44), extra: 1 }, { token: 5 }])(

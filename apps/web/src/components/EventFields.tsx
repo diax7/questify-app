@@ -113,7 +113,7 @@ function useCities(): Readonly<{ cities: readonly City[]; failed: boolean }> {
  * The event's city, for Questify's city achievements (T-403, ADR-277). An online event has none, so the field is not
  * shown; once the event is live the city is fixed (the API refuses a change with `city_locked`; this says so up front).
  */
-export function EventCityField({
+function EventCityField({
   language,
   draft,
   disabled,
@@ -210,6 +210,16 @@ export function EventInterestsField({ language, draft, disabled, change }: Field
       ) : null}
       <p className={styles.muted}>{t(full ? "events.interests.full" : "events.interests.hint")}</p>
     </fieldset>
+  );
+}
+
+/** Where and about what: the event's city and its interests, which decide who "Suggested for you" shows it to. */
+export function EventPlaceFields(props: FieldProps & Readonly<{ status: EventStatus }>) {
+  return (
+    <>
+      <EventCityField {...props} />
+      <EventInterestsField {...props} />
+    </>
   );
 }
 

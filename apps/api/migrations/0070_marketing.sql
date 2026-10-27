@@ -301,14 +301,15 @@ REVOKE ALL ON FUNCTION marketing_opt_out(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION marketing_opt_out(uuid, text) TO questify_app;
 
 -- The recipients of a promotion on one channel (FR-737, FR-1111): active players opted in on it, optionally living in
--- `in_city` or holding any of `any_of`, by player id after `after_player`, at most 1000. The only door a promotional
+-- `in_city` or holding any of `any_of`, by player id after `after_player`, at most 1000. Players who cannot opt in
+-- (marketing_adult) are left out here too, so a promotion never reaches one by construction. The only door a promotional
 -- sender may choose recipients through. Ids only.
 CREATE FUNCTION marketing_audience(ch text, in_city text, any_of text[], after_player uuid, page integer)
   RETURNS TABLE (player_id uuid)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT s.player_id
   FROM marketing_state s
-  JOIN player p ON p.id = s.player_id AND p.status = 'active'
+  JOIN player p ON p.id = s.player_id AND p.status = 'active' AND marketing_adult(p.birth_year)
   LEFT JOIN player_preference f ON f.player_id = s.player_id
   WHERE s.channel = ch AND s.opted_in
     AND (after_player IS NULL OR s.player_id > after_player)

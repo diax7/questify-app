@@ -338,7 +338,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       const banned = await player();
       const erased = await player();
       const withdrew = await player();
-      for (const who of [pushOnly, smsOnly, both, none, banned, erased, withdrew]) {
+      const underAge = await player();
+      const noBirthYear = await player();
+      for (const who of [
+        pushOnly,
+        smsOnly,
+        both,
+        none,
+        banned,
+        erased,
+        withdrew,
+        underAge,
+        noBirthYear,
+      ]) {
         await call(who, "SELECT set_preferences($1, $2::text[]) AS r", [city, ["sport"]]);
       }
       await set(pushOnly, { push: true });
@@ -349,6 +361,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences (dat
       await set(erased, { push: true });
       await set(withdrew, { push: true });
       await set(withdrew, { push: false });
+      await set(underAge, { push: true, sms: true });
+      await set(noBirthYear, { push: true, sms: true });
+      await f.owner("UPDATE player SET birth_year = $2 WHERE id = $1", [
+        underAge,
+        (await year()) - 15,
+      ]);
+      await f.owner("UPDATE player SET birth_year = NULL WHERE id = $1", [noBirthYear]);
       await f.owner("UPDATE player SET status = 'banned' WHERE id = $1", [banned]);
       await f.owner("UPDATE player SET status = 'deleted', username = NULL WHERE id = $1", [
         erased,

@@ -64,9 +64,24 @@ export function consentNotice(outcome: ConsentOutcome): MessageKey | null {
   }
 }
 
-/** Whether the one-time step is due: signed in, never answered, and old enough to be asked (ADR-316, ADR-317). */
-export const consentStepDue = (marketing: MarketingSummary | undefined): boolean =>
-  marketing !== undefined && !marketing.asked && marketing.canOptIn;
+const answeredHere = new Set<string>();
+
+/** Remembers, for this run of the app, that the player answered the step, whatever the next profile read says. */
+export const rememberAnswer = (playerId: string): void => {
+  answeredHere.add(playerId);
+};
+
+/**
+ * Whether the one-time step is due: never answered (here or on the server), and old enough to be asked (ADR-316,
+ * ADR-317). An answer saved just now counts at once, so a profile read that fails afterwards cannot show it again.
+ */
+export const consentStepDue = (
+  me: Readonly<{ id: string; marketing?: MarketingSummary | undefined }> | undefined,
+): boolean =>
+  me?.marketing !== undefined &&
+  !me.marketing.asked &&
+  me.marketing.canOptIn &&
+  !answeredHere.has(me.id);
 
 /** The routes the step may interrupt: the two places the app lands, never a join, a sign-in or a game in progress. */
 export function atLanding(segments: readonly string[]): boolean {

@@ -120,6 +120,32 @@ function instantOf(local: string, timeZone: string): Date | undefined {
   }
 }
 
+/** A time sent, read in the zone, else the stored one; undefined when neither is a time. */
+function instantFrom(
+  sent: string | undefined,
+  stored: Date | null | undefined,
+  timezone: string,
+): Date | undefined {
+  return sent === undefined ? (stored ?? undefined) : instantOf(sent, timezone);
+}
+
+/** The start and end after this input: the ones sent, read in the zone, else the stored ones; the end after the start. */
+function timesOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+  timezone: string,
+): Readonly<{ startsAt: Date; endsAt: Date }> | Invalid {
+  const startsAt = instantFrom(input.startsAt, current?.startsAt, timezone);
+  if (startsAt === undefined) {
+    return { kind: "invalid", field: "startsAt" };
+  }
+  const endsAt = instantFrom(input.endsAt, current?.endsAt, timezone);
+  if (endsAt === undefined || endsAt <= startsAt) {
+    return { kind: "invalid", field: "endsAt" };
+  }
+  return { startsAt, endsAt };
+}
+
 /**
  * The event's fields after this input, from what is stored (or the defaults for a new event), checked as one whole.
  * Times sent are read in the zone sent with them, else the stored zone; a zone changed without times keeps the
@@ -135,17 +161,9 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
   if (!isTimeZone(timezone)) {
     return { kind: "invalid", field: "timezone" };
   }
-  const startsAt =
-    input.startsAt === undefined
-      ? (current?.startsAt ?? undefined)
-      : instantOf(input.startsAt, timezone);
-  if (startsAt === undefined || startsAt === null) {
-    return { kind: "invalid", field: "startsAt" };
-  }
-  const endsAt =
-    input.endsAt === undefined ? (current?.endsAt ?? undefined) : instantOf(input.endsAt, timezone);
-  if (endsAt === undefined || endsAt === null || endsAt <= startsAt) {
-    return { kind: "invalid", field: "endsAt" };
+  const times = timesOf(current, input, timezone);
+  if ("kind" in times) {
+    return times;
   }
   const kind = input.kind ?? current?.kind ?? DEFAULTS.kind;
   const cityId = input.cityId === undefined ? (current?.cityId ?? null) : input.cityId;
@@ -173,8 +191,7 @@ export function merge(current: EventRecord | undefined, input: EventInput): Even
     joinMethods,
     timezone,
     dayStartHour: input.dayStartHour ?? current?.dayStartHour ?? DEFAULTS.dayStartHour,
-    startsAt,
-    endsAt,
+    ...times,
     venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
     venueRadiusM: input.venueRadiusM ?? current?.venueRadiusM ?? VENUE_RADIUS.default,
     cityId,

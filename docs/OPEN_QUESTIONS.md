@@ -998,6 +998,7 @@ Recommended (ADR-316, ADR-318, ADR-319): T-407 server and web, T-407b the app, T
 channels stay off; one audience door for every promotion; SMS only inside CST's hours; a signed opt-out link with a web
 page that asks first; 12 seeded interests, an event holds up to 3, "For you" is a plain match of interests or city,
 at most 20. Agree?
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes, as recommended (ADR-316 to ADR-319), with the review's fold-in (a turn-off saves whatever the wording version; the audience re-checks the age; the quest counts interests only).
 
 ## Q-286 — For Dhia and counsel (legal): who may be asked for marketing consent (2026-10-27, T-407 plan)
 PDPL IR Art. 11 asks consent from a person with full legal capacity, and STORE_COMPLIANCE §3.1 leaves the age "to check with
@@ -1010,7 +1011,8 @@ in `marketing_adult`.
 The law's 22:00 to 09:00 (01:00 to 12:00 in Ramadan) is for SMS. ADR-065 declined quiet hours for push, so a promotional push
 or email can arrive at 03:00. Recommended: keep ADR-065 for event and personal pushes, but hold promotional push and
 email to the same window, so a promotion never wakes anyone. Built as SMS only (one line, `CHANNELS_WITH_WINDOW` in
-`send-window.ts`) until Dhia answers.
+`send-window.ts`).
+**Answered (Dhia, 2026-10-27):** SMS only; push and email keep ADR-065 (no quiet hours).
 **Answered (Dhia, 2026-10-27):** "SMS only": as built. Only promotional SMS keeps the 22:00 to 09:00 window (01:00 to 12:00 in Ramadan); promotional push and email follow ADR-065 and may arrive at any hour.
 
 ## Q-288 — For Dhia and counsel (legal): the consent wording and the promotional sender (2026-10-27, T-407 plan)

@@ -147,6 +147,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
       );
     });
 
+    it("saves a turn-off from an app on old wording, so Settings and the skip can never be trapped", async () => {
+      const { token } = await newSession();
+      await as(token, "PUT", "/v1/me/marketing", body({ channels: { sms: true } }));
+      const old = await as(
+        token,
+        "PUT",
+        "/v1/me/marketing",
+        body({ textVersion: "0.1", channels: { sms: false } }),
+      );
+      expect(old.statusCode).toBe(200);
+      expect(marketingSchema.parse(old.json()).channels.sms.optedIn).toBe(false);
+      const fresh = await newSession();
+      const skip = await as(
+        fresh.token,
+        "PUT",
+        "/v1/me/marketing",
+        body({
+          textVersion: "0.1",
+          method: "signup",
+          channels: { push: false, sms: false, email: false },
+        }),
+      );
+      expect(skip.statusCode).toBe(200);
+      expect(marketingSchema.parse(skip.json()).asked).toBe(true);
+      expect((await as(fresh.token, "GET", "/v1/me")).json().marketing.asked).toBe(true);
+    });
+
     it("keeps staff and signed-out callers out of the player doors", async () => {
       for (const [method, url] of [
         ["GET", "/v1/me/marketing"],

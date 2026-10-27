@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   EventAccessFields,
-  EventCityField,
-  EventInterestsField,
+  EventPlaceFields,
   EventIdentityFields,
   EventTimeFields,
   EventVenuePinFields,
@@ -280,14 +279,13 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
       ) : (
         <form className={styles.form} onSubmit={(submitted) => void submit(submitted)}>
           <EventIdentityFields language={language} draft={draft} disabled={busy} change={change} />
-          <EventCityField
+          <EventPlaceFields
             language={language}
             draft={draft}
             disabled={busy}
             change={change}
             status={status}
           />
-          <EventInterestsField language={language} draft={draft} disabled={busy} change={change} />
           <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
           <EventTimeFields
             language={language}

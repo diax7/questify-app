@@ -12,7 +12,7 @@ export type MarketingChannel = (typeof MARKETING_CHANNELS)[number];
  * The version of the consent wording the app shows. A change to the wording bumps it; the API refuses a consent sent
  * with another version, so a yes is always a yes to the text in force.
  */
-export const MARKETING_TEXT_VERSION = "1";
+export const MARKETING_TEXT_VERSION = "2";
 
 /** At most this many interests on a player, and on an event. */
 export const MAX_PLAYER_INTERESTS = 8;

@@ -9,6 +9,8 @@ const PLAYER = "11111111-1111-4111-8111-111111111111";
 const SIGNED_IN = { "x-test-player": "yes" };
 const NO_STORE = "private, no-store";
 
+const key = () => Buffer.alloc(32, 7);
+
 type Seen = { sql: string; values: readonly unknown[] };
 let app: FastifyInstance;
 
@@ -33,7 +35,7 @@ function build(
   app.addHook("onRequest", async (request) => {
     if (request.headers["x-test-player"] !== undefined) request.player = { id: PLAYER };
   });
-  registerQuestifyRoutes(app, { pool, keys: { playerKey: () => Buffer.alloc(32, 7) } });
+  registerQuestifyRoutes(app, { pool, keys: { playerKey: key, addressKey: key, optOutTag: key } });
   return { seen };
 }
 

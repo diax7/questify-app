@@ -4,6 +4,8 @@ Delivers FR-733, FR-734, FR-735, FR-736, FR-737, FR-1111, FR-1112 (the rule, enf
 itself is T-706), FR-1113, FR-1114, FR-1738. Depends on T-107 (sign-in), T-403 (`city`). Never push, deploy, run EAS or
 run local mutation testing. Choices are **Proposed ADR-316 to ADR-319 / Q-285 to Q-289**.
 
+**Review fold-in (T-407 code review 86):** a body that turns channels only off saves whatever the wording version; the opt-out limit counts before the signature is read; `marketing_audience` re-checks the age; the consent wording and the list's name were reworded; the app remembers an answer saved in this run; T-407c's quest counts interests only, not a city.
+
 **Bar: STANDARD.** Consent and preferences are personal data (PDPL), but they touch none of the core areas: no sign-in
 function is changed (the consent step is an app screen after sign-up), no ledger, no tenant isolation rule, no lock
 shared with a payer. The one core-adjacent item, the "set your interests" Questify quest metric (FR-710, a new
@@ -75,7 +77,7 @@ and workplace-hidden events cannot appear (same predicate as `public_events`). T
   time, and in Ramadan never 01:00–12:00; a time inside the window moves to the window's end. The Ramadan day comes
   from the Umm al-Qura calendar (`Intl`); within one day of Ramadan's edges the calendar can differ from the sighting,
   so on those days both windows apply (22:00–12:00). Push and email have no window (ADR-065 declined quiet hours);
-  whether they should hold the SMS window is **Q-287, For Dhia**, one constant to change.
+  whether they should hold the SMS window was **Q-287**; Dhia answered: SMS only.
 - Opt-out: effective at once (the state flips in the transaction), well inside FR-1738's 24 hours; a sender reads the
   audience at send time.
 - Opt-out link (FR-1114): `optOutLink(playerId, channel)` builds `https://<join host>/<lang>/opt-out?t=<token>`; the
@@ -99,7 +101,7 @@ and workplace-hidden events cannot appear (same predicate as `public_events`). T
 | `GET /v1/me` | gains `marketing: {asked, canOptIn}` for the app's one-time step |
 | `POST/PATCH /v1/organizers/.../events` | gain `interests` (at most 3 catalog ids; 422 `invalid_event {field: interests}`) |
 
-The consent text version is the shared constant `MARKETING_TEXT_VERSION` ("1"); the text itself (per channel, sender
+The consent text version is the shared constant `MARKETING_TEXT_VERSION` ("2" after the review changed the wording); the text itself (per channel, sender
 named, how to opt out, unticked, not bundled with the privacy policy) is in `messages.ts` and is **Q-288, For Dhia /
 counsel** to approve (Arabic first). Counsel also answers Q-289: whether consent proof must outlive the account (built:
 it is erased with the account).

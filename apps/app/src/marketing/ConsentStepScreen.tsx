@@ -10,7 +10,13 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ChannelRow } from "#src/marketing/ChannelRow.tsx";
 import { saveMarketing } from "#src/marketing/marketing-api.ts";
-import { NO_TICKS, consentNotice, signupBody, type Ticks } from "#src/marketing/marketing-flow.ts";
+import {
+  NO_TICKS,
+  consentNotice,
+  rememberAnswer,
+  signupBody,
+  type Ticks,
+} from "#src/marketing/marketing-flow.ts";
 
 /**
  * The one-time marketing step after sign-up (FR-735, ADR-316): three separate switches, all off, with Save and "No
@@ -19,7 +25,8 @@ import { NO_TICKS, consentNotice, signupBody, type Ticks } from "#src/marketing/
  */
 export function ConsentStepScreen() {
   const { t } = useI18n();
-  const { reload } = usePlayer();
+  const { state, reload } = usePlayer();
+  const playerId = state.status === "signed_in" ? state.me?.id : undefined;
   const [ticks, setTicks] = useState<Ticks>(NO_TICKS);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<MessageKey | null>(null);
@@ -30,6 +37,7 @@ export function ConsentStepScreen() {
     setNotice(null);
     const outcome = await saveMarketing(api.session, signupBody(chosen));
     if (outcome.kind === "saved" || outcome.kind === "signed_out") {
+      if (outcome.kind === "saved" && playerId !== undefined) rememberAnswer(playerId);
       await reload();
       router.replace(outcome.kind === "saved" ? "/" : "/home");
       return;

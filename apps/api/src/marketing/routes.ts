@@ -64,7 +64,9 @@ export function registerMarketingRoutes(app: FastifyInstance, deps: Deps): void 
     const id = own(request);
     reply.header("cache-control", "private, no-store");
     const body = parse(marketingBodySchema, request.body);
-    if (body.textVersion !== MARKETING_TEXT_VERSION) {
+    // Only a yes needs the wording in force: turning channels off, from any app version, always saves.
+    const grants = Object.values(body.channels).includes(true);
+    if (grants && body.textVersion !== MARKETING_TEXT_VERSION) {
       throw consentTextOutdated({ textVersion: MARKETING_TEXT_VERSION });
     }
     await writeBudget(id, reply);
@@ -104,14 +106,15 @@ export function registerMarketingRoutes(app: FastifyInstance, deps: Deps): void 
     async (request, reply) => {
       reply.header("cache-control", "no-store");
       const { token } = parse(optOutBodySchema, request.body);
-      const target = readOptOutToken(deps.keys, token);
-      if (target === null) throw invalidOptOut();
+      // Counted before the signature is read, so forged tokens are throttled like real ones.
       await holdBack(
         deps.pool,
         [{ limit: OPT_OUT_LIMIT, key: deps.keys.addressKey(addressBucket(request.ip)) }],
         true,
         reply,
       );
+      const target = readOptOutToken(deps.keys, token);
+      if (target === null) throw invalidOptOut();
       await withConnection(deps.pool, (client) =>
         withRequestContext(client, {}, () =>
           optOutChannel(client, target.playerId, target.channel),

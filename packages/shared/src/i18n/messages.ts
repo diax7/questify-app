@@ -4709,8 +4709,8 @@ export const MESSAGES = {
   "events.invalid.cityId": { ar: "اختر مدينة من القائمة.", en: "Choose a city from the list." },
   "events.field.interests": { ar: "الاهتمامات", en: "Interests" },
   "events.interests.hint": {
-    ar: "اختر حتى ثلاثة. يرى اللاعبون المهتمون بها فعاليتك في قائمة «لك» إن كانت عامة.",
-    en: "Choose up to three. Players who like these see your event in their For you list when it is public.",
+    ar: "اختر حتى ثلاثة. يرى اللاعبون المهتمون بها فعاليتك في قائمة «مقترحة لك» إن كانت عامة.",
+    en: "Choose up to three. Players who like these see your event in their Suggested for you list when it is public.",
   },
   "events.interests.full": {
     ar: "اخترت ثلاثة اهتمامات. أزل واحدًا لتختار غيره.",
@@ -4754,12 +4754,12 @@ export const MESSAGES = {
   "marketing.channel.sms": { ar: "الرسائل النصية", en: "Text messages" },
   "marketing.channel.email": { ar: "البريد الإلكتروني", en: "Email" },
   "marketing.about.push": {
-    ar: "عروض وفعاليات مقترحة تصلك كإشعارات على هذا الجهاز.",
-    en: "Offers and suggested events as notifications on this phone.",
+    ar: "عروض وفعاليات مقترحة تصلك كإشعارات على الأجهزة التي سجّلت الدخول منها بحسابك.",
+    en: "Offers and suggested events as notifications on the devices where you are signed in to your account.",
   },
   "marketing.about.sms": {
-    ar: "عروض وفعاليات مقترحة تصلك برسالة نصية من Questify. لا نرسلها ليلًا.",
-    en: "Offers and suggested events by text message from Questify. We never send them at night.",
+    ar: "عروض وفعاليات مقترحة تصلك برسالة نصية من Questify، ولا نرسلها إلا في الأوقات المسموح بها في المملكة.",
+    en: "Offers and suggested events by text message from Questify, sent only at the hours Saudi rules allow.",
   },
   "marketing.about.email": {
     ar: "عروض وفعاليات مقترحة تصلك على بريدك الإلكتروني.",
@@ -4769,7 +4769,7 @@ export const MESSAGES = {
     ar: "في كل رسالة رابط لإيقافها، ويمكنك إيقاف كل قناة من هنا متى شئت. رسائل تسجيل الدخول ورسائل الفعاليات التي انضممت إليها لا تتأثر.",
     en: "Every message has a link to stop it, and you can turn each channel off here whenever you like. Sign-in codes and messages about events you joined are not affected.",
   },
-  "marketing.save": { ar: "حفظ اختياري", en: "Save my choices" },
+  "marketing.save": { ar: "احفظ اختياراتي", en: "Save my choices" },
   "marketing.skip": { ar: "لا أريد عروضًا", en: "No offers, thanks" },
   "marketing.saved": { ar: "تم الحفظ.", en: "Saved." },
   "marketing.failed": { ar: "تعذّر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
@@ -4782,8 +4782,8 @@ export const MESSAGES = {
     en: "The wording has changed. Update the app and try again.",
   },
   "marketing.ageLimited": {
-    ar: "الرسائل الترويجية غير متاحة لهذا الحساب. يمكنك إبقاؤها مُطفأة.",
-    en: "Promotional messages aren't available for this account. They stay off.",
+    ar: "الرسائل الترويجية غير متاحة لهذا الحساب، وستبقى مُطفأة.",
+    en: "Promotional messages aren't available for this account, so they stay off.",
   },
   "marketing.settingsTitle": { ar: "العروض والإشعارات", en: "Offers and notifications" },
   "marketing.settingsIntro": {
@@ -4814,14 +4814,14 @@ export const MESSAGES = {
     ar: "اختر مدينة واهتمامات من القوائم فقط.",
     en: "Choose a city and interests from the lists only.",
   },
-  "forYou.title": { ar: "لك", en: "For you" },
+  "forYou.title": { ar: "مقترحة لك", en: "Suggested for you" },
   "forYou.intro": {
     ar: "فعاليات عامة قد تعجبك بحسب اهتماماتك ومدينتك.",
     en: "Public events you may like, based on your interests and city.",
   },
   "forYou.none": {
-    ar: "لا توجد فعاليات مقترحة الآن. أضف اهتماماتك أو مدينتك لنرى المزيد.",
-    en: "No events to suggest right now. Add your interests or city to see more.",
+    ar: "لا توجد فعاليات مقترحة الآن. أضف اهتماماتك أو مدينتك لنقترح عليك المزيد.",
+    en: "No events to suggest right now. Add your interests or city and we'll suggest more.",
   },
   "forYou.live": { ar: "جارية الآن", en: "Live now" },
   "forYou.upcoming": { ar: "قادمة", en: "Coming up" },

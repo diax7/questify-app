@@ -9,6 +9,7 @@ import {
   consentStepDue,
   preferencesChanged,
   preferencesNotice,
+  rememberAnswer,
   signupBody,
   switchBody,
   ticksOf,
@@ -91,12 +92,25 @@ describe("consentNotice", () => {
   });
 });
 
+const me = (asked: boolean, canOptIn: boolean, id = "p1") => ({
+  id,
+  marketing: { asked, canOptIn },
+});
+
 describe("consentStepDue", () => {
   it("is due only for a player who never answered and may opt in", () => {
-    expect(consentStepDue({ asked: false, canOptIn: true })).toBe(true);
-    expect(consentStepDue({ asked: true, canOptIn: true })).toBe(false);
-    expect(consentStepDue({ asked: false, canOptIn: false })).toBe(false);
+    expect(consentStepDue(me(false, true, "due-1"))).toBe(true);
+    expect(consentStepDue(me(true, true))).toBe(false);
+    expect(consentStepDue(me(false, false))).toBe(false);
+    expect(consentStepDue({ id: "p1" })).toBe(false);
     expect(consentStepDue(undefined)).toBe(false);
+  });
+
+  it("is not due again in this run once the player answered, even if the profile read fails to say so", () => {
+    expect(consentStepDue(me(false, true, "answered-1"))).toBe(true);
+    rememberAnswer("answered-1");
+    expect(consentStepDue(me(false, true, "answered-1"))).toBe(false);
+    expect(consentStepDue(me(false, true, "someone-else"))).toBe(true);
   });
 });
 
