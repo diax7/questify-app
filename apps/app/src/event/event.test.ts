@@ -241,6 +241,7 @@ const HOME = {
     questsTotal: 3,
   },
   upNext: { questId: "q1", title: { ar: null, en: "Big one" }, points: 40, type: "enter_code" },
+  shopWindow: null,
   goal: {
     rewardId: "r1",
     name: { ar: "قهوة", en: "Coffee" },
@@ -344,6 +345,33 @@ describe("homeAnswer", () => {
     expect(goalMessage({ ...HOME.goal, left: -5 }, false)).toBe("goal.ready");
     expect(goalMessage({ ...HOME.goal, left: 0, soldOut: true }, false)).toBe("goal.soldOut");
     expect(goalMessage({ ...HOME.goal, soldOut: true }, true)).toBe("goal.soldOut");
+  });
+
+  it("reads the shop window, and none for an older API or one it cannot read (T-410b)", () => {
+    const window = {
+      state: "open",
+      closesAt: "2026-11-04T10:00:00.000Z",
+      deskEndsAt: "2026-11-03T18:00:00.000Z",
+    };
+    expect(readHome({ ...HOME, shopWindow: window })?.shopWindow).toEqual(window);
+    const { shopWindow: _window, ...older } = HOME;
+    expect(readHome(older)?.shopWindow).toBeNull();
+    expect(readHome({ ...HOME, shopWindow: null })?.shopWindow).toBeNull();
+    expect(readHome({ ...HOME, shopWindow: { ...window, state: "gone" } })?.shopWindow).toBeNull();
+    expect(readHome({ ...HOME, shopWindow: { ...window, closesAt: 5 } })?.shopWindow).toBeNull();
+  });
+
+  it("shows no goal once the shop has closed, whatever an older API sends", () => {
+    const closed = { state: "closed", closesAt: "2026-11-04T10:00:00.000Z", deskEndsAt: null };
+    const goalReady = { ...HOME.goal, left: 0 };
+    expect(readHome({ ...HOME, shopWindow: closed, goal: goalReady })?.goal).toBeNull();
+    const open = { ...closed, state: "open" };
+    expect(readHome({ ...HOME, shopWindow: open, goal: goalReady })?.goal).toMatchObject({
+      left: 0,
+    });
+    expect(readHome({ ...HOME, shopWindow: null, goal: goalReady })?.goal).toMatchObject({
+      left: 0,
+    });
   });
 
   it("reads the event streak, and null while it is off, from an older API or when malformed (T-405b)", () => {

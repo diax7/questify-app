@@ -16,6 +16,9 @@ import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { goalMessage } from "#src/event/goal.ts";
+import { RecapEntry } from "#src/event/RecapEntry.tsx";
+import { ShopBanner } from "#src/event/ShopBanner.tsx";
+import { nextShopBoundary, shopClosed, shopLine } from "#src/event/shop-window.ts";
 import { unlockLine } from "#src/event/unlock.ts";
 import {
   fetchHome,
@@ -241,7 +244,11 @@ function Standing({ home }: Readonly<{ home: Home }>) {
       </View>
       <View style={styles.rankRow}>
         <AppText style={styles.grow}>{t("eventHome.balance")}</AppText>
-        <Counter id={`${eventId}:balance`} value={balance} />
+        {shopClosed(home.shopWindow) ? (
+          <AppText variant="title">{t("eventHome.balanceClosed")}</AppText>
+        ) : (
+          <Counter id={`${eventId}:balance`} value={balance} />
+        )}
       </View>
       {pendingPoints > 0 ? (
         <AppText muted>
@@ -321,14 +328,21 @@ function useHome(eventId: string) {
     return () => clearInterval(timer);
   }, [waiting, load]);
   const event = answer?.kind === "home" ? answer.home.event : undefined;
+  const shopWindow = answer?.kind === "home" ? answer.home.shopWindow : null;
   useEffect(() => {
-    const delay = event === undefined ? null : nextBoundary(event, Date.now());
-    if (delay === null) {
+    // The event's start or end, and after the end the shop's close and the desk's end (T-410b).
+    const now = Date.now();
+    const delays = [
+      event === undefined ? null : nextBoundary(event, now),
+      nextShopBoundary(shopWindow, now),
+    ];
+    const next = delays.filter((delay): delay is number => delay !== null);
+    if (next.length === 0) {
       return;
     }
-    const timer = setTimeout(() => void load(), delay);
+    const timer = setTimeout(() => void load(), Math.min(...next));
     return () => clearTimeout(timer);
-  }, [event, load]);
+  }, [event, shopWindow, load]);
   return { answer, ranking, load };
 }
 
@@ -373,13 +387,70 @@ function useJoinLocationPrompt(home: Home | undefined) {
   return { shown, proceed };
 }
 
+/** What Home shows a member who is in: the shop's line, the streak, a won prize, the community goal, goal and ranking. */
+function ActiveCards({
+  home,
+  ranking,
+  ended,
+}: Readonly<{ home: Home; ranking: RankingAnswer | undefined; ended: boolean }>) {
+  const { community } = useLive();
+  const eventId = home.event.id;
+  return (
+    <>
+      <ShopBanner
+        line={shopLine(home.shopWindow, ended, Date.now())}
+        timeZone={home.event.timezone}
+      />
+      <EventStreakCard streak={home.streak} />
+      <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
+      {community === null ? null : <CommunityBar card={community} />}
+      <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />
+      {ranking === undefined ? null : <RankingCard eventId={eventId} ranking={ranking} />}
+    </>
+  );
+}
+
+/** Home's cards in order: the strips, the recap once ended, the standing, the member's cards, up next and the links. */
+function HomeCards({
+  home,
+  ranking,
+}: Readonly<{ home: Home; ranking: RankingAnswer | undefined }>) {
+  const { t } = useI18n();
+  const eventId = home.event.id;
+  const active = home.standing.status === "active";
+  const ended = home.event.statusNow === "ended" || home.event.statusNow === "archived";
+  return (
+    <>
+      <RehearsalStrip shown={home.event.rehearsal} />
+      <AddEmailCard />
+      <HelpStrip eventId={eventId} unread={home.helpUnread} />
+      {ended && active ? <RecapEntry eventId={eventId} /> : null}
+      <CountdownLine event={home.event} />
+      <Standing home={home} />
+      {active ? <ActiveCards home={home} ranking={ranking} ended={ended} /> : null}
+      {ended ? null : <UpNextCard eventId={eventId} upNext={home.upNext} />}
+      {active ? (
+        <Button
+          kind="quiet"
+          label={t("history.title")}
+          onPress={() => router.push(`/event/${eventId}/history`)}
+        />
+      ) : null}
+      <Button
+        kind="quiet"
+        label={t("eventHome.info")}
+        onPress={() => router.push(`/event/${eventId}/info`)}
+      />
+    </>
+  );
+}
+
 /** The event's Home (FR-801, FR-802, FR-803, FR-804; T-113, T-213). */
 export default function EventHomeScreen() {
   const { t, language } = useI18n();
   const { eventId, rememberName } = useEvent();
   const { answer, ranking, load } = useHome(eventId);
   const prompt = useJoinLocationPrompt(answer?.kind === "home" ? answer.home : undefined);
-  const { community } = useLive();
   const loadedName = answer?.kind === "home" ? textIn(answer.home.event.name, language) : "";
   useEffect(() => {
     if (loadedName !== "") {
@@ -402,45 +473,11 @@ export default function EventHomeScreen() {
     );
   }
   const { home } = answer;
-  const ended = home.event.statusNow === "ended" || home.event.statusNow === "archived";
   return (
     <Screen title={textIn(home.event.name, language)} header={<EventPill />}>
       <LocationPrompt visible={prompt.shown} onContinue={prompt.proceed} />
       <ScrollView contentContainerStyle={{ gap: 16 }}>
-        <RehearsalStrip shown={home.event.rehearsal} />
-        <AddEmailCard />
-        <HelpStrip eventId={eventId} unread={home.helpUnread} />
-        <CountdownLine event={home.event} />
-        <Standing home={home} />
-        {home.standing.status === "active" ? <EventStreakCard streak={home.streak} /> : null}
-        <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
-        {community === null || home.standing.status !== "active" ? null : (
-          <CommunityBar card={community} />
-        )}
-        {home.standing.status === "active" ? (
-          <GoalCard
-            eventId={eventId}
-            goal={home.goal}
-            ended={ended}
-            timeZone={home.event.timezone}
-          />
-        ) : null}
-        {home.standing.status === "active" && ranking !== undefined ? (
-          <RankingCard eventId={eventId} ranking={ranking} />
-        ) : null}
-        {ended ? null : <UpNextCard eventId={eventId} upNext={home.upNext} />}
-        {home.standing.status === "active" ? (
-          <Button
-            kind="quiet"
-            label={t("history.title")}
-            onPress={() => router.push(`/event/${eventId}/history`)}
-          />
-        ) : null}
-        <Button
-          kind="quiet"
-          label={t("eventHome.info")}
-          onPress={() => router.push(`/event/${eventId}/info`)}
-        />
+        <HomeCards home={home} ranking={ranking} />
       </ScrollView>
     </Screen>
   );

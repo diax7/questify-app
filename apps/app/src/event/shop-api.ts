@@ -55,6 +55,8 @@ export function sourceOf(value: unknown, rank: number | null): RedemptionSource 
 export type ShopView = Readonly<{
   shop: Readonly<{
     state: string;
+    /** When the shop closes (the event's end and its days after); null without an end, and from an older API. */
+    closesAt: string | null;
     pickupMinutes: number;
     rules: Bilingual | null;
     firstRedemption: boolean;
@@ -148,6 +150,7 @@ export function readShop(body: unknown): ShopView | undefined {
   return {
     shop: {
       state: typeof shop["state"] === "string" ? shop["state"] : "closed",
+      closesAt: stringOr(shop["closesAt"]),
       pickupMinutes: numberOf(shop["pickupMinutes"], 120),
       rules,
       firstRedemption: shop["firstRedemption"] === true,

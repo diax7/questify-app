@@ -1467,6 +1467,80 @@ export const MESSAGES = {
   "shop.collecting": { ar: "جاهزة للاستلام", en: "Ready to collect" },
   "shop.status.handedOver": { ar: "استلمتها.", en: "Picked up." },
   "shop.status.confirmed": { ar: "أُكّدت التجربة.", en: "Experience confirmed." },
+  "shopWindow.openUntil": {
+    ar: "متجر الجوائز مفتوح حتى {date}",
+    en: "The rewards shop is open until {date}",
+  },
+  "shopWindow.deskUntil": {
+    ar: "يمكن حجز القطع والتجارب حتى انتهاء ساعات مكتب الجوائز في {date}",
+    en: "Items and experiences can be reserved until the prize desk's hours end on {date}",
+  },
+  "shopWindow.deskStopped": {
+    ar: "انتهت ساعات مكتب الجوائز، فتوقف حجز القطع والتجارب. تبقى الجوائز الرقمية حتى إغلاق المتجر.",
+    en: "The prize desk's hours have ended, so items and experiences can't be reserved any more. Digital rewards stay until the shop closes.",
+  },
+  "shopWindow.closedOn": {
+    ar: "أُغلق متجر الجوائز في {date}",
+    en: "The rewards shop closed on {date}",
+  },
+  "eventHome.balanceClosed": { ar: "مغلق", en: "Closed" },
+  "shop.closedBody": {
+    ar: "لم يعد رصيد هذه الفعالية قابلًا للاستبدال، وتبقى {currency} وترتيبك وختمك.",
+    en: "This event's balance can no longer be redeemed. Your {currency}, rank and stamp stay.",
+  },
+  "shop.cancelClosedNote": {
+    ar: "بعد إغلاق المتجر لا يمكن استبدال {currency} المستردة.",
+    en: "After the shop closes, returned {currency} can't be redeemed.",
+  },
+  "recap.title": { ar: "ملخّصك", en: "Your recap" },
+  "recap.homeHint": {
+    ar: "اعرض ما أنجزته في الفعالية وشاركه.",
+    en: "See what you did at the event and share it.",
+  },
+  "recap.rank": { ar: "المركز {rank}", en: "Rank {rank}" },
+  "recap.rankPending": {
+    ar: "يظهر ترتيبك النهائي مع إعلان النتائج",
+    en: "Your final rank comes with the results",
+  },
+  "recap.quests": { ar: "ما أنجزته من {questMany}: {count}", en: "{questCap} done: {count}" },
+  "recap.thanks": { ar: "شكرًا لمشاركتك", en: "Thanks for joining" },
+  "recap.souvenirs": { ar: "تذكاراتك", en: "Your souvenirs" },
+  "recap.more": { ar: "+{count}", en: "+{count}" },
+  "recap.share": { ar: "شارك ملخّصك", en: "Share your recap" },
+  "recap.shareText": { ar: "ملخّصي في {event}", en: "My recap from {event}" },
+  "recap.shareFailed": { ar: "تعذّرت المشاركة. حاول مرة أخرى.", en: "Couldn't share. Try again." },
+  "recap.failed": { ar: "تعذّر تحميل ملخّصك.", en: "Couldn't load your recap." },
+  "recap.gone": { ar: "لا ملخّص لك في هذه الفعالية.", en: "There's no recap for you in this event." },
+  "recap.notEnded": {
+    ar: "يظهر ملخّصك بعد نهاية الفعالية.",
+    en: "Your recap appears once the event ends.",
+  },
+  "rewards.shopCloses": { ar: "يُغلق المتجر في {date}", en: "The shop closes on {date}" },
+  "rewards.shopClosed": { ar: "أُغلق المتجر في {date}", en: "The shop closed on {date}" },
+  "rewards.daysAfter.afterEnd": {
+    ar: "بعد نهاية الفعالية يمكنك زيادة الأيام فقط.",
+    en: "After the event ends, you can only add days.",
+  },
+  "rewards.daysAfter.closed": {
+    ar: "أُغلق المتجر، فلا يمكن تغيير أيامه.",
+    en: "The shop has closed, so its days can't change.",
+  },
+  "rewards.invalid.daysAfterShorter": {
+    ar: "بعد نهاية الفعالية لا يمكن تقصير مدة بقاء المتجر.",
+    en: "After the event ends, the shop's days can't be shortened.",
+  },
+  "rewards.deskEndsEarly": {
+    ar: "تنتهي ساعات المكتب قبل إغلاق المتجر، فيتوقف حجز القطع والتجارب عندها، وتبقى الجوائز الرقمية حتى الإغلاق.",
+    en: "The prize desk's hours end before the shop closes: items and experiences stop then; digital rewards stay until the close.",
+  },
+  "rewards.windowLocked.shorter": {
+    ar: "لا يمكن تقصير مدة بقاء المتجر بعد نهاية الفعالية، فقد رأى اللاعبون موعد الإغلاق. يمكنك زيادتها فقط.",
+    en: "After the event ends, the shop's days can't be shortened, because players have seen the closing date. You can only add days.",
+  },
+  "rewards.windowLocked.closed": {
+    ar: "أُغلق المتجر ولا يمكن تغيير أيامه، حتى بالزيادة.",
+    en: "The shop has closed, so its days can't change, not even to add more.",
+  },
   "account.title": { ar: "حسابي", en: "My account" },
   "account.notAdded": { ar: "لم يُضَف بعد", en: "Not added yet" },
   "account.change": { ar: "تغيير", en: "Change" },

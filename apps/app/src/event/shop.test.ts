@@ -44,6 +44,7 @@ const REWARD: ShopReward = {
 const VIEW: ShopView = {
   shop: {
     state: "open",
+    closesAt: null,
     pickupMinutes: 120,
     rules: null,
     firstRedemption: true,
@@ -99,11 +100,15 @@ describe("setGoal", () => {
   });
 });
 
+const closesAtOf = (closesAt: unknown) =>
+  readShop({ shop: { state: "closed", closesAt }, rewards: [] })?.shop.closesAt;
+
 describe("readShop", () => {
   it("reads the shop, keeping a newer server's unknown kind and leaving bad rows out", () => {
     const view = readShop({
       shop: {
         state: "open",
+        closesAt: "2030-01-04T10:00:00.000Z",
         pickupMinutes: 90,
         rules: { ar: "قاعدة", en: null },
         firstRedemption: false,
@@ -130,6 +135,7 @@ describe("readShop", () => {
     });
     expect(view?.shop).toEqual({
       state: "open",
+      closesAt: "2030-01-04T10:00:00.000Z",
       pickupMinutes: 90,
       rules: { ar: "قاعدة", en: null },
       firstRedemption: false,
@@ -219,6 +225,13 @@ describe("readShop", () => {
   it("refuses what is not a shop", () => {
     expect(readShop(undefined)).toBeUndefined();
     expect(readShop({ shop: {} })).toBeUndefined();
+  });
+
+  it("reads when the shop closes, and null for an older API or a value that is not text (T-410b)", () => {
+    expect(closesAtOf("2030-01-04T10:00:00.000Z")).toBe("2030-01-04T10:00:00.000Z");
+    expect(closesAtOf(undefined)).toBeNull();
+    expect(closesAtOf(null)).toBeNull();
+    expect(closesAtOf(1893492000000)).toBeNull();
   });
 
   it("reads a missing desk as closed, so nothing looks collectable on a guess", () => {

@@ -1,6 +1,7 @@
-import type { Equipment, EventStreak } from "@questify/shared";
+import type { Equipment, EventStreak, ShopWindow } from "@questify/shared";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { readShopWindow, shopClosed } from "#src/event/shop-window.ts";
 import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
 import { eventStreakOf } from "#src/streaks/event-streak.ts";
 
@@ -56,6 +57,9 @@ export type Home = Readonly<{
     /** The organizer declined the request (ADR-167). */
     | Readonly<{ status: "declined" }>;
   upNext: Readonly<{ questId: string; title: Text; points: number; type: string }> | null;
+  /** The shop as this player sees it (T-410, ADR-338); null while the shop switch is off, and from an older API. */
+  shopWindow: ShopWindow | null;
+  /** Null once the shop has closed: the balance can no longer be redeemed, so no goal is shown (ADR-337). */
   goal: Goal | null;
   win: Win | null;
   rankingOn: boolean;
@@ -145,6 +149,14 @@ function readGoal(value: unknown): Goal | null {
     : null;
 }
 
+/**
+ * The goal, or null. Whatever an older API sends, a closed shop shows no goal: it would say "you have enough" about
+ * points that can no longer be spent (ADR-337).
+ */
+function goalFor(value: unknown, shopWindow: ShopWindow | null): Goal | null {
+  return shopClosed(shopWindow) ? null : readGoal(value);
+}
+
 /** The win, or null: an older API sends none, and one this app cannot read is left out. */
 export function readWin(value: unknown): Win | null {
   return isRecord(value) &&
@@ -188,11 +200,13 @@ export function readHome(body: unknown): Home | undefined {
     rehearsal: event["rehearsal"] === true,
     locationPrompt: event["locationPrompt"] === true,
   };
+  const shopWindow = readShopWindow(body["shopWindow"]);
   return {
     event: read,
     standing,
     upNext,
-    goal: readGoal(body["goal"]),
+    shopWindow,
+    goal: goalFor(body["goal"], shopWindow),
     win: readWin(body["win"]),
     rankingOn: body["rankingOn"],
     helpUnread: readUnread(body["help"]),

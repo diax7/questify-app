@@ -21,6 +21,7 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { ShopClosedPanel } from "#src/event/ShopClosedPanel.tsx";
 import { unlockLine } from "#src/event/unlock.ts";
 import {
   cancelRedemption,
@@ -399,16 +400,19 @@ function useShopActions(eventId: string, load: () => Promise<void>) {
     setBusy(false);
   };
 
-  const cancel = (id: string) => {
+  /** `closed`: the shop has closed, so the points that come back can no longer be redeemed (ADR-337). */
+  const cancel = (id: string, closed: boolean) => {
     const confirmed = async () => {
       setBusy(true);
       setProblem(null);
       await settle(await cancelRedemption(api.session, id), t("shop.status.cancelled"));
       setBusy(false);
     };
+    const currency = termFor(terms.currency, language);
+    const body = t("shop.cancelBody", { currency });
     Alert.alert(
       t("shop.cancelTitle"),
-      t("shop.cancelBody", { currency: termFor(terms.currency, language) }),
+      closed ? `${body} ${t("shop.cancelClosedNote", { currency })}` : body,
       [
         { text: t("common.cancel"), style: "cancel" },
         { text: t("shop.cancel"), style: "destructive", onPress: () => void confirmed() },
@@ -593,6 +597,39 @@ function RedeemSheet({
   );
 }
 
+/** The sections and the rewards with their buttons; not offered once the shop has closed. */
+function Catalog({
+  view,
+  section,
+  busy,
+  onSection,
+  actions,
+}: Readonly<{
+  view: ShopView;
+  section: string | null;
+  busy: boolean;
+  onSection: (section: string | null) => void;
+  actions: ReturnType<typeof useShopActions>;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <SectionChips sections={sectionsOf(view.rewards)} section={section} onChoose={onSection} />
+      {view.rewards.length === 0 ? <AppText muted>{t("shop.empty")}</AppText> : null}
+      {inSection(view.rewards, section).map((reward) => (
+        <RewardCard
+          key={reward.id}
+          reward={reward}
+          view={view}
+          busy={busy}
+          onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}
+          onRedeem={() => actions.redeem(reward, view)}
+        />
+      ))}
+    </>
+  );
+}
+
 /**
  * The event's rewards shop (T-201, T-202): the balance, sections, each reward with its real stock (FR-514), Redeem with
  * a confirmation (the shop's rules first, once, FR-515), the goal's pin (FR-517), and the player's reservations with
@@ -610,38 +647,41 @@ export default function RewardsScreen() {
     return <ShopUnavailable answer={answer} onRetry={() => void load()} />;
   }
   const { view } = answer;
+  const closed = view.shop.state === "closed";
   return (
     <Screen title={t("nav.rewards")} header={<EventPill />}>
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <View style={styles.row}>
           <AppText variant="label">{t("shop.balance")}</AppText>
-          <Amount amount={formatNumber(view.balance, language)} form="labelled" variant="label" />
+          {closed ? (
+            <AppText variant="label">{t("eventHome.balanceClosed")}</AppText>
+          ) : (
+            <Amount amount={formatNumber(view.balance, language)} form="labelled" variant="label" />
+          )}
         </View>
-        {view.shop.state === "open" ? null : (
-          <AppText accessibilityRole="alert">
-            {t(view.shop.state === "not_open" ? "shop.notOpen" : "shop.closed")}
-          </AppText>
-        )}
+        {view.shop.state === "not_open" ? (
+          <AppText accessibilityRole="alert">{t("shop.notOpen")}</AppText>
+        ) : null}
+        {closed ? (
+          <ShopClosedPanel closesAt={view.shop.closesAt} timeZone={view.shop.desk.timeZone} />
+        ) : null}
         {actions.notice === null ? null : (
           <AppText accessibilityRole="alert">{actions.notice}</AppText>
         )}
         <Problem problem={actions.problem} />
-        <SectionChips sections={sectionsOf(view.rewards)} section={section} onChoose={setSection} />
-        {view.rewards.length === 0 ? <AppText muted>{t("shop.empty")}</AppText> : null}
-        {inSection(view.rewards, section).map((reward) => (
-          <RewardCard
-            key={reward.id}
-            reward={reward}
+        {closed ? null : (
+          <Catalog
             view={view}
+            section={section}
             busy={actions.busy}
-            onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}
-            onRedeem={() => actions.redeem(reward, view)}
+            onSection={setSection}
+            actions={actions}
           />
-        ))}
+        )}
         <MyReservations
           view={view}
           busy={actions.busy}
-          onCancel={actions.cancel}
+          onCancel={(id) => actions.cancel(id, closed)}
           onCollect={(id) => void actions.collect(id)}
         />
       </ScrollView>
