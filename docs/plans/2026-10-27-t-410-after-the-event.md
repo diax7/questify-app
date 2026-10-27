@@ -309,6 +309,39 @@ with a lazy `require` inside the function, never at the top of a file. Otherwise
 React Native's `Share`. The unit test mocks both checks to report the modules missing and asserts the text share is
 used and neither package is required. Context7 confirms each module's registered native name at the build.
 
+### T-410b build note (2026-10-27, Standard)
+
+- **Files.** App, pure and unit-tested: `event/shop-window.ts` (Home's banner rule and the next time to read Home
+  again), `event/recap-api.ts` (the route's answer through `eventRecapSchema`), `event/recap.ts` (the card's lines and the
+  fixed text share), `event/recap-share.ts` (the sharer with injected modules) and `event/recap-share-native.ts` (the
+  two native checks, the lazy `require`s, React Native's `Share`). Screens stay thin: `ShopBanner.tsx`, `RecapEntry.tsx`
+  and `RecapCard.tsx` in `event/`, `app/event/[eventId]/recap.tsx`, and edits to Home, the Rewards tab, `shop-api.ts`
+  and `home-api.ts`. Web: `lib/rewards.ts` (the settings carry `state` and `closesAt`; `shopRequest` takes the loaded
+  settings and sends `daysAfter` only when it changed; the days check after the end; the desk warning),
+  `lib/sign-in-errors.ts` (the two `shop_window_locked` reasons in words) and `RewardsPanel.tsx`.
+- **The share is split in two files** so the rule is testable without React Native: `recap-share.ts` takes `{modulesPresent,
+  loadModules, shareText}`; the native file supplies the real ones. The unit test passes "both missing" and "one
+  missing" and asserts the text share ran and `loadModules` (the only place the packages are required) never did; a
+  second test mocks `expo` and `react-native` and asserts the two checks use `ExpoSharing` and `RNViewShot`, and a
+  source guard asserts neither package is imported at the top of any app file.
+- **New dependencies (Dhia's rule: a reason for each).** `react-native-view-shot` **5.1.0** (the exact version Expo SDK
+  57's `bundledNativeModules.json` pins; the registry's latest is 6.2.1, which Expo has not blessed for SDK 57) draws the
+  card into a PNG on the phone. Its `src/specs/NativeRNViewShot.ts` calls `TurboModuleRegistry.getEnforcing("RNViewShot")`
+  when the file loads, which is why a plain import crashes an older build. `expo-sharing` **~57.0.24** (SDK 57's range
+  `~57.0.23`; published 2026-10-21, over the 1-day `minimumReleaseAge`) opens the system share sheet for a file;
+  React Native's own `Share` cannot attach a file on Android. Context7 and the packages' sources confirm the native names
+  (`ExpoSharing` in both `SharingModule` files; `RNViewShot`), `captureRef(…, {format, quality, result: "tmpfile"})`,
+  `releaseCapture(uri)` and `shareAsync(uri, {mimeType, UTI, dialogTitle})`. `react-native-view-shot` adds five
+  pure-JS web-only packages (`html2canvas` and its four helpers, none loaded on a phone). Neither package asks for a
+  permission or an install script (`strictDepBuilds` holds). Privacy manifest: view-shot's is empty; expo-sharing ships
+  none and uses `UserDefaults` only to read an app group's received shares, which `app.json` already declares
+  (`NSPrivacyAccessedAPICategoryUserDefaults`, `CA92.1`); nothing to add (STORE_COMPLIANCE records it).
+- **Decisions taken (Proposed ADR-340, Q-309):** the recap card on Home shows for an active member once the event is
+  ended or archived; the card draws with the current theme and language (an image is a snapshot of the screen);
+  souvenirs show as names, three at most; Home reads itself again when the shop's close or the desk's end passes, so the
+  balance flips to "Closed" without a manual refresh; the dashboard shows the refusal's own words for each
+  `shop_window_locked` reason and loads the shop again after one.
+
 ## Docs the build updates
 
 API.md (the routes above), DATA_MODEL.md (the guard, `event_recap`, "the close is a rule"), SECURITY.md (the
