@@ -1466,20 +1466,47 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "event WHERE id = $1 AND shop_days_after = 9", [f.eventB])).toBe(0);
   });
 
-  it("gives no seat a hand in archiving: the step names no event and moves none by request (T-411)", async () => {
-    const events = [f.eventA, f.eventB, f.publicEventB];
+  it("gives no seat a hand in archiving: A's call moves B's events by the rule alone, as the system (T-411)", async () => {
+    // B's private events: one due (ended 31 days ago, revealed, nothing held), one not (its shop still open).
+    const ended = async (code: string, endedAgo: string) => {
+      const { rows } = await db.owner.query<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, access, starts_at, ends_at)
+         VALUES ($1, $2, 'Archive B', 'ended', 'private', now() - $3::interval - interval '1 day',
+                 now() - $3::interval)
+         RETURNING id`,
+        [f.orgB, code, endedAgo],
+      );
+      await db.owner.query(
+        `INSERT INTO event_result (event_id, organizer_id, revealed_at, claim_until)
+         VALUES ($1, $2, now(), now() + interval '1 day')`,
+        [rows[0]?.id, f.orgB],
+      );
+      return rows[0]?.id ?? "";
+    };
+    const due = await ended("ARCHB1", "31 days");
+    const notDue = await ended("ARCHB2", "1 day");
+    const untouched = [f.eventA, f.eventB, f.publicEventB, notDue];
     const before = await db.owner.query<{ id: string; status: string }>(
       "SELECT id, status FROM event WHERE id = ANY($1) ORDER BY id",
-      [events],
+      [untouched],
     );
     for (const seat of ["organizer", "staff", "player"] as const) {
       await asA(seat, "SELECT archive_ended_events()", []);
     }
     const after = await db.owner.query(
       "SELECT id, status FROM event WHERE id = ANY($1) ORDER BY id",
-      [events],
+      [untouched],
     );
     expect(after.rows).toEqual(before.rows);
+    // The due one goes by the rule, once, audited as the system: no seat of A is named on B's row.
+    const moved = await db.owner.query(
+      `SELECT e.status, a.actor_type, a.actor_id, a.organizer_id FROM event e
+       JOIN audit_log a ON a.event_id = e.id AND a.after ->> 'status' = 'archived' WHERE e.id = $1`,
+      [due],
+    );
+    expect(moved.rows).toEqual([
+      { status: "archived", actor_type: "system", actor_id: null, organizer_id: f.orgB },
+    ]);
     // Organizer A can write no status, B's event included: the column was never granted.
     for (const event of [f.eventA, f.eventB]) {
       expect(

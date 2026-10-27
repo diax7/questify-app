@@ -66,14 +66,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
       [event],
     );
   type Spec = { endedAgo?: string; days?: number; results?: "revealed" | "confirmed" | "none" };
-  /** An ended event of organizer A (public, a desk), its end `endedAgo` back; results revealed unless said. */
+  /**
+   * An ended event of organizer A (public, a desk), its end `endedAgo` back (31 days: past the help desk's 30-day
+   * sending window, so due unless something holds it); results revealed unless said.
+   */
   const endedEvent = async (spec: Spec = {}): Promise<string> => {
     const event = await f.newEvent({ phase: "ended" });
     await f.owner(
       `UPDATE event SET status = 'ended', starts_at = now() - $2::interval - interval '1 day',
                         ends_at = now() - $2::interval, shop_days_after = $3
        WHERE id = $1`,
-      [event, spec.endedAgo ?? "10 days", spec.days ?? 3],
+      [event, spec.endedAgo ?? "31 days", spec.days ?? 3],
     );
     const results = spec.results ?? "revealed";
     if (results === "revealed") {
@@ -169,8 +172,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
     return client;
   };
 
-  /** A player's transaction begun while the shop was open; the shop then closes 1 µs after its start. */
-  const beganOpen = async () => {
+  /**
+   * A member's transaction begun just before the boundary where the step may first archive: the end is moved to 30
+   * days before its start, plus 1 µs, with a 30-day shop window, so for it the shop and the help desk's sending are
+   * still open, and for any later transaction both have closed and the event (revealed, nothing held) is due.
+   */
+  const beganBeforeTheBoundary = async () => {
     const event = await endedEvent({ endedAgo: "1 day", days: 3 });
     const who = await member(event);
     await f.earn(event, who.enrollment, { points: 50 });
@@ -182,27 +189,76 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
     try {
       const [start] = (await door.query<{ at: string }>("SELECT now()::text AS at")).rows;
       await f.owner(
-        "UPDATE event SET ends_at = $2::timestamptz + interval '1 microsecond', shop_days_after = 0 WHERE id = $1",
+        `UPDATE event SET starts_at = $2::timestamptz - interval '31 days',
+                          ends_at = $2::timestamptz - interval '30 days' + interval '1 microsecond',
+                          shop_days_after = 30
+         WHERE id = $1`,
         [event, start?.at],
       );
       const [open] = (
         await door.query(
-          "SELECT shop_state(status, starts_at, ends_at, 0) AS s FROM event WHERE id = $1",
+          `SELECT shop_state(status, starts_at, ends_at, shop_days_after) AS shop,
+                  ends_at + interval '30 days' > now() AS sending
+           FROM event WHERE id = $1`,
           [event],
         )
       ).rows;
-      expect(open).toEqual({ s: "open" });
+      expect(open).toEqual({ shop: "open", sending: true });
     } catch (error) {
       await finish(door, "ROLLBACK");
       throw error;
     }
     const reserve = () =>
       door.query("SELECT * FROM reserve_reward($1, $2)", [reward?.id, randomUUID()]);
-    return { event, who, door, reserve };
+    const send = () => openTicket(who.player, event, door);
+    return { event, who, door, reserve, send };
+  };
+  /**
+   * Runs the step on its own held connection (past the boundary, it archives the event, uncommitted), starts `work` on
+   * the door, waits until the door blocks on the step's lock, commits the step and answers the door's refusal.
+   */
+  const crossStep = async (event: string, door: PoolClient, work: () => Promise<unknown>) => {
+    const step = await held({});
+    let pending: Promise<string> | undefined;
+    try {
+      const [past] = (
+        await step.query(
+          "SELECT now() >= ends_at + interval '30 days' AS past FROM event WHERE id = $1",
+          [event],
+        )
+      ).rows;
+      expect(past).toEqual({ past: true });
+      await step.query("SELECT archive_ended_events()");
+      const [pid] = (await door.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows;
+      pending = refusal(work());
+      await blocked(f.db.owner, pid?.pid ?? 0);
+    } catch (error) {
+      await finish(step, "ROLLBACK");
+      await pending;
+      throw error;
+    }
+    await finish(step, "COMMIT");
+    return pending;
   };
 
-  describe("the four conditions", () => {
-    it("archives an ended event once its shop is closed, results revealed, nothing reserved and no ticket open", async () => {
+  /** Moves the end to `days` before now() plus `offset` and runs the step, in one owner transaction (one now()). */
+  const endedAt = async (event: string, days: number, offset: string) => {
+    await f.owner("BEGIN");
+    try {
+      await f.owner(
+        `UPDATE event SET starts_at = now() - make_interval(days => $2 + 1),
+                          ends_at = now() - make_interval(days => $2) + $3::interval WHERE id = $1`,
+        [event, days, offset],
+      );
+      await f.owner("SELECT archive_ended_events()");
+      return await statusOf(event);
+    } finally {
+      await f.owner("COMMIT");
+    }
+  };
+
+  describe("the conditions", () => {
+    it("archives an ended event once its shop is closed, 30 days have passed, results are revealed, nothing is reserved and no ticket is open", async () => {
       const event = await endedEvent();
       await member(event);
       expect(await tick()).toBeGreaterThanOrEqual(1);
@@ -236,7 +292,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
       }
     });
 
-    it("keeps it ended while the shop is open, whatever else holds, and waits for the lifecycle's move", async () => {
+    it("keeps it ended while the shop is open (always inside the 30 days), and waits for the lifecycle's move", async () => {
       const open = await endedEvent({ endedAgo: "1 day", days: 3 });
       const notMoved = await endedEvent();
       await f.owner("UPDATE event SET status = 'live' WHERE id = $1", [notMoved]);
@@ -249,23 +305,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
 
     it("archives at exactly ends_at + 60 days with no reveal, and not a microsecond before", async () => {
       const event = await endedEvent({ results: "none" });
-      // One owner transaction each: the end is set from its now(), which the step reads too.
-      const at = async (offset: string) => {
-        await f.owner("BEGIN");
-        try {
-          await f.owner(
-            `UPDATE event SET starts_at = now() - interval '61 days',
-                              ends_at = now() - interval '60 days' + $2::interval WHERE id = $1`,
-            [event, offset],
-          );
-          await f.owner("SELECT archive_ended_events()");
-          return await statusOf(event);
-        } finally {
-          await f.owner("COMMIT");
-        }
-      };
-      expect(await at("1 microsecond")).toBe("ended");
-      expect(await at("0")).toBe("archived");
+      expect(await endedAt(event, 60, "1 microsecond")).toBe("ended");
+      expect(await endedAt(event, 60, "0")).toBe("archived");
+    });
+
+    it("waits out the help desk's 30-day sending window: ended 29 days ago it stays, at 30 days it goes", async () => {
+      const event = await endedEvent({ endedAgo: "29 days", days: 0 });
+      await tick();
+      expect(await statusOf(event)).toBe("ended");
+      expect(await endedAt(event, 30, "1 microsecond")).toBe("ended");
+      expect(await endedAt(event, 30, "0")).toBe("archived");
     });
 
     it("archives once the last hold has timed out and the last ticket is answered", async () => {
@@ -283,9 +332,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
       );
       expect(reserved?.status).toBe("reserved");
       const [sent] = (await openTicket(who.player, event)) as { ticket_id: string }[];
-      // The shop closes (the owner connection moves the end back, past every guard).
+      // The shop and the sending window close (the owner connection moves the end back, past every guard).
       await f.owner(
-        "UPDATE event SET starts_at = now() - interval '6 days', ends_at = now() - interval '5 days' WHERE id = $1",
+        "UPDATE event SET starts_at = now() - interval '32 days', ends_at = now() - interval '31 days' WHERE id = $1",
         [event],
       );
       await tick();
@@ -354,11 +403,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
 
   describe("a door in flight during the step", () => {
     it("keeps the event ended when a ticket was sent first, before or after it commits", async () => {
-      const event = await endedEvent();
-      const who = await member(event);
-      const door = await held({ playerId: who.player });
+      const { event, door, send } = await beganBeforeTheBoundary();
       try {
-        await openTicket(who.player, event, door);
+        await send();
         await tick();
         expect(await statusOf(event)).toBe("ended");
       } finally {
@@ -369,24 +416,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
     });
 
     it("refuses a ticket that waited on the step with sending_closed, and leaves none", async () => {
-      const event = await endedEvent();
-      const who = await member(event);
-      const crossed = await f.crossed(
-        { context: {}, sql: "SELECT archive_ended_events() AS n" },
-        {
-          context: { playerId: who.player },
-          sql: "SELECT * FROM open_ticket($1, 'question', NULL, NULL, 'Late question', $2)",
-          values: [event, randomUUID()],
-        },
-      );
-      expect(crossed.waited).toBe(true);
-      expect(await refusal(Promise.reject(crossed.second))).toBe("HT403:sending_closed");
+      const { event, door, send } = await beganBeforeTheBoundary();
+      try {
+        expect(await crossStep(event, door, send)).toBe("HT403:sending_closed");
+      } finally {
+        await finish(door, "ROLLBACK");
+      }
       expect(await statusOf(event)).toBe("archived");
       expect(await f.owner("SELECT id FROM ticket WHERE event_id = $1", [event])).toEqual([]);
     });
 
     it("keeps the event ended when a reservation was made first, before or after it commits", async () => {
-      const { event, door, reserve } = await beganOpen();
+      const { event, door, reserve } = await beganBeforeTheBoundary();
       try {
         expect((await reserve()).rows[0]).toMatchObject({ status: "reserved" });
         await tick();
@@ -399,22 +440,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("archiving ended events (databa
     });
 
     it("refuses a reservation that waited on the step with the shop's closed, and leaves none", async () => {
-      const { event, who, door, reserve } = await beganOpen();
-      const step = await held({});
-      let pending: Promise<string> | undefined;
+      const { event, who, door, reserve } = await beganBeforeTheBoundary();
       try {
-        const [closed] = (
-          await step.query("SELECT now() >= ends_at AS closed FROM event WHERE id = $1", [event])
-        ).rows;
-        expect(closed).toEqual({ closed: true });
-        await step.query("SELECT archive_ended_events()");
-        const [pid] = (await door.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows;
-        pending = refusal(reserve());
-        await blocked(f.db.owner, pid?.pid ?? 0);
-        await finish(step, "COMMIT");
-        expect(await pending).toBe("RS403:closed");
+        expect(await crossStep(event, door, reserve)).toBe("RS403:closed");
       } finally {
-        await pending;
         await finish(door, "ROLLBACK");
       }
       expect(await statusOf(event)).toBe("archived");

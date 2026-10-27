@@ -1,6 +1,6 @@
 # Security — Questify
 
-## T-411 archiving boundary (implemented; code review pending)
+## T-411 archiving boundary (implemented; code review 87 folded)
 
 Migration 0075 adds no table and one grant. `archive_ended_events` (definer, pinned search path, `questify_app` only)
 takes no argument and moves an event only by the rule (`archive_due`, internal, no grant): any seat that calls it can

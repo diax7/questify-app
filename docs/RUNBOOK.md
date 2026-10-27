@@ -89,9 +89,12 @@ lost connection); to move due events by hand, run `SELECT advance_event_lifecycl
 it: every player read works in both states, and an event left Ended only stays editable by its team a while longer.
 Repeated: check the database as above; by hand, `SELECT archive_ended_events();` with the API's role (it
 archives only what the rule allows, 100 a call). An event that stays Ended long after its close is waiting for one of
-ADR-341's conditions: `SELECT archive_due(e) FROM event e WHERE id = '<event>'` as the owner, then look for a
-`reserved` redemption, an open ticket (an escalated one waits for Questify's answer), or results not revealed within 60
-days of the end. `event.archived` (info) counts the events archived in a run.
+ADR-341's conditions: `SELECT archive_due(e) FROM event e WHERE id = '<event>'` as the owner, then look for an end
+less than 30 days ago (the help desk's sending window: never archived sooner), a `reserved` redemption, an open
+ticket (an escalated one waits for Questify's answer; a ticket is purged 90 days after the latest of the end, the
+sending, the escalation and the return), or results not revealed within 60 days of the end. One failing row would
+roll back the whole run's batch every time (no per-event exception block, ADR-341): find it with `archive_due` on
+the oldest ended events and fix that row. `event.archived` (info) counts the events archived in a run.
 
 **`quest.refused` spikes in the log** (T-105): the `reason` says which. Many `forged` or `not_questify` from one player
 means someone is trying made-up QR contents; many `old` after a "New code" means a printed sheet was not replaced.

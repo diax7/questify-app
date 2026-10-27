@@ -200,9 +200,10 @@ on the status now: scheduled keeps a future start; live keeps its start, zone an
 later; ended keeps everything. Only drafts are deleted (policy), and a deleted event leaves the editor limits that named
 it, except a limit's last event, which stays so the editor sees nothing rather than everything.
 
-**Archiving (T-411, migration 0075, ADR-337 (5), ADR-341; undeployed).** The lifecycle tick's last step,
+**Archiving (T-411, migration 0075, ADR-337 (5), ADR-341 Accepted; undeployed).** The lifecycle tick's last step,
 `archive_ended_events()` (definer, the API's role only, no argument), moves an `ended` event to `archived` when
-`archive_due(event)` holds: the shop is closed (`shop_state`), no `redemption` of the event is `reserved` (shop holds,
+`archive_due(event)` holds: the shop is closed (`shop_state`), 30 days have passed since the end (`open_ticket`'s
+sending window, ADR-248, so archiving never cuts it short), no `redemption` of the event is `reserved` (shop holds,
 rank prizes, quest items), `event_result.revealed_at` is set or `ends_at + 60 days <= now()`, and no `ticket` of the
 event is `open` (either queue). Up to 100 a run, oldest end first, `FOR UPDATE SKIP LOCKED`, the rule checked again by
 the UPDATE after the lock; audited as `event.lifecycle` (`system`, `{status: ended}` → `{status: archived}`). Indexes

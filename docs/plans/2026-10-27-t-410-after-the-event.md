@@ -367,7 +367,7 @@ score, `final_rank`, `souvenir_receipt`, `player_item`, XP and achievements), TA
 7. **Quests done** counts quests completed at least once (ledger, removals excluded); Home's progress line counts a
    repeatable quest only at its cap, so the two can differ.
 
-## T-411 — archiving ended events (plan note, 2026-10-28; ADR-341 Proposed, Q-310)
+## T-411 — archiving ended events (plan note, 2026-10-28; ADR-341 Accepted at the code review, Q-310 answered)
 
 Delivers FR-1608's last step under ADR-337 (5). Small and fully specified, so a note, not a plan review. Migration
 **0075** (new file; CranL is at 0056).
@@ -378,7 +378,8 @@ Delivers FR-1608's last step under ADR-337 (5). Small and fully specified, so a 
   `archive_due(event)` holds, oldest end first, `FOR UPDATE SKIP LOCKED`; for each it runs one `UPDATE … WHERE
   archive_due(e)` (a statement that starts after the lock, so it sees every commit before it) and writes the same
   audit row as the other moves (`system`, `event.lifecycle`, `{status: ended}` → `{status: archived}`).
-- **`archive_due(ev)`** (plain SQL, internal): `status = 'ended'`; `shop_state(...) = 'closed'`; `event_result.revealed_at`
+- **`archive_due(ev)`** (plain SQL, internal): `status = 'ended'`; `shop_state(...) = 'closed'`; `ends_at + 30 days
+  <= now()` (added at the code review: `open_ticket`'s sending window, ADR-248); `event_result.revealed_at`
   set or `ends_at + 60 days <= now()`; no `redemption` of the event `reserved` (shop holds, rank prizes, quest items: one
   table); no `ticket` of the event `open` (either queue). Every blocker clears on its own: holds and prizes time out,
   tickets are purged 90 days after the end, results fall back to the 60 days.

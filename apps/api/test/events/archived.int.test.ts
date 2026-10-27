@@ -34,7 +34,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("an archived event over HTTP", 
   const get = (url: string) =>
     test.app.inject({ method: "GET", url, headers: { authorization: `Bearer ${player.token}` } });
 
-  /** An ended public event with one member who earned 40 points, its results confirmed and revealed, then archived. */
+  /**
+   * A public event that ended 31 days ago (past the help desk's sending window) with one member who earned 40 points,
+   * its results confirmed and revealed, then archived.
+   */
   beforeAll(async () => {
     db = await createTestDatabase();
     test = await startApp(db);
@@ -49,7 +52,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("an archived event over HTTP", 
     cookie = await signInFully(test, "owner@archive.test");
     [{ id: event = "" } = { id: "" }] = await owner<{ id: string }>(
       `INSERT INTO event (organizer_id, join_code, name_ar, name_en, status, starts_at, ends_at, desk_location_en)
-       VALUES ($1, 'ARCH1', 'مهرجان', 'Archive Fest', 'ended', now() - interval '11 days', now() - interval '10 days',
+       VALUES ($1, 'ARCH1', 'مهرجان', 'Archive Fest', 'ended', now() - interval '32 days', now() - interval '31 days',
                'Hall B') RETURNING id`,
       [organizer],
     );
@@ -75,13 +78,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("an archived event over HTTP", 
     const [done] = await owner<{ id: string }>(
       `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
                                      idempotency_key, created_at)
-       VALUES ($1, $2, $3, $4, 1, 'qr', $5, now() - interval '10 days 2 hours') RETURNING id`,
+       VALUES ($1, $2, $3, $4, 1, 'qr', $5, now() - interval '31 days 2 hours') RETURNING id`,
       [organizer, event, enrolled?.id, quest?.id, randomUUID()],
     );
     await owner(
       `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
                                  completion_id, quest_id, actor, created_at)
-       VALUES ($1, $2, $3, 'quest', 40, 40, $4, $5, 'player', now() - interval '10 days 2 hours')`,
+       VALUES ($1, $2, $3, 'quest', 40, 40, $4, $5, 'player', now() - interval '31 days 2 hours')`,
       [organizer, event, enrolled?.id, done?.id, quest?.id],
     );
     const places = await as<{ enrollment_id: string }>(team(), "SELECT * FROM results_places($1)", [
@@ -171,13 +174,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("an archived event over HTTP", 
       headers: withSession(cookie),
       payload: { confirm: true },
     });
-    expect(end.statusCode).toBe(409);
+    expect([end.statusCode, end.json().code]).toEqual([409, "event_not_live"]);
     const remove = await test.app.inject({
       method: "DELETE",
       url: path,
       headers: withSession(cookie),
     });
-    expect(remove.statusCode).toBeGreaterThanOrEqual(400);
+    expect([remove.statusCode, remove.json().code]).toEqual([409, "event_not_draft"]);
     expect(await owner("SELECT status FROM event WHERE id = $1", [event])).toEqual([
       { status: "archived" },
     ]);

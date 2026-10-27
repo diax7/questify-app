@@ -4660,21 +4660,32 @@ testable without React Native; each refusal says what the organizer can do.
 the closing date while open; Home makes one more timer; a second small file for the share.
 
 ## ADR-341 — Archiving ended events: one tick step, guarded doors, and archived is final
-**Status:** Proposed (T-411 build, 2026-10-28; Q-310). Delivers FR-1608's last step under ADR-337 (5).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-411 code review 87, MAJOR folded, no re-review;
+Q-310). Delivers FR-1608's last step under ADR-337 (5).
 **Decision:** (1) `archive_ended_events()` is the lifecycle tick's last step, after the reservation timeout and the ticket
 purge, so a hold that timed out in the same run no longer blocks. It takes no argument (anyone may call it; it applies
 the rule), archives up to 100 due events a run, oldest end first, and audits each move as the other lifecycle moves
-(`system`, `event.lifecycle`, ended → archived). (2) The rule is ADR-337 (5)'s, in one internal function
-(`archive_due`): stored `ended`, shop closed by `shop_state`, no `reserved` redemption of any kind, results revealed or
-`ends_at + 60 days` reached (that moment included), no open ticket of the event in either queue (an escalated ticket
-still waits for Questify). An event the lifecycle has not yet moved to `ended` waits for that move, which the same run
-makes first. (3) Concurrency: the step takes each event `FOR UPDATE SKIP LOCKED` and checks the rule again in the UPDATE,
+(`system`, `event.lifecycle`, ended → archived). (2) The rule is ADR-337 (5)'s plus the help desk's window, in one
+internal function (`archive_due`): stored `ended`, shop closed by `shop_state`, **30 days since the end** (that moment
+included), no `reserved` redemption of any kind, results revealed or `ends_at + 60 days` reached (that moment
+included), no open ticket of the event in either queue (an escalated ticket still waits for Questify). The 30 days are
+`open_ticket`'s own sending window (ADR-248): it refuses an archived event, so archiving at the shop's close (which can
+be the end itself) would cut members' sending short. They also give organizers 30 days after the end to review pending
+submissions, which are refused once archived (`SE409`). With the shop's window at most 30 days, the shop is always
+closed by then; the shop condition stays as ADR-337 names it. An event the lifecycle has not yet moved to `ended` waits
+for that move, which the same run makes first. (3) Concurrency: the step takes each event `FOR UPDATE SKIP LOCKED` and checks the rule again in the UPDATE,
 after the lock; two BEFORE INSERT guards (`redemption_event_open`, `ticket_event_open`) read the event `FOR KEY SHARE`,
 so a reservation, rank prize, quest item or ticket in flight either makes the step pass the event by this run or waits
 for it and is refused as archived, with the door's own refusal (`RS403 closed`, `RF409 not_ended`, `QN403 ended`,
-`HT403 sending_closed`): the API needs no new mapping. A reservation whose transaction began a moment before the shop
-closed and waited on the step is therefore refused, where it would have been served had nothing archived the event in
-that instant. (4) Archived is final for every role: the API's role never had a right on `status`, no definer moves an
+`HT403 sending_closed`): the API needs no new mapping. A reservation or ticket whose transaction began a moment before
+the boundary (a 30-day shop closing with the sending window) and waited on the step is therefore refused, where it would
+have been served had nothing archived the event in that instant. A reveal with no prizes that races the step can still
+set `revealed_at` on an event the step has just archived: harmless, since it inserts no redemption, and its other
+writes (the `event_result` update, the audit row, which has no foreign key) need no lock the step holds, so it commits
+as before (`reveal_results`, 0034); a reveal with prizes inserts redemptions and is refused by the guard. No per-event exception block: nothing on the step's path
+can fail today, so one would be speculative; the known risk is that a single failing row would roll back the whole
+batch on every run and stall archiving, to revisit if a failure source appears (the RUNBOOK's `event.archive_failed`).
+(4) Archived is final for every role: the API's role never had a right on `status`, no definer moves an
 event out of archived, and `event_archived_final` refuses it for the owner connection too (`QE409 archived`).
 (5) What archived means stays as built: organizer writes refuse it (`event_archived`), joining and new tickets refuse
 it, the operators' list leaves it out; the player keeps every read (event list, Home with the shop closed, recap,
@@ -4682,6 +4693,7 @@ passport, public stamp, results, points record, My rewards, tickets, profile, lo
 **Why:** The step must never strand a hold, a prize or a ticket that only the desk or the team could settle, and a door
 that checked the status a moment earlier must not slip a new one in after the move; reusing each door's own refusal
 keeps the API unchanged. A final state that a support query could reverse would make every "archived" refusal soft.
-**Trade-offs:** A team that never answers a ticket delays archiving until the ticket is purged (90 days after the end);
-an event that is never revealed is archived at 60 days and can no longer be confirmed or revealed; un-archiving a mistake
+**Trade-offs:** No event is archived within 30 days of its end, however early its shop closes. A team that never
+answers a ticket delays archiving until the ticket is purged, 90 days after the latest of the event's end, the sending,
+the escalation and the return (`purge_ended_tickets`, 0061); an event that is never revealed is archived at 60 days and can no longer be confirmed or revealed; un-archiving a mistake
 would need a new migration and its own decision.

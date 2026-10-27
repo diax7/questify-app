@@ -1197,3 +1197,7 @@ refuse an archived one with each door's own refusal; an escalated ticket still o
 event out of Archived, for any role. The other options: archive in `advance_event_lifecycle` itself (one function, but
 it would run before the reservation timeout and ticket purge of the same run), or restate each door to lock the event
 (four large functions restated instead of two small guards). Developer's call at the T-411 code review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-411 code review (87, MAJOR folded, no
+re-review), with a fifth condition: no event is archived before 30 days after its end, the help desk's sending window
+(ADR-248), which also gives organizers 30 days to review pending submissions. No per-event exception block (a known
+risk recorded in ADR-341). ADR-341 Accepted.
