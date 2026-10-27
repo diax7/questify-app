@@ -165,6 +165,20 @@ that is shared or written to disk (today's is in memory, per process).
 - **The migration refuses to run** when existing names break the new character rule or read alike after folding: it
   lists the player ids; rename them (owner connection) and run it again.
 
+## The daily word guess lists (T-406d, ADR-327, ADR-328)
+
+- **Import once per language before the first daily word goes live:** console → Content → Word bank → pick the language →
+  Import → choose `data/word-lists/guess-list-en.txt` or `guess-list-ar.txt` → Add. The console sends 500 words a call
+  (the database spends about 1.4 ms a word and the API allows a statement 5 s): English takes about 15 seconds, Arabic
+  (119,023 words) about 3 minutes. The page shows the running total; a stopped import keeps what it added, and adding the
+  same file again changes nothing already there.
+- **Pruning or growing a list:** paste or upload words and use Remove (or Add); the lines the database refuses are shown.
+  A removal never touches a guess already made or a daily word.
+- **Rebuilding the files** (a newer SCOWL or Wikidata dump): `scripts/build-word-lists.mjs` (usage in its header),
+  with every download in its own folder; update the checksums and dates in `docs/legal/THIRD_PARTY.md`.
+- **The hand-picked daily words need not be in these files:** scheduling a daily word also adds it to its language's
+  guess list.
+
 ## Rankings and Redis (T-106, ADR-118)
 
 - **Settings:** `REDIS_URL` (`redis://` or `rediss://`; required in production). Check at deploy whether CranL's

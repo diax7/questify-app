@@ -588,11 +588,23 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406c section).
   - Done when: Fewer than 7 days of questions, or fewer than two periods of content, shows a warning and a menu badge.
   - Done 2026-10-27: `/console/content` (Content, platform admins only) with two tabs. Daily challenge: the warning banner, the period control ("Applies from tomorrow", the pending change and the count left on non-start days), the schedule by period with the empty ones marked (56 days ahead, started periods read-only), a period editor (three ready questions, the sponsor name in both languages, a preview in both), the question bank (new, edit, retire after a confirmation) and the unused content with a Remove button. Word bank: the per-language warnings, the period control, the daily words by period, the guess list (size, search by prefix, pages) and the import (paste or a text file, one word per line, added or removed in calls of at most 20,000, the refused lines shown); no list ships (Q-281). The console home links to Content with a "Needs attention" mark while any content runs low. Strings in both languages (`console.content.*`, `console.daily.*`, `console.words.*`). Proven by `console-daily.test`, `console-daily-forms.test` and `e2e/console-daily.spec.ts` (desktop and phone, Arabic and English). Proposed ADR-315 / Q-284.
-- [ ] **T-406d** Source the daily word guess lists (Q-281, Dhia 2026-10-27: open lists plus the team's picks): find five-letter
+  - Note 2026-10-27 (T-406d): the import sends calls of 500 words, not 20,000 (`IMPORT_CALL_WORDS`, ADR-328): the database
+    spends about 1.4 ms a word and the API allows a statement 5 s.
+- [x] **T-406d** Source the daily word guess lists (Q-281, Dhia 2026-10-27: open lists plus the team's picks): find five-letter
   word lists in Arabic and English whose licence allows commercial use, record each source and licence in
-  a new `docs/THIRD_PARTY.md`, clean the Arabic list to the 33-letter set and `word_norm`, and keep
-  the files ready for the console import (T-406c); the daily words themselves are the team's hand-picked list — delivers
-  FR 731 (content); depends on: T-406c
+  `docs/legal/THIRD_PARTY.md` (the existing notices file, not a second one), clean the Arabic list to the 33-letter set and
+  `word_norm`, and keep the files ready for the console import (T-406c); the daily words themselves are the team's
+  hand-picked list — delivers FR 731 (content); depends on: T-406c
+  - Done 2026-10-27 (code review owed): `data/word-lists/guess-list-en.txt` (8,874 words, SCOWL size 80, the permission notice
+    in `NOTICE.txt`) and `guess-list-ar.txt` (119,023 words, Wikidata Lexemes, CC0), normalized five-letter words, sorted,
+    offensive and vulgar words, names, abbreviations and repeats removed; `scripts/build-word-lists.mjs` rebuilds them;
+    sources, exact licences, checksums, attribution and the sources refused are in `docs/legal/THIRD_PARTY.md`. Proven by
+    `apps/web/src/lib/word-list-files.test.ts` (format, order, no repeats, common words, blocked words, the import parses it
+    whole) and, once, by importing both files into a test database through `word_list_change` (every word added, none refused).
+    That check found that the console's 20,000-word calls would time out against the API's 5 s statement limit
+    (about 1.4 ms a word); the console now imports in calls of 500 words. Proposed ADR-327, ADR-328 / Q-296, Q-297.
+    Owed by people, not blocking: an Arabic reader skims the Arabic list and block list (Q-296); the team imports both
+    files in the console (Content, Word bank, Import; about 3 minutes for Arabic) before the first daily word goes live.
 - [x] **T-407** Marketing consent per channel and opt-out; interests, city and the 'For you' list — delivers FR 733, 734, 735, 736, 737, 1113, 1114, 1111, 1112, 1738; depends on: T-107
   - Split 2026-10-27 (ADR-316, Q-285): T-407 the server, shared schemas and web; T-407b the app; T-407c the "set your interests" quest metric (core). Standard; plan: `docs/plans/2026-10-27-t-407-marketing-preferences.md`.
   - Note 2026-10-26 (T-403): the player's city reuses the `city` table (migration 0065); "set your interests" adds its metric to `player_metrics` and is counted by the same `questify_sync` evaluator (FR-710).

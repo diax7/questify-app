@@ -1586,6 +1586,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   limits, and one MAJOR, Home re-reads on focus), both fixed in 11d6e25 and `lint:limits` checked by the coordinator;
   ADR-324 and ADR-325 accepted.
 - 2026-10-27 **T-408c built (standard; code review owed).** The console's Ranking seasons page `/console/seasons` («مواسم الترتيب»; a link on the console home): every Questify month newest first with its ranked count and the current one marked, one month open at a time (the current one on arrival) showing its top 10 (rank, avatar, username, XP, level), read only with no reset button (Q-292). `ConsoleSeasons`, `lib/console-seasons.ts` (reads through the shared schemas), shared `formatLocalMonth`, strings `console.seasons.*`; the test API server gains a test-only `/season-board` control. Proven by `console-seasons.test`, `event-time.test`, and `e2e/console-seasons.spec.ts` (Arabic and English, desktop and phone: opens on the current month, a past month's count and top 10 in order, a month nobody played, one open at a time, no sideways scroll, no reset button, a non-admin gets 404). Proposed ADR-326 / Q-295 (the name «مواسم الترتيب», because «المواسم» already means campaigns in the console). Progress 93/167 (55.69%). No mutation globs (standard).
+- 2026-10-27 **T-406d built (standard; code review owed).** The daily word guess lists (Q-281, answered by Dhia: open lists plus the team's picks). `data/word-lists/guess-list-en.txt` (8,874 words, from SCOWL size 80, US/GB/CA spellings, lower-case only) and `guess-list-ar.txt` (119,023 words, from the Arabic lexemes of Wikidata, CC0: lemmas and forms in the 33-letter set, five letters, every spelling filed as a proper noun left out, the definite article put before three-letter nouns and adjectives), one normalized word per line, sorted, without offensive and vulgar words (SCOWL's marks, LDNOOBW, a short extra list), names, abbreviations and repeats. `scripts/build-word-lists.mjs` rebuilds them; the sources, exact licences read at their primary source on 2026-10-27, checksums, attribution texts and the sources refused (Leipzig unclear, FrequencyWords share-alike, Ayaspell and Snowball copyleft, UKC non-commercial) are in `docs/legal/THIRD_PARTY.md` (the existing notices file, extended); SCOWL's notice also sits in `data/word-lists/NOTICE.txt`. Proven by `apps/web/src/lib/word-list-files.test.ts` (12 checks) and by importing both files once into a test database through `word_list_change` (all added, none refused). That check found the console's 20,000-word import calls would time out against the API's 5 s statement limit (about 1.4 ms a word, `word_norm` three times a word through nested `search_path` functions): the console now imports in calls of 500 words. Proposed ADR-327, ADR-328 / Q-296, Q-297 (a faster `word_list_change` is a later, core SQL change). Progress 94/167 (56.29%). No mutation globs (standard).
 
 
 
@@ -1594,11 +1595,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed. **Next:** T-408d when the RUNBOOK ranked-count check fires, T-406d (word lists, Q-281
-   answered), then T-409. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent wording), Q-289 (proof
-   after deletion); nothing waits on them. No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b, T-407b
-   and T-408b. **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central replay-before-scope
-   fix for other idempotent organizer routes.
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **Next:** T-408d when the RUNBOOK
+   ranked-count check fires, then T-409. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
+   wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
+   `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console
+   before the first daily word goes live (RUNBOOK). No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b,
+   T-407b and T-408b. **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central
+   replay-before-scope fix for other idempotent organizer routes; Q-297 a faster `word_list_change` (only if bigger lists
+   are imported).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

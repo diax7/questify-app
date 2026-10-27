@@ -1065,3 +1065,18 @@ public events; Home lists the newest 5 past events then points to the history. D
 Recommended (ADR-326): "Ranking seasons" / «مواسم الترتيب» (not «المواسم», which names campaigns in the console), the months newest
 first with one open at a time showing its top 10, read only. Developer's call at the T-408c review.
 **Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended; ADR-326 Accepted.
+
+## Q-296 — The daily word guess lists: sources and a native reader (2026-10-27, T-406d build)
+Recommended (ADR-327): English from SCOWL, Arabic from Wikidata Lexemes (CC0), cleaned and filtered as the ADR says, shipped as
+two files in `data/word-lists/` for the console import. Two things need a person: an Arabic reader should skim a sample of
+`guess-list-ar.txt` (generated verb forms, names filed as nouns) and the Arabic extra block list in
+`scripts/build-word-lists.mjs`, and the team imports both files in the console before the first daily word goes live. If the
+Arabic list is too loose, the console's remove import prunes it. Developer's call at the T-406d review; nothing waits on it.
+
+## Q-297 — The guess list import timing and a faster `word_list_change` (2026-10-27, T-406d build)
+Recommended (ADR-328): import in calls of 500 words (about 0.7 s each on a laptop, 5 s allowed). Found while checking that the
+shipped lists import: `word_list_change` costs about 1.4 ms a word because `word_norm` runs three times per word through
+nested functions with their own `search_path`, so the 20,000-word calls T-406c sent would time out. A follow-up could make the
+function normalize each input once and inline the normalization (the same word set, 100 times faster); it is core SQL
+(migration 0069, still undeployed), so it wants a plan review. Not needed while lists are imported once. Developer's call
+at the T-406d review.

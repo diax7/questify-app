@@ -4319,3 +4319,40 @@ read when a month opens, not with the list. The page is read only. A month with 
 pages alike; the English "Seasons" stays out of the same confusion by saying "Ranking". One open month keeps the list short
 and the page on one screen on a phone; reading a month's rows on opening avoids fetching ten boards for a list of months.
 **Trade-offs:** Two months cannot be compared side by side. Each opening reads the month again, which is one cheap indexed read.
+
+## ADR-327 — The daily word guess lists: SCOWL for English, Wikidata Lexemes for Arabic
+**Status:** Proposed (developer, T-406d build, Q-296). Specifies FR-1811; follows Q-281 ("open lists plus our picks").
+**Decision:** The two valid-guess lists are files in `data/word-lists/`, `guess-list-en.txt` (8,874 words) and
+`guess-list-ar.txt` (119,023 words), one normalized five-letter word per line, sorted, that a platform admin imports in
+the console (Content, Word bank, Import). English comes from SCOWL (the English Speller Database), size 80 with
+American, British and Canadian spellings, keeping only lower-case words. Arabic comes from the Arabic lexemes of Wikidata
+(CC0): every lemma and form folded to the 33-letter set, five letters kept, every spelling that any lexeme files as a proper noun left out,
+the definite article put before three-letter nouns and adjectives, and strings no Arabic word has (three equal letters
+in a row, two hamza letters or two alefs together) dropped. Both lists leave out the words SCOWL marks offensive or
+vulgar, the five-letter words of the LDNOOBW list for the language, and a short list of slurs and explicit terms in
+`scripts/build-word-lists.mjs`. Sources, exact licences, checksums, the attribution texts and the sources refused
+(share-alike, copyleft, non-commercial or unclear terms) are recorded in `docs/legal/THIRD_PARTY.md`, the file that
+already lists the username word lists, not in a second `docs/THIRD_PARTY.md`. The notice SCOWL requires travels with the
+data in `data/word-lists/NOTICE.txt`. `scripts/build-word-lists.mjs` rebuilds both files from the downloads;
+`apps/web/src/lib/word-list-files.test.ts` keeps their format honest.
+**Why:** SCOWL is the one large English list with an explicit permission notice that asks only for attribution and carries
+every inflected form; Wikidata Lexemes is the only large Arabic source found that is CC0 (the others were share-alike,
+copyleft, non-commercial or unclear), and it holds inflected forms, which an Arabic guess list needs because most
+five-letter Arabic words are inflections.
+**Trade-offs:** The Arabic list is permissive: it includes the bot-generated conjugations of about 27,000 verbs (some
+forms are grammatical but rare), and a few junk lexemes and names filed as nouns slip through. A guess list only decides
+which strings are accepted, so this costs little; the console's remove import prunes it. The English list is smaller than
+the largest word-game lists because size 85 would need a prominent in-product notice. The offensive-word filter is best
+effort; an Arabic reader should skim it (Q-296). The daily words, hand-picked by the team, come from no source.
+
+## ADR-328 — The console imports a guess list in calls of 500 words
+**Status:** Proposed (developer, T-406d build, Q-297). Amends ADR-315.
+**Decision:** The console sends a pasted or uploaded list in calls of at most 500 words (`IMPORT_CALL_WORDS`); the API
+and the database keep their limit of 20,000 words a call.
+**Why:** Measured in T-406d, `word_list_change` spends about 1.4 ms a word on a laptop (500 words 0.7 s, 5,000 words 6.4 s,
+the English list in one call 11 s), because `word_norm` runs three times per word, each run through nested functions that
+carry their own `search_path`. The API gives a statement 5 s (`pool-options.ts`), so the 20,000-word calls the console sent
+would time out for any list above about 3,500 words, and neither shipped list would import. 500 words leave a margin of
+seven.
+**Trade-offs:** The Arabic list takes about 240 calls, about three minutes, once. A faster `word_list_change` (normalize each
+input once, without the nested functions) would allow bigger calls; it touches core SQL and waits for a reason (Q-297).
