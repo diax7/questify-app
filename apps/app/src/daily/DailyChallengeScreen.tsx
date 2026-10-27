@@ -14,8 +14,15 @@ import { postAnswer } from "#src/daily/daily-api.ts";
 import { stepAfterMove } from "#src/daily/daily-flow.ts";
 import { nextLine } from "#src/daily/daily-lines.ts";
 import { nextQuestion, withAnswer } from "#src/daily/daily-state.ts";
-import { useAfterFinish, useOwnDaily, type DailyRead } from "#src/daily/use-daily.ts";
+import { DailyGate } from "#src/daily/DailyGate.tsx";
+import {
+  useAfterFinish,
+  useCelebrateWhen,
+  useOwnDaily,
+  type DailyRead,
+} from "#src/daily/use-daily.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
+import type { LevelUp } from "#src/questify/level.ts";
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -167,6 +174,9 @@ function useAnswering(read: DailyRead, challenge: DailyChallenge) {
   const [pending, setPending] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<MessageKey | null>(null);
+  const [levelUp, setLevelUp] = useState<LevelUp | null>(null);
+  // The level-up card waits for Next or See result, so the last reveal is seen first.
+  useCelebrateWhen(levelUp, challenge.finished !== null && pending === null, 0);
   const choose = async (question: Question, choice: number) => {
     if (busy) return;
     setBusy(true);
@@ -177,7 +187,7 @@ function useAnswering(read: DailyRead, challenge: DailyChallenge) {
       position: question.position,
       choice,
     });
-    const step = stepAfterMove(outcome);
+    const step = stepAfterMove(outcome, "challenge");
     if (step.leave) {
       router.replace("/home");
       return;
@@ -190,7 +200,10 @@ function useAnswering(read: DailyRead, challenge: DailyChallenge) {
           : { ...current, challenge: withAnswer(current.challenge, reply) },
       );
       setPending(question.position);
-      if (reply.finished !== null) afterFinish(reply);
+      if (reply.finished !== null) {
+        setLevelUp(reply.levelUp);
+        afterFinish();
+      }
     }
     setNotice(step.notice);
     if (step.reread) {
@@ -241,18 +254,17 @@ function ChallengePlay({
 function ChallengeBody() {
   const { t } = useI18n();
   const read = useOwnDaily();
-  if (read.failed) {
-    return (
-      <>
-        <AppText accessibilityRole="alert">{t("daily.failed")}</AppText>
-        <Button kind="quiet" label={t("common.retry")} onPress={() => void read.load()} />
-      </>
-    );
-  }
-  if (read.daily === null) return <AppText muted>{t("common.loading")}</AppText>;
-  const challenge = read.daily.challenge;
-  if (challenge === null) return <AppText muted>{t("daily.challenge.none")}</AppText>;
-  return <ChallengePlay read={read} challenge={challenge} />;
+  return (
+    <DailyGate read={read}>
+      {(daily) =>
+        daily.challenge === null ? (
+          <AppText muted>{t("daily.challenge.none")}</AppText>
+        ) : (
+          <ChallengePlay read={read} challenge={daily.challenge} />
+        )
+      }
+    </DailyGate>
+  );
 }
 
 /**

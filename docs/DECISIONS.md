@@ -4095,7 +4095,7 @@ finishes are new work at the same instant, not streak cost, and a laptop is not 
 answers a retry-worthy 409 instead of waiting.
 
 ## ADR-314 — T-406b build choices: the games' screens, the keyboard, the marks and the next-date line
-**Status:** Proposed (T-406b worker, 2026-10-27; Q-283). Specifies ADR-309, ADR-310 and ADR-300 on screen.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-406b code review 91, about 95 after the fold-in; Q-283). Specifies ADR-309, ADR-310 and ADR-300 on screen.
 **Decision:** (1) Until Questify Home (T-408) the two games are two cards under "Daily games" at the top of the Profile's
 Questify section, read from `GET /v1/me/daily`; a game that is `null` (switched off or no content) shows no card, and a
 failed read shows none (the games' own screens say "could not load" with a retry). The cards promise no XP amount before
@@ -4114,7 +4114,10 @@ because the sync does not report a level the door already paid. (8) "When the ne
 "tomorrow", else "on {weekday}", or "next {weekday}" when that is today's weekday; it is worked out from the phone's clock
 as a Questify day (Riyadh UTC+3, day starting 04:00) and reuses the weekday names of the streak settings. (9) The
 revealed word is wrapped in a direction isolate so an Arabic word in an English sentence (or the reverse) keeps its
-order. (10) A game's state is held on the server only; nothing is stored on the phone.
+order. (10) A game's state is held on the server only; nothing is stored on the phone. Review fold-in: a failed read shows the
+full-screen error only when no game is held, otherwise a banner above the game; the level-up card waits for Next or See
+result (challenge) or a second after the result card (word); the Arabic keyboard has rows of 9, 9, 9 and 6 keys at one
+width and Enter and Delete on their own row; a lost connection says what is kept, per game.
 **Why:** The plan's surfaces with the accessibility rules of the task (marks never by colour alone, screen-reader labels,
 RTL, Reduce Motion through `PopIn`); the same patterns as the gem shop (pure flow functions, one reader per screen).
 **Trade-offs:** The next-date line trusts the phone's clock (display only; the server decides what counts), and says

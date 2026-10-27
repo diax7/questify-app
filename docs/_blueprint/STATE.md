@@ -1559,7 +1559,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   same load; 300 extra concurrent finishes about +62 ms on a laptop (142 ms p95, inside 1 s; Q-282). Proposed ADR-313 /
   Q-282. Progress 85/161 (52.80%). Mutation globs for GitHub: `apps/api/src/daily/**/*.ts`,
   `packages/shared/src/daily/**/*.ts` (tests excluded).
-- 2026-10-27 **T-406b built (standard; code review pending).** The daily games on screen: `apps/app/src/daily/` (the
+- 2026-10-27 **T-406b built (standard; code review 91 GO, folded in).** The daily games on screen: `apps/app/src/daily/` (the
   challenge screen: one question at a time, a reveal after each answer with the right option by colour, tick and label,
   the sponsor line, an end card with the score, the XP and the next date; the word screen: a six-row grid in the word's
   language, the app's own keyboard with 33 Arabic or 26 English keys, marks by colour, glyph and border with a legend,
@@ -1573,7 +1573,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
-1. **T-406b code review** (standard, with the Arabic pass), then T-406c; the GitHub mutation run on T-406's core
+1. **T-406c** (console pages; T-406b is reviewed, 91); the GitHub mutation run on T-406's core
    globs (run 40467748184) is being read. T-404 and T-405 mutation scores are recorded above. Waiting for Dhia: Q-280
    (counsel, sponsor wording), Q-281 (word list source and licence). No deployment/EAS/local Stryker; phone/CranL
    obligations remain deferred (T-403c's and T-406b's phone checks included). Follow-up: Q-237 central

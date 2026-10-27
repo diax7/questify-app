@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { DailyLanguage, Theme } from "@questify/shared";
-import { Pressable, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import type { Mark } from "#src/daily/daily-state.ts";
-import { gridDirection, KEY_ROWS, tileLetter } from "#src/daily/keyboard.ts";
+import { gridDirection, KEY_ROWS, keyWidthFor, tileLetter } from "#src/daily/keyboard.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -96,58 +96,123 @@ type KeyProps = Readonly<{
   onEnter: () => void;
 }>;
 
-/** The app's own keyboard: every letter of the language, in the language's reading direction. */
-export function WordKeyboard({ language, marks, disabled, onLetter, onDelete, onEnter }: KeyProps) {
+/** Text for a screen reader only. iOS reads a label only from an element it can focus, so a container's own label is lost. */
+export function SrOnly({ text }: Readonly<{ text: string }>) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <AppText accessibilityRole="header" style={styles.srOnly}>
+      {text}
+    </AppText>
+  );
+}
+
+function LetterKey(
+  props: Readonly<{
+    language: DailyLanguage;
+    letter: string;
+    mark: Mark | null;
+    width: number;
+    disabled: boolean;
+    onPress: (letter: string) => void;
+  }>,
+) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const shown = tileLetter(props.language, props.letter);
+  const label =
+    props.mark === null
+      ? shown
+      : t("daily.word.tile", { letter: shown, mark: t(markLabel(props.mark)) });
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: props.disabled }}
+      disabled={props.disabled}
+      onPress={() => props.onPress(props.letter)}
+      style={[
+        styles.key,
+        { width: props.width },
+        markStyleOf(styles, props.mark),
+        props.disabled && styles.keyDisabled,
+      ]}
+    >
+      {props.mark === null ? null : <MarkGlyph mark={props.mark} size={10} />}
+      <AppText variant="label">{shown}</AppText>
+    </Pressable>
+  );
+}
+
+/** Enter and Delete, on a row of their own under the letters, each as wide as half the row. */
+function ActionRow(
+  props: Readonly<{
+    language: DailyLanguage;
+    disabled: boolean;
+    onDelete: () => void;
+    onEnter: () => void;
+  }>,
+) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   return (
-    <View accessibilityLabel={t("daily.word.keyboard")} style={styles.keyboard}>
-      {KEY_ROWS[language].map((row) => (
+    <View style={[styles.keyRow, { direction: gridDirection(props.language) }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: props.disabled }}
+        disabled={props.disabled}
+        onPress={props.onEnter}
+        style={[styles.key, styles.wideKey, styles.enterKey, props.disabled && styles.keyDisabled]}
+      >
+        <AppText variant="label">{t("daily.word.enter")}</AppText>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: props.disabled }}
+        disabled={props.disabled}
+        onPress={props.onDelete}
+        style={[styles.key, styles.wideKey, props.disabled && styles.keyDisabled]}
+      >
+        <AppText variant="label">{t("daily.word.delete")}</AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The app's own keyboard: every letter of the language, in the language's reading direction. Every key has one width,
+ * the widest the screen allows for the longest row, so keys stay even and a short row is centred.
+ */
+export function WordKeyboard({ language, marks, disabled, onLetter, onDelete, onEnter }: KeyProps) {
+  const { t } = useI18n();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { width: screenWidth } = useWindowDimensions();
+  const rows = KEY_ROWS[language];
+  const width = keyWidthFor(
+    screenWidth,
+    theme.spacing.xl,
+    theme.spacing.xs,
+    Math.max(...rows.map((row) => row.length)),
+  );
+  return (
+    <View style={styles.keyboard}>
+      <SrOnly text={t("daily.word.keyboard")} />
+      {rows.map((row) => (
         <View key={row.join("")} style={[styles.keyRow, { direction: gridDirection(language) }]}>
-          {row.map((letter) => {
-            const mark = marks.get(letter) ?? null;
-            const shown = tileLetter(language, letter);
-            return (
-              <Pressable
-                key={letter}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  mark === null
-                    ? shown
-                    : t("daily.word.tile", { letter: shown, mark: t(markLabel(mark)) })
-                }
-                accessibilityState={{ disabled }}
-                disabled={disabled}
-                onPress={() => onLetter(letter)}
-                style={[styles.key, markStyleOf(styles, mark), disabled && styles.keyDisabled]}
-              >
-                {mark === null ? null : <MarkGlyph mark={mark} size={10} />}
-                <AppText variant="label">{shown}</AppText>
-              </Pressable>
-            );
-          })}
+          {row.map((letter) => (
+            <LetterKey
+              key={letter}
+              language={language}
+              letter={letter}
+              mark={marks.get(letter) ?? null}
+              width={width}
+              disabled={disabled}
+              onPress={onLetter}
+            />
+          ))}
         </View>
       ))}
-      <View style={[styles.keyRow, { direction: gridDirection(language) }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={onEnter}
-          style={[styles.key, styles.wideKey, styles.enterKey, disabled && styles.keyDisabled]}
-        >
-          <AppText variant="label">{t("daily.word.enter")}</AppText>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={onDelete}
-          style={[styles.key, styles.wideKey, disabled && styles.keyDisabled]}
-        >
-          <AppText variant="label">{t("daily.word.delete")}</AppText>
-        </Pressable>
-      </View>
+      <ActionRow language={language} disabled={disabled} onDelete={onDelete} onEnter={onEnter} />
     </View>
   );
 }
@@ -194,10 +259,13 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.border,
   },
   keyboard: { gap: theme.spacing.xs },
-  keyRow: { flexDirection: "row" as const, gap: theme.spacing.xs },
+  keyRow: {
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
+    gap: theme.spacing.xs,
+  },
   key: {
-    flex: 1,
-    minHeight: 46,
+    minHeight: 48,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     borderRadius: theme.radius.sm,
@@ -205,7 +273,14 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
-  wideKey: { flex: 2 },
+  wideKey: { flex: 1 },
+  srOnly: {
+    position: "absolute" as const,
+    width: 1,
+    height: 1,
+    overflow: "hidden" as const,
+    opacity: 0,
+  },
   enterKey: {
     backgroundColor: theme.colors.primaryAction,
     borderColor: theme.colors.primaryAction,

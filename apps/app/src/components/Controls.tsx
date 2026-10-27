@@ -9,6 +9,8 @@ type ButtonProps = Readonly<{
   onPress: () => void;
   kind?: "primary" | "quiet";
   disabled?: boolean;
+  /** For one of a set of choices: whether it is the one chosen. */
+  selected?: boolean;
   /** What a screen reader says when the visible label is not enough, such as one "Get" among many. */
   accessibilityLabel?: string;
 }>;
@@ -19,6 +21,7 @@ export function Button({
   onPress,
   kind = "primary",
   disabled = false,
+  selected,
   accessibilityLabel,
 }: ButtonProps) {
   const styles = useThemedStyles(makeStyles);
@@ -26,7 +29,7 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
+      accessibilityState={selected === undefined ? { disabled } : { disabled, selected }}
       disabled={disabled}
       onPress={onPress}
       style={[

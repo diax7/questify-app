@@ -33,7 +33,14 @@ const REFUSAL_NOTICE: Readonly<Record<DailyGuessRefusal, MessageKey>> = {
   not_a_word: "daily.word.refusedNotAWord",
 };
 
-type Fixed = Exclude<MoveOutcome<unknown>["kind"], "ok" | "conflict" | "refused">;
+type Fixed = Exclude<MoveOutcome<unknown>["kind"], "ok" | "conflict" | "refused" | "network">;
+
+/** Which game a move belongs to: a lost connection says what is kept (the answer, or the typed letters). */
+export type DailyGame = "challenge" | "word";
+const NETWORK_NOTICE: Readonly<Record<DailyGame, MessageKey>> = {
+  challenge: "daily.challenge.networkFailed",
+  word: "daily.word.networkFailed",
+};
 
 /** Answers whose step does not depend on anything in them. */
 const FIXED: Readonly<Record<Fixed, MoveStep>> = {
@@ -41,7 +48,6 @@ const FIXED: Readonly<Record<Fixed, MoveStep>> = {
   limited: { ...STEP, notice: "daily.limited" },
   // A reply the app cannot read may still have been stored: read again.
   failed: { ...STEP, notice: "error.generic", reread: true },
-  network: { ...STEP, notice: "daily.networkFailed" },
   signed_out: { ...STEP, leave: true },
 };
 
@@ -49,7 +55,7 @@ const FIXED: Readonly<Record<Fixed, MoveStep>> = {
  * Turns the answer to a move into screen changes. A conflict reads the games again; a refused guess changes nothing but
  * the line; a lost or odd answer reads again too, because the move may have been stored (it is safe to send again).
  */
-export function stepAfterMove(outcome: MoveOutcome<unknown>): MoveStep {
+export function stepAfterMove(outcome: MoveOutcome<unknown>, game: DailyGame): MoveStep {
   switch (outcome.kind) {
     case "ok":
       return { ...STEP, apply: true };
@@ -57,6 +63,8 @@ export function stepAfterMove(outcome: MoveOutcome<unknown>): MoveStep {
       return { ...STEP, notice: CONFLICT_NOTICE[outcome.reason], reread: true };
     case "refused":
       return { ...STEP, notice: REFUSAL_NOTICE[outcome.reason] };
+    case "network":
+      return { ...STEP, notice: NETWORK_NOTICE[game] };
     default:
       return FIXED[outcome.kind];
   }

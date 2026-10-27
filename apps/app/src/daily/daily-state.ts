@@ -1,4 +1,5 @@
 import type {
+  OwnDaily,
   DailyAnswerReply,
   DailyChallenge,
   DailyGuessReply,
@@ -74,6 +75,18 @@ export function withGuess(
   const kept = play.guesses.slice(0, Math.max(0, reply.guess.attempt - 1));
   const guesses = [...kept, { guess: reply.guess.guess, marks: reply.guess.marks }];
   return { ...game, play: { ...play, guesses, finished: reply.finished ?? play.finished } };
+}
+
+/** What a game screen shows for its read: a loading line, the full error, or the game (with a banner if the latest read failed). */
+export type ReadView = Readonly<{ screen: "loading" | "error" | "game"; banner: boolean }>;
+
+/**
+ * A failed read hides a game only when none is held: with a game on screen a later failed read (a focus, a retry after
+ * a conflict) keeps it, with a small banner, so the player never loses a game they are in the middle of.
+ */
+export function readView(daily: OwnDaily | null, failed: boolean): ReadView {
+  if (daily === null) return { screen: failed ? "error" : "loading", banner: false };
+  return { screen: "game", banner: failed };
 }
 
 /** 0 absent, 1 elsewhere, 2 right place. */

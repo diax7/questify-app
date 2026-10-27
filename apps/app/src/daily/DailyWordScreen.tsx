@@ -22,18 +22,31 @@ import {
   wordLanguage,
 } from "#src/daily/daily-state.ts";
 import { gridDirection } from "#src/daily/keyboard.ts";
-import { useAfterFinish, useOwnDaily, type DailyRead } from "#src/daily/use-daily.ts";
-import { Legend, Tile, WordKeyboard } from "#src/daily/WordParts.tsx";
+import { DailyGate } from "#src/daily/DailyGate.tsx";
+import {
+  useAfterFinish,
+  useCelebrateWhen,
+  useOwnDaily,
+  type DailyRead,
+} from "#src/daily/use-daily.ts";
+import { Legend, SrOnly, Tile, WordKeyboard } from "#src/daily/WordParts.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { PopIn } from "#src/components/motion.tsx";
+import type { LevelUp } from "#src/questify/level.ts";
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 // Each language is named in itself, as on the language switch.
 const LANGUAGE_NAMES: Readonly<Record<DailyLanguage, string>> = { ar: "العربية", en: "English" };
 
+const FIRST_STRONG_ISOLATE = 0x2068;
+const POP_ISOLATE = 0x2069;
+/** How long the last marks stay on screen alone before a level-up card covers them. */
+const LEVEL_UP_DELAY_MS = 1000;
+
 /** Wraps a word in a first-strong isolate, so an Arabic word in an English sentence (or the reverse) keeps its order. */
-const isolated = (text: string): string => `⁨${text}⁩`;
+const isolated = (text: string): string =>
+  `${String.fromCodePoint(FIRST_STRONG_ISOLATE)}${text}${String.fromCodePoint(POP_ISOLATE)}`;
 
 type Finished = NonNullable<NonNullable<DailyWordGame["play"]>["finished"]>;
 
@@ -83,6 +96,7 @@ function LanguagePicker(
           <View key={language} style={styles.pickerItem}>
             <Button
               kind={language === props.chosen ? "primary" : "quiet"}
+              selected={language === props.chosen}
               label={LANGUAGE_NAMES[language]}
               onPress={() => props.onPick(language)}
             />
@@ -113,7 +127,8 @@ function Grid(
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   return (
-    <View accessibilityLabel={t("daily.word.grid")} style={styles.grid}>
+    <View style={styles.grid}>
+      <SrOnly text={t("daily.word.grid")} />
       {rowsOf(props.word, props.typed).map((row, rowIndex) => (
         <View key={rowIndex} style={[styles.row, { direction: gridDirection(props.language) }]}>
           {Array.from({ length: WORD_LENGTH }, (_, index) => (
@@ -136,6 +151,9 @@ function useGuessing(read: DailyRead, word: DailyWordGame, language: DailyLangua
   const [typed, setTyped] = useState<readonly string[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<MessageKey | null>(null);
+  const [levelUp, setLevelUp] = useState<LevelUp | null>(null);
+  // The level-up card follows the last marks by a second, so they are seen first.
+  useCelebrateWhen(levelUp, word.play?.finished != null, LEVEL_UP_DELAY_MS);
   const wordId = wordIdFor(word, language);
 
   const send = async () => {
@@ -147,7 +165,7 @@ function useGuessing(read: DailyRead, word: DailyWordGame, language: DailyLangua
       attempt: nextAttempt(word),
       guess: typed.join(""),
     });
-    const step = stepAfterMove(outcome);
+    const step = stepAfterMove(outcome, "word");
     if (step.leave) {
       router.replace("/home");
       return;
@@ -160,7 +178,10 @@ function useGuessing(read: DailyRead, word: DailyWordGame, language: DailyLangua
           : { ...current, word: withGuess(current.word, { language, wordId }, reply) },
       );
       setTyped([]);
-      if (reply.finished !== null) afterFinish(reply);
+      if (reply.finished !== null) {
+        setLevelUp(reply.levelUp);
+        afterFinish();
+      }
     }
     setNotice(step.notice);
     if (step.reread) {
@@ -263,18 +284,17 @@ function WordPlay({ read, word }: Readonly<{ read: DailyRead; word: DailyWordGam
 function WordBody() {
   const { t } = useI18n();
   const read = useOwnDaily();
-  const word = read.daily?.word ?? null;
-  if (read.failed) {
-    return (
-      <>
-        <AppText accessibilityRole="alert">{t("daily.failed")}</AppText>
-        <Button kind="quiet" label={t("common.retry")} onPress={() => void read.load()} />
-      </>
-    );
-  }
-  if (read.daily === null) return <AppText muted>{t("common.loading")}</AppText>;
-  if (word === null) return <AppText muted>{t("daily.word.none")}</AppText>;
-  return <WordPlay read={read} word={word} />;
+  return (
+    <DailyGate read={read}>
+      {(daily) =>
+        daily.word === null ? (
+          <AppText muted>{t("daily.word.none")}</AppText>
+        ) : (
+          <WordPlay read={read} word={daily.word} />
+        )
+      }
+    </DailyGate>
+  );
 }
 
 /**

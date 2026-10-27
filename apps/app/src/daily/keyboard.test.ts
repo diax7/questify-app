@@ -1,6 +1,6 @@
 import { DAILY_LETTERS, normalizeWord } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { gridDirection, KEY_ROWS, tileLetter } from "#src/daily/keyboard.ts";
+import { gridDirection, KEY_ROWS, keyWidthFor, tileLetter } from "#src/daily/keyboard.ts";
 
 describe("the keyboard", () => {
   it.each(["ar", "en"] as const)("has exactly the %s letters, each on one key", (language) => {
@@ -33,6 +33,29 @@ describe("the keyboard", () => {
     for (const rows of Object.values(KEY_ROWS)) {
       for (const row of rows) expect(row.length).toBeLessThanOrEqual(10);
     }
+  });
+});
+
+describe("the key width", () => {
+  it("keeps the Arabic rows to nine keys, the Arabic rows being the widest keys a 360px phone allows", () => {
+    expect(Math.max(...KEY_ROWS.ar.map((row) => row.length))).toBe(9);
+    // 360 wide, 24 side padding, 4 gap, 9 keys: (312 - 32) / 9 = 31.1.
+    expect(keyWidthFor(360, 24, 4, 9)).toBe(31);
+  });
+
+  it("is one width for every row, so a short row is not stretched", () => {
+    const widths = KEY_ROWS.ar.map(() => keyWidthFor(360, 24, 4, 9));
+    expect(new Set(widths).size).toBe(1);
+  });
+
+  it("gives English's ten-key row a narrower key and never overflows the screen", () => {
+    const width = keyWidthFor(360, 24, 4, 10);
+    expect(width).toBe(27);
+    expect(width * 10 + 4 * 9).toBeLessThanOrEqual(360 - 48);
+  });
+
+  it("does not stretch on a tablet", () => {
+    expect(keyWidthFor(1024, 24, 4, 9)).toBe(keyWidthFor(480, 24, 4, 9));
   });
 });
 

@@ -5064,9 +5064,13 @@ export const MESSAGES = {
     ar: "محاولات كثيرة في وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.",
     en: "Too many tries. Wait a moment, then try again.",
   },
-  "daily.networkFailed": {
+  "daily.challenge.networkFailed": {
     ar: "تعذّر الاتصال. حاول مرة أخرى، ولن تضيع إجابتك.",
-    en: "Couldn't connect. Try again. Nothing is lost.",
+    en: "Couldn't connect. Try again. Your answer isn't lost.",
+  },
+  "daily.word.networkFailed": {
+    ar: "تعذّر الاتصال. حاول مرة أخرى، ولن يضيع ما كتبته.",
+    en: "Couldn't connect. Try again. What you typed is still here.",
   },
   "daily.challenge.title": { ar: "تحدي اليوم", en: "Daily challenge" },
   "daily.challenge.none": {

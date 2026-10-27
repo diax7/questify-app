@@ -6,6 +6,7 @@ import {
   marksOf,
   nextAttempt,
   nextQuestion,
+  readView,
   withAnswer,
   withGuess,
   wordIdFor,
@@ -41,6 +42,26 @@ const reply = (
   levelUp: null,
   dailyStreak: null,
   replayed: false,
+});
+
+describe("what a screen shows for a read", () => {
+  const held = { challenge: null, word: null };
+
+  it("loads while nothing is held and nothing has failed", () => {
+    expect(readView(null, false)).toEqual({ screen: "loading", banner: false });
+  });
+
+  it("shows the full error only when no game is held", () => {
+    expect(readView(null, true)).toEqual({ screen: "error", banner: false });
+  });
+
+  it("keeps a held game when a later read fails, with a banner", () => {
+    expect(readView(held, true)).toEqual({ screen: "game", banner: true });
+  });
+
+  it("shows a held game with no banner when the read is fine", () => {
+    expect(readView(held, false)).toEqual({ screen: "game", banner: false });
+  });
 });
 
 describe("the challenge", () => {

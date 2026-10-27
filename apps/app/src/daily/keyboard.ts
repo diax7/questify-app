@@ -6,9 +6,26 @@ import type { DailyLanguage } from "@questify/shared";
  * Rows are in reading order for the language (Arabic rows read right to left on screen).
  */
 export const KEY_ROWS: Readonly<Record<DailyLanguage, ReadonlyArray<readonly string[]>>> = {
-  ar: [[..."ضصثقفغعهخ"], [..."حجدشسيبل"], [..."اتنمكطذر"], [..."زظوةىءؤئ"]],
+  ar: [[..."ضصثقفغعهخ"], [..."حجدشسيبلا"], [..."تنمكطذرزظ"], [..."وةىءؤئ"]],
   en: [[..."qwertyuiop"], [..."asdfghjkl"], [..."zxcvbnm"]],
 };
+
+/** Keys are never wider on a tablet than on this much screen. */
+const MAX_KEYBOARD_WIDTH = 480;
+
+/**
+ * One key width for every row, so keys stay even (a short row is centred, not stretched): the widest row that fits the
+ * screen's width less its side padding, with the gap between keys.
+ */
+export function keyWidthFor(
+  screenWidth: number,
+  sidePadding: number,
+  gap: number,
+  keysInWidestRow: number,
+): number {
+  const room = Math.min(screenWidth, MAX_KEYBOARD_WIDTH) - 2 * sidePadding;
+  return Math.floor((room - gap * (keysInWidestRow - 1)) / keysInWidestRow);
+}
 
 /** The grid and the keyboard follow the word's language, not the app's: an Arabic word fills right to left in English too. */
 export const gridDirection = (language: DailyLanguage): "rtl" | "ltr" =>

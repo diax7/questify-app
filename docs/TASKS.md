@@ -577,7 +577,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Split from T-406 2026-10-27 (ADR-306). Standard; plan: `docs/plans/2026-10-27-t-406-daily.md` (T-406b section).
     No countdown or loss copy (ADR-300); marks never by colour alone.
   - Done when: With no challenge or word for the period, no card is shown; a finished game says when the next one comes.
-  - Done 2026-10-27 (code review pending): `apps/app/src/daily/` (the challenge screen with a reveal after each answer,
+  - Done 2026-10-27 (code review 91 GO, folded in): `apps/app/src/daily/` (the challenge screen with a reveal after each answer,
     the word screen with a six-row grid in the word's language and the app's own keyboard, 33 Arabic keys or 26 English,
     marks by colour, glyph and border, the sponsor line, the next-date line), two cards on the Profile's Questify section
     until T-408, a finish reloads the profile, syncs and shows the level-up card, every string in both languages.

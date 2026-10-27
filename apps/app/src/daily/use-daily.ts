@@ -1,6 +1,6 @@
 import type { OwnDaily } from "@questify/shared";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "#src/api/app-session.ts";
 import { usePlayer } from "#src/auth/player.tsx";
 import { fetchOwnDaily } from "#src/daily/daily-api.ts";
@@ -43,18 +43,39 @@ export function useOwnDaily(): DailyRead {
 }
 
 /**
- * What a finishing move sets going: the level-up card when it reached a level, the profile read again (XP, level,
- * streak) and a sync, which pays the gems of a level crossed and any streak milestone (ADR-309).
+ * What a finishing move sets going: the profile read again (XP, level, streak) and a sync, which pays the gems of a
+ * level crossed and any streak milestone (ADR-309). The level-up card waits for `useCelebrateWhen`.
  */
-export function useAfterFinish(): (reply: Readonly<{ levelUp: LevelUp | null }>) => void {
+export function useAfterFinish(): () => void {
   const { reload } = usePlayer();
-  const { syncNow, celebrate } = useQuestifySync();
-  return useCallback(
-    (reply) => {
-      if (reply.levelUp !== null) celebrate(reply.levelUp);
-      void reload();
-      syncNow();
-    },
-    [reload, syncNow, celebrate],
-  );
+  const { syncNow } = useQuestifySync();
+  return useCallback(() => {
+    void reload();
+    syncNow();
+  }, [reload, syncNow]);
+}
+
+/**
+ * Shows the level-up card for a level a finish reached, but only once `ready` (the last reveal or marks have been seen:
+ * the player moved on, or the result card is up) and after `delayMs`. Leaving the screen first shows it at once, so a
+ * level reached is never lost.
+ */
+export function useCelebrateWhen(levelUp: LevelUp | null, ready: boolean, delayMs: number): void {
+  const { celebrate } = useQuestifySync();
+  const pending = useRef<LevelUp | null>(null);
+  useEffect(() => {
+    pending.current = levelUp;
+  }, [levelUp]);
+  const show = useCallback(() => {
+    const next = pending.current;
+    pending.current = null;
+    if (next !== null) celebrate(next);
+  }, [celebrate]);
+  useEffect(() => {
+    if (levelUp === null || !ready) return;
+    const timer = setTimeout(show, delayMs);
+    return () => clearTimeout(timer);
+  }, [levelUp, ready, delayMs, show]);
+  // Leaving the screen first shows what is still pending.
+  useEffect(() => show, [show]);
 }

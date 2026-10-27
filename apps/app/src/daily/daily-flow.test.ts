@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MoveOutcome } from "#src/daily/daily-api.ts";
 import { stepAfterMove } from "#src/daily/daily-flow.ts";
 
-const step = (outcome: MoveOutcome<unknown>) => stepAfterMove(outcome);
+const step = (outcome: MoveOutcome<unknown>) => stepAfterMove(outcome, "challenge");
 
 describe("stepAfterMove", () => {
   it("writes an accepted move into the game and says nothing", () => {
@@ -60,7 +60,14 @@ describe("stepAfterMove", () => {
   it("keeps the game as it is when the call was limited or the network was lost", () => {
     expect(step({ kind: "limited" })).toMatchObject({ notice: "daily.limited", reread: false });
     expect(step({ kind: "network" })).toMatchObject({
-      notice: "daily.networkFailed",
+      notice: "daily.challenge.networkFailed",
+      reread: false,
+    });
+  });
+
+  it("says what a lost connection keeps, in the words of each game", () => {
+    expect(stepAfterMove({ kind: "network" }, "word")).toMatchObject({
+      notice: "daily.word.networkFailed",
       reread: false,
     });
   });

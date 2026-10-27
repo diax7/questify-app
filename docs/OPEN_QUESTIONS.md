@@ -980,3 +980,4 @@ word's language; marks by colour plus a glyph plus a border style, with a legend
 finish reloads the profile, syncs and shows the level-up card; the next-date line from the phone's clock ("tomorrow" or
 a weekday). Agree? Phone check owed: the RTL grid, the Arabic keyboard size on a small phone, VoiceOver and TalkBack
 on tiles and options.
+**Answered (developer, delegated by Dhia, 2026-10-27):** Yes, as recommended (ADR-314).
