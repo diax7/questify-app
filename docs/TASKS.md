@@ -746,7 +746,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
   - Done when: After the end Home shows the closing date; once closed the balance reads Closed and the shop says what
     stays; the recap shows rank, quests done and souvenirs (or none) and shares as an image, or as text on an older
     build.
-  - Done 2026-10-27 (standard; code review owed; ADR-340 Proposed, Q-309): app: Home's shop line (open until, the desk
+  - Done 2026-10-27 (standard; code review 89 folded; ADR-340 Accepted, Q-309 answered): app: Home's shop line (open until, the desk
     line or "stopped", closed on), the balance "Closed" and no goal once closed, Home read again at the close, the
     Rewards tab's closed panel and cancel note, "Your recap" and `/event/[eventId]/recap`; the share is a pure sharer
     (`recap-share.ts`) plus the native checks and lazy loads (`recap-share-native.ts`), with `react-native-view-shot`

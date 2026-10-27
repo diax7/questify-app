@@ -30,6 +30,16 @@ type StampProps = Readonly<{
   ownerOnly: boolean;
 }>;
 
+/** The stamp's emblem: a letter in a gold ring until events have logos (T-602); the recap card wears it too. */
+export function StampEmblem({ letter }: Readonly<{ letter: string }>) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View accessibilityElementsHidden style={styles.emblem}>
+      <AppText variant="title">{letter}</AppText>
+    </View>
+  );
+}
+
 /** One passport stamp: the emblem (the name's first letter until events have logos, T-602), name, date and city. */
 export function StampCard({ name, date, city, line, ownerOnly }: StampProps) {
   const { t, language } = useI18n();
@@ -38,9 +48,7 @@ export function StampCard({ name, date, city, line, ownerOnly }: StampProps) {
   const where = city === null ? null : wordsIn(city, language);
   return (
     <View accessible style={styles.stamp}>
-      <View accessibilityElementsHidden style={styles.emblem}>
-        <AppText variant="title">{emblemOf(name, language)}</AppText>
-      </View>
+      <StampEmblem letter={emblemOf(name, language)} />
       <AppText variant="label" style={styles.center}>
         {title}
       </AppText>

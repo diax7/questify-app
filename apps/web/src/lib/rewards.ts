@@ -229,11 +229,12 @@ export function shopRequest(settings: ShopSettings, loaded: ShopSettings): Recor
 
 /**
  * True when the prize desk's last window ends before the shop closes (ADR-338): items and experiences stop there, while
- * digital rewards stay until the close. False for a desk open the whole time and for a shop without a close date.
+ * digital rewards stay until the close. False for a desk open the whole time, for a shop without a close date, and
+ * once the shop has closed (nothing is left to warn about).
  */
 export function deskEndsBeforeClose(shop: ShopSettings): boolean {
   const hours = shop.desk.hours;
-  if (shop.closesAt === null || hours === null || hours.length === 0) {
+  if (shop.state === "closed" || shop.closesAt === null || hours === null || hours.length === 0) {
     return false;
   }
   const lastEnd = Math.max(...hours.map((window) => Date.parse(window.closesAt)));

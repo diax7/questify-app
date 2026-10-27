@@ -17,6 +17,7 @@ import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { goalMessage } from "#src/event/goal.ts";
 import { RecapEntry } from "#src/event/RecapEntry.tsx";
+import { recapOffered } from "#src/event/recap.ts";
 import { ShopBanner } from "#src/event/ShopBanner.tsx";
 import { nextShopBoundary, shopClosed, shopLine } from "#src/event/shop-window.ts";
 import { unlockLine } from "#src/event/unlock.ts";
@@ -424,7 +425,7 @@ function HomeCards({
       <RehearsalStrip shown={home.event.rehearsal} />
       <AddEmailCard />
       <HelpStrip eventId={eventId} unread={home.helpUnread} />
-      {ended && active ? <RecapEntry eventId={eventId} /> : null}
+      {recapOffered(home) ? <RecapEntry eventId={eventId} /> : null}
       <CountdownLine event={home.event} />
       <Standing home={home} />
       {active ? <ActiveCards home={home} ranking={ranking} ended={ended} /> : null}

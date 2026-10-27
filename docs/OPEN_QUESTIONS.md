@@ -1186,3 +1186,6 @@ recap card follows the phone's theme and language and names up to 3 souvenirs; t
 wiring file with a source-scan guard; the dashboard shows when the shop closes, warns about a desk that ends first, keeps
 the days read-only once closed and says each refusal in words. The other option for the card, a fixed poster layout in one
 language, needs its own art and a language choice at share time. Developer's call at the T-410b code review.
+**Answered (developer, delegated by Dhia, 2026-10-27):** accepted as recommended at the T-410b code review (89); ADR-340
+Accepted, with the review's fold-in. The device check stays owed to Dhia (STATE): the restyled card (wood frame, parchment
+panel, gold edge) as it looks in the shared image on Android and iOS.

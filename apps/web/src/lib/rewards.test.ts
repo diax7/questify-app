@@ -224,6 +224,15 @@ describe("deskEndsBeforeClose (ADR-338)", () => {
     expect(deskEndsBeforeClose(shop(["2030-01-06T18:00:00.000Z"]))).toBe(false);
   });
 
+  it("does not warn once the shop has closed", () => {
+    expect(deskEndsBeforeClose({ ...shop(["2030-01-02T18:00:00.000Z"]), state: "closed" })).toBe(
+      false,
+    );
+    expect(deskEndsBeforeClose({ ...shop(["2030-01-02T18:00:00.000Z"]), state: "open" })).toBe(
+      true,
+    );
+  });
+
   it("does not warn for a desk open the whole time, no windows, or a shop without a close date", () => {
     expect(deskEndsBeforeClose(shop(null))).toBe(false);
     expect(deskEndsBeforeClose(shop([]))).toBe(false);

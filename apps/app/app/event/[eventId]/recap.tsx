@@ -1,6 +1,6 @@
 import type { EventRecap } from "@questify/shared";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, type View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -10,7 +10,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { RecapCard } from "#src/event/RecapCard.tsx";
 import { fetchRecap, type RecapAnswer } from "#src/event/recap-api.ts";
-import { createRecapSharer } from "#src/event/recap-share.ts";
+import { createRecapSharer, type RecapSharer } from "#src/event/recap-share.ts";
 import { recapShareDeps } from "#src/event/recap-share-native.ts";
 import { recapShareText, recapView } from "#src/event/recap.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -39,7 +39,9 @@ function useRecap(eventId: string) {
  */
 function useShare(recap: EventRecap | undefined, card: React.RefObject<View | null>) {
   const { t, language } = useI18n();
-  const sharer = useMemo(() => createRecapSharer(recapShareDeps), []);
+  const sharerRef = useRef<RecapSharer | undefined>(undefined);
+  sharerRef.current ??= createRecapSharer(recapShareDeps);
+  const sharer = sharerRef.current;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => () => sharer.release(), [sharer]);

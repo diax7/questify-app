@@ -100,13 +100,39 @@ describe("nextShopBoundary", () => {
     expect(nextShopBoundary({ ...OPEN, closesAt: at(40 * 24 * HOUR) }, NOW)).toBe(24 * HOUR);
   });
 
-  it("ignores a moment that has passed, and returns null when none is ahead", () => {
+  it("asks again in 15 seconds when the phone's clock has just passed the close (a phone running ahead)", () => {
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(-1) }, NOW)).toBe(15_000);
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(0) }, NOW)).toBe(15_000);
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(-30_000) }, NOW)).toBe(15_000);
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(-119_999) }, NOW)).toBe(15_000);
+  });
+
+  it("asks again the same way when the desk's end has just passed", () => {
+    expect(nextShopBoundary({ ...OPEN, deskEndsAt: at(-60_000) }, NOW)).toBe(15_000);
+  });
+
+  it("takes the nearest delay when one boundary is ahead and another was just passed", () => {
+    expect(
+      nextShopBoundary({ ...OPEN, closesAt: at(5 * 60_000), deskEndsAt: at(-30_000) }, NOW),
+    ).toBe(15_000);
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(5_000), deskEndsAt: at(-30_000) }, NOW)).toBe(
+      6_000,
+    );
+  });
+
+  it("ignores a boundary passed long ago, such as a desk that ended days ago while the shop stays open", () => {
     expect(nextShopBoundary({ ...OPEN, closesAt: at(60_000), deskEndsAt: at(-HOUR) }, NOW)).toBe(
       61_000,
     );
-    expect(nextShopBoundary({ ...OPEN, closesAt: at(-1), deskEndsAt: at(-HOUR) }, NOW)).toBeNull();
+    expect(nextShopBoundary({ ...OPEN, deskEndsAt: at(-3 * 24 * HOUR) }, NOW)).toBe(24 * HOUR);
+    expect(nextShopBoundary({ ...OPEN, closesAt: at(-120_000) }, NOW)).toBeNull();
+    expect(
+      nextShopBoundary({ ...OPEN, closesAt: at(-HOUR), deskEndsAt: at(-HOUR) }, NOW),
+    ).toBeNull();
+  });
+
+  it("returns null when no boundary is set", () => {
     expect(nextShopBoundary({ ...OPEN, closesAt: null }, NOW)).toBeNull();
-    expect(nextShopBoundary({ ...OPEN, closesAt: at(0) }, NOW)).toBeNull();
   });
 
   it("reads again only while the shop is open", () => {

@@ -45,16 +45,34 @@ export function shopLine(window: ShopWindow | null, ended: boolean, now: number)
 /** The balance reads "Closed" once the shop has closed (ADR-337): the number can no longer be redeemed. */
 export const shopClosed = (window: ShopWindow | null): boolean => window?.state === "closed";
 
+/** How long to wait before asking again when the phone's clock has passed a boundary the server has not (see below). */
+const RETRY_MS = 15_000;
+
+/** A boundary the phone passed by at most this much is a phone running ahead of the server; an older one is just past. */
+const PHONE_AHEAD_MS = 120_000;
+
+/** The delay to read Home again for one boundary `left` milliseconds away on the phone's clock; null to ignore it. */
+function delayFor(left: number): number | null {
+  if (left > 0) {
+    return Math.min(left + 1000, DAY);
+  }
+  return left > -PHONE_AHEAD_MS ? RETRY_MS : null;
+}
+
 /**
- * When Home reads itself again so the close and the desk's end show on the server's word: a second after the next
- * of them still ahead, at most a day away (a timer cannot wait longer than about 24 days); null when none is ahead.
+ * When Home reads itself again so the close and the desk's end show on the server's word: a second after the next of
+ * them still ahead, at most a day away (a timer cannot wait longer than about 24 days). While the shop is open, a
+ * boundary the phone's clock passed by under 2 minutes means the phone runs ahead and the server still says open:
+ * ask again in 15 seconds, so Home never keeps the open shop on screen until the next focus. An older boundary (a desk
+ * that ended days ago while the shop stays open) is ignored, or Home would ask every 15 seconds for days. Null when
+ * there is nothing to wait for.
  */
 export function nextShopBoundary(window: ShopWindow | null, now: number): number | null {
   if (window === null || window.state !== "open") {
     return null;
   }
-  const ahead = [window.closesAt, window.deskEndsAt]
-    .flatMap((instant) => (instant === null ? [] : [Date.parse(instant) - now]))
-    .filter((left) => left > 0);
-  return ahead.length === 0 ? null : Math.min(Math.min(...ahead) + 1000, DAY);
+  const delays = [window.closesAt, window.deskEndsAt]
+    .flatMap((instant) => (instant === null ? [] : [delayFor(Date.parse(instant) - now)]))
+    .filter((delay): delay is number => delay !== null);
+  return delays.length === 0 ? null : Math.min(...delays);
 }

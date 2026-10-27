@@ -8,7 +8,8 @@ import {
 import { describe, expect, it } from "vitest";
 import type { AuthedResult } from "#src/api/session.ts";
 import { fetchRecap, recapAnswer } from "#src/event/recap-api.ts";
-import { SOUVENIRS_ON_CARD, recapShareText, recapView } from "#src/event/recap.ts";
+import type { Home } from "#src/event/home-api.ts";
+import { SOUVENIRS_ON_CARD, recapOffered, recapShareText, recapView } from "#src/event/recap.ts";
 import { withWords } from "#src/i18n/words.ts";
 
 const translate = createTranslator(MESSAGES);
@@ -40,6 +41,7 @@ describe("recapView", () => {
   it("writes the card in English: name, date and city, rank, quests, souvenirs", () => {
     expect(recapView(RECAP, "en", tIn("en"))).toEqual({
       title: "Najd Meetup",
+      emblem: "N",
       where: "1 Nov 2030 · Riyadh",
       rank: { kind: "final", text: "Rank 3" },
       quests: "Quests done: 7",
@@ -51,6 +53,7 @@ describe("recapView", () => {
   it("writes it in Arabic with Western digits and the event's own quest word", () => {
     const view = recapView(RECAP, "ar", tIn("ar"));
     expect(view.title).toBe("ملتقى نجد");
+    expect(view.emblem).toBe("م");
     expect(view.where).toMatch(/^1 نوفمبر 2030 · الرياض$/);
     expect(view.rank).toEqual({ kind: "final", text: "المركز 3" });
     expect(view.quests).toBe("ما أنجزته من مهام: 7");
@@ -120,6 +123,42 @@ describe("recapShareText", () => {
   it("is one fixed line naming the event, with no link", () => {
     expect(recapShareText(RECAP, "en", tIn("en"))).toBe("My recap from Najd Meetup");
     expect(recapShareText(RECAP, "ar", tIn("ar"))).toBe("ملخّصي في ملتقى نجد");
+  });
+});
+
+const home = (statusNow: string, standing: Home["standing"], rehearsal = false) => ({
+  event: { statusNow, rehearsal } as Home["event"],
+  standing,
+});
+
+describe("recapOffered", () => {
+  const active = {
+    status: "active",
+    score: 1,
+    balance: 1,
+    pendingPoints: 0,
+    questsDone: 1,
+    questsTotal: 2,
+  } as const;
+
+  it("is offered to an active member once the event ended or was archived", () => {
+    expect(recapOffered(home("ended", active))).toBe(true);
+    expect(recapOffered(home("archived", active))).toBe(true);
+  });
+
+  it("is not offered before the end", () => {
+    for (const status of ["draft", "scheduled", "live"]) {
+      expect(recapOffered(home(status, active))).toBe(false);
+    }
+  });
+
+  it("is not offered to a member who is waiting or was declined", () => {
+    expect(recapOffered(home("ended", { status: "pending", waitlisted: false }))).toBe(false);
+    expect(recapOffered(home("ended", { status: "declined" }))).toBe(false);
+  });
+
+  it("is not offered to a rehearsal account", () => {
+    expect(recapOffered(home("ended", active, true))).toBe(false);
   });
 });
 

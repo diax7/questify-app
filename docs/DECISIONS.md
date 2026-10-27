@@ -4626,7 +4626,7 @@ text line; a rank stays pending while an organizer does not reveal results; the 
 Home's progress line for repeatable quests.
 
 ## ADR-340 — Where the T-410b build fills in the plan: the screens, the share split, the refusal words
-**Status:** Proposed (developer, 2026-10-27; T-410b build; Q-309). Completes ADR-338 and ADR-339 on screen.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-410b code review 89; Q-309). Completes ADR-338 and ADR-339 on screen.
 **Decision:** (1) **Home:** an active member sees the "Your recap" card (above the countdown) once the event is ended or
 archived, and the shop's line under the standing card: "open until {date}" with the desk line (until its end, or "stopped"
 once `deskEndsAt` is past), or "closed on {date}". The balance row reads "Closed" once the shop has closed, and the app drops
@@ -4648,6 +4648,12 @@ shop again after one, so a stale page shows the real date; `daysAfter` goes only
 (6) **Test support:** the e2e control's `/event-status` takes `endedDaysAgo`, so a browser test can put an event inside or
 past its shop window. (7) **Dependencies:** `react-native-view-shot` 5.1.0 (Expo SDK 57's pin; the registry's 6.2.1 is not
 blessed for SDK 57) and `expo-sharing` ~57.0.24; neither asks for a permission or runs an install script.
+(8) **Code review fold-in (89):** the Home read at the close tolerates a phone running ahead of the server: while the
+shop is open, a boundary the phone's clock passed by under 2 minutes means "ask again in 15 seconds", and an older one
+(a desk that ended days ago while the shop stays open) is ignored so Home never polls for days; the card is a passport
+stamp grown up (a wood frame, a parchment panel with a gold edge, the stamp's gold-ringed emblem, gold-edged chips, no new
+art); the source scan also catches a bare `import "pkg"`, `import("pkg")` and `export * from`, each proven by a case; "Your
+recap" is never offered to a rehearsal account; the desk warning goes once the shop has closed.
 **Why:** A card, a closing date and a closed balance are what the plan promised; the split makes the crash-safe path
 testable without React Native; each refusal says what the organizer can do.
 **Trade-offs:** The shared image follows the phone's theme and language, not a fixed poster; the Rewards tab does not repeat

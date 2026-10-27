@@ -1,5 +1,7 @@
 import { formatLocalDate, formatNumber, type EventRecap, type Language } from "@questify/shared";
+import type { Home } from "#src/event/home-api.ts";
 import { textIn } from "#src/i18n/text.ts";
+import { emblemOf } from "#src/questify/stamps.ts";
 import type { Translate } from "#src/i18n/words.ts";
 
 /** How many souvenirs the card names; the rest show as "+N" (ADR-339). */
@@ -11,6 +13,8 @@ const LTR_MARK = "‎";
 /** Everything the recap card writes, in the screen's language. */
 export type RecapView = Readonly<{
   title: string;
+  /** The first letter of the title, as the passport stamp's emblem. */
+  emblem: string;
   /** The local start date, and the city when the event has one. */
   where: string;
   /** The final place, or the words that it comes with the results; null when the member has no place. */
@@ -78,12 +82,19 @@ export function recapView(recap: EventRecap, language: Language, t: Translate): 
   ];
   return {
     title,
+    emblem: emblemOf(recap.event.name, language),
     where: city === "" ? date : `${date} · ${city}`,
     rank,
     quests,
     souvenirs,
     summary: spoken.filter((line) => line !== undefined && line !== "").join(". "),
   };
+}
+
+/** Whether Home offers "Your recap": an active member once the event has ended, never a rehearsal account. */
+export function recapOffered(home: Pick<Home, "event" | "standing">): boolean {
+  const ended = home.event.statusNow === "ended" || home.event.statusNow === "archived";
+  return ended && home.standing.status === "active" && !home.event.rehearsal;
 }
 
 /** The one fixed line a text share sends when the image cannot be made: no link, no number (ADR-339). */

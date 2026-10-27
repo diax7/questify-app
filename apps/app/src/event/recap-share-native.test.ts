@@ -87,13 +87,64 @@ describe("the share on a build without the modules", () => {
   });
 });
 
+const PACKAGES = ["react-native-view-shot", "expo-sharing"];
+
+/**
+ * Whether a source file loads one of the packages as it loads: a static import or re-export of a value (not `import
+ * type` or `export type`), a bare `import "pkg"`, or a dynamic `import("pkg")`. A `require` is checked apart.
+ */
+function loadsOnImport(source: string, name: string): boolean {
+  const quoted = `["']${name}["']`;
+  return [
+    new RegExp(`^\\s*(import|export)\\s+(?!type\\b)[^;]*?\\bfrom\\s+${quoted}`, "m"),
+    new RegExp(`^\\s*import\\s+${quoted}`, "m"),
+    new RegExp(`\\bimport\\(\\s*${quoted}`),
+  ].some((pattern) => pattern.test(source));
+}
+
+describe("the scan for loading either package", () => {
+  it.each([
+    'import { shareAsync } from "expo-sharing";',
+    'import * as Sharing from "expo-sharing";',
+    'import Sharing from "expo-sharing";',
+    'import Sharing, { shareAsync } from "expo-sharing";',
+    'import {\n  shareAsync,\n} from "expo-sharing";',
+    'import "expo-sharing";',
+    "import 'expo-sharing';",
+    'const sharing = await import("expo-sharing");',
+    "const sharing = import( 'expo-sharing' );",
+    'export * from "expo-sharing";',
+    'export { shareAsync } from "expo-sharing";',
+    'export { default } from "expo-sharing";',
+    'import { captureRef } from "react-native-view-shot";',
+    'import "react-native-view-shot";',
+    'import("react-native-view-shot");',
+    'export * from "react-native-view-shot";',
+    '  import { captureRef } from "react-native-view-shot";',
+  ])("catches %j", (source) => {
+    expect(PACKAGES.some((name) => loadsOnImport(source, name))).toBe(true);
+  });
+
+  it.each([
+    'import type { ShareOptions } from "expo-sharing";',
+    'import type * as Sharing from "expo-sharing";',
+    'import type * as ViewShot from "react-native-view-shot";',
+    'export type * from "expo-sharing";',
+    'export type { SharingOptions } from "expo-sharing";',
+    'import { Share } from "react-native";',
+    'import { thing } from "expo-sharing-helpers";',
+    '// import "expo-sharing";',
+  ])("lets %j through", (source) => {
+    expect(PACKAGES.some((name) => loadsOnImport(source, name))).toBe(false);
+  });
+});
+
 /**
  * A plain import of either package throws as it loads on a build without its native module (react-native-view-shot
  * calls `TurboModuleRegistry.getEnforcing` at load). Types are erased and safe; only `recap-share-native.ts` may
  * require them, inside `loadModules`.
  */
 describe("where the two packages may be loaded", () => {
-  const PACKAGES = ["react-native-view-shot", "expo-sharing"];
   const roots = [join(import.meta.dirname, "..", "..", "app"), join(import.meta.dirname, "..")];
 
   const files = roots.flatMap((root) =>
@@ -106,14 +157,12 @@ describe("where the two packages may be loaded", () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
-  it("never imports either package for a value, outside the type-only imports", () => {
-    const offenders = files.filter((file) => {
+  it("never loads either package on import, outside the type-only imports", () => {
+    // This file holds the scan's own samples, written as strings.
+    const scanned = files.filter((file) => !file.endsWith("recap-share-native.test.ts"));
+    const offenders = scanned.filter((file) => {
       const source = readFileSync(file, "utf8");
-      return PACKAGES.some((name) =>
-        new RegExp(`^\\s*(import|export)\\s+(?!type\\b)[^;]*?from\\s+["']${name}["']`, "m").test(
-          source,
-        ),
-      );
+      return PACKAGES.some((name) => loadsOnImport(source, name));
     });
     expect(offenders).toEqual([]);
   });

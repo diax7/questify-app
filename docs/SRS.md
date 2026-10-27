@@ -1123,9 +1123,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-738 | F-139 | Should | server built T-409 (migration 0073: the owner's request, the admin's approval with frozen names, the fill through `promo_pool`, the SMS sender tick; `invitationCampaigns` switch off until the RUNBOOK's three conditions); the web pages built T-409b (the dashboard's Invitations page, the console's queue and detail); code review pending |
 | FR-739 | F-139 | Should | server built T-409 (rounded daily counts sent, opened, joined; never a player; the landing page's open door); pages built T-409b (rounded counts "120+" / "Fewer than 10" on the dashboard, exact ones in the console, the landing page `/{lang}/i`); code review pending |
 | FR-740 | F-139 | Should | built T-409 (requested on the web, approved in the console, no price on the platform; `no-invitation-purchase.test` keeps the routes out of the app); code review pending |
-| FR-750 | F-142 | Must | server built T-410 (migration 0074: the window guard, the API's rule, Home's `shopWindow` and no goal once closed; the balance closes by rule; `test/db/shop-window.int`); screens built T-410b (Home's banner with the desk line, the balance "Closed" and no goal once closed, the Rewards tab's closed panel and the cancel note; unit tests, device checks owed); code review pending |
+| FR-750 | F-142 | Must | server built T-410 (migration 0074: the window guard, the API's rule, Home's `shopWindow` and no goal once closed; the balance closes by rule; `test/db/shop-window.int`); screens built T-410b (Home's banner with the desk line, the balance "Closed" and no goal once closed, the Rewards tab's closed panel and the cancel note; unit tests, device checks owed); T-410b code review 89 folded |
 | FR-751 | F-142 | Must | built T-410 (the close writes nothing; score, final rank, stamp, souvenirs, XP, level, achievements and items proven untouched across the close, `test/db/shop-window.int`); code review pending |
-| FR-752 | F-141 | Should | server built T-410 (`event_recap`, `GET /v1/events/{id}/recap`, `test/db/event-recap.int`); card built T-410b (`/event/[eventId]/recap`, shared as an image made on the phone, a text line on a build without the two native modules; unit tests, device checks owed); code review pending |
+| FR-752 | F-141 | Should | server built T-410 (`event_recap`, `GET /v1/events/{id}/recap`, `test/db/event-recap.int`); card built T-410b (`/event/[eventId]/recap`, shared as an image made on the phone, a text line on a build without the two native modules; unit tests, device checks owed); T-410b code review 89 folded |
 | FR-801 | F-50 | Must | pending |
 | FR-802 | F-50, F-09 | Must | pending |
 | FR-803 | F-50, F-126, F-151 | Must | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
@@ -1187,7 +1187,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1015 | F-189 | Must | pending |
 | FR-1016 | F-190 | Must | pending |
 | FR-1017 | F-194 | Must | pending |
-| FR-1018 | F-194 | Must | server built T-410 (as FR-750; the dashboard's shop read carries `state` and `closesAt`); dashboard built T-410b (the closing line, the desk warning, the days field's rules, the refusal words; `e2e/shop-window.spec.ts`); code review pending |
+| FR-1018 | F-194 | Must | server built T-410 (as FR-750; the dashboard's shop read carries `state` and `closesAt`); dashboard built T-410b (the closing line, the desk warning, the days field's rules, the refusal words; `e2e/shop-window.spec.ts`); T-410b code review 89 folded |
 | FR-1019 | F-195 | Must | pending |
 | FR-1020 | F-195, F-44 | Must | pending |
 | FR-1021 | F-195, F-194 | Must | pending |
