@@ -1533,7 +1533,8 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   switch is read. Hand-checked: 20 mutants applied one by one, each failed a test. Equivalent, left alone: line 431 (`code`
   undefined), 435 hint default (`parseInt` of any non-number is NaN), 474 `kind` guard, the three `kind: "ready"`
   strings (only `"refused"` is read), 539 `? false` (position already null). Expected score about 100% of the killable
-  mutants (all but 7 equivalents); the next `mutation.yml` run confirms.
+  mutants (all but 7 equivalents); confirmed by run 40458787437: **97.57%** (7 survived, the equivalents). T-405
+  mutation closed.
 - 2026-10-27 **T-406 plan written (core; awaiting the independent CTO plan review).** `docs/plans/2026-10-27-t-406-daily.md`:
   split into T-406 (core: migration 0069, API, shared), T-406b (standard: app screens) and T-406c (standard: console
   pages), both added to TASKS. Periods on the Questify day, weekly Sunday to Saturday, a cadence per kind from the next
