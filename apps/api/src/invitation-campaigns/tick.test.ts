@@ -16,12 +16,19 @@ type Script = {
   /** How many rows each claim returns, in order; afterwards none. */
   claims: number[];
   start?: string;
+  /** Start and settle answer with no row at all. */
+  noRow?: boolean;
   /** settle's `more` answers, in order; afterwards false. */
   more?: boolean[];
-  ackFails?: boolean;
+  /** What each statement of that kind throws, when the key is present. */
+  ackError?: unknown;
+  settleError?: unknown;
+  startError?: unknown;
   /** Claims with no approved name, so the text cannot be built. */
   blankNames?: boolean;
 };
+
+const sqlError = (code: string) => Object.assign(new Error("database"), { code });
 
 const NOON = Date.parse("2026-10-27T12:00:00+03:00");
 const keys = createAuthKeys("k".repeat(40));
@@ -55,11 +62,15 @@ function fakePool(script: Script) {
             : { timeout: asked.query_timeout }),
         });
         if (sql.includes("invitation_settle")) {
+          if ("settleError" in script) throw script.settleError;
           settles += 1;
+          if (script.noRow === true) return { rows: [] };
           return { rows: [{ summary: { more: script.more?.[settles - 1] ?? false } }] };
         }
-        if (sql.includes("invitation_start_due"))
-          return { rows: [{ outcome: script.start ?? "idle" }] };
+        if (sql.includes("invitation_start_due")) {
+          if ("startError" in script) throw script.startError;
+          return { rows: script.noRow === true ? [] : [{ outcome: script.start ?? "idle" }] };
+        }
         if (sql.includes("invitation_claim")) {
           const count = script.claims[claimed] ?? 0;
           claimed += 1;
@@ -68,9 +79,7 @@ function fakePool(script: Script) {
             rows: Array.from({ length: count }, () => ({ ...claimRow((next += 1)), ...blank })),
           };
         }
-        if (sql.includes("invitation_ack") && script.ackFails === true) {
-          throw Object.assign(new Error("database down"), { code: "57P01" });
-        }
+        if (sql.includes("invitation_ack") && "ackError" in script) throw script.ackError;
         return { rows: [] };
       },
     ),
@@ -101,8 +110,11 @@ function recordingSender(answer: (message: SmsMessage) => SmsResult | Promise<Sm
 
 type Options = {
   enabled?: boolean;
+  /** Replaces the settings built from `enabled`. */
+  settings?: unknown;
   sender?: SmsSender | null;
   clock?: () => number;
+  random?: () => number;
 };
 
 function start(script: Script, logged: Logged[], options: Options = {}) {
@@ -111,11 +123,11 @@ function start(script: Script, logged: Logged[], options: Options = {}) {
   const sender = options.sender === null ? undefined : (options.sender ?? recording.sender);
   const tick = startInvitationTick({
     pool: fake.pool,
-    settings: settingsWith(options.enabled ?? true) as never,
+    settings: (options.settings ?? settingsWith(options.enabled ?? true)) as never,
     ...(sender === undefined ? {} : { promoSms: sender }),
     keys,
     intervalMs: 1000,
-    random: () => 0.5,
+    random: options.random ?? (() => 0.5),
     now: options.clock ?? (() => NOON),
     log: (level, fields) => logged.push({ level, fields }),
   });
@@ -265,16 +277,92 @@ describe("startInvitationTick", () => {
     expect(named(statements, "invitation_settle")).toHaveLength(4);
   });
 
-  it("logs a failed acknowledgement by its SQLSTATE and carries on", async () => {
+  it.each([
+    ["its SQLSTATE", sqlError("57P01"), "57P01"],
+    ["a null code when the error has none", new Error("no code"), null],
+    ["a null code when nothing came with the failure", null, null],
+  ])("logs a failed acknowledgement with %s and carries on", async (_, error, code) => {
     const logged: Logged[] = [];
-    const { tick, statements } = start({ claims: [2], ackFails: true }, logged);
+    const { tick, statements } = start({ claims: [2], ackError: error }, logged);
     await vi.advanceTimersByTimeAsync(1000);
     await tick.stop();
     expect(named(statements, "invitation_claim")).toHaveLength(2);
-    expect(logged.filter((entry) => entry.fields["event"] === "invitation.ack_failed")).toEqual([
-      { level: "error", fields: { event: "invitation.ack_failed", code: "57P01" } },
-      { level: "error", fields: { event: "invitation.ack_failed", code: "57P01" } },
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "invitation.ack_failed", code } },
+      { level: "error", fields: { event: "invitation.ack_failed", code } },
     ]);
+  });
+
+  it("logs a failed settle and still sends; logs a failed send and tries again next run", async () => {
+    const logged: Logged[] = [];
+    const settleFails = start({ claims: [1], settleError: sqlError("40P01") }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await settleFails.tick.stop();
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "invitation.settle_failed", code: "40P01" } },
+    ]);
+    expect(settleFails.sent).toHaveLength(1);
+
+    logged.length = 0;
+    const sendFails = start({ claims: [], startError: sqlError("57014") }, logged);
+    await vi.advanceTimersByTimeAsync(2000);
+    await sendFails.tick.stop();
+    expect(named(sendFails.statements, "invitation_start_due")).toHaveLength(2);
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "invitation.send_failed", code: "57014" } },
+      { level: "error", fields: { event: "invitation.send_failed", code: "57014" } },
+    ]);
+  });
+
+  it.each([
+    ["the switch absent", settingsWith(undefined)],
+    ["no platform settings", { forEvent: vi.fn(async () => ({ kind: "event_not_found" })) }],
+  ])("with %s, settles only and logs nothing", async (_, settings) => {
+    const logged: Logged[] = [];
+    const { tick, statements } = start({ claims: [5] }, logged, { settings });
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(named(statements, "invitation_settle")).toHaveLength(1);
+    expect(named(statements, "invitation_start_due")).toHaveLength(0);
+    expect(logged).toEqual([]);
+  });
+
+  it.each([
+    ["off", { start: "off" }],
+    ["busy", { start: "busy" }],
+    ["idle", { start: "idle" }],
+    ["no row from start or settle", { noRow: true }],
+  ])("logs nothing when the start answers %s, and still sends", async (_, answer) => {
+    const logged: Logged[] = [];
+    const { tick, statements, sent } = start({ claims: [1], ...answer }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(named(statements, "invitation_settle")).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+    expect(logged).toEqual([]);
+  });
+
+  it("settles at most 5 times a tick while it keeps reporting more, then sends", async () => {
+    const { tick, statements } = start(
+      { claims: [], more: Array.from({ length: 10 }, () => true) },
+      [],
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(named(statements, "invitation_settle")).toHaveLength(5);
+    expect(named(statements, "invitation_start_due")).toHaveLength(1);
+  });
+
+  it.each([
+    [0, 800],
+    [1, 1200],
+  ])("with random %d, waits %i ms: the interval give or take a fifth", async (draw, wait) => {
+    const { tick, statements } = start({ claims: [] }, [], { random: () => draw });
+    await vi.advanceTimersByTimeAsync(wait - 1);
+    expect(statements).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    await tick.stop();
+    expect(named(statements, "invitation_settle")).toHaveLength(1);
   });
 
   it("counts a sender that throws as unknown, never as sent", async () => {
@@ -293,6 +381,7 @@ describe("startInvitationTick", () => {
     ]);
   });
 
+  // Mutation note: emptying the render's catch block is equivalent; `text` is still undefined when messageOf throws.
   it("fails a message whose text cannot be built, without sending it or counting it as possibly sent", async () => {
     const logged: Logged[] = [];
     const { tick, statements, sent } = start({ claims: [2], blankNames: true }, logged);
@@ -310,5 +399,38 @@ describe("startInvitationTick", () => {
     await tick.stop();
     await vi.advanceTimersByTimeAsync(5000);
     expect(statements).toEqual([]);
+  });
+
+  it("stops during a run: waits for it to finish, then schedules no other", async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { sender } = recordingSender(async () => {
+      await gate;
+      return { kind: "sent" };
+    });
+    const { tick, statements } = start({ claims: [1] }, [], { sender });
+    await vi.advanceTimersByTimeAsync(1000);
+    const stopping = tick.stop();
+    release?.();
+    await stopping;
+    expect(named(statements, "invitation_ack")).toHaveLength(1);
+    const count = statements.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(statements).toHaveLength(count);
+  });
+});
+
+/** The timers that keep this process alive (an unref'd timer is not one). */
+const liveTimeouts = () =>
+  process.getActiveResourcesInfo().filter((resource) => resource === "Timeout").length;
+
+describe("the tick's timer", () => {
+  it("never keeps the process alive on its own", async () => {
+    const before = liveTimeouts();
+    const { tick } = start({ claims: [] }, []);
+    expect(liveTimeouts()).toBe(before);
+    await tick.stop();
   });
 });
