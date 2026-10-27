@@ -1548,7 +1548,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   review 84 (approve with revisions; short re-review pending): explicit FOR UPDATE on content and the clock after the lock,
   `questionId` in the answer (`changed`), the cadence door locks today's row and drops a same-cadence pending row, XP
   field ranges that fit the 1000 CHECK, the FK to `player` kept, a 33-letter shared Arabic set and a display form.
-- 2026-10-27 **T-406 core built (plan re-review GO 92; core code review pending).** Migration 0069 (undeployed; lock list
+- 2026-10-27 **T-406 core built (plan re-review GO 92; core code review 94, minors folded in 431470d; ADR-306..313 accepted).** Migration 0069 (undeployed; lock list
   `xp_entry`, `player`, `player_xp` only): the cadence per kind (weekly from 2026-01-04, changed for tomorrow, rows whose
   day came frozen), the question bank, challenges of three questions with an optional sponsor name, daily words per
   language and the guess lists, frozen once started for every role; plays, answers, guesses and finishes (append-only);
@@ -1573,9 +1573,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
-1. **T-406 independent core code review** (strongest model), then the GitHub mutation run on T-406's core globs, a
-   standard code review of T-406b (with the Arabic pass), then T-406c. Still open: the GitHub mutation run on T-405's core files. Still open from T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258, Q-279 to Q-281. No deployment/EAS/
-   local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
+1. **T-406b code review** (standard, with the Arabic pass), then T-406c; the GitHub mutation run on T-406's core
+   globs (run 40467748184) is being read. T-404 and T-405 mutation scores are recorded above. Waiting for Dhia: Q-280
+   (counsel, sponsor wording), Q-281 (word list source and licence). No deployment/EAS/local Stryker; phone/CranL
+   obligations remain deferred (T-403c's and T-406b's phone checks included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
