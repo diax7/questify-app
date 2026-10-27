@@ -245,8 +245,18 @@ describe("formatLocalMonth", () => {
     expect(formatLocalMonth("2026-10", "ar")).not.toMatch(/[٠-٩]/);
   });
 
-  it("never moves the month, whatever the machine's zone", () => {
-    expect(formatLocalMonth("2026-01", "en")).toBe("January 2026");
-    expect(formatLocalMonth("2026-12", "en")).toBe("December 2026");
+  it("never moves the month on a machine west of UTC", () => {
+    const machineZone = process.env["TZ"];
+    process.env["TZ"] = "America/Los_Angeles";
+    try {
+      expect(formatLocalMonth("2026-01", "en")).toBe("January 2026");
+      expect(formatLocalMonth("2026-12", "en")).toBe("December 2026");
+    } finally {
+      if (machineZone === undefined) {
+        Reflect.deleteProperty(process.env, "TZ");
+      } else {
+        process.env["TZ"] = machineZone;
+      }
+    }
   });
 });

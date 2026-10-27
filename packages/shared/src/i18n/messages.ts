@@ -5612,14 +5612,18 @@ export const MESSAGES = {
     ar: "كل شهر في Questify موسم. يبدأ الترتيب من جديد الساعة 04:00 بتوقيت الرياض في أول الشهر، وتبقى الخبرة والمستويات كما هي. المواسم الماضية تبقى هنا، ولا توجد إعادة ضبط يدوية.",
     en: "Each Questify month is a season. The ranking starts again at 04:00 Riyadh time on the 1st. Lifetime XP and levels stay. Past seasons stay here. There is no manual reset.",
   },
-  "console.seasons.choose": { ar: "اختر موسمًا", en: "Choose a season" },
   "console.seasons.current": { ar: "الحالي", en: "Current" },
   "console.seasons.players": {
     ar: "اللاعبون في الترتيب: {count}",
     en: "Ranked players: {count}",
   },
   "console.seasons.top": { ar: "أفضل 10 في {month}", en: "Top 10 in {month}" },
-  "console.seasons.empty": { ar: "لا أحد في ترتيب {month}.", en: "Nobody is ranked in {month}." },
+  "console.seasons.empty": {
+    ar: "لا يوجد لاعبون في ترتيب {month}.",
+    en: "Nobody is ranked in {month}.",
+  },
+  "console.seasons.xp": { ar: "{xp} XP في الشهر", en: "{xp} XP in the month" },
+  "console.seasons.level": { ar: "المستوى الإجمالي: {level}", en: "Lifetime level: {level}" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

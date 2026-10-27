@@ -82,8 +82,8 @@ function TopTen({ language, season }: Readonly<{ language: Language; season: Que
               <span dir="auto">{row.username}</span>
             </span>
             <span className={`${styles.who} ${styles.muted}`}>
-              <span>{t("explore.xp", { xp: row.xp })}</span>
-              <span>{t("level.number", { level: row.level })}</span>
+              <span>{t("console.seasons.xp", { xp: row.xp })}</span>
+              <span>{t("console.seasons.level", { level: row.level })}</span>
             </span>
           </li>
         ))}
@@ -98,7 +98,11 @@ function SeasonTop({ language, month }: Readonly<{ language: Language; month: st
   const state = useRead(seasonPath(month), readSeason);
   return (
     <div id={`season-${month}`} className={styles.stack} data-testid="season-top">
-      {state.kind === "loading" ? <p className={styles.muted}>{t("common.loading")}</p> : null}
+      {state.kind === "loading" ? (
+        <p role="status" className={styles.muted}>
+          {t("common.loading")}
+        </p>
+      ) : null}
       {state.kind === "failed" ? <Problem language={language} body={state.body} /> : null}
       {state.kind === "ready" ? <TopTen language={language} season={state.value} /> : null}
     </div>
@@ -156,10 +160,14 @@ export function ConsoleSeasons({ language }: Readonly<{ language: Language }>) {
         {t("console.seasons.title")}
       </h1>
       <p className={styles.muted}>{t("console.seasons.intro")}</p>
-      {list.kind === "loading" ? <p className={styles.muted}>{t("common.loading")}</p> : null}
+      {list.kind === "loading" ? (
+        <p role="status" className={styles.muted}>
+          {t("common.loading")}
+        </p>
+      ) : null}
       {list.kind === "failed" ? <Problem language={language} body={list.body} /> : null}
       {list.kind === "ready" ? (
-        <ul className={styles.list} aria-label={t("console.seasons.choose")}>
+        <ul className={styles.list}>
           {list.value.map((season) => (
             <SeasonItem
               key={season.month}

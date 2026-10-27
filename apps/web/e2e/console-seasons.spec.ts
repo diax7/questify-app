@@ -26,20 +26,23 @@ async function asAdmin(page: Page, project: string): Promise<void> {
   );
 }
 
-/** New players, one per entry of `points`, on the board `monthsAgo` months back (0: this month); answers that month. */
+/**
+ * New players, one per entry of `points`, on the board `monthsAgo` months back (0: this month) and with that XP as
+ * their lifetime XP; answers that month and the players' levels, in order.
+ */
 async function seedBoard(
   page: Page,
   tag: string,
   monthsAgo: number,
   points: readonly number[],
-): Promise<{ month: string; names: string[] }> {
+): Promise<{ month: string; names: string[]; levels: number[] }> {
   const names = points.map((_, index) => `szn_${tag}_${String(index + 1)}`);
   const response = await page.request.post(`${CONTROL}/season-board`, {
     data: { usernames: names, points, monthsAgo },
   });
   expect(response.status()).toBe(200);
-  const { month } = (await response.json()) as { month: string };
-  return { month, names };
+  const { month, levels } = (await response.json()) as { month: string; levels: number[] };
+  return { month, names, levels };
 }
 
 /** `YYYY-MM` moved back by whole months. */
@@ -84,8 +87,8 @@ test("in Arabic an admin opens the current month, then a past month's top 10 and
     now.names,
   );
   const first = current.getByTestId("season-row").filter({ hasText: now.names[0] ?? "" });
-  await expect(first).toContainText(/9\D?300 XP/);
-  await expect(first).toContainText("المستوى 1");
+  await expect(first).toContainText(/9\D?300 XP في الشهر/);
+  await expect(first).toContainText(`المستوى الإجمالي: ${String(now.levels[0])}`);
   await expectNoSidewaysScroll(page);
 
   // A past month has its own count and top 10; opening it closes the current one.
@@ -98,14 +101,14 @@ test("in Arabic an admin opens the current month, then a past month's top 10 and
   await expect(current.getByTestId("season-row")).toHaveCount(0);
   await expect(old.getByTestId("season-row")).toHaveCount(3);
   expect(await usernamesIn(old)).toEqual(past.names);
-  await expect(old.getByTestId("season-row").first()).toContainText(/5\D?000 XP/);
+  await expect(old.getByTestId("season-row").first()).toContainText(/5\D?000 XP في الشهر/);
   await expectNoSidewaysScroll(page);
 
   // A month nobody played is listed with no players and says so.
   const quiet = seasonOf(page, gap);
   await expect(quiet).toContainText("اللاعبون في الترتيب: 0");
   await quiet.getByRole("button").click();
-  await expect(quiet.getByText("لا أحد في ترتيب", { exact: false })).toBeVisible();
+  await expect(quiet.getByText("لا يوجد لاعبون في ترتيب", { exact: false })).toBeVisible();
   await expect(quiet.getByTestId("season-row")).toHaveCount(0);
 
   // Closing the open month leaves every month closed.
@@ -136,7 +139,7 @@ test("in English the page is read only, marks the current month and shows a past
   ).toBeVisible();
   await expect(
     current.getByTestId("season-row").filter({ hasText: now.names[0] ?? "" }),
-  ).toContainText(/9\D?600 XP/);
+  ).toContainText(/9\D?600 XP in the month/);
   await expectNoSidewaysScroll(page);
 
   const old = seasonOf(page, past.month);
@@ -146,8 +149,10 @@ test("in English the page is read only, marks the current month and shows a past
   await old.getByRole("button").click();
   await expect(old.getByRole("heading", { name: `Top 10 in ${label(past.month)}` })).toBeVisible();
   expect(await usernamesIn(old)).toEqual(past.names);
-  await expect(old.getByTestId("season-row").nth(2)).toContainText("600 XP");
-  await expect(old.getByTestId("season-row").nth(2)).toContainText("Level 1");
+  await expect(old.getByTestId("season-row").nth(2)).toContainText("600 XP in the month");
+  await expect(old.getByTestId("season-row").nth(2)).toContainText(
+    `Lifetime level: ${String(past.levels[2])}`,
+  );
   await expectNoSidewaysScroll(page);
 
   // The console home links to the page.

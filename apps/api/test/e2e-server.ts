@@ -313,7 +313,8 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         return;
       }
       // /season-board: new players with these usernames, each with its points (in order) on the Questify month board
-      // `monthsAgo` months back (0: this month); answers that month (the console's Ranking seasons, T-408c).
+      // `monthsAgo` months back (0: this month), and as lifetime XP with its level; answers that month and the levels
+      // in order (the console's Ranking seasons, T-408c).
       if (request.url === "/season-board") {
         db.owner
           .query(
@@ -328,9 +329,23 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
              SELECT DISTINCT board FROM placed`,
             [body.usernames ?? [], body.points ?? [], body.monthsAgo ?? 0],
           )
-          .then((result) => {
+          .then(async (placed) => {
+            const lifetime = await db.owner.query(
+              `UPDATE player_xp x SET xp = p.points, level = xp_level_of(p.points)
+               FROM player pl
+               JOIN unnest($1::text[], $2::int[]) WITH ORDINALITY AS p(username, points, position)
+                 ON p.username = pl.username
+               WHERE x.player_id = pl.id
+               RETURNING p.position, x.level`,
+              [body.usernames ?? [], body.points ?? []],
+            );
+            const levels = (lifetime.rows as { position: string; level: number }[])
+              .toSorted((a, b) => Number(a.position) - Number(b.position))
+              .map((row) => row.level);
             response.writeHead(200, { "content-type": "application/json" });
-            response.end(JSON.stringify({ month: (result.rows[0] as { board: string }).board }));
+            response.end(
+              JSON.stringify({ month: (placed.rows[0] as { board: string }).board, levels }),
+            );
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));
