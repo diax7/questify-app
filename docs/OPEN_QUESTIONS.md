@@ -818,3 +818,36 @@ Recommended (ADR-293): the Arabic counts and forms in ADR-293, "Get" as احصل
 ring colours (purple, teal, crimson, terracotta, mauve, midnight blue). Agree, or change any word or colour once seen on a
 phone?
 **Answered (developer, delegated by Dhia, 2026-10-27):** agreed as recommended (ADR-293 Accepted, code review GO 91); the ring colours are seen on a phone at the T-806 check.
+
+## Q-259 — Split T-405 into a core part and a screens part? (2026-10-27, T-405 plan)
+Recommended (ADR-294): T-405 builds the streak records, the event bonus, the daily milestones and the doors (core);
+T-405b builds the app lines, the dashboard Streak panel and the strings (standard, cheaper model). Agree, or one task?
+
+## Q-260 — How event streak days and closed days work (2026-10-27, T-405 plan)
+Recommended (ADR-295): the organizer marks closed weekdays (for example Friday) and closed dates; those days neither
+count nor break the streak; played days are recorded on every multi-day event so the streak can be switched on mid-event;
+a day that has started can no longer be marked closed or open. Agree, or should closed days come from something else
+(for example days with no quest open)?
+
+## Q-261 — The event streak bonus (2026-10-27, T-405 plan)
+Recommended (ADR-296): the same bonus every streak day, from day 2 (day 1 is not a streak yet), paid with the day's first
+quest. Agree, or pay from day 1, or grow the bonus with the streak (for example bonus × days, capped)?
+
+## Q-262 — The Questify day and what keeps the daily streak (2026-10-27, T-405 plan)
+Recommended (ADR-297): one day for everyone, 04:00 to 04:00 Riyadh time; any event quest completion keeps it (the daily
+challenge and word join with T-406); days while the platform switch is off never count. Agree, or should the day change
+at midnight, or in the player's own time zone?
+
+## Q-263 — Daily streak rewards, and gems from a level it causes (2026-10-27, T-405 plan)
+Recommended (ADR-298): XP only at 3, 7, 14, 30, 60, 100, 200 and 365 days (50 to 750 XP), each once ever; no items yet.
+If streak XP crosses a level, that level pays its usual gems: the streak itself never pays gems (FR-421). Agree, or
+should each new streak run pay its milestones again, should items be added, or should streak XP never trigger level
+gems?
+
+## Q-264 — Where the streak switches live (2026-10-27, T-405 plan)
+Recommended (ADR-299): the platform daily-streak switch is a feature key T-703's console page flips; the event streak
+(on/off, bonus, closed days) is set only by the event owner in its own panel. Agree, or should editors also set it?
+
+## Q-265 — Streak copy and pressure (2026-10-27, T-405 plan)
+Recommended (ADR-300): no freeze or repair, no "don't lose your streak" copy, no countdown or red badge; a broken
+streak says "Start a new streak today". Agree?

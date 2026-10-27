@@ -514,7 +514,16 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.
+  - Plan 2026-10-27 (core, awaiting the independent CTO plan review): `docs/plans/2026-10-27-t-405-streaks.md`; split
+    into T-405 (core: migration 0068, API, shared) and T-405b (standard: screens, dashboard panel, strings), Proposed
+    ADR-294 to ADR-300 / Q-259 to Q-265. CORE: the event bonus is a points-ledger kind paid in the completion
+    transaction (a trigger on the quest entry) and the daily milestones an XP source paid by `questify_sync`; no gems.
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
+- [ ] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
+  - Split from T-405 2026-10-27 (ADR-294). Standard; plan: `docs/plans/2026-10-27-t-405-streaks.md` (T-405b section).
+    No loss or guilt copy, no countdown (ADR-300). The owner-only switch adds one "Only the owner can change this." note
+    (`apps/web/e2e/organizers.spec.ts` count).
+  - Done when: With the streak off no player sees an event streak; with the platform switch off no player sees a daily streak.
 - [ ] **T-406** Daily challenge (three questions) and daily word game; sponsor-funded days; question and word banks; weekly or daily cadence — delivers FR 730, 731, 732, 1810, 1811, 1733, 1814; depends on: T-405
   - Note 2026-10-27 (T-404): the daily challenge never writes gems (FR-724); `gem_entry` has no source for it.
   - Done when: A day without a daily word shows no game; fewer than 7 queued questions warns the console.

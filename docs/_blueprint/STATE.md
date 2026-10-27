@@ -1462,11 +1462,21 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   line 244 (`?? { outcome, next_change_at }`: with no row the switch matches nothing either way), line 116 (the fallback
   equals `TUNING.usernameChangeDays.default`, 30), line 287 (`rules` is null exactly when `body.username` is undefined, so
   `&&`, `||` and either `true` behave the same). Expected score about 96%; confirm on the next run.
+- 2026-10-27 **T-405 plan written (core; awaiting the independent CTO plan review).** `docs/plans/2026-10-27-t-405-streaks.md`:
+  split into T-405 (core: migration 0068, API, shared) and T-405b (standard: screens, dashboard Streak panel, strings;
+  added to TASKS). Event streak: day rows per enrollment and open event day (organizer closed weekdays and dates neither
+  count nor break; recorded on every multi-day event, on or off), a flat bonus from day 2 as ledger kind `streak`, paid
+  by a `ledger_streak` trigger on the quest entry (after `apply_ledger_entry`, before `ledger_xp`) so every door pays
+  it; an owner-only settings door. Daily streak: one 04:00 Riyadh day, written by the same trigger only while the
+  platform key `dailyStreak` is on, length read not stored, XP milestones (3 to 365 days) once ever through
+  `questify_sync` (`xp_entry` source `streak`); no gem or points source (FR-421). Lock list up front (enrollment
+  EXCLUSIVE first; never `platform_setting` or `player`). STORE_COMPLIANCE gate: nothing sold, no loss copy or
+  countdowns. Proposed ADR-294 to ADR-300 / Q-259 to Q-265. Progress 81/158 (51.27%; T-405b added).
 
 ## Next
 
-1. **T-404b standard code review** (independent, mid-tier model, with the Arabic pass), then the GitHub mutation run on
-   T-404's core files; then T-405. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-258. No deployment/EAS/
+1. **T-405 independent core plan review** (strongest model), then the T-405 core build and T-405b. Still open from
+   T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-265. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

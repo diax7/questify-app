@@ -3809,3 +3809,84 @@ the quests list read «مكافأة: …».
 **Why:** Gems are counted in every screen and toast, so one helper keeps the grammar right; the old formula would have
 repeated colours the level frames already use.
 **Trade-offs:** The six colours are a design guess until the brand deck owner reviews them on a phone.
+
+## ADR-294 — T-405 split: the streak ledgers (core), then the screens (standard)
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-259).
+**Decision:** T-405 (CORE) builds migration 0068, the API doors and the shared schemas: day records for both streaks,
+the event streak bonus (a points-ledger kind), the daily streak milestones (an XP source) in `questify_sync`, the event
+streak settings door, the reads and the platform switch. T-405b (STANDARD) builds the app's streak lines, the success
+beat, the profile line, the sync toast, history labels, the dashboard's Streak panel and every string. One plan
+(`docs/plans/2026-10-27-t-405-streaks.md`) covers both.
+**Why:** The T-403/T-404 precedent: ledger work gets the strongest model and a core review; display work goes to the
+cheaper model and a standard review.
+**Trade-offs:** Two workers and two code reviews; the on-screen Givens of FR-417 and FR-420 are proven only by T-405b.
+
+## ADR-295 — Event streak days: open event days, organizer closed days, recorded whether on or not
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-260). Extends ADR-083.
+**Decision:** The event streak counts, per enrollment, consecutive open event days (FR-1714's day start, inside the
+event window) with at least one quest completion. A day is closed when its weekday is one of the organizer's closed
+weekdays (at most six) or its date is a closed date; a closed day neither counts nor breaks, and a completion on it
+writes nothing. One row per enrollment and open day played (`event_streak_day`, with that day's length) is written by
+a trigger on the quest ledger entry for every multi-day event, whether the streak is on or not. Closed days and weekdays
+can change only for days that have not started.
+**Why:** No closed-day data existed; weekdays plus dates cover a company season (weekends) and an event's holidays.
+Recording always lets an organizer switch the streak on mid-event without a backfill that would race live completions,
+and gives METRICS its return-visit data. Freezing started days keeps stored lengths and paid bonuses true.
+**Trade-offs:** One small row per player and day on every multi-day event; an organizer who forgets to mark a past
+closed day cannot fix it afterwards.
+
+## ADR-296 — The event streak bonus: flat, from day 2, paid with the day's first quest
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-261). Extends ADR-045, FR-418, FR-1615.
+**Decision:** The organizer sets the bonus (1 to 100,000 points) or none. It is paid by the system, once per enrollment
+and open day, with the day's first quest completion through any door, when the streak that day is 2 or more; the same
+amount every day. Its own ledger kind `streak`: never boosted, no XP, balance 0 while the shop is closed, counted by the
+ranking, today's ranking and community points goals, removable on its own; removing it or the quest line never unpicks
+the day. Paid by the `ledger_streak` trigger on the quest entry (before `ledger_xp`), so every door pays it and no payer
+changes.
+**Why:** A first day is not yet a streak; a flat amount is predictable for the organizer and bounded; the trigger pattern
+(T-401's `ledger_xp`) cannot miss a door.
+**Trade-offs:** No growing reward for long streaks; a removal for cheating keeps the day counted (the team removes the
+bonus line too).
+
+## ADR-297 — The Questify daily streak: one Riyadh day, any quest completion, only while on, own-only
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-262). Extends ADR-045.
+**Decision:** The Questify day runs 04:00 to 04:00 Asia/Riyadh for everyone (`questify_day`, reused by T-406). A day
+counts when the player has any non-rehearsal quest completion in any event; T-406 adds the daily challenge and word
+through the same row. The `ledger_streak` trigger writes one row per player and day, only while the platform switch
+`dailyStreak` is on, so days while off never count and the streak restarts after it comes back. The length is read, not
+stored. Only the player sees their daily streak.
+**Why:** The daily word is the same for everyone that day, so the day must be one platform day; 04:00 matches the events'
+default for late nights. Writing at completion is exact even for a player who never opens the app between kiosk scans;
+the row has no foreign key so it adds no player lock to the scan path.
+**Trade-offs:** Players outside Saudi time see the day change at another local hour; until T-406 a player without an
+event has nothing that keeps the streak alive.
+
+## ADR-298 — Daily streak rewards: XP at milestones, once ever, paid by the sync
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-263). Extends ADR-046, FR-421.
+**Decision:** The daily streak pays XP only, at seeded milestones (3, 7, 14, 30, 60, 100, 200 and 365 days: 50 to 750
+XP), each once ever per player, written by `questify_sync` as `xp_entry` source `streak` bound to a
+`questify_streak_reward` row. No items yet. It never writes event points or gems: no ledger or gem source exists for it.
+A level reached through streak XP pays its level-up gems and item like any level.
+**Why:** Once-ever milestones bound the XP and avoid "lose it and you lose the next reward" pressure; paying in the sync
+keeps XP locks out of the scan path (ADR-274).
+**Trade-offs:** A returning player is not rewarded again for a second 7-day run; the level-up gems a streak can trigger
+are an indirect gem effect (Q-263).
+
+## ADR-299 — Streak switches: a platform feature key and an owner-only event settings row
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-264).
+**Decision:** The platform switch is `FEATURES.dailyStreak` (`level: "platform"`, on by default), shipped in `/v1/config`
+and read in SQL by `daily_streak_on()`; T-703's switches page is its console control. The event streak's on/off, bonus
+and closed days live in `event_streak`, set only by the event owner through `set_event_streak` (validated, audited), not
+in `event.config.features`.
+**Why:** Event config switches default on, are not checked in SQL and carry no amount; the bonus pays points, so it needs
+a validated, audited door. The platform key reuses the existing registry and console.
+**Trade-offs:** Until T-703 ships its page, the platform switch is flipped through the settings service only.
+
+## ADR-300 — Streaks put no pressure on players
+**Status:** Proposed (worker recommendation, 2026-10-27, T-405 plan; Q-265). Extends ADR-083.
+**Decision:** Nothing about a streak is sold or offered (no freeze, repair or restore). Copy never threatens a loss or
+guilt-trips; no countdown to the day's end and no red badge; a broken streak reads "Start a new streak today"; a closed
+event day says the streak is safe. T-501's streak reminders follow the same rule. STORE_COMPLIANCE §6 gains the row.
+**Why:** Store review and the research (GAMIFICATION_PATTERNS: streak anxiety) favour encouragement over loss framing;
+players are 13 and over.
+**Trade-offs:** Softer copy may keep fewer streaks alive than loss-framed copy would.
