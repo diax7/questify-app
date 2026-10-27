@@ -3828,7 +3828,11 @@ event window) with at least one quest completion. A day is closed when its weekd
 weekdays (at most six) or its date is a closed date; a closed day neither counts nor breaks, and a completion on it
 writes nothing. One row per enrollment and open day played (`event_streak_day`, with that day's length) is written by
 a trigger on the quest ledger entry for every multi-day event, whether the streak is on or not. Closed days and weekdays
-can change only for days that have not started.
+can change only for days that have not started: a closed date only before it starts, a closed weekday only before its
+first occurrence in the event, so a day lost to an outage cannot be closed afterwards. A single-day event extended to
+multi-day mid-event counts from the next completion. The row is written by a plain INSERT, never updated (append-only);
+nothing is written when the enrollment already has a row for a later day (a transaction that began before the day
+boundary). Plan review 2026-10-27: MAJOR-1, MINOR-5, MINOR-6.
 **Why:** No closed-day data existed; weekdays plus dates cover a company season (weekends) and an event's holidays.
 Recording always lets an organizer switch the streak on mid-event without a backfill that would race live completions,
 and gives METRICS its return-visit data. Freezing started days keeps stored lengths and paid bonuses true.
@@ -3842,7 +3846,8 @@ and open day, with the day's first quest completion through any door, when the s
 amount every day. Its own ledger kind `streak`: never boosted, no XP, balance 0 while the shop is closed, counted by the
 ranking, today's ranking and community points goals, removable on its own; removing it or the quest line never unpicks
 the day. Paid by the `ledger_streak` trigger on the quest entry (before `ledger_xp`), so every door pays it and no payer
-changes.
+changes; the bonus entry is written first, then the day row carrying its id. Which day a completion counts for, and
+manual awards: ADR-301.
 **Why:** A first day is not yet a streak; a flat amount is predictable for the organizer and bounded; the trigger pattern
 (T-401's `ledger_xp`) cannot miss a door.
 **Trade-offs:** No growing reward for long streaks; a removal for cheating keeps the day counted (the team removes the
@@ -3866,7 +3871,8 @@ event has nothing that keeps the streak alive.
 **Decision:** The daily streak pays XP only, at seeded milestones (3, 7, 14, 30, 60, 100, 200 and 365 days: 50 to 750
 XP), each once ever per player, written by `questify_sync` as `xp_entry` source `streak` bound to a
 `questify_streak_reward` row. No items yet. It never writes event points or gems: no ledger or gem source exists for it.
-A level reached through streak XP pays its level-up gems and item like any level.
+A level reached through streak XP pays its level-up gems and item like any level: FR-421's "gems unchanged" is read as
+"the streak reward itself writes no gems" (agreed by the developer at the plan review, 2026-10-27).
 **Why:** Once-ever milestones bound the XP and avoid "lose it and you lose the next reward" pressure; paying in the sync
 keeps XP locks out of the scan path (ADR-274).
 **Trade-offs:** A returning player is not rewarded again for a second 7-day run; the level-up gems a streak can trigger
@@ -3890,3 +3896,14 @@ event day says the streak is safe. T-501's streak reminders follow the same rule
 **Why:** Store review and the research (GAMIFICATION_PATTERNS: streak anxiety) favour encouragement over loss framing;
 players are 13 and over.
 **Trade-offs:** Softer copy may keep fewer streaks alive than loss-framed copy would.
+
+## ADR-301 — Which day a streak completion counts for: the day it is paid; manual awards count
+**Status:** Proposed (developer decision for v1 at the T-405 plan review, 2026-10-27; Q-266). Extends ADR-295, ADR-296.
+**Decision:** A completion counts for the event day (and the Questify day) on which its quest ledger entry is written,
+whatever the door: a submission a reviewer approves counts on the approval day, not the day it was sent; a quiz on its
+finish; a game on its result. The team's manual quest award (`method = 'manual'`) is a completion like any other: it
+counts the day and, as the day's first completion, pays the event streak bonus.
+**Why:** The trigger on the quest entry is the one place every door passes, and the entry's time is the only time every
+door has; a manual award is the team confirming a quest the player did.
+**Trade-offs:** A player whose submission waits overnight for review may miss the day they actually played; a team can
+keep a player's streak alive by hand (the organizer's own call).

@@ -827,7 +827,8 @@ T-405b builds the app lines, the dashboard Streak panel and the strings (standar
 Recommended (ADR-295): the organizer marks closed weekdays (for example Friday) and closed dates; those days neither
 count nor break the streak; played days are recorded on every multi-day event so the streak can be switched on mid-event;
 a day that has started can no longer be marked closed or open. Agree, or should closed days come from something else
-(for example days with no quest open)?
+(for example days with no quest open)? Two consequences (plan review): a day lost to an outage cannot be marked closed
+afterwards, and a single-day event extended to several days counts from the extension only.
 
 ## Q-261 — The event streak bonus (2026-10-27, T-405 plan)
 Recommended (ADR-296): the same bonus every streak day, from day 2 (day 1 is not a streak yet), paid with the day's first
@@ -843,6 +844,8 @@ Recommended (ADR-298): XP only at 3, 7, 14, 30, 60, 100, 200 and 365 days (50 to
 If streak XP crosses a level, that level pays its usual gems: the streak itself never pays gems (FR-421). Agree, or
 should each new streak run pay its milestones again, should items be added, or should streak XP never trigger level
 gems?
+**Developer view (plan review, 2026-10-27):** agreed that level gems come from the level, so FR-421's "gems unchanged"
+means the streak reward itself writes no gems; the milestone and item parts stay open for Dhia.
 
 ## Q-264 — Where the streak switches live (2026-10-27, T-405 plan)
 Recommended (ADR-299): the platform daily-streak switch is a feature key T-703's console page flips; the event streak
@@ -851,3 +854,8 @@ Recommended (ADR-299): the platform daily-streak switch is a feature key T-703's
 ## Q-265 — Streak copy and pressure (2026-10-27, T-405 plan)
 Recommended (ADR-300): no freeze or repair, no "don't lose your streak" copy, no countdown or red badge; a broken
 streak says "Start a new streak today". Agree?
+
+## Q-266 — Which day a reviewed or team-awarded completion counts for (2026-10-27, T-405 plan review)
+Recommended (ADR-301, developer decision for v1): a submission counts on the day a reviewer approves it, and a team's
+manual quest award counts the day and pays that day's streak bonus like any completion. Agree, or should a submission
+count on the day it was sent (which would need a later day row and a bonus paid after the fact)?

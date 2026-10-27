@@ -1473,12 +1473,12 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   platform key `dailyStreak` is on, length read not stored, XP milestones (3 to 365 days) once ever through
   `questify_sync` (`xp_entry` source `streak`); no gem or points source (FR-421). Lock list up front (enrollment
   EXCLUSIVE first; never `platform_setting` or `player`). STORE_COMPLIANCE gate: nothing sold, no loss copy or
-  countdowns. Proposed ADR-294 to ADR-300 / Q-259 to Q-265. Progress 81/158 (51.27%; T-405b added).
+  countdowns. Proposed ADR-294 to ADR-301 / Q-259 to Q-266. Progress 81/158 (51.27%; T-405b added). CTO plan review 86 (approve with revisions, no re-review): the day row stays append-only (bonus entry first, then a plain INSERT), approval-day and manual completions count (ADR-301), error class ST, UNIQUE completion_id, the day-boundary race, closed weekdays frozen once started, quest_id joins in the build check.
 
 ## Next
 
-1. **T-405 independent core plan review** (strongest model), then the T-405 core build and T-405b. Still open from
-   T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-265. No deployment/EAS/
+1. **T-405 core build** (fresh worker, strongest model; plan review 86 folded), then its core code review, then T-405b. Still open from
+   T-404: the GitHub mutation run on T-404's core files. Waiting for Dhia: his OK on the `stryker.config.json` globs, Q-247 items 2 and 3, Q-249 to Q-266. No deployment/EAS/
    local Stryker; phone/CranL obligations remain deferred (T-403c's phone check included). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017

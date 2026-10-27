@@ -514,9 +514,9 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
 - [ ] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.
-  - Plan 2026-10-27 (core, awaiting the independent CTO plan review): `docs/plans/2026-10-27-t-405-streaks.md`; split
+  - Plan 2026-10-27 (core; CTO plan review 86, revisions folded, no re-review): `docs/plans/2026-10-27-t-405-streaks.md`; split
     into T-405 (core: migration 0068, API, shared) and T-405b (standard: screens, dashboard panel, strings), Proposed
-    ADR-294 to ADR-300 / Q-259 to Q-265. CORE: the event bonus is a points-ledger kind paid in the completion
+    ADR-294 to ADR-301 / Q-259 to Q-266. CORE: the event bonus is a points-ledger kind paid in the completion
     transaction (a trigger on the quest entry) and the daily milestones an XP source paid by `questify_sync`; no gems.
   - Done when: Missing a day breaks the streak; the daily streak rewards XP or items only.
 - [ ] **T-405b** Streaks on screen: the event streak on event Home and the success card, the daily streak on Profile and in the sync toast, history labels, the dashboard's event Streak panel and every string — delivers FR 417, 418, 419, 420 (on screen); depends on: T-405
