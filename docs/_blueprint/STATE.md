@@ -1581,16 +1581,23 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   had kept stale survivors). Every T-406 core file is at 90 or above.
 - 2026-10-27 **T-407c mutation scores (GitHub run 40491590598).** questify admin-routes.ts 100, admin.ts 95.08, shared
   questify/quests.ts 100. All at 90 or above; T-407c is closed (re-review 93 GO, ADR-320 accepted, pushed a9b183d).
+- 2026-10-27 **T-408 mutation scores (GitHub run 40499485325).** questify ranking.ts 100, routes.ts 100, admin-routes.ts
+  100, admin.ts 94.12, shared questify/ranking.ts 91.30. All at 90 or above. T-408b code review 82 (one BLOCKER, function
+  limits, and one MAJOR, Home re-reads on focus), both fixed in 11d6e25 and `lint:limits` checked by the coordinator;
+  ADR-324 and ADR-325 accepted.
+
 
 
 
 ## Next
 
-1. **T-407 and T-407b** are built (code review owed, standard). **T-407c** is built (core code review owed; deploy with a new app build). **T-408** (core server) is built (core code review owed). **T-408b** (app) is built (code review owed). Next: T-408c (console). **T-406c** is built and reviewed (91, folded in); the GitHub mutation run on T-406's core
-   globs (run 40467748184) is being read. T-404 and T-405 mutation scores are recorded above. Waiting for Dhia: Q-280
-   (counsel, sponsor wording), Q-281 (word list source and licence), Q-286 to Q-289 (T-407: marketing age, quiet hours for push and email, consent wording, proof after deletion). No deployment/EAS/local Stryker; phone/CranL
-   obligations remain deferred (T-403c's and T-406b's phone checks included). Follow-up: Q-237 central
-   replay-before-scope fix for other idempotent organizer routes.
+1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
+   T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. **Next: T-408c** (console Seasons
+   page, standard), then T-408d when the RUNBOOK ranked-count check fires, T-406d (word lists, Q-281 answered), then
+   T-409. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent wording), Q-289 (proof
+   after deletion); nothing waits on them. No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b, T-407b
+   and T-408b. **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central replay-before-scope
+   fix for other idempotent organizer routes.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
