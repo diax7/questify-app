@@ -1308,10 +1308,16 @@ included. ADR-351 Accepted.
 Recommended (ADR-352): the push explainer on the join result screens (not Event Home, which shows the location sheet);
 the route table naming the owed-push kinds now, guarded by a test; a tap's fields read from `trigger.payload.q`,
 `remoteMessage.data` and `content.data`; one native-access file with every package loaded only after its native modules
-are found; "Mark all as read" on the center; a profile read per foreground for the bell; the offers screen moved to
+are found; "Mark all as read" on the center; a small unread read per foreground for the bell; the offers screen moved to
 `/settings/notifications` under the push status and topics. The other options: the explainer on Event Home after the
 location sheet (two sheets in sequence, more state), no kind names until the slices exist (the center's taps untestable),
 reading `content.data` only (misses a direct-APNs payload), loading `expo-notifications` directly (crashes an older
 development build at launch). Developer's call at the T-501c review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501c code review (84; MAJOR 1 and 2 fixed: a
+cold-start tap waits for the launch screen to leave, and the bell refreshes from a one-row center read, never the
+profile; the minors folded: a held tap dropped on sign-out, the registration record bound to the player and ignored when
+its sign-in ended meanwhile, the Android explainer skipped without a Firebase file and the file made a store gate, the
+"always reach you" line naming decisions, answers and prizes, the center keeping older pages on focus, the comment on
+the module check, a sign-out wait of 3 seconds). ADR-352 Accepted.
 Open for Dhia (not blocking): the notification icon (96 px white-on-transparent from the brand deck) and the Firebase
 `google-services.json` and how it reaches the build (RUNBOOK, "The app's side of push").

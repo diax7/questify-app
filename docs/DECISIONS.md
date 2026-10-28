@@ -4988,8 +4988,9 @@ reopened after 4 minutes (one TLS handshake); a key limited to one Apple environ
 until the hold is read in the logs.
 
 ## ADR-352 — Where the T-501c build fills in the app's push
-**Status:** Proposed (worker, 2026-10-28; T-501c build, `docs/plans/2026-10-28-t-501c-push-app.md`; Q-321). Refines
-ADR-349 where the plan left a detail open. The coordinator decides after the code review.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501c build, `docs/plans/2026-10-28-t-501c-push-app.md`;
+code review 84, MAJOR 1 and 2 fixed, (6) and (9) to (12) are its fold-ins; Q-321). Refines ADR-349 where the plan left a
+detail open.
 **Decision:** (1) **The explainer shows on the join result screens** (the join card and the invitation), the moment
 the join went through, not on Event Home: Event Home already shows the location sheet after a join, and two sheets and
 two system prompts would stack. "Open the event" then leads on to the location sheet as before. It shows only while the
@@ -5001,17 +5002,29 @@ promotion, an unknown kind and any id that fails its check open the center row. 
 three places** (`trigger.payload.q` for direct APNs, `trigger.remoteMessage.data` and `content.data` for FCM), because
 the library's source puts a direct-APNs custom key only in `trigger.payload`; the go-live checklist confirms it on phones.
 (4) **Native access is one file** (`push-native.ts`): `expo-notifications` and `expo-application` are required only
-after `requireOptionalNativeModule` found every native module they load, so an older development build keeps working
-with push off; `isDevice` is read from the `ExpoDevice` native constant, not by loading `expo-device` a second time.
+after `requireOptionalNativeModule` found the native modules checked (a build holds all of a package's modules or
+none, so a few stand for the set), so an older development build keeps working with push off; `isDevice` is read from the `ExpoDevice` native constant, not by loading `expo-device` a second time.
 (5) **Mark all as read** on the center (the route exists, and a long unread list is otherwise 100 taps); the center's rows
 carry `refs` (reference ids only) for the tap, added to the server schema as a separate commit. (6) **A resumed app reads
-the profile again** (`GET /v1/me`, once per foreground) so the bell counts what arrived in the background or with no
-push at all; a push that arrives with the app open shows a quiet banner and refreshes it. (7) **Not set:** Android's
+the unread count again** (`GET /v1/me/notifications?limit=1`, once per foreground; never the profile: a failed profile
+read publishes `me: undefined` and the screens that need it, a game in progress offline at a venue, would unmount) so
+the bell counts what arrived in the background or with no push at all; a push that arrives with the app open shows a
+quiet banner and refreshes it the same way. (7) **Not set:** Android's
 notification icon (a brand-deck asset) and `android.googleServicesFile` (Dhia's Firebase file); without the file Android
 registers nothing and the center still works. (8) **The offers screen moved** to `/settings/notifications`
 (`OffersSection`, now under the push status and the topic switches); `ChannelRow` became the shared `SwitchRow` (a third
-user, the topics).
+user, the topics). (9) **A tap opens only once the launch screen has left** (`settleTap`): the launch screen's own
+`router.replace` after its `/v1/me/events` read would otherwise land on the tap's screen and cancel it, which is the
+common cold-start case. A tap held while the player signs out is dropped, so it never opens for the next account.
+(10) **A registration records the player and the sign-in:** the record holds the player id, and a registration still on
+its way when the sign-in ends (a chosen sign-out, or a session that ended on its own) is not recorded, so the next
+sign-in never reads "already told" and misses its device row for up to a day. (11) **The explainer is not offered on an
+Android build that cannot get a token** (no Firebase file); the Firebase file is a hard gate on the Android store build
+(RUNBOOK, T-806's Done-when). (12) **Sign-out waits at most 3 seconds** for the device removal (the local record is
+removed first, the call goes on without the wait); the center keeps the older pages already loaded when it reads the
+newest page again on focus, when the new page overlaps them.
 **Why:** each point keeps ADR-349's rules where the plan's wording could not hold or left a choice; none changes what a
 player sees beyond the plan.
 **Trade-offs:** the explainer appears before the player has seen Event Home; the route table names kinds before their
-slices exist (a guard test keeps them consistent); a resumed app costs one profile read per foreground.
+slices exist (a guard test keeps them consistent); a resumed app costs one small center read per foreground; a tap on a
+cold start waits for the launch screen (a fraction of a second to one events read).

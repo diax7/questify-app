@@ -882,7 +882,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Done 2026-10-28 (Standard; code review owed; not run on a phone: needs a new development build and, for real pushes,
     Dhia's APNs key and Firebase project). Dependencies `expo-notifications ~57.0.23` and `expo-application ~57.0.3`.
     `apps/app/src/push/**`: `push-native.ts` is the only file that loads them, after `requireOptionalNativeModule`
-    finds every native module (an older build runs with push off); `push-flow.ts` holds the rules (the explainer only
+    finds the native modules it checks (an older build runs with push off); `push-flow.ts` holds the rules (the explainer only
     while the system is unasked and not snoozed 30 days, registration at launch / token change / language or version
     change / daily, iOS tokens lower-case, `development` → sandbox else production, sign-out unregisters); the center
     (`/notifications`, paged, a tap marks that row read, "Mark all as read", the opt-out on promotional rows), the bell
@@ -1096,7 +1096,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-10-28 (T-501 plan review, ADR-342 (4)): the RUNBOOK's push go-live checklist (real keys on both APNs
     hosts and FCM, a real iPhone and Android phone, uninstall answers, collapse, cold-start taps, Arabic on the lock
     screen) must have passed and be recorded first: review needs push live (STORE_COMPLIANCE).
-  - Done when: Both stores accept the submission for review, and the RUNBOOK's push go-live checklist has passed.
+  - Note 2026-10-28 (T-501c code review): the Android build must carry the Firebase `google-services.json` before it is
+    submitted (RUNBOOK, "The app's side of push"): without it no Android push can arrive and review needs push live.
+  - Done when: Both stores accept the submission for review, the RUNBOOK's push go-live checklist has passed, and the
+    Android build was made with the Firebase `google-services.json`.
 - [ ] **T-807** Counsel batch and data map: send the batched legal questions and finalize the vendor data map — delivers no FR (infrastructure or quality gate); depends on: none
   - Done when: A written answer exists for each batched question or it stays listed in OPEN_QUESTIONS.
   - Note 2026-10-21 (T-110): add Q-095 (minors accepting before the birth year, keeping acceptance records after erasure) to the batch; the company details fill the contact page and the drafts' placeholders.

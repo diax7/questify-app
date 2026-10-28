@@ -1677,7 +1677,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   separate server commit: `GET /v1/me/notifications` items gain `refs` (reference ids only; shared schema, `centerItem`,
   a route test). New dependencies `expo-notifications ~57.0.23` (resolves 57.0.24) and `expo-application ~57.0.3`
   (plugin `expo-notifications` in `app.json`). `apps/app/src/push/`: `push-native.ts` is the only file that loads the
-  two packages, after `requireOptionalNativeModule` found every native module they load (an older build runs with push
+  two packages, after `requireOptionalNativeModule` found the native modules it checks (an older build runs with push
   off; a unit test removes the modules and a scan keeps the loads in this file); `push-flow.ts` has the rules over an
   injected phone (explainer due only while the system is unasked and not snoozed 30 days; registration at launch, on a
   token, language or version change, else daily; iOS tokens lower-case; `development` → sandbox, `production`, null or a
@@ -1693,6 +1693,16 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Android and iOS passes; full Vitest once with both URLs: 8464 passed / 9 skipped, no failure. ADR-352 and Q-321 Proposed. Mutation globs (core files this
   task changed, GitHub only): `apps/api/src/push/center.ts`, `apps/api/src/push/message.ts`,
   `packages/shared/src/push/push.ts`, `packages/shared/src/push/routes.ts`. Not pushed.
+- 2026-10-28 **T-501c code review 84 folded (no re-review unless the diffs grow).** MAJOR: a cold-start tap was lost to
+  the launch screen's own `router.replace`; `settleTap` holds a tap until the player is signed in and the path has left
+  `/`, and drops it on sign-out. MAJOR: a resume or a foreground push re-read the profile, whose failed read publishes
+  `me: undefined` and unmounts screens (a game offline at a venue); the bell now refreshes from
+  `GET /v1/me/notifications?limit=1` only (a failed read leaves everything as it was). Minors: the registration record
+  holds the player id and a registration still on its way when its sign-in ends is not recorded; no explainer on an Android
+  build that cannot get a token, and the Firebase file is a hard gate on the Android store build (RUNBOOK, T-806); the
+  "always reach you" line names decisions, answers and prizes; the center keeps older pages already loaded when page 1 is
+  read again on focus (only when the pages overlap); the module-check comment reworded; sign-out waits at most 3 s on the
+  device removal. ADR-352 Accepted, Q-321 answered.
 
 ## Next
 

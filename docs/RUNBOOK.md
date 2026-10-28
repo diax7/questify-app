@@ -307,7 +307,11 @@ below.
 The app needs a new development or preview build (EAS, Dhia's step) because `expo-notifications` and `expo-application`
 are native. An older build still runs: push is off there (Settings says so), everything else works.
 
-- **Android needs the Firebase file in the build.** Download `google-services.json` from the Firebase project (Project
+- **The Firebase file is a hard gate on the Android store build (T-806).** Without it Android never gets a token, so no
+  Android push can arrive; the app then skips the explainer and the system prompt, and Settings would still offer to turn
+  notifications on. Do not submit the Android build until the file is in it and the Android lines of the checklist
+  above have passed.
+- **Getting the Firebase file.** Download `google-services.json` from the Firebase project (Project
   settings → Your apps → the Android app `app.questify.mobile`) and point `android.googleServicesFile` at it. It holds
   API keys, so how it reaches the build (an EAS file secret read by an `app.config.js`, or the file in the repository) is
   decided when Dhia has the file. Not set in T-501c; until then Android cannot get a token and registers nothing,
