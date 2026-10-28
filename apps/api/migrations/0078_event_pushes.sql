@@ -9,8 +9,8 @@
 -- Deny by default: every function is closed to PUBLIC in the group that creates it and none is newly granted (push_due
 -- keeps 0077's grant); the trigger functions are definers, so a trigger that could not insert its notice never undoes
 -- the door. sees_category, flash_shown, member_sees_quest, notice_reward_seen and notice_visible are restated with the
--- same rules in PL/pgSQL, so the per-member checks keep their plans (ADR-354 (5)). Migrations 0077 and earlier
--- untouched.
+-- same rules in PL/pgSQL, so the per-member checks keep their plans (ADR-354 (5)), and push_fan_out_batch takes 1,000
+-- enrollments a call instead of 2,000 (ADR-354 (9)). Migrations 0077 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 -- Three tables gain a trigger (SHARE ROW EXCLUSIVE) and three a due-scan index; taken up front, categories before the
 -- quests and boosts that name them.
@@ -428,6 +428,40 @@ CREATE FUNCTION push_due_event_soon(lim integer) RETURNS integer
   FROM due
 $$;
 REVOKE ALL ON FUNCTION push_due_event_soon(integer) FROM PUBLIC;
+
+-- ================================================================ event batches of 1,000 (ADR-354 (9))
+-- As 0076, with 1,000 enrollments a call instead of 2,000: an event push that names a quest checks more per member, and
+-- a call stays near half a second (the T-501 gate is 1 s; the API's statement limit 5 s). The same total.
+CREATE OR REPLACE FUNCTION push_fan_out_batch(nt notice) RETURNS jsonb
+  LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  made bigint[];
+  last uuid;
+  seen integer;
+BEGIN
+  WITH batch AS MATERIALIZED (
+    SELECT n.id, n.player_id,
+           p.status = 'active' AND notice_member_ok(nt, n) AND notice_audience_ok(nt, n) AS ok
+    FROM enrollment n JOIN player p ON p.id = n.player_id
+    WHERE n.event_id = nt.event_id AND (nt.fan_cursor IS NULL OR n.id > nt.fan_cursor)
+    ORDER BY n.id LIMIT 1000),
+  inserted AS (
+    INSERT INTO notification (notice_id, player_id, event_id)
+    SELECT nt.id, b.player_id, nt.event_id FROM batch b WHERE b.ok ORDER BY b.id
+    ON CONFLICT (notice_id, player_id) DO NOTHING
+    RETURNING id)
+  SELECT (SELECT coalesce(array_agg(i.id), '{}') FROM inserted i),
+         (SELECT b.id FROM batch b ORDER BY b.id DESC LIMIT 1),
+         (SELECT count(*)::integer FROM batch)
+  INTO made, last, seen;
+  UPDATE notice x
+  SET fan_cursor = coalesce(last, x.fan_cursor), fanned_at = CASE WHEN seen < 1000 THEN now() END, fan_failures = 0,
+      retry_after = NULL
+  WHERE x.id = nt.id;
+  PERFORM push_plan(made);
+  RETURN jsonb_build_object('rows', cardinality(made), 'more', true);
+END $$;
+REVOKE ALL ON FUNCTION push_fan_out_batch(notice) FROM PUBLIC;
 
 -- As 0077, plus the four event scans, 500 notices each a call; `more` when any bound was reached, so the worker calls
 -- again. Reads without locks and writes only notices; a second run writes nothing new (the markers).

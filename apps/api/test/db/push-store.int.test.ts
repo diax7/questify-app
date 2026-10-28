@@ -414,12 +414,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       expect(await f.recipients(broadcast)).toEqual([someone.who]);
     });
 
-    it("moves the cursor across batches of 2,000, a join in between taken in id order", async () => {
+    it("moves the cursor across batches of 1,000 (T-501e), a join in between taken in id order", async () => {
       const event = await f.newEvent({ phase: "live" });
       const kind = await f.kind({ class: "event" });
       await f.owner(
         `WITH made AS (INSERT INTO player (username) SELECT 'pf_' || g || '_' || substr(md5(random()::text), 1, 6)
-                       FROM generate_series(1, 2500) g RETURNING id)
+                       FROM generate_series(1, 1500) g RETURNING id)
          INSERT INTO enrollment (organizer_id, event_id, player_id)
          SELECT e.organizer_id, e.id, made.id FROM made CROSS JOIN event e WHERE e.id = $1`,
         [event],
@@ -429,7 +429,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
         f.system,
         "SELECT push_fan_out() AS r",
       );
-      expect(first.rows).toBe(2000);
+      expect(first.rows).toBe(1000);
       const [cursor] = await f.owner<{ at: string }>(
         "SELECT fan_cursor AS at FROM notice WHERE id = $1",
         [id],
@@ -438,7 +438,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       await f.fanOut();
       expect(await f.count("notice WHERE id = $1 AND fanned_at IS NOT NULL", [id])).toBe(1);
       const rows = await f.count("notification WHERE notice_id = $1", [id]);
-      expect(rows).toBe(late.enrollment > (cursor?.at ?? "") ? 2501 : 2500);
+      expect(rows).toBe(late.enrollment > (cursor?.at ?? "") ? 1501 : 1500);
     });
 
     it("an expired notice still gets its center rows and no send", async () => {
