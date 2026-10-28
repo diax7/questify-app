@@ -5201,3 +5201,54 @@ an invitation row counts as sent once it is handed to the push store, even if th
 withdrawn, device gone); a player who loses their device between the fill and the hand-off gets the invitation in the
 center only; a shop window extended after the notice gets no reminder at all; the estimate before approval may count
 SMS-only players for a push-only campaign.
+
+## ADR-357 — Where the T-501g build fills in the hidden-category hint push
+**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501g build, code review owed;
+`docs/plans/2026-10-28-t-501g-hint-push.md`; Q-326). Refines ADR-200 (FR-238 moved to T-501), ADR-204 (hidden categories),
+ADR-343, ADR-347 (2) and ADR-354 for row 17 of the T-501 plan's "Owed pushes".
+**Decision:** (1) **One kind** (migration 0080): `category_hint` (event class, topic `announcements`, active members, 2
+hours, not `before_start`; the placeholder route `hint` is replaced by `category_hint`). Its producer is the team's door
+`send_category_hint(event, category, press, request)` (definer, granted to the API role), which calls only
+`notice_create`: refs the category's id, params the event's name, marker `hint:{category}:{sha256 of the Idempotency-Key}`.
+**Once per press:** the same key finds its notice and answers `replayed` (no second notice, no new reveal); a different
+press while a hint of the category is still being delivered (a notice of the last 10 minutes whose fan-out is not done) is
+refused `409 hint_in_progress`, so a double click with two keys cannot send twice. A missing kind row writes nothing, the
+door commits and answers `sent` false (the API: `503 hint_unavailable`, logged `push.hint_not_written`). Audited
+`category.hint_send` (no recipients: unknown until the fan-out ends). (2) **The reveal is the fan-out's work, not the
+producer's:** `push_fan_out_batch` (restated) gets a data-modifying CTE that writes a `category_reveal` row for each
+member of the batch who gets a center row, in the same statement, so recipients and the players who see the category are
+one set by construction, and the producer still calls only `notice_create`. The reveal never waits on a device, a
+permission, a mute, the platform switch or a delivery: a player with push refused or `announcements` muted still gets the
+center row and the category, and a send that fails or is skipped at the claim does not take it back. `notice_visible`
+waives `sees_category` for this one kind (the hint is the grant); the category must still be the event's. (3) **Who is a
+recipient** (`push_hint_ok`, inside `notice_audience_ok`, asked at the fan-out and again at the claim): the membership and
+status rules of every event kind (an active enrollment of an active player; real members on a live event, rehearsal
+accounts on a draft or scheduled one; not an operator the owner keeps from playing), and **joined at or before the press**
+(`enrollment.joined_at <= notice.created_at`, which every join, acceptance and re-join sets to now), the category still
+hidden and the member in its audience (`in_audience`), and **not told by an earlier hint of the category since they
+joined**: a second press reaches only members not yet told. A player who joins after the press sees the category only by
+scanning its secret code. Members who already found the category by its code are told too (the hint is a broadcast).
+(4) **The text** names only the event («في {event} شيء جديد مخفي.» / "Something new is hidden in {event}."; nameless:
+«في الفعالية شيء جديد مخفي.» / "Something new is hidden in this event."): never the category's name, which is the
+secret and goes to Apple and Google. Route: the quests tab. (5) **The dashboard:** a hidden category's card gets "Send a
+hint" (owners and editors within their event limit through `award_event_of`, live events and open rehearsals only, never
+an ended event). `GET …/categories/{id}/hint` answers the count `{members, pending}` (`category_hint_preview`, STABLE),
+the dialog says "N of your players will be told", `POST` sends it with an Idempotency-Key made when the dialog opens. The
+count is one set-based statement over the same rules (the exclusion list asked only when the event has one; a tag
+audience found from the guest list's side), with a database test that it equals the recipients on a crowd holding every
+excluded kind and on each audience rule; an audience kind it does not know falls back to `in_audience` per member.
+(6) **Cost at 50,000 members** (by hand, `test/perf/push-hint-timing.int`): the count 144 ms (115 ms with a tag audience of
+10,000 guests), the press 22 ms, the fan-out 39.9 s in 102 calls of 500 enrollments (median 392 ms, slowest 504 ms; a hint
+batch is 500 because its reveals and per-member rules cost about a third more, as ADR-354 (9) cut the event batch to 1,000);
+the generic event fan-out is unchanged (a live poll 31.0 s, median 628 ms; an opening 27.3 s, median 541 ms, against
+30.9 s and 26.9 s before). The hard gates hold (each call under 1 s and the API's 5 s limit); 40 s is over the 30 s soft
+target, so the last members get the category about 40 s after the press.
+**Why:** a hint that revealed at press time would need a 50,000-row insert in the door's own statement (over the 5 s
+limit) and would reveal even when no notice could be written; revealing in the fan-out makes the center row and the
+reveal one write and keeps the door to one insert. Naming the category would hand its name to every vendor and defeat
+the hiding. The joined-at cut-off is what makes "players who joined after the hint do not see it" true when the fan-out
+runs seconds after the press.
+**Trade-offs:** while the worker is down the hint reveals nothing (the fan-out is the reveal); a player erased between
+the batch's read and its reveal insert fails that batch once and it runs again after the back-off; an organizer who
+un-hides the category before the fan-out tells nobody; an earlier hint's center row purged by retention lets a member be
+told again; the placeholder kind name `hint` is gone from `NOTIFICATION_TARGETS`.

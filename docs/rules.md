@@ -146,7 +146,12 @@ notice's `FOR KEY SHARE` after their quest row `FOR UPDATE`, so an event write t
 then locks quest rows can deadlock with them (`40P01`, one side undone). Rare (a rehearsal launch racing such an event
 write) and safe to retry: the undone call changed nothing, and a retry that finds the launch or send done answers it.
 Save boost takes its advisory lock and the boost row before the notice; the community settle holds only its goal. The
-due scans (`push_due`) read without locks and write notices only. The
+due scans (`push_due`) read without locks and write notices only. The hint (T-501g):
+`send_category_hint` runs the go-live wipe check (a live event), takes its category `FOR NO KEY UPDATE` (which a category save
+also takes, and a player's reveal does not conflict with), then inserts the notice last; the fan-out of a hint adds reveal
+rows beside the center rows (their foreign keys take `FOR KEY SHARE` on the enrollments, the category and the event), and an
+erasure that deletes an enrollment between the batch's read and that insert fails the batch once (it runs again after the
+back-off). The
 fan-out: notice `FOR UPDATE SKIP LOCKED` → center rows (insert) → sends (insert, which takes `FOR KEY SHARE` on the
 device rows through the foreign key); enrollments, players, categories, mutes, devices and consent are read without
 locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LOCKED`, nothing else locked. The

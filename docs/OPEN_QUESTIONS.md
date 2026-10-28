@@ -1389,3 +1389,14 @@ promotion. Developer's call at the T-501f code review.
 is offered only when both providers are set up, and the hand-off waits for the platform push switch as well, so no row is
 marked `sent` when no push can go out; the minors folded: the open locks its campaigns in id order first, the claim asks
 `invitation_event_ok` again for an invitation, the hand-off is a tick step of its own). ADR-356 Accepted.
+
+## Q-326 — Where the T-501g build fills in the hidden-category hint push (2026-10-28, T-501g build)
+Recommended (ADR-357): the reveal is written by the fan-out with the center row (so it needs no device, permission or
+delivery, and the producer calls only `notice_create`); recipients are active real members who joined at or before the
+press, are in the category's audience and were not told by an earlier hint since they joined; the text names the event
+only, never the category; one notice per Idempotency-Key and a second press while the first is delivered is refused; a
+later press reaches only members not yet told; the count behind the confirmation is one set-based statement that a test
+holds equal to the recipients. The other options: reveal in the door at press time (a 50,000-row insert in one
+statement, and a reveal with no push when the kind is broken); naming the category in the push; telling every member
+again on a second press; a count that is an upper bound for targeted categories; sending nothing to members who already
+found the category by its code. Developer's call at the T-501g code review.

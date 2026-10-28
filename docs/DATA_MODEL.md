@@ -632,6 +632,15 @@ ADR-151):
   notices. Index `questify_streak_day (day, player_id)` for the streak scan. `notice_audience_ok` is now asked for
   every notice at the claim (`push_skip_reason` restated): a streak played since, an invitation's player who joined,
   a shop window extended or a balance gone are skipped. No new column.
+- **The hidden-category hint (T-501g, migration 0080, ADR-357):** the kind `category_hint` (event class, topic
+  `announcements`, active members, 2 hours) and the team's door `send_category_hint` (calls only `notice_create`; marker
+  `hint:{category}:{sha256 of the Idempotency-Key}`, refs the category's id, params the event's name). The reveal is the
+  fan-out's: `push_fan_out_batch` (restated, 500 enrollments a call for this kind) writes a `category_reveal` row for each
+  member it writes a center row for, in the same statement; `notice_visible` waives `sees_category` for this kind and
+  `push_hint_ok` (inside `notice_audience_ok`) decides the recipients: joined at or before the press (`enrollment.joined_at
+  <= notice.created_at`), the category still hidden, the member in its audience, not told by an earlier hint of the category
+  since they joined. `category_hint_preview` is the count behind the confirmation. No new table or column; `category_reveal`
+  keeps no grant.
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment

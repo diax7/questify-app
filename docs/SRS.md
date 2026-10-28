@@ -968,7 +968,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-235 | F-98 | Should | `test/db/category-rules.int`, `test/quests/category-rules.int`, `test/plays/routes.int`, `apps/app/src/event/quests.test.ts` (T-304) |
 | FR-236 | F-51 | Should | built (T-304c) |
 | FR-237 | F-99 | Could | built (T-304c) |
-| FR-238 | F-99 | Could | pending (T-501, ADR-200) |
+| FR-238 | F-99 | Could | built (T-501g, ADR-357): `test/db/push-hint.int`, `test/reveal/hint.int`, `e2e/hidden-hint.spec` |
 | FR-239 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts`, `e2e/live-polls.spec.ts`, `test/db/push-events.int` (T-306; the push to members who have not voted, T-501e) |
 | FR-240 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
 | FR-241 | F-100 | Should | `test/db/live-polls.int` (a 0-point poll records the vote and pays no points; Questify XP still follows, Q-184) (T-306) |
