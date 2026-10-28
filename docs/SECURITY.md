@@ -327,7 +327,7 @@ with the exact text a Questify admin approved, and an organizer never learns who
 The three tables keep row-level security forced with no grant; the API role holds only the 13 doors; `promo_pool` and
 every helper are granted to nobody (outsider suite, by name).
 
-### Push notifications and the center (T-501, ADR-343 to ADR-350)
+### Push notifications and the center (T-501 and T-501b, ADR-343 to ADR-351)
 
 Core: personal data out of push text, consent, tenant isolation and outside calls. What reaches Apple or Google is a
 token and a fixed text; everything else stays in the center, read only by its player.
@@ -341,6 +341,7 @@ token and a fixed text; everything else stays in the center, read only by its pl
 | Taking over someone's pushes | A device is bound to the request's own live sign-in (the bearer token's hash and the caller); a token moves only to whoever registers it with their own session; sign-out, the 10-family limit and a reused refresh token stop pushes at once; 20 registrations an hour | `test/db/push-store` (devices), `test/push/routes` |
 | Another player's center | Every center door binds the caller and checks an active player; a team or admin seat has no center; the six tables have no grant | `test/security/cross-tenant` (T-501), `test/security/outsider` (exact grant list) |
 | A duplicate or lost push in an outage | One collapse id per message on every attempt; no attempt starts that could outlive its lease (the worker's own monotonic clock); a definite 5xx requeues, only a timeout after writing is `unknown`; the breaker holds a failing target; account refusals hold, never fail; ambiguous invalid-token waves hold the target instead of deleting tokens | `apps/api/src/push/send.test.ts`, `round.test.ts`, `targets.test.ts`, `test/db/push-sending` |
+| A provider key or token leaking (T-501b) | The `.p8` and the service account's key are read once at start and kept as key objects (no log or inspect prints them); a malformed or partial setting stops the start with a message naming the setting, never its value; the clients log only an event, the target, a status and the provider's code (a plain word), never a device token, a bearer, the text or Google's message; APNs and FCM are called directly over TLS, with no relay | `apps/api/src/config.test.ts` (push providers), `apps/api/src/push/apns.test.ts` and `fcm.test.ts` ("puts no token, key or push text in a result or a log line") |
 | Data kept too long | Center rows 180 days; outbox rows 7 days after their end; devices removed after sign-out, 60 days unseen or 7 days after an invalid mark; erasure deletes notices, center rows, sends, devices and mutes, and settle removes what a racing fan-out wrote | `test/db/push-store` (erasure, retention) |
 
 The six tables keep row-level security forced with no grant; the API role holds only the 11 doors; every helper is

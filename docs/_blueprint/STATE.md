@@ -1644,12 +1644,31 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   comment removed. Migration 0076 edited in place (undeployed). Tests: the push suites, outsider, cross-tenant, route
   inventory and rehearsal guard 687/687; full Vitest once: 8202 passed / 9 skipped, no failure; lint, format, types and
   function limits clean.
+- 2026-10-28 **T-501b built (core; plan final after the T-501 plan reviews; core code review owed).** The real APNs and
+  FCM clients behind the provider interface, on one HTTP/2 transport of our own (`src/push/h2.ts`, `node:http2`; FCM
+  too, ADR-351 (1)): one reused connection per host, at most 50 streams and never above the server's limit, a request
+  written only with 200 ms left, "never written" (requeue, uncounted) told from "written, then lost" (`unknown`),
+  reconnect after a `GOAWAY`, a refused stream or a hold, a 4-minute idle close. APNs: ES256 provider token (re-signed
+  every 40 minutes and once after `ExpiredProviderToken`), Apple's headers, the plan's table by reason then status. FCM:
+  service-account token (scope `firebase.messaging`, cached until 5 minutes before its end, one refresh on a 401), the
+  table by FCM code then status, no `collapse_key` (Google ignores it for notification messages). Settings in
+  `config.ts`, all or none, keys parsed into key objects (EC P-256, RSA), ids, bundle id, project id and https token
+  address checked; none set starts and sends nothing; built in `server.ts` with the APNs token signed at start and the
+  FCM token asked for in the background (a refusal holds FCM and logs `push.fcm_auth_failed`). The Gmail sender's token
+  code moved to `src/auth/google-token.ts` (its tests pass unchanged in substance). Probed with self-made keys: both
+  Apple hosts 403 `InvalidProviderToken`, Google 400 `invalid_grant`, FCM 401 `UNAUTHENTICATED` (ADR-351 (10)); the
+  RUNBOOK go-live checklist keeps what only real keys show. ADR-351 and Q-320 Proposed. Tests: every row of both
+  tables against local HTTP/2 servers, GOAWAY (graceful and with an error), REFUSED_STREAM, resets, slow and silent
+  hosts, the stream cap, connection reuse, token signing and refresh, the startup check, the settings, no secret in a
+  log, and one provider contract run on the fake, APNs and FCM. Mutation globs (GitHub):
+  `apps/api/src/push/{h2,apns,fcm,providers}.ts`, `apps/api/src/auth/google-token.ts`, `apps/api/src/auth/email/gmail.ts`,
+  `apps/api/src/config.ts`. Not pushed.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built; its core code review is owed (ADR-350, Q-319), then T-501b (the APNs and FCM clients, planned in the same plan) and T-501c (the app).** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built, its core code review is owed (ADR-351, Q-320); then T-501c (the app). Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console

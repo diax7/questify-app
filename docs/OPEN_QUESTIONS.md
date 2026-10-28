@@ -1286,3 +1286,13 @@ provider settings now with no client to use them. Developer's call at the T-501 
 narrow re-review owed), with its fold-ins: no promotional center row without push consent, the claim's scan stopped at
 200 notices per target, a token version on each send, a failing notice backed off (1, 4, 16 minutes, then hourly), the provider's
 deadline 500 ms early. ADR-350 Accepted.
+
+## Q-320 — Where the T-501b build fills in the provider clients (2026-10-28, T-501b build)
+Recommended (ADR-351): one HTTP/2 transport for APNs and FCM (only a stream's state tells "never written" from "written,
+then lost"); never-processed answers requeued uncounted on a new connection; a 4-minute idle close; every status mapped
+(any 410 removes, any 403 holds, other 4xx `failed` and logged); no FCM `collapse_key` (Google ignores it for
+notification messages); Google's token endpoint failing to answer requeues while only a refusal holds; strict settings
+kept as key objects, from the environment only; one APNs key enabled for both environments. The other options: `fetch`
+for FCM as ADR-344 said (a connection failure and a lost request look the same, so one of them is misfiled), holding
+FCM on any token failure at start (a passing network blip stops Android pushes for 15 minutes), or separate APNs keys
+per environment (four more settings for a case the RUNBOOK avoids). Developer's call at the T-501b code review.

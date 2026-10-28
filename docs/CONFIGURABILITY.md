@@ -93,6 +93,10 @@ for an event.
   in a lease (after 1 s and 2 s), 8 attempts in all, the breaker's 10 failures and 30 seconds doubling to 15 minutes, the
   15-minute account hold, the guard's 20 answers and half ambiguous, 20 registrations an hour, settle every 10 minutes,
   center rows 180 days, outbox rows 7 days, devices 60 days unseen or 7 days after an invalid mark.
+- T-501b's client constants (code, ADR-351): the APNs provider token re-signed every 40 minutes; the FCM access token
+  renewed 5 minutes before it ends; 50 streams per connection (fewer when the server says so); a request written only
+  with 200 ms left; a connection closed after 4 quiet minutes; an FCM quota hold of at least 60 seconds. The provider
+  accounts are deployment settings (`APNS_*`, `FCM_SERVICE_ACCOUNT`), not admin data: they are secrets.
 
 ## As built (T-408): the Questify-wide ranking switch and its seasons
 

@@ -1205,9 +1205,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1033 | F-197 | Must | pending |
 | FR-1034 | F-197 | Must | pending |
 | FR-1035 | F-197 | Must | pending |
-| FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery with no kind wired; the messages are T-501d and T-501f, real delivery T-501b): `test/db/push-store.int`, `test/db/push-sending.int` |
-| FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; the messages are T-501e and T-501f): `test/db/push-store.int` |
-| FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; real delivery T-501b): `apps/api/src/push/worker.test.ts` |
+| FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery with no kind wired; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501d and T-501f): `test/db/push-store.int`, `test/db/push-sending.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
+| FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501e and T-501f): `test/db/push-store.int`, `apps/api/src/push/contract.test.ts` |
+| FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; T-501b: the real clients, sending once Dhia's keys are set): `apps/api/src/push/worker.test.ts` |
 | FR-1104 | F-200 | Must | partly built (T-501: every message a center row, read and unread, the routes; the screen is T-501c): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int` |
 | FR-1105 | F-201 | Must | pending (the app slice, T-501c; the server takes a device only from a signed-in session, T-501) |
 | FR-1106 | F-201 | Must | partly built (T-501: registering writes no ledger, XP or gem row; nothing reads the device to pay or open; the app half is T-501c): `test/db/push-store.int` |

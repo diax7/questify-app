@@ -128,12 +128,18 @@
   clients, all-or-none per provider; a partial or malformed set refuses to start): `APNS_KEY_ID`, `APNS_TEAM_ID`,
   `APNS_PRIVATE_KEY` (the `.p8` PEM or its base64), `APNS_TOPIC` (the bundle id); `FCM_SERVICE_ACCOUNT` (the JSON or its
   base64). None set: the server starts, builds no provider, and in production logs `push.provider_missing {platform}`
-  once per start (built in T-501: until T-501b both platforms log it and every push expires into the center unsent).
+  once per start, and every push of that platform expires into the center unsent. Built in T-501b (ADR-351): both
+  clients on Node's own HTTP/2 and crypto, one reused connection per host; the APNs provider token re-signed every 40
+  minutes; the FCM access token (scope `firebase.messaging`) cached until 5 minutes before it ends. The APNs key must be
+  enabled for both Sandbox and Production (RUNBOOK).
 - **Failure behavior (T-501 plan, ADR-345):** APNs 410 `Unregistered` and FCM `UNREGISTERED` remove the
   token; the ambiguous token answers do too unless most of a round returns them, which holds that target instead. A
   definite 500 or 503 is requeued and sent again under the same collapse id until the message expires; a breaker holds
-  a failing target from 30 s up to 15 minutes; only a timeout after the request was written is recorded as unknown and
-  never resent. The notification center in the app always holds the message (F-200).
+  a failing target from 30 s up to 15 minutes; only a timeout or a reset after the request was written is recorded as
+  unknown and never resent. An account or key refusal (APNs 403, a topic refusal, FCM 401 after a fresh token or 403)
+  holds that target for 15 minutes; an FCM quota refusal for its Retry-After, at least a minute. Anything Apple or
+  Google say they never processed (a refused stream, a `GOAWAY`, APNs `Shutdown` or `IdleTimeout`) is requeued without
+  counting an attempt. The notification center in the app always holds the message (F-200).
 - **Data and PII:** device token and message text go through Apple and Google, who are outside Saudi.
   The text carries no phone, email or points detail beyond what the player has chosen to receive; this
   is on the counsel list with the wallet data (Q-043).

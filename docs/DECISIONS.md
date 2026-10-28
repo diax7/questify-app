@@ -4927,3 +4927,50 @@ that lists unopened quests, a regex limit) or names what the plan left to the bu
 **Trade-offs:** the visibility helpers are PL/pgSQL rather than plain SQL, so a wiring slice restating
 `notice_audience_ok` keeps it plain SQL but these stay PL/pgSQL; an FCM token above 2,048 characters is refused (none
 exists today); the config check lands one slice later than the plan's test list said.
+
+## ADR-351 — Where the T-501b build fills in the provider clients
+**Status:** Proposed (developer, T-501b build, 2026-10-28; `docs/plans/2026-10-28-t-501-push.md` § T-501b; Q-320).
+Refines ADR-344 and ADR-345 where the plan left a detail open or could not hold as written.
+**Decision:** (1) **One HTTP/2 transport for both providers** (`src/push/h2.ts`, `node:http2`): FCM is posted over HTTP/2
+too, not with `fetch` as ADR-344 (1) said, because only a stream's state tells "never written" (requeue, not counted)
+from "written, then a timeout or a reset" (`unknown`, never resent); `fetch` reports both as one error. One session per
+origin, reused, reopened after a `GOAWAY`, an error, a refused stream or a hold; at most 50 streams in flight and never
+above the server's `SETTINGS_MAX_CONCURRENT_STREAMS` (APNs allows one until a token is accepted); a request waits for a
+stream until its deadline, and is written only with at least 200 ms left. (2) **"Never processed" counts as never
+written:** `REFUSED_STREAM`, a stream above a `GOAWAY`'s last stream id, APNs 503 `Shutdown` and 400 `IdleTimeout`
+answer `requeue` with `written: false` (no attempt counted, no in-lease retry, a new connection); a stream at or below
+the last id of a `GOAWAY` with an error is `unknown`. These requeues still count towards the breaker (`send.ts`
+unchanged), so a `GOAWAY` above many streams can hold the target for 30 s. (3) **A connection idle for 4 minutes is
+closed** and the next send opens a fresh one, so a long quiet spell never writes into a path a NAT dropped (that write
+would end as `unknown`); Apple asks to reuse connections, and a busy one is reused for as long as it lives. (4) **The
+tables, completed by status:** any 410 removes the device (not ambiguous); any 403 holds (with `BadCertificate` and
+`BadCertificateEnvironment`, which cannot occur with a token key); APNs 404 and 405 and any other 4xx are `failed` and
+logged `push.apns_refused {target, status, code}` (a device's 429 `TooManyRequests` is not logged); FCM 401 and 403
+hold, any other 4xx is `failed` and logged `push.fcm_refused {status, code}`; a 5xx is retried within the deadline
+(Apple: a 5xx may be retried; the breaker bounds a storm). (5) **No `collapse_key` on FCM:** Google: "Notification
+messages are always collapsible and will ignore the `collapse_key` parameter"; the Android `tag` (`n<notification id>`)
+replaces the shown notification. (6) **Google's token endpoint:** a network failure, a timeout, a 5xx or a 429 is
+"unreachable" (the send is requeued untried, no hold, the next send asks again); only a refusal (a 4xx such as
+`invalid_grant`) holds `fcm` for 15 minutes and logs `push.fcm_auth_failed {status, code}`, once per hold. The startup
+check asks for the first token in the background: a refusal holds as above, an unreachable Google is logged
+(`code: unreachable`) without a hold (ADR-344 (4) said any failure holds). A 401 on a send drops only the token that was
+refused and asks once more. (7) **The settings** (`config.ts`): the APNs key (PEM or its base64) must be an EC P-256
+private key, the key and team ids 10 capital letters or digits, `APNS_TOPIC` a bundle id; `FCM_SERVICE_ACCOUNT` (JSON
+or its base64) needs `project_id` (a Google Cloud project id: it goes into the request path), `client_email`, an RSA
+`private_key` and an https `token_uri`. Both keys are kept as `KeyObject`s, which no log or inspect prints. Values come
+from the environment only, as the plan says; no file-path setting is built. (8) **One APNs key for both hosts:** Apple
+now issues keys limited to Sandbox or Production; the RUNBOOK asks for a key enabled for both. A key limited to one
+environment answers 403 `BadEnvironmentKeyIdInToken` on the other host, which holds only that target (logged); separate
+keys per environment are not built. (9) **The shared Google token code** is `src/auth/google-token.ts` (key-file
+parsing and a token source shared by concurrent callers); the Gmail sender uses it with the same messages and tests.
+(10) **Probed 2026-10-28 with self-made keys** (no Questify account exists): `api.push.apple.com` and
+`api.sandbox.push.apple.com` answered 403 `InvalidProviderToken` over TLS and HTTP/2 in about 0.9 s (mapped to a hold),
+Google's token endpoint 400 `invalid_grant` (hold and `push.fcm_auth_failed`), `fcm.googleapis.com` with a made-up
+bearer 401 `UNAUTHENTICATED`. The transport and the error shapes are confirmed; a real key's acceptance, delivery to a
+phone and the uninstall answers wait for the RUNBOOK checklist.
+**Why:** each point keeps the plan's rule (requeue what never arrived, `unknown` only after a write, nothing sent
+without valid keys, no secret in a log) where the plan's wording named a tool that could not tell the cases apart or
+left an answer unmapped.
+**Trade-offs:** an HTTP/2 client of our own (about 260 lines) instead of `fetch` for FCM; a quiet connection is
+reopened after 4 minutes (one TLS handshake); a key limited to one Apple environment silently serves only that one
+until the hold is read in the logs.

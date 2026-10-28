@@ -213,23 +213,35 @@ Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns
   `invitation.settle_failed` / `invitation.send_failed {code}` (the next tick tries again). None carries a phone, a
   text or a player.
 
-## Push notifications (T-501 built: store, center, worker; T-501b clients planned)
+## Push notifications (T-501 store, center and worker; T-501b APNs and FCM clients)
 
 Plan: `docs/plans/2026-10-28-t-501-push.md` (ADR-342 to ADR-349, Accepted; the build's details ADR-350). Migration 0076
 (undeployed). The push worker runs inside the API container on its own pool of 3 connections: it fans out (personal
-notices first), claims rounds of 200 under 60-second leases, sends in waves of 50 and settles every 10 minutes. Until
-T-501b no provider exists: the center fills and every push expires unsent.
+notices first), claims rounds of 200 under 60-second leases, sends in waves of 50 and settles every 10 minutes. The
+clients (T-501b, ADR-351) call Apple and Google directly over HTTP/2, one reused connection per host (closed after 4
+quiet minutes); without keys no client exists: the center fills and every push expires unsent.
 
 - **Settings (all-or-none per provider):** `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` from the Apple
   Developer account, PEM or base64), `APNS_TOPIC` (`app.questify.mobile`); `FCM_SERVICE_ACCOUNT` (the Firebase
   project's service account JSON, or its base64). A partial or malformed set stops the server at start. None set: the
   server starts, logs `push.provider_missing` once, and sends nothing for that platform; the in-app center still holds
-  every message. Keys live only in the CranL secret store.
+  every message. Keys live only in the CranL secret store. The checks at start (each names the setting, never a value):
+  the `.p8` must be an EC P-256 private key and is signed with once (a key that cannot sign stops the start); the key
+  and team ids are 10 capital letters or digits; `APNS_TOPIC` is a bundle id; the service account needs `project_id`,
+  `client_email`, an RSA `private_key` and an https `token_uri`. Values come from the environment only (no file path).
+- **Making the keys (Dhia, once):** in the Apple Developer account create an APNs auth key enabled for **Sandbox &
+  Production** (a key limited to one environment answers 403 `BadEnvironmentKeyIdInToken` on the other host, which
+  holds that target and logs `push.provider_hold`); note its key id and the team id; set the four `APNS_*`. In Firebase,
+  Project settings → Service accounts → Generate new private key; set `FCM_SERVICE_ACCOUNT` to the file's base64
+  (`base64 -w0 key.json`). Then run the go-live checklist below.
 - **Switch:** `pushNotifications` (on when absent). Off, nothing is sent; the center, mutes and registration keep
   working.
 - **Alerts (error level):** `push.provider_hold {target, code}` (an account or quota refusal, or the breaker),
   `push.mass_invalid {target}` (most of a round came back as an ambiguous token error: check the APNs environment, the
-  bundle id or the Firebase project), `push.fcm_auth_failed` (T-501b). A failing step logs `push.fan_out_failed`,
+  bundle id or the Firebase project), `push.fcm_auth_failed {status, code}` (Google refused the service account: FCM
+  is held 15 minutes; `code: unreachable` at start means Google did not answer and the next send asks again),
+  `push.apns_refused {target, status, code}` and `push.fcm_refused {status, code}` (a request we built wrong, such as
+  `PayloadTooLarge` or `INVALID_ARGUMENT` on a field other than the token: a bug to fix). A failing step logs `push.fan_out_failed`,
   `push.round_failed`, `push.settle_failed` or `push.ack_failed` with the SQLSTATE only (never a token, a text or a
   player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
   sent twice).
@@ -241,7 +253,7 @@ T-501b no provider exists: the center fills and every push expires unsent.
   `UPDATE notice SET retry_after = NULL, fan_failures = 0 WHERE id = <notice>;` (it resumes from its cursor; members
   already fanned keep their rows).
 - **Start-up (warn level, production):** `push.provider_missing {platform}` once per start for each platform with no
-  provider (both until T-501b).
+  provider (both until Dhia's keys are set).
 - **Timing check (by hand, never in the default run or CI):**
   `PUSH_TIMING=/path/to/out.txt TEST_DATABASE_URL=… pnpm vitest run apps/api/test/perf/push-timing.int.test.ts` after a
   change to the fan-out, the claim or their indexes (skipped unless `PUSH_TIMING` is set, like the other timing files;
@@ -257,7 +269,12 @@ T-501b no provider exists: the center fills and every push expires unsent.
 ### Push go-live checklist (gates T-806; run once Dhia's keys exist)
 
 Record the date, the build numbers and the phones used under each line. Every line must pass before the store
-submission (T-806) is marked done.
+submission (T-806) is marked done. What T-501b's tests prove without keys: every answer in the plan's APNs and FCM tables
+maps as written (local HTTP/2 servers speaking each wire format: statuses, reasons, resets, `GOAWAY`, slow and silent
+hosts), the provider token and the OAuth token are built and refreshed as specified, and nothing secret reaches a log.
+Probed 2026-10-28 with self-made keys (ADR-351 (10)): both Apple hosts answered 403 `InvalidProviderToken` over TLS and
+HTTP/2, Google's token endpoint 400 `invalid_grant`, FCM 401 `UNAUTHENTICATED`. What only real keys and phones show is
+below.
 
 1. The APNs provider token is accepted on both hosts: a development build receives through
    `api.sandbox.push.apple.com`, an internal or TestFlight build through `api.push.apple.com`; FCM accepts the service

@@ -842,7 +842,19 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     per-notice `LATERAL` claim; the deadline on the worker's monotonic clock; more APNs answers; the `enrollment`
     trigger's filter; quest windows and reward audiences; settle's cleanup of recent erasures). ADR-342 to ADR-349
     Accepted, Q-311 to Q-318 answered (developer, delegated by Dhia, 2026-10-28). Ready to build.
-- [ ] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
+- [x] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
+  - Done 2026-10-28 (core; code review owed). `src/push/h2.ts` (one reused HTTP/2 session per host for both providers:
+    the stream cap from the server's settings, "never written" told from "written, then lost", reconnect after a
+    `GOAWAY`, a refused stream or a hold, a 4-minute idle close), `apns.ts` (ES256 provider token re-signed every 40
+    minutes and once after `ExpiredProviderToken`, the plan's table by reason then status), `fcm.ts` (OAuth token from the
+    service account, cached until 5 minutes before its end, one refresh on a 401, the table by FCM code then status),
+    `providers.ts` (built at start: the APNs token signed once, the FCM token asked for in the background); the settings in
+    `config.ts` (all-or-none, keys parsed as EC P-256 and RSA key objects, ids, bundle id, project id, https token
+    address); the Gmail sender's token code moved to `src/auth/google-token.ts`; `server.ts` builds the providers. No new
+    dependency. Probed with self-made keys against Apple's two hosts and Google (ADR-351 (10)); the RUNBOOK go-live
+    checklist holds what only real keys can show. ADR-351 and Q-320 Proposed. Mutation globs (GitHub):
+    `apps/api/src/push/{h2,apns,fcm,providers}.ts`, `apps/api/src/auth/google-token.ts`, `apps/api/src/auth/email/gmail.ts`,
+    `apps/api/src/config.ts` (added to `stryker.config.json`).
   - Split from T-501 2026-10-28 (ADR-342, ADR-344, ADR-345). CORE; plan: `docs/plans/2026-10-28-t-501-push.md` (T-501b
     section). No new server dependency; the Gmail sender's service-account token code moves to `auth/google-token.ts`.
   - Note 2026-10-28 (T-501 build, ADR-350 (6)): ready for this slice: the `PushProvider` interface (`src/push/provider.ts`,
