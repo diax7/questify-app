@@ -93,6 +93,10 @@ for an event.
   in a lease (after 1 s and 2 s), 8 attempts in all, the breaker's 10 failures and 30 seconds doubling to 15 minutes, the
   15-minute account hold, the guard's 20 answers and half ambiguous, 20 registrations an hour, settle every 10 minutes,
   center rows 180 days, outbox rows 7 days, devices 60 days unseen or 7 days after an invalid mark.
+- Code constants of the personal pushes (T-501d, ADR-353) until T-703's tuning: the due scans every 60 seconds and 500
+  notices a scan, the ending push 15 minutes before a reservation ends for holds over 30 minutes, each kind's time to
+  live (24 hours for decisions, 7 days for answers and prizes, 2 hours for ready, 1 hour for ending). Decisions,
+  answers and prizes have no topic: the app cannot mute them (the phone's own setting can).
 - T-501b's client constants (code, ADR-351): the APNs provider token re-signed every 40 minutes; the FCM access token
   renewed 5 minutes before it ends; 50 streams per connection (fewer when the server says so); a request written only
   with 200 ms left; a connection closed after 4 quiet minutes or after a lost stream, a replaced connection dropped

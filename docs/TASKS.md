@@ -893,7 +893,25 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     route to `NOTIFICATION_TARGETS` (a test fails without it). Not set: Android's notification icon and
     `googleServicesFile` (RUNBOOK, "The app's side of push").
   - Done when: No permission prompt before the first join; refusing it blocks nothing and the center still lists every message, newest first, unread marked.
-- [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
+- [x] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
+  - Done 2026-10-28 (core; code review owed). Plan note `docs/plans/2026-10-28-t-501d-personal-pushes.md`. Migration
+    0077 (new file, undeployed): ten `notice_kind` rows (`join_accepted`, `join_declined`, `help_answered`,
+    `help_answered_questify`, `help_solved`, `rank_prize`, `submission_approved`, `submission_rejected`, `reward_ready`,
+    `reward_ending`; personal, no topic); producers that only call `notice_create`: a row trigger with a `WHEN` on
+    `enrollment` (decide, accept-all, a waiting-list release; never an operator, a rehearsal account or the player's own
+    re-join), on `ticket` (`open → closed`, by team and outcome; escalation and send-back none), on `submission` (a
+    reviewer's decision only), a statement trigger with transition tables on `event_result` (each prize place at the
+    reveal, never a winner who left or was removed), and the system door `push_due()` the worker calls every minute (ready
+    at the first desk opening a reservation waited for; ending 15 minutes before the end of a hold over 30 minutes while
+    the desk can be reached). Trigger functions are definers, closed to PUBLIC; `notice_create` restated in PL/pgSQL (its
+    plan kept across trigger calls) and `push_names` inlined. Shared: the ten templates in both languages, two routes
+    (`help_answered_questify`, `help_solved` → requests). Worker: the due-scan step (`push.due_failed`). Tests:
+    `test/db/push-producers.int` (each kind once, the right player only, a broken kind never undoing the door, the scan's
+    markers, the text and ids-only payload), `push-store.int` (every kind row has a template and a route), outsider,
+    cross-tenant, worker and shared units; timing by hand `test/perf/push-producers-timing.int` (accept-all of 5,000:
+    7.4 s with the trigger, 5.8 s before it; **over the plan's 5 s gate already before this slice**, the souvenir enqueue
+    trigger, Q-322). ADR-353 and Q-322 Proposed. Mutation globs: `apps/api/src/push/worker.ts`,
+    `apps/api/src/push/doors.ts`, `packages/shared/src/push/templates.ts`, `packages/shared/src/push/routes.ts`.
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
     call only `notice_create` (one insert): statement-level triggers with transition tables for bulk writes, a
     row-level `WHEN` trigger on `enrollment` (`pending` or `declined` → `active`/`declined`, never an operator or rehearsal
@@ -907,6 +925,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
   - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in
     T-501d; a notice naming a quest or category reaches only members who can see it (plan § Review 7).
+  - Note 2026-10-28 (T-501d build, ADR-353): the due scans live in `push_due()` (migration 0077, called by the worker
+    every minute): restate it to add the scheduled flash start, the boost start, the category opening and the event
+    starting soon, each a bounded set-based statement that calls `notice_create` per row with its marker filtered out
+    first (`NOT EXISTS` on `dedupe`). Message keys are `push.<kind in camel case>.body` / `.nameless`.
   - Done when: Only active members get event pushes, once each; a muted topic still lands in the center.
 - [ ] **T-501f** Reminders and promotion by push: daily streak reminder, shop closing, push as an invitation channel — delivers FR 1102 (streak), 1111 (push); depends on: T-501e
   - Split from T-501 2026-10-28 (ADR-342, ADR-348). CORE; rows 13 to 16 of the T-501 plan's "Owed pushes" (the daily

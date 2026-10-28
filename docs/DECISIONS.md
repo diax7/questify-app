@@ -5028,3 +5028,39 @@ player sees beyond the plan.
 **Trade-offs:** the explainer appears before the player has seen Event Home; the route table names kinds before their
 slices exist (a guard test keeps them consistent); a resumed app costs one small center read per foreground; a tap on a
 cold start waits for the launch screen (a fraction of a second to one events read).
+
+## ADR-353 — Where the T-501d build fills in the personal pushes
+**Status:** Proposed (T-501d build, 2026-10-28; `docs/plans/2026-10-28-t-501d-personal-pushes.md`; Q-322). Refines
+ADR-343, ADR-346 and ADR-347 for rows 1 to 6 of the T-501 plan's "Owed pushes".
+**Decision:** (1) **The join-decision trigger also leaves out the player's own re-join**
+(`app_player_id() IS DISTINCT FROM NEW.player_id` in its `WHEN`): `join_write` turns a declined or pending request
+active when an invited player joins again, which is answered on screen and is not a decision; decide, accept-all and a
+waiting-list release run in the team's seat and are pushed. (2) **Ready at the desk:** a due scan sends
+`reward_ready` once per reservation, when the event's desk keeps hours, is open now, and the window open now began after
+the reservation was made (it waited for this opening); none for a desk without hours (open all along) or a rehearsal
+account (its reservations ignore the desk's hours). (3) **Ending:** `reward_ending` 15 minutes before `reserved_until`,
+for a hold longer than 30 minutes counted from when it became collectable (the later of the reservation and the last
+desk opening at or before its end), only while the desk is open at some moment before the end, never while the player
+is collecting or was offered at the desk; it names the time, never a countdown. Both scans run in one system door,
+`push_due()`, every 60 s from the push worker (switch on or off), 500 notices each a call. (4) **The help-desk answer
+is three kinds** sharing the `requests` route (`help_answered` for the event team or its operators,
+`help_answered_questify`, `help_solved` for either team's "solved"), because a template belongs to a kind; message keys
+are `push.<kind in camel case>.body` and `.nameless` (the messages key rule has no underscore). (5) **`notice_create`
+is restated in PL/pgSQL** (the same one insert and answers): PostgreSQL 17 plans a SQL function's body again at each
+call from a trigger, which cost accept-all of 5,000 requests about 2 s; `push_names` (the frozen `{ar, en}` cut to 40)
+has no SET clause and only pg_catalog functions, so it is inlined. Measured on the laptop (by hand,
+`test/perf/push-producers-timing.int`): accept-all of 5,000 takes about 5.8 s before T-501d and 7.4 s with the
+join-decision trigger (about 0.3 ms a decision; the personal fan-out of the 5,000 notices then 1.3 s). **The plan's
+5 s gate is not met, and was not met before this slice:** 5 s of the 5.8 s is the souvenir enqueue trigger
+(`souvenir_on_fact`, T-402b, about 1 ms a row), and the API's statement limit is 5 s, so an accept-all of several
+thousand requests is refused with `57014` today (Q-322). (6) **The prize names its deadline's date and time** («حتى
+{date}، الساعة {time}»): a deadline can fall on the reveal's own day. (7) **Rehearsal accounts** get their own
+submission and help-desk answers during rehearsal (they are the organizer's testers, as T-501 sends them event pushes
+before the start); never a join decision (they make no requests) or a reservation push; results need an ended event, so
+they never win a prize.
+**Why:** each point keeps the plan's rules (one insert per notice through `notice_create`, statement triggers for bulk
+writes, the row trigger on `enrollment`, due scans for moments, no `EXCEPTION` block, a broken kind never undoing a
+door) where its wording left a choice or a number open.
+**Trade-offs:** a ready push can arrive up to a minute after the opening and an ending push up to a minute late; a
+reservation that spans several desk openings is told it is ready only once; the help desk's three kinds mean three rows
+in `notice_kind` for one route; the accept-all capacity under the 5 s limit drops by about a fifth (Q-322 holds the fix).

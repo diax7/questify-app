@@ -125,7 +125,13 @@ key, ADR-334, so no check locks a player); erasure deletes recipient rows under 
 campaign. No outside call runs inside a transaction.
 
 **The push store's lock order (T-501, ADR-345).** A producer inserts one notice (`notice_create`) **after** every lock
-its own door takes and reads nothing of the push store, so the notice comes last in every producer's order. The
+its own door takes and reads nothing of the push store, so the notice comes last in every producer's order. A trigger
+producer (T-501d) inserts at the end of its triggering statement, so a door may take a lock after it (a review marks
+`ranking_repair` after its submission update): the notice takes only `FOR KEY SHARE` on its event and kind through the
+foreign keys, which conflicts only with a key change or `FOR UPDATE` of that event. Decide (its event `FOR SHARE`),
+review (`FOR KEY SHARE` first) and the reveal (its redemptions' foreign key) already hold that lock; the help-desk
+answers take it last, after their ticket, and no door that holds an event `FOR UPDATE` then locks a ticket. A door's
+own row locks already cover the once-only marker. The due scans (`push_due`) read without locks and write notices only. The
 fan-out: notice `FOR UPDATE SKIP LOCKED` → center rows (insert) → sends (insert, which takes `FOR KEY SHARE` on the
 device rows through the foreign key); enrollments, players, categories, mutes, devices and consent are read without
 locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LOCKED`, nothing else locked. The

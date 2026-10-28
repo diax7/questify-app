@@ -1321,3 +1321,21 @@ its sign-in ended meanwhile, the Android explainer skipped without a Firebase fi
 the module check, a sign-out wait of 3 seconds). ADR-352 Accepted.
 Open for Dhia (not blocking): the notification icon (96 px white-on-transparent from the brand deck) and the Firebase
 `google-services.json` and how it reaches the build (RUNBOOK, "The app's side of push").
+
+## Q-322 — Where the T-501d build fills in the personal pushes (2026-10-28, T-501d build)
+Recommended (ADR-353): the join-decision trigger leaves out the player's own invited re-join; `reward_ready` once per
+reservation at the first desk opening it waited for; `reward_ending` 15 minutes before the end of a hold longer than 30
+minutes counted from when it became collectable, only while the desk can still be reached; one `push_due()` door every
+minute from the worker; the help-desk answer as three kinds on one route; `notice_create` in PL/pgSQL (its plan kept)
+and `push_names` inlined; the prize naming its deadline's date and time; rehearsal accounts getting their own answers
+and decisions on submissions. The other options: a ready push at every desk opening (noise for a long rank-prize hold),
+the ending push for every hold (a "held until" a few minutes after a short reservation), the due scans inside settle
+(every 10 minutes: too late for a 15-minute warning), one help-desk kind with a variant in the template (a renderer
+change for one producer), keeping `notice_create` in SQL (about 2 s more for 5,000 decisions). Developer's call at the
+T-501d code review.
+**Open for the developer (measured, not blocking T-501d):** accept-all of 5,000 requests takes about 5.8 s on the
+laptop before T-501d (5 s of it the souvenir enqueue trigger `souvenir_on_fact`, T-402b, about 1 ms a row) and 7.4 s
+with the join-decision push, over the API's 5 s statement limit, so a very large accept-all is refused (`57014`) and
+nothing is accepted. Recommended: accept-all takes at most 1,000 requests a call and the dashboard repeats while
+`remaining` is above 0 (the door already answers it), or the souvenir trigger gets a cheaper path for a status change
+that cannot grant anything; measured again on CranL before NFR-004's load test.

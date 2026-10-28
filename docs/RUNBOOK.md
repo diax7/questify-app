@@ -243,7 +243,8 @@ quiet minutes); without keys no client exists: the center fills and every push e
   is held 15 minutes; `code: unreachable` at start means Google did not answer and the next send asks again),
   `push.apns_refused {target, status, code}` and `push.fcm_refused {status, code}` (a request we built wrong, such as
   `PayloadTooLarge` or `INVALID_ARGUMENT` on a field other than the token: a bug to fix). A failing step logs `push.fan_out_failed`,
-  `push.round_failed`, `push.settle_failed` or `push.ack_failed` with the SQLSTATE only (never a token, a text or a
+  `push.round_failed`, `push.settle_failed`, `push.due_failed` (the reservation scans, T-501d) or `push.ack_failed` with
+  the SQLSTATE only (never a token, a text or a
   player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
   sent twice).
 - **Backed-off notice (error level):** each failed fan-out try of a notice logs `push.fan_out_batch_failed {notice,
@@ -262,7 +263,15 @@ quiet minutes); without keys no client exists: the center fills and every push e
   under 200 ms with 60,000 event rows, 65,000 event rows or 10,000 personal notices queued (at most 200 heads visited);
   a 50,000-row notice then a 10-row one, the first claim takes 100 and 10. 2026-10-28 on the laptop: 18.4 s in 27 calls
   (slowest 794 ms); claims 92, 163 and 153 ms median; 200 heads; [100, 10] (ADR-350 (10)). Measure again on CranL
-  before NFR-004's load test.
+  before NFR-004's load test. The join-decision push (T-501d):
+  `PUSH_TIMING=… pnpm vitest run apps/api/test/perf/push-producers-timing.int.test.ts` after a change to the
+  `enrollment` triggers, accept-all or `notice_create`; 2026-10-28 on the laptop: accept-all of 5,000 requests 7.4 s
+  with the trigger, 5.8 s without it, the personal fan-out of the 5,000 notices 1.3 s (ADR-353 (5)). The API's
+  statement limit is 5 s, so an accept-all of several thousand requests is refused today (Q-322).
+- **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same
+  transaction as the door; reservations ready at the desk or ending come from `push_due()`, which the worker runs every
+  minute with the switch on or off. A missing `notice_kind` row writes nothing and refuses nothing. Seen from SQL as the
+  owner: `SELECT kind, count(*) FROM notice WHERE created_at > now() - interval '1 day' GROUP BY 1;`.
 - **Outbox health (SQL as the owner):** `SELECT target, state, count(*) FROM push_send GROUP BY 1, 2;` many `queued`
   rows on one target with nothing `sent` means that target is held or has no provider; `SELECT count(*) FROM notice
   WHERE fanned_at IS NULL;` should stay near 0.

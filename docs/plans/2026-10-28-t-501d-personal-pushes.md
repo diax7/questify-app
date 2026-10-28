@@ -61,7 +61,8 @@ fixed texts by team and outcome. `help_answered_questify` and `help_solved` join
 | `reward_ending` | Your reward “{reward}” is held for you until {time}. | جائزتك «{reward}» محجوزة لك حتى الساعة {time}. |
 | … nameless | Your reward is held for you until {time}. | جائزتك محجوزة لك حتى الساعة {time}. |
 
-A text with no name uses itself as its nameless variant. «حُلّ طلبك» and «قُبل» are light passives (never `تم` +
+Message keys are `push.<kind in camel case>.body` and `.nameless` (`push.rankPrize.body`): the messages key rule has
+no underscore. A text with no name uses itself as its nameless variant. «حُلّ طلبك» and «قُبل» are light passives (never `تم` +
 masdar); "answer" (إجابتك) is the app's word for a submission. The prize names the deadline's date **and time** (a
 deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
 
@@ -102,6 +103,18 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
      Names the time (the event's zone), never a countdown.
    Re-running the scan writes nothing new (the marker); an unknown kind writes nothing and raises nothing.
 
+## As built (measured)
+
+- **`notice_create` is restated in PL/pgSQL** in 0077 (the same one insert and answers): PostgreSQL 17 plans a SQL
+  function's body again at every call from a trigger, which added about 2 s to accept-all of 5,000. `push_names` has no
+  SET clause (pg_catalog functions only, schema-qualified), so it is inlined.
+- **Accept-all of 5,000 requests** (laptop, `test/perf/push-producers-timing.int`): 7.4 s with the join-decision
+  trigger, 5.8 s without it (about 0.3 ms a decision); the personal fan-out of the 5,000 notices 1.3 s. **The plan's
+  5 s gate is not met and was not met before this slice:** 5 s of the 5.8 s is the souvenir enqueue trigger
+  (`souvenir_on_fact`, T-402b, about 1 ms a row), and the API's statement limit is 5 s. Recorded in ADR-353 (5); the fix
+  (accept-all in calls of at most 1,000, or a cheaper souvenir path) is Q-322's, outside this slice, so the door's
+  behaviour is unchanged.
+
 ## Tests (named; `test/db/push-producers.int.test.ts` unless noted)
 
 - Per kind: fires once and only once, to the right recipient and no one else; the center row after the fan-out; a retry
@@ -122,8 +135,8 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
 - **The text is the fixed template, ids only in the payload:** each kind claimed and built with `pushMessageOf`; the
   body equals the template; `data.r` holds ids only; no reply, reason or ticket text anywhere in the notice.
 - **Every `notice_kind` row has a template and a route** (`push-store.int`, now with `NOTIFICATION_TARGETS`).
-- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): accept-all of 5,000 pendings with the trigger under
-  5 s, measured and recorded in ADR-353; the default suite proves 300 notices from one accept-all.
+- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): accept-all of 5,000 pendings with and without the
+  trigger, measured and recorded in ADR-353 (above); the default suite proves 300 notices from one accept-all.
 - Security: outsider (the door, its helpers and the trigger functions: no PUBLIC, exact grants, definers), cross-tenant
   (`push_due` refuses every seat with an identity), the rehearsal guards (no new foreign key; no new writer judging the
   status), unit tests for the worker's scan step and the shared templates and routes.

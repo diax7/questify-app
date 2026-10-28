@@ -593,8 +593,16 @@ ADR-151):
 
 - `notice_kind(kind PK [a-z_], class personal|event|promo, topic announcements|rank|community|reminders NULL (not
   mutable), membership active|decided|none, before_start, priority 0|1|2 by class, ttl 1 minute–7 days)`: one row per
-  kind, seeded by the slice that wires it (0076 seeds none); every row must have a template in
-  `packages/shared/src/push/templates.ts` (a database test checks).
+  kind, seeded by the slice that wires it (0076 seeds none; 0077, T-501d, seeds the ten personal kinds:
+  `join_accepted`, `join_declined`, `help_answered`, `help_answered_questify`, `help_solved`, `rank_prize`,
+  `submission_approved`, `submission_rejected`, `reward_ready`, `reward_ending`); every row must have a template in
+  `packages/shared/src/push/templates.ts` and a route in `packages/shared/src/push/routes.ts` (a database test checks).
+- **Producers (T-501d, migration 0077):** row triggers with a `WHEN` on `enrollment` (a join decision), `ticket`
+  (closed) and `submission` (a reviewer's decision), a statement trigger with transition tables on `event_result` (the
+  reveal), and the system door `push_due()` (reservations ready at the desk or ending), each calling only
+  `notice_create`; the once-only markers are the notices' `dedupe` keys (`join:{enrollment}:{status}:{time}`,
+  `ticket:{id}`, `rank_prize:{event}:{rank}`, `submission:{id}:{status}`, `reward_ready:{redemption}`,
+  `reward_ending:{redemption}`). No new column.
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment

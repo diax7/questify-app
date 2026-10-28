@@ -1205,7 +1205,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1033 | F-197 | Must | pending |
 | FR-1034 | F-197 | Must | pending |
 | FR-1035 | F-197 | Must | pending |
-| FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery with no kind wired; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501d and T-501f): `test/db/push-store.int`, `test/db/push-sending.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
+| FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; T-501d: the submission decision, the help-desk answer, a reservation ready at the desk and ending; the operator invite waits for T-617): `test/db/push-store.int`, `test/db/push-sending.int`, `test/db/push-producers.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
 | FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501e and T-501f): `test/db/push-store.int`, `apps/api/src/push/contract.test.ts` |
 | FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; T-501b: the real clients, sending once Dhia's keys are set): `apps/api/src/push/worker.test.ts` |
 | FR-1104 | F-200 | Must | built T-501 and T-501c (every message a center row, read and unread; the center screen `/notifications` lists them newest first, a tap marks that one row read; phone check owed): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int`, `apps/app/src/push/{center,push-api}.test.ts` |
@@ -1310,7 +1310,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1715 | F-240, F-51, F-59, F-61 | Should | pending |
 | FR-1716 | F-241 | Must | pending |
 | FR-1717 | F-242 | Must | pending |
-| FR-1718 | F-243 | Should | pending |
+| FR-1718 | F-243 | Should | built (T-214: the Home card; T-501d: the push and center row at the reveal naming the prize and the claim deadline, once per place, never to a winner who left or was removed; a real push leaves once Dhia's keys are set): `test/db/push-producers.int`, `test/db/results.int` |
 | FR-1719 | F-244 | Should | pending |
 | FR-1720 | F-245 | Should | pending |
 | FR-1721 | F-247 | Must | pending |
@@ -1411,7 +1411,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1816 | F-318 | Could | pending |
 | FR-1817 | F-319 | Could | pending |
 | FR-1818 | F-320 | Must | pending |
-| FR-1819 | F-321 | Must | pending |
+| FR-1819 | F-321 | Must | built (T-218: requests, the waiting screen and the decision in the app; T-501d: the decision push and center row, once per decision, accept-all and a waiting-list release included; a real push leaves once Dhia's keys are set): `test/db/join-requests.int`, `test/db/push-producers.int` |
 | FR-1820 | F-322 | Should | pending |
 | FR-1821 | F-323 | Should | pending |
 | FR-1822 | F-324 | Must | built (T-312, 2026-10-25) |

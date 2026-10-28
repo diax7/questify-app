@@ -1703,12 +1703,25 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   "always reach you" line names decisions, answers and prizes; the center keeps older pages already loaded when page 1 is
   read again on focus (only when the pages overlap); the module-check comment reworded; sign-out waits at most 3 s on the
   device removal. ADR-352 Accepted, Q-321 answered.
+- 2026-10-28 **T-501d built (core; code review owed).** The owed personal pushes (plan note
+  `docs/plans/2026-10-28-t-501d-personal-pushes.md`). Migration 0077 (new file, undeployed): ten personal kinds; row
+  triggers with a `WHEN` on `enrollment` (join decisions: decide, accept-all, a waiting-list release; never an operator, a
+  rehearsal account or the player's own re-join), `ticket` (one per closed ticket, by team and outcome) and `submission`
+  (a reviewer's decision), a statement trigger with transition tables on `event_result` (each prize place at the reveal),
+  and the system door `push_due()` the worker calls every minute (ready at the first desk opening a reservation waited
+  for; ending 15 minutes before a hold over 30 minutes ends). Every producer calls only `notice_create` (restated in
+  PL/pgSQL so its plan survives trigger calls); a missing kind never undoes a door. Shared templates in both languages
+  (ux-araby pass) and two routes; the worker's due-scan step. Tests: `test/db/push-producers.int` (18), push-store,
+  outsider, cross-tenant, worker and shared units. **Measured:** accept-all of 5,000 requests 7.4 s with the trigger,
+  5.8 s before it, over the API's 5 s statement limit already before this slice (the souvenir enqueue trigger, about
+  1 ms a row): Q-322 recommends accept-all in calls of 1,000. ADR-353 and Q-322 Proposed. Mutation globs:
+  `apps/api/src/push/{worker,doors}.ts`, `packages/shared/src/push/{templates,routes}.ts`.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built (Standard; code review owed; ADR-352 and Q-321 Proposed); T-501d to T-501g are next, each adding its kind's route to `NOTIFICATION_TARGETS`.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built, its code review is owed (ADR-353, Q-322 Proposed; Q-322's accept-all limit is a developer's call); T-501e to T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console
