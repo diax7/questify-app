@@ -47,6 +47,7 @@ export function testConfig(
     msegat: undefined,
     msegatPromoSender: undefined,
     redisUrl: undefined,
+    push: { apns: undefined, fcm: undefined },
   };
 }
 

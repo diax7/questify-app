@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { loadConfig } from "./config";
+import { generateKeyPairSync } from "node:crypto";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadConfig } from "#src/config";
 
 const REQUIRED = {
   DATABASE_URL: "postgres://questify_app:pw@db:5432/questify",
@@ -20,6 +21,25 @@ const MSEGAT = {
   MSEGAT_USERNAME: "nafes",
   MSEGAT_API_KEY: "test-key",
   MSEGAT_SENDER: "Questify",
+};
+
+/** A fresh private key in PKCS#8 PEM. */
+const pem = (type: "ec" | "rsa", curve = "prime256v1"): string =>
+  (type === "ec"
+    ? generateKeyPairSync("ec", { namedCurve: curve })
+    : generateKeyPairSync("rsa", { modulusLength: 2048 })
+  ).privateKey
+    .export({ type: "pkcs8", format: "pem" })
+    .toString();
+
+/** The message `loadConfig` refuses the settings with, or "no error". */
+const errorOf = (env: Record<string, string>): string => {
+  try {
+    loadConfig({ ...REQUIRED, ...env });
+  } catch (error) {
+    return (error as Error).message;
+  }
+  return "no error";
 };
 
 describe("loadConfig", () => {
@@ -53,6 +73,7 @@ describe("loadConfig", () => {
       msegat: undefined,
       msegatPromoSender: undefined,
       redisUrl: undefined,
+      push: { apns: undefined, fcm: undefined },
     });
   });
 
@@ -268,6 +289,128 @@ describe("loadConfig", () => {
       expect(() => loadConfig({ ...REQUIRED, REDIS_URL: "http://cache" })).toThrow(/redis:\/\//);
       expect(() => loadConfig({ ...REQUIRED, REDIS_URL: "not a url" })).toThrow(
         /REDIS_URL must be/,
+      );
+    });
+  });
+
+  describe("push providers", () => {
+    let p8: string;
+    let rsa: string;
+    let account: Record<string, string>;
+    let apns: Record<string, string>;
+
+    beforeAll(() => {
+      p8 = pem("ec");
+      rsa = pem("rsa");
+      apns = {
+        APNS_KEY_ID: "ABC123DEFG",
+        APNS_TEAM_ID: "DEF123GHIJ",
+        APNS_PRIVATE_KEY: p8,
+        APNS_TOPIC: "app.questify.mobile",
+      };
+      account = {
+        type: "service_account",
+        project_id: "questify-prod",
+        client_email: "push@questify-prod.iam.gserviceaccount.com",
+        private_key: rsa,
+        token_uri: "https://oauth2.googleapis.com/token",
+      };
+    });
+
+    it("starts with none set, in production too, and sends nothing", () => {
+      expect(loadConfig(REQUIRED).push).toEqual({ apns: undefined, fcm: undefined });
+      const production = loadConfig({
+        ...REQUIRED,
+        ...MSEGAT,
+        ...REDIS,
+        NODE_ENV: "production",
+        TRUST_PROXY_HOPS: "1",
+      });
+      expect(production.push).toEqual({ apns: undefined, fcm: undefined });
+    });
+
+    it("reads the APNs key as PEM or as its base64, parsed into a key object", () => {
+      for (const key of [p8, Buffer.from(p8).toString("base64")]) {
+        const settings = loadConfig({ ...REQUIRED, ...apns, APNS_PRIVATE_KEY: key }).push.apns;
+        expect(settings).toMatchObject({
+          keyId: "ABC123DEFG",
+          teamId: "DEF123GHIJ",
+          topic: "app.questify.mobile",
+        });
+        expect(settings?.privateKey.asymmetricKeyType).toBe("ec");
+        expect(settings?.privateKey.type).toBe("private");
+      }
+    });
+
+    it.each(["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_PRIVATE_KEY", "APNS_TOPIC"])(
+      "refuses to start when %s is the one missing",
+      (name) => {
+        const partial = { ...apns, [name]: " " };
+        expect(errorOf(partial)).toBe(
+          `APNS_KEY_ID, APNS_TEAM_ID, APNS_PRIVATE_KEY, APNS_TOPIC are required together for iPhone push; missing: ${name}.`,
+        );
+      },
+    );
+
+    it("refuses a key that is not an EC P-256 private key, without echoing it", () => {
+      const wrong = [
+        rsa,
+        pem("ec", "secp384r1"),
+        "not a key",
+        Buffer.from("junk").toString("base64"),
+      ];
+      for (const key of wrong) {
+        expect(errorOf({ ...apns, APNS_PRIVATE_KEY: key })).toBe(
+          "APNS_PRIVATE_KEY must be the .p8 key from the Apple Developer account: an EC P-256 private key in PEM, or its base64.",
+        );
+      }
+    });
+
+    it("refuses ids that are not Apple's 10 characters and a topic that is not a bundle id", () => {
+      expect(errorOf({ ...apns, APNS_KEY_ID: "abc123defg" })).toBe(
+        "APNS_KEY_ID must be the 10-character id from the Apple Developer account (capital letters and digits).",
+      );
+      expect(errorOf({ ...apns, APNS_TEAM_ID: "DEF123GHI" })).toContain("APNS_TEAM_ID must be");
+      expect(errorOf({ ...apns, APNS_TOPIC: "questify" })).toBe(
+        "APNS_TOPIC must be the app's bundle id, like app.questify.mobile.",
+      );
+    });
+
+    it("reads the FCM service account as JSON or as its base64", () => {
+      const json = JSON.stringify(account);
+      for (const value of [json, Buffer.from(json).toString("base64")]) {
+        const fcm = loadConfig({ ...REQUIRED, FCM_SERVICE_ACCOUNT: value }).push.fcm;
+        expect(fcm).toMatchObject({
+          projectId: "questify-prod",
+          key: {
+            clientEmail: "push@questify-prod.iam.gserviceaccount.com",
+            tokenUri: "https://oauth2.googleapis.com/token",
+          },
+        });
+        expect(
+          typeof fcm?.key.privateKey === "object" && fcm.key.privateKey.asymmetricKeyType,
+        ).toBe("rsa");
+      }
+    });
+
+    it("refuses a malformed service account, naming the field and never a value", () => {
+      const refuse = (change: Record<string, unknown>) =>
+        errorOf({ FCM_SERVICE_ACCOUNT: JSON.stringify({ ...account, ...change }) });
+      expect(refuse({ private_key: pem("ec") })).toBe(
+        "FCM_SERVICE_ACCOUNT's private_key is not an RSA private key in PEM: download the key file again.",
+      );
+      expect(refuse({ project_id: "Questify Prod" })).toBe(
+        "FCM_SERVICE_ACCOUNT's project_id is not a Google Cloud project id.",
+      );
+      expect(refuse({ token_uri: "http://oauth2.googleapis.com/token" })).toBe(
+        "FCM_SERVICE_ACCOUNT's token_uri must be an https address.",
+      );
+      expect(refuse({ project_id: "" })).toBe("FCM_SERVICE_ACCOUNT is missing project_id.");
+      expect(errorOf({ FCM_SERVICE_ACCOUNT: "{ not json" })).toContain(
+        "FCM_SERVICE_ACCOUNT is not valid JSON",
+      );
+      expect(errorOf({ FCM_SERVICE_ACCOUNT: "bm90IGpzb24=" })).toContain(
+        "FCM_SERVICE_ACCOUNT is not valid JSON",
       );
     });
   });

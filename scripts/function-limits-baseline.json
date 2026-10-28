@@ -30,14 +30,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/auth/email/gmail.ts": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
-    "createGmailSender": {
-      "lines": [102]
-    }
-  },
   "apps/api/src/auth/sign-in.ts": {
     "<anonymous>": {
       "complexity": [10, 9]

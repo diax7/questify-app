@@ -1,4 +1,9 @@
-import { parseServiceAccountKey, type ServiceAccountKey } from "#src/auth/email/gmail";
+import { createPrivateKey, type KeyObject } from "node:crypto";
+import {
+  parseServiceAccountKey,
+  readServiceAccount,
+  type ServiceAccountKey,
+} from "#src/auth/google-token";
 
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
@@ -53,6 +58,31 @@ export type AppConfig = Readonly<{
    * PostgreSQL (the same order, more database work).
    */
   redisUrl: string | undefined;
+  /**
+   * The push providers' accounts (ADR-344), each all or none: without one, that platform sends nothing and its messages
+   * stay in the in-app center.
+   */
+  push: PushSettings;
+}>;
+
+/** The APNs token-based key (`.p8`) and the app it sends for. */
+export type ApnsSettings = Readonly<{
+  /** The key's 10-character id (`kid`). */
+  keyId: string;
+  /** The Apple Developer team's 10-character id (`iss`). */
+  teamId: string;
+  /** The EC P-256 signing key, parsed: never printed by a log or an inspect. */
+  privateKey: KeyObject;
+  /** The app's bundle id (`apns-topic`). */
+  topic: string;
+}>;
+
+/** The Firebase project's service account for FCM HTTP v1. */
+export type FcmSettings = Readonly<{ projectId: string; key: ServiceAccountKey }>;
+
+export type PushSettings = Readonly<{
+  apns: ApnsSettings | undefined;
+  fcm: FcmSettings | undefined;
 }>;
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -132,7 +162,10 @@ function authConfig(env: Env): AuthConfig {
     secret,
     dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
     gmail: {
-      key: parseServiceAccountKey(required(env, "GMAIL_SERVICE_ACCOUNT_KEY")),
+      key: parseServiceAccountKey(
+        required(env, "GMAIL_SERVICE_ACCOUNT_KEY"),
+        "GMAIL_SERVICE_ACCOUNT_KEY",
+      ),
       from: emailAddress(env, "MAIL_FROM"),
       actAs:
         optional(env, "GMAIL_ACT_AS") === undefined ? undefined : emailAddress(env, "GMAIL_ACT_AS"),
@@ -176,6 +209,7 @@ export function loadConfig(env: Env): AppConfig {
     msegat: msegat(env, nodeEnv),
     msegatPromoSender: msegatPromoSender(env),
     redisUrl: redisUrl(env, nodeEnv),
+    push: { apns: apns(env), fcm: fcm(env) },
   };
 }
 
@@ -246,4 +280,111 @@ function longSecret(env: Env, name: string): string {
     throw new Error(`${name} must be at least ${MIN_SECRET_LENGTH} characters.`);
   }
   return secret;
+}
+
+const APNS_NAMES = ["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_PRIVATE_KEY", "APNS_TOPIC"] as const;
+/** Apple's key ids and team ids: 10 capital letters and digits. */
+const APPLE_ID = /^[A-Z0-9]{10}$/;
+/** A bundle id: two or more dot-separated parts of letters, digits and hyphens. */
+const BUNDLE_ID = /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
+/** A Google Cloud project id: 6 to 30 lowercase letters, digits and hyphens, starting with a letter. */
+const PROJECT_ID = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
+
+/** The text as it is when it starts with `start`, else decoded from base64 (for a secret store that keeps one line). */
+function plainOrBase64(text: string, start: string): string {
+  const trimmed = text.trim();
+  return trimmed.startsWith(start) ? trimmed : Buffer.from(trimmed, "base64").toString("utf8");
+}
+
+/** The private key in `pem` when it is of `type` (and on `curve`), else null. */
+function privateKeyOf(pem: string, type: "ec" | "rsa", curve?: string): KeyObject | null {
+  let key: KeyObject;
+  try {
+    key = createPrivateKey(pem);
+  } catch {
+    return null;
+  }
+  const curveMatches = curve === undefined || key.asymmetricKeyDetails?.namedCurve === curve;
+  return key.asymmetricKeyType === type && curveMatches ? key : null;
+}
+
+function appleId(env: Env, name: string): string {
+  const text = required(env, name).trim();
+  if (!APPLE_ID.test(text)) {
+    throw new Error(
+      `${name} must be the 10-character id from the Apple Developer account (capital letters and digits).`,
+    );
+  }
+  return text;
+}
+
+/**
+ * The APNs settings, all four or none (ADR-344 (3)): the key must be an EC P-256 private key (the `.p8`, as PEM or its
+ * base64), the key and team ids 10 letters or digits, the topic a bundle id. None: iPhones get no push and the server
+ * still starts. Errors name the setting, never its value.
+ */
+function apns(env: Env): ApnsSettings | undefined {
+  const missing = APNS_NAMES.filter((name) => optional(env, name) === undefined);
+  if (missing.length === APNS_NAMES.length) {
+    return undefined;
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `${APNS_NAMES.join(", ")} are required together for iPhone push; missing: ${missing.join(", ")}.`,
+    );
+  }
+  const privateKey = privateKeyOf(
+    plainOrBase64(required(env, "APNS_PRIVATE_KEY"), "-----BEGIN"),
+    "ec",
+    "prime256v1",
+  );
+  if (privateKey === null) {
+    throw new Error(
+      "APNS_PRIVATE_KEY must be the .p8 key from the Apple Developer account: an EC P-256 private key in PEM, or its base64.",
+    );
+  }
+  const topic = required(env, "APNS_TOPIC").trim();
+  if (!BUNDLE_ID.test(topic)) {
+    throw new Error("APNS_TOPIC must be the app's bundle id, like app.questify.mobile.");
+  }
+  return {
+    keyId: appleId(env, "APNS_KEY_ID"),
+    teamId: appleId(env, "APNS_TEAM_ID"),
+    privateKey,
+    topic,
+  };
+}
+
+/**
+ * The FCM settings (ADR-344 (3)): the Firebase project's service account key file, as JSON or its base64, with a
+ * project id, an RSA private key and an https token address. None: Android phones get no push and the server still
+ * starts. Errors name the setting and the field, never a value.
+ */
+function fcm(env: Env): FcmSettings | undefined {
+  const text = optional(env, "FCM_SERVICE_ACCOUNT");
+  if (text === undefined) {
+    return undefined;
+  }
+  const fields = readServiceAccount(plainOrBase64(text, "{"), "FCM_SERVICE_ACCOUNT", [
+    "project_id",
+    "client_email",
+    "private_key",
+    "token_uri",
+  ]);
+  if (!PROJECT_ID.test(fields.project_id)) {
+    throw new Error("FCM_SERVICE_ACCOUNT's project_id is not a Google Cloud project id.");
+  }
+  const privateKey = privateKeyOf(fields.private_key, "rsa");
+  if (privateKey === null) {
+    throw new Error(
+      "FCM_SERVICE_ACCOUNT's private_key is not an RSA private key in PEM: download the key file again.",
+    );
+  }
+  if (!fields.token_uri.startsWith("https://")) {
+    throw new Error("FCM_SERVICE_ACCOUNT's token_uri must be an https address.");
+  }
+  return {
+    projectId: fields.project_id,
+    key: { clientEmail: fields.client_email, privateKey, tokenUri: fields.token_uri },
+  };
 }

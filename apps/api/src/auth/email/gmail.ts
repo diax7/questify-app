@@ -1,59 +1,22 @@
-import { createSign, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { EmailSendError, SEND_TIMEOUT_MS, type EmailSender } from "#src/auth/email/sender";
-
-/** The parts of a Google service account key file the sender needs. */
-export type ServiceAccountKey = Readonly<{
-  clientEmail: string;
-  privateKey: string;
-  tokenUri: string;
-}>;
+import {
+  createGoogleTokenSource,
+  GoogleTokenError,
+  reasonOf,
+  type ServiceAccountKey,
+} from "#src/auth/google-token";
 
 const SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const SEND_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
-/** Tokens last an hour; one is asked for at most this long, and renewed a minute before it runs out. */
-const TOKEN_LIFETIME_SECONDS = 3600;
+/** A token is renewed a minute before it runs out. */
 const RENEW_MARGIN_SECONDS = 60;
 const HEADER_BREAK = /[\r\n]/;
 /** One plain address: no display name, no list, no quotes (an invite will put typed addresses here). */
 const ONE_ADDRESS = /^[^\s@<>",;]+@[^\s@<>",;]+\.[a-z]{2,}$/i;
-/** Google's reason codes are short identifiers; anything else is not copied into a log line. */
-const reasonOf = (value: unknown): string =>
-  typeof value === "string" && /^[A-Za-z_]{1,40}$/.test(value) ? value : "unknown";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
-
-/**
- * Reads the JSON key file of a Google service account (the `GMAIL_SERVICE_ACCOUNT_KEY` setting).
- *
- * @throws Error naming what is wrong, never echoing the value: not JSON, not a service account key, or a field missing.
- */
-export function parseServiceAccountKey(raw: string): ServiceAccountKey {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(
-      "GMAIL_SERVICE_ACCOUNT_KEY is not valid JSON: paste the whole key file, from the first { to the last }.",
-    );
-  }
-  if (!isRecord(parsed) || parsed["type"] !== "service_account") {
-    throw new Error(
-      'GMAIL_SERVICE_ACCOUNT_KEY is not a service account key (its "type" must be "service_account").',
-    );
-  }
-  const missing = ["client_email", "private_key", "token_uri"].filter(
-    (field) => typeof parsed[field] !== "string" || parsed[field] === "",
-  );
-  if (missing.length > 0) {
-    throw new Error(`GMAIL_SERVICE_ACCOUNT_KEY is missing ${missing.join(", ")}.`);
-  }
-  return {
-    clientEmail: String(parsed["client_email"]),
-    privateKey: String(parsed["private_key"]),
-    tokenUri: String(parsed["token_uri"]),
-  };
-}
 
 export type GmailOptions = Readonly<{
   key: ServiceAccountKey;
@@ -108,79 +71,35 @@ export function buildMime(input: {
   ].join("\r\n");
 }
 
-type Token = Readonly<{ value: string; expiresAt: number }>;
-
 /**
  * Sends through the Gmail API as a Workspace mailbox, authorised by a service account with domain-wide delegation
- * limited to `gmail.send` (ADR-112). No password exists: the key signs a one-hour token request. Each call is capped
- * at five seconds; errors name the step and Google's error code, never the recipient, the code or the key.
+ * limited to `gmail.send` (ADR-112). No password exists: the key signs a one-hour token request (the shared code in
+ * `auth/google-token`). Each call is capped at five seconds; errors name the step and Google's error code, never the
+ * recipient, the code or the key.
  */
 export function createGmailSender(options: GmailOptions): EmailSender {
   const call = options.fetch ?? fetch;
   const now = options.now ?? (() => Math.floor(Date.now() / 1000));
-  let token: Token | undefined;
-  let pending: Promise<Token> | undefined;
-
-  const requestToken = async (): Promise<Token> => {
-    const issuedAt = now();
-    const unsigned = `${base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${base64url(
-      JSON.stringify({
-        iss: options.key.clientEmail,
-        sub: options.actAs ?? options.from,
-        scope: SEND_SCOPE,
-        aud: options.key.tokenUri,
-        iat: issuedAt,
-        exp: issuedAt + TOKEN_LIFETIME_SECONDS,
-      }),
-    )}`;
-    let signature: string;
-    try {
-      signature = createSign("RSA-SHA256")
-        .update(unsigned)
-        .sign(options.key.privateKey, "base64url");
-    } catch (error) {
-      throw new EmailSendError("gmail", "the service account key could not sign", { cause: error });
-    }
-    let response: Response;
-    try {
-      response = await call(options.key.tokenUri, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-          assertion: `${unsigned}.${signature}`,
-        }),
-        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new EmailSendError("gmail", "the token request failed or timed out", { cause: error });
-    }
-    const body: unknown = await response.json().catch(() => undefined);
-    const accessToken = isRecord(body) ? body["access_token"] : undefined;
-    if (!response.ok || typeof accessToken !== "string") {
-      const code = reasonOf(isRecord(body) ? body["error"] : undefined);
-      throw new EmailSendError(
-        "gmail",
-        `Google refused the token request (${response.status} ${code})`,
-      );
-    }
-    const lifetime =
-      isRecord(body) && typeof body["expires_in"] === "number"
-        ? body["expires_in"]
-        : TOKEN_LIFETIME_SECONDS;
-    return { value: accessToken, expiresAt: issuedAt + lifetime - RENEW_MARGIN_SECONDS };
-  };
+  const tokens = createGoogleTokenSource({
+    key: options.key,
+    scope: SEND_SCOPE,
+    subject: options.actAs ?? options.from,
+    timeoutMs: SEND_TIMEOUT_MS,
+    renewMarginSeconds: RENEW_MARGIN_SECONDS,
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    now,
+  });
 
   /** One token at a time, shared by concurrent sends and renewed shortly before it expires. */
   const accessToken = async (): Promise<string> => {
-    if (token !== undefined && token.expiresAt > now()) {
-      return token.value;
+    try {
+      return await tokens.get();
+    } catch (error) {
+      if (error instanceof GoogleTokenError) {
+        throw new EmailSendError("gmail", error.message, { cause: error.cause });
+      }
+      throw error;
     }
-    pending ??= requestToken().finally(() => {
-      pending = undefined;
-    });
-    token = await pending;
-    return token.value;
   };
 
   return {
@@ -208,7 +127,7 @@ export function createGmailSender(options: GmailOptions): EmailSender {
         throw new EmailSendError("gmail", "the send request failed or timed out", { cause: error });
       }
       if (response.status === 401) {
-        token = undefined;
+        tokens.drop(bearer);
       }
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => undefined);

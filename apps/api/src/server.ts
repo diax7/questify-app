@@ -11,6 +11,7 @@ import { loadConfig, type AppConfig } from "#src/config";
 import { poolOptions } from "#src/db/pool-options";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
+import { createPushProviders } from "#src/push/providers";
 import { createRankingStore } from "#src/ranking/store";
 
 const LIFECYCLE_INTERVAL_MS = 30_000;
@@ -129,8 +130,11 @@ async function main(): Promise<void> {
     communityIntervalMs: COMMUNITY_INTERVAL_MS,
     souvenirIntervalMs: 5000,
     invitationIntervalMs: INVITATION_INTERVAL_MS,
-    // No provider until T-501b's APNs and FCM clients: the center fills, every push expires unsent.
-    push: { pool: pushPool, providers: [] },
+    // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.
+    push: {
+      pool: pushPool,
+      providers: createPushProviders(config.push, (level, fields) => app.log[level](fields)),
+    },
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
   await dummyVerify("warm-up");

@@ -10,6 +10,7 @@
     "apps/api/src/auth/**/*.ts",
     "apps/api/src/db/**/*.ts",
     "apps/api/src/conventions.ts",
+    "apps/api/src/config.ts",
     "apps/api/src/idempotency-store.ts",
     "apps/api/src/route-access.ts",
     "apps/api/src/organizers/**/*.ts",

@@ -1,12 +1,8 @@
 import { createVerify, generateKeyPairSync } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import {
-  buildMime,
-  createGmailSender,
-  parseServiceAccountKey,
-  type ServiceAccountKey,
-} from "#src/auth/email/gmail";
+import { buildMime, createGmailSender } from "#src/auth/email/gmail";
 import { EmailSendError } from "#src/auth/email/sender";
+import type { ServiceAccountKey } from "#src/auth/google-token";
 
 const TOKEN_URI = "https://oauth2.googleapis.test/token";
 const SEND_URI = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
@@ -268,45 +264,6 @@ describe("buildMime", () => {
     ["subject", { subject: "hi\r\nBcc: spy@x.y" }],
   ])("refuses a line break in the %s, so no header can be smuggled in", (field, change) => {
     expect(() => buildMime({ ...base, ...change })).toThrow(`the ${field} contains a line break`);
-  });
-});
-
-describe("parseServiceAccountKey", () => {
-  it("reads the three fields the sender needs", () => {
-    expect(
-      parseServiceAccountKey(
-        JSON.stringify({
-          type: "service_account",
-          client_email: "m@p.iam.gserviceaccount.com",
-          private_key: "PEM",
-          token_uri: "https://oauth2.googleapis.com/token",
-          project_id: "ignored",
-        }),
-      ),
-    ).toEqual({
-      clientEmail: "m@p.iam.gserviceaccount.com",
-      privateKey: "PEM",
-      tokenUri: "https://oauth2.googleapis.com/token",
-    });
-  });
-});
-
-describe("parseServiceAccountKey refusals", () => {
-  const valid = {
-    type: "service_account",
-    client_email: "m@p.iam.gserviceaccount.com",
-    private_key: "PEM",
-    token_uri: "https://oauth2.googleapis.com/token",
-  };
-
-  it("refuses JSON that is not an object", () => {
-    expect(() => parseServiceAccountKey("null")).toThrow('its "type" must be "service_account"');
-  });
-
-  it("counts an empty field as missing", () => {
-    expect(() => parseServiceAccountKey(JSON.stringify({ ...valid, private_key: "" }))).toThrow(
-      "GMAIL_SERVICE_ACCOUNT_KEY is missing private_key.",
-    );
   });
 });
 

@@ -123,8 +123,8 @@ export type AppOptions = Readonly<{
   /** How often invitations are started, sent and settled (ADR-333); off when not given (tests call the doors). */
   invitationIntervalMs?: number;
   /**
-   * The push worker (T-501, ADR-345): its own small pool and the providers built (none until T-501b's clients). Off when
-   * not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
+   * The push worker (T-501, ADR-345): its own small pool and the providers built from the settings (none without keys,
+   * T-501b). Off when not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
    */
   push?: Readonly<{ pool: Pool; providers: readonly PushProvider[] }>;
 }>;

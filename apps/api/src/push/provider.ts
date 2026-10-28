@@ -1,7 +1,7 @@
 /**
  * The one interface behind APNs and FCM (ADR-344): a provider per target, each send given a deadline it must answer by.
- * T-501b builds the real clients (`apns.ts`, `fcm.ts`); until then only the fake (`fake.ts`) exists, and a platform
- * without a provider sends nothing (its rows expire into the center).
+ * The real clients are `apns.ts` and `fcm.ts` (T-501b, built by `providers.ts` from the settings), the fake is `fake.ts`;
+ * a platform without a provider sends nothing (its rows expire into the center).
  */
 
 export const PUSH_TARGETS = ["apns:production", "apns:sandbox", "fcm"] as const;
