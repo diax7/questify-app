@@ -206,7 +206,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
         { notice_id: big, n: 100 },
         { notice_id: small, n: 10 },
       ]);
-    });
+    }, 120_000);
 
     it("claims and acknowledges 200 rows quickly with a 65,000-row queue present (no scan of the queue)", async () => {
       const queued = await f.kind({ class: "event" });
@@ -232,7 +232,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
       timings.sort((a, b) => a - b);
       // The gate is 200 ms on the laptop (ADR-345 (7), recorded there); asserted loosely so a loaded runner never flakes.
       expect(timings[2]).toBeLessThan(1500);
-    });
+    }, 120_000);
+
+    it("visits at most 200 notices per target with 10,000 personal notices queued, and claims quickly (code review MAJOR)", async () => {
+      const kind = await f.kind();
+      await personalQueue(kind, 10_000);
+      await f.owner("ANALYZE push_send");
+      const [heads] = await f.owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM push_queue_heads('{apns:production,apns:sandbox,fcm}')",
+      );
+      expect(heads?.n).toBe(200);
+      const timings: number[] = [];
+      for (let round = 0; round < 5; round += 1) {
+        const started = performance.now();
+        const claimed = await f.claim(["apns:production", "apns:sandbox", "fcm"], 200);
+        await acked(claimed, "sent");
+        timings.push(performance.now() - started);
+        expect(claimed).toHaveLength(200);
+      }
+      // The gate is 200 ms on the laptop; asserted loosely so a loaded runner never flakes. Before the fix the heads
+      // alone visited every queued notice (10,000 probes a claim, quadratic as the queue drains).
+      expect(timings.toSorted((a, b) => a - b)[2]).toBeLessThan(1000);
+    }, 120_000);
 
     it("two claimers take disjoint rows", async () => {
       const kind = await f.kind();
@@ -414,6 +435,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
           ])
         )[0],
       ).toEqual({ attempts: 8 });
+    });
+
+    it("keeps a token registered while the claim read the old one: the old token's invalid answer marks nothing", async () => {
+      const kind = await f.kind();
+      const [made] = await personalBatch(kind, 1);
+      const [session] = await f.owner<{ token_hash: Buffer }>(
+        "SELECT token_hash FROM player_session WHERE refresh_family = $1",
+        [made?.family],
+      );
+      const fresh = "ab".repeat(32);
+      const register = new Client({ connectionString: f.db.appUrl });
+      await register.connect();
+      try {
+        // The registration begins (and stamps its time) before the claim, and commits after it.
+        await register.query("BEGIN");
+        await register.query("SELECT set_config('app.player_id', $1, true)", [made?.who]);
+        await register.query(
+          "SELECT push_device_register($1, 'ios', $2, 'production', 'ar', '1.0.0')",
+          [session?.token_hash, fresh],
+        );
+        const claimed = await f.claim();
+        expect(claimed.map((row) => row.token)).not.toContain(fresh);
+        await register.query("COMMIT");
+        await acked(claimed, "invalid", { code: "Unregistered" });
+      } finally {
+        await register.end();
+      }
+      const [device] = await f.owner<{
+        token: string;
+        invalid_at: Date | null;
+        token_version: number;
+      }>("SELECT token, invalid_at, token_version FROM push_device WHERE id = $1", [
+        made?.deviceId,
+      ]);
+      expect(device).toEqual({ token: fresh, invalid_at: null, token_version: 2 });
     });
 
     it("refuses a malformed acknowledgement", async () => {

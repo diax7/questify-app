@@ -1624,6 +1624,16 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Q-319 Proposed (the build's details). Tests: `test/db/push-store.int` (38), `test/db/push-sending.int` (13), `test/push/routes.int` (8), the worker, round, send, breaker, payload, center, FR-1106 and template units, the outsider, cross-tenant and route inventories, the rehearsal guard; full Vitest once: 8194 passed / 8 skipped with one failure (a test reading two sends in id order; the fan-out now inserts in notice order) fixed and the push suites re-run green (104/104); lint, format, types, function limits clean; the e2e API runs the worker on the fake provider. Mutation globs (GitHub): `apps/api/src/push/**/*.ts` (not
   `fake.ts`), `packages/shared/src/push/**/*.ts`, `apps/api/src/players/profile.ts`, `apps/api/src/players/guard.ts`.
   Not pushed.
+- 2026-10-28 **T-501 code review 87 folded (narrow re-review owed).** BLOCKER: `SYSTEM_CLOCK.wait` left an `abort` listener
+  on the worker's one idle signal every second (about 47 MB a day with no providers); one `done` for the timer and the
+  abort, `{ once: true }`, proven by `getEventListeners` and by breaking the fix. MAJOR: `push_queue_heads` visited every
+  queued notice; it stops at 200 per target, proven by a 10,000-notice test (200 heads, claim timed). Minors: the ack
+  locks devices `FOR NO KEY UPDATE`; a `token_version` per send replaces the time comparison (race test with a
+  registration straddling the claim); no promotional center row without push consent (developer's decision, ADR-350
+  (11), the plan amended); an event notice parked after 3 failed batches (`push.notice_parked`, RUNBOOK); the register
+  and invalid-ack deadlock in `docs/rules.md`; the provider's deadline 500 ms before the worker's timer and T-501b's
+  done-when gains the settings check; two misplaced doc comments. Migration 0076 edited in place (undeployed). ADR-350
+  Accepted, Q-319 answered. Tests: the push suites (store 41, sending 15, routes 8, units 53), outsider, cross-tenant, route inventory and the rehearsal guard green; full Vitest once: 8201 passed / 8 skipped with one failure (the 65,000-row timing test passed its 30 s limit under the full run's load) given a 120 s limit and its suite re-run green (15/15); lint, format, types and function limits clean.
 
 ## Next
 

@@ -17,7 +17,17 @@ export type AckRow = Readonly<{
   attempts: number;
 }>;
 
-export type FanOutResult = Readonly<{ rows: number; more: boolean }>;
+/**
+ * One fan-out call: the center rows written and whether more work may be waiting; a failed event batch also names the
+ * notice, its SQLSTATE and whether the notice is now parked (code review minor 4).
+ */
+export type FanOutResult = Readonly<{
+  rows: number;
+  more: boolean;
+  failed?: number;
+  code?: string;
+  parked?: boolean;
+}>;
 
 /** The push worker's four system doors; the unit tests replace them. */
 export type PushDoors = Readonly<{

@@ -1,5 +1,5 @@
 import type { PushTexts } from "@questify/shared";
-import type { PushDoors } from "#src/push/doors";
+import type { FanOutResult, PushDoors } from "#src/push/doors";
 import type { PushProvider, PushTarget } from "#src/push/provider";
 import { runRound, type PushLog } from "#src/push/round";
 import { SYSTEM_CLOCK, type PushClock } from "#src/push/send";
@@ -39,6 +39,19 @@ export function missingPlatforms(providers: readonly PushProvider[]): Array<"ios
     ...(has((target) => target.startsWith("apns:")) ? [] : (["ios"] as const)),
     ...(has((target) => target === "fcm") ? [] : (["android"] as const)),
   ];
+}
+
+/**
+ * Logs a failed event batch (the database undid it and counted it): `push.fan_out_batch_failed`, and the alert
+ * `push.notice_parked` once its third failure in a row parks the notice. Ids and SQLSTATEs only.
+ */
+function reportFanOut(log: PushLog, fanned: FanOutResult | undefined): void {
+  if (fanned?.failed === undefined) return;
+  const fields = { notice: fanned.failed, code: fanned.code ?? null };
+  log("error", {
+    event: fanned.parked === true ? "push.notice_parked" : "push.fan_out_batch_failed",
+    ...fields,
+  });
 }
 
 /** The platform switch (`features.pushNotifications`, on unless switched off); the claim checks it again. */
@@ -103,6 +116,7 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
       await step("push.settle_failed", settle);
     }
     const fanned = await step("push.fan_out_failed", deps.doors.fanOut);
+    reportFanOut(deps.log, fanned);
     const sent = await step("push.round_failed", round);
     if (fanned?.more !== true && (sent ?? 0) === 0 && !stopped) {
       await clock.wait(

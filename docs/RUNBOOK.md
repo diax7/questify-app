@@ -233,6 +233,11 @@ T-501b no provider exists: the center fills and every push expires unsent.
   `push.round_failed`, `push.settle_failed` or `push.ack_failed` with the SQLSTATE only (never a token, a text or a
   player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
   sent twice).
+- **Parked notice (error level):** `push.notice_parked {notice, code}`: an event notice's fan-out batch failed 3 times in
+  a row (`push.fan_out_batch_failed` logs each failure) and is skipped from now on, so the notices behind it go out.
+  Find the cause from the SQLSTATE (`57014` is the statement limit), fix it, then release the notice as the owner:
+  `UPDATE notice SET parked_at = NULL, fan_failures = 0 WHERE id = <notice>;` (it resumes from its cursor). A parked
+  notice's members already fanned keep their rows; the rest get none until it is released.
 - **Start-up (warn level, production):** `push.provider_missing {platform}` once per start for each platform with no
   provider (both until T-501b).
 - **Timing check:** `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-timing.int.test.ts` (by hand,

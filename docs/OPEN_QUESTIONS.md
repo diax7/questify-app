@@ -1282,3 +1282,7 @@ end; the provider settings and their startup check stay with T-501b's clients, T
 the request's language. The other options: follow the plan's literal wording (an index that refuses long tokens at
 insert, a quest test that disagrees with the quests list for unopened quests, a 3.5 s fan-out call), or build the
 provider settings now with no client to use them. Developer's call at the T-501 code review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501 code review (87, BLOCKER and MAJOR fixed,
+narrow re-review owed), with its fold-ins: no promotional center row without push consent, the claim's scan stopped at
+200 notices per target, a token version on each send, a failing event notice parked after 3 tries, the provider's
+deadline 500 ms early. ADR-350 Accepted.

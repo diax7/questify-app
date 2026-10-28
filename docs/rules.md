@@ -129,13 +129,17 @@ its own door takes and reads nothing of the push store, so the notice comes last
 fan-out: notice `FOR UPDATE SKIP LOCKED` → center rows (insert) → sends (insert, which takes `FOR KEY SHARE` on the
 device rows through the foreign key); enrollments, players, categories, mutes, devices and consent are read without
 locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LOCKED`, nothing else locked. The
-acknowledgement: sends by id, then devices `FOR UPDATE` in id order when marking invalid. Register: the device row by
+acknowledgement: sends by id, then devices `FOR NO KEY UPDATE` in id order when marking invalid. Register: the device row by
 family `FOR UPDATE`, then the other row holding the token (deleted); two sign-ins racing for one token retry once. No
 push door locks a player, an enrollment, a consent row or a ledger row; the foreign keys on `push_device` and
 `push_topic_mute` take `FOR KEY SHARE` on the player, which no player write conflicts with. No outside call runs inside
 a transaction. The notice carries no counters (no hot row). A fan-out planning a send for a device that a register is
 replacing can deadlock with it; PostgreSQL ends one and the other side retries (the worker's next loop, the app's next
-launch).
+launch). A register that moves a token to this sign-in deletes the other sign-in's device, which cascades to its
+sends, while an acknowledgement holding one of those sends `FOR UPDATE` may wait for that device to mark it invalid:
+the two can deadlock. PostgreSQL ends one; the register answers 503 and the app tries again at its next launch, or the
+acknowledgement is logged (`push.ack_failed`) and its rows expire to `unknown` (never sent twice). Devices are locked
+`FOR NO KEY UPDATE` by the acknowledgement, so it never waits on the fan-out's `FOR KEY SHARE`.
 
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key

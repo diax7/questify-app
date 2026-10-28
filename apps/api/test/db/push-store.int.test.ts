@@ -210,6 +210,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     });
   });
 
+  describe("a failing event notice (code review minor 4)", () => {
+    it("is counted, parked at the third failure in a row, and no longer holds up the notices behind it", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const kind = await f.kind({ class: "event" });
+      const someone = await member(event);
+      const poisoned = await f.notice(kind, { event });
+      const behind = await f.notice(kind, { event });
+      await f.owner(
+        `CREATE FUNCTION pg_temp.poison() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN
+           IF NEW.notice_id = ${Number(poisoned)} THEN RAISE EXCEPTION 'poisoned batch' USING ERRCODE = '22012'; END IF;
+           RETURN NEW;
+         END $$`,
+      );
+      await f.owner(
+        "CREATE TRIGGER push_poison BEFORE INSERT ON notification FOR EACH ROW EXECUTE FUNCTION pg_temp.poison()",
+      );
+      try {
+        const answers = [];
+        for (let i = 0; i < 3; i += 1) {
+          answers.push(
+            await f.one<Record<string, unknown>>(f.system, "SELECT push_fan_out() AS r"),
+          );
+        }
+        expect(answers).toEqual(
+          [1, 2, 3].map((n) => ({
+            rows: 0,
+            more: false,
+            failed: Number(poisoned),
+            code: "22012",
+            parked: n === 3,
+          })),
+        );
+        const [state] = await f.owner<{ fan_failures: number; parked: boolean; fanned: boolean }>(
+          "SELECT fan_failures, parked_at IS NOT NULL AS parked, fanned_at IS NOT NULL AS fanned FROM notice WHERE id = $1",
+          [poisoned],
+        );
+        expect(state).toEqual({ fan_failures: 3, parked: true, fanned: false });
+        await f.fanOut();
+        expect(await f.recipients(behind)).toEqual([someone.who]);
+        expect(await f.recipients(poisoned)).toEqual([]);
+      } finally {
+        await f.owner("DROP TRIGGER push_poison ON notification");
+      }
+    });
+
+    it("clears the count when a batch succeeds", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const kind = await f.kind({ class: "event" });
+      const someone = await member(event);
+      const id = await f.notice(kind, { event });
+      await f.owner("UPDATE notice SET fan_failures = 2 WHERE id = $1", [id]);
+      await f.fanOut();
+      expect(await f.recipients(id)).toEqual([someone.who]);
+      expect(
+        await f.count("notice WHERE id = $1 AND fan_failures = 0 AND parked_at IS NULL", [id]),
+      ).toBe(1);
+    });
+  });
+
   describe("who receives (ADR-347)", () => {
     it("active only: pending, left, removed, banned and declined enrollments, banned and deleted players and excluded players get nothing", async () => {
       const event = await f.newEvent({ phase: "live" });
@@ -735,17 +795,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       expect(await f.recipients(id)).toEqual([phone.who]);
     });
 
-    it("promo: a token alone is not consent; consent withdrawn after planning is skipped", async () => {
+    it("promo: a token alone is not consent, so no center row and no send; consent withdrawn after planning is skipped", async () => {
       await f.drain();
       const kind = await f.kind({ class: "promo", membership: "none" });
       const noConsent = await f.playerWithPhone();
+      const consentWithoutPhone = await f.newPlayer();
+      await f.consentPush(consentWithoutPhone);
       const consenting = await f.playerWithPhone();
       await f.consentPush(consenting.who);
       const a = await f.notice(kind, { player: noConsent.who });
       const b = await f.notice(kind, { player: consenting.who });
+      const c = await f.notice(kind, { player: consentWithoutPhone });
       await f.fanOut();
       expect(await f.sends(a)).toEqual([]);
-      expect(await f.recipients(a)).toEqual([noConsent.who]);
+      expect(await f.recipients(a)).toEqual([]);
+      expect(await f.recipients(c)).toEqual([consentWithoutPhone]);
+      expect(await f.recipients(b)).toEqual([consenting.who]);
       expect(await f.sends(b)).toHaveLength(1);
       await f.consentPush(consenting.who, false);
       expect(await f.claim()).toEqual([]);

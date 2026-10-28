@@ -4872,8 +4872,9 @@ arbitrary link; internal builds use production APNs.
 30 days and a new join.
 
 ## ADR-350 — Where the T-501 build fills in the push plan
-**Status:** Proposed (worker, 2026-10-28; T-501 build, `docs/plans/2026-10-28-t-501-push.md`; Q-319). Refines ADR-343
-to ADR-347 where the plan left a detail open or could not hold as written; the code review decides.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501 build, `docs/plans/2026-10-28-t-501-push.md`;
+code review 87 accepted every departure, (11) to (15) are its fold-ins; Q-319). Refines ADR-343 to ADR-348 where the
+plan left a detail open or could not hold as written.
 **Decision:** (1) `member_sees_quest` is `member_event_quests`' own listing rule (the category seen, the quest
 `visible`, a flash quest shown by `flash_shown`) **plus** the window (opened, not closed): `member_event_quests` lists
 an ordinary quest that has not opened or has closed, with its times, so "the same answer" is checked against its rows
@@ -4898,7 +4899,22 @@ planned again on every call, which made one fan-out call of 2,000 members take 3
 set (`push_live_devices`, no `SET`, tables schema-qualified, as `promo_pool`), joined by the plan and checked by
 `push_pushable`. (9) The center is rendered in the request's `accept-language`, Arabic when absent; a kind with no
 template is acknowledged `failed` (`no_template`) with no request; the worker's pool is 3 connections built from
-`poolOptions`. (10) Timing (laptop, Docker PostgreSQL 17, `test/perf/push-timing.int`): fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay.
+`poolOptions`. (10) Timing (laptop, Docker PostgreSQL 17, `test/perf/push-timing.int`): fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay. (11) **No promotional center row without consent** (developer's decision at the
+code review; refines ADR-348 (1)): the fan-out writes a promotional notice's center row only for a player in
+`promo_pool('push')` now, so nothing promotional appears in the center without the opt-in; a consent withdrawn after
+the fan-out skips the push at the claim and keeps the row. (12) The claim's loose scan stops after 200 notices per
+target (`push_queue_heads`), as many as a round can use: with 10,000 personal notices queued it visits 200, not 10,000
+(the review measured 550 ms a claim at 30,000 before, about 110 ms after). (13) Each device carries a `token_version`
+(bumped with a new token or environment) and each send records it at lease time; an invalid answer marks the device
+only while the versions match, so a registration that began before the claim and committed after it keeps its new
+token (the time comparison of (3) could lose it for 7 days). The acknowledgement locks devices `FOR NO KEY UPDATE`, so it
+never waits on the fan-out's `FOR KEY SHARE`. (14) An event notice whose batch fails 3 times in a row is parked
+(`fan_failures`, `parked_at`, alert `push.notice_parked`): the batch runs in a block that undoes it alone and counts the
+failure, a statement timeout included, so one poisoned notice no longer holds up the notices behind it every second.
+(15) The worker hands the provider a deadline 500 ms before its own timer (`PROVIDER_MARGIN_MS`), so a client giving up
+at its deadline is heard as "never written" and not counted `unknown`; and `SYSTEM_CLOCK.wait` leaves no listener on its
+signal (one `done` for the timer and the abort, registered `{ once: true }`): the worker reuses one signal for every idle
+second of its life, and the leak measured 5.5 MB a 10,000 waits.
 **Why:** each point keeps the plan's rule where the plan's literal wording could not hold (an index limit, a function
 that lists unopened quests, a regex limit) or names what the plan left to the build.
 **Trade-offs:** the visibility helpers are PL/pgSQL rather than plain SQL, so a wiring slice restating

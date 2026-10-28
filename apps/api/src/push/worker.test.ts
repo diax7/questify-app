@@ -166,6 +166,20 @@ describe("startPushWorker (ADR-345)", () => {
     await worker.stop();
   });
 
+  it("logs a failed event batch, and the parked alert at the third failure", async () => {
+    fanOuts = [
+      { rows: 0, more: false, failed: 41, code: "57014", parked: false },
+      { rows: 0, more: false, failed: 41, code: "57014", parked: true },
+    ];
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logs).toEqual([
+      ["error", { event: "push.fan_out_batch_failed", notice: 41, code: "57014" }],
+      ["error", { event: "push.notice_parked", notice: 41, code: "57014" }],
+    ]);
+    await worker.stop();
+  });
+
   it("stop() lets the wave in flight end, acknowledges it, closes the providers and waits", async () => {
     const provider = createFakeProvider("fcm", { latencyMs: 5000 });
     queue = Array.from({ length: 60 }, (_, i) => claimRow(i + 1));

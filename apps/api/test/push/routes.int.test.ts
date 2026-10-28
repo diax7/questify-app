@@ -184,6 +184,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
       for (let i = 0; i < 3; i += 1) {
         await f.notice(kind, { player, params: { event: { ar: "مهرجان", en: "Fest" } } });
       }
+      await f.consentPush(player);
       await f.notice(promo, { player });
       await waitFor(
         async () => (await f.count("notification WHERE player_id = $1", [player])) === 4,

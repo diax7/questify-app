@@ -40,7 +40,8 @@ REVOKE ALL ON notice_kind FROM PUBLIC, questify_app;
 -- One row per thing that happened. `refs` holds ids only (the kind's quest, category, reward...), `params` the frozen
 -- public names (each {ar, en}, cut in SQL to 40 characters) and dates; `dedupe` is the once-only marker. No CHECK a
 -- producer's data can fail (plan § Review 2): notice_create derives `audience` and refuses a mismatch by inserting
--- nothing. The worker advances `fan_cursor` (an enrollment id) and sets `fanned_at` when the fan-out is done.
+-- nothing. The worker advances `fan_cursor` (an enrollment id) and sets `fanned_at` when the fan-out is done; an event
+-- notice whose batch fails 3 times in a row is parked (`parked_at`), so it cannot hold up the notices behind it.
 CREATE TABLE notice (
   id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   kind         text NOT NULL REFERENCES notice_kind (kind),
@@ -53,6 +54,9 @@ CREATE TABLE notice (
   dedupe       text NOT NULL UNIQUE,
   fan_cursor   uuid,
   fanned_at    timestamptz,
+  -- Consecutive failed fan-out batches of an event notice; at 3 it is parked (never retried until someone clears it).
+  fan_failures smallint NOT NULL DEFAULT 0 CHECK (fan_failures BETWEEN 0 AND 3),
+  parked_at    timestamptz,
   expires_at   timestamptz NOT NULL,
   created_at   timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (event_id, organizer_id) REFERENCES event (id, organizer_id) ON DELETE CASCADE
@@ -94,6 +98,9 @@ CREATE TABLE push_device (
   language     text NOT NULL CHECK (language IN ('ar', 'en')),
   app_version  text NOT NULL CHECK (app_version ~ '^[0-9A-Za-z.+-]{1,20}$'),
   token_set_at timestamptz NOT NULL DEFAULT now(),
+  -- Bumped with every new token or environment; a send records the version it was claimed with, so an invalid answer
+  -- marks the device only when it still holds that token (a registration racing the claim never loses its new token).
+  token_version integer NOT NULL DEFAULT 1 CHECK (token_version >= 1),
   seen_at      timestamptz NOT NULL DEFAULT now(),
   invalid_at   timestamptz,
   invalid_code text CHECK (invalid_code ~ '^[A-Za-z0-9_]{1,40}$'),
@@ -134,6 +141,8 @@ CREATE TABLE push_send (
   attempts        smallint NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 8),
   lease_token     uuid,
   lease_until     timestamptz,
+  -- The device's token_version when this send was leased (push_ack compares it before marking the device invalid).
+  token_version   integer,
   code            text CHECK (code ~ '^[A-Za-z0-9_]{1,40}$'),
   created_at      timestamptz NOT NULL DEFAULT now(),
   sent_at         timestamptz,
@@ -415,7 +424,9 @@ REVOKE ALL ON FUNCTION push_expire_leases(integer) FROM PUBLIC;
 
 -- ================================================================ the fan-out (system context only)
 -- Personal and promotional notices (one recipient each), up to 500 a call, oldest first: a center row when the player is
--- active and the notice's membership and visibility rules hold, and its sends. Answers the center rows written.
+-- active, the notice's membership and visibility rules hold and, for a promotional kind, the player consents to push
+-- now (promo_pool: nothing promotional appears in the center without the opt-in, ADR-350 (11)); and its sends. Answers
+-- the center rows written.
 CREATE FUNCTION push_fan_out_personal() RETURNS jsonb
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
@@ -432,9 +443,10 @@ BEGIN
     INSERT INTO notification (notice_id, player_id, event_id)
     SELECT nt.id, nt.player_id, nt.event_id
     FROM notice nt
+    JOIN notice_kind k ON k.kind = nt.kind
     JOIN player p ON p.id = nt.player_id AND p.status = 'active'
     LEFT JOIN enrollment n ON n.event_id = nt.event_id AND n.player_id = nt.player_id
-    WHERE nt.id = ANY (due) AND notice_member_ok(nt, n)
+    WHERE nt.id = ANY (due) AND notice_member_ok(nt, n) AND (k.class <> 'promo' OR push_consented(nt.player_id))
     ORDER BY nt.id
     ON CONFLICT (notice_id, player_id) DO NOTHING
     RETURNING id)
@@ -445,29 +457,16 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION push_fan_out_personal() FROM PUBLIC;
 
--- The oldest unfanned event notice (SKIP LOCKED: two workers take two notices): the next 2,000 enrollments of its event
--- after the cursor, in id order, read without locks; a center row for each active player passing the membership,
--- visibility and audience rules, and its sends; the cursor advances, and the notice is done once a batch comes back
--- short. An archived event's notice is done at once with no row (plan § Review 1).
-CREATE FUNCTION push_fan_out_event() RETURNS jsonb
+-- One batch of an event notice: the next 2,000 enrollments of its event after the cursor, in id order, read without
+-- locks; a center row for each active player passing the membership, visibility and audience rules, and its sends; the
+-- cursor advances, and the notice is done once a batch comes back short (a success also clears its failure count).
+CREATE FUNCTION push_fan_out_batch(nt notice) RETURNS jsonb
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
-  nt     notice;
-  status text;
-  made   bigint[];
-  last   uuid;
-  seen   integer;
+  made bigint[];
+  last uuid;
+  seen integer;
 BEGIN
-  SELECT x.* INTO nt FROM notice x WHERE x.audience = 'event' AND x.fanned_at IS NULL
-  ORDER BY x.id LIMIT 1 FOR UPDATE SKIP LOCKED;
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-  SELECT event_status_now(e.status, e.starts_at, e.ends_at) INTO status FROM event e WHERE e.id = nt.event_id;
-  IF status IS NULL OR status = 'archived' THEN
-    UPDATE notice x SET fanned_at = now() WHERE x.id = nt.id;
-    RETURN jsonb_build_object('rows', 0, 'more', true);
-  END IF;
   WITH batch AS MATERIALIZED (
     SELECT n.id, n.player_id,
            p.status = 'active' AND notice_member_ok(nt, n) AND notice_audience_ok(nt, n) AS ok
@@ -484,15 +483,64 @@ BEGIN
          (SELECT count(*)::integer FROM batch)
   INTO made, last, seen;
   UPDATE notice x
-  SET fan_cursor = coalesce(last, x.fan_cursor), fanned_at = CASE WHEN seen < 2000 THEN now() END
+  SET fan_cursor = coalesce(last, x.fan_cursor), fanned_at = CASE WHEN seen < 2000 THEN now() END, fan_failures = 0
   WHERE x.id = nt.id;
   PERFORM push_plan(made);
   RETURN jsonb_build_object('rows', cardinality(made), 'more', true);
 END $$;
+REVOKE ALL ON FUNCTION push_fan_out_batch(notice) FROM PUBLIC;
+
+-- A failed batch (its work already rolled back to the block's savepoint): counted on the notice, parked at the third
+-- failure in a row; answers what the worker logs (`failed`, the SQLSTATE, `parked`), with `more` false so the next try
+-- waits for the worker's idle second.
+CREATE FUNCTION push_fan_out_failed(target bigint, state text) RETURNS jsonb
+  LANGUAGE sql SET search_path = public, pg_temp AS $$
+  WITH counted AS (
+    UPDATE notice x
+    SET fan_failures = least(x.fan_failures + 1, 3), parked_at = CASE WHEN x.fan_failures + 1 >= 3 THEN now() END
+    WHERE x.id = target
+    RETURNING x.parked_at IS NOT NULL AS parked)
+  SELECT jsonb_build_object('rows', 0, 'more', false, 'failed', target, 'code', state,
+                            'parked', coalesce((SELECT c.parked FROM counted c), false))
+$$;
+REVOKE ALL ON FUNCTION push_fan_out_failed(bigint, text) FROM PUBLIC;
+
+-- The oldest unfanned, unparked event notice (SKIP LOCKED: two workers take two notices), and one batch of it. An
+-- archived event's notice is done at once with no row (plan § Review 1). A batch that fails for any reason, a statement
+-- timeout included, is undone alone and counted (push_fan_out_failed), so one poisoned notice is parked after 3 tries
+-- instead of being retried every second ahead of the notices behind it.
+CREATE FUNCTION push_fan_out_event() RETURNS jsonb
+  LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  nt     notice;
+  status text;
+  state  text;
+BEGIN
+  SELECT x.* INTO nt FROM notice x WHERE x.audience = 'event' AND x.fanned_at IS NULL AND x.parked_at IS NULL
+  ORDER BY x.id LIMIT 1 FOR UPDATE SKIP LOCKED;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  SELECT event_status_now(e.status, e.starts_at, e.ends_at) INTO status FROM event e WHERE e.id = nt.event_id;
+  IF status IS NULL OR status = 'archived' THEN
+    UPDATE notice x SET fanned_at = now() WHERE x.id = nt.id;
+    RETURN jsonb_build_object('rows', 0, 'more', true);
+  END IF;
+  BEGIN
+    RETURN push_fan_out_batch(nt);
+  EXCEPTION
+    WHEN query_canceled THEN
+      GET STACKED DIAGNOSTICS state = RETURNED_SQLSTATE;
+    WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS state = RETURNED_SQLSTATE;
+  END;
+  RETURN push_fan_out_failed(nt.id, state);
+END $$;
 REVOKE ALL ON FUNCTION push_fan_out_event() FROM PUBLIC;
 
 -- The fan-out door (ADR-345 (1)): personal notices first (a decision's push about a second after it), else one batch
--- of the oldest event notice. `{rows, more}`: `more` while either may have work left.
+-- of the oldest event notice. `{rows, more}`: `more` while either may have work left; a failed event batch adds
+-- `failed` (the notice), `code` (its SQLSTATE) and `parked`.
 CREATE FUNCTION push_fan_out() RETURNS jsonb
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -511,24 +559,26 @@ REVOKE ALL ON FUNCTION push_fan_out() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION push_fan_out() TO questify_app;
 
 -- ================================================================ the claim (system context only; ADR-345 (1))
--- The notices with queued rows for the targets, in priority then notice order, each with the targets it has rows on:
--- a loose index scan of push_send_queue (one probe per notice and target), never a sort over the queue.
+-- The first notices with queued rows for the targets, in priority then notice order, each with the targets it has rows
+-- on: a loose index scan of push_send_queue (one probe per notice and target) that stops after 200 notices per target,
+-- as many as a round of 200 rows can use, so a claim never visits the whole queue (T-501 code review MAJOR).
 CREATE FUNCTION push_queue_heads(allowed text[])
   RETURNS TABLE (priority smallint, notice_id bigint, targets text[])
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   WITH RECURSIVE heads AS (
-    SELECT f.target, f.priority, f.notice_id
+    SELECT f.target, f.priority, f.notice_id, 1 AS depth
     FROM unnest(allowed) a (target)
     CROSS JOIN LATERAL (SELECT s.target, s.priority, s.notice_id FROM push_send s
                         WHERE s.state = 'queued' AND s.target = a.target
                         ORDER BY s.priority, s.notice_id LIMIT 1) f
     UNION ALL
-    SELECT nx.target, nx.priority, nx.notice_id
+    SELECT nx.target, nx.priority, nx.notice_id, h.depth + 1
     FROM heads h
     CROSS JOIN LATERAL (SELECT s.target, s.priority, s.notice_id FROM push_send s
                         WHERE s.state = 'queued' AND s.target = h.target
                           AND (s.priority, s.notice_id) > (h.priority, h.notice_id)
-                        ORDER BY s.priority, s.notice_id LIMIT 1) nx)
+                        ORDER BY s.priority, s.notice_id LIMIT 1) nx
+    WHERE h.depth < 200)
   SELECT h.priority, h.notice_id, array_agg(h.target ORDER BY h.target)
   FROM heads h GROUP BY h.priority, h.notice_id ORDER BY h.priority, h.notice_id
 $$;
@@ -638,8 +688,10 @@ BEGIN
     UPDATE push_send s SET state = 'skipped', code = c.why, finished_at = now()
     FROM checked c WHERE s.id = c.id AND c.why IS NOT NULL RETURNING s.id),
   leased AS (
-    UPDATE push_send s SET state = 'sending', lease_token = gen_random_uuid(), lease_until = now() + interval '60 seconds'
-    FROM checked c WHERE s.id = c.id AND c.why IS NULL
+    UPDATE push_send s
+    SET state = 'sending', lease_token = gen_random_uuid(), lease_until = now() + interval '60 seconds',
+        token_version = d.token_version
+    FROM checked c, push_device d WHERE s.id = c.id AND c.why IS NULL AND d.id = s.device_id
     RETURNING s.*)
   SELECT l.id, l.lease_token, l.lease_until, l.target, d.token, d.language, nt.kind, k.class, k.topic, c.id,
          nt.event_id, nt.refs, nt.params, l.expires_at, l.priority, l.attempts, e.config -> 'terms', e.timezone
@@ -658,8 +710,10 @@ GRANT EXECUTE ON FUNCTION push_claim(text[], integer) TO questify_app;
 -- One statement a wave (ADR-345 (2)): each row changes only while it is still `sending` with its lease (a late answer
 -- after expiry changes nothing). `sent`, `unknown` and `failed` are final; `requeue` puts the row back to `queued` with
 -- its lease cleared (`failed` with code `attempts` once it reached 8); `invalid` is `failed`, and its device is marked
--- invalid unless the token or environment changed after the claim. `attempts` is the worker's count of requests written,
--- never lowered, written as least(n, 8). Devices are locked in id order after the sends. Answers the rows changed.
+-- invalid only while it still holds the token version the send was claimed with (a new token or environment registered
+-- after the claim read the device, even by a registration that began before it, keeps the device). `attempts` is the
+-- worker's count of requests written, never lowered, written as least(n, 8). Devices are locked FOR NO KEY UPDATE in id
+-- order after the sends (no wait on the fan-out's KEY SHARE). Answers the rows changed.
 CREATE FUNCTION push_ack(ids bigint[], leases uuid[], outcomes text[], codes text[], tries smallint[]) RETURNS integer
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -679,9 +733,9 @@ BEGIN
   PERFORM 1 FROM push_device d
   WHERE d.id IN (SELECT s.device_id FROM unnest(ids, outcomes) a (id, outcome) JOIN push_send s ON s.id = a.id
                  WHERE a.outcome = 'invalid')
-  ORDER BY d.id FOR UPDATE;
+  ORDER BY d.id FOR NO KEY UPDATE;
   WITH hit AS (
-    SELECT s.id, s.device_id, s.lease_until, a.outcome,
+    SELECT s.id, s.device_id, s.token_version, a.outcome,
            CASE WHEN a.code ~ '^[A-Za-z0-9_]{1,40}$' THEN a.code END AS code,
            least(greatest(coalesce(a.tried, s.attempts), s.attempts), 8)::smallint AS tried
     FROM unnest(ids, leases, outcomes, codes, tries) a (id, lease, outcome, code, tried)
@@ -690,7 +744,7 @@ BEGIN
     UPDATE push_device d SET invalid_at = now(), invalid_code = coalesce(h.code, 'invalid')
     FROM hit h
     WHERE h.outcome = 'invalid' AND d.id = h.device_id AND d.invalid_at IS NULL
-      AND d.token_set_at <= h.lease_until - interval '60 seconds'
+      AND d.token_version = h.token_version
     RETURNING d.id),
   moved AS (
     UPDATE push_send s
@@ -882,6 +936,9 @@ BEGIN
             token_set_at = CASE WHEN (d.platform, d.token, d.environment)
                                      IS DISTINCT FROM (EXCLUDED.platform, EXCLUDED.token, EXCLUDED.environment)
                                 THEN now() ELSE d.token_set_at END,
+            token_version = CASE WHEN (d.platform, d.token, d.environment)
+                                      IS DISTINCT FROM (EXCLUDED.platform, EXCLUDED.token, EXCLUDED.environment)
+                                 THEN d.token_version + 1 ELSE d.token_version END,
             invalid_at = CASE WHEN (d.platform, d.token, d.environment)
                                    IS DISTINCT FROM (EXCLUDED.platform, EXCLUDED.token, EXCLUDED.environment)
                               THEN NULL ELSE d.invalid_at END,

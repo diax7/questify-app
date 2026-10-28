@@ -109,7 +109,6 @@ export function pushMoment(
   }
 }
 
-/** The values for a text's placeholders, or null when one of its names or moments cannot be shown. */
 /** One name or moment placeholder's value, or null when it cannot be shown (a word placeholder answers undefined). */
 function placeholderValue(
   name: string,
@@ -125,6 +124,7 @@ function placeholderValue(
   return PUSH_TERM_PLACEHOLDERS.includes(name) ? undefined : null;
 }
 
+/** The values for a text's placeholders, or null when one of its names or moments cannot be shown. */
 function valuesFor(text: string, content: NoticeContent): Readonly<Record<string, string>> | null {
   const params = isRecord(content.params) ? content.params : {};
   const values: Record<string, string> = {

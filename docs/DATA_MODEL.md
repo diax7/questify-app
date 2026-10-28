@@ -598,20 +598,23 @@ ADR-151):
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment
-  id), fanned_at, expires_at, created_at)`: one row per thing that happened, written only by `notice_create` (one
+  id), fanned_at, fan_failures 0–3, parked_at (an event notice whose batch failed 3 times in a row), expires_at,
+  created_at)`: one row per thing that happened, written only by `notice_create` (one
   insert; a mismatch inserts nothing). Indexes: unfanned by audience and id; by player.
 - `notification(id bigint identity, notice_id → notice CASCADE, player_id (no foreign key: the fan-out never locks
   players), event_id, created_at, read_at, UNIQUE (notice_id, player_id))`: **the center**, one row per recipient, the
   record of every message whether pushed or not. Indexes: (player_id, id DESC); unread by player.
 - `push_device(id, player_id → player, family UNIQUE (the sign-in's refresh family), platform ios|android, token
   (iOS hex lower-case 64–200; Android 20–2048 of `[A-Za-z0-9_:-]`), environment sandbox|production (iOS only),
-  language ar|en, app_version, token_set_at, seen_at, invalid_at, invalid_code, UNIQUE (platform, token))`: one per
+  language ar|en, app_version, token_set_at, token_version (bumped with each new token or environment), seen_at,
+  invalid_at, invalid_code, UNIQUE (platform, token))`: one per
   sign-in on a phone; pushable only while its family holds a live refresh token, it is not marked invalid and it was
   seen in the last 60 days.
 - `push_topic_mute(player_id → player, topic, muted_at, PK (player_id, topic))`.
 - `push_send(id bigint identity, notification_id → notification CASCADE, device_id → push_device CASCADE, notice_id,
   target apns:production|apns:sandbox|fcm, priority, expires_at, state queued|sending|sent|unknown|failed|expired|skipped,
-  attempts 0–8 (requests written), lease_token, lease_until, code (a provider code or a skip reason only), created_at,
+  attempts 0–8 (requests written), lease_token, lease_until, token_version (the device's at lease time; an invalid
+  answer marks the device only while it still matches), code (a provider code or a skip reason only), created_at,
   sent_at, finished_at)`: the outbox. Indexes: (target, priority, notice_id, id) and (expires_at) where queued, leases by
   expiry, by device.
 - `player (deleted_at) WHERE status = 'deleted'`: settle's bounded scan of recent erasures.

@@ -791,6 +791,12 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     variant; no kind template yet). The FR are partly delivered until T-501b to T-501g (SRS). ADR-350 and Q-319
     Proposed (build departures). Mutation globs: `apps/api/src/push/**/*.ts` (not `fake.ts`), `packages/shared/src/push/**/*.ts`,
     `apps/api/src/players/profile.ts`, `apps/api/src/players/guard.ts`.
+  - Code review 2026-10-28 (core): 87, NO-GO until the BLOCKER and MAJOR; both fixed with every minor folded:
+    `SYSTEM_CLOCK.wait` leaves no listener on the worker's reused signal (unit test on `getEventListeners`), the claim's
+    loose scan stops at 200 notices per target (10,000 queued personal notices: 200 heads), devices locked `FOR NO KEY
+    UPDATE` by the ack, a token version per send, no promotional center row without push consent, a failing event
+    notice parked after 3 tries, the provider's deadline 500 ms early, the register/ack deadlock in `docs/rules.md`.
+    ADR-350 Accepted, Q-319 answered. Narrow re-review owed.
   - Note 2026-10-27 (T-406): a daily games reminder, if any, follows ADR-300 (no countdown, no loss copy, a date not a
     timer) and never names the word or an answer.
   - Note 2026-10-25 (T-312): one push per closed ticket with fixed text by team ("The event team answered you" / "The Questify team answered you" / "Your request was marked solved"), never the text; no push when a ticket is escalated or sent back. The profile dot (`GET /v1/me` `help.unread`) stays the in-app signal.
@@ -841,7 +847,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     `requeue` carries `written`), the request builders `apnsRequest` and `fcmRequest` (`src/push/message.ts`), the worker's
     breaker, holds and mass-invalid guard (`src/push/targets.ts`, `round.ts`), and `server.ts` passing `providers: []`. The
     provider settings, their all-or-none and key checks and the startup token check are this slice's.
-  - Done when: With no keys set the server starts and sends nothing; an `Unregistered` answer always removes the token, a round of mostly ambiguous token answers holds only that target, and a provider outage requeues messages instead of losing them.
+  - Note 2026-10-28 (T-501 code review, minor 6): the worker gives the provider a deadline 500 ms before its own timer
+    (`PROVIDER_MARGIN_MS` in `src/push/send.ts`); each client must give up by that deadline and answer `requeue` with
+    `written: false` when the request never left, or the worker counts the attempt as `unknown`.
+  - Done when: With no keys set the server starts and sends nothing; a partial or malformed provider setting (`APNS_*` all or none, `FCM_SERVICE_ACCOUNT` parseable with an RSA key, the `.p8` an EC P-256 key) refuses to start; an `Unregistered` answer always removes the token, a round of mostly ambiguous token answers holds only that target, and a provider outage requeues messages instead of losing them.
 - [ ] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-349). Standard; plan: `docs/plans/2026-10-28-t-501-push.md` ("The app").
     Absorbs T-312b. New dependencies `expo-notifications` and `expo-application` (the APNs environment; a new

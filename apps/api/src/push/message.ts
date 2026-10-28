@@ -26,13 +26,13 @@ export type ClaimedSend = Readonly<{
 const REF_KEY = /^[a-z][A-Za-z]{0,30}$/;
 const REF_VALUE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9]{1,18})$/;
 
-/** The notice's reference ids, and nothing else: a key that is not a name or a value that is not an id is dropped. */
 /** A reference's value as id text, or null when it is not an id. */
 function idText(value: unknown): string | null {
   const text = typeof value === "number" ? String(value) : value;
   return typeof text === "string" && REF_VALUE.test(text) ? text : null;
 }
 
+/** The notice's reference ids, and nothing else: a key that is not a name or a value that is not an id is dropped. */
 export function refIds(refs: unknown): Readonly<Record<string, string>> {
   if (typeof refs !== "object" || refs === null || Array.isArray(refs)) return {};
   const kept: Record<string, string> = {};

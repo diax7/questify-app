@@ -1,8 +1,10 @@
+import { getEventListeners } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeProvider, type FakeProvider } from "#src/push/fake";
 import type { PushMessage, PushResult } from "#src/push/provider";
 import {
   ATTEMPT_MS,
+  PROVIDER_MARGIN_MS,
   SYSTEM_CLOCK,
   sendRow,
   type Attempted,
@@ -121,7 +123,7 @@ describe("sendRow (plan § Review 3)", () => {
       attempts: 1,
     });
     expect(provider.sent[0]?.deadline.getTime()).toBe(
-      Date.now() - (performance.now() - started) + ATTEMPT_MS,
+      Date.now() - (performance.now() - started) + ATTEMPT_MS - PROVIDER_MARGIN_MS,
     );
   });
 
@@ -216,5 +218,37 @@ describe("sendRow (plan § Review 3)", () => {
       outcome: "unknown",
       code: "timeout",
     });
+  });
+});
+
+describe("SYSTEM_CLOCK.wait (T-501 code review BLOCKER)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance", "Date"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("leaves no abort listener on a reused signal, after the timer or the abort ends a wait", async () => {
+    const sleeping = new AbortController();
+    for (let i = 0; i < 1000; i += 1) {
+      const waited = SYSTEM_CLOCK.wait(1000, sleeping.signal);
+      await vi.advanceTimersByTimeAsync(1000);
+      await waited;
+    }
+    expect(getEventListeners(sleeping.signal, "abort")).toHaveLength(0);
+    const stopped = SYSTEM_CLOCK.wait(60_000, sleeping.signal);
+    expect(getEventListeners(sleeping.signal, "abort")).toHaveLength(1);
+    sleeping.abort();
+    await stopped;
+    expect(getEventListeners(sleeping.signal, "abort")).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("returns at once on a signal already aborted", async () => {
+    const aborted = new AbortController();
+    aborted.abort();
+    await SYSTEM_CLOCK.wait(60_000, aborted.signal);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

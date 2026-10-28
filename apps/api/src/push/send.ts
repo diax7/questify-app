@@ -4,6 +4,11 @@ import type { TargetState } from "#src/push/targets";
 
 /** One request's own limit: an attempt starts only when it can end this long before the round's deadline. */
 export const ATTEMPT_MS = 10_000;
+/**
+ * The provider must answer this much before the worker's own timer, so a client that gives up at its deadline ("never
+ * written") is heard before the timer counts the attempt as `unknown` (T-501 code review, minor 6).
+ */
+export const PROVIDER_MARGIN_MS = 500;
 /** The most tries one row gets inside one lease (with the waits, about 33 s of the 58 s). */
 export const TRIES_PER_LEASE = 3;
 /** Requests written for one row before it fails for good (push_send.attempts). */
@@ -13,7 +18,8 @@ const RETRY_WAITS_MS = [1000, 2000];
 
 /**
  * The worker's clocks: monotonic for deadlines, wall for provider deadlines and settle; `wait` sleeps, and ends early
- * (resolving) when its signal aborts.
+ * (resolving) when its signal aborts. A wait leaves nothing on the signal: the worker reuses one signal for every idle
+ * sleep of its life.
  */
 export type PushClock = Readonly<{
   now: () => number;
@@ -26,11 +32,18 @@ export const SYSTEM_CLOCK: PushClock = {
   wallNow: () => Date.now(),
   wait: (ms, signal) =>
     new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms);
-      signal?.addEventListener("abort", () => {
-        clearTimeout(timer);
+      if (signal?.aborted === true) {
         resolve();
-      });
+        return;
+      }
+      // One ending for both ways out: the timer firing removes the listener, the abort clears the timer.
+      const done = (): void => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", done);
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      signal?.addEventListener("abort", done, { once: true });
     }),
 };
 
@@ -62,7 +75,7 @@ async function sendWithin(
   message: PushMessage,
 ): Promise<PushResult> {
   const limit = Math.min(ATTEMPT_MS, context.deadline - context.clock.now());
-  const deadline = new Date(context.clock.wallNow() + limit);
+  const deadline = new Date(context.clock.wallNow() + limit - PROVIDER_MARGIN_MS);
   const stop = new AbortController();
   const timer = context.clock.wait(limit, stop.signal).then(() => TIMED_OUT);
   try {
