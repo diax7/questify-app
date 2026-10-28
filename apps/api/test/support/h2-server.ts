@@ -46,6 +46,8 @@ export type FakeH2 = Readonly<{
   seen: Seen[];
   /** Connections opened so far. */
   sessions: () => number;
+  /** Connections open now. */
+  open: () => number;
   /** The most streams that were open at once. */
   maxOpen: () => number;
   /** Sends a new SETTINGS_MAX_CONCURRENT_STREAMS on every open connection. */
@@ -78,7 +80,7 @@ function act(stream: ServerHttp2Stream, reply: Reply): void {
  */
 export async function startH2Server(
   reply: (seen: Seen) => Reply | Promise<Reply>,
-  options: Readonly<{ maxConcurrentStreams?: number }> = {},
+  options: Readonly<{ maxConcurrentStreams?: number; port?: number }> = {},
 ): Promise<FakeH2> {
   const server = createServer({
     settings: { maxConcurrentStreams: options.maxConcurrentStreams ?? 1000 },
@@ -116,13 +118,14 @@ export async function startH2Server(
     });
   });
   await new Promise<void>((resolve) => {
-    server.listen(0, "127.0.0.1", resolve);
+    server.listen(options.port ?? 0, "127.0.0.1", resolve);
   });
   const { port } = server.address() as AddressInfo;
   return {
     origin: `http://127.0.0.1:${port}`,
     seen,
     sessions: () => sessions,
+    open: () => open.size,
     maxOpen: () => maxOpen,
     allowStreams: (max) => {
       for (const session of open.keys()) session.settings({ maxConcurrentStreams: max });

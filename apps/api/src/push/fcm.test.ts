@@ -55,6 +55,9 @@ const fcmDetail = (errorCode: string) => ({
   "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
   errorCode,
 });
+/** Whether a 400 with this one detail names the registration token. */
+const namedBy = (detail: unknown): boolean =>
+  fcmError(JSON.stringify(fcmBody(400, "INVALID_ARGUMENT", [detail]))).tokenNamed;
 
 /** A token answer that comes after 1.5 s. */
 const slowToken = () =>
@@ -84,17 +87,53 @@ beforeAll(() => {
   };
 });
 
+// Equivalent mutants left alive: fcmError's empty catch (the unparsed body reads as no error all the same), its `[]`
+// fallback and message fallback (a stand-in is filtered out or names no token), bearerBy's clearTimeout (the late timer
+// only settles a race already over), the `fetch` spread (the token source falls back to `fetch`), and the
+// `kind === "answer"` checks around a status (a request never answered has no status, and only an answer fails).
 describe("fcmError and fcmResult without a network", () => {
+  const nothing = { errorCode: null, status: null, tokenNamed: false };
+
   it("reads FCM's own code, Google's status and whether the token is named, and nothing else", () => {
     expect(
       fcmError(JSON.stringify(fcmBody(404, "NOT_FOUND", [fcmDetail("UNREGISTERED")]))),
     ).toEqual({ errorCode: "UNREGISTERED", status: "NOT_FOUND", tokenNamed: false });
-    expect(fcmError("<html>")).toEqual({ errorCode: null, status: null, tokenNamed: false });
-    expect(fcmError(JSON.stringify({ error: { status: `bad ${DEVICE}` } }))).toEqual({
-      errorCode: null,
-      status: null,
-      tokenNamed: false,
-    });
+    expect(fcmError("<html>")).toEqual(nothing);
+    expect(fcmError(JSON.stringify({ error: { status: `bad ${DEVICE}` } }))).toEqual(nothing);
+  });
+
+  it("reads nothing from a body of another shape, and codes only where Google puts them", () => {
+    for (const body of ["null", "5", '"refused"', "{}", '{"error":null}']) {
+      expect(fcmError(body), body).toEqual(nothing);
+    }
+    const otherDetail = {
+      "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+      errorCode: "QUOTA_EXCEEDED",
+    };
+    expect(
+      fcmError(
+        JSON.stringify(
+          fcmBody(404, "NOT_FOUND", [null, 5, "x", otherDetail, fcmDetail("UNREGISTERED")]),
+        ),
+      ),
+    ).toEqual({ errorCode: "UNREGISTERED", status: "NOT_FOUND", tokenNamed: false });
+    for (const [status, errorCode] of [
+      [["NOT_FOUND"], ["UNREGISTERED"]],
+      ["UNAVAILABLE now", "x UNREGISTERED"],
+    ]) {
+      const body = { error: { status, details: [{ ...fcmDetail(""), errorCode }] } };
+      expect(fcmError(JSON.stringify(body))).toEqual(nothing);
+    }
+  });
+
+  it("finds the token named only by a BadRequest violation on message.token", () => {
+    const fieldViolations = [{ field: "message.data" }, { field: "message.token" }];
+    expect(namedBy({ "@type": "type.googleapis.com/google.rpc.BadRequest", fieldViolations })).toBe(
+      true,
+    );
+    expect(namedBy({ "@type": "type.googleapis.com/google.rpc.ErrorInfo", fieldViolations })).toBe(
+      false,
+    );
   });
 
   it("maps a request never written to requeue, a lost one to unknown, a bare 5xx to requeue", () => {
@@ -104,7 +143,7 @@ describe("fcmError and fcmResult without a network", () => {
       written: false,
     });
     expect(fcmResult({ kind: "lost", code: "reset" })).toEqual({ kind: "unknown", code: "reset" });
-    expect(fcmResult({ kind: "answer", status: 502, headers: {}, body: "" })).toEqual({
+    expect(fcmResult({ kind: "answer", status: 502, headers: {}, body: "" })).toStrictEqual({
       kind: "requeue",
       code: "http_502",
       written: true,
@@ -114,6 +153,16 @@ describe("fcmError and fcmResult without a network", () => {
       code: "http_404",
     });
   });
+
+  it("holds on a bare 401, and takes a named token as invalid only on a 400", () => {
+    expect(fcmResult({ kind: "answer", status: 401, headers: {}, body: "" })).toEqual(
+      hold("http_401"),
+    );
+    const notValid = fcmBody(404, "NOT_FOUND", [], "not a valid FCM registration token");
+    expect(
+      fcmResult({ kind: "answer", status: 404, headers: {}, body: JSON.stringify(notValid) }),
+    ).toEqual({ kind: "failed", code: "NOT_FOUND" });
+  });
 });
 
 describe("the FCM client against a local HTTP/2 server", () => {
@@ -121,6 +170,7 @@ describe("the FCM client against a local HTTP/2 server", () => {
   let next: (index: number) => Reply = accepted;
   let provider: PushProvider;
   let logs: Array<Record<string, unknown>>;
+  let levels: string[];
   let google: ReturnType<typeof tokenEndpoint>;
 
   beforeAll(async () => {
@@ -136,10 +186,14 @@ describe("the FCM client against a local HTTP/2 server", () => {
     now?: () => number,
   ): PushProvider => {
     logs = [];
+    levels = [];
     google = tokenEndpoint(tokens);
     provider = createFcmProvider({
       settings,
-      log: (_level, fields) => logs.push(fields),
+      log: (level, fields) => {
+        levels.push(level);
+        logs.push(fields);
+      },
       origin: server.origin,
       fetch: google.fetch,
       ...(now === undefined ? {} : { now }),
@@ -231,6 +285,7 @@ describe("the FCM client against a local HTTP/2 server", () => {
     fresh([() => Response.json({ error: "invalid_grant" }, { status: 400 })]);
     await settled();
     expect(logs).toEqual([{ event: "push.fcm_auth_failed", status: 400, code: "invalid_grant" }]);
+    expect(levels).toEqual(["error"]);
     const result = await provider.send(message, soon());
     expect(result).toMatchObject({ kind: "hold", code: "fcm_auth" });
     expect(server.seen).toHaveLength(0);
@@ -244,8 +299,82 @@ describe("the FCM client against a local HTTP/2 server", () => {
     ]);
     await settled();
     expect(logs).toEqual([{ event: "push.fcm_auth_failed", status: null, code: "unreachable" }]);
+    expect(levels).toEqual(["error"]);
     expect(await provider.send(message, soon())).toEqual({ kind: "sent" });
     expect(google.calls).toHaveLength(2);
+  });
+
+  it("waits for a slow token while the deadline allows", async () => {
+    fresh([
+      () => {
+        throw new TypeError("fetch failed");
+      },
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(Response.json({ access_token: "slow", expires_in: 3600 })), 100);
+        }),
+    ]);
+    await settled();
+    expect(await provider.send(message, soon())).toEqual({ kind: "sent" });
+    expect(server.seen[0]?.headers["authorization"]).toBe("Bearer slow");
+  });
+
+  it("requeues untried when no new token can be had after a 401", async () => {
+    next = (index) =>
+      index === 0 ? { status: 401, body: fcmBody(401, "UNAUTHENTICATED", []) } : accepted();
+    fresh([
+      () => Response.json({ access_token: "ya29.first", expires_in: 3600 }),
+      () => {
+        throw new TypeError("fetch failed");
+      },
+    ]);
+    await settled();
+    expect(await provider.send(message, soon())).toEqual({
+      kind: "requeue",
+      code: "token_unreachable",
+      written: false,
+    });
+    expect(server.seen).toHaveLength(1);
+  });
+
+  it("alerts once for refusals that overlap, tells the hold left, and asks again when it ends", async () => {
+    const start = 1_700_000_000_000;
+    let clock = start;
+    next = () => ({ status: 401, body: fcmBody(401, "UNAUTHENTICATED", []) });
+    fresh([], () => clock);
+    await settled();
+    const both = await Promise.all([
+      provider.send(message, soon()),
+      provider.send(message, soon()),
+    ]);
+    expect(both).toEqual([hold("fcm_auth"), hold("fcm_auth")]);
+    expect(logs).toHaveLength(1);
+    clock += 60_000;
+    expect(await provider.send(message, soon())).toEqual(hold("fcm_auth", FCM_HOLD_MS - 60_000));
+    const asked = server.seen.length;
+    clock = start + FCM_HOLD_MS;
+    expect(await provider.send(message, soon())).toEqual(hold("fcm_auth"));
+    expect(server.seen).toHaveLength(asked + 2);
+    expect(levels).toEqual(["error", "error"]);
+  });
+
+  it("names the HTTP status when a refused token's answer carries no code", async () => {
+    next = () => ({ status: 401 });
+    fresh();
+    await settled();
+    expect(await provider.send(message, soon())).toEqual(hold("fcm_auth"));
+    expect(logs).toEqual([{ event: "push.fcm_auth_failed", status: 401, code: "http_401" }]);
+  });
+
+  it("requeues untried once closed", async () => {
+    fresh();
+    await settled();
+    await provider.close();
+    expect(await provider.send(message, soon())).toEqual({
+      kind: "requeue",
+      code: "closed",
+      written: false,
+    });
   });
 
   it("requeues untried when the token cannot be had: unreachable, a 5xx, or not by the deadline", async () => {
@@ -387,6 +516,8 @@ describe("the FCM client against a local HTTP/2 server", () => {
     fresh();
     await settled();
     expect(await provider.send(message, soon())).toEqual(expected);
+    const refused = [expect.objectContaining({ event: "push.fcm_refused" })];
+    expect(logs).toEqual(expected.kind === "failed" ? refused : []);
   });
 
   it("logs a refusal that is our own bug with the status and code only", async () => {
@@ -395,6 +526,7 @@ describe("the FCM client against a local HTTP/2 server", () => {
     await settled();
     await provider.send(message, soon());
     expect(logs).toEqual([{ event: "push.fcm_refused", status: 400, code: "INVALID_ARGUMENT" }]);
+    expect(levels).toEqual(["error"]);
   });
 
   it("answers unknown for a reset or a timeout after the write", async () => {

@@ -6,6 +6,7 @@ import {
   APNS_HOLD_MS,
   APNS_ORIGINS,
   APNS_TOKEN_REFRESH_MS,
+  apnsReason,
   apnsResult,
   createApnsProvider,
   createApnsToken,
@@ -35,6 +36,10 @@ const soon = (ms = 2000): Date => new Date(Date.now() + ms);
 /** An answer with a status and no body. */
 const bare = (status: number): PushResult =>
   apnsResult({ kind: "answer", status, headers: {}, body: "" });
+
+/** A 400 answer carrying Apple's `reason`. */
+const at400 = (reason: string): PushResult =>
+  apnsResult({ kind: "answer", status: 400, headers: {}, body: JSON.stringify({ reason }) });
 
 const accept = (): Reply => ({ status: 200 });
 
@@ -104,9 +109,13 @@ describe("createApnsToken", () => {
       "APNS_PRIVATE_KEY could not sign the APNs provider token.",
     );
     expect(String((error as Error).message)).not.toContain(pem.slice(40, 80));
+    expect((error as Error).cause).toBeInstanceOf(Error);
   });
 });
 
+// Equivalent mutants left alive: apnsReason's `kind !== "answer"` guard and its `?.reason` (a missing body or a null
+// one throws into the same catch), `reason === null ? undefined` (the table has no null key), replacesConnection's
+// `?? ""` (no stand-in is a reason Apple never processed) and ourBug's `answer.kind !== "answer"` (only an answer fails).
 describe("apnsResult without a network", () => {
   it("maps a request never written to requeue, uncounted, and a lost one to unknown", () => {
     expect(apnsResult({ kind: "not_sent", code: "ECONNREFUSED" })).toEqual({
@@ -141,17 +150,46 @@ describe("apnsResult without a network", () => {
         body: JSON.stringify({ reason: `token ${DEVICE}` }),
       }),
     ).toEqual({ kind: "failed", code: "http_400" });
-    expect(apnsResult({ kind: "answer", status: 400, headers: {}, body: "not json" })).toEqual({
-      kind: "failed",
-      code: "http_400",
-    });
+    for (const body of [
+      "not json",
+      JSON.stringify({ reason: ["BadDeviceToken"] }),
+      JSON.stringify({ reason: "Bad reason" }),
+    ]) {
+      expect(apnsResult({ kind: "answer", status: 400, headers: {}, body }), body).toEqual({
+        kind: "failed",
+        code: "http_400",
+      });
+    }
+    expect(apnsReason({ kind: "answer", status: 400, headers: {}, body: "not json" })).toBeNull();
   });
 
   it("removes the device on any 410 and holds on any 403, whatever the reason", () => {
     expect(bare(410)).toEqual({ kind: "invalid_token", code: "http_410", ambiguous: false });
     expect(bare(403)).toEqual({ kind: "hold", code: "http_403", holdMs: APNS_HOLD_MS });
     expect(bare(405)).toEqual({ kind: "failed", code: "http_405" });
-    expect(bare(500)).toEqual({ kind: "requeue", code: "http_500", written: true });
+    expect(bare(500)).toStrictEqual({ kind: "requeue", code: "http_500", written: true });
+  });
+
+  it("takes Apple's reason over the status, holding the target 15 minutes for an account or key refusal", () => {
+    for (const reason of ["Unregistered", "ExpiredToken"]) {
+      expect(at400(reason)).toEqual({ kind: "invalid_token", code: reason, ambiguous: false });
+    }
+    for (const reason of [
+      "ExpiredProviderToken",
+      "InvalidProviderToken",
+      "MissingProviderToken",
+      "Forbidden",
+      "BadEnvironmentKeyIdInToken",
+      "UnrelatedKeyIdInToken",
+      "BadCertificate",
+      "BadCertificateEnvironment",
+      "BadTopic",
+      "TopicDisallowed",
+      "MissingTopic",
+      "TooManyProviderTokenUpdates",
+    ]) {
+      expect(at400(reason)).toEqual({ kind: "hold", code: reason, holdMs: 15 * 60_000 });
+    }
   });
 });
 
@@ -160,6 +198,7 @@ describe("the APNs client against a local HTTP/2 server", () => {
   let next: (index: number) => Reply = accept;
   let provider: PushProvider;
   let logs: Array<Record<string, unknown>>;
+  let levels: string[];
 
   beforeAll(async () => {
     server = await startH2Server(() => next(server.seen.length - 1));
@@ -171,11 +210,15 @@ describe("the APNs client against a local HTTP/2 server", () => {
 
   const fresh = (): PushProvider => {
     logs = [];
+    levels = [];
     provider = createApnsProvider({
       target: "apns:sandbox",
       token: createApnsToken(settings),
       topic: settings.topic,
-      log: (_level, fields) => logs.push(fields),
+      log: (level, fields) => {
+        levels.push(level);
+        logs.push(fields);
+      },
       origin: server.origin,
     });
     return provider;
@@ -260,9 +303,25 @@ describe("the APNs client against a local HTTP/2 server", () => {
     expect(logs).toEqual([
       { event: "push.apns_refused", target: "apns:sandbox", status: 413, code: "PayloadTooLarge" },
     ]);
+    expect(levels).toEqual(["error"]);
     next = () => ({ status: 429, body: { reason: "TooManyRequests" } });
     await provider.send(message, soon());
     expect(logs).toHaveLength(1);
+  });
+
+  it("logs nothing for a send, a removed device, a hold, a retry or a lost stream", async () => {
+    const answers: Reply[] = [
+      { status: 200 },
+      { status: 410, body: { reason: "Unregistered" } },
+      { status: 403, body: { reason: "InvalidProviderToken" } },
+      { status: 503 },
+      { reset: constants.NGHTTP2_INTERNAL_ERROR },
+    ];
+    next = (index) => answers[index] ?? { status: 200 };
+    fresh();
+    for (const _ of answers) await provider.send(message, soon());
+    expect(server.seen).toHaveLength(answers.length);
+    expect(logs).toEqual([]);
   });
 
   it.each([

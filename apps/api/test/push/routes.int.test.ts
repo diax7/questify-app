@@ -147,7 +147,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
     it("removes this sign-in's device, twice without harm", async () => {
       const { token, family } = await session();
       await as(token, "PUT", "/v1/me/push-device", ios());
-      expect((await as(token, "DELETE", "/v1/me/push-device")).statusCode).toBe(204);
+      const removed = await as(token, "DELETE", "/v1/me/push-device");
+      expect(removed.statusCode).toBe(204);
+      expect(removed.headers["cache-control"]).toBe("private, no-store");
       expect((await as(token, "DELETE", "/v1/me/push-device")).statusCode).toBe(204);
       expect(await f.count("push_device WHERE family = $1", [family])).toBe(0);
     });
@@ -223,6 +225,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
       expect(second.items.map((item) => item.title)).toEqual(["مهرجان", "مهرجان"]);
       expect(second.items[0]?.body).toBe("لديك رسالة جديدة");
       expect(second.nextBefore).toBe(second.items[1]?.id);
+      const unnamed = await test.app.inject({
+        method: "GET",
+        url: `/v1/me/notifications?limit=2&before=${first.nextBefore}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(notificationListSchema.parse(unnamed.json()).items[0]?.title).toBe("مهرجان");
       const last = notificationListSchema.parse(
         (await as(token, "GET", `/v1/me/notifications?before=${second.nextBefore}`)).json(),
       );
@@ -231,6 +239,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
         ids: [first.items[0]?.id],
       });
       expect(notificationsUnreadSchema.parse(marked.json())).toEqual({ unread: 3 });
+      expect(marked.headers["cache-control"]).toBe("private, no-store");
       expect((await as(token, "GET", "/v1/me")).json().notifications).toEqual({ unread: 3 });
       expect((await as(token, "POST", "/v1/me/notifications/read", { all: true })).json()).toEqual({
         unread: 0,
@@ -243,15 +252,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
 
     it("reads and changes the topics, the others kept", async () => {
       const { token } = await session();
-      expect(pushTopicsSchema.parse((await as(token, "GET", "/v1/me/push-topics")).json())).toEqual(
-        {
-          announcements: true,
-          rank: true,
-          community: true,
-          reminders: true,
-        },
-      );
+      const topics = await as(token, "GET", "/v1/me/push-topics");
+      expect(topics.headers["cache-control"]).toBe("private, no-store");
+      expect(pushTopicsSchema.parse(topics.json())).toEqual({
+        announcements: true,
+        rank: true,
+        community: true,
+        reminders: true,
+      });
       const off = await as(token, "PUT", "/v1/me/push-topics", { rank: false, community: false });
+      expect(off.headers["cache-control"]).toBe("private, no-store");
       expect(off.json()).toEqual({
         announcements: true,
         rank: false,
