@@ -3,6 +3,7 @@
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { acceptAllInCalls } from "#src/lib/accept-all.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -129,10 +130,57 @@ function Messages({
   );
 }
 
+type AcceptAllDeps = Readonly<{
+  base: string;
+  language: Language;
+  t: Translate;
+  failed: (body: unknown) => void;
+  reload: () => Promise<void>;
+  setBusy: (busy: boolean) => void;
+  setProblem: (problem: string | null) => void;
+  setNotice: (notice: string | null) => void;
+}>;
+
+/**
+ * Accept all (T-218) in calls of at most 1,000 (T-501d, ADR-353 (5)): a progress line while the calls run; at the end
+ * the totals, or, when a call fails partway, what the earlier calls accepted and the failure.
+ */
+function acceptAllAction(deps: AcceptAllDeps): () => Promise<void> {
+  const count = (value: number) => formatNumber(value, deps.language);
+  const accepting = (accepted: number) =>
+    deps.setNotice(deps.t("requests.acceptingAll", { accepted: count(accepted) }));
+  return async () => {
+    deps.setBusy(true);
+    deps.setProblem(null);
+    accepting(0);
+    const outcome = await acceptAllInCalls(
+      () => requestJson("POST", `${deps.base}/accept-all`),
+      (sofar) => accepting(sofar.accepted),
+    );
+    deps.setBusy(false);
+    if (outcome.kind === "done") {
+      deps.setNotice(
+        deps.t("requests.acceptedAll", {
+          accepted: count(outcome.accepted),
+          remaining: count(outcome.remaining),
+        }),
+      );
+    } else {
+      deps.setNotice(
+        outcome.accepted > 0
+          ? deps.t("requests.acceptedBeforeError", { accepted: count(outcome.accepted) })
+          : null,
+      );
+      deps.failed(outcome.body);
+    }
+    if (outcome.kind === "done" || outcome.accepted > 0) await deps.reload();
+  };
+}
+
 /**
  * The event's join requests and waiting list (T-218, FR-1819, FR-1821): the owner and editors accept or decline each,
- * or accept all (oldest first, while places are free) after a confirmation. Shown while there are any, or while a
- * result or a problem is on screen.
+ * or accept all (oldest first, while places are free, 1,000 a call) after a confirmation. Shown while there are any, or
+ * while a result or a problem is on screen.
  */
 export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
   const t = translatorFor(language);
@@ -152,7 +200,7 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
   };
   const queue = useRequestPages(base, failed);
 
-  const act = async (path: string, said: (body: unknown) => string | null) => {
+  const act = async (path: string) => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
@@ -163,17 +211,22 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
       failed(result.body);
       return;
     }
-    setNotice(said(result.body));
     await queue.reload();
   };
-  const acceptAll = () =>
-    void act("accept-all", (body) => {
-      const done = body as { accepted: number; remaining: number };
-      return t("requests.acceptedAll", {
-        accepted: formatNumber(done.accepted, language),
-        remaining: formatNumber(done.remaining, language),
-      });
-    });
+  const runAcceptAll = acceptAllAction({
+    base,
+    language,
+    t,
+    failed,
+    reload: queue.reload,
+    setBusy,
+    setProblem,
+    setNotice,
+  });
+  const acceptAll = () => {
+    setAskAll(false);
+    void runAcceptAll();
+  };
 
   const requests = queue.requests ?? [];
   if (requests.length === 0 && problem === null && notice === null) {
@@ -218,7 +271,7 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
             request={request}
             t={t}
             busy={busy}
-            act={(path) => void act(path, () => null)}
+            act={(path) => void act(path)}
           />
         ))}
       </ul>

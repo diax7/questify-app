@@ -209,6 +209,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       expect((await f.sends()).filter((row) => row.device_id === early.deviceId)).toHaveLength(1);
     });
 
+    it("accept-all takes at most 1,000 a call: 1,001 requests give (1000, 1), then (1, 0), one notice each", async () => {
+      const event = await f.newEvent({ phase: "live", access: "private" });
+      await f.owner(
+        `WITH p AS (INSERT INTO player (username) SELECT 'cap_' || $2 || '_' || g FROM generate_series(1, 1001) g
+                    RETURNING id)
+         INSERT INTO enrollment (organizer_id, event_id, player_id, status) SELECT e.organizer_id, e.id, p.id, 'pending'
+         FROM p CROSS JOIN event e WHERE e.id = $1`,
+        [event, randomUUID().slice(0, 8)],
+      );
+      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1000, remaining: 1 });
+      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1, remaining: 0 });
+      expect(await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [event])).toBe(
+        1001,
+      );
+    });
+
     it("a broken kind cannot roll back the door: decide and accept-all commit with no notice", async () => {
       const event = await f.newEvent({ phase: "live", access: "private" });
       const one = await request(event);

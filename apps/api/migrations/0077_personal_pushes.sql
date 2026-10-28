@@ -4,8 +4,9 @@
 -- never roll a door back): a row trigger with a WHEN on enrollment (join decisions), ticket (the answer) and submission
 -- (a reviewer's decision), a statement trigger with transition tables on event_result (the reveal's prizes), and a
 -- due-scan door the push worker calls every minute (a reservation ready at the desk, a reservation ending). No EXCEPTION
--- block anywhere. Deny by default: every function is closed to PUBLIC in the group that creates it; only push_due is
--- newly granted to the API role; the trigger functions are definers (the API's role may update enrollment.status itself, and a trigger that could not
+-- block anywhere. accept_all_join_requests is restated to take at most 1,000 requests a call. Deny by default: every
+-- function is closed to PUBLIC in the group that creates it; only push_due is newly granted to the API role; the
+-- trigger functions are definers (the API's role may update enrollment.status itself, and a trigger that could not
 -- insert its notice would undo the door). Migrations 0076 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 -- Four tables gain a trigger (SHARE ROW EXCLUSIVE), taken up front in the doors' order (event_result before the
@@ -91,6 +92,57 @@ CREATE TRIGGER enrollment_push_decision AFTER UPDATE OF status ON enrollment
         AND coalesce(NEW.joined_via, '') NOT IN ('operator', 'rehearsal')
         AND app_player_id() IS DISTINCT FROM NEW.player_id)
   EXECUTE FUNCTION push_on_join_decision();
+
+-- ================================================================ accept-all in calls of 1,000 (ADR-353 (5), Q-322)
+-- As 0036, with one change: a call accepts at most 1,000 requests (`least` ignores a NULL `free`, an unlimited event).
+-- Under the API's 5 s statement limit an unbounded accept-all of several thousand requests is refused (57014) and
+-- accepts nothing; a call of 1,000 takes about 1.5 s with the decision push, and the dashboard repeats while one call
+-- accepted some and `remaining` is above 0.
+CREATE OR REPLACE FUNCTION accept_all_join_requests(target_event uuid, request uuid)
+  RETURNS TABLE (outcome text, accepted integer, remaining integer)
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  ev event;
+  free integer;
+  taken integer;
+BEGIN
+  ev := team_event(target_event);
+  IF ev.id IS NULL THEN
+    RETURN QUERY SELECT 'not_found'::text, 0, 0;
+    RETURN;
+  END IF;
+  PERFORM ensure_rehearsal_wiped(ev.id);
+  IF event_status_now(ev.status, ev.starts_at, ev.ends_at) NOT IN ('scheduled', 'live') THEN
+    RETURN QUERY SELECT 'ended'::text, 0, 0;
+    RETURN;
+  END IF;
+  free := free_seats(ev.id);
+  WITH picked AS (
+    SELECT n.id, n.waitlisted FROM enrollment n
+    WHERE n.event_id = ev.id AND n.status = 'pending' AND n.joined_via IS DISTINCT FROM 'rehearsal'
+    ORDER BY n.joined_at, n.id
+    LIMIT least(free, 1000)
+    FOR UPDATE SKIP LOCKED
+  ), moved AS (
+    UPDATE enrollment n SET status = 'active', waitlisted = false
+    FROM picked WHERE n.id = picked.id
+    RETURNING n.id, picked.waitlisted
+  ), logged AS (
+    INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before,
+                           after, request_id)
+    SELECT 'staff', app_staff_user_id(), ev.organizer_id, ev.id, 'event.join_accept', 'enrollment', moved.id::text,
+           jsonb_build_object('status', 'pending', 'waitlisted', moved.waitlisted),
+           jsonb_build_object('status', 'active'), request
+    FROM moved
+    RETURNING 1
+  )
+  SELECT count(*)::integer INTO taken FROM logged;
+  RETURN QUERY SELECT 'done'::text, taken,
+    (SELECT count(*)::integer FROM enrollment n
+     WHERE n.event_id = ev.id AND n.status = 'pending' AND n.joined_via IS DISTINCT FROM 'rehearsal');
+END $$;
+REVOKE ALL ON FUNCTION accept_all_join_requests(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION accept_all_join_requests(uuid, uuid) TO questify_app;
 
 -- ================================================================ the help-desk answer (FR-1101, T-310, T-312)
 -- One notice per closed ticket (answer_core for the event team and its operators, admin_answer_ticket for Questify),

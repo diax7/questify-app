@@ -5,17 +5,18 @@ import { pushFixture, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 /**
- * Times accept-all of 5,000 join requests with the join-decision trigger (T-501d, plan § Review 2, ADR-353 (5)): one
- * notice per acceptance, then the personal fan-out of them. The same door with the trigger switched off is timed for
- * the difference. Not an assertion (a timing check is flaky on a 2-core runner): run it by hand when the trigger, the
- * door or notice_create changes,
+ * Times one accept-all call with the join-decision trigger (T-501d, plan § Review 2, ADR-353 (5)): the door takes at
+ * most 1,000 requests a call, so with 5,000 waiting one call accepts 1,000 and writes 1,000 notices; then the personal
+ * fan-out of them. The same call with the trigger switched off is timed for the difference. Not an assertion (a timing
+ * check is flaky on a 2-core runner): run it by hand when the trigger, the door, the other `enrollment` triggers or
+ * notice_create changes,
  * `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-producers-timing.int.test.ts`.
- * Gate (plan): accept-all of 5,000 under 5 s with the trigger. The default suite proves the notices of 300
- * (`test/db/push-producers.int`).
+ * Gate: one call of 1,000 under 5 s (the API's statement limit) with the trigger. The default suite proves the cap
+ * (1,001 requests give 1,000 then 1, `test/db/push-producers.int`).
  */
 const OUT = process.env["PUSH_TIMING"];
 const say = (line: string) => appendFileSync(String(OUT), `${line}\n`);
-const REQUESTS = 5_000;
+const WAITING = 5_000;
 
 /** A private event with `n` pending requests; answers the event. */
 async function pending(f: PushFixture, n: number): Promise<string> {
@@ -32,24 +33,28 @@ async function pending(f: PushFixture, n: number): Promise<string> {
   return event;
 }
 
-async function acceptAll(f: PushFixture, event: string): Promise<number> {
+/** One accept-all call: its time and what it answered. */
+async function oneCall(f: PushFixture, event: string) {
   const started = performance.now();
-  await f.run(f.team(), "SELECT * FROM accept_all_join_requests($1, $2)", [event, randomUUID()]);
-  return Math.round(performance.now() - started);
+  const [row] = await f.run<{ accepted: number; remaining: number }>(
+    f.team(),
+    "SELECT * FROM accept_all_join_requests($1, $2)",
+    [event, randomUUID()],
+  );
+  return { ms: Math.round(performance.now() - started), ...row };
 }
 
 it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
-  "times accept-all of 5,000 requests with and without the join-decision trigger",
+  "times one accept-all call of 1,000 with and without the join-decision trigger",
   async () => {
     const f = await pushFixture();
     try {
-      const plain = await pending(f, REQUESTS);
-      say(`T-501d: ${REQUESTS} requests written`);
+      const plain = await pending(f, WAITING);
       await f.owner("ALTER TABLE enrollment DISABLE TRIGGER enrollment_push_decision");
-      const without = await acceptAll(f, plain);
+      const without = await oneCall(f, plain);
       await f.owner("ALTER TABLE enrollment ENABLE TRIGGER enrollment_push_decision");
-      const event = await pending(f, REQUESTS);
-      const withTrigger = await acceptAll(f, event);
+      const event = await pending(f, WAITING);
+      const withTrigger = await oneCall(f, event);
       const notices = await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [
         event,
       ]);
@@ -57,8 +62,9 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       const rows = await f.fanOut();
       const fanned = Math.round(performance.now() - started);
       say(
-        `T-501d accept-all of ${REQUESTS}: ${withTrigger} ms with the trigger (${notices} notices), ` +
-          `${without} ms without; personal fan-out of them: ${fanned} ms (${rows} center rows)`,
+        `T-501d one accept-all call with ${WAITING} waiting: ${withTrigger.ms} ms with the trigger ` +
+          `(accepted ${withTrigger.accepted}, remaining ${withTrigger.remaining}, ${notices} notices), ` +
+          `${without.ms} ms without; personal fan-out of them: ${fanned} ms (${rows} center rows)`,
       );
     } finally {
       await f.close();
