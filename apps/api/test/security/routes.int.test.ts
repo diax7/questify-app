@@ -20,6 +20,16 @@ import {
  * keeps one caller out of another's data; a new route fails the first test until that is decided and proven.
  */
 const ROUTES: Readonly<Record<string, string>> = {
+  "GET /v1/events/:eventId/announcements":
+    "caller-bound active membership and rehearsal-only list through member_announcements (announcements)",
+  "GET /v1/organizers/:organizerId/events/:eventId/announcements":
+    "owner/editor, event limit rechecked by award_event_of (announcements)",
+  "GET /v1/organizers/:organizerId/events/:eventId/announcements/preview":
+    "owner/editor, event limit rechecked by award_event_of (announcements)",
+  "POST /v1/organizers/:organizerId/events/:eventId/announcements":
+    "owner/editor, event limit and rate limit in the door; Idempotency-Key, audited, text filtered (announcements)",
+  "POST /v1/organizers/:organizerId/events/:eventId/announcements/:announcementId/cancel":
+    "owner/editor, same-event row lock and state check; Idempotency-Key, audited (announcements)",
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":

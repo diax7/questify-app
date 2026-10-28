@@ -12,7 +12,8 @@
    same change that creates it. Each grant is explicit and has a test from an outsider's seat
    (NFR-018).
 3. **Personal data stays in Saudi Arabia and out of logs.** No phone, email, free text or photo
-   in logs, error reports or push text. Every vendor that receives personal data is in the data map
+   in logs or error reports. Push text uses fixed templates; T-502 (Proposed ADR-358) additionally permits bounded,
+   authenticated organizer copy after the shared address/phone/control filter and renderer recheck. Every vendor that receives personal data is in the data map
    (NFR-020, ADR-070).
 4. **Every user-facing string exists in Arabic and English.** Both directions are checked on every
    screen; numbers use Western digits (NFR-011, NFR-012, ADR-018).

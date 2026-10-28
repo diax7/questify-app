@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { NOTIFICATION_TARGETS, PUSH_TEMPLATES } from "@questify/shared";
+import { FREE_TEXT_KINDS, NOTIFICATION_TARGETS, PUSH_TEMPLATES } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { centerItem } from "#src/push/center";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
@@ -110,7 +110,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     it("every notice_kind row the migrations seed has a template and a route", () => {
       expect(seededKinds.length).toBeGreaterThanOrEqual(10);
       for (const name of seededKinds) {
-        expect(PUSH_TEMPLATES[name], name).toBeDefined();
+        expect(PUSH_TEMPLATES[name] !== undefined || FREE_TEXT_KINDS.includes(name), name).toBe(
+          true,
+        );
         expect(NOTIFICATION_TARGETS.has(name), name).toBe(true);
       }
     });

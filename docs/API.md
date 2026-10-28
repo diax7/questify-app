@@ -594,3 +594,27 @@ runs the current scoped souvenir reader after session/membership checks and befo
 preHandler. A still-active organizer editor whose event scope was revoked receives404 even with the original
 successful mutation key. This covers create/edit/delete/activate/stop/process; the handler SQL independently
 reauthorizes writes. A cached success is never authority to read the former event's private rule list.
+
+## Announcements (T-502, migration 0081; Proposed ADR-358 / Q-327)
+
+Organizer prefix: /v1/organizers/{organizerId}/events/{eventId}, owner/editor within event scope. Writes require
+Idempotency-Key; preValidation rechecks current scope before replaying cached mutation replies.
+
+| Method | Suffix | Result |
+|---|---|---|
+| GET | /announcements | {announcements: AnnouncementView[]} (newest send time first, at most 30) |
+| GET | /announcements/preview | {members, phase: live/rehearsal/idle/closed} |
+| POST | /announcements | {titleAr,titleEn,bodyAr,bodyEn,sendAt?}; 201 {id,status,sendAt,replayed} |
+| POST | /announcements/{id}/cancel | Empty body; {status:cancelled}, scheduled only; repeated cancel safe |
+
+Player GET /v1/events/{id}/announcements?size=50: active caller membership, rehearsal-separated, never archived;
+{announcements:[{id,title:{ar,en},body:{ar,en},sentAt}]}, newest first, size 1–50/default 50. GET responses are
+private,no-store. Home asks for three, See all fifty. Titles/bodies: cleaned shared text, 60/500 code points, frozen
+push/center body 140. No channel/extra fields. Schedule is an offset-bearing ISO instant, 2 minutes–180 days ahead,
+not before start or at/after end. See ADR-358 for due/phase/rate/cancel rules.
+Errors: 422 invalid_announcement {field,issue} for text, or {issue:sendAt:past/too_far/before_start/after_end};
+409 announcement_event_closed/event_not_live/nobody/already_sent; 429 announcement_limit {window:hour/day};
+503 announcement_unavailable (no row/notice written); 404 not_found for foreign/revoked event/row;
+403 not_enrolled for a player's inaccessible list. Errors/logs never echo copy. Dashboard rows include bilingual
+fields, status, sendAt, sentAt, rehearsal, skipReason, delivered (center-row count, exact below 10 then nearest 10;
+null before send/after notice purge), and delivering while the fan-out is incomplete.

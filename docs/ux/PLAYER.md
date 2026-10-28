@@ -458,3 +458,12 @@ Visual design (colors, type, components, illustration, motion) is a separate, la
 current adventure theme may be replaced. This plan has no dependency on it. Components that must
 exist whatever the theme: bottom bar with center button, accordion, bottom sheet, grid card,
 progress bar, ranking row, coin counter, celebration frame, banner, toggle, chip.
+
+### T-502 Home additions (2026-10-29; Proposed ADR-358)
+
+Active event Home adds Happening now for current flash quests and boosts from the Quests read, lasting to their real
+end, with a tap to Quests. No strip when none run. Existing poll/community cards remain; categories stay Quests and
+sessions T-505. Announcements shows the newest three, full text in the player's language, with See all opening
+/event/[eventId]/announcements (50 newest). The standalone list has loading/empty/error/retry and visible Back;
+foreground focus refreshes it, Home rereads at 30-second intervals while focused. Muting announcements does not hide
+these in-app rows. A push opens event Home. Arabic mirrors through shared screen/theme controls, Western digits.

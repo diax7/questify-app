@@ -50,3 +50,19 @@ the standard set.
 
 Heavy checks (load, recovery drills, real-device runs, Lighthouse-type checks) are run by hand or on a
 schedule, not on every pull request.
+
+### T-502 announcement evidence (2026-10-29)
+
+Unit: shared announcements (all four fields, clean-up, code-point cut/bounds and all filter issues), push templates
+(safe fallback/no push for invalid frozen copy), web announcement draft/time conversion, app member DTO and
+happeningNow (full flash/boost duration, deduplicated boosts, expiry). DB: announcements.int covers replay, rolling
+windows, concurrent last-slot presses, state/clock rechecks, cancel races, immutability, every role/audience,
+rehearsal, mute and table-by-table channel footprint. HTTP: test/announcements/routes.int covers compose/read,
+schedule/cancel, every filter per field, extra channels, refusals, unavailable kind, roles and revoked-scope replay.
+Outsider/cross-tenant/route inventories include the table and all five doors. rehearsal's status guard allows the two
+new volatile writers: announcement_send and push_due_announcement; announcement_phase itself is STABLE, not a third
+volatile writer. Browser announcements.spec covers English/Arabic RTL, bilingual previews, validation, event-zone
+schedule, cancellation and send-now on desktop and phone. The full browser suite runs after a fresh web build.
+Timing: PUSH_TIMING=<local-log> with test/perf/push-announcement-timing.int.test.ts seeds 50,000 members/devices and an
+exclusion entry; count 732 ms, press 337 ms, slowest fan-out 430 ms; both call/statement gates pass. No mutation needed
+for tier B (ADR-355). Real phone checks and the push go-live checklist remain release gates, not simulated delivery.

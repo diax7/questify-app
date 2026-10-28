@@ -1131,8 +1131,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-803 | F-50, F-126, F-151 | Must | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-804 | F-165 | Must | pending |
 | FR-805 | F-168 | Must | pending |
-| FR-806 | F-166 | Should | pending |
-| FR-807 | F-167 | Should | pending |
+| FR-806 | F-166 | Should | Built T-502; independent tier B review owed |
+| FR-807 | F-167 | Should | Built T-502; independent tier B review owed |
 | FR-808 | F-169 | Should | pending |
 | FR-809 | F-169 | Should | pending |
 | FR-810 | F-169 | Should | pending |
@@ -1211,8 +1211,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1104 | F-200 | Must | built T-501 and T-501c (every message a center row, read and unread; the center screen `/notifications` lists them newest first, a tap marks that one row read; phone check owed): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int`, `apps/app/src/push/{center,push-api}.test.ts` |
 | FR-1105 | F-201 | Must | built T-501c (the explainer on the join result screens, only while the system is unasked and not snoozed 30 days; "Turn on" is the only way to the system prompt; a unit test of the flow and a source scan of who may read the permission; phone check owed): `apps/app/src/push/{push-flow,push-guards}.test.ts` |
 | FR-1106 | F-201 | Must | built T-501 and T-501c (registering writes no ledger, XP or gem row; the app reads the permission only in the push folder, the sign-out hook and the join screens' explainer, and its texts promise nothing for allowing it): `test/db/push-store.int`, `apps/app/src/push/push-guards.test.ts` |
-| FR-1107 | F-203 | Must | pending |
-| FR-1108 | F-203 | Must | pending |
+| FR-1107 | F-203 | Must | Built T-502; independent tier B review owed |
+| FR-1108 | F-203 | Must | Built T-502; independent tier B review owed |
 | FR-1109 | F-43 | Must | pending |
 | FR-1110 | F-44 | Must | pending |
 | FR-1111 | F-204 | Should | audience rule built T-407; T-409 moved it into `promo_pool`, read by the invitation fill and again at every claim, and made `marketing_audience` system-only; T-501f: invitations by push or SMS, one channel per player (push when opted in on push with a pushable phone), consent checked again at the hand-off, the fan-out and the claim (`test/db/invitation-push.int`); campaigns come with T-706, code review pending |
@@ -1441,3 +1441,12 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1846 | F-348 | Must | pending |
 | FR-1847 | F-121 | Must | pending |
 | FR-1848 | F-179 | Should | pending |
+
+## T-502 implementation clarification (2026-10-29; Proposed ADR-358 / Q-327)
+
+FR-806: the new Happening now strip lists flash quests/boosts from Quests until their actual end, not only the live
+feed's first 15 minutes. Poll/community retain their existing Home cards, open categories stay Quests, current
+sessions remain T-505. This presentation choice is proposed for coordinator decision after review. FR-807 shows the
+newest three sent announcements on Home, See all up to 50. FR-1107 adds bilingual compose/preview, send now, event-zone
+scheduling, confirmation, history and cancellation before release. FR-1108 has push/in-app only, never an email/SMS
+option or sender. Text/filter bounds, phase/audience rules, rolling caps and due skips are in ADR-358 and the plan.

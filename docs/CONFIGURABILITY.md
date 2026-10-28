@@ -285,3 +285,10 @@ existing snapshots are not reconstructed.100 rules/event, ranks1–100. Configur
 
 Every platform and event configuration change writes an audit entry (who, what, before, after, when)
 that is never edited (FR-1409, NFR-019).
+
+### T-502 announcement constants (Proposed ADR-358, 2026-10-29)
+
+Code constants until T-703: title 60, full body 500, push/center body 140 code points; schedule 2 minutes–180 days,
+due lateness 30 minutes, rolling event caps 3/hour and 10/day. Shared exports bound form/API; migration 0081 is the
+authoritative reservation/rate door. Tests tie shared caps to the DB. No runtime channel selector, remote code,
+email/SMS configuration. Future configurable caps need the same rolling-window invariant tests.

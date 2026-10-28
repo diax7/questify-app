@@ -33,6 +33,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       )
     ).map((row) => row.name);
 
+  it("keeps announcement tables and internals closed and grants only its five doors", async () => {
+    const doors = [
+      "announcement_cancel",
+      "announcement_list",
+      "announcement_preview",
+      "announcement_send",
+      "member_announcements",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND (proname LIKE 'announcement\\_%' OR proname IN ('member_announcements', 'push_due_announcement'))`,
+    );
+    expect(functions).toHaveLength(12);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name = 'announcement' AND grantee IN ('PUBLIC', 'questify_app')`),
+    ).toEqual([]);
+  });
+
   describe("live attempts", () => {
     it("cannot read or delete from any table", async () => {
       const all = await tables();

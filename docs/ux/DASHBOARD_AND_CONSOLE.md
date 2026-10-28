@@ -1273,3 +1273,12 @@ and plural in Arabic and English (ADR-058, NFR-014).
 - A13. Templates edited in the console do not change events already made from them.
 - A14. The control room is available only while the event is Live; Scheduled events show "Rehearse now" instead.
 - A15. Quest print sheets use the phone's own print or save-as-PDF function rather than a separate print service.
+
+### T-502 event announcements (2026-10-29; Proposed ADR-358)
+
+Event navigation adds Announcements for the owner and scoped editors: bilingual title/text with counters, sanitized
+push/center previews in both languages, live/rehearsal recipient count, Send now or a date-time explicitly in the
+event zone, then confirmation. Only push and in-app are named; no channel selector. Invalid fields name their issue;
+rate/phase errors come from the authoritative door. Pending submissions retain their frozen payload/key on transient
+failure. History shows scheduled (Cancel with confirmation), sent (rounded delivered or Delivering), cancelled and
+skipped with reason. English/Arabic RTL and 360px layout are exercised in announcements.spec on both browser projects.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES, type Messages } from "#src/i18n/messages";
 import {
+  FREE_TEXT_KINDS,
   PUSH_PLACEHOLDERS,
   PUSH_TEMPLATES,
   pushMoment,
@@ -456,6 +457,66 @@ describe("the hidden-category hint (T-501g, ADR-357)", () => {
       "Something new is hidden in this event.",
       "في الفعالية شيء جديد مخفي.",
     ]);
+  });
+});
+
+describe("the organizer's announcement (T-502, ADR-358)", () => {
+  const frozen = {
+    event: EVENT,
+    title: { ar: "الغداء جاهز", en: "Lunch is ready" },
+    body: { ar: "القاعة 2 الآن.", en: "Hall 2, now." },
+  };
+  const announcement = (over: Partial<NoticeContent> = {}): NoticeContent =>
+    content({ kind: "announcement", params: frozen, ...over });
+
+  it("is a free-text kind with a route, not a template", () => {
+    expect(FREE_TEXT_KINDS).toEqual(["announcement"]);
+    expect(PUSH_TEMPLATES["announcement"]).toBeUndefined();
+  });
+
+  it("pushes the organizer's frozen title and cut text in the language asked for", () => {
+    expect(renderNotice(announcement())).toEqual({
+      title: "Lunch is ready",
+      body: "Hall 2, now.",
+      pushable: true,
+    });
+    expect(renderNotice(announcement({ language: "ar" }))).toEqual({
+      title: "الغداء جاهز",
+      body: "القاعة 2 الآن.",
+      pushable: true,
+    });
+  });
+
+  it("uses the other language when one is missing", () => {
+    const only = { ...frozen, title: { en: "Lunch is ready" }, body: { en: "Hall 2, now." } };
+    expect(renderNotice(announcement({ params: only, language: "ar" })).title).toBe(
+      "Lunch is ready",
+    );
+  });
+
+  it("shows the generic text and never pushes a text that is missing or no longer passes the rules", () => {
+    const generic = { title: "Winter Fest", body: "You have a new message", pushable: false };
+    const bad = [
+      { ...frozen, title: undefined },
+      { ...frozen, body: { ar: "", en: " " } },
+      { ...frozen, body: { ar: "see example.com", en: "see example.com" } },
+      { ...frozen, body: { ar: "call 0551234567", en: "call 0551234567" } },
+      { ...frozen, title: { ar: "a".repeat(61), en: "a".repeat(61) } },
+      { ...frozen, body: { ar: "a".repeat(141), en: "a".repeat(141) } },
+      { ...frozen, title: "Lunch" },
+    ];
+    for (const params of bad) {
+      expect(renderNotice(announcement({ params })), JSON.stringify(params)).toEqual(generic);
+    }
+    expect(renderNotice(announcement({ params: null }))).toEqual({ ...generic, title: "Questify" });
+  });
+
+  it("fills no placeholder in the organizer's text", () => {
+    const braces = {
+      ...frozen,
+      body: { ar: "{questOne} {username}", en: "{questOne} {username}" },
+    };
+    expect(renderNotice(announcement({ params: braces })).body).toBe("{questOne} {username}");
   });
 });
 

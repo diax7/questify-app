@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NOTIFICATION_TARGETS, isEventId, notificationRoute } from "#src/push/routes";
-import { PUSH_TEMPLATES } from "#src/push/templates";
+import { FREE_TEXT_KINDS, PUSH_TEMPLATES } from "#src/push/templates";
 
 const EVENT = "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e";
 const QUEST = "0b9a7d3c-1f2e-4a5b-8c6d-7e8f9a0b1c2d";
@@ -97,7 +97,7 @@ describe("notificationRoute", () => {
 
 describe("the route table", () => {
   it("has a route (or the center) for every kind that has a template", () => {
-    for (const kind of Object.keys(PUSH_TEMPLATES)) {
+    for (const kind of [...Object.keys(PUSH_TEMPLATES), ...FREE_TEXT_KINDS]) {
       expect(NOTIFICATION_TARGETS.has(kind), kind).toBe(true);
     }
   });

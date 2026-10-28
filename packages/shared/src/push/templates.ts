@@ -1,3 +1,4 @@
+import { announcementRenderable } from "#src/announcements/announcements";
 import { readEventTerms, wordParams } from "#src/config/terms";
 import { toWesternDigits, type Language } from "#src/i18n/digits";
 import { MESSAGES, type Messages } from "#src/i18n/messages";
@@ -74,6 +75,13 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   // T-501g (migration 0080): the hidden-category hint.
   category_hint: namedTemplate("categoryHint"),
 };
+
+/**
+ * Kinds whose title and body are the organizer's own text, frozen on the notice as `params.title` and `params.body`
+ * (`{ar, en}` each, already cleaned, bounded and run through the name rule, T-502). They have no message key and no
+ * placeholder; the renderer asks the rule again and shows the generic text if the stored text no longer passes.
+ */
+export const FREE_TEXT_KINDS: readonly string[] = ["announcement"];
 
 /** What the renderer reads from a claimed send or a center row. */
 export type NoticeContent = Readonly<{
@@ -177,26 +185,64 @@ function valuesFor(text: string, content: NoticeContent): Readonly<Record<string
 const textOf = (texts: PushTexts, key: string, language: Language): string =>
   texts.messages[key]?.[language] ?? "";
 
+/** A frozen `{ar, en}` text in the language asked for, else the other one; null when there is none. */
+function frozenText(value: unknown, language: Language): string | null {
+  if (!isRecord(value)) return null;
+  const read = (lang: Language): string => {
+    const text = value[lang];
+    return typeof text === "string" ? text.trim() : "";
+  };
+  const chosen = read(language) === "" ? read(language === "ar" ? "en" : "ar") : read(language);
+  return chosen === "" ? null : chosen;
+}
+
+/** An organizer's text as frozen on its notice, or null when it is missing or no longer passes the rules. */
+function renderFreeText(params: Record<string, unknown>, language: Language) {
+  const title = frozenText(params["title"], language);
+  const body = frozenText(params["body"], language);
+  return title !== null && body !== null && announcementRenderable(title, body)
+    ? { title, body }
+    : null;
+}
+
 /**
  * Renders a notice in one language: its kind's template with the frozen names, or the nameless variant when a name is
  * missing or fails the rule; the title is the event's name, else "Questify". A kind without a template, or a nameless
  * variant that still cannot be filled, gives the generic text and is not pushed. Never throws.
  */
+function freeTextNotice(
+  params: Record<string, unknown>,
+  language: Language,
+  generic: { title: string; body: string },
+): RenderedNotice {
+  const free = renderFreeText(params, language);
+  return free === null ? { ...generic, pushable: false } : { ...free, pushable: true };
+}
+
+function renderTemplated(
+  content: NoticeContent,
+  texts: PushTexts,
+  title: string,
+): RenderedNotice | null {
+  const template = texts.templates[content.kind];
+  if (template === undefined) return null;
+  for (const key of [template.body, template.nameless]) {
+    const text = textOf(texts, key, content.language);
+    const values = text === "" ? null : valuesFor(text, content);
+    if (values !== null)
+      return { title, body: interpolate(text, values, content.language), pushable: true };
+  }
+  return null;
+}
+
 export function renderNotice(content: NoticeContent, texts: PushTexts = SHIPPED): RenderedNotice {
   const params = isRecord(content.params) ? content.params : {};
   const title =
     pushName(params["event"], content.language) ?? textOf(texts, "push.title", content.language);
-  const template = texts.templates[content.kind];
   const generic = { title, body: textOf(texts, "push.generic.body", content.language) };
-  if (template === undefined) return { ...generic, pushable: false };
-  for (const key of [template.body, template.nameless]) {
-    const text = textOf(texts, key, content.language);
-    const values = text === "" ? null : valuesFor(text, content);
-    if (values !== null) {
-      return { title, body: interpolate(text, values, content.language), pushable: true };
-    }
-  }
-  return { ...generic, pushable: false };
+  if (FREE_TEXT_KINDS.includes(content.kind))
+    return freeTextNotice(params, content.language, generic);
+  return renderTemplated(content, texts, title) ?? { ...generic, pushable: false };
 }
 
 /**

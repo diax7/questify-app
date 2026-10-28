@@ -57,6 +57,9 @@ export function EventNavLinks({
         {t("boosts.page.title")}
       </a>
       <InvitationsLink language={language} organizerId={organizerId} eventId={event.id} />
+      <a className={styles.textLink} href={`${pages}/${event.id}/announcements`}>
+        {t("announcements.page.title")}
+      </a>
       <a className={styles.textLink} href={`${pages}/${event.id}/joining`}>
         {t("joining.title")}
       </a>

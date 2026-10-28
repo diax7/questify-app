@@ -12,6 +12,7 @@ import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
 import { CommunityBar } from "#src/event/CommunityBar.tsx";
+import { EventHomeStrips } from "#src/event/Announcements.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
@@ -404,6 +405,7 @@ function ActiveCards({
         timeZone={home.event.timezone}
       />
       <EventStreakCard streak={home.streak} />
+      <EventHomeStrips eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
       {community === null ? null : <CommunityBar card={community} />}
       <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />

@@ -5262,3 +5262,33 @@ runs seconds after the press.
 the batch's read and its reveal insert fails that batch once and it runs again after the back-off; an organizer who
 un-hides the category before the fan-out tells nobody; an earlier hint's center row purged by retention lets a member be
 told again; the placeholder kind name `hint` is gone from `NOTIFICATION_TARGETS`.
+
+## ADR-358 — Bilingual announcements on the push store and Home (2026-10-29)
+
+**Status:** Proposed (worker; independent tier B review and coordinator decision owed). **Question:** Q-327.
+**Context:** T-502, FR-806, FR-807, FR-1107 and FR-1108; approved scope:
+docs/plans/2026-10-28-t-502-announcements.md.
+**Proposal:** (1) Migration 0081 stores immutable bilingual title (60 code points), full body (500), and 140-code-point
+push/center body, state, send time, author and hashed event-local idempotency key. Invisible characters are removed,
+whitespace folded, digits made Western, and all four fields filtered by T-409's name rule. This is an explicit,
+bounded exception to fixed-template-only push copy: authenticated organizer text may name no address or phone number;
+audit/errors contain ids/field names, never text. Rendering checks the frozen title/body again: invalid text gives
+generic center text and no push. (2) One event-kind notice on topic announcements, two-hour TTL, announcement id ref,
+routes to event Home. Existing membership, rehearsal, exclusion, mute and claim rules apply; preview counts the same
+eligible members in a set-based query. Operators barred from playing still receive event announcements. No channel
+field or email/SMS sender. (3) The door serializes per event, replays first, and reserves at most 3 sends in any rolling
+hour and 10 in any rolling day, scheduled sends included. Cancelled/skipped reservations release the slot. No new API
+bucket. (4) Schedule 2 minutes to 180 days ahead, inside event start/end; the minute tick locks due rows SKIP LOCKED and
+rechecks phase and lateness. Ended/archived, not-live and over-30-minute-late rows are skipped and audited; missing kind
+waits for the next tick. Cancel locks the same row. Send-now with no audience or without a live event/open rehearsal
+is refused. (5) Dashboard offers counters, cleaned bilingual previews, recipient count, event-zone time, confirmation,
+all four states and cancellation. Delivered counts are exact below 10 then rounded to tens; Sending lasts until fan-out
+finishes. Mutations reauthorize event scope before cached idempotent replay. Transient failures retain the same key
+and frozen confirmation payload. (6) Home shows three announcements, See all up to 50. Happening now reads ongoing
+flash/boost windows from Quests, not the live feed's 15-minute tail. Categories remain Quests; polls/community retain
+existing Home cards; sessions remain T-505. This explicitly clarifies FR-806 presentation, not a silent requirement
+deletion. (7) At 50,000 members with devices and an exclusion entry: count 732 ms, press 337 ms; fan-out 19.235 s across
+52 calls, slowest 430 ms. Both 1 s call and 5 s statement gates pass (local 2026-10-29).
+**Trade-offs:** spelled-out addresses can pass; authenticated staff are the copy trust boundary. Scheduled audience may
+differ from preview. Announcement history remains until event deletion (event-data retention Q-075 still applies);
+notice purge removes its delivered count. No dependency or remote code/config. Independent review is still required.

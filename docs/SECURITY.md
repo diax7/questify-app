@@ -461,3 +461,16 @@ before the global cache preHandler and retain SQL authorization in each mutation
 prove a successful cached replay, revoke only event scope, then require404/no replay header/no private cached
 body for all six mutation doors, including processing. This finding and repair are scoped to souvenirs; other
 routes are not asserted vulnerable without evidence.
+
+### Organizer announcements (T-502, Proposed ADR-358)
+
+Authenticated, event-scoped owners/editors may publish bounded bilingual copy to their own active members. Shared
+name-rule filtering rejects addresses/phone numbers/remaining controls; invisible characters are removed first and
+all four fields checked. The push renderer rechecks frozen text before any vendor payload. This is a filtered staff
+copy boundary, not a general profanity/PII classifier: spelled-out addresses may pass; audit identifies the author
+without recording text. A compromised editor is bounded to 3 sends/hour and 10/day per event by the serialized DB
+door (future reservations included); a replay is checked before the cap. No email/SMS path or channel field exists.
+Forced-RLS announcement rows have no direct rights; only five caller-checked definers are granted. Mutations check
+current event scope before cached idempotent replay. Member reads bind active caller enrollment and rehearsal.
+Scheduled release rechecks lifecycle/lateness and locks the same row as cancellation; text is frozen. The table-diff
+channel test and full live-catalog outsider/cross-tenant inventory cover the new surface. No deployment performed.

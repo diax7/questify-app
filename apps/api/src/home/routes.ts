@@ -18,6 +18,7 @@ import {
   type RunningBoost,
 } from "#src/home/home";
 import { registerRecapRoutes } from "#src/recap/routes";
+import { registerMemberAnnouncementRoutes } from "#src/announcements/routes";
 
 const eventParams = z.object({ eventId: z.uuid() });
 const activityQuery = z.strictObject({
@@ -88,6 +89,7 @@ function playerIdOf(request: { player?: { id: string } | undefined }): string {
  */
 export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
   registerRecapRoutes(app, deps);
+  registerMemberAnnouncementRoutes(app, deps);
   app.get("/v1/events/:eventId/home", { config: { access: "player" } }, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const home = await readHome(deps, playerIdOf(request), eventId);

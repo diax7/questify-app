@@ -1778,11 +1778,37 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   s in 500-row calls (slowest 474 ms); the generic event fan-out is unchanged. The function-limit baseline shrank
   (QuestBuilder 289 to 284 lines, CategoryCard 133 to 115). ADR-357 and Q-326 Accepted. Mutation globs: none (ADR-355). CI minutes: 0 (local only). Effort: one worker session, about 0.6M agent tokens.
 
+- 2026-10-29 **T-502 built (tier B; independent code review owed, not self-approved).** Recovered the crashed worker's
+  uncommitted 0081/shared/DB work at fe688ddc4a7b8992a1d50b12aba10de373b207a4 in the actual
+  C:/Users/xdhia/Downloads/Github coding/NAFES/Questify App repository (not the coordinator's Questify cwd).
+  Immutable bilingual announcements, shared clean/filter/cut validation and push renderer recheck, five scoped API
+  routes with replay-before-scope reauthorization, send-now/schedule/cancel and serialized 3/hour + 10/day reservations;
+  due release skips closed/not-live/over-30-minute-late events under the cancel's row lock. One push-store notice only:
+  muted topics keep center/Home rows, never email/SMS. Dashboard compose/counters/bilingual previews/count/confirmation,
+  event-zone schedule, history/cancel and rounded delivered count; native Home current flash/boost strip from Quests,
+  newest-three announcements and See all (50). Security table/function/route/rehearsal and channel inventories updated.
+  Proposed ADR-358 / Q-327; API, DATA_MODEL, SRS clarification, CONFIGURABILITY, SECURITY, TEST_STRATEGY, RUNBOOK and UX
+  notes updated. The scoped-term and message-key guards and free-text-kind inventory were fixed, not waived.
+  Checks: the full Vitest suite ran ONCE to t502-vitest-full.log: 526 files / 8759 tests passed, 11 files / 13 tests
+  skipped, three T-502 guard tests failed. All three fixed; final targeted 18 files / 804 tests pass, including DB/HTTP,
+  shared/app/web units, outsider/cross-tenant/route/rehearsal and the three failing guard suites. No full rerun (ADR-355).
+  Fresh final web build; full browser suite 197 passed / 1 skipped in 11.8 min (t502-browser-clean.log). Earlier full
+  attempts each had one unrelated phone failure (location clearing, then a Chromium Target crashed on the Arabic
+  streak screen); both pass in the five-test isolated phone recheck and the clean full run, with no unrelated edits.
+  API build, all workspace types, lint, lint:limits (318 baselined violations, none new), format and audit pass (three
+  existing ignored advisories, none actionable). Native Android+iOS Expo export passes; default Expo web export needs
+  the existing absent react-native-web and was not added for this native task. By-hand 50,000-member timing: count
+  732 ms, press 337 ms, fan-out 19.235 s / 52 calls, slowest 430 ms; 1 s call / 5 s statement gates pass.
+  Progress 108/177 (61.02%). CI minutes: 0 (local only). Recovery worker effort: about 80 minutes and roughly 0.1M
+  working tokens (estimate; billing usage unavailable). No deployment, EAS, push or mutation; mutation globs: none.
+  Remaining: independent tier B review, coordinator acceptance/override of ADR-358/Q-327, findings fix/CI/push and
+  real-phone/push-provider release checks. **Review/fix/push/update handoff, then stop; no next task.**
+
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded, cap re-review 88 folded, GO to push; ADR-353 Accepted; accept-all 1,000 a call, 250 with a hard limit until T-221); T-501e (the event pushes) is built and reviewed (78 folded, re-review 91 folded, GO to push; ADR-354 Accepted); T-501f (reminders and promotion by push) is built and reviewed (tier A findings folded; ADR-356 Accepted); T-501g (the hint push) is built and reviewed (ADR-357 Accepted); T-502 (announcements) is next.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded, cap re-review 88 folded, GO to push; ADR-353 Accepted; accept-all 1,000 a call, 250 with a hard limit until T-221); T-501e (the event pushes) is built and reviewed (78 folded, re-review 91 folded, GO to push; ADR-354 Accepted); T-501f (reminders and promotion by push) is built and reviewed (tier A findings folded; ADR-356 Accepted); T-501g (the hint push) is built and reviewed (ADR-357 Accepted); T-502 (announcements) is built; its independent tier B review/fix/push is next, then stop (do not start T-503).** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console
@@ -1814,4 +1840,3 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 - Open questions at close: see `OPEN_QUESTIONS.md`. Blocking Phase 0: Q-031 (cloud), Q-034 (SMS quotes),
   Q-046 (Expo SDK check). Also open: Q-070, Q-071, Q-075, Q-077, Q-078, Q-079, Q-043, Q-051.
 - Codex: mascot images resume after the limit resets (18 Oct, 3:09 pm Riyadh).
-

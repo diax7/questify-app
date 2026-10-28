@@ -608,3 +608,16 @@ nonempty passes; the largest processed160 recipients (cap500), and the slowest p
 checked between transactions, not a hard cancellation deadline. Empty invocations while unfinished leases expire
 are included. This harness omits the normal5s tick interval and does not establish production capacity or all-audience/
 100-rule performance. Report `Temp/questify-t402b-20k.json`, log with the same prefix. No invented latency target.
+
+### T-502 announcements (2026-10-29; migration 0081, not deployed)
+
+A scheduled row is released by the existing push_due minute tick (up to 100 due announcements/call; more asks the
+worker to loop). If delivery stalls, inspect ids/status only: scheduled/not-yet-due, sent with fan-out pending, or
+skipped event_closed/not_live/late. A missing notice kind leaves a due row waiting and logs the send-now failure by
+event id; restore the shipped announcement kind, never retry text manually through an outside sender. More than
+30 minutes late is intentionally skipped. Cancel only before release; sent announcements cannot be recalled.
+Before real use, complete the existing APNs/Firebase go-live checklist. On iOS and Android verify Arabic RTL and
+Western digits, Home flash/boost expiry after more than 15 minutes, newest-three ordering/See all, full-text list,
+Back, failed-read retry and a muted-announcements member (center/Home present, no push). Push tap opens event Home.
+Native Expo export passes for iOS+Android; default web export is unsupported by this native app's existing missing
+react-native-web dependency, which T-502 does not add. No EAS build or real vendor send is part of this task.

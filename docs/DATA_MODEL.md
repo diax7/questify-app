@@ -1312,3 +1312,18 @@ Derived from the primary flows:
 | Audit logs | Accountability (NFR-019) | Append-only; on deletion the player's entries are anonymized | Q-075 | Admin |
 | Deletion fingerprint | Keep bans after deletion (ADR-084) | One-way hash only | Q-075; counsel Q-051 | System |
 | Wallet pass data | Logo, name, dates, @username, score, balance, level, rank, last-updated on a pass (ADR-091; data abroad, Q-043) | Minimal fields; counsel review | As the pass exists | Apple/Google, the player |
+
+## Announcements (T-502, migration 0081; Proposed ADR-358)
+
+announcement: UUID id, organizer/event composite FK (cascade with event), bilingual title/full body/cut body,
+status (scheduled/sent/cancelled/skipped), send_at, SHA-256 press unique per event, rehearsal, notice_id,
+skip_reason, created_by/at, sent_at, cancelled_at. CHECKs bind state/timestamps; a trigger freezes draft, identity,
+author and send-time fields and permits a terminal transition only once. notice_id has no FK so notice retention
+can purge it; then the dashboard count is null. Indexes: event/send_at/id and scheduled-only due. No direct API or
+PUBLIC rights; forced RLS/no public policy. Only five granted definers: announcement_send/cancel/list/preview and
+member_announcements. Helpers and push_due_announcement are ungranted; push_due stays system-only. Audit names ids
+and state, never text. One event-class announcement kind, announcements topic, active membership, 2 h TTL, refs with
+announcement id; params freeze event name/title/cut body in both languages. Existing fan-out writes notification and
+push_send. Muting keeps center rows, suppresses push. No contacts or channel table added. History is event data under
+Q-075; erasing a player removes their existing push-store rows, not organizer copy. Exact grants/audience/channels
+are covered by database, HTTP, outsider and cross-tenant inventories.

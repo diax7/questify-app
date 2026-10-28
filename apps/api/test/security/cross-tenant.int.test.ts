@@ -896,6 +896,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide catalog of push kinds with no tenant and no direct API rights; seeded by migrations, read only by the definers (push-store)",
   notice:
     "no direct API rights; written only by notice_create inside a producer's own door (one insert) and read by the system-only fan-out, claim and the caller-bound own_notifications for the calling player's center rows only (push-store, cross-tenant below)",
+  announcement:
+    "no direct API rights; event-scoped owner/editor doors use award_event_of; member_announcements is caller-bound, active members only, rehearsal-separated (announcements database and HTTP suites)",
   notification:
     "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
   push_device:
@@ -1386,6 +1388,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
       randomUUID(),
       randomUUID(),
     ]);
+
+  it("keeps all announcement doors inside the caller's tenant and membership", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      const calls = [
+        ["SELECT announcement_list($1)", [f.eventB]],
+        ["SELECT * FROM announcement_preview($1)", [f.eventB]],
+        [
+          "SELECT * FROM announcement_send($1, '{}'::jsonb, NULL, $2, $3)",
+          [f.eventB, randomUUID(), randomUUID()],
+        ],
+        ["SELECT announcement_cancel($1, $2, $3)", [f.eventB, randomUUID(), randomUUID()]],
+      ] as const;
+      for (const [sql, values] of calls)
+        expect(await refusal(asA(seat, sql, [...values]))).toBe("AN404");
+      expect(await refusal(asA(seat, "SELECT member_announcements($1, 50)", [f.eventB]))).toBe(
+        "AM403",
+      );
+    }
+    expect(await count("owner", "announcement WHERE event_id = $1", [f.eventB])).toBe(0);
+  });
 
   it("keeps the streak doors inside their tenant and their player (T-405)", async () => {
     const organizer = contextFor(f, "organizer");

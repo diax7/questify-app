@@ -44,7 +44,13 @@ export function trimName(name: string): string {
   return `${text.slice(0, cut)}...`;
 }
 
-function issueOf(text: string): InvitationNameIssue | null {
+/**
+ * Why a text cannot go out under Questify's name, or null when it can: control and invisible characters, an address
+ * (`://`, `@`, a dot between letters or digits of any script) or a phone number, each tested on the text and on its NFKC
+ * form. The whole text is judged; callers that cut it (a name) judge the cut text too. Announcements (T-502) use it on
+ * their cleaned title and body.
+ */
+export function textIssue(text: string): InvitationNameIssue | null {
   const folded = text.normalize("NFKC");
   if (controlPattern().test(text) || controlPattern().test(folded)) return "control_characters";
   if (folded.includes("://") || folded.includes("@") || DOTTED.test(folded)) {
@@ -59,5 +65,5 @@ function issueOf(text: string): InvitationNameIssue | null {
  * exactly as sent, each in its NFKC form.
  */
 export function invitationNameIssue(name: string): InvitationNameIssue | null {
-  return issueOf(name) ?? issueOf(trimName(name));
+  return textIssue(name) ?? textIssue(trimName(name));
 }

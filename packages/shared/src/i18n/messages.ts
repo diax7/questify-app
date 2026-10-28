@@ -6310,6 +6310,177 @@ export const MESSAGES = {
     ar: "قرب بدء الفعالية، وسلسلتك اليومية، وإغلاق متجر الجوائز",
     en: "The event starting soon, your daily streak and the rewards shop closing",
   },
+  // Organizer announcements (T-502, ADR-358): the dashboard page and the app's list and strip. The Arabic says "of those
+  // who joined" instead of naming the event's plural word for players (nominative, wrong after «إلى»), as the hint does.
+  "announcements.page.title": { ar: "الإعلانات", en: "Announcements" },
+  "announcements.page.intro": {
+    ar: "اكتب إعلانًا بالعربية والإنجليزية ليصل إلى المنضمين إلى الفعالية. يصل بإشعار وداخل التطبيق فقط، ولا يُرسل بالبريد الإلكتروني ولا بالرسائل النصية.",
+    en: "Write an announcement in Arabic and English for everyone in the event. It arrives as a notification and inside the app only, never by email or SMS.",
+  },
+  "announcements.page.limits": {
+    ar: "يمكن إرسال {perHour} إعلانات في الساعة و{perDay} في اليوم لكل فعالية.",
+    en: "An event can send {perHour} announcements an hour and {perDay} a day.",
+  },
+  "announcements.page.new": { ar: "إعلان جديد", en: "New announcement" },
+  "announcements.page.titleAr": { ar: "العنوان بالعربية", en: "Title in Arabic" },
+  "announcements.page.titleEn": { ar: "العنوان بالإنجليزية", en: "Title in English" },
+  "announcements.page.bodyAr": { ar: "النص بالعربية", en: "Text in Arabic" },
+  "announcements.page.bodyEn": { ar: "النص بالإنجليزية", en: "Text in English" },
+  "announcements.page.counter": { ar: "{count} من {max}", en: "{count} of {max}" },
+  "announcements.page.when": { ar: "وقت الإرسال", en: "When to send" },
+  "announcements.page.now": { ar: "الآن", en: "Now" },
+  "announcements.page.later": { ar: "في موعد محدد", en: "At a set time" },
+  "announcements.page.sendAt": { ar: "الموعد", en: "Send at" },
+  "announcements.page.preview": { ar: "المعاينة", en: "Preview" },
+  "announcements.page.previewNote": {
+    ar: "هكذا يظهر الإشعار وسطر المركز. يُقتطع النص فيهما بعد {max} حرفًا، ويظهر كاملًا في قائمة الإعلانات داخل التطبيق.",
+    en: "This is how the notification and the center line look. The text is cut after {max} characters there and shows in full in the app's list.",
+  },
+  "announcements.page.previewAr": { ar: "بالعربية", en: "In Arabic" },
+  "announcements.page.previewEn": { ar: "بالإنجليزية", en: "In English" },
+  "announcements.page.audienceLive": {
+    ar: "يصل إلى {count} ممن انضموا إلى الفعالية.",
+    en: "Reaches {count} of your {playerMany}.",
+  },
+  "announcements.page.audienceRehearsal": {
+    ar: "لم تبدأ الفعالية، فيصل إلى حسابات التجربة فقط ({count}).",
+    en: "The event hasn't started, so it reaches your rehearsal accounts only ({count}).",
+  },
+  "announcements.page.audienceNone": {
+    ar: "لا أحد يستلم الإعلان الآن. افتح تجربة الفعالية أو اختر موعدًا بعد البدء.",
+    en: "No one can receive it right now. Open the event's rehearsal or choose a time after it starts.",
+  },
+  "announcements.page.audienceLater": {
+    ar: "يصل وقت الإرسال إلى من انضموا إلى الفعالية حينها.",
+    en: "At the set time it reaches whoever has joined by then.",
+  },
+  "announcements.page.send": { ar: "إرسال الإعلان", en: "Send the announcement" },
+  "announcements.page.schedule": { ar: "جدولة الإعلان", en: "Schedule the announcement" },
+  "announcements.page.confirmNowTitle": { ar: "إرسال الإعلان؟", en: "Send the announcement?" },
+  "announcements.page.confirmNowBody": {
+    ar: "سيصل الآن إلى {count} ممن انضموا إلى الفعالية. لا يمكن سحبه بعد الإرسال.",
+    en: "It will reach {count} of your {playerMany} now. It can't be taken back once sent.",
+  },
+  "announcements.page.confirmRehearsalBody": {
+    ar: "سيصل الآن إلى حسابات التجربة فقط ({count}).",
+    en: "It will reach your rehearsal accounts only ({count}).",
+  },
+  "announcements.page.confirmLaterTitle": { ar: "جدولة الإعلان؟", en: "Schedule the announcement?" },
+  "announcements.page.confirmLaterBody": {
+    ar: "سيُرسل {time}. يمكنك إلغاؤه قبل ذلك.",
+    en: "It will be sent {time}. You can cancel it before then.",
+  },
+  "announcements.page.sent": { ar: "الإعلان في الطريق.", en: "The announcement is on its way." },
+  "announcements.page.scheduled": { ar: "الإعلان مجدول.", en: "The announcement is scheduled." },
+  "announcements.page.cancelled": { ar: "أُلغي الإعلان.", en: "The announcement is cancelled." },
+  "announcements.page.list": { ar: "إعلانات الفعالية", en: "The event's announcements" },
+  "announcements.page.empty": { ar: "لا إعلانات بعد.", en: "No announcements yet." },
+  "announcements.page.loadFailed": {
+    ar: "تعذّر تحميل الإعلانات.",
+    en: "Couldn't load the announcements.",
+  },
+  "announcements.page.status.scheduled": { ar: "مجدول", en: "Scheduled" },
+  "announcements.page.status.sent": { ar: "أُرسل", en: "Sent" },
+  "announcements.page.status.cancelled": { ar: "أُلغي", en: "Cancelled" },
+  "announcements.page.status.skipped": { ar: "لم يُرسل", en: "Not sent" },
+  "announcements.page.rehearsal": { ar: "تجربة", en: "Rehearsal" },
+  "announcements.page.scheduledFor": { ar: "الموعد: {time}", en: "Goes out {time}" },
+  "announcements.page.sentAt": { ar: "أُرسل {time}", en: "Sent {time}" },
+  "announcements.page.delivered": { ar: "وصل إلى نحو {count}", en: "Reached about {count}" },
+  "announcements.page.delivering": { ar: "جارٍ التسليم", en: "Delivering" },
+  "announcements.page.cancel": { ar: "إلغاء الإعلان", en: "Cancel it" },
+  "announcements.page.cancelTitle": { ar: "إلغاء الإعلان؟", en: "Cancel the announcement?" },
+  "announcements.page.cancelBody": {
+    ar: "لن يُرسل هذا الإعلان.",
+    en: "This announcement will not be sent.",
+  },
+  "announcements.page.keep": { ar: "إبقاؤه", en: "Keep it" },
+  "announcements.page.skip.eventClosed": {
+    ar: "انتهت الفعالية قبل موعد الإرسال.",
+    en: "The event had ended by then.",
+  },
+  "announcements.page.skip.notLive": {
+    ar: "لم تكن الفعالية قد بدأت.",
+    en: "The event hadn't started.",
+  },
+  "announcements.page.skip.late": {
+    ar: "فات موعده بأكثر من 30 دقيقة.",
+    en: "It was more than 30 minutes late.",
+  },
+  "announcements.page.invalid": {
+    ar: "راجع «{field}»: {issue}",
+    en: "Check “{field}”: {issue}",
+  },
+  "announcements.page.issue.required": { ar: "هذا الحقل مطلوب.", en: "This field is required." },
+  "announcements.page.issue.tooLong": {
+    ar: "النص أطول من المسموح ({max}).",
+    en: "The text is longer than allowed ({max}).",
+  },
+  "announcements.page.issue.looksLikeAddress": {
+    ar: "لا يُسمح بالروابط وعناوين البريد ولا بنقطة بين حرفين أو رقمين (مثل 2.5).",
+    en: "Links, email addresses and a dot between letters or digits (like 2.5) aren't allowed.",
+  },
+  "announcements.page.issue.looksLikePhone": {
+    ar: "لا يُسمح بأرقام الهاتف في الإعلان.",
+    en: "Phone numbers aren't allowed in an announcement.",
+  },
+  "announcements.page.issue.controlCharacters": {
+    ar: "يحتوي النص على رموز غير مسموحة.",
+    en: "The text contains characters that aren't allowed.",
+  },
+  "announcements.page.issue.sendAt.required": { ar: "اختر الموعد.", en: "Choose a time." },
+  "announcements.page.issue.sendAt.past": {
+    ar: "اختر وقتًا بعد دقيقتين على الأقل من الآن.",
+    en: "Choose a time at least 2 minutes from now.",
+  },
+  "announcements.page.issue.sendAt.tooFar": {
+    ar: "اختر وقتًا خلال 180 يومًا.",
+    en: "Choose a time within 180 days.",
+  },
+  "announcements.page.issue.sendAt.beforeStart": {
+    ar: "اختر وقتًا بعد بدء الفعالية.",
+    en: "Choose a time after the event starts.",
+  },
+  "announcements.page.issue.sendAt.afterEnd": {
+    ar: "اختر وقتًا قبل انتهاء الفعالية.",
+    en: "Choose a time before the event ends.",
+  },
+  "announcements.title": { ar: "الإعلانات", en: "Announcements" },
+  "announcements.seeAll": { ar: "عرض الكل", en: "See all" },
+  "announcements.empty": { ar: "لا إعلانات بعد.", en: "No announcements yet." },
+  "announcements.loadFailed": {
+    ar: "تعذّر تحميل الإعلانات. حاول مرة أخرى.",
+    en: "Couldn't load the announcements. Try again.",
+  },
+  "happening.title": { ar: "يحدث الآن", en: "Happening now" },
+  "error.invalidAnnouncement": {
+    ar: "راجع حقول الإعلان والموعد.",
+    en: "Check the announcement fields and time.",
+  },
+  "error.announcementAlreadySent": {
+    ar: "لم يعد من الممكن إلغاء هذا الإعلان.",
+    en: "This announcement can no longer be cancelled.",
+  },
+  "error.announcementLimit": {
+    ar: "بلغت الفعالية حد الإعلانات. اختر موعدًا لاحقًا.",
+    en: "The event has reached its announcement limit. Choose a later time.",
+  },
+  "error.announcementNobody": {
+    ar: "لا أحد يستلم الإعلان الآن.",
+    en: "No one can receive this announcement right now.",
+  },
+  "error.announcementEventClosed": {
+    ar: "انتهت الفعالية. لا يمكن إرسال إعلان جديد.",
+    en: "The event has ended. A new announcement cannot be sent.",
+  },
+  "error.announcementEventNotLive": {
+    ar: "لم تبدأ الفعالية. افتح التجربة أو اختر موعدًا بعد البدء.",
+    en: "The event has not started. Open rehearsal or choose a time after it starts.",
+  },
+  "error.announcementUnavailable": {
+    ar: "تعذّر إرسال الإعلان. حاول مرة أخرى.",
+    en: "The announcement could not be sent. Try again.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;
