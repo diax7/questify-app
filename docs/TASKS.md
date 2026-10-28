@@ -908,14 +908,23 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     (`help_answered_questify`, `help_solved` → requests). Worker: the due-scan step (`push.due_failed`). Tests:
     `test/db/push-producers.int` (each kind once, the right player only, a broken kind never undoing the door, the scan's
     markers, the text and ids-only payload), `push-store.int` (every kind row has a template and a route), outsider,
-    cross-tenant, worker and shared units; timing by hand `test/perf/push-producers-timing.int` (accept-all of 5,000:
-    7.4 s with the trigger, 5.8 s before it; **over the plan's 5 s gate already before this slice**, the souvenir enqueue
-    trigger, Q-322). ADR-353 and Q-322 Proposed. Mutation globs: `apps/api/src/push/worker.ts`,
+    cross-tenant, worker and shared units; timing by hand `test/perf/push-producers-timing.int` (an unbounded accept-all
+    of 5,000 took 7.4 s with the trigger and 5.8 s before it, over the API's 5 s statement limit: the souvenir enqueue
+    trigger is about 1 ms a row, Q-322).
+  - Code review 2026-10-28 (core): 84, NO-GO until 1 and 2; folded: a flaky assertion (a short number matched inside
+    random ids) checks only the frozen names now; **accept-all takes at most 1,000 requests a call** (0077 restates
+    `accept_all_join_requests` with `LIMIT least(free, 1000)`, nothing else changed) and the dashboard repeats while a
+    call accepted some and requests wait (at most 10 calls a press, a progress line, a failure partway keeps and says what
+    was accepted; `apps/web/src/lib/accept-all.ts`); one call of 1,000 measured at 1.76 s with the trigger (1.43 s
+    without); 1,001 requests give (1000, 1) then (1, 0); the acceptance text no longer says "You can play now" (a
+    scheduled private event accepts before the start; a test for it); `notice_create`'s parameters qualified. ADR-353
+    Accepted, Q-322 answered (cap taken now). Mutation globs add `apps/web/src/lib/accept-all.ts`. Mutation globs: `apps/api/src/push/worker.ts`,
     `apps/api/src/push/doors.ts`, `packages/shared/src/push/templates.ts`, `packages/shared/src/push/routes.ts`.
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
     call only `notice_create` (one insert): statement-level triggers with transition tables for bulk writes, a
     row-level `WHEN` trigger on `enrollment` (`pending` or `declined` → `active`/`declined`, never an operator or rehearsal
-    account; accept-all of 5,000 measured under 5 s), due scans for times, no per-row
+    account; measured: accept-all now takes at most 1,000 a call, one call about 1.5 to 1.8 s with the trigger, ADR-353 (5)),
+    due scans for times, no per-row
     `EXCEPTION` block; each producer has a "broken kind cannot roll back the door" test (plan § Review 2).
   - Note 2026-10-28 (T-501 build): each kind is a `notice_kind` row in the slice's migration plus a template in
     `PUSH_TEMPLATES` (`packages/shared/src/push/templates.ts`, `push.<kind>.body` and `.nameless` in `messages.ts`); the

@@ -1332,10 +1332,11 @@ and decisions on submissions. The other options: a ready push at every desk open
 the ending push for every hold (a "held until" a few minutes after a short reservation), the due scans inside settle
 (every 10 minutes: too late for a 15-minute warning), one help-desk kind with a variant in the template (a renderer
 change for one producer), keeping `notice_create` in SQL (about 2 s more for 5,000 decisions). Developer's call at the
-T-501d code review.
-**Open for the developer (measured, not blocking T-501d):** accept-all of 5,000 requests takes about 5.8 s on the
-laptop before T-501d (5 s of it the souvenir enqueue trigger `souvenir_on_fact`, T-402b, about 1 ms a row) and 7.4 s
-with the join-decision push, over the API's 5 s statement limit, so a very large accept-all is refused (`57014`) and
-nothing is accepted. Recommended: accept-all takes at most 1,000 requests a call and the dashboard repeats while
-`remaining` is above 0 (the door already answers it), or the souvenir trigger gets a cheaper path for a status change
-that cannot grant anything; measured again on CranL before NFR-004's load test.
+T-501d code review. Also measured: an unbounded accept-all of 5,000 requests took about 5.8 s before T-501d (5 s of
+it the souvenir enqueue trigger `souvenir_on_fact`, T-402b) and 7.4 s with the join-decision push, over the API's 5 s
+statement limit; recommended: accept-all takes at most 1,000 requests a call and the dashboard repeats.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501d code review (84; the flaky assertion
+and the accept-all ceiling fixed, the minors folded). **Cap taken now:** accept-all takes at most 1,000 requests a call
+(one call 1.76 s on the laptop with the trigger) and the dashboard repeats while one accepted some and requests wait,
+at most 10 calls a press. The souvenir trigger's cost stays as it is; measured again on CranL before NFR-004's load
+test. ADR-353 Accepted.

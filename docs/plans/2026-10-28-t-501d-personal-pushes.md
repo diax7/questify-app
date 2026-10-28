@@ -45,7 +45,7 @@ fixed texts by team and outcome. `help_answered_questify` and `help_solved` join
 
 | Kind | English | Arabic |
 |---|---|---|
-| `join_accepted` | Your request to join was accepted. You can play now. | قُبل طلب انضمامك، ويمكنك اللعب الآن. |
+| `join_accepted` | Your request to join was accepted. | قُبل طلب انضمامك. |
 | `join_declined` | Your request to join wasn't accepted. | لم يُقبل طلب انضمامك. |
 | `help_answered` | The event team answered you. | ردّ عليك فريق الفعالية. |
 | `help_answered_questify` | The Questify team answered you. | ردّ عليك فريق Questify. |
@@ -108,12 +108,15 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
 - **`notice_create` is restated in PL/pgSQL** in 0077 (the same one insert and answers): PostgreSQL 17 plans a SQL
   function's body again at every call from a trigger, which added about 2 s to accept-all of 5,000. `push_names` has no
   SET clause (pg_catalog functions only, schema-qualified), so it is inlined.
-- **Accept-all of 5,000 requests** (laptop, `test/perf/push-producers-timing.int`): 7.4 s with the join-decision
-  trigger, 5.8 s without it (about 0.3 ms a decision); the personal fan-out of the 5,000 notices 1.3 s. **The plan's
-  5 s gate is not met and was not met before this slice:** 5 s of the 5.8 s is the souvenir enqueue trigger
-  (`souvenir_on_fact`, T-402b, about 1 ms a row), and the API's statement limit is 5 s. Recorded in ADR-353 (5); the fix
-  (accept-all in calls of at most 1,000, or a cheaper souvenir path) is Q-322's, outside this slice, so the door's
-  behaviour is unchanged.
+- **Accept-all of 5,000 requests** (laptop, `test/perf/push-producers-timing.int`): unbounded, 7.4 s with the
+  join-decision trigger and 5.8 s without it (about 0.3 ms a decision), over the API's 5 s statement limit (5 s of the
+  5.8 s is the souvenir enqueue trigger, `souvenir_on_fact`, T-402b). **Code review fix (84): accept-all takes at most
+  1,000 requests a call** (0077 restates `accept_all_join_requests` with `LIMIT least(free, 1000)`, nothing else
+  changed) and the dashboard repeats while a call accepted some and requests wait (`apps/web/src/lib/accept-all.ts`, at
+  most 10 calls a press, a progress line; a call that fails partway keeps and says what was accepted). One call of
+  1,000: 1.76 s with the trigger, 1.43 s without. ADR-353 (5).
+- **Code review minors:** the acceptance text says only "Your request to join was accepted." (an acceptance before
+  the start is usual for a private event); `notice_create`'s parameters are qualified with its name.
 
 ## Tests (named; `test/db/push-producers.int.test.ts` unless noted)
 
@@ -135,8 +138,9 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
 - **The text is the fixed template, ids only in the payload:** each kind claimed and built with `pushMessageOf`; the
   body equals the template; `data.r` holds ids only; no reply, reason or ticket text anywhere in the notice.
 - **Every `notice_kind` row has a template and a route** (`push-store.int`, now with `NOTIFICATION_TARGETS`).
-- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): accept-all of 5,000 pendings with and without the
-  trigger, measured and recorded in ADR-353 (above); the default suite proves 300 notices from one accept-all.
+- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): one accept-all call of 1,000 (with 5,000 waiting)
+  under 5 s with and without the trigger; the default suite proves 300 notices from one accept-all and the cap (1,001
+  requests give 1,000 then 1); `apps/web/src/lib/accept-all.test.ts` the dashboard's repeat.
 - Security: outsider (the door, its helpers and the trigger functions: no PUBLIC, exact grants, definers), cross-tenant
   (`push_due` refuses every seat with an identity), the rehearsal guards (no new foreign key; no new writer judging the
   status), unit tests for the worker's scan step and the shared templates and routes.

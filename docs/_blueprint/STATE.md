@@ -1716,19 +1716,28 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   5.8 s before it, over the API's 5 s statement limit already before this slice (the souvenir enqueue trigger, about
   1 ms a row): Q-322 recommends accept-all in calls of 1,000. ADR-353 and Q-322 Proposed. Mutation globs:
   `apps/api/src/push/{worker,doors}.ts`, `packages/shared/src/push/{templates,routes}.ts`.
+- 2026-10-28 **T-501d code review 84 folded (short re-review owed on the accept-all cap).** MAJOR: a flaky assertion
+  (the number 50 matched inside random ids) now checks only the frozen names against an unusual point value; accept-all
+  takes at most 1,000 requests a call (0077 restates `accept_all_join_requests`, `LIMIT least(free, 1000)`) and the
+  dashboard repeats while one accepted some and requests wait (at most 10 calls, a progress line, a partial failure says
+  what was accepted); one call of 1,000 measured 1.76 s with the trigger. Minors: the acceptance text drops "You can play
+  now" (a scheduled event test added); `notice_create`'s parameters qualified. ADR-353 Accepted, Q-322 answered (cap
+  taken now). Mutation glob added: `apps/web/src/lib/accept-all.ts`.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built, its code review is owed (ADR-353, Q-322 Proposed; Q-322's accept-all limit is a developer's call); T-501e to T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded; ADR-353 Accepted; accept-all now 1,000 a call, its short re-review owed); T-501e to T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console
    before the first daily word goes live (RUNBOOK). No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b,
    T-407b, T-408b and T-501c (RUNBOOK, "The app's side of push"). **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes; Q-297 a faster `word_list_change` (only if bigger lists
-   are imported).
+   are imported). Follow-up (seen at T-501d, not caused by it): `test/db/community.int`'s "answers community_settling
+   while a transaction from the window is open" reads `pg_stat_activity` cluster-wide and failed once under a full
+   parallel run; fix or quarantine it.
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.

@@ -5030,8 +5030,9 @@ slices exist (a guard test keeps them consistent); a resumed app costs one small
 cold start waits for the launch screen (a fraction of a second to one events read).
 
 ## ADR-353 — Where the T-501d build fills in the personal pushes
-**Status:** Proposed (T-501d build, 2026-10-28; `docs/plans/2026-10-28-t-501d-personal-pushes.md`; Q-322). Refines
-ADR-343, ADR-346 and ADR-347 for rows 1 to 6 of the T-501 plan's "Owed pushes".
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501d build, `docs/plans/2026-10-28-t-501d-personal-pushes.md`;
+code review 84, MAJOR 1 and 2 fixed, the minors folded; Q-322). Refines ADR-343, ADR-346 and ADR-347 for rows 1 to 6
+of the T-501 plan's "Owed pushes".
 **Decision:** (1) **The join-decision trigger also leaves out the player's own re-join**
 (`app_player_id() IS DISTINCT FROM NEW.player_id` in its `WHEN`): `join_write` turns a declined or pending request
 active when an invited player joins again, which is answered on screen and is not a decision; decide, accept-all and a
@@ -5048,12 +5049,17 @@ is three kinds** sharing the `requests` route (`help_answered` for the event tea
 are `push.<kind in camel case>.body` and `.nameless` (the messages key rule has no underscore). (5) **`notice_create`
 is restated in PL/pgSQL** (the same one insert and answers): PostgreSQL 17 plans a SQL function's body again at each
 call from a trigger, which cost accept-all of 5,000 requests about 2 s; `push_names` (the frozen `{ar, en}` cut to 40)
-has no SET clause and only pg_catalog functions, so it is inlined. Measured on the laptop (by hand,
-`test/perf/push-producers-timing.int`): accept-all of 5,000 takes about 5.8 s before T-501d and 7.4 s with the
-join-decision trigger (about 0.3 ms a decision; the personal fan-out of the 5,000 notices then 1.3 s). **The plan's
-5 s gate is not met, and was not met before this slice:** 5 s of the 5.8 s is the souvenir enqueue trigger
-(`souvenir_on_fact`, T-402b, about 1 ms a row), and the API's statement limit is 5 s, so an accept-all of several
-thousand requests is refused with `57014` today (Q-322). (6) **The prize names its deadline's date and time** («حتى
+has no SET clause and only pg_catalog functions, so it is inlined; `notice_create`'s parameters are qualified with
+its name, so a later column named like one cannot make every producer raise. **Accept-all takes at most 1,000
+requests a call** (0077 restates `accept_all_join_requests` with `LIMIT least(free, 1000)`, nothing else changed) and
+the dashboard repeats while a call accepted some and requests wait (at most 10 calls a press, a progress line; a call
+that fails partway keeps what the earlier calls accepted and says so). Measured on the laptop (by hand,
+`test/perf/push-producers-timing.int`): one call of 1,000 takes 1.76 s with the join-decision trigger and 1.43 s
+without (the personal fan-out of its notices 0.3 s); the unbounded accept-all of 5,000 had taken 7.4 s with the trigger
+and 5.8 s before it, over the API's 5 s statement limit (`57014`, nothing accepted): the review measured the ceiling
+falling from about 4,300 to about 3,200 requests with the trigger, and 5 s of the 5.8 s is the souvenir enqueue trigger
+(`souvenir_on_fact`, T-402b, about 1 ms a row). (6) **The acceptance says only that the request was accepted** ("You can play now" is false before the start, and a
+scheduled private event is the usual place to accept). **The prize names its deadline's date and time** («حتى
 {date}، الساعة {time}»): a deadline can fall on the reveal's own day. (7) **Rehearsal accounts** get their own
 submission and help-desk answers during rehearsal (they are the organizer's testers, as T-501 sends them event pushes
 before the start); never a join decision (they make no requests) or a reservation push; results need an ended event, so
@@ -5063,4 +5069,5 @@ writes, the row trigger on `enrollment`, due scans for moments, no `EXCEPTION` b
 door) where its wording left a choice or a number open.
 **Trade-offs:** a ready push can arrive up to a minute after the opening and an ending push up to a minute late; a
 reservation that spans several desk openings is told it is ready only once; the help desk's three kinds mean three rows
-in `notice_kind` for one route; the accept-all capacity under the 5 s limit drops by about a fifth (Q-322 holds the fix).
+in `notice_kind` for one route; accepting more than 1,000 requests takes several calls, which the dashboard makes
+for the organizer.
