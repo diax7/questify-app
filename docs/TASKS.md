@@ -843,7 +843,12 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     trigger's filter; quest windows and reward audiences; settle's cleanup of recent erasures). ADR-342 to ADR-349
     Accepted, Q-311 to Q-318 answered (developer, delegated by Dhia, 2026-10-28). Ready to build.
 - [x] **T-501b** Push provider clients: APNs over HTTP/2 with a token-based key, FCM HTTP v1 with a service account, configuration and startup check, holds and invalid-token cleanup — delivers FR 1101, 1102 (delivery); depends on: T-501
-  - Done 2026-10-28 (core; code review owed). `src/push/h2.ts` (one reused HTTP/2 session per host for both providers:
+  - Code review 2026-10-28: 88, folded (no re-review): a stream lost after its write replaces the connection (a dead
+    path no longer turns every send `unknown`), `close()` drops a connection the far side never closes after 2 s and a
+    replaced one after 15 s, the FCM 429 hold capped at 15 minutes, timing tests on the 500 ms provider margin, the
+    ADR's Apple quote and the go-live checklist (soak, offline phone, uninstall timing, "Team Scoped (All Topics)").
+    ADR-351 Accepted, Q-320 answered.
+  - Done 2026-10-28 (core). `src/push/h2.ts` (one reused HTTP/2 session per host for both providers:
     the stream cap from the server's settings, "never written" told from "written, then lost", reconnect after a
     `GOAWAY`, a refused stream or a hold, a 4-minute idle close), `apns.ts` (ES256 provider token re-signed every 40
     minutes and once after `ExpiredProviderToken`, the plan's table by reason then status), `fcm.ts` (OAuth token from the

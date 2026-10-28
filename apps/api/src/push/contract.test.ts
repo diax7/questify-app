@@ -4,6 +4,7 @@ import { createApnsProvider, createApnsToken } from "#src/push/apns";
 import { createFakeProvider } from "#src/push/fake";
 import { createFcmProvider } from "#src/push/fcm";
 import type { PushMessage, PushProvider, PushResult } from "#src/push/provider";
+import { PROVIDER_MARGIN_MS } from "#src/push/send";
 import { startH2Server, type FakeH2, type Reply } from "#test/support/h2-server";
 
 /** What the far side does: accept, say the app is gone, fail with a 5xx, or never answer. */
@@ -186,7 +187,7 @@ describe.each(harnesses)("the provider contract: %s", (_name, setup) => {
     const result = await harness.provider.send(message, new Date(started + SILENT_DEADLINE_MS));
     wellFormed(result);
     expect(result.kind).toBe("unknown");
-    expect(Date.now() - started).toBeLessThan(SILENT_DEADLINE_MS + 150);
+    expect(Date.now() - started).toBeLessThan(SILENT_DEADLINE_MS + PROVIDER_MARGIN_MS);
   });
 
   it("closes, and closes again", async () => {

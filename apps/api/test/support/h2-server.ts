@@ -4,7 +4,12 @@ import {
   type ServerHttp2Session,
   type ServerHttp2Stream,
 } from "node:http2";
-import type { AddressInfo } from "node:net";
+import {
+  connect as netConnect,
+  createServer as createNetServer,
+  type AddressInfo,
+  type Socket,
+} from "node:net";
 
 /** One request the fake provider read in full. */
 export type Seen = Readonly<{
@@ -126,6 +131,82 @@ export async function startH2Server(
       for (const session of open.keys()) session.destroy();
       await new Promise<void>((resolve) => {
         server.close(() => resolve());
+      });
+    },
+  };
+}
+
+export type DeadPathProxy = Readonly<{
+  /** `http://127.0.0.1:<port>`: connections pass through to the target until `drop()`. */
+  origin: string;
+  /**
+   * Turns every connection open now into a dead path: nothing more is carried either way and nothing is closed, as when
+   * a NAT forgets the connection. Connections made later pass through.
+   */
+  drop: () => void;
+  /**
+   * Whether the client let go of every connection it made: a byte is sent back on each, and a socket the client
+   * destroyed answers with a reset (a socket it only half-closed still takes it).
+   */
+  released: () => Promise<boolean>;
+  close: () => Promise<void>;
+}>;
+
+/** A TCP proxy in front of `target` (a local test server's origin) that can silently drop its open connections. */
+export async function startDeadPathProxy(target: string): Promise<DeadPathProxy> {
+  const port = Number(new URL(target).port);
+  const pairs: Array<{ dropped: boolean; client: Socket; upstream: Socket }> = [];
+  const proxy = createNetServer({ allowHalfOpen: true }, (client) => {
+    const upstream = netConnect({ host: "127.0.0.1", port, allowHalfOpen: true });
+    const pair = { dropped: false, client, upstream };
+    pairs.push(pair);
+    const carry = (from: Socket, to: Socket): void => {
+      from.on("data", (chunk: Buffer) => {
+        if (!pair.dropped) to.write(chunk);
+      });
+      from.on("end", () => {
+        if (!pair.dropped) to.end();
+      });
+      from.on("error", () => undefined);
+    };
+    carry(client, upstream);
+    carry(upstream, client);
+  });
+  await new Promise<void>((resolve) => {
+    proxy.listen(0, "127.0.0.1", resolve);
+  });
+  const { port: own } = proxy.address() as AddressInfo;
+  return {
+    origin: `http://127.0.0.1:${own}`,
+    drop: () => {
+      for (const pair of pairs) pair.dropped = true;
+    },
+    released: async () => {
+      const closed = pairs.map(
+        (pair) =>
+          new Promise<boolean>((resolve) => {
+            if (pair.client.destroyed) {
+              resolve(true);
+              return;
+            }
+            const timer = setTimeout(() => resolve(false), 1000);
+            pair.client.once("close", () => {
+              clearTimeout(timer);
+              resolve(true);
+            });
+            pair.client.write("x");
+            setTimeout(() => pair.client.write("x"), 100);
+          }),
+      );
+      return (await Promise.all(closed)).every(Boolean);
+    },
+    close: async () => {
+      for (const pair of pairs) {
+        pair.client.destroy();
+        pair.upstream.destroy();
+      }
+      await new Promise<void>((resolve) => {
+        proxy.close(() => resolve());
       });
     },
   };

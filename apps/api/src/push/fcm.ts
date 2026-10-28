@@ -14,7 +14,10 @@ export const FCM_ORIGIN = "https://fcm.googleapis.com";
 export const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 /** An account refusal (or a token Google keeps refusing) holds `fcm` this long (plan, T-501b's FCM table). */
 export const FCM_HOLD_MS = 15 * 60_000;
-/** A quota refusal holds `fcm` for Google's Retry-After, and never less than this (Google: back off at least a minute). */
+/**
+ * A quota refusal holds `fcm` for Google's Retry-After, never less than this (Google: back off at least a minute) and
+ * never more than `FCM_HOLD_MS`.
+ */
 export const FCM_QUOTA_HOLD_MS = 60_000;
 /** One request's own limit, and one token request's. */
 export const FCM_REQUEST_MS = 10_000;
@@ -77,11 +80,15 @@ function byErrorCode(status: number, error: FcmError, code: string): PushResult 
   return null;
 }
 
-/** A refusal by its status: 401 and 403 hold, 429 holds for Retry-After (at least a minute), 5xx is tried again. */
+/**
+ * A refusal by its status: 401 and 403 hold, 429 holds for Retry-After (from a minute up to 15 minutes, so a far-off
+ * Retry-After never stops Android pushes for hours), 5xx is tried again.
+ */
 function byStatus(status: number, code: string, retryAfter: number | undefined): PushResult {
   if (status === 401 || status === 403) return { kind: "hold", code, holdMs: FCM_HOLD_MS };
   if (status === 429) {
-    return { kind: "hold", code, holdMs: Math.max(retryAfter ?? 0, FCM_QUOTA_HOLD_MS) };
+    const holdMs = Math.min(Math.max(retryAfter ?? 0, FCM_QUOTA_HOLD_MS), FCM_HOLD_MS);
+    return { kind: "hold", code, holdMs };
   }
   if (status >= 500) {
     return retryAfter === undefined

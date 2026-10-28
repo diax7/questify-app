@@ -95,7 +95,8 @@ for an event.
   center rows 180 days, outbox rows 7 days, devices 60 days unseen or 7 days after an invalid mark.
 - T-501b's client constants (code, ADR-351): the APNs provider token re-signed every 40 minutes; the FCM access token
   renewed 5 minutes before it ends; 50 streams per connection (fewer when the server says so); a request written only
-  with 200 ms left; a connection closed after 4 quiet minutes; an FCM quota hold of at least 60 seconds. The provider
+  with 200 ms left; a connection closed after 4 quiet minutes or after a lost stream, a replaced connection dropped
+  after 15 s and a closing one after 2 s; an FCM quota hold from 60 seconds up to 15 minutes. The provider
   accounts are deployment settings (`APNS_*`, `FCM_SERVICE_ACCOUNT`), not admin data: they are secrets.
 
 ## As built (T-408): the Questify-wide ranking switch and its seasons

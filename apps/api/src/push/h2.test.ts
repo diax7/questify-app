@@ -1,8 +1,15 @@
 import { createServer, type Server, type Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createH2Client, MIN_WRITE_MS, retryAfterMs, type H2Request } from "#src/push/h2";
-import { startH2Server, type FakeH2 } from "#test/support/h2-server";
+import {
+  CLOSE_WAIT_MS,
+  createH2Client,
+  MIN_WRITE_MS,
+  retryAfterMs,
+  type H2Request,
+} from "#src/push/h2";
+import { PROVIDER_MARGIN_MS } from "#src/push/send";
+import { startDeadPathProxy, startH2Server, type FakeH2 } from "#test/support/h2-server";
 
 const request: H2Request = {
   path: "/x",
@@ -71,6 +78,43 @@ describe("createH2Client", () => {
   });
 });
 
+describe("a connection that stops answering (a dead path)", () => {
+  let server: FakeH2;
+
+  beforeAll(async () => {
+    server = await startH2Server(() => ({ status: 200 }));
+  });
+
+  afterAll(async () => {
+    await server.close();
+  });
+
+  it("is replaced after a request lost on it, so the next request goes out on a new connection", async () => {
+    const proxy = await startDeadPathProxy(server.origin);
+    const client = createH2Client({ origin: proxy.origin, maxStreams: 10, idleMs: 60_000 });
+    expect(await client.post(request, soon())).toMatchObject({ kind: "answer", status: 200 });
+    proxy.drop();
+    expect(await client.post(request, soon(400))).toEqual({ kind: "lost", code: "timeout" });
+    expect(await client.post(request, soon())).toMatchObject({ kind: "answer", status: 200 });
+    expect(await client.post(request, soon())).toMatchObject({ kind: "answer", status: 200 });
+    expect(server.seen.map((one) => one.session)).toEqual([1, 2, 2]);
+    await client.close();
+    await proxy.close();
+  });
+
+  it("does not hold close() when the far side never closes the connection", async () => {
+    const proxy = await startDeadPathProxy(server.origin);
+    const client = createH2Client({ origin: proxy.origin, maxStreams: 10, idleMs: 60_000 });
+    await client.post(request, soon());
+    proxy.drop();
+    const started = Date.now();
+    await client.close();
+    expect(Date.now() - started).toBeLessThan(CLOSE_WAIT_MS + PROVIDER_MARGIN_MS);
+    expect(await proxy.released()).toBe(true);
+    await proxy.close();
+  });
+});
+
 describe("a host that accepts the connection but never speaks HTTP/2", () => {
   let silent: Server;
   const sockets = new Set<Socket>();
@@ -104,7 +148,7 @@ describe("a host that accepts the connection but never speaks HTTP/2", () => {
       kind: "not_sent",
       code: "connect_timeout",
     });
-    expect(Date.now() - started).toBeLessThan(300 + 150);
+    expect(Date.now() - started).toBeLessThan(300 + PROVIDER_MARGIN_MS);
     client.reconnect();
   });
 });

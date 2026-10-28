@@ -11,6 +11,7 @@ import {
   createApnsToken,
 } from "#src/push/apns";
 import type { PushMessage, PushProvider, PushResult } from "#src/push/provider";
+import { PROVIDER_MARGIN_MS } from "#src/push/send";
 import { startH2Server, type FakeH2, type Reply } from "#test/support/h2-server";
 
 const DEVICE = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
@@ -355,7 +356,7 @@ describe("the APNs client against a local HTTP/2 server", () => {
     next = () => ({ status: 200, delayMs: 2000 });
     const started = Date.now();
     expect(await fresh().send(message, soon(400))).toEqual({ kind: "unknown", code: "timeout" });
-    expect(Date.now() - started).toBeLessThan(400 + 150);
+    expect(Date.now() - started).toBeLessThan(400 + PROVIDER_MARGIN_MS);
   });
 
   it("never waits past its 10-second limit when the worker's deadline is later", async () => {

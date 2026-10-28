@@ -229,9 +229,10 @@ quiet minutes); without keys no client exists: the center fills and every push e
   the `.p8` must be an EC P-256 private key and is signed with once (a key that cannot sign stops the start); the key
   and team ids are 10 capital letters or digits; `APNS_TOPIC` is a bundle id; the service account needs `project_id`,
   `client_email`, an RSA `private_key` and an https `token_uri`. Values come from the environment only (no file path).
-- **Making the keys (Dhia, once):** in the Apple Developer account create an APNs auth key enabled for **Sandbox &
-  Production** (a key limited to one environment answers 403 `BadEnvironmentKeyIdInToken` on the other host, which
-  holds that target and logs `push.provider_hold`); note its key id and the team id; set the four `APNS_*`. In Firebase,
+- **Making the keys (Dhia, once):** in the Apple Developer account create an APNs auth key, choosing the environment
+  **Sandbox & Production** and the key restriction **Team Scoped (All Topics)** (a key limited to one environment
+  answers 403 `BadEnvironmentKeyIdInToken` on the other host, which holds that target and logs `push.provider_hold`;
+  a topic-specific key must list `app.questify.mobile`); note its key id and the team id; set the four `APNS_*`. In Firebase,
   Project settings → Service accounts → Generate new private key; set `FCM_SERVICE_ACCOUNT` to the file's base64
   (`base64 -w0 key.json`). Then run the go-live checklist below.
 - **Switch:** `pushNotifications` (on when absent). Off, nothing is sent; the center, mutes and registration keep
@@ -282,12 +283,20 @@ below.
 2. A TestFlight install registers as `production` (its environment reads `null`, ADR-344 (5)) and receives a push.
 3. A real iPhone and a real Android phone each receive a personal push and an event push, in Arabic (right to left on
    the lock screen, Western digits) and in English.
-4. After uninstalling the app on each phone, the next push comes back as APNs 410 `Unregistered` and FCM 404
-   `UNREGISTERED`, in the shapes T-501b maps, and the device is marked invalid.
+4. After uninstalling the app on each phone, a later push comes back as APNs 410 `Unregistered` and FCM 404
+   `UNREGISTERED`, in the shapes T-501b maps, and the device is marked invalid. Allow time: Apple may keep answering
+   200 for a while after an uninstall (it learns of it from the phone), so send again after an hour, then a day, and
+   record when the answer changed.
 5. Sending the same notification twice replaces the first on both phones (APNs collapse id, Android tag).
 6. A tap with the app killed opens the right screen: confirm where `expo-notifications` puts the direct-APNs custom key
    `q` (`trigger.payload` or `content.data`) and the FCM `data`, and that the app reads them there.
 7. With the permission refused, the center still lists the message and Settings shows the off state.
+8. A soak of more than 60 minutes of steady sending on both platforms: the APNs provider token is re-signed at 40
+   minutes and the FCM access token renewed before its hour ends, with no `TooManyProviderTokenUpdates`, no
+   `ExpiredProviderToken` hold and no `push.fcm_auth_failed` in the logs.
+9. A phone offline (flight mode) while three pushes are sent gets only the latest when it comes back, on both platforms
+   (APNs stores one notification per app; FCM notification messages always collapse, ADR-351 (5)); the center lists all
+   three.
 
 ## Usernames and the word lists (T-109, ADR-119)
 

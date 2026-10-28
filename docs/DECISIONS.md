@@ -4929,12 +4929,13 @@ that lists unopened quests, a regex limit) or names what the plan left to the bu
 exists today); the config check lands one slice later than the plan's test list said.
 
 ## ADR-351 — Where the T-501b build fills in the provider clients
-**Status:** Proposed (developer, T-501b build, 2026-10-28; `docs/plans/2026-10-28-t-501-push.md` § T-501b; Q-320).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501b build, `docs/plans/2026-10-28-t-501-push.md`
+§ T-501b; core code review 88, every departure accepted, (11) and the corrections to (4) and (5) are its fold-ins; Q-320).
 Refines ADR-344 and ADR-345 where the plan left a detail open or could not hold as written.
 **Decision:** (1) **One HTTP/2 transport for both providers** (`src/push/h2.ts`, `node:http2`): FCM is posted over HTTP/2
 too, not with `fetch` as ADR-344 (1) said, because only a stream's state tells "never written" (requeue, not counted)
 from "written, then a timeout or a reset" (`unknown`, never resent); `fetch` reports both as one error. One session per
-origin, reused, reopened after a `GOAWAY`, an error, a refused stream or a hold; at most 50 streams in flight and never
+origin, reused, replaced after a `GOAWAY`, an error, a refused stream, a lost stream (11) or a hold; at most 50 streams in flight and never
 above the server's `SETTINGS_MAX_CONCURRENT_STREAMS` (APNs allows one until a token is accepted); a request waits for a
 stream until its deadline, and is written only with at least 200 ms left. (2) **"Never processed" counts as never
 written:** `REFUSED_STREAM`, a stream above a `GOAWAY`'s last stream id, APNs 503 `Shutdown` and 400 `IdleTimeout`
@@ -4946,10 +4947,14 @@ would end as `unknown`); Apple asks to reuse connections, and a busy one is reus
 tables, completed by status:** any 410 removes the device (not ambiguous); any 403 holds (with `BadCertificate` and
 `BadCertificateEnvironment`, which cannot occur with a token key); APNs 404 and 405 and any other 4xx are `failed` and
 logged `push.apns_refused {target, status, code}` (a device's 429 `TooManyRequests` is not logged); FCM 401 and 403
-hold, any other 4xx is `failed` and logged `push.fcm_refused {status, code}`; a 5xx is retried within the deadline
-(Apple: a 5xx may be retried; the breaker bounds a storm). (5) **No `collapse_key` on FCM:** Google: "Notification
+hold, any other 4xx is `failed` and logged `push.fcm_refused {status, code}`; an FCM 429 holds for its Retry-After,
+from 60 seconds up to 15 minutes. A 5xx is retried within the lease after 1 s and 2 s (ADR-345); Apple's own advice is to
+retry a 5xx after 15 minutes, with back-off, so these early retries go against it, bounded only by the breaker (10
+consecutive failures hold the target 30 s, doubling to 15 minutes) and the 8-attempt limit (Q-320). (5) **No `collapse_key` on FCM:** Google: "Notification
 messages are always collapsible and will ignore the `collapse_key` parameter"; the Android `tag` (`n<notification id>`)
-replaces the shown notification. (6) **Google's token endpoint:** a network failure, a timeout, a 5xx or a 429 is
+replaces the shown notification. A phone that was offline therefore gets only the latest push on both platforms: APNs
+stores one notification per app while a device is away, and FCM notification messages always collapse. The in-app
+center holds every message, so nothing is lost; the RUNBOOK go-live checklist checks this on real phones. (6) **Google's token endpoint:** a network failure, a timeout, a 5xx or a 429 is
 "unreachable" (the send is requeued untried, no hold, the next send asks again); only a refusal (a 4xx such as
 `invalid_grant`) holds `fcm` for 15 minutes and logs `push.fcm_auth_failed {status, code}`, once per hold. The startup
 check asks for the first token in the background: a refusal holds as above, an unreachable Google is logged
@@ -4967,7 +4972,14 @@ parsing and a token source shared by concurrent callers); the Gmail sender uses 
 `api.sandbox.push.apple.com` answered 403 `InvalidProviderToken` over TLS and HTTP/2 in about 0.9 s (mapped to a hold),
 Google's token endpoint 400 `invalid_grant` (hold and `push.fcm_auth_failed`), `fcm.googleapis.com` with a made-up
 bearer 401 `UNAUTHENTICATED`. The transport and the error shapes are confirmed; a real key's acceptance, delivery to a
-phone and the uninstall answers wait for the RUNBOOK checklist.
+phone and the uninstall answers wait for the RUNBOOK checklist. (11) **A lost stream replaces the connection, and no
+close waits on the far side** (code review MAJOR and minor): a path that silently stops carrying traffic (a NAT that
+forgot the connection) made every send time out as `unknown` while the writes kept resetting the idle timer, so the
+connection was never replaced; now any stream lost after its write retires the session, and the next request opens a new
+one. A retired session's connection is dropped after 15 s (longer than any request's own 10 s), and `close()` drops it
+after 2 s when the far side never answers the close, so a worker stop or SIGTERM never waits on a dead peer. The client
+makes the connection itself (TLS with ALPN `h2` and the host's name, as Node's default) so it can drop the socket. Proved
+with a TCP proxy that silently drops open connections, and by breaking each fix.
 **Why:** each point keeps the plan's rule (requeue what never arrived, `unknown` only after a write, nothing sent
 without valid keys, no secret in a log) where the plan's wording named a tool that could not tell the cases apart or
 left an answer unmapped.

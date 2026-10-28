@@ -1296,3 +1296,10 @@ kept as key objects, from the environment only; one APNs key enabled for both en
 for FCM as ADR-344 said (a connection failure and a lost request look the same, so one of them is misfiled), holding
 FCM on any token failure at start (a passing network blip stops Android pushes for 15 minutes), or separate APNs keys
 per environment (four more settings for a case the RUNBOOK avoids). Developer's call at the T-501b code review.
+Note (code review): the in-lease 5xx retries after 1 s and 2 s (ADR-345) go against Apple's advice to retry a 5xx after
+15 minutes with back-off; they are bounded only by the breaker and the 8-attempt limit. Revisit if Apple's metrics show
+throttling.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501b code review (88; the MAJOR fixed: a lost
+stream replaces the connection; `close()` no longer waits on a dead peer; the FCM 429 hold capped at 15 minutes; the
+ADR's Apple quote corrected; the go-live checklist completed). The reviewer accepted every departure, FCM over HTTP/2
+included. ADR-351 Accepted.

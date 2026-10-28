@@ -5,6 +5,8 @@ import {
   type ClientHttp2Stream,
   type IncomingHttpHeaders,
 } from "node:http2";
+import { isIP, connect as netConnect, type Socket } from "node:net";
+import { connect as tlsConnect } from "node:tls";
 
 /** The most of an answer's body kept: the providers' error bodies are a few hundred bytes. */
 const BODY_LIMIT = 16_384;
@@ -13,6 +15,13 @@ const BODY_LIMIT = 16_384;
  * and count as `unknown` (never sent again), where not writing it lets a later claim send it.
  */
 export const MIN_WRITE_MS = 200;
+/** `close()` waits this long for the far side to close the connection, then drops it. */
+export const CLOSE_WAIT_MS = 2000;
+/**
+ * A replaced session's streams may run on (each ends by its own deadline, at most 10 s); after this its connection is
+ * dropped whatever the far side does, so a dead path never keeps a socket open.
+ */
+export const RETIRE_GRACE_MS = 15_000;
 /** A code copied from Node or a provider must fit `push_send.code` (migration 0076); anything else becomes `fallback`. */
 const CODE = /^[A-Za-z0-9_]{1,40}$/;
 
@@ -48,15 +57,24 @@ export type H2Client = Readonly<{
   post: (request: H2Request, until: number) => Promise<H2Answer>;
   /** Lets the current session finish its streams; the next request opens a new one. */
   reconnect: () => void;
-  /** Closes the session once its streams end; later requests answer `not_sent`. */
+  /**
+   * Closes the session once its streams end, dropping the connection after 2 s when the far side never closes it;
+   * later requests answer `not_sent`.
+   */
   close: () => Promise<void>;
 }>;
 
 /** One HTTP/2 session and the streams it carries. */
 type Live = {
   readonly session: ClientHttp2Session;
+  /** The connection under the session, kept so it can be dropped when the far side never closes it. */
+  readonly socket: Socket;
   /** True once the server's settings arrived; false when the session ended first. */
   readonly ready: Promise<boolean>;
+  /** Settles when the session has closed. */
+  readonly gone: Promise<true>;
+  /** Replaced: it takes no new stream, and its connection is dropped after the grace. */
+  retired: boolean;
   inFlight: number;
   /** Requests waiting for a free stream; each is woken to look again. */
   readonly waiting: Set<(awake: boolean) => void>;
@@ -97,15 +115,51 @@ function wakeAll(live: Live): void {
   for (const wake of waiting) wake(true);
 }
 
-/** Opens a session; `ended` is told when it can take no new stream (a `GOAWAY`, an error, the close). */
-function openSession(options: H2Options, ended: (live: Live) => void): Live {
-  const session = connect(options.origin);
+/**
+ * The connection for `origin`, made here (as Node's own default would: TLS with ALPN `h2` and the host's name) so the
+ * client holds the socket and can drop it.
+ */
+function dial(origin: string): Socket {
+  const url = new URL(origin);
+  if (url.protocol === "http:") {
+    return netConnect({ host: url.hostname, port: Number(url.port || 80) });
+  }
+  return tlsConnect({
+    host: url.hostname,
+    port: Number(url.port || 443),
+    ALPNProtocols: ["h2"],
+    ...(isIP(url.hostname) === 0 ? { servername: url.hostname } : {}),
+  });
+}
+
+/** Drops a session whose far side will not close it: a dead path never answers the close. */
+function forceClose(live: Live): void {
+  live.session.destroy();
+  live.socket.destroy();
+}
+
+/**
+ * Opens a session; `ended` is told when it closed, `retire` when it should take no new stream (a `GOAWAY`, or nothing
+ * carried for `idleMs`).
+ */
+function openSession(
+  options: H2Options,
+  ended: (live: Live) => void,
+  retire: (live: Live) => void,
+): Live {
+  const socket = dial(options.origin);
+  const session = connect(options.origin, { createConnection: () => socket });
   const live: Live = {
     session,
+    socket,
     ready: new Promise<boolean>((resolve) => {
       session.once("remoteSettings", () => resolve(true));
       session.once("close", () => resolve(false));
     }),
+    gone: new Promise<true>((resolve) => {
+      session.once("close", () => resolve(true));
+    }),
+    retired: false,
     inFlight: 0,
     waiting: new Set(),
     goawayLast: undefined,
@@ -118,13 +172,13 @@ function openSession(options: H2Options, ended: (live: Live) => void): Live {
   });
   session.on("goaway", (_code: number, lastStreamID: number) => {
     live.goawayLast = lastStreamID;
-    ended(live);
+    retire(live);
   });
   session.once("close", () => {
     ended(live);
     wakeAll(live);
   });
-  session.setTimeout(options.idleMs, () => session.close());
+  session.setTimeout(options.idleMs, () => retire(live));
   return live;
 }
 
@@ -211,6 +265,13 @@ function exchange(live: Live, request: H2Request, until: number): Promise<H2Answ
 }
 
 /**
+ * Whether an answer means the session is no good for the next request: a stream lost after its write (the path may be
+ * dead, and traffic keeps resetting the idle timer) or a stream the server refused.
+ */
+const replacesSession = (answer: H2Answer): boolean =>
+  answer.kind === "lost" || (answer.kind === "not_sent" && answer.code === "refused_stream");
+
+/**
  * Writes the request on a free stream of `live` and waits for its end; `not_sent` at the deadline or with too little
  * time left to answer, null when the session ended while waiting for a stream.
  */
@@ -231,8 +292,10 @@ async function writeOn(
 }
 
 /**
- * One reused HTTP/2 session to one origin (ADR-344): opened on first use, reopened after a `GOAWAY`, an error, a
- * refused stream or `reconnect()`, closed after `idleMs` without traffic and on `close()`. At most `maxStreams` streams
+ * One reused HTTP/2 session to one origin (ADR-344, ADR-351): opened on first use, replaced after a `GOAWAY`, an error, a
+ * refused stream, a stream lost after its write (a connection that stopped answering) or `reconnect()`, closed after
+ * `idleMs` without traffic and on `close()`. A replaced session's connection is dropped after a grace, and `close()`
+ * drops it after 2 s, so a far side that never answers the close holds nothing open. At most `maxStreams` streams
  * are in flight, and never more than the server allows (APNs allows one until a token is accepted); a request waits
  * for a free stream until its deadline. Each answer says whether the request can have been processed, so a caller
  * sends again only what never arrived.
@@ -244,15 +307,17 @@ export function createH2Client(options: H2Options): H2Client {
     if (current === live) current = undefined;
   };
   const retire = (live: Live | undefined): void => {
-    if (live === undefined) return;
+    if (live === undefined || live.retired) return;
+    live.retired = true;
     ended(live);
     live.session.close();
+    setTimeout(() => forceClose(live), RETIRE_GRACE_MS).unref();
   };
 
   /** The live session, ready for streams, or why the request cannot be written. */
   const sessionFor = async (until: number): Promise<Live | H2Answer> => {
     if (current?.session.closed === true) retire(current);
-    current ??= openSession(options, ended);
+    current ??= openSession(options, ended, retire);
     const live = current;
     const ready = await by(live.ready, until, undefined);
     if (ready === undefined) return notSent("connect_timeout");
@@ -268,7 +333,7 @@ export function createH2Client(options: H2Options): H2Client {
       const answer = await writeOn(live, request, until, options.maxStreams);
       // null: the session ended while the request waited for a stream, so a fresh one is tried.
       if (answer === null) continue;
-      if (answer.kind === "not_sent" && answer.code === "refused_stream") retire(live);
+      if (replacesSession(answer)) retire(live);
       return answer;
     }
   };
@@ -280,12 +345,10 @@ export function createH2Client(options: H2Options): H2Client {
       closed = true;
       const live = current;
       current = undefined;
-      if (live === undefined || live.session.destroyed) return;
-      const done = new Promise<void>((resolve) => {
-        live.session.once("close", () => resolve());
-      });
+      if (live === undefined) return;
+      live.retired = true;
       live.session.close();
-      await done;
+      if (!(await by(live.gone, Date.now() + CLOSE_WAIT_MS, false))) forceClose(live);
     },
   };
 }

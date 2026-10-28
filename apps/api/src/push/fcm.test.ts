@@ -12,6 +12,7 @@ import {
 } from "#src/push/fcm";
 import { fcmRequest } from "#src/push/message";
 import type { PushMessage, PushProvider, PushResult } from "#src/push/provider";
+import { PROVIDER_MARGIN_MS } from "#src/push/send";
 import { startH2Server, type FakeH2, type Reply } from "#test/support/h2-server";
 
 const TOKEN_URI = "https://oauth2.googleapis.test/token";
@@ -272,7 +273,7 @@ describe("the FCM client against a local HTTP/2 server", () => {
       code: "token_timeout",
       written: false,
     });
-    expect(Date.now() - started).toBeLessThan(300 + 150);
+    expect(Date.now() - started).toBeLessThan(300 + PROVIDER_MARGIN_MS);
     expect(server.seen).toHaveLength(0);
   });
 
@@ -350,6 +351,15 @@ describe("the FCM client against a local HTTP/2 server", () => {
         body: fcmBody(429, "RESOURCE_EXHAUSTED", [fcmDetail("QUOTA_EXCEEDED")]),
       },
       hold("QUOTA_EXCEEDED", FCM_QUOTA_HOLD_MS),
+    ],
+    [
+      "429 QUOTA_EXCEEDED with Retry-After a day away, held 15 minutes at most",
+      {
+        status: 429,
+        headers: { "retry-after": "86400" },
+        body: fcmBody(429, "RESOURCE_EXHAUSTED", [fcmDetail("QUOTA_EXCEEDED")]),
+      },
+      hold("QUOTA_EXCEEDED", FCM_HOLD_MS),
     ],
     [
       "429 QUOTA_EXCEEDED without Retry-After",
