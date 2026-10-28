@@ -53,7 +53,8 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 - **Push:**
   - Check `git log origin/main..main` and `git status`; push only commits that are reviewed. If a worker's unreviewed
     commits are stacked above reviewed ones, push the reviewed one by hash (`git push origin <hash>:main`).
-  - Run `pnpm lint:limits`, plain `pnpm audit` (CI fails on any severity, not only moderate; an unpatched advisory in
+  - Run `pnpm format:check` (it covers the Markdown docs and `CLAUDE.md`: a docs-only edit turned CI red on
+    2026-10-28 because only `lint:limits`, audit and gitleaks had been run), `pnpm lint:limits`, plain `pnpm audit` (CI fails on any severity, not only moderate; an unpatched advisory in
     Expo's build tooling goes into `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` with a note), and gitleaks in
     Docker: `MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/repo" -w /repo
     zricethezav/gitleaks:v8.30.1 git --redact --no-banner --log-opts="origin/main..HEAD" .`

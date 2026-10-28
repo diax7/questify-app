@@ -30,9 +30,9 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
    - **Tier B**, everything else with logic (pages, standard features, push producers, most routes): a mid-tier
      build and one mid-tier code review. No plan review, no mutation. CI is the full gate.
    - **Tier C**, docs, copy, config and small fixes: no review.
-   Every review runs in a fresh session or subagent, never the code author. Fix **BLOCKER and MAJOR** findings now;
-   **MINOR and NIT go to `docs/FOLLOWUPS.md`**, cleared in one cheap batch about every five tasks. Re-review only
-   after a BLOCKER, and only the changed part. Reviewers use `docs/agents/REVIEW_BRIEF.md`.
+   - **All tiers**: every review runs in a fresh session or subagent, never the code author. Fix **BLOCKER and MAJOR**
+     findings now; **MINOR and NIT go to `docs/FOLLOWUPS.md`**, cleared in one cheap batch about every five tasks.
+     Re-review only after a BLOCKER, and only the changed part. Reviewers use `docs/agents/REVIEW_BRIEF.md`.
 3. **Mutation testing on GitHub, ledger and access code only** (ADR-174, ADR-355): never locally; one
    `mutation.yml` run per three tier A tasks, dispatched one at a time (a new dispatch cancels the running one);
    a file is chased only while it is under 90% and holds ledger, sign-in, tenant isolation or redemption logic;
