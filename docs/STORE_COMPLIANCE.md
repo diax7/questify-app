@@ -438,7 +438,11 @@ What this means for Questify:
   message lands in the in-app notification center whether the OS permission was refused or the topic muted (FR-1104);
   push text is a fixed template with public names only and the payload carries ids only (4.5.4: no sensitive data);
   a promotional push needs the recorded push consent, never the OS permission alone (4.5.4, FR-1111). The permission
-  is asked only after a join (FR-1105) in the app slice, T-501c.
+  is asked only after a join (FR-1105). As built (T-501c, app): the explainer shows on the join result screens, only while
+  the system is unasked and not snoozed 30 days ("Not now" waits 30 days); "Turn on" is the only way to the system prompt;
+  nothing is paid or opened for the answer, and a refused permission changes only Settings' line ("Notifications are off on
+  this phone", "Open phone settings"); sign-out removes the device. The push token is sent only once the permission is
+  granted (on Android before 13 the system grants it with the install, so it registers at launch). Phone check owed (RUNBOOK, "The app's side of push").
 - No ads and no tracking SDKs in v1, so no ATT prompt. Adding either changes labels and ratings.
 
 ### 1.12 Guideline 5.3 — Contests, sweepstakes and prizes

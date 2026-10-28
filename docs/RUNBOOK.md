@@ -289,7 +289,11 @@ below.
    record when the answer changed.
 5. Sending the same notification twice replaces the first on both phones (APNs collapse id, Android tag).
 6. A tap with the app killed opens the right screen: confirm where `expo-notifications` puts the direct-APNs custom key
-   `q` (`trigger.payload` or `content.data`) and the FCM `data`, and that the app reads them there.
+   `q` (`trigger.payload` or `content.data`) and the FCM `data`, and that the app reads them there. The app (T-501c,
+   `src/push/tap.ts`) reads `trigger.payload.q` (iOS; by the library's source `content.data` is only the `body` key
+   of an Expo-service push, so empty here), `trigger.remoteMessage.data` and `content.data` (Android, flat `n k e r`),
+   and ignores anything whose kind or ids do not check out. Send one of each kind from a killed app and from the
+   foreground; a wrong placement is a one-line change in `tapOf`.
 7. With the permission refused, the center still lists the message and Settings shows the off state.
 8. A soak of more than 60 minutes of steady sending on both platforms: the APNs provider token is re-signed at 40
    minutes and the FCM access token renewed before its hour ends, with no `TooManyProviderTokenUpdates`, no
@@ -297,6 +301,37 @@ below.
 9. A phone offline (flight mode) while three pushes are sent gets only the latest when it comes back, on both platforms
    (APNs stores one notification per app; FCM notification messages always collapse, ADR-351 (5)); the center lists all
    three.
+
+### The app's side of push (T-501c; phone checks owed to Dhia)
+
+The app needs a new development or preview build (EAS, Dhia's step) because `expo-notifications` and `expo-application`
+are native. An older build still runs: push is off there (Settings says so), everything else works.
+
+- **Android needs the Firebase file in the build.** Download `google-services.json` from the Firebase project (Project
+  settings → Your apps → the Android app `app.questify.mobile`) and point `android.googleServicesFile` at it. It holds
+  API keys, so how it reaches the build (an EAS file secret read by an `app.config.js`, or the file in the repository) is
+  decided when Dhia has the file. Not set in T-501c; until then Android cannot get a token and registers nothing,
+  quietly, and the center still works. The notification icon (a 96 px all-white PNG on transparent from the brand deck,
+  `icon` in the `expo-notifications` plugin) is also not set, so Android shows its default.
+- **iOS:** the Push Notifications capability and the APNs key come from the Apple Developer account (the key above);
+  the entitlement `aps-environment` is written as `development` and Xcode makes it `production` in a release archive.
+- **Checks on a real iPhone and Android phone, development build then TestFlight / preview:**
+  1. A new install shows no permission prompt at launch or at sign-up; joining an event shows the explainer after
+     "You're in"; "Turn on" shows the system prompt; "Not now" shows nothing for 30 days (change the phone's date to
+     check) and never after the system has been answered either way.
+  2. After "Turn on", the `push_device` row exists with the right `platform`, `environment` (`sandbox` for a development
+     build, `production` for TestFlight and preview) and `language`; a restart the same day sends no second call;
+     changing the app's language sends one.
+  3. A push for each topic arrives on its own Android channel (system settings list six: Messages for you, Event
+     announcements, Ranking, Community milestones, Reminders, Questify offers); on the locked screen, personal messages
+     and offers show no text.
+  4. Muting a topic in Settings stops its push and the row still appears in the center, unread; the bell shows a dot
+     and the number clears after reading.
+  5. Signing out removes the device (`push_device` row gone) and the phone gets no more of that account's pushes;
+     signing in as another player moves the token to that player.
+  6. With the permission refused (iOS Settings → Questify → Notifications off), Settings shows "Notifications are off on
+     this phone" with "Open phone settings", every screen works, and the center holds the message.
+  7. A simulator or emulator registers nothing (no `push_device` row) and shows no explainer.
 
 ## Usernames and the word lists (T-109, ADR-119)
 

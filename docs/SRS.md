@@ -1208,9 +1208,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery with no kind wired; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501d and T-501f): `test/db/push-store.int`, `test/db/push-sending.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
 | FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501e and T-501f): `test/db/push-store.int`, `apps/api/src/push/contract.test.ts` |
 | FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; T-501b: the real clients, sending once Dhia's keys are set): `apps/api/src/push/worker.test.ts` |
-| FR-1104 | F-200 | Must | partly built (T-501: every message a center row, read and unread, the routes; the screen is T-501c): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int` |
-| FR-1105 | F-201 | Must | pending (the app slice, T-501c; the server takes a device only from a signed-in session, T-501) |
-| FR-1106 | F-201 | Must | partly built (T-501: registering writes no ledger, XP or gem row; nothing reads the device to pay or open; the app half is T-501c): `test/db/push-store.int` |
+| FR-1104 | F-200 | Must | built T-501 and T-501c (every message a center row, read and unread; the center screen `/notifications` lists them newest first, a tap marks that one row read; phone check owed): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int`, `apps/app/src/push/{center,push-api}.test.ts` |
+| FR-1105 | F-201 | Must | built T-501c (the explainer on the join result screens, only while the system is unasked and not snoozed 30 days; "Turn on" is the only way to the system prompt; a unit test of the flow and a source scan of who may read the permission; phone check owed): `apps/app/src/push/{push-flow,push-guards}.test.ts` |
+| FR-1106 | F-201 | Must | built T-501 and T-501c (registering writes no ledger, XP or gem row; the app reads the permission only in the push folder, the sign-out hook and the join screens' explainer, and its texts promise nothing for allowing it): `test/db/push-store.int`, `apps/app/src/push/push-guards.test.ts` |
 | FR-1107 | F-203 | Must | pending |
 | FR-1108 | F-203 | Must | pending |
 | FR-1109 | F-43 | Must | pending |
@@ -1219,7 +1219,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1112 | F-204 | Should | built for invitations T-409 (`MSEGAT_PROMO_SENDER`, never the service sender: the API refuses to start when they match); waits for the registered "-AD" name (Q-034); campaigns T-706 |
 | FR-1113 | F-204 | Should | built T-407 (`marketing_consent` with channel, date, method and wording version; the admin's audited read `GET /v1/admin/players/{id}/marketing-consent`; its screen comes with T-704), code review pending |
 | FR-1114 | F-204 | Must | built T-407 (signed opt-out link, `POST /v1/public/marketing/opt-out`, the web page `/[lang]/opt-out`) and T-407b (settings switches); every promotional sender must put `optOutUrl` in each message, code review pending |
-| FR-1115 | F-202 | Should | partly built (T-501: the four topics per player, mute stops the push and keeps the center row; the switches are T-501c): `test/db/push-store.int`, `test/push/routes.int` |
+| FR-1115 | F-202 | Should | built T-501 and T-501c (the four topics per player, mute stops the push and keeps the center row; the switches are in Settings → Offers and notifications; phone check owed): `test/db/push-store.int`, `test/push/routes.int`, `apps/app/src/push/push-api.test.ts` |
 | FR-1201 | F-65 | Must | pending |
 | FR-1202 | F-65 | Must | pending |
 | FR-1203 | F-65 | Must | pending |
@@ -1416,7 +1416,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1821 | F-323 | Should | pending |
 | FR-1822 | F-324 | Must | built (T-312, 2026-10-25) |
 | FR-1823 | F-325 | Must | built (T-312, 2026-10-25; "take over" = Questify answers a ticket in its queue, Q-218) |
-| FR-1824 | F-326 | Should | partly built (T-312: My tickets; the notification history is T-312b) |
+| FR-1824 | F-326 | Should | built (T-312: My tickets; T-312b merged into T-501c: Profile → Notifications opens the center, every message newest first, read and unread; phone check owed) |
 | FR-1825 | F-327 | Must | pending |
 | FR-1826 | F-328 | Must | pending |
 | FR-1827 | F-329 | Must | pending |

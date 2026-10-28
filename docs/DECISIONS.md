@@ -4986,3 +4986,32 @@ left an answer unmapped.
 **Trade-offs:** an HTTP/2 client of our own (about 260 lines) instead of `fetch` for FCM; a quiet connection is
 reopened after 4 minutes (one TLS handshake); a key limited to one Apple environment silently serves only that one
 until the hold is read in the logs.
+
+## ADR-352 — Where the T-501c build fills in the app's push
+**Status:** Proposed (worker, 2026-10-28; T-501c build, `docs/plans/2026-10-28-t-501c-push-app.md`; Q-321). Refines
+ADR-349 where the plan left a detail open. The coordinator decides after the code review.
+**Decision:** (1) **The explainer shows on the join result screens** (the join card and the invitation), the moment
+the join went through, not on Event Home: Event Home already shows the location sheet after a join, and two sheets and
+two system prompts would stack. "Open the event" then leads on to the location sheet as before. It shows only while the
+system is unasked and "Not now" was not tapped in the last 30 days; the shade and the back button mean "Not now".
+(2) **The route table names the kinds of the plan's owed-push table** (`join_accepted`, `flash_quest`, `reward_ready`,
+`rank_top_ten`, …; `packages/shared/src/push/routes.ts`) as the contract for T-501d to T-501g, and a test requires every
+kind with a template to appear in it, so a slice that adds or renames a kind changes its route in the same commit. A
+promotion, an unknown kind and any id that fails its check open the center row. (3) **A tap's fields are read from
+three places** (`trigger.payload.q` for direct APNs, `trigger.remoteMessage.data` and `content.data` for FCM), because
+the library's source puts a direct-APNs custom key only in `trigger.payload`; the go-live checklist confirms it on phones.
+(4) **Native access is one file** (`push-native.ts`): `expo-notifications` and `expo-application` are required only
+after `requireOptionalNativeModule` found every native module they load, so an older development build keeps working
+with push off; `isDevice` is read from the `ExpoDevice` native constant, not by loading `expo-device` a second time.
+(5) **Mark all as read** on the center (the route exists, and a long unread list is otherwise 100 taps); the center's rows
+carry `refs` (reference ids only) for the tap, added to the server schema as a separate commit. (6) **A resumed app reads
+the profile again** (`GET /v1/me`, once per foreground) so the bell counts what arrived in the background or with no
+push at all; a push that arrives with the app open shows a quiet banner and refreshes it. (7) **Not set:** Android's
+notification icon (a brand-deck asset) and `android.googleServicesFile` (Dhia's Firebase file); without the file Android
+registers nothing and the center still works. (8) **The offers screen moved** to `/settings/notifications`
+(`OffersSection`, now under the push status and the topic switches); `ChannelRow` became the shared `SwitchRow` (a third
+user, the topics).
+**Why:** each point keeps ADR-349's rules where the plan's wording could not hold or left a choice; none changes what a
+player sees beyond the plan.
+**Trade-offs:** the explainer appears before the player has seen Event Home; the route table names kinds before their
+slices exist (a guard test keeps them consistent); a resumed app costs one profile read per foreground.

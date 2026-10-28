@@ -405,8 +405,8 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-24 (T-310): builds on `ticket` (migration 0059): widen `kind` (Q-209) and `queue` (`questify`), allow the event columns NULL for a ticket outside an event (the CHECK already applies only to `queue = 'event'`), add escalation columns and the Questify queue's read (Q-211). `own_tickets(NULL)`, `GET /v1/me/tickets` and the profile's Your requests already exist: My tickets grows from that screen; Get help's two buttons become the type picker, the quest sheet's entry stays as a shortcut. Report a player is where FR-1415's blocks meet tickets.
   - Plan 2026-10-24 (core): `docs/plans/2026-10-24-t-312-ticket-center.md`, migration 0061, ADR-255 to ADR-259 and Q-218 to Q-222 Proposed. Split (ADR-255): the notification history (FR-1824's second half) moves to T-312b, after T-501. A platform admin reads exactly `queue = 'questify'` (Q-211 answered); new dependency `expo-device` for the phone model (ADR-259).
   - Done 2026-10-25 (CTO plan re-review 91/100, GO with the routing CHECK fixed: a NULL `escalated_at` no longer passes; forged-insert test added; the return CHECK tightened). Migration 0061; `apps/api/src/tickets/**` (console store and routes new); app ticket center (`app/help.tsx`, `src/help/**`, `expo-device` 57.0.2 loaded lazily; a new development build is Dhia's step); dashboard With Questify and Escalate; console Tickets. As built: the failed-username cap uses the API's Postgres throttle (`ticket_lookup`), not Redis, so there is no "Redis down" path; the console answers 401 with no staff session (its hook's T-210 contract) and 404 to any signed-in non-admin; `console_tickets` and `console_ticket` take the request id for their audit rows; `waitingByKind` counts open tickets in either queue (T-616 builds on it).
-- [ ] **T-312b** Notification history in the profile: every notification received, read and unread, newest first, on T-501's notification center — delivers FR 1824 (second half); depends on: T-501, T-312
-  - Merged 2026-10-28 into T-501c (ADR-342): the center screen T-501c builds is this history (newest first, read and unread), and Profile → Notifications opens it. Ticked with T-501c.
+- [x] **T-312b** Notification history in the profile: every notification received, read and unread, newest first, on T-501's notification center — delivers FR 1824 (second half); depends on: T-501, T-312
+  - Merged 2026-10-28 into T-501c (ADR-342): the center screen T-501c builds is this history (newest first, read and unread), and Profile → Notifications opens it. Done with T-501c, 2026-10-28.
   - Split from T-312 2026-10-24 (ADR-255): no notification is stored before T-501; this is the profile row and the full list on T-501's table, not a second store. Standard bar.
   - Done when: A player with 30 earlier notifications sees all 30, newest first, from Profile.
 - [x] **T-313** First-N bonus on a quest, counted inside the completion transaction, with a live 'bonuses left' count — delivers FR 1840; depends on: T-105. Done 2026-10-25 (migration 0062, ADR-260 to ADR-263; Opus code review and mutation owed)
@@ -870,13 +870,28 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     (`PROVIDER_MARGIN_MS` in `src/push/send.ts`); each client must give up by that deadline and answer `requeue` with
     `written: false` when the request never left, or the worker counts the attempt as `unknown`.
   - Done when: With no keys set the server starts and sends nothing; a partial or malformed provider setting (`APNS_*` all or none, `FCM_SERVICE_ACCOUNT` parseable with an RSA key, the `.p8` an EC P-256 key) refuses to start; an `Unregistered` answer always removes the token, a round of mostly ambiguous token answers holds only that target, and a provider outage requeues messages instead of losing them.
-- [ ] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
+- [x] **T-501c** The app's push: permission explainer after joining, token registration, notification center with the bell, topic mutes and push status in Settings, deep links — delivers FR 1104, 1105, 1106, 1115 (on screen), 1824 (second half); depends on: T-501
   - Split from T-501 2026-10-28 (ADR-342, ADR-349). Standard; plan: `docs/plans/2026-10-28-t-501-push.md` ("The app").
     Absorbs T-312b. New dependencies `expo-notifications` and `expo-application` (the APNs environment; a new
     development build). The phone check needs Dhia's Apple and Firebase setup and is the RUNBOOK's push go-live
     checklist (T-806 waits for it); the center works without them.
   - Note 2026-10-28 (T-501 build): the center's items carry no reference ids yet (the plan's shape); add `refs` (ids only,
     `refIds` in `src/push/message.ts`) to `GET /v1/me/notifications` when a tapped center row needs its route.
+    Done in T-501c as its own commit (the field, the shared schema and a route test).
+  - Plan 2026-10-28 (short): `docs/plans/2026-10-28-t-501c-push-app.md`; ADR-352 and Q-321 Proposed.
+  - Done 2026-10-28 (Standard; code review owed; not run on a phone: needs a new development build and, for real pushes,
+    Dhia's APNs key and Firebase project). Dependencies `expo-notifications ~57.0.23` and `expo-application ~57.0.3`.
+    `apps/app/src/push/**`: `push-native.ts` is the only file that loads them, after `requireOptionalNativeModule`
+    finds every native module (an older build runs with push off); `push-flow.ts` holds the rules (the explainer only
+    while the system is unasked and not snoozed 30 days, registration at launch / token change / language or version
+    change / daily, iOS tokens lower-case, `development` → sandbox else production, sign-out unregisters); the center
+    (`/notifications`, paged, a tap marks that row read, "Mark all as read", the opt-out on promotional rows), the bell
+    on Questify Home and Event Home, Profile → Notifications, Settings at `/settings/notifications` (phone status, the
+    four topics, the offers), the explainer on the two join screens, taps read from `trigger.payload.q` /
+    `remoteMessage.data` / `content.data` and routed by `notificationRoute` (shared, a fixed table). Six Android
+    channels, `personal` and `offers` private on the lock screen. Left for the T-501d to T-501g slices: add each kind's
+    route to `NOTIFICATION_TARGETS` (a test fails without it). Not set: Android's notification icon and
+    `googleServicesFile` (RUNBOOK, "The app's side of push").
   - Done when: No permission prompt before the first join; refusing it blocks nothing and the center still lists every message, newest first, unread marked.
 - [ ] **T-501d** Owed personal pushes: join decision, help-desk answer, rank prize at the reveal, submission decision, reward ready and reservation ending — delivers FR 1101, 1718, 1819 (push); depends on: T-501b
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers

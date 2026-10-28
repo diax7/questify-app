@@ -124,6 +124,10 @@
 - **Chosen because:** these are the only ways to reach a locked phone. We call them **directly** from
   the notification layer instead of through a relay service, so notification text does not also pass
   through a third party (ADR-086).
+- **In the app (T-501c, ADR-349):** `expo-notifications` gets the phone's own APNs or FCM token and shows the system
+  prompt; `expo-application` tells whether a build is a development one (APNs sandbox) or not (production). The token
+  goes to `PUT /v1/me/push-device` and nowhere else; the Expo push service is not used. Android needs the Firebase
+  project's `google-services.json` in the build (RUNBOOK, "The app's side of push").
 - **Auth and secrets:** APNs `.p8` key and the FCM service account in the secret store. Configuration (read by T-501b's
   clients, all-or-none per provider; a partial or malformed set refuses to start): `APNS_KEY_ID`, `APNS_TEAM_ID`,
   `APNS_PRIVATE_KEY` (the `.p8` PEM or its base64), `APNS_TOPIC` (the bundle id); `FCM_SERVICE_ACCOUNT` (the JSON or its

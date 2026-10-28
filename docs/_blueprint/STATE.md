@@ -1672,22 +1672,44 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   the breaker, noted in Q-320), the RUNBOOK checklist gains the 60-minute soak, the offline phone (only the latest push
   arrives, ADR-351 (5)), uninstall timing and "Team Scoped (All Topics)". ADR-351 Accepted, Q-320 answered.
 
+- 2026-10-28 **T-501c built (Standard; code review owed; also delivers T-312b).** The app's side of push, not run on a
+  phone (it needs a new development build; real pushes also need Dhia's APNs key and Firebase project). One
+  separate server commit: `GET /v1/me/notifications` items gain `refs` (reference ids only; shared schema, `centerItem`,
+  a route test). New dependencies `expo-notifications ~57.0.23` (resolves 57.0.24) and `expo-application ~57.0.3`
+  (plugin `expo-notifications` in `app.json`). `apps/app/src/push/`: `push-native.ts` is the only file that loads the
+  two packages, after `requireOptionalNativeModule` found every native module they load (an older build runs with push
+  off; a unit test removes the modules and a scan keeps the loads in this file); `push-flow.ts` has the rules over an
+  injected phone (explainer due only while the system is unasked and not snoozed 30 days; registration at launch, on a
+  token, language or version change, else daily; iOS tokens lower-case; `development` → sandbox, `production`, null or a
+  throw → production; sign-out unregisters first); `tap.ts` reads `{n, k, e, r}` from `trigger.payload.q`,
+  `remoteMessage.data` and `content.data` and `notificationRoute` (shared, a fixed table of the owed kinds) maps it to a
+  screen. Screens: the center at `/notifications` (paged, tap marks a row read, Mark all as read, the opt-out on
+  promotional rows), the bell on Questify Home and Event Home, Profile → Notifications, Settings at
+  `/settings/notifications` (phone status, four topic switches, the offers), the explainer sheet on the join card and the
+  invitation. Six Android channels (`personal` and `offers` private on the lock screen). `ChannelRow` became the shared
+  `SwitchRow`; the profile loader gained a release step before sign-out. Tests: 145 new unit tests in
+  `apps/app/src/push` and `packages/shared/src/push` (flow, native adapter with and without modules, tap shapes, routes,
+  API, guards for FR-1106 and the Arabic copy rules), mutated by hand on the flow (8 of 8 killed); `npx expo export` for
+  Android and iOS passes; full Vitest once with both URLs: 8464 passed / 9 skipped, no failure. ADR-352 and Q-321 Proposed. Mutation globs (core files this
+  task changed, GitHub only): `apps/api/src/push/center.ts`, `apps/api/src/push/message.ts`,
+  `packages/shared/src/push/push.ts`, `packages/shared/src/push/routes.ts`. Not pushed.
+
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch; then T-501c (the app). Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built (Standard; code review owed; ADR-352 and Q-321 Proposed); T-501d to T-501g are next, each adding its kind's route to `NOTIFICATION_TARGETS`.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console
    before the first daily word goes live (RUNBOOK). No deployment/EAS/local Stryker; phone checks owed for T-403c, T-406b,
-   T-407b and T-408b. **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central
+   T-407b, T-408b and T-501c (RUNBOOK, "The app's side of push"). **Deploy note:** 0071 needs a new app build first (RUNBOOK). Follow-up: Q-237 central
    replay-before-scope fix for other idempotent organizer routes; Q-297 a faster `word_list_change` (only if bigger lists
    are imported).
 2. **Phase 0 still open:** T-009 device run, T-010 cloud builds (store accounts), T-013 Msegat quote, T-017
    infrastructure as code, T-018 observability. T-019 backups before real players. Staging needs migrations 0007 to
    0023, a managed Redis in the Nafes project with `REDIS_URL` and `maxmemory-policy noeviction` (ADR-118), Msegat's static-IP check (M0037) registered or switched off before the first real SMS, `REWARD_CODE_SECRET` (32+ characters, its own value, backed up apart from the database; migration 0025), the new `QR_SECRET` (32+ characters, from the secret store; the API refuses to start without it) and outbound HTTPS to `api.pwnedpasswords.com` when T-020 and T-101 are deployed.
-3. **Waiting on Dhia** (walk-through 2026-10-21, INBOX): **a Questify storage bucket in `riyadh-1` (Q-149, T-301): CranL Pro allows one bucket per account and `b7r-media` uses it, so photo submissions (T-301b) wait for a second bucket (or Oracle Riyadh);** the Apple Developer and Google Play accounts (T-010); installing the first Android development build (EAS build a1411217, started 2026-10-21) on a phone; sending Msegat the volume-quote request; CranL's written answers (Q-031). ADR-113 to 116 and 120 are Accepted. **No staging (ADR-123):** the CranL staging services become production, and the items above that said "staging" (migrations 0007 onward, Redis with `noeviction`, Msegat's static-IP check) are done there; renaming them is its own session. Resend backup skipped while Gmail stays out of spam (Q-083).
+3. **Waiting on Dhia** (walk-through 2026-10-21, INBOX): **a Questify storage bucket in `riyadh-1` (Q-149, T-301): CranL Pro allows one bucket per account and `b7r-media` uses it, so photo submissions (T-301b) wait for a second bucket (or Oracle Riyadh);** the Apple Developer and Google Play accounts (T-010); installing the first Android development build (EAS build a1411217, started 2026-10-21) on a phone; sending Msegat the volume-quote request; CranL's written answers (Q-031). ADR-113 to 116 and 120 are Accepted. **No staging (ADR-123):** the CranL staging services become production, and the items above that said "staging" (migrations 0007 onward, Redis with `noeviction`, Msegat's static-IP check) are done there; renaming them is its own session. Resend backup skipped while Gmail stays out of spam (Q-083). **For push (T-501b, T-501c):** the Apple APNs key (Sandbox & Production, Team Scoped) and the Firebase project (service account for the server, `google-services.json` for the Android build), a new EAS development build with `expo-notifications` and `expo-application`, and the notification icon (96 px white on transparent) from the brand deck; then the RUNBOOK's push go-live checklist and the app checks.
 4. Open questions: Q-031, Q-034, Q-070, Q-071, Q-075, Q-077, Q-078, Q-083, Q-084, Q-085, Q-086, Q-088, Q-090, Q-093 (login SMS ceiling), Q-095 (player consent, counsel), Q-105 (star icon and XP, quest and category renames). Follow-ups from 2026-10-21: the username hold setting (ADR-124), the brand spelling and billing wording in the copy pass (ADR-125, ADR-128, T-808), the sound set (ADR-129), Saqr's character sheet (ADR-130), the listing name (ADR-131).
 
 ## Run complete — 2026-10-18
