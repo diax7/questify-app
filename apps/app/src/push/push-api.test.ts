@@ -1,12 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AuthedResult } from "#src/api/session.ts";
 import {
   CENTER_PAGE_SIZE,
   fetchCenterPage,
   fetchTopics,
+  fetchUnread,
   markNotificationsRead,
+  refreshUnread,
   saveTopics,
 } from "#src/push/push-api.ts";
+import { getUnread, setUnread } from "#src/push/unread-store.ts";
 
 const ok = (body: unknown): AuthedResult => ({
   kind: "ok",
@@ -72,6 +75,41 @@ describe("the center", () => {
         null,
       ),
     ).toBeNull();
+  });
+});
+
+describe("the unread count alone", () => {
+  it("reads one row of the center and keeps only the count", async () => {
+    const session = sessionOf(ok({ items: [ITEM], nextBefore: null, unread: 5 }));
+    expect(await fetchUnread(session)).toBe(5);
+    expect(session.request).toHaveBeenCalledExactlyOnceWith({
+      method: "GET",
+      path: "/v1/me/notifications?limit=1",
+    });
+  });
+
+  it("is null for a failed or odd answer", async () => {
+    expect(await fetchUnread(sessionOf({ kind: "network" }))).toBeNull();
+    expect(await fetchUnread(sessionOf(refused(503)))).toBeNull();
+    expect(await fetchUnread(sessionOf(ok({ unread: 5 })))).toBeNull();
+  });
+
+  describe("refreshing the bell", () => {
+    afterEach(() => setUnread(0));
+
+    it("sets the count the server gave", async () => {
+      setUnread(1);
+      await refreshUnread(sessionOf(ok({ items: [], nextBefore: null, unread: 7 })));
+      expect(getUnread()).toBe(7);
+    });
+
+    it("leaves the count as it was when the read fails, offline or on a server error", async () => {
+      setUnread(4);
+      await refreshUnread(sessionOf({ kind: "network" }));
+      await refreshUnread(sessionOf(refused(500)));
+      await refreshUnread(sessionOf({ kind: "signed_out" }));
+      expect(getUnread()).toBe(4);
+    });
   });
 });
 

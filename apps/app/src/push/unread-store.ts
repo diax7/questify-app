@@ -20,6 +20,11 @@ export function setUnread(count: number): void {
 
 export const getUnread = (): number => unread;
 
+/** Sets the count from a read that may have failed: a failed read (null) leaves the count as it is. */
+export function setUnreadIfRead(count: number | null): void {
+  if (count !== null) setUnread(count);
+}
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => {

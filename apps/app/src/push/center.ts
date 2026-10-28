@@ -2,6 +2,7 @@ import {
   notificationRoute,
   type Language,
   type NotificationItem,
+  type NotificationList,
   type NotificationRoute,
 } from "@questify/shared";
 
@@ -14,6 +15,28 @@ export function appendRows(
 ): readonly NotificationItem[] {
   const seen = new Set(current.map((row) => row.id));
   return [...current, ...page.filter((row) => !seen.has(row.id))];
+}
+
+/** The rows read so far (null until the first page arrives) and the cursor of the next older page (null: none). */
+export type CenterList = Readonly<{
+  rows: readonly NotificationItem[] | null;
+  next: number | null;
+}>;
+
+/**
+ * The list after the newest page was read again (the screen gained focus): the new first page replaces the old one, and
+ * the older pages the player already loaded stay, so coming back from a tapped row does not lose their place. They stay
+ * only when the new page overlaps them (their newest row is not newer than the new page's last), which proves nothing
+ * sits between the two; when more than a page of messages arrived meanwhile, the new first page is the whole list.
+ */
+export function mergeFirstPage(current: CenterList, page: NotificationList): CenterList {
+  const last = page.items.at(-1);
+  const newestHeld = current.rows?.[0];
+  const whole = { rows: page.items, next: page.nextBefore };
+  if (page.nextBefore === null || last === undefined || current.rows === null) return whole;
+  if (newestHeld === undefined || newestHeld.id < last.id) return whole;
+  const older = current.rows.filter((row) => row.id < last.id);
+  return older.length === 0 ? whole : { rows: [...page.items, ...older], next: current.next };
 }
 
 /** The rows with the named ones (or all, with `null`) shown as read. */

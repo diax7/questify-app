@@ -61,6 +61,8 @@ export const apnsEnvironmentOf = (raw: string | null): ApnsEnvironment =>
   raw === "development" ? "sandbox" : "production";
 
 type Registration = Readonly<{
+  /** The player it was told for: another account on this phone is never "unchanged". */
+  playerId: string;
   token: string;
   environment: ApnsEnvironment | null;
   language: Language;
@@ -84,6 +86,7 @@ function isRegistration(value: unknown): value is Registration {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
+    typeof record["playerId"] === "string" &&
     typeof record["token"] === "string" &&
     typeof record["language"] === "string" &&
     typeof record["appVersion"] === "string" &&
@@ -128,6 +131,8 @@ export function deviceBody(
 export type SyncResult = "registered" | "unchanged" | "off" | "failed";
 
 export type SyncWho = Readonly<{
+  /** The signed-in player; undefined while the profile is not read, when nothing is registered yet. */
+  playerId: string | undefined;
   language: Language;
   /** The build's version from its config (`expo-constants`). */
   appVersion: string | null | undefined;
@@ -147,15 +152,39 @@ async function currentDevice(
   };
 }
 
-/** Whether the server already holds exactly this device, told less than a day ago. */
-function isCurrent(known: Registration | null, sent: PushDeviceBody, now: number): boolean {
-  if (known === null) return false;
-  const same =
-    known.token === sent.token &&
-    known.environment === (sent.environment ?? null) &&
-    known.language === sent.language &&
-    known.appVersion === sent.appVersion;
-  return same && now >= known.at && now - known.at < REGISTRATION_INTERVAL_MS;
+/**
+ * Counts the sign-ins that ended on this phone (a chosen sign-out or a session that ended on its own). A registration
+ * that was on its way when its sign-in ended must not be recorded afterwards, or the next sign-in would read it as
+ * "already told" and get no device row for up to a day.
+ */
+let endedSignIns = 0;
+export const signInEnded = (): void => {
+  endedSignIns += 1;
+};
+
+/** Whether a record describes exactly this device for this player. */
+const isSameDevice = (known: Registration, sent: PushDeviceBody, playerId: string): boolean =>
+  known.playerId === playerId &&
+  known.token === sent.token &&
+  known.environment === (sent.environment ?? null) &&
+  known.language === sent.language &&
+  known.appVersion === sent.appVersion;
+
+/** Whether the server already holds exactly this device for this player, told less than a day ago. */
+function isCurrent(
+  known: Registration | null,
+  sent: PushDeviceBody,
+  playerId: string,
+  now: number,
+): boolean {
+  if (known === null || !isSameDevice(known, sent, playerId)) return false;
+  return now >= known.at && now - known.at < REGISTRATION_INTERVAL_MS;
+}
+
+/** Whether this phone can show pushes now: it can do push at all and the permission is granted. */
+async function canPush(native: PushNative): Promise<boolean> {
+  if (!native.available()) return false;
+  return (await native.permission().catch(() => "denied")) === "granted";
 }
 
 /**
@@ -171,9 +200,9 @@ export async function syncRegistration(
   token?: string,
 ): Promise<SyncResult> {
   const { native, session, store, now } = deps;
-  if (!native.available() || (await native.permission().catch(() => "denied")) !== "granted") {
-    return "off";
-  }
+  const { playerId } = who;
+  if (playerId === undefined || !(await canPush(native))) return "off";
+  const endedBefore = endedSignIns;
   const device = await currentDevice(native, token);
   if (device === null) return "failed";
   const appVersion = appVersionOf(who.appVersion);
@@ -184,10 +213,12 @@ export async function syncRegistration(
     who.language,
     appVersion,
   );
-  if (isCurrent(await loadRegistration(store), sent, now())) return "unchanged";
+  if (isCurrent(await loadRegistration(store), sent, playerId, now())) return "unchanged";
   const answer = await session.request({ method: "PUT", path: "/v1/me/push-device", body: sent });
   if (answer.kind !== "ok") return "failed";
+  if (endedSignIns !== endedBefore) return "off";
   const record: Registration = {
+    playerId,
     token: sent.token,
     environment: sent.environment ?? null,
     language: who.language,
@@ -200,11 +231,13 @@ export async function syncRegistration(
 
 /**
  * Removes this sign-in's device before sign-out (best effort: the server stops pushes to a dead sign-in anyway) and
- * forgets the record. Nothing is called for a phone that never registered.
+ * forgets the record first, so the local state is clean whatever the call does. A registration still on its way is no
+ * longer recorded (`signInEnded`). Nothing is called for a phone that never registered.
  */
 export async function unregisterDevice(
   deps: Pick<PushDeps, "session" | "store">,
 ): Promise<boolean> {
+  signInEnded();
   const known = await loadRegistration(deps.store);
   await deps.store.removeItem(REGISTRATION_KEY).catch(() => undefined);
   if (known === null) return false;
@@ -220,6 +253,11 @@ export async function explainerDue(deps: PushDeps): Promise<boolean> {
   const { native, store, now } = deps;
   if (!native.available()) return false;
   if ((await native.permission().catch(() => "denied")) !== "undetermined") return false;
+  // An Android build without Firebase's file never gets a token: asking for the permission would promise pushes it
+  // cannot deliver (RUNBOOK, "The app's side of push"). iOS needs no such probe.
+  if (native.platform() === "android" && (await native.deviceToken().catch(() => null)) === null) {
+    return false;
+  }
   const raw = await store.getItem(EXPLAINER_KEY).catch(() => null);
   const until = raw === null ? Number.NaN : Number(raw);
   return !(Number.isFinite(until) && now() < until);

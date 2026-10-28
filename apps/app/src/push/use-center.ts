@@ -2,9 +2,9 @@ import type { NotificationItem } from "@questify/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { api } from "#src/api/app-session.ts";
-import { appendRows, withRead } from "#src/push/center.ts";
+import { appendRows, mergeFirstPage, withRead, type CenterList } from "#src/push/center.ts";
 import { fetchCenterPage, markNotificationsRead } from "#src/push/push-api.ts";
-import { setUnread } from "#src/push/unread-store.ts";
+import { setUnread, setUnreadIfRead } from "#src/push/unread-store.ts";
 
 export type Center = Readonly<{
   /** The rows read so far, newest first; null until the first page arrives. */
@@ -19,12 +19,12 @@ export type Center = Readonly<{
 }>;
 
 /**
- * The notification center's rows (FR-1824): the newest page each time the screen gains focus, older pages on request.
- * Every answer refreshes the bell's count. An answer that arrives after a newer read began is dropped.
+ * The notification center's rows (FR-1824): the newest page each time the screen gains focus (older pages already loaded
+ * stay), older pages on request. Every answer refreshes the bell's count. An answer that arrives after a newer read began
+ * is dropped.
  */
 export function useCenter(): Center {
-  const [rows, setRows] = useState<readonly NotificationItem[] | null>(null);
-  const [next, setNext] = useState<number | null>(null);
+  const [list, setList] = useState<CenterList>({ rows: null, next: null });
   const [failed, setFailed] = useState(false);
   const generation = useRef(0);
 
@@ -34,8 +34,7 @@ export function useCenter(): Center {
     if (mine !== generation.current) return;
     setFailed(page === null);
     if (page === null) return;
-    setRows(page.items);
-    setNext(page.nextBefore);
+    setList((current) => mergeFirstPage(current, page));
     setUnread(page.unread);
   }, []);
 
@@ -45,6 +44,7 @@ export function useCenter(): Center {
     }, [first]),
   );
 
+  const { next } = list;
   const more =
     next === null
       ? null
@@ -54,20 +54,22 @@ export function useCenter(): Center {
             if (mine !== generation.current) return;
             setFailed(page === null);
             if (page === null) return;
-            setRows((current) => appendRows(current ?? [], page.items));
-            setNext(page.nextBefore);
+            setList((current) => ({
+              rows: appendRows(current.rows ?? [], page.items),
+              next: page.nextBefore,
+            }));
             setUnread(page.unread);
           });
         };
 
   const markRead = useCallback((ids: readonly number[] | null) => {
-    setRows((current) => (current === null ? current : withRead(current, ids)));
+    setList((current) =>
+      current.rows === null ? current : { ...current, rows: withRead(current.rows, ids) },
+    );
     void markNotificationsRead(api.session, ids === null ? { all: true } : { ids: [...ids] }).then(
-      (unread) => {
-        if (unread !== null) setUnread(unread);
-      },
+      setUnreadIfRead,
     );
   }, []);
 
-  return { rows, failed, more, retry: () => void first(), markRead };
+  return { rows: list.rows, failed, more, retry: () => void first(), markRead };
 }

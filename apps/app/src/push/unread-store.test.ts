@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getUnread, setUnread } from "#src/push/unread-store.ts";
+import { getUnread, setUnread, setUnreadIfRead } from "#src/push/unread-store.ts";
 
 afterEach(() => setUnread(0));
 
 describe("the bell's unread count", () => {
+  it("is set from a read that worked and left alone by one that failed", () => {
+    setUnread(6);
+    setUnreadIfRead(null);
+    expect(getUnread()).toBe(6);
+    setUnreadIfRead(2);
+    expect(getUnread()).toBe(2);
+    setUnreadIfRead(0);
+    expect(getUnread()).toBe(0);
+  });
+
   it("holds the count the profile and the center give", () => {
     setUnread(4);
     expect(getUnread()).toBe(4);

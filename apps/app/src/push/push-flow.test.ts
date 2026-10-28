@@ -9,6 +9,7 @@ import {
   appVersionOf,
   deviceBody,
   explainerDue,
+  signInEnded,
   snoozeExplainer,
   syncRegistration,
   turnOn,
@@ -24,7 +25,7 @@ import { channelNames } from "#src/push/channels.ts";
 const IOS_TOKEN = "AB".repeat(32);
 const FCM_TOKEN = "fcm-token_abcdefghij:KLMNO-1234";
 const NAMES = channelNames((key) => key);
-const WHO: SyncWho = { language: "en", appVersion: "1.4.0" };
+const WHO: SyncWho = { playerId: "player-a", language: "en", appVersion: "1.4.0" };
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0);
 
 const done = (): AuthedResult => ({ kind: "ok", status: 204, body: null, headers: new Headers() });
@@ -126,7 +127,7 @@ describe("what the server is told", () => {
 
   it("sends an Android token as it is and names no environment", async () => {
     const f = fixture({ platform: "android" });
-    await syncRegistration(f.deps, { language: "ar", appVersion: "2.0.1" });
+    await syncRegistration(f.deps, { ...WHO, language: "ar", appVersion: "2.0.1" });
     expect(putBodyOf(f.request)).toEqual({
       platform: "android",
       token: FCM_TOKEN,
@@ -229,10 +230,75 @@ describe("how often it registers", () => {
   });
 
   it("registers again when the record is unreadable", async () => {
-    for (const bad of ["not json", "null", '{"token":5}', '{"environment":"mars"}']) {
+    const noPlayer = JSON.stringify({
+      token: IOS_TOKEN.toLowerCase(),
+      environment: "production",
+      language: "en",
+      appVersion: "1.4.0",
+      at: f.now(),
+    });
+    for (const bad of ["not json", "null", '{"token":5}', '{"environment":"mars"}', noPlayer]) {
       f.store.data.set(REGISTRATION_KEY, bad);
       expect(await syncRegistration(f.deps, WHO), bad).toBe("registered");
     }
+  });
+
+  it("registers again for another player on the same phone, even within the day", async () => {
+    expect(await syncRegistration(f.deps, { ...WHO, playerId: "player-b" })).toBe("registered");
+    expect(f.request).toHaveBeenCalledTimes(2);
+    expect(await syncRegistration(f.deps, { ...WHO, playerId: "player-b" })).toBe("unchanged");
+  });
+
+  it("registers nothing until the player is known", async () => {
+    const g = fixture();
+    expect(await syncRegistration(g.deps, { ...WHO, playerId: undefined })).toBe("off");
+    expect(g.native.deviceToken).not.toHaveBeenCalled();
+    expect(g.request).not.toHaveBeenCalled();
+  });
+});
+
+/** A server call that answers only when the test lets it. */
+function slowCall() {
+  const f = fixture();
+  let answer!: (result: AuthedResult) => void;
+  f.request.mockImplementationOnce(
+    () =>
+      new Promise<AuthedResult>((resolve) => {
+        answer = resolve;
+      }),
+  );
+  return { f, answer: (result: AuthedResult) => answer(result) };
+}
+
+describe("a registration on its way when the sign-in ends", () => {
+  it("is not recorded, so the next sign-in registers instead of reading 'already told'", async () => {
+    const { f, answer } = slowCall();
+    const pending = syncRegistration(f.deps, WHO);
+    await vi.waitFor(() => expect(f.request).toHaveBeenCalledOnce());
+    signInEnded();
+    answer(done());
+    expect(await pending).toBe("off");
+    expect(f.store.data.has(REGISTRATION_KEY)).toBe(false);
+    expect(await syncRegistration(f.deps, WHO)).toBe("registered");
+  });
+
+  it("is not recorded either when the sign-out removes the device meanwhile", async () => {
+    const { f, answer } = slowCall();
+    const pending = syncRegistration(f.deps, WHO);
+    await vi.waitFor(() => expect(f.request).toHaveBeenCalledOnce());
+    await unregisterDevice(f.deps);
+    answer(done());
+    expect(await pending).toBe("off");
+    expect(f.store.data.has(REGISTRATION_KEY)).toBe(false);
+  });
+
+  it("is recorded as usual when no sign-in ended meanwhile", async () => {
+    const { f, answer } = slowCall();
+    const pending = syncRegistration(f.deps, WHO);
+    await vi.waitFor(() => expect(f.request).toHaveBeenCalledOnce());
+    answer(done());
+    expect(await pending).toBe("registered");
+    expect(f.store.data.has(REGISTRATION_KEY)).toBe(true);
   });
 });
 
@@ -310,6 +376,21 @@ describe("the explainer", () => {
       expect(await explainerDue(fixture({ permission }).deps)).toBe(false);
     },
   );
+
+  it("is not offered on an Android build that cannot get a token (no Firebase file)", async () => {
+    const f = fixture({ platform: "android", permission: "undetermined" });
+    f.native.deviceToken.mockRejectedValueOnce(new Error("Default FirebaseApp is not initialized"));
+    expect(await explainerDue(f.deps)).toBe(false);
+    expect(
+      await explainerDue(fixture({ platform: "android", permission: "undetermined" }).deps),
+    ).toBe(true);
+  });
+
+  it("does not look for a token on iOS", async () => {
+    const f = fixture({ platform: "ios", permission: "undetermined" });
+    expect(await explainerDue(f.deps)).toBe(true);
+    expect(f.native.deviceToken).not.toHaveBeenCalled();
+  });
 
   it("is not offered on a phone that cannot do push, nor when the permission cannot be read", async () => {
     expect(await explainerDue(fixture({ permission: "undetermined", available: false }).deps)).toBe(

@@ -1,6 +1,13 @@
 import type { NotificationItem } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { appendRows, rowRoute, stampOf, withRead } from "#src/push/center.ts";
+import {
+  appendRows,
+  mergeFirstPage,
+  rowRoute,
+  stampOf,
+  withRead,
+  type CenterList,
+} from "#src/push/center.ts";
 
 const EVENT = "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e";
 
@@ -27,6 +34,62 @@ describe("appendRows", () => {
     expect(appendRows([row(9), row(8)], [row(8), row(7)]).map((r) => r.id)).toEqual([9, 8, 7]);
     expect(appendRows([], [row(2), row(1)]).map((r) => r.id)).toEqual([2, 1]);
     expect(appendRows([row(2)], [])).toHaveLength(1);
+  });
+});
+
+const ids = (list: CenterList) => list.rows?.map((r) => r.id);
+const page = (items: number[], nextBefore: number | null) => ({
+  items: items.map((id) => row(id)),
+  nextBefore,
+  unread: 0,
+});
+
+describe("mergeFirstPage", () => {
+  it("is the whole list when nothing was read before", () => {
+    const merged = mergeFirstPage({ rows: null, next: null }, page([5, 4], 4));
+    expect([ids(merged), merged.next]).toEqual([[5, 4], 4]);
+  });
+
+  it("keeps the older pages already loaded and the cursor below them", () => {
+    const loaded: CenterList = { rows: [4, 3, 2, 1].map((id) => row(id)), next: 1 };
+    const merged = mergeFirstPage(loaded, page([6, 5, 4], 4));
+    expect(ids(merged)).toEqual([6, 5, 4, 3, 2, 1]);
+    expect(merged.next).toBe(1);
+  });
+
+  it("is the same list when nothing new arrived", () => {
+    const loaded: CenterList = { rows: [6, 5, 4, 3, 2, 1].map((id) => row(id)), next: 1 };
+    const merged = mergeFirstPage(loaded, page([6, 5, 4], 4));
+    expect([ids(merged), merged.next]).toEqual([[6, 5, 4, 3, 2, 1], 1]);
+  });
+
+  it("drops the older pages when more than a page arrived, as rows between could be missing", () => {
+    const loaded: CenterList = { rows: [4, 3, 2, 1].map((id) => row(id)), next: 1 };
+    const merged = mergeFirstPage(loaded, page([9, 8, 7], 7));
+    expect([ids(merged), merged.next]).toEqual([[9, 8, 7], 7]);
+    const adjacent = mergeFirstPage(loaded, page([6, 5], 5));
+    expect([ids(adjacent), adjacent.next]).toEqual([[6, 5], 5]);
+  });
+
+  it("replaces a row the new first page also holds", () => {
+    const loaded: CenterList = { rows: [4, 3, 2].map((id) => row(id, { read: false })), next: 2 };
+    const fresh = { items: [row(5), row(4, { read: true })], nextBefore: 4, unread: 1 };
+    const merged = mergeFirstPage(loaded, fresh);
+    expect(ids(merged)).toEqual([5, 4, 3, 2]);
+    expect(merged.rows?.[1]?.read).toBe(true);
+  });
+
+  it("takes the first page's own cursor when it reaches back past everything held", () => {
+    const loaded: CenterList = { rows: [3, 2].map((id) => row(id)), next: 2 };
+    const deep = mergeFirstPage(loaded, page([4, 3, 2], 2));
+    expect([ids(deep), deep.next]).toEqual([[4, 3, 2], 2]);
+  });
+
+  it("is the first page alone when it is the last page too, or empty", () => {
+    const loaded: CenterList = { rows: [3, 2, 1].map((id) => row(id)), next: 1 };
+    expect(mergeFirstPage(loaded, page([3], null))).toMatchObject({ next: null });
+    expect(ids(mergeFirstPage(loaded, page([3], null)))).toEqual([3]);
+    expect(ids(mergeFirstPage(loaded, page([], null)))).toEqual([]);
   });
 });
 

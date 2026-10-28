@@ -9,8 +9,9 @@ import { setUnread } from "#src/push/unread-store.ts";
  * modules, or the phone is a simulator, only the count works.
  */
 export function PushHost() {
-  const { state, reload } = usePlayer();
+  const { state } = usePlayer();
   const signedIn = state.status === "signed_in";
+  const playerId = state.status === "signed_in" ? state.me?.id : undefined;
   // Each profile read makes a new object, so a count that came back to an earlier value still reaches the store.
   const notifications = state.status === "signed_in" ? state.me?.notifications : undefined;
 
@@ -21,8 +22,8 @@ export function PushHost() {
     if (notifications !== undefined) setUnread(notifications.unread);
   }, [notifications]);
 
-  usePushRegistration(signedIn, reload);
-  useResumeRefresh(signedIn, reload);
-  useNotificationTaps(signedIn);
+  usePushRegistration(playerId);
+  useResumeRefresh(signedIn);
+  useNotificationTaps(state.status);
   return null;
 }

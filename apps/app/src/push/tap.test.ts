@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { openTap, responseKey, tapOf, type Tap, type TapIo } from "#src/push/tap.ts";
+import {
+  LAUNCH_PATH,
+  openTap,
+  responseKey,
+  settleTap,
+  tapOf,
+  type Tap,
+  type TapIo,
+} from "#src/push/tap.ts";
 
 const EVENT = "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e";
 const QUEST = "0b9a7d3c-1f2e-4a5b-8c6d-7e8f9a0b1c2d";
@@ -179,5 +187,47 @@ describe("openTap", () => {
     openTap({ ...EXPECTED, notificationId: null, kind: "invitation" }, calls);
     expect(calls.markRead).not.toHaveBeenCalled();
     expect(calls.openCenter).toHaveBeenCalledExactlyOnceWith(null);
+  });
+});
+
+describe("settleTap: when a tap may open", () => {
+  const signedIn = { status: "signed_in", pathname: "/event/abc" } as const;
+  const atLaunch = { status: "signed_in", pathname: LAUNCH_PATH } as const;
+  const other: Tap = { ...EXPECTED, kind: "event_soon", notificationId: 124 };
+
+  it("opens at once for a signed-in player past the launch screen", () => {
+    expect(settleTap(null, signedIn, EXPECTED)).toEqual({ open: EXPECTED, waiting: null });
+  });
+
+  it("holds a tap while the launch screen is still choosing where to go, then opens it", () => {
+    const held = settleTap(null, atLaunch, EXPECTED);
+    expect(held).toEqual({ open: null, waiting: EXPECTED });
+    expect(settleTap(held.waiting, atLaunch)).toEqual({ open: null, waiting: EXPECTED });
+    expect(settleTap(held.waiting, signedIn)).toEqual({ open: EXPECTED, waiting: null });
+  });
+
+  it("holds a tap while the player is not signed in yet (the profile is loading)", () => {
+    const loading = { status: "loading", pathname: LAUNCH_PATH } as const;
+    expect(settleTap(null, loading, EXPECTED)).toEqual({ open: null, waiting: EXPECTED });
+    expect(settleTap(EXPECTED, { status: "loading", pathname: "/home" })).toEqual({
+      open: null,
+      waiting: EXPECTED,
+    });
+  });
+
+  it("drops a tap held when the player signs out, so the next account never gets it", () => {
+    expect(settleTap(EXPECTED, { status: "signed_out", pathname: "/home" })).toEqual({
+      open: null,
+      waiting: null,
+    });
+    expect(settleTap(null, { status: "signed_out", pathname: "/home" }, EXPECTED)).toEqual({
+      open: null,
+      waiting: null,
+    });
+  });
+
+  it("lets a newer tap replace one still held, and does nothing without a tap", () => {
+    expect(settleTap(EXPECTED, atLaunch, other)).toEqual({ open: null, waiting: other });
+    expect(settleTap(null, signedIn)).toEqual({ open: null, waiting: null });
   });
 });

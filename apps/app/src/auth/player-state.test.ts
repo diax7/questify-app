@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApiResult, Client } from "#src/api/client.ts";
 import { createSession, type SecretStorage } from "#src/api/session.ts";
-import { createPlayerLoader, type PlayerState } from "#src/auth/player-state.ts";
+import { RELEASE_WAIT_MS, createPlayerLoader, type PlayerState } from "#src/auth/player-state.ts";
 
 const ok = (body: unknown = {}): ApiResult => ({
   kind: "ok",
@@ -262,6 +262,33 @@ describe("the device release before sign-out (T-501c)", () => {
     await f.loader.signOut();
     expect(f.calls).toEqual(["release", "logout", "clear"]);
     expect(f.states.at(-1)).toEqual({ status: "signed_out", ended: false });
+  });
+
+  describe("a release that hangs", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("holds sign-out for 3 seconds at most, then signs out while the call goes on", async () => {
+      vi.useFakeTimers();
+      const f = ordered(() => new Promise(() => undefined));
+      let finished = false;
+      const signingOut = f.loader.signOut().then(() => {
+        finished = true;
+      });
+      await vi.advanceTimersByTimeAsync(RELEASE_WAIT_MS - 1);
+      expect(finished).toBe(false);
+      expect(f.calls).toEqual(["release"]);
+      await vi.advanceTimersByTimeAsync(1);
+      await signingOut;
+      expect(f.calls).toEqual(["release", "logout", "clear"]);
+      expect(f.states.at(-1)).toEqual({ status: "signed_out", ended: false });
+    });
+
+    it("leaves no timer behind when the release is quick", async () => {
+      vi.useFakeTimers();
+      const f = ordered(async () => true);
+      await f.loader.signOut();
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it("keeps the notification count the profile carries", async () => {

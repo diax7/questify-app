@@ -1,6 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
+import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { channelNames } from "#src/push/channels.ts";
 import { turnOn, type PermissionState } from "#src/push/push-flow.ts";
@@ -17,6 +18,8 @@ export type PhonePush = "loading" | "unavailable" | PermissionState;
  */
 export function usePhonePush(): Readonly<{ state: PhonePush; ask: () => void }> {
   const { language, t } = useI18n();
+  const { state: player } = usePlayer();
+  const playerId = player.status === "signed_in" ? player.me?.id : undefined;
   const [state, setState] = useState<PhonePush>("loading");
 
   const read = useCallback(async () => {
@@ -40,7 +43,7 @@ export function usePhonePush(): Readonly<{ state: PhonePush; ask: () => void }> 
   }, [read]);
 
   const ask = () => {
-    void turnOn(pushDeps(), whoOf(language), channelNames(t)).then(read);
+    void turnOn(pushDeps(), whoOf(language, playerId), channelNames(t)).then(read);
   };
   return { state, ask };
 }

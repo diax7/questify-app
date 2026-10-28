@@ -124,3 +124,36 @@ export function openTap(tap: Tap, io: TapIo): void {
   if (route.kind === "route") io.open(route.href);
   else io.openCenter(tap.notificationId);
 }
+
+/** Where the app is for a tap that wants to open a screen: the player's state and the path on screen. */
+export type TapPlace = Readonly<{
+  status: "loading" | "signed_in" | "signed_out";
+  pathname: string;
+}>;
+
+/** The launch screen's path. It decides where the app opens and then replaces itself (`app/index.tsx`). */
+export const LAUNCH_PATH = "/";
+
+/**
+ * What to do with a tap now: open it, hold it, or drop it. A tap opens only for a signed-in player and only once the
+ * launch screen has left: its own `router.replace` would otherwise land on the tap's screen and cancel it (a cold start
+ * is the common case). A tap held while the player signs out is dropped, so it never opens for the next account. A
+ * newer tap replaces one still held.
+ *
+ * @param waiting The tap held so far.
+ * @param place Where the app is now.
+ * @param arrived A tap that has just arrived, if any.
+ */
+export function settleTap(
+  waiting: Tap | null,
+  place: TapPlace,
+  arrived: Tap | null = null,
+): Readonly<{ open: Tap | null; waiting: Tap | null }> {
+  if (place.status === "signed_out") return { open: null, waiting: null };
+  const tap = arrived ?? waiting;
+  if (tap === null) return { open: null, waiting: null };
+  if (place.status === "signed_in" && place.pathname !== LAUNCH_PATH) {
+    return { open: tap, waiting: null };
+  }
+  return { open: null, waiting: tap };
+}

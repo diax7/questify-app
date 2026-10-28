@@ -38,6 +38,22 @@ const isMe = (value: unknown): value is Me =>
   typeof (value as Me).legal === "object" &&
   Array.isArray((value as Me).legal?.toAccept);
 
+/** How long a sign-out waits for this phone's push device to be removed; the call goes on without it. */
+export const RELEASE_WAIT_MS = 3000;
+
+/** The release, or nothing once the wait is over (the timer is always stopped, so it never outlives the answer). */
+async function releaseWithin(release: () => Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  try {
+    await Promise.race([release().catch(() => undefined), limit]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** The provider's loader, separated from React so delayed account responses are exercised behaviorally. */
 export function createPlayerLoader(
   session: Pick<Session, "signedIn" | "request" | "signOut" | "onEnded">,
@@ -86,8 +102,8 @@ export function createPlayerLoader(
     // Drop private data immediately; wait for logout before offering another sign-in.
     publish({ status: "loading" });
     try {
-      // This phone stops receiving this account's pushes first; a failure here never keeps the player signed in.
-      await release().catch(() => undefined);
+      // This phone stops receiving this account's pushes first; a failure, or a call that hangs, never holds sign-out.
+      await releaseWithin(release, RELEASE_WAIT_MS);
       await session.signOut();
       await clear();
     } finally {

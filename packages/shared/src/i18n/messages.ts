@@ -6116,8 +6116,8 @@ export const MESSAGES = {
     en: "These topics decide what reaches you as a notification. A topic you turn off still appears in the notification center.",
   },
   "pushTopics.always": {
-    ar: "ما يخص طلباتك وجوائزك يصلك دائمًا، ما لم توقف الإشعارات من إعدادات الهاتف.",
-    en: "Messages about your requests and prizes always reach you, unless you turn notifications off in your phone's settings.",
+    ar: "القرارات والردود والجوائز تصلك دائمًا، ما لم توقف الإشعارات من إعدادات الهاتف.",
+    en: "Decisions, answers and prizes always reach you, unless you turn notifications off in your phone's settings.",
   },
   "pushTopics.loadFailed": {
     ar: "تعذّر تحميل المواضيع. حاول مرة أخرى.",

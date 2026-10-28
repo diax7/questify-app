@@ -3,7 +3,7 @@ import { api, deviceId, keyValueStore } from "#src/api/app-session.ts";
 import { ADD_EMAIL_SHOWN_KEY } from "#src/account/add-email.ts";
 import { RECENT_KEY } from "#src/event/launch.ts";
 import { createPlayerLoader, type PlayerState } from "#src/auth/player-state.ts";
-import { REGISTRATION_KEY, unregisterDevice } from "#src/push/push-flow.ts";
+import { REGISTRATION_KEY, signInEnded, unregisterDevice } from "#src/push/push-flow.ts";
 export type { Me, PlayerState } from "#src/auth/player-state.ts";
 
 type PlayerValue = Readonly<{
@@ -22,6 +22,8 @@ const PlayerContext = createContext<PlayerValue | undefined>(undefined);
 const releaseDevice = () => unregisterDevice({ session: api.session, store: keyValueStore });
 
 async function clearPlayerKeys(): Promise<void> {
+  // Whatever ended the sign-in, a push registration still on its way must not be recorded for the next one.
+  signInEnded();
   await Promise.all(PLAYER_KEYS.map((key) => keyValueStore.removeItem(key).catch(() => undefined)));
 }
 

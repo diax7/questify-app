@@ -9,11 +9,12 @@ import type { PermissionState, PushNative } from "#src/push/push-flow.ts";
  * The only file that loads `expo-notifications` and `expo-application` (T-501c, ADR-349).
  * Importing `expo-notifications` throws as it loads when the build has no native module for it, so a development build
  * made before this task would crash at launch. Each package is therefore required only after
- * `requireOptionalNativeModule` found every native module it asks for at load; without them push is simply off
- * (`available()` is false, listeners are no-ops) and the center, the bell and Settings still work.
+ * `requireOptionalNativeModule` found the native modules checked below. A build holds all of a package's native modules
+ * or none, so these few stand for the whole set. Without them push is simply off (`available()` is false, listeners
+ * are no-ops) and the center, the bell and Settings still work.
  */
 
-/** The native modules `expo-notifications` loads on both platforms, by their registered names. */
+/** Some of the native modules `expo-notifications` loads on both platforms, by their registered names. */
 const NOTIFICATION_MODULES = [
   "ExpoPushTokenManager",
   "ExpoNotificationPermissionsModule",

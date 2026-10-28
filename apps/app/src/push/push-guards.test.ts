@@ -75,3 +75,28 @@ describe("who may read the permission or the device", () => {
     ]);
   });
 });
+
+/**
+ * A failed profile read publishes `me: undefined`, and screens gated on `me` (a daily game, the gem shop) then unmount.
+ * The push code refreshes the bell with a one-row center read and never asks the player provider to reload.
+ */
+describe("what the push code may refresh", () => {
+  const pushSources = sources.filter(
+    (file) => file.startsWith("src/push/") && !file.includes(".test."),
+  );
+
+  it("never reloads the profile", () => {
+    expect(pushSources.length).toBeGreaterThan(10);
+    const offenders = pushSources.filter((file) =>
+      /\breload\b|path:\s*["'`]\/v1\/me["'`]/.test(readFileSync(join(ROOT, file), "utf8")),
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("the line about messages that always arrive", () => {
+  it("names decisions, answers and prizes in both languages", () => {
+    expect(MESSAGES["pushTopics.always"].en).toMatch(/decisions, answers and prizes/i);
+    expect(MESSAGES["pushTopics.always"].ar).toMatch(/القرارات والردود والجوائز/);
+  });
+});

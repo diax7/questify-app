@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
+import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { channelNames } from "#src/push/channels.ts";
 import { explainerDue, snoozeExplainer, turnOn } from "#src/push/push-flow.ts";
@@ -20,6 +21,8 @@ export type JoinExplainer = Readonly<{
  */
 export function useJoinExplainer(joined: boolean): JoinExplainer {
   const { language, t } = useI18n();
+  const { state } = usePlayer();
+  const playerId = state.status === "signed_in" ? state.me?.id : undefined;
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (!joined) return;
@@ -38,7 +41,7 @@ export function useJoinExplainer(joined: boolean): JoinExplainer {
     visible,
     turnOnNow: () => {
       setVisible(false);
-      void turnOn(pushDeps(), whoOf(language), channelNames(t)).catch(() => undefined);
+      void turnOn(pushDeps(), whoOf(language, playerId), channelNames(t)).catch(() => undefined);
     },
     notNow: () => {
       setVisible(false);
