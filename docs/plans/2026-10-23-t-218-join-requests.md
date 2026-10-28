@@ -107,8 +107,8 @@ The tickets inbox and reports' join queue (T-616), push (T-501), an owner limit 
    `join_core`, `enroll_operator`, `decide_join_request` and `accept_all_join_requests`; every decision is made on the
    free seats counted under the lock, never by catching `QL409` (the trigger stays as the last guard). An invited,
    waitlisted player rejoining a full event answers `already`.
-3. **Accept all** (since T-501d: at most 1,000 a call, the dashboard repeats while one accepted some and requests
-   wait, ADR-353 (5)): one seat lock, `free = cap - seats` (unbounded without a hard limit), the oldest `free` pending rows
+3. **Accept all** (since T-501d: at most 1,000 a call, 250 on a hard-limited event until T-221, the dashboard repeats
+   while one accepted some and requests wait, ADR-353 (5)): one seat lock, `free = cap - seats` (unbounded without a hard limit), the oldest `free` pending rows
    (never declined) `ORDER BY joined_at, id LIMIT free FOR UPDATE SKIP LOCKED`, one audit row each with the same
    request id; returns accepted and remaining.
 4. `enroll_operator` lets a declined row in and answers `full` instead of raising.

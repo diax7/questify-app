@@ -115,6 +115,10 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
   changed) and the dashboard repeats while a call accepted some and requests wait (`apps/web/src/lib/accept-all.ts`, at
   most 10 calls a press, a progress line; a call that fails partway keeps and says what was accepted). One call of
   1,000: 1.76 s with the trigger, 1.43 s without. ADR-353 (5).
+- **Cap re-review (88):** a hard-limited event's seat guard recounts the seats on every accepted row (one call of 1,000
+  measured 3.3 to 9.4 s there), so a hard-limited event takes **250 a call** (one call with 5,000 waiting 0.85 s);
+  T-221 (Q-323) checks the limit once a statement so the cap can go. The dashboard stops its calls when the page is
+  left and says "press again" when its 10 calls ran out with requests still waiting.
 - **Code review minors:** the acceptance text says only "Your request to join was accepted." (an acceptance before
   the start is usual for a private event); `notice_create`'s parameters are qualified with its name.
 
@@ -138,9 +142,11 @@ deadline can fall on the reveal's own day: "by 29 Oct" alone hides it).
 - **The text is the fixed template, ids only in the payload:** each kind claimed and built with `pushMessageOf`; the
   body equals the template; `data.r` holds ids only; no reply, reason or ticket text anywhere in the notice.
 - **Every `notice_kind` row has a template and a route** (`push-store.int`, now with `NOTIFICATION_TARGETS`).
-- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): one accept-all call of 1,000 (with 5,000 waiting)
-  under 5 s with and without the trigger; the default suite proves 300 notices from one accept-all and the cap (1,001
-  requests give 1,000 then 1); `apps/web/src/lib/accept-all.test.ts` the dashboard's repeat.
+- Timing (by hand, `test/perf/push-producers-timing.int.test.ts`): one accept-all call (with 5,000 waiting) under 5 s
+  per call for an event without a hard limit (1,000 per call) and with one (250 per call), with and without the
+  trigger; the default suite proves 300 notices from one accept-all and both caps (1,001 requests give 1,000 then 1;
+  300 on a hard-limited event give 250 then 50); `apps/web/src/lib/accept-all.test.ts` the dashboard's repeat, its stop
+  when the page is left and its "press again".
 - Security: outsider (the door, its helpers and the trigger functions: no PUBLIC, exact grants, definers), cross-tenant
   (`push_due` refuses every seat with an identity), the rehearsal guards (no new foreign key; no new writer judging the
   status), unit tests for the worker's scan step and the shared templates and routes.

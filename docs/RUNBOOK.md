@@ -265,10 +265,12 @@ quiet minutes); without keys no client exists: the center fills and every push e
   (slowest 794 ms); claims 92, 163 and 153 ms median; 200 heads; [100, 10] (ADR-350 (10)). Measure again on CranL
   before NFR-004's load test. The join-decision push (T-501d):
   `PUSH_TIMING=… pnpm vitest run apps/api/test/perf/push-producers-timing.int.test.ts` after a change to the
-  `enrollment` triggers, accept-all or `notice_create`. Gate: one accept-all call (at most 1,000 requests) under the
-  API's 5 s statement limit; 2026-10-28 on the laptop: 1.76 s with the trigger, 1.43 s without, the personal fan-out
-  of its 1,000 notices 0.3 s (ADR-353 (5); an unbounded accept-all of 5,000 had taken 7.4 s). The dashboard repeats
-  the call while requests wait, at most 10 calls (10,000 requests) a press.
+  `enrollment` triggers, accept-all or `notice_create`. Gate: under 5 s per call for an event without a hard limit
+  (1,000 per call) and with one (250 per call); 2026-10-28 on the laptop with 5,000 waiting: 1.70 s with the trigger,
+  1.22 s without, 0.85 s for a hard-limited event's 250, the personal fan-out of their notices 0.4 s (ADR-353 (5); an
+  unbounded accept-all of 5,000 had taken 7.4 s). A hard-limited event's call grows with the event's seated players
+  (its seat guard recounts them on every row, T-221). The dashboard repeats the call while requests wait, at most 10
+  calls a press, then says to press again.
 - **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same
   transaction as the door; reservations ready at the desk or ending come from `push_due()`, which the worker runs every
   minute with the switch on or off. A missing `notice_kind` row writes nothing and refuses nothing. Seen from SQL as the

@@ -1340,3 +1340,14 @@ and the accept-all ceiling fixed, the minors folded). **Cap taken now:** accept-
 (one call 1.76 s on the laptop with the trigger) and the dashboard repeats while one accepted some and requests wait,
 at most 10 calls a press. The souvenir trigger's cost stays as it is; measured again on CranL before NFR-004's load
 test. ADR-353 Accepted.
+
+## Q-323 — How a hard limit is checked during accept-all (2026-10-28, T-501d cap re-review)
+The seat guard `enrollment_player_limit` (0036) counts every enrollment of the event for each row accept-all accepts, so
+on a hard-limited event one call's cost grows with the event's size (the review measured one call of 1,000 at 3.3 s
+with 5,000 pending, 5.3 s with 12,000 pending and 9.4 s with 20,000 seated; above the API's 5 s limit the call is
+refused and accepts nothing). Stop-gap taken (developer's decision, ADR-353 (5)): a hard-limited event accepts 250 a
+call and the dashboard repeats. Recommended (Proposed, developer's call, T-221): check the limit once per statement
+(an AFTER statement trigger with transition tables over the moved rows, holding the seat lock the doors already take)
+so accept-all becomes one call again. The other options: a seat counter on the event kept by every write that seats or
+unseats a player (fast, but every join, leave, ban and removal must keep it right); a partial index on seated
+enrollments (only lowers the cost per row; the count per row stays); keeping the 250 cap (more calls for big events).

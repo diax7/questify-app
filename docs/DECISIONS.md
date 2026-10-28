@@ -5051,11 +5051,16 @@ is restated in PL/pgSQL** (the same one insert and answers): PostgreSQL 17 plans
 call from a trigger, which cost accept-all of 5,000 requests about 2 s; `push_names` (the frozen `{ar, en}` cut to 40)
 has no SET clause and only pg_catalog functions, so it is inlined; `notice_create`'s parameters are qualified with
 its name, so a later column named like one cannot make every producer raise. **Accept-all takes at most 1,000
-requests a call** (0077 restates `accept_all_join_requests` with `LIMIT least(free, 1000)`, nothing else changed) and
-the dashboard repeats while a call accepted some and requests wait (at most 10 calls a press, a progress line; a call
-that fails partway keeps what the earlier calls accepted and says so). Measured on the laptop (by hand,
-`test/perf/push-producers-timing.int`): one call of 1,000 takes 1.76 s with the join-decision trigger and 1.43 s
-without (the personal fan-out of its notices 0.3 s); the unbounded accept-all of 5,000 had taken 7.4 s with the trigger
+requests a call on an event without a hard limit and 250 on a hard-limited one** (0077 restates
+`accept_all_join_requests` with `LIMIT least(free, CASE WHEN free IS NULL THEN 1000 ELSE 250 END)`, nothing else
+changed): under 5 s per call for an event without a hard limit (1,000 per call); 250 per call when there is a hard
+limit, because its seat guard (`enrollment_player_limit`, 0036) recounts the event's seats on every accepted row (the
+cap re-review measured one call of 1,000 there at 3.3 s with 5,000 pending and 9.4 s with 20,000 seated; T-221, Q-323,
+checks the limit once a statement so the cap can go). The dashboard repeats while a call accepted some and requests
+wait (at most 10 calls a press, a progress line, "press again" when the calls ran out with requests waiting; leaving
+the page stops the calls; a call that fails partway keeps what the earlier calls accepted and says so). Measured on the laptop (by hand,
+`test/perf/push-producers-timing.int`, 5,000 waiting): one call of 1,000 takes 1.70 s with the join-decision trigger
+and 1.22 s without, a hard-limited event's 250 takes 0.85 s; the unbounded accept-all of 5,000 had taken 7.4 s with the trigger
 and 5.8 s before it, over the API's 5 s statement limit (`57014`, nothing accepted): the review measured the ceiling
 falling from about 4,300 to about 3,200 requests with the trigger, and 5 s of the 5.8 s is the souvenir enqueue trigger
 (`souvenir_on_fact`, T-402b, about 1 ms a row). (6) **The acceptance says only that the request was accepted** ("You can play now" is false before the start, and a

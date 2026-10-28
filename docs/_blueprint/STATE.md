@@ -1723,12 +1723,17 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   what was accepted); one call of 1,000 measured 1.76 s with the trigger. Minors: the acceptance text drops "You can play
   now" (a scheduled event test added); `notice_create`'s parameters qualified. ADR-353 Accepted, Q-322 answered (cap
   taken now). Mutation glob added: `apps/web/src/lib/accept-all.ts`.
+- 2026-10-28 **T-501d cap re-review 88 folded (GO to push).** A hard-limited event's seat guard recounts the seats on
+  every accepted row, so its accept-all takes 250 a call (one call with 5,000 waiting 0.85 s); without a hard limit
+  1,000 a call (1.70 s). New core follow-up T-221 (Q-323 Proposed): check the limit once a statement so accept-all is
+  one call again. The dashboard stops its calls when the page is left and says "press again" when its 10 calls ran out
+  with requests still waiting; the rejection notice's ids are checked exactly.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded; ADR-353 Accepted; accept-all now 1,000 a call, its short re-review owed); T-501e to T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded, cap re-review 88 folded, GO to push; ADR-353 Accepted; accept-all 1,000 a call, 250 with a hard limit until T-221); T-501e to T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console

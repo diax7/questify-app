@@ -269,6 +269,17 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Done 2026-10-23 (core: CTO plan 86 → revisions folded; code 93 GO, minors folded), not yet run on a phone. Migration 0037, `src/audience`, `packages/shared/src/join/options.ts`: choice fields (custom fields with options, set only before answers; an answered or targeted option cannot go), guest tags (one per entry, set for a whole paste), one rule per category or reward (`set_audience`), `in_audience` filtering the quest, shop and goal reads and refusing in `record_completion` (`not_for_you`) and `reserve_reward` (404); a returning player keeps earlier answers. Dashboard: options in the field editor, the tag in the paste box, "Who sees what" on the Joining page, choice answers on the Players page. App: the picker and the `not_for_you` message. ADR-170 to ADR-173, Q-136 to Q-139 Proposed. **Mutation:** not run locally (Dhia, 2026-10-23: heavy checks on GitHub); targets `apps/api/src/audience/**` (added to `stryker.config.json`), `apps/api/src/join/setup.ts`, `packages/shared/src/join/options.ts`. Plan: `docs/plans/2026-10-23-t-220-targeting.md`.
   - Note (code review): a returning player keeps the answers given on the first join (`join_write`), so leaving cannot switch audience; the join card still asks again on rejoin and the new answer is ignored. Filling the card read-only with the kept answers is a later polish (needs the kept answers in the join read).
 
+- [ ] **T-221** Check a hard limit once per accept-all statement, so accept-all becomes one call again — delivers FR 1821, 1825 (scale); depends on: T-218, T-501d
+  - Added 2026-10-28 (T-501d cap re-review, Q-323 Proposed). CORE (seat limits, the join path). The seat guard
+    `enrollment_player_limit` (0036) recounts the event's seats on every row accept-all moves, so a call grows with the
+    event's size (one call of 1,000 measured 3.3 s with 5,000 pending, 9.4 s with 20,000 seated); accept-all takes 1,000
+    a call without a hard limit and 250 with one (0077) and the dashboard repeats. Check the limit once per statement
+    (an AFTER statement trigger with transition tables over the moved rows) or keep a seat counter on the event updated
+    by the same writes, then drop the cap so one call accepts every request the free seats allow. A partial index on
+    seated enrollments only lowers the cost per row; it does not remove the per-row count.
+  - Done when: accept-all of 5,000 pending requests on a hard-limited event with 20,000 seated players finishes in one
+    call under 5 s with the decision push, and two accept-alls racing a join never seat more than the limit.
+
 ## Phase 3 — Quest depth
 
 _All quest types, category rules, submissions, polls, community quests, mini-games, NFC, kiosks and stations, flash quests and boosts._
@@ -918,12 +929,20 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     was accepted; `apps/web/src/lib/accept-all.ts`); one call of 1,000 measured at 1.76 s with the trigger (1.43 s
     without); 1,001 requests give (1000, 1) then (1, 0); the acceptance text no longer says "You can play now" (a
     scheduled private event accepts before the start; a test for it); `notice_create`'s parameters qualified. ADR-353
-    Accepted, Q-322 answered (cap taken now). Mutation globs add `apps/web/src/lib/accept-all.ts`. Mutation globs: `apps/api/src/push/worker.ts`,
-    `apps/api/src/push/doors.ts`, `packages/shared/src/push/templates.ts`, `packages/shared/src/push/routes.ts`.
+    Accepted, Q-322 answered (cap taken now). Mutation globs: `apps/api/src/push/worker.ts`,
+    `apps/api/src/push/doors.ts`, `packages/shared/src/push/templates.ts`, `packages/shared/src/push/routes.ts`,
+    `apps/web/src/lib/accept-all.ts`.
+  - Cap re-review 2026-10-28: 88, GO once folded: a hard-limited event's seat guard (`enrollment_player_limit`, 0036)
+    recounts the seats on every accepted row, so one call of 1,000 took 3.3 to 9.4 s there (refused above 5 s); a
+    hard-limited event now takes **250 a call** (`LIMIT least(free, CASE WHEN free IS NULL THEN 1000 ELSE 250 END)`;
+    one call of 250 with 5,000 waiting 0.85 s on the laptop), the real fix is T-221 (Q-323); the dashboard stops its
+    calls when the page is left and says "press again" when its 10 calls ran out with requests still waiting; the
+    rejection notice's ids checked exactly.
   - Split from T-501 2026-10-28 (ADR-342). CORE; a short plan on the T-501 plan's "Owed pushes" rows 1 to 6. Producers
     call only `notice_create` (one insert): statement-level triggers with transition tables for bulk writes, a
     row-level `WHEN` trigger on `enrollment` (`pending` or `declined` → `active`/`declined`, never an operator or rehearsal
-    account; measured: accept-all now takes at most 1,000 a call, one call about 1.5 to 1.8 s with the trigger, ADR-353 (5)),
+    account; measured: accept-all now takes at most 1,000 a call (250 with a hard limit), one call of 1,000 about 1.7 s
+    with the trigger, ADR-353 (5)),
     due scans for times, no per-row
     `EXCEPTION` block; each producer has a "broken kind cannot roll back the door" test (plan § Review 2).
   - Note 2026-10-28 (T-501 build): each kind is a `notice_kind` row in the slice's migration plus a template in
