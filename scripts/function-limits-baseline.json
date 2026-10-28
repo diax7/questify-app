@@ -1108,13 +1108,13 @@
   },
   "apps/web/src/components/QuestBuilder.tsx": {
     "QuestBuilder": {
-      "complexity": [35],
-      "lines": [289]
+      "complexity": [32],
+      "lines": [284]
     }
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {
     "CategoryCard": {
-      "lines": [133]
+      "lines": [115]
     },
     "CategoryRuleFields": {
       "lines": [117]
@@ -1195,7 +1195,7 @@
   },
   "apps/web/src/components/useQuestBuilder.ts": {
     "useQuestBuilder": {
-      "lines": [118]
+      "lines": [110]
     }
   },
   "apps/web/src/lib/activation.ts": {

@@ -13,6 +13,7 @@ import {
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { FlashLaunchDialog } from "#src/components/FlashControls.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
+import { useCategoryHint } from "#src/components/useCategoryHint.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { moveTargets } from "#src/lib/nfc-tags.ts";
@@ -37,6 +38,42 @@ type Polling = Readonly<{ kind: "send" | "close"; quest: QuestView; key: string 
 
 /** A flash quest's Launch or End now while the page asks for it, with its Idempotency-Key (T-307). */
 type Flashing = Readonly<{ kind: "launch" | "end"; quest: QuestView; key: string }>;
+
+/** The confirmation of a live poll's Send or Close. */
+function PollDialog({
+  language,
+  polling,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  polling: Polling;
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  const sending = polling.kind === "send";
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t(sending ? "quests.poll.sendTitle" : "quests.poll.closeTitle")}
+      body={
+        sending
+          ? t("quests.poll.sendBody", {
+              minutes: formatNumber(pollMinutesOf(polling.quest.config), language),
+            })
+          : t("quests.poll.closeBody")
+      }
+      confirmLabel={t(sending ? "quests.poll.send" : "quests.poll.close")}
+      noteLabel={null}
+      busy={busy}
+      cancel={cancel}
+      confirm={confirm}
+    />
+  );
+}
 
 /**
  * Remembers the control that opened a dialog or form, and gives it the focus back when that closes, so a keyboard or
@@ -86,6 +123,7 @@ export function QuestBuilder({
   const live = b.event?.statusNow === "live";
   const closed = b.event?.statusNow === "ended" || b.event?.statusNow === "archived";
 
+  const hint = useCategoryHint({ language, builder: b, live, focus });
   const closeEditing = () => {
     setEditing(null);
     focus.restore();
@@ -120,6 +158,7 @@ export function QuestBuilder({
     focus.restore();
   };
   const actions: CardActions = {
+    sendHint: hint.ask,
     launchFlash: (quest) => askFlash("launch", quest),
     endFlash: (quest) => askFlash("end", quest),
     sendPoll: (quest) => askPoll("send", quest),
@@ -254,19 +293,12 @@ export function QuestBuilder({
           confirm={confirmDelete}
         />
       )}
+      {hint.note}
+      {hint.dialog}
       {polling === null ? null : (
-        <ConfirmDialog
+        <PollDialog
           language={language}
-          title={t(polling.kind === "send" ? "quests.poll.sendTitle" : "quests.poll.closeTitle")}
-          body={
-            polling.kind === "send"
-              ? t("quests.poll.sendBody", {
-                  minutes: formatNumber(pollMinutesOf(polling.quest.config), language),
-                })
-              : t("quests.poll.closeBody")
-          }
-          confirmLabel={t(polling.kind === "send" ? "quests.poll.send" : "quests.poll.close")}
-          noteLabel={null}
+          polling={polling}
           busy={b.busy}
           cancel={() => {
             setPolling(null);

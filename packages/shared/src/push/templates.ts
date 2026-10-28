@@ -71,6 +71,8 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   streak_reminder: fixedTemplate("streakReminder"),
   shop_closing: namedTemplate("shopClosing"),
   invitation: namedTemplate("invitation"),
+  // T-501g (migration 0080): the hidden-category hint.
+  category_hint: namedTemplate("categoryHint"),
 };
 
 /** What the renderer reads from a claimed send or a center row. */

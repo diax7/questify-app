@@ -1379,6 +1379,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     return result.rows[0]?.n ?? -1;
   };
 
+  const press = (seat: Seat, event: string, category: string) =>
+    asA(seat, "SELECT * FROM send_category_hint($1, $2, $3, $4)", [
+      event,
+      category,
+      randomUUID(),
+      randomUUID(),
+    ]);
+
   it("keeps the streak doors inside their tenant and their player (T-405)", async () => {
     const organizer = contextFor(f, "organizer");
     expect(
@@ -1522,6 +1530,78 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
     await db.owner.query("DELETE FROM notice WHERE kind = 'tenant_probe'");
     await db.owner.query("DELETE FROM notice_kind WHERE kind = 'tenant_probe'");
+  });
+
+  it("keeps the hidden-category hint to the team that edits the event, and the reveal to the fan-out (T-501g)", async () => {
+    const hidden = async (event: string) =>
+      (
+        await db.owner.query<{ id: string }>(
+          "INSERT INTO category (event_id, name_en, hidden) VALUES ($1, 'Secret garden', true) RETURNING id",
+          [event],
+        )
+      ).rows[0]?.id ?? "";
+    const mine = await hidden(f.eventA);
+    const theirs = await hidden(f.eventB);
+    // B's event, B's category, and B's category through A's own event: A's team finds nothing to hint.
+    for (const [event, category] of [
+      [f.eventB, theirs],
+      [f.eventA, theirs],
+    ] as const) {
+      expect(await refusal(press("organizer", event, category))).toBe("AN404");
+      expect(
+        await refusal(
+          asA("organizer", "SELECT * FROM category_hint_preview($1, $2)", [event, category]),
+        ),
+      ).toBe("AN404");
+    }
+    // Staff on their own and a player have no organizer or no staff seat: no event of A's or B's is theirs to hint.
+    for (const seat of ["staff", "player"] as const) {
+      for (const [event, category] of [
+        [f.eventA, mine],
+        [f.eventB, theirs],
+      ] as const) {
+        expect(await refusal(press(seat, event, category)), seat).toBe("AN404");
+        expect(
+          await refusal(
+            asA(seat, "SELECT * FROM category_hint_preview($1, $2)", [event, category]),
+          ),
+          seat,
+        ).toBe("AN404");
+      }
+    }
+    expect(await count("owner", "notice WHERE kind = 'category_hint'", [])).toBe(0);
+    // Nobody but the fan-out writes a reveal: no seat runs it, reads the table or writes to it.
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(await refusal(asA(seat, "SELECT push_fan_out()", [])), seat).toBe("PN403");
+      expect(await refusal(asA(seat, "SELECT 1 FROM category_reveal LIMIT 1", [])), seat).toBe(
+        "42501",
+      );
+      expect(
+        await refusal(
+          asA(
+            seat,
+            "INSERT INTO category_reveal (organizer_id, event_id, enrollment_id, category_id) VALUES ($1, $2, $3, $4)",
+            [f.orgB, f.eventB, randomUUID(), theirs],
+          ),
+        ),
+        seat,
+      ).toBe("42501");
+    }
+    // A's own team hints A's own category; B's stays untouched.
+    expect((await press("organizer", f.eventA, mine)).rows).toEqual([
+      { sent: true, replayed: false },
+    ]);
+    expect(
+      await count("owner", "notice WHERE kind = 'category_hint' AND event_id = $1", [f.eventA]),
+    ).toBe(1);
+    expect(
+      await count("owner", "notice WHERE kind = 'category_hint' AND event_id = $1", [f.eventB]),
+    ).toBe(0);
+    expect(
+      await count("owner", "category_reveal WHERE category_id = ANY ($1)", [[mine, theirs]]),
+    ).toBe(0);
+    await db.owner.query("DELETE FROM notice WHERE kind = 'category_hint'");
+    await db.owner.query("DELETE FROM category WHERE id = ANY ($1)", [[mine, theirs]]);
   });
 
   it("keeps the recap to the calling player and their own events (T-410)", async () => {

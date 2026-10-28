@@ -435,6 +435,30 @@ describe("reminders and promotion (T-501f, ADR-356)", () => {
   });
 });
 
+describe("the hidden-category hint (T-501g, ADR-357)", () => {
+  it("says something is hidden in the event, naming the event and never the category", () => {
+    expect(both("category_hint", { event: EVENT })).toEqual([
+      "Something new is hidden in Winter Fest.",
+      "في مهرجان الشتاء شيء جديد مخفي.",
+    ]);
+    // Not even a category name frozen on the notice reaches the text.
+    expect(
+      both("category_hint", {
+        event: EVENT,
+        category: { en: "Secret garden", ar: "الحديقة السرية" },
+      }),
+    ).toEqual(["Something new is hidden in Winter Fest.", "في مهرجان الشتاء شيء جديد مخفي."]);
+    expect(both("category_hint", { event: { en: "www.x.io" } })).toEqual([
+      "Something new is hidden in this event.",
+      "في الفعالية شيء جديد مخفي.",
+    ]);
+    expect(both("category_hint", {})).toEqual([
+      "Something new is hidden in this event.",
+      "في الفعالية شيء جديد مخفي.",
+    ]);
+  });
+});
+
 describe("pushName and pushMoment", () => {
   it("prefers the language asked for and refuses what fails the rule", () => {
     expect(pushName({ ar: "صقر", en: "Falcon" }, "ar")).toBe("صقر");

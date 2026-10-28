@@ -51,6 +51,27 @@ function problemText(body: unknown, language: Language, t: Translate): string {
   return describeProblem(body, language, t).text;
 }
 
+/** The event's header as `GET …/events/{id}` answers it, in the language asked for (its other name when one is unset). */
+function builderEventOf(body: unknown, language: Language): BuilderEvent {
+  const view = (
+    body as {
+      event: {
+        timezone: string;
+        statusNow: string;
+        name: { ar: string | null; en: string | null };
+        terms?: unknown;
+      };
+    }
+  ).event;
+  const other = language === "ar" ? view.name.en : view.name.ar;
+  return {
+    timezone: view.timezone,
+    statusNow: view.statusNow,
+    name: view.name[language] ?? other ?? "",
+    terms: readEventTerms(view.terms),
+  };
+}
+
 /**
  * The builder's data and requests. Creates carry the caller's Idempotency-Key, so a double tap or a retry never makes
  * two; a change the API holds for a live event's confirmation waits in `pending` until the person confirms, then goes
@@ -104,23 +125,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     loaded.current = true;
     void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}`).then((result) => {
       if (!failed(result)) {
-        const view = (
-          result.body as {
-            event: {
-              timezone: string;
-              statusNow: string;
-              name: { ar: string | null; en: string | null };
-              terms?: unknown;
-            };
-          }
-        ).event;
-        const other = language === "ar" ? view.name.en : view.name.ar;
-        setEvent({
-          timezone: view.timezone,
-          statusNow: view.statusNow,
-          name: view.name[language] ?? other ?? "",
-          terms: readEventTerms(view.terms),
-        });
+        setEvent(builderEventOf(result.body, language));
         void reload();
       }
     });
@@ -160,6 +165,15 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     return true;
   };
 
+  /** Reads a path of the builder's API (the hint's count); undefined, with the problem shown, when it fails. */
+  const read = async (path: string): Promise<unknown> => {
+    setBusy(true);
+    setProblem(null);
+    const result = await requestJson("GET", `${base}${path}`);
+    setBusy(false);
+    return failed(result) ? undefined : result.body;
+  };
+
   const confirmPending = async () => {
     if (pending === null) {
       return;
@@ -180,6 +194,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     setProblem,
     pending,
     send,
+    read,
     confirmPending,
     cancelPending: () => setPending(null),
   };

@@ -16,6 +16,9 @@ import {
   flashTooLate,
   gameRefused409,
   gameRefused422,
+  hintEventNotLive,
+  hintInProgress,
+  hintNotSent,
   idempotencyKeyReused,
   meetRefused403,
   meetRefused409,
@@ -81,6 +84,7 @@ import { readShare, shareQuest } from "#src/plays/shares";
 import { answerSurvey, readSurvey, surveySummary } from "#src/plays/surveys";
 import { castVote, readPoll, readVote, voteCounts } from "#src/plays/votes";
 import { FLASH_MINUTES, endFlash, launchFlash, type FlashDone } from "#src/quests/flash";
+import { previewHint, sendHint, type HintDone } from "#src/quests/hint";
 import { closePoll, sendPoll, type PollDone } from "#src/quests/polls";
 import type { Ranking } from "#src/ranking/ranking";
 import { logStreakBonus } from "#src/streaks/streaks";
@@ -96,6 +100,7 @@ const memberIdempotent = { config: { access: "member", idempotent: true } } as c
 const ITEM = /^[A-Za-z0-9_-]{1,40}$/;
 const questParams = z.object({ questId: z.uuid() });
 const teamParams = z.object({ eventId: z.uuid(), questId: z.uuid() });
+const categoryTeamParams = z.object({ eventId: z.uuid(), categoryId: z.uuid() });
 const eventParams = z.object({ eventId: z.uuid() });
 /** One option, or several on a live poll that takes several (the database checks which, FR-240). */
 const voteBody = z.strictObject({ optionIds: z.array(z.string().regex(ITEM)).min(1).max(10) });
@@ -461,13 +466,32 @@ function flashValueOf(result: FlashDone) {
   }
 }
 
+/** The hint's count or Send's answer, or their refusal thrown (API.md, the hidden-category hint). */
+function hintValueOf<T>(result: HintDone<T>): T {
+  switch (result.kind) {
+    case "done":
+      return result.value;
+    case "not_found":
+      throw notFound();
+    case "not_hidden":
+      throw categoryNotHidden();
+    case "event_not_live":
+      throw hintEventNotLive();
+    case "in_progress":
+      throw hintInProgress();
+    case "not_written":
+      throw hintNotSent();
+  }
+}
+
 const launchBody = z.strictObject({
   minutes: z.number().int().min(FLASH_MINUTES.min).max(FLASH_MINUTES.max),
 });
 
 /**
- * The dashboard's vote counts and survey results, Send and Close of a live poll (T-306), and Launch and End now of a
- * flash quest (T-307), inside the organizer scope (owners and editors; the writes need an Idempotency-Key).
+ * The dashboard's vote counts and survey results, Send and Close of a live poll (T-306), Launch and End now of a flash
+ * quest (T-307), and a hidden category's hint with its count (T-501g), inside the organizer scope (owners and editors;
+ * the writes need an Idempotency-Key).
  */
 export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): void {
   scope.post("/events/:eventId/quests/:questId/send", memberIdempotent, async (request) => {
@@ -496,6 +520,28 @@ export function registerPlayTeamRoutes(scope: FastifyInstance, deps: PlayDeps): 
     parse(emptyBody, request.body);
     const target = { eventId, questId, requestId: request.id };
     return flashValueOf(await endFlash(deps, organizerContextOf(request), target));
+  });
+
+  scope.get("/events/:eventId/categories/:categoryId/hint", member, async (request) => {
+    const { eventId, categoryId } = parse(categoryTeamParams, request.params);
+    const target = { eventId, categoryId };
+    return hintValueOf(await previewHint(deps, organizerContextOf(request), target));
+  });
+
+  scope.post("/events/:eventId/categories/:categoryId/hint", memberIdempotent, async (request) => {
+    const { eventId, categoryId } = parse(categoryTeamParams, request.params);
+    parse(emptyBody, request.body);
+    const target = {
+      eventId,
+      categoryId,
+      press: String(request.headers["idempotency-key"]),
+      requestId: request.id,
+    };
+    const result = await sendHint(deps, organizerContextOf(request), target);
+    if (result.kind === "not_written") {
+      request.log.error({ event: "push.hint_not_written", eventId, categoryId });
+    }
+    return hintValueOf(result);
   });
 
   scope.get("/events/:eventId/quests/:questId/votes", member, async (request) => {

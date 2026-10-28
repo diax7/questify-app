@@ -230,6 +230,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a quest of the path's event only; another event's quest answers 404 (test/quests/codes)",
   "POST /v1/organizers/:organizerId/events/:eventId/categories/:categoryId/reveal/regenerate":
     "a hidden category of the path's event only, under row-level security; another event's or a shown category answers 404 (test/reveal)",
+  "GET /v1/organizers/:organizerId/events/:eventId/categories/:categoryId/hint":
+    "members inside their event limit; a hidden category of the path's event only (AN404, QH422 in category_hint_preview); answers a count, names no one (test/reveal/hint, test/db/push-hint)",
+  "POST /v1/organizers/:organizerId/events/:eventId/categories/:categoryId/hint":
+    "members inside their event limit; Idempotency-Key; a hidden category of the path's event only (AN404, QH422 in send_category_hint); one notice per key, audited; the fan-out writes the reveal for the members it tells (test/reveal/hint, test/db/push-hint)",
   "POST /v1/organizers/:organizerId/events/:eventId/steps/:stepId/qr/regenerate":
     "a passport step of the path's event only, under row-level security; another event's step answers 404 (test/plays/passport)",
   "GET /v1/organizers/:organizerId/events/:eventId/rewards":

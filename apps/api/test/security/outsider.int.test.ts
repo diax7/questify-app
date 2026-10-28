@@ -1468,6 +1468,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot send a hint, count one or reach its rules (T-501g)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.send_category_hint(gen_random_uuid(), gen_random_uuid(), 'key', gen_random_uuid())",
+        "SELECT * FROM public.category_hint_preview(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.push_hint_ok(n, NULL) FROM public.notice n",
+        "SELECT public.hint_phase(e) FROM public.event e",
+        "SELECT public.hint_pending(gen_random_uuid(), gen_random_uuid())",
+        "SELECT public.hint_category(NULL, gen_random_uuid(), false)",
+        "SELECT * FROM public.category_reveal",
+        "INSERT INTO public.category_reveal (organizer_id, event_id, enrollment_id, category_id) VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid())",
+        "SELECT * FROM public.notice_kind WHERE kind = 'category_hint'",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = ["category_hint_preview", "send_category_hint"];
+      const internals = ["hint_category", "hint_pending", "hint_phase", "push_hint_ok"];
+      const all = [...doors, ...internals];
+      const listed = `ARRAY[${all.map((name) => `'${name}'`).join(", ")}]`;
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname = ANY(${listed}) ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the two doors only, never a rule or the lookup behind them.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(doors);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual(all.toSorted());
+      for (const row of present) {
+        expect(row.config, row.proname).toEqual(["search_path=public, pg_temp"]);
+        // The doors are definers (the API's role has no table right to read or write); the rules run inside them.
+        expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      }
+      // The reveal's table keeps no right for PUBLIC or the API's role: only the fan-out's definer-called function writes it.
+      const tableRights = await rows<{ priv: string }>(
+        `SELECT p.priv FROM (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE has_table_privilege('questify_app', 'public.category_reveal', p.priv)
+            OR has_table_privilege('public', 'public.category_reveal', p.priv)`,
+      );
+      expect(tableRights).toEqual([]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

@@ -1314,12 +1314,36 @@ export const questionNotServed = make(
   "هذا السؤال لم يُفتح بعد.",
   "This question is not open yet.",
 );
-/** A secret code posted for a category that is not hidden (T-304c): only ever answered to a holder of its code. */
+/**
+ * A secret code posted for a category that is not hidden (T-304c): only ever answered to a holder of its code. Also the
+ * team's hint on a category that is not hidden (T-501g).
+ */
 export const categoryNotHidden = make(
   422,
   "not_hidden",
   "هذه الفئة ليست مخفية.",
   "This category is not hidden.",
+);
+/** A hint sent when no player can play: the event is not live and has no open rehearsal (T-501g). */
+export const hintEventNotLive = make(
+  409,
+  "event_not_live",
+  "أرسل التلميح عندما تكون الفعالية مباشرة أو أثناء التجربة.",
+  "Send the hint while the event is live, or during a rehearsal.",
+);
+/** A second hint of a category while the first is still being delivered (T-501g). */
+export const hintInProgress = make(
+  409,
+  "hint_in_progress",
+  "ما زال التلميح السابق في الطريق. جرّب بعد دقيقة.",
+  "The last hint is still on its way. Try again in a minute.",
+);
+/** The push store could not take the hint's notice (T-501g): nothing was sent, so the press may be tried again. */
+export const hintNotSent = make(
+  503,
+  "hint_unavailable",
+  "تعذّر إرسال التلميح. جرّب مرة أخرى بعد قليل.",
+  "The hint could not be sent. Try again in a moment.",
 );
 /** A secret code that does not open this category (T-304c): one answer whatever the problem; the log tells them apart. */
 export const revealCodeInvalid = make(

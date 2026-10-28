@@ -21,7 +21,7 @@ describe("notificationRoute", () => {
       flash_quest: "/quests",
       boost_start: "/quests",
       category_open: "/quests",
-      hint: "/quests",
+      category_hint: "/quests",
       submission_approved: "/quests",
       submission_rejected: "/quests",
       rank_prize: "/rewards",

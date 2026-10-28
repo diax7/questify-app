@@ -93,6 +93,8 @@ export type CardActions = PollActions &
     /** Where a quest's printed code is, for the types that have one. */
     codeLink: (quest: QuestView) => string | undefined;
     reorderCategories: (ids: string[]) => void;
+    /** Asks to send a hidden category's hint (T-501g): the page counts who would be told, then confirms. */
+    sendHint: (category: CategoryView) => void;
     /** Saves a category's names and rules (T-304). */
     saveCategory: (category: CategoryView, body: Record<string, unknown>) => void;
     reorderQuests: (category: CategoryView, ids: string[]) => void;
@@ -471,6 +473,64 @@ function CategoryRuleFields({
   );
 }
 
+/** A category's buttons: move, send its hint when it is hidden (T-501g), edit and delete. */
+function CategoryActions({
+  language,
+  category,
+  order,
+  index,
+  busy,
+  actions,
+  rename,
+  canDelete,
+}: Readonly<{
+  language: Language;
+  category: CategoryView;
+  order: readonly string[];
+  index: number;
+  busy: boolean;
+  actions: CardActions;
+  rename: () => void;
+  canDelete: boolean;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <div className={styles.actions}>
+      <OrderButtons
+        language={language}
+        name={textFor(category.name, language)}
+        ids={order}
+        index={index}
+        busy={busy}
+        apply={actions.reorderCategories}
+      />
+      {category.hidden ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={busy}
+          onClick={() => actions.sendHint(category)}
+        >
+          {t("quests.hint.send")}
+        </button>
+      ) : null}
+      <button type="button" className={styles.quiet} disabled={busy} onClick={rename}>
+        {t("quests.editCategory")}
+      </button>
+      {canDelete ? (
+        <button
+          type="button"
+          className={styles.quiet}
+          disabled={busy}
+          onClick={() => actions.remove({ kind: "category", category })}
+        >
+          {t("quests.deleteCategory")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** One category: its name, rules and order, and its quests in order (FR-1004, FR-229, T-304). */
 export function CategoryCard({
   language,
@@ -542,34 +602,16 @@ export function CategoryCard({
         <div className={styles.row}>
           <h2 className={styles.subtitle}>{textFor(category.name, language)}</h2>
           {readOnly ? null : (
-            <div className={styles.actions}>
-              <OrderButtons
-                language={language}
-                name={textFor(category.name, language)}
-                ids={order}
-                index={index}
-                busy={busy}
-                apply={actions.reorderCategories}
-              />
-              <button
-                type="button"
-                className={styles.quiet}
-                disabled={busy}
-                onClick={() => setRenaming(true)}
-              >
-                {t("quests.editCategory")}
-              </button>
-              {canDelete ? (
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  disabled={busy}
-                  onClick={() => actions.remove({ kind: "category", category })}
-                >
-                  {t("quests.deleteCategory")}
-                </button>
-              ) : null}
-            </div>
+            <CategoryActions
+              language={language}
+              category={category}
+              order={order}
+              index={index}
+              busy={busy}
+              actions={actions}
+              rename={() => setRenaming(true)}
+              canDelete={canDelete}
+            />
           )}
         </div>
       )}

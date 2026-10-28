@@ -3314,6 +3314,29 @@ export const MESSAGES = {
     ar: "لن يستطيع أحد التصويت بعد الإغلاق.",
     en: "Nobody can vote once it closes.",
   },
+  // The hint on a hidden category (T-501g, ADR-357): the button, its confirmation and the notes. No pronoun agrees with
+  // the event's word for a category, so the Arabic names "the hidden content" and "the secret code", and
+  // says "of those who joined" because the event's plural word for players is nominative («لاعبون»), wrong after «من».
+  "quests.hint.send": { ar: "أرسل تلميحًا", en: "Send a hint" },
+  "quests.hint.title": { ar: "إرسال التلميح؟", en: "Send the hint?" },
+  "quests.hint.body": {
+    ar: "سيصل التلميح بإشعار إلى {count} ممن انضموا إلى الفعالية، ويظهر لهم المحتوى المخفي من الآن. ومن ينضم لاحقًا لا يراه إلا بمسح الرمز السري.",
+    en: "{count} of your {playerMany} will get a notification and will see this {categoryOne} from now on. Anyone who joins later won't see it unless they scan its secret code.",
+  },
+  "quests.hint.rehearsal": {
+    ar: "تجربة: يصل التلميح إلى حسابات التجربة فقط، ويزول معها.",
+    en: "Rehearsal: the hint reaches the rehearsal accounts only, and goes with them.",
+  },
+  "quests.hint.confirm": { ar: "أرسل التلميح", en: "Send the hint" },
+  "quests.hint.nobody": {
+    ar: "لا أحد لإبلاغه الآن. من وصله تلميح من قبل لا يصله مرة أخرى.",
+    en: "No one is left to tell. Anyone who already got a hint is not told again.",
+  },
+  "quests.hint.pending": {
+    ar: "ما زال التلميح السابق في الطريق. جرّب بعد دقيقة.",
+    en: "The last hint is still on its way. Try again in a minute.",
+  },
+  "quests.hint.sent": { ar: "التلميح في الطريق.", en: "The hint is on its way." },
   "quests.vote.voters": { ar: "عدد المصوّتين: {count}", en: "Voters: {count}" },
   "quests.vote.share": {
     ar: "{option}: {votes} ({percent}%)",
@@ -6172,6 +6195,16 @@ export const MESSAGES = {
   "push.eventSoon.body": {
     ar: "تبدأ الفعالية الساعة {time}.",
     en: "The event starts at {time}.",
+  },
+  // The hidden-category hint (T-501g, ADR-357): names the event only, never the category (its name is the secret).
+  // Gender-neutral, no verb to agree with the event's name.
+  "push.categoryHint.body": {
+    ar: "في {event} شيء جديد مخفي.",
+    en: "Something new is hidden in {event}.",
+  },
+  "push.categoryHint.nameless": {
+    ar: "في الفعالية شيء جديد مخفي.",
+    en: "Something new is hidden in this event.",
   },
   // Reminders and promotion (T-501f, ADR-356). The streak reminder follows ADR-300: no countdown, no loss or guilt, no
   // number; the shop names a date, never an amount; the invitation names the event only. Gender-neutral («يمكنك»، «لديك»).
