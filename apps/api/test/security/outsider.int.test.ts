@@ -1383,6 +1383,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.push_due_category(1)",
         "SELECT public.push_due_event_soon(1)",
         "SELECT public.push_instant(now())",
+        "SELECT public.push_repush_ok(gen_random_uuid(), 'event_soon', NULL, now())",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }
@@ -1393,12 +1394,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "push_on_poll_sent",
       ];
       const internals = [
-        "push_category_open",
+        "push_category_opened",
         "push_due_boost",
         "push_due_category",
         "push_due_event_soon",
         "push_due_flash",
         "push_instant",
+        "push_repush_ok",
       ];
       const all = [...triggers, ...internals];
       const listed = `ARRAY[${all.map((name) => `'${name}'`).join(", ")}]`;

@@ -88,7 +88,7 @@ for an event.
   event's defaults for the topics.
 - The four mutable topics (`announcements`, `rank`, `community`, `reminders`) are the player's own choice (FR-1115);
   which kind belongs to which topic is a `notice_kind` row, not a setting.
-- Code constants until T-703's tuning: 2,000 enrollments a fan-out call, 500 personal notices a call, 200 rows a claim
+- Code constants until T-703's tuning: 1,000 enrollments a fan-out call (2,000 until T-501e, ADR-354 (9)), 500 personal notices a call, 200 rows a claim
   and at most 100 from one notice, waves of 50, a 60-second lease with a 2-second margin, 10 seconds per request, 3 tries
   in a lease (after 1 s and 2 s), 8 attempts in all, the breaker's 10 failures and 30 seconds doubling to 15 minutes, the
   15-minute account hold, the guard's 20 answers and half ambiguous, 20 registrations an hour, settle every 10 minutes,

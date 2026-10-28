@@ -968,6 +968,16 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     `notice_reward_seen` were restated in PL/pgSQL with the same rules so the per-member checks keep their plans,
     ADR-354 (5), `docs/rules.md`). ADR-354 and Q-324 Proposed. Mutation globs: `packages/shared/src/push/templates.ts`,
     `packages/shared/src/push/routes.ts`. The hint push (row 17) stays T-501g's.
+  - Code review 2026-10-28 (core): 78, NO-GO until the BLOCKER; all folded (narrow re-review owed). BLOCKER: an opening
+    of a category that unlocks after another ran `category_cleared` per member (one call of 2,000 about 5 s, parked):
+    such a category is never announced, and the fan-out and the claim check only that the category has opened and has
+    no gate (`push_category_opened`); a default-suite test with a 20-quest gate and the by-hand timing. MAJOR: the event
+    fan-out takes 1,000 enrollments a call (`push_fan_out_batch` restated in 0078; a live poll to 50,000 members 30.0 to
+    30.2 s in 52 calls, median 0.60 s; the gated opening's claim 73 ms, its fan-out 0.15 s a call). Minors: a flash
+    quest and a boost wait for their category to open; a moved start or opening is pushed again only when moved 15
+    minutes or more, at most twice (`push_repush_ok`, index `notice (event_id, kind)`); the boost scan's broken kind and
+    an asserting boost test; the rehearsal-phase lock order in `docs/rules.md`. ADR-354 Accepted, Q-324 answered (calls
+    of 1,000).
   - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in
     T-501d; a notice naming a quest or category reaches only members who can see it (plan § Review 7).
   - Note 2026-10-28 (T-501d build, ADR-353): the due scans live in `push_due()` (migration 0077, called by the worker

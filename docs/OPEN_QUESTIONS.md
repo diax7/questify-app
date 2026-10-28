@@ -1367,3 +1367,8 @@ Also measured (ADR-354 (5)): the shared visibility checks (`sees_category`, `fla
 fan-out to 50,000 members took 336 s; restated in PL/pgSQL with the same rules it takes 25.7 to 28.6 s, each call of
 2,000 about 1.1 s (the T-501 gate is 1 s, the statement limit 5 s). Recommended: accept that. The other option: event
 batches of 1,500 (more calls, the same total). Developer's call at the T-501e code review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501e code review (78; the BLOCKER and every
+finding folded). **Batch cut to 1,000:** the event fan-out takes 1,000 enrollments a call (a live poll to 50,000 members
+30.0 to 30.2 s over 52 calls, median 0.60 s). Also taken: no opening push for a category that unlocks after another (its
+gate check was too slow per member); flash quests and boosts wait for their category to open; a moved start or opening
+is pushed again only when moved 15 minutes or more, at most twice. ADR-354 Accepted.

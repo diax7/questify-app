@@ -20,10 +20,12 @@ LOCK TABLE boost IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE community_reach IN SHARE ROW EXCLUSIVE MODE;
 
 -- The due scans' ranges: scheduled flash quests by their opening, boosts by their start, categories by their opening
--- (the event's start already has event_due_to_start, 0009).
+-- (the event's start already has event_due_to_start, 0009); an event's earlier notices of a kind, which a moved start or
+-- opening is compared with (ADR-354 (10)).
 CREATE INDEX quest_flash_due ON quest (opens_at) WHERE flash AND visible AND flash_launched_at IS NULL;
 CREATE INDEX boost_starts_idx ON boost (starts_at);
 CREATE INDEX category_opens_idx ON category (opens_at) WHERE opens_at IS NOT NULL;
+CREATE INDEX notice_event_kind ON notice (event_id, kind) WHERE audience = 'event';
 
 -- ================================================================ the kinds (ADR-354)
 -- Event class (priority 1). Topics: announcements for a flash quest, a boost, a live poll and a category's opening;
@@ -157,24 +159,28 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION notice_visible(notice, enrollment) FROM PUBLIC;
 
--- Whether a category is open to the member now: its opening passed (a category moved later is not), and when it unlocks
--- after another category the member sees, that one is cleared (category_rule_lock's two category rules).
-CREATE FUNCTION push_category_open(target uuid, member enrollment) RETURNS boolean
+-- Whether the category a flash quest, a boost or an opening names has opened: its opening passed (a category moved later
+-- has not, and a flash quest or double points in it cannot be played yet). An opening is never pushed for a category
+-- that unlocks after another one: each member's real opening is when they clear its gate, which no push announces, and
+-- checking that per member is too slow for the fan-out (ADR-354 (7)). The same answer for every member of the notice.
+CREATE FUNCTION push_category_opened(nt notice) RETURNS boolean
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
-  cat   category;
-  gate  category;
+  target uuid;
+  opens  timestamptz;
+  gated  boolean;
 BEGIN
-  SELECT c.* INTO cat FROM category c WHERE c.id = target;
-  IF NOT FOUND OR coalesce(cat.opens_at > now(), false) THEN
-    RETURN false;
-  ELSIF cat.unlock_after IS NULL THEN
-    RETURN true;
+  IF nt.kind = 'flash_quest' THEN
+    target := push_ref(nt.refs, 'quest');
+    SELECT c.opens_at, c.unlock_after IS NOT NULL INTO opens, gated
+    FROM quest q JOIN category c ON c.id = q.category_id WHERE q.id = target;
+  ELSE
+    target := push_ref(nt.refs, 'category');
+    SELECT c.opens_at, c.unlock_after IS NOT NULL INTO opens, gated FROM category c WHERE c.id = target;
   END IF;
-  SELECT u.* INTO gate FROM category u WHERE u.id = cat.unlock_after;
-  RETURN NOT FOUND OR NOT sees_category(member.id, gate) OR category_cleared(member.id, gate.id);
+  RETURN FOUND AND coalesce(opens <= now(), true) AND NOT (nt.kind = 'category_open' AND gated);
 END $$;
-REVOKE ALL ON FUNCTION push_category_open(uuid, enrollment) FROM PUBLIC;
+REVOKE ALL ON FUNCTION push_category_opened(notice) FROM PUBLIC;
 
 -- ================================================================ who receives (ADR-354 (1), (2))
 -- As 0076, plus: a live or ended event's notices reach real members only. A rehearsal account left between go-live and
@@ -193,7 +199,8 @@ REVOKE ALL ON FUNCTION notice_status_ok(notice_kind, text, enrollment) FROM PUBL
 -- Each kind's own audience (0076's hook, checked at fan-out and again at the claim), on top of the membership, status
 -- and visibility rules: every T-501e kind skips a member who may not play; a live poll reaches those who have not voted
 -- while the event's polls are shown; a boost reaches the accounts of its own kind (rehearsal or real) while it runs and
--- the event's boosts are on; a category's opening reaches those it is open to now; the event starting soon names the
+-- the event's boosts are on; a flash quest, a boost and an opening need their category opened (an opening, no gate
+-- before it: push_category_opened); the event starting soon names the
 -- start the event still has; a milestone needs the event's community switch on. Other kinds pass. A member who may
 -- not play is an operator the owner keeps from playing (FR-906): every T-501e push is about playing. PL/pgSQL now
 -- (0076's was plain SQL): each function is called in a plain expression and each query names none (see above).
@@ -214,10 +221,10 @@ BEGIN
                     WHERE sa.event_id = e.id AND sa.player_id = member.player_id AND NOT sa.can_play);
   IF NOT FOUND THEN
     RETURN false;
-  ELSIF nt.kind = 'flash_quest' THEN
+  ELSIF nt.kind IN ('flash_quest', 'boost_start', 'category_open') AND NOT push_category_opened(nt) THEN
+    RETURN false;
+  ELSIF nt.kind IN ('flash_quest', 'category_open') THEN
     RETURN true;
-  ELSIF nt.kind = 'category_open' THEN
-    RETURN push_category_open(push_ref(nt.refs, 'category'), member);
   ELSIF nt.kind = 'poll_sent' THEN
     IF NOT polls_shown(ev) THEN
       RETURN false;
@@ -323,6 +330,21 @@ CREATE TRIGGER community_reach_push AFTER INSERT ON community_reach
 -- ================================================================ the due scans (ADR-354 (3))
 -- Each is one set-based statement of at most `lim` notices, its marker filtered out first; answers the notices written.
 
+-- Whether a start or an opening may be pushed (ADR-354 (10)): no earlier notice of the kind for the event (and, for an
+-- opening, the category) names a moment less than 15 minutes from it (900,000,000 microseconds; the same moment
+-- included, so a re-run writes nothing), and at most 2 re-pushes (3 notices) so far: an organizer nudging the start
+-- never pushes every member each minute. Called by the scans only, once per candidate, never per member.
+CREATE FUNCTION push_repush_ok(target_event uuid, target_kind text, target_category uuid, at timestamptz)
+  RETURNS boolean
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT count(*) < 3
+     AND coalesce(bool_and(abs(split_part(nt.dedupe, ':', 3)::bigint - push_instant(at)::bigint) >= 900000000), true)
+  FROM notice nt
+  WHERE nt.event_id = target_event AND nt.kind = target_kind AND nt.audience = 'event'
+    AND (target_category IS NULL OR nt.refs ->> 'category' = target_category::text)
+$$;
+REVOKE ALL ON FUNCTION push_repush_ok(uuid, text, uuid, timestamptz) FROM PUBLIC;
+
 -- A scheduled flash quest (visible with its own window, never launched) whose window opened in the last day (a flash
 -- quest lasts at most 1,440 minutes) and is shown now (open, flash quests switched on), not held by a community lock.
 CREATE FUNCTION push_due_flash(lim integer) RETURNS integer
@@ -365,18 +387,18 @@ $$;
 REVOKE ALL ON FUNCTION push_due_boost(integer) FROM PUBLIC;
 
 -- A category that opened in the last 2 hours, after its live event's start (one open from the start is the start's
--- news), holding a visible quest and not held by a community lock; until 2 hours after the opening.
+-- news), unlocking after no other category (ADR-354 (7)), holding a visible quest and not held by a community lock;
+-- until 2 hours after the opening. A moved opening is pushed again only per push_repush_ok.
 CREATE FUNCTION push_due_category(lim integer) RETURNS integer
   LANGUAGE sql SET search_path = public, pg_temp AS $$
   WITH due AS (
     SELECT c.id, c.organizer_id, c.event_id, c.opens_at, c.name_ar, c.name_en
     FROM category c JOIN event e ON e.id = c.event_id
     WHERE c.opens_at <= now() AND c.opens_at > now() - interval '2 hours' AND c.opens_at > e.starts_at
-      AND event_status_now(e.status, e.starts_at, e.ends_at) = 'live'
+      AND event_status_now(e.status, e.starts_at, e.ends_at) = 'live' AND c.unlock_after IS NULL
       AND category_community_lock(c.id) IS NULL
       AND EXISTS (SELECT 1 FROM quest q WHERE q.category_id = c.id AND q.visible)
-      AND NOT EXISTS (SELECT 1 FROM notice nt
-                      WHERE nt.dedupe = 'category_open:' || c.id || ':' || push_instant(c.opens_at))
+      AND push_repush_ok(c.event_id, 'category_open', c.id, c.opens_at)
     ORDER BY c.opens_at, c.id
     LIMIT push_due_category.lim)
   SELECT count(notice_create('category_open', due.organizer_id, due.event_id, NULL,
@@ -389,15 +411,15 @@ CREATE FUNCTION push_due_category(lim integer) RETURNS integer
 $$;
 REVOKE ALL ON FUNCTION push_due_category(integer) FROM PUBLIC;
 
--- A scheduled event starting within the hour: one notice per start (a moved start is a new one), naming the time in the
--- event's zone, until the start.
+-- A scheduled event starting within the hour: one notice per start, naming the time in the event's zone, until the
+-- start. A moved start is pushed again only per push_repush_ok; the claim skips a push whose start has moved.
 CREATE FUNCTION push_due_event_soon(lim integer) RETURNS integer
   LANGUAGE sql SET search_path = public, pg_temp AS $$
   WITH due AS (
     SELECT e.id, e.organizer_id, e.starts_at, e.name_ar, e.name_en
     FROM event e
     WHERE e.status = 'scheduled' AND e.starts_at > now() AND e.starts_at <= now() + interval '1 hour'
-      AND NOT EXISTS (SELECT 1 FROM notice nt WHERE nt.dedupe = 'event_soon:' || e.id || ':' || push_instant(e.starts_at))
+      AND push_repush_ok(e.id, 'event_soon', NULL, e.starts_at)
     ORDER BY e.starts_at, e.id
     LIMIT push_due_event_soon.lim)
   SELECT count(notice_create('event_soon', due.organizer_id, due.id, NULL, '{}'::jsonb,

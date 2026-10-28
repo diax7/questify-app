@@ -24,12 +24,12 @@ FR-238) stays T-501g's. Never push, deploy or run Stryker locally.
 
 | Kind | Producer | Once-only marker | Recipients (beyond the status rule) | Topic, TTL, `until` | Route |
 |---|---|---|---|---|---|
-| `flash_quest` | row trigger on `quest` (`flash_launched_at` set, Launch); due scan at `opens_at` for a scheduled one (visible, not launched, shown, not community-locked) | `flash:{quest}:{opens_at µs}` | `member_sees_quest` (visible, window open, category seen, flash switch on) | announcements, 24 h, until `closes_at` | quests, the quest's sheet |
-| `boost_start` | row trigger on `boost` insert or a new `starts_at` when it starts at once; due scan at `starts_at` | `boost:{id}` | `sees_category`; a rehearsal boost to rehearsal accounts, a real one to real members; still running and the event's switch on | announcements, 24 h, until `ends_at` | quests |
+| `flash_quest` | row trigger on `quest` (`flash_launched_at` set, Launch); due scan at `opens_at` for a scheduled one (visible, not launched, shown, not community-locked) | `flash:{quest}:{opens_at µs}` | `member_sees_quest` (visible, window open, category seen, flash switch on); the category opened | announcements, 24 h, until `closes_at` | quests, the quest's sheet |
+| `boost_start` | row trigger on `boost` insert or a new `starts_at` when it starts at once; due scan at `starts_at` | `boost:{id}` | `sees_category`; the category opened; a rehearsal boost to rehearsal accounts, a real one to real members; still running and the event's switch on | announcements, 24 h, until `ends_at` | quests |
 | `poll_sent` | row trigger on `quest` (`poll_sent_at` set, Send) | `poll:{quest}:{poll_sent_at µs}` | `member_sees_quest`; not yet voted (no completion); the event's polls shown | announcements, 24 h, until `closes_at` | event (the poll card) |
 | `community_step` | statement trigger on `community_reach` inserts: one notice per goal per statement, for the highest step it reached | `community_step:{step}` | the event's community switch on (the card's own rule: every member, no quest named) | community, 2 h | event (the community bar) |
-| `category_open` | due scan at `category.opens_at` (after the event's start, live, a visible quest in it, not community-locked) | `category_open:{category}:{opens_at µs}` | `sees_category`; open now; its "unlocks after" category cleared by the member | announcements, 2 h, until `opens_at + 2 h` | quests |
-| `event_soon` | due scan at `starts_at − 1 h` for a scheduled event | `event_soon:{event}:{starts_at µs}` | `before_start`: real members of a scheduled event; the start still the one named | reminders, 1 h, until `starts_at` | event |
+| `category_open` | due scan at `category.opens_at` (after the event's start, live, unlocking after no other category, a visible quest in it, not community-locked); a moved opening again only when moved 15 minutes or more, at most 2 re-pushes | `category_open:{category}:{opens_at µs}` | `sees_category`; open now; still unlocking after no other category | announcements, 2 h, until `opens_at + 2 h` | quests |
+| `event_soon` | due scan at `starts_at − 1 h` for a scheduled event; a moved start again only when moved 15 minutes or more, at most 2 re-pushes per event | `event_soon:{event}:{starts_at µs}` | `before_start`: real members of a scheduled event; the start still the one named | reminders, 1 h, until `starts_at` | event |
 
 Every kind also skips a member the owner made an operator who may not play (`staff_assignment.can_play` false): each of
 the six is about playing. `community_step`'s route moves from the quests tab to Event Home, where the community bar is.
@@ -56,9 +56,22 @@ the event's zone (the claim returns `event.timezone`).
 
 ## Re-checks at sending (the claim's `push_skip_reason`)
 
-A flash quest ended early (End now) or moved, a poll closed or voted, a boost stopped, a category moved later, an event
-whose start moved: `member_sees_quest` and `notice_audience_ok` fail, so the queued push is `skipped` (`not_visible`,
-`not_member`); a moved start or opening gets a new marker and its own push at the new moment.
+A flash quest ended early (End now) or moved, a poll closed or voted, a boost stopped, a category moved later or given
+a gate, an event whose start moved: `member_sees_quest` and `notice_audience_ok` fail, so the queued push is `skipped`
+(`not_visible`, `not_member`). A start or an opening moved 15 minutes or more gets its own push at the new moment, at
+most twice (`push_repush_ok`); a smaller nudge gets none, and the old push's queued sends are skipped (never a wrong
+time).
+
+## Code review (78, NO-GO until 1; all folded)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 BLOCKER | An opening of a category that unlocks after another ran `category_cleared` per member (nested SQL functions per quest): one call of 2,000 about 5 s (57014, parked), 35 ms a cleared member at the claim | Never pushed: the scan leaves out a category with `unlock_after`, the fan-out and the claim check only that it has none and has opened (`push_category_opened`, no gate check); a default-suite test (a 20-quest gate, 1,500 members) and the by-hand timing |
+| 2 MAJOR | Calls of 2,000 took about 1.1 s | `push_fan_out_batch` restated with 1,000 a call |
+| 3 | A flash quest or a boost in a category not open yet was pushed | `push_category_opened` for both; tested |
+| 4 | A nudged start or opening pushed everyone each time | 15 minutes at least, at most 2 re-pushes; tested |
+| 5 | Tests | the boost scan's broken kind; the boost test asserts on every outsider; the gated case rewritten |
+| 6 | A rehearsal-phase Launch or Send takes its event lock late | documented in `docs/rules.md` (the push store's lock order) |
 
 ## The status rule, refined (ADR-354 (1))
 
@@ -67,7 +80,8 @@ left between go-live and the wipe gets nothing (as `polls_shown` and `boost_in_f
 
 ## Fan-out cost at 50,000 members
 
-One event push: 50,000 center rows, about 60,000 sends, 25 fan-out calls of 2,000 enrollments. The per-member checks
+One event push: 50,000 center rows, about 60,000 sends, 50 fan-out calls of 1,000 enrollments (2,000 before the code
+review, ADR-354 (9)). The per-member checks
 add `member_sees_quest` (one quest probe), a `staff_assignment` probe and, for a poll, a completion probe. Measured by
 hand with `test/perf/push-event-timing.int` (a sent poll to 50,000 members); the gates stay T-501's (each call under
 1 s, the whole under 30 s on the laptop). A rehearsal on a large event costs the same scan over its enrollments.
@@ -76,8 +90,11 @@ hand with `test/perf/push-event-timing.int` (a sent poll to 50,000 members); the
 `in_audience` again for every member, and `member_sees_quest` and `notice_visible` called it from queries. With
 `sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible`, `notice_reward_seen` and `notice_audience_ok` in
 PL/pgSQL (the same rules; functions called in plain expressions, queries free of them): 25.7 to 28.6 s over 27 calls,
-about 1.1 s a call (T-501's generic event notice 0.76 s the same day), the claim plus ack of 200 about 0.1 s. The
-per-call gate is missed by about a tenth (Q-324).
+about 1.1 s a call. **After the code review (calls of 1,000):** a live poll 30.0 to 30.2 s over 52 calls, median
+0.60 s, slowest 0.68 s; a category's opening 27.3 s, median 0.55 s; the claim plus ack of 200 about 0.1 s, 73 ms
+median after a 20-quest gate was set on the category (every row skipped, no gate check); an opening notice of a gated
+category fans out at 0.15 s a call writing nothing. The extra calls cost about 2 s in all, so the whole sits at the
+30 s gate (Q-324 answered: calls of 1,000).
 
 ## Tests (named; `test/db/push-events.int.test.ts` unless noted)
 
@@ -88,8 +105,12 @@ per-call gate is missed by about a tenth (Q-324).
   community settle, activation and the due scan all commit, and no notice is written.
 - The markers survive a retry and a re-run of the scan; a rehearsal send and the live send are two notices.
 - Scheduled starts: a scheduled flash quest opens → one push; moved later before the claim → skipped; the event soon
-  push names 20:00 for a Riyadh event starting at 17:00 UTC and 18:00 for a London one in summer time; a moved start
-  is skipped at the claim and the new start gets its own.
+  push names the start in the event's own zone (Riyadh and London differ); a moved start is skipped at the claim and
+  the new start gets its own; a nudge under 15 minutes gets none, and a third re-push none (the event's start and a
+  category's opening).
+- A flash quest or a boost in a category not open yet reaches no one; a category moved later skips the boost's push.
+- A category that unlocks after another is never pushed; an opening notice for one fans out to nobody well inside the
+  limit, and a gate set after the fan-out skips the queued pushes at the claim without a gate check.
 - The text is the fixed template and the payload ids only (`pushMessageOf` over the claimed rows).
 - `push-store.int`: live and ended reach no rehearsal account; every `notice_kind` row has a template and a route.
 - Security: outsider (the new trigger functions and helpers: no PUBLIC, no grant, definers), cross-tenant (`push_due`

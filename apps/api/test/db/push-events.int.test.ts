@@ -310,7 +310,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       expect(await noticesOf(event, "boost_start")).toHaveLength(1);
       await f.fanOut();
       expect(await recipients(notice)).toEqual([real.who]);
-      expect(others.map((one) => one.who)).not.toContain(real.who);
+      for (const one of others) expect(await sendOf(notice, one)).toBeUndefined();
     });
 
     it("starting later: the scan writes it at its start, once; a stopped boost's push is skipped", async () => {
@@ -334,6 +334,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       await f.run(f.team(), "SELECT * FROM end_boost($1, $2, $3)", [event, made?.id, randomUUID()]);
       await claimAll();
       expect(await sendOf(notice, one)).toMatchObject({ state: "skipped", code: "not_member" });
+    });
+
+    it("a flash quest or a boost in a category not open yet reaches no one; a category moved later skips the push", async () => {
+      await f.drain();
+      const event = await f.newEvent({ phase: "live" });
+      const one = await member(event);
+      const later = await category(event, { opens_at: new Date(Date.now() + 3_600_000) });
+      await launch(event, await quest(event, { category: later, flash: true, visible: false }));
+      await saveBoost(event, later);
+      await f.fanOut();
+      expect(await recipients(await onlyNotice(event, "flash_quest"))).toEqual([]);
+      expect(await recipients(await onlyNotice(event, "boost_start"))).toEqual([]);
+      const open = await category(event);
+      await saveBoost(event, open);
+      await f.fanOut();
+      const boosted = (await noticesOf(event, "boost_start")).at(-1);
+      expect(await recipients(boosted)).toEqual([one.who]);
+      await f.owner("UPDATE category SET opens_at = now() + interval '1 hour' WHERE id = $1", [
+        open,
+      ]);
+      await claimAll();
+      expect(await sendOf(boosted, one)).toMatchObject({ state: "skipped", code: "not_member" });
     });
 
     it("a rehearsal boost reaches rehearsal accounts only", async () => {
@@ -473,25 +495,79 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       expect(await sendOf(notices[1], finder)).toMatchObject({ state: "sending" });
     });
 
-    it("a category that unlocks after another reaches only the members who cleared that one", async () => {
+    it("a category that unlocks after another is never pushed, and an opening notice for one costs no gate check", async () => {
+      await f.drain();
       const event = await f.newEvent({ phase: "live" });
-      const first = await category(event);
-      const firstQuest = await quest(event, { category: first });
+      await f.owner("UPDATE event SET starts_at = now() - interval '1 hour' WHERE id = $1", [
+        event,
+      ]);
+      const gate = await category(event);
+      const gateQuests: string[] = [];
+      for (let i = 0; i < 20; i += 1) gateQuests.push(await quest(event, { category: gate }));
       const cleared = await member(event);
-      await member(event);
       await f.owner(
         `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
-         SELECT organizer_id, id, $2, $3, 1, 'qr', gen_random_uuid()::text FROM event WHERE id = $1`,
-        [event, cleared.enrollment, firstQuest],
+         SELECT e.organizer_id, e.id, $2, q, 1, 'qr', gen_random_uuid()::text FROM event e, unnest($3::uuid[]) q
+         WHERE e.id = $1`,
+        [event, cleared.enrollment, gateQuests],
       );
-      const next = await category(event, { unlock_after: first });
+      await f.owner(
+        `WITH p AS (INSERT INTO player (username) SELECT 'gate_' || $2 || '_' || g FROM generate_series(1, 1500) g
+                    RETURNING id)
+         INSERT INTO enrollment (organizer_id, event_id, player_id) SELECT e.organizer_id, e.id, p.id
+         FROM p CROSS JOIN event e WHERE e.id = $1`,
+        [event, randomUUID().slice(0, 8)],
+      );
+      const gated = await category(event, { unlock_after: gate });
       await f.owner("UPDATE category SET opens_at = now() - interval '1 minute' WHERE id = $1", [
-        next,
+        gated,
       ]);
-      await quest(event, { category: next });
-      await due();
+      await quest(event, { category: gated });
+      expect(await due()).toMatchObject({ category: 0 });
+      expect(await noticesOf(event, "category_open")).toEqual([]);
+      // A notice written before the gate was set (here by hand): one fan-out call of 1,000 checks no gate, writes no row.
+      const early = await f.notice("category_open", { event, refs: { category: gated } });
+      const started = performance.now();
       await f.fanOut();
-      expect(await recipients(await onlyNotice(event, "category_open"))).toEqual([cleared.who]);
+      expect(performance.now() - started).toBeLessThan(5000);
+      expect(await f.recipients(early)).toEqual([]);
+      // An opening pushed before the gate was set: its queued pushes are skipped at the claim without a gate check.
+      const open = await category(event);
+      await f.owner("UPDATE category SET opens_at = now() - interval '1 minute' WHERE id = $1", [
+        open,
+      ]);
+      await quest(event, { category: open });
+      expect(await due()).toMatchObject({ category: 1 });
+      await f.fanOut();
+      const opening = (await noticesOf(event, "category_open")).at(-1);
+      expect(await recipients(opening)).toContain(cleared.who);
+      await f.owner("UPDATE category SET unlock_after = $2 WHERE id = $1", [open, gate]);
+      const claimed = performance.now();
+      await claimAll();
+      expect(performance.now() - claimed).toBeLessThan(5000);
+      expect(await sendOf(opening, cleared)).toMatchObject({
+        state: "skipped",
+        code: "not_member",
+      });
+    });
+
+    it("a moved opening is pushed again only when it moved 15 minutes or more", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      await member(event);
+      const moving = await category(event);
+      await quest(event, { category: moving });
+      const openAt = (minutes: number) =>
+        f.owner("UPDATE category SET opens_at = now() + make_interval(mins => $2) WHERE id = $1", [
+          moving,
+          minutes,
+        ]);
+      await openAt(-1);
+      expect(await due()).toMatchObject({ category: 1 });
+      await openAt(-10);
+      expect(await due()).toMatchObject({ category: 0 });
+      await openAt(-20);
+      expect(await due()).toMatchObject({ category: 1 });
+      expect(await noticesOf(event, "category_open")).toHaveLength(2);
     });
   });
 
@@ -525,6 +601,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       expect(await sendOf(notice, real)).toMatchObject({ state: "skipped", code: "not_member" });
       expect(await due()).toMatchObject({ soon: 1 });
       expect(await noticesOf(event, "event_soon")).toHaveLength(2);
+    });
+
+    it("a start nudged by less than 15 minutes is not pushed again; moved further it is, at most twice", async () => {
+      const event = await soon();
+      await member(event);
+      const startIn = (minutes: number) =>
+        f.owner(
+          "UPDATE event SET starts_at = date_trunc('milliseconds', now()) + make_interval(mins => $2) WHERE id = $1",
+          [event, minutes],
+        );
+      const pushes = async () => (await noticesOf(event, "event_soon")).length;
+      await startIn(2);
+      await due();
+      await due();
+      expect(await pushes()).toBe(1);
+      await startIn(10);
+      await due();
+      expect(await pushes()).toBe(1);
+      await startIn(20);
+      await due();
+      expect(await pushes()).toBe(2);
+      await startIn(38);
+      await due();
+      expect(await pushes()).toBe(3);
+      await startIn(56);
+      await due();
+      expect(await pushes()).toBe(3);
     });
 
     it("names the start in the event's own zone", async () => {
@@ -596,7 +699,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       expect(await f.count("notice WHERE event_id = $1", [event])).toBe(0);
     });
 
-    it("the scans run in the system seat only; with every event kind missing they write nothing and raise nothing", async () => {
+    it("the scans run in the system seat only; with their kinds missing (flash, boost, opening) they write nothing and raise nothing", async () => {
       const event = await f.newEvent({ phase: "live" });
       await member(event);
       await quest(event, { flash: true, opens: "-1 minute", closes: "20 minutes" });
@@ -609,10 +712,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
         expect(await sqlstate(f.run(seat, "SELECT push_due()"))).toBe("PN403");
       }
       await f.withoutKind("flash_quest", () =>
-        f.withoutKind("category_open", async () => {
-          expect(await due()).toMatchObject({ flash: 0, category: 0, more: false });
-        }),
+        f.withoutKind("category_open", () =>
+          f.withoutKind("boost_start", async () => {
+            // A boost that started while its kind was missing: the trigger and then the scan meet an unknown kind.
+            await f.owner(
+              `INSERT INTO boost (organizer_id, event_id, category_id, starts_at, ends_at)
+               SELECT organizer_id, id, $2, now() - interval '1 minute', now() + interval '30 minutes' FROM event
+               WHERE id = $1`,
+              [event, opened],
+            );
+            expect(await due()).toMatchObject({ flash: 0, boost: 0, category: 0, more: false });
+          }),
+        ),
       );
+      expect(await f.count("boost WHERE event_id = $1", [event])).toBe(1);
       expect(await f.count("notice WHERE event_id = $1", [event])).toBe(0);
     });
   });

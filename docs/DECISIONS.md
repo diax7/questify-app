@@ -5078,8 +5078,9 @@ in `notice_kind` for one route; accepting more than 1,000 requests takes several
 for the organizer.
 
 ## ADR-354 — Where the T-501e build fills in the event pushes
-**Status:** Proposed (developer, T-501e build, 2026-10-28; `docs/plans/2026-10-28-t-501e-event-pushes.md`; Q-324).
-Refines ADR-346, ADR-347 and ADR-350 (8) for rows 7 to 12 of the T-501 plan's "Owed pushes".
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501e build and code review 78, its BLOCKER and every
+finding folded; `docs/plans/2026-10-28-t-501e-event-pushes.md`; Q-324). Refines ADR-346, ADR-347 and ADR-350 (8) for
+rows 7 to 12 of the T-501 plan's "Owed pushes".
 **Decision:** (1) **A live or ended event's notices reach real members only:** `notice_status_ok` is restated so a
 rehearsal account left between go-live and the wipe gets no event push (the plan's table said "every active enrollment";
 `polls_shown` and `boost_in_force` already keep rehearsal play apart from live play). Draft and scheduled stay
@@ -5092,34 +5093,44 @@ and a scheduled event's start within the hour. The markers carry the moment wher
 `flash:{quest}:{opens_at}`, `poll:{quest}:{sent}` (a rehearsal send and the live send are two notices),
 `category_open:{category}:{opens_at}`, `event_soon:{event}:{starts_at}` (microseconds since the epoch); `boost:{id}` and
 `community_step:{step}` once. (4) **Re-checks at sending:** a flash quest ended or moved and a poll closed fail
-`member_sees_quest`; a poll voted, a boost stopped, a category moved later or locked behind another category the member
-has not cleared, and an event whose start moved (its marker no longer names the start) fail `notice_audience_ok`; the
-moved moment gets its own notice. (5) **The per-member checks keep their plans.** A SQL function with a `SET` clause
-called from inside another function's query is planned again at every call, with every such function nested in it:
-`sees_category` planned `in_audience` again for each member, so the T-501 visibility check cost about 3 to 9 ms a member
-and a live poll's fan-out to 50,000 members took 336 s (one call of 2,000 up to 14.8 s, over the API's 5 s statement
-limit, so the notice would have backed off for ever). `sees_category`, `flash_shown`, `member_sees_quest`,
-`notice_visible` and `notice_reward_seen` are restated in PL/pgSQL with the same rules (calling such functions only in
-plain expressions, whose state lasts the transaction), and `notice_audience_ok` becomes PL/pgSQL (ADR-350 (8) had it
-plain SQL); every reader of the first two gains the same speed; their DB suites (hidden and targeted categories, flash
-windows, the listing comparison) pass unchanged. `docs/rules.md` states the rule. Measured (laptop,
-`test/perf/push-event-timing.int`, by hand): a live poll to 50,000 members with 1.2 devices each (60,000 sends) in 25.7
-to 28.6 s over 27 calls across four runs (gate 30 s), each call 1.06 to 1.15 s at the median and 1.10 to 1.19 s at the
-slowest (the T-501 gate of 1 s missed by about a tenth; the API's statement limit is 5 s; T-501's generic event notice
-measured 17.2 s, slowest 0.76 s, the same day), the claim plus ack of 200 with those sends queued 101 to 116 ms at the
-median (gate 200 ms); before the restatements the same fan-out took 336 s (one call up to 14.8 s). (6) **The community
-push is one per goal per settle, for the highest step it reached**, and names no quest: a goal's title is not on the
-name allowlist and a points goal counts none; it reaches every member who may play while the event's community switch is
-on (the community card's own audience); its tap opens Event Home, where the community bar is (the route table said the
-quests tab). (7) **A category's opening** is pushed only when it opens after the event's start (one open from the start
-is the start's news), within 2 hours of the opening, while the event is live, with a visible quest in it and no
-community lock; its recipients see the category and have cleared the category it unlocks after. (8) **Texts** (ux-araby
-pass): no adjective or verb agrees with the event's word for a quest, which an organizer may make masculine or feminine;
-`{questMany}` is a non-human plural.
+`member_sees_quest`; a poll voted, a boost stopped, a flash quest's, a boost's or an opening's category not opened yet
+(moved later, or never open: code review 3, `push_category_opened`), an opening's category given a gate, and an event
+whose start moved (its marker no longer names the start) fail `notice_audience_ok`. (5) **The per-member checks keep
+their plans.** A SQL function with a `SET` clause called from inside another function's query is planned again at every
+call, with every such function nested in it: `sees_category` planned `in_audience` again for each member, so the T-501
+visibility check cost about 3 to 9 ms a member and a live poll's fan-out to 50,000 members took 336 s (one call of 2,000
+up to 14.8 s, over the API's 5 s statement limit, so the notice would have backed off for ever). `sees_category`,
+`flash_shown`, `member_sees_quest`, `notice_visible` and `notice_reward_seen` are restated in PL/pgSQL with the same
+rules (calling such functions only in plain expressions, whose state lasts the transaction), and `notice_audience_ok`
+becomes PL/pgSQL (ADR-350 (8) had it plain SQL); every reader of the first two gains the same speed; the code review
+proved the six identical to the old ones over 8,310 member × quest and 7,252 notice × member pairs. `docs/rules.md`
+states the rule. (6) **The community push is one per goal per settle, for the highest step it reached**, and names no
+quest: a goal's title is not on the name allowlist and a points goal counts none; it reaches every member who may play
+while the event's community switch is on (the community card's own audience); its tap opens Event Home, where the
+community bar is (the route table said the quests tab). (7) **A category's opening** is pushed only when it opens after
+the event's start (one open from the start is the start's news), within 2 hours of the opening, while the event is live,
+with a visible quest in it and no community lock, **and never for a category that unlocks after another one** (code
+review BLOCKER): each member's real opening is when they clear its gate, which no push announces, and checking the gate
+per member ran `category_cleared`'s nested SQL functions per quest (one call of 2,000 about 5 s, 35 ms a cleared member
+at the claim). The fan-out and the claim check only that the category has opened and has no gate; its recipients see the
+category. (8) **Texts** (ux-araby pass): no adjective or verb agrees with the event's word for a quest, which an
+organizer may make masculine or feminine; `{questMany}` is a non-human plural. (9) **The event fan-out takes 1,000
+enrollments a call** (`push_fan_out_batch` restated; 2,000 before, code review MAJOR): a push that names a quest checks
+more per member, and a call stays near half a second. (10) **A moved start or opening is pushed again only when it moved
+15 minutes or more from every earlier push of it, and at most twice** (the event's start per event, an opening per
+category; `push_repush_ok`), so an organizer nudging the start never pushes every member each minute; a smaller nudge
+gets no push, and the old push's queued sends are skipped at the claim (never a wrong time).
+**Measured** (laptop, `test/perf/push-event-timing.int`, by hand, 50,000 members with 1.2 devices each): a live poll in
+30.0 to 30.2 s over 52 calls of 1,000, median 0.60 s, slowest 0.68 s (gates 30 s and 1 s; with calls of 2,000 it had
+been 25.7 to 28.6 s, about 1.1 s a call); a category's opening 27.3 s, median 0.55 s; the claim plus ack of 200 about
+0.1 s with 60,000 sends queued, 73 ms median after a 20-quest gate was set on the opening's category (every row skipped,
+no gate check); an opening notice of a gated category 0.15 s a call writing nothing.
 **Why:** each point keeps the plan's rules (one insert per notice through `notice_create`, row triggers for single-row
 doors, a statement trigger for the tick's bulk write, due scans for moments, no `EXCEPTION` block, a broken kind never
 undoing a door, visibility checked at fan-out and at the claim, the T-501 fan-out budget) where its wording left a
 choice open.
 **Trade-offs:** a scheduled moment's push can arrive up to a minute late; a jump past several milestones is one push; an
-operator kept from playing learns of flash quests and openings in the dashboard, not by push; two shared readers
-(`sees_category`, `flash_shown`) change language, so a later restatement must keep them PL/pgSQL or inlinable.
+operator kept from playing learns of flash quests and openings in the dashboard, not by push; a gated category's opening
+is never pushed; a start nudged by less than 15 minutes is not pushed again and its old queued pushes are dropped; calls
+of 1,000 add about 2 s to a 50,000-member fan-out; two shared readers (`sees_category`, `flash_shown`) change language,
+so a later restatement must keep them PL/pgSQL or inlinable.

@@ -274,8 +274,11 @@ quiet minutes); without keys no client exists: the center fills and every push e
   calls a press, then says to press again. The event pushes (T-501e):
   `PUSH_TIMING=… pnpm vitest run apps/api/test/perf/push-event-timing.int.test.ts` after a change to an event kind's
   audience or to `sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible` or `notice_audience_ok`.
-  2026-10-28 on the laptop: a live poll to 50,000 members 25.7 to 28.6 s in 27 calls, about 1.1 s a call, the claim
-  plus ack of 200 about 0.1 s (ADR-354 (5)).
+  It also times a category's opening whose category gains a 20-quest gate after the fan-out (the claim must not check
+  the gate) and an opening notice of a gated category (the fan-out must not either). 2026-10-28 on the laptop, calls of
+  1,000 (ADR-354 (9)): a live poll to 50,000 members 30.0 to 30.2 s in 52 calls, median 0.60 s, slowest 0.68 s; an
+  opening 27.3 s, median 0.55 s; the claims about 0.1 s (73 ms with the gate set); the gated opening 0.15 s a call. The
+  generic event notice (`push-timing.int`) with calls of 1,000: 18.9 s in 52 calls, slowest 0.43 s, claims 89 ms.
 - **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same
   transaction as the door; reservations ready at the desk or ending come from `push_due()`, which the worker runs every
   minute with the switch on or off. A missing `notice_kind` row writes nothing and refuses nothing. Seen from SQL as the
@@ -283,7 +286,8 @@ quiet minutes); without keys no client exists: the center fills and every push e
 - **Event pushes (T-501e):** a flash quest's launch, a live poll's send and a boost saved to start now are written by
   triggers in the same transaction as the door; a community milestone by the community tick's settle (one push per goal
   per settle, for the highest step it reached); a scheduled flash quest's opening, a boost's later start, a category's
-  opening and the event starting within the hour come from `push_due()` (up to a minute late). A member who may not
+  opening and the event starting within the hour come from `push_due()` (up to a minute late). A category that unlocks
+  after another is never announced; a start or an opening moved 15 minutes or more is pushed again, at most twice. A member who may not
   play, a rehearsal account on a live event and a member who cannot see the quest or category get none. A missing
   `notice_kind` row writes nothing and refuses nothing.
 - **Outbox health (SQL as the owner):** `SELECT target, state, count(*) FROM push_send GROUP BY 1, 2;` many `queued`

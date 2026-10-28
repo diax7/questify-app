@@ -611,7 +611,10 @@ ADR-151):
   scheduled event's start within the hour); markers `flash:{quest}:{opens_at µs}`, `boost:{id}`,
   `poll:{quest}:{sent µs}`, `community_step:{step}`, `category_open:{category}:{opens_at µs}`,
   `event_soon:{event}:{starts_at µs}`. Indexes for the scans: `quest (opens_at) WHERE flash AND visible AND
-  flash_launched_at IS NULL`, `boost (starts_at)`, `category (opens_at) WHERE opens_at IS NOT NULL`. No new column.
+  flash_launched_at IS NULL`, `boost (starts_at)`, `category (opens_at) WHERE opens_at IS NOT NULL`, and `notice
+  (event_id, kind) WHERE audience = 'event'` (a moved start or opening is pushed again only when moved 15 minutes or
+  more, at most twice: `push_repush_ok`). No opening push for a category that unlocks after another. The event
+  fan-out takes 1,000 enrollments a call (ADR-354 (9)). No new column.
   `notice_status_ok` now leaves rehearsal accounts out of a live or ended event's notices.
   `sees_category`, `flash_shown`, `member_sees_quest` and `notice_audience_ok` are PL/pgSQL from 0078 with the same
   rules, so the per-member checks keep their plans (ADR-354 (5)).

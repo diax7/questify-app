@@ -136,7 +136,13 @@ producer (T-501d) inserts at the end of its triggering statement, so a door may 
 foreign keys, which conflicts only with a key change or `FOR UPDATE` of that event. Decide (its event `FOR SHARE`),
 review (`FOR KEY SHARE` first) and the reveal (its redemptions' foreign key) already hold that lock; the help-desk
 answers take it last, after their ticket, and no door that holds an event `FOR UPDATE` then locks a ticket. A door's
-own row locks already cover the once-only marker. The due scans (`push_due`) read without locks and write notices only. The
+own row locks already cover the once-only marker. The event pushes (T-501e): Launch and Send poll in a live event take
+the event first (the go-live wipe's check), but **in the rehearsal phase they take their first event lock late**, the
+notice's `FOR KEY SHARE` after their quest row `FOR UPDATE`, so an event write that holds the event `FOR UPDATE` and
+then locks quest rows can deadlock with them (`40P01`, one side undone). Rare (a rehearsal launch racing such an event
+write) and safe to retry: the undone call changed nothing, and a retry that finds the launch or send done answers it.
+Save boost takes its advisory lock and the boost row before the notice; the community settle holds only its goal. The
+due scans (`push_due`) read without locks and write notices only. The
 fan-out: notice `FOR UPDATE SKIP LOCKED` → center rows (insert) → sends (insert, which takes `FOR KEY SHARE` on the
 device rows through the foreign key); enrollments, players, categories, mutes, devices and consent are read without
 locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LOCKED`, nothing else locked. The
