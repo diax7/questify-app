@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { buildApp, loggerOptions } from "./app";
+import { buildApp, invitationDepsOf, loggerOptions } from "./app";
 import { MemoryIdempotencyStore } from "./idempotency-store";
 import { RecordingEmailSender, testConfig } from "#test/support/auth-app";
 
@@ -155,5 +155,30 @@ describe("loggerOptions", () => {
       'req.headers["idempotency-key"]',
       'res.headers["set-cookie"]',
     ]);
+  });
+});
+
+const pushReadyWith = (push: { apns: unknown; fcm: unknown }): boolean | undefined =>
+  invitationDepsOf({
+    config: { ...testConfig(), push: push as never },
+    pool: poolThat(async () => ({ rows: [] })),
+  }).pushReady;
+
+describe("invitation deps", () => {
+  const apns = { keyId: "K" } as never;
+  const fcm = { projectId: "p" } as never;
+
+  it.each([
+    ["no provider is not ready", undefined, undefined, false],
+    [
+      "only APNs is not ready: Android players would get neither push nor SMS",
+      apns,
+      undefined,
+      false,
+    ],
+    ["only FCM is not ready: iOS players would get neither push nor SMS", undefined, fcm, false],
+    ["both providers is ready", apns, fcm, true],
+  ])("%s", (_, apnsSettings, fcmSettings, ready) => {
+    expect(pushReadyWith({ apns: apnsSettings, fcm: fcmSettings })).toBe(ready);
   });
 });

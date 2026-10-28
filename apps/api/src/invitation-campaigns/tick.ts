@@ -187,9 +187,22 @@ async function handPushes(deps: InvitationTickDeps): Promise<void> {
   }
 }
 
+/** Runs one part of a tick: a failure is logged with its SQLSTATE under `failed`, and the next part still runs. */
+async function step(
+  deps: Pick<InvitationTickDeps, "log">,
+  failed: string,
+  work: () => Promise<void>,
+): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    deps.log("error", { event: failed, code: codeOf(error) });
+  }
+}
+
 /**
- * Starts at most one due campaign, hands its push rows to the push store, then sends SMS; only while the switch is on,
- * the SMS only with a promotional sender.
+ * Starts at most one due campaign, hands its push rows to the push store (a step of its own: its failure does not skip
+ * the SMS), then sends SMS; only while the switch is on, the SMS only with a promotional sender.
  */
 async function send(deps: InvitationTickDeps, started: number): Promise<void> {
   if (!(await switchedOn(deps))) return;
@@ -203,7 +216,7 @@ async function send(deps: InvitationTickDeps, started: number): Promise<void> {
   if (outcome !== undefined && !["off", "busy", "idle"].includes(outcome)) {
     deps.log("info", { event: "invitation.start", outcome });
   }
-  await handPushes(deps);
+  await step(deps, "invitation.hand_failed", () => handPushes(deps));
   // Without the promotional sender no SMS is claimed (ADR-331 (1)); push rows went to the push store above.
   if (deps.promoSms === undefined) return;
   await sendRounds(deps, deps.promoSms, started);
@@ -238,21 +251,13 @@ export function startInvitationTick(deps: InvitationTickDeps): InvitationTick {
   let stopped = false;
   let settledAt = Number.NEGATIVE_INFINITY;
 
-  const step = async (failed: string, work: () => Promise<void>): Promise<void> => {
-    try {
-      await work();
-    } catch (error) {
-      deps.log("error", { event: failed, code: codeOf(error) });
-    }
-  };
-
   const run = async (): Promise<void> => {
     const started = now();
     if (started - settledAt >= INVITATION_SETTLE_MS) {
       settledAt = started;
-      await step("invitation.settle_failed", () => settle(deps));
+      await step(deps, "invitation.settle_failed", () => settle(deps));
     }
-    await step("invitation.send_failed", () => send(deps, started));
+    await step(deps, "invitation.send_failed", () => send(deps, started));
   };
 
   const schedule = (): void => {

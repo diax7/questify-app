@@ -3,7 +3,7 @@
 Core bar. Builds rows 13 to 16 of "Owed pushes" in `docs/plans/2026-10-28-t-501-push.md` on the T-501 store (ADR-342 to
 ADR-354; T-501d and T-501e built rows 1 to 12). Delivers FR-1102 (the streak reminder), FR-1111 (push as a promotional
 channel for invitations) and FR-1114 on push (the opt-out on the promotional center row). Migration **0079** (new file,
-undeployed; CranL runs through 0056). Where this note fills in what the plan left open: **ADR-356 / Q-325 (Proposed)**.
+undeployed; CranL runs through 0056). Where this note fills in what the plan left open: **ADR-356 / Q-325 (Accepted, developer, delegated by Dhia, 2026-10-28)**.
 Row 17 (the hint) stays T-501g's. Never push, deploy or run Stryker locally.
 
 ## Rules kept from the plan, T-501d and T-501e
@@ -43,7 +43,7 @@ Never an amount, a balance, a streak length, the daily word or an answer. `{date
 ## Push as an invitation channel (T-409, ADR-331)
 
 - `invitation_campaign.channels` takes `{push, sms}` (CHECK widened; `invitation_approve` restated). The admin picks the
-  channels; push is offered only when a push provider is set up on the server, SMS when the promotional sender is.
+  channels; push is offered only when both push providers (APNs and FCM) are set up on the server, SMS when the promotional sender is.
 - **One message per player per campaign, never both:** the fill (`invitation_candidates` restated with a `channel`
   column, `invitation_start_due` restated) gives each chosen player one row: push when the campaign has push and the
   player is opted in on push with a pushable device (`push_live_devices`), else SMS when the campaign has SMS and the

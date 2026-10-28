@@ -1385,3 +1385,7 @@ reminder center row for every streaking player (a row a day for players who cann
 new close; an SMS fallback when a push row's consent or device is lost (a second channel for one player); the
 recipient row `sent` only after the push provider answered (couples the two senders); a separate detail screen for a
 promotion. Developer's call at the T-501f code review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501f tier A code review (MAJOR fixed: push
+is offered only when both providers are set up, and the hand-off waits for the platform push switch as well, so no row is
+marked `sent` when no push can go out; the minors folded: the open locks its campaigns in id order first, the claim asks
+`invitation_event_ok` again for an invitation, the hand-off is a tick step of its own). ADR-356 Accepted.

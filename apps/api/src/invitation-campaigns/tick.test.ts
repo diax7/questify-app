@@ -27,6 +27,7 @@ type Script = {
   ackError?: unknown;
   settleError?: unknown;
   startError?: unknown;
+  handError?: unknown;
   /** Claims with no approved name, so the text cannot be built. */
   blankNames?: boolean;
 };
@@ -72,6 +73,7 @@ function fakePool(script: Script) {
           return { rows: [{ summary: { more: script.more?.[settles - 1] ?? false } }] };
         }
         if (sql.includes("invitation_push_hand")) {
+          if ("handError" in script) throw script.handError;
           hands += 1;
           return {
             rows: [{ summary: { rows: 500, more: script.handMore?.[hands - 1] ?? false } }],
@@ -347,6 +349,19 @@ describe("startInvitationTick", () => {
     expect(logged).toEqual([
       { level: "error", fields: { event: "invitation.send_failed", code: "57014" } },
       { level: "error", fields: { event: "invitation.send_failed", code: "57014" } },
+    ]);
+  });
+
+  it("logs a failed push hand-off with its SQLSTATE and still runs the SMS rounds", async () => {
+    const logged: Logged[] = [];
+    const { tick, statements, sent } = start({ claims: [2], handError: sqlError("40P01") }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(named(statements, "invitation_push_hand")).toHaveLength(1);
+    expect(named(statements, "invitation_claim").length).toBeGreaterThan(0);
+    expect(sent).toHaveLength(2);
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "invitation.hand_failed", code: "40P01" } },
     ]);
   });
 

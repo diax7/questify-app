@@ -58,7 +58,7 @@ export type InvitationDeps = Readonly<{
   pool: Pool;
   /** The promotional Msegat sender (`MSEGAT_PROMO_SENDER`); without it SMS cannot be approved. */
   promoSms?: SmsSender;
-  /** Whether a push provider (APNs or FCM) is set up; without one push cannot be approved (ADR-356 (4)). */
+  /** Whether both push providers (APNs and FCM) are set up; without them push cannot be approved (ADR-356 (4)). */
   pushReady?: boolean;
 }>;
 
@@ -134,7 +134,7 @@ const one = async (client: PoolClient, sql: string, values: unknown[]): Promise<
   (await client.query<{ r: unknown }>(sql, values)).rows[0]?.r;
 
 /**
- * The channels this server can send invitations by (ADR-331 (1), ADR-356 (4)): push when a push provider is set up,
+ * The channels this server can send invitations by (ADR-331 (1), ADR-356 (4)): push when both push providers are set up,
  * SMS when the promotional sender is.
  */
 export const availableChannels = (

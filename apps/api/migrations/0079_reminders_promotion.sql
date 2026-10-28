@@ -70,8 +70,10 @@ REVOKE ALL ON FUNCTION push_shop_open(notice, event, enrollment) FROM PUBLIC;
 -- ================================================================ who receives (ADR-356 (2), (3), (4), (7))
 -- As 0078, plus the T-501f kinds, and now asked for every notice at the claim (push_skip_reason below): a streak
 -- reminder while nothing was played since its day; an invitation while its player has no enrollment in the event (any
--- status: joined meanwhile, it is not pushed); the shop's closing per push_shop_open, for members who may play. Personal
--- kinds of T-501d pass as before (they are checked before the enrollment is required).
+-- status: joined meanwhile, it is not pushed) and the event still takes an invitation (invitation_event_ok from the
+-- claim, as the SMS claim asks at every claim: over, made private or unlisted, guest-list-only, a domain lock or link
+-- joining off after the hand-off is not pushed); the shop's closing per push_shop_open, for members who may play.
+-- Personal kinds of T-501d pass as before (they are checked before the enrollment is required).
 CREATE OR REPLACE FUNCTION notice_audience_ok(nt notice, member enrollment) RETURNS boolean
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
@@ -83,7 +85,8 @@ BEGIN
   ELSIF nt.kind = 'streak_reminder' THEN
     RETURN push_streak_open(nt);
   ELSIF nt.kind = 'invitation' THEN
-    RETURN member.id IS NULL;
+    SELECT e.* INTO ev FROM event e WHERE e.id = nt.event_id;
+    RETURN member.id IS NULL AND invitation_event_ok(ev, true) IS NULL;
   ELSIF nt.kind NOT IN ('flash_quest', 'boost_start', 'poll_sent', 'community_step', 'category_open', 'event_soon',
                         'shop_closing') THEN
     RETURN true;
@@ -445,7 +448,8 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION invitation_push_rows(uuid[], integer) FROM PUBLIC;
 
--- The hand-off door (system context only; ADR-356 (4)): with the switch on, the claim's campaign locks (every sending
+-- The hand-off door (system context only; ADR-356 (4)): with both switches on (the invitation campaigns' and the
+-- platform's push; off, the rows stay queued as SMS rows do during a hold), the claim's campaign locks (every sending
 -- campaign and every one with an expired lease, FOR NO KEY UPDATE in id order) and its skips of campaigns whose event is
 -- over or changed, then up to 500 push rows. No quiet hours (Q-287: SMS only). `{rows, more}`.
 CREATE FUNCTION invitation_push_hand() RETURNS jsonb
@@ -456,7 +460,7 @@ DECLARE
   seen    integer := 0;
 BEGIN
   PERFORM invitation_system_only();
-  IF NOT invitation_on() THEN
+  IF NOT invitation_on() OR NOT push_on() THEN
     RETURN jsonb_build_object('rows', 0, 'more', false);
   END IF;
   camps := invitation_claim_lock();
@@ -472,29 +476,32 @@ GRANT EXECUTE ON FUNCTION invitation_push_hand() TO questify_app;
 -- ================================================================ the invitation's open (ADR-356 (5))
 -- The caller's unread invitation rows among `ids`: each one's recipient row (the caller's own) is marked opened once
 -- and its campaign counts it, while the event runs and the results are open, like the landing page's open. Lock order
--- as the open's: the row's campaign id read unlocked, the campaign FOR NO KEY UPDATE, then the recipient row; the center
--- rows are updated after (erasure deletes recipient rows before center rows too).
+-- as docs/rules.md's: the campaigns of all the rows named are locked FOR NO KEY UPDATE in id order in one statement
+-- first (their ids read unlocked), then the recipient rows are updated in id order; the center rows are updated after
+-- (erasure deletes recipient rows before center rows too).
 CREATE FUNCTION invitation_push_opened(who uuid, ids bigint[]) RETURNS void
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
-  target bigint;
-  camp   uuid;
+  targets bigint[];
+  locked  uuid[];
+  camp    uuid;
+  target  bigint;
 BEGIN
-  FOR target IN
-    SELECT DISTINCT (nt.refs ->> 'recipient')::bigint
-    FROM notification c JOIN notice nt ON nt.id = c.notice_id
-    WHERE c.player_id = who AND c.id = ANY (ids) AND c.read_at IS NULL AND nt.kind = 'invitation'
-      AND nt.refs ->> 'recipient' ~ '^[0-9]{1,18}$'
-    ORDER BY 1
-  LOOP
-    SELECT q.campaign_id INTO camp FROM invitation_recipient q WHERE q.id = target AND q.player_id = who;
-    CONTINUE WHEN camp IS NULL;
-    PERFORM 1 FROM invitation_campaign x JOIN event e ON e.id = x.event_id
-    WHERE x.id = camp AND x.final_at IS NULL AND e.ends_at > now()
-    FOR NO KEY UPDATE OF x;
-    CONTINUE WHEN NOT FOUND;
+  targets := ARRAY(SELECT DISTINCT (nt.refs ->> 'recipient')::bigint
+                   FROM notification c JOIN notice nt ON nt.id = c.notice_id
+                   WHERE c.player_id = who AND c.id = ANY (ids) AND c.read_at IS NULL AND nt.kind = 'invitation'
+                     AND nt.refs ->> 'recipient' ~ '^[0-9]{1,18}$'
+                   ORDER BY 1);
+  locked := ARRAY(SELECT x.id FROM invitation_campaign x JOIN event e ON e.id = x.event_id
+                  WHERE x.id IN (SELECT q.campaign_id FROM invitation_recipient q
+                                 WHERE q.id = ANY (targets) AND q.player_id = who)
+                    AND x.final_at IS NULL AND e.ends_at > now()
+                  ORDER BY x.id FOR NO KEY UPDATE OF x);
+  FOREACH target IN ARRAY targets LOOP
     UPDATE invitation_recipient q SET opened_at = now()
-    WHERE q.id = target AND q.opened_at IS NULL AND q.state IN ('sending', 'sent', 'unknown');
+    WHERE q.id = target AND q.player_id = who AND q.campaign_id = ANY (locked) AND q.opened_at IS NULL
+      AND q.state IN ('sending', 'sent', 'unknown')
+    RETURNING q.campaign_id INTO camp;
     IF FOUND THEN
       UPDATE invitation_campaign x SET opened = x.opened + 1 WHERE x.id = camp;
     END IF;

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { pushMessageOf, type ClaimedSend } from "#src/push/message";
 import { invitationFixture, sqlstate, type InvitationFixture } from "#test/support/invitations";
@@ -22,7 +23,8 @@ type Hand = Readonly<{ rows: number; more: boolean }>;
  * channel (push with consent on push and a pushable device, else SMS; never both), the hand-off writes one notice per
  * push row (consent and membership checked again), consent is checked again at the fan-out and the claim (no center row
  * without it), a broken kind never undoes the door, the markers hold across re-runs, the open is counted once from the
- * center, and the hand-off runs in the system seat only.
+ * center, the hand-off runs in the system seat only and waits for both switches, and the claim asks again whether the
+ * event still takes an invitation.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("invitations by push (database)", () => {
   let q: QuestifyFixture;
@@ -277,6 +279,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations by push (database)
       expect(await hand()).toEqual({ rows: 0, more: false });
       expect(await iv.statesOf(campaign)).toEqual({ queued: 50 });
     });
+
+    it("hands nothing over while the platform push switch is off: the rows stay queued and go out once it is on", async () => {
+      const { event, campaign } = await launch(["push"]);
+      await p.switchPush(false);
+      try {
+        expect(await hand()).toEqual({ rows: 0, more: false });
+        expect(await iv.statesOf(campaign)).toEqual({ queued: 50 });
+        expect(await iv.campaignRow(campaign)).toMatchObject({ sent: 0, failed: 0, skipped: 0 });
+        expect(await invitations(event)).toEqual([]);
+      } finally {
+        await p.switchPush(true);
+      }
+      expect(await hand()).toEqual({ rows: 50, more: false });
+      expect(await iv.statesOf(campaign)).toEqual({ sent: 50 });
+      expect(await invitations(event)).toHaveLength(50);
+    });
+
+    it.each([
+      ["private", "UPDATE event SET access = 'private' WHERE id = $1"],
+      ["unlisted", "UPDATE event SET access = 'unlisted' WHERE id = $1"],
+      ["guest-list-only", "UPDATE event SET guest_list_only = true WHERE id = $1"],
+    ])(
+      "an event made %s after the hand-off gets no push, as the SMS claim would skip it",
+      async (_, change) => {
+        const { event, phones } = await launch(["push"]);
+        await hand();
+        await p.drain();
+        await p.fanOut();
+        await q.owner(change, [event]);
+        const claimed = (await p.claim()) as unknown as ClaimedSend[];
+        const tokens = new Set(claimed.map((row) => row.token));
+        for (const token of phones.values()) expect(tokens.has(token)).toBe(false);
+        const skipped = await q.owner<{ code: string }>(
+          `SELECT s.code FROM push_send s WHERE s.state = 'skipped' AND s.notice_id = ANY ($1::bigint[])`,
+          [(await invitations(event)).map((row) => row.id)],
+        );
+        expect(skipped).toHaveLength(50);
+        expect(new Set(skipped.map((row) => row.code))).toEqual(new Set(["not_member"]));
+      },
+    );
   });
 
   describe("the open (ADR-356 (5))", () => {
@@ -326,5 +368,85 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations by push (database)
       ]);
       expect((await iv.campaignRow(campaign)).opened).toBe(0);
     });
+
+    it("counts the opens of rows from two campaigns in one call, locking the campaigns in id order: a claim holding the lower one and taking the higher one does not deadlock", async () => {
+      await iv.reset();
+      await isolatePush();
+      const { players } = await pushReady(50);
+      const requested = [await iv.eligibleEvent(), await iv.eligibleEvent()];
+      const [low = "", high = ""] = (
+        await Promise.all(requested.map(async (event) => (await iv.request(event)).id))
+      ).toSorted();
+      // The higher campaign is filled first, so its recipient rows come first in recipient order: the order an
+      // unordered open would lock in.
+      await iv.approve(high, { channels: ["push"], at: new Date(Date.now() - 30_000) });
+      await iv.approve(low, { channels: ["push"] });
+      expect(await iv.startDue()).toBe("started");
+      await hand();
+      await q.owner(
+        "UPDATE invitation_recipient SET sent_at = now() - interval '8 days' WHERE campaign_id = $1",
+        [high],
+      );
+      expect(await iv.startDue()).toBe("started");
+      await hand();
+      await p.fanOut();
+      const [reader] = players;
+      const centerRows = await q.owner<{ id: string }>(
+        `SELECT c.id FROM notification c JOIN notice nt ON nt.id = c.notice_id
+         WHERE c.player_id = $1 AND nt.kind = 'invitation' ORDER BY c.id`,
+        [reader],
+      );
+      expect(centerRows).toHaveLength(2);
+
+      const claim = new Client({ connectionString: ownerUrl() });
+      await claim.connect();
+      let outcome: unknown = "never ran";
+      try {
+        await claim.query("BEGIN");
+        await claim.query("SELECT 1 FROM invitation_campaign WHERE id = $1 FOR NO KEY UPDATE", [
+          low,
+        ]);
+        const reading = iv
+          .one({ playerId: reader ?? "" }, "SELECT mark_notifications_read($1::bigint[]) AS r", [
+            centerRows.map((row) => row.id),
+          ])
+          .then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+        await waitsOnLock("mark_notifications_read");
+        await claim.query("SELECT 1 FROM invitation_campaign WHERE id = $1 FOR NO KEY UPDATE", [
+          high,
+        ]);
+        await claim.query("COMMIT");
+        outcome = await reading;
+      } finally {
+        await claim.query("ROLLBACK").catch(() => undefined);
+        await claim.end();
+      }
+      expect(outcome).toBeUndefined();
+      expect((await iv.campaignRow(low)).opened).toBe(1);
+      expect((await iv.campaignRow(high)).opened).toBe(1);
+    });
   });
+
+  /** The owner's connection string for this suite's database, for a transaction a test holds open by hand. */
+  const ownerUrl = (): string => {
+    const url = new URL(TEST_DATABASE_URL ?? "");
+    url.pathname = new URL(q.db.appUrl).pathname;
+    return url.toString();
+  };
+  /** Waits until a backend running `fragment` waits on a lock. */
+  const waitsOnLock = async (fragment: string): Promise<void> => {
+    for (let tries = 0; tries < 200; tries += 1) {
+      const rows = await q.owner(
+        `SELECT 1 FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE $1`,
+        [`%${fragment}%`],
+      );
+      if (rows.length > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`${fragment} never waited on a lock`);
+  };
 });

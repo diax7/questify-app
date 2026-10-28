@@ -1002,7 +1002,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     the center item's `joinCode`, `INVITATION_CHANNELS` with push and the console's push preview. App: "See the event"
     on an invitation row. Console: push and SMS checkboxes, the push text, "Neither push nor SMS is set up". Tests:
     `test/db/push-reminders.int` (10), `test/db/invitation-push.int` (10), push-store, invitation-campaigns, outsider,
-    cross-tenant, routes, rehearsal guard, unit (shared, API, app, web). ADR-356 and Q-325 Proposed. FR-1114's screen:
+    cross-tenant, routes, rehearsal guard, unit (shared, API, app, web). ADR-356 and Q-325 Accepted (developer, delegated by Dhia, 2026-10-28). FR-1114's screen:
     the center on the tapped row with its opt-out (ADR-356 (6)). Mutation globs: none required (ADR-355).
   - Split from T-501 2026-10-28 (ADR-342, ADR-348). CORE; rows 13 to 16 of the T-501 plan's "Owed pushes" (the daily
     games reminder is folded into the streak reminder). A promotional tap opens its center row with the opt-out

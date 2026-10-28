@@ -250,15 +250,18 @@ function startTicks(
 }
 
 /**
- * The invitation doors' dependencies: the promotional SMS sender when set, and whether a push provider is set up, so
- * the console offers only the channels this server can send (ADR-331 (1), ADR-356 (4)).
+ * The invitation doors' dependencies: the promotional SMS sender when set, and whether both push providers are set up
+ * (a player chosen for push on a platform without its provider would get neither push nor the SMS), so the console
+ * offers only the channels this server can send (ADR-331 (1), ADR-356 (4)).
  */
-function invitationDepsOf(options: AppOptions): InvitationDeps {
+export function invitationDepsOf(
+  options: Pick<AppOptions, "config" | "pool" | "promoSmsSender">,
+): InvitationDeps {
   const { push } = options.config;
   return {
     pool: options.pool,
     ...(options.promoSmsSender === undefined ? {} : { promoSms: options.promoSmsSender }),
-    pushReady: push.apns !== undefined || push.fcm !== undefined,
+    pushReady: push.apns !== undefined && push.fcm !== undefined,
   };
 }
 
