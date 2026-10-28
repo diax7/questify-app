@@ -1648,10 +1648,15 @@ export const MESSAGES = {
     ar: "قُبل: {accepted}. بانتظار القرار: {remaining}.",
     en: "Accepted: {accepted}. Still waiting: {remaining}.",
   },
-  // Accept all in calls of 1,000 (T-501d): the line while it runs, and what stands when a call fails partway.
+  // Accept all in calls of 1,000, or 250 with a hard limit (T-501d): the line while it runs, the line when the press ran
+  // out of calls with requests still waiting, and what stands when a call fails partway.
   "requests.acceptingAll": {
     ar: "جارٍ القبول. قُبل حتى الآن: {accepted}.",
     en: "Accepting. Accepted so far: {accepted}.",
+  },
+  "requests.acceptedSome": {
+    ar: "قُبل: {accepted}. بانتظار القرار: {remaining}، اضغط «اقبل الكل» مرة أخرى لقبول المزيد.",
+    en: "Accepted: {accepted}. Still waiting: {remaining}; press Accept all again to accept more.",
   },
   "requests.acceptedBeforeError": {
     ar: "تعذّر إكمال القبول. قُبل: {accepted}، والبقية بانتظار القرار.",

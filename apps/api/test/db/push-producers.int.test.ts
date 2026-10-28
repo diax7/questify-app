@@ -109,6 +109,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       )
     )[0];
 
+  /** `n` pending requests on the event, written straight in. */
+  const pendingRequests = (event: string, n: number) =>
+    f.owner(
+      `WITH p AS (INSERT INTO player (username) SELECT 'cap_' || $2 || '_' || g FROM generate_series(1, $3) g
+                  RETURNING id)
+       INSERT INTO enrollment (organizer_id, event_id, player_id, status) SELECT e.organizer_id, e.id, p.id, 'pending'
+       FROM p CROSS JOIN event e WHERE e.id = $1`,
+      [event, randomUUID().slice(0, 8), n],
+    );
+
   describe("the join decision (FR-1819)", () => {
     it("accept, decline, a waiting-list release and a later accept: one notice per decision, none on a retry", async () => {
       const event = await f.newEvent({ phase: "live", access: "private" });
@@ -211,17 +221,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
 
     it("accept-all takes at most 1,000 a call: 1,001 requests give (1000, 1), then (1, 0), one notice each", async () => {
       const event = await f.newEvent({ phase: "live", access: "private" });
-      await f.owner(
-        `WITH p AS (INSERT INTO player (username) SELECT 'cap_' || $2 || '_' || g FROM generate_series(1, 1001) g
-                    RETURNING id)
-         INSERT INTO enrollment (organizer_id, event_id, player_id, status) SELECT e.organizer_id, e.id, p.id, 'pending'
-         FROM p CROSS JOIN event e WHERE e.id = $1`,
-        [event, randomUUID().slice(0, 8)],
-      );
+      await pendingRequests(event, 1001);
       expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1000, remaining: 1 });
       expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1, remaining: 0 });
       expect(await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [event])).toBe(
         1001,
+      );
+    });
+
+    it("accept-all takes at most 250 a call on a hard-limited event: 300 requests give (250, 50), then (50, 0)", async () => {
+      const event = await f.newEvent({ phase: "live", access: "private" });
+      await f.owner(
+        "UPDATE event SET player_limit_mode = 'hard', player_limit = 1000 WHERE id = $1",
+        [event],
+      );
+      await pendingRequests(event, 300);
+      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 250, remaining: 50 });
+      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 50, remaining: 0 });
+      expect(await f.count("enrollment WHERE event_id = $1 AND status = 'active'", [event])).toBe(
+        300,
       );
     });
 
@@ -506,6 +524,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
         refs: { quest, submission: Number(one?.submission_id) },
         dedupe: `submission:${one?.submission_id}:approved`,
       });
+      expect(no?.refs).toEqual({ quest, submission: Number(two?.submission_id) });
+      expect(no?.dedupe).toBe(`submission:${two?.submission_id}:rejected`);
       expect(no?.params).toMatchObject({ quest: { ar: "أخبرنا", en: "Tell us" } });
       expect(Object.keys(no?.params ?? {}).toSorted()).toEqual(["event", "quest"]);
       expect(JSON.stringify(no?.params)).not.toMatch(/7919|Too short|private answer/);

@@ -6,12 +6,12 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 /**
  * Times one accept-all call with the join-decision trigger (T-501d, plan § Review 2, ADR-353 (5)): the door takes at
- * most 1,000 requests a call, so with 5,000 waiting one call accepts 1,000 and writes 1,000 notices; then the personal
- * fan-out of them. The same call with the trigger switched off is timed for the difference. Not an assertion (a timing
+ * most 1,000 requests a call (250 on a hard-limited event, whose seat guard recounts the seats on every row until
+ * T-221), so with 5,000 waiting one call accepts 1,000 and writes 1,000 notices; then the personal fan-out of them. The same call with the trigger switched off is timed for the difference. Not an assertion (a timing
  * check is flaky on a 2-core runner): run it by hand when the trigger, the door, the other `enrollment` triggers or
  * notice_create changes,
  * `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-producers-timing.int.test.ts`.
- * Gate: one call of 1,000 under 5 s (the API's statement limit) with the trigger. The default suite proves the cap
+ * Gate: one call under 5 s (the API's statement limit) with the trigger: 1,000 without a hard limit, 250 with one. The default suite proves the cap
  * (1,001 requests give 1,000 then 1, `test/db/push-producers.int`).
  */
 const OUT = process.env["PUSH_TIMING"];
@@ -58,13 +58,20 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       const notices = await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [
         event,
       ]);
+      const limited = await pending(f, WAITING);
+      await f.owner(
+        "UPDATE event SET player_limit_mode = 'hard', player_limit = 20000 WHERE id = $1",
+        [limited],
+      );
+      const hard = await oneCall(f, limited);
       const started = performance.now();
       const rows = await f.fanOut();
       const fanned = Math.round(performance.now() - started);
       say(
         `T-501d one accept-all call with ${WAITING} waiting: ${withTrigger.ms} ms with the trigger ` +
           `(accepted ${withTrigger.accepted}, remaining ${withTrigger.remaining}, ${notices} notices), ` +
-          `${without.ms} ms without; personal fan-out of them: ${fanned} ms (${rows} center rows)`,
+          `${without.ms} ms without; a hard-limited event: ${hard.ms} ms (accepted ${hard.accepted}); ` +
+          `personal fan-out of them: ${fanned} ms (${rows} center rows)`,
       );
     } finally {
       await f.close();

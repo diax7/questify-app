@@ -4,10 +4,10 @@
 -- never roll a door back): a row trigger with a WHEN on enrollment (join decisions), ticket (the answer) and submission
 -- (a reviewer's decision), a statement trigger with transition tables on event_result (the reveal's prizes), and a
 -- due-scan door the push worker calls every minute (a reservation ready at the desk, a reservation ending). No EXCEPTION
--- block anywhere. accept_all_join_requests is restated to take at most 1,000 requests a call. Deny by default: every
--- function is closed to PUBLIC in the group that creates it; only push_due is newly granted to the API role; the
--- trigger functions are definers (the API's role may update enrollment.status itself, and a trigger that could not
--- insert its notice would undo the door). Migrations 0076 and earlier untouched.
+-- block anywhere. accept_all_join_requests is restated to take at most 1,000 requests a call (250 with a hard limit).
+-- Deny by default: every function is closed to PUBLIC in the group that creates it; only push_due is newly granted to
+-- the API role; the trigger functions are definers (the API's role may update enrollment.status itself, and a trigger
+-- that could not insert its notice would undo the door). Migrations 0076 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 -- Four tables gain a trigger (SHARE ROW EXCLUSIVE), taken up front in the doors' order (event_result before the
 -- enrollments the reveal locks; the enrollment before the submission a review locks).
@@ -93,11 +93,13 @@ CREATE TRIGGER enrollment_push_decision AFTER UPDATE OF status ON enrollment
         AND app_player_id() IS DISTINCT FROM NEW.player_id)
   EXECUTE FUNCTION push_on_join_decision();
 
--- ================================================================ accept-all in calls of 1,000 (ADR-353 (5), Q-322)
--- As 0036, with one change: a call accepts at most 1,000 requests (`least` ignores a NULL `free`, an unlimited event).
--- Under the API's 5 s statement limit an unbounded accept-all of several thousand requests is refused (57014) and
--- accepts nothing; a call of 1,000 takes about 1.5 s with the decision push, and the dashboard repeats while one call
--- accepted some and `remaining` is above 0.
+-- ================================================================ accept-all in calls (ADR-353 (5), Q-322, Q-323)
+-- As 0036, with one change: a call accepts at most 1,000 requests on an event without a hard limit (`free` NULL) and
+-- at most 250 on a hard-limited one (`least` ignores a NULL `free`). Under the API's 5 s statement limit an unbounded
+-- accept-all of several thousand requests is refused (57014) and accepts nothing; a call of 1,000 takes about 1.7 s with
+-- the decision push. The seat guard (enrollment_player_limit, 0036) recounts the event's seats on every accepted row of
+-- a hard-limited event, so its calls stay small until T-221 checks the limit once a statement. The dashboard repeats
+-- while one call accepted some and `remaining` is above 0.
 CREATE OR REPLACE FUNCTION accept_all_join_requests(target_event uuid, request uuid)
   RETURNS TABLE (outcome text, accepted integer, remaining integer)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -121,7 +123,7 @@ BEGIN
     SELECT n.id, n.waitlisted FROM enrollment n
     WHERE n.event_id = ev.id AND n.status = 'pending' AND n.joined_via IS DISTINCT FROM 'rehearsal'
     ORDER BY n.joined_at, n.id
-    LIMIT least(free, 1000)
+    LIMIT least(free, CASE WHEN free IS NULL THEN 1000 ELSE 250 END)
     FOR UPDATE SKIP LOCKED
   ), moved AS (
     UPDATE enrollment n SET status = 'active', waitlisted = false

@@ -130,6 +130,18 @@ function Messages({
   );
 }
 
+/** Whether the panel was left (unmounted): work still running checks it before it calls again or updates state. */
+function useLeft(): () => boolean {
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
+  return () => left.current;
+}
+
 type AcceptAllDeps = Readonly<{
   base: string;
   language: Language;
@@ -139,11 +151,14 @@ type AcceptAllDeps = Readonly<{
   setBusy: (busy: boolean) => void;
   setProblem: (problem: string | null) => void;
   setNotice: (notice: string | null) => void;
+  /** True once the page was left: no further call, no state update. */
+  stopped: () => boolean;
 }>;
 
 /**
- * Accept all (T-218) in calls of at most 1,000 (T-501d, ADR-353 (5)): a progress line while the calls run; at the end
- * the totals, or, when a call fails partway, what the earlier calls accepted and the failure.
+ * Accept all (T-218) in calls of at most 1,000, 250 on a hard-limited event (T-501d, ADR-353 (5)): a progress line
+ * while the calls run; at the end the totals (with "press again" when the calls ran out while requests wait), or, when
+ * a call fails partway, what the earlier calls accepted and the failure. Leaving the page stops the calls.
  */
 function acceptAllAction(deps: AcceptAllDeps): () => Promise<void> {
   const count = (value: number) => formatNumber(value, deps.language);
@@ -153,17 +168,17 @@ function acceptAllAction(deps: AcceptAllDeps): () => Promise<void> {
     deps.setBusy(true);
     deps.setProblem(null);
     accepting(0);
-    const outcome = await acceptAllInCalls(
-      () => requestJson("POST", `${deps.base}/accept-all`),
-      (sofar) => accepting(sofar.accepted),
-    );
+    const outcome = await acceptAllInCalls({
+      post: () => requestJson("POST", `${deps.base}/accept-all`),
+      progress: (sofar) => accepting(sofar.accepted),
+      stopped: deps.stopped,
+    });
+    if (outcome.kind === "stopped") return;
     deps.setBusy(false);
     if (outcome.kind === "done") {
+      const totals = { accepted: count(outcome.accepted), remaining: count(outcome.remaining) };
       deps.setNotice(
-        deps.t("requests.acceptedAll", {
-          accepted: count(outcome.accepted),
-          remaining: count(outcome.remaining),
-        }),
+        deps.t(outcome.more ? "requests.acceptedSome" : "requests.acceptedAll", totals),
       );
     } else {
       deps.setNotice(
@@ -179,7 +194,7 @@ function acceptAllAction(deps: AcceptAllDeps): () => Promise<void> {
 
 /**
  * The event's join requests and waiting list (T-218, FR-1819, FR-1821): the owner and editors accept or decline each,
- * or accept all (oldest first, while places are free, 1,000 a call) after a confirmation. Shown while there are any, or
+ * or accept all (oldest first, while places are free, in calls of 1,000 or 250) after a confirmation. Shown while there are any, or
  * while a result or a problem is on screen.
  */
 export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
@@ -189,6 +204,7 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [askAll, setAskAll] = useState(false);
+  const left = useLeft();
 
   const failed = (body: unknown) => {
     const code = errorCodeOf(body);
@@ -222,6 +238,7 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
     setBusy,
     setProblem,
     setNotice,
+    stopped: left,
   });
   const acceptAll = () => {
     setAskAll(false);
