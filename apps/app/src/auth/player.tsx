@@ -3,6 +3,7 @@ import { api, deviceId, keyValueStore } from "#src/api/app-session.ts";
 import { ADD_EMAIL_SHOWN_KEY } from "#src/account/add-email.ts";
 import { RECENT_KEY } from "#src/event/launch.ts";
 import { createPlayerLoader, type PlayerState } from "#src/auth/player-state.ts";
+import { REGISTRATION_KEY, unregisterDevice } from "#src/push/push-flow.ts";
 export type { Me, PlayerState } from "#src/auth/player-state.ts";
 
 type PlayerValue = Readonly<{
@@ -13,9 +14,12 @@ type PlayerValue = Readonly<{
 }>;
 
 /** The per-player things a phone keeps outside the secure store; cleared at every sign-out, chosen or forced. */
-export const PLAYER_KEYS = [RECENT_KEY, ADD_EMAIL_SHOWN_KEY] as const;
+export const PLAYER_KEYS = [RECENT_KEY, ADD_EMAIL_SHOWN_KEY, REGISTRATION_KEY] as const;
 
 const PlayerContext = createContext<PlayerValue | undefined>(undefined);
+
+/** Sign-out stops this phone's pushes for the account first (best effort; the server stops them for a dead sign-in too). */
+const releaseDevice = () => unregisterDevice({ session: api.session, store: keyValueStore });
 
 async function clearPlayerKeys(): Promise<void> {
   await Promise.all(PLAYER_KEYS.map((key) => keyValueStore.removeItem(key).catch(() => undefined)));
@@ -28,7 +32,10 @@ async function clearPlayerKeys(): Promise<void> {
 export function PlayerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [state, setState] = useState<PlayerState>({ status: "loading" });
 
-  const loader = useMemo(() => createPlayerLoader(api.session, setState, clearPlayerKeys), []);
+  const loader = useMemo(
+    () => createPlayerLoader(api.session, setState, clearPlayerKeys, releaseDevice),
+    [],
+  );
 
   useEffect(() => {
     const stop = loader.watch();

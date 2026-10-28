@@ -6,16 +6,13 @@ import {
 } from "@questify/shared";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
-import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
-import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { ChannelRow } from "#src/marketing/ChannelRow.tsx";
+import { SwitchRow } from "#src/components/SwitchRow.tsx";
 import { fetchMarketing, saveMarketing } from "#src/marketing/marketing-api.ts";
-import { consentNotice, switchBody, ticksOf } from "#src/marketing/marketing-flow.ts";
+import { CHANNEL_TEXT, consentNotice, switchBody, ticksOf } from "#src/marketing/marketing-flow.ts";
 import { useRead } from "#src/questify/use-read.ts";
 
 /** The saved state after the player's own switches, the save in flight and its notice (one save at a time). */
@@ -54,9 +51,10 @@ function Switches({
     <>
       {current.canOptIn ? null : <AppText muted>{t("marketing.ageLimited")}</AppText>}
       {MARKETING_CHANNELS.map((channel) => (
-        <ChannelRow
+        <SwitchRow
           key={channel}
-          channel={channel}
+          title={CHANNEL_TEXT[channel].title}
+          about={CHANNEL_TEXT[channel].about}
           on={ticks[channel]}
           disabled={busy || (!current.canOptIn && !ticks[channel])}
           onChange={(on) => void change(channel, on)}
@@ -68,31 +66,30 @@ function Switches({
 }
 
 /**
- * Settings → Offers and notifications (FR-736, FR-1114): the three channels, each saved the moment its switch moves, so
- * turning one off is as easy as turning it on. One save runs at a time; a failed save leaves the switch where the
- * server last had it.
+ * The promotional channels (FR-736, FR-1114): the three channels, each saved the moment its switch moves, so turning
+ * one off is as easy as turning it on. One save runs at a time; a failed save leaves the switch where the server last
+ * had it. It is the second half of Settings → Offers and notifications (the first is `NotificationSettingsScreen`).
  */
-export function NotificationsScreen() {
+export function OffersSection() {
   const { t } = useI18n();
   const read = useRead(() => fetchMarketing(api.session), []);
   const { current, busy, notice, change } = useChannelSave(read.data);
   return (
-    <Screen title={t("marketing.settingsTitle")} header={<BackButton />}>
-      <ScrollView contentContainerStyle={{ gap: 16 }}>
-        <AppText muted>{t("marketing.settingsIntro")}</AppText>
-        {read.failed && current === null ? (
-          <>
-            <AppText accessibilityRole="alert">{t("marketing.loadFailed")}</AppText>
-            <Button kind="quiet" label={t("common.retry")} onPress={read.retry} />
-          </>
-        ) : null}
-        {current === null ? null : <Switches current={current} busy={busy} change={change} />}
-        {notice === null ? null : (
-          <AppText accessibilityRole="alert" accessibilityLiveRegion="polite">
-            {t(notice)}
-          </AppText>
-        )}
-      </ScrollView>
-    </Screen>
+    <>
+      <AppText variant="title">{t("marketing.title")}</AppText>
+      <AppText muted>{t("marketing.settingsIntro")}</AppText>
+      {read.failed && current === null ? (
+        <>
+          <AppText accessibilityRole="alert">{t("marketing.loadFailed")}</AppText>
+          <Button kind="quiet" label={t("common.retry")} onPress={read.retry} />
+        </>
+      ) : null}
+      {current === null ? null : <Switches current={current} busy={busy} change={change} />}
+      {notice === null ? null : (
+        <AppText accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {t(notice)}
+        </AppText>
+      )}
+    </>
   );
 }

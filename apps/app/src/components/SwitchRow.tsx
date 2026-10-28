@@ -1,34 +1,33 @@
-import type { MarketingChannel, Theme } from "@questify/shared";
+import type { MessageKey, Theme } from "@questify/shared";
 import { Switch, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { CHANNEL_TEXT } from "#src/marketing/marketing-flow.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
 type Props = Readonly<{
-  channel: MarketingChannel;
+  title: MessageKey;
+  about: MessageKey;
   on: boolean;
   disabled: boolean;
   onChange: (on: boolean) => void;
 }>;
 
 /**
- * One promotional channel: its name, a line saying what it carries, and a switch that starts off. The state is also
- * said in words for a screen reader, so it never rests on the switch's colour alone.
+ * One setting with a switch: its name, a line saying what it carries, and the switch (a promotional channel, a push
+ * topic). The switch is named for a screen reader, so it never rests on its colour alone.
  */
-export function ChannelRow({ channel, on, disabled, onChange }: Props) {
+export function SwitchRow({ title, about, on, disabled, onChange }: Props) {
   const { t } = useI18n();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const text = CHANNEL_TEXT[channel];
   return (
     <View style={styles.row}>
       <View style={styles.text}>
-        <AppText variant="label">{t(text.title)}</AppText>
-        <AppText muted>{t(text.about)}</AppText>
+        <AppText variant="label">{t(title)}</AppText>
+        <AppText muted>{t(about)}</AppText>
       </View>
       <Switch
-        accessibilityLabel={t(text.title)}
+        accessibilityLabel={t(title)}
         value={on}
         disabled={disabled}
         onValueChange={onChange}

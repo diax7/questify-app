@@ -27,6 +27,7 @@ import {
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
+import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
 type Via = PendingJoin["via"];
@@ -185,6 +186,9 @@ function JoinCardScreen() {
   const { answer, card, load } = cardState;
   const flow = useJoinFlow(params, code, cardState);
   const { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player } = flow;
+  const joined =
+    result === "active" || result === "pending" || result === "waitlisted" || result === "already";
+  const explainer = useJoinExplainer(joined);
 
   if (answer === undefined) {
     return <Screen title={code}>{<AppText muted>{t("common.loading")}</AppText>}</Screen>;
@@ -201,10 +205,9 @@ function JoinCardScreen() {
   }
   const { event } = answer;
   const ended = event.statusNow === "ended";
-  const joined =
-    result === "active" || result === "pending" || result === "waitlisted" || result === "already";
   return (
     <Screen title={textIn(event.name, language)}>
+      <PushExplainer explainer={explainer} />
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         {textIn(event.venue, language) === "" ? null : (
           <AppText muted>{textIn(event.venue, language)}</AppText>

@@ -436,8 +436,7 @@
       "complexity": [10]
     },
     "InviteScreen": {
-      "complexity": [15],
-      "lines": [111]
+      "complexity": [13]
     }
   },
   "apps/app/app/join/[code].tsx": {

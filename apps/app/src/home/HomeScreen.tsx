@@ -12,6 +12,7 @@ import { MyEvents } from "#src/home/MyEvents.tsx";
 import { StreakLine } from "#src/home/StreakLine.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { OperatorEvents } from "#src/operator/OperatorEvents.tsx";
+import { BellRow } from "#src/push/NotificationBell.tsx";
 
 /**
  * Questify Home (FR-623, FR-832): the player's events live, upcoming and past, the two daily games, the streak line and
@@ -24,7 +25,7 @@ export function HomeScreen() {
   // Operator mode sends people here when the owner removed them (FR-905); an event Home when rehearsal ended (T-211).
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   return (
-    <Screen title={t("home.title")}>
+    <Screen title={t("home.title")} header={<BellRow />}>
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         {notice === "operatorRemoved" ? (
           <AppText accessibilityRole="alert">{t("operator.removed")}</AppText>

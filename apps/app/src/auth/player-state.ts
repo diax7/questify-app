@@ -21,6 +21,8 @@ export type Me = Readonly<{
   /** Whether the one-time marketing step was answered, and whether the player may opt in (T-407); absent from an older API. */
   marketing?: MarketingSummary;
   help?: Readonly<{ unread: number }> | undefined;
+  /** The notification center's unread count, up to 100 (T-501); absent from an older API. */
+  notifications?: Readonly<{ unread: number }> | undefined;
 }>;
 
 export type PlayerState =
@@ -41,6 +43,7 @@ export function createPlayerLoader(
   session: Pick<Session, "signedIn" | "request" | "signOut" | "onEnded">,
   publish: (state: PlayerState) => void,
   clear: () => Promise<void>,
+  release: () => Promise<unknown> = () => Promise.resolve(),
 ) {
   let generation = 0;
   let signingOut = false;
@@ -83,6 +86,8 @@ export function createPlayerLoader(
     // Drop private data immediately; wait for logout before offering another sign-in.
     publish({ status: "loading" });
     try {
+      // This phone stops receiving this account's pushes first; a failure here never keeps the player signed in.
+      await release().catch(() => undefined);
       await session.signOut();
       await clear();
     } finally {

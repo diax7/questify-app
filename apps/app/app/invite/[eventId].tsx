@@ -17,6 +17,7 @@ import {
   type JoinOutcome,
 } from "#src/join/join-api.ts";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
 type Loaded = Invitation | "gone" | "network" | undefined;
@@ -42,6 +43,30 @@ function useInvitation(eventId: string) {
   return { loaded, load };
 }
 
+type Joined = Extract<JoinOutcome, { kind: "joined" }>;
+
+/** What a join that went through says, and the way into the event. */
+function InviteJoined({ joined }: Readonly<{ joined: Joined }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <AppText>
+        {t(
+          joined.alreadyMember
+            ? "join.already"
+            : joined.waitlisted
+              ? "join.waitlisted"
+              : "join.active",
+        )}
+      </AppText>
+      <Button
+        label={t("joinCard.openEvent")}
+        onPress={() => router.replace(`/event/${joined.eventId}?joined=1`)}
+      />
+    </>
+  );
+}
+
 /**
  * "You're invited" (FR-133): an event whose guest list holds the player's phone or email, joined without a code and,
  * for a private event, without waiting for approval (FR-1819). The card and the join fields are the event's own. A full
@@ -54,9 +79,10 @@ export default function InviteScreen() {
   const [typed, setTyped] = useState<Typed>({});
   const [pointed, setPointed] = useState<string | undefined>(undefined);
   const [problem, setProblem] = useState<LocalizedText | null>(null);
-  const [joined, setJoined] = useState<Extract<JoinOutcome, { kind: "joined" }> | undefined>();
+  const [joined, setJoined] = useState<Joined | undefined>();
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState(false);
+  const explainer = useJoinExplainer(joined !== undefined);
 
   if (loaded === undefined || loaded === "gone" || loaded === "network") {
     return (
@@ -115,6 +141,7 @@ export default function InviteScreen() {
 
   return (
     <Screen title={textIn(event.name, language)}>
+      <PushExplainer explainer={explainer} />
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         <AppText variant="title">{t("invitations.title")}</AppText>
         {textIn(event.venue, language) === "" ? null : (
@@ -141,21 +168,7 @@ export default function InviteScreen() {
             onPress={() => void tapJoin(full)}
           />
         ) : (
-          <>
-            <AppText>
-              {t(
-                joined.alreadyMember
-                  ? "join.already"
-                  : joined.waitlisted
-                    ? "join.waitlisted"
-                    : "join.active",
-              )}
-            </AppText>
-            <Button
-              label={t("joinCard.openEvent")}
-              onPress={() => router.replace(`/event/${joined.eventId}?joined=1`)}
-            />
-          </>
+          <InviteJoined joined={joined} />
         )}
       </ScrollView>
     </Screen>

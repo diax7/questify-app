@@ -13,6 +13,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
+import { NotificationsRow } from "#src/push/NotificationsRow.tsx";
 import { GemIcon } from "#src/questify/GemIcon.tsx";
 import { gemsLabel } from "#src/questify/gems.ts";
 import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
@@ -140,10 +141,11 @@ function MyIdentity({ me }: { me: Me }) {
       <Button label={t("profile.edit")} kind="quiet" onPress={() => router.push("/edit-profile")} />
       <Button label={t("locker.title")} kind="quiet" onPress={() => router.push("/locker")} />
       <Button label={t("interests.title")} kind="quiet" onPress={() => router.push("/interests")} />
+      <NotificationsRow />
       <Button
         label={t("marketing.settingsTitle")}
         kind="quiet"
-        onPress={() => router.push("/notifications")}
+        onPress={() => router.push("/settings/notifications")}
       />
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}

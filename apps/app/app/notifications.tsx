@@ -1,4 +1,4 @@
-import { NotificationsScreen } from "#src/marketing/NotificationsScreen.tsx";
+import { CenterScreen } from "#src/push/CenterScreen.tsx";
 
-/** Settings → Offers and notifications (T-407b, FR-736). */
-export default NotificationsScreen;
+/** The notification center (P16, T-501c): every message Questify sent the player, newest first. */
+export default CenterScreen;

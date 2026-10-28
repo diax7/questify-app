@@ -222,3 +222,59 @@ describe("the provider's account-bound profile loader", () => {
     expect(states.at(-1)).toEqual({ status: "signed_out", ended: false });
   });
 });
+
+/** A session that records the order of its calls; `release` runs between the loading state and the logout. */
+function ordered(release: () => Promise<unknown>) {
+  const calls: string[] = [];
+  const states: PlayerState[] = [];
+  const session = {
+    signedIn: async () => true,
+    request: async () => ok(),
+    signOut: async () => {
+      calls.push("logout");
+    },
+    onEnded: () => () => undefined,
+  };
+  const loader = createPlayerLoader(
+    session,
+    (state) => states.push(state),
+    async () => {
+      calls.push("clear");
+    },
+    async () => {
+      calls.push("release");
+      return release();
+    },
+  );
+  return { loader, calls, states };
+}
+
+describe("the device release before sign-out (T-501c)", () => {
+  it("removes the device first, then signs out and clears the player's keys", async () => {
+    const f = ordered(async () => true);
+    await f.loader.signOut();
+    expect(f.calls).toEqual(["release", "logout", "clear"]);
+    expect(f.states.at(-1)).toEqual({ status: "signed_out", ended: false });
+  });
+
+  it("signs out all the same when the release fails", async () => {
+    const f = ordered(() => Promise.reject(new Error("offline")));
+    await f.loader.signOut();
+    expect(f.calls).toEqual(["release", "logout", "clear"]);
+    expect(f.states.at(-1)).toEqual({ status: "signed_out", ended: false });
+  });
+
+  it("keeps the notification count the profile carries", async () => {
+    const f = fixture();
+    await f.session.start(issued("A"));
+    const response = f.next();
+    const loading = f.loader.reload();
+    await response.started.promise;
+    response.response.resolve(ok({ ...profile("A"), notifications: { unread: 7 } }));
+    await loading;
+    const state = f.states.at(-1);
+    expect(state?.status === "signed_in" ? state.me?.notifications : "no profile").toEqual({
+      unread: 7,
+    });
+  });
+});

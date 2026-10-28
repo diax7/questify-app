@@ -8,9 +8,10 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { ChannelRow } from "#src/marketing/ChannelRow.tsx";
+import { SwitchRow } from "#src/components/SwitchRow.tsx";
 import { saveMarketing } from "#src/marketing/marketing-api.ts";
 import {
+  CHANNEL_TEXT,
   NO_TICKS,
   consentNotice,
   rememberAnswer,
@@ -53,9 +54,10 @@ export function ConsentStepScreen() {
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <AppText>{t("marketing.intro")}</AppText>
         {MARKETING_CHANNELS.map((channel) => (
-          <ChannelRow
+          <SwitchRow
             key={channel}
-            channel={channel}
+            title={CHANNEL_TEXT[channel].title}
+            about={CHANNEL_TEXT[channel].about}
             on={ticks[channel]}
             disabled={busy}
             onChange={(on) => setTicks((current) => ({ ...current, [channel]: on }))}

@@ -36,6 +36,7 @@ import { WinCard } from "#src/event/WinCard.tsx";
 import { EventStreakCard } from "#src/streaks/EventStreakCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { BellRow } from "#src/push/NotificationBell.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** How often a waiting request reads Home again (the decision arrives by push once T-501 lands). */
@@ -461,7 +462,14 @@ export default function EventHomeScreen() {
 
   if (answer === undefined || answer.kind !== "home") {
     return (
-      <Screen title={t("nav.home")} header={<EventPill />}>
+      <Screen
+        title={t("nav.home")}
+        header={
+          <BellRow>
+            <EventPill />
+          </BellRow>
+        }
+      >
         {answer === undefined ? (
           <AppText muted>{t("common.loading")}</AppText>
         ) : (
@@ -475,7 +483,14 @@ export default function EventHomeScreen() {
   }
   const { home } = answer;
   return (
-    <Screen title={textIn(home.event.name, language)} header={<EventPill />}>
+    <Screen
+      title={textIn(home.event.name, language)}
+      header={
+        <BellRow>
+          <EventPill />
+        </BellRow>
+      }
+    >
       <LocationPrompt visible={prompt.shown} onContinue={prompt.proceed} />
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <HomeCards home={home} ranking={ranking} />

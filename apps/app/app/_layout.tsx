@@ -9,6 +9,7 @@ import { setApiLanguage } from "#src/api/app-session.ts";
 import { PlayerProvider, usePlayer } from "#src/auth/player.tsx";
 import { atLanding, consentStepDue } from "#src/marketing/marketing-flow.ts";
 import { I18nProvider, useI18n } from "#src/i18n/provider.tsx";
+import { PushHost } from "#src/push/PushHost.tsx";
 import { QuestifySyncProvider } from "#src/questify/QuestifySyncProvider.tsx";
 import { FONT_FILES } from "#src/theme/fonts.ts";
 import { ThemeProvider } from "#src/theme/theme.tsx";
@@ -38,6 +39,7 @@ export default function RootLayout() {
             {ready ? <ReacceptGate /> : null}
             {ready ? <ConsentGate /> : null}
             {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
+            {ready ? <PushHost /> : null}
           </QuestifySyncProvider>
         </PlayerProvider>
       </I18nProvider>
