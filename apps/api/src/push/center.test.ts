@@ -65,6 +65,29 @@ describe("pushRefusal", () => {
     const other = pgError({ code: "57P01" });
     expect(refusalOf(other)).toBe(other);
   });
+
+  it("names each device field the door refuses, and only for the door's own code", () => {
+    for (const field of ["platform", "token", "environment", "language", "appVersion"]) {
+      expect(refusalOf(pgError({ code: "PN422", detail: field })), field).toMatchObject({
+        status: 422,
+        envelope: { code: "invalid_push_device", details: { field } },
+      });
+    }
+    // A detail-less PN422 is a plain invalid request (the `detail ?? ""` fallback's mutant is equivalent: no field is "").
+    expect(refusalOf(pgError({ code: "PN422" }))).toMatchObject({ status: 400 });
+    const unique = pgError({ code: "23505", detail: "token" });
+    expect(refusalOf(unique)).toBe(unique);
+  });
+
+  it("maps a door's refusal raised mid-query", async () => {
+    const refused = {
+      query: () => Promise.reject(pgError({ code: "PN401" })),
+    } as unknown as PoolClient;
+    await expect(readCenter(refused, { before: null, limit: 20 }, "en")).rejects.toMatchObject({
+      status: 401,
+      envelope: { code: "unauthenticated" },
+    });
+  });
 });
 
 describe("the center", () => {
@@ -106,6 +129,16 @@ describe("the center", () => {
       unread: 3,
     });
     expect(full.sent[0]?.values).toEqual([null, 2]);
+    const three = clientOf((sql) =>
+      sql.includes("own_notifications") ? [row(9), row(8), row(7)] : 3,
+    );
+    expect(await readCenter(three.client, { before: null, limit: 3 }, "en")).toMatchObject({
+      nextBefore: 7,
+    });
+    const none = clientOf((sql) => (sql.includes("own_notifications") ? [] : 0));
+    expect(await readCenter(none.client, { before: null, limit: 0 }, "en")).toMatchObject({
+      nextBefore: null,
+    });
     const short = clientOf((sql) => (sql.includes("own_notifications") ? [row(9)] : 0));
     expect(await readCenter(short.client, { before: 20, limit: 2 }, "ar")).toMatchObject({
       items: [{ id: 9, title: "مهرجان" }],

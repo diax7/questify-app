@@ -8,9 +8,10 @@ import {
   SYSTEM_CLOCK,
   sendRow,
   type Attempted,
+  type PushClock,
   type SendContext,
 } from "#src/push/send";
-import { createTargetState, type TargetState } from "#src/push/targets";
+import { BREAKER_FAILURES, createTargetState, type TargetState } from "#src/push/targets";
 
 const MESSAGE: PushMessage = {
   token: "a".repeat(64),
@@ -106,10 +107,12 @@ describe("sendRow (plan § Review 3)", () => {
 
   it("timeout after write: unknown, never tried again", async () => {
     provider.script.push(answer({ kind: "unknown", code: "timeout" }));
-    expect(await run(sendRow(context(), provider, MESSAGE, 0))).toMatchObject({
+    expect(await run(sendRow(context(), provider, MESSAGE, 0))).toEqual({
       outcome: "unknown",
       code: "timeout",
       attempts: 1,
+      answered: false,
+      ambiguous: false,
     });
     expect(provider.sent).toHaveLength(1);
   });
@@ -148,6 +151,43 @@ describe("sendRow (plan § Review 3)", () => {
       ambiguous: false,
     });
     expect(provider.sent).toHaveLength(0);
+    expect(await run(sendRow(context(ATTEMPT_MS), provider, MESSAGE, 3))).toMatchObject({
+      outcome: "sent",
+      attempts: 4,
+    });
+    expect(provider.sent).toHaveLength(1);
+  });
+
+  it("a pause that wakes late shortens the next attempt to what the round has left; a first try never waits", async () => {
+    const LAG = 2000;
+    const late: PushClock = {
+      ...SYSTEM_CLOCK,
+      wait: (ms, signal) => SYSTEM_CLOCK.wait(ms + LAG, signal),
+    };
+    provider.script.push(answer(FIVE_HUNDRED), answer({ kind: "sent" }));
+    const wallStart = Date.now();
+    const sending = sendRow({ ...context(ATTEMPT_MS + 1500), clock: late }, provider, MESSAGE, 0);
+    expect(await run(sending)).toMatchObject({ outcome: "sent", attempts: 2 });
+    expect(provider.sent.map((one) => one.deadline.getTime() - wallStart)).toEqual([
+      ATTEMPT_MS - PROVIDER_MARGIN_MS,
+      ATTEMPT_MS + 1500 - PROVIDER_MARGIN_MS,
+    ]);
+  });
+
+  it("timeouts count towards the target's breaker; an accepted message starts it again", async () => {
+    const timeouts = async (count: number): Promise<void> => {
+      for (let i = 0; i < count; i += 1) {
+        provider.script.push(answer({ kind: "unknown", code: "timeout" }));
+        await run(sendRow(context(), provider, MESSAGE, 0));
+      }
+    };
+    await timeouts(BREAKER_FAILURES - 1);
+    expect(await run(sendRow(context(), provider, MESSAGE, 0))).toMatchObject({ outcome: "sent" });
+    await timeouts(1);
+    expect(targets.held("apns:production")).toBe(false);
+    await timeouts(BREAKER_FAILURES - 1);
+    expect(targets.held("apns:production")).toBe(true);
+    expect(holds).toEqual(["apns:production:breaker"]);
   });
 
   it("a row claimed at 7 attempts gets one try", async () => {
@@ -170,9 +210,12 @@ describe("sendRow (plan § Review 3)", () => {
     });
     expect(holds).toEqual(["apns:production:InvalidProviderToken"]);
     expect(targets.held("apns:production")).toBe(true);
-    expect(await run(sendRow(context(), provider, MESSAGE, 1))).toMatchObject({
+    expect(await run(sendRow(context(), provider, MESSAGE, 1))).toEqual({
       outcome: "requeue",
       code: "hold",
+      attempts: 1,
+      answered: false,
+      ambiguous: false,
     });
     expect(provider.sent).toHaveLength(1);
   });
@@ -202,13 +245,15 @@ describe("sendRow (plan § Review 3)", () => {
     expect(await run(sendRow(context(), provider, MESSAGE, 0))).toMatchObject({
       outcome: "invalid",
       code: "Unregistered",
+      attempts: 1,
       ambiguous: false,
     });
-    expect(await run(sendRow(context(), provider, MESSAGE, 0))).toMatchObject({
+    expect(await run(sendRow(context(), provider, MESSAGE, 2))).toEqual({
       outcome: "invalid",
       code: "BadDeviceToken",
-      ambiguous: true,
+      attempts: 3,
       answered: true,
+      ambiguous: true,
     });
   });
 
@@ -221,6 +266,8 @@ describe("sendRow (plan § Review 3)", () => {
   });
 });
 
+// Equivalent mutants left alive: `{ once: true }` (done() removes the listener itself) and the `kind === "requeue"`
+// tests in sendRow's loop and nextPause (only a written requeue reaches them).
 describe("SYSTEM_CLOCK.wait (T-501 code review BLOCKER)", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance", "Date"] });
