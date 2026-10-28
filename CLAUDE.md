@@ -20,15 +20,23 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
 
 1. **A fresh worker per task** (Agent tool; model and reasoning policy below), pointed at
    `docs/agents/WORKER_BRIEF.md` and the task id. Prompts stay short: point at files, don't restate them.
-   Workers reply in ≤15 lines. A worker is resumed only for quick fixes right after its review; the next task
-   gets a new worker (a large context is costly to resume).
-2. **One CTO review per task.** Core tasks (see Quality bar) get a plan review and a code review; every other task
-   gets one code review. Every review, including a re-review, runs in a fresh session or subagent, never the code
-   author. Re-review only after a BLOCKER, or several MAJOR findings, were fixed; fold minor findings in without
-   asking again.
-3. **Mutation testing batched on GitHub, core code only** (ADR-174): never locally; only the files a task
-   changed; one `mutation.yml` run per 2–3 core tasks, dispatched one at a time (a new dispatch cancels the
-   running one); survivors chased only while a file is under 90%.
+   Workers reply in ≤15 lines. **Never resume a worker whose context is large** (about 200k tokens or more): the
+   next task gets a new worker, and fixes after a review go to a fresh Sonnet worker given only the findings and
+   the files, or the coordinator makes a one- or two-line fix itself (ADR-355).
+2. **Three tiers, one review per task (ADR-355, Dhia 2026-10-28).**
+   - **Tier A**, the true core: points and XP ledger, sign-in, tenant isolation, redemptions and prize handover,
+     admin powers, wallet signing, signed QR/NFC proofs, and code that stores or sends personal data outside.
+     A plan and a plan review, the build, one code review, then mutation. Strongest model.
+   - **Tier B**, everything else with logic (pages, standard features, push producers, most routes): a mid-tier
+     build and one mid-tier code review. No plan review, no mutation. CI is the full gate.
+   - **Tier C**, docs, copy, config and small fixes: no review.
+   Every review runs in a fresh session or subagent, never the code author. Fix **BLOCKER and MAJOR** findings now;
+   **MINOR and NIT go to `docs/FOLLOWUPS.md`**, cleared in one cheap batch about every five tasks. Re-review only
+   after a BLOCKER, and only the changed part. Reviewers use `docs/agents/REVIEW_BRIEF.md`.
+3. **Mutation testing on GitHub, ledger and access code only** (ADR-174, ADR-355): never locally; one
+   `mutation.yml` run per three tier A tasks, dispatched one at a time (a new dispatch cancels the running one);
+   a file is chased only while it is under 90% and holds ledger, sign-in, tenant isolation or redemption logic;
+   one chase round at most, and equivalent survivors are noted, not killed.
 4. **The coordinator pushes `main`** after each finished task (workers commit, never push) and keeps CranL and
    demo builds in step when Dhia asks.
 5. **Short messages.** Brief status to Dhia; read only the part of a file that is needed. When the coordinator's
@@ -41,6 +49,10 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
 7. **Whenever Dhia's interaction or input is needed** (an action only he can do, an approval, a choice, a
    credential, a test on his phone), the coordinator asks with the **AskUserQuestion** tool, never buried in a
    status message, and makes clear what is needed and why. Work that doesn't depend on the answer keeps going.
+8. **Cost is visible and bounded** (ADR-355). Each finished task's STATE bullet carries its CI minutes and a rough
+   agent-token figure. A worker runs the full test suite once per task, not after each fix; touched suites, types
+   and lint in between. Do not split a task into slices unless each slice delivers value alone. A finding that
+   repeats across tasks becomes an automatic check or a `docs/rules.md` line, not another review item.
 
 **Model and reasoning policy (Dhia, 2026-10-25; ADR-265):** use GPT-6.1 Sol (`gpt-6.1-sol`, pinned in
 `config.toml`) for everything, with GPT-6 Luna at High allowed only for purely mechanical edits. Use High for the

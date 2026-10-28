@@ -5143,3 +5143,14 @@ per-member gate check is the slow path the code review's BLOCKER removed; develo
 start nudged by less than 15 minutes is not pushed again and its old queued pushes are dropped; calls of 1,000 add about
 2 s to a 50,000-member fan-out; two shared readers (`sees_category`, `flash_shown`) change language, so a later
 restatement must keep them PL/pgSQL or inlinable.
+
+## ADR-355 — Lean coordinator rules: three tiers, one review, batched follow-ups
+**Status:** Accepted (Dhia, 2026-10-28; asked with AskUserQuestion after he saw the session's cost). Amends the coordinator-mode section of `CLAUDE.md` (items 1 to 3, new item 8) and ADR-174.
+**Decision:**
+1. **Three tiers.** Tier A (ledger, sign-in, tenant isolation, redemptions and prize handover, admin powers, wallet signing, signed proofs, code that stores or sends personal data outside): plan, plan review, build, one code review, mutation. Tier B (everything else with logic, including push producers, pages and standard routes): a mid-tier build and one mid-tier code review, no plan review, no mutation. Tier C (docs, copy, config, small fixes): no review.
+2. **Findings.** BLOCKER and MAJOR are fixed now. MINOR and NIT go to `docs/FOLLOWUPS.md` and are cleared in one cheap batch about every five tasks. Re-review only after a BLOCKER, and only the changed part.
+3. **No resuming of large workers** (about 200k tokens or more). Fixes after a review go to a fresh Sonnet worker given only the findings and the files, or the coordinator makes a one- or two-line fix.
+4. **Mutation** only for ledger, sign-in, tenant isolation and redemption code, one run per three tier A tasks, one chase round at most; equivalent survivors are noted, not killed.
+5. **Cost is visible.** Each task's STATE bullet carries its CI minutes and a rough agent-token figure. The full suite runs once per task. No slices unless each delivers value alone. A finding that repeats becomes an automatic check or a `docs/rules.md` line.
+**Why:** the 2026-10-27/28 session used on the order of 20 million agent tokens by the tools' own counts (they include re-read context, so fresh spend was lower) and many hours for roughly 12 tasks. Each core task took 6 to 10 agent sessions; large workers were resumed for small fixes; minors and nits were folded one by one with a full-suite run each; mutation ran after every task. The reviews found real defects, but almost all in SQL, locking, timing, outside calls and consent, so review effort belongs there.
+**Trade-offs:** minors wait for a batch; tier B code sees one mid-tier review and CI instead of two Opus reviews and mutation, so a subtle defect there is more likely to surface late. The pre-push checks (`pnpm lint:limits`, `pnpm audit`, gitleaks, CI) stay for every task.

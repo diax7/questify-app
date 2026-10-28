@@ -17,8 +17,9 @@ then reply and stop.
   "Recommended", write it as a **Proposed** ADR in `docs/DECISIONS.md` (next free number) and an entry in
   `docs/OPEN_QUESTIONS.md` (next free Q number) so he can overturn it. If a task truly cannot proceed without
   him (accounts, money, legal, external services), skip it, write why in STATE.md "Waiting on Dhia", and stop.
-- **Core tasks** (CLAUDE.md, Quality bar): write the plan (`docs/plans/<date>-<task>.md`), commit it, then stop
-  and reply so the coordinator can run the CTO plan review. Non-core tasks: a short plan, then build.
+- **Tier A tasks** (CLAUDE.md, "Three tiers": ledger, sign-in, tenant isolation, redemptions, admin powers, outside
+  personal data): write the plan (`docs/plans/<date>-<task>.md`), commit it, then stop and reply so the coordinator
+  can run the plan review. Tier B tasks: a short plan note, then build. Tier C: just do it.
 - A task too big for one worker: split it in `docs/TASKS.md` (T-xxx, T-xxxb…) with a recorded reason.
 - Test first where practical. Migrations: deny by default, outsider and cross-tenant suites updated
   (`apps/api/test/security/*`), DB tests for every refusal and race. Arabic and English for every string
@@ -37,8 +38,10 @@ then reply and stop.
   `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
   the full browser suite after a fresh web build for UI copy changes; otherwise only the specs you touched.
   `npx expo export` when app screens change.
-- Before reporting a task done, run the full `npx vitest run` once with both URLs set: list-style guards
-  (`test/db/rehearsal.int.test.ts`, the security suites, the community gate map) fail on any new table or function.
+- Before reporting a task done, run the full `npx vitest run` ONCE with both URLs set, into a log file, and read
+  only the summary line: list-style guards (`test/db/rehearsal.int.test.ts`, the security suites, the community gate
+  map) fail on any new table or function. Between edits run only the touched suites, types and lint; do not re-run
+  the full suite after each small fix (CI is the full gate).
 - A new owner-only event switch adds one "Only the owner can change this." note: update its count in
   `apps/web/e2e/organizers.spec.ts` and run that spec.
 - **Never run Stryker or any mutation testing locally** (ADR-174: about 18 GB, can crash the PC). It runs on
@@ -52,6 +55,8 @@ then reply and stop.
    touches (API.md, DATA_MODEL.md, SRS amendments, notes on later tasks).
 2. Add one dated bullet to `docs/_blueprint/STATE.md` (same style as the others) and fix its "Next" list.
 3. Commit (imperative subject ≤72 chars, no AI attribution lines). Several commits are fine.
-4. Reply to the coordinator in ≤15 lines: what shipped, tests run and results, ADRs/Qs added, mutation globs,
-   anything left. When a CTO review comes back to you, fix BLOCKER/MAJOR findings (and cheap minors), commit,
-   reply briefly.
+4. Reply to the coordinator in ≤15 lines: what shipped, tests run and results, ADRs/Qs added, mutation globs
+   (tier A ledger and access code only), anything left. You are usually not resumed after a review; if you are, fix
+   the BLOCKER/MAJOR findings only and commit. MINOR and NIT findings are not yours to fix: the coordinator lists
+   them in `docs/FOLLOWUPS.md`.
+5. Do not split the task into slices on your own unless each slice delivers value alone; say so in the reply.
