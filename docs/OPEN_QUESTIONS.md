@@ -1400,3 +1400,7 @@ holds equal to the recipients. The other options: reveal in the door at press ti
 statement, and a reveal with no push when the kind is broken); naming the category in the push; telling every member
 again on a second press; a count that is an upper bound for targeted categories; sending nothing to members who already
 found the category by its code. Developer's call at the T-501g code review.
+**Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501g tier B code review (MAJOR fixed: the
+count states the exclusion list as an inline anti-join, no longer 16 times slower once an event has one entry; minors
+folded: a press that would tell no one is refused `409 hint_nobody`, and the since-joined cut-off, the 10-minute pending
+cut-off and the go-live wipe each have a test that fails when the protection is removed). ADR-357 Accepted.

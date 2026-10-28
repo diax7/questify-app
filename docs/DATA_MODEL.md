@@ -639,8 +639,9 @@ ADR-151):
   member it writes a center row for, in the same statement; `notice_visible` waives `sees_category` for this kind and
   `push_hint_ok` (inside `notice_audience_ok`) decides the recipients: joined at or before the press (`enrollment.joined_at
   <= notice.created_at`), the category still hidden, the member in its audience, not told by an earlier hint of the category
-  since they joined. `category_hint_preview` is the count behind the confirmation. No new table or column; `category_reveal`
-  keeps no grant.
+  since they joined. `category_hint_preview` is the count behind the confirmation (the event's exclusion list as an inline
+  anti-join, not `excluded_from_event` per row), and `send_category_hint` refuses a press when it is 0 (`PT409`
+  `hint_nobody`). No new table or column; `category_reveal` keeps no grant.
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment

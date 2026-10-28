@@ -237,24 +237,23 @@ REVOKE ALL ON FUNCTION hint_category(event, uuid, boolean) FROM PUBLIC;
 -- over the rules push_hint_ok and the membership and status rules state per member (a database test requires the two to
 -- agree on a crowd with every excluded kind and on each audience rule), so a 50,000-member event stays under the API's
 -- statement limit. Two rules are set-based on purpose, because their per-member forms cost 0.05 to 0.25 ms a member:
--- the event's exclusion list is asked only when the event has one (excluded_from_event), and a tag audience is found
--- from the guest list's side (in_audience, 0037, stays the per-member rule); an audience kind this function does not
--- know falls back to in_audience per member, so a new kind can be slow but never wrong. A read: it never wipes a
--- rehearsal. PE409 when a hint cannot be sent in this phase.
+-- the event's exclusion list is an anti-join with excluded_from_event's own test written out (that SQL function holds a
+-- sub-select, so it is never inlined and costs 0.05 ms a member: 2.4 s at 50,000 as soon as the event has one entry),
+-- and a tag audience is found from the guest list's side (in_audience, 0037, stays the per-member rule); an audience
+-- kind this function does not know falls back to in_audience per member, so a new kind can be slow but never wrong. A
+-- read: it never wipes a rehearsal. PE409 when a hint cannot be sent in this phase.
 CREATE FUNCTION category_hint_preview(target_event uuid, target_category uuid)
   RETURNS TABLE (members integer, pending boolean)
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  ev        event := award_event_of(target_event);
-  phase     text := hint_phase(ev);
-  cat       category;
-  excluding boolean;
+  ev    event := award_event_of(target_event);
+  phase text := hint_phase(ev);
+  cat   category;
 BEGIN
   IF phase IS NULL THEN
     RAISE EXCEPTION 'the event is not live' USING ERRCODE = 'PE409', DETAIL = 'event_not_live';
   END IF;
   cat := hint_category(ev, target_category, false);
-  excluding := EXISTS (SELECT 1 FROM event_exclusion x WHERE x.event_id = ev.id);
   RETURN QUERY
   WITH tagged AS (
     SELECT pc.player_id FROM event_guest g JOIN player_contact pc ON pc.phone_e164 = g.value
@@ -268,7 +267,10 @@ BEGIN
   FROM enrollment n JOIN player p ON p.id = n.player_id AND p.status = 'active'
   WHERE n.event_id = ev.id AND n.status = 'active'
     AND (n.joined_via IS NOT DISTINCT FROM 'rehearsal') = (phase = 'rehearsal')
-    AND (NOT excluding OR NOT excluded_from_event(n.event_id, n.player_id))
+    AND NOT EXISTS (SELECT 1 FROM player_contact pc JOIN event_exclusion x ON x.event_id = n.event_id
+                    WHERE pc.player_id = n.player_id
+                      AND ((x.kind = 'phone' AND x.value = pc.phone_e164)
+                           OR (x.kind = 'email_domain' AND x.value = split_part(pc.email, '@', 2))))
     AND NOT EXISTS (SELECT 1 FROM staff_assignment sa
                     WHERE sa.event_id = ev.id AND sa.player_id = n.player_id AND NOT sa.can_play)
     AND (cat.audience_kind IS NULL OR n.joined_via = 'rehearsal'
@@ -290,11 +292,12 @@ GRANT EXECUTE ON FUNCTION category_hint_preview(uuid, uuid) TO questify_app;
 -- Sends the hint of a hidden category: one notice, once per press. `press` is the Idempotency-Key of the dashboard's
 -- request (any text up to 255 characters), hashed into the notice's marker, so a replayed or raced press writes nothing
 -- more and answers `replayed`; a different press while the last hint is still being delivered is refused (PH409
--- hint_in_progress). In a live event the go-live wipe runs first (as Send poll). The reveal and the center rows are the
--- fan-out's work, a second or so later. A missing kind row (a broken deploy) writes nothing and raises nothing: the
--- door answers `sent` false and the API reports it. Audited `category.hint_send` (no recipients: they are not known
--- until the fan-out ends). The notice is the last write, after the category lock (docs/rules.md, the push store's lock
--- order).
+-- hint_in_progress), and so is a press when the count (category_hint_preview) is 0, because it would tell nobody (PT409
+-- hint_nobody; checked after the replay, which still answers `replayed`). In a live event the go-live wipe runs first (as
+-- Send poll). The reveal and the center rows are the fan-out's work, a second or so later. A missing kind row (a broken
+-- deploy) writes nothing and raises nothing: the door answers `sent` false and the API reports it. Audited
+-- `category.hint_send` (no recipients: they are not known until the fan-out ends). The notice is the last write, after
+-- the category lock (docs/rules.md, the push store's lock order).
 CREATE FUNCTION send_category_hint(target_event uuid, target_category uuid, press text, request uuid)
   RETURNS TABLE (sent boolean, replayed boolean)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -319,6 +322,8 @@ BEGIN
     RETURN;
   ELSIF hint_pending(ev.id, cat.id) THEN
     RAISE EXCEPTION 'a hint of this category is still being delivered' USING ERRCODE = 'PH409', DETAIL = 'hint_in_progress';
+  ELSIF (SELECT p.members FROM category_hint_preview(ev.id, cat.id) p) = 0 THEN
+    RAISE EXCEPTION 'no member is left to tell' USING ERRCODE = 'PT409', DETAIL = 'hint_nobody';
   END IF;
   made := notice_create('category_hint', ev.organizer_id, ev.id, NULL, jsonb_build_object('category', cat.id),
                         jsonb_build_object('event', push_names(ev.name_ar, ev.name_en)), marker, NULL);

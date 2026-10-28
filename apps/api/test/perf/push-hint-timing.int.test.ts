@@ -6,8 +6,9 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 /**
  * Times the hidden-category hint at the plan's size (T-501g, ADR-357): 50,000 active members with a phone each. The
- * count behind the confirmation dialog (category_hint_preview, one set-based statement, with and without an audience
- * rule on the category), the press, and the fan-out that reveals the category and writes the center rows. Not an
+ * count behind the confirmation dialog (category_hint_preview, one set-based statement: with no rule, with one
+ * exclusion row that matches nobody, and with an audience rule on the category), the press, and the fan-out that
+ * reveals the category and writes the center rows, run with the exclusion row in place. Not an
  * assertion (a timing check is flaky on a 2-core runner), like the other timing files: run it by hand when the hint's
  * rules or the fan-out change,
  * `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-hint-timing.int.test.ts`.
@@ -78,12 +79,28 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
           event,
           category,
         ]);
+      const [counted, countMs] = await timed(preview);
+      say(
+        `count of ${counted[0]?.members} members, no exclusion, no audience rule: ${ms(countMs)} ms`,
+      );
+
+      // One exclusion row that matches nobody: the event now has an exclusion list, and the count must not slow down
+      // (excluded_from_event per member costs 2.4 s here, so the count states the rule as an anti-join).
+      await f.owner(
+        `INSERT INTO event_exclusion (organizer_id, event_id, kind, value)
+         SELECT organizer_id, id, 'email_domain', 'nobody.example.test' FROM event WHERE id = $1`,
+        [event],
+      );
+      await f.owner("ANALYZE event_exclusion");
       const plan = await f.owner<Record<string, string>>(
         `EXPLAIN (ANALYZE, BUFFERS, COSTS OFF)
          SELECT count(*) FROM enrollment n JOIN player p ON p.id = n.player_id AND p.status = 'active'
          WHERE n.event_id = $1 AND n.status = 'active'
            AND (n.joined_via IS NOT DISTINCT FROM 'rehearsal') = false
-           AND NOT excluded_from_event(n.event_id, n.player_id)
+           AND NOT EXISTS (SELECT 1 FROM player_contact pc JOIN event_exclusion x ON x.event_id = n.event_id
+                           WHERE pc.player_id = n.player_id
+                             AND ((x.kind = 'phone' AND x.value = pc.phone_e164)
+                                  OR (x.kind = 'email_domain' AND x.value = split_part(pc.email, '@', 2))))
            AND NOT EXISTS (SELECT 1 FROM staff_assignment sa
                            WHERE sa.event_id = n.event_id AND sa.player_id = n.player_id AND NOT sa.can_play)
            AND NOT EXISTS (SELECT 1 FROM notice earlier JOIN notification told ON told.notice_id = earlier.id
@@ -93,8 +110,10 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
         [event, category],
       );
       say(plan.map((row) => row["QUERY PLAN"]).join("\n"));
-      const [counted, countMs] = await timed(preview);
-      say(`count of ${counted[0]?.members} members, no audience rule: ${ms(countMs)} ms`);
+      const [excluded, excludedMs] = await timed(preview);
+      say(
+        `count of ${excluded[0]?.members} members, one exclusion row, no audience rule: ${ms(excludedMs)} ms`,
+      );
 
       // An audience rule on the category: the tag rule joins each member's contact to the guest list.
       await f.owner(

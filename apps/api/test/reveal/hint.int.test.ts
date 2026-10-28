@@ -134,6 +134,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint over 
     expect(audited[0]).toEqual({ n: 1, actor_type: "staff" });
   });
 
+  it("refuses a press that would tell no one, in both languages, and counts none", async () => {
+    const event = await newEvent("live");
+    const category = await newCategory(event);
+    expect((await hint("GET", event, category)).json()).toEqual({ members: 0, pending: false });
+    const empty = await hint("POST", event, category);
+    expect([empty.statusCode, empty.json().code]).toEqual([409, "hint_nobody"]);
+    expect(Object.keys(empty.json().message).toSorted()).toEqual(["ar", "en"]);
+
+    await enrol(event);
+    expect((await hint("POST", event, category)).statusCode).toBe(200);
+    await owner("UPDATE notice SET fanned_at = now() WHERE event_id = $1", [event]);
+    await owner(
+      `INSERT INTO notification (notice_id, player_id, event_id)
+       SELECT nt.id, n.player_id, n.event_id FROM notice nt JOIN enrollment n ON n.event_id = nt.event_id
+       WHERE nt.event_id = $1 AND nt.kind = 'category_hint'`,
+      [event],
+    );
+    const told = await hint("POST", event, category);
+    expect([told.statusCode, told.json().code]).toEqual([409, "hint_nobody"]);
+    const notices = await owner<{ n: number }>(
+      "SELECT count(*)::int AS n FROM notice WHERE event_id = $1 AND kind = 'category_hint'",
+      [event],
+    );
+    expect(notices[0]?.n).toBe(1);
+  });
+
   it("refuses a press without an Idempotency-Key, a shown category, another event's category and an event not live", async () => {
     const live = await newEvent("live");
     const hidden = await newCategory(live);
@@ -167,6 +193,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint over 
     expect((await hint("GET", event, category, { cookie: limitedCookie })).statusCode).toBe(404);
     // The editor may press for the event their limit names.
     const inside = await newCategory(scoped);
+    await enrol(scoped);
     expect((await hint("POST", scoped, inside, { cookie: limitedCookie })).statusCode).toBe(200);
     // Another organizer's owner is no member of this organizer: refused before the database.
     for (const method of ["GET", "POST"] as const) {
@@ -186,6 +213,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint over 
   it("reports a missing kind as 503 and writes nothing", async () => {
     const event = await newEvent("live");
     const category = await newCategory(event);
+    await enrol(event);
     const [kind] = await owner<Row>("SELECT * FROM notice_kind WHERE kind = 'category_hint'");
     await owner("DELETE FROM notice WHERE kind = 'category_hint'");
     await owner("DELETE FROM notice_kind WHERE kind = 'category_hint'");

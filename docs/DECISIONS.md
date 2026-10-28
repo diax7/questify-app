@@ -5203,7 +5203,7 @@ center only; a shop window extended after the notice gets no reminder at all; th
 SMS-only players for a push-only campaign.
 
 ## ADR-357 — Where the T-501g build fills in the hidden-category hint push
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-28; T-501g build, code review owed;
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-28; T-501g tier B code review: one MAJOR fixed, minors folded;
 `docs/plans/2026-10-28-t-501g-hint-push.md`; Q-326). Refines ADR-200 (FR-238 moved to T-501), ADR-204 (hidden categories),
 ADR-343, ADR-347 (2) and ADR-354 for row 17 of the T-501 plan's "Owed pushes".
 **Decision:** (1) **One kind** (migration 0080): `category_hint` (event class, topic `announcements`, active members, 2
@@ -5212,7 +5212,9 @@ hours, not `before_start`; the placeholder route `hint` is replaced by `category
 `notice_create`: refs the category's id, params the event's name, marker `hint:{category}:{sha256 of the Idempotency-Key}`.
 **Once per press:** the same key finds its notice and answers `replayed` (no second notice, no new reveal); a different
 press while a hint of the category is still being delivered (a notice of the last 10 minutes whose fan-out is not done) is
-refused `409 hint_in_progress`, so a double click with two keys cannot send twice. A missing kind row writes nothing, the
+refused `409 hint_in_progress`, so a double click with two keys cannot send twice. A press that would tell no one (the
+count is 0: nobody has joined, or everyone it reaches was told) is refused `409 hint_nobody` (`PT409`), checked after the
+replay, so a resent key still answers `replayed`. A missing kind row writes nothing, the
 door commits and answers `sent` false (the API: `503 hint_unavailable`, logged `push.hint_not_written`). Audited
 `category.hint_send` (no recipients: unknown until the fan-out ends). (2) **The reveal is the fan-out's work, not the
 producer's:** `push_fan_out_batch` (restated) gets a data-modifying CTE that writes a `category_reveal` row for each
@@ -5234,12 +5236,20 @@ secret and goes to Apple and Google. Route: the quests tab. (5) **The dashboard:
 hint" (owners and editors within their event limit through `award_event_of`, live events and open rehearsals only, never
 an ended event). `GET …/categories/{id}/hint` answers the count `{members, pending}` (`category_hint_preview`, STABLE),
 the dialog says "N of your players will be told", `POST` sends it with an Idempotency-Key made when the dialog opens. The
-count is one set-based statement over the same rules (the exclusion list asked only when the event has one; a tag
-audience found from the guest list's side), with a database test that it equals the recipients on a crowd holding every
-excluded kind and on each audience rule; an audience kind it does not know falls back to `in_audience` per member.
-(6) **Cost at 50,000 members** (by hand, `test/perf/push-hint-timing.int`): the count 144 ms (115 ms with a tag audience of
-10,000 guests), the press 22 ms, the fan-out 39.9 s in 102 calls of 500 enrollments (median 392 ms, slowest 504 ms; a hint
-batch is 500 because its reveals and per-member rules cost about a third more, as ADR-354 (9) cut the event batch to 1,000);
+count is one set-based statement over the same rules (the exclusion list as a `NOT EXISTS` with `excluded_from_event`'s
+test written out, because that SQL function holds a sub-select and is never inlined: asked per row it took 2.4 s at
+50,000 members as soon as the event had one entry; a tag audience found from the guest list's side), with a database
+test that it equals the recipients on a crowd holding every excluded kind (a phone and an email domain among them) and on
+each audience rule; an audience kind it does not know falls back to `in_audience` per member. The door runs the same
+count and refuses a press when it is 0.
+(6) **Cost at 50,000 members** (by hand, `test/perf/push-hint-timing.int`, 2026-10-28, two runs): the count 363 to 366 ms
+with no exclusion entry and 305 to 337 ms with one that matches nobody (the first version, asking `excluded_from_event`
+per row, took 2,367 ms with that entry), 228 to 241 ms with a tag audience of 10,000 guests; the press 311 to 327 ms (it
+counts first, 22 ms before); the fan-out, with the exclusion entry in place, 41.2 s in 102 calls of 500 enrollments (median
+409 to 411 ms, slowest 465 to 474 ms; 39.9 s and median 392 ms in the first measurement, so the entry does not slow it:
+the fan-out's membership rule, 0076, calls `excluded_from_event` for every member whatever the list holds, and that cost is
+in the figure). A hint batch is 500 because its reveals and per-member rules cost about a third more, as ADR-354 (9) cut
+the event batch to 1,000;
 the generic event fan-out is unchanged (a live poll 31.0 s, median 628 ms; an opening 27.3 s, median 541 ms, against
 30.9 s and 26.9 s before). The hard gates hold (each call under 1 s and the API's 5 s limit); 40 s is over the 30 s soft
 target, so the last members get the category about 40 s after the press.

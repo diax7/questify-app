@@ -280,7 +280,14 @@ quiet minutes); without keys no client exists: the center fills and every push e
   gates: 1 s a call and the 5 s statement limit; 30 s for the whole is a soft target, since the worker runs one
   fan-out call then one claim of 200 per pass and the claim rate sets when the last member is pushed); an
   opening 27.3 s, median 0.55 s; the claims about 0.1 s (73 ms with the gate set); the gated opening 0.15 s a call. The
-  generic event notice (`push-timing.int`) with calls of 1,000: 18.9 s in 52 calls, slowest 0.43 s, claims 89 ms.
+  generic event notice (`push-timing.int`) with calls of 1,000: 18.9 s in 52 calls, slowest 0.43 s, claims 89 ms. The
+  hidden-category hint (T-501g):
+  `PUSH_TIMING=… pnpm vitest run apps/api/test/perf/push-hint-timing.int.test.ts` after a change to `push_hint_ok`,
+  `category_hint_preview` or the hint's fan-out (about 2.5 minutes). Gates: the count and each fan-out call inside the
+  API's 5 s limit, each call under 1 s. 2026-10-28 on the laptop (ADR-357 (6)): the count 305 to 366 ms at 50,000
+  members, with or without one exclusion entry (an exclusion rule asked per row through `excluded_from_event` took
+  2.4 s), 228 to 241 ms with a tag audience; the press 311 to 327 ms (it counts first); the fan-out 41.2 s in 102 calls
+  of 500, median 0.41 s, slowest 0.47 s.
 - **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same
   transaction as the door; reservations ready at the desk or ending come from `push_due()`, which the worker runs every
   minute with the switch on or off. A missing `notice_kind` row writes nothing and refuses nothing. Seen from SQL as the

@@ -18,6 +18,7 @@ import {
   gameRefused422,
   hintEventNotLive,
   hintInProgress,
+  hintNobody,
   hintNotSent,
   idempotencyKeyReused,
   meetRefused403,
@@ -479,6 +480,8 @@ function hintValueOf<T>(result: HintDone<T>): T {
       throw hintEventNotLive();
     case "in_progress":
       throw hintInProgress();
+    case "nobody":
+      throw hintNobody();
     case "not_written":
       throw hintNotSent();
   }

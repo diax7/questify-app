@@ -18,6 +18,8 @@ export type HintRefusal = Readonly<{
     | "not_hidden"
     | "event_not_live"
     | "in_progress"
+    /** The press would tell no one: every member who may be told already was, or there are none. */
+    | "nobody"
     /** The push store could not take the notice (its kind row is missing): nothing was sent. */
     | "not_written";
 }>;
@@ -29,6 +31,7 @@ const REFUSALS: Readonly<Record<string, HintRefusal>> = {
   QH422: { kind: "not_hidden" },
   PE409: { kind: "event_not_live" },
   PH409: { kind: "in_progress" },
+  PT409: { kind: "nobody" },
 };
 
 type Target = Readonly<{ eventId: string; categoryId: string }>;

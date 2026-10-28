@@ -1338,6 +1338,13 @@ export const hintInProgress = make(
   "ما زال التلميح السابق في الطريق. جرّب بعد دقيقة.",
   "The last hint is still on its way. Try again in a minute.",
 );
+/** A hint pressed when no one is left to tell: everyone it reaches already got one, or no one has joined (T-501g). */
+export const hintNobody = make(
+  409,
+  "hint_nobody",
+  "لا أحد لإبلاغه الآن. من وصله تلميح من قبل لا يصله مرة أخرى.",
+  "No one is left to tell. Anyone who already got a hint is not told again.",
+);
 /** The push store could not take the hint's notice (T-501g): nothing was sent, so the press may be tried again. */
 export const hintNotSent = make(
   503,

@@ -1009,7 +1009,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     (FR-1114); decide that screen here.
   - Done when: A promotional push reaches only players opted in on push now; an invitation goes by push or SMS, never both.
 - [x] **T-501g** Hidden-category hint push reveals the category to its recipients — delivers FR 238; depends on: T-501e
-  - Done 2026-10-28 (tier B; code review owed). Plan note `docs/plans/2026-10-28-t-501g-hint-push.md`. Migration 0080 (new
+  - Done 2026-10-28 (tier B; code review fixes folded). Plan note `docs/plans/2026-10-28-t-501g-hint-push.md`. Migration 0080 (new
     file, undeployed): the kind `category_hint` (event class, announcements, 2 hours; the placeholder route `hint` is now
     `category_hint`), the team's door `send_category_hint` (calls only `notice_create`; once per Idempotency-Key, a second
     press while the first is delivered is refused, a missing kind row answers `sent` false and the door still commits) and
@@ -1019,10 +1019,11 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     Recipients (`push_hint_ok`, also asked at the claim): active real members (rehearsal accounts before the start), not
     operators kept from playing, joined at or before the press, in the category's audience, not told by an earlier hint since
     they joined. Text names the event only. Dashboard: "Send a hint" on a hidden category, a confirmation with the count,
-    `GET`/`POST …/categories/{id}/hint`. Tests: `test/db/push-hint.int` (18), `test/reveal/hint.int` (4 over HTTP),
-    outsider, cross-tenant, route inventory, shared units, `e2e/hidden-hint.spec` (desktop and phone). At 50,000 members:
-    count 144 ms, fan-out 39.9 s (500 a call, slowest 504 ms); the generic event fan-out is unchanged. ADR-357 and Q-326
-    Proposed. Mutation globs: none required (ADR-355).
+    `GET`/`POST …/categories/{id}/hint`. A press that would tell no one is refused `409 hint_nobody`. Tests:
+    `test/db/push-hint.int` (22), `test/reveal/hint.int` (5 over HTTP), outsider, cross-tenant, route inventory, shared
+    units, `e2e/hidden-hint.spec` (desktop and phone). At 50,000 members: count 305 to 366 ms (with or without an
+    exclusion entry), fan-out 41.2 s (500 a call, slowest 474 ms); the generic event fan-out is unchanged. ADR-357 and
+    Q-326 Accepted. Mutation globs: none required (ADR-355).
   - Split from T-501 2026-10-28 (ADR-342). CORE (Could); row 17 of the T-501 plan's "Owed pushes"; a dashboard button
     on a hidden category.
   - Done when: Players who receive the hint see the category; players who joined after it do not, unless they scan its secret QR.

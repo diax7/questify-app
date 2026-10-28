@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { addMember, TEST_DATABASE_URL } from "#test/support/test-db";
@@ -14,6 +14,14 @@ type NoticeRow = {
   expires_at: Date;
   created_at: Date;
 };
+
+/** A rehearsal's join code is unique across events: four and four characters of the code alphabet. */
+function rehearsalCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const group = () =>
+    Array.from({ length: 4 }, () => alphabet.charAt(randomInt(alphabet.length))).join("");
+  return `${group()}-${group()}`;
+}
 
 /** A call's SQLSTATE and detail ("PE409:event_not_live"), or "none". */
 const refusal = (work: Promise<unknown>): Promise<string> =>
@@ -156,8 +164,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
   const openRehearsal = (event: string) =>
     f.owner(
       `INSERT INTO event_rehearsal (event_id, organizer_id, code)
-       SELECT id, organizer_id, 'ABCD-EFGH' FROM event WHERE id = $1`,
-      [event],
+       SELECT id, organizer_id, $2 FROM event WHERE id = $1`,
+      [event, rehearsalCode()],
     );
 
   // ------------------------------------------------------------------ who is told, and who sees the category
@@ -229,6 +237,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
       );
       expect(found?.revealed).toBe(true);
       expect(await seen(event, late)).toContain(category);
+    });
+
+    it("a told member who leaves and re-joins is told again by the next press, in the count and the fan-out", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const category = await hiddenCategory(event);
+      const back = await member(event);
+      await press(event, category);
+      await f.fanOut();
+      expect((await preview(event, category))[0]?.members).toBe(0);
+      await f.owner("UPDATE enrollment SET status = 'left' WHERE id = $1", [back.enrollment]);
+      await f.owner("UPDATE enrollment SET status = 'active', joined_at = now() WHERE id = $1", [
+        back.enrollment,
+      ]);
+      expect((await preview(event, category))[0]?.members).toBe(1);
+      expect(await press(event, category)).toEqual([{ sent: true, replayed: false }]);
+      await f.fanOut();
+      const notices = await noticesOf(event);
+      expect(notices).toHaveLength(2);
+      expect(await f.recipients(notices[0]?.id ?? null)).toEqual([back.who]);
+      expect(await f.recipients(notices[1]?.id ?? null)).toEqual([back.who]);
     });
 
     it("a member who joined before the press but whose enrollment the fan-out reaches later is still told", async () => {
@@ -329,13 +357,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
       const category = await hiddenCategory(event);
       const { real } = await crowd(event);
       const more = [await member(event), await member(event), await member(event)];
+      const byPhone = await member(event);
+      const phone = `+9665${String(randomInt(0, 100_000_000)).padStart(8, "0")}`;
       await f.owner(
         `INSERT INTO event_exclusion (organizer_id, event_id, kind, value)
-         SELECT organizer_id, id, 'email_domain', 'excluded.test' FROM event WHERE id = $1`,
-        [event],
+         SELECT organizer_id, id, entry.kind, entry.value
+         FROM event, (VALUES ('email_domain', 'excluded.test'), ('phone', $2)) AS entry (kind, value)
+         WHERE id = $1`,
+        [event, phone],
       );
       await f.owner("UPDATE player_contact SET email = 'who@excluded.test' WHERE player_id = $1", [
         more[0]?.who,
+      ]);
+      await f.owner("UPDATE player_contact SET phone_e164 = $2 WHERE player_id = $1", [
+        byPhone.who,
+        phone,
       ]);
       const counted = (await preview(event, category))[0]?.members;
       await press(event, category);
@@ -472,6 +508,67 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
       expect((await preview(event, category))[0]?.members).toBe(0);
     });
 
+    it("is refused when it would tell no one: no member yet, or everyone already told", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const category = await hiddenCategory(event);
+      expect(await refusal(press(event, category))).toBe("PT409:hint_nobody");
+      expect(await noticesOf(event)).toEqual([]);
+      await member(event);
+      const key = randomUUID();
+      expect(await press(event, category, key)).toEqual([{ sent: true, replayed: false }]);
+      await f.fanOut();
+      for (let again = 0; again < 3; again += 1) {
+        expect(await refusal(press(event, category)), `press ${again}`).toBe("PT409:hint_nobody");
+      }
+      // The key that sent the hint still answers: a resend is not a new press.
+      expect(await press(event, category, key)).toEqual([{ sent: true, replayed: true }]);
+      expect(await noticesOf(event)).toHaveLength(1);
+      const [audited] = await f.owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM audit_log WHERE event_id = $1 AND action = 'category.hint_send'",
+        [event],
+      );
+      expect(audited?.n).toBe(1);
+    });
+
+    it("a notice that never finished and is older than 10 minutes does not block a press", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const category = await hiddenCategory(event);
+      const stuck = await member(event);
+      await press(event, category);
+      expect((await preview(event, category))[0]?.pending).toBe(true);
+      await f.owner(
+        "UPDATE notice SET created_at = now() - interval '11 minutes' WHERE event_id = $1 AND kind = 'category_hint'",
+        [event],
+      );
+      expect((await preview(event, category))[0]).toEqual({ members: 1, pending: false });
+      expect(await press(event, category)).toEqual([{ sent: true, replayed: false }]);
+      expect(await noticesOf(event)).toHaveLength(2);
+      await f.fanOut();
+      expect(await revealed(category)).toEqual([stuck.who]);
+    });
+
+    it("on a live event first wipes a rehearsal account that was left behind, and tells only the real members", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const category = await hiddenCategory(event);
+      await openRehearsal(event);
+      const leftover = await member(event, { via: "rehearsal" });
+      const real = await member(event);
+      expect((await preview(event, category))[0]?.members).toBe(1);
+      await press(event, category);
+      const [wiped] = await f.owner<{ live_wiped_at: Date | null }>(
+        "SELECT live_wiped_at FROM event_rehearsal WHERE event_id = $1",
+        [event],
+      );
+      expect(wiped?.live_wiped_at).not.toBeNull();
+      const [account] = await f.owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM enrollment WHERE id = $1",
+        [leftover.enrollment],
+      );
+      expect(account?.n).toBe(0);
+      await f.fanOut();
+      expect(await revealed(category)).toEqual([real.who]);
+    });
+
     it("a broken kind cannot roll back the door: nothing is written and the door answers sent false", async () => {
       const event = await f.newEvent({ phase: "live" });
       const category = await hiddenCategory(event);
@@ -515,6 +612,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
       const event = await f.newEvent({ phase: "live" });
       const other = await f.newEvent({ phase: "live" });
       const category = await hiddenCategory(event);
+      await member(event);
       const editor = await addMember(f.db.owner, f.ids.orgA, "editor", [event]);
       const limited = await addMember(f.db.owner, f.ids.orgA, "editor", [other]);
       const foreign = await addMember(f.db.owner, f.ids.orgB, "owner");
@@ -538,6 +636,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
         { sent: true, replayed: false },
       ]);
       await f.fanOut();
+      await member(event);
       expect(await press(event, category)).toEqual([{ sent: true, replayed: false }]);
       expect(await noticesOf(event)).toHaveLength(2);
     });
@@ -545,6 +644,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
     it("audits each press with the editor's name and no recipients", async () => {
       const event = await f.newEvent({ phase: "live" });
       const category = await hiddenCategory(event);
+      await member(event);
       await press(event, category);
       const [row] = await f.owner<{ actor_type: string; target_id: string; after: unknown }>(
         "SELECT actor_type, target_id, after FROM audit_log WHERE event_id = $1 AND action = 'category.hint_send'",
