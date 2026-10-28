@@ -6062,6 +6062,87 @@ export const MESSAGES = {
   // a kind with no template (shown in the center only, never pushed).
   "push.title": { ar: "Questify", en: "Questify" },
   "push.generic.body": { ar: "لديك رسالة جديدة", en: "You have a new message" },
+  // The app's side of push (T-501c): the explainer after joining, the notification center, Settings and the Android
+  // channels. Gender-neutral phrasing; the explainer never promises a reward for allowing notifications (FR-1106).
+  "push.explain.title": {
+    ar: "نخبرك عند بدء {questMany} بوقت محدود",
+    en: "Get told when flash {questMany} drop",
+  },
+  "push.explain.body": {
+    ar: "بتفعيل الإشعارات تصلك {questMany} بوقت محدود، وردود فريق الفعالية، والجوائز الجاهزة. وإن لم تفعّلها فتبقى كل الرسائل في مركز الإشعارات داخل التطبيق.",
+    en: "Turn on notifications to hear about flash {questMany}, answers from the event team and prizes that are ready. If you don't, every message still waits in the notification center in the app.",
+  },
+  "push.explain.on": { ar: "تفعيل الإشعارات", en: "Turn on" },
+  "push.explain.later": { ar: "ليس الآن", en: "Not now" },
+  "push.channel.personal": { ar: "رسائل تخصك", en: "Messages for you" },
+  "push.channel.offers": { ar: "عروض Questify", en: "Questify offers" },
+  "notifications.title": { ar: "الإشعارات", en: "Notifications" },
+  "notifications.bell": { ar: "الإشعارات", en: "Notifications" },
+  "notifications.bellNew": { ar: "الإشعارات، فيها جديد", en: "Notifications, new messages" },
+  "notifications.empty": {
+    ar: "لا إشعارات بعد. ستجد هنا كل رسائل Questify لك.",
+    en: "No notifications yet. Every message from Questify to you shows up here.",
+  },
+  "notifications.loadFailed": {
+    ar: "تعذّر تحميل الإشعارات. تحقق من اتصالك ثم أعد المحاولة.",
+    en: "We couldn't load your notifications. Check your connection and try again.",
+  },
+  "notifications.more": { ar: "عرض المزيد", en: "Show more" },
+  "notifications.markAll": { ar: "تعليم الكل كمقروء", en: "Mark all as read" },
+  "notifications.unread": { ar: "غير مقروء", en: "Unread" },
+  "notifications.optOut": { ar: "إيقاف العروض من الإعدادات", en: "Stop offers in Settings" },
+  "pushSettings.title": { ar: "إشعارات هذا الهاتف", en: "Notifications on this phone" },
+  "pushSettings.on": {
+    ar: "الإشعارات مفعّلة على هذا الهاتف.",
+    en: "Notifications are on for this phone.",
+  },
+  "pushSettings.off": {
+    ar: "الإشعارات متوقفة على هذا الهاتف.",
+    en: "Notifications are off on this phone.",
+  },
+  "pushSettings.offAbout": {
+    ar: "تبقى كل الرسائل في مركز الإشعارات داخل التطبيق.",
+    en: "Every message still waits in the notification center in the app.",
+  },
+  "pushSettings.openPhone": { ar: "فتح إعدادات الهاتف", en: "Open phone settings" },
+  "pushSettings.ask": { ar: "تفعيل الإشعارات", en: "Turn on notifications" },
+  "pushSettings.unavailable": {
+    ar: "الإشعارات غير متاحة في هذا الإصدار من التطبيق.",
+    en: "Notifications aren't available in this version of the app.",
+  },
+  "pushTopics.title": { ar: "المواضيع", en: "Topics" },
+  "pushTopics.intro": {
+    ar: "تحدد هذه المواضيع ما يصلك كإشعار. أما ما أوقفته فيبقى في مركز الإشعارات.",
+    en: "These topics decide what reaches you as a notification. A topic you turn off still appears in the notification center.",
+  },
+  "pushTopics.always": {
+    ar: "ما يخص طلباتك وجوائزك يصلك دائمًا، ما لم توقف الإشعارات من إعدادات الهاتف.",
+    en: "Messages about your requests and prizes always reach you, unless you turn notifications off in your phone's settings.",
+  },
+  "pushTopics.loadFailed": {
+    ar: "تعذّر تحميل المواضيع. حاول مرة أخرى.",
+    en: "Couldn't load the topics. Try again.",
+  },
+  "pushTopic.announcements": { ar: "إعلانات الفعالية", en: "Event announcements" },
+  "pushTopic.announcements.about": {
+    ar: "إعلانات المنظّم، و{questMany} بوقت محدود، والتصويتات، وفتح {categoryMany} جديدة",
+    en: "Organizer announcements, flash {questMany}, polls and new {categoryMany} opening",
+  },
+  "pushTopic.rank": { ar: "الترتيب", en: "Ranking" },
+  "pushTopic.rank.about": {
+    ar: "دخولك قائمة العشرة الأوائل أو خروجك منها",
+    en: "When you enter or leave the top 10",
+  },
+  "pushTopic.community": { ar: "إنجازات المجتمع", en: "Community milestones" },
+  "pushTopic.community.about": {
+    ar: "عندما يبلغ الجميع مرحلة جديدة معًا",
+    en: "When everyone reaches a new milestone together",
+  },
+  "pushTopic.reminders": { ar: "التذكيرات", en: "Reminders" },
+  "pushTopic.reminders.about": {
+    ar: "قرب بدء الفعالية، وسلسلتك اليومية، وإغلاق متجر الجوائز",
+    en: "The event starting soon, your daily streak and the rewards shop closing",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

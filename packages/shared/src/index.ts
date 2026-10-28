@@ -477,6 +477,8 @@ export type {
   PushTopics,
   PushTopicsBody,
 } from "./push/push";
+export { NOTIFICATION_TARGETS, isEventId, notificationRoute } from "./push/routes";
+export type { NotificationRoute } from "./push/routes";
 export {
   PUSH_NAME_PLACEHOLDERS,
   PUSH_PLACEHOLDERS,
