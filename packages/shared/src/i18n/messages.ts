@@ -6064,10 +6064,7 @@ export const MESSAGES = {
   "push.generic.body": { ar: "لديك رسالة جديدة", en: "You have a new message" },
   // The personal pushes (T-501d, ADR-353): fixed text naming only an organizer's public name and a moment; never a
   // ticket, a reply, a reason, points or a person. Gender-neutral («يمكنك»), light passives, never «تم» + masdar.
-  "push.joinAccepted.body": {
-    ar: "قُبل طلب انضمامك، ويمكنك اللعب الآن.",
-    en: "Your request to join was accepted. You can play now.",
-  },
+  "push.joinAccepted.body": { ar: "قُبل طلب انضمامك.", en: "Your request to join was accepted." },
   "push.joinDeclined.body": {
     ar: "لم يُقبل طلب انضمامك.",
     en: "Your request to join wasn't accepted.",

@@ -102,7 +102,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
     )[0]?.outcome;
   const acceptAll = async (event: string) =>
     (
-      await f.run<{ outcome: string; accepted: number }>(
+      await f.run<{ outcome: string; accepted: number; remaining: number }>(
         f.team(),
         "SELECT * FROM accept_all_join_requests($1, $2)",
         [event, randomUUID()],
@@ -199,6 +199,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       expect(await centerOf(erased.who)).toEqual([]);
     });
 
+    it("an acceptance before the start (a scheduled private event) gives the notice and its center row", async () => {
+      const event = await f.newEvent({ phase: "scheduled", access: "private" });
+      const early = await request(event);
+      expect(await decide(event, early.enrollment, true)).toBe("accepted");
+      expect(await kindsOf(early.who)).toEqual(["join_accepted"]);
+      await f.fanOut();
+      expect(await centerOf(early.who)).toEqual(["join_accepted"]);
+      expect((await f.sends()).filter((row) => row.device_id === early.deviceId)).toHaveLength(1);
+    });
+
     it("a broken kind cannot roll back the door: decide and accept-all commit with no notice", async () => {
       const event = await f.newEvent({ phase: "live", access: "private" });
       const one = await request(event);
@@ -289,7 +299,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       for (const row of notices) {
         expect(row.refs).toEqual({ ticket: Number(row.dedupe.split(":")[1]) });
         expect(Object.keys(row.params)).toEqual(["event"]);
-        expect(JSON.stringify(row)).not.toMatch(/secret|Fixed|Please help/i);
+        expect(JSON.stringify(row.params)).not.toMatch(/secret|Fixed|Please help/i);
       }
     });
 
@@ -415,7 +425,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
     (
       await f.owner<{ id: string }>(
         `INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, repeat_cap, type_config)
-         SELECT $1, c.id, 'submission', 'Tell us', 'أخبرنا', 50, 1, $2::jsonb FROM category c WHERE c.event_id = $1 LIMIT 1
+         SELECT $1, c.id, 'submission', 'Tell us', 'أخبرنا', 7919, 1, $2::jsonb FROM category c WHERE c.event_id = $1 LIMIT 1
          RETURNING id`,
         [event, JSON.stringify({ accepts: ["text"], autoApprove, resubmit: false })],
       )
@@ -482,7 +492,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       });
       expect(no?.params).toMatchObject({ quest: { ar: "أخبرنا", en: "Tell us" } });
       expect(Object.keys(no?.params ?? {}).toSorted()).toEqual(["event", "quest"]);
-      expect(JSON.stringify(no)).not.toMatch(/Too short|private answer|50/);
+      expect(JSON.stringify(no?.params)).not.toMatch(/7919|Too short|private answer/);
       await f.fanOut();
       expect(await centerOf(rejected.who)).toEqual(["submission_rejected"]);
     });
@@ -679,7 +689,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       const mine = claimed.filter((row) => row.token === asker.token);
       const messages = mine.map((row) => pushMessageOf(row));
       expect(messages.map((message) => [message?.title, message?.body])).toEqual([
-        ["فعالية", "قُبل طلب انضمامك، ويمكنك اللعب الآن."],
+        ["فعالية", "قُبل طلب انضمامك."],
         ["فعالية", "ردّ عليك فريق الفعالية."],
         ["فعالية", "لم تُقبل إجابتك في «أخبرنا». يمكنك فتحها لمعرفة السبب."],
       ]);
@@ -690,7 +700,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
         )) {
           expect(value).toMatch(REF_VALUE);
         }
-        expect(JSON.stringify(message)).not.toMatch(/Secret|secret|Too short|private answer/);
+        const shown = [message?.title, message?.body, JSON.stringify(message?.data)].join(" ");
+        expect(shown).not.toMatch(/Secret|secret|7919|Too short|private answer/);
       }
     });
   });

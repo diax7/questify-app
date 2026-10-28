@@ -5,8 +5,8 @@
 -- (a reviewer's decision), a statement trigger with transition tables on event_result (the reveal's prizes), and a
 -- due-scan door the push worker calls every minute (a reservation ready at the desk, a reservation ending). No EXCEPTION
 -- block anywhere. Deny by default: every function is closed to PUBLIC in the group that creates it; only push_due is
--- granted to the API role; the trigger functions are definers (the API's role may update enrollment.status itself, and
--- a trigger that could not insert its notice would undo the door). Migrations 0076 and earlier untouched.
+-- newly granted to the API role; the trigger functions are definers (the API's role may update enrollment.status itself, and a trigger that could not
+-- insert its notice would undo the door). Migrations 0076 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 -- Four tables gain a trigger (SHARE ROW EXCLUSIVE), taken up front in the doors' order (event_result before the
 -- enrollments the reveal locks; the enrollment before the submission a review locks).
@@ -32,7 +32,8 @@ INSERT INTO notice_kind (kind, class, topic, membership, before_start, priority,
 
 -- notice_create (0076) restated in PL/pgSQL with the same one INSERT and the same answers (ADR-353 (5)): PostgreSQL 17
 -- plans a SQL function's body again at every call from a trigger (a new call site each firing), which cost accept-all
--- of 5,000 requests about 2 s more; a PL/pgSQL function keeps its plan for the session.
+-- of 5,000 requests about 2 s more; a PL/pgSQL function keeps its plan for the session. Every parameter is qualified
+-- with the function's name, so a later column named like one of them cannot make every producer raise and undo its door.
 CREATE OR REPLACE FUNCTION notice_create(new_kind text, org uuid, ev uuid, who uuid, new_refs jsonb, new_params jsonb,
                                          marker text, until timestamptz) RETURNS bigint
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
@@ -40,13 +41,16 @@ DECLARE
   made bigint;
 BEGIN
   INSERT INTO notice (kind, organizer_id, event_id, player_id, audience, refs, params, dedupe, expires_at)
-  SELECT k.kind, CASE WHEN ev IS NOT NULL THEN org END, ev, who, CASE WHEN who IS NULL THEN 'event' ELSE 'player' END,
-         coalesce(new_refs, '{}'::jsonb), coalesce(new_params, '{}'::jsonb), marker,
-         least(coalesce(until, now() + k.ttl), now() + k.ttl)
+  SELECT k.kind, CASE WHEN notice_create.ev IS NOT NULL THEN notice_create.org END, notice_create.ev, notice_create.who,
+         CASE WHEN notice_create.who IS NULL THEN 'event' ELSE 'player' END,
+         coalesce(notice_create.new_refs, '{}'::jsonb), coalesce(notice_create.new_params, '{}'::jsonb),
+         notice_create.marker, least(coalesce(notice_create.until, now() + k.ttl), now() + k.ttl)
   FROM notice_kind k
-  WHERE k.kind = new_kind AND marker IS NOT NULL
-    AND CASE k.class WHEN 'event' THEN who IS NULL AND ev IS NOT NULL ELSE who IS NOT NULL END
-    AND (ev IS NULL OR EXISTS (SELECT 1 FROM event e WHERE e.id = ev AND e.organizer_id = org))
+  WHERE k.kind = notice_create.new_kind AND notice_create.marker IS NOT NULL
+    AND CASE k.class WHEN 'event' THEN notice_create.who IS NULL AND notice_create.ev IS NOT NULL
+                     ELSE notice_create.who IS NOT NULL END
+    AND (notice_create.ev IS NULL
+         OR EXISTS (SELECT 1 FROM event e WHERE e.id = notice_create.ev AND e.organizer_id = notice_create.org))
   ON CONFLICT (dedupe) DO NOTHING
   RETURNING id INTO made;
   RETURN made;
@@ -183,7 +187,7 @@ CREATE FUNCTION push_due_reservations(ending_by timestamptz)
   LEFT JOIN reward r ON r.id = d.reward_id
   LEFT JOIN rank_prize k ON k.id = d.rank_prize_id
   LEFT JOIN quest_item i ON i.id = d.quest_item_id
-  WHERE d.status = 'reserved' AND d.reserved_until > now() AND d.reserved_until <= ending_by
+  WHERE d.status = 'reserved' AND d.reserved_until > now() AND d.reserved_until <= push_due_reservations.ending_by
     AND coalesce(d.collect_until, '-infinity') <= now() AND coalesce(d.offer_until, '-infinity') <= now()
 $$;
 REVOKE ALL ON FUNCTION push_due_reservations(timestamptz) FROM PUBLIC;
@@ -197,7 +201,7 @@ CREATE FUNCTION push_due_ready(lim integer) RETURNS integer
     WHERE EXISTS (SELECT 1 FROM unnest(x.desk_hours) w WHERE w @> now() AND lower(w) > x.created_at)
       AND NOT EXISTS (SELECT 1 FROM notice nt WHERE nt.dedupe = 'reward_ready:' || x.id)
     ORDER BY x.reserved_until, x.id
-    LIMIT lim)
+    LIMIT push_due_ready.lim)
   SELECT count(notice_create('reward_ready', due.organizer_id, due.event_id, due.player_id,
                              jsonb_build_object('redemption', due.id), due.names, 'reward_ready:' || due.id,
                              due.reserved_until))::integer
@@ -219,7 +223,7 @@ CREATE FUNCTION push_due_ending(lim integer) RETURNS integer
       AND (x.desk_hours IS NULL OR x.desk_hours && tstzmultirange(tstzrange(now(), x.reserved_until)))
       AND NOT EXISTS (SELECT 1 FROM notice nt WHERE nt.dedupe = 'reward_ending:' || x.id)
     ORDER BY x.reserved_until, x.id
-    LIMIT lim)
+    LIMIT push_due_ending.lim)
   SELECT count(notice_create('reward_ending', due.organizer_id, due.event_id, due.player_id,
                              jsonb_build_object('redemption', due.id),
                              due.names || jsonb_build_object('time', due.reserved_until),

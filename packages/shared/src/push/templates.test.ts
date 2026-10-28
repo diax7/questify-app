@@ -230,9 +230,10 @@ describe("the personal pushes (T-501d, ADR-353)", () => {
   const AT = "2026-10-29T13:30:00Z";
 
   it("says each decision and answer in fixed text, with no name to fill", () => {
+    // An acceptance can come before the start (a scheduled private event): it never says "play now".
     expect(both("join_accepted", {})).toEqual([
-      "Your request to join was accepted. You can play now.",
-      "قُبل طلب انضمامك، ويمكنك اللعب الآن.",
+      "Your request to join was accepted.",
+      "قُبل طلب انضمامك.",
     ]);
     expect(both("join_declined", {})).toEqual([
       "Your request to join wasn't accepted.",
