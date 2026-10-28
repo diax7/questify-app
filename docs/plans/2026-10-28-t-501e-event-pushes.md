@@ -24,8 +24,8 @@ FR-238) stays T-501g's. Never push, deploy or run Stryker locally.
 
 | Kind | Producer | Once-only marker | Recipients (beyond the status rule) | Topic, TTL, `until` | Route |
 |---|---|---|---|---|---|
-| `flash_quest` | row trigger on `quest` (`flash_launched_at` set, Launch); due scan at `opens_at` for a scheduled one (visible, not launched, shown, not community-locked) | `flash:{quest}:{opens_at µs}` | `member_sees_quest` (visible, window open, category seen, flash switch on); the category opened | announcements, 24 h, until `closes_at` | quests, the quest's sheet |
-| `boost_start` | row trigger on `boost` insert or a new `starts_at` when it starts at once; due scan at `starts_at` | `boost:{id}` | `sees_category`; the category opened; a rehearsal boost to rehearsal accounts, a real one to real members; still running and the event's switch on | announcements, 24 h, until `ends_at` | quests |
+| `flash_quest` | row trigger on `quest` (`flash_launched_at` set, Launch) once its category has opened; due scan at `opens_at` for a scheduled one, or when the category opens later (visible, shown, category opened, not community-locked) | `flash:{quest}:{opens_at µs}` | `member_sees_quest` (visible, window open, category seen, flash switch on); the category opened | announcements, 24 h, until `closes_at` | quests, the quest's sheet |
+| `boost_start` | row trigger on `boost` insert or a new `starts_at` when it starts at once; due scan at `starts_at`, or when its category opens or unlocks later; never while the category has not opened or is community-locked | `boost:{id}` | `sees_category`; the category opened; a rehearsal boost to rehearsal accounts, a real one to real members; still running and the event's switch on | announcements, 24 h, until `ends_at` | quests |
 | `poll_sent` | row trigger on `quest` (`poll_sent_at` set, Send) | `poll:{quest}:{poll_sent_at µs}` | `member_sees_quest`; not yet voted (no completion); the event's polls shown | announcements, 24 h, until `closes_at` | event (the poll card) |
 | `community_step` | statement trigger on `community_reach` inserts: one notice per goal per statement, for the highest step it reached | `community_step:{step}` | the event's community switch on (the card's own rule: every member, no quest named) | community, 2 h | event (the community bar) |
 | `category_open` | due scan at `category.opens_at` (after the event's start, live, unlocking after no other category, a visible quest in it, not community-locked); a moved opening again only when moved 15 minutes or more, at most 2 re-pushes | `category_open:{category}:{opens_at µs}` | `sees_category`; open now; still unlocking after no other category | announcements, 2 h, until `opens_at + 2 h` | quests |
@@ -83,8 +83,10 @@ left between go-live and the wipe gets nothing (as `polls_shown` and `boost_in_f
 One event push: 50,000 center rows, about 60,000 sends, 50 fan-out calls of 1,000 enrollments (2,000 before the code
 review, ADR-354 (9)). The per-member checks
 add `member_sees_quest` (one quest probe), a `staff_assignment` probe and, for a poll, a completion probe. Measured by
-hand with `test/perf/push-event-timing.int` (a sent poll to 50,000 members); the gates stay T-501's (each call under
-1 s, the whole under 30 s on the laptop). A rehearsal on a large event costs the same scan over its enrollments.
+hand with `test/perf/push-event-timing.int` (a sent poll to 50,000 members). Hard gates: each fan-out call under 1 s
+and inside the API's 5 s statement limit. Soft target: the whole under 30 s on the laptop; the worker runs one fan-out
+call and then one claim of 200 per pass, so the claim rate sets when the last member is pushed. Measured again on CranL
+before NFR-004's load test. A rehearsal on a large event costs the same scan over its enrollments.
 
 **As built (ADR-354 (5)):** the first run took 336 s (one call up to 14.8 s): `sees_category` (SQL) planned
 `in_audience` again for every member, and `member_sees_quest` and `notice_visible` called it from queries. With
@@ -94,7 +96,19 @@ about 1.1 s a call. **After the code review (calls of 1,000):** a live poll 30.0
 0.60 s, slowest 0.68 s; a category's opening 27.3 s, median 0.55 s; the claim plus ack of 200 about 0.1 s, 73 ms
 median after a 20-quest gate was set on the category (every row skipped, no gate check); an opening notice of a gated
 category fans out at 0.15 s a call writing nothing. The extra calls cost about 2 s in all, so the whole sits at the
-30 s gate (Q-324 answered: calls of 1,000).
+30 s soft target; the hard gates hold (Q-324 answered: calls of 1,000).
+
+## Re-review (91, GO once folded)
+
+1. A flash quest or a boost in a category not opened yet (or a boost in a community-locked one) now waits: the trigger
+   and the scans write nothing and leave the marker free; the scan pushes it once the category opens while it still
+   runs (the flash scan covers launched quests for that case). Tested: it arrives exactly once.
+2. An opening is pushed again only when moved 15 minutes or more to a later time (the start keeps either way). Tested
+   -30, -20 (none), -10 (one), -55 (none).
+3. A flash quest or a boost in a gated category still reaches members who have not cleared the gate: kept (developer),
+   ADR-354's trade-offs.
+4. 30 s is a soft target; 1 s a call and the 5 s statement limit are the hard gates.
+5. `push_repush_ok` reads only markers that end in a number.
 
 ## Tests (named; `test/db/push-events.int.test.ts` unless noted)
 

@@ -978,6 +978,11 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     minutes or more, at most twice (`push_repush_ok`, index `notice (event_id, kind)`); the boost scan's broken kind and
     an asserting boost test; the rehearsal-phase lock order in `docs/rules.md`. ADR-354 Accepted, Q-324 answered (calls
     of 1,000).
+  - Re-review 2026-10-28: 91, GO once folded (no further re-review): a flash quest or a boost waits without a notice or
+    marker while its category has not opened (a boost also while community-locked) and is pushed once it opens; an
+    opening is pushed again only when moved 15 minutes or more to a later time; `push_repush_ok` reads only numeric
+    markers; a flash quest or boost in a gated category still reaches members who have not cleared it (kept, ADR-354
+    trade-offs); 30 s is a soft target, 1 s a call and the 5 s limit the hard gates.
   - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in
     T-501d; a notice naming a quest or category reaches only members who can see it (plan § Review 7).
   - Note 2026-10-28 (T-501d build, ADR-353): the due scans live in `push_due()` (migration 0077, called by the worker

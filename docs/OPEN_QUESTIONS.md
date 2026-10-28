@@ -1370,5 +1370,6 @@ batches of 1,500 (more calls, the same total). Developer's call at the T-501e co
 **Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501e code review (78; the BLOCKER and every
 finding folded). **Batch cut to 1,000:** the event fan-out takes 1,000 enrollments a call (a live poll to 50,000 members
 30.0 to 30.2 s over 52 calls, median 0.60 s). Also taken: no opening push for a category that unlocks after another (its
-gate check was too slow per member); flash quests and boosts wait for their category to open; a moved start or opening
-is pushed again only when moved 15 minutes or more, at most twice. ADR-354 Accepted.
+gate check was too slow per member); flash quests and boosts wait for their category to open (a boost also for its
+community lock) and are pushed once it does; a moved start or opening is pushed again only when moved 15 minutes or
+more (an opening only to a later time), at most twice. ADR-354 Accepted (re-review 91 folded).

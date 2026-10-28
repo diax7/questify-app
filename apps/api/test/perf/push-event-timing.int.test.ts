@@ -12,8 +12,10 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
  * either). Not an assertion (a timing check is flaky on a 2-core runner), like the other timing files: run it by hand
  * when the event pushes' audience rules or the fan-out change,
  * `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-event-timing.int.test.ts`.
- * Gates (T-501 plan, batches of 1,000 since T-501e): each fan-out call under 1 s and the whole under 30 s on the
- * laptop; claim plus ack of 200 under 200 ms with the queue present (the claim checks each row again).
+ * Hard gates (T-501 plan, batches of 1,000 since T-501e): each fan-out call under 1 s and inside the API's 5 s
+ * statement limit; claim plus ack of 200 under 200 ms with the queue present (the claim checks each row again). Soft
+ * target: the whole under 30 s on the laptop (the worker runs one fan-out call then one claim of 200 per pass, so the
+ * claim rate sets when the last member is pushed). Measured again on CranL before NFR-004's load test.
  */
 const OUT = process.env["PUSH_TIMING"];
 const say = (line: string) => appendFileSync(String(OUT), `${line}\n`);

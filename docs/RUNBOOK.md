@@ -276,7 +276,9 @@ quiet minutes); without keys no client exists: the center fills and every push e
   audience or to `sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible` or `notice_audience_ok`.
   It also times a category's opening whose category gains a 20-quest gate after the fan-out (the claim must not check
   the gate) and an opening notice of a gated category (the fan-out must not either). 2026-10-28 on the laptop, calls of
-  1,000 (ADR-354 (9)): a live poll to 50,000 members 30.0 to 30.2 s in 52 calls, median 0.60 s, slowest 0.68 s; an
+  1,000 (ADR-354 (9)): a live poll to 50,000 members 30.0 to 30.2 s in 52 calls, median 0.60 s, slowest 0.68 s (hard
+  gates: 1 s a call and the 5 s statement limit; 30 s for the whole is a soft target, since the worker runs one
+  fan-out call then one claim of 200 per pass and the claim rate sets when the last member is pushed); an
   opening 27.3 s, median 0.55 s; the claims about 0.1 s (73 ms with the gate set); the gated opening 0.15 s a call. The
   generic event notice (`push-timing.int`) with calls of 1,000: 18.9 s in 52 calls, slowest 0.43 s, claims 89 ms.
 - **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same

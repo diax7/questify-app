@@ -336,26 +336,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       expect(await sendOf(notice, one)).toMatchObject({ state: "skipped", code: "not_member" });
     });
 
-    it("a flash quest or a boost in a category not open yet reaches no one; a category moved later skips the push", async () => {
+    it("a flash quest or a boost waits while its category is not open or community-locked, then arrives exactly once", async () => {
       await f.drain();
       const event = await f.newEvent({ phase: "live" });
       const one = await member(event);
       const later = await category(event, { opens_at: new Date(Date.now() + 3_600_000) });
       await launch(event, await quest(event, { category: later, flash: true, visible: false }));
       await saveBoost(event, later);
+      const locked = await category(event);
+      await f.owner(
+        `WITH g AS (INSERT INTO community_goal (organizer_id, event_id, title_en, measure, target, starts_at, ends_at)
+                    SELECT organizer_id, id, 'Unlock', 'points', 100, now(), now() + interval '1 hour' FROM event
+                    WHERE id = $1 RETURNING id, event_id)
+         INSERT INTO community_step (event_id, goal_id, threshold, is_goal, reward, unlock_category_id)
+         SELECT g.event_id, g.id, 100, true, 'unlock', $2 FROM g`,
+        [event, locked],
+      );
+      await saveBoost(event, locked);
+      expect(await due()).toMatchObject({ flash: 0, boost: 0 });
+      expect(await noticesOf(event, "flash_quest")).toEqual([]);
+      expect(await noticesOf(event, "boost_start")).toEqual([]);
+      await f.owner("UPDATE category SET opens_at = now() - interval '1 minute' WHERE id = $1", [
+        later,
+      ]);
+      expect(await due()).toMatchObject({ flash: 1, boost: 1 });
+      expect(await due()).toMatchObject({ flash: 0, boost: 0 });
       await f.fanOut();
-      expect(await recipients(await onlyNotice(event, "flash_quest"))).toEqual([]);
-      expect(await recipients(await onlyNotice(event, "boost_start"))).toEqual([]);
-      const open = await category(event);
-      await saveBoost(event, open);
-      await f.fanOut();
-      const boosted = (await noticesOf(event, "boost_start")).at(-1);
+      const flashed = await onlyNotice(event, "flash_quest");
+      const boosted = await onlyNotice(event, "boost_start");
+      expect(boosted.refs["category"]).toBe(later);
+      expect(await recipients(flashed)).toEqual([one.who]);
       expect(await recipients(boosted)).toEqual([one.who]);
+      // Moved later again after the fan-out: the queued pushes are skipped at the claim.
       await f.owner("UPDATE category SET opens_at = now() + interval '1 hour' WHERE id = $1", [
-        open,
+        later,
       ]);
       await claimAll();
       expect(await sendOf(boosted, one)).toMatchObject({ state: "skipped", code: "not_member" });
+      expect(await sendOf(flashed, one)).toMatchObject({ state: "skipped", code: "not_member" });
     });
 
     it("a rehearsal boost reaches rehearsal accounts only", async () => {
@@ -551,7 +569,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
       });
     });
 
-    it("a moved opening is pushed again only when it moved 15 minutes or more", async () => {
+    it("a moved opening is pushed again only when moved 15 minutes or more to a later time", async () => {
       const event = await f.newEvent({ phase: "live" });
       await member(event);
       const moving = await category(event);
@@ -561,12 +579,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
           moving,
           minutes,
         ]);
-      await openAt(-1);
+      await openAt(-30);
       expect(await due()).toMatchObject({ category: 1 });
-      await openAt(-10);
-      expect(await due()).toMatchObject({ category: 0 });
       await openAt(-20);
+      expect(await due()).toMatchObject({ category: 0 });
+      await openAt(-10);
       expect(await due()).toMatchObject({ category: 1 });
+      // Corrected to an earlier time: already open and already told.
+      await openAt(-55);
+      expect(await due()).toMatchObject({ category: 0 });
       expect(await noticesOf(event, "category_open")).toHaveLength(2);
     });
   });
