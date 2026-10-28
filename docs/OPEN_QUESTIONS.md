@@ -1284,5 +1284,5 @@ insert, a quest test that disagrees with the quests list for unopened quests, a 
 provider settings now with no client to use them. Developer's call at the T-501 code review.
 **Answered (developer, delegated by Dhia, 2026-10-28):** accepted at the T-501 code review (87, BLOCKER and MAJOR fixed,
 narrow re-review owed), with its fold-ins: no promotional center row without push consent, the claim's scan stopped at
-200 notices per target, a token version on each send, a failing event notice parked after 3 tries, the provider's
+200 notices per target, a token version on each send, a failing notice backed off (1, 4, 16 minutes, then hourly), the provider's
 deadline 500 ms early. ADR-350 Accepted.

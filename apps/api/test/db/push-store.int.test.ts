@@ -76,6 +76,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     );
   };
 
+  /** A trigger that makes every center row of the given notices fail, as a poisoned batch would. */
+  const poison = async (ids: readonly (string | null)[]) => {
+    const list = ids.map((id) => Number(id)).join(", ");
+    await f.owner(
+      `CREATE OR REPLACE FUNCTION pg_temp.poison() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN
+         IF NEW.notice_id IN (${list}) THEN RAISE EXCEPTION 'poisoned batch' USING ERRCODE = '22012'; END IF;
+         RETURN NEW;
+       END $$`,
+    );
+    await f.owner(
+      "CREATE TRIGGER push_poison BEFORE INSERT ON notification FOR EACH ROW EXECUTE FUNCTION pg_temp.poison()",
+    );
+  };
+  const cure = () => f.owner("DROP TRIGGER IF EXISTS push_poison ON notification");
+  const fanOnce = () => f.one<Record<string, unknown>>(f.system, "SELECT push_fan_out() AS r");
+  /** The notice's failure count and its back-off in whole minutes from now. */
+  const backOff = async (id: string | null) =>
+    (
+      await f.owner<{ failures: number; minutes: number | null }>(
+        `SELECT fan_failures AS failures,
+                round(extract(epoch FROM retry_after - now()) / 60)::int AS minutes
+         FROM notice WHERE id = $1`,
+        [id],
+      )
+    )[0];
+  /** Brings the notice's back-off to its end, as time passing would. */
+  const elapse = (id: string | null) =>
+    f.owner("UPDATE notice SET retry_after = now() - interval '1 second' WHERE id = $1", [id]);
+
   describe("notice_create (plan § Review 2)", () => {
     it("every notice_kind row the migrations seed has a template", () => {
       for (const name of seededKinds) expect(PUSH_TEMPLATES[name], name).toBeDefined();
@@ -210,63 +240,99 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     });
   });
 
-  describe("a failing event notice (code review minor 4)", () => {
-    it("is counted, parked at the third failure in a row, and no longer holds up the notices behind it", async () => {
+  describe("a failing fan-out (code review minor 4, re-review 1 and 3)", () => {
+    it("an event batch that fails waits 1, 4, 16 minutes, then at most an hour, with the alert at the third failure", async () => {
+      await f.drain();
       const event = await f.newEvent({ phase: "live" });
       const kind = await f.kind({ class: "event" });
       const someone = await member(event);
       const poisoned = await f.notice(kind, { event });
       const behind = await f.notice(kind, { event });
-      await f.owner(
-        `CREATE FUNCTION pg_temp.poison() RETURNS trigger LANGUAGE plpgsql AS $$
-         BEGIN
-           IF NEW.notice_id = ${Number(poisoned)} THEN RAISE EXCEPTION 'poisoned batch' USING ERRCODE = '22012'; END IF;
-           RETURN NEW;
-         END $$`,
-      );
-      await f.owner(
-        "CREATE TRIGGER push_poison BEFORE INSERT ON notification FOR EACH ROW EXECUTE FUNCTION pg_temp.poison()",
-      );
+      await poison([poisoned]);
       try {
         const answers = [];
-        for (let i = 0; i < 3; i += 1) {
-          answers.push(
-            await f.one<Record<string, unknown>>(f.system, "SELECT push_fan_out() AS r"),
-          );
+        const waits = [];
+        for (let i = 0; i < 5; i += 1) {
+          const answer = await fanOnce();
+          answers.push({
+            failed: answer["failed"],
+            code: answer["code"],
+            parked: answer["parked"],
+            more: answer["more"],
+          });
+          waits.push((await backOff(poisoned))?.minutes);
+          if (i === 0) {
+            // Waiting out its back-off, it no longer holds up the notice behind it.
+            await f.fanOut();
+            expect(await f.recipients(behind)).toEqual([someone.who]);
+          }
+          await elapse(poisoned);
         }
+        expect(waits).toEqual([1, 4, 16, 60, 60]);
         expect(answers).toEqual(
-          [1, 2, 3].map((n) => ({
-            rows: 0,
-            more: false,
+          [1, 2, 3, 4, 5].map((n) => ({
             failed: Number(poisoned),
             code: "22012",
             parked: n === 3,
+            more: false,
           })),
         );
-        const [state] = await f.owner<{ fan_failures: number; parked: boolean; fanned: boolean }>(
-          "SELECT fan_failures, parked_at IS NOT NULL AS parked, fanned_at IS NOT NULL AS fanned FROM notice WHERE id = $1",
-          [poisoned],
-        );
-        expect(state).toEqual({ fan_failures: 3, parked: true, fanned: false });
-        await f.fanOut();
-        expect(await f.recipients(behind)).toEqual([someone.who]);
         expect(await f.recipients(poisoned)).toEqual([]);
       } finally {
-        await f.owner("DROP TRIGGER push_poison ON notification");
+        await cure();
       }
+      // Retried after its back-off once the cause is gone; the success clears the count.
+      await elapse(poisoned);
+      await f.fanOut();
+      expect(await f.recipients(poisoned)).toEqual([someone.who]);
+      expect(await backOff(poisoned)).toEqual({ failures: 0, minutes: null });
     });
 
-    it("clears the count when a batch succeeds", async () => {
+    it("the manual release (RUNBOOK) retries a backed-off notice at once", async () => {
       const event = await f.newEvent({ phase: "live" });
       const kind = await f.kind({ class: "event" });
       const someone = await member(event);
       const id = await f.notice(kind, { event });
-      await f.owner("UPDATE notice SET fan_failures = 2 WHERE id = $1", [id]);
+      await f.owner(
+        "UPDATE notice SET fan_failures = 7, retry_after = now() + interval '1 hour' WHERE id = $1",
+        [id],
+      );
+      await f.fanOut();
+      expect(await f.recipients(id)).toEqual([]);
+      await f.owner("UPDATE notice SET retry_after = NULL, fan_failures = 0 WHERE id = $1", [id]);
       await f.fanOut();
       expect(await f.recipients(id)).toEqual([someone.who]);
-      expect(
-        await f.count("notice WHERE id = $1 AND fan_failures = 0 AND parked_at IS NULL", [id]),
-      ).toBe(1);
+    });
+
+    it("a personal batch that fails finds the poisoned notice alone and backs it off; the others go out", async () => {
+      const kind = await f.kind();
+      const first = await f.playerWithPhone();
+      const second = await f.playerWithPhone();
+      const third = await f.playerWithPhone();
+      const healthy = await f.notice(kind, { player: first.who });
+      const poisoned = await f.notice(kind, { player: second.who });
+      const later = await f.notice(kind, { player: third.who });
+      await poison([poisoned]);
+      try {
+        // The batch of three fails; the oldest alone (healthy) goes out.
+        expect(await fanOnce()).toMatchObject({ rows: 1, more: true });
+        expect(await f.recipients(healthy)).toEqual([first.who]);
+        // The batch of two fails; the oldest alone is the poisoned one: counted and backed off.
+        expect(await fanOnce()).toMatchObject({
+          failed: Number(poisoned),
+          code: "22012",
+          parked: false,
+        });
+        expect(await backOff(poisoned)).toEqual({ failures: 1, minutes: 1 });
+        await f.fanOut();
+        expect(await f.recipients(later)).toEqual([third.who]);
+        expect(await f.recipients(poisoned)).toEqual([]);
+      } finally {
+        await cure();
+      }
+      await elapse(poisoned);
+      await f.fanOut();
+      expect(await f.recipients(poisoned)).toEqual([second.who]);
     });
   });
 

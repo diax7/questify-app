@@ -233,17 +233,23 @@ T-501b no provider exists: the center fills and every push expires unsent.
   `push.round_failed`, `push.settle_failed` or `push.ack_failed` with the SQLSTATE only (never a token, a text or a
   player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
   sent twice).
-- **Parked notice (error level):** `push.notice_parked {notice, code}`: an event notice's fan-out batch failed 3 times in
-  a row (`push.fan_out_batch_failed` logs each failure) and is skipped from now on, so the notices behind it go out.
-  Find the cause from the SQLSTATE (`57014` is the statement limit), fix it, then release the notice as the owner:
-  `UPDATE notice SET parked_at = NULL, fan_failures = 0 WHERE id = <notice>;` (it resumes from its cursor). A parked
-  notice's members already fanned keep their rows; the rest get none until it is released.
+- **Backed-off notice (error level):** each failed fan-out try of a notice logs `push.fan_out_batch_failed {notice,
+  code}` and the notice waits 1, 4, 16 minutes, then an hour between tries (`notice.retry_after`), so the notices
+  behind it go out and a passing error (`40P01` deadlock, `55P03` lock timeout, `57014` statement limit at peak) only
+  delays it. The third failure in a row raises the alert `push.notice_parked {notice, code}`: find the cause from the
+  SQLSTATE and fix it; it is retried by itself every hour. To retry at once (the manual override), as the owner:
+  `UPDATE notice SET retry_after = NULL, fan_failures = 0 WHERE id = <notice>;` (it resumes from its cursor; members
+  already fanned keep their rows).
 - **Start-up (warn level, production):** `push.provider_missing {platform}` once per start for each platform with no
   provider (both until T-501b).
-- **Timing check:** `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-timing.int.test.ts` (by hand,
-  after a change to the fan-out, the claim or their indexes). Gates: each fan-out call under 1 s and 50,000 members
-  under 30 s; claim plus ack of 200 under 200 ms with 60,000 rows queued. 2026-10-28 on the laptop: 19.5 s in 27 calls
-  (slowest 871 ms); 85 ms median (ADR-350 (10)). Measure again on CranL before NFR-004's load test.
+- **Timing check (by hand, never in the default run or CI):**
+  `PUSH_TIMING=/path/to/out.txt TEST_DATABASE_URL=… pnpm vitest run apps/api/test/perf/push-timing.int.test.ts` after a
+  change to the fan-out, the claim or their indexes (skipped unless `PUSH_TIMING` is set, like the other timing files;
+  it takes about 4 minutes). Gates: each fan-out call under 1 s and 50,000 members under 30 s; claim plus ack of 200
+  under 200 ms with 60,000 event rows, 65,000 event rows or 10,000 personal notices queued (at most 200 heads visited);
+  a 50,000-row notice then a 10-row one, the first claim takes 100 and 10. 2026-10-28 on the laptop: 18.4 s in 27 calls
+  (slowest 794 ms); claims 92, 163 and 153 ms median; 200 heads; [100, 10] (ADR-350 (10)). Measure again on CranL
+  before NFR-004's load test.
 - **Outbox health (SQL as the owner):** `SELECT target, state, count(*) FROM push_send GROUP BY 1, 2;` many `queued`
   rows on one target with nothing `sent` means that target is held or has no provider; `SELECT count(*) FROM notice
   WHERE fanned_at IS NULL;` should stay near 0.

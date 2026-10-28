@@ -598,8 +598,8 @@ ADR-151):
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment
-  id), fanned_at, fan_failures 0–3, parked_at (an event notice whose batch failed 3 times in a row), expires_at,
-  created_at)`: one row per thing that happened, written only by `notice_create` (one
+  id), fanned_at, fan_failures (consecutive failed fan-out tries), retry_after (the back-off: 1, 4, 16 minutes, then
+  hourly), expires_at, created_at)`: one row per thing that happened, written only by `notice_create` (one
   insert; a mismatch inserts nothing). Indexes: unfanned by audience and id; by player.
 - `notification(id bigint identity, notice_id → notice CASCADE, player_id (no foreign key: the fan-out never locks
   players), event_id, created_at, read_at, UNIQUE (notice_id, player_id))`: **the center**, one row per recipient, the

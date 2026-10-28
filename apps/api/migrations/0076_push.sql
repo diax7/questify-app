@@ -40,8 +40,9 @@ REVOKE ALL ON notice_kind FROM PUBLIC, questify_app;
 -- One row per thing that happened. `refs` holds ids only (the kind's quest, category, reward...), `params` the frozen
 -- public names (each {ar, en}, cut in SQL to 40 characters) and dates; `dedupe` is the once-only marker. No CHECK a
 -- producer's data can fail (plan § Review 2): notice_create derives `audience` and refuses a mismatch by inserting
--- nothing. The worker advances `fan_cursor` (an enrollment id) and sets `fanned_at` when the fan-out is done; an event
--- notice whose batch fails 3 times in a row is parked (`parked_at`), so it cannot hold up the notices behind it.
+-- nothing. The worker advances `fan_cursor` (an enrollment id) and sets `fanned_at` when the fan-out is done; a notice
+-- whose fan-out fails waits before its next try (`retry_after`: 1, 4, 16 minutes, then hourly), so it cannot hold up the
+-- notices behind it and a passing error never stops it for good.
 CREATE TABLE notice (
   id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   kind         text NOT NULL REFERENCES notice_kind (kind),
@@ -54,9 +55,9 @@ CREATE TABLE notice (
   dedupe       text NOT NULL UNIQUE,
   fan_cursor   uuid,
   fanned_at    timestamptz,
-  -- Consecutive failed fan-out batches of an event notice; at 3 it is parked (never retried until someone clears it).
-  fan_failures smallint NOT NULL DEFAULT 0 CHECK (fan_failures BETWEEN 0 AND 3),
-  parked_at    timestamptz,
+  -- Consecutive failed fan-out tries; the next try waits until retry_after (cleared by a success or by hand, RUNBOOK).
+  fan_failures smallint NOT NULL DEFAULT 0 CHECK (fan_failures BETWEEN 0 AND 1000),
+  retry_after  timestamptz,
   expires_at   timestamptz NOT NULL,
   created_at   timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (event_id, organizer_id) REFERENCES event (id, organizer_id) ON DELETE CASCADE
@@ -423,22 +424,15 @@ $$;
 REVOKE ALL ON FUNCTION push_expire_leases(integer) FROM PUBLIC;
 
 -- ================================================================ the fan-out (system context only)
--- Personal and promotional notices (one recipient each), up to 500 a call, oldest first: a center row when the player is
--- active, the notice's membership and visibility rules hold and, for a promotional kind, the player consents to push
--- now (promo_pool: nothing promotional appears in the center without the opt-in, ADR-350 (11)); and its sends. Answers
--- the center rows written.
-CREATE FUNCTION push_fan_out_personal() RETURNS jsonb
+-- Personal and promotional notices (one recipient each): the given ones, each a center row when the player is active,
+-- the notice's membership and visibility rules hold and, for a promotional kind, the player consents to push now
+-- (promo_pool: nothing promotional appears in the center without the opt-in, ADR-350 (11)); and its sends. A success
+-- clears their failure count. Answers the center rows written.
+CREATE FUNCTION push_fan_out_personal_ids(due bigint[]) RETURNS jsonb
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
-  due  bigint[];
   made bigint[];
 BEGIN
-  SELECT coalesce(array_agg(x.id ORDER BY x.id), '{}') INTO due
-  FROM (SELECT nt.id FROM notice nt WHERE nt.audience = 'player' AND nt.fanned_at IS NULL
-        ORDER BY nt.id LIMIT 500 FOR UPDATE SKIP LOCKED) x;
-  IF cardinality(due) = 0 THEN
-    RETURN NULL;
-  END IF;
   WITH inserted AS (
     INSERT INTO notification (notice_id, player_id, event_id)
     SELECT nt.id, nt.player_id, nt.event_id
@@ -451,9 +445,56 @@ BEGIN
     ON CONFLICT (notice_id, player_id) DO NOTHING
     RETURNING id)
   SELECT coalesce(array_agg(i.id), '{}') INTO made FROM inserted i;
-  UPDATE notice nt SET fanned_at = now() WHERE nt.id = ANY (due);
+  UPDATE notice nt SET fanned_at = now(), fan_failures = 0, retry_after = NULL WHERE nt.id = ANY (due);
   PERFORM push_plan(made);
-  RETURN jsonb_build_object('rows', cardinality(made), 'more', cardinality(due) = 500);
+  RETURN jsonb_build_object('rows', cardinality(made), 'more', true);
+END $$;
+REVOKE ALL ON FUNCTION push_fan_out_personal_ids(bigint[]) FROM PUBLIC;
+
+-- Up to `lim` due personal notices (unfanned, not waiting out a back-off), oldest first, locked SKIP LOCKED.
+CREATE FUNCTION push_personal_due(lim integer) RETURNS bigint[]
+  LANGUAGE sql SET search_path = public, pg_temp AS $$
+  SELECT coalesce(array_agg(x.id ORDER BY x.id), '{}')
+  FROM (SELECT nt.id FROM notice nt
+        WHERE nt.audience = 'player' AND nt.fanned_at IS NULL AND (nt.retry_after IS NULL OR nt.retry_after <= now())
+        ORDER BY nt.id LIMIT lim FOR UPDATE SKIP LOCKED) x
+$$;
+REVOKE ALL ON FUNCTION push_personal_due(integer) FROM PUBLIC;
+
+-- The personal pass, up to 500 a call. A batch that fails for any reason (a statement timeout included) is undone, and
+-- the oldest due notice is tried alone: a poisoned notice is found that way, counted and backed off
+-- (push_fan_out_failed), so it never blocks the personal pass or the event notices behind it.
+CREATE FUNCTION push_fan_out_personal() RETURNS jsonb
+  LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  due   bigint[];
+  state text;
+BEGIN
+  BEGIN
+    due := push_personal_due(500);
+    IF cardinality(due) = 0 THEN
+      RETURN NULL;
+    END IF;
+    RETURN push_fan_out_personal_ids(due);
+  EXCEPTION
+    WHEN query_canceled THEN
+      NULL;
+    WHEN OTHERS THEN
+      NULL;
+  END;
+  due := push_personal_due(1);
+  IF cardinality(due) = 0 THEN
+    RETURN NULL;
+  END IF;
+  BEGIN
+    RETURN push_fan_out_personal_ids(due);
+  EXCEPTION
+    WHEN query_canceled THEN
+      GET STACKED DIAGNOSTICS state = RETURNED_SQLSTATE;
+    WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS state = RETURNED_SQLSTATE;
+  END;
+  RETURN push_fan_out_failed(due[1], state);
 END $$;
 REVOKE ALL ON FUNCTION push_fan_out_personal() FROM PUBLIC;
 
@@ -483,31 +524,36 @@ BEGIN
          (SELECT count(*)::integer FROM batch)
   INTO made, last, seen;
   UPDATE notice x
-  SET fan_cursor = coalesce(last, x.fan_cursor), fanned_at = CASE WHEN seen < 2000 THEN now() END, fan_failures = 0
+  SET fan_cursor = coalesce(last, x.fan_cursor), fanned_at = CASE WHEN seen < 2000 THEN now() END, fan_failures = 0,
+      retry_after = NULL
   WHERE x.id = nt.id;
   PERFORM push_plan(made);
   RETURN jsonb_build_object('rows', cardinality(made), 'more', true);
 END $$;
 REVOKE ALL ON FUNCTION push_fan_out_batch(notice) FROM PUBLIC;
 
--- A failed batch (its work already rolled back to the block's savepoint): counted on the notice, parked at the third
--- failure in a row; answers what the worker logs (`failed`, the SQLSTATE, `parked`), with `more` false so the next try
--- waits for the worker's idle second.
+-- A failed fan-out try of one notice (its work already rolled back to the block's savepoint): counted, and the next try
+-- waits 1 minute, then 4, 16, and at most an hour (least(1 min * 4^(n-1), 1 h)), so a passing error (a deadlock with a
+-- registration, a lock or statement timeout at peak) only delays the notice and a poisoned one costs a try an hour.
+-- Answers what the worker logs: `failed`, the SQLSTATE, `retryAfter`, and `parked` at the third failure in a row (the
+-- alert). `more` is false, so the worker's next call waits its idle second.
 CREATE FUNCTION push_fan_out_failed(target bigint, state text) RETURNS jsonb
   LANGUAGE sql SET search_path = public, pg_temp AS $$
   WITH counted AS (
     UPDATE notice x
-    SET fan_failures = least(x.fan_failures + 1, 3), parked_at = CASE WHEN x.fan_failures + 1 >= 3 THEN now() END
+    SET fan_failures = least(x.fan_failures + 1, 1000),
+        retry_after = now() + least(interval '1 minute' * power(4, least(x.fan_failures, 10)), interval '1 hour')
     WHERE x.id = target
-    RETURNING x.parked_at IS NOT NULL AS parked)
+    RETURNING x.fan_failures, x.retry_after)
   SELECT jsonb_build_object('rows', 0, 'more', false, 'failed', target, 'code', state,
-                            'parked', coalesce((SELECT c.parked FROM counted c), false))
+                            'retryAfter', (SELECT c.retry_after FROM counted c),
+                            'parked', coalesce((SELECT c.fan_failures = 3 FROM counted c), false))
 $$;
 REVOKE ALL ON FUNCTION push_fan_out_failed(bigint, text) FROM PUBLIC;
 
--- The oldest unfanned, unparked event notice (SKIP LOCKED: two workers take two notices), and one batch of it. An
--- archived event's notice is done at once with no row (plan § Review 1). A batch that fails for any reason, a statement
--- timeout included, is undone alone and counted (push_fan_out_failed), so one poisoned notice is parked after 3 tries
+-- The oldest unfanned event notice not waiting out a back-off (SKIP LOCKED: two workers take two notices), and one batch
+-- of it. An archived event's notice is done at once with no row (plan § Review 1). A batch that fails for any reason, a
+-- statement timeout included, is undone alone and counted (push_fan_out_failed), so the notice waits out its back-off
 -- instead of being retried every second ahead of the notices behind it.
 CREATE FUNCTION push_fan_out_event() RETURNS jsonb
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
@@ -516,7 +562,8 @@ DECLARE
   status text;
   state  text;
 BEGIN
-  SELECT x.* INTO nt FROM notice x WHERE x.audience = 'event' AND x.fanned_at IS NULL AND x.parked_at IS NULL
+  SELECT x.* INTO nt FROM notice x
+  WHERE x.audience = 'event' AND x.fanned_at IS NULL AND (x.retry_after IS NULL OR x.retry_after <= now())
   ORDER BY x.id LIMIT 1 FOR UPDATE SKIP LOCKED;
   IF NOT FOUND THEN
     RETURN NULL;
@@ -539,8 +586,8 @@ END $$;
 REVOKE ALL ON FUNCTION push_fan_out_event() FROM PUBLIC;
 
 -- The fan-out door (ADR-345 (1)): personal notices first (a decision's push about a second after it), else one batch
--- of the oldest event notice. `{rows, more}`: `more` while either may have work left; a failed event batch adds
--- `failed` (the notice), `code` (its SQLSTATE) and `parked`.
+-- of the oldest event notice. `{rows, more}`: `more` while either may have work left; a failed try adds `failed` (the
+-- notice), `code` (its SQLSTATE), `retryAfter` and `parked` (the third failure in a row).
 CREATE FUNCTION push_fan_out() RETURNS jsonb
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -550,8 +597,6 @@ BEGIN
   done := push_fan_out_personal();
   IF done IS NULL THEN
     done := push_fan_out_event();
-  ELSE
-    done := jsonb_build_object('rows', done -> 'rows', 'more', true);
   END IF;
   RETURN coalesce(done, jsonb_build_object('rows', 0, 'more', false));
 END $$;

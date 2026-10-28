@@ -39,7 +39,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
     return made;
   };
 
-  /** A queue of `rows` sends of one new notice on one device, written straight into the tables (no fan-out). */
   /** `n` members of a new live event, each signed in on one iOS phone, written straight into the tables. */
   const crowd = async (n: number): Promise<string> => {
     const event = await f.newEvent({ phase: "live" });
@@ -76,46 +75,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
       [made?.id, event, rows],
     );
     return made?.id ?? "";
-  };
-
-  /** A queue of `rows` sends of one new notice on one device, written straight into the tables, for random players. */
-  const syntheticQueue = async (kind: string, rows: number, deviceId: string) => {
-    const [made] = await f.owner<{ id: string }>(
-      `INSERT INTO notice (kind, audience, dedupe, expires_at, fanned_at)
-       VALUES ($1, 'event', $2, now() + interval '1 day', now()) RETURNING id`,
-      [kind, randomUUID()],
-    );
-    await f.owner(
-      `WITH c AS (INSERT INTO notification (notice_id, player_id)
-                  SELECT $1, gen_random_uuid() FROM generate_series(1, $2) RETURNING id)
-       INSERT INTO push_send (notification_id, device_id, notice_id, target, priority, expires_at)
-       SELECT c.id, $3, $1, 'apns:production', 1, now() + interval '1 day' FROM c`,
-      [made?.id, rows, deviceId],
-    );
-    return made?.id ?? "";
-  };
-
-  /** `n` players signed in on one iOS phone each, with one queued personal notice each, written straight in. */
-  const personalQueue = async (kind: string, n: number) => {
-    await f.owner(
-      `WITH p AS (INSERT INTO player (username)
-                  SELECT 'pq_' || $2 || '_' || g FROM generate_series(1, $3) g RETURNING id),
-            r AS (INSERT INTO player_refresh (player_id, family, token_hash, expires_at)
-                  SELECT id, gen_random_uuid(), sha256(convert_to(id::text, 'UTF8')), now() + interval '180 days'
-                  FROM p RETURNING player_id, family),
-            d AS (INSERT INTO push_device (player_id, family, platform, token, environment, language, app_version)
-                  SELECT player_id, family, 'ios', md5(family::text) || md5(player_id::text), 'production', 'ar', '1'
-                  FROM r RETURNING id, player_id),
-            nt AS (INSERT INTO notice (kind, player_id, audience, dedupe, expires_at, fanned_at)
-                   SELECT $1, d.player_id, 'player', d.id::text, now() + interval '1 day', now() FROM d
-                   RETURNING id, player_id),
-            c AS (INSERT INTO notification (notice_id, player_id)
-                  SELECT nt.id, nt.player_id FROM nt RETURNING id, notice_id, player_id)
-       INSERT INTO push_send (notification_id, device_id, notice_id, target, priority, expires_at)
-       SELECT c.id, d.id, c.notice_id, 'apns:production', 0, now() + interval '1 day'
-       FROM c JOIN d ON d.player_id = c.player_id`,
-      [kind, randomUUID().slice(0, 8), n],
-    );
   };
 
   const acked = (
@@ -191,11 +150,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
       expect((await f.sends(eventQueue)).filter((row) => row.state === "queued")).toHaveLength(0);
     });
 
-    it("a 50,000-row notice then a 10-row notice: the first claim takes 100 and 10", async () => {
+    it("a large notice then a 10-row notice: the first claim takes 100 and 10 (the 50,000-row case: perf/push-timing)", async () => {
       const kind = await f.kind({ class: "event" });
       const phone = await f.playerWithPhone();
-      const big = await syntheticQueue(kind, 50_000, phone.deviceId);
-      const small = await syntheticQueue(kind, 10, phone.deviceId);
+      const big = await f.syntheticQueue(kind, 300, phone.deviceId);
+      const small = await f.syntheticQueue(kind, 10, phone.deviceId);
       await f.claim(["apns:production"], 200);
       const picked = await f.owner<{ notice_id: string; n: number }>(
         `SELECT notice_id, count(*)::int AS n FROM push_send
@@ -206,58 +165,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
         { notice_id: big, n: 100 },
         { notice_id: small, n: 10 },
       ]);
-    }, 120_000);
+    });
 
-    it("claims and acknowledges 200 rows quickly with a 65,000-row queue present (no scan of the queue)", async () => {
-      const queued = await f.kind({ class: "event" });
-      const personal = await f.kind();
-      const phone = await f.playerWithPhone();
-      for (let i = 0; i < 13; i += 1) await syntheticQueue(queued, 5000, phone.deviceId);
-      await personalQueue(personal, 1000);
-      await f.owner("ANALYZE push_send");
-      const timings: number[] = [];
-      for (let round = 0; round < 5; round += 1) {
-        const started = performance.now();
-        const claimed = await f.claim(["apns:production", "apns:sandbox", "fcm"], 200);
-        await acked(claimed, "sent");
-        timings.push(performance.now() - started);
-        expect(claimed).toHaveLength(200);
-      }
-      expect(
-        await f.count(
-          "push_send WHERE state = 'queued' AND notice_id IN (SELECT id FROM notice WHERE kind = $1)",
-          [queued],
-        ),
-      ).toBe(65_000);
-      timings.sort((a, b) => a - b);
-      // The gate is 200 ms on the laptop (ADR-345 (7), recorded there); asserted loosely so a loaded runner never flakes.
-      expect(timings[2]).toBeLessThan(1500);
-    }, 120_000);
-
-    it("visits at most 200 notices per target with 10,000 personal notices queued, and claims quickly (code review MAJOR)", async () => {
+    it("visits at most 200 notices per target, not the whole queue (code review MAJOR; timing: perf/push-timing)", async () => {
       const kind = await f.kind();
-      await personalQueue(kind, 10_000);
-      await f.owner("ANALYZE push_send");
+      await f.personalQueue(kind, 1000);
       const [heads] = await f.owner<{ n: number }>(
         "SELECT count(*)::int AS n FROM push_queue_heads('{apns:production,apns:sandbox,fcm}')",
       );
       expect(heads?.n).toBe(200);
-      const timings: number[] = [];
-      for (let round = 0; round < 5; round += 1) {
-        const started = performance.now();
-        const claimed = await f.claim(["apns:production", "apns:sandbox", "fcm"], 200);
-        await acked(claimed, "sent");
-        timings.push(performance.now() - started);
-        expect(claimed).toHaveLength(200);
-      }
-      // The gate is 200 ms on the laptop; asserted loosely so a loaded runner never flakes. Before the fix the heads
-      // alone visited every queued notice (10,000 probes a claim, quadratic as the queue drains).
-      expect(timings.toSorted((a, b) => a - b)[2]).toBeLessThan(1000);
-    }, 120_000);
+      const claimed = await f.claim(["apns:production", "apns:sandbox", "fcm"], 200);
+      expect(claimed).toHaveLength(200);
+      expect(new Set(claimed.map((row) => row.notification_id)).size).toBe(200);
+    });
 
     it("two claimers take disjoint rows", async () => {
       const kind = await f.kind();
-      await personalQueue(kind, 60);
+      await f.personalQueue(kind, 60);
       const a = new Client({ connectionString: f.db.appUrl });
       const b = new Client({ connectionString: f.db.appUrl });
       await a.connect();

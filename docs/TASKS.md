@@ -796,7 +796,9 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     loose scan stops at 200 notices per target (10,000 queued personal notices: 200 heads), devices locked `FOR NO KEY
     UPDATE` by the ack, a token version per send, no promotional center row without push consent, a failing event
     notice parked after 3 tries, the provider's deadline 500 ms early, the register/ack deadlock in `docs/rules.md`.
-    ADR-350 Accepted, Q-319 answered. Narrow re-review owed.
+    ADR-350 Accepted, Q-319 answered. Re-review 92, GO; folded: a failing notice backs off (1, 4, 16 minutes, then
+    hourly; alert at the third failure; manual release kept) instead of a permanent park, a failing personal batch
+    isolates its poisoned notice, the heavy claim checks moved to the by-hand `test/perf/push-timing.int`.
   - Note 2026-10-27 (T-406): a daily games reminder, if any, follows ADR-300 (no countdown, no loss copy, a date not a
     timer) and never names the word or an answer.
   - Note 2026-10-25 (T-312): one push per closed ticket with fixed text by team ("The event team answered you" / "The Questify team answered you" / "Your request was marked solved"), never the text; no push when a ticket is escalated or sent back. The profile dot (`GET /v1/me` `help.unread`) stays the in-app signal.

@@ -18,14 +18,15 @@ export type AckRow = Readonly<{
 }>;
 
 /**
- * One fan-out call: the center rows written and whether more work may be waiting; a failed event batch also names the
- * notice, its SQLSTATE and whether the notice is now parked (code review minor 4).
+ * One fan-out call: the center rows written and whether more work may be waiting; a failed try also names the notice,
+ * its SQLSTATE, when it is tried again (`retryAfter`) and `parked` at its third failure in a row (the alert).
  */
 export type FanOutResult = Readonly<{
   rows: number;
   more: boolean;
   failed?: number;
   code?: string;
+  retryAfter?: string;
   parked?: boolean;
 }>;
 

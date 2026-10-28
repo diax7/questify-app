@@ -1634,6 +1634,16 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   and invalid-ack deadlock in `docs/rules.md`; the provider's deadline 500 ms before the worker's timer and T-501b's
   done-when gains the settings check; two misplaced doc comments. Migration 0076 edited in place (undeployed). ADR-350
   Accepted, Q-319 answered. Tests: the push suites (store 41, sending 15, routes 8, units 53), outsider, cross-tenant, route inventory and the rehearsal guard green; full Vitest once: 8201 passed / 8 skipped with one failure (the 65,000-row timing test passed its 30 s limit under the full run's load) given a 120 s limit and its suite re-run green (15/15); lint, format, types and function limits clean.
+- 2026-10-28 **T-501 re-review 92 (GO) folded.** A failing fan-out try no longer parks a notice for good: it waits out
+  a back-off (1, 4, 16 minutes, then hourly; `push.notice_parked` at the third failure in a row; the RUNBOOK release
+  kept as the override), tested for the retry after the back-off, the cap and the release; a failing personal batch of
+  500 is undone and its oldest due notice tried alone, so a poisoned one is backed off without blocking the rest
+  (tested); the 50,000-row, 65,000-row and 10,000-notice claim checks moved to the by-hand `test/perf/push-timing.int`
+  (run 2026-10-28: fan-out 18.4 s, slowest call 794 ms; claims 92, 163 and 153 ms median; 200 heads; [100, 10]), the
+  default suite keeping a 300-row fairness test and a 1,000-notice head-count test with no 120 s limits; a stacked doc
+  comment removed. Migration 0076 edited in place (undeployed). Tests: the push suites, outsider, cross-tenant, route
+  inventory and rehearsal guard 687/687; full Vitest once: 8202 passed / 9 skipped, no failure; lint, format, types and
+  function limits clean.
 
 ## Next
 

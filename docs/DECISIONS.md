@@ -4899,7 +4899,9 @@ planned again on every call, which made one fan-out call of 2,000 members take 3
 set (`push_live_devices`, no `SET`, tables schema-qualified, as `promo_pool`), joined by the plan and checked by
 `push_pushable`. (9) The center is rendered in the request's `accept-language`, Arabic when absent; a kind with no
 template is acknowledged `failed` (`no_template`) with no request; the worker's pool is 3 connections built from
-`poolOptions`. (10) Timing (laptop, Docker PostgreSQL 17, `test/perf/push-timing.int`): fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay. (11) **No promotional center row without consent** (developer's decision at the
+`poolOptions`. (10) Timing (laptop, Docker PostgreSQL 17, `test/perf/push-timing.int`): fan-out of one event notice to 50,000 active members with 1.2 devices each (60,000 sends) in 19.5 s over 27 calls, the slowest 871 ms (gates 30 s and 1 s); claim plus ack of 200 with that queue present 85 ms median, 122 ms worst of 7 (gate 200 ms); the foreign keys on `push_send` stay; after the code review's fold-ins (`test/perf/push-timing.int`, by hand): fan-out
+18.4 s, slowest call 794 ms; claim plus ack of 200 with 65,000 event rows queued 163 ms median, with 10,000 personal
+notices queued 153 ms (200 heads); the heavy checks run by hand only, the default suite keeps cheap versions. (11) **No promotional center row without consent** (developer's decision at the
 code review; refines ADR-348 (1)): the fan-out writes a promotional notice's center row only for a player in
 `promo_pool('push')` now, so nothing promotional appears in the center without the opt-in; a consent withdrawn after
 the fan-out skips the push at the claim and keeps the row. (12) The claim's loose scan stops after 200 notices per
@@ -4908,9 +4910,14 @@ target (`push_queue_heads`), as many as a round can use: with 10,000 personal no
 (bumped with a new token or environment) and each send records it at lease time; an invalid answer marks the device
 only while the versions match, so a registration that began before the claim and committed after it keeps its new
 token (the time comparison of (3) could lose it for 7 days). The acknowledgement locks devices `FOR NO KEY UPDATE`, so it
-never waits on the fan-out's `FOR KEY SHARE`. (14) An event notice whose batch fails 3 times in a row is parked
-(`fan_failures`, `parked_at`, alert `push.notice_parked`): the batch runs in a block that undoes it alone and counts the
-failure, a statement timeout included, so one poisoned notice no longer holds up the notices behind it every second.
+never waits on the fan-out's `FOR KEY SHARE`. (14) A notice whose fan-out try fails waits out a back-off before the next
+(`fan_failures`, `retry_after = now() + least(1 min · 4^(n−1), 1 h)`; the alert `push.notice_parked` at the third failure
+in a row; the RUNBOOK's release is the manual override): the event batch runs in a block that undoes it alone and counts
+the failure, a statement timeout included, so a poisoned notice no longer holds up the notices behind it, and a passing
+error (a deadlock with a registration, a lock timeout) only delays it, never stops it for good (re-review 1: a permanent
+park could be provoked by a member re-registering a token at the right moments). A failing personal batch of 500 is
+undone and its oldest due notice tried alone, so a poisoned personal notice is found and backed off the same way and
+never blocks the personal pass or the event notices behind it (re-review 3).
 (15) The worker hands the provider a deadline 500 ms before its own timer (`PROVIDER_MARGIN_MS`), so a client giving up
 at its deadline is heard as "never written" and not counted `unknown`; and `SYSTEM_CLOCK.wait` leaves no listener on its
 signal (one `done` for the timer and the abort, registered `{ once: true }`): the worker reuses one signal for every idle

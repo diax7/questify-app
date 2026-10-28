@@ -42,8 +42,8 @@ export function missingPlatforms(providers: readonly PushProvider[]): Array<"ios
 }
 
 /**
- * Logs a failed event batch (the database undid it and counted it): `push.fan_out_batch_failed`, and the alert
- * `push.notice_parked` once its third failure in a row parks the notice. Ids and SQLSTATEs only.
+ * Logs a failed fan-out try (the database undid it, counted it and set the notice's back-off):
+ * `push.fan_out_batch_failed`, and the alert `push.notice_parked` at its third failure in a row. Ids and SQLSTATEs only.
  */
 function reportFanOut(log: PushLog, fanned: FanOutResult | undefined): void {
   if (fanned?.failed === undefined) return;

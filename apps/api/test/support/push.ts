@@ -227,6 +227,46 @@ export async function pushFixture() {
 
   const settle = () => one<Record<string, unknown>>(system, "SELECT push_settle() AS r");
 
+  /** A queue of `rows` sends of one new notice on one device, written straight into the tables, for random players. */
+  const syntheticQueue = async (kindName: string, rows: number, deviceId: string) => {
+    const [made] = await f.owner<{ id: string }>(
+      `INSERT INTO notice (kind, audience, dedupe, expires_at, fanned_at)
+       VALUES ($1, 'event', $2, now() + interval '1 day', now()) RETURNING id`,
+      [kindName, randomUUID()],
+    );
+    await f.owner(
+      `WITH c AS (INSERT INTO notification (notice_id, player_id)
+                  SELECT $1, gen_random_uuid() FROM generate_series(1, $2) RETURNING id)
+       INSERT INTO push_send (notification_id, device_id, notice_id, target, priority, expires_at)
+       SELECT c.id, $3, $1, 'apns:production', 1, now() + interval '1 day' FROM c`,
+      [made?.id, rows, deviceId],
+    );
+    return made?.id ?? "";
+  };
+
+  /** `n` players signed in on one iOS phone each, with one queued personal notice each, written straight in. */
+  const personalQueue = async (kindName: string, n: number) => {
+    await f.owner(
+      `WITH p AS (INSERT INTO player (username)
+                  SELECT 'pq_' || $2 || '_' || g FROM generate_series(1, $3) g RETURNING id),
+            r AS (INSERT INTO player_refresh (player_id, family, token_hash, expires_at)
+                  SELECT id, gen_random_uuid(), sha256(convert_to(id::text, 'UTF8')), now() + interval '180 days'
+                  FROM p RETURNING player_id, family),
+            d AS (INSERT INTO push_device (player_id, family, platform, token, environment, language, app_version)
+                  SELECT player_id, family, 'ios', md5(family::text) || md5(player_id::text), 'production', 'ar', '1'
+                  FROM r RETURNING id, player_id),
+            nt AS (INSERT INTO notice (kind, player_id, audience, dedupe, expires_at, fanned_at)
+                   SELECT $1, d.player_id, 'player', d.id::text, now() + interval '1 day', now() FROM d
+                   RETURNING id, player_id),
+            c AS (INSERT INTO notification (notice_id, player_id)
+                  SELECT nt.id, nt.player_id FROM nt RETURNING id, notice_id, player_id)
+       INSERT INTO push_send (notification_id, device_id, notice_id, target, priority, expires_at)
+       SELECT c.id, d.id, c.notice_id, 'apns:production', 0, now() + interval '1 day'
+       FROM c JOIN d ON d.player_id = c.player_id`,
+      [kindName, randomUUID().slice(0, 8), n],
+    );
+  };
+
   /** Ends every queued or leased send left by earlier tests, so a claim sees only the test's own rows. */
   const drain = () =>
     f.owner(
@@ -296,6 +336,8 @@ export async function pushFixture() {
     ack,
     settle,
     drain,
+    syntheticQueue,
+    personalQueue,
     recipients,
     sends,
     switchPush,

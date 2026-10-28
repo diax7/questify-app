@@ -10,7 +10,10 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
  * assertion (a timing check is flaky on a 2-core runner), like the other timing files: run it by hand when the fan-out,
  * the claim or their indexes change,
  * `PUSH_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/push-timing.int.test.ts`.
- * Gates (plan): each fan-out call under 1 s and the whole under 30 s; claim plus ack of 200 under 200 ms.
+ * Gates (plan): each fan-out call under 1 s and the whole under 30 s; claim plus ack of 200 under 200 ms, also with
+ * 65,000 event rows or 10,000 personal notices queued (at most 200 heads visited, code review MAJOR); a 50,000-row
+ * notice then a 10-row one, the first claim takes 100 and 10. The default suite keeps cheap versions of the last two
+ * (`test/db/push-sending.int`).
  */
 const OUT = process.env["PUSH_TIMING"];
 const say = (line: string) => appendFileSync(String(OUT), `${line}\n`);
@@ -84,6 +87,60 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       const sorted = rounds.toSorted((a, b) => a - b);
       say(
         `claim + ack of 200 (7 rounds): median ${Math.round(sorted[3] ?? 0)} ms, worst ${Math.round(sorted[6] ?? 0)} ms`,
+      );
+    } finally {
+      await f.close();
+    }
+  },
+  600_000,
+);
+
+/** Claim plus ack of 200 over `rounds` rounds; answers the median and the worst, in ms. */
+async function timeClaims(f: Awaited<ReturnType<typeof pushFixture>>, rounds: number) {
+  const times: number[] = [];
+  for (let round = 0; round < rounds; round += 1) {
+    const one = performance.now();
+    const claimed = await f.claim(undefined, 200);
+    await f.ack(
+      claimed.map((row) => ({ id: row.send_id, lease: row.lease, outcome: "sent", attempts: 1 })),
+    );
+    times.push(performance.now() - one);
+  }
+  const sorted = times.toSorted((a, b) => a - b);
+  return `median ${Math.round(sorted[Math.floor(rounds / 2)] ?? 0)} ms, worst ${Math.round(sorted.at(-1) ?? 0)} ms`;
+}
+
+it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
+  "times the claim with 65,000 event rows queued, with 10,000 personal notices queued, and the 50,000-row fairness",
+  async () => {
+    const f = await pushFixture();
+    try {
+      const phone = await f.playerWithPhone();
+      const queued = await f.kind({ class: "event" });
+      for (let i = 0; i < 13; i += 1) await f.syntheticQueue(queued, 5000, phone.deviceId);
+      const personal = await f.kind();
+      await f.personalQueue(personal, 1000);
+      await f.owner("ANALYZE push_send");
+      say(`claim + ack of 200 with 65,000 event rows queued: ${await timeClaims(f, 5)}`);
+      await f.drain();
+      await f.personalQueue(personal, 10_000);
+      await f.owner("ANALYZE push_send");
+      const [heads] = await f.owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM push_queue_heads('{apns:production,apns:sandbox,fcm}')",
+      );
+      say(`heads with 10,000 personal notices queued: ${heads?.n} (at most 200)`);
+      say(`claim + ack of 200 with 10,000 personal notices queued: ${await timeClaims(f, 5)}`);
+      await f.drain();
+      const big = await f.syntheticQueue(queued, 50_000, phone.deviceId);
+      const small = await f.syntheticQueue(queued, 10, phone.deviceId);
+      await f.claim(["apns:production"], 200);
+      const picked = await f.owner<{ notice_id: string; n: number }>(
+        `SELECT notice_id, count(*)::int AS n FROM push_send
+         WHERE notice_id = ANY ($1) AND state <> 'queued' GROUP BY 1 ORDER BY 1`,
+        [[big, small]],
+      );
+      say(
+        `a 50,000-row notice then a 10-row notice, first claim takes: ${JSON.stringify(picked.map((row) => row.n))}`,
       );
     } finally {
       await f.close();
