@@ -25,6 +25,7 @@ auditConfig:
     - GHSA-vfj7-8cjw-p6xm # braces: stack exhaustion on deeply nested patterns (Metro file watching)
     - GHSA-86w9-cpqp-85rv # node-forge: RSA signature verification (@expo/cli code-signing helper)
     - GHSA-mrhx-c7xc-m3w5 # zod <4.6.6 memory on oversized collections: only @expo/cli's zod 3 (build tooling, no 3.x fix); our code uses 4.6.7
+    - GHSA-gcqx-w48m-w2h4 # deepmerge <=4.3.1 prototype poisoning (low): only @expo/config in Expo's CLI; npm's latest is 4.3.1, no patched 4.3.2 yet (checked 2026-10-28)
 
 # expo-camera's CameraView is a class component typed against `react`, which pnpm's strict layout does not link into
 # the package, so its props are lost to TypeScript. Linking the app's @types/react to it restores them.
