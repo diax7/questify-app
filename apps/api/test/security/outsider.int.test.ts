@@ -1325,6 +1325,57 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot run the due scans or reach the personal pushes' producers (T-501d)", async () => {
+      for (const sql of [
+        "SELECT public.push_due()",
+        "SELECT public.push_due_ready(1)",
+        "SELECT public.push_due_ending(1)",
+        "SELECT * FROM public.push_due_reservations(now())",
+        "SELECT public.push_names('a', 'b')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = ["push_due"];
+      const triggers = [
+        "push_on_join_decision",
+        "push_on_reveal",
+        "push_on_submission_reviewed",
+        "push_on_ticket_closed",
+      ];
+      const internals = [
+        "push_due_ending",
+        "push_due_ready",
+        "push_due_reservations",
+        "push_names",
+      ];
+      const all = [...doors, ...triggers, ...internals];
+      const listed = `ARRAY[${all.map((name) => `'${name}'`).join(", ")}]`;
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname = ANY(${listed}) ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the door only, never a trigger function or a helper.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(doors);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual(all.toSorted());
+      for (const row of present) {
+        // push_names has no SET clause so the planner inlines it (pg_catalog functions only, schema-qualified).
+        expect(row.config, row.proname).toEqual(
+          row.proname === "push_names" ? null : ["search_path=public, pg_temp"],
+        );
+        // The trigger functions are definers: the API's role may update enrollment.status itself, and a trigger that
+        // could not insert its notice would undo the door.
+        expect(row.definer, row.proname).toBe(!internals.includes(row.proname));
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

@@ -219,6 +219,95 @@ describe("renderNotice", () => {
   });
 });
 
+/** A shipped kind's body in English, then Arabic, in Riyadh's zone. */
+const both = (kind: string, params: Record<string, unknown>) =>
+  (["en", "ar"] as const).map(
+    (language) =>
+      renderNotice({ kind, params, terms: null, timezone: "Asia/Riyadh", language }).body,
+  );
+
+describe("the personal pushes (T-501d, ADR-353)", () => {
+  const AT = "2026-10-29T13:30:00Z";
+
+  it("says each decision and answer in fixed text, with no name to fill", () => {
+    expect(both("join_accepted", {})).toEqual([
+      "Your request to join was accepted. You can play now.",
+      "قُبل طلب انضمامك، ويمكنك اللعب الآن.",
+    ]);
+    expect(both("join_declined", {})).toEqual([
+      "Your request to join wasn't accepted.",
+      "لم يُقبل طلب انضمامك.",
+    ]);
+    expect(both("help_answered", {})).toEqual([
+      "The event team answered you.",
+      "ردّ عليك فريق الفعالية.",
+    ]);
+    expect(both("help_answered_questify", {})).toEqual([
+      "The Questify team answered you.",
+      "ردّ عليك فريق Questify.",
+    ]);
+    expect(both("help_solved", {})).toEqual(["Your request was marked solved.", "حُلّ طلبك."]);
+  });
+
+  it("names the prize and its deadline's date and time in the event's zone", () => {
+    expect(
+      both("rank_prize", { reward: { ar: "كأس", en: "Gold cup" }, date: AT, time: AT }),
+    ).toEqual([
+      "You won a prize: Gold cup. Collect it at the prize desk by 29 Oct, 16:30.",
+      "فزت بجائزة: كأس. يمكنك استلامها من مكتب الجوائز حتى 29 أكتوبر، الساعة 16:30.",
+    ]);
+    expect(both("rank_prize", { reward: { en: "win.sa" }, date: AT, time: AT })).toEqual([
+      "You won a prize. Collect it at the prize desk by 29 Oct, 16:30.",
+      "فزت بجائزة. يمكنك استلامها من مكتب الجوائز حتى 29 أكتوبر، الساعة 16:30.",
+    ]);
+  });
+
+  it("names the quest of a decision, never the reason", () => {
+    const quest = { ar: "ابحث عن الصقر", en: "Find the falcon" };
+    expect(both("submission_approved", { quest })).toEqual([
+      "Your answer to “Find the falcon” was approved.",
+      "قُبلت إجابتك في «ابحث عن الصقر».",
+    ]);
+    expect(both("submission_rejected", { quest })).toEqual([
+      "Your answer to “Find the falcon” wasn't accepted. You can open it to see why.",
+      "لم تُقبل إجابتك في «ابحث عن الصقر». يمكنك فتحها لمعرفة السبب.",
+    ]);
+    expect(both("submission_rejected", { reason: { en: "Too short" } })).toEqual([
+      "Your answer wasn't accepted. You can open it to see why.",
+      "لم تُقبل إجابتك. يمكنك فتحها لمعرفة السبب.",
+    ]);
+    expect(both("submission_approved", {})).toEqual(["Your answer was approved.", "قُبلت إجابتك."]);
+  });
+
+  it("names the reward and, for a hold ending, the time it ends", () => {
+    const reward = { ar: "قبعة", en: "Cap" };
+    expect(both("reward_ready", { reward })).toEqual([
+      "Your reward “Cap” is ready at the prize desk.",
+      "جائزتك «قبعة» جاهزة للاستلام من مكتب الجوائز.",
+    ]);
+    expect(both("reward_ready", {})).toEqual([
+      "Your reward is ready at the prize desk.",
+      "جائزتك جاهزة للاستلام من مكتب الجوائز.",
+    ]);
+    expect(both("reward_ending", { reward, time: AT })).toEqual([
+      "Your reward “Cap” is held for you until 16:30.",
+      "جائزتك «قبعة» محجوزة لك حتى الساعة 16:30.",
+    ]);
+    expect(both("reward_ending", { time: AT })).toEqual([
+      "Your reward is held for you until 16:30.",
+      "جائزتك محجوزة لك حتى الساعة 16:30.",
+    ]);
+  });
+
+  it("never pushes a deadline it cannot show", () => {
+    expect(renderNotice({ ...content({ kind: "rank_prize" }), params: { reward: {} } })).toEqual({
+      title: "Questify",
+      body: "You have a new message",
+      pushable: false,
+    });
+  });
+});
+
 describe("pushName and pushMoment", () => {
   it("prefers the language asked for and refuses what fails the rule", () => {
     expect(pushName({ ar: "صقر", en: "Falcon" }, "ar")).toBe("صقر");

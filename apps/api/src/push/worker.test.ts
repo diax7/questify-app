@@ -5,6 +5,7 @@ import { createFakeProvider } from "#src/push/fake";
 import type { ClaimedSend } from "#src/push/message";
 import type { PushProvider } from "#src/push/provider";
 import {
+  PUSH_DUE_MS,
   PUSH_SETTLE_MS,
   missingPlatforms,
   startPushWorker,
@@ -46,7 +47,9 @@ describe("startPushWorker (ADR-345)", () => {
   let logs: Array<[string, Record<string, unknown>]>;
   let switchOn: boolean | undefined;
   let settleMore: number;
+  let dueMore: number;
   let failFanOut: boolean;
+  let failDue: boolean;
 
   const doors: PushDoors = {
     fanOut: () => {
@@ -66,6 +69,12 @@ describe("startPushWorker (ADR-345)", () => {
       calls.push("settle");
       settleMore -= 1;
       return Promise.resolve({ more: settleMore > 0 });
+    },
+    due: () => {
+      calls.push("due");
+      if (failDue) return Promise.reject(Object.assign(new Error("down"), { code: "57014" }));
+      dueMore -= 1;
+      return Promise.resolve({ ready: 500, ending: 0, more: dueMore > 0 });
     },
   };
   const settings: Pick<SettingsService, "forEvent"> = {
@@ -99,20 +108,46 @@ describe("startPushWorker (ADR-345)", () => {
     logs = [];
     switchOn = undefined;
     settleMore = 0;
+    dueMore = 0;
     failFanOut = false;
+    failDue = false;
   });
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("settles first, fans out, claims, then sleeps about a second when there is nothing to do", async () => {
+  it("settles first, scans what is due, fans out, claims, then sleeps about a second when there is nothing to do", async () => {
     const worker = start([createFakeProvider("fcm")]);
     await vi.advanceTimersByTimeAsync(0);
-    expect(calls).toEqual(["settle", "fanOut", "claim:fcm:200"]);
+    expect(calls).toEqual(["settle", "due", "fanOut", "claim:fcm:200"]);
     await vi.advanceTimersByTimeAsync(999);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
     await vi.advanceTimersByTimeAsync(1);
-    expect(calls).toEqual(["settle", "fanOut", "claim:fcm:200", "fanOut", "claim:fcm:200"]);
+    expect(calls).toEqual(["settle", "due", "fanOut", "claim:fcm:200", "fanOut", "claim:fcm:200"]);
+    await worker.stop();
+  });
+
+  it("scans what is due every minute, at most 5 calls while one reports more, switch on or off (T-501d)", async () => {
+    switchOn = false;
+    dueMore = 6;
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls.filter((call) => call === "due")).toHaveLength(5);
+    expect(calls.indexOf("due")).toBeLessThan(calls.indexOf("fanOut"));
+    await vi.advanceTimersByTimeAsync(PUSH_DUE_MS - 2000);
+    expect(calls.filter((call) => call === "due")).toHaveLength(5);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(calls.filter((call) => call === "due")).toHaveLength(6);
+    expect(calls.filter((call) => call === "settle")).toHaveLength(1);
+    await worker.stop();
+  });
+
+  it("logs a failed due scan with its SQLSTATE only and still fans out", async () => {
+    failDue = true;
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(logs).toContainEqual(["error", { event: "push.due_failed", code: "57014" }]);
+    expect(calls).toContain("fanOut");
     await worker.stop();
   });
 

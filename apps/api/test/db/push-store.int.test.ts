@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { PUSH_TEMPLATES } from "@questify/shared";
+import { NOTIFICATION_TARGETS, PUSH_TEMPLATES } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { centerItem } from "#src/push/center";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
@@ -107,8 +107,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     f.owner("UPDATE notice SET retry_after = now() - interval '1 second' WHERE id = $1", [id]);
 
   describe("notice_create (plan § Review 2)", () => {
-    it("every notice_kind row the migrations seed has a template", () => {
-      for (const name of seededKinds) expect(PUSH_TEMPLATES[name], name).toBeDefined();
+    it("every notice_kind row the migrations seed has a template and a route", () => {
+      expect(seededKinds.length).toBeGreaterThanOrEqual(10);
+      for (const name of seededKinds) {
+        expect(PUSH_TEMPLATES[name], name).toBeDefined();
+        expect(NOTIFICATION_TARGETS.has(name), name).toBe(true);
+      }
     });
 
     it("with an unknown kind writes nothing and raises nothing", async () => {

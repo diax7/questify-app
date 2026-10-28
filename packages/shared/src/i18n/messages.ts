@@ -6062,6 +6062,59 @@ export const MESSAGES = {
   // a kind with no template (shown in the center only, never pushed).
   "push.title": { ar: "Questify", en: "Questify" },
   "push.generic.body": { ar: "لديك رسالة جديدة", en: "You have a new message" },
+  // The personal pushes (T-501d, ADR-353): fixed text naming only an organizer's public name and a moment; never a
+  // ticket, a reply, a reason, points or a person. Gender-neutral («يمكنك»), light passives, never «تم» + masdar.
+  "push.joinAccepted.body": {
+    ar: "قُبل طلب انضمامك، ويمكنك اللعب الآن.",
+    en: "Your request to join was accepted. You can play now.",
+  },
+  "push.joinDeclined.body": {
+    ar: "لم يُقبل طلب انضمامك.",
+    en: "Your request to join wasn't accepted.",
+  },
+  "push.helpAnswered.body": { ar: "ردّ عليك فريق الفعالية.", en: "The event team answered you." },
+  "push.helpAnsweredQuestify.body": {
+    ar: "ردّ عليك فريق Questify.",
+    en: "The Questify team answered you.",
+  },
+  "push.helpSolved.body": { ar: "حُلّ طلبك.", en: "Your request was marked solved." },
+  "push.rankPrize.body": {
+    ar: "فزت بجائزة: {reward}. يمكنك استلامها من مكتب الجوائز حتى {date}، الساعة {time}.",
+    en: "You won a prize: {reward}. Collect it at the prize desk by {date}, {time}.",
+  },
+  "push.rankPrize.nameless": {
+    ar: "فزت بجائزة. يمكنك استلامها من مكتب الجوائز حتى {date}، الساعة {time}.",
+    en: "You won a prize. Collect it at the prize desk by {date}, {time}.",
+  },
+  "push.submissionApproved.body": {
+    ar: "قُبلت إجابتك في «{quest}».",
+    en: "Your answer to “{quest}” was approved.",
+  },
+  "push.submissionApproved.nameless": { ar: "قُبلت إجابتك.", en: "Your answer was approved." },
+  "push.submissionRejected.body": {
+    ar: "لم تُقبل إجابتك في «{quest}». يمكنك فتحها لمعرفة السبب.",
+    en: "Your answer to “{quest}” wasn't accepted. You can open it to see why.",
+  },
+  "push.submissionRejected.nameless": {
+    ar: "لم تُقبل إجابتك. يمكنك فتحها لمعرفة السبب.",
+    en: "Your answer wasn't accepted. You can open it to see why.",
+  },
+  "push.rewardReady.body": {
+    ar: "جائزتك «{reward}» جاهزة للاستلام من مكتب الجوائز.",
+    en: "Your reward “{reward}” is ready at the prize desk.",
+  },
+  "push.rewardReady.nameless": {
+    ar: "جائزتك جاهزة للاستلام من مكتب الجوائز.",
+    en: "Your reward is ready at the prize desk.",
+  },
+  "push.rewardEnding.body": {
+    ar: "جائزتك «{reward}» محجوزة لك حتى الساعة {time}.",
+    en: "Your reward “{reward}” is held for you until {time}.",
+  },
+  "push.rewardEnding.nameless": {
+    ar: "جائزتك محجوزة لك حتى الساعة {time}.",
+    en: "Your reward is held for you until {time}.",
+  },
   // The app's side of push (T-501c): the explainer after joining, the notification center, Settings and the Android
   // channels. Gender-neutral phrasing; the explainer never promises a reward for allowing notifications (FR-1106).
   "push.explain.title": {

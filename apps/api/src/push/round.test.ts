@@ -71,6 +71,7 @@ describe("runRound (plan § Review 3 and 4)", () => {
         : Promise.resolve(rows.length);
     },
     settle: () => Promise.resolve({}),
+    due: () => Promise.resolve({}),
   };
   const deps = (...providers: PushProvider[]): RoundDeps => ({
     doors,

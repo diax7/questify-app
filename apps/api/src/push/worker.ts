@@ -10,8 +10,10 @@ import type { SettingsService } from "#src/settings/service";
 export const PUSH_IDLE_MS = 1000;
 /** Settle runs this often, with the switch on or off. */
 export const PUSH_SETTLE_MS = 10 * 60_000;
-/** At most this many settle calls in a row while one reports `more`. */
-const SETTLE_CALLS = 5;
+/** The due scans (a reservation ready at the desk or ending) run this often, with the switch on or off. */
+export const PUSH_DUE_MS = 60_000;
+/** At most this many settle or due-scan calls in a row while one reports `more`. */
+const REPEAT_CALLS = 5;
 const JITTER = 0.2;
 
 export type PushWorkerDeps = Readonly<{
@@ -54,6 +56,15 @@ function reportFanOut(log: PushLog, fanned: FanOutResult | undefined): void {
   });
 }
 
+/** Calls a door again while it reports `more`, at most REPEAT_CALLS times. */
+const repeat =
+  (door: () => Promise<Readonly<Record<string, unknown>>>) => async (): Promise<void> => {
+    for (let call = 0; call < REPEAT_CALLS; call += 1) {
+      const summary = await door();
+      if (summary["more"] !== true) return;
+    }
+  };
+
 /** The platform switch (`features.pushNotifications`, on unless switched off); the claim checks it again. */
 async function switchedOn(deps: PushWorkerDeps): Promise<boolean> {
   const config = await deps.settings.forEvent(undefined);
@@ -62,8 +73,9 @@ async function switchedOn(deps: PushWorkerDeps): Promise<boolean> {
 
 /**
  * The push worker (ADR-345): an in-process loop on its own small pool. While work exists it fans out (personal notices
- * first) and runs a claim round; idle, it sleeps about a second. Settle runs every 10 minutes, switch on or off; with
- * the switch off nothing is claimed, while the fan-out keeps writing the center. A failed step is logged (event and
+ * first) and runs a claim round; idle, it sleeps about a second. The due scans run every minute (a due notice fans out
+ * in the same pass) and settle every 10 minutes, switch on or off; with the switch off nothing is claimed, while the
+ * fan-out keeps writing the center. A failed step is logged (event and
  * SQLSTATE only, never a token, a text or a player) and the loop goes on after a pause. `stop()` lets the wave in
  * flight end, requeues the rest of the round and waits.
  */
@@ -75,6 +87,7 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
   const sleeping = new AbortController();
   let stopped = false;
   let settledAt = Number.NEGATIVE_INFINITY;
+  let scannedAt = Number.NEGATIVE_INFINITY;
   if (deps.production) {
     for (const platform of missingPlatforms(deps.providers)) {
       deps.log("warn", { event: "push.provider_missing", platform });
@@ -90,12 +103,8 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
     }
   };
 
-  const settle = async (): Promise<void> => {
-    for (let call = 0; call < SETTLE_CALLS; call += 1) {
-      const summary = await deps.doors.settle();
-      if (summary["more"] !== true) return;
-    }
-  };
+  const settle = repeat(deps.doors.settle);
+  const scanDue = repeat(deps.doors.due);
 
   const round = async (): Promise<number> =>
     (await switchedOn(deps))
@@ -114,6 +123,10 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
     if (clock.wallNow() - settledAt >= PUSH_SETTLE_MS) {
       settledAt = clock.wallNow();
       await step("push.settle_failed", settle);
+    }
+    if (clock.wallNow() - scannedAt >= PUSH_DUE_MS) {
+      scannedAt = clock.wallNow();
+      await step("push.due_failed", scanDue);
     }
     const fanned = await step("push.fan_out_failed", deps.doors.fanOut);
     reportFanOut(deps.log, fanned);

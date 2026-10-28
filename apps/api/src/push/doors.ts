@@ -30,12 +30,14 @@ export type FanOutResult = Readonly<{
   parked?: boolean;
 }>;
 
-/** The push worker's four system doors; the unit tests replace them. */
+/** The push worker's five system doors; the unit tests replace them. */
 export type PushDoors = Readonly<{
   fanOut: () => Promise<FanOutResult>;
   claim: (targets: readonly PushTarget[], size: number) => Promise<ClaimedSend[]>;
   ack: (rows: readonly AckRow[]) => Promise<number>;
   settle: () => Promise<Readonly<Record<string, unknown>>>;
+  /** The due scans (push_due, migration 0077): notices for moments in time, `{ready, ending, more}`. */
+  due: () => Promise<Readonly<Record<string, unknown>>>;
 }>;
 
 const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> =>
@@ -78,6 +80,13 @@ export function createPushDoors(pool: Pool): PushDoors {
       system(pool, async (client) => {
         const { rows } = await client.query<{ r: Record<string, unknown> }>(
           "SELECT push_settle() AS r",
+        );
+        return rows[0]?.r ?? {};
+      }),
+    due: () =>
+      system(pool, async (client) => {
+        const { rows } = await client.query<{ r: Record<string, unknown> }>(
+          "SELECT push_due() AS r",
         );
         return rows[0]?.r ?? {};
       }),

@@ -14,6 +14,11 @@ describe("notificationRoute", () => {
   it("opens the event's screens from the kind and the event id", () => {
     expect(hrefOf("join_accepted", EVENT)).toBe(`/event/${EVENT}`);
     expect(hrefOf("rank_prize", EVENT)).toBe(`/event/${EVENT}/rewards`);
+    expect(hrefOf("reward_ready", EVENT)).toBe(`/event/${EVENT}/rewards`);
+    expect(hrefOf("reward_ending", EVENT)).toBe(`/event/${EVENT}/rewards`);
+    expect(hrefOf("submission_rejected", EVENT, { quest: QUEST })).toBe(
+      `/event/${EVENT}/quests?quest=${QUEST}`,
+    );
     expect(hrefOf("shop_closing", EVENT)).toBe(`/event/${EVENT}/rewards`);
     expect(hrefOf("rank_top_ten", EVENT)).toBe(`/event/${EVENT}/ranking`);
     expect(hrefOf("session_reminder", EVENT)).toBe(`/event/${EVENT}/info`);
@@ -52,6 +57,10 @@ describe("notificationRoute", () => {
     expect(hrefOf("streak_reminder", null)).toBe("/home");
     expect(hrefOf("help_answered", null)).toBe("/requests");
     expect(hrefOf("help_answered", EVENT)).toBe("/requests");
+    for (const kind of ["help_answered_questify", "help_solved"]) {
+      expect(hrefOf(kind, null), kind).toBe("/requests");
+      expect(hrefOf(kind, EVENT), kind).toBe("/requests");
+    }
   });
 
   it("opens the center row for a promotion, a decision with nothing to open and a kind it does not know", () => {

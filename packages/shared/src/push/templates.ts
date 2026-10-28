@@ -32,12 +32,35 @@ export const PUSH_PLACEHOLDERS: readonly string[] = [
  */
 export type PushTemplate = Readonly<{ body: string; nameless: string }>;
 
+/** A kind whose text names nothing: its body (`push.<key>.body`, the kind in camel case) is its nameless variant. */
+const fixedTemplate = (key: string): PushTemplate => ({
+  body: `push.${key}.body`,
+  nameless: `push.${key}.body`,
+});
+/** A kind whose text names something: `push.<key>.body`, else `push.<key>.nameless`. */
+const namedTemplate = (key: string): PushTemplate => ({
+  body: `push.${key}.body`,
+  nameless: `push.${key}.nameless`,
+});
+
 /**
  * Every kind that is pushed, by `notice_kind.kind`. Each wiring slice (T-501d onward) adds its kinds here with their
  * `notice_kind` rows; a database test checks that every kind row has an entry. A kind with none shows the generic text
  * in the center and is never pushed.
  */
-export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {};
+export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
+  // T-501d (migration 0077): the personal pushes.
+  join_accepted: fixedTemplate("joinAccepted"),
+  join_declined: fixedTemplate("joinDeclined"),
+  help_answered: fixedTemplate("helpAnswered"),
+  help_answered_questify: fixedTemplate("helpAnsweredQuestify"),
+  help_solved: fixedTemplate("helpSolved"),
+  rank_prize: namedTemplate("rankPrize"),
+  submission_approved: namedTemplate("submissionApproved"),
+  submission_rejected: namedTemplate("submissionRejected"),
+  reward_ready: namedTemplate("rewardReady"),
+  reward_ending: namedTemplate("rewardEnding"),
+};
 
 /** What the renderer reads from a claimed send or a center row. */
 export type NoticeContent = Readonly<{
