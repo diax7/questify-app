@@ -13,3 +13,6 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-10-28 T-501f: the streak scan rereads all of yesterday's streak rows every minute from 18:00 to 24:00 even after everyone is reminded (560 ms a call at 50k players, about 100k crosses the 1 s gate): keep a cursor per day or stop once a pass finds nothing (T-501f review).
 - 2026-10-28 T-501f: the shop-closing text "open until {date}" shows only the date, so a close at 00:00 local reads as a day later; show the time as well (T-501f review).
 - 2026-10-28 T-501f: the personal fan-out skips the per-kind audience rule, so a streak or invitation center row is still written if the player played or joined in the second between scan and fan-out; harmless (T-501f review).
+- 2026-10-28 T-501g: the hint note renders at the top of the page (`QuestBuilder.tsx:~296`), far from the "Send a hint" button on a long builder; render it inside the category card or scroll it into view (T-501g review).
+- 2026-10-28 T-501g: "Send a hint" has no category name in its accessible name (same as the existing "Edit category" buttons); fix both together (T-501g review).
+- 2026-10-28 T-501g: the claim skip code for a category un-hidden before the claim is `not_member`, which is misleading; give it its own code (T-501g review).
