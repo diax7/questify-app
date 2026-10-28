@@ -185,6 +185,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       expect(await f.recipients(id)).toEqual([a.who, b.who].toSorted());
     });
 
+    it("live and ended: a rehearsal account left before the wipe gets nothing (T-501e, ADR-354 (1))", async () => {
+      const kind = await f.kind({ class: "event" });
+      for (const phase of ["live", "ended"] as const) {
+        const event = await f.newEvent({ phase });
+        await member(event, { via: "rehearsal" });
+        const real = await member(event);
+        const id = await f.notice(kind, { event });
+        await f.fanOut();
+        expect(await f.recipients(id), phase).toEqual([real.who]);
+      }
+    });
+
     it("draft and scheduled: rehearsal enrollments only", async () => {
       const kind = await f.kind({ class: "event" });
       for (const status of ["draft", "scheduled"]) {

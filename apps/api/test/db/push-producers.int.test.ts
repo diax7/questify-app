@@ -52,32 +52,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       )
     ).map((row) => row.kind);
 
-  /** Runs `work` with the kind's row missing (its notices removed first), then puts the row back. */
-  const withoutKind = async <T>(kind: string, work: () => Promise<T>): Promise<T> => {
-    const [row] = await f.owner<Record<string, unknown>>(
-      "SELECT kind, class, topic, membership, before_start, priority, ttl::text AS ttl FROM notice_kind WHERE kind = $1",
-      [kind],
-    );
-    await f.owner("DELETE FROM notice WHERE kind = $1", [kind]);
-    await f.owner("DELETE FROM notice_kind WHERE kind = $1", [kind]);
-    try {
-      return await work();
-    } finally {
-      await f.owner(
-        `INSERT INTO notice_kind (kind, class, topic, membership, before_start, priority, ttl)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::interval)`,
-        [
-          row?.["kind"],
-          row?.["class"],
-          row?.["topic"],
-          row?.["membership"],
-          row?.["before_start"],
-          row?.["priority"],
-          row?.["ttl"],
-        ],
-      );
-    }
-  };
+  const withoutKind = <T>(kind: string, work: () => Promise<T>) => f.withoutKind(kind, work);
 
   // ------------------------------------------------------------------ join decisions
   const request = async (

@@ -62,6 +62,11 @@ Database and routes (foundation review, 2026-10-19):
   trigger in the same migration that creates it, with a test from the API role's seat.
 - Every route declares `config.access`. A public route never takes idempotency keys.
 - Services open the transaction; store functions take the client and never open their own.
+- A check run once per row of a large set (the push fan-out and claim, a trigger, a per-member rule) never calls a SQL
+  function with a `SET` clause from inside a query: PostgreSQL plans that function, and every such function nested in
+  it, again at every call. Write the check in PL/pgSQL, call such functions in plain expressions (`IF`, `RETURN`
+  without a subquery), and keep the queries free of them, or give the function no `SET` clause so it is inlined (T-501e,
+  ADR-354 (5): a live poll's fan-out to 50,000 members fell from 336 s to about 27 s).
 
 ## Error handling
 

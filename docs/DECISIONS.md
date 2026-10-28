@@ -5076,3 +5076,50 @@ door) where its wording left a choice or a number open.
 reservation that spans several desk openings is told it is ready only once; the help desk's three kinds mean three rows
 in `notice_kind` for one route; accepting more than 1,000 requests takes several calls, which the dashboard makes
 for the organizer.
+
+## ADR-354 — Where the T-501e build fills in the event pushes
+**Status:** Proposed (developer, T-501e build, 2026-10-28; `docs/plans/2026-10-28-t-501e-event-pushes.md`; Q-324).
+Refines ADR-346, ADR-347 and ADR-350 (8) for rows 7 to 12 of the T-501 plan's "Owed pushes".
+**Decision:** (1) **A live or ended event's notices reach real members only:** `notice_status_ok` is restated so a
+rehearsal account left between go-live and the wipe gets no event push (the plan's table said "every active enrollment";
+`polls_shown` and `boost_in_force` already keep rehearsal play apart from live play). Draft and scheduled stay
+rehearsal-only, archived nothing. (2) **Every T-501e kind skips a member who may not play** (an operator the owner keeps
+from playing, `staff_assignment.can_play` false, FR-906): all six are about playing. (3) **Producers:** a row trigger on
+`quest` for Launch (`flash_launched_at` set) and Send (`poll_sent_at` set), a row trigger on `boost` for a boost saved
+to start at once (the plan's "at once"), a statement trigger on `community_reach`, and four due scans in `push_due()`
+(every 60 s, 500 notices each a call): a scheduled flash quest's opening, a boost's later start, a category's opening
+and a scheduled event's start within the hour. The markers carry the moment where it can change or repeat:
+`flash:{quest}:{opens_at}`, `poll:{quest}:{sent}` (a rehearsal send and the live send are two notices),
+`category_open:{category}:{opens_at}`, `event_soon:{event}:{starts_at}` (microseconds since the epoch); `boost:{id}` and
+`community_step:{step}` once. (4) **Re-checks at sending:** a flash quest ended or moved and a poll closed fail
+`member_sees_quest`; a poll voted, a boost stopped, a category moved later or locked behind another category the member
+has not cleared, and an event whose start moved (its marker no longer names the start) fail `notice_audience_ok`; the
+moved moment gets its own notice. (5) **The per-member checks keep their plans.** A SQL function with a `SET` clause
+called from inside another function's query is planned again at every call, with every such function nested in it:
+`sees_category` planned `in_audience` again for each member, so the T-501 visibility check cost about 3 to 9 ms a member
+and a live poll's fan-out to 50,000 members took 336 s (one call of 2,000 up to 14.8 s, over the API's 5 s statement
+limit, so the notice would have backed off for ever). `sees_category`, `flash_shown`, `member_sees_quest`,
+`notice_visible` and `notice_reward_seen` are restated in PL/pgSQL with the same rules (calling such functions only in
+plain expressions, whose state lasts the transaction), and `notice_audience_ok` becomes PL/pgSQL (ADR-350 (8) had it
+plain SQL); every reader of the first two gains the same speed; their DB suites (hidden and targeted categories, flash
+windows, the listing comparison) pass unchanged. `docs/rules.md` states the rule. Measured (laptop,
+`test/perf/push-event-timing.int`, by hand): a live poll to 50,000 members with 1.2 devices each (60,000 sends) in 25.7
+to 28.6 s over 27 calls across four runs (gate 30 s), each call 1.06 to 1.15 s at the median and 1.10 to 1.19 s at the
+slowest (the T-501 gate of 1 s missed by about a tenth; the API's statement limit is 5 s; T-501's generic event notice
+measured 17.2 s, slowest 0.76 s, the same day), the claim plus ack of 200 with those sends queued 101 to 116 ms at the
+median (gate 200 ms); before the restatements the same fan-out took 336 s (one call up to 14.8 s). (6) **The community
+push is one per goal per settle, for the highest step it reached**, and names no quest: a goal's title is not on the
+name allowlist and a points goal counts none; it reaches every member who may play while the event's community switch is
+on (the community card's own audience); its tap opens Event Home, where the community bar is (the route table said the
+quests tab). (7) **A category's opening** is pushed only when it opens after the event's start (one open from the start
+is the start's news), within 2 hours of the opening, while the event is live, with a visible quest in it and no
+community lock; its recipients see the category and have cleared the category it unlocks after. (8) **Texts** (ux-araby
+pass): no adjective or verb agrees with the event's word for a quest, which an organizer may make masculine or feminine;
+`{questMany}` is a non-human plural.
+**Why:** each point keeps the plan's rules (one insert per notice through `notice_create`, row triggers for single-row
+doors, a statement trigger for the tick's bulk write, due scans for moments, no `EXCEPTION` block, a broken kind never
+undoing a door, visibility checked at fan-out and at the claim, the T-501 fan-out budget) where its wording left a
+choice open.
+**Trade-offs:** a scheduled moment's push can arrive up to a minute late; a jump past several milestones is one push; an
+operator kept from playing learns of flash quests and openings in the dashboard, not by push; two shared readers
+(`sees_category`, `flash_shown`) change language, so a later restatement must keep them PL/pgSQL or inlinable.

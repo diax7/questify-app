@@ -10,7 +10,10 @@ import type { SettingsService } from "#src/settings/service";
 export const PUSH_IDLE_MS = 1000;
 /** Settle runs this often, with the switch on or off. */
 export const PUSH_SETTLE_MS = 10 * 60_000;
-/** The due scans (a reservation ready at the desk or ending) run this often, with the switch on or off. */
+/**
+ * The due scans (a reservation ready at the desk or ending; a scheduled flash quest, a boost, a category opening, the
+ * event starting soon) run this often, with the switch on or off.
+ */
 export const PUSH_DUE_MS = 60_000;
 /** At most this many settle or due-scan calls in a row while one reports `more`. */
 const REPEAT_CALLS = 5;

@@ -1376,6 +1376,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot run the event pushes' scans or reach their producers (T-501e)", async () => {
+      for (const sql of [
+        "SELECT public.push_due_flash(1)",
+        "SELECT public.push_due_boost(1)",
+        "SELECT public.push_due_category(1)",
+        "SELECT public.push_due_event_soon(1)",
+        "SELECT public.push_instant(now())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const triggers = [
+        "push_on_boost_start",
+        "push_on_community_reach",
+        "push_on_flash_launch",
+        "push_on_poll_sent",
+      ];
+      const internals = [
+        "push_category_open",
+        "push_due_boost",
+        "push_due_category",
+        "push_due_event_soon",
+        "push_due_flash",
+        "push_instant",
+      ];
+      const all = [...triggers, ...internals];
+      const listed = `ARRAY[${all.map((name) => `'${name}'`).join(", ")}]`;
+      // Neither PUBLIC nor the API's role holds any of them: the scans run inside push_due, the triggers on their tables.
+      const held = await rows<{ proname: string }>(
+        `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.grantee IN (0, 'questify_app'::regrole) AND a.privilege_type = 'EXECUTE'
+           AND p.proname = ANY(${listed})`,
+      );
+      expect(held).toEqual([]);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual(all.toSorted());
+      for (const row of present) {
+        expect(row.config, row.proname).toEqual(["search_path=public, pg_temp"]);
+        // The trigger functions are definers: a trigger that could not insert its notice would undo the door.
+        expect(row.definer, row.proname).toBe(triggers.includes(row.proname));
+      }
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

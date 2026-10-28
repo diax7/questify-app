@@ -969,14 +969,14 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-236 | F-51 | Should | built (T-304c) |
 | FR-237 | F-99 | Could | built (T-304c) |
 | FR-238 | F-99 | Could | pending (T-501, ADR-200) |
-| FR-239 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts`, `e2e/live-polls.spec.ts` (T-306; the push is T-501's) |
+| FR-239 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts`, `e2e/live-polls.spec.ts`, `test/db/push-events.int` (T-306; the push to members who have not voted, T-501e) |
 | FR-240 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
 | FR-241 | F-100 | Should | `test/db/live-polls.int` (a 0-point poll records the vote and pays no points; Questify XP still follows, Q-184) (T-306) |
 | FR-242 | F-100 | Should | `test/db/live-polls.int`, `test/plays/polls.int`, `apps/app/src/event/polls.test.ts` (T-306) |
 | FR-243 | F-101 | Should | `test/db/community.int`, `test/community/routes.int`, `e2e/community.spec.ts` (T-306b) |
 | FR-244 | F-101 | Should | `test/db/community.int` (participation points; nothing deducted) (T-306b) |
 | FR-245 | F-101 | Should | `test/db/community.int` (window edges, removals of counted entries only) (T-306b) |
-| FR-246 | F-101 | Should | `test/db/community.int` (milestones reached and paid, kept on a miss; the push is T-501's) (T-306b) |
+| FR-246 | F-101 | Should | `test/db/community.int` (milestones reached and paid, kept on a miss) (T-306b); `test/db/push-events.int` (one push per settle for the highest step reached, T-501e) |
 | FR-247 | F-101 | Should | `test/db/community.int` (points, moment, nothing) (T-306b); `test/db/community-unlocks.int`, `test/community/unlocks.int` (unlocks) (T-306c) |
 | FR-248 | F-101 | Should | `test/db/community.int` (contributors with the top-up, everyone at the reach) (T-306b) |
 | FR-249 | F-101 | Should | `test/db/community.int` (a miss pays nothing for the goal) (T-306b) |
@@ -1206,7 +1206,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1034 | F-197 | Must | pending |
 | FR-1035 | F-197 | Must | pending |
 | FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; T-501d: the submission decision, the help-desk answer, a reservation ready at the desk and ending; the operator invite waits for T-617): `test/db/push-store.int`, `test/db/push-sending.int`, `test/db/push-producers.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
-| FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; the messages are T-501e and T-501f): `test/db/push-store.int`, `apps/api/src/push/contract.test.ts` |
+| FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; T-501e: flash quests, boosts, live polls, community milestones, a category opening and the event starting soon, active members only, once each; announcements are T-502's, rank alerts T-503's, the streak reminder T-501f's): `test/db/push-store.int`, `test/db/push-events.int`, `apps/api/src/push/contract.test.ts` |
 | FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; T-501b: the real clients, sending once Dhia's keys are set): `apps/api/src/push/worker.test.ts` |
 | FR-1104 | F-200 | Must | built T-501 and T-501c (every message a center row, read and unread; the center screen `/notifications` lists them newest first, a tap marks that one row read; phone check owed): `test/db/push-store.int` ("refused permission blocks nothing"), `test/push/routes.int`, `apps/app/src/push/{center,push-api}.test.ts` |
 | FR-1105 | F-201 | Must | built T-501c (the explainer on the join result screens, only while the system is unasked and not snoozed 30 days; "Turn on" is the only way to the system prompt; a unit test of the flow and a source scan of who may read the permission; phone check owed): `apps/app/src/push/{push-flow,push-guards}.test.ts` |

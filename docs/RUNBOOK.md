@@ -243,7 +243,8 @@ quiet minutes); without keys no client exists: the center fills and every push e
   is held 15 minutes; `code: unreachable` at start means Google did not answer and the next send asks again),
   `push.apns_refused {target, status, code}` and `push.fcm_refused {status, code}` (a request we built wrong, such as
   `PayloadTooLarge` or `INVALID_ARGUMENT` on a field other than the token: a bug to fix). A failing step logs `push.fan_out_failed`,
-  `push.round_failed`, `push.settle_failed`, `push.due_failed` (the reservation scans, T-501d) or `push.ack_failed` with
+  `push.round_failed`, `push.settle_failed`, `push.due_failed` (the due scans: reservations, T-501d; flash quests,
+  boosts, category openings and the event starting soon, T-501e) or `push.ack_failed` with
   the SQLSTATE only (never a token, a text or a
   player); the loop goes on after a second. A failed acknowledgement leaves its rows to lease expiry (`unknown`, never
   sent twice).
@@ -270,11 +271,21 @@ quiet minutes); without keys no client exists: the center fills and every push e
   1.22 s without, 0.85 s for a hard-limited event's 250, the personal fan-out of their notices 0.4 s (ADR-353 (5); an
   unbounded accept-all of 5,000 had taken 7.4 s). A hard-limited event's call grows with the event's seated players
   (its seat guard recounts them on every row, T-221). The dashboard repeats the call while requests wait, at most 10
-  calls a press, then says to press again.
+  calls a press, then says to press again. The event pushes (T-501e):
+  `PUSH_TIMING=… pnpm vitest run apps/api/test/perf/push-event-timing.int.test.ts` after a change to an event kind's
+  audience or to `sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible` or `notice_audience_ok`.
+  2026-10-28 on the laptop: a live poll to 50,000 members 25.7 to 28.6 s in 27 calls, about 1.1 s a call, the claim
+  plus ack of 200 about 0.1 s (ADR-354 (5)).
 - **Personal pushes (T-501d):** decisions, help-desk answers and prizes are written by triggers in the same
   transaction as the door; reservations ready at the desk or ending come from `push_due()`, which the worker runs every
   minute with the switch on or off. A missing `notice_kind` row writes nothing and refuses nothing. Seen from SQL as the
   owner: `SELECT kind, count(*) FROM notice WHERE created_at > now() - interval '1 day' GROUP BY 1;`.
+- **Event pushes (T-501e):** a flash quest's launch, a live poll's send and a boost saved to start now are written by
+  triggers in the same transaction as the door; a community milestone by the community tick's settle (one push per goal
+  per settle, for the highest step it reached); a scheduled flash quest's opening, a boost's later start, a category's
+  opening and the event starting within the hour come from `push_due()` (up to a minute late). A member who may not
+  play, a rehearsal account on a live event and a member who cannot see the quest or category get none. A missing
+  `notice_kind` row writes nothing and refuses nothing.
 - **Outbox health (SQL as the owner):** `SELECT target, state, count(*) FROM push_send GROUP BY 1, 2;` many `queued`
   rows on one target with nothing `sent` means that target is held or has no provider; `SELECT count(*) FROM notice
   WHERE fanned_at IS NULL;` should stay near 0.

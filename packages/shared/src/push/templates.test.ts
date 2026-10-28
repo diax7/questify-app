@@ -309,6 +309,83 @@ describe("the personal pushes (T-501d, ADR-353)", () => {
   });
 });
 
+describe("the event pushes (T-501e, ADR-354)", () => {
+  const quest = { ar: "ابحث عن الصقر", en: "Find the falcon" };
+  const category = { ar: "المسرح", en: "Main stage" };
+
+  it("names the flash quest and the poll in the event's own word, else says it without the name", () => {
+    expect(both("flash_quest", { quest })).toEqual([
+      "Flash quest: “Find the falcon”",
+      "مهمة بوقت محدود: «ابحث عن الصقر»",
+    ]);
+    expect(both("flash_quest", { quest: { en: "call 0551234567" } })).toEqual([
+      "A flash quest is on now.",
+      "مهمة بوقت محدود الآن.",
+    ]);
+    const challenge = {
+      quest: { ar: { one: "تحدٍّ", many: "تحديات" }, en: { one: "challenge", many: "challenges" } },
+    };
+    expect(
+      renderNotice({
+        kind: "flash_quest",
+        params: { quest },
+        terms: challenge,
+        timezone: null,
+        language: "en",
+      }).body,
+    ).toBe("Flash challenge: “Find the falcon”");
+    expect(both("poll_sent", { quest })).toEqual([
+      "New live poll: “Find the falcon”",
+      "تصويت مباشر جديد: «ابحث عن الصقر»",
+    ]);
+    expect(both("poll_sent", {})).toEqual([
+      "A new live poll has started.",
+      "بدأ تصويت مباشر جديد.",
+    ]);
+  });
+
+  it("names the category of a boost and of an opening", () => {
+    expect(both("boost_start", { category })).toEqual([
+      "Double points now in “Main stage”.",
+      "نقاط مضاعفة الآن في «المسرح».",
+    ]);
+    expect(both("boost_start", {})).toEqual(["Double points now.", "نقاط مضاعفة الآن."]);
+    expect(both("category_open", { category })).toEqual([
+      "“Main stage” is open now.",
+      "يمكنك الآن اللعب في «المسرح».",
+    ]);
+    expect(both("category_open", { category: { en: "https://x.io" } })).toEqual([
+      "New quests are open now.",
+      "مهام جديدة متاحة الآن.",
+    ]);
+  });
+
+  it("says a milestone in fixed text, and the start's time in the event's zone", () => {
+    expect(both("community_step", {})).toEqual([
+      "The community reached a new milestone.",
+      "تحقّقت مرحلة جديدة في الهدف الجماعي.",
+    ]);
+    const start = "2026-07-01T17:00:00Z";
+    expect(both("event_soon", { time: start })).toEqual([
+      "The event starts at 20:00.",
+      "تبدأ الفعالية الساعة 20:00.",
+    ]);
+    const london = renderNotice({
+      kind: "event_soon",
+      params: { event: EVENT, time: start },
+      terms: null,
+      timezone: "Europe/London",
+      language: "en",
+    });
+    expect(london).toEqual({
+      title: "Winter Fest",
+      body: "The event starts at 18:00.",
+      pushable: true,
+    });
+    expect(both("event_soon", {})).toEqual(["You have a new message", "لديك رسالة جديدة"]);
+  });
+});
+
 describe("pushName and pushMoment", () => {
   it("prefers the language asked for and refuses what fails the rule", () => {
     expect(pushName({ ar: "صقر", en: "Falcon" }, "ar")).toBe("صقر");

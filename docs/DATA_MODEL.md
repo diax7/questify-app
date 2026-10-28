@@ -595,7 +595,8 @@ ADR-151):
   mutable), membership active|decided|none, before_start, priority 0|1|2 by class, ttl 1 minute–7 days)`: one row per
   kind, seeded by the slice that wires it (0076 seeds none; 0077, T-501d, seeds the ten personal kinds:
   `join_accepted`, `join_declined`, `help_answered`, `help_answered_questify`, `help_solved`, `rank_prize`,
-  `submission_approved`, `submission_rejected`, `reward_ready`, `reward_ending`); every row must have a template in
+  `submission_approved`, `submission_rejected`, `reward_ready`, `reward_ending`; 0078, T-501e, the six event kinds:
+  `flash_quest`, `boost_start`, `poll_sent`, `community_step`, `category_open`, `event_soon`); every row must have a template in
   `packages/shared/src/push/templates.ts` and a route in `packages/shared/src/push/routes.ts` (a database test checks).
 - **Producers (T-501d, migration 0077):** row triggers with a `WHEN` on `enrollment` (a join decision), `ticket`
   (closed) and `submission` (a reviewer's decision), a statement trigger with transition tables on `event_result` (the
@@ -603,6 +604,17 @@ ADR-151):
   `notice_create`; the once-only markers are the notices' `dedupe` keys (`join:{enrollment}:{status}:{time}`,
   `ticket:{id}`, `rank_prize:{event}:{rank}`, `submission:{id}:{status}`, `reward_ready:{redemption}`,
   `reward_ending:{redemption}`). No new column.
+- **Event producers (T-501e, migration 0078):** row triggers with a `WHEN` on `quest` (`flash_launched_at` set by
+  Launch, `poll_sent_at` set by Send) and `boost` (a boost saved to start at once), a statement trigger with a transition
+  table on `community_reach` (one notice per goal per statement, for the highest step reached), and four more scans in
+  `push_due()` (a scheduled flash quest's opening, a boost's start, a category's opening after a live event's start, a
+  scheduled event's start within the hour); markers `flash:{quest}:{opens_at µs}`, `boost:{id}`,
+  `poll:{quest}:{sent µs}`, `community_step:{step}`, `category_open:{category}:{opens_at µs}`,
+  `event_soon:{event}:{starts_at µs}`. Indexes for the scans: `quest (opens_at) WHERE flash AND visible AND
+  flash_launched_at IS NULL`, `boost (starts_at)`, `category (opens_at) WHERE opens_at IS NOT NULL`. No new column.
+  `notice_status_ok` now leaves rehearsal accounts out of a live or ended event's notices.
+  `sees_category`, `flash_shown`, `member_sees_quest` and `notice_audience_ok` are PL/pgSQL from 0078 with the same
+  rules, so the per-member checks keep their plans (ADR-354 (5)).
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment

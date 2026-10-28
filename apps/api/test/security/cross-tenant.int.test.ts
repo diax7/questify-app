@@ -1514,7 +1514,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         expect(await refusal(asA(seat, `SELECT 1 FROM ${table} LIMIT 1`, [])), table).toBe("42501");
       }
       expect(await refusal(asA(seat, "SELECT * FROM push_claim('{fcm}', 1)", []))).toBe("PN403");
-      // The due scans write notices for every tenant's reservations: the system seat only (T-501d).
+      // The due scans write notices for every tenant's reservations and event moments: the system seat only
+      // (T-501d, T-501e).
       expect(await refusal(asA(seat, "SELECT push_due()", []))).toBe("PN403");
     }
     await db.owner.query("DELETE FROM notice WHERE kind = 'tenant_probe'");

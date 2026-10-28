@@ -310,6 +310,36 @@ export async function pushFixture() {
     );
   };
 
+  /**
+   * Runs `work` with a shipped kind's row missing (its notices removed first), then puts the row back: a producer then
+   * meets an unknown kind, which must write nothing and raise nothing (plan § Review 2, "a broken kind").
+   */
+  const withoutKind = async <T>(name: string, work: () => Promise<T>): Promise<T> => {
+    const [row] = await f.owner<Record<string, unknown>>(
+      "SELECT kind, class, topic, membership, before_start, priority, ttl::text AS ttl FROM notice_kind WHERE kind = $1",
+      [name],
+    );
+    await f.owner("DELETE FROM notice WHERE kind = $1", [name]);
+    await f.owner("DELETE FROM notice_kind WHERE kind = $1", [name]);
+    try {
+      return await work();
+    } finally {
+      await f.owner(
+        `INSERT INTO notice_kind (kind, class, topic, membership, before_start, priority, ttl)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::interval)`,
+        [
+          row?.["kind"],
+          row?.["class"],
+          row?.["topic"],
+          row?.["membership"],
+          row?.["before_start"],
+          row?.["priority"],
+          row?.["ttl"],
+        ],
+      );
+    }
+  };
+
   const erase = async (player: string) => {
     const token = await f.deletionToken(player);
     const [erased] = await f.run<{ outcome: string }>(
@@ -342,6 +372,7 @@ export async function pushFixture() {
     sends,
     switchPush,
     consentPush,
+    withoutKind,
     erase,
   };
 }

@@ -60,6 +60,13 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   submission_rejected: namedTemplate("submissionRejected"),
   reward_ready: namedTemplate("rewardReady"),
   reward_ending: namedTemplate("rewardEnding"),
+  // T-501e (migration 0078): the event pushes.
+  flash_quest: namedTemplate("flashQuest"),
+  boost_start: namedTemplate("boostStart"),
+  poll_sent: namedTemplate("pollSent"),
+  community_step: fixedTemplate("communityStep"),
+  category_open: namedTemplate("categoryOpen"),
+  event_soon: fixedTemplate("eventSoon"),
 };
 
 /** What the renderer reads from a claimed send or a center row. */

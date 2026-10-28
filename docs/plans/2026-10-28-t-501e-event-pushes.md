@@ -72,6 +72,13 @@ add `member_sees_quest` (one quest probe), a `staff_assignment` probe and, for a
 hand with `test/perf/push-event-timing.int` (a sent poll to 50,000 members); the gates stay T-501's (each call under
 1 s, the whole under 30 s on the laptop). A rehearsal on a large event costs the same scan over its enrollments.
 
+**As built (ADR-354 (5)):** the first run took 336 s (one call up to 14.8 s): `sees_category` (SQL) planned
+`in_audience` again for every member, and `member_sees_quest` and `notice_visible` called it from queries. With
+`sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible`, `notice_reward_seen` and `notice_audience_ok` in
+PL/pgSQL (the same rules; functions called in plain expressions, queries free of them): 25.7 to 28.6 s over 27 calls,
+about 1.1 s a call (T-501's generic event notice 0.76 s the same day), the claim plus ack of 200 about 0.1 s. The
+per-call gate is missed by about a tenth (Q-324).
+
 ## Tests (named; `test/db/push-events.int.test.ts` unless noted)
 
 - Per kind: fires once and only once (a replayed launch or send, a re-run of the scan, a second settle), to the right

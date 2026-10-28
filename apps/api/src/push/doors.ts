@@ -36,7 +36,9 @@ export type PushDoors = Readonly<{
   claim: (targets: readonly PushTarget[], size: number) => Promise<ClaimedSend[]>;
   ack: (rows: readonly AckRow[]) => Promise<number>;
   settle: () => Promise<Readonly<Record<string, unknown>>>;
-  /** The due scans (push_due, migration 0077): notices for moments in time, `{ready, ending, more}`. */
+  /**
+   * The due scans (push_due, migrations 0077 and 0078): notices for moments in time, a count per scan and `more`.
+   */
   due: () => Promise<Readonly<Record<string, unknown>>>;
 }>;
 

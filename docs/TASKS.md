@@ -950,7 +950,24 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     push-store suite fails while a kind row has no template. A kind's own audience filter restates `notice_audience_ok`
     (plain SQL); the per-member rules are PL/pgSQL (ADR-350 (8)).
   - Done when: Each decision, answer and revealed prize gives exactly one push and one center row, never to a player who left or was erased.
-- [ ] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
+- [x] **T-501e** Owed event pushes: flash quest, boost, live poll, community step, category opening, event starting soon — delivers FR 1102, 246 (push); depends on: T-501d
+  - Done 2026-10-28 (core; code review owed). Plan note `docs/plans/2026-10-28-t-501e-event-pushes.md`. Migration 0078
+    (new file, undeployed): six event kinds (`flash_quest`, `boost_start`, `poll_sent`, `community_step`,
+    `category_open`, `event_soon`); row triggers with a `WHEN` on `quest` (Launch sets `flash_launched_at`, Send sets
+    `poll_sent_at`) and `boost` (a boost saved to start at once), a statement trigger with a transition table on
+    `community_reach` (one notice per goal per settle, for the highest step reached), and four more scans in `push_due()`
+    (a scheduled flash quest's opening, a boost's later start, a category's opening after a live event's start, a
+    scheduled event's start within the hour); markers carry the moment (a rehearsal send and the live one, a moved start
+    or opening, are separate pushes). `notice_audience_ok` restated (a member who may not play gets none; a poll skips
+    who voted; a boost stopped, a category moved later or locked behind an uncleared one, a moved start are skipped at
+    the claim); `notice_status_ok` restated (live and ended: no rehearsal account). Shared: six templates in both
+    languages (ux-araby pass), `community_step` routes to Event Home. Tests: `test/db/push-events.int` (18), push-store,
+    outsider, cross-tenant comment, rehearsal guard, shared units; timing by hand `test/perf/push-event-timing.int`
+    (a live poll to 50,000 members 25.7 to 28.6 s over 27 calls, about 1.1 s a call against T-501's 1 s gate, the claim
+    of 200 about 0.1 s; 336 s before `sees_category`, `flash_shown`, `member_sees_quest`, `notice_visible` and
+    `notice_reward_seen` were restated in PL/pgSQL with the same rules so the per-member checks keep their plans,
+    ADR-354 (5), `docs/rules.md`). ADR-354 and Q-324 Proposed. Mutation globs: `packages/shared/src/push/templates.ts`,
+    `packages/shared/src/push/routes.ts`. The hint push (row 17) stays T-501g's.
   - Split from T-501 2026-10-28 (ADR-342). CORE; rows 7 to 12 of the T-501 plan's "Owed pushes", producers as in
     T-501d; a notice naming a quest or category reaches only members who can see it (plan § Review 7).
   - Note 2026-10-28 (T-501d build, ADR-353): the due scans live in `push_due()` (migration 0077, called by the worker

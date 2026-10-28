@@ -1351,3 +1351,19 @@ call and the dashboard repeats. Recommended (Proposed, developer's call, T-221):
 so accept-all becomes one call again. The other options: a seat counter on the event kept by every write that seats or
 unseats a player (fast, but every join, leave, ban and removal must keep it right); a partial index on seated
 enrollments (only lowers the cost per row; the count per row stays); keeping the 250 cap (more calls for big events).
+
+## Q-324 — Where the T-501e build fills in the event pushes (2026-10-28, T-501e build)
+Recommended (ADR-354): a live or ended event's notices skip rehearsal accounts; every event push skips an operator kept
+from playing; Launch, Send and a boost saved to start now push at once by trigger, scheduled moments by the due scans
+every minute; the markers carry the moment (a rehearsal send and the live one are two pushes; a moved start or opening
+is pushed again at its new time and the old push is skipped); one community push per goal per settle, for the highest
+step reached, naming no quest and opening Event Home; a category's opening pushed only when it opens after the start,
+within 2 hours, with a visible quest, to members who can open it. The other options: rehearsal accounts on a live event
+keep getting pushes until the wipe (the plan's first table); one push per milestone even when several are passed at once
+(a burst); the goal's title in the text (a new placeholder outside the allowlist); boosts only through the scan (up to
+a minute late for "start now"); a category push also at the event's start (a second push beside "starts soon").
+Also measured (ADR-354 (5)): the shared visibility checks (`sees_category`, `flash_shown`, `member_sees_quest`,
+`notice_visible`, `notice_reward_seen`) planned their nested SQL functions again for every member, so a live poll's
+fan-out to 50,000 members took 336 s; restated in PL/pgSQL with the same rules it takes 25.7 to 28.6 s, each call of
+2,000 about 1.1 s (the T-501 gate is 1 s, the statement limit 5 s). Recommended: accept that. The other option: event
+batches of 1,500 (more calls, the same total). Developer's call at the T-501e code review.

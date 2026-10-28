@@ -6126,6 +6126,39 @@ export const MESSAGES = {
     ar: "جائزتك محجوزة لك حتى الساعة {time}.",
     en: "Your reward is held for you until {time}.",
   },
+  // The event pushes (T-501e, ADR-354): an organizer's public name, the event's words and a time only. No adjective or
+  // verb agrees with the event's word for a quest (it may be masculine or feminine); {questMany} is a non-human plural.
+  "push.flashQuest.body": {
+    ar: "{questOne} بوقت محدود: «{quest}»",
+    en: "Flash {questOne}: “{quest}”",
+  },
+  "push.flashQuest.nameless": {
+    ar: "{questOne} بوقت محدود الآن.",
+    en: "A flash {questOne} is on now.",
+  },
+  "push.boostStart.body": {
+    ar: "نقاط مضاعفة الآن في «{category}».",
+    en: "Double points now in “{category}”.",
+  },
+  "push.boostStart.nameless": { ar: "نقاط مضاعفة الآن.", en: "Double points now." },
+  "push.pollSent.body": { ar: "تصويت مباشر جديد: «{quest}»", en: "New live poll: “{quest}”" },
+  "push.pollSent.nameless": { ar: "بدأ تصويت مباشر جديد.", en: "A new live poll has started." },
+  "push.communityStep.body": {
+    ar: "تحقّقت مرحلة جديدة في الهدف الجماعي.",
+    en: "The community reached a new milestone.",
+  },
+  "push.categoryOpen.body": {
+    ar: "يمكنك الآن اللعب في «{category}».",
+    en: "“{category}” is open now.",
+  },
+  "push.categoryOpen.nameless": {
+    ar: "{questMany} جديدة متاحة الآن.",
+    en: "New {questMany} are open now.",
+  },
+  "push.eventSoon.body": {
+    ar: "تبدأ الفعالية الساعة {time}.",
+    en: "The event starts at {time}.",
+  },
   // The app's side of push (T-501c): the explainer after joining, the notification center, Settings and the Android
   // channels. Gender-neutral phrasing; the explainer never promises a reward for allowing notifications (FR-1106).
   "push.explain.title": {
