@@ -1,4 +1,4 @@
-import { JOIN_LINK_HOSTS, type Language, trimName } from "@questify/shared";
+import { JOIN_LINK_HOSTS, type Language, renderNotice, trimName } from "@questify/shared";
 
 /**
  * The invitation SMS (ADR-331 (3)): a fixed template, no organizer text, no brand prefix (the "-AD" sender name says it
@@ -101,4 +101,23 @@ export function previewInvitation(
     optOut: `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${PLACEHOLDER_OPT_OUT}`,
   });
   return { text, parts: smsParts(text) };
+}
+
+/**
+ * The console's preview of the invitation push for the names it shows (ADR-356 (4)): the `invitation` kind's fixed
+ * template, rendered as the push worker renders it from the names frozen on the notice. Null when neither name exists.
+ */
+export function previewInvitationPush(
+  names: ApprovedNames,
+  language: Language,
+): Readonly<{ title: string; body: string }> | null {
+  if ((names.ar?.trim() ?? "") === "" && (names.en?.trim() ?? "") === "") return null;
+  const { title, body } = renderNotice({
+    kind: "invitation",
+    params: { event: names },
+    terms: null,
+    timezone: null,
+    language,
+  });
+  return { title, body };
 }

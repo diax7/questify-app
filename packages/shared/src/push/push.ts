@@ -84,10 +84,14 @@ export const REF_KEY = /^[a-z][A-Za-z]{0,30}$/;
 export const REF_VALUE =
   /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9]{1,18})$/;
 
+/** An event's join code (`event.join_code`), the only text besides ids a center row may carry. */
+export const JOIN_CODE = /^[A-Za-z0-9]{4,12}$/;
+
 /**
  * One center row as the app shows it: the text rendered in the request's language (the same fixed template as the
  * push), ids only besides: `refs` holds the notice's reference ids, which the app maps to its own routes (ADR-349 (4)).
- * `optOut` marks a promotional row, which carries the way to Settings → Offers and notifications (FR-1114).
+ * `optOut` marks a promotional row, which carries the way to Settings → Offers and notifications (FR-1114). `joinCode`
+ * is an invitation's public event code (ADR-356 (6)): the row's "See the event" opens the join screen with it.
  */
 export const notificationItemSchema = z.strictObject({
   id: notificationId,
@@ -100,6 +104,7 @@ export const notificationItemSchema = z.strictObject({
   createdAt: z.string(),
   read: z.boolean(),
   optOut: z.boolean(),
+  joinCode: z.string().regex(JOIN_CODE).nullable(),
 });
 export type NotificationItem = z.infer<typeof notificationItemSchema>;
 

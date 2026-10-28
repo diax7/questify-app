@@ -249,6 +249,19 @@ function startTicks(
   for (const stop of stops) app.addHook("onClose", stop);
 }
 
+/**
+ * The invitation doors' dependencies: the promotional SMS sender when set, and whether a push provider is set up, so
+ * the console offers only the channels this server can send (ADR-331 (1), ADR-356 (4)).
+ */
+function invitationDepsOf(options: AppOptions): InvitationDeps {
+  const { push } = options.config;
+  return {
+    pool: options.pool,
+    ...(options.promoSmsSender === undefined ? {} : { promoSms: options.promoSmsSender }),
+    pushReady: push.apns !== undefined || push.fcm !== undefined,
+  };
+}
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 export function buildApp(options: AppOptions): FastifyInstance {
   const { config } = options;
@@ -435,10 +448,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
-  const invitations = {
-    pool: options.pool,
-    ...(options.promoSmsSender === undefined ? {} : { promoSms: options.promoSmsSender }),
-  };
+  const invitations = invitationDepsOf(options);
   const staffSessions = createSessions(options.pool);
   registerConsoleRoutes(app, {
     activation,

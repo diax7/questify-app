@@ -386,6 +386,55 @@ describe("the event pushes (T-501e, ADR-354)", () => {
   });
 });
 
+describe("reminders and promotion (T-501f, ADR-356)", () => {
+  it("reminds of the streak in fixed text: no number, no countdown, no loss", () => {
+    const texts = both("streak_reminder", {});
+    expect(texts).toEqual([
+      "You can keep your daily streak going by playing today.",
+      "يمكنك مواصلة سلسلتك اليومية باللعب اليوم.",
+    ]);
+    for (const text of texts) {
+      expect(text).not.toMatch(/[0-9]|lose|lost|left|hours|ends|تخسر|تنتهي|ساعات|متبقي/);
+    }
+    expect(
+      renderNotice({
+        kind: "streak_reminder",
+        params: {},
+        terms: null,
+        timezone: null,
+        language: "ar",
+      }),
+    ).toEqual({ title: "Questify", body: texts[1], pushable: true });
+  });
+
+  it("names the event and the shop's closing date in the event's zone, never an amount", () => {
+    const closes = "2026-10-30T19:00:00Z";
+    expect(both("shop_closing", { event: EVENT, date: closes })).toEqual([
+      "The Winter Fest rewards shop is open until 30 Oct.",
+      "متجر جوائز مهرجان الشتاء مفتوح حتى 30 أكتوبر.",
+    ]);
+    expect(both("shop_closing", { event: { en: "www.x.io" }, date: closes })).toEqual([
+      "The rewards shop is open until 30 Oct.",
+      "متجر الجوائز مفتوح حتى 30 أكتوبر.",
+    ]);
+    expect(both("shop_closing", { event: EVENT })).toEqual([
+      "You have a new message",
+      "لديك رسالة جديدة",
+    ]);
+  });
+
+  it("invites to the event by its name, else without it", () => {
+    expect(both("invitation", { event: EVENT, code: "WINTER26" })).toEqual([
+      "You have an invitation to Winter Fest.",
+      "لديك دعوة إلى مهرجان الشتاء.",
+    ]);
+    expect(both("invitation", { event: { ar: "+966551234567" } })).toEqual([
+      "You have an invitation to an event.",
+      "لديك دعوة إلى فعالية.",
+    ]);
+  });
+});
+
 describe("pushName and pushMoment", () => {
   it("prefers the language asked for and refuses what fails the rule", () => {
     expect(pushName({ ar: "صقر", en: "Falcon" }, "ar")).toBe("صقر");

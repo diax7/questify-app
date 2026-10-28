@@ -449,6 +449,7 @@ export {
 } from "./invitation-campaigns/name-rule";
 export type { InvitationNameIssue } from "./invitation-campaigns/name-rule";
 export {
+  JOIN_CODE,
   NOTIFICATION_PAGE_DEFAULT,
   NOTIFICATION_PAGE_MAX,
   NOTIFICATION_READ_MAX,

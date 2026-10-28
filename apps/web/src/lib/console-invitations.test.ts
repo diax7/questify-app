@@ -66,6 +66,10 @@ const detail = {
     en: { name: "Festival", issue: null },
   },
   messages: { ar: rendered, en: { ...rendered, text: "Invitation to Festival: https://q/en/i#x" } },
+  pushMessages: {
+    ar: { title: "مهرجان", body: "لديك دعوة إلى مهرجان." },
+    en: { title: "Festival", body: "You have an invitation to Festival." },
+  },
   estimate: 120,
   queued: 0,
   availableChannels: ["sms"],
@@ -151,8 +155,9 @@ describe("the queue's groups", () => {
 describe("approvalDraftOf", () => {
   const request = parsed.campaign;
 
-  it("asks for SMS, the owner's size and the top of the next hour in Riyadh time", () => {
-    expect(approvalDraftOf(request, new Date("2026-10-27T09:20:00Z"))).toEqual({
+  it("asks for every channel the server can send, the owner's size and the next hour in Riyadh time", () => {
+    expect(approvalDraftOf(request, new Date("2026-10-27T09:20:00Z"), ["push", "sms"])).toEqual({
+      push: true,
       sms: true,
       cap: "500",
       sendAt: "2026-10-27T13:00",
@@ -160,21 +165,34 @@ describe("approvalDraftOf", () => {
     });
   });
 
+  it("leaves a channel the server cannot send unticked", () => {
+    expect(approvalDraftOf(request, new Date("2026-10-27T09:20:00Z"), ["sms"])).toMatchObject({
+      push: false,
+      sms: true,
+    });
+    expect(approvalDraftOf(request, new Date("2026-10-27T09:20:00Z"), ["push"])).toMatchObject({
+      push: true,
+      sms: false,
+    });
+  });
+
   it("waits for the owner's earliest send when it is later", () => {
     const later = { ...request, sendAfter: "2026-10-30T05:30:00Z" };
-    expect(approvalDraftOf(later, new Date("2026-10-27T09:20:00Z")).sendAt).toBe(
+    expect(approvalDraftOf(later, new Date("2026-10-27T09:20:00Z"), ["sms"]).sendAt).toBe(
       "2026-10-30T09:00",
     );
   });
 
   it("ignores an earliest send that has passed", () => {
     const past = { ...request, sendAfter: "2026-10-01T05:30:00Z" };
-    expect(approvalDraftOf(past, new Date("2026-10-27T09:20:00Z")).sendAt).toBe("2026-10-27T13:00");
+    expect(approvalDraftOf(past, new Date("2026-10-27T09:20:00Z"), ["sms"]).sendAt).toBe(
+      "2026-10-27T13:00",
+    );
   });
 });
 
 describe("approvalBodyOf", () => {
-  const draft = { sms: true, cap: "400", sendAt: "2026-10-28T12:00", note: "" };
+  const draft = { push: false, sms: true, cap: "400", sendAt: "2026-10-28T12:00", note: "" };
 
   it("sends the terms and the names the page showed, in UTC for Riyadh time", () => {
     expect(approvalBodyOf(draft, parsed)).toEqual({
@@ -186,6 +204,17 @@ describe("approvalBodyOf", () => {
         expectedNameEn: "Festival",
       },
     });
+  });
+
+  it("sends push, SMS or both as ticked, push first", () => {
+    expect(approvalBodyOf({ ...draft, push: true }, parsed)).toHaveProperty("body.channels", [
+      "push",
+      "sms",
+    ]);
+    expect(approvalBodyOf({ ...draft, push: true, sms: false }, parsed)).toHaveProperty(
+      "body.channels",
+      ["push"],
+    );
   });
 
   it("sends null for a name the event does not have, and a trimmed note", () => {
@@ -201,6 +230,7 @@ describe("approvalBodyOf", () => {
 
   it.each([
     [{ sms: false }, "channels"],
+    [{ push: false, sms: false }, "channels"],
     [{ cap: "49" }, "cap"],
     [{ cap: "100001" }, "cap"],
     [{ cap: "" }, "cap"],
@@ -224,7 +254,8 @@ describe("approvalBlock", () => {
   });
 
   it("says why not, most basic reason first", () => {
-    expect(blockOf({ availableChannels: [], eventIssue: "link_off" })).toBe("noSms");
+    expect(blockOf({ availableChannels: [], eventIssue: "link_off" })).toBe("noChannel");
+    expect(blockOf({ availableChannels: ["push"] })).toBeNull();
     expect(blockOf({ eventIssue: "link_off" })).toBe("event");
     expect(
       blockOf({ names: { ...detail.names, en: { name: "a@b.c", issue: "looks_like_address" } } }),
@@ -237,6 +268,9 @@ describe("approvalRefusalText and isRenamed", () => {
   it("words the approval's own refusals", () => {
     expect(approvalRefusalText(answerOf("channel_unavailable", { channel: "sms" }), en)).toBe(
       "SMS isn't set up on this server.",
+    );
+    expect(approvalRefusalText(answerOf("channel_unavailable", { channel: "push" }), en)).toBe(
+      "Push notifications aren't set up on this server.",
     );
     expect(approvalRefusalText(answerOf("invalid_approval", { field: "sendAt" }), en)).toContain(
       "one hour before the event ends",

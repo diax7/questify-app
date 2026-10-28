@@ -128,9 +128,12 @@ describe("eventNameProblem", () => {
 });
 
 describe("availableChannels", () => {
-  it("offers SMS only with the promotional sender", () => {
+  it("offers SMS only with the promotional sender, push only with a push provider", () => {
     expect(availableChannels({})).toEqual([]);
     expect(availableChannels({ promoSms: SENDER })).toEqual(["sms"]);
+    expect(availableChannels({ pushReady: true })).toEqual(["push"]);
+    expect(availableChannels({ pushReady: false, promoSms: SENDER })).toEqual(["sms"]);
+    expect(availableChannels({ pushReady: true, promoSms: SENDER })).toEqual(["push", "sms"]);
   });
 });
 
@@ -148,6 +151,43 @@ describe("approveCampaign", () => {
       envelope: { code: "channel_unavailable", details: { channel: "sms" } },
     });
     expect(queries).toEqual([]);
+  });
+
+  it("refuses push without a push provider, before the database", async () => {
+    const { pool, queries } = fakePool(() => ({ rows: [{ r: campaignJson }] }));
+    await expect(
+      approveCampaign({ pool, promoSms: SENDER }, ADMIN, {
+        campaignId: CAMPAIGN,
+        body: approval({ channels: ["push", "sms"] }),
+        requestId: CAMPAIGN,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      envelope: { code: "channel_unavailable", details: { channel: "push" } },
+    });
+    expect(queries).toEqual([]);
+  });
+
+  it("keeps a push-only send time inside quiet hours (they are SMS's alone)", async () => {
+    const seen: (readonly unknown[])[] = [];
+    const { pool } = fakePool((_sql, values) => {
+      seen.push(values);
+      return { rows: [{ r: campaignJson }] };
+    });
+    const answer = await approveCampaign({ pool, pushReady: true }, ADMIN, {
+      campaignId: CAMPAIGN,
+      body: approval({ channels: ["push"] }),
+      requestId: CAMPAIGN,
+    });
+    expect(answer.sendAtMoved).toBe(false);
+    expect(seen[0]?.[1]).toEqual(["push"]);
+    expect(seen[0]?.[3]).toEqual(new Date(approval().sendAt));
+    const both = await approveCampaign({ pool, pushReady: true, promoSms: SENDER }, ADMIN, {
+      campaignId: CAMPAIGN,
+      body: approval({ channels: ["push", "sms"] }),
+      requestId: CAMPAIGN,
+    });
+    expect(both.sendAtMoved).toBe(true);
   });
 
   it("refuses names the SMS cannot carry, before the database", async () => {
@@ -257,6 +297,22 @@ describe("campaignDetail", () => {
     expect(detail.messages.ar?.text.startsWith("دعوة إلى مهرجان: ")).toBe(true);
     expect(detail.messages.en?.parts).toBeLessThanOrEqual(3);
     expect(detail.availableChannels).toEqual(["sms"]);
+    expect(detail.pushMessages.ar).toEqual({ title: "مهرجان", body: "لديك دعوة إلى مهرجان." });
+    expect(detail.pushMessages.en).toEqual({
+      title: "Festival",
+      body: "You have an invitation to Festival.",
+    });
+  });
+
+  it("leaves out of the push a name the rule refuses, as the worker renders it", async () => {
+    const detail = await detailOf(
+      { state: "requested", approvedNames: { ar: null, en: null } },
+      { ar: null, en: "call 0501234567" },
+    );
+    expect(detail.pushMessages.en).toEqual({
+      title: "Questify",
+      body: "You have an invitation to an event.",
+    });
   });
 
   it("renders a requested campaign's messages from the event's current names", async () => {
@@ -266,6 +322,10 @@ describe("campaignDetail", () => {
     );
     expect(detail.messages.ar?.text.startsWith("دعوة إلى اسم جديد: ")).toBe(true);
     expect(detail.messages.en?.text.startsWith("Invitation to New name: ")).toBe(true);
+    expect(detail.pushMessages.en).toEqual({
+      title: "New name",
+      body: "You have an invitation to New name.",
+    });
   });
 
   it.each(["approved", "sending", "sent", "cancelled"])(
@@ -284,6 +344,7 @@ describe("campaignDetail", () => {
       { ar: "مهرجان", en: "Festival" },
     );
     expect(detail.messages).toEqual({ ar: null, en: null });
+    expect(detail.pushMessages).toEqual({ ar: null, en: null });
     expect(detail.names.en.name).toBe("Festival");
   });
 

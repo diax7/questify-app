@@ -84,7 +84,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/me/notifications":
     "the calling player's own center rows through own_notifications, rendered from fixed templates; another player's never show (push-store, cross-tenant, push/routes)",
   "POST /v1/me/notifications/read":
-    "marks only the calling player's own rows through mark_notifications_read; another player's ids change nothing (push-store, cross-tenant, push/routes)",
+    "marks only the calling player's own rows through mark_notifications_read; another player's ids change nothing; an invitation row named by id counts the player's own invitation open once (push-store, cross-tenant, push/routes, invitation-push)",
   "GET /v1/me/push-topics":
     "the calling player's own muted topics through own_push_topics (push-store, push/routes)",
   "PUT /v1/me/push-topics":
@@ -92,7 +92,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/invitation-campaigns":
     "active platform admins only (walked below); exact counts and organizer and event names, no player; the admin checked again (questify_admin) (test/invitations/routes, test/db/invitation-campaigns)",
   "GET /v1/admin/invitation-campaigns/:campaignId":
-    "active platform admins only (walked below); exact counts, the audience estimate as a number, the event's names and the messages rendered with placeholder tokens, never a player or a real token (test/invitations/routes, test/db/invitation-campaigns)",
+    "active platform admins only (walked below); exact counts, the audience estimate as a number, the event's names and the SMS and push messages rendered with placeholder tokens, never a player or a real token (test/invitations/routes, test/db/invitation-campaigns)",
   "POST /v1/admin/invitation-campaigns/:campaignId/approve":
     "active platform admins only (walked below); Idempotency-Key; the names the console showed must still be the event's (event_renamed), the name rule, channels this server can send; audited without counts (test/invitations/routes, test/db/invitation-campaigns)",
   "POST /v1/admin/invitation-campaigns/:campaignId/refuse":

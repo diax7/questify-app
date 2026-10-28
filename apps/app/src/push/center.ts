@@ -56,6 +56,18 @@ export function rowRoute(row: NotificationItem): NotificationRoute {
   return notificationRoute(row.kind, row.eventId, row.refs);
 }
 
+/**
+ * The join screen an invitation row's "See the event" opens (ADR-356 (6)): the event's public code, joined by link as
+ * the invitation's landing page does; null for any other row.
+ */
+export function joinRouteOf(
+  row: Pick<NotificationItem, "joinCode">,
+): Readonly<{ pathname: "/join/[code]"; params: Readonly<{ code: string; via: "link" }> }> | null {
+  return row.joinCode === null
+    ? null
+    : { pathname: "/join/[code]", params: { code: row.joinCode, via: "link" } };
+}
+
 const LOCALES: Readonly<Record<Language, string>> = {
   // Gregorian dates and Western digits in Arabic too (ADR-018).
   ar: "ar-u-ca-gregory-nu-latn",

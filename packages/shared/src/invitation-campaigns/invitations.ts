@@ -31,8 +31,11 @@ export const INVITATION_END_REASONS = [
   "event_changed",
   "event_over",
 ] as const;
-/** The channels an invitation can go by in v1 (ADR-331 (1)); T-501 adds push. */
-export const INVITATION_CHANNELS = ["sms"] as const;
+/**
+ * The channels an invitation can go by (ADR-331 (1), ADR-356 (4)): each chosen player gets one message, by push when
+ * opted in on push with the app on a phone, else by SMS; never both.
+ */
+export const INVITATION_CHANNELS = ["push", "sms"] as const;
 export type InvitationChannel = (typeof INVITATION_CHANNELS)[number];
 /** Why an event cannot take an invitation (`invitation_event_ok`, migration 0073). */
 export const INVITATION_EVENT_REASONS = [
@@ -178,11 +181,12 @@ const nameVerdict = z.strictObject({
   issue: z.enum(["control_characters", "looks_like_address", "looks_like_phone"]).nullable(),
 });
 const rendered = z.strictObject({ text: z.string(), parts: z.number().int().min(1) });
+const pushRendered = z.strictObject({ title: z.string().min(1), body: z.string().min(1) });
 
 /**
  * `GET /v1/admin/invitation-campaigns/{id}`: the campaign, the event's current names with the name rule's verdict,
- * the messages (placeholder tokens, never a real one), the audience estimate, the channels this server can send and
- * the channel hold. The messages are rendered from the current names while the campaign is `requested` (what Approve
+ * the messages (placeholder tokens, never a real one) and the push in each language, the audience estimate (before
+ * approval, both channels), the channels this server can send and the channel hold. The messages are rendered from the current names while the campaign is `requested` (what Approve
  * will freeze) and from the frozen `approvedNames` in every later state; a campaign never approved has none.
  */
 export const adminInvitationDetailSchema = z.strictObject({
@@ -191,6 +195,7 @@ export const adminInvitationDetailSchema = z.strictObject({
   eventEndsAt: z.string().nullable(),
   names: z.strictObject({ ar: nameVerdict, en: nameVerdict }),
   messages: z.strictObject({ ar: rendered.nullable(), en: rendered.nullable() }),
+  pushMessages: z.strictObject({ ar: pushRendered.nullable(), en: pushRendered.nullable() }),
   estimate: z.number().int().min(0).nullable(),
   queued: exact,
   availableChannels: z.array(z.enum(INVITATION_CHANNELS)),

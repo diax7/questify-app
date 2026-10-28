@@ -1057,6 +1057,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.invitation_claim_at('{sms}', 5, now())",
         `SELECT * FROM public.invitation_candidates(${probe})`,
         "SELECT public.invitation_on()",
+        "SELECT public.invitation_push_hand()",
+        "SELECT public.invitation_push_rows('{}', 5)",
+        `SELECT public.invitation_push_opened(${probe}, '{1}')`,
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }
@@ -1074,6 +1077,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "invitation_ack",
         "invitation_settle",
         "invitation_open",
+        "invitation_push_hand",
         "marketing_audience",
         "set_marketing",
       ];
@@ -1105,6 +1109,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "invitation_settle_publish",
         "invitation_purge",
         "invitation_campaign_gone",
+        "invitation_push_rows",
+        "invitation_push_opened",
         "marketing_state_apply",
       ];
       const grants = (grantee: string) =>
@@ -1421,6 +1427,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         expect(row.config, row.proname).toEqual(["search_path=public, pg_temp"]);
         // The trigger functions are definers: a trigger that could not insert its notice would undo the door.
         expect(row.definer, row.proname).toBe(triggers.includes(row.proname));
+      }
+    });
+
+    it("cannot run the reminder scans or reach their rules (T-501f)", async () => {
+      for (const sql of [
+        "SELECT public.push_due_streak(1, now())",
+        "SELECT public.push_due_shop(1)",
+        "SELECT public.shop_on(e) FROM public.event e",
+        "SELECT public.push_streak_open(n) FROM public.notice n",
+        "SELECT public.push_shop_open(n, NULL, NULL) FROM public.notice n",
+        "SELECT * FROM public.notice_kind WHERE kind IN ('streak_reminder', 'shop_closing', 'invitation')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const internals = [
+        "push_due_shop",
+        "push_due_streak",
+        "push_shop_open",
+        "push_streak_open",
+        "shop_on",
+      ];
+      const listed = `ARRAY[${internals.map((name) => `'${name}'`).join(", ")}]`;
+      // Neither PUBLIC nor the API's role holds any of them: the scans run inside push_due, the rules inside the checks.
+      const held = await rows<{ proname: string }>(
+        `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.grantee IN (0, 'questify_app'::regrole) AND a.privilege_type = 'EXECUTE'
+           AND p.proname = ANY(${listed})`,
+      );
+      expect(held).toEqual([]);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual(internals.toSorted());
+      for (const row of present) {
+        expect(row.config, row.proname).toEqual(["search_path=public, pg_temp"]);
+        expect(row.definer, row.proname).toBe(false);
       }
     });
 

@@ -102,7 +102,7 @@ export function Names({ language, detail }: PartProps) {
   );
 }
 
-/** The exact text each language's players get, with the number of SMS parts. */
+/** The exact text each language's players get, with the number of SMS parts, and the push beside it. */
 export function Messages({ language, detail }: PartProps) {
   const t = translatorFor(language);
   const frozen = detail.campaign.state !== "requested";
@@ -137,6 +137,18 @@ export function Messages({ language, detail }: PartProps) {
           <p className={styles.prose} dir="auto" data-testid={`message-text-${one}`}>
             {detail.messages[one]?.text}
           </p>
+          {detail.pushMessages[one] === null ? null : (
+            <>
+              <p className={styles.muted}>
+                {t("console.invCampaign.messages.pushLabel", {
+                  language: t(`invCampaign.language.${one}`),
+                })}
+              </p>
+              <p className={styles.prose} dir="auto" data-testid={`push-text-${one}`}>
+                <strong>{detail.pushMessages[one]?.title}</strong> {detail.pushMessages[one]?.body}
+              </p>
+            </>
+          )}
         </div>
       ))}
     </div>

@@ -1748,12 +1748,23 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   marker, until its category opens (a boost also until its community lock is lifted), then is pushed once; an opening
   is pushed again only when moved 15 minutes or more to a later time; the re-push check reads only numeric markers;
   30 s for a 50,000-member fan-out is a soft target, 1 s a call and the 5 s limit the hard gates.
+- 2026-10-28 **T-501f built (core; code review owed).** Reminders and promotion by push (plan note
+  `docs/plans/2026-10-28-t-501f-reminders-promotion.md`). Migration 0079 (new file, undeployed): the daily streak
+  reminder (18:00 Riyadh, a 2-day streak with nothing today, only to players with a pushable device and reminders on,
+  skipped at sending once they play; ADR-300 copy), the shop's closing the day before (once per event, real active
+  members with a balance, skipped when the window was extended), invitations by push or SMS (one fixed channel per
+  player, push first, never both; the invitation tick hands push rows to the push store; consent checked at the
+  hand-off, the fan-out and the claim; the open counted from the center row). FR-1114: a promotional tap opens the
+  center on its row with the opt-out; an invitation row carries "See the event". Console: push and SMS checkboxes and
+  the push text. Tests: `push-reminders.int` (10), `invitation-push.int` (10), security, rehearsal guard, unit; full
+  suite 8,630 passed (11 skipped), browser suite 193 passed (1 skipped), Android export clean. ADR-356 and Q-325
+  Proposed. Mutation globs: none (ADR-355). CI minutes: 0 (local only). Effort: one worker session, about 0.6M agent tokens.
 
 ## Next
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is
-   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded, cap re-review 88 folded, GO to push; ADR-353 Accepted; accept-all 1,000 a call, 250 with a hard limit until T-221); T-501e (the event pushes) is built and reviewed (78 folded, re-review 91 folded, GO to push; ADR-354 Accepted); T-501f and T-501g are next, each adding its kinds to `push_due()` or a trigger and its routes.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
+   built, its code review is owed; so is T-406d's (the daily word guess lists). **T-410 and T-410b are built and reviewed (folded: c3e0d46, and T-410b's 89); T-411 (archiving) is built and reviewed (87 folded; ADR-341 Accepted); its mutation run is owed with the next batch.** **T-501 (the push store, center and worker) is built and reviewed (ADR-350 Accepted); T-501b (the APNs and FCM clients) is built and reviewed (88 folded; ADR-351 Accepted); its mutation run is owed with the next batch. **T-501c (the app's push) is built and reviewed (84 folded; ADR-352 Accepted). T-501d (the personal pushes) is built and reviewed (84 folded, cap re-review 88 folded, GO to push; ADR-353 Accepted; accept-all 1,000 a call, 250 with a hard limit until T-221); T-501e (the event pushes) is built and reviewed (78 folded, re-review 91 folded, GO to push; ADR-354 Accepted); T-501f (reminders and promotion by push) is built, its code review is owed (ADR-356 Proposed); T-501g (the hint push) is next.** Real pushes wait for Dhia's Apple key and Firebase service account and the RUNBOOK go-live checklist.** **Next:** the T-409 mutation run (T-409 and T-409b are
    reviewed and folded, ADR-334 and ADR-335 accepted); T-408d when the RUNBOOK ranked-count check fires. Waiting for counsel: Q-280 (sponsor wording), Q-286 (marketing age), Q-288 (consent
    wording), Q-289 (proof after deletion); nothing waits on them. Waiting on people, not blocking: an Arabic reader skims
    `data/word-lists/guess-list-ar.txt` and its block list (Q-296), and the team imports both guess lists in the console

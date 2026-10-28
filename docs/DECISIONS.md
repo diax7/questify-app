@@ -5154,3 +5154,45 @@ restatement must keep them PL/pgSQL or inlinable.
 5. **Cost is visible.** Each task's STATE bullet carries its CI minutes and a rough agent-token figure. The full suite runs once per task. No slices unless each delivers value alone. A finding that repeats becomes an automatic check or a `docs/rules.md` line.
 **Why:** the 2026-10-27/28 session used on the order of 20 million agent tokens by the tools' own counts (they include re-read context, so fresh spend was lower) and many hours for roughly 12 tasks. Each core task took 6 to 10 agent sessions; large workers were resumed for small fixes; minors and nits were folded one by one with a full-suite run each; mutation ran after every task. The reviews found real defects, but almost all in SQL, locking, timing, outside calls and consent, so review effort belongs there.
 **Trade-offs:** minors wait for a batch; tier B code sees one mid-tier review and CI instead of two Opus reviews and mutation, so a subtle defect there is more likely to surface late. The pre-push checks (`pnpm lint:limits`, `pnpm audit`, gitleaks, CI) stay for every task.
+
+## ADR-356 — Where the T-501f build fills in reminders and promotion by push
+**Status:** Proposed (worker recommendation, 2026-10-28, T-501f build; `docs/plans/2026-10-28-t-501f-reminders-promotion.md`;
+Q-325). Refines ADR-331, ADR-338 (6), ADR-347 and ADR-350 (11) for rows 13 to 16 of the T-501 plan's "Owed pushes".
+**Decision:** (1) **Three kinds** (migration 0079): `streak_reminder` (personal, topic `reminders`, no event, 6 hours,
+until midnight Riyadh), `shop_closing` (event, `reminders`, active members, 24 hours, until the close) and `invitation`
+(promotional, no topic, no enrollment needed, 7 days, until the event's end). The daily games reminder is folded into
+the streak reminder: one daily reminder at most, whose text ("playing today") covers a quest, the daily challenge and
+the daily word. (2) **The streak reminder** is a due scan from 18:00 to midnight Riyadh while the daily streak switch is
+on, once a Questify day per player, for an active player with streak days yesterday and the day before and none today;
+**only a player with a pushable device who has not muted `reminders` gets one** (a reminder that cannot be pushed writes
+no center row, unlike other kinds: the center keeps messages, and a reminder is only useful as a push); at the claim, a
+player who has played since is skipped. The text names nothing (no number, no countdown, no loss: ADR-300). (3) **The
+shop's closing** is a due scan once the event has ended, its shop is open by `shop_state` and switched on (the event's
+and the platform's switch), and the close is within 24 hours; once per event; to real active members with a balance
+above 0 (not an operator kept from playing); the notice freezes the closing date, and a window extended after it is
+skipped at the fan-out and the claim with no second push. (4) **Invitations by push:** `invitation_campaign.channels`
+takes `{push, sms}`; the fill gives each chosen player one row and one channel, push when the campaign has push and the
+player is opted in on push (`promo_pool`) with a pushable device, else SMS when the campaign has SMS and the player is
+opted in on SMS, never both and no fallback; the phone's permission alone is never consent. The invitation tick's
+hand-off door (`invitation_push_hand`, system seat, 500 rows a call, the claim's campaign locks) re-checks consent and
+membership, writes one notice per row through `notice_create` and marks the row `sent` (handed to the push store; the
+fan-out and the claim check consent again, with no center row without it); a row whose notice could not be written (a
+broken kind) is `failed` (`no_kind`). Push is offered at approval only when a push provider is set up; the estimate
+before approval counts both channels; quiet hours stay SMS's alone (Q-287), so the send time moves only when SMS is
+among the channels. The console shows the push text beside the SMS. (5) **The open:** opening the invitation's center
+row (a tap on the push or on the row, which marks that row read by id) marks the recipient's `opened_at` once and
+counts it, while the event runs and the results are open; "mark all as read" counts no open. (6) **FR-1114's screen:**
+a promotional tap opens the notification center on that row, highlighted, with its opt-out to Settings → Offers and
+notifications; an invitation row also carries "See the event", the join screen by the event's public code (frozen on
+the notice, `via: link`). No separate detail screen. (7) **The claim asks each kind's own audience rule for every
+notice** (`push_skip_reason` restated): personal and promotional kinds now have one too (a streak played since, an
+invitation's player who joined meanwhile); T-501d's kinds pass as before.
+**Why:** each point keeps the plan's rules (one insert per notice through `notice_create`, due scans for moments, no
+`EXCEPTION` block, a broken kind never undoing a door, consent from `promo_pool` at every step) where its wording left a
+choice open; the reminder's device filter keeps a daily kind from writing a center row a day for every streaking
+player who cannot be reached; a fixed channel per row keeps "never both" provable.
+**Trade-offs:** a player without push loses no reminder in the center (there is none); a muted reminder leaves no trace;
+an invitation row counts as sent once it is handed to the push store, even if the push is later skipped (consent
+withdrawn, device gone); a player who loses their device between the fill and the hand-off gets the invitation in the
+center only; a shop window extended after the notice gets no reminder at all; the estimate before approval may count
+SMS-only players for a push-only campaign.

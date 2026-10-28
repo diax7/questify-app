@@ -67,6 +67,10 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   community_step: fixedTemplate("communityStep"),
   category_open: namedTemplate("categoryOpen"),
   event_soon: fixedTemplate("eventSoon"),
+  // T-501f (migration 0079): reminders and promotion.
+  streak_reminder: fixedTemplate("streakReminder"),
+  shop_closing: namedTemplate("shopClosing"),
+  invitation: namedTemplate("invitation"),
 };
 
 /** What the renderer reads from a claimed send or a center row. */

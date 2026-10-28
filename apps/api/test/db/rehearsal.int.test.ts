@@ -1096,6 +1096,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "streak_record", // internal: the ledger_streak trigger inside a payer that wiped first; skips rehearsal entries (T-405)
         "push_fan_out_event", // the push fan-out reads the status to choose who gets a center row; it writes no row the wipe deletes (T-501)
         "push_due_category", // a due scan reads the status to choose which notices to write; it writes only notices (T-501e)
+        "push_due_shop", // reads the status for an ended event's shop closing; it writes only notices (T-501f)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

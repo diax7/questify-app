@@ -21,6 +21,8 @@ export const INVITATION_ROUND = 5;
 export const INVITATION_SETTLE_MS = 10 * 60 * 1000;
 /** At most this many settle calls a tick while one reports `more`. */
 const SETTLE_CALLS = 5;
+/** At most this many push hand-off calls (500 rows each) a tick while one reports `more`. */
+export const HAND_CALLS = 5;
 /** The fill's own statement limit (the API's is 5 s, pool-options.ts). */
 export const FILL_TIMEOUT_MS = 60_000;
 /** The client's own wait for the fill, beyond the server's limit (the pool's is 6 s, pool-options.ts). */
@@ -169,7 +171,26 @@ export async function withFillLimits<R extends QueryResultRow>(
   return client.query<R>(query);
 }
 
-/** Starts at most one due campaign, then sends; only while the switch is on and a promotional sender exists. */
+/**
+ * Hands the queued push invitations to the push store (`invitation_push_hand`, ADR-356 (4)): no quiet hours and no
+ * outside call here, the push worker sends them. Calls again while one reports `more`, at most HAND_CALLS a tick.
+ */
+async function handPushes(deps: InvitationTickDeps): Promise<void> {
+  for (let call = 0; call < HAND_CALLS; call += 1) {
+    const summary = await system(deps.pool, async (client) => {
+      const { rows } = await client.query<{ summary: Record<string, unknown> }>(
+        "SELECT invitation_push_hand() AS summary",
+      );
+      return rows[0]?.summary;
+    });
+    if (summary === undefined || summary["more"] !== true) return;
+  }
+}
+
+/**
+ * Starts at most one due campaign, hands its push rows to the push store, then sends SMS; only while the switch is on,
+ * the SMS only with a promotional sender.
+ */
 async function send(deps: InvitationTickDeps, started: number): Promise<void> {
   if (!(await switchedOn(deps))) return;
   const outcome = await system(deps.pool, async (client) => {
@@ -182,7 +203,8 @@ async function send(deps: InvitationTickDeps, started: number): Promise<void> {
   if (outcome !== undefined && !["off", "busy", "idle"].includes(outcome)) {
     deps.log("info", { event: "invitation.start", outcome });
   }
-  // Without the promotional sender nothing is claimed: SMS is v1's only channel (ADR-331 (1)).
+  await handPushes(deps);
+  // Without the promotional sender no SMS is claimed (ADR-331 (1)); push rows went to the push store above.
   if (deps.promoSms === undefined) return;
   await sendRounds(deps, deps.promoSms, started);
 }
@@ -204,7 +226,8 @@ export type InvitationTick = Readonly<{ stop: () => Promise<void> }>;
 
 /**
  * The invitation tick (ADR-333): every interval, settle when 10 minutes have passed since the last one (switch on or
- * off), then, while the switch is on, start one due campaign and send rounds of 5 for up to 3 s. Logs carry events,
+ * off), then, while the switch is on, start one due campaign, hand the push rows to the push store and send SMS rounds
+ * of 5 for up to 3 s. Logs carry events,
  * outcomes and SQLSTATEs only, never a phone, a text or a player. A failure is logged and the next run tries again.
  */
 export function startInvitationTick(deps: InvitationTickDeps): InvitationTick {

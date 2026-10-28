@@ -181,10 +181,21 @@ describe("the center", () => {
       createdAt: "2026-10-28T10:00:00.000Z",
       read: false,
       optOut: false,
+      joinCode: null,
     };
     expect(
       notificationListSchema.parse({ items: [item], nextBefore: null, unread: 1 }),
     ).toBeTruthy();
+    const withCode = (joinCode: unknown) =>
+      accepts(notificationListSchema, {
+        items: [{ ...item, joinCode }],
+        nextBefore: null,
+        unread: 1,
+      });
+    expect(withCode("WINTER26")).toBe(true);
+    for (const code of ["W-26", "abc", "https://x.io", "A".repeat(13), 1234, undefined]) {
+      expect(withCode(code), String(code)).toBe(false);
+    }
     expect(
       accepts(notificationListSchema, {
         items: [{ ...item, playerId: "x" }],
@@ -216,6 +227,7 @@ describe("the center", () => {
       createdAt: "2026-10-28T10:00:00.000Z",
       read: false,
       optOut: false,
+      joinCode: null,
     };
     const list = (kind: string) => ({ items: [{ ...item, kind }], nextBefore: null, unread: 0 });
     expect(accepts(notificationListSchema, list(`a${"_".repeat(39)}`))).toBe(true);
@@ -236,6 +248,7 @@ describe("the center", () => {
       createdAt: "2026-10-28T10:00:00.000Z",
       read: false,
       optOut: false,
+      joinCode: null,
     };
     const page = (size: number) => ({
       items: Array.from({ length: size }, () => item),
@@ -271,6 +284,7 @@ describe("the center", () => {
       createdAt: "2026-10-28T10:00:00.000Z",
       read: true,
       optOut: false,
+      joinCode: null,
     };
     const list = (refs: unknown) => ({ items: [{ ...item, refs }], nextBefore: null, unread: 0 });
     expect(accepts(notificationListSchema, list({ quest: "123456789012345678" }))).toBe(true);

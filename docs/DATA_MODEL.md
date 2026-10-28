@@ -569,8 +569,8 @@ ADR-151):
 
 - `invitation_campaign(id, organizer_id, event_id → event (with organizer) CASCADE, request_id UNIQUE, fingerprint,
   requested_by → staff_user, requested_at, city_id → city, interests text[] ≤ 3, history none|recent|own, size 50–100,000,
-  send_after, state requested|approved|sending|sent|cancelled|refused, channels ⊆ {sms}, cap 50–100,000, send_at,
-  name_ar, name_en (copied at approval; every SMS is rendered from them), admin_note 1–500, decided_by, decided_at,
+  send_after, state requested|approved|sending|sent|cancelled|refused, channels ⊆ {push, sms} (T-501f, 0079), cap
+  50–100,000, send_at, name_ar, name_en (copied at approval; every SMS and push is rendered from them), admin_note 1–500, decided_by, decided_at,
   started_at, finished_at, final_at, end_reason owner|admin|too_small|event_changed|event_over, planned, sent, unknown,
   failed, skipped, cancelled, opened, joined ≥ 0, published_sent, published_opened, published_joined, published_at)`:
   shape checks per state; one open campaign per event (partial unique index); counters only grow. Organizers read only the
@@ -581,12 +581,16 @@ ADR-151):
   joined_at)`: **personal data** (who was invited); no contact or text stored (the claim reads them fresh through
   `promo_pool`); deleted 90 days after its campaign finished (whatever its state) and at once by erasure. No foreign keys
   (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign, leases by expiry, rows by
-  player and `sent_at` (the 7-day limit).
+  player and `sent_at` (the 7-day limit). T-501f (0079): each row's `channel` is fixed at the fill, `push` when the
+  campaign has push and the player is opted in on push with a pushable device, else `sms`; never two rows or two
+  channels for one player. A push row is handed to the push store by `invitation_push_hand` (one `invitation`
+  notice, marker `invitation:{row}`, then `sent`; `failed` with `no_kind` when the notice could not be written), and
+  its `opened_at` is set when the player opens the notice's center row.
 - `invitation_channel_hold(channel PK, hold_until, code)`: one 15-minute hold per channel after an account refusal.
 - All three: RLS forced, no policy, no grant. Doors (granted to `questify_app`): `invitation_request`,
   `invitation_cancel`, `invitation_list` (team), `invitation_admin_queue`, `invitation_admin_get`, `invitation_approve`,
   `invitation_refuse`, `invitation_admin_cancel` (admin), `invitation_start_due`, `invitation_claim`, `invitation_ack`,
-  `invitation_settle` (system context only), `invitation_open` (anonymous, by link). Codes `IV403`, `IV404`, `IV409`
+  `invitation_settle`, `invitation_push_hand` (T-501f) (system context only), `invitation_open` (anonymous, by link). Codes `IV403`, `IV404`, `IV409`
   (reason in DETAIL), `IV422` (field in DETAIL). Lock order: `docs/rules.md`.
 
 ### Push notifications and the notification center (T-501, migration 0076 undeployed; core code review pending)
@@ -596,7 +600,9 @@ ADR-151):
   kind, seeded by the slice that wires it (0076 seeds none; 0077, T-501d, seeds the ten personal kinds:
   `join_accepted`, `join_declined`, `help_answered`, `help_answered_questify`, `help_solved`, `rank_prize`,
   `submission_approved`, `submission_rejected`, `reward_ready`, `reward_ending`; 0078, T-501e, the six event kinds:
-  `flash_quest`, `boost_start`, `poll_sent`, `community_step`, `category_open`, `event_soon`); every row must have a template in
+  `flash_quest`, `boost_start`, `poll_sent`, `community_step`, `category_open`, `event_soon`; 0079, T-501f,
+  `streak_reminder` (personal, topic reminders), `shop_closing` (event, reminders) and `invitation` (promo)); every
+  row must have a template in
   `packages/shared/src/push/templates.ts` and a route in `packages/shared/src/push/routes.ts` (a database test checks).
 - **Producers (T-501d, migration 0077):** row triggers with a `WHEN` on `enrollment` (a join decision), `ticket`
   (closed) and `submission` (a reviewer's decision), a statement trigger with transition tables on `event_result` (the
@@ -618,6 +624,14 @@ ADR-151):
   `notice_status_ok` now leaves rehearsal accounts out of a live or ended event's notices.
   `sees_category`, `flash_shown`, `member_sees_quest` and `notice_audience_ok` are PL/pgSQL from 0078 with the same
   rules, so the per-member checks keep their plans (ADR-354 (5)).
+- **Reminders and promotion (T-501f, migration 0079):** two more scans in `push_due()`: the daily streak reminder
+  (`push_due_streak`, 18:00 to midnight Riyadh, players with streak days yesterday and the day before and none today,
+  a pushable device and `reminders` not muted; marker `streak:{player}:{Questify day}`) and the shop's closing
+  (`push_due_shop`, an ended event whose shop is open and on and closes within 24 hours; marker
+  `shop_closing:{event}`, the closing date frozen in `params.date`); the invitation hand-off writes the `invitation`
+  notices. Index `questify_streak_day (day, player_id)` for the streak scan. `notice_audience_ok` is now asked for
+  every notice at the claim (`push_skip_reason` restated): a streak played since, an invitation's player who joined,
+  a shop window extended or a balance gone are skipped. No new column.
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment

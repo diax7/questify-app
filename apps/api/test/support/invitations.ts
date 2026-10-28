@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { QueryResultRow } from "pg";
 import type { RequestContext } from "#src/db/context";
-import { questifyFixture } from "#test/support/questify";
+import { questifyFixture, type QuestifyFixture } from "#test/support/questify";
 import { addMember } from "#test/support/test-db";
 
 /** A call's SQLSTATE, or "none" when it succeeds. */
@@ -80,10 +80,11 @@ export type PoolOptions = Readonly<{
 /**
  * Fixtures for T-409's database suites (migration 0073): an admin, an editor, a limited editor and organizer B's owner;
  * the platform switch; eligible events; players opted in to promotional SMS in bulk; and every door called from its
- * seat. `isolate` turns everyone's SMS consent off first, so a fill sees only the players a test made.
+ * seat. `isolate` turns everyone's SMS consent off first, so a fill sees only the players a test made. `base` shares
+ * another suite's database (the invitation push suite, T-501f).
  */
-export async function invitationFixture() {
-  const f = await questifyFixture();
+export async function invitationFixture(base?: QuestifyFixture) {
+  const f = base ?? (await questifyFixture());
   const [staff] = await f.owner<{ id: string }>(
     "INSERT INTO staff_user (email, password_hash, platform_role) VALUES ('iv-admin@questify.test', 'h', 'admin') RETURNING id",
   );
@@ -176,7 +177,7 @@ export async function invitationFixture() {
     cap?: number;
     at?: Date;
     note?: string | null;
-    channels?: string[];
+    channels?: (string | null)[];
     names?: Readonly<{ name_ar: string | null; name_en: string | null }>;
   }>;
   const approve = async <T = { id: string; state: string }>(

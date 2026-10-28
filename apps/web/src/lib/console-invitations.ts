@@ -9,6 +9,7 @@ import {
   type AdminInvitationCampaign,
   type AdminInvitationDetail,
   type InvitationApproveBody,
+  type InvitationChannel,
   type MessageKey,
 } from "@questify/shared";
 import { SAUDI_ZONE } from "#src/lib/console-questify.ts";
@@ -65,6 +66,7 @@ export const isOpen = (campaign: AdminInvitationCampaign): boolean =>
   campaign.state === "requested" || campaign.state === "approved" || campaign.state === "sending";
 
 export type ApprovalDraft = Readonly<{
+  push: boolean;
   sms: boolean;
   cap: string;
   /** Riyadh time, `YYYY-MM-DDTHH:mm`. */
@@ -75,14 +77,20 @@ export type ApprovalDraft = Readonly<{
 const HOUR_MS = 3_600_000;
 
 /**
- * The form's start: SMS, the owner's size as the cap, and the top of the next hour (or of the next hour after the
- * owner's earliest send, when that is later). Riyadh is a whole-hour zone, so the hour is the same in UTC.
+ * The form's start: every channel this server can send (push first, SMS for the rest; ADR-356 (4)), the owner's size as
+ * the cap, and the top of the next hour (or of the next hour after the owner's earliest send, when that is later).
+ * Riyadh is a whole-hour zone, so the hour is the same in UTC.
  */
-export function approvalDraftOf(campaign: AdminInvitationCampaign, now: Date): ApprovalDraft {
+export function approvalDraftOf(
+  campaign: AdminInvitationCampaign,
+  now: Date,
+  available: readonly InvitationChannel[],
+): ApprovalDraft {
   const earliest = campaign.sendAfter === null ? 0 : Date.parse(campaign.sendAfter);
   const base = Math.max(now.getTime(), earliest);
   return {
-    sms: true,
+    push: available.includes("push"),
+    sms: available.includes("sms"),
     cap: String(campaign.size),
     sendAt: toLocalInput(new Date((Math.floor(base / HOUR_MS) + 1) * HOUR_MS), SAUDI_ZONE),
     note: "",
@@ -90,6 +98,12 @@ export function approvalDraftOf(campaign: AdminInvitationCampaign, now: Date): A
 }
 
 export type ApprovalProblem = "channels" | "cap" | "sendAt" | "note";
+
+/** The channels ticked, push first. */
+const channelsOf = (draft: ApprovalDraft): InvitationChannel[] => [
+  ...(draft.push ? (["push"] as const) : []),
+  ...(draft.sms ? (["sms"] as const) : []),
+];
 
 /** The longest note the API takes. */
 export const NOTE_MAX = 500;
@@ -103,7 +117,8 @@ export function approvalBodyOf(
   detail: AdminInvitationDetail,
 ): Readonly<{ body: InvitationApproveBody }> | Readonly<{ problem: ApprovalProblem }> {
   const cap = wholeNumber(draft.cap);
-  if (!draft.sms) {
+  const channels = channelsOf(draft);
+  if (channels.length === 0) {
     return { problem: "channels" };
   }
   if (!(cap >= INVITATION_MIN_SIZE && cap <= INVITATION_MAX_SIZE)) {
@@ -121,7 +136,7 @@ export function approvalBodyOf(
   }
   return {
     body: {
-      channels: ["sms"],
+      channels,
       cap,
       sendAt,
       ...(note === "" ? {} : { note }),
@@ -139,13 +154,15 @@ const APPROVAL_FIELDS: Readonly<Record<string, MessageKey>> = {
   name: "console.invCampaign.invalid.name",
 };
 
-/** The approval's own refusals in this page's words: the field named, an SMS the server cannot send. */
+/** The approval's own refusals in this page's words: the field named, a channel the server cannot send. */
 export function approvalRefusalText(body: unknown, t: Translate): string | undefined {
   const code = errorCodeOf(body);
-  if (code === "channel_unavailable") {
-    return t("console.invCampaign.noSms");
-  }
   const details = isRecord(body) && isRecord(body["details"]) ? body["details"] : {};
+  if (code === "channel_unavailable") {
+    return t(
+      details["channel"] === "push" ? "console.invCampaign.noPush" : "console.invCampaign.noSms",
+    );
+  }
   const key = Object.entries(APPROVAL_FIELDS).find(([field]) => field === details["field"]);
   return code === "invalid_approval" && key !== undefined ? t(key[1]) : undefined;
 }
@@ -153,15 +170,15 @@ export function approvalRefusalText(body: unknown, t: Translate): string | undef
 /** Whether the API refused because the event was renamed after the page showed it (the page reads it again). */
 export const isRenamed = (body: unknown): boolean => errorCodeOf(body) === "event_renamed";
 
-export type ApprovalBlock = "noSms" | "event" | "name" | "noName";
+export type ApprovalBlock = "noChannel" | "event" | "name" | "noName";
 
 /**
- * Why Approve is off, or null: SMS is not set up on this server, the event no longer qualifies, a name the SMS cannot
- * carry, or no name at all. The API refuses each of them too; this says so before the click.
+ * Why Approve is off, or null: neither push nor SMS is set up on this server, the event no longer qualifies, a name the
+ * SMS cannot carry, or no name at all. The API refuses each of them too; this says so before the click.
  */
 export function approvalBlock(detail: AdminInvitationDetail): ApprovalBlock | null {
-  if (!detail.availableChannels.includes("sms")) {
-    return "noSms";
+  if (detail.availableChannels.length === 0) {
+    return "noChannel";
   }
   if (detail.eventIssue !== null) {
     return "event";

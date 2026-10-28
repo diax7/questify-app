@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import { invitationToken } from "#src/invitation-campaigns/message";
 import {
+  HAND_CALLS,
   INVITATION_BUDGET_MS,
   INVITATION_ROUND,
   INVITATION_SETTLE_MS,
@@ -20,6 +21,8 @@ type Script = {
   noRow?: boolean;
   /** settle's `more` answers, in order; afterwards false. */
   more?: boolean[];
+  /** The push hand-off's `more` answers, in order; afterwards false. */
+  handMore?: boolean[];
   /** What each statement of that kind throws, when the key is present. */
   ackError?: unknown;
   settleError?: unknown;
@@ -49,6 +52,7 @@ function fakePool(script: Script) {
   const statements: { sql: string; values: unknown[]; timeout?: number }[] = [];
   let claimed = 0;
   let settles = 0;
+  let hands = 0;
   let next = 0;
   const client = {
     query: vi.fn(
@@ -66,6 +70,12 @@ function fakePool(script: Script) {
           settles += 1;
           if (script.noRow === true) return { rows: [] };
           return { rows: [{ summary: { more: script.more?.[settles - 1] ?? false } }] };
+        }
+        if (sql.includes("invitation_push_hand")) {
+          hands += 1;
+          return {
+            rows: [{ summary: { rows: 500, more: script.handMore?.[hands - 1] ?? false } }],
+          };
         }
         if (sql.includes("invitation_start_due")) {
           if ("startError" in script) throw script.startError;
@@ -253,12 +263,38 @@ describe("startInvitationTick", () => {
     expect(named(statements, "invitation_claim")).toHaveLength(0);
   });
 
-  it("without a promotional sender, starts campaigns but claims nothing", async () => {
+  it("without a promotional sender, starts campaigns and hands push rows over but claims no SMS", async () => {
     const { tick, statements } = start({ claims: [5] }, [], { sender: null });
     await vi.advanceTimersByTimeAsync(1000);
     await tick.stop();
     expect(named(statements, "invitation_start_due")).toHaveLength(1);
+    expect(named(statements, "invitation_push_hand")).toHaveLength(1);
     expect(named(statements, "invitation_claim")).toHaveLength(0);
+  });
+
+  it("hands push rows over after the start and before the SMS, again while it reports more, at most 5 calls", async () => {
+    const { tick, statements } = start(
+      { claims: [1], handMore: [true, true, true, true, true, true] },
+      [],
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    const order = statements
+      .map((statement) => statement.sql)
+      .filter((sql) => sql.includes("invitation_"));
+    const firstHand = order.findIndex((sql) => sql.includes("invitation_push_hand"));
+    expect(firstHand).toBeGreaterThan(
+      order.findIndex((sql) => sql.includes("invitation_start_due")),
+    );
+    expect(firstHand).toBeLessThan(order.findIndex((sql) => sql.includes("invitation_claim")));
+    expect(named(statements, "invitation_push_hand")).toHaveLength(HAND_CALLS);
+  });
+
+  it("with the switch off, hands nothing over", async () => {
+    const { tick, statements } = start({ claims: [] }, [], { enabled: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(named(statements, "invitation_push_hand")).toHaveLength(0);
   });
 
   it("settles again only after 10 minutes, and calls again while it reports more", async () => {

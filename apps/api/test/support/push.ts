@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { RequestContext } from "#src/db/context";
-import { questifyFixture } from "#test/support/questify";
+import { questifyFixture, type QuestifyFixture } from "#test/support/questify";
 
 /** A call's SQLSTATE, or "none" when it succeeds. */
 export const sqlstate = (work: Promise<unknown>): Promise<string> =>
@@ -58,10 +58,10 @@ const hex = (bytes: number) => randomBytes(bytes).toString("hex");
 /**
  * Fixtures for T-501's database suites (migration 0076): test kinds inserted as the owner (0076 seeds none), notices
  * through notice_create, sign-ins with a live refresh family, devices through the register door, and the worker's
- * doors run in the system context.
+ * doors run in the system context. `base` shares another suite's database (the invitation push suite, T-501f).
  */
-export async function pushFixture() {
-  const f = await questifyFixture();
+export async function pushFixture(base?: QuestifyFixture) {
+  const f = base ?? (await questifyFixture());
   const system: RequestContext = {};
   let kinds = 0;
 

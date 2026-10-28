@@ -1373,3 +1373,15 @@ finding folded). **Batch cut to 1,000:** the event fan-out takes 1,000 enrollmen
 gate check was too slow per member); flash quests and boosts wait for their category to open (a boost also for its
 community lock) and are pushed once it does; a moved start or opening is pushed again only when moved 15 minutes or
 more (an opening only to a later time), at most twice. ADR-354 Accepted (re-review 91 folded).
+
+## Q-325 — Where the T-501f build fills in reminders and promotion by push (2026-10-28, T-501f build)
+Recommended (ADR-356): the streak reminder from 18:00 Riyadh, once a day, only to players with a pushable device and
+`reminders` not muted, skipped at sending once they played; the shop's closing once per event to members with a
+balance, skipped (with no second push) when the window was extended after it; invitations by push or SMS with one fixed
+channel per player (push first when opted in on push with a pushable device), handed to the push store by the
+invitation tick and counted sent then; the open counted from the center row by id, never by "mark all"; a promotional
+tap opens the center on its row with the opt-out, and an invitation row carries "See the event". The other options: a
+reminder center row for every streaking player (a row a day for players who cannot be pushed); a second shop push at the
+new close; an SMS fallback when a push row's consent or device is lost (a second channel for one player); the
+recipient row `sent` only after the push provider answered (couples the two senders); a separate detail screen for a
+promotion. Developer's call at the T-501f code review.

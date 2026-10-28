@@ -127,7 +127,11 @@ row. Recipient rows: `FOR UPDATE`, `SKIP LOCKED` in the claim, lease expiry, the
 The fill takes `pg_try_advisory_xact_lock(hashtext('invitation_fill'))` before anything and skips the tick when it is
 taken. No T-409 door locks a player, an enrollment, a consent row or a ledger row (`invitation_recipient` has no foreign
 key, ADR-334, so no check locks a player); erasure deletes recipient rows under its own player lock and never touches a
-campaign. No outside call runs inside a transaction.
+campaign. No outside call runs inside a transaction. The push hand-off (T-501f, `invitation_push_hand`) takes the
+claim's campaign locks, then its push rows `FOR UPDATE SKIP LOCKED`, then inserts notices (the notice's foreign keys take
+`FOR KEY SHARE` on the event and the kind). The open from the center (`mark_notifications_read` with ids) reads the
+center rows and the row's campaign id unlocked, takes that campaign `FOR NO KEY UPDATE`, then the recipient row, and
+updates the center rows last (erasure also deletes recipient rows before center rows).
 
 **The push store's lock order (T-501, ADR-345).** A producer inserts one notice (`notice_create`) **after** every lock
 its own door takes and reads nothing of the push store, so the notice comes last in every producer's order. A trigger

@@ -145,6 +145,8 @@ describe("invitationApproveBodySchema", () => {
   });
 
   it.each([
+    { channels: ["push"] },
+    { channels: ["push", "sms"] },
     { cap: 100_000 },
     { note: null },
     { expectedNameAr: null, expectedNameEn: "Riyadh Festival" },
@@ -159,8 +161,9 @@ describe("invitationApproveBodySchema", () => {
 
   it.each([
     { channels: [] },
-    { channels: ["push"] },
+    { channels: ["email"] },
     { channels: ["sms", "sms"] },
+    { channels: ["push", "push"] },
     { cap: 49 },
     { cap: 100_001 },
     { sendAt: "tomorrow" },
@@ -246,7 +249,7 @@ describe("adminInvitationCampaignSchema", () => {
     { organizer: { id: adminCampaign.organizer.id } },
     { event: { ...adminCampaign.event, joinCode: undefined } },
     { approvedNames: { ar: "مهرجان الرياض" } },
-    { channels: ["push"] },
+    { channels: ["email"] },
     { players: [] },
   ])("refuses %j", (over) => {
     expect(accepts(adminInvitationCampaignSchema, { ...adminCampaign, ...over })).toBe(false);
@@ -268,9 +271,13 @@ describe("adminInvitationDetailSchema", () => {
       en: { name: null, issue: null },
     },
     messages: { ar: { text: "دعوة إلى مهرجان الرياض", parts: 2 }, en: null },
+    pushMessages: {
+      ar: { title: "مهرجان الرياض", body: "لديك دعوة إلى مهرجان الرياض." },
+      en: null,
+    },
     estimate: 1200,
     queued: 7,
-    availableChannels: ["sms"],
+    availableChannels: ["push", "sms"],
     hold: { channel: "sms", holdUntil: "2026-10-28T12:00:00+00:00", code: "1060" },
   };
 
@@ -279,6 +286,7 @@ describe("adminInvitationDetailSchema", () => {
     { hold: null, estimate: null, eventIssue: "ends_soon" },
     { estimate: 0, queued: 0 },
     { messages: { ar: null, en: { text: "Invitation", parts: 1 } } },
+    { pushMessages: { ar: null, en: null }, availableChannels: [] },
     { names: { ...detail.names, en: { name: "Riyadh Festival", issue: "control_characters" } } },
     { names: { ...detail.names, en: { name: "Riyadh Festival", issue: "looks_like_address" } } },
     { names: { ...detail.names, en: { name: "Riyadh Festival", issue: "looks_like_phone" } } },
@@ -294,6 +302,9 @@ describe("adminInvitationDetailSchema", () => {
     { names: { ar: detail.names.ar } },
     { messages: { ar: { text: "دعوة", parts: 0 }, en: null } },
     { messages: { ar: null } },
+    { pushMessages: { ar: { title: "", body: "x" }, en: null } },
+    { pushMessages: { ar: null } },
+    { availableChannels: ["email"] },
     { estimate: -1 },
     { queued: -1 },
     { hold: { channel: "sms", holdUntil: "2026-10-28T12:00:00+00:00" } },

@@ -42,6 +42,7 @@ const ITEM = {
   createdAt: "2026-10-28T10:00:00.000Z",
   read: false,
   optOut: false,
+  joinCode: null,
 };
 const TOPICS = { announcements: true, rank: false, community: true, reminders: true };
 

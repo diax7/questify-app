@@ -2,6 +2,7 @@ import type { NotificationItem } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   appendRows,
+  joinRouteOf,
   mergeFirstPage,
   rowRoute,
   stampOf,
@@ -22,6 +23,7 @@ const row = (id: number, over: Partial<NotificationItem> = {}): NotificationItem
   createdAt: "2026-10-28T13:05:00.000Z",
   read: false,
   optOut: false,
+  joinCode: null,
   ...over,
 });
 
@@ -121,6 +123,16 @@ describe("rowRoute", () => {
       kind: "route",
       href: `/event/${EVENT}/quests?quest=${quest}`,
     });
+  });
+
+  it("opens an invitation's event on the join screen by its code, joined by link; no other row", () => {
+    expect(joinRouteOf(row(1, { kind: "invitation", optOut: true, joinCode: "WINTER26" }))).toEqual(
+      {
+        pathname: "/join/[code]",
+        params: { code: "WINTER26", via: "link" },
+      },
+    );
+    expect(joinRouteOf(row(1))).toBeNull();
   });
 
   it("stays in the center for a promotion and for a kind it does not know", () => {

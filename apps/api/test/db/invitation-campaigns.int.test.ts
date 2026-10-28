@@ -248,7 +248,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation campaigns (database
     it.each([
       [{ cap: 49 }, "cap"],
       [{ cap: 100_001 }, "cap"],
-      [{ channels: ["push"] }, "channels"],
+      [{ channels: ["email"] }, "channels"],
+      [{ channels: ["push", "email"] }, "channels"],
+      [{ channels: ["push", null] }, "channels"],
       [{ channels: [] }, "channels"],
       [{ at: new Date(Date.now() - 5 * 60_000) }, "sendAt"],
       [{ at: new Date(Date.now() + 3 * 24 * 3600_000) }, "sendAt"],

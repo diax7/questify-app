@@ -90,6 +90,11 @@ describe("pushRefusal", () => {
   });
 });
 
+/** The join code the center gives a promotional row of `kind` whose frozen params hold `code`. */
+const invite = (code: unknown, kind = "invitation") =>
+  centerItem(row(7, { kind, class: "promo", params: { event: { en: "Fest" }, code } }), "en")
+    .joinCode;
+
 describe("the center", () => {
   it("renders a row in the asked language, marks a promotion with its opt-out and normalizes the time", () => {
     expect(centerItem(row(4), "en")).toEqual({
@@ -103,6 +108,7 @@ describe("the center", () => {
       createdAt: "2026-10-28T10:00:00.123Z",
       read: false,
       optOut: false,
+      joinCode: null,
     });
     expect(centerItem(row(4, { class: "promo", read: true }), "ar")).toMatchObject({
       title: "مهرجان",
@@ -110,6 +116,14 @@ describe("the center", () => {
       optOut: true,
       read: true,
     });
+  });
+
+  it("gives an invitation's join code and nothing for another kind or a malformed code", () => {
+    expect(invite("WINTER26")).toBe("WINTER26");
+    expect(invite("WINTER26", "shop_closing")).toBeNull();
+    for (const code of ["W-26", "abc", "https://x.io", 12345, null, "A".repeat(13)]) {
+      expect(invite(code), String(code)).toBeNull();
+    }
   });
 
   it("carries the notice's reference ids and nothing else of its refs", () => {

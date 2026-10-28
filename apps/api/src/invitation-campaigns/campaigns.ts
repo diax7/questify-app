@@ -39,7 +39,11 @@ import {
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { HttpError } from "#src/http-error";
-import { previewInvitation, readInvitationToken } from "#src/invitation-campaigns/message";
+import {
+  previewInvitation,
+  previewInvitationPush,
+  readInvitationToken,
+} from "#src/invitation-campaigns/message";
 import { invitationSmsTime } from "#src/invitation-campaigns/quiet-hours";
 import type { SmsSender } from "#src/players/sms";
 
@@ -54,6 +58,8 @@ export type InvitationDeps = Readonly<{
   pool: Pool;
   /** The promotional Msegat sender (`MSEGAT_PROMO_SENDER`); without it SMS cannot be approved. */
   promoSms?: SmsSender;
+  /** Whether a push provider (APNs or FCM) is set up; without one push cannot be approved (ADR-356 (4)). */
+  pushReady?: boolean;
 }>;
 
 type Invalid = (details?: Readonly<Record<string, unknown>>) => HttpError;
@@ -127,9 +133,16 @@ async function door<T>(
 const one = async (client: PoolClient, sql: string, values: unknown[]): Promise<unknown> =>
   (await client.query<{ r: unknown }>(sql, values)).rows[0]?.r;
 
-/** The channels this server can send invitations by: SMS when the promotional sender is set up (ADR-331 (1)). */
-export const availableChannels = (deps: Pick<InvitationDeps, "promoSms">): InvitationChannel[] =>
-  deps.promoSms === undefined ? [] : ["sms"];
+/**
+ * The channels this server can send invitations by (ADR-331 (1), ADR-356 (4)): push when a push provider is set up,
+ * SMS when the promotional sender is.
+ */
+export const availableChannels = (
+  deps: Pick<InvitationDeps, "promoSms" | "pushReady">,
+): InvitationChannel[] => [
+  ...(deps.pushReady === true ? (["push"] as const) : []),
+  ...(deps.promoSms === undefined ? [] : (["sms"] as const)),
+];
 
 export type NameProblem = Readonly<{ language: Language; reason: InvitationNameIssue }>;
 
@@ -229,7 +242,7 @@ export const campaignQueue = (
 
 /** The detail door's answer: the console's names come back as the event's current names, nothing rendered yet. */
 const rawDetailSchema = adminInvitationDetailSchema
-  .omit({ names: true, messages: true, availableChannels: true })
+  .omit({ names: true, messages: true, pushMessages: true, availableChannels: true })
   .extend({ names: z.strictObject({ ar: z.string().nullable(), en: z.string().nullable() }) });
 
 const verdict = (name: string | null) => ({
@@ -260,6 +273,7 @@ export async function campaignDetail(
     ...raw,
     names: { ar: verdict(raw.names.ar), en: verdict(raw.names.en) },
     messages: { ar: previewInvitation(sent, "ar"), en: previewInvitation(sent, "en") },
+    pushMessages: { ar: previewInvitationPush(sent, "ar"), en: previewInvitationPush(sent, "en") },
     availableChannels: availableChannels(deps),
   });
 }
@@ -268,8 +282,9 @@ export type AdminWrite<B> = Readonly<{ campaignId: string; body: B; requestId: s
 
 /**
  * The admin approves (Finding 1 (a)): every channel must be one this server can send (422 `channel_unavailable`), the
- * names the console showed must pass the name rule (422 `event_name`), and the send time moves out of quiet hours
- * (`sendAtMoved`). The door then proves the names are still the event's and copies them.
+ * names the console showed must pass the name rule (422 `event_name`), and with SMS among the channels the send time
+ * moves out of quiet hours (`sendAtMoved`; push has none, Q-287). The door then proves the names are still the event's
+ * and copies them.
  */
 export async function approveCampaign(
   deps: InvitationDeps,
@@ -282,7 +297,7 @@ export async function approveCampaign(
   const problem = eventNameProblem({ ar: body.expectedNameAr, en: body.expectedNameEn });
   if (problem !== null) throw invitationEventName(problem);
   const asked = new Date(body.sendAt);
-  const sendAt = invitationSmsTime(asked);
+  const sendAt = body.channels.includes("sms") ? invitationSmsTime(asked) : asked;
   const campaign = await door(
     deps.pool,
     adminContext(adminId),

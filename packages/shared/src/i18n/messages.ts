@@ -5941,6 +5941,10 @@ export const MESSAGES = {
     ar: "{language} (أجزاء الرسالة: {parts})",
     en: "{language} (SMS parts: {parts})",
   },
+  "console.invCampaign.messages.pushLabel": {
+    ar: "{language}: الإشعار (العنوان ثم النص)",
+    en: "{language}: the push (title, then text)",
+  },
   "console.invCampaign.counters": { ar: "الأعداد الدقيقة", en: "Exact counts" },
   "console.invCampaign.counter.planned": { ar: "المخطط إرساله", en: "Planned" },
   "console.invCampaign.counter.sent": { ar: "أُرسلت", en: "Sent" },
@@ -5951,14 +5955,14 @@ export const MESSAGES = {
   "console.invCampaign.counter.failed": { ar: "فشل إرسالها", en: "Failed" },
   "console.invCampaign.counter.skipped": { ar: "تُخطّيت", en: "Skipped" },
   "console.invCampaign.counter.cancelled": { ar: "أُلغيت", en: "Cancelled" },
-  "console.invCampaign.counter.opened": { ar: "فتحوا الرابط", en: "Opened the link" },
+  "console.invCampaign.counter.opened": { ar: "فتحوا الدعوة", en: "Opened the invitation" },
   "console.invCampaign.counter.joined": { ar: "انضموا إلى الفعالية", en: "Joined the event" },
   "console.invCampaign.counter.queued": { ar: "بانتظار الإرسال", en: "Waiting to send" },
   "console.invCampaign.approve.title": { ar: "اعتماد الطلب", en: "Approve the request" },
   "console.invCampaign.approve.button": { ar: "اعتمد الطلب", en: "Approve" },
-  "console.invCampaign.block.noSms": {
-    ar: "الرسائل النصية غير مفعّلة على الخادم، فلا يمكن اعتماد الطلب الآن.",
-    en: "SMS isn't set up on this server, so the request can't be approved yet.",
+  "console.invCampaign.block.noChannel": {
+    ar: "لا الإشعارات ولا الرسائل النصية مفعّلة على الخادم، فلا يمكن اعتماد الطلب الآن.",
+    en: "Neither push nor SMS is set up on this server, so the request can't be approved yet.",
   },
   "console.invCampaign.block.event": {
     ar: "لا تقبل الفعالية دعوات الآن (انظر أعلاه). ارفض الطلب أو انتظر المنظّم ليصلح ذلك.",
@@ -5972,15 +5976,21 @@ export const MESSAGES = {
     ar: "ليس للفعالية اسم يُرسل. اطلب من المنظّم تسميتها، أو ارفض الطلب.",
     en: "The event has no name to send. Ask the organizer to name it, or refuse the request.",
   },
+  "console.invCampaign.field.channels": { ar: "القنوات", en: "Channels" },
+  "console.invCampaign.channel.push": { ar: "إشعارات التطبيق", en: "Push notifications" },
   "console.invCampaign.channel.sms": { ar: "رسائل نصية", en: "SMS" },
+  "console.invCampaign.channel.hint": {
+    ar: "تصل كل لاعب رسالة واحدة: إشعار إن وافق على عروض الإشعارات وكان التطبيق على هاتفه، وإلا فرسالة نصية إن وافق عليها. لا تصله الاثنتان.",
+    en: "Each player gets one message: a push when they opted in to push offers with the app on a phone, else an SMS when they opted in to SMS. Never both.",
+  },
   "console.invCampaign.field.cap": { ar: "أقصى عدد من الرسائل", en: "Most messages to send" },
   "console.invCampaign.field.sendAt": {
     ar: "موعد الإرسال (بتوقيت الرياض)",
     en: "Send time (Riyadh time)",
   },
   "console.invCampaign.sendAt.hint": {
-    ar: "الموعد الواقع في ساعات الهدوء (من 22:00 إلى 09:00، وحتى 12:00 في رمضان) يُنقل إلى أول ساعة مسموحة.",
-    en: "A time inside quiet hours (22:00 to 09:00, and to 12:00 in Ramadan) moves to the first allowed hour.",
+    ar: "إن شملت القنوات الرسائل النصية فالموعد الواقع في ساعات الهدوء (من 22:00 إلى 09:00، وحتى 12:00 في رمضان) يُنقل إلى أول ساعة مسموحة. لا ساعات هدوء للإشعارات.",
+    en: "With SMS among the channels, a time inside quiet hours (22:00 to 09:00, and to 12:00 in Ramadan) moves to the first allowed hour. Push has no quiet hours.",
   },
   "console.invCampaign.field.note": {
     ar: "ملاحظة للمنظّم (اختيارية)",
@@ -6013,6 +6023,10 @@ export const MESSAGES = {
   "console.invCampaign.noSms": {
     ar: "الرسائل النصية غير مفعّلة على الخادم.",
     en: "SMS isn't set up on this server.",
+  },
+  "console.invCampaign.noPush": {
+    ar: "الإشعارات غير مفعّلة على الخادم.",
+    en: "Push notifications aren't set up on this server.",
   },
   "console.invCampaign.renamed": {
     ar: "تغيّر اسم الفعالية بعد أن فتحت الصفحة. اقرأ النص الجديد ثم اعتمد من جديد.",
@@ -6159,6 +6173,28 @@ export const MESSAGES = {
     ar: "تبدأ الفعالية الساعة {time}.",
     en: "The event starts at {time}.",
   },
+  // Reminders and promotion (T-501f, ADR-356). The streak reminder follows ADR-300: no countdown, no loss or guilt, no
+  // number; the shop names a date, never an amount; the invitation names the event only. Gender-neutral («يمكنك»، «لديك»).
+  "push.streakReminder.body": {
+    ar: "يمكنك مواصلة سلسلتك اليومية باللعب اليوم.",
+    en: "You can keep your daily streak going by playing today.",
+  },
+  "push.shopClosing.body": {
+    ar: "متجر جوائز {event} مفتوح حتى {date}.",
+    en: "The {event} rewards shop is open until {date}.",
+  },
+  "push.shopClosing.nameless": {
+    ar: "متجر الجوائز مفتوح حتى {date}.",
+    en: "The rewards shop is open until {date}.",
+  },
+  "push.invitation.body": {
+    ar: "لديك دعوة إلى {event}.",
+    en: "You have an invitation to {event}.",
+  },
+  "push.invitation.nameless": {
+    ar: "لديك دعوة إلى فعالية.",
+    en: "You have an invitation to an event.",
+  },
   // The app's side of push (T-501c): the explainer after joining, the notification center, Settings and the Android
   // channels. Gender-neutral phrasing; the explainer never promises a reward for allowing notifications (FR-1106).
   "push.explain.title": {
@@ -6188,6 +6224,7 @@ export const MESSAGES = {
   "notifications.markAll": { ar: "تعليم الكل كمقروء", en: "Mark all as read" },
   "notifications.unread": { ar: "غير مقروء", en: "Unread" },
   "notifications.optOut": { ar: "إيقاف العروض من الإعدادات", en: "Stop offers in Settings" },
+  "notifications.seeEvent": { ar: "عرض الفعالية", en: "See the event" },
   "pushSettings.title": { ar: "إشعارات هذا الهاتف", en: "Notifications on this phone" },
   "pushSettings.on": {
     ar: "الإشعارات مفعّلة على هذا الهاتف.",

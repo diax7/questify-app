@@ -990,7 +990,20 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     starting soon, each a bounded set-based statement that calls `notice_create` per row with its marker filtered out
     first (`NOT EXISTS` on `dedupe`). Message keys are `push.<kind in camel case>.body` / `.nameless`.
   - Done when: Only active members get event pushes, once each; a muted topic still lands in the center.
-- [ ] **T-501f** Reminders and promotion by push: daily streak reminder, shop closing, push as an invitation channel — delivers FR 1102 (streak), 1111 (push); depends on: T-501e
+- [x] **T-501f** Reminders and promotion by push: daily streak reminder, shop closing, push as an invitation channel — delivers FR 1102 (streak), 1111 (push); depends on: T-501e
+  - Done 2026-10-28 (core; code review owed). Plan note `docs/plans/2026-10-28-t-501f-reminders-promotion.md`. Migration
+    0079 (new file, undeployed): three kinds (`streak_reminder`, `shop_closing`, `invitation`); two more scans in
+    `push_due()` (the streak reminder from 18:00 Riyadh to players with a 2-day streak, nothing today, a pushable
+    device and `reminders` not muted; the shop's closing the day before, once per event, to real active members with a
+    balance, the closing date frozen and checked again); invitations by push or SMS (`channels` CHECK widened, the fill
+    picks one channel per player, push first when opted in on push with a pushable device, never both;
+    `invitation_push_hand` in the invitation tick hands push rows to the push store; the open counted from the center
+    row by id); `push_skip_reason` asks each kind's audience rule for every notice. Shared: three templates (ux-araby),
+    the center item's `joinCode`, `INVITATION_CHANNELS` with push and the console's push preview. App: "See the event"
+    on an invitation row. Console: push and SMS checkboxes, the push text, "Neither push nor SMS is set up". Tests:
+    `test/db/push-reminders.int` (10), `test/db/invitation-push.int` (10), push-store, invitation-campaigns, outsider,
+    cross-tenant, routes, rehearsal guard, unit (shared, API, app, web). ADR-356 and Q-325 Proposed. FR-1114's screen:
+    the center on the tapped row with its opt-out (ADR-356 (6)). Mutation globs: none required (ADR-355).
   - Split from T-501 2026-10-28 (ADR-342, ADR-348). CORE; rows 13 to 16 of the T-501 plan's "Owed pushes" (the daily
     games reminder is folded into the streak reminder). A promotional tap opens its center row with the opt-out
     (FR-1114); decide that screen here.

@@ -1,5 +1,10 @@
 "use client";
-import type { AdminInvitationDetail, InvitationApproveBody, Language } from "@questify/shared";
+import type {
+  AdminInvitationDetail,
+  InvitationApproveBody,
+  InvitationChannel,
+  Language,
+} from "@questify/shared";
 import { useState, type FormEvent } from "react";
 import { NumberField } from "#src/components/NumberField.tsx";
 import {
@@ -7,6 +12,7 @@ import {
   approvalBlock,
   approvalBodyOf,
   approvalDraftOf,
+  type ApprovalDraft,
   type ApprovalProblem,
 } from "#src/lib/console-invitations.ts";
 import { riyadhTime } from "#src/lib/invitations.ts";
@@ -29,13 +35,45 @@ const WRONG = {
   note: "console.invCampaign.invalid.note",
 } as const;
 
+type ChannelProps = Readonly<{
+  language: Language;
+  available: readonly InvitationChannel[];
+  draft: ApprovalDraft;
+  busy: boolean;
+  change: (patch: Partial<ApprovalDraft>) => void;
+}>;
+
+/** The two channels, each off when this server cannot send it, and the rule that a player gets one of them. */
+function ChannelChoices({ language, available, draft, busy, change }: ChannelProps) {
+  const t = translatorFor(language);
+  return (
+    <fieldset className={styles.choices}>
+      <legend>{t("console.invCampaign.field.channels")}</legend>
+      {(["push", "sms"] as const).map((channel) => (
+        <label key={channel} className={styles.check}>
+          <input
+            type="checkbox"
+            checked={draft[channel]}
+            disabled={busy || !available.includes(channel)}
+            onChange={(changed) => change({ [channel]: changed.target.checked })}
+          />
+          <span>{t(`console.invCampaign.channel.${channel}`)}</span>
+        </label>
+      ))}
+      <p className={styles.muted}>{t("console.invCampaign.channel.hint")}</p>
+    </fieldset>
+  );
+}
+
 /**
- * Approve (FR-738): the channel, the most messages that may go out, the send time in Riyadh time, and a note the
- * owner reads. It sends back the event names the page showed, so a rename in the meantime is caught by the API.
+ * Approve (FR-738): the channels (push, SMS or both; one message a player, ADR-356 (4)), the most messages that may
+ * go out, the send time in Riyadh time, and a note the owner reads. It sends back the event names the page showed, so a rename in the meantime is caught by the API.
  */
 export function ApproveForm({ language, detail, busy, approve }: FormProps) {
   const t = translatorFor(language);
-  const [draft, setDraft] = useState(() => approvalDraftOf(detail.campaign, new Date()));
+  const [draft, setDraft] = useState(() =>
+    approvalDraftOf(detail.campaign, new Date(), detail.availableChannels),
+  );
   const [wrong, setWrong] = useState<ApprovalProblem | null>(null);
   const block = approvalBlock(detail);
   const change = (patch: Partial<typeof draft>) => {
@@ -72,15 +110,13 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
           {t(`console.invCampaign.block.${block}`)}
         </p>
       )}
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.sms}
-          disabled={busy || block === "noSms"}
-          onChange={(changed) => change({ sms: changed.target.checked })}
-        />
-        <span>{t("console.invCampaign.channel.sms")}</span>
-      </label>
+      <ChannelChoices
+        language={language}
+        available={detail.availableChannels}
+        draft={draft}
+        busy={busy}
+        change={change}
+      />
       <NumberField
         label={t("console.invCampaign.field.cap")}
         value={draft.cap}

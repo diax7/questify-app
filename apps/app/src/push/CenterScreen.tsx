@@ -6,14 +6,15 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { rowRoute, stampOf } from "#src/push/center.ts";
+import { joinRouteOf, rowRoute, stampOf } from "#src/push/center.ts";
 import { useCenter, type Center } from "#src/push/use-center.ts";
 import { useUnread } from "#src/push/unread-store.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
  * One message. The unread dot is a shape and the screen reader hears "Unread" first, so it never rests on colour. A
- * promotional row carries its way out, to Settings → Offers and notifications (FR-1114, Apple 4.5.4).
+ * promotional row carries its way out, to Settings → Offers and notifications (FR-1114, Apple 4.5.4); an invitation also
+ * carries "See the event", the join screen by the event's public code (ADR-356 (6)).
  */
 function Row({
   item,
@@ -23,6 +24,7 @@ function Row({
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const stamp = stampOf(item.createdAt, language);
+  const join = joinRouteOf(item);
   const label = [item.read ? "" : t("notifications.unread"), item.title, item.body, stamp]
     .filter((part) => part !== "")
     .join(". ");
@@ -41,6 +43,15 @@ function Row({
           {stamp === "" ? null : <AppText muted>{stamp}</AppText>}
         </View>
       </Pressable>
+      {join === null ? null : (
+        <Button
+          label={t("notifications.seeEvent")}
+          onPress={() => {
+            onPress();
+            router.push(join);
+          }}
+        />
+      )}
       {item.optOut ? (
         <Button
           kind="quiet"

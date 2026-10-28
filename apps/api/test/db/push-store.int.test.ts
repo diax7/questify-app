@@ -822,7 +822,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       const before = await counts();
       await f.playerWithPhone();
       expect(await counts()).toEqual(before);
-      // No database function outside the push store reads a device or a mute (erasure only deletes them).
+      // No database function outside the push store reads a device or a mute (erasure only deletes them; the invitation
+      // fill reads whether a device can be pushed to pick the channel, consent still from promo_pool, ADR-356 (4)).
       const readers = await f.owner<{ proname: string }>(
         `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosrc ~ '(push_device|push_topic_mute|push_live_devices)' ORDER BY 1`,
@@ -831,7 +832,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
         readers
           .map((row) => row.proname)
           .filter((name) => !name.startsWith("push_") && !name.endsWith("_push_topics")),
-      ).toEqual(["erase_rows"]);
+      ).toEqual(["erase_rows", "invitation_candidates"]);
     });
   });
 

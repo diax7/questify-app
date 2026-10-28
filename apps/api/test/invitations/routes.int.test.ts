@@ -278,6 +278,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations over HTTP", () => 
         true,
       );
       expect(shown.messages.en?.parts).toBeLessThanOrEqual(3);
+      // The push the admin approves too (T-501f): offered once a push provider is set up on the server.
+      expect(shown.pushMessages.ar?.body).toBe(`لديك دعوة إلى ${shown.names.ar.name ?? ""}.`);
     });
 
     it("preview, rename, approve → 409 event_renamed; approving the new text works", async () => {

@@ -1,4 +1,5 @@
 import {
+  JOIN_CODE,
   PUSH_TOPICS,
   renderNotice,
   type Language,
@@ -79,6 +80,17 @@ type CenterRow = Readonly<{
   timezone: string | null;
 }>;
 
+/**
+ * An invitation's public event code from its frozen params (ADR-356 (6)), else null: only the invitation kind carries
+ * one, and only a code shaped like `event.join_code` leaves the server.
+ */
+function joinCodeOf(row: Pick<CenterRow, "kind" | "params">): string | null {
+  if (row.kind !== "invitation" || typeof row.params !== "object" || row.params === null)
+    return null;
+  const code = (row.params as Record<string, unknown>)["code"];
+  return typeof code === "string" && JOIN_CODE.test(code) ? code : null;
+}
+
 /** One center row in the request's language: the same template the push used, or the generic text. */
 export function centerItem(row: CenterRow, language: Language): NotificationItem {
   const text = renderNotice({
@@ -99,6 +111,7 @@ export function centerItem(row: CenterRow, language: Language): NotificationItem
     createdAt: new Date(row.createdAt).toISOString(),
     read: row.read,
     optOut: row.class === "promo",
+    joinCode: joinCodeOf(row),
   };
 }
 
