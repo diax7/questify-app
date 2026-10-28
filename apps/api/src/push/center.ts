@@ -10,6 +10,7 @@ import {
 } from "@questify/shared";
 import type { PoolClient } from "pg";
 import { invalidPushDevice, invalidRequest, unauthenticated } from "#src/auth/http-errors";
+import { refIds } from "#src/push/message";
 
 /**
  * The calling player's side of push (T-501, migration 0076): this sign-in's device, the notification center and the
@@ -70,6 +71,7 @@ type CenterRow = Readonly<{
   class: "personal" | "event" | "promo";
   topic: NotificationItem["topic"];
   eventId: string | null;
+  refs: unknown;
   params: unknown;
   createdAt: string;
   read: boolean;
@@ -91,6 +93,7 @@ export function centerItem(row: CenterRow, language: Language): NotificationItem
     kind: row.kind,
     topic: row.topic,
     eventId: row.eventId,
+    refs: refIds(row.refs),
     title: text.title,
     body: text.body,
     createdAt: new Date(row.createdAt).toISOString(),

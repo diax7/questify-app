@@ -78,16 +78,23 @@ export const notificationsReadBodySchema = z
   .or(z.strictObject({ all: z.literal(true) }));
 export type NotificationsReadBody = z.infer<typeof notificationsReadBodySchema>;
 
+/** A reference's name in a center row or a push payload (`quest`, `category`, `reward`, ...). */
+export const REF_KEY = /^[a-z][A-Za-z]{0,30}$/;
+/** A reference's value: a UUID or a whole number, as text. Nothing else about a notice leaves the server. */
+export const REF_VALUE =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9]{1,18})$/;
+
 /**
  * One center row as the app shows it: the text rendered in the request's language (the same fixed template as the
- * push), ids only besides. `optOut` marks a promotional row, which carries the way to Settings → Offers and
- * notifications (FR-1114).
+ * push), ids only besides: `refs` holds the notice's reference ids, which the app maps to its own routes (ADR-349 (4)).
+ * `optOut` marks a promotional row, which carries the way to Settings → Offers and notifications (FR-1114).
  */
 export const notificationItemSchema = z.strictObject({
   id: notificationId,
   kind: z.string().regex(/^[a-z][a-z_]{0,39}$/),
   topic: z.enum(PUSH_TOPICS).nullable(),
   eventId: z.uuid().nullable(),
+  refs: z.record(z.string().regex(REF_KEY), z.string().regex(REF_VALUE)),
   title: z.string().min(1),
   body: z.string().min(1),
   createdAt: z.string(),

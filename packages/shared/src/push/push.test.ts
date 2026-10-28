@@ -115,6 +115,7 @@ describe("the center", () => {
       kind: "join_accepted",
       topic: null,
       eventId: "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e",
+      refs: { quest: "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e", place: "3" },
       title: "Winter Fest",
       body: "Your request to join was accepted.",
       createdAt: "2026-10-28T10:00:00.000Z",
@@ -141,5 +142,32 @@ describe("the center", () => {
     expect(accepts(notificationListSchema, { items: [], nextBefore: null, unread: 101 })).toBe(
       false,
     );
+  });
+
+  it("keeps a row's refs to names and ids", () => {
+    const item = {
+      id: 7,
+      kind: "flash_quest",
+      topic: "announcements",
+      eventId: null,
+      refs: {},
+      title: "Winter Fest",
+      body: "Flash quest",
+      createdAt: "2026-10-28T10:00:00.000Z",
+      read: true,
+      optOut: false,
+    };
+    const list = (refs: unknown) => ({ items: [{ ...item, refs }], nextBefore: null, unread: 0 });
+    expect(accepts(notificationListSchema, list({ quest: "123456789012345678" }))).toBe(true);
+    for (const refs of [
+      { quest: "free text" },
+      { quest: 5 },
+      { Quest: "5" },
+      { quest: "1234567890123456789" },
+      { quest: ["5"] },
+      null,
+    ]) {
+      expect(accepts(notificationListSchema, list(refs)), JSON.stringify(refs)).toBe(false);
+    }
   });
 });

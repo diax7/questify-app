@@ -30,6 +30,7 @@ const row = (id: number, over: Record<string, unknown> = {}) => ({
   class: "personal" as const,
   topic: null,
   eventId: null,
+  refs: {},
   params: { event: { ar: "مهرجان", en: "Fest" } },
   createdAt: "2026-10-28T10:00:00.123456+00:00",
   read: false,
@@ -73,6 +74,7 @@ describe("the center", () => {
       kind: "no_template_kind",
       topic: null,
       eventId: null,
+      refs: {},
       title: "Fest",
       body: "You have a new message",
       createdAt: "2026-10-28T10:00:00.123Z",
@@ -85,6 +87,16 @@ describe("the center", () => {
       optOut: true,
       read: true,
     });
+  });
+
+  it("carries the notice's reference ids and nothing else of its refs", () => {
+    const quest = "5f0f2b0e-8c3e-4d7c-9a51-2a2f0b1c3d4e";
+    const item = centerItem(
+      row(5, { refs: { quest, place: 3, note: "free text", Bad: quest, ok: { nested: quest } } }),
+      "en",
+    );
+    expect(item.refs).toEqual({ quest, place: "3" });
+    expect(centerItem(row(6, { refs: null }), "en").refs).toEqual({});
   });
 
   it("gives the next cursor only when the page is full", async () => {

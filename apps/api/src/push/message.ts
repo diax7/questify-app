@@ -1,4 +1,4 @@
-import { renderNotice, type Language, type PushTexts } from "@questify/shared";
+import { REF_KEY, REF_VALUE, renderNotice, type Language, type PushTexts } from "@questify/shared";
 import type { PushMessage } from "#src/push/provider";
 
 /** A claimed send as push_claim answers it (migration 0076). */
@@ -22,9 +22,6 @@ export type ClaimedSend = Readonly<{
   terms: unknown;
   timezone: string | null;
 }>;
-
-const REF_KEY = /^[a-z][A-Za-z]{0,30}$/;
-const REF_VALUE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9]{1,18})$/;
 
 /** A reference's value as id text, or null when it is not an id. */
 function idText(value: unknown): string | null {

@@ -182,7 +182,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
       const kind = await f.kind();
       const promo = await f.kind({ class: "promo", membership: "none" });
       for (let i = 0; i < 3; i += 1) {
-        await f.notice(kind, { player, params: { event: { ar: "مهرجان", en: "Fest" } } });
+        await f.notice(kind, {
+          player,
+          params: { event: { ar: "مهرجان", en: "Fest" } },
+          refs: i === 2 ? { ticket: "42", note: "free text" } : {},
+        });
       }
       await f.consentPush(player);
       await f.notice(promo, { player });
@@ -204,6 +208,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
         read: false,
         optOut: false,
         topic: null,
+        refs: { ticket: "42" },
       });
       expect(first.nextBefore).toBe(first.items[1]?.id);
       const arabic = await as(

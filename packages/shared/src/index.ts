@@ -454,6 +454,8 @@ export {
   NOTIFICATION_READ_MAX,
   NOTIFICATION_UNREAD_CAP,
   PUSH_TOPICS,
+  REF_KEY,
+  REF_VALUE,
   invalidPushDeviceSchema,
   notificationItemSchema,
   notificationListSchema,
