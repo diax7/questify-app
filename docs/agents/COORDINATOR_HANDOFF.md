@@ -25,7 +25,7 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 - No worker is running and no mutation run is active. The last mutation runs (40628312029, 40641367106) left only push
   files `doors.ts` (60.5%) and `round.ts` (80.6%) under 90%; under ADR-355 push code is outside the mutation scope, so
   they are recorded in `docs/FOLLOWUPS.md` and not chased.
-- Migrations 0057 to 0081 are undeployed (CranL is at 0056) and may still be edited. Deploying needs a new app build
+- CranL runs migrations through 0082 (deployed 2026-10-30); 0001 to 0082 are frozen. Earlier note: deploying needed a new app build
   first (RUNBOOK has the release step). The app now also needs a new development build for the native modules
   `expo-notifications`, `expo-application`, `react-native-view-shot` and `expo-sharing`.
 - Process changed on 2026-10-28 (ADR-355, Dhia chose "lean rules now"): see below.

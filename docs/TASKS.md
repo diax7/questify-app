@@ -1053,6 +1053,19 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     **Owed:** the `content_unpublished` source (T-701 / T-609); quest-item stock pools (T-609); before any real mail
     (ADR-360): Saudi-region transport or the counsel-approved transfer extension, real cancellation of the token wait and
     send, structured provider outcomes. FR-613 and FR-1727 stay "partly built" in the SRS until then.
+- [ ] **T-599** Dashboard usability baseline (priority, Dhia 2026-10-30; ADR-364): one set of design tokens, a page shell and
+  shared primitives, and every dashboard and console page moved onto them — delivers NFR usability; depends on: none
+  - Why: Dhia found the staging dashboard unusable (small text, unorganized sections, overlaps). About 117 components share
+    one 373-line style file and no layout, form, table or type-scale primitives.
+  - Scope: `apps/web/src/ui/` (tokens in one CSS file, shell with navigation, page header, section/card, form fields with
+    label/help/error, buttons, table, toolbar, badge, tabs, dialog, empty state, notice); migrate the pages; delete styles
+    the primitives replace. Device pages (station, kiosk, big screen) keep their own styles.
+  - Split: T-599 = tokens, primitives, shell and the most-used pages (sign-in, events list, event overview and builder,
+    quests, rewards, team, features); T-599b = every other dashboard and console page. Each is usable on its own.
+  - Done when: an automatic layout check over every page (desktop 1440 and phone 390, English and Arabic) finds no
+    horizontal overflow, no overlapping controls and no text under 14px; screenshots of each page are attached for Dhia.
+- [ ] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
+  - Done when: the T-599 layout check covers every dashboard and console page and passes.
 - [ ] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community, poll and photo wall scenes — delivers FR 630, 631, 632, 633, 634, 635, 636, 637, 1613; depends on: T-309, T-106
   - Note 2026-10-23 (T-211): FR-1721 says the team opens the big screen in rehearsal. Pairing must accept a Draft or Scheduled event while its rehearsal is open (`event_rehearsal`, `live_wiped_at` null), and its ranking then shows the rehearsal accounts (they rank through the same cache; the wipe marks the event for repair).
   - Done when: The big-screen link opens only when paired; the photo wall shows only photos the player allowed.

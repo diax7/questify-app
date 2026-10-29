@@ -5,6 +5,15 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-10-30 — The dashboard is unusable; fix it first
+
+- Dhia, after using the staging dashboard (old build, 0056): "the UI is very disaster, it is unusable ... small text, not
+  organized sections, overlapping things ... a lot of basic stupid mistakes". "For now I want something minimal, usable,
+  nice to use and easy to be edited later"; the real branded design (3D elements) comes later. "If the new dashboard has
+  the same problems, then this is high priority to fix ... not just fix it for now".
+- Processed: task T-599 (dashboard usability baseline) goes ahead of every remaining feature task; ADR-364. The cause is
+  structural: about 117 components share one 373-line style file and no layout, form, table or type-scale primitives.
+
 ## 2026-10-29 — Recovery and continued coordination → processed
 
 - Dhia: "check where did he end, and keep working, follow all the docs and take the lead"; then "Keep going"

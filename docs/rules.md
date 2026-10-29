@@ -266,3 +266,5 @@ A change is done only when all of these hold:
 - [ ] Affected docs updated, including `DECISIONS.md` if a choice was made and `OPEN_QUESTIONS.md` for
       any unknown
 - [ ] For **core** changes (see Quality bar): observability added (a metric or alert), a runbook line for any new alert, second read done, mutation check passes on the new code, and the ASVS/MASVS controls touched have evidence
+
+- **Web UI (ADR-364):** dashboard and console pages use the primitives in `apps/web/src/ui/` and the tokens file; no page-local layout styles, nothing under 14px, logical properties only. The layout check must pass.

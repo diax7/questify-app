@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## Staging deploy and dashboard priority — 2026-10-30
+
+- **CranL now runs migrations through 0082** (0057 to 0082 applied 2026-10-30 from green commit 4482956, CI run
+  40955488938). `--verify` ok (app role not superuser, no RLS bypass, `ownerSeesSessions: true`); owner connection
+  removed and the API restarted without it. API and web redeployed from 4482956; `/healthz`, `/readyz` and
+  `/{en,ar}/sign-in` answer 200, no error lines in the API log. **Migrations up to 0082 are now frozen.** No snapshot was
+  taken: CranL snapshots need the database's external access switched on (staging, fake data only).
+- **The Android release APK from 80a85bb on Dhia's phone breaks on the Questify quest list** once 0071 runs (RUNBOOK
+  0071 note): it needs a new APK, or the `interests_set` quest retired in the console until then.
+- **T-599/T-599b (dashboard usability baseline, ADR-364) go ahead of every remaining feature task** after Dhia found the
+  dashboard unusable. T-504 was already building and finishes first.
+
 ## T-503 reset — 2026-10-29 (Claude coordinator takes over from Codex)
 
 - Stopped the T-503 lock-protocol line: plan, plan review, three failed timing probes and a NO-GO boundary

@@ -5444,3 +5444,19 @@ counsel-approved transfer remain the gates before any real mail (ADR-360).
 second email system.
 **Trade-offs:** a rank change is seen one tick (10 s) late; the board read from PostgreSQL costs more with many leaders the board
 keeps out (about 0.7 ms each); a flag raised while the API is down for 15 minutes sends no alert (no backfill, ADR-360).
+
+## ADR-364 - Dashboard usability baseline before more features
+
+**Status:** Accepted (Dhia's priority, 2026-10-30; approach by the developer, delegated by Dhia).
+**Context:** Dhia found the staging dashboard unusable: small text, unorganized sections, overlapping controls. About 117
+web components share one 373-line style file and no layout, form, table or type-scale primitives, so every page was
+laid out ad hoc.
+**Decision:** T-599/T-599b go ahead of every remaining feature task. A plain, clean admin look now: brand fonts (Rubik,
+Baloo Bhaijaan 2) and brand colors as tokens only, no wood/parchment/3D yet (that is the later branded redesign, which
+changes the tokens and primitives, not each page). No new dependency: CSS custom properties in one tokens file, CSS
+modules and a small set of React primitives in `apps/web/src/ui/`, logical CSS properties for right-to-left. Body text
+16px, nothing under 14px, a 4px spacing scale, a readable maximum content width, tables scroll inside their own box on
+a phone. Styles the primitives replace are deleted, not kept beside them.
+**Guard:** an automatic browser check walks every dashboard and console page at 1440 and 390 wide in both languages and
+fails on horizontal overflow, overlapping controls or text under 14px (CLAUDE.md rule 8: a repeated finding becomes a
+check). New pages must use the primitives (`docs/rules.md`).
