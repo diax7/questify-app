@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PairedPlaceholder } from "#src/components/PairedPlaceholder.tsx";
+import { BigScreen } from "#src/components/BigScreen.tsx";
 import { isLanguage } from "#src/lib/language.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
@@ -12,13 +12,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * The big screen (T-309 up to "paired", ADR-241; its scenes are T-504's): the plain address shows a pairing code until
- * the event team pairs it from the dashboard. "Revoke all big screens" is its "regenerate the link".
+ * The big screen (T-309 pairing, ADR-241; T-504 scenes): the plain address shows a pairing code until the event team
+ * pairs it from the dashboard, then the scenes the team picked. "Revoke all big screens" is its "regenerate the link".
  */
 export default async function BigScreenPage({ params }: Props) {
   const { lang } = await params;
   if (!isLanguage(lang)) {
     notFound();
   }
-  return <PairedPlaceholder kind="screen" language={lang} />;
+  return <BigScreen language={lang} />;
 }

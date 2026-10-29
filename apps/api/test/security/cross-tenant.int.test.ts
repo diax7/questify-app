@@ -1028,6 +1028,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; holds no personal data (a completion id, a device id, tenant ids); written only by kiosk_complete_quest for app_device_id's own kiosk beside the completion it paid, read as a count by device_json in the caller's event or own pairings (test/db/kiosks)",
   paired_device:
     "no right for the API role at all; written by the claims inside the caller's event (device_operator, award_event_of), by revoke_device, revoke_devices and the removal triggers; read by device_session for its own secret, by the device definers only for app_device_id's own row, and by event_devices and operator_devices for the caller's event or own pairings (test/db/devices)",
+  big_screen:
+    "no right for the API role at all; holds scene names only; written by set_big_screen inside the caller's event (award_event_of; AN404 for another organizer's, tested in test/db/big-screen), read by event_big_screen the same way and by the screen doors for the calling device's own event (test/db/big-screen)",
   daily_cadence:
     "platform-wide schedule data with no tenant and no right for the API role; written only by the admin-checked, audited daily_cadence_set for tomorrow, rows whose day has come frozen for every role (test/db/daily-content)",
   daily_question:

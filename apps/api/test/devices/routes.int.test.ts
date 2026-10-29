@@ -440,6 +440,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
       shut: null,
       event: { name: { ar: null, en: "Hall Fest" } },
       quest: { title: { ar: null, en: "Hall B" }, points: 10 },
+      scenes: null,
+      terms: null,
     });
     expect(codeOf(await device("GET", "/v1/device", page.cookie))).toEqual([
       401,
@@ -705,6 +707,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
     expect(deviceRoutes.map((route) => `${route.method} ${route.url}`).toSorted()).toEqual([
       "GET /v1/device",
       "GET /v1/device/screen-code",
+      "GET /v1/device/screen/:scene",
       "POST /v1/device/activate",
       "POST /v1/device/kiosk-scans",
       "POST /v1/device/pairing/renew",

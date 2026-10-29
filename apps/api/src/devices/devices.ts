@@ -54,6 +54,10 @@ export type DeviceState =
       shut: string | null;
       event: Readonly<{ name: Bilingual }>;
       quest: Readonly<{ title: Bilingual; points: number }> | null;
+      /** A big screen's running scenes, in order (T-504); null for a station, a kiosk or a shut screen. */
+      scenes: readonly string[] | null;
+      /** The event's own words as stored (a big screen shows its currency, FR-942); null for any other device. */
+      terms: unknown;
     }>;
 
 /** A code to show, or why none is shown (`shut`); the quest's title and points either way. */
@@ -180,6 +184,8 @@ type View = {
   shut: string | null;
   event: { nameAr: string | null; nameEn: string | null };
   quest: { titleAr: string | null; titleEn: string | null; points: number } | null;
+  scenes: string[] | null;
+  terms: unknown;
 };
 
 /**
@@ -209,6 +215,8 @@ export async function deviceState(deps: DeviceDeps, device: DeviceIdentity): Pro
       view.quest === null
         ? null
         : { title: { ar: view.quest.titleAr, en: view.quest.titleEn }, points: view.quest.points },
+    scenes: view.scenes,
+    terms: view.terms,
   };
 }
 

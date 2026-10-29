@@ -1649,6 +1649,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   operator_devices: "staff: the operator's stations to pair or show (the scan itself is gated)",
   screen_code_for_device:
     "staff: a station's rotating code; the scan is gated through record_completion (T-309)",
+  screen_poll:
+    "exempt: the big screen shows only a sent poll in a public category (no audience, not hidden) and none a community goal holds shut; it pays and plays nothing (T-504)",
   screen_code_for_operator:
     "staff: the operator's rotating code; the scan is gated through record_completion (T-309)",
 };

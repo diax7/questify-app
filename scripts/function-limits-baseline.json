@@ -1226,7 +1226,7 @@
   },
   "apps/web/src/lib/device.ts": {
     "deviceAnswerOf": {
-      "complexity": [14]
+      "complexity": [11]
     }
   },
   "apps/web/src/lib/devices.ts": {

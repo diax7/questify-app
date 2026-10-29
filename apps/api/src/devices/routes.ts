@@ -29,6 +29,7 @@ import { deviceCookie, deviceOfCookie, type DeviceIdentity } from "#src/devices/
 import { kioskScan, type KioskDeps } from "#src/devices/kiosk";
 import { playerLiveCode, type LiveCodeDeps } from "#src/devices/live-code";
 import { organizerContextOf } from "#src/organizers/context";
+import { registerScreenRoutes } from "#src/screen/routes";
 
 const KINDS = ["station", "kiosk", "screen"] as const;
 const kind = z.enum(KINDS);
@@ -175,6 +176,8 @@ export function registerDeviceRoutes(
       reply,
     );
   });
+
+  registerScreenRoutes(app, deps);
 }
 
 /** The signed-in player's live code for kiosks (T-309b, ADR-242): `GET /v1/me/live-code`, never cached. */

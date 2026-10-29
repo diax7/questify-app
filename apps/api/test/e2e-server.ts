@@ -9,6 +9,7 @@ import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createFakeProvider } from "#src/push/fake";
 import { PUSH_TARGETS } from "#src/push/provider";
 import { createStaff, testConfig } from "#test/support/auth-app";
+import { seedBigScreen } from "#test/support/big-screen";
 import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
 /**
@@ -456,6 +457,18 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
              INSERT INTO player_contact (player_id, email) SELECT id, $2 FROM made`,
             [body.usernames?.[0] ?? null, body.email ?? null],
           )
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /big-screen-seed: unlocks the big-screen add-on for the event and gives it a running community goal and a live
+      // poll with three votes (T-504).
+      if (request.url === "/big-screen-seed") {
+        seedBigScreen(db.owner, body.eventId ?? "")
           .then(() => {
             response.writeHead(204).end();
           })

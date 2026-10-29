@@ -307,6 +307,24 @@ granted to nobody. Outsider suite: every new function refused to `questify_outsi
 | The kiosk's answer kept for retries | The idempotency store keeps each kiosk scan's answer (green or orange, with the @username and avatar; red with the reason only) under the principal `device:{id}` and the scan's key, in the API server's own memory (CranL, `riyadh-1`; never a third party), for 24 hours, then it is gone; no code, player id or score is in it |
 | Personal data on a public screen | The @username and the Questify avatar on green and orange only (public on the boards already, FR-120); never a score, balance, rank, status, ban or name; a red card names no one |
 
+### The big screen's scenes (T-504, ADR-365)
+
+| ASVS area | Control | Proof |
+|---|---|---|
+| V8 authorization | `screen_ranking`, `screen_community` and `screen_poll` take no argument and read only `current_device()`'s event; a station, kiosk, pending, unactivated or revoked device is `DV401` / `device_unpaired`; every call re-checks the cookie, so a Revoke blanks the page at its next poll | `test/db/big-screen`, `test/screen/routes`, `security/outsider` |
+| V8 tenant isolation | `big_screen` is closed to every role; `event_big_screen` and `set_big_screen` run through `award_event_of`, so another organizer's event is `AN404` | `test/db/big-screen`, `security/cross-tenant`, `security/routes` |
+| V11 business logic | the ranking is the rank push's `rank_top_ten_ids` (active, unbanned, not on the organizer's team, with points); the add-on (`bigScreen`, FR-1729) is Questify's to unlock and a save is refused without it | `test/db/big-screen` |
+| V2 anti-automation | 40 scene reads a minute per device; one shared 2-second answer per event and scene bounds the database however many screens poll | `test/screen/routes`, `scenes.test.ts` |
+
+| Threat | Answer |
+|---|---|
+| A stranger opens `/{lang}/screen` | A pairing code and nothing of any event (T-309); the scenes come only after a team member pairs it |
+| A stolen screen cookie | Reads the same public scenes until Revoke, the event's end + 24 h or 30 idle days; it can read nothing else (no argument names another event) |
+| A private poll or a hidden category shown to the room | The poll scene shows only a sent poll in a category with no audience that is not hidden and not held by a community goal |
+| A poll's results leaked early | By the poll's own policy: `at_close` until it closes and `never` show the number of voters only; counts only, never who voted |
+| Personal data on a public screen | The @username and Questify avatar and points of the top 10 (public on the boards already, FR-120); a community goal's title and numbers; a poll's options; no name, email, rank history or reward |
+| A banned or excluded player on the board | `ranking_eligible` (account, enrollment and team checks) is the board's rule and the screen's |
+
 ### Questify invitations (T-409, ADR-329 to ADR-334)
 
 Core: consent, player privacy, tenant isolation and admin powers. A promotional SMS goes only to an opted-in adult, only

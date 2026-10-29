@@ -206,8 +206,8 @@ for an event.
   as a label or heading, an indefinite object or a construct, and is otherwise rephrased with no noun (ADR-253). The player app
   and staff mode use them (staff mode loads the event's configuration with the player app's cached copy, ADR-254); Questify
   home keeps the defaults. Every page of an event in the dashboard says them too (T-311c, ADR-264: the event layout reads them
-  once; the kiosk page, the public code page and the Event words form keep the defaults, Q-227); the big screen (T-5xx) uses
-  the words when it exists.
+  once; the kiosk page, the public code page and the Event words form keep the defaults, Q-227); the big screen (T-504) shows its
+  score in the event's currency word.
 
 ## As built (T-403b): Questify quests and campaigns
 
@@ -292,3 +292,10 @@ Code constants until T-703: title 60, full body 500, push/center body 140 code p
 due lateness 30 minutes, rolling event caps 3/hour and 10/day. Shared exports bound form/API; migration 0081 is the
 authoritative reservation/rate door. Tests tie shared caps to the DB. No runtime channel selector, remote code,
 email/SMS configuration. Future configurable caps need the same rolling-window invariant tests.
+
+### T-504 the big screen's scenes (Proposed ADR-365)
+
+The scenes a big screen runs and their order are data: one `big_screen` row per event, edited on the dashboard's Big screen
+page by owners and editors (default: ranking, community, poll). The ranking is offered only while the event's ranking switch
+is on. The whole feature is the `bigScreen` gated add-on (FR-1729), unlocked per event by a Questify admin. The rotation time
+(15 seconds) and the poll interval (3 seconds) are code constants; a per-event time is not built until asked (Q-333).

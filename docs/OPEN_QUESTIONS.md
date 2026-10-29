@@ -1480,3 +1480,10 @@ Should the rank diff read the Redis board (needing a reader) or PostgreSQL, whic
 the worker do with queued rows while the mail transport is off? **Recommended (developer, T-503 build):** PostgreSQL in the
 board's own order and rule; five of the seven sources (all but `content_unpublished`, owed to T-701/T-609); queued rows skipped
 as `transport_off`, nothing leaves the machine. **Answered (developer, delegated by Dhia, 2026-10-30):** accepted as recommended; ADR-363 Accepted.
+
+## Q-333 - T-504 big screen: default scenes, fixed rotation, polling and the photo wall (2026-10-30)
+
+Which scenes does an unconfigured big screen show, how long does a scene stay up, and does the screen need a server-sent
+stream? **Recommended (developer, T-504 build):** all three scenes in order until the team picks; 15 seconds a scene, fixed; polling
+every 3 seconds, no stream; the photo wall (FR-635 to FR-637) split to T-504b until T-301b has its bucket. **Open:** Dhia may want
+a per-event rotation time, a different default, or a today's-ranking scene (T-216); each is a small addition. ADR-365 Proposed.

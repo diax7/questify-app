@@ -51,6 +51,7 @@ export const BUCKETS = {
   devicePoll: "device_poll",
   deviceWrite: "device_write",
   deviceScreenCode: "device_screen_code",
+  deviceScene: "device_scene",
   operatorScreenCode: "operator_screen_code",
   kioskScan: "kiosk_scan",
   kioskBadCode: "kiosk_bad_code",

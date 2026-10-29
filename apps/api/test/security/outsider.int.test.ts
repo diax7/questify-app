@@ -446,6 +446,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read the picked scenes or reach any big-screen door, reader or helper (T-504)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.big_screen",
+        "SELECT public.event_big_screen(gen_random_uuid())",
+        "SELECT public.set_big_screen(gen_random_uuid(), '{poll}', NULL)",
+        "SELECT public.screen_ranking()",
+        "SELECT public.screen_community()",
+        "SELECT public.screen_poll()",
+        "SELECT public.screen_event()",
+        "SELECT public.screen_shut(NULL::public.event)",
+        "SELECT public.feature_enabled(NULL::public.event, 'ranking')",
+        "SELECT public.big_screen_on(NULL::public.event)",
+        "SELECT public.big_screen_scenes_ok('{poll}')",
+        "SELECT public.big_screen_plan(NULL::public.event)",
+        "SELECT public.big_screen_json(NULL::public.event)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot read tickets or reach any help-desk door, the sweep included (T-310)", async () => {
       for (const sql of [
         "SELECT * FROM public.ticket",

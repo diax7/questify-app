@@ -1,3 +1,4 @@
+import { DEFAULT_TERMS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   codeGraceMs,
@@ -41,11 +42,31 @@ describe("the device's answers (T-309)", () => {
         shut: null,
         event: { name: { ar: "ملتقى", en: null } },
         quest: { title: { ar: null, en: "Hall B" }, points: 10 },
+        scenes: null,
+        terms: DEFAULT_TERMS,
       },
     });
     expect(deviceAnswerOf({ state: "paired", activated: true, kind: "screen" })).toMatchObject({
-      view: { kind: "screen", quest: null, label: "", shut: null },
+      view: { kind: "screen", quest: null, label: "", shut: null, scenes: null },
     });
+    expect(
+      deviceAnswerOf({
+        state: "paired",
+        activated: true,
+        kind: "screen",
+        scenes: ["poll", "photos", "ranking"],
+      }),
+    ).toMatchObject({ view: { scenes: ["poll", "ranking"] } });
+    const gems = {
+      currency: {
+        icon: "gem",
+        ar: { one: "جوهرة", many: "جواهر" },
+        en: { one: "gem", many: "gems" },
+      },
+    };
+    expect(
+      deviceAnswerOf({ state: "paired", activated: true, kind: "screen", terms: gems }),
+    ).toMatchObject({ view: { terms: { currency: { icon: "gem", en: { many: "gems" } } } } });
     expect(deviceAnswerOf(null)).toBeUndefined();
     expect(deviceAnswerOf({ state: "gone" })).toBeUndefined();
   });

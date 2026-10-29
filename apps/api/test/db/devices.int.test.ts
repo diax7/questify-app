@@ -982,6 +982,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
         event: { nameAr: null, nameEn: "Hall Fest" },
         quest: { titleAr: null, titleEn: "Screen", points: 10 },
         shut: null,
+        scenes: null,
+        terms: null,
       });
     });
 
@@ -1040,6 +1042,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
       const id = await teamClaim(pending, event, "screen", null);
       await activate(pending.secret);
       expect((await codeFor(id))?.shut).toBe("not_station");
+      // The big-screen add-on is Questify's to unlock (T-504): without it the screen is shut, with it nothing is.
+      expect(await view(id)).toMatchObject({ kind: "screen", quest: null, shut: "feature_off" });
+      await owner(
+        "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
+        [event, ids.orgA],
+      );
       expect(await view(id)).toMatchObject({ kind: "screen", quest: null, shut: null });
     });
 

@@ -1086,14 +1086,14 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-622 | F-162 | Must | pending |
 | FR-623 | F-163 | Must | pending |
 | FR-624 | F-164 | Must | pending |
-| FR-630 | F-156 | Must | pending |
-| FR-631 | F-156 | Must | pending |
-| FR-632 | F-157 | Must | pending |
-| FR-633 | F-158 | Should | pending |
-| FR-634 | F-158 | Should | pending |
-| FR-635 | F-159 | Could | pending |
-| FR-636 | F-159 | Could | pending |
-| FR-637 | F-159 | Could | pending |
+| FR-630 | F-156 | Must | built T-504 (the plain `/{lang}/screen` link opens a pairing code; Revoke all big screens regenerates it, ADR-241); code review pending |
+| FR-631 | F-156 | Must | built T-504 (`test/db/big-screen`, Big screen page); code review pending |
+| FR-632 | F-157 | Must | built T-504 (`screen_ranking`, 3-second poll; `test/db/big-screen`); code review pending |
+| FR-633 | F-158 | Should | built T-504 (`screen_community`, cached progress); code review pending |
+| FR-634 | F-158 | Should | built T-504 (`screen_poll`); code review pending |
+| FR-635 | F-159 | Could | pending (T-504b, waits for T-301b) |
+| FR-636 | F-159 | Could | pending (T-504b, waits for T-301b) |
+| FR-637 | F-159 | Could | pending (T-504b, waits for T-301b) |
 | FR-701 | F-127 | Must | partial T-402 identity/equipment/level; T-403 server built (achievements, passport, owner history: `test/db/achievements.int`, `test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens built T-403c, awaiting standard review (profile, public profile) |
 | FR-702 | F-127 | Must | partial: `test/players/items.int` public allowlist; T-403 server adds tiers and ended public-event stamps only (`test/db/event-passport.int`, `test/questify/questify.int`), core code review pending; screens built T-403c (the public profile shows tiers and ended public stamps as sent; `apps/app/src/questify/*.test.ts`), awaiting standard review |
 | FR-703 | F-143 | Must | `test/db/profile-items.int`, `test/players/items.int`, `test/players/profile.int` (T-402) |
@@ -1276,8 +1276,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1609 | F-142, F-145 | Must | built (T-202, T-206: holds keep their own deadline); tested across the close T-410 (handover, timeout and cancel after it, a rank prize, `test/db/shop-window.int`) |
 | FR-1610 | F-164 | Must | pending |
 | FR-1611 | F-61 | Should | pending |
-| FR-1612 | F-23, F-157 | Must | pending |
-| FR-1613 | F-100, F-158 | Should | pending |
+| FR-1612 | F-23, F-157 | Must | built T-504 (the ranking scene is not offered or run while the ranking is off); code review pending |
+| FR-1613 | F-100, F-158 | Should | built T-504 (a poll set to never shows the voter count only); code review pending |
 | FR-1614 | F-171 | Must | built T-408b (`classifyJoinScan` checks the operator invite first, ADR-324); code review pending |
 | FR-1615 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: closed weekdays and dates neither count nor break, a missed open day restarts at 1, the bonus with the day's first completion) |
 | FR-1616 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |

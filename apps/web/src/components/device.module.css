@@ -189,3 +189,180 @@
     animation-name: none;
   }
 }
+
+/* The big screen's scenes (T-504): one scene fills the screen, type sized for a room, logical properties only so
+   `dir="rtl"` mirrors the bars (the fill starts at the reading direction's start). */
+.stage {
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-xl);
+  position: relative;
+}
+
+.stageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.sceneTitle {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  color: var(--color-highlight);
+}
+
+.scene {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-lg);
+  animation: enter 400ms ease-out;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-md);
+}
+
+.boardRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: clamp(1.5rem, 3.4vw, 3rem);
+}
+
+.boardLeader {
+  border-color: var(--color-highlight);
+}
+
+.boardPlace {
+  min-inline-size: 2.2ch;
+  font-weight: 800;
+  color: var(--color-highlight);
+  text-align: center;
+}
+
+.boardAvatar {
+  inline-size: 3.2rem;
+  block-size: 3.2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  object-fit: contain;
+  background: var(--color-background);
+  font-weight: 800;
+}
+
+.boardName {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.boardScore {
+  font-weight: 800;
+}
+
+.goalTitle {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  line-height: 1.1;
+}
+
+.goalTrack {
+  position: relative;
+  block-size: clamp(3rem, 8vw, 6rem);
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.goalFill {
+  block-size: 100%;
+  background: var(--color-highlight);
+  transition: inline-size 800ms ease-out;
+}
+
+.goalMark {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 4px;
+  background: var(--color-text);
+  opacity: 0.6;
+}
+
+.goalNumbers {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  font-size: clamp(1.5rem, 3.4vw, 3rem);
+  font-weight: 700;
+}
+
+.goalReached {
+  color: var(--color-primary-action);
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+}
+
+.pollOption {
+  display: grid;
+  gap: var(--space-sm);
+  font-size: clamp(1.5rem, 3.4vw, 3rem);
+}
+
+.pollLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  font-weight: 700;
+}
+
+.pollTrack {
+  block-size: clamp(1.5rem, 3.5vw, 3rem);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pollFill {
+  block-size: 100%;
+  background: var(--color-highlight);
+  transition: inline-size 800ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    animation: none;
+  }
+
+  .goalFill,
+  .pollFill {
+    transition: none;
+  }
+}

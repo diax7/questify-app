@@ -66,6 +66,9 @@ export function EventNavLinks({
       <a className={styles.textLink} href={`${pages}/${event.id}/devices`}>
         {t("devices.link")}
       </a>
+      <a className={styles.textLink} href={`${pages}/${event.id}/big-screen`}>
+        {t("bigScreen.link")}
+      </a>
     </p>
   );
 }

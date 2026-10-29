@@ -5460,3 +5460,27 @@ a phone. Styles the primitives replace are deleted, not kept beside them.
 **Guard:** an automatic browser check walks every dashboard and console page at 1440 and 390 wide in both languages and
 fails on horizontal overflow, overlapping controls or text under 14px (CLAUDE.md rule 8: a repeated finding becomes a
 check). New pages must use the primitives (`docs/rules.md`).
+
+## ADR-365 - T-504 big screen: picked scenes, a PostgreSQL ranking read, polling and the photo wall split
+
+**Status:** Proposed (developer, T-504 build, 2026-10-30; Q-333). Fills in what the T-309 plan, ADR-221 and ADR-241 left to T-504.
+**Decision:** (1) **Scenes.** One closed row per event (`big_screen.scenes`) holds the picked scenes in display order
+(`ranking`, `community`, `poll`; none repeated; none allowed). No row means all three in that order. The ranking scene is not
+offered, and a save naming it is refused, while the event's or the platform's ranking switch is off (FR-1612). Scenes live in the
+`bigScreen` gated add-on (FR-1729): without it the screen says so and the Big screen page cannot save. (2) **Reads.** Each scene
+has a door of its own that takes no argument (`screen_ranking`, `screen_community`, `screen_poll`) and reads only the calling
+device's event; `device_view` carries the running list, so a change on the dashboard reaches a TV on its 3-second poll. The
+ranking is the board's own rule and order read from PostgreSQL (`rank_top_ten_ids`, one index walk, as the rank push reads it),
+so a score is on screen when its transaction commits and no Redis copy has to be rebuilt for a reader that is not a player. The
+poll scene shows the newest sent poll that is open, else the one closed in the last 15 minutes, only in a public category (no
+audience, not hidden, not held by a community goal), by the poll's results policy (`after_vote` live, `at_close` once closed,
+`never` the number of voters only, FR-1613); the community scene shows the cached `community_goal.progress` and the milestones'
+thresholds, never a reward. (3) **Polling, no stream.** The page re-reads the open scene every 3 seconds and rotates scenes every
+15 seconds (fixed; skipped when empty). One answer per event and scene is shared for 2 seconds in the API process, so the database
+sees one read per event, scene and 2 seconds however many screens poll. A server-sent stream (ADR-221) is not built: 3 seconds is
+"within seconds" (FR-632), a stream would need its own revocation check and reconnect handling, and the cookie guard, rate limit
+(40 a minute a device) and Revoke already hold on every poll. (4) **Photo wall split.** FR-635 to FR-637 move to **T-504b**: there
+are no photos until T-301b, which waits for a second storage bucket only Dhia can open (Q-149). Nothing is built for them now.
+**Why:** the smallest build that meets FR-630 to FR-634, FR-1612 and FR-1613 with the pairing, guard and rules already shipped.
+**Trade-offs:** an unconfigured screen shows all three scenes; a screen's poll results can differ from a phone's by up to 5
+seconds; the photo wall and its allow-on-screen choice (FR-636) wait.

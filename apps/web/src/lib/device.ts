@@ -1,4 +1,5 @@
-import type { MessageKey } from "@questify/shared";
+import { readEventTerms, type EventTerms, type MessageKey } from "@questify/shared";
+import { scenesOf, type Scene } from "#src/lib/big-screen.ts";
 
 /** The three kinds of paired browser (T-309, ADR-239); each has its own page with no ids in its address. */
 export type DeviceKind = "station" | "kiosk" | "screen";
@@ -13,6 +14,10 @@ export type PairedView = Readonly<{
   shut: string | null;
   event: Readonly<{ name: Bilingual }>;
   quest: Readonly<{ title: Bilingual; points: number }> | null;
+  /** A big screen's scenes to run, in order (T-504); null for a station, a kiosk or a shut screen. */
+  scenes: readonly Scene[] | null;
+  /** The event's own words, complete (Questify's own where it set none): a big screen shows its currency. */
+  terms: EventTerms;
 }>;
 
 /** What `GET /v1/device` and the pairing calls answer, read defensively. */
@@ -53,6 +58,20 @@ const questOf = (value: unknown): PairedView["quest"] =>
     ? { title: textOf(value["title"]), points: value["points"] }
     : null;
 
+/** A paired, activated device's view from the body of its answer. */
+function viewOf(body: Record<string, unknown>, kind: DeviceKind): PairedView {
+  const event = isRecord(body["event"]) ? body["event"] : {};
+  return {
+    kind,
+    label: typeof body["label"] === "string" ? body["label"] : "",
+    shut: typeof body["shut"] === "string" ? body["shut"] : null,
+    event: { name: textOf(event["name"]) },
+    quest: questOf(body["quest"]),
+    scenes: Array.isArray(body["scenes"]) ? scenesOf(body["scenes"]) : null,
+    terms: readEventTerms(body["terms"]),
+  };
+}
+
 /** The device's state in an answer, or undefined when it is not one of the shapes above. */
 export function deviceAnswerOf(body: unknown): DeviceAnswer | undefined {
   if (!isRecord(body)) {
@@ -73,17 +92,7 @@ export function deviceAnswerOf(body: unknown): DeviceAnswer | undefined {
   if (body["activated"] !== true || typeof kind !== "string" || !KINDS.has(kind)) {
     return { state: "waiting" };
   }
-  const event = isRecord(body["event"]) ? body["event"] : {};
-  return {
-    state: "paired",
-    view: {
-      kind: kind as DeviceKind,
-      label: typeof body["label"] === "string" ? body["label"] : "",
-      shut: typeof body["shut"] === "string" ? body["shut"] : null,
-      event: { name: textOf(event["name"]) },
-      quest: questOf(body["quest"]),
-    },
-  };
+  return { state: "paired", view: viewOf(body, kind as DeviceKind) };
 }
 
 /** A screen-code answer, or undefined when it is not that shape. */

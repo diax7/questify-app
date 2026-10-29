@@ -1085,6 +1085,17 @@ event delete cascading). `quest_verification_known` takes `screen_qr` on scan qu
 `device_claim_check`, `make_device`, `device_json`, `revoke_devices_of`. `app_device_id()` reads `app.device_id`, set only
 by the API's device guard. Devices are kept by the rehearsal wipe.
 
+### big_screen (migration 0083, T-504, ADR-365)
+**Built:** `big_screen (event_id primary key, organizer_id, scenes text[], updated_at, updated_by → staff_user SET NULL)`, `(event_id,
+organizer_id)` → `event` CASCADE; `scenes` is the picked scenes in display order (`big_screen_scenes_ok`: only `ranking`,
+`community`, `poll`, each once, 0 to 3). Row-level security forced, PUBLIC and the API role revoked; written only by
+`set_big_screen`, read by `event_big_screen` (the caller's event, AN404) and, through `big_screen_plan`, by `device_view`. No
+row means all three scenes. Kept by the rehearsal wipe (setup, as the devices). No personal data. Doors: `event_big_screen`,
+`set_big_screen` (team), `screen_ranking`, `screen_community`, `screen_poll` (a paired big screen; each takes no argument and
+reads `current_device()`'s event only); internal `feature_enabled`, `big_screen_on` (the gated add-on, FR-1729), `big_screen_scenes_ok`,
+`big_screen_plan`, `big_screen_json`, `screen_event`, `screen_shut`. `device_view` restated: `scenes` and the screen's
+`feature_off`.
+
 ### kiosk_scan; the kiosk method (migration 0058, T-309b, ADR-242, ADR-244)
 **Built:** `kiosk_scan (completion_id → quest_completion CASCADE primary key, device_id → paired_device SET NULL,
 organizer_id, event_id, created_at)`, index `(device_id, created_at)`: which kiosk paid a completion. No personal data.
@@ -1254,6 +1265,7 @@ rows or push text.
 | questify_quest, daily_question | Quests not tied to an event, in their own table (ADR-114, Proposed; `quest.event_id` is never null); the daily challenge question bank (built, T-406, migration 0069: see Daily games above) | No |
 | ranking_season | Monthly Questify-wide seasons and archives: built as the month boards of `xp_board` (T-408, migration 0072) | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
+| big_screen (built, T-504, migration 0083) | The scenes an event's big screen shows, in order (scene names only) | No |
 | device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |
 | operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |
 | invitation_campaign (built, T-409, migration 0073) | Questify invitations to opted-in players by city, interests and history: the request, the admin's approval with the frozen names, exact counters and their rounded daily copies (see above) | No (counts only) |

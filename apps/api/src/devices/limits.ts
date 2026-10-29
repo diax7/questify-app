@@ -15,6 +15,8 @@ export const DEVICE_LIMITS = {
   pollsPerDevice: { bucket: BUCKETS.devicePoll, max: 30, windowSeconds: 60 },
   /** A device's renews and activations (CTO code review 1): a page needs one of each every 10 minutes at most. */
   writesPerDevice: { bucket: BUCKETS.deviceWrite, max: 10, windowSeconds: 60 },
+  /** A big screen's scene reads: its page asks every 3 seconds (T-504), 20 a minute, and once more at each change. */
+  scenesPerDevice: { bucket: BUCKETS.deviceScene, max: 40, windowSeconds: 60 },
   /** A station's code fetches, and an operator's for one quest. */
   codesPerDevice: { bucket: BUCKETS.deviceScreenCode, max: 6, windowSeconds: 60 },
   codesPerOperatorQuest: { bucket: BUCKETS.operatorScreenCode, max: 6, windowSeconds: 60 },

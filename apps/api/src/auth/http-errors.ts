@@ -1686,6 +1686,22 @@ export const screenCodeExpired = make(
   "This code has changed. Scan the screen again.",
 );
 
+// ---------------------------------------------------------------- the big screen's scenes (T-504)
+/** A scene list the database refused: `field` is scenes (unknown, repeated or too many) or ranking_off. */
+export const invalidBigScreen = make(
+  422,
+  "invalid_big_screen",
+  "تحقق من مشاهد الشاشة الكبيرة.",
+  "Check the big screen's scenes.",
+);
+/** The big-screen add-on is not active for this event: only Questify unlocks it (FR-1729). */
+export const bigScreenOff = make(
+  403,
+  "big_screen_off",
+  "الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع كويستفاي لتفعيلها.",
+  "The big screen isn't active for this event. Ask Questify to activate it.",
+);
+
 // ---------------------------------------------------------------- the help desk (T-310)
 /** Only an active member of the event sends requests; the same answer whether or not the event exists. */
 export const ticketNotMember = make(

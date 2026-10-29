@@ -36,6 +36,7 @@ import { registerStreakTeamRoutes } from "#src/streaks/routes";
 import { registerNfcTeamRoutes } from "#src/nfc/routes";
 import type { ClaimDeps } from "#src/devices/claims";
 import { registerDeviceTeamRoutes } from "#src/devices/routes";
+import { registerScreenTeamRoutes } from "#src/screen/routes";
 import { registerCommunityTeamRoutes } from "#src/community/routes";
 import { registerSouvenirRoutes } from "#src/souvenirs/routes";
 import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
@@ -262,6 +263,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerStreakTeamRoutes(scope, { pool: deps.pool });
       registerNfcTeamRoutes(scope, { pool: deps.pool });
       registerDeviceTeamRoutes(scope, deps.devices);
+      registerScreenTeamRoutes(scope, { pool: deps.pool });
       registerFlagRoutes(scope, { pool: deps.pool });
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerQuestItemRoutes(scope, { pool: deps.pool });

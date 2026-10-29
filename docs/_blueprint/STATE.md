@@ -12,6 +12,19 @@
 - **T-599/T-599b (dashboard usability baseline, ADR-364) go ahead of every remaining feature task** after Dhia found the
   dashboard unusable. T-504 was already building and finishes first.
 
+## T-504 big screen — 2026-10-30
+
+- **T-504 done (tier B; code review owed), not yet run on a TV.** Migration 0083 (new, undeployed; CranL is at 0082):
+  `big_screen` (the picked scenes in order; none picked means all three), the team's `event_big_screen` and `set_big_screen`,
+  and the screen's own doors `screen_ranking` (the rank push's `rank_top_ten_ids`, from PostgreSQL), `screen_community`
+  (cached progress) and `screen_poll` (a sent poll in a public category, by its results policy; voters only for `never`).
+  `/{lang}/screen` rotates the scenes every 15 s and re-reads the open one every 3 s (no server-sent stream, ADR-365); the
+  dashboard has a Big screen page (tick, order, save). Tests: 30 database, 13 route, 3 scene-reader units, web units, the
+  security suites, `big-screen.spec.ts` (desktop and phone); the full browser suite passed (201, only this spec's seed
+  needed fixing). ADR-365 and Q-333 Proposed. **Split:** the photo wall (FR-635 to FR-637) is T-504b, blocked on T-301b and
+  Q-149 (a second storage bucket only Dhia can open). The big-screen add-on is unlocked per event by a Questify admin.
+  **Next:** T-599/T-599b (dashboard usability baseline, ADR-364) before any other feature task; T-307b can now start.
+
 ## T-503 reset — 2026-10-29 (Claude coordinator takes over from Codex)
 
 - Stopped the T-503 lock-protocol line: plan, plan review, three failed timing probes and a NO-GO boundary
@@ -819,7 +832,7 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   2. Deploy to CranL when Dhia asks: migrations 0057 to 0062 are undeployed (pairing, kiosks, help desk, practice,
      ticket center, first-N bonus); then a new EAS build (adds `expo-device`, `expo-keep-awake` and the NFC fixes
      42b7291, 832ba03, 25ebd30 beyond APK 6059a3f3).
-  3. Phase 3 left: T-301b and T-305b (blocked on Q-149), T-307b (needs T-504), T-312b (needs T-501). So the next
+  3. Phase 3 left: T-301b and T-305b (blocked on Q-149), T-307b (T-504 is done, so it can start), T-312b (needs T-501). So the next
      unchecked task is Phase 4: **T-402** (Questify profile), then T-403, T-404.
   4. Coordinator rules learned this session (also in WORKER_BRIEF): every worker runs the full vitest with the DB env
      and, for UI copy, the full browser suite before reporting; an owner-only switch updates the count in
