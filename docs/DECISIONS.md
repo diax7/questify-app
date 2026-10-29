@@ -5385,3 +5385,14 @@ not approval to move a lock in production or a claim of performance/correctness.
 crossings, rollback/late commit, lifecycle/global conflicts, deferred FK/trigger back-edges and actual fence-release
 timing. A helper-query microbenchmark cannot pass the real-source gate. Report evidence for coordinator selection;
 no new migration/adapter, email/UI, task tick, deployment, EAS or requirement/budget waiver.
+**Second candidate result (56437ac):** reject explicit caller-driven terminal publication: a real completion can
+commit while revision remains 355, and late nested/deferred business work can wait on legacy locks after E.
+Mean release upper bounds 3.388-3.851 ms do not prove <3 ms. No production protocol is accepted.
+**Next bounded experiment:** test automatic mandatory transaction-level deferred finalization, not another optional
+publish helper. Drain existing deferred business work before sorted E acquisition; prove that subsequent source
+entry/DML cannot acquire business locks after finalization, including nested payers and multiple events. Finalizer
+failure must roll back completion, projection, snapshot and facts together. Probe transaction COMMIT and a following
+server timestamp in the same backend request, retaining honest lower/upper bounds and the original measurement;
+remove avoidable client round trips, not fsync or durability. Check actual crossing as well as noncrossing work.
+Test-only authorization, one candidate with repeated bounded measurements; report FAIL/UNPROVEN if either invariant
+or the unchanged load gate is unproved. No broad email/UI or repeated open-ended optimization loop.

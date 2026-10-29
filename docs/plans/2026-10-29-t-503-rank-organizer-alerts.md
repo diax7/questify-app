@@ -6,6 +6,13 @@ stop-after-T-502 notes. No application changes, external calls, push, deployment
 
 ## Current gate override — 2026-10-29
 
+56437ac rejected explicit caller-driven terminal publication: a source committed without any publication revision,
+and late nested/deferred work can wait after E. Coordinator authorizes one bounded TEST-ONLY automatic commit-time
+finalization candidate under ADR-361: mandatory transaction marker, business/deferred drain before sorted E,
+source-entry/DML ordering enforced before further business lock acquisition, atomic rollback on finalizer failure.
+Measure release through COMMIT with a same-request server timestamp (no client round-trip padding); retain old
+bounds and durability. No candidate acceptance, requirement/budget change or production migration is implied.
+
 The real-source probe 9b1e76e FAILED (<3 ms required; >14 ms mean lower bound). Production implementation is STOPPED.
 ADR-361 authorizes TEST-ONLY profiling plus a distinct short terminal-fence candidate, not a production protocol
 change. Preserve the original red fixture/evidence. Keep G before business locks; investigate terminal E only after

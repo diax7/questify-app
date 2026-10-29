@@ -1911,6 +1911,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   email/UI, real external service, mutation, push/deploy/EAS or T-504. Coordinator decides next bounded direction.
   Approximate recovery effort15-20 minutes, zero CI minutes (estimate, not billing); no new ADR/Q/acceptance.
 
+- 2026-10-29 **T-503 explicit terminal candidate rejected (56437ac).** Correctness red: real source can commit
+  without publication; late nested/deferred source waits remain. <3 ms fence mean is UNPROVEN, not passed.
+  Coordinator authorizes ONE bounded test-only automatic commit-finalization candidate: mandatory deferred marker,
+  business drain before E, source entrances checked before further legacy locks, failed-COMMIT full rollback and
+  same-request server timing through release. Preserve all earlier red fixtures/evidence and durability settings.
+  No production change, task tick, email/UI or candidate acceptance; report unresolved gates rather than spin an
+  open-ended benchmark loop. ADR-361/Q-330 remain investigation/Open. Independent code review still owed.
+
 ## Next
 
 - **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
