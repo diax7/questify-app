@@ -1,6 +1,7 @@
 # T-503 — Top-10 transitions and organizer email alerts
 
-2026-10-29. **EARLY IMPLEMENTATION GATE FAILED. Stop for coordinator technical redesign; T-503 incomplete.**
+2026-10-29. **SUPERSEDED by ADR-362 (periodic top-ten diff, tier B).** The rest of this file is history; the
+T-503 worker builds from ADR-362, not from the lock protocol below.
 Correction base main `bca5223`; T-502 application `e28a1e4`, CI 40828699004 green. The resumed queue overrides historical
 stop-after-T-502 notes. No application changes, external calls, push, deployment, EAS, mutation or next task.
 

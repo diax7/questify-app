@@ -1,5 +1,16 @@
 # Blueprint State — Questify
 
+## T-503 reset — 2026-10-29 (Claude coordinator takes over from Codex)
+
+- Stopped the T-503 lock-protocol line: plan, plan review, three failed timing probes and a NO-GO boundary
+  diagnosis (`docs/evidence/2026-10-29-t503-*`), with no product code shipped. Root cause: ADR-359 added a
+  "never coalesce" rule FR-613 does not state and put a global lock inside every quest completion.
+- ADR-362 Accepted (Q-331; ADR-359/361 superseded, Q-330 closed): a tick diffs each live event's top ten against a
+  stored snapshot and creates `rank` notices; 10-minute per-member cooldown; organizer alerts with per-member
+  switches, outbox, transport OFF. Opt-in probe tests and SQL deleted. Tier B for the rank push.
+- Cost note: the probe line used roughly a day of agent time and 0 CI minutes for no shipped feature.
+
+
 ## Stage 0 — Setup (2026-10-16)
 
 **Situation:** greenfield. Empty folder, no code.

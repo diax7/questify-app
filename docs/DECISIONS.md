@@ -5303,7 +5303,7 @@ provider/real-phone checks remain gates; acceptance does not authorize deploymen
 
 ## ADR-359 — T-503 ordered durable top-ten transitions and coherent publication
 
-**Status:** Accepted design (developer, delegated by Dhia, 2026-10-29; Q-328). Implementation proof gates remain.
+**Status:** Superseded by ADR-362 (2026-10-29).
 **Recommendation:** preserve FR-613 without coalescing: serialize same-event source transactions, maintain an
 eligible-only indexed projection and persist every committed top-ten crossing with source changes, ordered event
 revision and lifecycle generation. Durable inbox carries transition facts, not final-state ids-only dirty signals.
@@ -5362,7 +5362,7 @@ to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.m
 
 ## ADR-361 - T-503 full-source event lock feasibility failure
 
-**Status:** Investigation accepted (developer, delegated by Dhia, 2026-10-29; Q-330); replacement protocol NOT accepted.
+**Status:** Superseded by ADR-362 (2026-10-29).
 **Evidence:** `evidence/2026-10-29-t503-early-gate.md` and JSON. On the recorded 50,000-member local
 setup, the actual complete_quest/ledger/bonus/trigger transaction under ADR-359's shared G/exclusive E
 has warm mean E-residence LOWER bounds 14.46488 and 14.20142 ms. Actual mean hold is longer;
@@ -5396,3 +5396,25 @@ server timestamp in the same backend request, retaining honest lower/upper bound
 remove avoidable client round trips, not fsync or durability. Check actual crossing as well as noncrossing work.
 Test-only authorization, one candidate with repeated bounded measurements; report FAIL/UNPROVEN if either invariant
 or the unchanged load gate is unproved. No broad email/UI or repeated open-ended optimization loop.
+
+## ADR-362 - T-503 reset: rank pushes from a periodic top-ten diff, off the completion path
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-29; Q-331). Supersedes ADR-359 and ADR-361; narrows
+ADR-360.
+**Why:** ADR-359 added a rule FR-613 does not have, "never coalesce: a published 11->9->11 between reads sends both
+pushes", and paid for it with a global and per-event lock inside every quest completion. Three probes (9b1e76e,
+56437ac, 61b5368) showed it cannot meet the NFR-003 completion budget (E held 14 ms or more against 3 ms). FR-613 says
+"when the ranking updates"; a push a few seconds late, or no push for a blip that reverses within seconds, meets it
+and spares players spam. A push producer is tier B (CLAUDE.md, ADR-355); the email sender stays tier A.
+**Decision:** no change to the completion transaction or the ranking cache. A tick (the existing ranking tick or a
+sibling, lease-guarded) reads each live event's current overall top ten through the existing board read, compares it
+with the stored previous top ten (`rank_top_snapshot`, one row per event), writes the new set, and creates one
+personal `rank` notice through `notice_create` per entry and per exit. Eligibility, rehearsal and excluded players
+follow the board as it is read. The first read of an event, a re-activation and a rehearsal wipe store a baseline
+with no notices. One rank push per member per event per 10 minutes at most (a blip is dropped, not queued). Text:
+fixed bilingual, no rank number (ADR-346). Organizer alerts (FR-1727): per-member switches for the seven types,
+producers write an outbox row, the sender re-checks membership and switch at send time, transport stays OFF (ADR-360
+transfer rule), uncertain sends are not retried. ADR-360's G/E source-lock matrix is dropped with ADR-359.
+**Cost:** rank pushes may arrive one tick late, and a crossing that reverses before the next tick sends nothing.
+**Cleanup:** the opt-in probe tests and SQL (`apps/api/test/db/t503-*`, `apps/api/test/support/t503-*`) are deleted;
+the evidence files stay as the record.

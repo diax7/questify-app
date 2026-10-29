@@ -1455,8 +1455,8 @@ Full review80 resolution map: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
 
 ## Q-330 - T-503 failed early full-source event-lock budget (2026-10-29)
 
-**Status:** Open technical redesign; coordinator authorized test-only profiling/terminal-fence investigation,
-not replacement-protocol acceptance. No Dhia action requested.
+**Status:** Closed 2026-10-29 by ADR-362 (periodic top-ten diff; Q-331). Earlier text kept as history:
+coordinator had authorized test-only profiling, not a replacement protocol.
 **Evidence/recommendation:** Proposed ADR-361 and `evidence/2026-10-29-t503-early-gate.md`/JSON.
 Two actual-source 50,000-member runs give mean E hold LOWER bounds 14.46488 / 14.20142 ms
 against required <3 ms (target <=1.5 ms); confirmation full mean is in [14.20142, 20.262509] ms.
@@ -1467,3 +1467,9 @@ No coalescing or requirement waiver. Implementation stopped; unchanged productio
 Source resets/defaults, complete writer/cascade inventory, both-order barriers, excluded-leader/own/total
 equivalence, steady load/queue/propagation and all email/UI/code-review gates remain unfinished.
 Coordinator chooses the technical next action; worker does not self-approve or request another review.
+
+## Q-331 - T-503 reset to a periodic top-ten diff (2026-10-29)
+
+Should top-ten pushes stay exact per transaction (ADR-359), or come from a periodic diff that may drop a blip
+reversing within seconds? **Answered (developer, delegated by Dhia, 2026-10-29):** periodic diff; ADR-362 Accepted.
+Q-330 closes with it.
