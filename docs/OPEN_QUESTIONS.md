@@ -1407,11 +1407,13 @@ cut-off and the go-live wipe each have a test that fails when the protection is 
 
 ## Q-327 — T-502 announcement limits and Home presentation (2026-10-29)
 
-**Status:** Proposed; coordinator decision after independent tier B code review. **ADR:** ADR-358.
+**Status:** Resolved (developer, delegated by Dhia, 2026-10-29). **ADR:** ADR-358 Accepted.
 Recommended: the approved plan's 60/500/140-code-point text bounds, shared name-rule filter, 3/hour and 10/day rolling
 reservations, 2-minute to 180-day scheduling and 30-minute lateness cutoff. Organizer text is the explicit filtered
 exception to fixed push templates; never email or SMS. The new Home strip is flash/boost only, from Quests, with
 existing poll/community cards beside it; categories stay Quests, sessions T-505. Alternatives: unrestricted free text
 or more sends (spam/privacy risk), fixed templates only (cannot carry an announcement), duplicating all existing Home
 cards in a strip, or changing the live feed's 15-minute tail (unnecessary scope). No external credential blocks local
-T-502. Coordinator may overturn technical defaults; APNs/Firebase/device go-live gates remain unchanged.
+T-502. Coordinator accepts these defaults, including flash/boost-only strip composition, after independent review
+and both MAJOR fixes (efad9cd). Pending schedules are paginated earliest first, separately from bounded history;
+send and lifecycle writes are serialized by the event row lock. APNs/Firebase/device go-live gates remain unchanged.

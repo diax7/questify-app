@@ -1826,7 +1826,23 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   ADR-358/Q-327 remain Proposed for coordinator acceptance; remaining: coordinator inspection, acceptance/CI/push
   and existing real-phone/provider release checks. Stop here; do not start T-503.
 
+- 2026-10-29 **T-502 coordinator acceptance and handoff.** Independent tier B review 84 initially NO-GO;
+  both MAJORs fixed in efad9cd and coordinator-inspected: event-row locking/revalidation closes archive/send races,
+  and earliest-first keyset pages keep all pending schedules cancellable independently of bounded history.
+  ADR-358 Accepted (developer, delegated by Dhia); Q-327 resolved, explicitly accepting the flash/boost-only
+  Happening now strip alongside the existing poll/community cards. Modal-accessibility MINOR deferred in FOLLOWUPS.
+  Latest regression evidence: 703 targeted tests / 12 suites; fresh-build browser 199 passed / 1 existing skip.
+  Full Vitest not rerun under ADR-355. Progress 108/177. No deployment, EAS, mutation or next task.
+  CI minutes: 0 so far (remote run pending push); rough implementation/fix cost 145k tokens / 120 minutes,
+  plus review/coordinator usage not separately measured (estimates, not billing data).
+  Coordinator is running the final pre-push gates; inspect origin/main and remote CI for the final outcome.
+  Stop after T-502 and wait for a new instruction before T-503.
+
 ## Next
+
+**Current instruction (2026-10-29): finish T-502's handoff push/remote CI, then stop before T-503.**
+T-501e/f/g are already reviewed and pushed; T-502's review MAJORs are fixed and coordinator-accepted (ADR-358).
+The older checkpoint below is history, not authorization to restart those tasks or dispatch mutation/deployment.
 
 1. **Paused for Dhia (2026-10-27, compaction and a model switch).** Done, reviewed and pushed: T-406, T-406b, T-406c,
    T-407, T-407b, T-407c, T-408, T-408b; every core mutation score is at 90 or above. T-408c (console Ranking seasons) is

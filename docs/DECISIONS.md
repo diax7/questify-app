@@ -5265,7 +5265,7 @@ told again; the placeholder kind name `hint` is gone from `NOTIFICATION_TARGETS`
 
 ## ADR-358 — Bilingual announcements on the push store and Home (2026-10-29)
 
-**Status:** Proposed (worker; independent tier B review and coordinator decision owed). **Question:** Q-327.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-29). **Question:** Q-327.
 **Context:** T-502, FR-806, FR-807, FR-1107 and FR-1108; approved scope:
 docs/plans/2026-10-28-t-502-announcements.md.
 **Proposal:** (1) Migration 0081 stores immutable bilingual title (60 code points), full body (500), and 140-code-point
@@ -5291,4 +5291,12 @@ deletion. (7) At 50,000 members with devices and an exclusion entry: count 732 m
 52 calls, slowest 430 ms. Both 1 s call and 5 s statement gates pass (local 2026-10-29).
 **Trade-offs:** spelled-out addresses can pass; authenticated staff are the copy trust boundary. Scheduled audience may
 differ from preview. Announcement history remains until event deletion (event-data retention Q-075 still applies);
-notice purge removes its delivered count. No dependency or remote code/config. Independent review is still required.
+notice purge removes its delivered count. No dependency or remote code/config.
+**Review and decision:** Independent tier B review scored 84, with two MAJORs reproduced and fixed in efad9cd:
+send reauthorizes and rereads after advisory/event locks, holding the event FOR SHARE through the write; due-send
+locks event before announcement. Pending schedules use earliest-first keyset pages of 30, separate from the newest
+30 history rows, so every pending schedule remains reachable for cancellation. Regression evidence: 703 targeted
+tests and 199 browser tests passed (one existing skip). Coordinator inspected both fixes; no BLOCKER required a
+re-review under ADR-355. Accept all seven choices above, explicitly including the flash/boost-only strip with existing
+poll/community cards beside it. The modal-accessibility MINOR remains in FOLLOWUPS. Remote CI and the existing
+provider/real-phone checks remain gates; acceptance does not authorize deployment.
