@@ -25,3 +25,6 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-10-30 T-503: `rank_push_diff` reads `erased` before `fresh`, so a wipe committing between them diffs a pre-wipe snapshot; read it after (T-503 review, harmless today).
 - 2026-10-30 T-503: a poison event hitting the 5 s timeout stays first in `rank_push_events` (`taken_at NULLS FIRST`); bump `taken_at` on failure (T-503 review).
 - 2026-10-30 T-503: skip exit notices for a player excluded after the fact (`NOT ranking_eligible`); the cooldown test does not check the per-event part of the key; the `isAlertType`/`unknown_type` branch in `worker.ts` is unreachable (T-503 review).
+- 2026-10-30 T-504: a paired screen polls `/v1/device` (`DevicePairing.tsx:127`) as well as the scene every 3 s; poll `/v1/device` every 15 s while paired if screen traffic ever matters (T-504 review).
+- 2026-10-30 T-504: the TV shows `after_vote` poll counts live while a phone waits for its vote (FR-634); add a line to the poll builder help and the SECURITY.md "results leaked early" row (T-504 review).
+- 2026-10-30 T-504: `feature_enabled` duplicates `ranking_on` and `community_on`; the community `progressbar` has no `aria-label` (T-504 review).

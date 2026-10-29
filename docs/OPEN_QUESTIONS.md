@@ -1486,4 +1486,4 @@ as `transport_off`, nothing leaves the machine. **Answered (developer, delegated
 Which scenes does an unconfigured big screen show, how long does a scene stay up, and does the screen need a server-sent
 stream? **Recommended (developer, T-504 build):** all three scenes in order until the team picks; 15 seconds a scene, fixed; polling
 every 3 seconds, no stream; the photo wall (FR-635 to FR-637) split to T-504b until T-301b has its bucket. **Open:** Dhia may want
-a per-event rotation time, a different default, or a today's-ranking scene (T-216); each is a small addition. ADR-365 Proposed.
+a per-event rotation time, a different default, or a today's-ranking scene (T-216); each is a small addition. ADR-365 Proposed. **Answered (developer, delegated by Dhia, 2026-10-30):** accepted as recommended; ADR-365 Accepted. The TV shows `after_vote` poll results live to the room while a phone waits for its own vote (FR-634, counts only); say so in the poll builder help (FOLLOWUPS).

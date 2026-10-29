@@ -5463,7 +5463,7 @@ check). New pages must use the primitives (`docs/rules.md`).
 
 ## ADR-365 - T-504 big screen: picked scenes, a PostgreSQL ranking read, polling and the photo wall split
 
-**Status:** Proposed (developer, T-504 build, 2026-10-30; Q-333). Fills in what the T-309 plan, ADR-221 and ADR-241 left to T-504.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; Q-333, T-504 review 92 GO). A paired screen makes two requests every 3 s (device state and scene), about 40 a minute; revisit polling past about 100 live screens platform-wide. Fills in what the T-309 plan, ADR-221 and ADR-241 left to T-504.
 **Decision:** (1) **Scenes.** One closed row per event (`big_screen.scenes`) holds the picked scenes in display order
 (`ranking`, `community`, `poll`; none repeated; none allowed). No row means all three in that order. The ranking scene is not
 offered, and a save naming it is refused, while the event's or the platform's ranking switch is off (FR-1612). Scenes live in the

@@ -34,14 +34,13 @@ export function registerScreenRoutes(app: FastifyInstance, deps: ScreenDeps): vo
   const scenes = createSceneReader({ pool: deps.pool });
   app.get("/v1/device/screen/:scene", deviceRoute, async (request, reply) => {
     const device = request.device;
-    // Stryker disable next-line ConditionalExpression: unreachable: the guard lets only a paired, activated device here
     if (device === undefined || device.state !== "paired" || device.kind !== "screen") {
       throw deviceUnpaired();
     }
     const { scene } = parse(sceneParams, request.params);
     await holdBack(
       deps.pool,
-      [{ limit: DEVICE_LIMITS.scenesPerDevice, key: deps.keys.pairedDeviceKey(device.id) }],
+      [{ limit: DEVICE_LIMITS.scenesPerDevice, key: deps.keys.pairedDeviceKey(`${device.id}:scene`) }],
       true,
       reply,
     );
