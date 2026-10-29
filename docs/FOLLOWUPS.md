@@ -28,3 +28,8 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-10-30 T-504: a paired screen polls `/v1/device` (`DevicePairing.tsx:127`) as well as the scene every 3 s; poll `/v1/device` every 15 s while paired if screen traffic ever matters (T-504 review).
 - 2026-10-30 T-504: the TV shows `after_vote` poll counts live while a phone waits for its vote (FR-634); add a line to the poll builder help and the SECURITY.md "results leaked early" row (T-504 review).
 - 2026-10-30 T-504: `feature_enabled` duplicates `ranking_on` and `community_on`; the community `progressbar` has no `aria-label` (T-504 review).
+- 2026-10-30 T-599 (do in T-599b): `e2e/layout.ts` checks only control-vs-control overlap; add text-node rects so text over text or a badge over a title fails (T-599 review).
+- 2026-10-30 T-599 (do in T-599b): seed richer layout data (rewards with items, a team of several members) so the check sees filled states, not only empty ones (T-599 review).
+- 2026-10-30 T-599 (do in T-599b): `ui/Tabs.tsx`, `ui/Table.tsx` and `Field`'s `error` have no consumers; use them in T-599b or delete them; give `Field.error` `role="alert"` (T-599 review).
+- 2026-10-30 T-599 (do in T-599b): `SignOutButton.tsx` still uses `layout.module.css` and its failure text lands in the dark top bar; move it to the primitives (T-599 review).
+- 2026-10-30 T-599: `dashboard-nav.test.ts` checks listed slugs have folders but not that every folder is listed (`codes` is missing); `OrganizerNav` now fetches ticket and invitation counts on every event page; `codeInputClass` is a one-off export at `Field.tsx:193`; the global `a` colour in `globals.css` also reaches device pages (T-599 review).
