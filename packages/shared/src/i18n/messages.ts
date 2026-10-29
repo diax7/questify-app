@@ -6374,6 +6374,18 @@ export const MESSAGES = {
   "announcements.page.scheduled": { ar: "الإعلان مجدول.", en: "The announcement is scheduled." },
   "announcements.page.cancelled": { ar: "أُلغي الإعلان.", en: "The announcement is cancelled." },
   "announcements.page.list": { ar: "إعلانات الفعالية", en: "The event's announcements" },
+  "announcements.page.pending": {
+    ar: "الإعلانات المجدولة — الأقرب أولاً",
+    en: "Pending schedules — earliest first",
+  },
+  "announcements.page.history": { ar: "آخر 30 إعلاناً منتهياً", en: "Latest 30 past announcements" },
+  "announcements.page.pendingEmpty": {
+    ar: "لا إعلانات مجدولة في هذه الصفحة.",
+    en: "No pending schedules on this page.",
+  },
+  "announcements.page.pagination": { ar: "صفحات الإعلانات المجدولة", en: "Pending schedule pages" },
+  "announcements.page.previous": { ar: "الصفحة السابقة", en: "Previous schedules" },
+  "announcements.page.next": { ar: "الصفحة التالية", en: "Next schedules" },
   "announcements.page.empty": { ar: "لا إعلانات بعد.", en: "No announcements yet." },
   "announcements.page.loadFailed": {
     ar: "تعذّر تحميل الإعلانات.",

@@ -142,6 +142,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements over HTTP", () =
     ]);
   });
 
+  it("paginates 31 valid pending schedules earliest first and cancels on either page", async () => {
+    const target = await fixture.newEvent({ phase: "live" });
+    await fixture.owner("UPDATE event SET ends_at = now() + interval '60 days' WHERE id = $1", [
+      target,
+    ]);
+    const ids: string[] = [];
+    for (let day = 1; day <= 31; day += 1) {
+      const response = await dashboard("POST", path(target), {
+        ...GOOD,
+        sendAt: new Date(Date.now() + day * 86400_000).toISOString(),
+      });
+      expect(response.statusCode).toBe(201);
+      ids.push(response.json().id);
+    }
+    const first = (await dashboard("GET", path(target) + "?pending=true")).json();
+    expect(first.announcements.map((row: { id: string }) => row.id)).toEqual(ids.slice(0, 30));
+    expect(first.next).toEqual({ afterAt: first.announcements[29].sendAt, afterId: ids[29] });
+    const secondPath = path(target) + "?pending=true&" + new URLSearchParams(first.next).toString();
+    expect((await dashboard("POST", path(target) + "/" + ids[0] + "/cancel", {})).json()).toEqual({
+      status: "cancelled",
+    });
+    const second = (await dashboard("GET", secondPath)).json();
+    expect(second.announcements.map((row: { id: string }) => row.id)).toEqual([ids[30]]);
+    expect(second.next).toBeNull();
+    expect((await dashboard("POST", path(target) + "/" + ids[30] + "/cancel", {})).json()).toEqual({
+      status: "cancelled",
+    });
+    expect((await dashboard("GET", secondPath)).json()).toEqual({ announcements: [], next: null });
+    expect((await dashboard("GET", path(target))).json().announcements).toHaveLength(2);
+  });
+
+  it.each([
+    "pending=other",
+    "pending=true&afterAt=bad&afterId=bad",
+    "pending=true&afterId=" + randomUUID(),
+    "afterAt=2026-11-01T00:00:00Z&afterId=" + randomUUID(),
+  ])("rejects malformed list cursors: %s", async (query) => {
+    expect((await dashboard("GET", path() + "?" + query)).statusCode).toBe(400);
+  });
+
   it.each(ANNOUNCEMENT_FIELDS)(
     "filters every issue on %s with its field and issue",
     async (field) => {
@@ -219,11 +259,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements over HTTP", () =
     );
     expect((await dashboard("POST", path(fresh), body, editorCookie, key)).statusCode).toBe(404);
     expect((await dashboard("POST", cancelled, {}, editorCookie, cancelKey)).statusCode).toBe(404);
+    const cursor = new URLSearchParams({
+      pending: "true",
+      afterAt: body.sendAt,
+      afterId: made.json().id,
+    });
+    expect(
+      (await dashboard("GET", path(fresh) + "?" + cursor, undefined, editorCookie)).statusCode,
+    ).toBe(404);
   });
 
   it("refuses foreign, event-limited, viewer, player and public seats on every door", async () => {
     for (const session of [otherCookie, limitedCookie, viewerCookie]) {
-      for (const suffix of ["", "/preview"])
+      for (const suffix of [
+        "",
+        "/preview",
+        "?pending=true",
+        "?pending=true&afterAt=2026-11-01T00:00:00Z&afterId=" + randomUUID(),
+      ])
         expect((await dashboard("GET", path() + suffix, undefined, session)).statusCode).toBe(404);
       expect((await dashboard("POST", path(), GOOD, session)).statusCode).toBe(404);
       expect(

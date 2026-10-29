@@ -1,4 +1,4 @@
-import { announcementBodySchema, checkAnnouncement } from "@questify/shared";
+import { announcementBodySchema, checkAnnouncement, type AnnouncementView } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { unauthenticated } from "#src/auth/http-errors";
@@ -12,6 +12,14 @@ import {
 
 const eventParams = z.object({ eventId: z.uuid() });
 const targetParams = eventParams.extend({ announcementId: z.uuid() });
+const listQuery = z
+  .object({
+    pending: z.enum(["true", "false"]).default("false"),
+    afterAt: z.iso.datetime({ offset: true }).optional(),
+    afterId: z.uuid().optional(),
+  })
+  .refine((query) => (query.afterAt === undefined) === (query.afterId === undefined))
+  .refine((query) => query.pending === "true" || query.afterAt === undefined);
 const member = { config: { access: "member" } } as const;
 const writing = (deps: AnnouncementDeps) =>
   ({
@@ -35,12 +43,22 @@ export function registerAnnouncementTeamRoutes(
   scope.get("/events/:eventId/announcements", member, async (request, reply) => {
     reply.header("cache-control", "private, no-store");
     const { eventId } = parse(eventParams, request.params);
-    return announcementCall(
+    const query = parse(listQuery, request.query);
+    const result = await announcementCall<{ announcements: AnnouncementView[] }>(
       deps,
       organizerContextOf(request),
-      "SELECT announcement_list($1) AS announcements",
-      [eventId],
+      "SELECT announcement_list($1, $2, $3, $4) AS announcements",
+      [eventId, query.pending === "true", query.afterAt ?? null, query.afterId ?? null],
     );
+    const announcements = result.announcements.slice(0, 30);
+    const last = announcements.at(-1);
+    return {
+      announcements,
+      next:
+        result.announcements.length > 30 && last !== undefined
+          ? { afterAt: last.sendAt, afterId: last.id }
+          : null,
+    };
   });
   scope.get("/events/:eventId/announcements/preview", member, async (request, reply) => {
     reply.header("cache-control", "private, no-store");

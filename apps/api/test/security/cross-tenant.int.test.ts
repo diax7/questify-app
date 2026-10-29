@@ -1393,6 +1393,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     for (const seat of ["organizer", "staff", "player"] as const) {
       const calls = [
         ["SELECT announcement_list($1)", [f.eventB]],
+        ["SELECT announcement_list($1, true, now(), $2)", [f.eventB, randomUUID()]],
         ["SELECT * FROM announcement_preview($1)", [f.eventB]],
         [
           "SELECT * FROM announcement_send($1, '{}'::jsonb, NULL, $2, $3)",

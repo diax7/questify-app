@@ -602,7 +602,8 @@ Idempotency-Key; preValidation rechecks current scope before replaying cached mu
 
 | Method | Suffix | Result |
 |---|---|---|
-| GET | /announcements | {announcements: AnnouncementView[]} (newest send time first, at most 30) |
+| GET | /announcements | {announcements: AnnouncementView[], next:null}; bounded history only (sent/cancelled/skipped), newest send time first, at most 30 |
+| GET | /announcements?pending=true&afterAt=…&afterId=… | {announcements: AnnouncementView[], next:{afterAt,afterId} or null}; pending schedules only, earliest send time then id first, pages of 30. Omit both cursor fields for the first page; otherwise pass both exactly as returned. The cursor timestamp preserves database precision. Malformed/incomplete cursors: 400. Each page reauthorizes the event. |
 | GET | /announcements/preview | {members, phase: live/rehearsal/idle/closed} |
 | POST | /announcements | {titleAr,titleEn,bodyAr,bodyEn,sendAt?}; 201 {id,status,sendAt,replayed} |
 | POST | /announcements/{id}/cancel | Empty body; {status:cancelled}, scheduled only; repeated cancel safe |

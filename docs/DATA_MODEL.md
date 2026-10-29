@@ -1327,3 +1327,10 @@ announcement id; params freeze event name/title/cut body in both languages. Exis
 push_send. Muting keeps center rows, suppresses push. No contacts or channel table added. History is event data under
 Q-075; erasing a player removes their existing push-store rows, not organizer copy. Exact grants/audience/channels
 are covered by database, HTTP, outsider and cross-tenant inventories.
+
+Review-84 correction (2026-10-29): send takes the event announcement advisory lock, then the event row FOR SHARE,
+then reauthorizes/rereads before replay or lifecycle checks; the event lock lasts through notice/state commit.
+Due-send takes event FOR SHARE before announcement FOR UPDATE SKIP LOCKED and rechecks scheduled state after locking;
+cancel takes only the announcement row. Lifecycle updates cannot commit between the check and notice write.
+Dashboard pending schedules use a separate (send_at, id) ascending keyset cursor: 30 rows plus one DB lookahead,
+never an unbounded list. History excludes scheduled rows and remains bounded to the latest 30 rows.

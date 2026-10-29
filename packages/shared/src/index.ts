@@ -491,6 +491,7 @@ export {
   ANNOUNCEMENT_STATES,
   ANNOUNCEMENT_TITLE_MAX,
   announcementBodySchema,
+  announcementPageSchema,
   announcementPushBody,
   announcementRenderable,
   announcementTextIssue,

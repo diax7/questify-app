@@ -2,13 +2,13 @@
 
 import {
   ANNOUNCEMENT_RATE,
-  announcementViewSchema,
+  announcementPageSchema,
   formatNumber,
   type AnnouncementView,
   type Language,
 } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnnouncementList } from "#src/components/AnnouncementParts.tsx";
+import { AnnouncementList, AnnouncementPagination } from "#src/components/AnnouncementParts.tsx";
 import { AnnouncementComposer } from "#src/components/AnnouncementComposer.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
@@ -19,7 +19,13 @@ import type { Translate } from "#src/lib/language.ts";
 import styles from "#src/components/layout.module.css";
 
 export type Audience = Readonly<{ members: number; phase: string }>;
-type Loaded = Readonly<{ rows: AnnouncementView[]; audience: Audience; zone: string }>;
+type Loaded = Readonly<{
+  rows: AnnouncementView[];
+  pending: AnnouncementView[];
+  next: string | null;
+  audience: Audience;
+  zone: string;
+}>;
 export type AnnouncementConfirmation = Readonly<{
   path: string;
   body: unknown;
@@ -29,41 +35,68 @@ export type AnnouncementConfirmation = Readonly<{
   success: string;
 }>;
 
-async function readAnnouncements(path: string): Promise<Loaded | undefined> {
-  const [list, preview, event] = await Promise.all([
+async function readAnnouncements(path: string, cursor: string): Promise<Loaded | undefined> {
+  const [list, pending, preview, event] = await Promise.all([
     requestJson("GET", path),
+    requestJson("GET", path + "?pending=true" + cursor),
     requestJson("GET", path + "/preview"),
     requestJson("GET", path.replace(/\/announcements$/, "")),
   ]);
-  if (!list.ok || !preview.ok || !event.ok) return undefined;
-  const parsed = announcementViewSchema
-    .array()
-    .safeParse((list.body as { announcements?: unknown }).announcements);
+  if (![list, pending, preview, event].every((answer) => answer.ok)) return undefined;
+  const parsed = announcementPageSchema.safeParse(list.body);
+  const scheduled = announcementPageSchema.safeParse(pending.body);
   const audience = preview.body as Audience;
   const zone = (event.body as { event?: { timezone?: string } }).event?.timezone;
-  if (!parsed.success || typeof audience.members !== "number" || typeof zone !== "string")
+  if (
+    !parsed.success ||
+    !scheduled.success ||
+    typeof audience.members !== "number" ||
+    typeof zone !== "string"
+  )
     return undefined;
-  return { rows: parsed.data, audience, zone };
+  const next = scheduled.data.next;
+  return {
+    rows: parsed.data.announcements,
+    pending: scheduled.data.announcements,
+    audience,
+    zone,
+    next: next === null ? null : "&" + new URLSearchParams(next).toString(),
+  };
 }
 
 function useAnnouncements(path: string, language: Language) {
   const [loaded, setLoaded] = useState<Loaded>();
   const [problem, setProblem] = useState<string>();
+  const [pages, setPages] = useState([""]);
+  const [paging, setPaging] = useState(false);
+  const generation = useRef(0);
+  const cursor = pages.at(-1) ?? "";
   const t = useTranslator(language);
   const load = useCallback(async () => {
-    const read = await readAnnouncements(path);
+    const current = ++generation.current;
+    const read = await readAnnouncements(path, cursor);
+    if (current !== generation.current) return;
+    setPaging(false);
     if (read === undefined) setProblem(t("announcements.page.loadFailed"));
     else {
       setLoaded(read);
       setProblem(undefined);
     }
-  }, [path, t]);
+  }, [path, cursor, t]);
   useEffect(() => {
     void load();
     const timer = setInterval(() => void load(), 15_000);
-    return () => clearInterval(timer);
+    return () => {
+      generation.current += 1;
+      clearInterval(timer);
+    };
   }, [load]);
-  return { loaded, problem, setProblem, load };
+  const page = (next: boolean) => {
+    if (next && loaded?.next == null) return;
+    setPaging(true);
+    setPages((current) => (next ? [...current, loaded?.next ?? ""] : current.slice(0, -1)));
+  };
+  return { loaded, problem, setProblem, load, page, paging, hasPrevious: pages.length > 1 };
 }
 
 function announcementFailure(body: unknown, language: Language, t: Translate): string {
@@ -117,6 +150,7 @@ export function AnnouncementsPanel({
   const [confirm, setConfirm] = useState<AnnouncementConfirmation>();
   const [notice, setNotice] = useState<string>();
   const [version, setVersion] = useState(0);
+  const busy = press.busy || confirm !== undefined;
   const apply = async () => {
     if (confirm === undefined) return;
     if (await press.send(confirm)) {
@@ -158,14 +192,29 @@ export function AnnouncementsPanel({
             path={path}
             audience={state.loaded.audience}
             zone={state.loaded.zone}
-            disabled={press.busy || confirm !== undefined}
+            disabled={busy}
             confirm={setConfirm}
+          />
+          <AnnouncementList
+            pending
+            language={language}
+            rows={state.loaded.pending}
+            zone={state.loaded.zone}
+            busy={busy || state.paging}
+            cancel={cancel}
+          />
+          <AnnouncementPagination
+            language={language}
+            previous={state.hasPrevious}
+            next={state.loaded.next !== null}
+            busy={state.paging || busy}
+            page={state.page}
           />
           <AnnouncementList
             language={language}
             rows={state.loaded.rows}
             zone={state.loaded.zone}
-            busy={press.busy || confirm !== undefined}
+            busy={busy}
             cancel={cancel}
           />
         </>

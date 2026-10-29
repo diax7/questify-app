@@ -153,6 +153,11 @@ export const announcementViewSchema = z.strictObject({
 });
 export type AnnouncementView = z.infer<typeof announcementViewSchema>;
 
+export const announcementPageSchema = z.strictObject({
+  announcements: announcementViewSchema.array().max(30),
+  next: z.strictObject({ afterAt: z.iso.datetime({ offset: true }), afterId: z.uuid() }).nullable(),
+});
+
 /** One announcement as a member reads it (`GET /v1/events/{id}/announcements`). */
 export const memberAnnouncementSchema = z.strictObject({
   id: z.uuid(),

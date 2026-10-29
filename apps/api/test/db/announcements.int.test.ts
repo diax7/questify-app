@@ -455,6 +455,134 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements (database)", () 
 
   // ------------------------------------------------------------------ scheduling
   describe("scheduling", () => {
+    it("reauthorizes event scope after waiting for the announcement lock", async () => {
+      const event = await liveEvent();
+      const elsewhere = await f.newEvent({ phase: "live" });
+      const editor = await addMember(f.db.owner, f.ids.orgA, "editor", [event]);
+      const blocker = await ownerConnection();
+      let pending: Promise<string> | undefined;
+      try {
+        await blocker.query("BEGIN");
+        await blocker.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended('announcement:' || $1, 0))",
+          [event],
+        );
+        pending = refusal(send(event, { seat: f.team(editor) }));
+        await waitForBlocked(blocker);
+        await f.owner("UPDATE organizer_member SET event_scope = $1 WHERE staff_user_id = $2", [
+          [elsewhere],
+          editor,
+        ]);
+        await blocker.query("COMMIT");
+        expect(await pending).toBe("AN404");
+        expect(await noticesOf(event)).toHaveLength(0);
+      } finally {
+        await blocker.query("ROLLBACK");
+        await pending;
+        await blocker.end();
+      }
+    });
+
+    it("rechecks lifecycle after waiting for the announcement serialization lock", async () => {
+      const event = await liveEvent();
+      const blocker = await ownerConnection();
+      let pending: Promise<string> | undefined;
+      try {
+        await blocker.query("BEGIN");
+        await blocker.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended('announcement:' || $1, 0))",
+          [event],
+        );
+        pending = refusal(send(event));
+        await waitForBlocked(blocker);
+        await setEvent(event, "status = 'archived'");
+        await blocker.query("COMMIT");
+        expect(await pending).toBe("PE409:event_closed");
+        expect(await noticesOf(event)).toHaveLength(0);
+        expect(await f.count("announcement WHERE event_id = $1", [event])).toBe(0);
+      } finally {
+        await blocker.query("ROLLBACK");
+        await pending;
+        await blocker.end();
+      }
+    });
+
+    it.each(["send", "due"])(
+      "%s waits for the event lifecycle write and sees the committed archive",
+      async (kind) => {
+        const event = await liveEvent();
+        const scheduled =
+          kind === "due" ? ((await send(event, { at: minutes(45) }))[0] as Sent) : undefined;
+        if (scheduled?.id) await comeDue(scheduled.id);
+        const blocker = await ownerConnection();
+        let pending: Promise<unknown> | undefined;
+        try {
+          await blocker.query("BEGIN");
+          await blocker.query("UPDATE event SET status = 'archived' WHERE id = $1", [event]);
+          pending = kind === "send" ? refusal(send(event)) : due();
+          await waitForBlocked(blocker);
+          await blocker.query("COMMIT");
+          const result = await pending;
+          if (kind === "send") expect(result).toBe("PE409:event_closed");
+          else
+            expect(await rowOf(scheduled?.id as string)).toMatchObject({
+              status: "skipped",
+              skip_reason: "event_closed",
+            });
+          expect(await noticesOf(event)).toHaveLength(0);
+        } finally {
+          await blocker.query("ROLLBACK");
+          await pending;
+          await blocker.end();
+        }
+      },
+    );
+
+    it.each(["send", "due"])(
+      "%s holds the event lifecycle lock until the notice commits",
+      async (kind) => {
+        const event = await liveEvent();
+        if (kind === "due") {
+          const scheduled = (await send(event, { at: minutes(45) }))[0] as Sent;
+          await comeDue(scheduled.id as string);
+        }
+        const sender = await ownerConnection();
+        let archive: Promise<unknown> | undefined;
+        try {
+          await sender.query("BEGIN");
+          await sender.query(
+            "SELECT set_config('app.organizer_id', $1, true), set_config('app.staff_user_id', $2, true)",
+            [f.ids.orgA, f.ownerA],
+          );
+          if (kind === "send")
+            await sender.query("SELECT * FROM announcement_send($1, $2, NULL, $3, $4)", [
+              event,
+              GOOD,
+              randomUUID(),
+              randomUUID(),
+            ]);
+          else await sender.query("SELECT push_due_announcement(100)");
+          archive = setEvent(event, "status = 'archived'");
+          const { rows } = await sender.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+          await expect
+            .poll(async () => {
+              const result = await sender.query(
+                "SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))",
+                [rows[0]?.pid],
+              );
+              return result.rowCount;
+            })
+            .toBe(1);
+          await sender.query("COMMIT");
+          await archive;
+          expect(await noticesOf(event)).toHaveLength(1);
+        } finally {
+          await sender.query("ROLLBACK");
+          await archive;
+          await sender.end();
+        }
+      },
+    );
     it("stores the announcement without a notice and answers it scheduled", async () => {
       const event = await liveEvent();
       const at = minutes(45);
@@ -773,7 +901,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements (database)", () 
 
   // ------------------------------------------------------------------ the dashboard's list
   describe("the list", () => {
-    it("shows every state, newest send time first, with a rounded count for a sent one", async () => {
+    it("keeps the nearest schedule visible and reaches every pending row beyond 30 without history crowding", async () => {
+      const event = await liveEvent();
+      await setEvent(event, "ends_at = now() + interval '60 days'");
+      const ids: string[] = [];
+      const origin = Date.now();
+      for (let day = 1; day <= 31; day += 1) {
+        ids.push(
+          ((await send(event, { at: new Date(origin + Math.min(day, 30) * 86400_000) }))[0] as Sent)
+            .id as string,
+        );
+      }
+      ids.splice(29, 2, ...ids.slice(29).toSorted());
+      const pending = async (afterAt: unknown = null, afterId: unknown = null) =>
+        (
+          await f.run<{ r: { id: string; sendAt: string }[] }>(
+            f.team(),
+            "SELECT announcement_list($1, true, $2, $3) AS r",
+            [event, afterAt, afterId],
+          )
+        )[0]?.r ?? [];
+      const first = await pending();
+      expect(first).toHaveLength(31);
+      expect(first.map((row) => row.id)).toEqual(ids);
+      const last = first[29];
+      const second = await pending(last?.sendAt, last?.id);
+      expect(second.map((row) => row.id)).toEqual([ids[30]]);
+      await cancel(event, second[0]?.id as string);
+      expect(await pending(last?.sendAt, last?.id)).toEqual([]);
+      await cancel(event, first[0]?.id as string);
+      expect((await pending())[0]?.id).toBe(ids[1]);
+      expect(await list(event)).toHaveLength(2);
+      for (const id of ids.slice(1, 30)) await cancel(event, id);
+      expect(await list(event)).toHaveLength(30);
+      expect(await pending()).toEqual([]);
+    });
+
+    it("separates pending schedules from newest-first history with rounded delivery counts", async () => {
       await f.drain();
       const event = await f.newEvent({ phase: "live" });
       for (let at = 0; at < 14; at += 1) await member(event);
@@ -782,7 +946,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements (database)", () 
       const cancelled = ((await send(event, { at: minutes(700) }))[0] as Sent).id as string;
       await cancel(event, cancelled);
       const rows = await list(event);
-      expect(rows.map((row) => row["id"])).toEqual([cancelled, scheduled, sentNow]);
+      expect(rows.map((row) => row["id"])).toEqual([cancelled, sentNow]);
+      const pending =
+        (
+          await f.run<{ r: Record<string, unknown>[] }>(
+            f.team(),
+            "SELECT announcement_list($1, true) AS r",
+            [event],
+          )
+        )[0]?.r ?? [];
       const sent = rows.find((row) => row["id"] === sentNow);
       expect(sent).toMatchObject({
         status: "sent",
@@ -793,7 +965,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements (database)", () 
       await f.fanOut();
       const done = (await list(event)).find((row) => row["id"] === sentNow);
       expect(done).toMatchObject({ delivering: false, delivered: 10 });
-      expect(rows.find((row) => row["id"] === scheduled)).toMatchObject({
+      expect(pending.find((row) => row["id"] === scheduled)).toMatchObject({
         status: "scheduled",
         delivered: null,
         sentAt: null,
@@ -959,13 +1131,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("announcements (database)", () 
   }
 
   /** Holds a row `FOR UPDATE` in another transaction, as a cancel in flight does; answers the release. */
-  async function holdRow(id: string): Promise<() => Promise<void>> {
+  async function waitForBlocked(blocker: Client): Promise<void> {
+    const { rows } = await blocker.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+    await expect
+      .poll(
+        async () =>
+          (
+            await f.owner("SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))", [
+              rows[0]?.pid,
+            ])
+          ).length,
+      )
+      .toBe(1);
+  }
+
+  async function ownerConnection(): Promise<Client> {
     const url = new URL(f.db.appUrl);
     const base = new URL(TEST_DATABASE_URL as string);
     url.username = base.username;
     url.password = base.password;
     const client = new Client({ connectionString: url.toString() });
     await client.connect();
+    return client;
+  }
+
+  async function holdRow(id: string): Promise<() => Promise<void>> {
+    const client = await ownerConnection();
     await client.query("BEGIN");
     await client.query("SELECT 1 FROM announcement WHERE id = $1 FOR UPDATE", [id]);
     return async () => {

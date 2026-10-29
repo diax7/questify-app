@@ -20,7 +20,8 @@ FR-1107, FR-1108, FR-806 and FR-807 on the T-501 push store (row 18 of "Owed pus
   (`announcement_preview`) is one set-based statement over the same rules, held equal to the fan-out's recipients by a
   database test.
 - **Doors** (definers, granted to the API role): `announcement_send(event, draft, at, press, request)`,
-  `announcement_cancel(event, id, request)`, `announcement_list(event)`, `announcement_preview(event)` for owners and
+  `announcement_cancel(event, id, request)`, `announcement_list(event, pending=false, after_at=null, after_id=null)`,
+  `announcement_preview(event)` for owners and
   editors inside their event limit (`award_event_of`), and `member_announcements(event, size)` for the event's active
   members. Internal, no grant: `announcement_phase`, `announcement_crowded`, `push_due_announcement`; `push_due()` is
   restated with the new scan.
@@ -30,7 +31,10 @@ FR-1107, FR-1108, FR-806 and FR-807 on the T-501 push store (row 18 of "Owed pus
   announcement_event_not_live`), and a send that would tell no one refuses (`409 announcement_nobody`, after the replay
   check). **Schedule** (`at` set): 2 minutes to 180 days ahead, not before the event's start (before it only rehearsal
   accounts could be told) and before its end; an ended or archived event refuses.
-- **At the time** the due scan (`push_due`, every minute) takes each due `scheduled` row `FOR UPDATE SKIP LOCKED` and
+- **Lifecycle serialization:** send takes the announcement advisory lock, then event `FOR SHARE` and reauthorizes/rereads
+  the event before replay and validation. The event lock lasts through notice/state commit, so archiving cannot cross
+  the lifecycle check. Due-send takes the event `FOR SHARE` before the announcement row, with no advisory lock.
+- **At the time** the due scan (`push_due`, every minute) takes the event lock then each due `scheduled` row `FOR UPDATE SKIP LOCKED` and
   re-checks the event: live sends (`notice_create`, status `sent`); ended or archived is `skipped` (`event_closed`); not
   yet live is `skipped` (`not_live`); more than 30 minutes overdue is `skipped` (`late`: the worker was down, a stale
   "lunch is ready" is not sent). A missing kind row writes nothing and the row waits for the next tick (then goes
@@ -86,7 +90,11 @@ answers. No API bucket besides: the door is the limit.
 event's zone), a preview of the push and the center text in both languages and of who gets it ("N players", or "your
 rehearsal accounts" before the start), a confirmation, then the list: scheduled (with Cancel), sent (with a **rounded
 delivered count**: exact below 10, else the nearest 10, from the center rows; "Sending" until the fan-out is done),
-cancelled, skipped (with the reason). Only push and in-app are named: no email or SMS option exists, and the channel is
+cancelled, skipped (with the reason). Pending schedules are a separate earliest-first keyset-paginated list (30 per
+page, previous/next controls in Arabic and English); history excludes scheduled rows and keeps the latest 30 only.
+Each pending page reauthorizes the event and uses the precise returned (sendAt, id) cursor; cancelling the last row
+of a page leaves a navigable empty page, never hides the nearest schedule behind history or later schedules.
+Only push and in-app are named: no email or SMS option exists, and the channel is
 not a field of the API.
 
 ## Care points and where they are tested
@@ -96,6 +104,8 @@ not a field of the API.
 | Filter on all four fields, clean-up, cut lengths, limits in both languages | `packages/shared/src/announcements/announcements.test.ts`; `test/announcements/routes.int` (each issue answers 422 with field and issue) |
 | Rate limit on the door; replay first; concurrent presses | `test/db/announcements.int`: 4th an hour, 11th a day, the exact window (a later send that would crowd an earlier one), cancelled ones not counted, two presses at once |
 | One send per key | same suite: replay answers `replayed`, one notice; same key from another event is a new send |
+| Crossed lifecycle writes | `test/db/announcements.int`: archive commits while send waits on advisory; archive-first and send-first row-lock crossings for send-now and due-send, with no post-archive notice |
+| Every pending schedule remains cancellable | DB/HTTP/browser: 31 valid schedules; nearest first; cursor/UUID tie across page boundary; earlier cancellation does not skip the second page; cancel beyond 30, empty last page, previous navigation; bounded history; Arabic/RTL and draft preservation |
 | Scheduled: cancel; re-check; late; ended/archived/not live | same suite plus the due scan on a fixed clock moved by editing `send_at` |
 | Text frozen | the trigger refuses an update of any text column, even as the owner |
 | Roles | owner and editor send; an editor outside the event limit, another organizer's owner, a player, the public key: AN404 or permission denied (db suite, outsider and cross-tenant suites) |
@@ -132,3 +142,19 @@ the failing guards and all relevant DB/HTTP/security/units. Fresh final web buil
 the final full run; no unrelated source changed. Native iOS+Android exports, API build, all types, lint, limits, format,
 audit (existing ignored advisories) and 50,000-member perf gates pass. See STATE for logs, review/release gates and cost.
 The author has not performed the independent code review or accepted Proposed ADR-358/Q-327. No push/deployment.
+
+### Independent review 84: MAJOR-only corrections (2026-10-29)
+
+Fresh implementation worker on main 5dac217 fixed the archive/send stale-event race and unreachable schedules beyond
+30. Event lifecycle row locks serialize immediate/due checks through their notice writes, with consistent event-before-
+announcement order. Pending schedules now use earliest-first keyset pages of 30 plus one internal lookahead; history
+is separately bounded to 30. DB/HTTP/browser regressions exercise cancellation beyond 30, empty last page/previous,
+cursor precision/ties, cancellation before advancing and bilingual/RTL controls without losing an unsent draft.
+The archive-after-advisory-wait regression was proved red against the old read, then green with the fix. Final focused
+Vitest: 12 suites / 703 passed; includes all security suites, rehearsal/archive, post-wait scope reauthorization,
+shared page validation and translation/
+term guards. Full Vitest intentionally not rerun. API/web builds, types, lint, limits and format pass. Full browser
+suite after the fresh build: 199 passed / 1 existing skip in 12.5 minutes (t502-review-browser-full.log). The MINOR
+modal failure accessibility finding is deferred to FOLLOWUPS
+under ADR-355, not fixed. No re-review is required for MAJOR-only fixes. ADR-358/Q-327 remain Proposed for coordinator
+acceptance; no next task, mutation, EAS, deployment or push.

@@ -6,6 +6,8 @@ never waits here, and a line that grows into real work becomes a task in `docs/T
 
 Format: `- <date> <task>: <what and where> (<source>)`
 
+- 2026-10-29 T-502: send failures in `apps/web/src/components/AnnouncementsPanel.tsx` render the alert behind the open confirmation modal; announce/render failures inside the modal for assistive technology. Deferred MINOR under ADR-355 (independent tier B review 84); not part of the two MAJOR fixes.
+
 - 2026-10-28 T-411: `community.int`'s open-transaction settle check is load-sensitive (it reads `pg_stat_activity`) and failed once in a parallel full run; fix or quarantine it (T-501d review).
 - 2026-10-28 T-501: a row held between in-lease tries returns `answered: false` even after a 500 was written, while running out of tries returns `true`; it only shifts the mass-invalid guard's denominator slightly (T-501 survivor chase).
 - 2026-10-28 T-501: `apps/api/src/push/doors.ts` (60.5%) and `round.ts` (80.6%) were left under the 90% mutation bar; push code is outside the mutation scope of ADR-355, so this is accepted unless a bug shows up there.

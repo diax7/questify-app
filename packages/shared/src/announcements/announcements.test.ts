@@ -4,6 +4,7 @@ import {
   ANNOUNCEMENT_PUSH_BODY_MAX,
   ANNOUNCEMENT_TITLE_MAX,
   announcementBodySchema,
+  announcementPageSchema,
   announcementPushBody,
   announcementRenderable,
   announcementTextIssue,
@@ -22,6 +23,43 @@ const failure = (over: Partial<typeof GOOD>) => {
   const result = checkAnnouncement({ ...GOOD, ...over });
   return result.ok ? null : { field: result.field, issue: result.issue };
 };
+
+describe("announcement pages", () => {
+  const row = {
+    ...GOOD,
+    id: "11111111-1111-4111-8111-111111111111",
+    status: "scheduled",
+    sendAt: "2026-11-01T12:00:00.123456+00:00",
+    sentAt: null,
+    rehearsal: false,
+    skipReason: null,
+    delivered: null,
+    delivering: false,
+  };
+  it("accepts an empty final page and preserves the precise cursor", () => {
+    expect(announcementPageSchema.parse({ announcements: [], next: null }).next).toBeNull();
+    const next = { afterAt: row.sendAt, afterId: row.id };
+    expect(
+      announcementPageSchema.parse({ announcements: Array.from({ length: 30 }, () => row), next })
+        .next,
+    ).toEqual(next);
+  });
+  it("refuses an oversized page or an incomplete, malformed cursor", () => {
+    expect(
+      announcementPageSchema.safeParse({
+        announcements: Array.from({ length: 31 }, () => row),
+        next: null,
+      }).success,
+    ).toBe(false);
+    for (const next of [
+      { afterAt: row.sendAt },
+      { afterAt: "bad", afterId: row.id },
+      { afterAt: row.sendAt, afterId: "bad" },
+    ]) {
+      expect(announcementPageSchema.safeParse({ announcements: [row], next }).success).toBe(false);
+    }
+  });
+});
 
 describe("cleanAnnouncementText", () => {
   it("removes invisible characters, joins whitespace and trims the ends", () => {

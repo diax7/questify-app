@@ -179,7 +179,9 @@ GRANT EXECUTE ON FUNCTION announcement_preview(uuid) TO questify_app;
 -- Sends an announcement now (`at` NULL) or schedules it. `draft` holds titleAr, titleEn, bodyAr, bodyEn, pushBodyAr and
 -- pushBodyEn, already cleaned and checked by the API. `press` is the request's Idempotency-Key (1 to 255 characters),
 -- hashed: the same key answers the first result with `replayed` and writes nothing (checked first, under the event's
--- announcement lock, so a racing second press waits and then replays). Refusals: AN404 (not the caller's event), PK400
+-- announcement lock, so a racing second press waits and then replays). Lock order: announcement advisory, event FOR
+-- SHARE, then announcement rows; authorization and event state are read again after both waits. The event lock lasts
+-- through the notice and state write, excluding lifecycle UPDATEs. Refusals: AN404 (not the caller's event), PK400
 -- (the key), PA422 (a field of the draft, or `sendAt`: past, too_far, before_start, after_end), PE409 (event_closed: ended
 -- or archived; event_not_live: a draft or scheduled event with no open rehearsal, for a send now), PT409 (nobody: a send
 -- now that would tell no one), PL429 (limit: detail `hour` or `day`). Send now writes the notice and the row
@@ -203,6 +205,8 @@ BEGIN
   END IF;
   key := encode(sha256(convert_to(press, 'UTF8')), 'hex');
   PERFORM pg_advisory_xact_lock(hashtextextended('announcement:' || ev.id, 0));
+  PERFORM 1 FROM event e WHERE e.id = target_event FOR SHARE;
+  ev := award_event_of(target_event);
   SELECT a.* INTO earlier FROM announcement a WHERE a.event_id = ev.id AND a.press = key;
   IF FOUND THEN
     RETURN QUERY SELECT earlier.id, earlier.status, earlier.send_at, true;
@@ -283,17 +287,21 @@ END $$;
 REVOKE ALL ON FUNCTION announcement_cancel(uuid, uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION announcement_cancel(uuid, uuid, uuid) TO questify_app;
 
--- The event's announcements for the dashboard, the newest send time first, at most 30. A sent one carries the players it
+-- Pending schedules are read separately, earliest first with a (send_at, id) cursor and one lookahead row (31 rows,
+-- exposed as pages of 30 by the API). History excludes scheduled rows and keeps the newest 30. A sent one carries
+-- the players it
 -- reached in the app, rounded (exact below 10, else the nearest 10; the center rows of its notice, so a muted topic or a
 -- refused permission still counts), NULL once the notice has been purged, and `delivering` while the fan-out is still
 -- writing center rows. Nothing about any one player.
-CREATE FUNCTION announcement_list(target_event uuid) RETURNS jsonb
+CREATE FUNCTION announcement_list(target_event uuid, pending boolean DEFAULT false,
+                                  after_at timestamptz DEFAULT NULL, after_id uuid DEFAULT NULL) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   ev event := award_event_of(target_event);
 BEGIN
   RETURN coalesce((
-    SELECT jsonb_agg(x.item ORDER BY x.send_at DESC, x.id DESC)
+    SELECT jsonb_agg(x.item ORDER BY CASE WHEN pending THEN x.send_at END, CASE WHEN pending THEN x.id END,
+                                   x.send_at DESC, x.id DESC)
     FROM (SELECT a.id, a.send_at, jsonb_build_object(
                    'id', a.id, 'titleAr', a.title_ar, 'titleEn', a.title_en, 'bodyAr', a.body_ar, 'bodyEn', a.body_en,
                    'status', a.status, 'sendAt', a.send_at, 'sentAt', a.sent_at, 'rehearsal', a.rehearsal,
@@ -306,12 +314,14 @@ BEGIN
           LEFT JOIN notice nt ON nt.id = a.notice_id
           LEFT JOIN LATERAL (SELECT count(*)::integer AS n FROM notification c
                              WHERE c.notice_id = nt.id AND a.status = 'sent') reached ON true
-          WHERE a.event_id = ev.id
-          ORDER BY a.send_at DESC, a.id DESC
-          LIMIT 30) x), '[]'::jsonb);
+          WHERE a.event_id = ev.id AND (a.status = 'scheduled') = pending
+            AND (NOT pending OR after_at IS NULL OR (a.send_at, a.id) > (after_at, after_id))
+          ORDER BY CASE WHEN pending THEN a.send_at END, CASE WHEN pending THEN a.id END,
+                   a.send_at DESC, a.id DESC
+          LIMIT CASE WHEN pending THEN 31 ELSE 30 END) x), '[]'::jsonb);
 END $$;
-REVOKE ALL ON FUNCTION announcement_list(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION announcement_list(uuid) TO questify_app;
+REVOKE ALL ON FUNCTION announcement_list(uuid, boolean, timestamptz, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION announcement_list(uuid, boolean, timestamptz, uuid) TO questify_app;
 
 -- ================================================================ the player's list (FR-807)
 -- The latest announcements of an event the caller is an active member of, newest first, at most `size` (1 to 50): the
@@ -347,10 +357,11 @@ REVOKE ALL ON FUNCTION member_announcements(uuid, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION member_announcements(uuid, integer) TO questify_app;
 
 -- ================================================================ the due scan (ADR-358 (4))
--- Scheduled announcements whose time has come, at most `lim` a call, each locked FOR UPDATE SKIP LOCKED (a cancel in
--- flight holds the same lock, so the scan leaves that row to the next tick and the cancel wins or loses cleanly). The
--- event is judged at the moment of sending: ended or archived is `skipped` (event_closed), not yet live is `skipped`
--- (not_live), and a row more than 30 minutes past its time is `skipped` (late: a worker that was down does not send a
+-- Scheduled announcements whose time has come, at most `lim` candidates a call. Lock the event FOR SHARE before the
+-- announcement FOR UPDATE SKIP LOCKED, then recheck its scheduled state. A cancel holds the latter lock, so the scan
+-- leaves that row to the next tick. The event lock excludes lifecycle writes until notice/state commit: closed events
+-- are skipped (event_closed), not yet live is skipped (not_live), and a row more than 30 minutes past its time is
+-- `skipped` (late: a worker that was down does not send a
 -- stale "lunch is ready"). Otherwise the notice is written with the text frozen at creation; a missing kind row writes
 -- nothing and the row waits for the next tick (then goes late). Each outcome is audited by the system. Returns the rows
 -- it changed.
@@ -366,9 +377,14 @@ DECLARE
 BEGIN
   FOR due IN
     SELECT a.* FROM announcement a WHERE a.status = 'scheduled' AND a.send_at <= now()
-    ORDER BY a.send_at, a.id LIMIT push_due_announcement.lim FOR UPDATE OF a SKIP LOCKED
+    ORDER BY a.send_at, a.id LIMIT push_due_announcement.lim
   LOOP
-    SELECT e.* INTO ev FROM event e WHERE e.id = due.event_id;
+    SELECT e.* INTO ev FROM event e WHERE e.id = due.event_id FOR SHARE;
+    SELECT a.* INTO due FROM announcement a WHERE a.id = due.id AND a.status = 'scheduled'
+      FOR UPDATE SKIP LOCKED;
+    IF NOT FOUND THEN
+      CONTINUE;
+    END IF;
     phase := announcement_phase(ev);
     why := CASE WHEN phase = 'closed' THEN 'event_closed'
                 WHEN phase <> 'live' THEN 'not_live'

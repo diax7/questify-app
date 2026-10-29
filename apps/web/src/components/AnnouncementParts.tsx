@@ -144,13 +144,41 @@ function AnnouncementCard({
   );
 }
 
+export function AnnouncementPagination({
+  language,
+  previous,
+  next,
+  busy,
+  page,
+}: Readonly<{
+  language: Language;
+  previous: boolean;
+  next: boolean;
+  busy: boolean;
+  page: (next: boolean) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <nav aria-label={t("announcements.page.pagination")}>
+      <button type="button" disabled={!previous || busy} onClick={() => page(false)}>
+        {t("announcements.page.previous")}
+      </button>
+      <button type="button" disabled={!next || busy} onClick={() => page(true)}>
+        {t("announcements.page.next")}
+      </button>
+    </nav>
+  );
+}
+
 export function AnnouncementList({
+  pending = false,
   language,
   rows,
   zone,
   busy,
   cancel,
 }: Readonly<{
+  pending?: boolean;
   language: Language;
   rows: readonly AnnouncementView[];
   zone: string;
@@ -160,9 +188,9 @@ export function AnnouncementList({
   const t = useTranslator(language);
   return (
     <section>
-      <h2>{t("announcements.page.list")}</h2>
+      <h2>{t(pending ? "announcements.page.pending" : "announcements.page.history")}</h2>
       {rows.length === 0 ? (
-        <p>{t("announcements.page.empty")}</p>
+        <p>{t(pending ? "announcements.page.pendingEmpty" : "announcements.page.empty")}</p>
       ) : (
         <ul>
           {rows.map((row) => (
