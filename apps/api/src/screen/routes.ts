@@ -40,7 +40,12 @@ export function registerScreenRoutes(app: FastifyInstance, deps: ScreenDeps): vo
     const { scene } = parse(sceneParams, request.params);
     await holdBack(
       deps.pool,
-      [{ limit: DEVICE_LIMITS.scenesPerDevice, key: deps.keys.pairedDeviceKey(`${device.id}:scene`) }],
+      [
+        {
+          limit: DEVICE_LIMITS.scenesPerDevice,
+          key: deps.keys.pairedDeviceKey(`${device.id}:scene`),
+        },
+      ],
       true,
       reply,
     );
