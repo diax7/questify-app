@@ -1833,14 +1833,16 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Happening now strip alongside the existing poll/community cards. Modal-accessibility MINOR deferred in FOLLOWUPS.
   Latest regression evidence: 703 targeted tests / 12 suites; fresh-build browser 199 passed / 1 existing skip.
   Full Vitest not rerun under ADR-355. Progress 108/177. No deployment, EAS, mutation or next task.
-  CI minutes: 0 so far (remote run pending push); rough implementation/fix cost 145k tokens / 120 minutes,
+  CI run 40828699004 PASSED on e28a1e4 at 2026-10-29 06:44 UTC (09:44 Riyadh): full tests, lint/format/types,
+  API/web builds, dependency audit, secret scan and browser suite all green. Job duration: 22m49s (about 23 CI
+  minutes, not an invoice). Rough implementation/fix cost 145k tokens / 120 minutes,
   plus review/coordinator usage not separately measured (estimates, not billing data).
-  Coordinator is running the final pre-push gates; inspect origin/main and remote CI for the final outcome.
+  Implementation, fixes and acceptance/handoff are pushed; this docs-only checkpoint records the verified result.
   Stop after T-502 and wait for a new instruction before T-503.
 
 ## Next
 
-**Current instruction (2026-10-29): finish T-502's handoff push/remote CI, then stop before T-503.**
+**Current checkpoint (2026-10-29): T-502 reviewed, fixed, pushed and CI green; stop before T-503.**
 T-501e/f/g are already reviewed and pushed; T-502's review MAJORs are fixed and coordinator-accepted (ADR-358).
 The older checkpoint below is history, not authorization to restart those tasks or dispatch mutation/deployment.
 

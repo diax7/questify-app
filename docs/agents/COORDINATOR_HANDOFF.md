@@ -10,8 +10,9 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 ## Checkpoint
 
 - Progress **108/177 tasks (about 61%)**. T-501e, T-501f and T-501g are reviewed and pushed through fe688dd;
-  CI run 40682251115 passed. T-502 build 5dac217 and fixes efad9cd are committed; coordinator acceptance is recorded
-  in ADR-358 / Q-327. Check `git log origin/main..main` and CI before assuming the final handoff push succeeded.
+  CI run 40682251115 passed. T-502 build 5dac217, fixes efad9cd and acceptance/handoff e28a1e4 are pushed.
+  T-502 CI run 40828699004 PASSED on e28a1e4 at 2026-10-29 06:44 UTC (09:44 Riyadh), including the full tests,
+  API/web builds, audit, secret scan and browser suite. ADR-358 Accepted / Q-327 resolved.
 - Recovery: the previous coordinator and worker both hit their session limit on 2026-10-28 at 21:41 UTC. The worker
   left a partial uncommitted T-502, not a running build. A fresh worker completed it; one independent review scored 84
   NO-GO with two MAJORs. A fresh fix worker resolved both; coordinator inspection accepts the fixes under ADR-355
@@ -20,7 +21,7 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 - Final local evidence: 703 targeted tests / 12 suites; fresh-build browser suite 199 passed / 1 existing skip.
   Original full Vitest ran once: 8759 passed / 13 skipped / 3 guards failed, all fixed with targeted proofs. API/web
   builds, workspace types, lint, limits, format pass; native Android/iOS exports pass. Expo web export remains blocked
-  by pre-existing missing react-native-web. Remote CI and real-phone/provider checks remain release gates.
+  by pre-existing missing react-native-web. Remote CI passed; real-phone/provider checks remain release gates.
 - No worker is running and no mutation run is active. The last mutation runs (40628312029, 40641367106) left only push
   files `doors.ts` (60.5%) and `round.ts` (80.6%) under 90%; under ADR-355 push code is outside the mutation scope, so
   they are recorded in `docs/FOLLOWUPS.md` and not chased.
@@ -46,8 +47,8 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 ## What to do next
 
-1. Finish the T-502 handoff push and inspect its remote CI result; do not call queued or running CI green. Fix a
-   failing gate within T-502 only. The post-push result is recorded by run id in STATE when known.
+1. T-502 is reviewed, fixed, pushed and CI green (40828699004 on e28a1e4). The later docs-only checkpoint records
+   that result; it does not change the tested implementation. No T-502 implementation or review gate remains.
 2. **Stop after T-502.** Dhia asked for a break after this task; the recovery and "Keep going" instruction authorized
    completing this work, not starting T-503. No worker should be left running, no deployment/EAS/mutation.
 3. Only after a new instruction to resume: T-503 in `docs/TASKS.md` order. T-221 (check the seat limit once per
