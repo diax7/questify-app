@@ -1417,3 +1417,27 @@ cards in a strip, or changing the live feed's 15-minute tail (unnecessary scope)
 T-502. Coordinator accepts these defaults, including flash/boost-only strip composition, after independent review
 and both MAJOR fixes (efad9cd). Pending schedules are paginated earliest first, separately from bounded history;
 send and lifecycle writes are serialized by the event row lock. APNs/Firebase/device go-live gates remain unchanged.
+
+## Q-328 — T-503 ranking transition semantics (2026-10-29)
+
+**Status:** Open, recommended technical default pending independent Tier A plan review. **ADR:** ADR-359 Proposed.
+Recommend durable PostgreSQL top-ten checkpoints, overall live enabled board only, both entry and exit, re-entry
+deduped by revision/episode, safe fixed bilingual rank-topic notices. Coalescing does not preserve every transient
+crossing between checkpoints. Alternative: ordered transaction-level history, with greater source locking/cost;
+cache comparison alone is insufficient (Redis failure, displaced player, repair races). Coordinator decides after
+review; no Dhia input needed. Exact sources, locking/performance and refusal proofs:
+`plans/2026-10-29-t-503-rank-organizer-alerts.md`. No code authorized yet.
+
+## Q-329 — T-503 organizer switches, thresholds and email boundary (2026-10-29)
+
+**Status:** Open, recommended defaults pending independent Tier A plan review. **ADR:** ADR-360 Proposed.
+Recommend seven own-member switches default ON; finite-stock low at <= max(1, ceil(total * 10%)), recovery above
+rearms; 80/100 once per genuine limit revision, not repeated attendance crossings. T-503 owns shared infrastructure
+and existing sources, T-609 reuses for usage/future hooks, T-701 supplies general unpublish/support actions; no
+invented producer. Capture eligible recipient ids at source, reauthorize membership generation/scope/opt-out before
+handoff. Bounded cancellable sends; uncertain acceptance never automatically retries/failovers. Alternatives:
+default OFF, a different low threshold or repeated alerts (different product behavior); automatic timeout failover
+(duplicate-mail risk); copying addresses into queue (unnecessary PII). Coordinator resolves technical choices.
+Live alert delivery stays disabled until Saudi transport or explicit counsel-approved foreign-transfer extension
+(Q-083/T-807); auth-email exception alone is insufficient. No external-only blocker to planning/local fake tests,
+no credentials/services requested. Full contracts, known missing sources and gates are in the T-503 plan.

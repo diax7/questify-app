@@ -1842,6 +1842,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
+- **2026-10-29 — T-503 Tier A PLAN ONLY, independent plan review next.** On main 0818a3d, inspected canonical
+  ranking/cache flow, existing notice producers, organizer membership/inventory/seat/flag/support facts and foreign
+  auth email adapters. Plan: `docs/plans/2026-10-29-t-503-rank-organizer-alerts.md`; ADR-359/360 Proposed and
+  Q-328/329 Open. Both rank directions/re-entry, own-member switches, safe uncertain-send policy, T-609/T-701
+  boundaries and live-email privacy gate are explicit. Migration 0082 proposed, reverify before build. No code,
+  full tests/builds, real services, push/deploy/EAS/mutation or next task. Planning CI minutes 0; rough agent effort
+  25k tokens. Stop for independent plan review; T-503 and T-609 remain unchecked.
+
 **Current instruction (2026-10-29): RESUMED by Dhia; continue with T-503 after green T-502 CI.**
 The recovery request, "Keep going" and "why arent you doing anything?" supersede the previous session's break;
 the coordinator had carried that stop instruction forward too literally. T-503 starts with a tier A plan/review

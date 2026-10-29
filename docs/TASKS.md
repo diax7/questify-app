@@ -1034,6 +1034,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Done 2026-10-29 (tier B, independent review 84; both MAJORs fixed and coordinator-inspected): migration 0081, the five scoped HTTP routes, immutable/filter-checked bilingual copy, send-now and event-zone schedule/cancel, serialized rolling 3/hour and 10/day caps, due-time lifecycle/lateness rechecks, push/in-app only, dashboard previews/counts/history, and native Home flash/boost/latest-three plus the announcements list. Recovered the crashed worker's partial work at fe688dd. Lifecycle checks/writes hold the event lock; pending schedules have earliest-first keyset pages independent of bounded history. Plan: docs/plans/2026-10-28-t-502-announcements.md; ADR-358 Accepted / Q-327 resolved. Modal-accessibility MINOR deferred in FOLLOWUPS.
   - Checks: full Vitest run ONCE (8759 passed, 13 skipped; three task guards failed, all fixed; build regression 18 files / 804 passed). Review-fix regression 12 files / 703 passed; fresh-build full browser suite 199 passed / 1 existing skip. Native iOS+Android export, API build, lint, function limits, format, types and audit pass with the existing advisory exceptions. 50,000-member timing: count 732 ms, press 337 ms, slowest fan-out 430 ms. Remote CI 40828699004 PASSED on e28a1e4, including full tests and browser suite. No deployment, EAS or mutation; stop after T-502, do not start T-503.
 - [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
+  - Plan only 2026-10-29 (Tier A): `plans/2026-10-29-t-503-rank-organizer-alerts.md`, Proposed ADR-359/360,
+    Q-328/329; independent plan review required before implementation. Includes BOTH top-ten entry/exit, own-member
+    switches and existing-source mail groundwork; live email gated on transfer authorization. T-609 reuses this
+    infrastructure; T-701 owns missing general unpublish/support producers. No implementation or completion claim.
   - Note 2026-10-28 (T-501 plan): the top-10 push is a personal `notice_kind` with topic `rank` (mutable, FR-1115); no rank number in the text (ADR-346).
   - Done when: A player entering the top 10 gets one push; organizer alert types are switchable per team member.
 - [ ] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community, poll and photo wall scenes — delivers FR 630, 631, 632, 633, 634, 635, 636, 637, 1613; depends on: T-309, T-106
@@ -1089,6 +1093,9 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
 - [ ] **T-608** Exports and one-page PDF report; sponsor-filtered totals — delivers FR 1206, 1207, 1208, 1306, 1626; depends on: T-607
   - Done when: An export contains only the fields the join card disclosed.
 - [ ] **T-609** Organizer email alerts and usage view groundwork — delivers FR 1727; depends on: T-503
+  - Plan boundary 2026-10-29 (Proposed ADR-360/Q-329): reuse T-503 preferences/outbox/worker/team controls;
+    usage-view groundwork and future producer integration only, no duplicate sender/subscriptions. General content
+    unpublish/support producers remain T-701; missing sources keep FR-1727 explicitly incomplete until connected.
   - Done when: Alerts are switchable per team member.
   - Note 2026-10-23 (T-209): the "new flags" alert (F-253) reads new `flag` rows; none is sent yet.
 - [ ] **T-610** Home editor: new blocks (custom text card, quick links, podium preview, featured), banner slider with tap actions, countdown blocks, drag with live preview, Questify preset and reset — delivers FR 1828, 1829, 1830, 1831; depends on: T-113, T-606

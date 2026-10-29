@@ -5300,3 +5300,37 @@ tests and 199 browser tests passed (one existing skip). Coordinator inspected bo
 re-review under ADR-355. Accept all seven choices above, explicitly including the flash/boost-only strip with existing
 poll/community cards beside it. The modal-accessibility MINOR remains in FOLLOWUPS. Remote CI and the existing
 provider/real-phone checks remain gates; acceptance does not authorize deployment.
+
+## ADR-359 — T-503 durable top-ten entry and exit checkpoints
+
+**Status:** Proposed (implementation worker, 2026-10-29; independent Tier A plan review required; Q-328).
+**Recommendation:** PostgreSQL ids-only change inbox and serialized per-event top-ten snapshot/revision, independent
+of Redis repair consumption. Overall live enabled ranking only; canonical score/version ordering and eligibility.
+Coalesce changes at bounded checkpoints, not every transient ledger crossing. Both entry and exit are personal
+rank-topic notice_create kinds with five-minute expiry, latest-transition checks and revision-based dedupe supporting
+re-entry. Suppress rehearsal/initial baselines/ineligible recipients; score-zero exit remains possible. Safe fixed
+Arabic/English copy without exact rank number, per ADR-346. No member-wide notification scan or new dependency.
+**Trade-off:** transient crossings between checkpoints are not observable transitions. Exact per-transaction history
+would require a different producer/locking cost, not a cache comparison. Reviewer/coordinator must decide before
+build. Lock order, dirty-signal commit race, source coverage and 50,000-member performance proof are specified in
+`plans/2026-10-29-t-503-rank-organizer-alerts.md`; no implementation or approval implied.
+
+## ADR-360 — T-503 self-service organizer alert mail and safe dispatch
+
+**Status:** Proposed (implementation worker, 2026-10-29; independent Tier A plan review required; Q-329).
+**Recommendation:** seven operational switches per accepted member/organizer, default ON, editable only by that
+member. Separate physical-stock/code-low switches and one size switch covering 80/100. Source facts and bounded
+recipient deliveries are durable ids-only records; eligibility includes active staff/current membership generation,
+event scope and opt-out at source and dispatch. Finite stock low at <= max(1, ceil(total * 10%)), rearm above;
+limit alerts once per genuine limit revision/level. No historical backfill or marketing implication.
+T-503 owns infrastructure/UI and existing sources (including console.ticket_read); T-609 reuses it for usage/future
+hooks and T-701 owns general content unpublish/support access. Missing sources stay explicit, not invented.
+Reuse provider interfaces, not ambiguous auth failover: bounded cancellable attempts, fenced dispatch marker,
+uncertain acceptance never automatically retried/failovered; only proven pre-acceptance refusals retry safely.
+Authorization linearizes before handoff; later revocation cannot recall email. No addresses/content in queue/logs.
+Real operational mail disabled until Saudi transport or explicit counsel-approved extension of foreign-transfer
+grounds; ADR-112's auth exception is insufficient. No new provider/dependency, arbitrary recipient or public-token
+unsubscribe path. Fixed safe bilingual text links to authenticated self-service settings.
+**Trade-offs:** default ON/low threshold and missing general producer coverage require review; at-most-once ambiguous
+attempts may lose mail instead of duplicating it. Do not promise external exactly-once. Full source/rearm/locking,
+tests, file inventory and release gates: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
