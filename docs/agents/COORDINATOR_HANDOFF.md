@@ -49,10 +49,11 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 1. T-502 is reviewed, fixed, pushed and CI green (40828699004 on e28a1e4). The later docs-only checkpoint records
    that result; it does not change the tested implementation. No T-502 implementation or review gate remains.
-2. **Stop after T-502.** Dhia asked for a break after this task; the recovery and "Keep going" instruction authorized
-   completing this work, not starting T-503. No worker should be left running, no deployment/EAS/mutation.
-3. Only after a new instruction to resume: T-503 in `docs/TASKS.md` order. T-221 (check the seat limit once per
-   statement so the accept-all cap can go) is a tier A follow-up when the join area is next touched.
+2. **Resumed by Dhia, 2026-10-29.** The recovery request, "Keep going" and "why arent you doing anything?"
+   supersede the prior session's break. Continue the task queue rather than stopping after T-502.
+3. Next: T-503 in `docs/TASKS.md` order. Organizer email alerts handle personal data outside the system, so begin
+   with a tier A plan and independent plan review before implementation. T-221 (check the seat limit once per
+   statement so the accept-all cap can go) remains a tier A follow-up when the join area is next touched.
 4. **T-408d** (Redis copy of the boards) waits for the RUNBOOK ranked-count check to pass about 30,000.
 5. Open suggestion for Dhia (he has not chosen it): pause new feature slices and prepare a "first real run": CranL
    deploy, one EAS development build, the push keys and his phone checks. Everything built so far is only verified on a

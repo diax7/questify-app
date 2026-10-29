@@ -1842,7 +1842,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
-**Current checkpoint (2026-10-29): T-502 reviewed, fixed, pushed and CI green; stop before T-503.**
+**Current instruction (2026-10-29): RESUMED by Dhia; continue with T-503 after green T-502 CI.**
+The recovery request, "Keep going" and "why arent you doing anything?" supersede the previous session's break;
+the coordinator had carried that stop instruction forward too literally. T-503 starts with a tier A plan/review
+because it includes organizer email alerts (personal data leaving the system). No deployment or EAS is authorized.
 T-501e/f/g are already reviewed and pushed; T-502's review MAJORs are fixed and coordinator-accepted (ADR-358).
 The older checkpoint below is history, not authorization to restart those tasks or dispatch mutation/deployment.
 

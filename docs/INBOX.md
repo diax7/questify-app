@@ -5,6 +5,14 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-10-29 — Recovery and continued coordination → processed
+
+- Dhia: "check where did he end, and keep working, follow all the docs and take the lead"; then "Keep going"
+  and "why arent you doing anything?" after the coordinator stopped at the T-502 checkpoint.
+- Processed into STATE and COORDINATOR_HANDOFF: the current instruction resumes the task queue after green T-502 CI;
+  the previous session's break request is historical, not a reason to stay idle. Next is T-503, following the tier
+  and independent-review gates. No deployment, EAS build or external credential action is implied.
+
 ## 2026-10-16 — Session 1: the founding idea → processed
 
 Into `PROJECT_BRIEF.md`, `FEATURES.md`, `DECISIONS.md` (ADR-001–005), `OPEN_QUESTIONS.md`.
