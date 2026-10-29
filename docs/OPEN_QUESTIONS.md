@@ -1473,3 +1473,10 @@ Coordinator chooses the technical next action; worker does not self-approve or r
 Should top-ten pushes stay exact per transaction (ADR-359), or come from a periodic diff that may drop a blip
 reversing within seconds? **Answered (developer, delegated by Dhia, 2026-10-29):** periodic diff; ADR-362 Accepted.
 Q-330 closes with it.
+
+## Q-332 - T-503 build choices: PostgreSQL top-ten read, alert sources and the OFF transport (2026-10-29)
+
+Should the rank diff read the Redis board (needing a reader) or PostgreSQL, which alert sources does T-503 wire, and what does
+the worker do with queued rows while the mail transport is off? **Recommended (developer, T-503 build):** PostgreSQL in the
+board's own order and rule; five of the seven sources (all but `content_unpublished`, owed to T-701/T-609); queued rows skipped
+as `transport_off`, nothing leaves the machine. **Status:** Proposed as ADR-363; the coordinator accepts it after the review.

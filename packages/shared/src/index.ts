@@ -526,3 +526,11 @@ export {
   renderNotice,
 } from "./push/templates";
 export type { NoticeContent, PushTemplate, PushTexts, RenderedNotice } from "./push/templates";
+export {
+  ORGANIZER_ALERT_TYPES,
+  organizerAlertSwitchesSchema,
+} from "./organizer-alerts/organizer-alerts";
+export type {
+  OrganizerAlertSwitches,
+  OrganizerAlertType,
+} from "./organizer-alerts/organizer-alerts";

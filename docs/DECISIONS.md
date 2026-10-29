@@ -5418,3 +5418,29 @@ transfer rule), uncertain sends are not retried. ADR-360's G/E source-lock matri
 **Cost:** rank pushes may arrive one tick late, and a crossing that reverses before the next tick sends nothing.
 **Cleanup:** the opt-in probe tests and SQL (`apps/api/test/db/t503-*`, `apps/api/test/support/t503-*`) are deleted;
 the evidence files stay as the record.
+
+## ADR-363 - T-503 build choices: rank diff reads PostgreSQL; organizer alert sources, outbox and OFF transport
+
+**Status:** Proposed (developer, 2026-10-29; T-503 build; Q-332). Fills in what ADR-362 left open; the coordinator accepts it
+after the review.
+**Decision:** (1) **Rank push.** The top ten is read from PostgreSQL in the board's own order and rule (`enrollment_ranking_idx`
+walked in order, `ranking_eligible` per row, stopped at ten), because a system seat has no reader for the Redis board read and
+the Redis copy is rebuilt from this same rule; an event of 50,000 players costs one index range (about 260 ms with 600 leaders the
+board keeps out). A tick every 10 s diffs each live event under a per-event try-lock; an event that is not live or whose ranking
+switch (event or platform) is off loses its snapshot, so its return starts from a baseline. The 10-minute cooldown is read from the
+`notice` table (no extra table); rehearsal accounts get no top-10 notice. (2) **Alert sources wired:** `activated` (draft to
+scheduled), `size_limit` (each recorded 80% and 100% mark), `stock_low` and `codes_low` (a reward crossing into "at most
+max(1, 10% of the total, rounded up) left"; only a crossing counts, so a change of the total alone never reopens an episode, and
+only a live or ended event, because earlier only rehearsal accounts reserve), `support_access` (the `console.ticket_read` audit
+row, once per admin, event and day), `new_flags` (a scan of the last 15 minutes, keyed by flag id, so the completion transaction is
+untouched). `content_unpublished` has no source: owed to T-701/T-609. Quest-item pools are not covered (T-609). (3) **Outbox:** ids
+only, one row per active member whose event limit and switch allow it at source time; the claim checks account, membership (a
+membership started after the row is a new one), event limit and switch again and reads the address only for a row it leases. (4)
+**Transport OFF:** the worker takes the existing `EmailSender` type; production gives none, so queued rows are skipped as
+`transport_off` and no address is read. With a sender, a throw or an 8-second overrun is `uncertain` and never retried (the retry
+allowlist is empty). Real cancellation of the token wait and the send, structured provider outcomes and the Saudi-transport or
+counsel-approved transfer remain the gates before any real mail (ADR-360).
+**Why:** the smallest build that meets ADR-362 without a lock, a trigger or a write in the quest-completion path, and without a
+second email system.
+**Trade-offs:** a rank change is seen one tick (10 s) late; the board read from PostgreSQL costs more with many leaders the board
+keeps out (about 0.7 ms each); a flag raised while the API is down for 15 minutes sends no alert (no backfill, ADR-360).

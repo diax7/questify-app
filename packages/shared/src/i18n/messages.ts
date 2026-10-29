@@ -148,6 +148,37 @@ export const MESSAGES = {
     en: "Send an owner invite to the next owner. You become an editor once they accept.",
   },
   "staff.sendOwnerInvite": { ar: "إرسال دعوة الملكية", en: "Send the owner invite" },
+  // The member's own email alerts (T-503, FR-1727). Sending is off until the transfer rule of ADR-360 is met, so the
+  // page says so rather than promise mail.
+  "alerts.title": { ar: "تنبيهات البريد", en: "Email alerts" },
+  "alerts.hint": {
+    ar: "اختر التنبيهات التي تريد استلامها بالبريد. هذه الاختيارات لك وحدك، ولا يغيّرها أحد من الفريق.",
+    en: "Choose which alerts you want by email. These choices are yours alone: no one else on the team can change them.",
+  },
+  "alerts.notLive": {
+    ar: "إرسال البريد غير مفعّل بعد. اختياراتك محفوظة إلى حين تفعيله.",
+    en: "Email sending is not switched on yet. Your choices are kept for when it is.",
+  },
+  "alerts.saved": { ar: "حُفظت اختياراتك.", en: "Your choices are saved." },
+  "alerts.type.activated": { ar: "تفعيل فعالية", en: "An event is activated" },
+  "alerts.type.stockLow": {
+    ar: "اقتراب نفاد مخزون الجوائز",
+    en: "Reward stock is running low",
+  },
+  "alerts.type.codesLow": {
+    ar: "اقتراب نفاد أكواد الجوائز الرقمية",
+    en: "Digital reward codes are running low",
+  },
+  "alerts.type.newFlags": { ar: "علامات جديدة تحتاج مراجعة", en: "New flags to review" },
+  "alerts.type.contentUnpublished": { ar: "إلغاء نشر محتوى", en: "Content is unpublished" },
+  "alerts.type.supportAccess": {
+    ar: "اطّلاع فريق الدعم على فعاليتك",
+    en: "Support looks at your event",
+  },
+  "alerts.type.sizeLimit": {
+    ar: "بلوغ حد اللاعبين 80% أو 100%",
+    en: "The player limit reaches 80% or 100%",
+  },
   "staff.inviteTitle": { ar: "دعوة إلى فريق", en: "Team invite" },
   "staff.invitedEditor": {
     ar: "دُعيت إلى فريق «{name}» محررًا.",
@@ -6205,6 +6236,16 @@ export const MESSAGES = {
   "push.categoryHint.nameless": {
     ar: "في الفعالية شيء جديد مخفي.",
     en: "Something new is hidden in this event.",
+  },
+  // The top-10 pushes (T-503, ADR-362): the player's place is never in the text (ADR-346), only the line that is the
+  // same for everyone. Gender-neutral («اسمك»), no verb to agree with the player.
+  "push.rankTopTen.body": {
+    ar: "اسمك الآن بين أفضل 10 في الترتيب.",
+    en: "You're now in the top 10.",
+  },
+  "push.rankTopTenExit.body": {
+    ar: "اسمك خارج أفضل 10 في الترتيب حاليًا.",
+    en: "You're out of the top 10 for now.",
   },
   // Reminders and promotion (T-501f, ADR-356). The streak reminder follows ADR-300: no countdown, no loss or guilt, no
   // number; the shop names a date, never an amount; the invitation names the event only. Gender-neutral («يمكنك»، «لديك»).

@@ -1334,3 +1334,17 @@ Due-send takes event FOR SHARE before announcement FOR UPDATE SKIP LOCKED and re
 cancel takes only the announcement row. Lifecycle updates cannot commit between the check and notice write.
 Dashboard pending schedules use a separate (send_at, id) ascending keyset cursor: 30 rows plus one DB lookahead,
 never an unbounded list. History excludes scheduled rows and remains bounded to the latest 30 rows.
+
+### T-503: the top-10 rank push and the organizer alerts (built, migration 0082, ADR-362, ADR-363)
+
+`rank_top_snapshot(event_id PK, FK event cascade, enrollment_ids uuid[≤10], rehearsal_erased_at, taken_at)`: one row per live
+event, ids only; written and read by `rank_push_diff` and `rank_push_events` (system seat only, PN403). Two personal kinds,
+`rank_top_ten` and `rank_top_ten_exit` (topic `rank`, active membership, 5 minutes). `organizer_alert_switch(organizer_id,
+staff_user_id, alert_type, enabled)`: PK on all three, FK to `organizer_member` cascade (a removed member's switches go; a member
+invited again starts ON); read and set only by `own_alert_switches` and `set_own_alert_switches` (AL404 for anyone but the calling
+member, AL422 for a body that is not the seven booleans). `organizer_alert`: the outbox, ids only (organizer, event, staff user,
+type, once-only key, state queued|sending|sent|skipped|failed|uncertain, code, lease, timestamps), no FK to the member or account,
+composite FK to the event (cascade); written by `alert_enqueue` from four triggers (event activation, event_limit_alert, reward
+low crossing, `console.ticket_read` audit rows) and the flag scan; moved only by the system-only `alert_claim`, `alert_ack`,
+`alert_settle`. Forced RLS and no grant on all three tables; every function closed to PUBLIC, only the eight doors granted to
+the API role.

@@ -1080,7 +1080,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-610 | F-61 | Should | pending |
 | FR-611 | F-154 | Should | server built T-408 (core; migration 0072, `GET /v1/questify/ranking`, `test/db/questify-ranking.int`, `test/db/questify-ranking-upgrade.int`; code review pending); screens built T-408b (Explore; code review pending) |
 | FR-612 | F-154 | Should | built T-408b (the Questify-wide ranking is on Explore only; `event-isolation.test` checks that no event or operator file imports Explore or calls its route); code review pending |
-| FR-613 | F-160 | Should | pending |
+| FR-613 | F-160 | Should | Built T-503 (periodic top-ten diff, ADR-362); independent tier B review owed: `test/db/rank-push.int`, `src/ranking/top-ten-tick.test.ts` |
 | FR-620 | F-161 | Must | pending |
 | FR-621 | F-162 | Must | built for QR and NFC (T-308) |
 | FR-622 | F-162 | Must | pending |
@@ -1319,7 +1319,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1724 | F-249 | Should | pending |
 | FR-1725 | F-250 | Must | pending |
 | FR-1726 | F-252 | Must | pending |
-| FR-1727 | F-253 | Should | pending |
+| FR-1727 | F-253 | Should | partly built (T-503: the switches, outbox, sender and five of the seven sources; mail stays OFF per ADR-360; `content_unpublished` waits for T-701): `test/db/organizer-alerts.int`, `test/organizer-alerts/routes.int` |
 | FR-1728 | F-254 | Must | pending |
 | FR-1729 | F-257 | Must | pending |
 | FR-1730 | F-258 | Should | pending |

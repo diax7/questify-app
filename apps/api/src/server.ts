@@ -20,6 +20,10 @@ const COMMUNITY_INTERVAL_MS = 5000;
 const RANKING_REPAIR_INTERVAL_MS = 2000;
 /** The invitation tick (ADR-333): starts, sends rounds of 5 for up to 3 s, settles every 10 minutes. */
 const INVITATION_INTERVAL_MS = 5000;
+/** The rank push tick (ADR-362): each live event's top ten is diffed every 10 s, so a push is at most a tick late. */
+const RANK_PUSH_INTERVAL_MS = 10_000;
+/** The organizer alert worker (ADR-362): settles the outbox every minute; no transport, so nothing is sent. */
+const ORGANIZER_ALERT_INTERVAL_MS = 60_000;
 /** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
 const REDIS_COMMAND_TIMEOUT_MS = 250;
 const REDIS_CONNECT_TIMEOUT_MS = 2000;
@@ -130,6 +134,8 @@ async function main(): Promise<void> {
     communityIntervalMs: COMMUNITY_INTERVAL_MS,
     souvenirIntervalMs: 5000,
     invitationIntervalMs: INVITATION_INTERVAL_MS,
+    rankPushIntervalMs: RANK_PUSH_INTERVAL_MS,
+    organizerAlerts: { intervalMs: ORGANIZER_ALERT_INTERVAL_MS },
     // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.
     push: {
       pool: pushPool,

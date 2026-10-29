@@ -906,6 +906,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; the calling player's own muted topics through own_push_topics and set_push_topics, read by the system-only fan-out and claim; no organizer read exists (push-store)",
   push_send:
     "no direct API rights; the push outbox, written and read only by the system-only fan-out, claim, ack and settle, which refuse every seat with an identity (push-sending)",
+  rank_top_snapshot:
+    "no direct API rights; one row per live event holding enrollment ids only (no name, no player id), written and read only by the system-only rank_push_diff and rank_push_events (rank-push)",
+  organizer_alert_switch:
+    "no direct API rights; one row per member and type, read and written only by the caller-bound own_alert_switches and set_own_alert_switches (a member of that organizer, their own row), read by the producers and the system-only claim (organizer-alerts, organizer-alerts/routes)",
+  organizer_alert:
+    "no direct API rights; the alert outbox, ids only: written by the producers' triggers and the system-only flag scan for the organizer's own members, read and moved only by the system-only claim, ack and settle (organizer-alerts)",
   gem_shop_item:
     "platform-wide catalog with no tenant, no direct API rights; seeded only, read through the caller-bound gem_shop (gem-shop)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
@@ -1553,6 +1559,65 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
     await db.owner.query("DELETE FROM notice WHERE kind = 'tenant_probe'");
     await db.owner.query("DELETE FROM notice_kind WHERE kind = 'tenant_probe'");
+  });
+
+  it("keeps organizer alert switches to the calling member and the rank push and alert sender to the system (T-503)", async () => {
+    // B's owner has switched one type off: A's seat must neither read nor change it.
+    await db.owner.query(
+      "INSERT INTO organizer_alert_switch (organizer_id, staff_user_id, alert_type, enabled) VALUES ($1, $2, 'activated', false)",
+      [f.orgB, f.staffB],
+    );
+    const outboxOfB = await count("owner", "organizer_alert WHERE organizer_id = $1", [f.orgB]);
+    // A's member reads and sets only their own switches, and only for their own organizer.
+    const own = await asA<{ r: Record<string, boolean> }>(
+      "organizer",
+      "SELECT own_alert_switches($1) AS r",
+      [f.orgA],
+    );
+    expect(own.rows[0]?.r["activated"]).toBe(true);
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(await refusal(asA(seat, "SELECT own_alert_switches($1)", [f.orgB])), seat).toBe(
+        "AL404",
+      );
+      expect(
+        await refusal(
+          asA(seat, "SELECT set_own_alert_switches($1, $2::jsonb, NULL)", [
+            f.orgB,
+            JSON.stringify({
+              activated: true,
+              stock_low: true,
+              codes_low: true,
+              new_flags: true,
+              content_unpublished: true,
+              support_access: true,
+              size_limit: true,
+            }),
+          ]),
+        ),
+        seat,
+      ).toBe("AL404");
+      for (const table of ["organizer_alert_switch", "organizer_alert", "rank_top_snapshot"]) {
+        expect(await refusal(asA(seat, `SELECT 1 FROM ${table} LIMIT 1`, [])), table).toBe("42501");
+        expect(await refusal(asA(seat, `DELETE FROM ${table}`, [])), table).toBe("42501");
+      }
+      // The sender, the flag scan and the rank tick write for every tenant: the system seat only.
+      for (const call of [
+        "SELECT * FROM alert_claim(5)",
+        "SELECT alert_settle(true)",
+        "SELECT alert_scan_flags(10)",
+        "SELECT * FROM rank_push_events(10)",
+      ]) {
+        expect(await refusal(asA(seat, call, [])), call).toBe("PN403");
+      }
+      expect(await refusal(asA(seat, "SELECT rank_push_diff($1)", [f.eventB])), seat).toBe("PN403");
+    }
+    expect(
+      await count("owner", "organizer_alert_switch WHERE organizer_id = $1 AND enabled", [f.orgB]),
+    ).toBe(0);
+    expect(await count("owner", "organizer_alert WHERE organizer_id = $1", [f.orgB])).toBe(
+      outboxOfB,
+    );
+    await db.owner.query("DELETE FROM organizer_alert_switch WHERE organizer_id = $1", [f.orgB]);
   });
 
   it("keeps the hidden-category hint to the team that edits the event, and the reveal to the fan-out (T-501g)", async () => {

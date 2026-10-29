@@ -67,6 +67,8 @@ import { createRanking } from "#src/ranking/ranking";
 import { registerRankingRoutes } from "#src/ranking/routes";
 import type { RankingStore } from "#src/ranking/store";
 import { startRankingTick } from "#src/ranking/tick";
+import { startRankPushTick } from "#src/ranking/top-ten-tick";
+import { startOrganizerAlertWorker } from "#src/organizer-alerts/worker";
 import { startLifecycleTick } from "#src/events/tick";
 import { startCommunityTick } from "#src/community/tick";
 import { startSouvenirTick } from "#src/souvenirs/tick";
@@ -122,6 +124,13 @@ export type AppOptions = Readonly<{
   souvenirIntervalMs?: number;
   /** How often invitations are started, sent and settled (ADR-333); off when not given (tests call the doors). */
   invitationIntervalMs?: number;
+  /** How often each live event's top ten is diffed for the rank push (T-503, ADR-362); off when not given. */
+  rankPushIntervalMs?: number;
+  /**
+   * The organizer alert worker (T-503, FR-1727): settles the outbox and scans flags every interval, and sends only with a
+   * transport. Production gives none (transport OFF, ADR-360), so nothing leaves the machine. Off when not given.
+   */
+  organizerAlerts?: Readonly<{ intervalMs: number; transport?: EmailSender }>;
   /**
    * The push worker (T-501, ADR-345): its own small pool and the providers built from the settings (none without keys,
    * T-501b). Off when not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
@@ -187,9 +196,35 @@ async function databaseReady(pool: Pool): Promise<boolean> {
   }
 }
 
+/** The top-10 rank push tick and the organizer alert worker, each on when its option is given. */
+function startAlertTicks(app: FastifyInstance, options: AppOptions): (() => Promise<void>)[] {
+  const stops: (() => Promise<void>)[] = [];
+  if (options.rankPushIntervalMs !== undefined) {
+    const tick = startRankPushTick({
+      pool: options.pool,
+      intervalMs: options.rankPushIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(tick.stop);
+  }
+  if (options.organizerAlerts !== undefined) {
+    const worker = startOrganizerAlertWorker({
+      pool: options.pool,
+      ...(options.organizerAlerts.transport === undefined
+        ? {}
+        : { transport: options.organizerAlerts.transport }),
+      dashboardOrigin: options.config.auth.dashboardOrigin,
+      intervalMs: options.organizerAlerts.intervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(worker.stop);
+  }
+  return stops;
+}
+
 /**
  * The background ticks each option turns on (tests leave them off and call the database functions): event lifecycle,
- * community goals, souvenirs and invitations. Each stops when the server closes.
+ * community goals, souvenirs, invitations, the rank push and organizer alerts. Each stops when the server closes.
  */
 function startTicks(
   app: FastifyInstance,
@@ -200,7 +235,7 @@ function startTicks(
     invitations: InvitationDeps;
   }>,
 ): void {
-  const stops: (() => Promise<void>)[] = [];
+  const stops = startAlertTicks(app, options);
   if (options.lifecycleIntervalMs !== undefined) {
     const tick = startLifecycleTick({
       pool: options.pool,

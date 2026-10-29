@@ -74,6 +74,9 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   invitation: namedTemplate("invitation"),
   // T-501g (migration 0080): the hidden-category hint.
   category_hint: namedTemplate("categoryHint"),
+  // T-503 (migration 0082): entering and leaving the event's top 10. Fixed text, never the player's place.
+  rank_top_ten: fixedTemplate("rankTopTen"),
+  rank_top_ten_exit: fixedTemplate("rankTopTenExit"),
 };
 
 /**

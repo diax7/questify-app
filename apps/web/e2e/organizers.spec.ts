@@ -100,6 +100,15 @@ test("an owner invites an editor, who joins with a new password and the emailed 
   await invite.getByRole("button", { name: "Send the invite" }).click();
   await expect(page.getByRole("status")).toContainText("We sent the invite.");
 
+  // The owner's own email alerts (T-503, FR-1727): all on to begin with, saved as soon as a box changes.
+  const flags = page.getByRole("checkbox", { name: "New flags to review" });
+  await expect(page.getByRole("heading", { name: "Email alerts" })).toBeVisible();
+  await expect(flags).toBeChecked();
+  await flags.uncheck();
+  await expect(page.getByText("Your choices are saved.")).toBeVisible();
+  await page.reload();
+  await expect(flags).not.toBeChecked();
+
   const guest = await browser.newContext();
   const editor = await guest.newPage();
   try {
@@ -119,6 +128,11 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Team" }).click();
     await expect(editor.getByText(ownerEmail)).toBeVisible();
     await expect(editor.getByRole("form", { name: "Invite an editor" })).toHaveCount(0);
+    // The editor's alerts are their own: the owner's choice did not reach them, and they save theirs.
+    const editorFlags = editor.getByRole("checkbox", { name: "New flags to review" });
+    await expect(editorFlags).toBeChecked();
+    await editor.getByRole("checkbox", { name: "Content is unpublished" }).uncheck();
+    await expect(editor.getByText("Your choices are saved.")).toBeVisible();
     await editor.getByRole("link", { name: "Home" }).click();
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();

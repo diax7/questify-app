@@ -1950,9 +1950,30 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   T-503 not ticked; coordinator authorization required before another experiment. Approximate effort25k
   agent tokens (estimate,not billing),CI minutes0. No children or new ADR/Q; independent review remains owed.
 
+- 2026-10-29 **T-503 built (tier B, from ADR-362; independent tier B code review owed, not self-approved).** Plan
+  `docs/plans/2026-10-29-t-503b-rank-diff.md`; Proposed ADR-363 / Q-332. Migration 0082 (undeployed). **Rank push:**
+  kinds `rank_top_ten` and `rank_top_ten_exit`; `rank_push_diff` per live event under a per-event try-lock, run by a
+  10 s tick (`ranking/top-ten-tick.ts`, never overlapping, 5 s budget); the ten read from PostgreSQL in the board's order
+  and rule (index walk, not a pass over all members); baseline with no notices on the first read, a return to live, ranking
+  off and a rehearsal wipe; 10-minute cooldown per member and event; no push inside the top ten; the completion
+  transaction and the Redis copy untouched. **Organizer alerts:** own switches for the seven types (`GET`/`PUT
+  …/alerts/me`, panel on the team page), id-only outbox, producers for activated, size limit, stock low, codes low, support
+  access and (by scan) new flags, a sender that re-checks account, membership, event limit and switch at claim time; the
+  `EmailSender` type is reused and production gives none (rows skipped `transport_off`). Owed: `content_unpublished` source
+  (T-701/T-609), quest-item pools, real-mail gates of ADR-360. **Checks:** full Vitest ONCE: 8829 passed, 14 skipped, 1 failed
+  (the audit-log trigger list, fixed; audit suite rerun green); targeted rerun 996 tests green; security suites 552 green;
+  fresh-build browser suite 197 passed / 1 skip, the organizers spec failed once (checkbox not optimistic), fixed and rerun
+  green on desktop and phone; lint, `lint:limits` (none new), format, types pass. 50,000 members, 300 excluded and 300 left
+  leaders: diff 257-306 ms (gate 1 s per event). Two mutations (cooldown, membership start) were caught by the tests. CI minutes: 0
+  (local only, nothing pushed). Rough worker cost: about 190k tokens / 3 hours (estimate, not billing).
+
 ## Next
 
-- **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
+- **CURRENT 2026-10-29: T-503 is BUILT (tier B, ADR-362), ticked in TASKS; a fresh tier B code review is next, then the
+  coordinator's CI and push (nothing pushed).** Accept ADR-363 / Q-332 after the review. The bullets below about the
+  stopped lock-protocol line are history.
+
+- **SUPERSEDED by ADR-362 (history): T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
   The ONE authorized automatic commit-finalization follow-on also FAILS: queued deferred business runs
   after E despite callback SET CONSTRAINTS ALL IMMEDIATE; see docs/evidence/2026-10-29-t503-auto-gate.md.
   No further candidate/tuning is authorized; require a sound after-all-deferred boundary before redesign.

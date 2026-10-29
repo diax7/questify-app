@@ -37,6 +37,7 @@ export const NOTIFICATION_TARGETS: ReadonlyMap<string, Target> = new Map<string,
   ["category_hint", "quests"],
   ["announcement", "event"],
   ["rank_top_ten", "ranking"],
+  ["rank_top_ten_exit", "ranking"],
   ["session_reminder", "info"],
   ["operator_invite", "center"],
 ]);

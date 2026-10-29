@@ -460,6 +460,31 @@ describe("the hidden-category hint (T-501g, ADR-357)", () => {
   });
 });
 
+describe("the top-10 pushes (T-503, ADR-362)", () => {
+  it("say the same line to everyone: no place, no points, no name beyond the title", () => {
+    expect(both("rank_top_ten", { event: EVENT })).toEqual([
+      "You're now in the top 10.",
+      "اسمك الآن بين أفضل 10 في الترتيب.",
+    ]);
+    expect(both("rank_top_ten_exit", { event: EVENT, rank: 11, score: 900 })).toEqual([
+      "You're out of the top 10 for now.",
+      "اسمك خارج أفضل 10 في الترتيب حاليًا.",
+    ]);
+    const title = renderNotice({
+      kind: "rank_top_ten",
+      params: { event: EVENT },
+      terms: null,
+      timezone: null,
+      language: "en",
+    });
+    expect(title).toEqual({
+      title: "Winter Fest",
+      body: "You're now in the top 10.",
+      pushable: true,
+    });
+  });
+});
+
 describe("the organizer's announcement (T-502, ADR-358)", () => {
   const frozen = {
     event: EVENT,

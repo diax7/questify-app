@@ -31,6 +31,7 @@ import { registerTicketTeamRoutes } from "#src/tickets/routes";
 import { registerPlayTeamRoutes } from "#src/plays/routes";
 import { registerBoostTeamRoutes } from "#src/boosts/routes";
 import { registerAnnouncementTeamRoutes } from "#src/announcements/routes";
+import { registerOrganizerAlertRoutes } from "#src/organizer-alerts/routes";
 import { registerStreakTeamRoutes } from "#src/streaks/routes";
 import { registerNfcTeamRoutes } from "#src/nfc/routes";
 import type { ClaimDeps } from "#src/devices/claims";
@@ -239,6 +240,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);
+      registerOrganizerAlertRoutes(scope, { pool: deps.pool });
       registerEventRoutes(scope, deps.events, deps.settings);
       registerActivationRoutes(scope, deps.activation);
       registerRehearsalTeamRoutes(scope, deps.rehearsal);

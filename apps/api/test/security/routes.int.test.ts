@@ -182,6 +182,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner only; only this organizer's editors, never the owner (test/organizers/team)",
   "DELETE /v1/organizers/:organizerId/members/me":
     "the caller leaves; the owner cannot (test/organizers/team)",
+  "GET /v1/organizers/:organizerId/alerts/me":
+    "the calling member only, of their own organizer: the route takes no member id and own_alert_switches acts on app_staff_user_id() (AL404 for anyone else); another organizer's member gets 404 (test/organizer-alerts/routes, test/db/organizer-alerts, cross-tenant)",
+  "PUT /v1/organizers/:organizerId/alerts/me":
+    "the calling member only, of their own organizer: no member id in the path or body (unknown keys refused), set_own_alert_switches acts on app_staff_user_id() and is audited with booleans only; an owner cannot set an editor's switches (test/organizer-alerts/routes, test/db/organizer-alerts, cross-tenant)",
   "GET /v1/organizers/:organizerId/members":
     "members of that organizer only: the membership is read from the database, a non-member gets 404 (tested below)",
   "GET /v1/organizers/:organizerId/events/:eventId/invitation-campaigns":

@@ -1415,6 +1415,84 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot reach the rank push or the organizer alerts, their tables, doors or producers (T-503)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.rank_top_snapshot",
+        "SELECT * FROM public.organizer_alert",
+        "SELECT * FROM public.organizer_alert_switch",
+        "SELECT public.rank_push_diff(gen_random_uuid())",
+        "SELECT * FROM public.rank_push_events(10)",
+        "SELECT public.own_alert_switches(gen_random_uuid())",
+        "SELECT public.set_own_alert_switches(gen_random_uuid(), '{}', NULL)",
+        "SELECT * FROM public.alert_claim(5)",
+        "SELECT public.alert_ack('{1}', ARRAY[gen_random_uuid()], '{sent}', '{null}')",
+        "SELECT public.alert_settle(true)",
+        "SELECT public.alert_scan_flags(10)",
+        "SELECT public.alert_enqueue(gen_random_uuid(), NULL, 'activated', 'x')",
+        "SELECT public.rank_top_ten_ids(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const doors = [
+        "alert_ack",
+        "alert_claim",
+        "alert_scan_flags",
+        "alert_settle",
+        "own_alert_switches",
+        "rank_push_diff",
+        "rank_push_events",
+        "set_own_alert_switches",
+      ];
+      const triggers = [
+        "alert_on_event_activated",
+        "alert_on_limit_alert",
+        "alert_on_reward_low",
+        "alert_on_support_read",
+      ];
+      const internals = [
+        "alert_caller",
+        "alert_enqueue",
+        "alert_skip_reason",
+        "organizer_alert_types",
+        "rank_top_ten_ids",
+        "ranking_on",
+      ];
+      const all = [...doors, ...triggers, ...internals];
+      const listed = `ARRAY[${all.map((name) => `'${name}'`).join(", ")}]`;
+      const grants = (grantee: string) =>
+        rows<{ proname: string }>(
+          `SELECT DISTINCT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           WHERE n.nspname = 'public' AND a.grantee = ${grantee} AND a.privilege_type = 'EXECUTE'
+             AND p.proname = ANY(${listed}) ORDER BY 1`,
+        );
+      // PUBLIC holds nothing; the API's role holds the doors only, never a trigger function or a helper.
+      expect(await grants("0")).toEqual([]);
+      expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual(doors);
+      const present = await rows<{ proname: string; definer: boolean; config: string[] | null }>(
+        `SELECT p.proname, p.prosecdef AS definer, p.proconfig AS config FROM pg_proc p
+         WHERE p.proname = ANY(${listed}) AND p.pronamespace = 'public'::regnamespace ORDER BY 1`,
+      );
+      expect(present.map((row) => row.proname)).toEqual(all.toSorted());
+      for (const row of present) {
+        // The list of types is a constant with no SET clause; every other function pins its search_path.
+        expect(row.config, row.proname).toEqual(
+          row.proname === "organizer_alert_types" ? null : ["search_path=public, pg_temp"],
+        );
+        // The doors, the trigger functions and the caller check read tables the API's role cannot: definers. The
+        // helpers run inside them and are never definers.
+        expect(row.definer, row.proname).toBe(
+          ![
+            "alert_enqueue",
+            "alert_skip_reason",
+            "organizer_alert_types",
+            "rank_top_ten_ids",
+            "ranking_on",
+          ].includes(row.proname),
+        );
+      }
+    });
+
     it("cannot run the event pushes' scans or reach their producers (T-501e)", async () => {
       for (const sql of [
         "SELECT public.push_due_flash(1)",

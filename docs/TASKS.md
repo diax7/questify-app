@@ -1033,7 +1033,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
   - Done when: Announcements never go by email or SMS.
   - Done 2026-10-29 (tier B, independent review 84; both MAJORs fixed and coordinator-inspected): migration 0081, the five scoped HTTP routes, immutable/filter-checked bilingual copy, send-now and event-zone schedule/cancel, serialized rolling 3/hour and 10/day caps, due-time lifecycle/lateness rechecks, push/in-app only, dashboard previews/counts/history, and native Home flash/boost/latest-three plus the announcements list. Recovered the crashed worker's partial work at fe688dd. Lifecycle checks/writes hold the event lock; pending schedules have earliest-first keyset pages independent of bounded history. Plan: docs/plans/2026-10-28-t-502-announcements.md; ADR-358 Accepted / Q-327 resolved. Modal-accessibility MINOR deferred in FOLLOWUPS.
   - Checks: full Vitest run ONCE (8759 passed, 13 skipped; three task guards failed, all fixed; build regression 18 files / 804 passed). Review-fix regression 12 files / 703 passed; fresh-build full browser suite 199 passed / 1 existing skip. Native iOS+Android export, API build, lint, function limits, format, types and audit pass with the existing advisory exceptions. 50,000-member timing: count 732 ms, press 337 ms, slowest fan-out 430 ms. Remote CI 40828699004 PASSED on e28a1e4, including full tests and browser suite. No deployment, EAS or mutation; stop after T-502, do not start T-503.
-- [ ] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
+- [x] **T-503** Top-10 rank push; alerts for organizers by email — delivers FR 613, 1727; depends on: T-501
   - Reset 2026-10-29: ADR-362 (periodic top-ten diff, tier B for the rank push; the email sender keeps the ADR-360
     transfer rule, transport OFF). Earlier plan below is superseded history.
   - Plan only 2026-10-29 (Tier A): `plans/2026-10-29-t-503-rank-organizer-alerts.md`, Proposed ADR-359/360,
@@ -1042,6 +1042,17 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     infrastructure; T-701 owns missing general unpublish/support producers. No implementation or completion claim.
   - Note 2026-10-28 (T-501 plan): the top-10 push is a personal `notice_kind` with topic `rank` (mutable, FR-1115); no rank number in the text (ADR-346).
   - Done when: A player entering the top 10 gets one push; organizer alert types are switchable per team member.
+  - Done 2026-10-29 (tier B build from ADR-362; review owed; plan: docs/plans/2026-10-29-t-503b-rank-diff.md; Proposed
+    ADR-363 / Q-332): migration 0082. Rank push: `rank_top_ten` and `rank_top_ten_exit`, a 10 s lease-guarded tick
+    (`ranking/top-ten-tick.ts`, `rank_push_diff` under a per-event try-lock), baselines on the first read, a return to live,
+    ranking off and a rehearsal wipe, a 10-minute cooldown per member and event, nothing inside the top ten, nothing in the
+    completion transaction or the Redis copy. Organizer alerts: own switches for the seven types (`GET`/`PUT
+    …/alerts/me`, panel on the team page), an id-only outbox, producers for activated, size limit, stock low, codes low,
+    support access and (by scan) new flags, and a sender (`organizer-alerts/worker.ts`) that re-checks account, membership,
+    event limit and switch at send time; production has no transport, so rows are skipped as `transport_off`.
+    **Owed:** the `content_unpublished` source (T-701 / T-609); quest-item stock pools (T-609); before any real mail
+    (ADR-360): Saudi-region transport or the counsel-approved transfer extension, real cancellation of the token wait and
+    send, structured provider outcomes. FR-613 and FR-1727 stay "partly built" in the SRS until then.
 - [ ] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community, poll and photo wall scenes — delivers FR 630, 631, 632, 633, 634, 635, 636, 637, 1613; depends on: T-309, T-106
   - Note 2026-10-23 (T-211): FR-1721 says the team opens the big screen in rehearsal. Pairing must accept a Draft or Scheduled event while its rehearsal is open (`event_rehearsal`, `live_wiped_at` null), and its ranking then shows the rehearsal accounts (they rank through the same cache; the wipe marks the event for repair).
   - Done when: The big-screen link opens only when paired; the photo wall shows only photos the player allowed.
@@ -1099,7 +1110,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
     usage-view groundwork and future producer integration only, no duplicate sender/subscriptions. General content
     unpublish/support producers remain T-701; missing sources keep FR-1727 explicitly incomplete until connected.
   - Done when: Alerts are switchable per team member.
-  - Note 2026-10-23 (T-209): the "new flags" alert (F-253) reads new `flag` rows; none is sent yet.
+  - Note 2026-10-29 (T-503 built): the switches, the outbox, the sender, the team-page panel and five of the seven sources exist (activated, size limit, stock, codes, support access, and new flags by scan); this task adds only what T-503 lists as owed: `content_unpublished` (with T-701) and quest-item stock pools, plus the usage view. No second sender, store or switch UI.
 - [ ] **T-610** Home editor: new blocks (custom text card, quick links, podium preview, featured), banner slider with tap actions, countdown blocks, drag with live preview, Questify preset and reset — delivers FR 1828, 1829, 1830, 1831; depends on: T-113, T-606
   - Done when: A reordered Home shows in that order in the app; a one-slide banner has no slider dots; a countdown at zero hides or shows its message.
 - [ ] **T-611** Ranking layouts (List, Podium, scores or rank only), Quests layout (list or grid), shop layout (grid or list) — delivers FR 1832, 1833; depends on: T-116, T-114, T-201

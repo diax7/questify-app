@@ -1095,6 +1095,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "souvenir_scan_batch", // waits for live, then queues real members only; it writes no row the wipe deletes
         "streak_record", // internal: the ledger_streak trigger inside a payer that wiped first; skips rehearsal entries (T-405)
         "push_fan_out_event", // the push fan-out reads the status to choose who gets a center row; it writes no row the wipe deletes (T-501)
+        "rank_push_diff", // the top-10 diff reads the status to choose which events to compare; it writes only notices and its snapshot (T-503)
         "push_due_category", // a due scan reads the status to choose which notices to write; it writes only notices (T-501e)
         "push_due_shop", // reads the status for an ended event's shop closing; it writes only notices (T-501f)
         "announcement_send",

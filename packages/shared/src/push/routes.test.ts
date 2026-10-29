@@ -29,6 +29,7 @@ describe("notificationRoute", () => {
       reward_ending: "/rewards",
       shop_closing: "/rewards",
       rank_top_ten: "/ranking",
+      rank_top_ten_exit: "/ranking",
       session_reminder: "/info",
     };
     for (const [kind, screen] of Object.entries(screens)) {

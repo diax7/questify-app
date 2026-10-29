@@ -1,3 +1,4 @@
+import { OrganizerAlertSwitchesPanel } from "#src/components/OrganizerAlertSwitchesPanel.tsx";
 import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { TeamPanel } from "#src/components/TeamPanel.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
@@ -11,11 +12,14 @@ export default async function TeamPage({ params }: Props) {
   return (
     <OrganizerShell page={page} path={`/organizers/${organizerId}/team`}>
       {page.kind === "member" ? (
-        <TeamPanel
-          language={page.language}
-          organizerId={organizerId}
-          myRole={page.membership.role}
-        />
+        <>
+          <TeamPanel
+            language={page.language}
+            organizerId={organizerId}
+            myRole={page.membership.role}
+          />
+          <OrganizerAlertSwitchesPanel language={page.language} organizerId={organizerId} />
+        </>
       ) : null}
     </OrganizerShell>
   );

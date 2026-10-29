@@ -114,7 +114,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
       const { rows } = await db.owner.query<{ tgname: string; tgenabled: string }>(
         "SELECT tgname, tgenabled FROM pg_trigger WHERE tgrelid = 'audit_log'::regclass AND NOT tgisinternal ORDER BY tgname",
       );
+      // The two guards fire always (`A`). The third is T-503's support-access alert producer (an AFTER INSERT trigger
+      // that only reads the new row): an ordinary trigger on purpose, since a session that turns it off loses one email.
       expect(rows).toEqual([
+        { tgname: "audit_log_alert_support", tgenabled: "O" },
         { tgname: "audit_log_no_truncate", tgenabled: "A" },
         { tgname: "audit_log_no_update_or_delete", tgenabled: "A" },
       ]);
