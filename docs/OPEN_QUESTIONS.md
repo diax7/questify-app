@@ -1479,4 +1479,4 @@ Q-330 closes with it.
 Should the rank diff read the Redis board (needing a reader) or PostgreSQL, which alert sources does T-503 wire, and what does
 the worker do with queued rows while the mail transport is off? **Recommended (developer, T-503 build):** PostgreSQL in the
 board's own order and rule; five of the seven sources (all but `content_unpublished`, owed to T-701/T-609); queued rows skipped
-as `transport_off`, nothing leaves the machine. **Status:** Proposed as ADR-363; the coordinator accepts it after the review.
+as `transport_off`, nothing leaves the machine. **Answered (developer, delegated by Dhia, 2026-10-30):** accepted as recommended; ADR-363 Accepted.

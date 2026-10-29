@@ -18,3 +18,10 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-10-28 T-501g: the hint note renders at the top of the page (`QuestBuilder.tsx:~296`), far from the "Send a hint" button on a long builder; render it inside the category card or scroll it into view (T-501g review).
 - 2026-10-28 T-501g: "Send a hint" has no category name in its accessible name (same as the existing "Edit category" buttons); fix both together (T-501g review).
 - 2026-10-28 T-501g: the claim skip code for a category un-hidden before the claim is `not_member`, which is misleading; give it its own code (T-501g review).
+- 2026-10-30 T-503: **before mail transport goes on** — `organizer-alerts/worker.ts` `sendRounds` breaks when a claim picks only skippable rows, so a backlog of ex-member rows throttles sending to 5 rows a minute; the claim door should report rows picked or loop until it leases one (T-503 review).
+- 2026-10-30 T-503: **before mail transport goes on** — 0082 `alert_scan_flags` sends one alert per flag per member and `ORDER BY id LIMIT 2000` starves the newest flags in a storm; coalesce per event per window, newest first (T-503 review).
+- 2026-10-30 T-503: 0082 `ranking_on` restates `composeFeatures` in SQL; add a parity test so the two cannot drift (T-503 review).
+- 2026-10-30 T-503: `OrganizerAlertSwitchesPanel.tsx` keeps "Loading…" under a failed GET with no retry; `disabled={busy}` drops keyboard focus on each toggle, so use `aria-busy` (T-503 review).
+- 2026-10-30 T-503: `rank_push_diff` reads `erased` before `fresh`, so a wipe committing between them diffs a pre-wipe snapshot; read it after (T-503 review, harmless today).
+- 2026-10-30 T-503: a poison event hitting the 5 s timeout stays first in `rank_push_events` (`taken_at NULLS FIRST`); bump `taken_at` on failure (T-503 review).
+- 2026-10-30 T-503: skip exit notices for a player excluded after the fact (`NOT ranking_eligible`); the cooldown test does not check the per-event part of the key; the `isAlertType`/`unknown_type` branch in `worker.ts` is unreachable (T-503 review).

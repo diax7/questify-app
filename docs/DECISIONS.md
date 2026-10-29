@@ -5407,7 +5407,7 @@ pushes", and paid for it with a global and per-event lock inside every quest com
 "when the ranking updates"; a push a few seconds late, or no push for a blip that reverses within seconds, meets it
 and spares players spam. A push producer is tier B (CLAUDE.md, ADR-355); the email sender stays tier A.
 **Decision:** no change to the completion transaction or the ranking cache. A tick (the existing ranking tick or a
-sibling, lease-guarded) reads each live event's current overall top ten through the existing board read, compares it
+sibling, lease-guarded) reads each live event's current overall top ten from PostgreSQL with the board's own eligibility and order (ADR-363), compares it
 with the stored previous top ten (`rank_top_snapshot`, one row per event), writes the new set, and creates one
 personal `rank` notice through `notice_create` per entry and per exit. Eligibility, rehearsal and excluded players
 follow the board as it is read. The first read of an event, a re-activation and a rehearsal wipe store a baseline
@@ -5421,7 +5421,7 @@ the evidence files stay as the record.
 
 ## ADR-363 - T-503 build choices: rank diff reads PostgreSQL; organizer alert sources, outbox and OFF transport
 
-**Status:** Proposed (developer, 2026-10-29; T-503 build; Q-332). Fills in what ADR-362 left open; the coordinator accepts it
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; Q-332, T-503 review 92 GO). Fills in what ADR-362 left open; the coordinator accepts it
 after the review.
 **Decision:** (1) **Rank push.** The top ten is read from PostgreSQL in the board's own order and rule (`enrollment_ranking_idx`
 walked in order, `ranking_eligible` per row, stopped at ten), because a system seat has no reader for the Redis board read and
