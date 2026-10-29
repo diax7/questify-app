@@ -1452,3 +1452,17 @@ foreign-transfer extension (Q-083/T-807); auth exception insufficient. No creden
 Coordinator accepts these defaults with an empty automatic send-retry allowlist until provider nonacceptance proof;
 local fake implementation may follow the early rank feasibility gate. Transport authorization is not implied.
 Full review80 resolution map: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
+
+## Q-330 - T-503 failed early full-source event-lock budget (2026-10-29)
+
+**Status:** Open technical redesign; coordinator decision, no Dhia action requested.
+**Evidence/recommendation:** Proposed ADR-361 and `evidence/2026-10-29-t503-early-gate.md`/JSON.
+Two actual-source 50,000-member runs give mean E hold LOWER bounds 14.46488 / 14.20142 ms
+against required <3 ms (target <=1.5 ms); confirmation full mean is in [14.20142, 20.262509] ms.
+Preserve FR-613 ordered crossings, coherent DB publication and NFR-003. Recommend profiling/reducing
+the full source chain or explicitly accepting a newly proved terminal publication fence after business
+locks, never merely moving E into a late nested payer where it can invert existing source locks.
+No coalescing or requirement waiver. Implementation stopped; unchanged production migrations/adapters.
+Source resets/defaults, complete writer/cascade inventory, both-order barriers, excluded-leader/own/total
+equivalence, steady load/queue/propagation and all email/UI/code-review gates remain unfinished.
+Coordinator chooses the technical next action; worker does not self-approve or request another review.

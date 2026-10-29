@@ -1,6 +1,6 @@
 # T-503 — Top-10 transitions and organizer email alerts
 
-2026-10-29. **PLAN CORRECTIONS ONLY. Tier A review80 NO-GO; coordinator inspection required before implementation.**
+2026-10-29. **EARLY IMPLEMENTATION GATE FAILED. Stop for coordinator technical redesign; T-503 incomplete.**
 Correction base main `bca5223`; T-502 application `e28a1e4`, CI 40828699004 green. The resumed queue overrides historical
 stop-after-T-502 notes. No application changes, external calls, push, deployment, EAS, mutation or next task.
 
@@ -19,6 +19,23 @@ Then implement the remaining cohesive task, with operational mail OFF and an emp
 unless explicit provider nonacceptance proof is documented and tested. Independent Tier A CODE review remains.
 This authorization supersedes the earlier planning-only/Proposed/stop-for-inspection text retained below as history.
 No real service, deployment, EAS, local Stryker, task tick or next task is authorized by this plan acceptance.
+
+## Early implementation checkpoint - 2026-10-29 (current)
+
+Authorized representative full-source probe failed before broad email/UI work. Two 50,000-member runs:
+warm mean exclusive-E residence LOWER bounds 14.46488 / 14.20142 ms, versus mandatory <3 ms
+(target <=1.5 ms). Confirmation full-residence mean bounded by [14.20142, 20.262509] ms.
+Actual complete_quest -> current record_completion/ledger/bonus/trigger/COMMIT path, not a snapshot-only
+microbenchmark. Generation 1 entry1/exit2/entry3 facts and exact latest identity survive between drains;
+snapshot rollback and private-schema access refusals pass. Performance assertion remains RED.
+STOP implementation: no sustained-load/queue/propagation PASS, API cutover, complete resets, both-order
+lock certificate or full source inventory claimed. See `../evidence/2026-10-29-t503-early-gate.md`
+and JSON for setup, baseline/outlier, bounds, limitations, partial inventory and remaining gates.
+Only an opt-in disposable-DB test/probe is committed; 0082 remains available, all migrations unchanged.
+Proposed ADR-361 / Q-330 recommends source-cost profiling or a newly proven terminal publication fence,
+not coalescing/FR-613 or NFR-003 waiver. Coordinator decides redesign; no new independent plan review
+is requested by this checkpoint. The historical source matrix's wipe latest 0055 is superseded by
+current wipe_rehearsal in 0062; exhaustive latest-definition inspection remains mandatory before completion.
 
 ## Evidence and scope
 

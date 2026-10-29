@@ -5359,3 +5359,21 @@ nonacceptance proof. No message parsing or timeout-based retry classification. S
 wait cancellation and both-order authorization tests remain implementation gates. Real transport stays OFF; approval
 authorizes local fake implementation only, after the early ranking feasibility gate. All seven review findings map
 to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
+
+## ADR-361 - T-503 full-source event lock feasibility failure
+
+**Status:** Proposed technical redesign recommendation (2026-10-29; Q-330), NOT accepted by worker.
+**Evidence:** `evidence/2026-10-29-t503-early-gate.md` and JSON. On the recorded 50,000-member local
+setup, the actual complete_quest/ledger/bonus/trigger transaction under ADR-359's shared G/exclusive E
+has warm mean E-residence LOWER bounds 14.46488 and 14.20142 ms. Actual mean hold is longer;
+<3 ms hard gate / <=1.5 ms target fail. Confirmation client mean 20.262509 ms bounds full hold above.
+The optimistic arithmetic upper capacity is 4,224.93/minute, not a measured sustained-rate claim.
+No candidate production migration or cache-authority cutover was activated; 0082 remains free.
+**Recommendation:** stop implementation before email/UI. Profile/optimize the full source chain, not only
+indexed top selection. If insufficient, investigate a short terminal publication fence after business
+lock acquisition, with no legacy/source lock acquisition after E, all ordered facts committed atomically
+and a proven visibility/lock graph. This changes ADR-359's E-before-legacy protocol and needs explicit
+coordinator acceptance, full writer/cascade/default inventory and both-order proof before implementation.
+The test-only probe does not guard all writers or implement resets/drain/claim/publication cutover.
+Never fix the failed gate with coalescing, missing crossings, relaxed eligibility or an NFR-003 waiver.
+Existing accepted product semantics, OFF transport and empty send-retry allowlist remain unchanged.

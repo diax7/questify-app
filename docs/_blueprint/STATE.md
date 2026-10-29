@@ -1852,7 +1852,42 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Planning effort approximately 43k tokens (25k original +18k corrections); review/coordinator usage unmeasured;
   CI minutes 0 for this unpushed plan/design checkpoint. Estimates, not billing data.
 
+- 2026-10-29 **T-503 EARLY feasibility FAIL / safe checkpoint; stop for coordinator redesign.**
+  Authorized on main d10fa98. Opt-in disposable-DB probe invokes the original complete_quest and latest
+  record_completion/ledger/bonus/trigger/COMMIT path under shared G/exclusive E, maintains indexed changed-only
+  eligible entries and deferred ordered facts/latest identity. Before any drain, generation 1 entry1/exit2/entry3
+  persists; exact identity relation retains revision 3. Snapshot rollback/empty dirty and private-role refusals pass.
+  Two 50,000-active-member runs, 20 warmups +100 warm samples each: E-residence LOWER means
+  14.46488 / 14.20142 ms, versus required <3 ms (target <=1.5 ms). Confirmation full-residence mean lies in
+  [14.20142, 20.262509] ms; lower-bound p50/p95/p99 13.801/16.88/22.109 ms; uncontended combined G/E
+  wait mean 0.02903 ms. Optimistic arithmetic service ceiling 4,224.93/minute, NOT measured sustained throughput.
+  Full machine/setup, baseline (including the 757.3794-ms outlier), methodology, limitations and both numeric
+  records: docs/evidence/2026-10-29-t503-early-gate.md and .json. Initial run overlapped local validation;
+  confirmation did not overlap tests/types/lint. No claimed steady-20k/min queue/drain/<=5s propagation proof.
+  Gate runs: 3 pass /1 RED each (t503-early-gate-initial.log, t503-early-gate-confirmation.log); assertion stays red.
+  Security: 517 pass /4 suites, including outsider/cross-tenant/HTTP inventories (t503-security.log, 32.79 s).
+  API types, zero-warning targeted lint, limits (318 existing, none new), targeted format pass; logs
+  t503-{types,lint,limits,format}.log. Full Vitest NOT run at early gate; no UI/app change, browser/export not due.
+  Safe scope: tests/docs only; source SQL is a private test fixture, NOT a production migration. 0082 remains free;
+  deployed/undeployed migrations, production ranking/afterCompletion/Redis adapters and mail/auth unchanged.
+  Partial writer inspection corrects wipe_rehearsal latest 0055 to 0062; complete writer/raw-SQL/cascade/default
+  inventory, source reset/off-on/lifecycle/rehearsal and tombstone proofs, both-order lock tests, full rollback
+  equivalence, canonical top/own/total and excluded-leader costs remain gates, NOT inferred passes.
+  Proposed ADR-361 / Open Q-330: profile/reduce full source cost or coordinator-authorize a newly proven terminal
+  publication fence with no legacy locks after E; no coalescing, budget relaxation or FR-613/NFR-003 waiver.
+  All remaining review80 resolutions/email/UI/transport-code and final code-review/CI gates remain unfinished.
+  Mail stays OFF, send-retry allowlist empty, T-609 reuse and future T-701 producer boundaries unchanged.
+  T-503 NOT ticked/self-approved; no subagent, real services, full suite, local mutation, push/deploy/EAS or T-504.
+  CI minutes 0 (local only); rough effort 45k agent tokens /30 minutes, estimates not billing. Coordinator decides
+  the technical redesign; no new independent review requested until code is ready.
+
 ## Next
+
+- **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
+  Coordinator technical redesign decision (ADR-361/Q-330) precedes further implementation. Measured evidence:
+  `docs/evidence/2026-10-29-t503-early-gate.md` and JSON. Keep <3 ms /<=1.5 ms, ordered FR-613 crossings,
+  eligibility and NFR-003 unchanged. All unfinished gates listed above. Do not start email/UI/T-504, tick T-503,
+  self-approve, or treat the historical plan-stage handoffs below as current instructions.
 
 - **2026-10-29 — T-503 PLAN CORRECTIONS ONLY after Tier A review80 NO-GO (base main bca5223).**
   All seven MAJOR findings mapped in `docs/plans/2026-10-29-t-503-rank-organizer-alerts.md`: ordered durable
