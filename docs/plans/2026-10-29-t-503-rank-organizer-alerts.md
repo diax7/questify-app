@@ -6,6 +6,18 @@ stop-after-T-502 notes. No application changes, external calls, push, deployment
 
 ## Current gate override — 2026-10-29
 
+**Authorized automatic-finalization experiment finished: FAIL / STOP (base f716225).** The single
+transaction dirty-marker callback cannot use SET CONSTRAINTS ALL IMMEDIATE as a business-drain barrier:
+at real COMMIT it takes E, then an already queued business callback runs and the pre-source guard rejects
+it. Minimal temporary-object reproduction confirms that order. Ordinary no-helper completion and one
+incremental eligibility transition PASS; eight subsequent lock-order/rollback/latest/timing tests are
+UNPROVEN and were not executed. No candidate release means/overhead or crossing timings were measured.
+Original baseline: two repetitions each of 36 genuine crossing and 36 noncrossing actual completions,
+144 completion/quest-ledger rows total; warm client means noncross15.602/15.161 ms, cross17.806/20.136 ms.
+See ../evidence/2026-10-29-t503-auto-gate.md and JSON. Reject this callback/drain candidate, preserve all
+earlier red results, and stop for a separately authorized design with a proven after-deferred boundary.
+Hard <3 ms / target <=1.5 ms remain UNPROVEN. No ADR-361 acceptance or T-503 tick; all production gates stand.
+
 56437ac rejected explicit caller-driven terminal publication: a source committed without any publication revision,
 and late nested/deferred work can wait after E. Coordinator authorizes one bounded TEST-ONLY automatic commit-time
 finalization candidate under ADR-361: mandatory transaction marker, business/deferred drain before sorted E,

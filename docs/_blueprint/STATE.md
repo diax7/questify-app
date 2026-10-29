@@ -1919,9 +1919,32 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   No production change, task tick, email/UI or candidate acceptance; report unresolved gates rather than spin an
   open-ended benchmark loop. ADR-361/Q-330 remain investigation/Open. Independent code review still owed.
 
+- 2026-10-29 **T-503 automatic deferred-finalization candidate FAIL / STOP (base f716225).** ONE local
+  test-only dirty marker/automatic callback implemented; no production door/migration/adapter/dependency changed.
+  At real COMMIT, SET CONSTRAINTS ALL IMMEDIATE inside that callback returns before already queued business;
+  E is taken and the later business callback hits the new pre-source guard (42501). Temporary session-local
+  reproduction confirms callback/drain/E/business ordering, rollback of its temp rows and released E.
+  Ordinary complete_quest+ledger without helper PASS (revision0->1, completion/ledger72->73); representative
+  eligibility remove/reinsert PASS. Targeted 50k run:2 PASS/1 RED,8 remaining tests unreached,164.89 s.
+  Failed-COMMIT full business rollback injection, exact latest/generation, fresh READ COMMITTED after E,
+  same/different enrollment orders, nested payer/DML pre-row-lock closure, multi-event/global proofs UNPROVEN.
+  No candidate timing repetitions run: new E mean lower/upper and baseline overhead unavailable, not zero;
+  <3 ms hard /<=1.5 ms target UNPROVEN. Original baseline2 repetitions/workload,36 transactions each,
+  144 actual completion/quest-ledger rows; warm client means noncross15.602/15.161,cross17.806/20.136 ms.
+  Prior early/terminal fixtures/results unchanged. Full inventory/lifecycle/canonical-own-rank/steady-load,
+  backlog/propagation and deployment remain separate UNPROVEN gates. Evidence: docs/evidence/2026-10-29-t503-auto-gate.md
+  and JSON. Reject this callback-drain assumption; stop rather than retune/requeue or remove guards.
+  Final API types,targeted lint/format,limits318 existing/0 new PASS; opt-out11 skipped. No full Vitest or
+  duplicate security517 run, mutation, real services,email/UI,next task,push/deploy/EAS. ADR-361 not accepted,
+  T-503 not ticked; coordinator authorization required before another experiment. Approximate effort25k
+  agent tokens (estimate,not billing),CI minutes0. No children or new ADR/Q; independent review remains owed.
+
 ## Next
 
 - **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
+  The ONE authorized automatic commit-finalization follow-on also FAILS: queued deferred business runs
+  after E despite callback SET CONSTRAINTS ALL IMMEDIATE; see docs/evidence/2026-10-29-t503-auto-gate.md.
+  No further candidate/tuning is authorized; require a sound after-all-deferred boundary before redesign.
   Terminal follow-on also FAIL / UNPROVEN: mandatory finalization absent, nested/deferred back-edges observed;
   see `docs/evidence/2026-10-29-t503-terminal-gate.md`. Stop; no further redesign without coordinator direction.
   Coordinator technical redesign decision (ADR-361/Q-330) precedes further implementation. Measured evidence:

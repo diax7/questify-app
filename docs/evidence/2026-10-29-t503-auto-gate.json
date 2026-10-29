@@ -1,0 +1,291 @@
+{
+  "date": "2026-10-29",
+  "baseCommit": "f71622510943d483c0ee27ab7b839623448059bd",
+  "status": "FAIL / STOP: automatic deferred callback does not drain queued business before E",
+  "candidate": "ONE mandatory transaction-level dirty marker / deferred callback; no alternative or tuning loop",
+  "authorization": "LOCAL TEST ONLY; no production doors, migrations or adapters changed; ADR-361 not accepted, T-503 not ticked",
+  "requirementsUnchanged": {
+    "hardMeanHoldMs": "<3",
+    "targetMeanHoldMs": "<=1.5",
+    "sustainedCompletionsPerMinute": 20000,
+    "propagationSeconds": 5
+  },
+  "setup": {
+    "version": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "fsync": "on",
+    "synchronous_commit": "on",
+    "full_page_writes": "on"
+  },
+  "fixture": {
+    "membersPerEvent": 50000,
+    "events": 2,
+    "initialScores": "Synthetic bulk scores, not earned ledger histories; nine leaders receive an extra 10000000 before baseline so boundary members keep crossing on every alternate paid completion",
+    "baseline": "Original unwrapped complete_quest / current record_completion / real ledger and COMMIT; install probe only afterwards",
+    "candidate": "Private schema, incremental eligible projection; original source bodies retained behind test-only guarded wrappers",
+    "optIn": "T503_AUTO_GATE=1 and TEST_DATABASE_URL",
+    "dependenciesAdded": 0
+  },
+  "validation": {
+    "actualCandidateRun": {
+      "passed": 2,
+      "failed": 1,
+      "registered": 11,
+      "notExecutedAfterFailure": 8,
+      "durationSeconds": 164.89,
+      "command": "npx vitest run apps/api/test/db/t503-auto-gate.int.test.ts --bail=1",
+      "failure": "Real COMMIT rejects queued deferred business with business entry after finalization",
+      "logSha256": "08d84eb9c96386b4cce50200b2c91b76e3ec19e6ca636488faec907802ece024"
+    },
+    "apiTypes": "PASS",
+    "targetedLint": "PASS",
+    "targetedFormat": "PASS",
+    "functionLimits": {
+      "existing": 318,
+      "new": 0
+    },
+    "optOut": {
+      "skipped": 11,
+      "durationSeconds": 0.531
+    },
+    "fullVitest": "NOT RUN (explicit scope)",
+    "securityFullSuite": "NOT REPEATED (prior 517 green; production unchanged)",
+    "mutation": "NOT RUN",
+    "ciMinutes": 0
+  },
+  "observed": {
+    "omittedPublisher": {
+      "status": "PASS",
+      "before": {
+        "completions": 72,
+        "ledger": 72,
+        "revision": 0,
+        "facts": 0
+      },
+      "after": {
+        "completions": 73,
+        "ledger": 73,
+        "revision": 1,
+        "facts": 0
+      }
+    },
+    "incrementalEligibility": "PASS: changed-row remove/reinsert; other eligibility writer inventory UNPROVEN",
+    "deferredDrain": {
+      "status": "FAIL",
+      "realCommitError": "business entry after finalization",
+      "meaning": "The automatic callback took E before already queued deferred business; guarding the late callback aborts an otherwise valid real completion"
+    },
+    "minimalSessionLocalReproduction": {
+      "notices": [
+        "automatic callback: before SET CONSTRAINTS ALL IMMEDIATE",
+        "automatic callback: after SET CONSTRAINTS ALL IMMEDIATE",
+        "automatic callback: E acquired",
+        "business callback phase: finalizing"
+      ],
+      "failure": {
+        "code": "42501",
+        "message": "business entry after finalization",
+        "where": "PL/pgSQL function pg_temp_49.business_callback() line 5 at RAISE"
+      },
+      "rollback": {
+        "pending": 0,
+        "business": 0,
+        "released": true
+      }
+    }
+  },
+  "originalBaselineRuns": [
+    {
+      "repetition": 1,
+      "crosses": false,
+      "delta": {
+        "completions": 36,
+        "ledger": 36,
+        "revision": 0,
+        "facts": 0
+      },
+      "clientMs": {
+        "count": 30,
+        "mean": 15.602326666663673,
+        "p50": 15.241099999984726,
+        "p95": 18.10999999998603,
+        "p99": 18.3067999999912,
+        "max": 18.3067999999912
+      },
+      "eventFenceBounds": null,
+      "eventFenceExplanation": "No candidate E exists in the original baseline; zero values in raw runner output are not measured hold bounds",
+      "transactionsIncludingWarmup": 36,
+      "warmTransactions": 30
+    },
+    {
+      "repetition": 1,
+      "crosses": true,
+      "delta": {
+        "completions": 36,
+        "ledger": 36,
+        "revision": 0,
+        "facts": 0
+      },
+      "clientMs": {
+        "count": 30,
+        "mean": 17.805506666670166,
+        "p50": 17.751900000002934,
+        "p95": 21.206000000005588,
+        "p99": 21.527000000001863,
+        "max": 21.527000000001863
+      },
+      "eventFenceBounds": null,
+      "eventFenceExplanation": "No candidate E exists in the original baseline; zero values in raw runner output are not measured hold bounds",
+      "transactionsIncludingWarmup": 36,
+      "warmTransactions": 30
+    },
+    {
+      "repetition": 2,
+      "crosses": false,
+      "delta": {
+        "completions": 36,
+        "ledger": 36,
+        "revision": 0,
+        "facts": 0
+      },
+      "clientMs": {
+        "count": 30,
+        "mean": 15.161313333337118,
+        "p50": 14.511599999997998,
+        "p95": 19.388999999995576,
+        "p99": 20.327599999989616,
+        "max": 20.327599999989616
+      },
+      "eventFenceBounds": null,
+      "eventFenceExplanation": "No candidate E exists in the original baseline; zero values in raw runner output are not measured hold bounds",
+      "transactionsIncludingWarmup": 36,
+      "warmTransactions": 30
+    },
+    {
+      "repetition": 2,
+      "crosses": true,
+      "delta": {
+        "completions": 36,
+        "ledger": 36,
+        "revision": 0,
+        "facts": 0
+      },
+      "clientMs": {
+        "count": 30,
+        "mean": 20.135760000000786,
+        "p50": 19.374700000014855,
+        "p95": 23.76370000001043,
+        "p99": 23.764100000000326,
+        "max": 23.764100000000326
+      },
+      "eventFenceBounds": null,
+      "eventFenceExplanation": "No candidate E exists in the original baseline; zero values in raw runner output are not measured hold bounds",
+      "transactionsIncludingWarmup": 36,
+      "warmTransactions": 30
+    }
+  ],
+  "baselineTotals": {
+    "committedCompletions": 144,
+    "questLedgerRows": 144,
+    "candidateFacts": 0,
+    "warmTransactions": 120,
+    "expectedBoundaryCrossingsInOriginalWorkload": 72,
+    "expectedBoundaryCrossingExplanation": "72 alternating actual completions at the rank-10 boundary; no candidate fact writer installed during baseline"
+  },
+  "automaticTiming": {
+    "status": "UNPROVEN / NOT RUN: stopped on deferred-drain invariant failure",
+    "requestedRepetitions": 2,
+    "executedRepetitions": 0,
+    "committedTimedCompletions": 0,
+    "committedTimedLedgerRows": 0,
+    "crossingFacts": 0,
+    "meanLowerMs": null,
+    "meanUpperMs": null,
+    "originalBaselineOverheadMs": null,
+    "hardMeanUnder3Ms": "UNPROVEN",
+    "targetMeanAtMost1_5Ms": "UNPROVEN",
+    "methodImplementedButNotExecuted": "BEGIN/auth outside final request; synthetic UUID-only literals in final source/COMMIT/following-server-clock single request; lower from after E acquisition to finalizer finish, conservative upper from before E acquisition to post-COMMIT server clock; verify E absent from pg_locks; same server clock and no fsync/synchronous_commit relaxation"
+  },
+  "remainingGates": {
+    "injectedRealCommitFailureFullBusinessRollback": "UNPROVEN; test not reached",
+    "exactLatestEntry1Exit2Entry3": "UNPROVEN for this candidate; test not reached",
+    "freshSnapshotAfterE": "UNPROVEN for this candidate; tests not reached",
+    "sameDifferentEnrollmentBothCommitOrders": "UNPROVEN; tests not reached",
+    "nestedRecordCompletionBeforeRowLock": "UNPROVEN; test not reached",
+    "rearmedDeferredBeforeRowLock": "UNPROVEN; test not reached",
+    "sortedMultiEventFinalization": "UNPROVEN; test not reached",
+    "globalResetBothOrders": "UNPROVEN; test not reached",
+    "allWriterInventory": "UNPROVEN",
+    "productionLifecycle": "UNPROVEN",
+    "canonicalOwnRank": "UNPROVEN",
+    "steadyLoadThroughputBacklogPropagation": "UNPROVEN",
+    "productionDeployment": "NOT AUTHORIZED"
+  },
+  "priorEvidence": [
+    {
+      "path": "docs/evidence/2026-10-29-t503-early-gate.md",
+      "sha256": "a11e80d7ecf3526e04d7c973cec0d671e6b3f9c87b547adc8b7653d139410065",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-29-t503-early-gate.json",
+      "sha256": "cf4708f0ee36ff80738e0cadddb36f9307d700ef6c3cc134a5a1e66606b8f0da",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-29-t503-terminal-gate.md",
+      "sha256": "ddd52cb596f41920f422573b0440a96808952bd6c9105c547ebd1e872d199584",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence/2026-10-29-t503-terminal-gate.json",
+      "sha256": "bee7fa0cef72a706b728cf300e46dee5a56c8b2a109b4daae8e0e75a259efc0b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/test/support/t503-rank-probe.sql",
+      "sha256": "7716ea0bd017931acbd8fd0f9ab7b8969e0ce673fa618b1eecacae55eec663da",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/test/db/t503-rank-gate.int.test.ts",
+      "sha256": "e23553445d99a322f19d0da8aa675fbba36badf75f183954c7fa864df4333d47",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/test/support/t503-terminal-probe.sql",
+      "sha256": "6487d1b15bc8999210f11c9e067bd9b7f88ffd8c9a78a7aed64f858541729b27",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/test/support/t503-terminal-fixture.ts",
+      "sha256": "fa0cf9d29dc40a894eb5621f2665110434f0e6cb42a3d1c1e06d34ad86bdb4e9",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/test/db/t503-terminal-gate.int.test.ts",
+      "sha256": "ee595680f2b4cde8310c663110b54b1780ae0a548a15fe6ff3978a4cd935d854",
+      "unchanged": true
+    }
+  ],
+  "harnessDebugging": [
+    {
+      "log": "t503-auto-initial.log",
+      "sha256": "bb1905f32f45a48d7432d46d2326463e84111f448dc2e7a7e1efd0b756f6d41c",
+      "failure": "Bulk fixture preload called per-row ranking_eligible over 100000 enrollments and exceeded statement timeout",
+      "resolution": "Use existing canonical set-based ranked_enrollments for INITIAL fixture preload only; retain incremental per-changed-row ranking_eligible during actual completions",
+      "candidateInvariantOrTimingResults": 0
+    },
+    {
+      "log": "t503-auto-candidate.log",
+      "sha256": "dd2c3a998c4cac8696895f78eee3099910e00a9b0fe7403a25775ddc22b42caa",
+      "failure": "Bulk fixture preload called per-row ranking_eligible over 100000 enrollments and exceeded statement timeout",
+      "resolution": "Use existing canonical set-based ranked_enrollments for INITIAL fixture preload only; retain incremental per-changed-row ranking_eligible during actual completions",
+      "candidateInvariantOrTimingResults": 0
+    }
+  ],
+  "recommendation": "Reject this single dirty-marker/SET CONSTRAINTS automatic callback candidate. Keep production stopped. Require a proven after-all-deferred-business boundary and complete pre-row-lock source closure before coordinator authorizes any further distinct experiment. Do not weaken guards, rename/requeue callbacks speculatively, restore optional publication, or accept the protocol from the two passing tests.",
+  "effort": {
+    "agentTokensApproximate": 25000,
+    "ciMinutes": 0
+  }
+}
