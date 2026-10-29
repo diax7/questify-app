@@ -5362,7 +5362,7 @@ to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.m
 
 ## ADR-361 - T-503 full-source event lock feasibility failure
 
-**Status:** Proposed technical redesign recommendation (2026-10-29; Q-330), NOT accepted by worker.
+**Status:** Investigation accepted (developer, delegated by Dhia, 2026-10-29; Q-330); replacement protocol NOT accepted.
 **Evidence:** `evidence/2026-10-29-t503-early-gate.md` and JSON. On the recorded 50,000-member local
 setup, the actual complete_quest/ledger/bonus/trigger transaction under ADR-359's shared G/exclusive E
 has warm mean E-residence LOWER bounds 14.46488 and 14.20142 ms. Actual mean hold is longer;
@@ -5377,3 +5377,11 @@ coordinator acceptance, full writer/cascade/default inventory and both-order pro
 The test-only probe does not guard all writers or implement resets/drain/claim/publication cutover.
 Never fix the failed gate with coalescing, missing crossings, relaxed eligibility or an NFR-003 waiver.
 Existing accepted product semantics, OFF transport and empty send-retry allowlist remain unchanged.
+**Coordinator direction after 9b1e76e:** the measured full-source E protocol fails; do not continue production work.
+Authorize local TEST-ONLY source profiling and a distinct terminal-fence experiment, retaining the original red probe
+and measurements. Early G remains mandatory; candidate E may be taken only after all business/legacy lock work,
+with fresh post-wait READ COMMITTED snapshots and atomic finalization/commit. This is an investigation hypothesis,
+not approval to move a lock in production or a claim of performance/correctness. Prove same-event concurrent
+crossings, rollback/late commit, lifecycle/global conflicts, deferred FK/trigger back-edges and actual fence-release
+timing. A helper-query microbenchmark cannot pass the real-source gate. Report evidence for coordinator selection;
+no new migration/adapter, email/UI, task tick, deployment, EAS or requirement/budget waiver.

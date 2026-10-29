@@ -1455,7 +1455,8 @@ Full review80 resolution map: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
 
 ## Q-330 - T-503 failed early full-source event-lock budget (2026-10-29)
 
-**Status:** Open technical redesign; coordinator decision, no Dhia action requested.
+**Status:** Open technical redesign; coordinator authorized test-only profiling/terminal-fence investigation,
+not replacement-protocol acceptance. No Dhia action requested.
 **Evidence/recommendation:** Proposed ADR-361 and `evidence/2026-10-29-t503-early-gate.md`/JSON.
 Two actual-source 50,000-member runs give mean E hold LOWER bounds 14.46488 / 14.20142 ms
 against required <3 ms (target <=1.5 ms); confirmation full mean is in [14.20142, 20.262509] ms.

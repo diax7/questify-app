@@ -54,7 +54,9 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 3. Current: T-503 plan bca5223, independent Tier A plan review 80 NO-GO, MAJOR corrections ed3866a accepted by
    coordinator (ADR-359/360, Q-328/329). Performance-first local implementation is authorized: representative full
    source/completion path and measured rank/lock gates BEFORE broad email/UI work; stop for redesign on failure.
-   Mail stays OFF; no task tick or code-review approval yet. T-221 (check the seat limit once per
+   Early gate FAILED in 9b1e76e (>14 ms E-hold lower bound vs <3 ms), production unchanged. ADR-361 authorizes
+   test-only full-source profiling/terminal-fence investigation; no replacement design accepted and no email/UI.
+   Preserve original red proof. Mail stays OFF; no task tick/code-review approval. T-221 (check the seat limit once per
    statement so the accept-all cap can go) remains a tier A follow-up when the join area is next touched.
 4. **T-408d** (Redis copy of the boards) waits for the RUNBOOK ranked-count check to pass about 30,000.
 5. Open suggestion for Dhia (he has not chosen it): pause new feature slices and prepare a "first real run": CranL

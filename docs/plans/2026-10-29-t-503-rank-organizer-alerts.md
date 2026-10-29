@@ -4,7 +4,17 @@
 Correction base main `bca5223`; T-502 application `e28a1e4`, CI 40828699004 green. The resumed queue overrides historical
 stop-after-T-502 notes. No application changes, external calls, push, deployment, EAS, mutation or next task.
 
-## Coordinator authorization — 2026-10-29 (current)
+## Current gate override — 2026-10-29
+
+The real-source probe 9b1e76e FAILED (<3 ms required; >14 ms mean lower bound). Production implementation is STOPPED.
+ADR-361 authorizes TEST-ONLY profiling plus a distinct short terminal-fence candidate, not a production protocol
+change. Preserve the original red fixture/evidence. Keep G before business locks; investigate terminal E only after
+all legacy locks, with fresh post-wait snapshots, ordered atomic facts and no deferred FK/trigger back-edge.
+Measured full-source fence/COMMIT residence and deterministic conflicting commits/reset/rollback proofs must precede
+coordinator selection. Do not start email/UI or hide unproved source inventory. All product/load gates stand.
+This gate override supersedes the earlier build authorization until a measured replacement is explicitly accepted.
+
+## Coordinator authorization — 2026-10-29 (prior to failed gate)
 
 After independent Tier A plan review 80 NO-GO and MAJOR corrections ed3866a, coordinator inspected the publication
 and token boundaries, source/lock matrix and NFR-003. ADR-359/360 are Accepted design; Q-328/329 resolved design.

@@ -1881,6 +1881,14 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   CI minutes 0 (local only); rough effort 45k agent tokens /30 minutes, estimates not billing. Coordinator decides
   the technical redesign; no new independent review requested until code is ready.
 
+- 2026-10-29 **T-503 failed gate: coordinator investigation direction.** Inspected 9b1e76e evidence and probe.
+  Reject full-source E duration as infeasible; production remains unchanged. ADR-361 accepts investigation ONLY:
+  profile the full real completion chain and test a distinct terminal E fence after legacy lock work, preserving G
+  before business work, exact committed crossings and fresh post-wait snapshots. Original red fixture/evidence stays.
+  Require deterministic concurrent/late-commit/reset/rollback and deferred-FK/back-edge proofs, real fence-release
+  measurements and full-source overhead. No terminal protocol acceptance, production migration/adapter, email/UI,
+  task tick, push, deploy, EAS, mutation or requirement waiver. Q-330 remains Open. Investigation is the next work.
+
 ## Next
 
 - **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
