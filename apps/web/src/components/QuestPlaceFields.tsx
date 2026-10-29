@@ -3,7 +3,8 @@ import { NumberField } from "#src/components/NumberField.tsx";
 import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import type { QuestDraft } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { FieldGroup } from "#src/ui/Field.tsx";
 
 /**
  * A spot quest's place (T-303b): a pin typed as two numbers and a radius in metres. Optional on a scan or challenge
@@ -27,12 +28,9 @@ export function QuestPlaceFields({
   const pinBad = !pinIsValid(draft.placeLat, draft.placeLng);
   const radiusBad = typed && !isRadius(draft.placeRadius, PLACE_RADIUS.min, PLACE_RADIUS.max);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("quests.place.title")}</legend>
-      <p className={styles.muted}>
-        {t(required ? "quests.place.helpLocation" : "quests.place.help")}
-      </p>
-      <div className={styles.row}>
+    <FieldGroup legend={t("quests.place.title")} layout="choices">
+      <Muted>{t(required ? "quests.place.helpLocation" : "quests.place.help")}</Muted>
+      <FieldGroup layout="columns">
         <NumberField
           label={t("quests.place.lat")}
           decimal
@@ -56,7 +54,7 @@ export function QuestPlaceFields({
           invalid={radiusBad}
           change={(placeRadius) => change({ placeRadius })}
         />
-      </div>
-    </fieldset>
+      </FieldGroup>
+    </FieldGroup>
   );
 }

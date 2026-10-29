@@ -21,7 +21,10 @@ import {
   toggleWeekday,
   type StreakDraft,
 } from "#src/lib/streak.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input } from "#src/ui/Field.tsx";
+import { Row, Rows, Section, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -59,14 +62,14 @@ function PreviewLine({
   const t = useTranslator(language);
   const preview = previewOf(draft);
   return (
-    <p className={styles.muted}>
+    <Muted>
       {preview.key === "events.streak.preview.bonus"
         ? t(preview.key, {
             points: preview.points,
             currency: termFor(terms.currency, language, preview.points),
           })
         : t(preview.key)}
-    </p>
+    </Muted>
   );
 }
 
@@ -96,35 +99,36 @@ function ClosedDates({
     }
   };
   return (
-    <div className={styles.choices}>
-      <p>{t("events.streak.closedDays")}</p>
+    <FieldGroup legend={t("events.streak.closedDays")} help={t("events.streak.datesHint")}>
       {draft.closedDays.length === 0 ? null : (
-        <ul className={styles.list}>
+        <Rows>
           {draft.closedDays.map((day) => (
-            <li key={day} className={styles.row}>
-              <span dir="ltr">
-                {hasStarted(day, today)
-                  ? t("events.streak.dayStarted", { day: isolatedDay(day) })
-                  : day}
-              </span>
+            <Row
+              key={day}
+              main={
+                <span dir="ltr">
+                  {hasStarted(day, today)
+                    ? t("events.streak.dayStarted", { day: isolatedDay(day) })
+                    : day}
+                </span>
+              }
+            >
               {hasStarted(day, today) ? null : (
-                <button
-                  type="button"
-                  className={styles.quiet}
+                <Button
+                  variant="quiet"
+
                   disabled={busy}
                   onClick={() => change(removeClosedDay(draft, day))}
                 >
                   {t("events.streak.removeDate", { day: isolatedDay(day) })}
-                </button>
+                </Button>
               )}
-            </li>
+            </Row>
           ))}
-        </ul>
+        </Rows>
       )}
-      <label className={styles.field}>
-        <span>{t("events.streak.dateField")}</span>
-        <input
-          className={styles.input}
+      <Field label={t("events.streak.dateField")}>
+        <Input
           type="date"
           dir="ltr"
           min={dayAfter(today)}
@@ -136,24 +140,18 @@ function ClosedDates({
             setInvalid(false);
           }}
         />
-      </label>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy || picked === ""}
-          onClick={add}
-        >
+      </Field>
+      <Toolbar>
+        <Button variant="secondary" disabled={busy || picked === ""} onClick={add}>
           {t("events.streak.addDate")}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
       {invalid ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("events.streak.dateInvalid")}
-        </p>
+        </Notice>
       ) : null}
-      <p className={styles.muted}>{t("events.streak.datesHint")}</p>
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -170,20 +168,18 @@ function ReadOnly({
     .join(separator);
   return (
     <>
-      <p className={styles.muted}>
-        {t(settings.enabled ? "events.streak.on" : "events.streak.off")}
-      </p>
+      <Muted>{t(settings.enabled ? "events.streak.on" : "events.streak.off")}</Muted>
       <PreviewLine language={language} draft={draftOf(settings)} terms={terms} />
       {weekdays === "" ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t("events.streak.weekdays")}: {weekdays}
-        </p>
+        </Muted>
       )}
       {settings.closedDays.length === 0 ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t("events.streak.closedDays")}:{" "}
           <span dir="ltr">{settings.closedDays.join(separator)}</span>
-        </p>
+        </Muted>
       )}
     </>
   );
@@ -303,16 +299,13 @@ function OwnerForm({
   const t = useTranslator(language);
   const { draft, settings } = loaded;
   return (
-    <form className={styles.form} onSubmit={(event) => void panel.save(event)}>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.enabled}
-          disabled={panel.busy}
-          onChange={(changed) => panel.edit({ ...draft, enabled: changed.target.checked })}
-        />
-        <span>{t("events.streak.label")}</span>
-      </label>
+    <Form onSubmit={(event) => void panel.save(event)}>
+      <Checkbox
+        label={t("events.streak.label")}
+        checked={draft.enabled}
+        disabled={panel.busy}
+        onChange={(changed) => panel.edit({ ...draft, enabled: changed.target.checked })}
+      />
       <NumberField
         label={t("events.streak.bonus", { currency: termFor(terms.currency, language) })}
         value={draft.bonus}
@@ -323,22 +316,22 @@ function OwnerForm({
           panel.edit({ ...draft, bonus });
         }}
       />
-      <p className={styles.muted}>{t("events.streak.bonusHint")}</p>
-      <fieldset className={styles.choices}>
-        <legend>{t("events.streak.weekdays")}</legend>
+      <Muted>{t("events.streak.bonusHint")}</Muted>
+      <FieldGroup
+        legend={t("events.streak.weekdays")}
+        help={t("events.streak.weekdaysHint")}
+        layout="choiceGrid"
+      >
         {WEEKDAYS.map(({ day, label }) => (
-          <label key={day} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={draft.closedWeekdays.includes(day)}
-              disabled={panel.busy}
-              onChange={() => panel.edit(toggleWeekday(draft, day))}
-            />
-            <span>{t(label)}</span>
-          </label>
+          <Checkbox
+            key={day}
+            label={t(label)}
+            checked={draft.closedWeekdays.includes(day)}
+            disabled={panel.busy}
+            onChange={() => panel.edit(toggleWeekday(draft, day))}
+          />
         ))}
-        <p className={styles.muted}>{t("events.streak.weekdaysHint")}</p>
-      </fieldset>
+      </FieldGroup>
       <ClosedDates
         language={language}
         draft={draft}
@@ -347,10 +340,10 @@ function OwnerForm({
         change={panel.edit}
       />
       <PreviewLine language={language} draft={draft} terms={terms} />
-      <button type="submit" className={styles.button} disabled={panel.busy}>
+      <Button variant="primary" type="submit" disabled={panel.busy}>
         {t("events.streak.save")}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 
@@ -369,24 +362,24 @@ function PanelBody({
   const t = useTranslator(language);
   const { loaded } = panel;
   if (loaded === "loading") {
-    return <p className={styles.muted}>{t("common.loading")}</p>;
+    return <Muted>{t("common.loading")}</Muted>;
   }
   if (loaded === "failed") {
     return (
       <>
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("events.streak.failed")}
-        </p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} onClick={() => void panel.load()}>
+        </Notice>
+        <Toolbar>
+          <Button variant="quiet" onClick={() => void panel.load()}>
             {t("common.retry")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       </>
     );
   }
   const body = !loaded.settings.multiDay ? (
-    <p className={styles.muted}>{t("events.streak.singleDay")}</p>
+    <Muted>{t("events.streak.singleDay")}</Muted>
   ) : myRole === "owner" ? (
     <OwnerForm language={language} loaded={loaded} panel={panel} terms={terms} />
   ) : (
@@ -394,13 +387,13 @@ function PanelBody({
   );
   return (
     <>
-      <p className={styles.muted}>{t("events.streak.intro")}</p>
+      <Muted>{t("events.streak.intro")}</Muted>
       {body}
-      {myRole === "owner" ? null : <p className={styles.muted}>{t("events.ranking.ownerOnly")}</p>}
+      {myRole === "owner" ? null : <Muted>{t("events.ranking.ownerOnly")}</Muted>}
       {panel.saved ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("events.streak.saved")}
-        </p>
+        </Notice>
       ) : null}
     </>
   );
@@ -415,16 +408,13 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
   const t = useTranslator(language);
   const panel = useStreakPanel(language, organizerId, eventId);
   return (
-    <section className={styles.formCard} aria-labelledby="streak-title">
-      <h2 id="streak-title" className={styles.subtitle}>
-        {t("events.streak.title")}
-      </h2>
+    <Section titleId="streak-title" title={t("events.streak.title")}>
       <PanelBody language={language} myRole={myRole} terms={terms} panel={panel} />
       {panel.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {panel.problem}
-        </p>
+        </Notice>
       )}
-    </section>
+    </Section>
   );
 }

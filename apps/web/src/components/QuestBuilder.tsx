@@ -28,7 +28,11 @@ import {
   type QuestDraft,
   type QuestView,
 } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button, ButtonLink } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Form } from "#src/ui/Field.tsx";
+import { Card, Stack } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 /** The quest form while it is open, with its own Idempotency-Key for as long as this draft lives. */
 type Editing = Readonly<{ quest?: QuestView; initial: QuestDraft; key: string }>;
@@ -248,29 +252,27 @@ export function QuestBuilder({
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="builder-title">
-      <a
-        className={styles.textLink}
-        href={`/${language}/organizers/${organizerId}/events/${eventId}`}
-      >
-        {b.event?.name ?? t("events.all")}
-      </a>
-      <h1 id="builder-title" tabIndex={-1} className={styles.title}>
-        {t("quests.title")}
-      </h1>
-      <a className={styles.textLink} href={codesPage}>
-        {t("codes.title")}
-      </a>
+    <Stack as="section" aria-labelledby="builder-title">
+      <PageHeader
+        back={{
+          href: `/${language}/organizers/${organizerId}/events/${eventId}`,
+          label: b.event?.name ?? t("events.all"),
+        }}
+        titleId="builder-title"
+        focusable
+        title={t("quests.title")}
+        actions={<ButtonLink href={codesPage}>{t("codes.title")}</ButtonLink>}
+      />
       {live ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("quests.liveBanner")}
-        </p>
+        </Notice>
       ) : null}
-      {closed ? <p className={styles.muted}>{t("quests.closedNote")}</p> : null}
+      {closed ? <Muted>{t("quests.closedNote")}</Muted> : null}
       {b.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {b.problem}
-        </p>
+        </Notice>
       )}
       {b.pending === null ? null : (
         <LiveDialog
@@ -364,7 +366,7 @@ export function QuestBuilder({
       )}
       {b.categories === null ? (
         b.problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : (
         categories.map((category, index) => (
@@ -387,13 +389,15 @@ export function QuestBuilder({
         ))
       )}
       {closed ? null : (
-        <form className={styles.form} onSubmit={addCategory}>
-          <CategoryNameFields language={language} busy={b.busy} />
-          <button type="submit" className={styles.button} disabled={b.busy}>
-            {t("quests.addCategory")}
-          </button>
-        </form>
+        <Card>
+          <Form onSubmit={addCategory}>
+            <CategoryNameFields language={language} busy={b.busy} />
+            <Button variant="secondary" type="submit" disabled={b.busy}>
+              {t("quests.addCategory")}
+            </Button>
+          </Form>
+        </Card>
       )}
-    </section>
+    </Stack>
   );
 }

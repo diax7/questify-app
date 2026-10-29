@@ -1,0 +1,408 @@
+/* Page structure primitives (ADR-364): header, section, card, toolbar, badge, tabs, dialog, notice, empty, table. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  min-inline-size: 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md) var(--space-xl);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-inline-size: min(100%, 18rem);
+  flex: 1 1 18rem;
+}
+
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 32px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.back::before {
+  content: "←";
+  margin-inline-end: var(--space-xs);
+  text-decoration: none;
+  display: inline-block;
+}
+
+[dir="rtl"] .back::before {
+  content: "→";
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.title:focus {
+  outline: none;
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-inline-size: var(--reading-max);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  color: var(--color-text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  min-inline-size: 0;
+}
+
+.sectionDanger {
+  border-color: var(--color-hot);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+.sectionText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.sectionTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.subTitle {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-sm);
+  min-inline-size: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* Spacing inside a box comes from its gap, not from paragraph margins. */
+.stack p,
+.card p,
+.section p,
+.dialog p {
+  margin-block: 0;
+}
+
+/* A lone button or link in a column keeps its own width. */
+.stack > :is(button, a, .badge),
+.card > :is(button, a, .badge),
+.section > :is(button, a, .badge),
+.rowMain > .badge {
+  align-self: flex-start;
+}
+
+/* Rows separated by lines inside a section (settings, members). */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rows > * + * {
+  border-block-start: var(--line);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+  padding-block: var(--space-md);
+  min-inline-size: 0;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.toolbarEnd {
+  justify-content: flex-end;
+}
+
+.toolbarBetween {
+  justify-content: space-between;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding-block: 2px;
+  padding-inline: var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  border-radius: var(--radius-pill);
+  border: var(--line);
+  background: var(--color-background);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.badgeSuccess {
+  background: color-mix(in srgb, var(--color-primary-action) 22%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary-action) 60%, var(--color-border));
+}
+
+.badgeWarning {
+  background: color-mix(in srgb, var(--color-navigation-active) 35%, var(--color-surface));
+  border-color: var(--color-highlight);
+}
+
+.badgeDanger {
+  background: var(--color-danger-surface);
+  border-color: var(--color-hot);
+}
+
+.badgeInfo {
+  background: color-mix(in srgb, var(--color-secondary-action) 15%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-secondary-action) 50%, var(--color-border));
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-xs);
+  overflow-x: auto;
+  border-block-end: var(--line);
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-md);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-block-end: 3px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-current="page"],
+.tab[aria-pressed="true"] {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+  border-block-end-color: var(--color-highlight);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-sm);
+  border: var(--line);
+  border-inline-start-width: 4px;
+  background: var(--color-surface);
+}
+
+.noticeInfo {
+  border-inline-start-color: var(--color-secondary-action);
+}
+
+.noticeSuccess {
+  border-inline-start-color: var(--color-primary-action);
+}
+
+.noticeWarning {
+  border-inline-start-color: var(--color-highlight);
+}
+
+.noticeDanger {
+  background: var(--color-danger-surface);
+  border-color: var(--color-hot);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: var(--scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  inline-size: min(100%, 34rem);
+  max-block-size: calc(100dvh - 2 * var(--space-lg));
+  overflow-y: auto;
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.tableBox {
+  overflow-x: auto;
+  border: var(--line);
+  border-radius: var(--radius-sm);
+  max-inline-size: 100%;
+}
+
+.tableBox:focus-visible {
+  outline: 3px solid var(--color-focus);
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-md);
+}
+
+.table th,
+.table td {
+  padding-block: var(--space-sm);
+  padding-inline: var(--space-md);
+  text-align: start;
+  border-block-end: var(--line);
+  vertical-align: top;
+}
+
+.table th {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+  background: var(--color-background);
+  white-space: nowrap;
+}
+
+.table tr:last-child td {
+  border-block-end: none;
+}
+
+.link {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-block-size: 24px;
+}
+
+.linkStrong {
+  font-weight: var(--weight-strong);
+  font-size: var(--text-lg);
+}
+
+/* Text for screen readers only. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .section {
+    padding: var(--space-lg);
+  }
+
+  .dialog {
+    padding: var(--space-lg);
+  }
+}

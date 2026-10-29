@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 const API = "http://127.0.0.1:4100";
 
@@ -38,6 +39,7 @@ test("the owner answers a player's question, and a second answer is refused", as
 
   await page.goto(event);
   await expect(page.getByLabel("تشغيل المساعدة في الفعالية")).toBeChecked();
+  await openMenu(page);
   await page.getByRole("link", { name: "المساعدة (1)" }).click();
   await expect(page.getByRole("heading", { name: "المساعدة", level: 2 })).toBeVisible();
   await expect(page.getByRole("tab", { name: "مفتوحة (1)" })).toHaveAttribute(

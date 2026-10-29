@@ -1,0 +1,251 @@
+/*
+ * The page shell (ADR-364). Phone first: a top bar with a menu button; the navigation opens as a sheet under it.
+ * From 64rem the navigation is a column on the start side and the menu button goes away.
+ */
+.shell {
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.skip {
+  position: absolute;
+  inset-inline-start: var(--space-md);
+  inset-block-start: -100px;
+  z-index: 100;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+}
+
+.skip:focus {
+  inset-block-start: var(--space-sm);
+}
+
+.top {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-block-size: var(--header-height);
+  padding-inline: var(--space-lg);
+  background: var(--color-navigation-bar);
+  color: var(--color-surface);
+}
+
+.brand {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: var(--text-lg);
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
+}
+
+.topEnd {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Links and buttons on the dark bar. */
+.topEnd a,
+.topEnd button,
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 40px;
+  padding-inline: var(--space-sm);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  color: var(--color-surface);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topEnd a:hover,
+.topEnd button:hover,
+.menuButton:hover {
+  border-color: color-mix(in srgb, var(--color-surface) 45%, transparent);
+}
+
+.topEnd :focus-visible,
+.menuButton:focus-visible {
+  outline-color: var(--color-navigation-active);
+}
+
+.menuButton {
+  gap: var(--space-xs);
+  border-color: color-mix(in srgb, var(--color-surface) 45%, transparent);
+}
+
+.desktopOnly {
+  display: none;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-inline-size: 0;
+}
+
+.side {
+  display: none;
+}
+
+.sideOpen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  position: fixed;
+  inset-inline: 0;
+  inset-block: var(--header-height) 0;
+  z-index: 20;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  background: var(--color-surface);
+}
+
+.phoneOnly {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-block-start: var(--space-md);
+  border-block-start: var(--line);
+}
+
+.main {
+  flex: 1;
+  min-inline-size: 0;
+  padding-block: var(--space-xl) calc(var(--space-xxl) * 2);
+  padding-inline: var(--space-lg);
+}
+
+.content {
+  max-inline-size: var(--content-max);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.narrow {
+  max-inline-size: 28rem;
+}
+
+/* Navigation groups and items. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupLabel {
+  margin: 0 0 var(--space-xs);
+  padding-inline: var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+  overflow-wrap: break-word;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  min-block-size: 40px;
+  padding-inline: var(--space-md);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: var(--weight-medium);
+  border-inline-start: 3px solid transparent;
+}
+
+.item:hover {
+  background: var(--color-background);
+}
+
+.item[aria-current="page"] {
+  background: color-mix(in srgb, var(--color-navigation-active) 30%, var(--color-surface));
+  border-inline-start-color: var(--color-highlight);
+  font-weight: var(--weight-strong);
+}
+
+.phoneOnly .item,
+.phoneOnly button {
+  font: inherit;
+  font-weight: var(--weight-medium);
+  min-block-size: 40px;
+  padding-inline: var(--space-md);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  text-align: start;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+@media (min-width: 64rem) {
+  .menuButton,
+  .phoneOnly {
+    display: none;
+  }
+
+  .desktopOnly {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .side,
+  .sideOpen {
+    position: sticky;
+    inset-block-start: var(--header-height);
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    flex: none;
+    inline-size: var(--sidebar-width);
+    block-size: calc(100dvh - var(--header-height));
+    overflow-y: auto;
+    padding: var(--space-lg) var(--space-md);
+    background: var(--color-surface);
+    border-inline-end: var(--line);
+  }
+
+  .accountOnly {
+    display: none;
+  }
+
+  .main {
+    padding-inline: var(--space-xxl);
+  }
+}
+
+/* A printed page (QR codes) is the content alone. */
+@media print {
+  .top,
+  .side,
+  .sideOpen,
+  .skip {
+    display: none;
+  }
+
+  .main {
+    padding: 0;
+  }
+}

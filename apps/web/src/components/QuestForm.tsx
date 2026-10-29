@@ -28,7 +28,10 @@ import {
   type CategoryView,
   type QuestDraft,
 } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -91,25 +94,23 @@ export function QuestForm({
     long = false,
   ) => {
     const props = {
-      className: styles.input,
       dir: key.endsWith("Ar") ? "rtl" : "ltr",
       maxLength: max,
       value: draft[key],
       disabled: busy,
     } as const;
     return (
-      <label className={styles.field}>
-        {t(`quests.field.${key}`)}
+      <Field label={t(`quests.field.${key}`)}>
         {long ? (
-          <textarea
+          <Textarea
             {...props}
             rows={3}
             onChange={(event) => change({ [key]: event.target.value })}
           />
         ) : (
-          <input {...props} onChange={(event) => change({ [key]: event.target.value })} />
+          <Input {...props} onChange={(event) => change({ [key]: event.target.value })} />
         )}
-      </label>
+      </Field>
     );
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -117,136 +118,132 @@ export function QuestForm({
     save(draft);
   };
   return (
-    <form className={styles.form} onSubmit={submit} aria-labelledby="quest-form-title">
-      <h2 id="quest-form-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {isNew ? t("quests.formNew") : t("quests.formEdit")}
-      </h2>
-      <label className={styles.field}>
-        {t("quests.field.type")}
-        <select
-          className={styles.input}
-          value={draft.type}
-          disabled={busy || !isNew}
-          onChange={(event) =>
-            change({
-              type: event.target.value as QuestDraft["type"],
-              config: startingConfig(event.target.value as QuestDraft["type"]),
-              // A meet quest starts able to pay its default daily cap (ADR-210).
-              ...(event.target.value === "meet" ? { repeatCap: 10 } : {}),
-              verification:
-                parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
-            })
-          }
-        >
-          {QUEST_TYPE_NAMES.filter(
-            (type) => type !== "location" || locationQuestsOn || draft.type === "location",
-          ).map((type) => (
-            <option key={type} value={type}>
-              {t(QUEST_TYPES[type].label)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {isNew ? null : <p className={styles.muted}>{t("quests.field.typeFixed")}</p>}
-      <label className={styles.field}>
-        {t("quests.field.category")}
-        <select
-          className={styles.input}
-          value={draft.categoryId}
-          disabled={busy}
-          onChange={(event) => change({ categoryId: event.target.value })}
-        >
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {textFor(category.name, language)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {text("titleAr", 120)}
-      {text("titleEn", 120)}
-      {text("descriptionAr", 2000, true)}
-      {text("descriptionEn", 2000, true)}
-      <label className={styles.field}>
-        {t("quests.field.points", { currency: termFor(terms.currency, language) })}
-        <input
-          className={styles.input}
-          type="number"
-          dir="ltr"
-          min={0}
-          max={100000}
-          required
-          value={draft.points}
-          disabled={busy}
-          onChange={(event) => {
-            if (event.target.value !== "") {
-              change({ points: Number(event.target.value) });
+    <Card>
+      <Form onSubmit={submit} aria-labelledby="quest-form-title">
+        <SubHeading as="h2" id="quest-form-title" ref={heading} tabIndex={-1}>
+          {isNew ? t("quests.formNew") : t("quests.formEdit")}
+        </SubHeading>
+        <Field label={t("quests.field.type")}>
+          <Select
+            value={draft.type}
+            disabled={busy || !isNew}
+            onChange={(event) =>
+              change({
+                type: event.target.value as QuestDraft["type"],
+                config: startingConfig(event.target.value as QuestDraft["type"]),
+                // A meet quest starts able to pay its default daily cap (ADR-210).
+                ...(event.target.value === "meet" ? { repeatCap: 10 } : {}),
+                verification:
+                  parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
+              })
             }
-          }}
-        />
-      </label>
-      <ItemPicker
-        language={language}
-        items={items}
-        hint="questItems.pickerQuest"
-        busy={busy}
-        value={draft.itemId}
-        change={(itemId) => change({ itemId })}
-      />
-      {QUEST_TYPES[draft.type].oneTry ? null : (
-        <QuestRepeatField
+          >
+            {QUEST_TYPE_NAMES.filter(
+              (type) => type !== "location" || locationQuestsOn || draft.type === "location",
+            ).map((type) => (
+              <option key={type} value={type}>
+                {t(QUEST_TYPES[type].label)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {isNew ? null : <Muted>{t("quests.field.typeFixed")}</Muted>}
+        <Field label={t("quests.field.category")}>
+          <Select
+            value={draft.categoryId}
+            disabled={busy}
+            onChange={(event) => change({ categoryId: event.target.value })}
+          >
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {textFor(category.name, language)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {text("titleAr", 120)}
+        {text("titleEn", 120)}
+        {text("descriptionAr", 2000, true)}
+        {text("descriptionEn", 2000, true)}
+        <Field label={t("quests.field.points", { currency: termFor(terms.currency, language) })}>
+          <Input
+            type="number"
+            dir="ltr"
+            min={0}
+            max={100000}
+            required
+            value={draft.points}
+            disabled={busy}
+            onChange={(event) => {
+              if (event.target.value !== "") {
+                change({ points: Number(event.target.value) });
+              }
+            }}
+          />
+        </Field>
+        <ItemPicker
           language={language}
-          player={terms.player[language].one}
+          items={items}
+          hint="questItems.pickerQuest"
+          busy={busy}
+          value={draft.itemId}
+          change={(itemId) => change({ itemId })}
+        />
+        {QUEST_TYPES[draft.type].oneTry ? null : (
+          <QuestRepeatField
+            language={language}
+            player={terms.player[language].one}
+            draft={draft}
+            busy={busy}
+            change={change}
+          />
+        )}
+        <FirstBonusFields
+          language={language}
+          terms={terms}
           draft={draft}
           busy={busy}
           change={change}
+          save={save}
         />
-      )}
-      <FirstBonusFields
-        language={language}
-        terms={terms}
-        draft={draft}
-        busy={busy}
-        change={change}
-        save={save}
-      />
-      {isLivePoll(draft.type, draft.config) ? null : (
-        <FlashField language={language} draft={draft} busy={busy} change={change} />
-      )}
-      {isLivePoll(draft.type, draft.config) || draft.flashRunning ? null : (
-        <QuestWindowFields
+        {isLivePoll(draft.type, draft.config) ? null : (
+          <FlashField language={language} draft={draft} busy={busy} change={change} />
+        )}
+        {isLivePoll(draft.type, draft.config) || draft.flashRunning ? null : (
+          <QuestWindowFields
+            language={language}
+            timeZone={timeZone}
+            draft={draft}
+            busy={busy}
+            change={change}
+          />
+        )}
+        <TypeFields
           language={language}
-          timeZone={timeZone}
-          draft={draft}
-          busy={busy}
-          change={change}
+          config={draft.config}
+          disabled={busy}
+          sent={draft.pollSent}
+          change={(config) => change({ config })}
         />
-      )}
-      <TypeFields
-        language={language}
-        config={draft.config}
-        disabled={busy}
-        sent={draft.pollSent}
-        change={(config) => change({ config })}
-      />
-      {hasPlace(draft.type) ? (
-        <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
-      ) : null}
-      <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
-      {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
-      {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
-      {nfcTags === null ? null : (
-        <NfcTagsPanel language={language} timeZone={timeZone} readOnly={busy} {...nfcTags} />
-      )}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {isNew ? t("quests.create") : t("quests.save")}
-        </button>
-      </div>
-    </form>
+        {hasPlace(draft.type) ? (
+          <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
+        ) : null}
+        <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
+        {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
+        {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
+        {nfcTags === null ? null : (
+          <NfcTagsPanel language={language} timeZone={timeZone} readOnly={busy} {...nfcTags} />
+        )}
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy}>
+            {isNew ? t("quests.create") : t("quests.save")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -271,30 +268,23 @@ function QuestWindowFields({
   return (
     <>
       {(["opensAt", "closesAt"] as const).map((key) => (
-        <label key={key} className={styles.field}>
-          {t(`quests.field.${key}`)}
-          <input
-            className={styles.input}
+        <Field key={key} label={t(`quests.field.${key}`)}>
+          <Input
             type="datetime-local"
             dir="ltr"
             value={draft[key]}
             disabled={busy}
             onChange={(event) => change({ [key]: event.target.value })}
           />
-        </label>
+        </Field>
       ))}
-      <p className={styles.muted}>
-        {t("quests.field.windowHint", { zone: zoneLabel(timeZone, language) })}
-      </p>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.visible}
-          disabled={busy}
-          onChange={(event) => change({ visible: event.target.checked })}
-        />
-        <span>{t("quests.field.visible")}</span>
-      </label>
+      <Muted>{t("quests.field.windowHint", { zone: zoneLabel(timeZone, language) })}</Muted>
+      <Checkbox
+        label={t("quests.field.visible")}
+        checked={draft.visible}
+        disabled={busy}
+        onChange={(event) => change({ visible: event.target.checked })}
+      />
     </>
   );
 }
@@ -317,23 +307,20 @@ function FlashField({
   const t = useTranslator(language);
   return (
     <>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.flash}
-          disabled={busy || draft.flashRunning}
-          onChange={(event) =>
-            change({
-              flash: event.target.checked,
-              ...(event.target.checked && (draft.opensAt === "" || draft.closesAt === "")
-                ? { visible: false }
-                : {}),
-            })
-          }
-        />
-        <span>{t("quests.field.flash")}</span>
-      </label>
-      {draft.flash ? <p className={styles.muted}>{t("quests.field.flashHint")}</p> : null}
+      <Checkbox
+        label={t("quests.field.flash")}
+        checked={draft.flash}
+        disabled={busy || draft.flashRunning}
+        onChange={(event) =>
+          change({
+            flash: event.target.checked,
+            ...(event.target.checked && (draft.opensAt === "" || draft.closesAt === "")
+              ? { visible: false }
+              : {}),
+          })
+        }
+      />
+      {draft.flash ? <Muted>{t("quests.field.flashHint")}</Muted> : null}
     </>
   );
 }
@@ -356,20 +343,15 @@ function QuestRepeatField({
   const t = useTranslator(language);
   return (
     <>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.repeatCap > 1}
-          disabled={busy}
-          onChange={(event) => change({ repeatCap: event.target.checked ? 2 : 1 })}
-        />
-        <span>{t("quests.field.repeatable")}</span>
-      </label>
+      <Checkbox
+        label={t("quests.field.repeatable")}
+        checked={draft.repeatCap > 1}
+        disabled={busy}
+        onChange={(event) => change({ repeatCap: event.target.checked ? 2 : 1 })}
+      />
       {draft.repeatCap > 1 ? (
-        <label className={styles.field}>
-          {t("quests.field.repeatCap", { player })}
-          <input
-            className={styles.input}
+        <Field label={t("quests.field.repeatCap", { player })}>
+          <Input
             type="number"
             dir="ltr"
             min={2}
@@ -383,7 +365,7 @@ function QuestRepeatField({
               }
             }}
           />
-        </label>
+        </Field>
       ) : null}
     </>
   );
@@ -438,24 +420,21 @@ function QuestVerificationField({
       }),
     });
   return (
-    <fieldset className={styles.field}>
-      <legend>{t("quests.verification")}</legend>
+    <FieldGroup legend={t("quests.verification")} layout="choices">
       {offered.map((method) => (
-        <label key={method} className={styles.check}>
-          <input
-            type="checkbox"
-            checked={draft.verification.includes(method)}
-            disabled={busy || (nfc && method === "quest_qr")}
-            onChange={(event) => toggle(method, event.target.checked)}
-          />
-          <span>{t(VERIFICATION_LABELS[method])}</span>
-        </label>
+        <Checkbox
+          key={method}
+          label={t(VERIFICATION_LABELS[method])}
+          checked={draft.verification.includes(method)}
+          disabled={busy || (nfc && method === "quest_qr")}
+          onChange={(event) => toggle(method, event.target.checked)}
+        />
       ))}
-      {nfc ? <p className={styles.muted}>{t("quests.verification.nfcHint")}</p> : null}
-      {screen ? <p className={styles.muted}>{t("quests.verification.screenQrHint")}</p> : null}
+      {nfc ? <Muted>{t("quests.verification.nfcHint")}</Muted> : null}
+      {screen ? <Muted>{t("quests.verification.screenQrHint")}</Muted> : null}
       {draft.verification.includes("kiosk") ? (
-        <p className={styles.muted}>{t("quests.verification.kioskHint")}</p>
+        <Muted>{t("quests.verification.kioskHint")}</Muted>
       ) : null}
-    </fieldset>
+    </FieldGroup>
   );
 }

@@ -1,0 +1,26 @@
+/** The class names in form.module.css, so a misspelt class fails the type check. Keep in step with the file. */
+declare const styles: {
+  readonly button: string;
+  readonly choice: string;
+  readonly choiceGrid: string;
+  readonly choiceList: string;
+  readonly choiceText: string;
+  readonly codeInput: string;
+  readonly columns: string;
+  readonly control: string;
+  readonly danger: string;
+  readonly error: string;
+  readonly field: string;
+  readonly group: string;
+  readonly help: string;
+  readonly inline: string;
+  readonly label: string;
+  readonly legend: string;
+  readonly primary: string;
+  readonly quiet: string;
+  readonly secondary: string;
+  readonly small: string;
+  readonly switch: string;
+  readonly textarea: string;
+};
+export default styles;

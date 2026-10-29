@@ -1,4 +1,4 @@
-import styles from "#src/components/layout.module.css";
+import { Field, Input } from "#src/ui/Field.tsx";
 
 /**
  * A labelled number field that hands back what was typed, so a form can check it as a whole. `decimal` allows
@@ -20,10 +20,8 @@ export function NumberField({
   disabled?: boolean;
 }>) {
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         type="number"
         inputMode={decimal ? "decimal" : "numeric"}
         {...(decimal ? { step: "any" } : {})}
@@ -33,6 +31,6 @@ export function NumberField({
         aria-invalid={invalid}
         onChange={(e) => change(e.target.value)}
       />
-    </label>
+    </Field>
   );
 }

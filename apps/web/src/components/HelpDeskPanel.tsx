@@ -386,31 +386,3 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
     </section>
   );
 }
-
-/** The event nav's link to the Help desk, with the count of open requests once it is read. */
-export function HelpDeskLink({ language, organizerId, eventId }: Props) {
-  const t = translatorFor(language);
-  const [open, setOpen] = useState<number | null>(null);
-  useEffect(() => {
-    let current = true;
-    void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}/tickets?limit=1`).then(
-      (result) => {
-        const counts = result.ok ? (result.body as Partial<TicketPage>).counts : undefined;
-        if (current && typeof counts?.open === "number") {
-          setOpen(counts.open);
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [organizerId, eventId]);
-  return (
-    <a
-      className={styles.textLink}
-      href={`/${language}/organizers/${organizerId}/events/${eventId}/help`}
-    >
-      {open === null || open === 0 ? t("tickets.link") : t("tickets.linkCount", { count: open })}
-    </a>
-  );
-}

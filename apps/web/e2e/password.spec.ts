@@ -8,6 +8,7 @@ import {
   linkFor,
   signIn,
 } from "#e2e/mail.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 const NEW_PASSWORD = "a brand new pass phrase 77";
 
@@ -88,6 +89,7 @@ test("changes the password while signed in: this browser stays, the other is sig
     await freshAddress(elsewhere);
     await signIn(elsewhere, email);
 
+    await openMenu(page);
     await page.getByRole("link", { name: "My account" }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
     await page.getByLabel("Current password", { exact: true }).fill(PASSWORD);

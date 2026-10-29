@@ -207,10 +207,6 @@
   border-radius: var(--radius-md);
 }
 
-.wrap {
-  flex-wrap: wrap;
-}
-
 .badge {
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-pill);
@@ -227,12 +223,6 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-}
-
-.passwordRow {
-  display: flex;
-  gap: var(--space-sm);
-  align-items: stretch;
 }
 
 .choices {

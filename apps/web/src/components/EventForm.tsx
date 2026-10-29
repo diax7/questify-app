@@ -2,7 +2,7 @@
 
 import { readEventTerms, type Language } from "@questify/shared";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   EventAccessFields,
   EventPlaceFields,
@@ -16,6 +16,7 @@ import {
   draftOf,
   editBodyOf,
   nameFor,
+  STATUS_TONE,
   venueIsValid,
   type EventDraft,
   type EventView,
@@ -27,9 +28,13 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
-import { EventNavLinks } from "#src/components/EventNavLinks.tsx";
 import { StreakPanel } from "#src/components/StreakPanel.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { FieldGroup, Form } from "#src/ui/Field.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 const FIELDS = new Set([
@@ -48,6 +53,8 @@ type Props = Readonly<{
   /** Absent for a new event. */
   eventId?: string;
   myRole: "owner" | "editor";
+  /** Cards shown under the event's name, before its form (activation, rehearsal). */
+  intro?: ReactNode;
 }>;
 
 /** The words for a refusal: the field to fix for `invalid_event`, the API's own message otherwise. */
@@ -79,7 +86,7 @@ function useIdempotencyKey(): (body: unknown) => string {
  * Creates or edits an event (FR-1001–1003, FR-1608, FR-1728). Times are typed as the wall clock in the event's own
  * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
  */
-export function EventForm({ language, organizerId, eventId, myRole }: Props) {
+export function EventForm({ language, organizerId, eventId, myRole, intro }: Props) {
   const t = useTranslator(language);
   const router = useRouter();
   const api = `/v1/organizers/${organizerId}/events`;
@@ -206,82 +213,181 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
   const terms = readEventTerms(event?.terms);
 
   return (
-    <section className={styles.panel} aria-labelledby="event-title">
-      <a className={styles.textLink} href={pages}>
-        {t("events.all")}
-      </a>
-      <h1 id="event-title" className={styles.title}>
-        {event === null ? t("events.new") : name}
-      </h1>
-      {event === null ? null : (
-        <EventNavLinks language={language} organizerId={organizerId} event={event} />
-      )}
+    <Stack>
+      <PageHeader
+        back={{ href: pages, label: t("events.all") }}
+        titleId="event-title"
+        title={event === null ? t("events.new") : name}
+        meta={event === null ? undefined : <EventFacts language={language} event={event} />}
+      />
+      {intro}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
       {draft === null ? (
         problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : (
-        <form className={styles.form} onSubmit={(submitted) => void submit(submitted)}>
-          <EventIdentityFields language={language} draft={draft} disabled={busy} change={change} />
-          <EventPlaceFields
-            language={language}
-            draft={draft}
-            disabled={busy}
-            change={change}
-            status={status}
-          />
-          <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
-          <EventTimeFields
-            language={language}
-            draft={draft}
-            disabled={busy}
-            change={change}
-            status={status}
-          />
-          <EventAccessFields language={language} draft={draft} disabled={busy} change={change} />
-          <button type="submit" className={styles.button} disabled={busy || askAccess}>
-            {event === null ? t("events.create") : t("events.save")}
-          </button>
-        </form>
+        <Section title={t("events.section.details")}>
+          <Form onSubmit={(submitted) => void submit(submitted)}>
+            <FieldGroup legend={t("events.section.identity")}>
+              <EventIdentityFields
+                language={language}
+                draft={draft}
+                disabled={busy}
+                change={change}
+              />
+            </FieldGroup>
+            <FieldGroup legend={t("events.section.place")}>
+              <EventPlaceFields
+                language={language}
+                draft={draft}
+                disabled={busy}
+                change={change}
+                status={status}
+              />
+              <EventVenuePinFields
+                language={language}
+                draft={draft}
+                disabled={busy}
+                change={change}
+              />
+            </FieldGroup>
+            <FieldGroup legend={t("events.section.time")}>
+              <EventTimeFields
+                language={language}
+                draft={draft}
+                disabled={busy}
+                change={change}
+                status={status}
+              />
+            </FieldGroup>
+            <FieldGroup legend={t("events.section.access")}>
+              <EventAccessFields
+                language={language}
+                draft={draft}
+                disabled={busy}
+                change={change}
+              />
+            </FieldGroup>
+            <Toolbar align="end">
+              <Button type="submit" variant="primary" disabled={busy || askAccess}>
+                {event === null ? t("events.create") : t("events.save")}
+              </Button>
+            </Toolbar>
+          </Form>
+        </Section>
       )}
       {askAccess && draft !== null ? (
-        <div role="alertdialog" aria-labelledby="access-confirm" className={styles.card}>
-          <h2 id="access-confirm" className={styles.subtitle}>
-            {t("events.accessTitle", { access: t(`events.access.${draft.access}`) })}
-          </h2>
+        <Dialog
+          titleId="access-confirm"
+          title={t("events.accessTitle", { access: t(`events.access.${draft.access}`) })}
+          busy={busy}
+          cancel={() => setAskAccess(false)}
+          actions={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setAskAccess(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button variant="primary" disabled={busy} onClick={() => void save()}>
+                {t("events.accessConfirm")}
+              </Button>
+            </>
+          }
+        >
           <p>{t(`events.accessEffect.${draft.access}`)}</p>
-          <p className={styles.muted}>{t("events.accessKeeps")}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.quiet}
-              disabled={busy}
-              onClick={() => setAskAccess(false)}
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className={styles.button}
-              disabled={busy}
-              onClick={() => void save()}
-            >
-              {t("events.accessConfirm")}
-            </button>
-          </div>
-        </div>
+          <Muted>{t("events.accessKeeps")}</Muted>
+        </Dialog>
       ) : null}
       {event === null ? null : (
+        <>
+          <EventFeatures
+            language={language}
+            organizerId={organizerId}
+            event={event}
+            myRole={myRole}
+          />
+          <StreakPanel
+            language={language}
+            organizerId={organizerId}
+            eventId={event.id}
+            myRole={myRole}
+            terms={terms}
+          />
+          <EventWords
+            language={language}
+            organizerId={organizerId}
+            eventId={event.id}
+            initial={terms}
+            saved={(saved) => {
+              setEvent((current) => (current === null ? null : { ...current, terms: saved }));
+              // The event's layout reads the words once; this reads them again for every page of the event.
+              router.refresh();
+            }}
+          />
+          <EventDangerZone
+            language={language}
+            name={name}
+            canDelete={status === "draft"}
+            canEnd={myRole === "owner" && status === "live"}
+            confirming={confirming}
+            busy={busy}
+            ask={setConfirming}
+            confirm={() => void confirm()}
+          />
+        </>
+      )}
+    </Stack>
+  );
+}
+
+/** The event's status and join code under its name; a draft says Questify activates it. */
+function EventFacts({ language, event }: Readonly<{ language: Language; event: EventView }>) {
+  const t = useTranslator(language);
+  const status = event.statusNow;
+  return (
+    <>
+      <Badge tone={STATUS_TONE[status]}>{t(`events.status.${status}`)}</Badge>
+      <span dir="ltr">{t("events.joinCode", { code: event.joinCode })}</span>
+      {status === "draft" ? <Muted as="span">{t("events.draftNote")}</Muted> : null}
+    </>
+  );
+}
+
+const FEATURE_SWITCHES = [
+  ["shareQuests", (event: EventView) => event.shareQuests],
+  ["meetSomeone", (event: EventView) => event.meetSomeone],
+  ["miniGames", (event: EventView) => event.miniGames],
+  ["community", (event: EventView) => event.community],
+  ["flashQuests", (event: EventView) => event.flashQuests !== false],
+  ["boosts", (event: EventView) => event.boosts !== false],
+  ["helpDesk", (event: EventView) => event.helpDesk !== false],
+] as const;
+
+/** The event's on/off switches in one place: the ranking and each player feature, each saved as it changes. */
+function EventFeatures({
+  language,
+  organizerId,
+  event,
+  myRole,
+}: Readonly<{
+  language: Language;
+  organizerId: string;
+  event: EventView;
+  myRole: "owner" | "editor";
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Section title={t("events.section.features")} description={t("events.section.featuresHint")}>
+      <Rows as="div">
         <RankingSwitch
           language={language}
           organizerId={organizerId}
@@ -289,112 +395,19 @@ export function EventForm({ language, organizerId, eventId, myRole }: Props) {
           initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
           myRole={myRole}
         />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="shareQuests"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.shareQuests}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="meetSomeone"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.meetSomeone}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="miniGames"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.miniGames}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="community"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.community}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="flashQuests"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.flashQuests !== false}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="boosts"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.boosts !== false}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <EventFeatureSwitch
-          language={language}
-          feature="helpDesk"
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={event.helpDesk !== false}
-          myRole={myRole}
-        />
-      )}
-      {event === null ? null : (
-        <StreakPanel
-          language={language}
-          organizerId={organizerId}
-          eventId={event.id}
-          myRole={myRole}
-          terms={terms}
-        />
-      )}
-      {event === null ? null : (
-        <EventWords
-          language={language}
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={terms}
-          saved={(saved) => {
-            setEvent((current) => (current === null ? null : { ...current, terms: saved }));
-            // The event's layout reads the words once; this reads them again for every page of the event.
-            router.refresh();
-          }}
-        />
-      )}
-      {event === null ? null : (
-        <EventDangerZone
-          language={language}
-          name={name}
-          canDelete={status === "draft"}
-          canEnd={myRole === "owner" && status === "live"}
-          confirming={confirming}
-          busy={busy}
-          ask={setConfirming}
-          confirm={() => void confirm()}
-        />
-      )}
-    </section>
+        {FEATURE_SWITCHES.map(([feature, initial]) => (
+          <EventFeatureSwitch
+            key={feature}
+            language={language}
+            feature={feature}
+            organizerId={organizerId}
+            eventId={event.id}
+            initial={initial(event)}
+            myRole={myRole}
+          />
+        ))}
+      </Rows>
+    </Section>
   );
 }
 
@@ -419,41 +432,73 @@ function EventDangerZone({
   confirm: () => void;
 }>) {
   const t = useTranslator(language);
-  if (confirming !== null) {
-    return (
-      <div role="alertdialog" aria-labelledby="confirm-title" className={styles.card}>
-        <h2 id="confirm-title" className={styles.subtitle}>
-          {t(confirming === "delete" ? "events.deleteTitle" : "events.endTitle")}
-        </h2>
-        <p>{t(confirming === "delete" ? "events.deleteBody" : "events.endBody", { name })}</p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} disabled={busy} onClick={() => ask(null)}>
-            {t("common.cancel")}
-          </button>
-          <button type="button" className={styles.button} disabled={busy} onClick={confirm}>
-            {t(confirming === "delete" ? "events.delete" : "events.end")}
-          </button>
-        </div>
-      </div>
-    );
+  if (!canDelete && !canEnd) {
+    return null;
   }
   return (
-    <div className={styles.actions}>
-      {canDelete ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy}
-          onClick={() => ask("delete")}
-        >
-          {t("events.delete")}
-        </button>
-      ) : null}
-      {canEnd ? (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={() => ask("end")}>
-          {t("events.end")}
-        </button>
-      ) : null}
-    </div>
+    <Section title={t("events.section.danger")} tone="danger">
+      {/* The buttons step aside while their confirmation is open, so only the dialog's action carries the name. */}
+      <Toolbar>
+        {canDelete && confirming === null ? (
+          <Button variant="danger" disabled={busy} onClick={() => ask("delete")}>
+            {t("events.delete")}
+          </Button>
+        ) : null}
+        {canEnd && confirming === null ? (
+          <Button variant="danger" disabled={busy} onClick={() => ask("end")}>
+            {t("events.end")}
+          </Button>
+        ) : null}
+      </Toolbar>
+      {confirming === null ? null : (
+        <ConfirmEventChange
+          language={language}
+          name={name}
+          what={confirming}
+          busy={busy}
+          cancel={() => ask(null)}
+          confirm={confirm}
+        />
+      )}
+    </Section>
+  );
+}
+
+/** Asks before a draft is deleted or a live event ended, naming the event. */
+function ConfirmEventChange({
+  language,
+  name,
+  what,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  name: string;
+  what: "delete" | "end";
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Dialog
+      titleId="confirm-title"
+      title={t(what === "delete" ? "events.deleteTitle" : "events.endTitle")}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" disabled={busy} onClick={confirm}>
+            {t(what === "delete" ? "events.delete" : "events.end")}
+          </Button>
+        </>
+      }
+    >
+      <p>{t(what === "delete" ? "events.deleteBody" : "events.endBody", { name })}</p>
+    </Dialog>
   );
 }

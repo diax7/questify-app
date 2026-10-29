@@ -12,6 +12,17 @@
 - **T-599/T-599b (dashboard usability baseline, ADR-364) go ahead of every remaining feature task** after Dhia found the
   dashboard unusable. T-504 was already building and finishes first.
 
+## T-599 dashboard usability baseline — 2026-10-30
+
+- **T-599 done (tier B; code review owed).** `apps/web/src/ui/` holds the tokens file and the primitives (shell with a
+  navigation column and a phone Menu, page header, section, card, rows, toolbar, form fields, buttons, badge, notice,
+  empty state, tabs, modal dialog, table). Sign-in, home, the events list, new event, the event overview, quests, rewards and
+  team moved onto them; every organizer page already sits in the new shell and menu (ADR-366, Q-334 Proposed). The layout
+  check (`apps/web/e2e/layout.spec.ts`, pages in `layout.ts`) walks each page at 1440 and 390 in English and Arabic and
+  fails on sideways scrolling, overlapping controls, text under 14px and words squeezed apart; `layout-check.spec.ts` proves
+  it catches each. Before and after screenshots: `docs/evidence/2026-10-30-t599/`. No migration, no API change.
+  **Next:** T-599b (the remaining dashboard and console pages; list in TASKS), then T-307b.
+
 ## T-504 big screen — 2026-10-30
 
 - **T-504 done (tier B; code review owed), not yet run on a TV.** Migration 0083 (new, undeployed; CranL is at 0082):

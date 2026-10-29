@@ -6,7 +6,8 @@ import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
 import { shareOf, voteCountsOf, type VoteCounts as Counts } from "#src/lib/votes.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Card, CardList, SubHeading } from "#src/ui/Section.tsx";
 
 /**
  * A vote quest's counts per option with each one's share of the voters, for the team only (ADR-195). `refreshMs`
@@ -40,9 +41,9 @@ export function VoteCounts({
     return null;
   }
   return (
-    <section className={styles.field} aria-label={t("quests.vote.results")}>
-      <h3 className={styles.subtitle}>{t("quests.vote.results")}</h3>
-      <ul className={styles.list}>
+    <Card as="section" aria-label={t("quests.vote.results")}>
+      <SubHeading as="h3">{t("quests.vote.results")}</SubHeading>
+      <CardList>
         {counts.options.map((option) => (
           <li key={option.id}>
             {t("quests.vote.share", {
@@ -52,13 +53,9 @@ export function VoteCounts({
             })}
           </li>
         ))}
-      </ul>
-      <p className={styles.muted}>
-        {t("quests.vote.voters", { count: formatNumber(counts.voters, language) })}
-      </p>
-      {counts.total > counts.voters ? (
-        <p className={styles.muted}>{t("quests.vote.sharesNote")}</p>
-      ) : null}
-    </section>
+      </CardList>
+      <Muted>{t("quests.vote.voters", { count: formatNumber(counts.voters, language) })}</Muted>
+      {counts.total > counts.voters ? <Muted>{t("quests.vote.sharesNote")}</Muted> : null}
+    </Card>
   );
 }

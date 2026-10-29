@@ -30,10 +30,13 @@ import {
   SurveyFields,
   newSurveyQuestion,
 } from "#src/components/SurveyShareFields.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input, Radio, Select } from "#src/ui/Field.tsx";
+import { SubHeading } from "#src/ui/Section.tsx";
 
 function ScanQrFields({ language }: TypeFieldProps) {
-  return <p className={styles.muted}>{useTranslator(language)("quests.scanQrNote")}</p>;
+  return <Muted>{useTranslator(language)("quests.scanQrNote")}</Muted>;
 }
 
 /** A location quest: what a check-in trusts, and that the QR always works (the place itself is `QuestPlaceFields`). */
@@ -41,8 +44,8 @@ function LocationFields({ language }: TypeFieldProps) {
   const t = useTranslator(language);
   return (
     <>
-      <p className={styles.muted}>{t("quests.location.note")}</p>
-      <p className={styles.muted}>{t("quests.location.qr")}</p>
+      <Muted>{t("quests.location.note")}</Muted>
+      <Muted>{t("quests.location.qr")}</Muted>
     </>
   );
 }
@@ -56,7 +59,7 @@ function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
   const value = config["dailyCap"];
   return (
     <>
-      <p className={styles.muted}>{t("quests.meet.note")}</p>
+      <Muted>{t("quests.meet.note")}</Muted>
       <NumberField
         label={t("quests.meet.dailyCap")}
         value={typeof value === "number" || typeof value === "string" ? value : ""}
@@ -64,7 +67,7 @@ function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
         disabled={disabled}
         change={(text) => change({ ...config, dailyCap: text === "" ? "" : Number(text) })}
       />
-      <p className={styles.muted}>{t("quests.meet.repeatCap")}</p>
+      <Muted>{t("quests.meet.repeatCap")}</Muted>
     </>
   );
 }
@@ -81,10 +84,8 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
   };
   return (
     <>
-      <label className={styles.field}>
-        {t("quests.field.code")}
-        <input
-          className={styles.input}
+      <Field label={t("quests.field.code")}>
+        <Input
           dir="ltr"
           required
           pattern="[A-Za-z0-9]{4,32}"
@@ -93,20 +94,18 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
           disabled={disabled}
           onChange={(event) => change({ ...config, code: event.target.value.toUpperCase() })}
         />
-      </label>
-      <p className={styles.muted}>{t("quests.field.codeHint")}</p>
+      </Field>
+      <Muted>{t("quests.field.codeHint")}</Muted>
       {(["ar", "en"] as const).map((key) => (
-        <label key={key} className={styles.field}>
-          {t(key === "ar" ? "quests.field.hintAr" : "quests.field.hintEn")}
-          <input
-            className={styles.input}
+        <Field key={key} label={t(key === "ar" ? "quests.field.hintAr" : "quests.field.hintEn")}>
+          <Input
             dir={key === "ar" ? "rtl" : "ltr"}
             maxLength={200}
             value={str(hint[key])}
             disabled={disabled}
             onChange={(event) => setHint(key, event.target.value)}
           />
-        </label>
+        </Field>
       ))}
     </>
   );
@@ -119,21 +118,18 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
 function SubmissionFields({ language, config, disabled, change }: TypeFieldProps) {
   const t = useTranslator(language);
   const toggle = (name: "autoApprove" | "resubmit", label: MessageKey) => (
-    <label className={styles.check}>
-      <input
-        type="checkbox"
-        checked={config[name] === true}
-        disabled={disabled}
-        onChange={(event) => change({ ...config, accepts: ["text"], [name]: event.target.checked })}
-      />
-      {t(label)}
-    </label>
+    <Checkbox
+      label={t(label)}
+      checked={config[name] === true}
+      disabled={disabled}
+      onChange={(event) => change({ ...config, accepts: ["text"], [name]: event.target.checked })}
+    />
   );
   return (
     <>
-      <p className={styles.muted}>{t("quests.submission.textOnly")}</p>
+      <Muted>{t("quests.submission.textOnly")}</Muted>
       {toggle("autoApprove", "quests.submission.autoApprove")}
-      <p className={styles.muted}>{t("quests.submission.autoApproveHint")}</p>
+      <Muted>{t("quests.submission.autoApproveHint")}</Muted>
       {toggle("resubmit", "quests.submission.resubmit")}
     </>
   );
@@ -162,32 +158,28 @@ function LivePollFields({
 }>) {
   const t = useTranslator(language);
   const radio = (name: "choices" | "results", value: string, label: MessageKey, fixed: boolean) => (
-    <label key={value} className={styles.check}>
-      <input
-        type="radio"
-        name={`poll-${name}`}
-        checked={live[name] === value}
-        disabled={disabled || fixed}
-        onChange={() => change({ ...live, [name]: value })}
-      />
-      <span>{t(label)}</span>
-    </label>
+    <Radio
+      key={value}
+      label={t(label)}
+      name={`poll-${name}`}
+      checked={live[name] === value}
+      disabled={disabled || fixed}
+      onChange={() => change({ ...live, [name]: value })}
+    />
   );
   return (
     <>
-      <p className={styles.muted}>{t("quests.poll.helper")}</p>
-      <p className={styles.muted}>{t(sent ? "quests.poll.sentLocked" : "quests.poll.window")}</p>
-      <fieldset className={styles.field}>
-        <legend>{t("quests.poll.choices")}</legend>
+      <Muted>{t("quests.poll.helper")}</Muted>
+      <Muted>{t(sent ? "quests.poll.sentLocked" : "quests.poll.window")}</Muted>
+      <FieldGroup legend={t("quests.poll.choices")}>
         {radio("choices", "one", "quests.poll.one", sent)}
         {radio("choices", "several", "quests.poll.several", sent)}
-      </fieldset>
-      <fieldset className={styles.field}>
-        <legend>{t("quests.poll.results")}</legend>
+      </FieldGroup>
+      <FieldGroup legend={t("quests.poll.results")}>
         {radio("results", "after_vote", "quests.poll.afterVote", false)}
         {radio("results", "at_close", "quests.poll.atClose", false)}
         {radio("results", "never", "quests.poll.never", false)}
-      </fieldset>
+      </FieldGroup>
       <NumberField
         label={t("quests.poll.minutes")}
         value={live.minutes}
@@ -212,9 +204,8 @@ function VoteFields({ language, config, disabled, change, sent = false }: TypeFi
   const live = config["live"] as LiveBlock | undefined;
   const plain = Object.fromEntries(Object.entries(config).filter(([name]) => name !== "live"));
   return (
-    <fieldset className={styles.field}>
-      <legend>{t("quests.vote.options")}</legend>
-      <p className={styles.muted}>{t("quests.vote.note")}</p>
+    <FieldGroup legend={t("quests.vote.options")}>
+      <Muted>{t("quests.vote.note")}</Muted>
       <OptionList
         language={language}
         items={itemsOf(config["options"], 2)}
@@ -222,17 +213,14 @@ function VoteFields({ language, config, disabled, change, sent = false }: TypeFi
         disabled={disabled}
         change={(options) => change({ ...config, options })}
       />
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={live !== undefined}
-          disabled={disabled || sent}
-          onChange={(event) =>
-            change(event.target.checked ? { ...config, live: NEW_LIVE_BLOCK } : plain)
-          }
-        />
-        <span>{t("quests.poll.live")}</span>
-      </label>
+      <Checkbox
+        label={t("quests.poll.live")}
+        checked={live !== undefined}
+        disabled={disabled || sent}
+        onChange={(event) =>
+          change(event.target.checked ? { ...config, live: NEW_LIVE_BLOCK } : plain)
+        }
+      />
       {live === undefined ? null : (
         <LivePollFields
           language={language}
@@ -242,7 +230,7 @@ function VoteFields({ language, config, disabled, change, sent = false }: TypeFi
           change={(next) => change({ ...config, live: next })}
         />
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -277,8 +265,7 @@ function QuestionFields({
         : (choices[0]?.id ?? ""),
     });
   return (
-    <fieldset className={styles.field}>
-      <legend>{t("quests.quiz.question", { number })}</legend>
+    <FieldGroup legend={<>{t("quests.quiz.question", { number })}</>}>
       <TextPair
         labels={{ ar: t("quests.quiz.questionAr"), en: t("quests.quiz.questionEn") }}
         text={question.text}
@@ -293,10 +280,8 @@ function QuestionFields({
         disabled={disabled}
         change={setChoices}
       />
-      <label className={styles.field}>
-        {t("quests.quiz.right")}
-        <select
-          className={styles.input}
+      <Field label={t("quests.quiz.right")}>
+        <Select
           value={question.right}
           disabled={disabled}
           onChange={(event) => change({ ...question, right: event.target.value })}
@@ -306,14 +291,14 @@ function QuestionFields({
               {t("quests.quiz.rightChoice", { number: index + 1 })}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {remove === null ? null : (
-        <button type="button" className={styles.quiet} disabled={disabled} onClick={remove}>
+        <Button variant="quiet" disabled={disabled} onClick={remove}>
           {t("quests.quiz.removeQuestion", { number })}
-        </button>
+        </Button>
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -328,11 +313,9 @@ function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
     change({ ...config, questions: next, timerSeconds });
   return (
     <>
-      <p className={styles.muted}>{t("quests.quiz.note")}</p>
-      <label className={styles.field}>
-        {t("quests.quiz.timer")}
-        <input
-          className={styles.input}
+      <Muted>{t("quests.quiz.note")}</Muted>
+      <Field label={t("quests.quiz.timer")}>
+        <Input
           type="number"
           dir="ltr"
           min={5}
@@ -343,8 +326,8 @@ function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
             save(questions, event.target.value === "" ? null : Number(event.target.value))
           }
         />
-      </label>
-      <h3 className={styles.subtitle}>{t("quests.quiz.questions")}</h3>
+      </Field>
+      <SubHeading as="h3">{t("quests.quiz.questions")}</SubHeading>
       {questions.map((question, index) => (
         <QuestionFields
           key={question.id}
@@ -370,14 +353,14 @@ function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
         />
       ))}
       {questions.length < 20 ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={disabled}
           onClick={() => save([...questions, newQuestion()], timer)}
         >
           {t("quests.quiz.addQuestion")}
-        </button>
+        </Button>
       ) : null}
     </>
   );

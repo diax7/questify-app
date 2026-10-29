@@ -6,7 +6,10 @@ import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { erasedLine, holdsData, readRehearsal, type RehearsalView } from "#src/lib/rehearsal.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Section, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -64,9 +67,9 @@ export function RehearsalCard({ language, organizerId, eventId }: Props) {
 
   if (view === null) {
     return problem === null ? null : (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {problem}
-      </p>
+      </Notice>
     );
   }
   const erased = erasedLine(view);
@@ -75,102 +78,90 @@ export function RehearsalCard({ language, organizerId, eventId }: Props) {
   }
   const number = (value: number) => formatNumber(value, language);
   return (
-    <section className={styles.card} aria-labelledby="rehearsal-title">
-      <h2 id="rehearsal-title" className={styles.subtitle}>
-        {t("rehearsal.title")}
-      </h2>
+    <Section titleId="rehearsal-title" title={t("rehearsal.title")}>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {erased === undefined ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t(erased.key, erased.params)}
-        </p>
+        </Notice>
       )}
       {view.open && view.code !== null ? (
         <>
           <p>{t("rehearsal.intro")}</p>
           <p>
-            <strong dir="ltr">{t("rehearsal.code", { code: view.code })}</strong>
+            <strong>{t("rehearsal.code", { code: view.code })}</strong>
           </p>
-          <p className={styles.muted}>{t("rehearsal.onlyTeam")}</p>
-          <p className={styles.muted}>
+          <Muted>{t("rehearsal.onlyTeam")}</Muted>
+          <Muted>
             {t("rehearsal.accounts", { count: number(view.now.accounts), cap: number(view.cap) })}
-          </p>
+          </Muted>
           {holdsData(view.now) ? (
             <>
-              <p className={styles.muted}>
+              <Muted>
                 {t("rehearsal.counts", {
                   completions: number(view.now.completions),
                   points: number(view.now.points),
                   reservations: number(view.now.reservations),
                 })}
-              </p>
-              <p role="status" className={styles.alert}>
+              </Muted>
+              <Notice tone="warning" role="status">
                 {t("rehearsal.notice")}
-              </p>
+              </Notice>
             </>
           ) : null}
           {confirming === null ? (
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.button}
+            <Toolbar>
+              <Button
+                variant="secondary"
+
                 onClick={() => void copy(view.code ?? "")}
               >
                 {t("rehearsal.copy")}
-              </button>
-              <button
-                type="button"
-                className={styles.quiet}
+              </Button>
+              <Button
+                variant="quiet"
+
                 disabled={busy}
                 onClick={() => setConfirming("rotate")}
               >
                 {t("rehearsal.rotate")}
-              </button>
-              <button
-                type="button"
-                className={styles.quiet}
+              </Button>
+              <Button
+                variant="quiet"
+
                 disabled={busy}
                 onClick={() => setConfirming("erase")}
               >
                 {t("rehearsal.erase")}
-              </button>
-            </div>
+              </Button>
+            </Toolbar>
           ) : (
-            <div role="alertdialog" aria-labelledby="rehearsal-confirm" className={styles.card}>
-              <p id="rehearsal-confirm">
-                {t(confirming === "rotate" ? "rehearsal.rotateConfirm" : "rehearsal.eraseConfirm")}
-              </p>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  disabled={busy}
-                  onClick={() => setConfirming(null)}
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  type="button"
-                  className={styles.button}
-                  disabled={busy}
-                  onClick={() => void act(confirming)}
-                >
-                  {t(confirming === "rotate" ? "rehearsal.rotate" : "rehearsal.erase")}
-                </button>
-              </div>
-            </div>
+            <Dialog
+              titleId="rehearsal-confirm"
+              title={t(
+                confirming === "rotate" ? "rehearsal.rotateConfirm" : "rehearsal.eraseConfirm",
+              )}
+              busy={busy}
+              cancel={() => setConfirming(null)}
+              actions={
+                <>
+                  <Button variant="secondary" disabled={busy} onClick={() => setConfirming(null)}>
+                    {t("common.cancel")}
+                  </Button>
+                  <Button variant="danger" disabled={busy} onClick={() => void act(confirming)}>
+                    {t(confirming === "rotate" ? "rehearsal.rotate" : "rehearsal.erase")}
+                  </Button>
+                </>
+              }
+            />
           )}
-          {copied ? (
-            <p role="status" className={styles.muted}>
-              {t("rehearsal.copied")}
-            </p>
-          ) : null}
+          {copied ? <Muted role="status">{t("rehearsal.copied")}</Muted> : null}
         </>
       ) : null}
-    </section>
+    </Section>
   );
 }

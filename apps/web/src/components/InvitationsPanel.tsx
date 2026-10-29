@@ -1,11 +1,8 @@
 "use client";
-import type { InvitationCampaigns, Language } from "@questify/shared";
-import { useEffect, useState } from "react";
+import type { InvitationCampaigns } from "@questify/shared";
 import { InvitationCard } from "#src/components/InvitationCard.tsx";
 import { InvitationForm } from "#src/components/InvitationForm.tsx";
-import { invitationsOpen, invitationsPath } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
 import { useInvitationCatalogs } from "#src/lib/use-invitation-catalogs.ts";
 import {
   useInvitations,
@@ -129,33 +126,4 @@ export function InvitationsPanel(props: Props) {
       )}
     </section>
   );
-}
-
-/** The event nav's link to this page, shown only while Questify's invitation switch is on. */
-export function InvitationsLink({
-  language,
-  organizerId,
-  eventId,
-}: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
-  const t = translatorFor(language);
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    let current = true;
-    void requestJson("GET", invitationsPath(organizerId, eventId)).then((result) => {
-      if (current) {
-        setEnabled(invitationsOpen(result));
-      }
-    });
-    return () => {
-      current = false;
-    };
-  }, [organizerId, eventId]);
-  return enabled ? (
-    <a
-      className={styles.textLink}
-      href={`/${language}/organizers/${organizerId}/events/${eventId}/invitations`}
-    >
-      {t("invCampaign.link")}
-    </a>
-  ) : null;
 }

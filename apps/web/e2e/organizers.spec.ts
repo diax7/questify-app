@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PASSWORD, account, codeFor, freshAddress, linkFor, signIn } from "#e2e/mail.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 const NEW_PASSWORD = "an organizer's own pass phrase";
 
@@ -91,6 +92,7 @@ test("an owner invites an editor, who joins with a new password and the emailed 
   await page.getByLabel("Ends", { exact: true }).fill("2030-11-01T17:00");
   await page.getByRole("button", { name: "Create event" }).click();
   await expect(page.getByRole("checkbox", { name: "Show the ranking in the app" })).toBeChecked();
+  await openMenu(page);
   await page.getByRole("link", { name: "Home" }).click();
 
   await page.getByRole("link", { name: "Team" }).click();
@@ -133,6 +135,7 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await expect(editorFlags).toBeChecked();
     await editor.getByRole("checkbox", { name: "Content is unpublished" }).uncheck();
     await expect(editor.getByText("Your choices are saved.")).toBeVisible();
+    await openMenu(editor);
     await editor.getByRole("link", { name: "Home" }).click();
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();

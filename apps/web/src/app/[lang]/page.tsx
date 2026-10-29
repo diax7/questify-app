@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
-import { SignOutButton } from "#src/components/SignOutButton.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage, isolate, translatorFor } from "#src/lib/language.ts";
 import { currentStaff } from "#src/lib/session.ts";
-import styles from "#src/components/layout.module.css";
+import { AppShell } from "#src/ui/Shell.tsx";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Notice } from "#src/ui/Feedback.tsx";
+import { Row, Rows, Section } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 /** The signed-in home: who you are and the organizers you belong to. The dashboard grows from here (T-101). */
 export default async function HomePage({
@@ -20,65 +22,62 @@ export default async function HomePage({
   }
   if (staff.kind === "unavailable") {
     return (
-      <>
-        <TopBar language={lang} path="" />
-        <main className={styles.page}>
-          <p role="alert" className={styles.alert}>
-            {t("error.generic")}
-          </p>
-          <a className={styles.button} href={`/${lang}`}>
-            {t("common.retry")}
-          </a>
-        </main>
-      </>
+      <AppShell language={lang} path="" signedIn={false}>
+        <Notice tone="danger" role="alert">
+          {t("error.generic")}
+        </Notice>
+        <ButtonLink variant="primary" href={`/${lang}`}>
+          {t("common.retry")}
+        </ButtonLink>
+      </AppShell>
     );
   }
   const { me } = staff;
   return (
-    <>
-      <TopBar language={lang} path="">
-        <a className={styles.link} href={`/${lang}/account`}>
-          {t("staff.account")}
-        </a>
-        <SignOutButton language={lang} />
-      </TopBar>
-      <main className={styles.page}>
-        <h1 className={styles.title}>{t("nav.home")}</h1>
-        <p>{t("staff.signedInAs", { email: isolate(me.email) })}</p>
-        {me.isAdmin ? (
-          <a className={styles.button} href={`/${lang}/console`}>
-            {t("console.title")}
-          </a>
-        ) : null}
-        <h2 className={styles.subtitle}>{t("staff.organizers")}</h2>
+    <AppShell language={lang} path="" signedIn>
+      <PageHeader
+        title={t("nav.home")}
+        description={t("staff.signedInAs", { email: isolate(me.email) })}
+        actions={
+          me.isAdmin ? (
+            <ButtonLink variant="secondary" href={`/${lang}/console`}>
+              {t("console.title")}
+            </ButtonLink>
+          ) : undefined
+        }
+      />
+      <Section
+        title={t("staff.organizers")}
+        actions={
+          <ButtonLink variant="primary" href={`/${lang}/organizers/new`}>
+            {t("staff.newOrganizer")}
+          </ButtonLink>
+        }
+      >
         {me.memberships.length === 0 ? (
-          <p className={styles.muted}>{t("staff.noOrganizers")}</p>
+          <EmptyState>{t("staff.noOrganizers")}</EmptyState>
         ) : (
-          <ul className={styles.list}>
+          <Rows>
             {me.memberships.map((membership) => (
-              <li key={membership.organizerId} className={styles.card}>
-                <span>{membership.organizerName}</span>
-                <span className={styles.badge}>{t(`staff.role.${membership.role}`)}</span>
-                <a
-                  className={styles.textLink}
-                  href={`/${lang}/organizers/${membership.organizerId}/events`}
-                >
+              <Row
+                key={membership.organizerId}
+                main={
+                  <span>
+                    {membership.organizerName} <Badge>{t(`staff.role.${membership.role}`)}</Badge>
+                  </span>
+                }
+              >
+                <ButtonLink size="sm" href={`/${lang}/organizers/${membership.organizerId}/events`}>
                   {t("events.title")}
-                </a>
-                <a
-                  className={styles.textLink}
-                  href={`/${lang}/organizers/${membership.organizerId}/team`}
-                >
+                </ButtonLink>
+                <ButtonLink size="sm" href={`/${lang}/organizers/${membership.organizerId}/team`}>
                   {t("staff.team")}
-                </a>
-              </li>
+                </ButtonLink>
+              </Row>
             ))}
-          </ul>
+          </Rows>
         )}
-        <a className={styles.button} href={`/${lang}/organizers/new`}>
-          {t("staff.newOrganizer")}
-        </a>
-      </main>
-    </>
+      </Section>
+    </AppShell>
   );
 }

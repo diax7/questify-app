@@ -21,7 +21,10 @@ import {
   type TermField,
   type WordKey,
 } from "#src/lib/terms.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Radio } from "#src/ui/Field.tsx";
+import { Card, Section, SubHeading } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 const LANGUAGES: readonly Language[] = ["ar", "en"];
@@ -55,18 +58,19 @@ function WordFields({
 }>) {
   const t = translatorFor(language);
   return (
-    <div className={styles.row}>
+    <FieldGroup layout="columns">
       {LANGUAGES.flatMap((formLanguage) =>
         FORMS.map((form) => {
           const field = { word, language: formLanguage, form };
           const wrong =
             invalid?.word === word && invalid.language === formLanguage && invalid.form === form;
           return (
-            <label key={inputId(field)} className={styles.field}>
-              <span>{t(`terms.form.${formLanguage}.${form}`)}</span>
-              <input
-                id={inputId(field)}
-                className={styles.input}
+            <Field
+              key={inputId(field)}
+              id={inputId(field)}
+              label={t(`terms.form.${formLanguage}.${form}`)}
+            >
+              <Input
                 lang={formLanguage}
                 dir={directionOf(formLanguage)}
                 maxLength={TERM_MAX}
@@ -75,11 +79,11 @@ function WordFields({
                 aria-invalid={wrong}
                 onChange={(changed) => change(field, changed.target.value)}
               />
-            </label>
+            </Field>
           );
         }),
       )}
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -97,23 +101,24 @@ function IconChoice({
 }>) {
   const t = translatorFor(language);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("terms.icon")}</legend>
+    <FieldGroup legend={t("terms.icon")} layout="choiceGrid">
       {CURRENCY_ICONS.map((option) => (
-        <label key={option} className={styles.check}>
-          <input
-            type="radio"
-            name="currency-icon"
-            value={option}
-            checked={icon === option}
-            disabled={busy}
-            onChange={() => choose(option)}
-          />
-          <img src={`/currency/${option}.png`} alt="" width={32} height={32} />
-          <span>{t(`terms.icon.${option}`)}</span>
-        </label>
+        <Radio
+          key={option}
+          label={
+            <>
+              <img src={`/currency/${option}.png`} alt="" width={32} height={32} />{" "}
+              {t(`terms.icon.${option}`)}
+            </>
+          }
+          name="currency-icon"
+          value={option}
+          checked={icon === option}
+          disabled={busy}
+          onChange={() => choose(option)}
+        />
       ))}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -123,8 +128,8 @@ function Preview({ language, draft }: Readonly<{ language: Language; draft: Even
   const shown = previewOf(draft);
   const shownT = (previewLanguage: Language) => translatorFor(previewLanguage, shown);
   return (
-    <div className={styles.card}>
-      <h3 className={styles.subtitle}>{t("terms.preview")}</h3>
+    <Card>
+      <SubHeading as="h3">{t("terms.preview")}</SubHeading>
       {LANGUAGES.map((previewLanguage) => {
         const p = translatorFor(previewLanguage);
         return (
@@ -145,7 +150,7 @@ function Preview({ language, draft }: Readonly<{ language: Language; draft: Even
           </div>
         );
       })}
-    </div>
+    </Card>
   );
 }
 
@@ -218,16 +223,15 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
     });
 
   return (
-    <section className={styles.card} aria-labelledby="terms-title">
-      <h2 id="terms-title" className={styles.subtitle}>
-        {t("terms.title")}
-      </h2>
-      <p className={styles.muted}>{t("terms.intro")}</p>
-      <form className={styles.form} noValidate onSubmit={(submitted) => void submit(submitted)}>
+    <Section titleId="terms-title" title={t("terms.title")}>
+      <Muted>{t("terms.intro")}</Muted>
+      <Form noValidate onSubmit={(submitted) => void submit(submitted)}>
         {WORDS.map((word) => (
-          <fieldset key={word} className={styles.choices}>
-            <legend>{t(`terms.word.${word}`)}</legend>
-            {word === "operator" ? <p className={styles.muted}>{t("terms.operatorHint")}</p> : null}
+          <FieldGroup
+            key={word}
+            legend={t(`terms.word.${word}`)}
+            {...(word === "operator" ? { help: t("terms.operatorHint") } : {})}
+          >
             {word === "currency" ? (
               <IconChoice
                 language={language}
@@ -246,25 +250,25 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
               busy={busy}
               change={change}
             />
-          </fieldset>
+          </FieldGroup>
         ))}
-        <p className={styles.muted}>{t("terms.enHint")}</p>
-        <p className={styles.muted}>{t("terms.arHint")}</p>
+        <Muted>{t("terms.enHint")}</Muted>
+        <Muted>{t("terms.arHint")}</Muted>
         <Preview language={language} draft={draft} />
         {problem === null ? null : (
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {problem}
-          </p>
+          </Notice>
         )}
         {notice === null ? null : (
-          <p role="status" className={styles.notice}>
+          <Notice tone="success" role="status">
             {notice}
-          </p>
+          </Notice>
         )}
-        <button type="submit" className={styles.button} disabled={busy}>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("terms.save")}
-        </button>
-      </form>
-    </section>
+        </Button>
+      </Form>
+    </Section>
   );
 }

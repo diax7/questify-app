@@ -26,7 +26,12 @@ import {
   type CategoryView,
   type QuestView,
 } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Radio, Select } from "#src/ui/Field.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Card, CardList, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 /** How the picker holds its choice: in the form's state (the quest form), or as a named field (the category form). */
 type PickerBinding =
@@ -61,9 +66,8 @@ export function ItemPicker({
       : { name: binding.name, defaultValue: binding.initial };
   return (
     <>
-      <label className={styles.field}>
-        {t("questItems.picker")}
-        <select className={styles.input} aria-describedby={hintId} disabled={busy} {...bound}>
+      <Field label={t("questItems.picker")}>
+        <Select aria-describedby={hintId} disabled={busy} {...bound}>
           <option value="">{t("questItems.pickerNone")}</option>
           {items.map((item) => (
             <option key={item.id} value={item.id}>
@@ -73,11 +77,9 @@ export function ItemPicker({
               })})`}
             </option>
           ))}
-        </select>
-      </label>
-      <p id={hintId} className={styles.muted}>
-        {t(hint)}
-      </p>
+        </Select>
+      </Field>
+      <Muted id={hintId}>{t(hint)}</Muted>
     </>
   );
 }
@@ -125,22 +127,25 @@ export function LiveDialog({
   confirm,
 }: Readonly<{ language: Language; busy: boolean; cancel: () => void; confirm: () => void }>) {
   const t = useTranslator(language);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
-    <div role="alertdialog" aria-labelledby="live-title" className={styles.card}>
-      <h2 id="live-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t("quests.liveTitle")}
-      </h2>
+    <Dialog
+      titleId="live-title"
+      title={t("quests.liveTitle")}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={confirm}>
+            {t("common.continue")}
+          </Button>
+        </>
+      }
+    >
       <p>{t("quests.liveBody")}</p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="button" className={styles.button} disabled={busy} onClick={confirm}>
-          {t("common.continue")}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -166,24 +171,24 @@ function OrderButtons({
   const down = moved(ids, index, 1);
   return (
     <>
-      <button
-        type="button"
-        className={styles.quiet}
+      <Button
+        variant="quiet"
+
         disabled={busy || up === undefined}
         aria-label={t("quests.upNamed", { name })}
         onClick={() => up && apply(up)}
       >
         {t("quests.up")}
-      </button>
-      <button
-        type="button"
-        className={styles.quiet}
+      </Button>
+      <Button
+        variant="quiet"
+
         disabled={busy || down === undefined}
         aria-label={t("quests.downNamed", { name })}
         onClick={() => down && apply(down)}
       >
         {t("quests.down")}
-      </button>
+      </Button>
     </>
   );
 }
@@ -218,15 +223,45 @@ function QuestRow({
   const live = isLivePoll(quest.type, quest.config);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
     iso === null || live ? null : (
-      <span className={styles.muted}>
+      <Muted as="span">
         {t(key, { time: formatEventTime(new Date(iso), timeZone, language) })}
-      </span>
+      </Muted>
     );
   return (
-    <li className={live || quest.flash === true ? `${styles.card} ${styles.wrap}` : styles.card}>
-      <strong>{textFor(quest.title, language)}</strong>
-      <span className={styles.badge}>{t(QUEST_TYPES[quest.type].label)}</span>
-      {quest.visible || live ? null : <span className={styles.badge}>{t("quests.hidden")}</span>}
+    <Card as="li">
+      <Toolbar>
+        <strong>{textFor(quest.title, language)}</strong>
+        <Badge>{t(QUEST_TYPES[quest.type].label)}</Badge>
+        {quest.visible || live ? null : <Badge tone="warning">{t("quests.hidden")}</Badge>}
+        {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}
+        {(quest.firstBonus ?? null) === null ? null : (
+          <Badge>
+            {t("builder.firstBonus.listLeft", {
+              slots: formatNumber(quest.firstBonus?.slots ?? 0, language),
+              left: formatNumber(quest.firstBonus?.left ?? 0, language),
+            })}
+          </Badge>
+        )}
+      </Toolbar>
+      <Toolbar>
+        <Muted as="span">
+          {t("quests.pointsShort", {
+            currency: termFor(terms.currency, language),
+            points: quest.points,
+          })}
+        </Muted>
+        {quest.repeatCap > 1 ? (
+          <Muted as="span">
+            {t("quests.repeatShort", {
+              player: terms.player[language].one,
+              count: quest.repeatCap,
+            })}
+          </Muted>
+        ) : null}
+        {when(quest.opensAt, "quests.opens")}
+        {when(quest.closesAt, "quests.closes")}
+        {pinned && !quest.visible ? <Muted as="span">{t("quests.pinnedHidden")}</Muted> : null}
+      </Toolbar>
       <PollControls
         language={language}
         timeZone={timeZone}
@@ -243,33 +278,8 @@ function QuestRow({
         readOnly={readOnly}
         actions={actions}
       />
-      {pinned ? <span className={styles.badge}>{t("quests.pinned")}</span> : null}
-      {pinned && !quest.visible ? (
-        <span className={styles.muted}>{t("quests.pinnedHidden")}</span>
-      ) : null}
-      <span className={styles.muted}>
-        {t("quests.pointsShort", {
-          currency: termFor(terms.currency, language),
-          points: quest.points,
-        })}
-      </span>
-      {quest.repeatCap > 1 ? (
-        <span className={styles.muted}>
-          {t("quests.repeatShort", { player: terms.player[language].one, count: quest.repeatCap })}
-        </span>
-      ) : null}
-      {(quest.firstBonus ?? null) === null ? null : (
-        <span className={styles.badge}>
-          {t("builder.firstBonus.listLeft", {
-            slots: formatNumber(quest.firstBonus?.slots ?? 0, language),
-            left: formatNumber(quest.firstBonus?.left ?? 0, language),
-          })}
-        </span>
-      )}
-      {when(quest.opensAt, "quests.opens")}
-      {when(quest.closesAt, "quests.closes")}
       {readOnly ? null : (
-        <div className={styles.actions}>
+        <Toolbar>
           <OrderButtons
             language={language}
             name={textFor(quest.title, language)}
@@ -279,48 +289,46 @@ function QuestRow({
             apply={(order) => actions.reorderQuests(category, order)}
           />
           {live ? null : (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={busy}
               onClick={() => actions.toggle(quest)}
             >
               {quest.visible ? t("quests.hide") : t("quests.show")}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
+
             disabled={busy}
             aria-pressed={pinned}
             onClick={() => actions.pin(quest)}
           >
             {t("quests.pin")}
-          </button>
-          <button
-            type="button"
-            className={styles.quiet}
+          </Button>
+          <Button
+            variant="quiet"
+
             disabled={busy}
             onClick={() => actions.edit(quest)}
           >
             {t("quests.edit")}
-          </button>
+          </Button>
           {actions.codeLink(quest) === undefined ? null : (
-            <a className={styles.textLink} href={actions.codeLink(quest)}>
-              {t("codes.printQr")}
-            </a>
+            <TextLink href={actions.codeLink(quest)}>{t("codes.printQr")}</TextLink>
           )}
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
+
             disabled={busy}
             onClick={() => actions.remove({ kind: "quest", quest })}
           >
             {t("quests.delete")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -373,22 +381,14 @@ function CategoryRuleFields({
   const t = useTranslator(language);
   return (
     <>
-      <label className={styles.field}>
-        {t("quests.field.orderMode")}
-        <select
-          className={styles.input}
-          name="orderMode"
-          defaultValue={category.orderMode}
-          disabled={busy}
-        >
+      <Field label={t("quests.field.orderMode")}>
+        <Select name="orderMode" defaultValue={category.orderMode} disabled={busy}>
           <option value="any">{t("quests.field.orderAny")}</option>
           <option value="in_order">{t("quests.field.orderInOrder")}</option>
-        </select>
-      </label>
-      <label className={styles.field}>
-        {t("quests.field.categoryOpensAt")}
-        <input
-          className={styles.input}
+        </Select>
+      </Field>
+      <Field label={t("quests.field.categoryOpensAt")}>
+        <Input
           type="datetime-local"
           name="opensAt"
           dir="ltr"
@@ -397,15 +397,9 @@ function CategoryRuleFields({
           }
           disabled={busy}
         />
-      </label>
-      <label className={styles.field}>
-        {t("quests.field.unlockAfter")}
-        <select
-          className={styles.input}
-          name="unlockAfter"
-          defaultValue={category.unlockAfter ?? ""}
-          disabled={busy}
-        >
+      </Field>
+      <Field label={t("quests.field.unlockAfter")}>
+        <Select name="unlockAfter" defaultValue={category.unlockAfter ?? ""} disabled={busy}>
           <option value="">{t("quests.field.unlockNone")}</option>
           {categories
             .filter((other) => other.id !== category.id)
@@ -414,12 +408,10 @@ function CategoryRuleFields({
                 {textFor(other.name, language)}
               </option>
             ))}
-        </select>
-      </label>
-      <label className={styles.field}>
-        {t("quests.field.completionBonus")}
-        <input
-          className={styles.input}
+        </Select>
+      </Field>
+      <Field label={t("quests.field.completionBonus")}>
+        <Input
           type="number"
           name="completionBonus"
           dir="ltr"
@@ -429,7 +421,7 @@ function CategoryRuleFields({
           defaultValue={category.completionBonus}
           disabled={busy}
         />
-      </label>
+      </Field>
       <ItemPicker
         language={language}
         items={items}
@@ -438,11 +430,9 @@ function CategoryRuleFields({
         name="itemId"
         initial={category.itemId ?? ""}
       />
-      <p className={styles.muted}>{t("quests.field.rulesHint")}</p>
-      <label className={styles.field}>
-        {t("quests.field.refresh")}
-        <select
-          className={styles.input}
+      <Muted>{t("quests.field.rulesHint")}</Muted>
+      <Field label={t("quests.field.refresh")}>
+        <Select
           name="refresh"
           defaultValue={category.refresh}
           aria-describedby={`refresh-hint-${category.id}`}
@@ -451,24 +441,17 @@ function CategoryRuleFields({
           <option value="none">{t("quests.field.refreshNone")}</option>
           <option value="daily">{t("quests.field.refreshDaily")}</option>
           <option value="weekly">{t("quests.field.refreshWeekly")}</option>
-        </select>
-      </label>
-      <p id={`refresh-hint-${category.id}`} className={styles.muted}>
-        {t("quests.field.refreshHint")}
-      </p>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          name="hidden"
-          defaultChecked={category.hidden}
-          aria-describedby={`hidden-hint-${category.id}`}
-          disabled={busy}
-        />
-        <span>{t("quests.field.hidden")}</span>
-      </label>
-      <p id={`hidden-hint-${category.id}`} className={styles.muted}>
-        {t("quests.field.hiddenHint")}
-      </p>
+        </Select>
+      </Field>
+      <Muted id={`refresh-hint-${category.id}`}>{t("quests.field.refreshHint")}</Muted>
+      <Checkbox
+        label={t("quests.field.hidden")}
+        name="hidden"
+        defaultChecked={category.hidden}
+        aria-describedby={`hidden-hint-${category.id}`}
+        disabled={busy}
+      />
+      <Muted id={`hidden-hint-${category.id}`}>{t("quests.field.hiddenHint")}</Muted>
     </>
   );
 }
@@ -495,7 +478,7 @@ function CategoryActions({
 }>) {
   const t = useTranslator(language);
   return (
-    <div className={styles.actions}>
+    <Toolbar>
       <OrderButtons
         language={language}
         name={textFor(category.name, language)}
@@ -505,29 +488,29 @@ function CategoryActions({
         apply={actions.reorderCategories}
       />
       {category.hidden ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={busy}
           onClick={() => actions.sendHint(category)}
         >
           {t("quests.hint.send")}
-        </button>
+        </Button>
       ) : null}
-      <button type="button" className={styles.quiet} disabled={busy} onClick={rename}>
+      <Button variant="quiet" disabled={busy} onClick={rename}>
         {t("quests.editCategory")}
-      </button>
+      </Button>
       {canDelete ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={busy}
           onClick={() => actions.remove({ kind: "category", category })}
         >
           {t("quests.deleteCategory")}
-        </button>
+        </Button>
       ) : null}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -577,9 +560,9 @@ export function CategoryCard({
     ruleText(note, t, language, timeZone),
   );
   return (
-    <section className={styles.panel} aria-label={textFor(category.name, language)}>
+    <Card as="section" aria-label={textFor(category.name, language)}>
       {renaming ? (
-        <form className={styles.form} onSubmit={save}>
+        <Form onSubmit={save}>
           <CategoryNameFields language={language} initial={category} busy={busy} />
           <CategoryRuleFields
             language={language}
@@ -589,18 +572,18 @@ export function CategoryCard({
             items={items}
             busy={busy}
           />
-          <div className={styles.actions}>
-            <button type="button" className={styles.quiet} onClick={() => setRenaming(false)}>
+          <Toolbar>
+            <Button variant="quiet" onClick={() => setRenaming(false)}>
               {t("common.cancel")}
-            </button>
-            <button type="submit" className={styles.button} disabled={busy}>
+            </Button>
+            <Button variant="primary" type="submit" disabled={busy}>
               {t("quests.saveCategory")}
-            </button>
-          </div>
-        </form>
+            </Button>
+          </Toolbar>
+        </Form>
       ) : (
-        <div className={styles.row}>
-          <h2 className={styles.subtitle}>{textFor(category.name, language)}</h2>
+        <Toolbar align="between">
+          <SubHeading as="h2">{textFor(category.name, language)}</SubHeading>
           {readOnly ? null : (
             <CategoryActions
               language={language}
@@ -613,13 +596,13 @@ export function CategoryCard({
               canDelete={canDelete}
             />
           )}
-        </div>
+        </Toolbar>
       )}
-      {renaming || notes.length === 0 ? null : <p className={styles.muted}>{notes.join(" · ")}</p>}
+      {renaming || notes.length === 0 ? null : <Muted>{notes.join(" · ")}</Muted>}
       {category.quests.length === 0 ? (
-        <p className={styles.muted}>{t("quests.noQuests")}</p>
+        <Muted>{t("quests.noQuests")}</Muted>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {category.quests.map((quest, questIndex) => (
             <QuestRow
               key={quest.id}
@@ -636,19 +619,19 @@ export function CategoryCard({
               readOnly={readOnly}
             />
           ))}
-        </ul>
+        </CardList>
       )}
       {readOnly ? null : (
-        <button
-          type="button"
-          className={styles.button}
+        <Button
+          variant="secondary"
+
           disabled={busy}
           onClick={() => actions.add(category)}
         >
           {t("quests.addQuest")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -660,30 +643,26 @@ export function CategoryNameFields({
 }: Readonly<{ language: Language; initial?: CategoryView | undefined; busy: boolean }>) {
   const t = useTranslator(language);
   return (
-    <>
-      <label className={styles.field}>
-        {t("quests.field.categoryAr")}
-        <input
-          className={styles.input}
+    <FieldGroup layout="columns">
+      <Field label={t("quests.field.categoryAr")}>
+        <Input
           name="ar"
           dir="rtl"
           maxLength={120}
           defaultValue={initial?.name.ar ?? ""}
           disabled={busy}
         />
-      </label>
-      <label className={styles.field}>
-        {t("quests.field.categoryEn")}
-        <input
-          className={styles.input}
+      </Field>
+      <Field label={t("quests.field.categoryEn")}>
+        <Input
           name="en"
           dir="ltr"
           maxLength={120}
           defaultValue={initial?.name.en ?? ""}
           disabled={busy}
         />
-      </label>
-    </>
+      </Field>
+    </FieldGroup>
   );
 }
 
@@ -711,7 +690,6 @@ export function DeleteDialog({
     target.kind === "category" ? categories.filter((item) => item.id !== target.category.id) : [];
   // No choice is made for the person: the button waits until they pick one (the UX confirmation pattern).
   const [choice, setChoice] = useState<string | null>(null);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   const holds = target.kind === "category" ? target.category.quests.length : 0;
   const name =
     target.kind === "quest"
@@ -726,54 +704,52 @@ export function DeleteDialog({
           : { quests: "move", to: choice },
     );
   return (
-    <div role="alertdialog" aria-labelledby="delete-title" className={styles.card}>
-      <h2 id="delete-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t(target.kind === "quest" ? "quests.deleteTitle" : "quests.deleteCategoryTitle")}
-      </h2>
+    <Dialog
+      titleId="delete-title"
+      title={t(target.kind === "quest" ? "quests.deleteTitle" : "quests.deleteCategoryTitle")}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" disabled={busy || (holds > 0 && choice === null)} onClick={go}>
+            {t(target.kind === "quest" ? "quests.delete" : "quests.deleteCategory")}
+          </Button>
+        </>
+      }
+    >
       {holds === 0 ? (
         <p>
           {t(target.kind === "quest" ? "quests.deleteBody" : "quests.deleteCategoryBody", { name })}
         </p>
       ) : (
-        <fieldset className={styles.choices}>
-          <legend>{t("quests.deleteCategoryHolds", { name, count: holds })}</legend>
-          {others.map((other) => (
-            <label key={other.id} className={styles.check}>
-              <input
-                type="radio"
-                name="fate"
-                checked={choice === other.id}
-                onChange={() => setChoice(other.id)}
-              />
-              <span>
-                {t("quests.moveTo")} {textFor(other.name, language)}
-              </span>
-            </label>
-          ))}
-          <label className={styles.check}>
-            <input
-              type="radio"
-              name="fate"
-              checked={choice === "delete"}
-              onChange={() => setChoice("delete")}
-            />
-            <span>{t("quests.deleteThem")}</span>
-          </label>
-        </fieldset>
-      )}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button
-          type="button"
-          className={styles.button}
-          disabled={busy || (holds > 0 && choice === null)}
-          onClick={go}
+        <FieldGroup
+          legend={t("quests.deleteCategoryHolds", { name, count: holds })}
+          layout="choices"
         >
-          {t(target.kind === "quest" ? "quests.delete" : "quests.deleteCategory")}
-        </button>
-      </div>
-    </div>
+          {others.map((other) => (
+            <Radio
+              key={other.id}
+              label={
+                <>
+                  {t("quests.moveTo")} {textFor(other.name, language)}
+                </>
+              }
+              name="fate"
+              checked={choice === other.id}
+              onChange={() => setChoice(other.id)}
+            />
+          ))}
+          <Radio
+            label={t("quests.deleteThem")}
+            name="fate"
+            checked={choice === "delete"}
+            onChange={() => setChoice("delete")}
+          />
+        </FieldGroup>
+      )}
+    </Dialog>
   );
 }

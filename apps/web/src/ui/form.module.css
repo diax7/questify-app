@@ -1,0 +1,278 @@
+/* Form primitives: fields, controls, choices and buttons (ADR-364). Logical properties only, so RTL mirrors. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+  max-inline-size: 40rem;
+}
+
+.label {
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-tight);
+}
+
+.help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-body);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  padding-inline-start: var(--space-sm);
+  border-inline-start: 3px solid var(--color-hot);
+}
+
+.control {
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding-block: var(--space-sm);
+  padding-inline: var(--space-md);
+  font: inherit;
+  font-size: var(--text-md);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.control:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.control:disabled {
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.control[aria-invalid="true"] {
+  border-color: var(--color-hot);
+  border-width: 2px;
+}
+
+.textarea {
+  min-block-size: 7rem;
+  resize: vertical;
+}
+
+/* A one-time code: large, spaced digits. */
+.codeInput {
+  font-size: var(--text-xl);
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+/* A group of related fields; `columns` lays its fields side by side when there is room. */
+.group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-inline-size: 0;
+}
+
+/* A lone button in a form keeps its own width. */
+.group > .button {
+  align-self: flex-start;
+}
+
+.legend {
+  padding: 0;
+  margin-block-end: var(--space-sm);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-md);
+}
+
+/* The parts of a long form (an event's name, place, time) read as parts: a larger legend and a line above. */
+form.group > fieldset.group > .legend {
+  font-size: var(--text-lg);
+  margin-block-end: var(--space-md);
+}
+
+form.group > fieldset.group + fieldset.group {
+  padding-block-start: var(--space-xl);
+  border-block-start: var(--line);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+/* A checkbox, radio or switch with its label beside it; the help text sits under the label. */
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-block-size: var(--control-height);
+  padding-block: var(--space-sm);
+  cursor: pointer;
+}
+
+.choice input {
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--color-primary-action);
+  cursor: inherit;
+}
+
+.choice:has(input:disabled) {
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+}
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  column-gap: var(--space-lg);
+}
+
+/* A switch is a checkbox drawn as a toggle; it keeps the checkbox role. */
+.switch input {
+  appearance: none;
+  inline-size: 40px;
+  block-size: 24px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  border: var(--line-strong);
+  position: relative;
+  transition: background-color 120ms ease;
+}
+
+.switch input::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: inset-inline-start 120ms ease;
+}
+
+.switch input:checked {
+  background: var(--color-primary-action);
+}
+
+.switch input:checked::before {
+  inset-inline-start: 18px;
+}
+
+.switch input:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Buttons. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-block-size: var(--control-height);
+  padding-block: var(--space-xs);
+  padding-inline: var(--space-lg);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-tight);
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary {
+  color: var(--color-on-primary-action);
+  background: var(--color-primary-action);
+  border-color: color-mix(in srgb, var(--color-text) 25%, var(--color-primary-action));
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text) 10%, var(--color-primary-action));
+}
+
+.secondary {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--line-strong);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--color-background);
+}
+
+.quiet {
+  color: var(--color-text);
+  background: transparent;
+  padding-inline: var(--space-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.quiet:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.danger {
+  color: var(--color-text);
+  background: var(--color-danger-surface);
+  border-color: var(--color-hot);
+}
+
+.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-hot) 25%, var(--color-danger-surface));
+}
+
+.small {
+  min-block-size: 36px;
+  padding-inline: var(--space-md);
+  font-size: var(--text-sm);
+}
+
+/* A text field with a button beside it (show a password). */
+.inline {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: stretch;
+}
+
+.inline > .control {
+  flex: 1;
+  min-inline-size: 0;
+}

@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 const PASSWORD = "an organizer's own pass phrase";
 
@@ -29,6 +30,8 @@ export async function openBuilder(page: Page, project: string): Promise<void> {
   await page.getByLabel("تبدأ", { exact: true }).fill("2030-11-01T09:00");
   await page.getByLabel("تنتهي", { exact: true }).fill("2030-11-01T17:00");
   await page.getByRole("button", { name: "إنشاء الفعالية" }).click();
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
+  await openMenu(page);
   await page.getByRole("link", { name: "مهام", exact: true }).click();
   await expect(page.getByRole("heading", { name: "مهام", level: 1 })).toBeVisible();
 }

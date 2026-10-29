@@ -3,7 +3,6 @@
 import { formatEventTime, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import {
   FLASH_DEFAULT_MINUTES,
   FLASH_MAX_MINUTES,
@@ -11,7 +10,11 @@ import {
   flashStateOf,
 } from "#src/lib/flash.ts";
 import type { QuestView } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge } from "#src/ui/Feedback.tsx";
+import { Field, Input } from "#src/ui/Field.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Toolbar } from "#src/ui/Section.tsx";
 
 /** How often a flash quest's state is read against the clock on the quest list. */
 const TICK_MS = 5000;
@@ -64,20 +67,20 @@ export function FlashControls({
   const time = at === null ? "" : formatEventTime(new Date(at), timeZone, language);
   return (
     <>
-      <span className={styles.badge}>{t(LABEL[state], { time })}</span>
+      <Badge>{t(LABEL[state], { time })}</Badge>
       {readOnly || (state !== "draft" && state !== "running") ? null : (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.button}
+        <Toolbar>
+          <Button
+            variant="secondary"
+
             disabled={busy}
             onClick={() =>
               state === "draft" ? actions.launchFlash(quest) : actions.endFlash(quest)
             }
           >
             {t(state === "draft" ? "quests.flash.launch" : "quests.flash.end")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       )}
     </>
   );
@@ -99,30 +102,29 @@ export function FlashLaunchDialog({
   confirm: (minutes: number) => void;
 }>) {
   const t = useTranslator(language);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   const [minutes, setMinutes] = useState(FLASH_DEFAULT_MINUTES);
   const valid = flashMinutesValid(minutes);
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="flash-title"
-      aria-describedby="flash-body"
-      className={styles.card}
-      onKeyDown={(pressed) => {
-        if (pressed.key === "Escape" && !busy) {
-          cancel();
-        }
-      }}
+    <Dialog
+      titleId="flash-title"
+      describedById="flash-body"
+      title={t("quests.flash.launchTitle")}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={busy || !valid} onClick={() => confirm(minutes)}>
+            {t("quests.flash.launch")}
+          </Button>
+        </>
+      }
     >
-      <h2 id="flash-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t("quests.flash.launchTitle")}
-      </h2>
       <p id="flash-body">{t("quests.flash.launchBody")}</p>
-      <label className={styles.field}>
-        {t("quests.flash.minutes")}
-        <input
-          className={styles.input}
+      <Field label={t("quests.flash.minutes")}>
+        <Input
           type="number"
           dir="ltr"
           min={1}
@@ -132,20 +134,7 @@ export function FlashLaunchDialog({
           aria-invalid={!valid}
           onChange={(event) => setMinutes(Number(event.target.value))}
         />
-      </label>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button
-          type="button"
-          className={styles.button}
-          disabled={busy || !valid}
-          onClick={() => confirm(minutes)}
-        >
-          {t("quests.flash.launch")}
-        </button>
-      </div>
-    </div>
+      </Field>
+    </Dialog>
   );
 }

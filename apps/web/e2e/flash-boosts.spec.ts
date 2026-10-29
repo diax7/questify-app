@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 /**
  * Flash quests and double points on the dashboard (T-307), in Arabic: a flash quest saved as a draft, launched during
@@ -48,6 +49,7 @@ test("launches and ends a flash quest, and builds, edits and deletes a boost", a
   await expect(flash.getByRole("button", { name: "أطلق الآن" })).toHaveCount(0);
 
   await page.goto(event);
+  await openMenu(page);
   await page.getByRole("link", { name: "النقاط المضاعفة" }).click();
   await expect(page.getByRole("heading", { name: "النقاط المضاعفة" })).toBeVisible();
   await expect(page.getByText("لا توجد مضاعفات بعد.")).toBeVisible();

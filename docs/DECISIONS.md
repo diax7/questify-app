@@ -5484,3 +5484,23 @@ are no photos until T-301b, which waits for a second storage bucket only Dhia ca
 **Why:** the smallest build that meets FR-630 to FR-634, FR-1612 and FR-1613 with the pairing, guard and rules already shipped.
 **Trade-offs:** an unconfigured screen shows all three scenes; a screen's poll results can differ from a phone's by up to 5
 seconds; the photo wall and its allow-on-screen choice (FR-636) wait.
+
+## ADR-366 - T-599 dashboard navigation and page structure
+
+**Status:** Proposed (developer, T-599 build, 2026-10-30; Q-334). Fills in what ADR-364 left to the build.
+**Decision:** (1) **Navigation.** From 64rem wide a column on the start side lists the organizer (Events, Team) and, inside
+an event, every page of that event in four groups: This event (Overview), Set up (quests, rewards, prizes and results,
+community quests, double points, souvenirs, joining, invitations while Questify's switch is on), During the event (players,
+operators, devices, big screen, announcements, help desk with its open count) and Review (submissions, flagged activity,
+manual awards). The open page is marked. The top bar keeps the language switch, Home, My account and Sign out. (2) **Phone.**
+Below 64rem a Menu button in the top bar opens the same list as a sheet, with Home, My account and Sign out at its end;
+the top bar keeps only Menu, the product name and the language switch. (3) **Event overview.** The page header (name,
+status, join code) comes first, then activation and rehearsal, then the event form in parts (name and kind, place, time,
+who finds it and how people join), then every on/off switch under one Features section as rows, then the streak, the
+event words and a Delete or end section. (4) **Confirmations** are one modal `Dialog` (focus on its heading, Escape
+cancels, the page beside it inert). (5) **Look.** Plain admin styling from the theme's tokens: the wood top bar, parchment
+surfaces, green primary buttons, gold for the open page; no wood or parchment textures (ADR-364).
+**Why:** the old page piled 17 links in one paragraph above a form 8,000px tall; grouping by when the organizer needs a
+page keeps the list short to scan, and a phone sheet keeps every page one tap away without squeezing the top bar.
+**Trade-offs:** on a phone every page change is two taps; the event's name is not in the menu (it is in each page's
+header).

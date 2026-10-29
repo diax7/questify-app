@@ -5,7 +5,11 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Row, Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 type Member = Readonly<{
   staffUserId: string;
@@ -91,71 +95,33 @@ export function TeamPanel({
 
   const isOwner = myRole === "owner";
   return (
-    <section className={styles.panel} aria-labelledby="team-title">
-      <h1 id="team-title" className={styles.title}>
-        {t("staff.team")}
-      </h1>
+    <Stack as="section" aria-labelledby="team-title">
+      <PageHeader titleId="team-title" title={t("staff.team")} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
-      <h2 className={styles.subtitle}>{t("staff.members")}</h2>
-      {team === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
-      ) : (
-        <ul className={styles.list}>
-          {team.members.map((member) => (
-            <li key={member.staffUserId} className={styles.card}>
-              <span dir="ltr">{member.email}</span>
-              <span className={styles.badge}>
-                {t(`staff.role.${member.role}`)}
-                {member.role === "editor"
-                  ? ` · ${member.eventScope === null ? t("staff.allEvents") : t("staff.chosenEvents")}`
-                  : ""}
-              </span>
-              {isOwner && member.role === "editor" ? (
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  disabled={busy}
-                  onClick={() => void act("DELETE", `/members/${member.staffUserId}`)}
-                >
-                  {t("staff.remove")}
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <MembersSection
+        language={language}
+        team={team}
+        isOwner={isOwner}
+        busy={busy}
+        remove={(id) => void act("DELETE", `/members/${id}`)}
+      />
       {isOwner ? (
         <>
-          <h2 className={styles.subtitle}>{t("staff.pendingInvites")}</h2>
-          {team === null || team.invites.length === 0 ? (
-            <p className={styles.muted}>{t("staff.noPendingInvites")}</p>
-          ) : (
-            <ul className={styles.list}>
-              {team.invites.map((invite) => (
-                <li key={invite.id} className={styles.card}>
-                  <span dir="ltr">{invite.email}</span>
-                  <span className={styles.badge}>{t(`staff.role.${invite.role}`)}</span>
-                  <button
-                    type="button"
-                    className={styles.quiet}
-                    disabled={busy}
-                    onClick={() => void act("DELETE", `/invites/${invite.id}`)}
-                  >
-                    {t("staff.cancelInvite")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <InvitesSection
+            language={language}
+            team={team}
+            busy={busy}
+            cancel={(id) => void act("DELETE", `/invites/${id}`)}
+          />
           <InviteForm
             language={language}
             busy={busy}
@@ -174,11 +140,13 @@ export function TeamPanel({
           />
         </>
       ) : (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={() => void leave()}>
-          {t("staff.leave")}
-        </button>
+        <Toolbar>
+          <Button variant="danger" disabled={busy} onClick={() => void leave()}>
+            {t("staff.leave")}
+          </Button>
+        </Toolbar>
       )}
-    </section>
+    </Stack>
   );
 }
 
@@ -200,26 +168,114 @@ function InviteForm({
   const t = translatorFor(language);
   const id = `${title.replace(".", "-")}-heading`;
   return (
-    <form className={styles.form} onSubmit={onSubmit} aria-labelledby={id}>
-      <h2 id={id} className={styles.subtitle}>
-        {t(title)}
-      </h2>
-      <p className={styles.muted}>{t(hint)}</p>
-      <label className={styles.field}>
-        <span>{t("staff.email")}</span>
-        <input
-          className={styles.input}
-          name="email"
-          type="email"
-          dir="ltr"
-          autoComplete="off"
-          required
-          disabled={busy}
-        />
-      </label>
-      <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
-        {t(action)}
-      </button>
-    </form>
+    <Section titleId={id} title={t(title)} description={t(hint)}>
+      <Form onSubmit={onSubmit} aria-labelledby={id}>
+        <Field label={t("staff.email")}>
+          <Input name="email" type="email" dir="ltr" autoComplete="off" required disabled={busy} />
+        </Field>
+        <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
+          {t(action)}
+        </Button>
+      </Form>
+    </Section>
+  );
+}
+
+/** Who is on the team, with their role; the owner can remove an editor. */
+function MembersSection({
+  language,
+  team,
+  isOwner,
+  busy,
+  remove,
+}: Readonly<{
+  language: Language;
+  team: TeamView | null;
+  isOwner: boolean;
+  busy: boolean;
+  remove: (staffUserId: string) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <Section title={t("staff.members")}>
+      {team === null ? (
+        <Muted>{t("common.loading")}</Muted>
+      ) : (
+        <Rows>
+          {team.members.map((member) => (
+            <Row
+              key={member.staffUserId}
+              main={
+                <>
+                  <span dir="ltr">{member.email}</span>
+                  <Badge>
+                    {t(`staff.role.${member.role}`)}
+                    {member.role === "editor"
+                      ? ` · ${member.eventScope === null ? t("staff.allEvents") : t("staff.chosenEvents")}`
+                      : ""}
+                  </Badge>
+                </>
+              }
+            >
+              {isOwner && member.role === "editor" ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => remove(member.staffUserId)}
+                >
+                  {t("staff.remove")}
+                </Button>
+              ) : null}
+            </Row>
+          ))}
+        </Rows>
+      )}
+    </Section>
+  );
+}
+
+/** Invites sent and not yet accepted, each with Cancel. */
+function InvitesSection({
+  language,
+  team,
+  busy,
+  cancel,
+}: Readonly<{
+  language: Language;
+  team: TeamView | null;
+  busy: boolean;
+  cancel: (inviteId: string) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <Section title={t("staff.pendingInvites")}>
+      {team === null || team.invites.length === 0 ? (
+        <EmptyState>{t("staff.noPendingInvites")}</EmptyState>
+      ) : (
+        <Rows>
+          {team.invites.map((invite) => (
+            <Row
+              key={invite.id}
+              main={
+                <>
+                  <span dir="ltr">{invite.email}</span>
+                  <Badge>{t(`staff.role.${invite.role}`)}</Badge>
+                </>
+              }
+            >
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => cancel(invite.id)}
+              >
+                {t("staff.cancelInvite")}
+              </Button>
+            </Row>
+          ))}
+        </Rows>
+      )}
+    </Section>
   );
 }

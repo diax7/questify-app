@@ -1,0 +1,33 @@
+/*
+ * The dashboard's design tokens (ADR-364). Colours come from the theme (`--color-*`, set on <html> by
+ * `themeVariables`), spacing from its 4px scale (`--space-*`) and corners from `--radius-*`; this file adds the type
+ * scale, sizes and shadows. A later restyle changes this file and the primitives in src/ui, not each page.
+ */
+:root {
+  /* Type: body 16px, nothing under 14px. */
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --leading-tight: 1.3;
+  --leading-body: 1.55;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+  --weight-display: 700;
+
+  /* Sizes. */
+  --control-height: 44px;
+  --content-max: 70rem;
+  --reading-max: 44rem;
+  --sidebar-width: 16.5rem;
+  --header-height: 60px;
+
+  /* Lines and depth, drawn from the theme's text colour so a new theme keeps them in tone. */
+  --line: 1px solid var(--color-border);
+  --line-strong: 1px solid color-mix(in srgb, var(--color-text) 28%, var(--color-border));
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-text) 10%, transparent);
+  --shadow-md: 0 8px 24px color-mix(in srgb, var(--color-text) 16%, transparent);
+  --scrim: color-mix(in srgb, var(--color-text) 45%, transparent);
+}

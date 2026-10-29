@@ -5,7 +5,11 @@ import { useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Toolbar } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -36,51 +40,44 @@ export function PasswordStep({
     setProblem(describeProblem(result.body, language, t).text);
   };
 
+  const describedBy = problem === null ? undefined : "password-problem";
   return (
-    <form className={styles.form} onSubmit={(event) => void submit(event)} noValidate={false}>
-      <h1 id="sign-in-title" className={styles.title}>
-        {t("staff.signIn")}
-      </h1>
-      <label className={styles.field}>
-        <span>{t("staff.email")}</span>
-        <input
-          className={styles.input}
+    <Form onSubmit={(event) => void submit(event)} noValidate={false}>
+      <PageHeader titleId="sign-in-title" title={t("staff.signIn")} />
+      <Field label={t("staff.email")}>
+        <Input
           name="email"
           type="email"
           dir="ltr"
           autoComplete="email"
           required
           disabled={busy}
-          aria-describedby={problem === null ? undefined : "password-problem"}
+          aria-describedby={describedBy}
         />
-      </label>
-      <label className={styles.field}>
-        <span>{t("staff.password")}</span>
-        <input
-          className={styles.input}
+      </Field>
+      <Field label={t("staff.password")}>
+        <Input
           name="password"
           type="password"
           dir="ltr"
           autoComplete="current-password"
           required
           disabled={busy}
-          aria-describedby={problem === null ? undefined : "password-problem"}
+          aria-describedby={describedBy}
         />
-      </label>
+      </Field>
       {problem === null ? null : (
-        <p id="password-problem" role="alert" className={styles.alert}>
+        <Notice id="password-problem" role="alert" tone="danger">
           {problem}
-        </p>
+        </Notice>
       )}
-      <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+      <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
         {t("common.continue")}
-      </button>
-      <a className={styles.textLink} href={`/${language}/forgot-password`}>
-        {t("staff.forgotPassword")}
-      </a>
-      <a className={styles.textLink} href={`/${language}/sign-up`}>
-        {t("staff.signUpLink")}
-      </a>
-    </form>
+      </Button>
+      <Toolbar align="between">
+        <a href={`/${language}/forgot-password`}>{t("staff.forgotPassword")}</a>
+        <a href={`/${language}/sign-up`}>{t("staff.signUpLink")}</a>
+      </Toolbar>
+    </Form>
   );
 }

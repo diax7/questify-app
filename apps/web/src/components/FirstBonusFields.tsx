@@ -9,7 +9,9 @@ import {
 } from "@questify/shared";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { QuestDraft } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input } from "#src/ui/Field.tsx";
 
 /**
  * "First players bonus" (T-313, F-342, ADR-262): X extra points for the first N players to finish the quest. Once a
@@ -41,10 +43,8 @@ export function FirstBonusFields({
     label: string,
     readOnly: boolean,
   ) => (
-    <label className={styles.field}>
-      {label}
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         type="number"
         dir="ltr"
         min={key === "firstBonusSlots" ? Math.max(limits.min, saved?.given ?? 0) : limits.min}
@@ -59,19 +59,16 @@ export function FirstBonusFields({
           }
         }}
       />
-    </label>
+    </Field>
   );
   return (
-    <div className={styles.choices}>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.firstBonusOn}
-          disabled={busy || locked}
-          onChange={(event) => change({ firstBonusOn: event.target.checked })}
-        />
-        <span>{t("builder.firstBonus.title")}</span>
-      </label>
+    <FieldGroup>
+      <Checkbox
+        label={t("builder.firstBonus.title")}
+        checked={draft.firstBonusOn}
+        disabled={busy || locked}
+        onChange={(event) => change({ firstBonusOn: event.target.checked })}
+      />
       {draft.firstBonusOn ? (
         <>
           {number(
@@ -81,9 +78,9 @@ export function FirstBonusFields({
             locked,
           )}
           {locked ? (
-            <p className={styles.muted}>
+            <Muted>
               {t("builder.firstBonus.locked", { given: formatNumber(saved.given, language) })}
-            </p>
+            </Muted>
           ) : null}
           {number(
             "firstBonusSlots",
@@ -92,29 +89,29 @@ export function FirstBonusFields({
             false,
           )}
           {saved !== null && saved.given > 0 ? (
-            <p className={styles.muted}>
+            <Muted>
               {t("builder.firstBonus.belowGiven", { given: formatNumber(saved.given, language) })}
-            </p>
+            </Muted>
           ) : null}
-          <p className={styles.muted}>
+          <Muted>
             {t("builder.firstBonus.preview", {
               slots: formatNumber(draft.firstBonusSlots, language),
               points: formatNumber(draft.firstBonusPoints, language),
               currency: termFor(terms.currency, language, draft.firstBonusPoints),
             })}
-          </p>
+          </Muted>
           {saved !== null && saved.left > 0 ? (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={busy}
               onClick={() => save({ ...draft, firstBonusStop: true })}
             >
               {t("builder.firstBonus.stop")}
-            </button>
+            </Button>
           ) : null}
         </>
       ) : null}
-    </div>
+    </FieldGroup>
   );
 }

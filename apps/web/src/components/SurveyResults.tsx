@@ -10,7 +10,8 @@ import {
   type SurveyQuestionResult,
   type SurveyResults as Results,
 } from "#src/lib/surveys.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Card, CardList, SubHeading } from "#src/ui/Section.tsx";
 
 function QuestionResult({
   language,
@@ -20,11 +21,11 @@ function QuestionResult({
   return (
     <li>
       <strong>{textFor(question.text, language)}</strong>
-      <p className={styles.muted}>
+      <Muted>
         {t("quests.survey.answeredCount", { count: formatNumber(question.answered, language) })}
-      </p>
+      </Muted>
       {question.choices === null ? null : (
-        <ul className={styles.list}>
+        <CardList>
           {question.choices.map((choice) => (
             <li key={choice.id}>
               {t("quests.vote.count", {
@@ -33,19 +34,19 @@ function QuestionResult({
               })}
             </li>
           ))}
-        </ul>
+        </CardList>
       )}
       {question.average === null ? null : (
         <p>{t("quests.survey.average", { average: formatNumber(question.average, language) })}</p>
       )}
       {question.texts === null || question.texts.length === 0 ? null : (
-        <ul className={styles.list}>
+        <CardList>
           {question.texts.map((text, index) => (
             <li key={`${question.id}-${index}`} dir="auto">
               {text}
             </li>
           ))}
-        </ul>
+        </CardList>
       )}
     </li>
   );
@@ -70,21 +71,21 @@ export function SurveyResults({ language, url }: Readonly<{ language: Language; 
     return null;
   }
   return (
-    <section className={styles.field} aria-labelledby="survey-results">
-      <h3 id="survey-results" className={styles.subtitle}>
+    <Card as="section" aria-labelledby="survey-results">
+      <SubHeading as="h3" id="survey-results">
         {t("quests.survey.results")}
-      </h3>
-      <p className={styles.muted}>
+      </SubHeading>
+      <Muted>
         {t("quests.survey.total", { total: formatNumber(results.total, language) })}{" "}
         {t("quests.survey.namesNotShown")}
-      </p>
+      </Muted>
       {results.total === 0 ? null : (
-        <ol className={styles.list}>
+        <ol>
           {results.questions.map((question) => (
             <QuestionResult key={question.id} language={language} question={question} />
           ))}
         </ol>
       )}
-    </section>
+    </Card>
   );
 }

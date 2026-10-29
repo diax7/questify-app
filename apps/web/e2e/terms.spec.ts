@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 /**
  * The event's words (T-117, T-311b): rename the currency, the player and the quest in Arabic and see them where the
@@ -49,11 +50,13 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   await category.getByLabel("بالإنجليزية، جمع").fill("stages");
   await words.getByRole("button", { name: "حفظ الكلمات" }).click();
   await expect(words.getByRole("status")).toHaveText("حُفظت الكلمات.");
+  await openMenu(page);
   await expect(page.getByRole("link", { name: "طلاب" })).toBeVisible();
 
   await page.reload();
   await expect(currency.getByRole("radio", { name: "جوهرة" })).toBeChecked();
   await expect(quest.getByLabel("بالإنجليزية، جمع")).toHaveValue("missions");
+  await openMenu(page);
   await page.getByRole("link", { name: "طلاب" }).click();
   await expect(page.getByRole("heading", { name: "طلاب", level: 2 })).toBeVisible();
 

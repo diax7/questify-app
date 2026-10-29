@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 test("creates and edits bilingual souvenirs, reviews each audience, activates and stops a permanent promise", async ({
   page,
@@ -9,6 +10,7 @@ test("creates and edits bilingual souvenirs, reviews each audience, activates an
   const event = page.url().replace(/\/quests$/, "");
   await page.goto(event);
   const apiPath = `${new URL(event).pathname.replace(/^\/ar\//, "/v1/")}/souvenirs`;
+  await openMenu(page);
   const [loaded] = await Promise.all([
     page.waitForResponse(
       (response) =>

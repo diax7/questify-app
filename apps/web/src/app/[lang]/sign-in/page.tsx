@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { SignInForm } from "#src/components/SignInForm.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage } from "#src/lib/language.ts";
 import { currentStaff } from "#src/lib/session.ts";
-import styles from "#src/components/layout.module.css";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{
   params: Promise<{ lang: string }>;
@@ -21,11 +20,8 @@ export default async function SignInPage({ params, searchParams }: Props) {
   }
   const ended = (await searchParams)["ended"] === "1";
   return (
-    <>
-      <TopBar language={lang} path="/sign-in" />
-      <main className={styles.page}>
-        <SignInForm language={lang} sessionEnded={ended} />
-      </main>
-    </>
+    <AppShell language={lang} path="/sign-in" signedIn={false} narrow>
+      <SignInForm language={lang} sessionEnded={ended} />
+    </AppShell>
   );
 }

@@ -26,6 +26,11 @@ h2 {
   margin: 0;
 }
 
+a {
+  color: var(--color-text);
+  text-underline-offset: 3px;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;

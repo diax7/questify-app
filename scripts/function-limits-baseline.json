@@ -962,7 +962,7 @@
   "apps/web/src/components/CodeStep.tsx": {
     "CodeStep": {
       "complexity": [9],
-      "lines": [129]
+      "lines": [114]
     }
   },
   "apps/web/src/components/CodesPanel.tsx": {
@@ -1027,13 +1027,13 @@
   },
   "apps/web/src/components/EventForm.tsx": {
     "EventForm": {
-      "complexity": [28],
-      "lines": [306]
+      "complexity": [18],
+      "lines": [250]
     }
   },
   "apps/web/src/components/EventWords.tsx": {
     "EventWords": {
-      "lines": [110]
+      "lines": [109]
     }
   },
   "apps/web/src/components/ExclusionsPanel.tsx": {
@@ -1043,8 +1043,7 @@
   },
   "apps/web/src/components/FirstBonusFields.tsx": {
     "FirstBonusFields": {
-      "complexity": [9],
-      "lines": [102]
+      "complexity": [9]
     }
   },
   "apps/web/src/components/FlagsPanel.tsx": {
@@ -1114,29 +1113,26 @@
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {
     "CategoryCard": {
-      "lines": [115]
-    },
-    "CategoryRuleFields": {
-      "lines": [117]
+      "lines": [114]
     },
     "DeleteDialog": {
       "complexity": [10]
     },
     "QuestRow": {
-      "complexity": [19],
-      "lines": [134]
+      "complexity": [17],
+      "lines": [133]
     }
   },
   "apps/web/src/components/QuestForm.tsx": {
     "QuestForm": {
       "complexity": [13],
-      "lines": [184]
+      "lines": [178]
     }
   },
   "apps/web/src/components/RehearsalCard.tsx": {
     "RehearsalCard": {
       "complexity": [14],
-      "lines": [153]
+      "lines": [138]
     }
   },
   "apps/web/src/components/ResultsPanel.tsx": {
@@ -1146,18 +1142,18 @@
   },
   "apps/web/src/components/RewardsPanel.tsx": {
     "DeskForm": {
-      "lines": [150]
+      "lines": [140]
     },
     "RewardForm": {
       "complexity": [13],
-      "lines": [193]
+      "lines": [176]
     },
     "RewardRow": {
       "complexity": [9]
     },
     "RewardsPanel": {
       "complexity": [21],
-      "lines": [220]
+      "lines": [217]
     }
   },
   "apps/web/src/components/SignUpForm.tsx": {
@@ -1190,7 +1186,7 @@
   },
   "apps/web/src/components/TeamPanel.tsx": {
     "TeamPanel": {
-      "lines": [153]
+      "lines": [117]
     }
   },
   "apps/web/src/components/useQuestBuilder.ts": {

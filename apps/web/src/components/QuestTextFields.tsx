@@ -2,7 +2,8 @@
 
 import type { Language } from "@questify/shared";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Field, FieldGroup, Input } from "#src/ui/Field.tsx";
 
 export type Config = Readonly<Record<string, unknown>>;
 
@@ -54,17 +55,15 @@ export function TextPair({
   return (
     <>
       {(["ar", "en"] as const).map((key) => (
-        <label key={key} className={styles.field}>
-          {labels[key]}
-          <input
-            className={styles.input}
+        <Field key={key} label={labels[key]}>
+          <Input
             dir={key === "ar" ? "rtl" : "ltr"}
             maxLength={max}
             value={str(text[key])}
             disabled={disabled}
             onChange={(event) => change(withText(text, key, event.target.value))}
           />
-        </label>
+        </Field>
       ))}
     </>
   );
@@ -90,7 +89,7 @@ export function OptionList({
   return (
     <>
       {items.map((item, index) => (
-        <div key={item.id} className={styles.field}>
+        <FieldGroup key={item.id}>
           <TextPair
             labels={{
               ar: t("quests.choiceAr", { number: index + 1 }),
@@ -102,26 +101,26 @@ export function OptionList({
             change={(text) => edit(item.id, text)}
           />
           {items.length > 2 ? (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={disabled}
               onClick={() => change(items.filter((one) => one.id !== item.id))}
             >
               {t("quests.vote.removeOption", { number: index + 1 })}
-            </button>
+            </Button>
           ) : null}
-        </div>
+        </FieldGroup>
       ))}
       {items.length < most ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={disabled}
           onClick={() => change([...items, newItem()])}
         >
           {t("quests.vote.addOption")}
-        </button>
+        </Button>
       ) : null}
     </>
   );

@@ -13,11 +13,13 @@ import {
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input, Select, Textarea } from "#src/ui/Field.tsx";
 
 /** A challenge (T-303, ADR-197): nothing to set; the description says what to do, and staff confirm it. */
 export function ChallengeFields({ language }: TypeFieldProps) {
-  return <p className={styles.muted}>{useTranslator(language)("quests.challenge.note")}</p>;
+  return <Muted>{useTranslator(language)("quests.challenge.note")}</Muted>;
 }
 
 const SURVEY_KINDS = ["choice", "rating", "text"] as const;
@@ -64,8 +66,7 @@ function SurveyQuestionFields({
 }>) {
   const t = useTranslator(language);
   return (
-    <fieldset className={styles.field}>
-      <legend>{t("quests.quiz.question", { number })}</legend>
+    <FieldGroup legend={<>{t("quests.quiz.question", { number })}</>}>
       <TextPair
         labels={{ ar: t("quests.quiz.questionAr"), en: t("quests.quiz.questionEn") }}
         text={question.text}
@@ -73,10 +74,8 @@ function SurveyQuestionFields({
         disabled={disabled}
         change={(text) => change({ ...question, text })}
       />
-      <label className={styles.field}>
-        {t("quests.survey.kind")}
-        <select
-          className={styles.input}
+      <Field label={t("quests.survey.kind")}>
+        <Select
           value={question.kind}
           disabled={disabled}
           onChange={(event) => change(withKind(question, event.target.value as SurveyKind))}
@@ -86,8 +85,8 @@ function SurveyQuestionFields({
               {t(`quests.survey.kind.${kind}`)}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {question.kind === "choice" ? (
         <OptionList
           language={language}
@@ -97,21 +96,18 @@ function SurveyQuestionFields({
           change={(choices) => change({ ...question, choices })}
         />
       ) : null}
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={question.required}
-          disabled={disabled}
-          onChange={(event) => change({ ...question, required: event.target.checked })}
-        />
-        <span>{t("quests.survey.required")}</span>
-      </label>
+      <Checkbox
+        label={t("quests.survey.required")}
+        checked={question.required}
+        disabled={disabled}
+        onChange={(event) => change({ ...question, required: event.target.checked })}
+      />
       {remove === null ? null : (
-        <button type="button" className={styles.quiet} disabled={disabled} onClick={remove}>
+        <Button variant="quiet" disabled={disabled} onClick={remove}>
           {t("quests.quiz.removeQuestion", { number })}
-        </button>
+        </Button>
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -127,7 +123,7 @@ export function SurveyFields({ language, config, disabled, change }: TypeFieldPr
   const save = (next: readonly SurveyQuestion[]) => change({ ...config, questions: next });
   return (
     <>
-      <p className={styles.muted}>{t("quests.survey.note")}</p>
+      <Muted>{t("quests.survey.note")}</Muted>
       {questions.map((question, index) => (
         <SurveyQuestionFields
           key={question.id}
@@ -144,14 +140,14 @@ export function SurveyFields({ language, config, disabled, change }: TypeFieldPr
         />
       ))}
       {questions.length < 20 ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={disabled}
           onClick={() => save([...questions, newSurveyQuestion()])}
         >
           {t("quests.quiz.addQuestion")}
-        </button>
+        </Button>
       ) : null}
     </>
   );
@@ -171,12 +167,13 @@ export function ShareFields({ language, config, disabled, change }: TypeFieldPro
   };
   return (
     <>
-      <p className={styles.muted}>{t("quests.share.note")}</p>
+      <Muted>{t("quests.share.note")}</Muted>
       {(["ar", "en"] as const).map((key) => (
-        <label key={key} className={styles.field}>
-          {t(key === "ar" ? "quests.share.messageAr" : "quests.share.messageEn")}
-          <textarea
-            className={styles.input}
+        <Field
+          key={key}
+          label={t(key === "ar" ? "quests.share.messageAr" : "quests.share.messageEn")}
+        >
+          <Textarea
             dir={key === "ar" ? "rtl" : "ltr"}
             maxLength={500}
             rows={3}
@@ -186,12 +183,10 @@ export function ShareFields({ language, config, disabled, change }: TypeFieldPro
               change({ ...config, message: withText(message, key, event.target.value) })
             }
           />
-        </label>
+        </Field>
       ))}
-      <label className={styles.field}>
-        {t("quests.share.link")}
-        <input
-          className={styles.input}
+      <Field label={t("quests.share.link")}>
+        <Input
           type="url"
           dir="ltr"
           maxLength={300}
@@ -200,7 +195,7 @@ export function ShareFields({ language, config, disabled, change }: TypeFieldPro
           disabled={disabled}
           onChange={(event) => setLink(event.target.value)}
         />
-      </label>
+      </Field>
     </>
   );
 }

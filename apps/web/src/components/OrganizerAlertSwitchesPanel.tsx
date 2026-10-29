@@ -11,7 +11,9 @@ import {
 } from "#src/lib/organizer-alerts.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Switch } from "#src/ui/Field.tsx";
+import { CardList, Section } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -76,41 +78,35 @@ export function OrganizerAlertSwitchesPanel({
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="alerts-title">
-      <h2 id="alerts-title" className={styles.subtitle}>
-        {t("alerts.title")}
-      </h2>
-      <p className={styles.muted}>{t("alerts.hint")}</p>
-      <p className={styles.muted}>{t("alerts.notLive")}</p>
+    <Section titleId="alerts-title" title={t("alerts.title")}>
+      <Muted>{t("alerts.hint")}</Muted>
+      <Muted>{t("alerts.notLive")}</Muted>
       {switches === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {ALERT_ORDER.map((type) => (
             <li key={type}>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={switches[type]}
-                  disabled={busy}
-                  onChange={(changed) => void change(type, changed.target.checked)}
-                />
-                <span>{t(ALERT_LABELS[type])}</span>
-              </label>
+              <Switch
+                label={t(ALERT_LABELS[type])}
+                checked={switches[type]}
+                disabled={busy}
+                onChange={(changed) => void change(type, changed.target.checked)}
+              />
             </li>
           ))}
-        </ul>
+        </CardList>
       )}
       {saved ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("alerts.saved")}
-        </p>
+        </Notice>
       ) : null}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-    </section>
+    </Section>
   );
 }

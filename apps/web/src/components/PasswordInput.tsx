@@ -3,7 +3,8 @@
 import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Field, InlineControls, Input } from "#src/ui/Field.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -27,12 +28,9 @@ export function PasswordInput({
   const [shown, setShown] = useState(false);
   const id = `field-${name}`;
   return (
-    <div className={styles.field}>
-      <label htmlFor={id}>{label}</label>
-      <div className={styles.passwordRow}>
-        <input
-          id={id}
-          className={styles.input}
+    <Field id={id} label={label}>
+      <InlineControls>
+        <Input
           name={name}
           type={shown ? "text" : "password"}
           dir="ltr"
@@ -41,16 +39,15 @@ export function PasswordInput({
           disabled={disabled}
           aria-describedby={describedBy}
         />
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="secondary"
           aria-pressed={shown}
           aria-controls={id}
           onClick={() => setShown((value) => !value)}
         >
           {shown ? t("staff.hidePassword") : t("staff.showPassword")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </InlineControls>
+    </Field>
   );
 }

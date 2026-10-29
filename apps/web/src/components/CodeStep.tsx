@@ -5,7 +5,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { isolate, translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { RESEND_SPACING_SECONDS, describeProblem, formatWait } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, codeInputClass } from "#src/ui/Field.tsx";
+import { Toolbar } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 /** Seconds until another code may be asked for, counted down once a second. */
 function useCountdown(): [number, (seconds: number) => void] {
@@ -105,16 +109,16 @@ export function CodeStep({
   };
 
   return (
-    <form className={styles.form} onSubmit={(event) => void submit(event)}>
-      <h1 id="sign-in-title" className={styles.title}>
-        {t("staff.codeTitle")}
-      </h1>
-      <p className={styles.muted}>{t("staff.codeSent", { email: isolate(email) })}</p>
-      <label className={styles.field}>
-        <span>{t("staff.code")}</span>
-        <input
+    <Form onSubmit={(event) => void submit(event)}>
+      <PageHeader
+        titleId="sign-in-title"
+        title={t("staff.codeTitle")}
+        description={t("staff.codeSent", { email: isolate(email) })}
+      />
+      <Field label={t("staff.code")}>
+        <Input
           ref={field}
-          className={`${styles.input} ${styles.code}`}
+          className={codeInputClass}
           name="code"
           dir="ltr"
           inputMode="numeric"
@@ -127,43 +131,28 @@ export function CodeStep({
           disabled={busy}
           aria-describedby={problem === null ? undefined : "code-problem"}
         />
-      </label>
+      </Field>
       {problem === null ? null : (
-        <p id="code-problem" role="alert" className={styles.alert}>
+        <Notice id="code-problem" role="alert" tone="danger">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice role="status" tone="success">
           {notice}
-        </p>
+        </Notice>
       )}
-      <button
-        type="submit"
-        className={styles.button}
-        disabled={busy || code.length !== 6}
-        aria-busy={busy}
-      >
+      <Button type="submit" variant="primary" disabled={busy || code.length !== 6} aria-busy={busy}>
         {t(submitLabel)}
-      </button>
-      <div className={styles.row}>
-        <button
-          type="button"
-          className={styles.quiet}
-          onClick={() => void resend()}
-          disabled={busy || wait > 0}
-        >
+      </Button>
+      <Toolbar align="between">
+        <Button variant="quiet" onClick={() => void resend()} disabled={busy || wait > 0}>
           {wait > 0 ? t("staff.resendIn", { time: formatWait(wait) }) : t("staff.resend")}
-        </button>
-        <button
-          type="button"
-          className={styles.quiet}
-          onClick={() => onRestart("")}
-          disabled={busy}
-        >
+        </Button>
+        <Button variant="quiet" onClick={() => onRestart("")} disabled={busy}>
           {t("staff.otherAccount")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }

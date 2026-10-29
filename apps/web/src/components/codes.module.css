@@ -48,7 +48,8 @@
 @media print {
   /* Only the sheet prints, in normal flow: no bar, no buttons; one large code per page. */
   :global(header),
-  .controls {
+  .controls,
+  .card .controls {
     display: none;
   }
   .card {

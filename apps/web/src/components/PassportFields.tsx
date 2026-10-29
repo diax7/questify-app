@@ -8,7 +8,9 @@ import {
   type Item,
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Input } from "#src/ui/Field.tsx";
 
 /** A passport step in the form: a saved one keeps its id for the API, a new one gets a local id only. */
 export type StepItem = Item & Readonly<{ saved?: boolean }>;
@@ -26,13 +28,10 @@ export function PassportFields({ language, config, disabled, change }: TypeField
   const needed = typeof config["needed"] === "number" ? config["needed"] : 1;
   const save = (next: readonly StepItem[]) => change({ ...config, steps: next });
   return (
-    <fieldset className={styles.field}>
-      <legend>{t("quests.passport.steps")}</legend>
-      <p className={styles.muted}>{t("quests.passport.note")}</p>
-      <label className={styles.field}>
-        {t("quests.passport.needed")}
-        <input
-          className={styles.input}
+    <FieldGroup legend={t("quests.passport.steps")}>
+      <Muted>{t("quests.passport.note")}</Muted>
+      <Field label={t("quests.passport.needed")}>
+        <Input
           type="number"
           inputMode="numeric"
           dir="ltr"
@@ -42,9 +41,9 @@ export function PassportFields({ language, config, disabled, change }: TypeField
           disabled={disabled}
           onChange={(event) => change({ ...config, needed: Number(event.target.value) })}
         />
-      </label>
+      </Field>
       {steps.map((step, index) => (
-        <div key={step.id} className={styles.field}>
+        <FieldGroup key={step.id}>
           <TextPair
             labels={{
               ar: t("quests.passport.stepAr", { number: index + 1 }),
@@ -58,27 +57,27 @@ export function PassportFields({ language, config, disabled, change }: TypeField
             }
           />
           {steps.length > 1 ? (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={disabled}
               onClick={() => save(steps.filter((one) => one.id !== step.id))}
             >
               {t("quests.passport.removeStep", { number: index + 1 })}
-            </button>
+            </Button>
           ) : null}
-        </div>
+        </FieldGroup>
       ))}
       {steps.length < PASSPORT_STEPS_MAX ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
+
           disabled={disabled}
           onClick={() => save([...steps, newItem()])}
         >
           {t("quests.passport.addStep")}
-        </button>
+        </Button>
       ) : null}
-    </fieldset>
+    </FieldGroup>
   );
 }

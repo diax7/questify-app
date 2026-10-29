@@ -6,7 +6,8 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { named } from "#src/lib/prizes.ts";
 import { questItemsOf, ranOut, type QuestItem } from "#src/lib/quest-items.ts";
-import styles from "#src/components/layout.module.css";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -26,7 +27,7 @@ export function QuestItemWarnings({ language, organizerId, eventId }: Props) {
     return null;
   }
   return (
-    <div role="alert" className={styles.alert}>
+    <Notice as="div" tone="warning" role="alert">
       {out.map((item) => (
         <p key={item.id} dir="auto">
           {t("questItems.ranOut", {
@@ -35,12 +36,9 @@ export function QuestItemWarnings({ language, organizerId, eventId }: Props) {
           })}
         </p>
       ))}
-      <a
-        className={styles.textLink}
-        href={`/${language}/organizers/${organizerId}/events/${eventId}/prizes`}
-      >
+      <TextLink href={`/${language}/organizers/${organizerId}/events/${eventId}/prizes`}>
         {t("questItems.open")}
-      </a>
-    </div>
+      </TextLink>
+    </Notice>
   );
 }

@@ -15,7 +15,8 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { NumberField } from "#src/components/NumberField.tsx";
 import type { TypeFieldProps } from "#src/components/QuestTextFields.tsx";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, Select } from "#src/ui/Field.tsx";
 
 /** A cooldown a fresh "unlimited" choice starts with, in minutes; the organizer changes it. */
 const DEFAULT_COOLDOWN = 30;
@@ -36,11 +37,9 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
   const preview = targetWords(t, gameTarget(game, LEVELS[game][level]), language);
   return (
     <>
-      <p className={styles.muted}>{t("quests.game.note")}</p>
-      <label className={styles.field}>
-        {t("quests.game.game")}
-        <select
-          className={styles.input}
+      <Muted>{t("quests.game.note")}</Muted>
+      <Field label={t("quests.game.game")}>
+        <Select
           value={game}
           disabled={disabled}
           onChange={(picked) => change({ ...config, game: picked.target.value })}
@@ -50,15 +49,11 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
               {t(GAME_NAME_KEYS[name])}
             </option>
           ))}
-        </select>
-      </label>
-      {game === "catch" || game === "tap_rush" ? (
-        <p className={styles.muted}>{t("quests.game.quickNote")}</p>
-      ) : null}
-      <label className={styles.field}>
-        {t("quests.game.level")}
-        <select
-          className={styles.input}
+        </Select>
+      </Field>
+      {game === "catch" || game === "tap_rush" ? <Muted>{t("quests.game.quickNote")}</Muted> : null}
+      <Field label={t("quests.game.level")}>
+        <Select
           value={level}
           disabled={disabled}
           onChange={(picked) => change({ ...config, level: picked.target.value })}
@@ -68,23 +63,20 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
               {t(GAME_LEVEL_KEYS[name])}
             </option>
           ))}
-        </select>
-      </label>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={unlimited}
-          disabled={disabled}
-          onChange={(picked) =>
-            change(
-              picked.target.checked
-                ? { ...config, attempts: null, cooldownMinutes: DEFAULT_COOLDOWN }
-                : { ...config, attempts: GAME_ATTEMPTS.default, cooldownMinutes: null },
-            )
-          }
-        />
-        <span>{t("quests.game.unlimited")}</span>
-      </label>
+        </Select>
+      </Field>
+      <Checkbox
+        label={t("quests.game.unlimited")}
+        checked={unlimited}
+        disabled={disabled}
+        onChange={(picked) =>
+          change(
+            picked.target.checked
+              ? { ...config, attempts: null, cooldownMinutes: DEFAULT_COOLDOWN }
+              : { ...config, attempts: GAME_ATTEMPTS.default, cooldownMinutes: null },
+          )
+        }
+      />
       {unlimited ? (
         <NumberField
           label={t("quests.game.cooldown")}
@@ -102,9 +94,7 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
           change={(text) => change({ ...config, attempts: text === "" ? "" : Number(text) })}
         />
       )}
-      <p className={styles.muted} dir="auto">
-        {t("quests.game.preview", { target: preview })}
-      </p>
+      <Muted dir="auto">{t("quests.game.preview", { target: preview })}</Muted>
     </>
   );
 }

@@ -24,3 +24,8 @@ export function TermsScope({
 export function useTranslator(language: Language): Translate {
   return translatorFor(language, useContext(TermsContext));
 }
+
+/** The surrounding event's words (Questify's own outside an event). */
+export function useEventTerms(): EventTerms {
+  return useContext(TermsContext);
+}

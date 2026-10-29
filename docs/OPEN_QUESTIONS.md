@@ -1487,3 +1487,10 @@ Which scenes does an unconfigured big screen show, how long does a scene stay up
 stream? **Recommended (developer, T-504 build):** all three scenes in order until the team picks; 15 seconds a scene, fixed; polling
 every 3 seconds, no stream; the photo wall (FR-635 to FR-637) split to T-504b until T-301b has its bucket. **Open:** Dhia may want
 a per-event rotation time, a different default, or a today's-ranking scene (T-216); each is a small addition. ADR-365 Proposed. **Answered (developer, delegated by Dhia, 2026-10-30):** accepted as recommended; ADR-365 Accepted. The TV shows `after_vote` poll results live to the room while a phone waits for its own vote (FR-634, counts only); say so in the poll builder help (FOLLOWUPS).
+
+## Q-334 - T-599 dashboard menu groups and phone menu (2026-10-30)
+
+How should the dashboard list an event's 18 pages, and where does navigation live on a phone? **Recommended (developer,
+T-599 build):** a column on the start side on a desktop, grouped This event / Set up / During the event / Review; on a
+phone a Menu sheet with the same list and the account links. **Open:** Dhia may prefer other group names or order, the
+event's name at the top of the menu, or a bottom tab bar on a phone. ADR-366 Proposed.

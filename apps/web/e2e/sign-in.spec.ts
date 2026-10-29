@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PASSWORD, account, codeFor, freshAddress } from "#e2e/mail.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {
   const overflow = await page.evaluate(
@@ -34,6 +35,7 @@ test.describe("an Arabic browser", () => {
     await expect(page.getByText("محرر")).toBeVisible();
     await expectNoSidewaysScroll(page);
 
+    await openMenu(page);
     await page.getByRole("button", { name: "تسجيل الخروج" }).click();
     await expect(page).toHaveURL(/\/ar\/sign-in$/);
     await page.goto("/ar");
@@ -80,6 +82,9 @@ test("signs in with the keyboard alone", async ({ page }, info) => {
   await freshAddress(page);
   const email = account("keys", info);
   await page.goto("/en/sign-in");
+  // Skip to content, the product name, the language switch, then the form.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Email")).toBeFocused();

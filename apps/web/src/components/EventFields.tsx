@@ -29,7 +29,8 @@ import {
 } from "#src/lib/events.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input, Select } from "#src/ui/Field.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -49,10 +50,8 @@ const JOIN_LABELS = {
 export function EventIdentityFields({ language, draft, disabled, change }: FieldProps) {
   const t = translatorFor(language);
   const text = (key: "nameAr" | "nameEn" | "venueAr" | "venueEn", label: string, max: number) => (
-    <label className={styles.field}>
-      {label}
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         dir={key.endsWith("Ar") ? "rtl" : "ltr"}
         lang={key.endsWith("Ar") ? "ar" : "en"}
         maxLength={max}
@@ -60,30 +59,33 @@ export function EventIdentityFields({ language, draft, disabled, change }: Field
         disabled={disabled}
         onChange={(event) => change({ [key]: event.target.value })}
       />
-    </label>
+    </Field>
   );
   return (
     <>
-      {text("nameAr", t("events.field.nameAr"), 120)}
-      {text("nameEn", t("events.field.nameEn"), 120)}
-      <p className={styles.muted}>{t("events.field.nameHint")}</p>
-      <label className={styles.field}>
-        {t("events.field.kind")}
-        <select
-          className={styles.input}
-          value={draft.kind}
-          disabled={disabled}
-          onChange={(event) => change({ kind: event.target.value as EventDraft["kind"] })}
-        >
-          {KINDS.map((kind) => (
-            <option key={kind} value={kind}>
-              {t(`events.kind.${kind}`)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {text("venueAr", t("events.field.venueAr"), 200)}
-      {text("venueEn", t("events.field.venueEn"), 200)}
+      <FieldGroup layout="columns" help={t("events.field.nameHint")}>
+        {text("nameAr", t("events.field.nameAr"), 120)}
+        {text("nameEn", t("events.field.nameEn"), 120)}
+      </FieldGroup>
+      <FieldGroup layout="columns">
+        <Field label={t("events.field.kind")}>
+          <Select
+            value={draft.kind}
+            disabled={disabled}
+            onChange={(event) => change({ kind: event.target.value as EventDraft["kind"] })}
+          >
+            {KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {t(`events.kind.${kind}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </FieldGroup>
+      <FieldGroup layout="columns">
+        {text("venueAr", t("events.field.venueAr"), 200)}
+        {text("venueEn", t("events.field.venueEn"), 200)}
+      </FieldGroup>
     </>
   );
 }
@@ -127,11 +129,12 @@ function EventCityField({
   }
   const locked = status === "live" || status === "ended" || status === "archived";
   return (
-    <>
-      <label className={styles.field}>
-        {t("events.field.city")}
-        <select
-          className={styles.input}
+    <FieldGroup layout="columns">
+      <Field
+        label={t("events.field.city")}
+        help={t(locked ? "events.city.locked" : "events.city.hint")}
+      >
+        <Select
           value={draft.cityId ?? ""}
           disabled={disabled || locked}
           onChange={(event) =>
@@ -144,15 +147,14 @@ function EventCityField({
               {cityName(city, language)}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {failed ? (
-        <p role="alert" className={styles.alert}>
+        <Notice role="alert" tone="danger">
           {t("events.city.failed")}
-        </p>
+        </Notice>
       ) : null}
-      <p className={styles.muted}>{t(locked ? "events.city.locked" : "events.city.hint")}</p>
-    </>
+    </FieldGroup>
   );
 }
 
@@ -187,29 +189,29 @@ export function EventInterestsField({ language, draft, disabled, change }: Field
   const { interests, failed } = useInterests();
   const full = draft.interests.length >= MAX_EVENT_INTERESTS;
   return (
-    <fieldset className={styles.row}>
-      <legend>{t("events.field.interests")}</legend>
+    <FieldGroup
+      legend={t("events.field.interests")}
+      help={t(full ? "events.interests.full" : "events.interests.hint")}
+      layout="choiceGrid"
+    >
       {interestChoices(interests, draft.interests).map((interest) => {
         const ticked = draft.interests.includes(interest.id);
         return (
-          <label key={interest.id} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={ticked}
-              disabled={disabled || (full && !ticked)}
-              onChange={() => change({ interests: toggleInterest(draft.interests, interest.id) })}
-            />
-            <span>{interestName(interest, language)}</span>
-          </label>
+          <Checkbox
+            key={interest.id}
+            label={interestName(interest, language)}
+            checked={ticked}
+            disabled={disabled || (full && !ticked)}
+            onChange={() => change({ interests: toggleInterest(draft.interests, interest.id) })}
+          />
         );
       })}
       {failed ? (
-        <p role="alert" className={styles.alert}>
+        <Notice role="alert" tone="danger">
           {t("events.interests.failed")}
-        </p>
+        </Notice>
       ) : null}
-      <p className={styles.muted}>{t(full ? "events.interests.full" : "events.interests.hint")}</p>
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -232,35 +234,35 @@ export function EventVenuePinFields({ language, draft, disabled, change }: Field
   const pinBad = !pinIsValid(draft.venueLat, draft.venueLng);
   const radiusBad = !isRadius(draft.venueRadius, VENUE_RADIUS.min, VENUE_RADIUS.max);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("events.venuePin.title")}</legend>
-      <p className={styles.muted}>{t("events.venuePin.help")}</p>
-      <div className={styles.row}>
-        <NumberField
-          label={t("events.venuePin.lat")}
-          decimal
-          disabled={disabled}
-          value={draft.venueLat}
-          invalid={pinBad}
-          change={(venueLat) => change({ venueLat })}
-        />
-        <NumberField
-          label={t("events.venuePin.lng")}
-          decimal
-          disabled={disabled}
-          value={draft.venueLng}
-          invalid={pinBad}
-          change={(venueLng) => change({ venueLng })}
-        />
-        <NumberField
-          label={t("events.venuePin.radius")}
-          disabled={disabled}
-          value={draft.venueRadius}
-          invalid={radiusBad}
-          change={(venueRadius) => change({ venueRadius })}
-        />
-      </div>
-    </fieldset>
+    <FieldGroup
+      legend={t("events.venuePin.title")}
+      help={t("events.venuePin.help")}
+      layout="columns"
+    >
+      <NumberField
+        label={t("events.venuePin.lat")}
+        decimal
+        disabled={disabled}
+        value={draft.venueLat}
+        invalid={pinBad}
+        change={(venueLat) => change({ venueLat })}
+      />
+      <NumberField
+        label={t("events.venuePin.lng")}
+        decimal
+        disabled={disabled}
+        value={draft.venueLng}
+        invalid={pinBad}
+        change={(venueLng) => change({ venueLng })}
+      />
+      <NumberField
+        label={t("events.venuePin.radius")}
+        disabled={disabled}
+        value={draft.venueRadius}
+        invalid={radiusBad}
+        change={(venueRadius) => change({ venueRadius })}
+      />
+    </FieldGroup>
   );
 }
 
@@ -300,10 +302,8 @@ export function EventTimeFields({
   const started = status === "live";
   const finished = status === "ended" || status === "archived";
   const time = (key: "startsAt" | "endsAt", locked: boolean) => (
-    <label className={styles.field}>
-      {t(`events.field.${key}`)}
-      <input
-        className={styles.input}
+    <Field label={t(`events.field.${key}`)}>
+      <Input
         type="datetime-local"
         dir="ltr"
         required
@@ -311,55 +311,54 @@ export function EventTimeFields({
         disabled={disabled || locked}
         onChange={(event) => change({ [key]: event.target.value })}
       />
-    </label>
+    </Field>
   );
+  const timesHint = finished
+    ? t("events.endedHint")
+    : started
+      ? t("events.liveHint")
+      : t("events.field.timesHint");
   return (
     <>
-      <label className={styles.field}>
-        {t("events.field.timezone")}
-        <select
-          className={styles.input}
-          dir="ltr"
-          value={draft.timezone}
-          disabled={disabled || started || finished}
-          onChange={(event) => change({ timezone: event.target.value })}
-        >
-          {zones.map((zone) => (
-            <option key={zone} value={zone}>
-              {`${zone} (${zoneLabel(zone, language)})`}
-            </option>
-          ))}
-        </select>
-      </label>
-      {time("startsAt", started || finished)}
-      {time("endsAt", finished)}
-      <p className={styles.muted}>
-        {finished
-          ? t("events.endedHint")
-          : started
-            ? t("events.liveHint")
-            : t("events.field.timesHint")}
-      </p>
-      <label className={styles.field}>
-        {t("events.field.dayStartHour")}
-        <input
-          className={styles.input}
-          type="number"
-          dir="ltr"
-          min={0}
-          max={23}
-          required
-          value={draft.dayStartHour}
-          disabled={disabled || started || finished}
-          onChange={(event) => {
-            // An emptied field keeps the last hour rather than turning into midnight.
-            if (event.target.value !== "") {
-              change({ dayStartHour: Number(event.target.value) });
-            }
-          }}
-        />
-      </label>
-      <p className={styles.muted}>{t("events.field.dayStartHint")}</p>
+      <FieldGroup layout="columns">
+        <Field label={t("events.field.timezone")}>
+          <Select
+            dir="ltr"
+            value={draft.timezone}
+            disabled={disabled || started || finished}
+            onChange={(event) => change({ timezone: event.target.value })}
+          >
+            {zones.map((zone) => (
+              <option key={zone} value={zone}>
+                {`${zone} (${zoneLabel(zone, language)})`}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </FieldGroup>
+      <FieldGroup layout="columns" help={timesHint}>
+        {time("startsAt", started || finished)}
+        {time("endsAt", finished)}
+      </FieldGroup>
+      <FieldGroup layout="columns">
+        <Field label={t("events.field.dayStartHour")} help={t("events.field.dayStartHint")}>
+          <Input
+            type="number"
+            dir="ltr"
+            min={0}
+            max={23}
+            required
+            value={draft.dayStartHour}
+            disabled={disabled || started || finished}
+            onChange={(event) => {
+              // An emptied field keeps the last hour rather than turning into midnight.
+              if (event.target.value !== "") {
+                change({ dayStartHour: Number(event.target.value) });
+              }
+            }}
+          />
+        </Field>
+      </FieldGroup>
     </>
   );
 }
@@ -375,44 +374,41 @@ export function EventAccessFields({ language, draft, disabled, change }: FieldPr
     });
   return (
     <>
-      <label className={styles.field}>
-        {t("events.field.access")}
-        <select
-          className={styles.input}
-          value={draft.access}
-          disabled={disabled}
-          onChange={(event) => {
-            const access = event.target.value as EventDraft["access"];
-            change({
-              access,
-              joinMethods:
-                access === "public"
-                  ? draft.joinMethods
-                  : draft.joinMethods.filter((item) => item !== "public_list"),
-            });
-          }}
-        >
-          {ACCESS.map((access) => (
-            <option key={access} value={access}>
-              {t(`events.access.${access}`)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <fieldset className={styles.choices}>
-        <legend>{t("events.field.joinMethods")}</legend>
+      <FieldGroup layout="columns">
+        <Field label={t("events.field.access")}>
+          <Select
+            value={draft.access}
+            disabled={disabled}
+            onChange={(event) => {
+              const access = event.target.value as EventDraft["access"];
+              change({
+                access,
+                joinMethods:
+                  access === "public"
+                    ? draft.joinMethods
+                    : draft.joinMethods.filter((item) => item !== "public_list"),
+              });
+            }}
+          >
+            {ACCESS.map((access) => (
+              <option key={access} value={access}>
+                {t(`events.access.${access}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </FieldGroup>
+      <FieldGroup legend={t("events.field.joinMethods")} layout="choiceGrid">
         {JOIN_METHODS.map((method) => (
-          <label key={method} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={draft.joinMethods.includes(method)}
-              disabled={disabled || (method === "public_list" && draft.access !== "public")}
-              onChange={(event) => toggle(method, event.target.checked)}
-            />
-            <span>{t(JOIN_LABELS[method])}</span>
-          </label>
+          <Checkbox
+            key={method}
+            label={t(JOIN_LABELS[method])}
+            checked={draft.joinMethods.includes(method)}
+            disabled={disabled || (method === "public_list" && draft.access !== "public")}
+            onChange={(event) => toggle(method, event.target.checked)}
+          />
         ))}
-      </fieldset>
+      </FieldGroup>
     </>
   );
 }

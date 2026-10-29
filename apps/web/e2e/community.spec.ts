@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 /**
  * Community quests on the dashboard (T-306b, T-306c), in Arabic: the event's switch and its warning, then a goal whose
@@ -20,6 +21,7 @@ test("switches community quests, builds a goal with an unlock milestone, edits a
     page.getByText("إيقافها يُنهي الهدف الجاري والأهداف المجدولة، ويبقى ما كانت ستفتحه مقفلًا."),
   ).toBeVisible();
 
+  await openMenu(page);
   await page.getByRole("link", { name: "مهام للجميع" }).click();
   await expect(page.getByRole("heading", { name: "مهام للجميع" })).toBeVisible();
   await expect(page.getByText("لا توجد أهداف بعد.")).toBeVisible();

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 /**
  * Operators (T-204): the owner makes a personal operator code and a batch, sees them ready to print, cancels one, and
@@ -24,6 +25,7 @@ test("the owner invites operators and prints their codes", async ({ page }, info
 
   const eventPage = page.url().replace(/\/quests$/, "");
   await page.goto(eventPage);
+  await openMenu(page);
   await page.getByRole("link", { name: "المشغّلون" }).click();
   const panel = page.getByRole("region", { name: "المشغّلون" });
   await expect(panel.getByText("لا مشغّلين بعد.")).toBeVisible();

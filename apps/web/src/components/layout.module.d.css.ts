@@ -24,7 +24,6 @@ declare const styles: {
   readonly notice: string;
   readonly page: string;
   readonly panel: string;
-  readonly passwordRow: string;
   readonly prose: string;
   readonly quiet: string;
   readonly row: string;
@@ -36,7 +35,6 @@ declare const styles: {
   readonly textLink: string;
   readonly title: string;
   readonly warning: string;
-  readonly wrap: string;
   readonly disclosure: string;
   readonly who: string;
   readonly rankNumber: string;

@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Locator, type Page } from "@playwright
 import { openBuilder } from "#e2e/builder.ts";
 import { account, freshAddress, signIn } from "#e2e/mail.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
@@ -87,6 +88,7 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
 
   // The event page links to the page while the switch is on.
   await page.goto(`/en/organizers/${scene.organizerId}/events/${scene.eventId}`);
+  await openMenu(page);
   await page.getByRole("link", { name: "Invitations", exact: true }).click();
   await expect(page).toHaveURL(dashboard);
   await expect(page.getByRole("heading", { name: "Invitations", level: 1 })).toBeVisible();
@@ -334,6 +336,8 @@ test("an editor reads the page but cannot ask or withdraw", async ({ page }, inf
   await control(page, "/invitations-switch");
   await page.getByRole("link", { name: "Events" }).click();
   await page.getByRole("link", { name: "Tech Fest" }).click();
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
+  await openMenu(page);
   await page.getByRole("link", { name: "Invitations", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Invitations", level: 1 })).toBeVisible();
   await expect(

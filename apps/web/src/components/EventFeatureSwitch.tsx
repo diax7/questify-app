@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Switch } from "#src/ui/Field.tsx";
+import { Row, SubHeading } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -121,32 +123,34 @@ export function EventFeatureSwitch({
   };
 
   return (
-    <section className={styles.card} aria-labelledby={`${words.path}-title`}>
-      <h2 id={`${words.path}-title`} className={styles.subtitle}>
-        {t(words.title)}
-      </h2>
-      {myRole === "owner" && on && feature === "community" ? (
-        <p className={styles.muted}>{t("events.community.offWarning")}</p>
-      ) : null}
-      {myRole === "owner" ? (
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={on}
-            disabled={busy}
-            onChange={(changed) => void save(changed.target.checked)}
-          />
-          <span>{t(words.label)}</span>
-        </label>
-      ) : null}
-      <p role="status" className={styles.muted}>
-        {t(on ? words.on : words.off)} {myRole === "owner" ? null : t("events.ranking.ownerOnly")}
-      </p>
-      {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
-          {problem}
-        </p>
-      )}
-    </section>
+    <Row
+      as="section"
+      aria-labelledby={`${words.path}-title`}
+      main={
+        <>
+          <SubHeading id={`${words.path}-title`}>{t(words.title)}</SubHeading>
+          <Muted role="status">
+            {t(on ? words.on : words.off)}{" "}
+            {myRole === "owner" ? null : t("events.ranking.ownerOnly")}
+          </Muted>
+          {myRole === "owner" && on && feature === "community" ? (
+            <Muted>{t("events.community.offWarning")}</Muted>
+          ) : null}
+          {myRole === "owner" ? (
+            <Switch
+              label={t(words.label)}
+              checked={on}
+              disabled={busy}
+              onChange={(changed) => void save(changed.target.checked)}
+            />
+          ) : null}
+          {problem === null ? null : (
+            <Notice role="alert" tone="danger">
+              {problem}
+            </Notice>
+          )}
+        </>
+      }
+    />
   );
 }

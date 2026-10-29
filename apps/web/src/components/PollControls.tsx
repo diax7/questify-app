@@ -6,7 +6,9 @@ import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { pollStateOf } from "#src/lib/polls.ts";
 import type { QuestView } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge } from "#src/ui/Feedback.tsx";
+import { Toolbar } from "#src/ui/Section.tsx";
 
 /** How often an open poll's state and counts are read again on the quest list. */
 const REFRESH_MS = 5000;
@@ -54,24 +56,24 @@ export function PollControls({
   }
   return (
     <>
-      <span className={styles.badge}>
+      <Badge>
         {state === "open" && quest.closesAt !== null
           ? t("quests.poll.open", {
               time: formatEventTime(new Date(quest.closesAt), timeZone, language),
             })
           : t(state === "draft" ? "quests.poll.draft" : "quests.poll.closed")}
-      </span>
+      </Badge>
       {readOnly || state === "closed" ? null : (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.button}
+        <Toolbar>
+          <Button
+            variant="secondary"
+
             disabled={busy}
             onClick={() => (state === "draft" ? actions.sendPoll(quest) : actions.closePoll(quest))}
           >
             {t(state === "draft" ? "quests.poll.send" : "quests.poll.close")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       )}
       {state === "draft" ? null : (
         <VoteCounts

@@ -7,6 +7,8 @@ import { DEFAULT_THEME } from "@questify/shared";
 import { themeVariables } from "#src/lib/theme.ts";
 // oxlint-disable-next-line import/no-unassigned-import -- Next loads global CSS only through a side-effect import.
 import "#src/app/globals.css";
+// oxlint-disable-next-line import/no-unassigned-import -- the dashboard's design tokens (ADR-364), global like the above.
+import "#src/ui/tokens.css";
 
 // The same font files the app ships (ADR-017), served from our own origin; both cover Arabic and Latin.
 // `next/font/local` needs a relative path literal here, so these are the one place the absolute-imports rule cannot apply.

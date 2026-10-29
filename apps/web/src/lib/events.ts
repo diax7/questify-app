@@ -6,6 +6,15 @@ export const ACCESS = ["public", "unlisted", "private"] as const;
 export const JOIN_METHODS = ["code", "qr", "link", "public_list"] as const;
 export type EventStatus = "draft" | "scheduled" | "live" | "ended" | "archived";
 
+/** How an event's status badge is coloured: live stands out, scheduled is news, the rest are plain. */
+export const STATUS_TONE = {
+  draft: "neutral",
+  scheduled: "info",
+  live: "success",
+  ended: "neutral",
+  archived: "neutral",
+} as const satisfies Record<EventStatus, "neutral" | "info" | "success">;
+
 /** An event as the API answers it (apps/api/src/events/routes.ts). */
 export type EventView = Readonly<{
   id: string;

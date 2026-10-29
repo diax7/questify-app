@@ -1053,7 +1053,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     **Owed:** the `content_unpublished` source (T-701 / T-609); quest-item stock pools (T-609); before any real mail
     (ADR-360): Saudi-region transport or the counsel-approved transfer extension, real cancellation of the token wait and
     send, structured provider outcomes. FR-613 and FR-1727 stay "partly built" in the SRS until then.
-- [ ] **T-599** Dashboard usability baseline (priority, Dhia 2026-10-30; ADR-364): one set of design tokens, a page shell and
+- [x] **T-599** Dashboard usability baseline (priority, Dhia 2026-10-30; ADR-364): one set of design tokens, a page shell and
   shared primitives, and every dashboard and console page moved onto them — delivers NFR usability; depends on: none
   - Why: Dhia found the staging dashboard unusable (small text, unorganized sections, overlaps). About 117 components share
     one 373-line style file and no layout, form, table or type-scale primitives.
@@ -1064,8 +1064,27 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     quests, rewards, team, features); T-599b = every other dashboard and console page. Each is usable on its own.
   - Done when: an automatic layout check over every page (desktop 1440 and phone 390, English and Arabic) finds no
     horizontal overflow, no overlapping controls and no text under 14px; screenshots of each page are attached for Dhia.
+  - Done 2026-10-30 (tier B; code review owed). `apps/web/src/ui/`: `tokens.css` (type scale 14 to 28px, sizes, lines,
+    shadows; colours, spacing and corners stay the theme's variables), `AppShell` (top bar; navigation column from 64rem,
+    a Menu sheet on a phone that also holds Home, My account and Sign out), `Nav`, `PageHeader`, `Section`, `Card`, `Rows`
+    and `Row`, `Toolbar`, `Stack`, `Field` with `Input`, `Select`, `Textarea`, `Checkbox`, `Radio`, `Switch` and
+    `FieldGroup`, `Button` and `ButtonLink`, `Badge`, `Notice`, `EmptyState`, `Muted`, `Tabs`, `Dialog` (modal) and
+    `Table` (scrolls in its own box). Moved: sign-in, home, the events list, new event, the event overview (its form in
+    parts, every switch under Features, the danger zone), quests (builder, quest form and its type fields), rewards and
+    team (with the email alerts); the event's pages are listed in the menu by group (ADR-366), so `EventNavLinks` is gone.
+    The layout check is `apps/web/e2e/layout.spec.ts` with the list of pages in `apps/web/e2e/layout.ts`
+    (`LAYOUT_PAGES`); it also fails on words squeezed apart, and `layout-check.spec.ts` proves it catches each fault.
+    Screenshots: `docs/evidence/2026-10-30-t599/before/` and `after/`. Phone specs open the menu with `#e2e/nav.ts`.
 - [ ] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
   - Done when: the T-599 layout check covers every dashboard and console page and passes.
+  - Not yet in `LAYOUT_PAGES` (add each as it moves): `/account`, `/organizers/new`, `/sign-up`, `/forgot-password`,
+    `/reset-password`; the event pages `announcements`, `awards`, `big-screen`, `boosts`, `codes`, `community`,
+    `devices`, `flags`, `help`, `invitations`, `joining`, `operators`, `players`, `prizes`, `souvenirs`, `submissions`;
+    the console `/console`, `content`, `events/{id}`, `invitations`, `invitations/{id}`, `questify`, `seasons`, `tickets`,
+    `tickets/{id}`. Those event pages already sit in the T-599 shell and menu; their panels still use
+    `components/layout.module.css`, as do `TopBar` (public and auth pages) and `ConsoleShell`. Delete
+    `layout.module.css` and `TopBar` once nothing imports them. The check visits each quest type's own fields only for
+    the default type; a vote, quiz and survey quest form are worth a page entry of their own.
 - [x] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community and poll scenes (the photo wall is T-504b) — delivers FR 630, 631, 632, 633, 634, 1612, 1613; depends on: T-309, T-106
   - Plan 2026-10-30 (tier B): `docs/plans/2026-10-30-t-504-big-screen.md`, migration 0083, ADR-365 and Q-333 Proposed. Split (ADR-365): the photo wall (FR-635, FR-636, FR-637) moves to T-504b, since there are no photos until T-301b.
   - Done 2026-10-30 (tier B; code review owed), not yet run on a TV. Migration 0083: `big_screen` (the picked scenes in order, RLS forced, no grant; no row means all three), `event_big_screen` and `set_big_screen` (the team, audited `big_screen.update`, the ranking not offered while it is off, refused while the `bigScreen` add-on is not active), and the screen's own doors `screen_ranking` (the rank push's `rank_top_ten_ids`: the board's rule and order from PostgreSQL), `screen_community` (the cached progress and the milestones, no reward) and `screen_poll` (the newest sent poll in a public category, results by the poll's policy; the number of voters only for `never`, FR-1613), each taking no argument and reading only the calling device's event; `device_view` carries `scenes` and the screen's `feature_off`. API `src/screen`: `GET /v1/device/screen/:scene` (device of kind screen only, 40 a minute, one shared 2-second answer per event and scene), `GET` and `PUT …/events/{eventId}/big-screen`. Web: `/{lang}/screen` shows the scenes (rotating every 15 seconds, an empty scene skipped, the open scene read every 3 seconds, no server-sent stream), the dashboard's Big screen page (tick, order, save), `PairedPlaceholder` removed. Tests: 29 database, 13 route, scene reader and web units, the security suites, browser `big-screen.spec.ts` (desktop and phone). **Owed:** the photo wall (T-504b); a today's-ranking scene (T-216 note) if asked; Dhia: a look on a real TV.

@@ -5,7 +5,8 @@ import { useState } from "react";
 import { CodeStep } from "#src/components/CodeStep.tsx";
 import { PasswordStep } from "#src/components/PasswordStep.tsx";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Card } from "#src/ui/Section.tsx";
 
 /** The challenge token lives only here, in memory: never in the URL or browser storage (a refresh starts over). */
 type Step =
@@ -23,11 +24,11 @@ export function SignInForm({
   );
 
   return (
-    <section className={styles.panel} aria-labelledby="sign-in-title">
+    <Card as="section" aria-labelledby="sign-in-title">
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice role="status" tone="info">
           {notice}
-        </p>
+        </Notice>
       )}
       {step.kind === "password" ? (
         <PasswordStep
@@ -48,6 +49,6 @@ export function SignInForm({
           }}
         />
       )}
-    </section>
+    </Card>
   );
 }

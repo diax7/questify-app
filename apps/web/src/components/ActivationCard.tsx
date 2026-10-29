@@ -12,7 +12,10 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Section, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -66,39 +69,36 @@ export function ActivationCard({ language, organizerId, eventId, myRole }: Props
 
   if (view === null) {
     return problem === null ? null : (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {problem}
-      </p>
+      </Notice>
     );
   }
   const banner = limitBanner(view);
   const limit = limitLine(view);
   return (
-    <section className={styles.card} aria-labelledby="activation-title">
-      <h2 id="activation-title" className={styles.subtitle}>
-        {t("activation.title")}
-      </h2>
+    <Section titleId="activation-title" title={t("activation.title")}>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {banner === undefined ? null : (
-        <p role="status" className={styles.alert}>
+        <Notice tone="warning" role="status">
           {t(banner.key, banner.params)}
-        </p>
+        </Notice>
       )}
       {view.state === "activated" ? (
         <>
           <p>{t(limit.key, limit.params)}</p>
-          <p className={styles.muted}>{t("activation.players", { count: view.players })}</p>
-          <p className={styles.muted}>
+          <Muted>{t("activation.players", { count: view.players })}</Muted>
+          <Muted>
             {view.addons.length === 0
               ? t("activation.noAddons")
               : t("activation.addons", {
                   list: view.addons.map((feature) => addonName(feature, t)).join("، "),
                 })}
-          </p>
+          </Muted>
         </>
       ) : (
         <DraftActions
@@ -111,7 +111,7 @@ export function ActivationCard({ language, organizerId, eventId, myRole }: Props
           act={(method) => void act(method)}
         />
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -136,68 +136,63 @@ function DraftActions({
   const t = translatorFor(language);
   if (confirming) {
     return (
-      <div role="alertdialog" aria-labelledby="withdraw-title" className={styles.card}>
-        <p id="withdraw-title">{t("activation.withdrawConfirm")}</p>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.quiet}
-            disabled={busy}
-            onClick={() => setConfirming(false)}
-          >
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className={styles.button}
-            disabled={busy}
-            onClick={() => act("DELETE")}
-          >
-            {t("activation.withdraw")}
-          </button>
-        </div>
-      </div>
+      <Dialog
+        titleId="withdraw-title"
+        title={t("activation.withdrawConfirm")}
+        busy={busy}
+        cancel={() => setConfirming(false)}
+        actions={
+          <>
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={() => act("DELETE")}>
+              {t("activation.withdraw")}
+            </Button>
+          </>
+        }
+      />
     );
   }
   return (
     <>
       <p>{t("activation.notActivated")}</p>
       {view.state === "requested" && view.requestedAt !== null ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("activation.requested", {
             date: formatEventTime(new Date(view.requestedAt), readerZone(), language),
           })}
-        </p>
+        </Notice>
       ) : null}
       {view.state === "rejected" && view.note !== null ? (
-        <p className={styles.alert}>{t("activation.rejected", { note: view.note })}</p>
+        <Notice tone="danger">{t("activation.rejected", { note: view.note })}</Notice>
       ) : null}
       {isOwner ? (
-        <div className={styles.actions}>
+        <Toolbar>
           {view.state === "requested" ? (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={busy}
               onClick={() => setConfirming(true)}
             >
               {t("activation.withdraw")}
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              className={styles.button}
+            <Button
+              variant="secondary"
+
               disabled={busy}
               onClick={() => act("POST")}
             >
               {t(view.state === "rejected" ? "activation.requestAgain" : "activation.request")}
-            </button>
+            </Button>
           )}
-        </div>
+        </Toolbar>
       ) : (
-        <p className={styles.muted}>{t("activation.editorHint")}</p>
+        <Muted>{t("activation.editorHint")}</Muted>
       )}
-      <p className={styles.muted}>{t("activation.priceNote")}</p>
+      <Muted>{t("activation.priceNote")}</Muted>
     </>
   );
 }

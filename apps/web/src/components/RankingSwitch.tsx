@@ -5,7 +5,9 @@ import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Switch } from "#src/ui/Field.tsx";
+import { Row, SubHeading } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -63,33 +65,35 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
   };
 
   return (
-    <section className={styles.card} aria-labelledby="ranking-title">
-      <h2 id="ranking-title" className={styles.subtitle}>
-        {t("events.ranking.title")}
-      </h2>
-      {myRole === "owner"
-        ? (Object.keys(SWITCHES) as Feature[]).map((feature) => (
-            <label key={feature} className={styles.check}>
-              <input
-                type="checkbox"
-                checked={shown[feature]}
-                disabled={busy}
-                onChange={(changed) => void save(feature, changed.target.checked)}
-              />
-              <span>{t(SWITCHES[feature].label)}</span>
-            </label>
-          ))
-        : null}
-      <p role="status" className={styles.muted}>
-        {t(shown.ranking ? "events.ranking.shown" : "events.ranking.hidden")}{" "}
-        {myRole === "owner" ? t("events.ranking.hint") : t("events.ranking.ownerOnly")}
-      </p>
-      <p className={styles.muted}>{t("events.ranking.todayHint")}</p>
-      {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
-          {problem}
-        </p>
-      )}
-    </section>
+    <Row
+      as="section"
+      aria-labelledby="ranking-title"
+      main={
+        <>
+          <SubHeading id="ranking-title">{t("events.ranking.title")}</SubHeading>
+          <Muted role="status">
+            {t(shown.ranking ? "events.ranking.shown" : "events.ranking.hidden")}{" "}
+            {myRole === "owner" ? t("events.ranking.hint") : t("events.ranking.ownerOnly")}
+          </Muted>
+          <Muted>{t("events.ranking.todayHint")}</Muted>
+          {myRole === "owner"
+            ? (Object.keys(SWITCHES) as Feature[]).map((feature) => (
+                <Switch
+                  key={feature}
+                  label={t(SWITCHES[feature].label)}
+                  checked={shown[feature]}
+                  disabled={busy}
+                  onChange={(changed) => void save(feature, changed.target.checked)}
+                />
+              ))
+            : null}
+          {problem === null ? null : (
+            <Notice role="alert" tone="danger">
+              {problem}
+            </Notice>
+          )}
+        </>
+      }
+    />
   );
 }

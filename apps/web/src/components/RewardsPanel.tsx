@@ -48,7 +48,20 @@ import {
   type ShopSettings,
 } from "#src/lib/rewards.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import {
+  Checkbox,
+  Field,
+  FieldGroup,
+  Form,
+  Input,
+  Radio,
+  Select,
+  Textarea,
+} from "#src/ui/Field.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -78,20 +91,18 @@ function TextField({
   change: (text: string) => void;
 }>) {
   const shared = {
-    className: styles.input,
     value,
     "aria-invalid": invalid,
     ...(lang === undefined ? {} : { lang, dir: directionOf(lang) }),
   };
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
+    <Field label={label}>
       {multiline ? (
-        <textarea {...shared} rows={3} maxLength={2000} onChange={(e) => change(e.target.value)} />
+        <Textarea {...shared} rows={3} maxLength={2000} onChange={(e) => change(e.target.value)} />
       ) : (
-        <input {...shared} maxLength={120} onChange={(e) => change(e.target.value)} />
+        <Input {...shared} maxLength={120} onChange={(e) => change(e.target.value)} />
       )}
-    </label>
+    </Field>
   );
 }
 
@@ -133,161 +144,144 @@ function RewardForm({
     }
   };
   return (
-    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
-      <h3 className={styles.subtitle}>{t(editing ? "rewards.edit" : "rewards.add")}</h3>
-      {editing ? null : (
-        <fieldset className={styles.choices}>
-          <legend>{t("rewards.kind")}</legend>
-          {REWARD_KINDS.map((kind) => (
-            <label key={kind} className={styles.check}>
-              <input
-                type="radio"
+    <Card>
+      <Form onSubmit={send} aria-busy={busy}>
+        <SubHeading as="h3">{t(editing ? "rewards.edit" : "rewards.add")}</SubHeading>
+        {editing ? null : (
+          <FieldGroup legend={t("rewards.kind")} layout="choices">
+            {REWARD_KINDS.map((kind) => (
+              <Radio
+                key={kind}
+                label={<>{t(`rewards.kind.${kind}`)}</>}
                 name="reward-kind"
                 checked={draft.kind === kind}
                 onChange={() => set({ kind })}
               />
-              <span>{t(`rewards.kind.${kind}`)}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
-      <div className={styles.row}>
-        <TextField
-          label={t("rewards.nameAr")}
-          lang="ar"
-          value={draft.nameAr}
-          invalid={invalid === "name"}
-          change={(nameAr) => set({ nameAr })}
-        />
-        <TextField
-          label={t("rewards.nameEn")}
-          lang="en"
-          value={draft.nameEn}
-          invalid={invalid === "name"}
-          change={(nameEn) => set({ nameEn })}
-        />
-      </div>
-      <div className={styles.row}>
-        <TextField
-          label={t("rewards.descriptionAr")}
-          lang="ar"
-          multiline
-          value={draft.descriptionAr}
-          change={(descriptionAr) => set({ descriptionAr })}
-        />
-        <TextField
-          label={t("rewards.descriptionEn")}
-          lang="en"
-          multiline
-          value={draft.descriptionEn}
-          change={(descriptionEn) => set({ descriptionEn })}
-        />
-      </div>
-      <div className={styles.row}>
-        <NumberField
-          label={t("rewards.price", { currency: termFor(terms.currency, language) })}
-          value={draft.price}
-          invalid={invalid === "price"}
-          change={(text) => set({ price: Number(text) })}
-        />
-        {draft.kind === "digital" ? null : (
-          <NumberField
-            label={t("rewards.stock")}
-            value={draft.stock}
-            invalid={invalid === "stock"}
-            change={(text) => set({ stock: Number(text) })}
-          />
-        )}
-        <NumberField
-          label={t("rewards.perPlayerLimit", { player: terms.player[language].one })}
-          value={draft.perPlayerLimit}
-          invalid={invalid === "perPlayerLimit"}
-          change={(perPlayerLimit) => set({ perPlayerLimit })}
-        />
-      </div>
-      {draft.kind === "digital" ? (
-        <p className={styles.muted}>{t("rewards.stockFromCodes")}</p>
-      ) : null}
-      {editing && unitsOut > 0 && draft.kind !== "digital" ? (
-        <p className={styles.muted}>
-          {t("rewards.stockFloor", { count: formatNumber(unitsOut, language) })}
-        </p>
-      ) : null}
-      <div className={styles.row}>
-        <label className={styles.field}>
-          <span>{t("rewards.opensAt")}</span>
-          <input
-            className={styles.input}
-            type="datetime-local"
-            dir="ltr"
-            value={draft.opensAt}
-            onChange={(e) => set({ opensAt: e.target.value })}
-          />
-        </label>
-        <label className={styles.field}>
-          <span>{t("rewards.closesAt")}</span>
-          <input
-            className={styles.input}
-            type="datetime-local"
-            dir="ltr"
-            value={draft.closesAt}
-            aria-invalid={invalid === "closesAt"}
-            onChange={(e) => set({ closesAt: e.target.value })}
-          />
-        </label>
-        <label className={styles.field}>
-          <span>{t("rewards.section")}</span>
-          <select
-            className={styles.input}
-            value={draft.section}
-            onChange={(e) => set({ section: e.target.value as RewardDraft["section"] })}
-          >
-            <option value="">{t("rewards.section.none")}</option>
-            {SECTIONS.map((section) => (
-              <option key={section} value={section}>
-                {t(`rewards.section.${section}`)}
-              </option>
             ))}
-          </select>
-        </label>
-      </div>
-      <div className={styles.row}>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
+          </FieldGroup>
+        )}
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("rewards.nameAr")}
+            lang="ar"
+            value={draft.nameAr}
+            invalid={invalid === "name"}
+            change={(nameAr) => set({ nameAr })}
+          />
+          <TextField
+            label={t("rewards.nameEn")}
+            lang="en"
+            value={draft.nameEn}
+            invalid={invalid === "name"}
+            change={(nameEn) => set({ nameEn })}
+          />
+        </FieldGroup>
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("rewards.descriptionAr")}
+            lang="ar"
+            multiline
+            value={draft.descriptionAr}
+            change={(descriptionAr) => set({ descriptionAr })}
+          />
+          <TextField
+            label={t("rewards.descriptionEn")}
+            lang="en"
+            multiline
+            value={draft.descriptionEn}
+            change={(descriptionEn) => set({ descriptionEn })}
+          />
+        </FieldGroup>
+        <FieldGroup layout="columns">
+          <NumberField
+            label={t("rewards.price", { currency: termFor(terms.currency, language) })}
+            value={draft.price}
+            invalid={invalid === "price"}
+            change={(text) => set({ price: Number(text) })}
+          />
+          {draft.kind === "digital" ? null : (
+            <NumberField
+              label={t("rewards.stock")}
+              value={draft.stock}
+              invalid={invalid === "stock"}
+              change={(text) => set({ stock: Number(text) })}
+            />
+          )}
+          <NumberField
+            label={t("rewards.perPlayerLimit", { player: terms.player[language].one })}
+            value={draft.perPlayerLimit}
+            invalid={invalid === "perPlayerLimit"}
+            change={(perPlayerLimit) => set({ perPlayerLimit })}
+          />
+        </FieldGroup>
+        {draft.kind === "digital" ? <Muted>{t("rewards.stockFromCodes")}</Muted> : null}
+        {editing && unitsOut > 0 && draft.kind !== "digital" ? (
+          <Muted>{t("rewards.stockFloor", { count: formatNumber(unitsOut, language) })}</Muted>
+        ) : null}
+        <FieldGroup layout="columns">
+          <Field label={t("rewards.opensAt")}>
+            <Input
+              type="datetime-local"
+              dir="ltr"
+              value={draft.opensAt}
+              onChange={(e) => set({ opensAt: e.target.value })}
+            />
+          </Field>
+          <Field label={t("rewards.closesAt")}>
+            <Input
+              type="datetime-local"
+              dir="ltr"
+              value={draft.closesAt}
+              aria-invalid={invalid === "closesAt"}
+              onChange={(e) => set({ closesAt: e.target.value })}
+            />
+          </Field>
+          <Field label={t("rewards.section")}>
+            <Select
+              value={draft.section}
+              onChange={(e) => set({ section: e.target.value as RewardDraft["section"] })}
+            >
+              <option value="">{t("rewards.section.none")}</option>
+              {SECTIONS.map((section) => (
+                <option key={section} value={section}>
+                  {t(`rewards.section.${section}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </FieldGroup>
+        <FieldGroup layout="choiceGrid">
+          <Checkbox
+            label={t("rewards.tag.new")}
             checked={draft.tagNew}
             onChange={(e) => set({ tagNew: e.target.checked })}
           />
-          <span>{t("rewards.tag.new")}</span>
-        </label>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
+          <Checkbox
+            label={t("rewards.tag.limited")}
             checked={draft.tagLimited}
             onChange={(e) => set({ tagLimited: e.target.checked })}
           />
-          <span>{t("rewards.tag.limited")}</span>
-        </label>
-      </div>
-      {invalid === undefined ? null : (
-        <p role="alert" className={styles.alert}>
-          {t(`rewards.invalid.${invalid}`)}
-        </p>
-      )}
-      {needsDesk ? (
-        <p role="alert" className={styles.alert}>
-          {t("rewards.desk.needed")}
-        </p>
-      ) : null}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy || needsDesk}>
-          {t("rewards.save")}
-        </button>
-      </div>
-    </form>
+        </FieldGroup>
+        {invalid === undefined ? null : (
+          <Notice tone="danger" role="alert">
+            {t(`rewards.invalid.${invalid}`)}
+          </Notice>
+        )}
+        {needsDesk ? (
+          <Notice tone="danger" role="alert">
+            {t("rewards.desk.needed")}
+          </Notice>
+        ) : null}
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy || needsDesk}>
+            {t("rewards.save")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -327,42 +321,42 @@ function DeskForm({
   };
   const placeSet = draft.locationAr.trim() !== "" || draft.locationEn.trim() !== "";
   return (
-    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
-      <h3 className={styles.subtitle}>{t("rewards.desk.title")}</h3>
-      {placeSet ? null : <p className={styles.muted}>{t("rewards.desk.needed")}</p>}
-      <div className={styles.row}>
-        <TextField
-          label={t("rewards.desk.locationAr")}
-          lang="ar"
-          value={draft.locationAr}
-          change={(locationAr) => set({ locationAr })}
-        />
-        <TextField
-          label={t("rewards.desk.locationEn")}
-          lang="en"
-          value={draft.locationEn}
-          change={(locationEn) => set({ locationEn })}
-        />
-      </div>
-      <div className={styles.row}>
-        <NumberField
-          label={t("rewards.desk.lat")}
-          decimal
-          value={draft.lat}
-          invalid={invalid === "deskPin"}
-          change={(lat) => set({ lat })}
-        />
-        <NumberField
-          label={t("rewards.desk.lng")}
-          decimal
-          value={draft.lng}
-          invalid={invalid === "deskPin"}
-          change={(lng) => set({ lng })}
-        />
-      </div>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
+    <Card>
+      <Form onSubmit={send} aria-busy={busy}>
+        <SubHeading as="h3">{t("rewards.desk.title")}</SubHeading>
+        {placeSet ? null : <Muted>{t("rewards.desk.needed")}</Muted>}
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("rewards.desk.locationAr")}
+            lang="ar"
+            value={draft.locationAr}
+            change={(locationAr) => set({ locationAr })}
+          />
+          <TextField
+            label={t("rewards.desk.locationEn")}
+            lang="en"
+            value={draft.locationEn}
+            change={(locationEn) => set({ locationEn })}
+          />
+        </FieldGroup>
+        <FieldGroup layout="columns">
+          <NumberField
+            label={t("rewards.desk.lat")}
+            decimal
+            value={draft.lat}
+            invalid={invalid === "deskPin"}
+            change={(lat) => set({ lat })}
+          />
+          <NumberField
+            label={t("rewards.desk.lng")}
+            decimal
+            value={draft.lng}
+            invalid={invalid === "deskPin"}
+            change={(lng) => set({ lng })}
+          />
+        </FieldGroup>
+        <Checkbox
+          label={t("rewards.desk.hoursOn")}
           checked={draft.hoursOn}
           onChange={(e) =>
             set({
@@ -372,82 +366,74 @@ function DeskForm({
             })
           }
         />
-        <span>{t("rewards.desk.hoursOn")}</span>
-      </label>
-      {draft.hoursOn ? (
-        <>
-          <p className={styles.muted}>{t("rewards.desk.hoursHint")}</p>
-          {draft.windows.map((window, index) => (
-            <div key={index} className={styles.row}>
-              <label className={styles.field}>
-                <span>{t("rewards.desk.opens")}</span>
-                <input
-                  className={styles.input}
-                  type="datetime-local"
-                  dir="ltr"
-                  value={window.opensAt}
-                  aria-invalid={invalid === "deskHours"}
-                  onChange={(e) => setWindow(index, { opensAt: e.target.value })}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>{t("rewards.desk.closes")}</span>
-                <input
-                  className={styles.input}
-                  type="datetime-local"
-                  dir="ltr"
-                  value={window.closesAt}
-                  aria-invalid={invalid === "deskHours"}
-                  onChange={(e) => setWindow(index, { closesAt: e.target.value })}
-                />
-              </label>
-              <button
-                type="button"
-                className={styles.quiet}
-                onClick={() => set({ windows: draft.windows.filter((_, i) => i !== index) })}
+        {draft.hoursOn ? (
+          <>
+            <Muted>{t("rewards.desk.hoursHint")}</Muted>
+            {draft.windows.map((window, index) => (
+              <FieldGroup layout="columns" key={index}>
+                <Field label={t("rewards.desk.opens")}>
+                  <Input
+                    type="datetime-local"
+                    dir="ltr"
+                    value={window.opensAt}
+                    aria-invalid={invalid === "deskHours"}
+                    onChange={(e) => setWindow(index, { opensAt: e.target.value })}
+                  />
+                </Field>
+                <Field label={t("rewards.desk.closes")}>
+                  <Input
+                    type="datetime-local"
+                    dir="ltr"
+                    value={window.closesAt}
+                    aria-invalid={invalid === "deskHours"}
+                    onChange={(e) => setWindow(index, { closesAt: e.target.value })}
+                  />
+                </Field>
+                <Button
+                  variant="quiet"
+
+                  onClick={() => set({ windows: draft.windows.filter((_, i) => i !== index) })}
+                >
+                  {t("rewards.desk.removeWindow")}
+                </Button>
+              </FieldGroup>
+            ))}
+            {draft.windows.length < DESK_WINDOWS ? (
+              <Button
+                variant="quiet"
+
+                onClick={() => set({ windows: [...draft.windows, nextWindow(draft.windows)] })}
               >
-                {t("rewards.desk.removeWindow")}
-              </button>
-            </div>
-          ))}
-          {draft.windows.length < DESK_WINDOWS ? (
-            <button
-              type="button"
-              className={styles.quiet}
-              onClick={() => set({ windows: [...draft.windows, nextWindow(draft.windows)] })}
-            >
-              {t("rewards.desk.addWindow")}
-            </button>
-          ) : null}
-        </>
-      ) : (
-        <p className={styles.muted}>{t("rewards.desk.alwaysOpen")}</p>
-      )}
-      <fieldset className={styles.choices}>
-        <legend>{t("rewards.desk.confirm")}</legend>
-        {HANDOVER_CONFIRM.map((confirm) => (
-          <label key={confirm} className={styles.check}>
-            <input
-              type="radio"
+                {t("rewards.desk.addWindow")}
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <Muted>{t("rewards.desk.alwaysOpen")}</Muted>
+        )}
+        <FieldGroup legend={t("rewards.desk.confirm")} layout="choices">
+          {HANDOVER_CONFIRM.map((confirm) => (
+            <Radio
+              key={confirm}
+              label={t(CONFIRM_TEXT[confirm])}
               name="handover-confirm"
               checked={draft.confirm === confirm}
               onChange={() => set({ confirm })}
             />
-            <span>{t(CONFIRM_TEXT[confirm])}</span>
-          </label>
-        ))}
-      </fieldset>
-      {invalid === undefined ? null : (
-        <p role="alert" className={styles.alert}>
-          {t(`rewards.invalid.${invalid}`)}
-        </p>
-      )}
-      <div className={styles.actions}>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {t("rewards.desk.save")}
-        </button>
-      </div>
-    </form>
+          ))}
+        </FieldGroup>
+        {invalid === undefined ? null : (
+          <Notice tone="danger" role="alert">
+            {t(`rewards.invalid.${invalid}`)}
+          </Notice>
+        )}
+        <Toolbar>
+          <Button variant="primary" type="submit" disabled={busy}>
+            {t("rewards.desk.save")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -486,66 +472,65 @@ function ShopForm({
     }
   };
   return (
-    <form className={styles.formCard} onSubmit={send} aria-busy={busy}>
-      <h3 className={styles.subtitle}>{t("rewards.shop")}</h3>
-      <div className={styles.row}>
-        <NumberField
-          label={t("rewards.pickupMinutes")}
-          value={draft.pickupMinutes}
-          invalid={invalid === "pickupMinutes"}
-          change={(text) => setDraft({ ...draft, pickupMinutes: Number(text) })}
-        />
-        <NumberField
-          label={t("rewards.daysAfter")}
-          value={draft.daysAfter}
-          invalid={daysFieldInvalid(invalid)}
-          disabled={rule === "frozen"}
-          change={(text) => setDraft({ ...draft, daysAfter: Number(text) })}
-        />
-      </div>
-      <ShopWindowNotes language={language} shop={initial} rule={rule} timezone={zone?.timezone} />
-      <div className={styles.row}>
-        <TextField
-          label={t("rewards.rulesAr")}
-          lang="ar"
-          multiline
-          value={draft.rules.ar ?? ""}
-          change={(ar) => setDraft({ ...draft, rules: { ...draft.rules, ar } })}
-        />
-        <TextField
-          label={t("rewards.rulesEn")}
-          lang="en"
-          multiline
-          value={draft.rules.en ?? ""}
-          change={(en) => setDraft({ ...draft, rules: { ...draft.rules, en } })}
-        />
-      </div>
-      <p className={styles.muted}>{t("rewards.rulesHint")}</p>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
+    <Card>
+      <Form onSubmit={send} aria-busy={busy}>
+        <SubHeading as="h3">{t("rewards.shop")}</SubHeading>
+        <FieldGroup layout="columns">
+          <NumberField
+            label={t("rewards.pickupMinutes")}
+            value={draft.pickupMinutes}
+            invalid={invalid === "pickupMinutes"}
+            change={(text) => setDraft({ ...draft, pickupMinutes: Number(text) })}
+          />
+          <NumberField
+            label={t("rewards.daysAfter")}
+            value={draft.daysAfter}
+            invalid={daysFieldInvalid(invalid)}
+            disabled={rule === "frozen"}
+            change={(text) => setDraft({ ...draft, daysAfter: Number(text) })}
+          />
+        </FieldGroup>
+        <ShopWindowNotes language={language} shop={initial} rule={rule} timezone={zone?.timezone} />
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("rewards.rulesAr")}
+            lang="ar"
+            multiline
+            value={draft.rules.ar ?? ""}
+            change={(ar) => setDraft({ ...draft, rules: { ...draft.rules, ar } })}
+          />
+          <TextField
+            label={t("rewards.rulesEn")}
+            lang="en"
+            multiline
+            value={draft.rules.en ?? ""}
+            change={(en) => setDraft({ ...draft, rules: { ...draft.rules, en } })}
+          />
+        </FieldGroup>
+        <Muted>{t("rewards.rulesHint")}</Muted>
+        <Checkbox
+          label={t("rewards.spendLowersRank")}
           checked={draft.spendLowersRank}
           disabled={rankLock !== undefined}
           aria-describedby="spend-rank-hint"
           onChange={(e) => setDraft({ ...draft, spendLowersRank: e.target.checked })}
         />
-        <span>{t("rewards.spendLowersRank")}</span>
-      </label>
-      <p id="spend-rank-hint" className={styles.muted}>
-        {t("rewards.spendLowersRank.hint")}
-        {rankLock === undefined ? null : ` ${t(`rewards.spendLowersRank.${rankLock}`)}`}
-      </p>
-      {invalid === undefined ? null : (
-        <p role="alert" className={styles.alert}>
-          {t(`rewards.invalid.${invalid}`)}
-        </p>
-      )}
-      <div className={styles.actions}>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {t("rewards.saveShop")}
-        </button>
-      </div>
-    </form>
+        <Muted id="spend-rank-hint">
+          {t("rewards.spendLowersRank.hint")}
+          {rankLock === undefined ? null : ` ${t(`rewards.spendLowersRank.${rankLock}`)}`}
+        </Muted>
+        {invalid === undefined ? null : (
+          <Notice tone="danger" role="alert">
+            {t(`rewards.invalid.${invalid}`)}
+          </Notice>
+        )}
+        <Toolbar>
+          <Button variant="primary" type="submit" disabled={busy}>
+            {t("rewards.saveShop")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -596,19 +581,19 @@ function ShopWindowNotes({
   return (
     <>
       {shop.closesAt === null || timezone === undefined ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t(shop.state === "closed" ? "rewards.shopClosed" : "rewards.shopCloses", {
             date: formatEventTime(new Date(shop.closesAt), timezone, language),
           })}
-        </p>
+        </Muted>
       )}
       {rule === "free" ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t(rule === "frozen" ? "rewards.daysAfter.closed" : "rewards.daysAfter.afterEnd")}
-        </p>
+        </Muted>
       )}
       {deskEndsBeforeClose(shop) ? (
-        <p className={styles.warning}>{t("rewards.deskEndsEarly")}</p>
+        <Notice tone="warning">{t("rewards.deskEndsEarly")}</Notice>
       ) : null}
     </>
   );
@@ -635,10 +620,12 @@ function RewardRow({
   const [confirming, setConfirming] = useState(false);
   const name = reward.name[language] ?? reward.name[language === "ar" ? "en" : "ar"] ?? "";
   return (
-    <li className={`${styles.card} ${styles.wrap}`}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong>{name}</strong>
-        <span className={styles.badge}>{t(`rewards.kind.${reward.kind}`)}</span>
+        <Badge>{t(`rewards.kind.${reward.kind}`)}</Badge>
+      </Toolbar>
+      <Toolbar>
         <span>
           {t("rewards.priceShort", {
             points: formatNumber(reward.price, language),
@@ -654,47 +641,47 @@ function RewardRow({
               })}
         </span>
         {reward.unitsOut > 0 ? (
-          <span className={styles.muted}>
+          <Muted as="span">
             {t(reward.kind === "digital" ? "rewards.redeemed" : "rewards.reserved", {
               count: formatNumber(reward.unitsOut, language),
             })}
-          </span>
+          </Muted>
         ) : null}
-      </p>
+      </Toolbar>
       {reward.kind === "digital" ? (
         <CodesForm language={language} busy={busy} upload={upload} />
       ) : null}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={edit}>
           {t("rewards.edit")}
-        </button>
+        </Button>
         {confirming ? (
           <>
             <span role="alert">{t("rewards.removeConfirm")}</span>
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
+
               disabled={busy}
               onClick={() => setConfirming(false)}
             >
               {t("common.cancel")}
-            </button>
-            <button type="button" className={styles.button} disabled={busy} onClick={remove}>
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={remove}>
               {t("rewards.remove")}
-            </button>
+            </Button>
           </>
         ) : (
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
+
             disabled={busy}
             onClick={() => setConfirming(true)}
           >
             {t("rewards.remove")}
-          </button>
+          </Button>
         )}
-      </div>
-    </li>
+      </Toolbar>
+    </Card>
   );
 }
 
@@ -710,16 +697,16 @@ function CodesForm({
   const [invalid, setInvalid] = useState<CodesProblem | undefined>(undefined);
   if (!open) {
     return (
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.quiet}
+      <Toolbar>
+        <Button
+          variant="quiet"
+
           disabled={busy}
           onClick={() => setOpen(true)}
         >
           {t("rewards.codes.add")}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
     );
   }
   const send = async (event: FormEvent) => {
@@ -736,55 +723,54 @@ function CodesForm({
     }
   };
   return (
-    <form className={styles.formCard} onSubmit={(e) => void send(e)} aria-busy={busy}>
-      <label className={styles.field}>
-        <span>{t("rewards.codes.label")}</span>
-        <textarea
-          className={styles.input}
-          dir="ltr"
-          rows={6}
-          value={text}
-          aria-invalid={invalid !== undefined}
-          onChange={(e) => setText(e.target.value)}
-        />
-      </label>
-      <label className={styles.field}>
-        <span>{t("rewards.codes.file")}</span>
-        <input
-          type="file"
-          accept=".txt,.csv,text/plain,text/csv"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file !== undefined) {
-              void file
-                .text()
-                .then((read) =>
-                  setText(file.name.toLowerCase().endsWith(".csv") ? firstColumn(read) : read),
-                );
-            }
-          }}
-        />
-      </label>
-      <p className={styles.muted}>{t("rewards.codes.private")}</p>
-      {invalid === undefined ? null : (
-        <p role="alert" className={styles.alert}>
-          {t(`rewards.codes.invalid.${invalid}`)}
-        </p>
-      )}
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy}
-          onClick={() => setOpen(false)}
-        >
-          {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {t("rewards.codes.save")}
-        </button>
-      </div>
-    </form>
+    <Card>
+      <Form onSubmit={(e) => void send(e)} aria-busy={busy}>
+        <Field label={t("rewards.codes.label")}>
+          <Textarea
+            dir="ltr"
+            rows={6}
+            value={text}
+            aria-invalid={invalid !== undefined}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </Field>
+        <Field label={t("rewards.codes.file")}>
+          <Input
+            type="file"
+            accept=".txt,.csv,text/plain,text/csv"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file !== undefined) {
+                void file
+                  .text()
+                  .then((read) =>
+                    setText(file.name.toLowerCase().endsWith(".csv") ? firstColumn(read) : read),
+                  );
+              }
+            }}
+          />
+        </Field>
+        <Muted>{t("rewards.codes.private")}</Muted>
+        {invalid === undefined ? null : (
+          <Notice tone="danger" role="alert">
+            {t(`rewards.codes.invalid.${invalid}`)}
+          </Notice>
+        )}
+        <Toolbar>
+          <Button
+            variant="quiet"
+
+            disabled={busy}
+            onClick={() => setOpen(false)}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" type="submit" disabled={busy}>
+            {t("rewards.codes.save")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -796,7 +782,7 @@ function LowCodes({ language, rewards }: Readonly<{ language: Language; rewards:
     return null;
   }
   return (
-    <div className={styles.alert} role="note" aria-labelledby="low-codes-title">
+    <Notice as="div" tone="warning" role="note" labelledBy="low-codes-title">
       <p id="low-codes-title">
         <strong>{t("rewards.lowCodes.title")}</strong>
       </p>
@@ -810,8 +796,8 @@ function LowCodes({ language, rewards }: Readonly<{ language: Language; rewards:
           </li>
         ))}
       </ul>
-      <p className={styles.muted}>{t("rewards.lowCodes.hint")}</p>
-    </div>
+      <Muted>{t("rewards.lowCodes.hint")}</Muted>
+    </Notice>
   );
 }
 
@@ -933,28 +919,26 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
         );
 
   return (
-    <section className={styles.panel} aria-labelledby="rewards-title">
-      <h2 id="rewards-title" className={styles.title}>
-        {t("rewards.title")}
-      </h2>
+    <Stack as="section" aria-labelledby="rewards-title">
+      <PageHeader titleId="rewards-title" title={t("rewards.title")} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
       {loaded === undefined && problem !== null ? (
-        <button type="button" className={styles.quiet} onClick={() => void load()}>
+        <Button variant="quiet" onClick={() => void load()}>
           {t("common.retry")}
-        </button>
+        </Button>
       ) : null}
       {loaded === undefined ? (
         problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : (
         <>
@@ -973,16 +957,15 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
             />
           )}
           {editing === undefined ? (
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.button}
+            <Toolbar>
+              <Button
+                variant="primary"
                 disabled={event === undefined}
                 onClick={() => setEditing({ kind: "new" })}
               >
                 {t("rewards.add")}
-              </button>
-            </div>
+              </Button>
+            </Toolbar>
           ) : (
             <RewardForm
               key={editing.kind === "edit" ? editing.reward.id : "new"}
@@ -1002,8 +985,8 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
             />
           )}
           <LowCodes language={language} rewards={loaded.rewards} />
-          {loaded.rewards.length === 0 ? <p className={styles.muted}>{t("rewards.none")}</p> : null}
-          <ul className={styles.list}>
+          {loaded.rewards.length === 0 ? <EmptyState>{t("rewards.none")}</EmptyState> : null}
+          <CardList>
             {loaded.rewards.map((reward) => (
               <RewardRow
                 key={reward.id}
@@ -1038,7 +1021,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
                 }
               />
             ))}
-          </ul>
+          </CardList>
           <ShopSection
             language={language}
             shop={loaded.shop}
@@ -1051,6 +1034,6 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
           />
         </>
       )}
-    </section>
+    </Stack>
   );
 }

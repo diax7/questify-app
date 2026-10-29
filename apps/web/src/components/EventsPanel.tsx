@@ -6,7 +6,12 @@ import { nameFor, type EventView } from "#src/lib/events.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { STATUS_TONE } from "#src/lib/events.ts";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
+import { Card, CardList, Row, Stack } from "#src/ui/Section.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -44,44 +49,53 @@ export function EventsPanel({
   }, [organizerId, language, t]);
 
   return (
-    <section className={styles.panel} aria-labelledby="events-title">
-      <div className={styles.row}>
-        <h1 id="events-title" className={styles.title}>
-          {t("events.title")}
-        </h1>
-        <a className={styles.button} href={`${base}/new`}>
-          {t("events.new")}
-        </a>
-      </div>
+    <Stack>
+      <PageHeader
+        titleId="events-title"
+        title={t("events.title")}
+        actions={
+          <ButtonLink variant="primary" href={`${base}/new`}>
+            {t("events.new")}
+          </ButtonLink>
+        }
+      />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice role="alert" tone="danger">
           {problem}
-        </p>
+        </Notice>
       )}
       {events === null ? (
         problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : events.length === 0 ? (
-        <p className={styles.muted}>{t("events.none")}</p>
+        <EmptyState>{t("events.none")}</EmptyState>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {events.map((event) => (
-            <li key={event.id} className={styles.card}>
-              <a className={styles.textLink} href={`${base}/${event.id}`}>
-                {nameFor(event, language)}
-              </a>
-              <span className={styles.badge}>{t(`events.status.${event.statusNow}`)}</span>
-              <span className={styles.muted}>
-                {formatEventTime(new Date(event.startsAt), event.timezone, language)}
-              </span>
-              {event.statusNow === "draft" ? (
-                <span className={styles.muted}>{t("events.draftNote")}</span>
-              ) : null}
-            </li>
+            <Card as="li" key={event.id}>
+              <Row
+                as="div"
+                main={
+                  <>
+                    <TextLink strong href={`${base}/${event.id}`}>
+                      {nameFor(event, language)}
+                    </TextLink>
+                    <Muted>
+                      {formatEventTime(new Date(event.startsAt), event.timezone, language)}
+                    </Muted>
+                    {event.statusNow === "draft" ? <Muted>{t("events.draftNote")}</Muted> : null}
+                  </>
+                }
+              >
+                <Badge tone={STATUS_TONE[event.statusNow]}>
+                  {t(`events.status.${event.statusNow}`)}
+                </Badge>
+              </Row>
+            </Card>
           ))}
-        </ul>
+        </CardList>
       )}
-    </section>
+    </Stack>
   );
 }

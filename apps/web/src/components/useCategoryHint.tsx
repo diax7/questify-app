@@ -7,7 +7,7 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { hintPreviewOf } from "#src/lib/hint.ts";
 import type { CategoryView } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Notice } from "#src/ui/Feedback.tsx";
 
 type Builder = Pick<ReturnType<typeof useQuestBuilder>, "busy" | "read" | "send">;
 
@@ -76,9 +76,9 @@ export function useCategoryHint({
     ask: (category) => void ask(category),
     note:
       note === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {note}
-        </p>
+        </Notice>
       ),
     dialog:
       asking === null ? null : (
