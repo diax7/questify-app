@@ -1889,9 +1889,33 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   measurements and full-source overhead. No terminal protocol acceptance, production migration/adapter, email/UI,
   task tick, push, deploy, EAS, mutation or requirement waiver. Q-330 remains Open. Investigation is the next work.
 
+- 2026-10-29 **T-503 terminal-publication recovery: FAIL / STOP; no protocol acceptance.** Recovered the three
+  untracked test-only artifacts on main 4ff69c5, inspected/preserved the four prior terminal logs and original red
+  source probe. Fixed harness typing/lint and measurement/column mistakes; source remains real non-replay paid
+  complete_quest/record_completion/ledger/XP/trigger work in disposable local DBs. Evidence and full numerical
+  profiles: `docs/evidence/2026-10-29-t503-terminal-gate.md` and JSON (including old-log SHA-256 provenance).
+  Final opt-in: 11 PASS /1 deliberately RED (91.35 s): member704 completion commits, publication revision
+  355 ->355 instead of356. Actual nested record_completion can wait on legacy enrollment AFTER E before a late
+  42501 guard; synthetic deferred work can be re-armed after E and fail only during COMMIT. Current terminal
+  design is demonstrably incomplete; no further redesign attempted. No mandatory commit-finalization certificate.
+  Historical full-source E means >14 ms LOWER remain valid; reprofile 60 incl.warmup mean lower12.947 ms still
+  fails <3 ms. Warm full transaction profiles: baseline15.145 /original17.753 /terminal19.137 ms (50 each).
+  Three terminal single-source runs: full client means22.675/23.217/23.641 ms; actual E mean bounds
+  [1.595,3.484]/[1.616,3.612]/[1.639,3.597] ms. Two alternating-top-member runs: full29.909/37.759 ms,
+  E[1.481,3.388]/[1.764,3.851] ms; only2/0 crossing facts INCLUDING warmup, not a crossing-heavy load test.
+  Publication-body lower means0.258-0.325 ms are NOT full lock residence. Hard <3 ms UNPROVEN; <=1.5 ms target
+  FAIL in4/5 runs. No sustained20k/min, queue/<=5s propagation, cold/excluded leader, complete source inventory,
+  production lifecycle/reset/drain, all-source both-order or failed-COMMIT full rollback proof is claimed.
+  Security517 PASS/4 suites (26.17 s), API types, targeted lint/format, limits318 existing/0 new PASS; opt-out12
+  skipped. Full Vitest NOT run. Plan gate unchanged; T-503 not ticked, no production migration/adapter, dependency,
+  email/UI, real external service, mutation, push/deploy/EAS or T-504. Coordinator decides next bounded direction.
+  Approximate recovery effort15-20 minutes, zero CI minutes (estimate, not billing); no new ADR/Q/acceptance.
+
 ## Next
 
 - **CURRENT 2026-10-29: T-503 implementation STOPPED at failed early source-transaction feasibility gate.**
+  Terminal follow-on also FAIL / UNPROVEN: mandatory finalization absent, nested/deferred back-edges observed;
+  see `docs/evidence/2026-10-29-t503-terminal-gate.md`. Stop; no further redesign without coordinator direction.
   Coordinator technical redesign decision (ADR-361/Q-330) precedes further implementation. Measured evidence:
   `docs/evidence/2026-10-29-t503-early-gate.md` and JSON. Keep <3 ms /<=1.5 ms, ordered FR-613 crossings,
   eligibility and NFR-003 unchanged. All unfinished gates listed above. Do not start email/UI/T-504, tick T-503,

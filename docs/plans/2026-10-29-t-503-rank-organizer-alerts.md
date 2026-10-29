@@ -14,6 +14,12 @@ Measured full-source fence/COMMIT residence and deterministic conflicting commit
 coordinator selection. Do not start email/UI or hide unproved source inventory. All product/load gates stand.
 This gate override supersedes the earlier build authorization until a measured replacement is explicitly accepted.
 
+Terminal investigation checkpoint: **FAIL / STOP**, not a replacement-protocol acceptance. The real source can
+commit without publication; nested legacy enrollment waits after E and re-armed deferred work invalidate a sealed
+terminal phase. Five actual E-release mean intervals straddle 3 ms; publication-body timings alone are not a PASS.
+See `../evidence/2026-10-29-t503-terminal-gate.md` and JSON for complete source/COMMIT timings, 11 PASS /1 RED,
+bounded ordering/rollback findings and remaining proof. All requirements/budgets and the stop remain unchanged.
+
 ## Coordinator authorization — 2026-10-29 (prior to failed gate)
 
 After independent Tier A plan review 80 NO-GO and MAJOR corrections ed3866a, coordinator inspected the publication

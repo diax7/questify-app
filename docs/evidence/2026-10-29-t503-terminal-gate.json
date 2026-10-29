@@ -1,0 +1,2005 @@
+{
+  "date": "2026-10-29",
+  "baseCommit": "4ff69c5ba1ffee3bb00816948ed7f3d6e66fb38c",
+  "status": "FAIL / STOP: terminal protocol incomplete; performance hard gate UNPROVEN",
+  "requirementsUnchanged": {
+    "serializedMeanHoldMs": "<3",
+    "targetMeanHoldMs": "<=1.5",
+    "eventCompletionsPerMinute": 20000,
+    "noticePropagationSeconds": 5
+  },
+  "validation": {
+    "terminal": {
+      "passed": 11,
+      "failed": 1,
+      "durationSeconds": 91.35,
+      "failingAssertion": "source COMMIT must not omit publication; expected revision 356, actual 355"
+    },
+    "security": {
+      "files": 4,
+      "passed": 517,
+      "durationSeconds": 26.17
+    },
+    "apiTypes": "PASS",
+    "targetedLint": "PASS",
+    "targetedFormat": "PASS",
+    "functionLimits": {
+      "existingViolations": 318,
+      "newViolations": 0
+    },
+    "fullVitest": "NOT RUN (explicit scope)",
+    "originalProbe": "UNCHANGED; SQL installed, exercised, then removed in disposable DB by originalProfile"
+  },
+  "priorLogFingerprints": [
+    {
+      "path": "t503-terminal-initial.log",
+      "sha256": "8c506bfc05bcb4f406122f60e43c41d3d569f78f4cd176c8483b69b55b85f6b9"
+    },
+    {
+      "path": "t503-terminal-development.log",
+      "sha256": "f839654b22028f0d07fba749d40c92ecc7f723268ce4501123e115c6736f6673"
+    },
+    {
+      "path": "t503-terminal-types.log",
+      "sha256": "17c124af92403beb0676251b51f4980c7a81e6b3266078a1cf586ba2e67a0b5c"
+    },
+    {
+      "path": "t503-terminal-limits.log",
+      "sha256": "31049964369162d38ce3b1e7d130a1eb6b232b82932150ccdbc0066d5703b751"
+    },
+    {
+      "path": "t503-terminal-recovered.log",
+      "sha256": "4f3fffeedb4366e3ca8a46c7099419f406ef220eec24630cc850d9e5678cf373"
+    },
+    {
+      "path": "t503-terminal-final.log",
+      "sha256": "6efd270a7e748bbe289693e2406022830c5b200b8c4bf9b5a9e3f7b2e7705238"
+    },
+    {
+      "path": "t503-terminal-confirmation.log",
+      "sha256": "e572bc71a1105d381451dc9aaf0e0b0beb8079f9d3fb59ff0f485ebb4601d51a"
+    }
+  ],
+  "priorRuns": {
+    "initial": "fixture join-code constraint failure; six skipped",
+    "development": "five passed, one failed (unqualified outsider relation)",
+    "types": "14 index-signature errors; fixed in recovered harness",
+    "recovered": "11 pass / 1 intended red; predates complete profiling instrumentation",
+    "final": "11 pass / 1 harness failure (wrong completion column); fixed, not accepted as final proof"
+  },
+  "measurement": {
+    "members": 50000,
+    "sustainedLoad": "UNPROVEN",
+    "productionChanges": false,
+    "setup": [
+      {
+        "version": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "synchronous_commit": "on",
+        "fsync": "on",
+        "full_page_writes": "on",
+        "shared_buffers": "128MB",
+        "work_mem": "4MB"
+      }
+    ],
+    "machine": {
+      "platform": "win32",
+      "release": "10.0.19045",
+      "cpu": "AMD Ryzen 7 1700 Eight-Core Processor          ",
+      "parallelism": 16,
+      "memoryGiB": 47.9330940246582,
+      "node": "v24.14.0"
+    },
+    "baseline": {
+      "coldSourceClientMs": 70.02569999999832,
+      "warmSourceClientMs": {
+        "count": 50,
+        "mean": 11.66739600000059,
+        "p50": 11.473800000007031,
+        "p95": 13.025199999989127,
+        "p99": 13.533799999990151,
+        "max": 13.533799999990151
+      },
+      "sourceClientMs": {
+        "count": 60,
+        "mean": 13.496613333334002,
+        "p50": 11.580100000006496,
+        "p95": 19.019599999999627,
+        "p99": 70.02569999999832,
+        "max": 70.02569999999832
+      },
+      "commitClientMs": {
+        "count": 60,
+        "mean": 2.627715000000171,
+        "p50": 2.4741999999969266,
+        "p95": 3.3972999999969034,
+        "p99": 3.468800000002375,
+        "max": 3.468800000002375
+      },
+      "transactionClientMs": {
+        "count": 60,
+        "mean": 17.144141666667323,
+        "p50": 14.991699999998673,
+        "p95": 23.656999999991967,
+        "p99": 74.70719999998983,
+        "max": 74.70719999998983
+      },
+      "warmTransactionClientMs": {
+        "count": 50,
+        "mean": 15.145164000001095,
+        "p50": 14.853800000011688,
+        "p95": 16.901500000007218,
+        "p99": 17.7442999999912,
+        "max": 17.7442999999912
+      },
+      "functions": [
+        {
+          "schemaname": "public",
+          "funcname": "record_completion",
+          "calls": "60",
+          "total_ms": 647.82,
+          "self_ms": 110.003
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_enqueue",
+          "calls": "60",
+          "total_ms": 65.818,
+          "self_ms": 65.818
+        },
+        {
+          "schemaname": "public",
+          "funcname": "period_count",
+          "calls": "60",
+          "total_ms": 70.694,
+          "self_ms": 53.473
+        },
+        {
+          "schemaname": "public",
+          "funcname": "play_phase",
+          "calls": "60",
+          "total_ms": 37.816,
+          "self_ms": 37.816
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_record",
+          "calls": "60",
+          "total_ms": 66.377,
+          "self_ms": 37.599
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_credit",
+          "calls": "60",
+          "total_ms": 91.795,
+          "self_ms": 33.802
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_community_lock",
+          "calls": "60",
+          "total_ms": 34.912,
+          "self_ms": 27.105
+        },
+        {
+          "schemaname": "public",
+          "funcname": "boost_in_force",
+          "calls": "60",
+          "total_ms": 21.845,
+          "self_ms": 21.845
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_apply",
+          "calls": "60",
+          "total_ms": 49.593,
+          "self_ms": 20.724
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_completion_flags",
+          "calls": "60",
+          "total_ms": 55.338,
+          "self_ms": 18.001
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_period_start",
+          "calls": "59",
+          "total_ms": 17.221,
+          "self_ms": 17.221
+        },
+        {
+          "schemaname": "public",
+          "funcname": "system_paid",
+          "calls": "120",
+          "total_ms": 33.119,
+          "self_ms": 16.637
+        },
+        {
+          "schemaname": "public",
+          "funcname": "reviewer_paid",
+          "calls": "120",
+          "total_ms": 16.481,
+          "self_ms": 16.481
+        },
+        {
+          "schemaname": "public",
+          "funcname": "apply_ledger_entry",
+          "calls": "60",
+          "total_ms": 16.528,
+          "self_ms": 15.305
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_open_check",
+          "calls": "60",
+          "total_ms": 98.887,
+          "self_ms": 14.305
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_month_of",
+          "calls": "60",
+          "total_ms": 18.019,
+          "self_ms": 13.642
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_day",
+          "calls": "240",
+          "total_ms": 11.082,
+          "self_ms": 11.082
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_level_of",
+          "calls": "60",
+          "total_ms": 10.848,
+          "self_ms": 10.848
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_boost",
+          "calls": "60",
+          "total_ms": 31.329,
+          "self_ms": 9.483
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_xp",
+          "calls": "60",
+          "total_ms": 8.398,
+          "self_ms": 8.398
+        },
+        {
+          "schemaname": "public",
+          "funcname": "complete_quest",
+          "calls": "60",
+          "total_ms": 655.944,
+          "self_ms": 8.123
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_community_lock",
+          "calls": "60",
+          "total_ms": 7.807,
+          "self_ms": 7.807
+        },
+        {
+          "schemaname": "public",
+          "funcname": "daily_streak_on",
+          "calls": "60",
+          "total_ms": 7.767,
+          "self_ms": 7.767
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_lock",
+          "calls": "60",
+          "total_ms": 45.994,
+          "self_ms": 7.469
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_operator_play_guard",
+          "calls": "60",
+          "total_ms": 6.955,
+          "self_ms": 6.955
+        },
+        {
+          "schemaname": "public",
+          "funcname": "lock_quest_items",
+          "calls": "60",
+          "total_ms": 5.543,
+          "self_ms": 5.543
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_on_fact",
+          "calls": "60",
+          "total_ms": 71.323,
+          "self_ms": 5.504
+        },
+        {
+          "schemaname": "public",
+          "funcname": "keep_position",
+          "calls": "60",
+          "total_ms": 5.98,
+          "self_ms": 5.056
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_stamp_rehearsal",
+          "calls": "60",
+          "total_ms": 4.895,
+          "self_ms": 4.895
+        },
+        {
+          "schemaname": "public",
+          "funcname": "questify_day",
+          "calls": "120",
+          "total_ms": 3.781,
+          "self_ms": 3.781
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_multi_day",
+          "calls": "60",
+          "total_ms": 9.649,
+          "self_ms": 3.695
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_rule_lock",
+          "calls": "60",
+          "total_ms": 3.609,
+          "self_ms": 3.609
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_category_bonus",
+          "calls": "60",
+          "total_ms": 2.967,
+          "self_ms": 2.967
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ensure_rehearsal_wiped",
+          "calls": "60",
+          "total_ms": 2.707,
+          "self_ms": 2.707
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_day_closed",
+          "calls": "60",
+          "total_ms": 2.653,
+          "self_ms": 2.653
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_speed_flag",
+          "calls": "60",
+          "total_ms": 2.589,
+          "self_ms": 2.589
+        },
+        {
+          "schemaname": "public",
+          "funcname": "questify_month",
+          "calls": "60",
+          "total_ms": 4.376,
+          "self_ms": 2.566
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_first_bonus",
+          "calls": "60",
+          "total_ms": 2.203,
+          "self_ms": 2.203
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_xp",
+          "calls": "60",
+          "total_ms": 93.621,
+          "self_ms": 1.825
+        },
+        {
+          "schemaname": "public",
+          "funcname": "flag_tuning",
+          "calls": "60",
+          "total_ms": 1.628,
+          "self_ms": 1.628
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_streak",
+          "calls": "60",
+          "total_ms": 67.989,
+          "self_ms": 1.61
+        },
+        {
+          "schemaname": "public",
+          "funcname": "prev_open_day",
+          "calls": "60",
+          "total_ms": 4.424,
+          "self_ms": 1.603
+        },
+        {
+          "schemaname": "public",
+          "funcname": "position_of",
+          "calls": "60",
+          "total_ms": 0.924,
+          "self_ms": 0.924
+        },
+        {
+          "schemaname": "public",
+          "funcname": "give_item",
+          "calls": "60",
+          "total_ms": 0.841,
+          "self_ms": 0.841
+        },
+        {
+          "schemaname": "public",
+          "funcname": "sees_category",
+          "calls": "60",
+          "total_ms": 0.77,
+          "self_ms": 0.77
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_status_guard",
+          "calls": "60",
+          "total_ms": 0.72,
+          "self_ms": 0.72
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_waitlist_clear",
+          "calls": "60",
+          "total_ms": 0.502,
+          "self_ms": 0.502
+        }
+      ]
+    },
+    "originalEarlyProbe": {
+      "coldSourceClientMs": 26.43519999999262,
+      "warmSourceClientMs": {
+        "count": 50,
+        "mean": 13.53221400000126,
+        "p50": 12.67719999999099,
+        "p95": 21.059700000012526,
+        "p99": 24.204299999997602,
+        "max": 24.204299999997602
+      },
+      "sourceClientMs": {
+        "count": 60,
+        "mean": 13.62308666666698,
+        "p50": 12.722500000003492,
+        "p95": 22.474099999992177,
+        "p99": 26.43519999999262,
+        "max": 26.43519999999262
+      },
+      "commitClientMs": {
+        "count": 60,
+        "mean": 3.2555383333349406,
+        "p50": 3.0816000000049826,
+        "p95": 4.376400000008289,
+        "p99": 7.07039999999688,
+        "max": 7.07039999999688
+      },
+      "transactionClientMs": {
+        "count": 60,
+        "mean": 17.930709999999817,
+        "p50": 16.820000000006985,
+        "p95": 28.51469999999972,
+        "p99": 34.34470000000147,
+        "max": 34.34470000000147
+      },
+      "warmTransactionClientMs": {
+        "count": 50,
+        "mean": 17.75342999999935,
+        "p50": 16.675700000007055,
+        "p95": 26.70010000000184,
+        "p99": 30.040599999992992,
+        "max": 30.040599999992992
+      },
+      "functions": [
+        {
+          "schemaname": "public",
+          "funcname": "record_completion",
+          "calls": "60",
+          "total_ms": 651.899,
+          "self_ms": 101.947
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_enqueue",
+          "calls": "60",
+          "total_ms": 63.217,
+          "self_ms": 63.217
+        },
+        {
+          "schemaname": "public",
+          "funcname": "period_count",
+          "calls": "60",
+          "total_ms": 73.599,
+          "self_ms": 55.261
+        },
+        {
+          "schemaname": "public",
+          "funcname": "play_phase",
+          "calls": "60",
+          "total_ms": 38.651,
+          "self_ms": 38.651
+        },
+        {
+          "schemaname": "t503_probe",
+          "funcname": "assert_guard",
+          "calls": "60",
+          "total_ms": 38.11,
+          "self_ms": 38.11
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ranking_eligible",
+          "calls": "60",
+          "total_ms": 72.274,
+          "self_ms": 37.562
+        },
+        {
+          "schemaname": "t503_probe",
+          "funcname": "finalize",
+          "calls": "60",
+          "total_ms": 33.488,
+          "self_ms": 33.488
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_community_lock",
+          "calls": "60",
+          "total_ms": 33.911,
+          "self_ms": 25.422
+        },
+        {
+          "schemaname": "public",
+          "funcname": "reviewer_paid",
+          "calls": "180",
+          "total_ms": 22.166,
+          "self_ms": 22.166
+        },
+        {
+          "schemaname": "public",
+          "funcname": "boost_in_force",
+          "calls": "60",
+          "total_ms": 21.423,
+          "self_ms": 21.423
+        },
+        {
+          "schemaname": "public",
+          "funcname": "excluded_from_event",
+          "calls": "60",
+          "total_ms": 19.562,
+          "self_ms": 19.562
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_period_start",
+          "calls": "60",
+          "total_ms": 18.337,
+          "self_ms": 18.337
+        },
+        {
+          "schemaname": "public",
+          "funcname": "system_paid",
+          "calls": "180",
+          "total_ms": 39.724,
+          "self_ms": 17.557
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_credit",
+          "calls": "60",
+          "total_ms": 23.6,
+          "self_ms": 16.898
+        },
+        {
+          "schemaname": "public",
+          "funcname": "apply_ledger_entry",
+          "calls": "60",
+          "total_ms": 140.827,
+          "self_ms": 15.399
+        },
+        {
+          "schemaname": "public",
+          "funcname": "organizer_team_players",
+          "calls": "60",
+          "total_ms": 15.147,
+          "self_ms": 15.147
+        },
+        {
+          "schemaname": "t503_probe",
+          "funcname": "changed",
+          "calls": "60",
+          "total_ms": 124.202,
+          "self_ms": 13.817
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_completion_flags",
+          "calls": "60",
+          "total_ms": 56.8,
+          "self_ms": 13.702
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_record",
+          "calls": "60",
+          "total_ms": 36.418,
+          "self_ms": 13.085
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_boost",
+          "calls": "60",
+          "total_ms": 30.869,
+          "self_ms": 9.445
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_day",
+          "calls": "180",
+          "total_ms": 8.533,
+          "self_ms": 8.533
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_community_lock",
+          "calls": "60",
+          "total_ms": 8.487,
+          "self_ms": 8.487
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_open_check",
+          "calls": "60",
+          "total_ms": 93.049,
+          "self_ms": 8.226
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_lock",
+          "calls": "60",
+          "total_ms": 45.358,
+          "self_ms": 7.938
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_xp",
+          "calls": "60",
+          "total_ms": 6.701,
+          "self_ms": 6.701
+        },
+        {
+          "schemaname": "public",
+          "funcname": "daily_streak_on",
+          "calls": "60",
+          "total_ms": 6.584,
+          "self_ms": 6.584
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_on_fact",
+          "calls": "60",
+          "total_ms": 68.483,
+          "self_ms": 5.265
+        },
+        {
+          "schemaname": "public",
+          "funcname": "complete_quest",
+          "calls": "60",
+          "total_ms": 664.854,
+          "self_ms": 5.046
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_operator_play_guard",
+          "calls": "60",
+          "total_ms": 4.867,
+          "self_ms": 4.867
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_stamp_rehearsal",
+          "calls": "60",
+          "total_ms": 4.495,
+          "self_ms": 4.495
+        },
+        {
+          "schemaname": "t503_probe",
+          "funcname": "guard",
+          "calls": "60",
+          "total_ms": 4.306,
+          "self_ms": 4.306
+        },
+        {
+          "schemaname": "public",
+          "funcname": "lock_quest_items",
+          "calls": "60",
+          "total_ms": 3.646,
+          "self_ms": 3.646
+        },
+        {
+          "schemaname": "t503_probe",
+          "funcname": "complete_quest",
+          "calls": "60",
+          "total_ms": 655.499,
+          "self_ms": 3.599
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_multi_day",
+          "calls": "60",
+          "total_ms": 9.547,
+          "self_ms": 3.597
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_rule_lock",
+          "calls": "60",
+          "total_ms": 3.506,
+          "self_ms": 3.506
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_category_bonus",
+          "calls": "60",
+          "total_ms": 3.41,
+          "self_ms": 3.41
+        },
+        {
+          "schemaname": "public",
+          "funcname": "keep_position",
+          "calls": "60",
+          "total_ms": 4.121,
+          "self_ms": 3.174
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_day_closed",
+          "calls": "60",
+          "total_ms": 2.721,
+          "self_ms": 2.721
+        },
+        {
+          "schemaname": "public",
+          "funcname": "questify_day",
+          "calls": "60",
+          "total_ms": 1.892,
+          "self_ms": 1.892
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_speed_flag",
+          "calls": "60",
+          "total_ms": 1.811,
+          "self_ms": 1.811
+        },
+        {
+          "schemaname": "public",
+          "funcname": "flag_tuning",
+          "calls": "60",
+          "total_ms": 1.559,
+          "self_ms": 1.559
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_streak",
+          "calls": "60",
+          "total_ms": 37.963,
+          "self_ms": 1.544
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_xp",
+          "calls": "60",
+          "total_ms": 25.076,
+          "self_ms": 1.476
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ensure_rehearsal_wiped",
+          "calls": "60",
+          "total_ms": 1.371,
+          "self_ms": 1.371
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_first_bonus",
+          "calls": "60",
+          "total_ms": 1.36,
+          "self_ms": 1.36
+        },
+        {
+          "schemaname": "public",
+          "funcname": "position_of",
+          "calls": "60",
+          "total_ms": 0.945,
+          "self_ms": 0.945
+        },
+        {
+          "schemaname": "public",
+          "funcname": "sees_category",
+          "calls": "60",
+          "total_ms": 0.81,
+          "self_ms": 0.81
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_status_guard",
+          "calls": "60",
+          "total_ms": 0.624,
+          "self_ms": 0.624
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_waitlist_clear",
+          "calls": "60",
+          "total_ms": 0.599,
+          "self_ms": 0.599
+        }
+      ]
+    },
+    "originalHoldLowerMs": {
+      "count": 60,
+      "mean": 12.947,
+      "p50": 12.081,
+      "p95": 21.293,
+      "p99": 28.164,
+      "max": 28.164
+    },
+    "candidateProfile": {
+      "coldSourceClientMs": 26.97060000000056,
+      "warmSourceClientMs": {
+        "count": 50,
+        "mean": 13.125667999999132,
+        "p50": 12.828499999988708,
+        "p95": 15.374700000000303,
+        "p99": 15.692000000010012,
+        "max": 15.692000000010012
+      },
+      "sourceClientMs": {
+        "count": 60,
+        "mean": 13.51590999999947,
+        "p50": 12.984400000001187,
+        "p95": 15.692000000010012,
+        "p99": 26.97060000000056,
+        "max": 26.97060000000056
+      },
+      "commitClientMs": {
+        "count": 60,
+        "mean": 2.560878333333191,
+        "p50": 2.45240000000922,
+        "p95": 3.1776000000099884,
+        "p99": 3.734500000005937,
+        "max": 3.734500000005937
+      },
+      "transactionClientMs": {
+        "count": 60,
+        "mean": 19.69824000000032,
+        "p50": 18.8009999999922,
+        "p95": 24.185899999996764,
+        "p99": 37.37519999999495,
+        "max": 37.37519999999495
+      },
+      "warmTransactionClientMs": {
+        "count": 50,
+        "mean": 19.136534000000392,
+        "p50": 18.72630000000936,
+        "p95": 22.665399999998044,
+        "p99": 24.241600000008475,
+        "max": 24.241600000008475
+      },
+      "functions": [
+        {
+          "schemaname": "public",
+          "funcname": "record_completion",
+          "calls": "60",
+          "total_ms": 632.014,
+          "self_ms": 99.584
+        },
+        {
+          "schemaname": "t503_terminal",
+          "funcname": "has_event_lock",
+          "calls": "180",
+          "total_ms": 69.54,
+          "self_ms": 69.54
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_enqueue",
+          "calls": "60",
+          "total_ms": 61.202,
+          "self_ms": 61.202
+        },
+        {
+          "schemaname": "public",
+          "funcname": "period_count",
+          "calls": "60",
+          "total_ms": 72.408,
+          "self_ms": 55.182
+        },
+        {
+          "schemaname": "public",
+          "funcname": "t503_terminal_publish",
+          "calls": "60",
+          "total_ms": 72.331,
+          "self_ms": 47.521
+        },
+        {
+          "schemaname": "public",
+          "funcname": "play_phase",
+          "calls": "60",
+          "total_ms": 37.039,
+          "self_ms": 37.039
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ranking_eligible",
+          "calls": "60",
+          "total_ms": 65.613,
+          "self_ms": 33.293
+        },
+        {
+          "schemaname": "public",
+          "funcname": "reviewer_paid",
+          "calls": "240",
+          "total_ms": 27.96,
+          "self_ms": 27.96
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_community_lock",
+          "calls": "60",
+          "total_ms": 33.46,
+          "self_ms": 25.878
+        },
+        {
+          "schemaname": "t503_terminal",
+          "funcname": "changed",
+          "calls": "60",
+          "total_ms": 114.809,
+          "self_ms": 24.233
+        },
+        {
+          "schemaname": "public",
+          "funcname": "boost_in_force",
+          "calls": "60",
+          "total_ms": 18.387,
+          "self_ms": 18.387
+        },
+        {
+          "schemaname": "public",
+          "funcname": "excluded_from_event",
+          "calls": "60",
+          "total_ms": 17.923,
+          "self_ms": 17.923
+        },
+        {
+          "schemaname": "public",
+          "funcname": "system_paid",
+          "calls": "240",
+          "total_ms": 45.407,
+          "self_ms": 17.446
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_period_start",
+          "calls": "60",
+          "total_ms": 17.225,
+          "self_ms": 17.225
+        },
+        {
+          "schemaname": "public",
+          "funcname": "xp_credit",
+          "calls": "60",
+          "total_ms": 24.369,
+          "self_ms": 16.244
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_record",
+          "calls": "60",
+          "total_ms": 37.281,
+          "self_ms": 14.513
+        },
+        {
+          "schemaname": "public",
+          "funcname": "organizer_team_players",
+          "calls": "60",
+          "total_ms": 14.395,
+          "self_ms": 14.395
+        },
+        {
+          "schemaname": "public",
+          "funcname": "apply_ledger_entry",
+          "calls": "60",
+          "total_ms": 129.531,
+          "self_ms": 13.588
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_completion_flags",
+          "calls": "60",
+          "total_ms": 61.51,
+          "self_ms": 12.932
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_boost",
+          "calls": "60",
+          "total_ms": 27.416,
+          "self_ms": 9.027
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_open_check",
+          "calls": "60",
+          "total_ms": 90.614,
+          "self_ms": 8.302
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_day",
+          "calls": "180",
+          "total_ms": 8.234,
+          "self_ms": 8.234
+        },
+        {
+          "schemaname": "public",
+          "funcname": "quest_xp",
+          "calls": "60",
+          "total_ms": 8.125,
+          "self_ms": 8.125
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_lock",
+          "calls": "60",
+          "total_ms": 44.565,
+          "self_ms": 7.754
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_community_lock",
+          "calls": "60",
+          "total_ms": 7.58,
+          "self_ms": 7.58
+        },
+        {
+          "schemaname": "public",
+          "funcname": "daily_streak_on",
+          "calls": "60",
+          "total_ms": 6.137,
+          "self_ms": 6.137
+        },
+        {
+          "schemaname": "public",
+          "funcname": "complete_quest",
+          "calls": "60",
+          "total_ms": 662.988,
+          "self_ms": 5.515
+        },
+        {
+          "schemaname": "public",
+          "funcname": "souvenir_on_fact",
+          "calls": "60",
+          "total_ms": 66.306,
+          "self_ms": 5.103
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_operator_play_guard",
+          "calls": "60",
+          "total_ms": 4.733,
+          "self_ms": 4.733
+        },
+        {
+          "schemaname": "t503_terminal",
+          "funcname": "complete_quest",
+          "calls": "60",
+          "total_ms": 636.282,
+          "self_ms": 4.268
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_stamp_rehearsal",
+          "calls": "60",
+          "total_ms": 4.154,
+          "self_ms": 4.154
+        },
+        {
+          "schemaname": "public",
+          "funcname": "event_multi_day",
+          "calls": "60",
+          "total_ms": 9.633,
+          "self_ms": 3.733
+        },
+        {
+          "schemaname": "public",
+          "funcname": "category_rule_lock",
+          "calls": "60",
+          "total_ms": 3.349,
+          "self_ms": 3.349
+        },
+        {
+          "schemaname": "public",
+          "funcname": "keep_position",
+          "calls": "60",
+          "total_ms": 3.92,
+          "self_ms": 3.13
+        },
+        {
+          "schemaname": "public",
+          "funcname": "streak_day_closed",
+          "calls": "60",
+          "total_ms": 2.659,
+          "self_ms": 2.659
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_category_bonus",
+          "calls": "60",
+          "total_ms": 2.499,
+          "self_ms": 2.499
+        },
+        {
+          "schemaname": "public",
+          "funcname": "lock_quest_items",
+          "calls": "60",
+          "total_ms": 2.044,
+          "self_ms": 2.044
+        },
+        {
+          "schemaname": "public",
+          "funcname": "questify_day",
+          "calls": "60",
+          "total_ms": 2,
+          "self_ms": 2
+        },
+        {
+          "schemaname": "public",
+          "funcname": "raise_speed_flag",
+          "calls": "60",
+          "total_ms": 1.745,
+          "self_ms": 1.745
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_streak",
+          "calls": "60",
+          "total_ms": 38.861,
+          "self_ms": 1.579
+        },
+        {
+          "schemaname": "public",
+          "funcname": "flag_tuning",
+          "calls": "60",
+          "total_ms": 1.424,
+          "self_ms": 1.424
+        },
+        {
+          "schemaname": "t503_terminal",
+          "funcname": "enter_source",
+          "calls": "60",
+          "total_ms": 21.189,
+          "self_ms": 1.419
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ensure_rehearsal_wiped",
+          "calls": "60",
+          "total_ms": 1.412,
+          "self_ms": 1.412
+        },
+        {
+          "schemaname": "public",
+          "funcname": "ledger_xp",
+          "calls": "60",
+          "total_ms": 25.718,
+          "self_ms": 1.348
+        },
+        {
+          "schemaname": "public",
+          "funcname": "pay_first_bonus",
+          "calls": "60",
+          "total_ms": 1.287,
+          "self_ms": 1.287
+        },
+        {
+          "schemaname": "public",
+          "funcname": "position_of",
+          "calls": "60",
+          "total_ms": 0.79,
+          "self_ms": 0.79
+        },
+        {
+          "schemaname": "public",
+          "funcname": "sees_category",
+          "calls": "60",
+          "total_ms": 0.705,
+          "self_ms": 0.705
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_status_guard",
+          "calls": "60",
+          "total_ms": 0.566,
+          "self_ms": 0.566
+        },
+        {
+          "schemaname": "public",
+          "funcname": "enrollment_waitlist_clear",
+          "calls": "60",
+          "total_ms": 0.565,
+          "self_ms": 0.565
+        }
+      ]
+    },
+    "crossings": [
+      {
+        "generation": 1,
+        "revision": 1,
+        "direction": "entry"
+      },
+      {
+        "generation": 1,
+        "revision": 2,
+        "direction": "exit"
+      },
+      {
+        "generation": 1,
+        "revision": 3,
+        "direction": "entry"
+      }
+    ],
+    "deferredInventory": [
+      {
+        "relation": "daily_challenge",
+        "conname": "daily_challenge_three",
+        "contype": "t",
+        "condeferrable": true,
+        "condeferred": true,
+        "referenced": "-",
+        "confdeltype": " "
+      },
+      {
+        "relation": "daily_challenge_question",
+        "conname": "daily_challenge_question_three",
+        "contype": "t",
+        "condeferrable": true,
+        "condeferred": true,
+        "referenced": "-",
+        "confdeltype": " "
+      },
+      {
+        "relation": "enrollment",
+        "conname": "enrollment_event_id_organizer_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "event",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "enrollment",
+        "conname": "enrollment_goal_reward_id_event_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "reward",
+        "confdeltype": "n"
+      },
+      {
+        "relation": "enrollment",
+        "conname": "enrollment_player_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "player",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_boost_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "boost",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_category_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "category",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_community_step_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "community_step",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_completion_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "quest_completion",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_enrollment_id_event_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "enrollment",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_event_id_organizer_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "event",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_quest_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "quest",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_redemption_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "redemption",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "ledger_entry",
+        "conname": "ledger_entry_reverses_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "ledger_entry",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "passport_step",
+        "conname": "passport_step_shape",
+        "contype": "t",
+        "condeferrable": true,
+        "condeferred": true,
+        "referenced": "-",
+        "confdeltype": " "
+      },
+      {
+        "relation": "player_xp",
+        "conname": "player_xp_player_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "player",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "quest",
+        "conname": "quest_passport_steps",
+        "contype": "t",
+        "condeferrable": true,
+        "condeferred": true,
+        "referenced": "-",
+        "confdeltype": " "
+      },
+      {
+        "relation": "quest_completion",
+        "conname": "quest_completion_enrollment_id_event_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "enrollment",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "quest_completion",
+        "conname": "quest_completion_event_id_organizer_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "event",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "quest_completion",
+        "conname": "quest_completion_quest_id_event_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "quest",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_daily_finish_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "daily_finish",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_ledger_entry_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "ledger_entry",
+        "confdeltype": "r"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_player_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "player_xp",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_questify_award_id_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "questify_award",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_reverses_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "xp_entry",
+        "confdeltype": "a"
+      },
+      {
+        "relation": "xp_entry",
+        "conname": "xp_entry_streak_reward_fkey",
+        "contype": "f",
+        "condeferrable": false,
+        "condeferred": false,
+        "referenced": "questify_streak_reward",
+        "confdeltype": "a"
+      }
+    ],
+    "businessTriggers": [
+      {
+        "relation": "enrollment",
+        "tgname": "enqueue_souvenir_on_join",
+        "function": "souvenir_on_fact",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_abandon_rounds",
+        "function": "abandon_open_rounds",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_close_submissions",
+        "function": "close_pending_submissions",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_player_limit",
+        "function": "enrollment_player_limit",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_push_decision",
+        "function": "push_on_join_decision",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_rehearsal_guard",
+        "function": "enrollment_rehearsal_guard",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_status_guard",
+        "function": "enrollment_status_guard",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_void_quizzes",
+        "function": "void_open_quizzes",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_waitlist_clear",
+        "function": "enrollment_waitlist_clear",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "enrollment_welcome",
+        "function": "grant_welcome",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "mark_ranking_on_enrollment",
+        "function": "mark_ranking_on_enrollment",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "enrollment",
+        "tgname": "t503_terminal_changed",
+        "function": "t503_terminal.changed",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "apply_ledger_entry",
+        "function": "apply_ledger_entry",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_a_stamp_rehearsal",
+        "function": "ledger_stamp_rehearsal",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_no_truncate",
+        "function": "ledger_append_only",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_no_update_or_delete",
+        "function": "ledger_append_only",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_operator_play_guard",
+        "function": "ledger_operator_play_guard",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_streak",
+        "function": "ledger_streak",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "ledger_entry",
+        "tgname": "ledger_xp",
+        "function": "ledger_xp",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "quest_completion",
+        "tgname": "enqueue_souvenir_on_complete",
+        "function": "souvenir_on_fact",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "quest_completion",
+        "tgname": "quest_completion_flags",
+        "function": "raise_completion_flags",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "xp_entry",
+        "tgname": "xp_entry_no_truncate",
+        "function": "xp_append_only",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      },
+      {
+        "relation": "xp_entry",
+        "tgname": "xp_entry_no_update_or_delete",
+        "function": "xp_append_only",
+        "tgdeferrable": false,
+        "tginitdeferred": false
+      }
+    ],
+    "reads": {
+      "eligible": {
+        "canonicalTop": {
+          "firstClientMs": 95.25410000000556,
+          "warmClientMs": {
+            "count": 7,
+            "mean": 95.79827142856915,
+            "p50": 92.37429999999586,
+            "p95": 113.72400000000198,
+            "p99": 113.72400000000198,
+            "max": 113.72400000000198
+          }
+        },
+        "projectionTop": {
+          "firstClientMs": 2.139499999990221,
+          "warmClientMs": {
+            "count": 7,
+            "mean": 1.5298285714296591,
+            "p50": 1.539199999999255,
+            "p95": 2.322199999995064,
+            "p99": 2.322199999995064,
+            "max": 2.322199999995064
+          }
+        },
+        "projectionTotal": {
+          "firstClientMs": 6.549199999994016,
+          "warmClientMs": {
+            "count": 7,
+            "mean": 6.13701428571533,
+            "p50": 6.188000000009197,
+            "p95": 6.390599999998813,
+            "p99": 6.390599999998813,
+            "max": 6.390599999998813
+          }
+        },
+        "projectionOwn": {
+          "firstClientMs": 1.6085000000020955,
+          "warmClientMs": {
+            "count": 7,
+            "mean": 1.496585714289852,
+            "p50": 1.569100000007893,
+            "p95": 1.939200000007986,
+            "p99": 1.939200000007986,
+            "max": 1.939200000007986
+          }
+        }
+      },
+      "coldCache": "UNPROVEN: no cache eviction",
+      "excluded49990": "UNPROVEN"
+    },
+    "distinctBlocking": {
+      "edge": "A -> B exclusive E through COMMIT",
+      "waitMs": 3.542
+    },
+    "conflictingBlocking": "A started first; B business/fence/commit first; A resumes then fences",
+    "timings": [
+      {
+        "work": "noncrossing",
+        "crossingFactsIncludingWarmup": 0,
+        "clientMs": {
+          "count": 60,
+          "mean": 22.675463333333756,
+          "p50": 22.148499999995693,
+          "p95": 27.136699999988195,
+          "p99": 34.50079999999434,
+          "max": 34.50079999999434
+        },
+        "holdLowerMs": {
+          "count": 60,
+          "mean": 0.32525634765625,
+          "p50": 0.31103515625,
+          "p95": 0.4521484375,
+          "p99": 1,
+          "max": 1
+        },
+        "holdUpperMs": {
+          "count": 60,
+          "mean": 3.483833821614583,
+          "p50": 3.3740234375,
+          "p95": 4.2548828125,
+          "p99": 5.35302734375,
+          "max": 5.35302734375
+        },
+        "waitMs": {
+          "count": 60,
+          "mean": 0.016383333333333343,
+          "p50": 0.012,
+          "p95": 0.035,
+          "p99": 0.147,
+          "max": 0.147
+        },
+        "precommitLowerMs": {
+          "count": 60,
+          "mean": 1.59464111328125,
+          "p50": 1.555908203125,
+          "p95": 1.887939453125,
+          "p99": 2.989013671875,
+          "max": 2.989013671875
+        },
+        "commitTailMs": {
+          "count": 60,
+          "mean": 1.8891927083333333,
+          "p50": 1.85107421875,
+          "p95": 2.364013671875,
+          "p99": 2.368896484375,
+          "max": 2.368896484375
+        },
+        "microgate": "UNPROVEN",
+        "target": "FAIL"
+      },
+      {
+        "work": "noncrossing",
+        "crossingFactsIncludingWarmup": 0,
+        "clientMs": {
+          "count": 60,
+          "mean": 23.217471666666825,
+          "p50": 22.417900000000373,
+          "p95": 27.33540000001085,
+          "p99": 34.873399999996764,
+          "max": 34.873399999996764
+        },
+        "holdLowerMs": {
+          "count": 60,
+          "mean": 0.31409912109375,
+          "p50": 0.277099609375,
+          "p95": 0.739013671875,
+          "p99": 0.9521484375,
+          "max": 0.9521484375
+        },
+        "holdUpperMs": {
+          "count": 60,
+          "mean": 3.6117838541666667,
+          "p50": 3.474853515625,
+          "p95": 4.89111328125,
+          "p99": 5.007080078125,
+          "max": 5.007080078125
+        },
+        "waitMs": {
+          "count": 60,
+          "mean": 0.015683333333333344,
+          "p50": 0.013,
+          "p95": 0.046,
+          "p99": 0.065,
+          "max": 0.065
+        },
+        "precommitLowerMs": {
+          "count": 60,
+          "mean": 1.6156819661458333,
+          "p50": 1.537109375,
+          "p95": 2.281982421875,
+          "p99": 2.629150390625,
+          "max": 2.629150390625
+        },
+        "commitTailMs": {
+          "count": 60,
+          "mean": 1.9961018880208334,
+          "p50": 1.955810546875,
+          "p95": 2.505126953125,
+          "p99": 2.661865234375,
+          "max": 2.661865234375
+        },
+        "microgate": "UNPROVEN",
+        "target": "FAIL"
+      },
+      {
+        "work": "noncrossing",
+        "crossingFactsIncludingWarmup": 0,
+        "clientMs": {
+          "count": 60,
+          "mean": 23.64089499999997,
+          "p50": 23.34659999998985,
+          "p95": 28.430500000002212,
+          "p99": 29.32839999999851,
+          "max": 29.32839999999851
+        },
+        "holdLowerMs": {
+          "count": 60,
+          "mean": 0.2848103841145833,
+          "p50": 0.27294921875,
+          "p95": 0.462158203125,
+          "p99": 0.55615234375,
+          "max": 0.55615234375
+        },
+        "holdUpperMs": {
+          "count": 60,
+          "mean": 3.596565755208333,
+          "p50": 3.514892578125,
+          "p95": 4.35693359375,
+          "p99": 4.469970703125,
+          "max": 4.469970703125
+        },
+        "waitMs": {
+          "count": 60,
+          "mean": 0.016250000000000007,
+          "p50": 0.013,
+          "p95": 0.04,
+          "p99": 0.068,
+          "max": 0.068
+        },
+        "precommitLowerMs": {
+          "count": 60,
+          "mean": 1.6388631184895834,
+          "p50": 1.58203125,
+          "p95": 2.14697265625,
+          "p99": 2.254150390625,
+          "max": 2.254150390625
+        },
+        "commitTailMs": {
+          "count": 60,
+          "mean": 1.95770263671875,
+          "p50": 1.9169921875,
+          "p95": 2.298095703125,
+          "p99": 2.426025390625,
+          "max": 2.426025390625
+        },
+        "microgate": "UNPROVEN",
+        "target": "FAIL"
+      },
+      {
+        "work": "alternating-top-members",
+        "crossingFactsIncludingWarmup": 2,
+        "clientMs": {
+          "count": 30,
+          "mean": 29.908906666666734,
+          "p50": 33.3920999999973,
+          "p95": 40.574399999997695,
+          "p99": 40.97520000000077,
+          "max": 40.97520000000077
+        },
+        "holdLowerMs": {
+          "count": 30,
+          "mean": 0.2583821614583333,
+          "p50": 0.243896484375,
+          "p95": 0.33203125,
+          "p99": 0.4521484375,
+          "max": 0.4521484375
+        },
+        "holdUpperMs": {
+          "count": 30,
+          "mean": 3.387679036458333,
+          "p50": 3.333984375,
+          "p95": 4.150146484375,
+          "p99": 4.823974609375,
+          "max": 4.823974609375
+        },
+        "waitMs": {
+          "count": 30,
+          "mean": 0.012466666666666673,
+          "p50": 0.013,
+          "p95": 0.015,
+          "p99": 0.015,
+          "max": 0.015
+        },
+        "precommitLowerMs": {
+          "count": 30,
+          "mean": 1.4811442057291666,
+          "p50": 1.47705078125,
+          "p95": 1.989013671875,
+          "p99": 2.06298828125,
+          "max": 2.06298828125
+        },
+        "commitTailMs": {
+          "count": 30,
+          "mean": 1.9065348307291667,
+          "p50": 1.87890625,
+          "p95": 2.314208984375,
+          "p99": 2.8349609375,
+          "max": 2.8349609375
+        },
+        "microgate": "UNPROVEN",
+        "target": "UNPROVEN"
+      },
+      {
+        "work": "alternating-top-members",
+        "crossingFactsIncludingWarmup": 0,
+        "clientMs": {
+          "count": 30,
+          "mean": 37.75945666666521,
+          "p50": 42.42859999999928,
+          "p95": 51.05000000000291,
+          "p99": 52.8237999999983,
+          "max": 52.8237999999983
+        },
+        "holdLowerMs": {
+          "count": 30,
+          "mean": 0.29900716145833334,
+          "p50": 0.266845703125,
+          "p95": 0.4990234375,
+          "p99": 0.537841796875,
+          "max": 0.537841796875
+        },
+        "holdUpperMs": {
+          "count": 30,
+          "mean": 3.851057942708333,
+          "p50": 3.6650390625,
+          "p95": 5.804931640625,
+          "p99": 6.69189453125,
+          "max": 6.69189453125
+        },
+        "waitMs": {
+          "count": 30,
+          "mean": 0.014566666666666674,
+          "p50": 0.014,
+          "p95": 0.027,
+          "p99": 0.036,
+          "max": 0.036
+        },
+        "precommitLowerMs": {
+          "count": 30,
+          "mean": 1.7637451171875,
+          "p50": 1.693115234375,
+          "p95": 2.6630859375,
+          "p99": 2.81591796875,
+          "max": 2.81591796875
+        },
+        "commitTailMs": {
+          "count": 30,
+          "mean": 2.0873128255208333,
+          "p50": 1.994140625,
+          "p95": 2.989013671875,
+          "p99": 4.35009765625,
+          "max": 4.35009765625
+        },
+        "microgate": "UNPROVEN",
+        "target": "FAIL"
+      }
+    ],
+    "readerDrain": "both E orders observed; synthetic snapshot reader only, no delivery locks",
+    "syntheticReset": "exclusive G both orders; no shared upgrade; production lifecycle UNPROVEN",
+    "backedge": "FAIL: E holder waits on legacy enrollment in nested record_completion; AFTER projection guard is too late",
+    "deferred": "queued FK/trigger flushed before E; SET CONSTRAINTS can re-arm after E, rollback only at late guard; not a no-back-edge proof",
+    "missingFence": {
+      "status": "FAIL",
+      "committedSourceWithoutPublication": true,
+      "completions": 1,
+      "revisionBefore": 355,
+      "revisionAfter": 355
+    }
+  }
+}
