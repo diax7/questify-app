@@ -1842,6 +1842,21 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
+- **2026-10-29 — T-503 PLAN CORRECTIONS ONLY after Tier A review80 NO-GO (base main bca5223).**
+  All seven MAJOR findings mapped in `docs/plans/2026-10-29-t-503-rank-organizer-alerts.md`: ordered durable
+  source-transaction crossings and DB-coherent overall publication (not coalescing); exact latest identity plus
+  lifecycle generations; source reset/baseline edges; per-waiter Google token cancellation; structured provider
+  outcomes; explicit source writer/G-E lock matrix with deterministic two-connection BOTH-order barriers; stock/
+  code total/threshold revision tests. Durable inbox/captured-id deletion, Redis independence and eligibility index
+  retained, with worst-excluded-leader and hot-event throughput gates. ADR-359/360 remain Proposed, Q-328/329 Open.
+  NEXT: coordinator inspection and explicit technical design acceptance BEFORE implementation; no independent
+  re-review required for MAJOR-only fixes (ADR-355), no self-approval. Inspect overall-cache authority change,
+  source guard completeness, global lock pauses/own-rank cost and provider refusal proof. Operational transport
+  default OFF; no T-609 duplicate infrastructure/T-701 invented producers. Only docs and local commit authorized;
+  no task tick, code/build/full tests/real services/push/mutation/EAS/deployment. Correction CI minutes 0; rough
+  additional effort 18k agent tokens (estimate, not billing), no children. Checks: source/docs inspection and
+  git diff --check. The older independent-review-next bullet below records the prior stage, not current authority.
+
 - **2026-10-29 — T-503 Tier A PLAN ONLY, independent plan review next.** On main 0818a3d, inspected canonical
   ranking/cache flow, existing notice producers, organizer membership/inventory/seat/flag/support facts and foreign
   auth email adapters. Plan: `docs/plans/2026-10-29-t-503-rank-organizer-alerts.md`; ADR-359/360 Proposed and

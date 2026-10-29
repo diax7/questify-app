@@ -5301,36 +5301,51 @@ re-review under ADR-355. Accept all seven choices above, explicitly including th
 poll/community cards beside it. The modal-accessibility MINOR remains in FOLLOWUPS. Remote CI and the existing
 provider/real-phone checks remain gates; acceptance does not authorize deployment.
 
-## ADR-359 — T-503 durable top-ten entry and exit checkpoints
+## ADR-359 — T-503 ordered durable top-ten transitions and coherent publication
 
-**Status:** Proposed (implementation worker, 2026-10-29; independent Tier A plan review required; Q-328).
-**Recommendation:** PostgreSQL ids-only change inbox and serialized per-event top-ten snapshot/revision, independent
-of Redis repair consumption. Overall live enabled ranking only; canonical score/version ordering and eligibility.
-Coalesce changes at bounded checkpoints, not every transient ledger crossing. Both entry and exit are personal
-rank-topic notice_create kinds with five-minute expiry, latest-transition checks and revision-based dedupe supporting
-re-entry. Suppress rehearsal/initial baselines/ineligible recipients; score-zero exit remains possible. Safe fixed
-Arabic/English copy without exact rank number, per ADR-346. No member-wide notification scan or new dependency.
-**Trade-off:** transient crossings between checkpoints are not observable transitions. Exact per-transaction history
-would require a different producer/locking cost, not a cache comparison. Reviewer/coordinator must decide before
-build. Lock order, dirty-signal commit race, source coverage and 50,000-member performance proof are specified in
-`plans/2026-10-29-t-503-rank-organizer-alerts.md`; no implementation or approval implied.
+**Status:** Proposed (implementation worker, amended 2026-10-29 after Tier A review80 NO-GO; Q-328).
+**Recommendation:** preserve FR-613 without coalescing: serialize same-event source transactions, maintain an
+eligible-only indexed projection and persist every committed top-ten crossing with source changes, ordered event
+revision and lifecycle generation. Durable inbox carries transition facts, not final-state ids-only dirty signals.
+All overall publications, including afterCompletion place, board/own/total live reads, fallback and repairs, must
+use one coherent PostgreSQL boundary; remove overall Redis authority, preserve today-cache and existing API/
+canonical eligibility/order/own-rank semantics. This avoids a Redis/DB distributed publication protocol and partial
+incremental boards. A published 11->9->11 between drains has both durable facts. No requirement relaxation.
+Source-time generation/reset edges and silent baseline cover off->on, lifecycle clock transitions and rehearsal;
+exact latest transition identity AND generation gates fan-out and claim, including delayed entry1 after entry3.
+Both entry/exit rank-topic kinds, five-minute TTL, revision/generation dedupe, eligible score-zero exit, safe fixed
+bilingual text and ineligible-recipient suppression remain. Retain captured-id-only deletion and Redis independence.
+**Lock/cost trade-off:** explicit shared/exclusive global pre-lock G and sorted per-event E locks before legacy
+locks; eligible projection gives indexed top-ten selection even with excluded leaders, not an attendee scan per
+completion. Global eligibility/bulk/erasure pauses and exact own-place read cost are real. At 333.34 writes/s in one
+hot event, average serialized E hold must be <3 ms (target <=1.5 ms); benchmark full transaction hold/queue/latency,
+50,000 members and worst excluded leaders before declaring feasibility. Failure requires coordinator redesign,
+never coalescing. More source-door changes than the rejected worker-only detector, but preserves the requirement.
+**Gate:** coordinator must inspect/explicitly accept publication inventory, complete source writer/lock matrix and
+cost proof before ANY implementation. Review80 MAJOR-only corrections need no independent re-review (ADR-355).
+No self-approval; ADR stays Proposed. Full resolution map/tests: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
 
 ## ADR-360 — T-503 self-service organizer alert mail and safe dispatch
 
-**Status:** Proposed (implementation worker, 2026-10-29; independent Tier A plan review required; Q-329).
-**Recommendation:** seven operational switches per accepted member/organizer, default ON, editable only by that
-member. Separate physical-stock/code-low switches and one size switch covering 80/100. Source facts and bounded
-recipient deliveries are durable ids-only records; eligibility includes active staff/current membership generation,
-event scope and opt-out at source and dispatch. Finite stock low at <= max(1, ceil(total * 10%)), rearm above;
-limit alerts once per genuine limit revision/level. No historical backfill or marketing implication.
-T-503 owns infrastructure/UI and existing sources (including console.ticket_read); T-609 reuses it for usage/future
-hooks and T-701 owns general content unpublish/support access. Missing sources stay explicit, not invented.
-Reuse provider interfaces, not ambiguous auth failover: bounded cancellable attempts, fenced dispatch marker,
-uncertain acceptance never automatically retried/failovered; only proven pre-acceptance refusals retry safely.
-Authorization linearizes before handoff; later revocation cannot recall email. No addresses/content in queue/logs.
-Real operational mail disabled until Saudi transport or explicit counsel-approved extension of foreign-transfer
-grounds; ADR-112's auth exception is insufficient. No new provider/dependency, arbitrary recipient or public-token
-unsubscribe path. Fixed safe bilingual text links to authenticated self-service settings.
-**Trade-offs:** default ON/low threshold and missing general producer coverage require review; at-most-once ambiguous
-attempts may lose mail instead of duplicating it. Do not promise external exactly-once. Full source/rearm/locking,
-tests, file inventory and release gates: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
+**Status:** Proposed (implementation worker, amended 2026-10-29 after Tier A review80 NO-GO; Q-329).
+**Recommendation:** retain seven own-member operational preference defaults ON, but **operational transport OFF**.
+Source-time eligible staff ids/membership generation plus final scope/staff/opt-out reauthorization; no backfill,
+addresses or mail content in outbox. Threshold <= max(1, ceil(total * 10%)), recovery episodes, no rearm merely
+because total/threshold revision changed; genuine cap revision/80/100 semantics. Physical/code counter/threshold
+revision examples and exhaustive source writers are inventoried in the amended plan. T-609 reuses infrastructure;
+T-701 supplies future general unpublish/support sources, not invented player moderation.
+Use explicit source writer G/E matrix, including membership deletion/scope/staff-disable/bulk/lifecycle/erasure,
+with final marker commit before network as authorization linearization. Prove both conflict orders with two DB
+connections and deterministic barriers, no sleeps. Later revocation cannot recall already-authorized handoff.
+Gmail token source `auth/google-token.ts` needs per-waiter abort isolation: an aborted operational waiter never
+sends after shared token resolution, and cannot abort unrelated auth callers. Whole-attempt and send cancellation
+are bounded, but send abort/timeout is not evidence of nonacceptance. Separate structured provider-specific
+accepted/proven_refusal/uncertain outcomes from conflated EmailSendError; never parse messages. Conservative send
+retry allowlist starts empty except explicit documented/tested provider refusal rules; no uncertain resend/failover,
+no auth failover behavior change. Commit dispatch_started before token/send network; crashed started work stays
+uncertain, unique delivery keys do not promise external exactly-once. Membership generations and contact suppression
+remain. Real mail OFF until Saudi transport or explicit counsel-approved foreign-transfer extension, not ADR-112's
+auth exception. No new dependency/account, arbitrary recipient or duplicate sender/store/switch UI.
+**Gate/trade-off:** at-most-once uncertain attempts can lose mail. Provider refusal proof and full source pre-lock
+coverage remain coordinator inspection decisions; ADR stays Proposed until accepted. All seven review findings
+map to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.md`; no build authorization.

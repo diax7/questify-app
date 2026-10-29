@@ -1420,24 +1420,29 @@ send and lifecycle writes are serialized by the event row lock. APNs/Firebase/de
 
 ## Q-328 — T-503 ranking transition semantics (2026-10-29)
 
-**Status:** Open, recommended technical default pending independent Tier A plan review. **ADR:** ADR-359 Proposed.
-Recommend durable PostgreSQL top-ten checkpoints, overall live enabled board only, both entry and exit, re-entry
-deduped by revision/episode, safe fixed bilingual rank-topic notices. Coalescing does not preserve every transient
-crossing between checkpoints. Alternative: ordered transaction-level history, with greater source locking/cost;
-cache comparison alone is insufficient (Redis failure, displaced player, repair races). Coordinator decides after
-review; no Dhia input needed. Exact sources, locking/performance and refusal proofs:
-`plans/2026-10-29-t-503-rank-organizer-alerts.md`. No code authorized yet.
+**Status:** Open, amended after Tier A review80 NO-GO; coordinator inspection next. **ADR:** ADR-359 Proposed.
+Recommend ordered transaction-level durable crossing facts, eligible-only indexed projection, source-time lifecycle
+reset generations and exact latest transition identity checks at fan-out AND claim. Remove overall Redis authority:
+board/own/total and afterCompletion place use a coherent PostgreSQL publication boundary; today stays unchanged.
+This preserves FR-613's visible 11->9->11 crossings between ticks. Coalescing/product relaxation is rejected.
+Coordinator must inspect full publication/source writer G/E lock matrix, membership/contact/default-setting source
+coverage, DB-only own-rank cost and hot-event <3 ms mean serialized lock hold feasibility before permitting build.
+Alternative distributed cache-publication protocol is more invasive; reverting to dirty final-state detection is not
+valid. MAJOR-only corrections need no independent re-review (ADR-355), but are not accepted by their author.
+No Dhia question. Resolution map/proof: `plans/2026-10-29-t-503-rank-organizer-alerts.md`. No implementation authorized.
 
 ## Q-329 — T-503 organizer switches, thresholds and email boundary (2026-10-29)
 
-**Status:** Open, recommended defaults pending independent Tier A plan review. **ADR:** ADR-360 Proposed.
-Recommend seven own-member switches default ON; finite-stock low at <= max(1, ceil(total * 10%)), recovery above
-rearms; 80/100 once per genuine limit revision, not repeated attendance crossings. T-503 owns shared infrastructure
-and existing sources, T-609 reuses for usage/future hooks, T-701 supplies general unpublish/support actions; no
-invented producer. Capture eligible recipient ids at source, reauthorize membership generation/scope/opt-out before
-handoff. Bounded cancellable sends; uncertain acceptance never automatically retries/failovers. Alternatives:
-default OFF, a different low threshold or repeated alerts (different product behavior); automatic timeout failover
-(duplicate-mail risk); copying addresses into queue (unnecessary PII). Coordinator resolves technical choices.
-Live alert delivery stays disabled until Saudi transport or explicit counsel-approved foreign-transfer extension
-(Q-083/T-807); auth-email exception alone is insufficient. No external-only blocker to planning/local fake tests,
-no credentials/services requested. Full contracts, known missing sources and gates are in the T-503 plan.
+**Status:** Open, amended after Tier A review80 NO-GO; coordinator inspection next. **ADR:** ADR-360 Proposed.
+Retain seven own-member preference defaults ON and operational transport default OFF. Capture recipients at source;
+final staff/membership generation/scope/opt-out reauth, fenced dispatch_started before token/send network, no
+uncertain retry/failover. Explicit writer/lock matrix and two-connection BOTH-order barriers replace vague guards.
+Recommend per-waiter google-token.ts cancellation without cancelling unrelated auth refresh callers; structured
+provider-specific proven refusal vs uncertain classification, never EmailSendError message parsing or timeout retry;
+auth failover unchanged. Stock/code total/threshold revisions do not reset a low episode; recovery rearms, genuine
+cap revisions remain separate. Numeric revision tests and exhaustive existing source inventory are in the plan.
+T-503 owns infrastructure/UI; no T-609 duplicate infrastructure or T-701 invented producer. Remaining coordinator
+technical decisions: complete source guard coverage, conservative provider refusal proof/allowlist and rank cost
+trade-off in Q-328. No task tick/build acceptance. Live mail still requires Saudi transport or explicit counsel-approved
+foreign-transfer extension (Q-083/T-807); auth exception insufficient. No credentials/services requested.
+Full review80 resolution map: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
