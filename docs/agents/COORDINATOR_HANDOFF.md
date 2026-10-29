@@ -51,8 +51,10 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
    that result; it does not change the tested implementation. No T-502 implementation or review gate remains.
 2. **Resumed by Dhia, 2026-10-29.** The recovery request, "Keep going" and "why arent you doing anything?"
    supersede the prior session's break. Continue the task queue rather than stopping after T-502.
-3. Next: T-503 in `docs/TASKS.md` order. Organizer email alerts handle personal data outside the system, so begin
-   with a tier A plan and independent plan review before implementation. T-221 (check the seat limit once per
+3. Current: T-503 plan bca5223, independent Tier A plan review 80 NO-GO, MAJOR corrections ed3866a accepted by
+   coordinator (ADR-359/360, Q-328/329). Performance-first local implementation is authorized: representative full
+   source/completion path and measured rank/lock gates BEFORE broad email/UI work; stop for redesign on failure.
+   Mail stays OFF; no task tick or code-review approval yet. T-221 (check the seat limit once per
    statement so the accept-all cap can go) remains a tier A follow-up when the join area is next touched.
 4. **T-408d** (Redis copy of the boards) waits for the RUNBOOK ranked-count check to pass about 30,000.
 5. Open suggestion for Dhia (he has not chosen it): pause new feature slices and prepare a "first real run": CranL

@@ -4,6 +4,22 @@
 Correction base main `bca5223`; T-502 application `e28a1e4`, CI 40828699004 green. The resumed queue overrides historical
 stop-after-T-502 notes. No application changes, external calls, push, deployment, EAS, mutation or next task.
 
+## Coordinator authorization — 2026-10-29 (current)
+
+After independent Tier A plan review 80 NO-GO and MAJOR corrections ed3866a, coordinator inspected the publication
+and token boundaries, source/lock matrix and NFR-003. ADR-359/360 are Accepted design; Q-328/329 resolved design.
+Authorize local implementation with a mandatory EARLY feasibility gate, not a claim that unmeasured gates passed.
+Build ordered rank facts/projection/guards plus a representative full completion path and deterministic crossing,
+generation/reset/latest-identity tests FIRST. Measure the full transaction lock residence, queue/propagation and
+overall top/own/total cost against the stated 50,000-member/per-event load gates before broad email/UI work.
+If correctness, source lock ordering or throughput fails, stop with measured evidence for coordinator redesign;
+do not coalesce, hide crossings, weaken eligibility or retrofit a passing budget. Full writer/cascade/default
+coverage remains mandatory before review/push. Preserve today-cache and existing board/own-rank contracts.
+Then implement the remaining cohesive task, with operational mail OFF and an empty automatic send-retry allowlist
+unless explicit provider nonacceptance proof is documented and tested. Independent Tier A CODE review remains.
+This authorization supersedes the earlier planning-only/Proposed/stop-for-inspection text retained below as history.
+No real service, deployment, EAS, local Stryker, task tick or next task is authorized by this plan acceptance.
+
 ## Evidence and scope
 
 - FR-613/F-160 requires BOTH entry and exit, not the task's entry-only done condition; FR-1727/F-253 requires

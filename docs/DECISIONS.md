@@ -5303,7 +5303,7 @@ provider/real-phone checks remain gates; acceptance does not authorize deploymen
 
 ## ADR-359 — T-503 ordered durable top-ten transitions and coherent publication
 
-**Status:** Proposed (implementation worker, amended 2026-10-29 after Tier A review80 NO-GO; Q-328).
+**Status:** Accepted design (developer, delegated by Dhia, 2026-10-29; Q-328). Implementation proof gates remain.
 **Recommendation:** preserve FR-613 without coalescing: serialize same-event source transactions, maintain an
 eligible-only indexed projection and persist every committed top-ten crossing with source changes, ordered event
 revision and lifecycle generation. Durable inbox carries transition facts, not final-state ids-only dirty signals.
@@ -5321,13 +5321,20 @@ completion. Global eligibility/bulk/erasure pauses and exact own-place read cost
 hot event, average serialized E hold must be <3 ms (target <=1.5 ms); benchmark full transaction hold/queue/latency,
 50,000 members and worst excluded leaders before declaring feasibility. Failure requires coordinator redesign,
 never coalescing. More source-door changes than the rejected worker-only detector, but preserves the requirement.
-**Gate:** coordinator must inspect/explicitly accept publication inventory, complete source writer/lock matrix and
-cost proof before ANY implementation. Review80 MAJOR-only corrections need no independent re-review (ADR-355).
-No self-approval; ADR stays Proposed. Full resolution map/tests: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
+**Coordinator decision:** inspected the amended publication inventory against ranking.ts, token boundary against
+google-token.ts, the source writer/lock matrix and NFR-003 load requirement. Accept ordered transaction facts,
+DB-authoritative overall publication, preserved today semantics and source-time generations; reject coalescing.
+Authorize a performance-first implementation, not a feasibility or completion claim. First prove the representative
+full completion path, exact crossing history, reset/stale gates and G/E transaction hold/queue behavior against
+50,000 members and the per-event launch budget; stop for coordinator redesign if a gate fails. Exhaustive writer
+coverage, canonical projection equivalence and deterministic both-order lock tests remain mandatory before code
+review/push. No arbitrary excluded source, legacy-lock inversion, requirement waiver or unmeasured success claim.
+Review80 MAJOR-only corrections need no independent re-review (ADR-355); independent Tier A CODE review is owed.
+Full resolution map/tests: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
 
 ## ADR-360 — T-503 self-service organizer alert mail and safe dispatch
 
-**Status:** Proposed (implementation worker, amended 2026-10-29 after Tier A review80 NO-GO; Q-329).
+**Status:** Accepted design (developer, delegated by Dhia, 2026-10-29; Q-329). Implementation proof gates remain.
 **Recommendation:** retain seven own-member operational preference defaults ON, but **operational transport OFF**.
 Source-time eligible staff ids/membership generation plus final scope/staff/opt-out reauthorization; no backfill,
 addresses or mail content in outbox. Threshold <= max(1, ceil(total * 10%)), recovery episodes, no rearm merely
@@ -5346,6 +5353,9 @@ no auth failover behavior change. Commit dispatch_started before token/send netw
 uncertain, unique delivery keys do not promise external exactly-once. Membership generations and contact suppression
 remain. Real mail OFF until Saudi transport or explicit counsel-approved foreign-transfer extension, not ADR-112's
 auth exception. No new dependency/account, arbitrary recipient or duplicate sender/store/switch UI.
-**Gate/trade-off:** at-most-once uncertain attempts can lose mail. Provider refusal proof and full source pre-lock
-coverage remain coordinator inspection decisions; ADR stays Proposed until accepted. All seven review findings
-map to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.md`; no build authorization.
+**Gate/trade-off:** at-most-once uncertain attempts can lose mail. Coordinator accepts the amended technical defaults
+with an EMPTY automatic send-retry allowlist until each provider-specific refusal has explicit documented/tested
+nonacceptance proof. No message parsing or timeout-based retry classification. Source guard coverage, isolated token
+wait cancellation and both-order authorization tests remain implementation gates. Real transport stays OFF; approval
+authorizes local fake implementation only, after the early ranking feasibility gate. All seven review findings map
+to concrete corrections/tests in `plans/2026-10-29-t-503-rank-organizer-alerts.md`.

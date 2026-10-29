@@ -1840,6 +1840,18 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   Implementation, fixes and acceptance/handoff are pushed; this docs-only checkpoint records the verified result.
   Stop after T-502 and wait for a new instruction before T-503.
 
+- 2026-10-29 **T-503 plan accepted for performance-first implementation.** Independent Tier A plan review 80
+  NO-GO; MAJOR corrections ed3866a inspected by coordinator. ADR-359/360 Accepted design; Q-328/329 resolved design.
+  Ordered transaction crossing facts and a coherent DB overall board preserve FR-613 (no coalescing); exact latest
+  identity/generation gates, source-time reset edges, isolated token wait aborts, structured provider outcomes and
+  explicit G/E source writer/lock matrix replace the rejected gaps. Today-cache and board/own-rank contracts stay.
+  Early build gate: representative full completion/source path, 50,000-member transaction hold/queue/propagation
+  measurements and deterministic crossing/reset proofs BEFORE broad email/UI work; a failed gate stops for redesign.
+  Full source coverage/lock tests and independent CODE review still owed. Mail transport OFF; retry allowlist empty
+  until documented/tested nonacceptance proof. No implementation completed/task tick/push/deploy/EAS/mutation.
+  Planning effort approximately 43k tokens (25k original +18k corrections); review/coordinator usage unmeasured;
+  CI minutes 0 for this unpushed plan/design checkpoint. Estimates, not billing data.
+
 ## Next
 
 - **2026-10-29 — T-503 PLAN CORRECTIONS ONLY after Tier A review80 NO-GO (base main bca5223).**

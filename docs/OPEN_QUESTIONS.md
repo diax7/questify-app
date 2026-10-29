@@ -1420,7 +1420,8 @@ send and lifecycle writes are serialized by the event row lock. APNs/Firebase/de
 
 ## Q-328 — T-503 ranking transition semantics (2026-10-29)
 
-**Status:** Open, amended after Tier A review80 NO-GO; coordinator inspection next. **ADR:** ADR-359 Proposed.
+**Status:** Resolved design (developer, delegated by Dhia, 2026-10-29); implementation proof gates tracked in plan.
+**ADR:** ADR-359 Accepted design.
 Recommend ordered transaction-level durable crossing facts, eligible-only indexed projection, source-time lifecycle
 reset generations and exact latest transition identity checks at fan-out AND claim. Remove overall Redis authority:
 board/own/total and afterCompletion place use a coherent PostgreSQL publication boundary; today stays unchanged.
@@ -1429,11 +1430,14 @@ Coordinator must inspect full publication/source writer G/E lock matrix, members
 coverage, DB-only own-rank cost and hot-event <3 ms mean serialized lock hold feasibility before permitting build.
 Alternative distributed cache-publication protocol is more invasive; reverting to dirty final-state detection is not
 valid. MAJOR-only corrections need no independent re-review (ADR-355), but are not accepted by their author.
-No Dhia question. Resolution map/proof: `plans/2026-10-29-t-503-rank-organizer-alerts.md`. No implementation authorized.
+Coordinator inspected and accepts this design; local implementation is authorized with the early performance-first
+gate. No throughput feasibility is claimed before measurement. No Dhia question. Resolution map/proof:
+`plans/2026-10-29-t-503-rank-organizer-alerts.md`.
 
 ## Q-329 — T-503 organizer switches, thresholds and email boundary (2026-10-29)
 
-**Status:** Open, amended after Tier A review80 NO-GO; coordinator inspection next. **ADR:** ADR-360 Proposed.
+**Status:** Resolved design (developer, delegated by Dhia, 2026-10-29); implementation proof gates tracked in plan.
+**ADR:** ADR-360 Accepted design.
 Retain seven own-member preference defaults ON and operational transport default OFF. Capture recipients at source;
 final staff/membership generation/scope/opt-out reauth, fenced dispatch_started before token/send network, no
 uncertain retry/failover. Explicit writer/lock matrix and two-connection BOTH-order barriers replace vague guards.
@@ -1445,4 +1449,6 @@ T-503 owns infrastructure/UI; no T-609 duplicate infrastructure or T-701 invente
 technical decisions: complete source guard coverage, conservative provider refusal proof/allowlist and rank cost
 trade-off in Q-328. No task tick/build acceptance. Live mail still requires Saudi transport or explicit counsel-approved
 foreign-transfer extension (Q-083/T-807); auth exception insufficient. No credentials/services requested.
+Coordinator accepts these defaults with an empty automatic send-retry allowlist until provider nonacceptance proof;
+local fake implementation may follow the early rank feasibility gate. Transport authorization is not implied.
 Full review80 resolution map: `plans/2026-10-29-t-503-rank-organizer-alerts.md`.
