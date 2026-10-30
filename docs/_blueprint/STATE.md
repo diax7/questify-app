@@ -8,7 +8,7 @@
   Dashboard: Agenda page under Setup (list, form, CSV import with a per-line report, report export, close or reopen, message registrants). App: Agenda screen
   (All sessions, My sessions, register and cancel, overlap confirmation, linked quest, linked from Event Home) and the operator's session door under Tools.
   **Split (ADR-373):** the session's points on check-in and the "everyone checked in" bulk target moved to **T-505b** (tier A). ADR-373 and Q-340 Proposed.
-  Local: full vitest 9079 passed (one gate-map guard fixed and rerun), browser suite see below, tsc, oxlint, format and limits clean (the operator routes
+  Local: full vitest 9079 passed (one gate-map guard fixed and rerun), browser suite 239 passed, 3 skipped (both projects, fresh build), tsc, oxlint, format and limits clean (the operator routes
   shrank 168 to 147 lines), `npx expo export` ok; agent tokens roughly 0.75M across the interrupted and the finishing worker; CI minutes none yet.
   **Next:** the T-505 review, T-505b (plan and plan review first), then T-506.
 
