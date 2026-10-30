@@ -1562,6 +1562,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   souvenir_action:
     "staff: freezes visible nonflash/nonlive targets through quest_lock_missed; no quest payment (T-402b)",
   member_game: "gated: answers QN403 community_locked (the sheets test)",
+  member_sessions:
+    "exempt: lists agenda sessions and shows the title of a visible linked quest only; it plays and pays nothing, and the quest opens only through its own gated doors (T-505)",
   send_poll: "gated: Send refused while locked (the live poll test)",
   share_quest: "gated: share (door table)",
   start_game_round: "gated: game start (door table)",
