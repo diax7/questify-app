@@ -1,0 +1,61 @@
+/* The map editor's board (T-506): a plain board with a tenth-by-tenth grid, pins by thousandths of its size. A map is a
+   plan, not text, so it is never mirrored for Arabic: the board keeps left to right. */
+.board {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: 40rem;
+  aspect-ratio: 4 / 3;
+  direction: ltr;
+  overflow: hidden;
+  border: var(--line-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 10% 10%;
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.pin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  padding: 0;
+  translate: -50% -50%;
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--weight-display);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pinSelected {
+  background: var(--color-highlight);
+}
+
+.pinDraft {
+  border-style: dashed;
+  pointer-events: none;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-inline-size: 0;
+}

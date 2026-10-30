@@ -65,6 +65,7 @@ const SUPPORT_FILE = /^apps\/web\/e2e\/([\w-]+)\.ts$/;
 export const AREAS = [
   [/announcement/i, ["announcements"]],
   [/session|agenda/i, ["sessions"]],
+  [/(^|[^a-z])maps?([^a-z]|$)|maps?-?(panel|board|editor|pin|view)/i, ["maps"]],
   [/boost|flash/i, ["flash-boosts"]],
   [/modal/i, ["modal"]],
   [/push/i, ["announcements", "invitations"]],

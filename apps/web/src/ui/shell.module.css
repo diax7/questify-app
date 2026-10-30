@@ -267,13 +267,13 @@
     border-inline-end: var(--line);
   }
 
-  /* Tighter rows for a pointer: the whole list, Review included, fits a 1440 by 900 screen without scrolling. */
+  /* Tighter rows for a pointer: the whole list, Review included, fits a 1280 by 720 screen without scrolling. */
   .group {
     gap: 0;
   }
 
   .item {
-    min-block-size: 32px;
+    min-block-size: 30px;
   }
 
   .accountOnly {

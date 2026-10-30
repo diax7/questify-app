@@ -124,6 +124,8 @@ const INFO_TIPS: readonly string[] = [
   "joinFields.intro",
   "joinRules.domainsHint",
   "joinRules.welcomeHint",
+  "maps.page.boardHint",
+  "maps.page.intro",
   "operators.intro",
   "prizes.intro",
   "prizes.rulesHint",
