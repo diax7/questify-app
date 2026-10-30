@@ -1564,6 +1564,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   member_game: "gated: answers QN403 community_locked (the sheets test)",
   member_sessions:
     "exempt: lists agenda sessions and shows the title of a visible linked quest only; it plays and pays nothing, and the quest opens only through its own gated doors (T-505)",
+  sponsor_tag_set:
+    "exempt: checks that the quest, category or reward exists in the event before tagging it to a sponsor; it plays and pays nothing (T-507)",
   send_poll: "gated: Send refused while locked (the live poll test)",
   share_quest: "gated: share (door table)",
   start_game_round: "gated: game start (door table)",
