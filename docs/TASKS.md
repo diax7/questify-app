@@ -383,7 +383,7 @@ _All quest types, category rules, submissions, polls, community quests, mini-gam
   - Note 2026-10-24 (T-306 plan): the finale's "last community push" reads T-306b's goal.
   - Note 2026-10-23 (T-214): the finale's winner reveal calls the owner's `POST …/results/reveal` (confirmed results, a claim deadline) and shows `results_places`; it never decides winners itself. Results are confirmed only after the event ends (ADR-163, Q-127): a finale before the end needs the end time moved, or Q-127 answered otherwise.
   - Plan 2026-10-30 (tier B): `docs/plans/2026-10-30-t-307b-live-finale.md`, migration 0084, ADR-369 and Q-337 Proposed.
-  - Done 2026-10-30 (tier B; code review owed): migration 0084 (`finale`, `set_finale`, `clear_finale`, `event_finale`, `screen_finale`, `device_view`
+  - Done 2026-10-30 (tier B; review 93 GO, minors in FOLLOWUPS): migration 0084 (`finale`, `set_finale`, `clear_finale`, `event_finale`, `screen_finale`, `device_view`
     restated); API `src/screen/finale.ts`, `GET|PUT|DELETE …/finale`, the `finale` scene on `GET /v1/device/screen/{scene}` with `serverNow`, `finale` on
     Home; web: the Finale section on the Big screen page, `FinaleScene` (countdown on the server's clock, the push, the winners with a username and an
     avatar, no score), `BigScreenParts`; app: Home's `finale` and the one-time full-screen celebration. Not built: confirming while live (Q-127 left as

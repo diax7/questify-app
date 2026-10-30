@@ -5566,7 +5566,7 @@ does not run again when only the page changes.
 
 ## ADR-369 - T-307b the live finale: a closed row, a scene that takes the screen, the reveal stays the owner's
 
-**Status:** Proposed (developer, T-307b build, 2026-10-30; Q-337). Fills in the T-307 plan's last section and ADR-230. Tier B: it only
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; T-307b review 93 GO; Q-337). Fills in the T-307 plan's last section and ADR-230. Tier B: it only
 reads `event_result` and `result_place`; points, the ledger, `confirm_results`, `reveal_results` and prize handover are untouched.
 **Decision:** (1) **The finale** is one closed row per event (`finale`: `starts_at`, an optional `goal_id` of one of the event's community
 goals). The owner alone sets it (`set_finale`) and clears it (`clear_finale`), audited with ids and the time. The time must be in the

@@ -1523,4 +1523,5 @@ and the screen stays open after the event ends while one is set (the device's ow
 owner's existing Confirm and Reveal on the Prizes and results page, with no score (FR-255); Q-127 stays as it is, so a finale before the
 end needs the event's end time moved. **Open:** Dhia may want editors to set the finale, a Reveal button on the Big screen page itself, or
 confirming while the event is live (Q-127); each is a small addition. The phone's celebration shows on the next Home read, not live, until
-T-501's reveal push. ADR-369 Proposed.
+T-501's reveal push. **Decided (developer, delegated by Dhia, 2026-10-30):** as recommended, ADR-369 accepted after the T-307b
+review (93 GO); the open items wait for Dhia to ask.
