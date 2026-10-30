@@ -6950,6 +6950,50 @@ export const MESSAGES = {
     ar: "حُذفت {count} إجابة لاحتمال احتوائها على بيانات اتصال.",
     en: "{count} answers left out because they may hold contact details.",
   },
+  "events.cheers.title": { ar: "التشجيع", en: "Cheers" },
+  "events.cheers.label": {
+    ar: "إظهار زر التشجيع في التطبيق أثناء لحظة التشجيع",
+    en: "Show a cheer button in the app during a cheers moment",
+  },
+  "cheers.title": { ar: "لحظة التشجيع", en: "Cheers moment" },
+  "cheers.minutes": { ar: "المدة", en: "Length" },
+  "cheers.minutesOption": { ar: "{minutes} دقيقة", en: "{minutes} min" },
+  "cheers.start": { ar: "ابدأ لحظة تشجيع", en: "Start a cheers moment" },
+  "cheers.stop": { ar: "أوقف اللحظة", en: "Stop the moment" },
+  "cheers.live": { ar: "مباشرة حتى {time}", en: "Live until {time}" },
+  "cheers.started": { ar: "بدأت لحظة التشجيع.", en: "The cheers moment has started." },
+  "cheers.stopped": { ar: "انتهت لحظة التشجيع.", en: "The cheers moment has ended." },
+  "cheers.platformOff": {
+    ar: "أوقف كويستفاي التشجيع لكل الفعاليات.",
+    en: "Questify has switched Cheers off for every event.",
+  },
+  "cheers.ownerOnly": {
+    ar: "يبدأ المالك لحظة التشجيع ويوقفها فقط.",
+    en: "Only the owner starts and stops a cheers moment.",
+  },
+  "cheers.loadFailed": {
+    ar: "تعذّر تحميل التشجيع. حدّث الصفحة.",
+    en: "Cheers could not be loaded. Refresh the page.",
+  },
+  "cheers.reaction.heart": { ar: "قلب", en: "Heart" },
+  "cheers.reaction.applause": { ar: "تصفيق", en: "Applause" },
+  "cheers.reaction.fire": { ar: "نار", en: "Fire" },
+  "cheers.reaction.star": { ar: "نجمة", en: "Star" },
+  "cheers.reaction.party": { ar: "احتفال", en: "Party" },
+  "cheers.prompt": { ar: "شجّع الشاشة الكبيرة", en: "Cheer for the big screen" },
+  "cheers.endsIn": { ar: "تنتهي بعد {time}", en: "Ends in {time}" },
+  "cheers.slow": {
+    ar: "على مهلك! حاول بعد {seconds} ثانية.",
+    en: "Easy! Try again in {seconds} seconds.",
+  },
+  "cheers.failed": {
+    ar: "لم يصل التشجيع. حاول مرة أخرى.",
+    en: "Your cheer was not sent. Try again.",
+  },
+  "cheers.over": { ar: "انتهت لحظة التشجيع.", en: "The cheers moment is over." },
+  "screen.cheers.title": { ar: "التشجيع", en: "Cheers" },
+  "screen.cheers.prompt": { ar: "شجّع من تطبيق كويستفاي!", en: "Cheer from the Questify app!" },
+  "screen.cheers.endsIn": { ar: "تنتهي بعد {time}", en: "Ends in {time}" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

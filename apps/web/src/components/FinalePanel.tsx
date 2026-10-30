@@ -29,9 +29,9 @@ type Translate = ReturnType<typeof useTranslator>;
 type Loaded = Readonly<{ reading: FinaleReading; timeZone: string; goals: readonly Goal[] }>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-const DEFAULT_ZONE = "Asia/Riyadh";
+export const DEFAULT_ZONE = "Asia/Riyadh";
 
-const zoneOf = (event: Readonly<{ ok: boolean; body: unknown }>): string =>
+export const zoneOf = (event: Readonly<{ ok: boolean; body: unknown }>): string =>
   (event.ok ? (event.body as { event?: { timezone?: string } }).event?.timezone : undefined) ??
   DEFAULT_ZONE;
 

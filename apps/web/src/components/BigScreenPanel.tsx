@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
+import { CheersPanel } from "#src/components/CheersPanel.tsx";
 import { FinalePanel } from "#src/components/FinalePanel.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
@@ -140,6 +141,7 @@ function SceneEditor({
 /**
  * The event's Big screen page (T-504, FR-631, FR-1612): tick the scenes the big screen shows and put them in order;
  * the ranking is offered only while the event's ranking is on. Save replaces the list; screens follow within seconds.
+ * The Cheers switch and the owner's cheers moment (T-509) and the finale (T-307b) follow it.
  */
 export function BigScreenPanel({ language, organizerId, eventId, owner }: Props) {
   const t = useTranslator(language);
@@ -194,6 +196,7 @@ export function BigScreenPanel({ language, organizerId, eventId, owner }: Props)
           save={() => void save()}
         />
       )}
+      <CheersPanel language={language} organizerId={organizerId} eventId={eventId} owner={owner} />
       <FinalePanel language={language} organizerId={organizerId} eventId={eventId} owner={owner} />
     </Stack>
   );

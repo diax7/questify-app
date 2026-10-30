@@ -73,6 +73,8 @@ export type LiveState = Readonly<{
    * of the quests (CTO MAJOR 3).
    */
   firstBonus: readonly Readonly<{ questId: string; left: number; slots: number }>[];
+  /** The cheers moment live now (T-509, FR-1841): the app shows its cheer button until `endsAt`; null when none is live. */
+  cheers: Readonly<{ endsAt: string }> | null;
 }>;
 
 export const EMPTY_LIVE: LiveState = {
@@ -82,10 +84,12 @@ export const EMPTY_LIVE: LiveState = {
   flash: [],
   boosts: [],
   firstBonus: [],
+  cheers: null,
 };
 
-/** What live_state answers: the bonus quests' ids only, the counts come from the cache. */
-type LiveRow = Omit<LiveState, "firstBonus"> & Readonly<{ firstBonus?: readonly string[] }>;
+/** What live_state answers: the bonus quests' ids only, the counts come from the cache; cheers are read apart. */
+type LiveRow = Omit<LiveState, "firstBonus" | "cheers"> &
+  Readonly<{ firstBonus?: readonly string[] }>;
 
 /** How long an event's "anything live" answer is kept (CTO 7), and the per-player limit on the live read. */
 export const LIVE_CACHE_MS = 3000;
@@ -109,36 +113,57 @@ export type LiveReader = Readonly<{
   read: (playerId: string, eventId: string) => Promise<LiveState>;
 }>;
 
+/** An event-level yes or no from the database, kept for 3 s: it says nothing about any player. */
+function eventFlag(
+  deps: LiveDeps,
+  now: () => number,
+  sql: string,
+): (eventId: string) => Promise<boolean> {
+  const kept = new Map<string, Readonly<{ until: number; value: boolean }>>();
+  return async (eventId) => {
+    const found = kept.get(eventId);
+    if (found !== undefined && found.until > now()) {
+      return found.value;
+    }
+    const value = await withConnection(deps.pool, (client) =>
+      withRequestContext(client, {}, async () => {
+        const { rows } = await client.query<{ open: boolean }>(sql, [eventId]);
+        return rows[0]?.open === true;
+      }),
+    );
+    if (kept.size >= MAP_CAP) {
+      kept.clear();
+    }
+    kept.set(eventId, { until: now() + LIVE_CACHE_MS, value });
+    return value;
+  };
+}
+
+/** The live cheers moment for an active member (T-509, FR-1841); null for anyone else or when none is live. */
+function memberCheers(pool: Pool, playerId: string, eventId: string): Promise<LiveState["cheers"]> {
+  return withConnection(pool, (client) =>
+    withRequestContext(client, { playerId }, async () => {
+      const { rows } = await client.query<{ answer: { endsAt: string } | null }>(
+        "SELECT member_cheers($1) AS answer",
+        [eventId],
+      );
+      const answer = rows[0]?.answer ?? null;
+      return answer === null ? null : { endsAt: new Date(answer.endsAt).toISOString() };
+    }),
+  );
+}
+
 /**
  * The live read with this instance's memory (ADR-221): each event's "anything live" answer for 3 s, so an event with no
  * open poll is answered at once without the per-player query, and each player's calls in the current minute (a fixed
  * window per instance: polling every 10 s is 6 a minute, so 30 leaves room for returns to the app).
  */
 export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): LiveReader {
-  const open = new Map<string, Readonly<{ until: number; value: boolean }>>();
   const calls = new Map<string, number>();
   let minute = Math.floor(now() / LIVE_LIMIT.windowMs);
 
-  const anythingLive = async (eventId: string): Promise<boolean> => {
-    const kept = open.get(eventId);
-    if (kept !== undefined && kept.until > now()) {
-      return kept.value;
-    }
-    const value = await withConnection(deps.pool, (client) =>
-      withRequestContext(client, {}, async () => {
-        const { rows } = await client.query<{ open: boolean }>(
-          "SELECT event_has_live($1) AS open",
-          [eventId],
-        );
-        return rows[0]?.open === true;
-      }),
-    );
-    if (open.size >= MAP_CAP) {
-      open.clear();
-    }
-    open.set(eventId, { until: now() + LIVE_CACHE_MS, value });
-    return value;
-  };
+  const anythingLive = eventFlag(deps, now, "SELECT event_has_live($1) AS open");
+  const anyCheers = eventFlag(deps, now, "SELECT event_has_cheers($1) AS open");
 
   return {
     allow: (playerId) => {
@@ -155,8 +180,11 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
       return Math.max(1, Math.ceil(((current + 1) * LIVE_LIMIT.windowMs - now()) / 1000));
     },
     read: async (playerId, eventId) => {
+      const cheers = (await anyCheers(eventId))
+        ? await memberCheers(deps.pool, playerId, eventId)
+        : null;
       if (!(await anythingLive(eventId))) {
-        return EMPTY_LIVE;
+        return cheers === null ? EMPTY_LIVE : { ...EMPTY_LIVE, cheers };
       }
       const { state, firstBonus } = await withConnection(deps.pool, (client) =>
         withRequestContext(client, { playerId }, async () => {
@@ -202,6 +230,7 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
           endsAt: new Date(boost.endsAt).toISOString(),
         })),
         firstBonus,
+        cheers,
       };
     },
   };

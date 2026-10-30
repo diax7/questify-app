@@ -34,8 +34,8 @@ export type ScreenDeps = Readonly<{ pool: Pool; keys: Pick<AuthKeys, "pairedDevi
 /**
  * `GET /v1/device/screen/:scene` (T-504, FR-632 to FR-634): one scene's data for a paired, activated big screen's own
  * event. A station or kiosk, a pending, revoked or unactivated device is `device_unpaired`; 40 a minute per device (the
- * page asks every 3 seconds); never cached by a browser. Photo wall and Cheers are not scenes yet. The finale's answer
- * also carries `serverNow`, so the countdown follows the server's clock and not the TV's (T-307b).
+ * page asks every 3 seconds); never cached by a browser. The photo wall is not a scene yet. The finale's and the Cheers
+ * answers also carry `serverNow`, so the countdown follows the server's clock and not the TV's (T-307b, T-509).
  */
 export function registerScreenRoutes(app: FastifyInstance, deps: ScreenDeps): void {
   const scenes = createSceneReader({ pool: deps.pool });
@@ -57,7 +57,9 @@ export function registerScreenRoutes(app: FastifyInstance, deps: ScreenDeps): vo
       reply,
     );
     const answer = await scenes.read({ id: device.id, eventId: device.eventId }, scene);
-    return scene === "finale" ? { ...answer, serverNow: new Date().toISOString() } : answer;
+    return scene === "finale" || scene === "cheers"
+      ? { ...answer, serverNow: new Date().toISOString() }
+      : answer;
   });
 }
 

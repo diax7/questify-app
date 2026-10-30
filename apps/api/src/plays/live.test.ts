@@ -37,6 +37,9 @@ const PLAYER = "33333333-3333-4333-8333-333333333333";
 const quietReader = (at: () => number) => {
   const checks: string[] = [];
   const fake = fakePool((sql, values) => {
+    if (sql.includes("event_has_cheers")) {
+      return { rows: [{ open: false }] };
+    }
     expect(sql).toContain("event_has_live");
     checks.push(String(values[0]));
     return { rows: [{ open: false }] };
@@ -180,6 +183,7 @@ describe("the live read's flash quests and boosts (T-307)", () => {
         },
       ],
       firstBonus: [],
+      cheers: null,
     });
     anything = false;
     at += LIVE_CACHE_MS + 1;
@@ -191,7 +195,60 @@ describe("the live read's flash quests and boosts (T-307)", () => {
       flash: [],
       boosts: [],
       firstBonus: [],
+      cheers: null,
     });
+  });
+});
+
+const readerWith = (answers: { cheers: boolean; member: unknown; live?: boolean }) => {
+  const fake = fakePool((sql) => {
+    if (sql.includes("event_has_cheers")) {
+      return { rows: [{ open: answers.cheers }] };
+    }
+    if (sql.includes("member_cheers")) {
+      return { rows: [{ answer: answers.member }] };
+    }
+    return { rows: sql.includes("event_has_live") ? [{ open: answers.live === true }] : [] };
+  });
+  return {
+    fake,
+    reader: createLiveReader(
+      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      () => 0,
+    ),
+  };
+};
+
+describe("the live read's cheers moment (T-509)", () => {
+  it("carries the moment's end as an ISO time even when nothing else is live", async () => {
+    const { reader } = readerWith({
+      cheers: true,
+      member: { endsAt: "2030-11-01T07:30:00+00:00" },
+    });
+    expect(await reader.read(PLAYER, "e1")).toEqual({
+      ...EMPTY_LIVE,
+      cheers: { endsAt: "2030-11-01T07:30:00.000Z" },
+    });
+  });
+
+  it("asks the per-player door only while the event has a moment", async () => {
+    const { reader, fake } = readerWith({
+      cheers: false,
+      member: { endsAt: "2030-11-01T07:30:00Z" },
+    });
+    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(fake.queries.filter((sql) => sql.includes("member_cheers"))).toEqual([]);
+  });
+
+  it("shows no moment to someone who is not a member", async () => {
+    const { reader } = readerWith({ cheers: true, member: null });
+    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+  });
+
+  it("gives the moment a different ETag from none", () => {
+    expect(liveEtagOf({ ...EMPTY_LIVE, cheers: { endsAt: "2030-11-01T07:30:00.000Z" } })).not.toBe(
+      liveEtagOf(EMPTY_LIVE),
+    );
   });
 });
 

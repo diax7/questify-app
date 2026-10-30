@@ -247,6 +247,7 @@ export function registerEventRoutes(
  * finishes the event's running goals (migration 0053's trigger, ADR-226). Flash quests off hides every one at once;
  * boosts off stops every boost paying at once (T-307, migration 0055). Help desk off stops new tickets (T-310). Quest
  * ratings are the one switch that starts off: players are asked only after the owner turns them on (T-508, FR-1623).
+ * Cheers off ends any live moment at once and refuses a new one (T-509, FR-1841).
  */
 function registerEventSwitches(scope: FastifyInstance, settings: SettingsService): void {
   const switches = [
@@ -260,6 +261,7 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
     ["/events/:eventId/double-points", "boosts"],
     ["/events/:eventId/help-desk", "helpDesk"],
     ["/events/:eventId/quest-ratings", "questRatings"],
+    ["/events/:eventId/cheers", "cheers"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

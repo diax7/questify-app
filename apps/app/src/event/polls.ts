@@ -145,6 +145,8 @@ export type LiveState = Readonly<{
   boosts: readonly LiveBoost[];
   /** What is left of the first-N bonuses the player may still earn (T-313); none from an older API. */
   firstBonus: readonly LiveFirstBonus[];
+  /** The cheers moment live now (T-509): the end, or null; none from an older API. */
+  cheers: Readonly<{ endsAt: string }> | null;
 }>;
 
 export const NOTHING_LIVE: LiveState = {
@@ -154,6 +156,7 @@ export const NOTHING_LIVE: LiveState = {
   flash: [],
   boosts: [],
   firstBonus: [],
+  cheers: null,
 };
 
 export function liveStateOf(body: unknown): LiveState | undefined {
@@ -174,7 +177,17 @@ export function liveStateOf(body: unknown): LiveState | undefined {
     flash: liveFlashOf(body["flash"]),
     boosts: liveBoostsOf(body["boosts"]),
     firstBonus: liveFirstBonusOf(body["firstBonus"]),
+    cheers: liveCheersOf(body["cheers"]),
   };
+}
+
+/** The cheers moment in a live answer, or null when none is live or the answer is not one. */
+function liveCheersOf(value: unknown): LiveState["cheers"] {
+  return isRecord(value) &&
+    typeof value["endsAt"] === "string" &&
+    !Number.isNaN(Date.parse(value["endsAt"]))
+    ? { endsAt: value["endsAt"] }
+    : null;
 }
 
 /** One read of `GET /v1/events/{id}/live`: the state (or `unchanged` on a 304) with its ETag and the server's clock. */

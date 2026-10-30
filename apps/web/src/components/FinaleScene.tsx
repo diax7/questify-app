@@ -15,7 +15,7 @@ import styles from "#src/components/device.module.css";
 type Translate = ReturnType<typeof translatorFor>;
 
 /** The page's clock in milliseconds, moved on every second while `running`. */
-function useClock(running: boolean): number {
+export function useClock(running: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!running) {

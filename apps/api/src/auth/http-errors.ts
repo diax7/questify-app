@@ -2004,3 +2004,33 @@ export const invitationEnded = make(
   "انتهت هذه الدعوة.",
   "This invitation has ended.",
 );
+
+// ---------------------------------------------------------------- cheers (T-509)
+/** Cheers are switched off for the event (its own switch or the platform's): no moment can start. */
+export const cheersOff = make(
+  409,
+  "cheers_off",
+  "التشجيع متوقف لهذه الفعالية.",
+  "Cheers are off for this event.",
+);
+/** A cheers moment starts only while the event is live. */
+export const cheersEventNotLive = make(
+  409,
+  "event_not_live",
+  "تبدأ لحظة التشجيع أثناء سير الفعالية فقط.",
+  "A cheers moment can start only while the event is live.",
+);
+/** A cheer arrived with no live moment, or just after it ended. */
+export const cheersNotLive = make(
+  409,
+  "cheers_not_live",
+  "لا توجد لحظة تشجيع الآن.",
+  "No cheers moment is live right now.",
+);
+/** `field` is reaction (not one of the five) or minutes (not 1 to 30). */
+export const invalidCheer = make(
+  422,
+  "invalid_cheer",
+  "تحقق من التشجيع أو مدة اللحظة.",
+  "Check the cheer or the moment's length.",
+);

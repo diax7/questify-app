@@ -76,6 +76,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "caller-bound active membership through member_sponsors; tags only on quests, categories and rewards the caller may see, nothing about any player (sponsors)",
   "GET /v1/organizers/:organizerId/events/:eventId/sponsors":
     "owner/editor, event limit rechecked by award_event_of (sponsors)",
+  "GET /v1/organizers/:organizerId/events/:eventId/cheers":
+    "owner/editor, event limit rechecked by award_event_of; the add-on, both switches and whether a moment is live, no player (cheers database and HTTP suites)",
+  "POST /v1/organizers/:organizerId/events/:eventId/cheers/start":
+    "owner of that organizer only (an editor is CH403), event limit rechecked by award_event_of; Idempotency-Key, audited; replaces the event's moment and clears its cheers (cheers database and HTTP suites)",
+  "POST /v1/organizers/:organizerId/events/:eventId/cheers/stop":
+    "owner of that organizer only (an editor is CH403), event limit rechecked by award_event_of; Idempotency-Key, audited (cheers database and HTTP suites)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/cheers":
+    "owner of that organizer only (owner route, walked below); changes only the cheers switch of that event (test/cheers/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/quest-ratings":
     "owner/editor, event limit rechecked by award_event_of; counts per quest only, no player (ratings database and HTTP suites)",
   "PUT /v1/organizers/:organizerId/events/:eventId/quest-ratings":
@@ -721,6 +729,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own view only, through member_passport: the steps and which they stamped; never a step's code (test/plays/passport, test/db/passport)",
   "GET /v1/quests/:questId/survey":
     "the calling player's own view only, through member_survey: the questions and whether they answered; never anyone's answers (test/plays/survey-share, test/db/challenge-survey-share)",
+  "POST /v1/events/:eventId/cheers":
+    "the calling player's own active enrollment in that event only, a live moment and the per-minute limit, all checked by send_cheer; one of five fixed reactions, no text, no points (cheers database and HTTP suites)",
   "GET /v1/quests/:questId/rating":
     "the calling player's own active enrollment in the quest's event only, through member_quest_rating: whether ratings are on and their own thumb, nothing about anyone else (test/ratings/routes, test/db/ratings-survey-results)",
   "PUT /v1/quests/:questId/rating":

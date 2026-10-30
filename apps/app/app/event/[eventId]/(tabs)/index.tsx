@@ -11,6 +11,7 @@ import { Avatar } from "#src/components/Avatar.tsx";
 import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
+import { CheersBar } from "#src/event/CheersBar.tsx";
 import { CommunityBar } from "#src/event/CommunityBar.tsx";
 import { EventHomeStrips } from "#src/event/Announcements.tsx";
 import { SponsorStrip } from "#src/event/SponsorStrip.tsx";
@@ -398,7 +399,7 @@ function ActiveCards({
   ranking,
   ended,
 }: Readonly<{ home: Home; ranking: RankingAnswer | undefined; ended: boolean }>) {
-  const { community } = useLive();
+  const { community, cheers } = useLive();
   const eventId = home.event.id;
   return (
     <>
@@ -411,6 +412,7 @@ function ActiveCards({
       <SponsorStrip eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
       <FinaleCelebration eventId={eventId} finale={home.finale} />
+      {cheers === null ? null : <CheersBar eventId={eventId} endsAt={cheers.endsAt} />}
       {community === null ? null : <CommunityBar card={community} />}
       <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />
       {ranking === undefined ? null : <RankingCard eventId={eventId} ranking={ranking} />}

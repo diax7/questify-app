@@ -210,7 +210,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
     it("refuses an unknown scene name", async () => {
       const screen = await paired(await newEvent());
       expect(codeOf(await scene(screen.cookie, "photos"))).toEqual([400, "invalid_request"]);
-      expect(codeOf(await scene(screen.cookie, "cheers"))).toEqual([400, "invalid_request"]);
     });
 
     it("is shut without the add-on", async () => {
@@ -514,6 +513,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
         );
         expect(refused.statusCode, method).toBeGreaterThanOrEqual(400);
       }
+    });
+  });
+
+  const cheers = (event: string, action: "start" | "stop", payload: object = {}) =>
+    dashboard("POST", `/events/${event}/cheers/${action}`, payload);
+
+  describe("the Cheers scene (T-509)", () => {
+    it("runs alone while a moment is live, carries the server clock, and gives the screen back on stop", async () => {
+      const event = await newEvent();
+      const screen = await paired(event);
+      expect((await cheers(event, "start", { minutes: 5 })).statusCode).toBe(200);
+      expect((await device("GET", "/v1/device", screen.cookie)).json()).toMatchObject({
+        scenes: ["cheers"],
+      });
+      const answer = await scene(screen.cookie, "cheers");
+      expect(answer.statusCode, answer.body).toBe(200);
+      expect(answer.headers["cache-control"]).toBe("no-store");
+      const live = answer.json<{
+        serverNow: string;
+        cheers: { endsAt: string; totals: Row; recent: Row[] };
+      }>();
+      expect(typeof live.serverNow).toBe("string");
+      expect(live.cheers.totals).toEqual({ heart: 0, applause: 0, fire: 0, star: 0, party: 0 });
+      expect(live.cheers.recent).toEqual([]);
+      expect((await cheers(event, "stop")).statusCode).toBe(200);
+      expect((await device("GET", "/v1/device", screen.cookie)).json()).toMatchObject({
+        scenes: ["ranking", "community", "poll"],
+      });
+    });
+
+    it("needs the add-on to start a moment", async () => {
+      const bare = await newEvent(false);
+      expect(codeOf(await cheers(bare, "start", { minutes: 5 }))).toEqual([403, "big_screen_off"]);
     });
   });
 });

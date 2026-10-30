@@ -19,6 +19,20 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-509 cheers — 2026-10-31
+
+- **T-509 done (tier B; code review owed; not run on a phone).** Migration 0090 (new, undeployed; staging runs through 0088, 0089 is deploying): two closed tables
+  (`cheers_moment`, `cheer`) and seven granted doors. The owner starts a cheers moment (1 to 30 minutes) from the existing Big screen page, where the event's Cheers
+  switch (the registry's `cheers` key, on by default) now also sits; no new menu link. While a moment is live the big screen runs the Cheers scene alone (the
+  five reactions with running counts and floating up, polled every 3 seconds) and the app's Home shows a cheer card with five emoji buttons, found through the live read
+  (`cheers: {endsAt} | null`, kept apart from `live_state`). A player may send 30 cheers a minute; the database counts them under a per-player advisory lock (a
+  race test sends 42 at once and exactly 30 land; removing the lock fails it). The switch, the add-on and the event's end each end the moment at once. ADR-377 and
+  Q-344 Proposed. Local: full vitest 9231 passed, 14 skipped, 10 failed (the Hermes scan timed out at 30 s and nine invitation-campaign tests saw an idle fill, both under load; the two files pass alone, 61 tests);
+  tsc (shared, api, web, app), oxlint, format and function limits clean; `npx expo export` ok (Android); browser suite 248 passed, 3 skipped, 1 failed (single worker, 25 min; the phone
+  `location.spec` failed once on a stale latitude field and passes alone, unrelated to Cheers). New spec `cheers.spec.ts` in `scripts/ci-scope.mjs`.
+  CI minutes none yet; agent tokens roughly 0.6M (estimate).
+  **Next:** the T-505 to T-509 reviews, T-505b (tier A: plan and plan review first), then T-510.
+
 ## T-508 quest ratings and survey results — 2026-10-30
 
 - **T-508 done (tier B; code review owed; not run on a phone).** Migration 0089 (new, undeployed; staging is at 0087, 0088 is deploying): two closed tables

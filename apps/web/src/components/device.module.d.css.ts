@@ -16,6 +16,14 @@ declare const styles: {
   readonly cardGreen: string;
   readonly cardOrange: string;
   readonly cardRed: string;
+  readonly cheersClock: string;
+  readonly cheersCount: string;
+  readonly cheersEmoji: string;
+  readonly cheersFloater: string;
+  readonly cheersPrompt: string;
+  readonly cheersSky: string;
+  readonly cheersTotal: string;
+  readonly cheersTotals: string;
   readonly code: string;
   readonly codeBox: string;
   readonly corner: string;

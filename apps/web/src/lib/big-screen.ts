@@ -1,10 +1,13 @@
-import { AVATARS } from "@questify/shared";
+import { AVATARS, CHEER_REACTIONS, cheerReactionOf, type CheerReaction } from "@questify/shared";
 
 /** The scenes the team picks and orders (T-504, FR-631): the live ranking, the community goal and the live poll. */
 export const SCENES = ["ranking", "community", "poll"] as const;
 export type Scene = (typeof SCENES)[number];
-/** The scenes a screen runs: the picked ones, and the finale a set finale adds by itself (T-307b). */
-export const RUNNING_SCENES = [...SCENES, "finale"] as const;
+/**
+ * The scenes a screen runs: the picked ones, the finale a set finale adds by itself (T-307b) and the Cheers scene that a
+ * live cheers moment runs alone (T-509).
+ */
+export const RUNNING_SCENES = [...SCENES, "finale", "cheers"] as const;
 export type RunningScene = (typeof RUNNING_SCENES)[number];
 
 /** How long one scene stays up before the next (fixed, ADR-365), and how often the open scene reads again. */
@@ -41,6 +44,14 @@ export type FinaleView =
   | Readonly<{ phase: "push"; startsAt: number; goal: CommunityGoal }>
   | Readonly<{ phase: "waiting"; startsAt: number }>
   | Readonly<{ phase: "reveal"; startsAt: number; winners: readonly FinaleWinner[] }>;
+/** One cheer on the wire: a sequence number (newer is larger) and its reaction; never a player. */
+export type Cheer = Readonly<{ seq: number; reaction: CheerReaction }>;
+/** The Cheers scene (T-509): when the moment ends, each reaction's count, and the newest cheers in order. */
+export type CheersView = Readonly<{
+  endsAt: number;
+  totals: Readonly<Record<CheerReaction, number>>;
+  recent: readonly Cheer[];
+}>;
 export type PollOption = Readonly<{ text: Bilingual; votes: number }>;
 export type PollView = Readonly<{
   title: Bilingual;
@@ -60,6 +71,12 @@ export type SceneAnswer =
       scene: "finale";
       shut: string | null;
       finale: FinaleView | null;
+      clockOffset: number;
+    }>
+  | Readonly<{
+      scene: "cheers";
+      shut: string | null;
+      cheers: CheersView | null;
       clockOffset: number;
     }>;
 
@@ -158,6 +175,10 @@ function phaseOf(value: Record<string, unknown>, startsAt: number): FinaleView |
   }
 }
 
+/** Why nothing shows, as an answer names it; null when something does. */
+const shutOf = (body: Record<string, unknown>): string | null =>
+  typeof body["shut"] === "string" ? body["shut"] : null;
+
 /** A scene's answer, read defensively; undefined when the body is not one. `now` is this page's clock on arrival. */
 export function sceneAnswerOf(
   scene: RunningScene,
@@ -167,7 +188,7 @@ export function sceneAnswerOf(
   if (!isRecord(body)) {
     return undefined;
   }
-  const shut = typeof body["shut"] === "string" ? body["shut"] : null;
+  const shut = shutOf(body);
   switch (scene) {
     case "ranking":
       return { scene, shut, rows: rowsOf(body["rows"]) };
@@ -176,23 +197,83 @@ export function sceneAnswerOf(
     case "poll":
       return { scene, shut, poll: pollOf(body["poll"]) };
     case "finale":
-      return finaleAnswer(shut, body, now);
+    case "cheers":
+      return timedAnswer(scene, shut, body, now);
   }
 }
 
-/** The finale scene's answer, with the offset between the server clock and this page's when it arrived. */
-function finaleAnswer(
+/** The finale's or the Cheers scene's answer: its view and the offset of the server's clock from this page's. */
+function timedAnswer(
+  scene: "finale" | "cheers",
   shut: string | null,
   body: Record<string, unknown>,
   now: number,
 ): SceneAnswer {
+  const clockOffset = offsetOf(body, now);
+  return scene === "finale"
+    ? { scene, shut, finale: finaleOf(body["finale"]), clockOffset }
+    : { scene, shut, cheers: cheersOf(body["cheers"]), clockOffset };
+}
+
+/** The server's clock minus this page's when the answer arrived, from the answer's `serverNow`; 0 when it has none. */
+function offsetOf(body: Record<string, unknown>, now: number): number {
   const served = typeof body["serverNow"] === "string" ? Date.parse(body["serverNow"]) : Number.NaN;
-  return {
-    scene: "finale",
-    shut,
-    finale: finaleOf(body["finale"]),
-    clockOffset: Number.isNaN(served) ? 0 : served - now,
-  };
+  return Number.isNaN(served) ? 0 : served - now;
+}
+
+/** The Cheers scene in an answer, or null when no moment is live or the answer is not one. */
+function cheersOf(value: unknown): CheersView | null {
+  if (!isRecord(value) || typeof value["endsAt"] !== "string") {
+    return null;
+  }
+  const endsAt = Date.parse(value["endsAt"]);
+  const counts = isRecord(value["totals"]) ? value["totals"] : {};
+  const recent = (Array.isArray(value["recent"]) ? value["recent"] : [])
+    .filter(isRecord)
+    .flatMap((entry): Cheer[] => {
+      const reaction = cheerReactionOf(entry["reaction"]);
+      return reaction === undefined || typeof entry["seq"] !== "number"
+        ? []
+        : [{ seq: entry["seq"], reaction }];
+    });
+  return Number.isNaN(endsAt)
+    ? null
+    : {
+        endsAt,
+        totals: Object.fromEntries(
+          CHEER_REACTIONS.map((reaction) => [reaction, numberOf(counts[reaction])]),
+        ) as Record<CheerReaction, number>,
+        recent,
+      };
+}
+
+/** The cheers newer than `seen`, oldest first: the ones the page has not floated yet. */
+export const freshCheers = (recent: readonly Cheer[], seen: number): readonly Cheer[] =>
+  recent.filter((cheer) => cheer.seq > seen).toSorted((a, b) => a.seq - b.seq);
+
+/** A reaction floating up the Cheers scene: where across (percent), when it starts after the answer (ms), its key. */
+export type Floater = Readonly<{
+  key: number;
+  reaction: CheerReaction;
+  left: number;
+  delay: number;
+}>;
+
+/**
+ * Places fresh cheers for the page: each across the width (5 to 90 percent, from `random`) and its start spread evenly
+ * over `spreadMs`, so a read's cheers trickle up instead of rising together.
+ */
+export function floatersFor(
+  fresh: readonly Cheer[],
+  spreadMs: number,
+  random: () => number = Math.random,
+): readonly Floater[] {
+  return fresh.map((cheer, index) => ({
+    key: cheer.seq,
+    reaction: cheer.reaction,
+    left: Math.round(5 + random() * 85),
+    delay: Math.round((index / Math.max(1, fresh.length)) * spreadMs),
+  }));
 }
 
 /** The picked scene names in an answer, in order; anything this page cannot pick is left out. */
@@ -226,6 +307,8 @@ export function isEmpty(answer: SceneAnswer): boolean {
       return answer.poll === null;
     case "finale":
       return answer.finale === null;
+    case "cheers":
+      return answer.cheers === null;
   }
 }
 

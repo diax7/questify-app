@@ -55,6 +55,10 @@ export const FEATURES: FeatureRegistry = {
    * at once; off for the platform, no new boost is saved while running ones finish.
    */
   boosts: { gated: false },
+  /**
+   * Cheers (T-509, FR-1841, ADR-377): the owner turns them off for an event, which ends any live cheers moment at once; off for the
+   * platform, no moment can start and the app's cheer card goes. The switch sits on the Big screen page.
+   */
   cheers: { gated: false },
   /**
    * Community quests (T-306b, F-101, ADR-226): the owner turns them off for an event, which finishes its running

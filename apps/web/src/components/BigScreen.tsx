@@ -9,6 +9,7 @@ import {
 } from "@questify/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, CommunityScene } from "#src/components/BigScreenParts.tsx";
+import { CheersScene } from "#src/components/CheersScene.tsx";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
 import { FinaleScene } from "#src/components/FinaleScene.tsx";
 import { useWakeLock } from "#src/components/StationScreen.tsx";
@@ -43,6 +44,7 @@ const SCENE_TITLES: Readonly<Record<RunningScene, MessageKey>> = {
   community: "screen.community.title",
   poll: "screen.poll.title",
   finale: "screen.finale.title",
+  cheers: "screen.cheers.title",
 };
 
 /**
@@ -215,15 +217,39 @@ function SceneBody({
         <PollScene poll={answer.poll} language={language} t={t} />
       );
     case "finale":
-      return answer.finale === null ? null : (
-        <FinaleScene
-          finale={answer.finale}
-          clockOffset={answer.clockOffset}
-          language={language}
-          t={t}
-        />
-      );
+    case "cheers":
+      return <TimedSceneBody answer={answer} language={language} t={t} />;
   }
+}
+
+/** The scenes that run on the server's clock: the finale (T-307b) and Cheers (T-509). */
+function TimedSceneBody({
+  answer,
+  language,
+  t,
+}: Readonly<{
+  answer: Extract<SceneAnswer, { clockOffset: number }>;
+  language: Language;
+  t: Translate;
+}>) {
+  if (answer.scene === "finale") {
+    return answer.finale === null ? null : (
+      <FinaleScene
+        finale={answer.finale}
+        clockOffset={answer.clockOffset}
+        language={language}
+        t={t}
+      />
+    );
+  }
+  return answer.cheers === null ? null : (
+    <CheersScene
+      cheers={answer.cheers}
+      clockOffset={answer.clockOffset}
+      language={language}
+      t={t}
+    />
+  );
 }
 
 /** A paired big screen that is open: the event's name on top, the open scene below, its label in a corner. */

@@ -53,6 +53,11 @@ const FEATURES = {
     title: "events.questRatings.title",
     label: "events.questRatings.label",
   },
+  cheers: {
+    path: "cheers",
+    title: "events.cheers.title",
+    label: "events.cheers.label",
+  },
 } as const satisfies Record<
   string,
   Readonly<{ path: string; title: MessageKey; label: MessageKey }>
@@ -66,6 +71,8 @@ type Props = Readonly<{
   /** The event's switch as the page last read it. */
   initial: boolean;
   myRole: "owner" | "editor";
+  /** Told the switch's saved value, for a page that shows more than the switch (the Big screen page's Cheers, T-509). */
+  onSaved?: (enabled: boolean) => void;
 }>;
 
 /**
@@ -74,7 +81,8 @@ type Props = Readonly<{
  * for community quests finishes a running goal, whose reached steps still pay, and warns that what it would unlock stays
  * locked, T-306c). Flash quests and double points (T-307) work the same way: off hides every flash quest, or stops
  * every boost paying, at once. The help desk (T-310) off stops new requests while open ones stay answerable. Quest
- * ratings (T-508) are the one switch that starts off: players are asked only after the owner turns it on. The owner
+ * ratings (T-508) are the one switch that starts off: players are asked only after the owner turns it on. Cheers
+ * (T-509) sits on the Big screen page: off ends any live cheers moment. The owner
  * changes it; an editor sees it switched and cannot change it. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
@@ -84,6 +92,7 @@ export function EventFeatureSwitch({
   eventId,
   initial,
   myRole,
+  onSaved,
 }: Props) {
   const t = useTranslator(language);
   const words = FEATURES[feature];
@@ -112,7 +121,9 @@ export function EventFeatureSwitch({
       setProblem(describeProblem(result.body, language, t).text);
       return;
     }
-    setOn((result.body as Record<string, unknown>)[feature] === true);
+    const saved = (result.body as Record<string, unknown>)[feature] === true;
+    setOn(saved);
+    onSaved?.(saved);
   };
 
   return (

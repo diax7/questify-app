@@ -1108,6 +1108,21 @@ personal data. Kept by the rehearsal wipe (setup, as `big_screen`). Doors: `even
 (`startsAt`, `goal`, `goal_done`, `goal_window`). Migration 0085 restates `set_finale` so `startsAt` may be at most 23 hours after the event ends (a
 paired screen closes 24 hours after the end, `device_alive`), and `ranking_on` as `feature_enabled(ev, 'ranking')`.
 
+### cheers_moment and cheer (migration 0090, T-509, ADR-377)
+**Built:** `cheers_moment (event_id primary key, organizer_id, started_at, ends_at, started_by → staff_user SET NULL)`, one row per event,
+`(event_id, organizer_id)` → `event` CASCADE; live while `ends_at` is in the future (`cheers_live_until`, which also needs the event live, the
+big-screen add-on and both Cheers switches). `cheer (id bigint identity primary key, organizer_id, event_id, enrollment_id, reaction, created_at)`,
+`(event_id, organizer_id)` → `event` and `(enrollment_id, event_id)` → `enrollment`, both CASCADE; `reaction` is one of `cheers_reactions()`
+(heart, applause, fire, star, party); indexes `(enrollment_id, created_at)` for the limit and `(event_id, id)` for the screen. Row-level security
+forced, PUBLIC and the API role revoked on both. A cheer is personal data (it names the enrollment, for the limit only): it goes with the
+enrollment and the event, the rehearsal wipe removes it, and the next `start_cheers_moment` clears the last moment's cheers; `cheers_moment` is
+setup and kept by the wipe. Doors: `event_cheers`, `start_cheers_moment`, `stop_cheers_moment` (team, through `award_event_of`; start and
+stop are owner only), `send_cheer`, `member_cheers` (the caller's own active enrollment), `event_has_cheers` (an event-level yes or no for the
+API's 3-second cache), `screen_cheers` (a paired big screen; no argument). Internal `cheers_reactions`, `cheers_per_minute` (30),
+`cheers_live_until`, `cheers_json`, `cheers_member`. `big_screen_running` restated: a live moment is the screen's only scene. SQLSTATEs `CH403`
+(not the owner), `CH404`, `CH409` (`cheers_off`, `not_live`), `CH422` (`minutes`, a reaction), `CH429` (the DETAIL is the seconds to wait).
+Audit actions `cheers.start`, `cheers.stop`.
+
 ### kiosk_scan; the kiosk method (migration 0058, T-309b, ADR-242, ADR-244)
 **Built:** `kiosk_scan (completion_id → quest_completion CASCADE primary key, device_id → paired_device SET NULL,
 organizer_id, event_id, created_at)`, index `(device_id, created_at)`: which kiosk paid a completion. No personal data.

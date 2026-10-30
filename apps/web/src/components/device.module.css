@@ -422,3 +422,91 @@
     transition: none;
   }
 }
+
+/* The Cheers scene (T-509): reactions float up the whole stage while a moment is live, their running totals along the foot. */
+.cheersPrompt {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 6vw, 5rem);
+  line-height: 1.1;
+  margin: 0;
+  text-align: center;
+  color: var(--color-highlight);
+}
+
+.cheersClock {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  text-align: center;
+}
+
+.cheersTotals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xl);
+}
+
+.cheersTotal {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-sm);
+}
+
+.cheersEmoji {
+  font-size: clamp(3rem, 9vw, 8rem);
+  line-height: 1;
+}
+
+.cheersCount {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.5rem, 4vw, 3.5rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.cheersSky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cheersFloater {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: calc(var(--left, 50) * 1%);
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  line-height: 1;
+  opacity: 0;
+  animation: cheerFloat 5s ease-out both;
+  animation-delay: calc(var(--delay, 0) * 1ms);
+}
+
+@keyframes cheerFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-6dvh) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-90dvh) scale(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cheersSky {
+    display: none;
+  }
+}

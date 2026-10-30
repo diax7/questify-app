@@ -1068,6 +1068,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // A rehearsal account's quest ratings go with it (ON DELETE CASCADE); rate_quest needs a completion of the quest,
         // so a rating of a rehearsal account is wiped with its completion's account at go-live (T-508).
         "enrollment.quest_rating",
+        // A rehearsal account's cheers go with it (ON DELETE CASCADE); a cheer needs a live moment, which is setup the wipe keeps (T-509).
+        "enrollment.cheer",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1109,6 +1111,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "push_due_announcement",
         "session_message", // a message to registrants writes notices and its own rate-limit row, nothing the wipe deletes (T-505)
         "push_due_session", // reads the status for reminders; it writes only notices (T-505)
+        "start_cheers_moment", // the owner opens a moment; it deletes only cheers, which the wipe also removes, and writes no play row (T-509)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

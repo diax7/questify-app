@@ -918,6 +918,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by the caller-bound rate_quest (the player's own active enrollment, a quest they completed, the owner's switch on), read by the owner/editor as counts through quest_rating_scores inside award_event_of and by the player's own row through member_quest_rating (ratings database and HTTP suites)",
   survey_share:
     "no direct API rights; written only by the owner/editor doors survey_share_save and survey_share_revoke inside award_event_of for a survey quest of that event; the token is stored only as a hash and opened only through the anonymous survey_shared_results by that hash (ratings database and HTTP suites)",
+  cheers_moment:
+    "no direct API rights; written only by the owner doors start_cheers_moment and stop_cheers_moment inside award_event_of (an editor is CH403); read through event_cheers inside award_event_of, member_cheers for an active member and the screen's own screen_cheers for a paired big screen of that event (cheers database and HTTP suites)",
+  cheer:
+    "no direct API rights; written only by the caller-bound send_cheer (the player's own active enrollment, a live moment, the per-minute limit); read only by the paired big screen of that event as counts and sequence numbers through screen_cheers, never a player; no team door reads it (cheers database and HTTP suites)",
   notification:
     "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
   push_device:
@@ -1587,6 +1591,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
     expect(await count("owner", "survey_share WHERE event_id = $1", [f.eventB])).toBe(0);
     expect(await count("owner", "quest_rating WHERE event_id = $1", [f.eventB])).toBe(0);
+  });
+
+  it("keeps the Cheers doors inside the caller's tenant and membership (T-509)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      const team = [
+        ["SELECT event_cheers($1)", [f.eventB]],
+        ["SELECT start_cheers_moment($1, 5, $2)", [f.eventB, randomUUID()]],
+        ["SELECT stop_cheers_moment($1, $2)", [f.eventB, randomUUID()]],
+      ] as const;
+      for (const [sql, values] of team)
+        expect(await refusal(asA(seat, sql, [...values])), `${seat} ${sql}`).toBe("AN404");
+      expect(await refusal(asA(seat, "SELECT send_cheer($1, 'heart')", [f.eventB])), seat).toBe(
+        "CH404",
+      );
+      expect(
+        (await asA(seat, "SELECT member_cheers($1) AS r", [f.eventB])).rows[0]?.["r"] ?? null,
+        seat,
+      ).toBeNull();
+    }
+    expect(await count("owner", "cheers_moment WHERE event_id = $1", [f.eventB])).toBe(0);
+    expect(await count("owner", "cheer WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
   it("keeps the streak doors inside their tenant and their player (T-405)", async () => {

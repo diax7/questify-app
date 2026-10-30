@@ -185,6 +185,51 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("keeps the Cheers tables and internals closed and grants only its seven doors (T-509)", async () => {
+    const doors = [
+      "event_cheers",
+      "event_has_cheers",
+      "member_cheers",
+      "screen_cheers",
+      "send_cheer",
+      "start_cheers_moment",
+      "stop_cheers_moment",
+    ];
+    const internals = [
+      "cheers_json",
+      "cheers_live_until",
+      "cheers_member",
+      "cheers_per_minute",
+      "cheers_reactions",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT table_name, privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name IN ('cheer', 'cheers_moment')
+        AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",

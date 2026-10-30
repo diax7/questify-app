@@ -4,8 +4,11 @@ import { inDevice } from "#src/devices/errors";
 /** The scenes the team picks and orders (FR-631); photo wall and cheers come with their own tasks. */
 export const SCENES = ["ranking", "community", "poll"] as const;
 export type Scene = (typeof SCENES)[number];
-/** What a screen can read: the picked scenes and the finale, which a set finale adds by itself (T-307b). */
-export const SCREEN_SCENES = [...SCENES, "finale"] as const;
+/**
+ * What a screen can read: the picked scenes, the finale a set finale adds by itself (T-307b) and the Cheers scene a live
+ * cheers moment runs alone (T-509).
+ */
+export const SCREEN_SCENES = [...SCENES, "finale", "cheers"] as const;
 export type ScreenScene = (typeof SCREEN_SCENES)[number];
 
 const FUNCTIONS: Readonly<Record<ScreenScene, string>> = {
@@ -13,6 +16,7 @@ const FUNCTIONS: Readonly<Record<ScreenScene, string>> = {
   community: "screen_community",
   poll: "screen_poll",
   finale: "screen_finale",
+  cheers: "screen_cheers",
 };
 
 /** A scene as the database answers it: `shut` says why nothing shows, else the scene's own fields. */
@@ -34,7 +38,7 @@ export type SceneReader = Readonly<{
 type Kept = Readonly<{ until: number; answer: Promise<SceneAnswer> }>;
 
 /**
- * Reads a scene through the screen's own door (`screen_ranking`, `screen_community`, `screen_poll`, `screen_finale`: each takes no
+ * Reads a scene through the screen's own door (`screen_ranking`, `screen_community`, `screen_poll`, `screen_finale`, `screen_cheers`: each takes no
  * argument and reads only the calling device's event). Every screen of an event shows the same scene, so one answer per
  * event and scene is kept for 2 seconds and shared, concurrent callers included: the database sees at most one read
  * per event, scene and 2 seconds however many screens poll (the poll counts are an aggregate, never one per request,

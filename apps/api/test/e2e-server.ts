@@ -293,6 +293,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         days?: number;
         endedDaysAgo?: number;
         step?: string;
+        reactions?: string[];
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -506,6 +507,28 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
       // poll with three votes (T-504).
       if (request.url === "/big-screen-seed") {
         seedBigScreen(db.owner, body.eventId ?? "")
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /cheered: a new player enrolled in the event who sent these reactions (in order) in its current cheers moment, for the
+      // Cheers scene's browser test (T-509); the real door is tested in test/db/cheers.
+      if (request.url === "/cheered") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) VALUES ($2) RETURNING id),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1
+                             RETURNING id, organizer_id, event_id)
+             INSERT INTO cheer (organizer_id, event_id, enrollment_id, reaction)
+             SELECT j.organizer_id, j.event_id, j.id, r.reaction
+             FROM joined j, unnest($3::text[]) WITH ORDINALITY AS r(reaction, position) ORDER BY r.position`,
+            [body.eventId, `cheerer_${Date.now() % 1e6}`, body.reactions ?? []],
+          )
           .then(() => {
             response.writeHead(204).end();
           })
