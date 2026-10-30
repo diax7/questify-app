@@ -36,11 +36,8 @@ test("builds a game quest with its level, unlimited attempts and the players' li
   await expect(
     page.getByText("يرى اللاعبون: اعثر على جميع الأزواج (8) في 20 حركة أو أقل."),
   ).toBeVisible();
-  const quickNote = page.getByText(/يتطلب الالتقاط والنقر السريع سرعة في الملاحظة واللمس/);
-  await expect(quickNote).toHaveCount(0);
   await game.selectOption("catch");
   await expect(page.getByText("يرى اللاعبون: التقط 30 عنصرًا على الأقل من 40.")).toBeVisible();
-  await expect(quickNote).toBeVisible();
   await game.selectOption("tap_rush");
   await expect(
     page.getByText("يرى اللاعبون: اجمع 28 نقطة خلال 30 ثانية. كل نقرة خاطئة تخصم نقطة."),
@@ -68,13 +65,12 @@ test("the owner switches mini-games off and on for the event", async ({ page }, 
   const card = page.getByRole("region", { name: "الألعاب المصغّرة" });
   const box = card.getByLabel("إظهار الألعاب المصغّرة للاعبين");
   await expect(box).toBeChecked();
-  await expect(card.getByRole("status")).toContainText("الألعاب المصغّرة ظاهرة");
   await box.uncheck();
-  await expect(card.getByRole("status")).toContainText("مخفية عن اللاعبين");
+  await expect(box).not.toBeChecked();
   await page.reload();
   const again = page.getByRole("region", { name: "الألعاب المصغّرة" });
   await expect(again.getByLabel("إظهار الألعاب المصغّرة للاعبين")).not.toBeChecked();
   await again.getByLabel("إظهار الألعاب المصغّرة للاعبين").check();
-  await expect(again.getByRole("status")).toContainText("ظاهرة");
+  await expect(again.getByLabel("إظهار الألعاب المصغّرة للاعبين")).toBeChecked();
   await expectNoSidewaysScroll(page);
 });

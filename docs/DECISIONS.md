@@ -5605,3 +5605,23 @@ sign out, language, close, edit, delete, copy, search. (6) Page intros under a t
 would otherwise be unclear.
 **Why:** professional products read clean; text that repeats the label is noise and pushes the real controls down the page.
 **Trade-offs:** some guidance moves behind an info button and is seen only by those who look for it; errors carry the rest.
+
+## ADR-371 - T-599d how ADR-370 is built: info buttons, disabled switches, icon sign out, a guard test
+
+**Status:** Proposed (developer, T-599d build; Q-338). Builds ADR-370; changes no data.
+**Decision:** (1) **Info button.** The dashboard's `InfoTip` (`apps/web/src/ui/InfoTip.tsx`) is an icon button beside a label; the text opens on
+hover, keyboard focus and a tap or click, and Escape, a tap elsewhere or scrolling closes it. `Field`, `FieldGroup`, `Switch`, `Checkbox`,
+`NumberField`, `Section` and `PageHeader` take an `info` slot, and `infoTip(t, "key")` (`ui/info.tsx`) builds the button in the page's language.
+The app's twin (`components/InfoTip.tsx`) opens the text under the label on a tap and closes it on a second tap; it sits on `SwitchRow` and `Field`.
+(2) **Switches an editor cannot change** are drawn disabled, showing their state, instead of being hidden behind an "Only the owner can change
+this." line per switch (the owner-only line stays where a whole part has no controls). (3) **Sign out** is an icon in the top bar, the phone menu
+and the app's Profile and re-accept screens (the app keeps its confirmation); the password's show/hide is an eye icon. The app has no password field.
+(4) **One new shared word:** `common.info` ("More information") names every info button. (5) **A guard test**
+(`apps/web/src/lib/help-copy.test.ts`) lists every key named `...Hint`, `...Help`, `...Intro`, `...Note`, `...About`, `...Lead` as a kept help line or
+an info text, and lists the keys passed as `help` or `description` to a field, section or page header: a new one fails until it is added to a list in
+the same diff. (6) **What was cut or moved**, by rule: a line repeating its label, an intro under a title, an on/off status beside a switch, a
+reassurance beside a button, and a per-type note under the quest type all went; real explanations moved to info buttons (64); rules to meet were
+shortened and stay (password length, import format, number ranges); warnings about what cannot be undone, prices, locked or empty states stayed.
+**Why:** one primitive on every page keeps the rule cheap to follow and visible in review. **Trade-offs:** an explanation behind an info button is seen
+only by those who look for it; an editor sees a greyed switch without a spoken reason; the guard test is a naming convention, so a help line under an
+unusual key name is caught only when passed as `help` or `description`, otherwise by a reviewer.

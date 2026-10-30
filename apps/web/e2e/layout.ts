@@ -407,6 +407,9 @@ export async function expectStateContrast(
     expect
       .soft(await target.evaluate(contrastOf, LIMITS), `${where}: "${name}" focused`)
       .toEqual([]);
+    // An info button opens its explanation on hover and focus; close it, so it does not cover the next control.
+    await target.blur();
+    await page.mouse.move(0, 0);
   }
   await page.mouse.move(0, 0);
 }

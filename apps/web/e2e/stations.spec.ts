@@ -37,7 +37,7 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
   await expect(printed).toBeChecked();
   await page.getByLabel("رمز QR على شاشة (يتغير كل 30 ثانية)").check();
   await expect(printed).not.toBeChecked();
-  await expect(page.getByText("يمكن تصوير الرمز المطبوع ومشاركته")).toBeVisible();
+  await expect(page.getByText("يمكن تصوير الرمز المطبوع ومشاركته")).toBeAttached();
   await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "شاشة القاعة" })).toBeVisible();
 

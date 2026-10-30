@@ -26,7 +26,7 @@ test("the owner keeps a category for an answer, then for a guest tag", async ({ 
 
   await page.getByLabel("Saudi mobile numbers or emails, one per line").fill("0512345678");
   await page.getByLabel("Tag for these lines (optional)").fill("VIP");
-  await expect(page.getByText("Everyone added here is invited")).toBeVisible();
+  await expect(page.getByText("Everyone added here is invited")).toBeAttached();
   await page.getByRole("button", { name: "Add to the list" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Added: 1." })).toBeVisible();
 

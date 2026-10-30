@@ -52,7 +52,7 @@ test("the owner reviews a flagged player, pauses redemption and clears the case"
   await clear.getByLabel("ملاحظة (اختيارية)").fill("يركض بسرعة");
   await clear.getByRole("button", { name: "إغلاق دون إجراء" }).click();
   await expect(page.getByRole("status")).toHaveText("أُغلقت الحالة.");
-  await expect(page.getByText("لا حالات. يظهر هنا أي نشاط غير معتاد.")).toBeVisible();
+  await expect(page.getByText("لا حالات.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "مغلقة" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: `@lynx_${tag}` })).toContainText(
     "أُغلقت دون إجراء",

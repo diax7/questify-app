@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## T-599d clear titles and icons, not explanatory text — 2026-10-30
+
+- **T-599d done (tier B; code review owed).** ADR-370 built on every page: the dashboard's `InfoTip` (hover, focus, tap, Escape) with an `info` slot on page
+  headers, sections, fields and switches; the password's eye icon; icon-only sign out in the top bar, phone menu and app; the app's `InfoTip` and `IconButton`.
+  64 help keys deleted, 64 explanations moved to info buttons, 8 shortened, 68 short lines kept (warnings, prices, locked and empty states); an editor sees
+  owner-only switches disabled instead of a note each. `apps/web/src/lib/help-copy.test.ts` lists the kept help keys and every `help` or `description` prop, so a
+  new help line fails until the diff lists it. ADR-371 and Q-338 Proposed. Screenshots of 8 pages, before and after, in `docs/evidence/2026-10-30-t599d/`. Local:
+  full vitest 8970 passed; tsc, oxlint, format and limits clean; `npx expo export` ok; browser suite 206 passed, 3 skipped, 16 specs (both projects) changed for
+  cut text and rerun green; CI minutes none yet; agent tokens roughly 0.8M. **Next:** the T-599c and T-599d reviews, then T-505 agenda and sessions.
+
 ## T-307b live finale — 2026-10-30
 
 - **T-307b done (tier B; code review owed), not yet run on a TV or a phone.** Migration 0084 (new, undeployed; CranL is at 0083): the

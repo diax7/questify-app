@@ -4,15 +4,14 @@
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
-  margin-block: -6px;
 }
 
 .trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 32px;
-  block-size: 32px;
+  inline-size: 24px;
+  block-size: 24px;
   padding: 0;
   color: var(--color-text-muted);
   background: none;

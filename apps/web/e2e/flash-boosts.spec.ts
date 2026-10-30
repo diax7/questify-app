@@ -30,7 +30,7 @@ test("launches and ends a flash quest, and builds, edits and deletes a boost", a
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("الصقر الذهبي");
   await page.getByLabel("مهمة بوقت محدود").check();
-  await expect(page.getByText(/^الظهور للاعبين فقط بين وقتي البدء والانتهاء/)).toBeVisible();
+  await expect(page.getByText(/^الظهور للاعبين فقط بين وقتي البدء والانتهاء/)).toBeAttached();
   await expect(page.getByLabel("ظاهرة في التطبيق")).not.toBeChecked();
   await page.getByRole("button", { name: "إنشاء مهمة" }).click();
 

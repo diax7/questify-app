@@ -17,7 +17,6 @@ test("ticks an NFC tag beside the QR and shows the quest's Tags panel", async ({
   await page.getByLabel("يلمس اللاعب بطاقة NFC لمهمة").check();
   await expect(qr).toBeChecked();
   await expect(qr).toBeDisabled();
-  await expect(page.getByText("يبقى رمز QR مفعّلًا احتياطًا.")).toBeVisible();
   await page.getByRole("button", { name: "إنشاء مهمة" }).click();
 
   const quest = page.getByRole("listitem").filter({ hasText: "بوابة البرج" });

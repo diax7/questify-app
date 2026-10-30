@@ -90,7 +90,7 @@ test("pairs a kiosk opened from the Devices page; its camera reads a live code a
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("كشك البوابة");
   await page.getByLabel("كشك ذاتي (يعرض اللاعب رمزه المباشر أمام جهاز لوحي)").check();
-  await expect(page.getByText("يدفع الكشك النقاط دون أن يقف عنده أحد.")).toBeVisible();
+  await expect(page.getByText("يدفع الكشك النقاط دون أن يقف عنده أحد.")).toBeAttached();
   await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "كشك البوابة" })).toBeVisible();
 

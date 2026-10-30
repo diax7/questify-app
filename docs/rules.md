@@ -278,4 +278,6 @@ A change is done only when all of these hold:
 - **Copy and icons (ADR-370, Dhia, strict):** every page, in the app, the dashboard and the console, explains itself by its titles, labels and icons. No help
   line that repeats or pads a label; a rule the user must meet is a short hint or the error; a field or feature that truly needs explaining gets an info
   button (`InfoTip`) beside its label, shown on hover, focus or tap. Show/hide password, sign out, language, close, edit, delete, copy and search are icons
-  with a name and tooltip in the page's language. A reviewer treats a padded help line as a finding.
+  with a name and tooltip in the page's language (`infoTip(t, "key")` on the dashboard, `InfoTip` and `IconButton` in the app). A reviewer treats a padded help line
+  as a finding. `apps/web/src/lib/help-copy.test.ts` lists the help keys that stay: a new key named `...Hint`, `...Help`, `...Intro`, `...Note` or `...About`, or a new
+  `help` or `description` prop, fails it until the diff adds the key to a list, so adding a line is a visible choice.

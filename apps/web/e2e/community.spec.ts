@@ -16,7 +16,6 @@ test("switches community quests, builds a goal with an unlock milestone, edits a
   await page.goto(event);
   const toggle = page.getByLabel("تشغيل مهام للجميع في الفعالية");
   await expect(toggle).toBeChecked();
-  await expect(page.getByText("مفعّل: يعمل كل هدف في وقته ويظهر شريط تقدّمه للاعبين.")).toBeVisible();
   await expect(
     page.getByText("إيقافها يُنهي الهدف الجاري والأهداف المجدولة، ويبقى ما كانت ستفتحه مقفلًا."),
   ).toBeVisible();
@@ -36,12 +35,11 @@ test("switches community quests, builds a goal with an unlock milestone, edits a
   await page.getByLabel("مكافأة بلوغ الهدف").nth(1).selectOption({ label: "فتح عنصر" });
   await page.getByLabel("ما الذي يُفتح").selectOption({ label: "فئة" });
   await page.getByLabel("فئة", { exact: true }).selectOption({ index: 1 });
-  await expect(page.getByText(/^يبقى مقفلًا للاعبين من لحظة الحفظ/)).toBeVisible();
+  await expect(page.getByText(/^يبقى مقفلًا للاعبين من لحظة الحفظ/)).toBeAttached();
   await expect(
     page.getByText("يرى كل اللاعبين عنوان الهدف، فلا تذكر فيه محتوى مخفيًا."),
   ).toBeVisible();
   await expect(page.getByText(/^يفتح /)).toBeVisible();
-  await expect(page.getByText("هكذا يظهر الشريط للاعبين في البداية وعند أول محطة.")).toBeVisible();
   await page.getByRole("button", { name: "حفظ" }).click();
   await expect(page.getByText("حُفظ الهدف.")).toBeVisible();
 

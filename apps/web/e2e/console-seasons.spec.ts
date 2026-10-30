@@ -130,7 +130,7 @@ test("in English the page is read only, marks the current month and shows a past
 
   await page.goto("/en/console/seasons");
   await expect(page.getByRole("heading", { name: "Ranking seasons", level: 1 })).toBeVisible();
-  await expect(page.getByText("There is no manual reset.", { exact: false })).toBeVisible();
+  await expect(page.getByText("There is no manual reset.", { exact: false })).toBeAttached();
   await expect(page.getByRole("button", { name: /reset/i })).toHaveCount(0);
 
   const current = seasonOf(page, now.month);

@@ -25,7 +25,6 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
     .filter({ hasText: `@falcon_${tag}` })
     .first();
   await falcon.getByRole("button", { name: "سجل النقاط" }).click();
-  await expect(page.getByText("أنت المالك: لا حد لمنحك.")).toBeVisible();
   await expect(page.getByText("لا شيء في السجل بعد.")).toBeVisible();
   const form = page.getByRole("form", { name: `منح @falcon_${tag}` });
   await expect(form.getByRole("button", { name: "منح", exact: true })).toBeDisabled();

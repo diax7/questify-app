@@ -1525,3 +1525,12 @@ end needs the event's end time moved. **Open:** Dhia may want editors to set the
 confirming while the event is live (Q-127); each is a small addition. The phone's celebration shows on the next Home read, not live, until
 T-501's reveal push. **Decided (developer, delegated by Dhia, 2026-10-30):** as recommended, ADR-369 accepted after the T-307b
 review (93 GO); the open items wait for Dhia to ask.
+
+## Q-338 - T-599d what stays as a help line, and how an editor sees owner-only switches (2026-10-30)
+
+Which lines survive ADR-370, and how does an editor see a switch only the owner can change? **Recommended (developer, T-599d build):** keep, as short
+lines, only what changes what the user does and the label cannot carry (a rule to meet, an irreversible warning, a price, a locked, empty or
+failed state, a count), listed in `apps/web/src/lib/help-copy.test.ts`; move real explanations to info buttons; show an editor's switches
+disabled and switched as they are, with no per-switch note; sign out is icon-only everywhere, the app keeps its confirmation. **Open:** Dhia may
+want a line back, a spoken reason for a disabled switch, or the sign-out word back in the phone menu. **Decided (developer):** as recommended,
+ADR-371 stays Proposed until the T-599d review.

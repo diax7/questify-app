@@ -1136,7 +1136,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     "event words not read ... answered 500" is not a stall (no time cost; seen in 2 of 8 local layout runs, none with the API logger on):
     `E2E_API_LOG=1` prints the API's unexpected errors in a browser run, to catch it. Screenshots: `docs/evidence/2026-10-30-t599c/` (`before/`
     desktop, `after/` desktop and phone). Local: vitest full, tsc, oxlint, format and limits clean; browser suite 230 passed.
-- [ ] **T-599d** Clear titles and icons, not explanatory text, on every page (ADR-370); depends on: T-599c
+- [x] **T-599d** Clear titles and icons, not explanatory text, on every page (ADR-370); depends on: T-599c
   - Why: Dhia, 2026-10-30 (INBOX): obvious help lines under fields make the product look unprofessional; strict rule for every page.
   - Scope: (1) an `InfoTip` primitive (info icon beside a label; text on hover, focus and tap; Esc closes; both languages) in
     `apps/web/src/ui/` and its twin in the app; (2) the password field's "Show password" button becomes an eye icon (web and app);
@@ -1145,6 +1145,19 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     must meet to a hint or leave it to the error, move a true explanation into `InfoTip`; delete keys no longer used.
   - Done when: no field or switch has a help line that repeats its label (a reviewer reads every page's screenshots); a test lists the
     remaining help keys so a new one is a visible choice; the layout check passes; screenshots before and after attached.
+  - Done 2026-10-30 (tier B; code review owed; ADR-371 and Q-338 Proposed). **Web:** `InfoTip` (`ui/InfoTip.tsx`, hover, focus, tap, Escape; `infoTip(t, key)` in
+    `ui/info.tsx`) with an `info` slot on PageHeader, Section, Field, FieldGroup, NumberField, Switch and Checkbox; the password's show/hide is an eye icon;
+    sign out is icon-only in the top bar and the phone menu (`IconButton` lost its word slot); an editor sees the owner-only switches disabled, not hidden under a
+    note each; the quest type's explanation is one info button beside the Type field. **App:** `IconButton` and `InfoTip` (a tap opens the text under the label) on
+    `SwitchRow` and `Field`; sign out is an icon on Profile and the re-accept screen (the confirmation stays); there is no password field in the app. **Copy:** 64
+    keys deleted (on/off statuses beside switches, intros, reassurances, per-type notes), 64 explanations moved to info buttons (59 dashboard, 5 app), 8 shortened
+    (password length, import format, size, deadline, code format), 68 short lines kept (warnings, prices, locked or empty states); `common.info` added. A new
+    `apps/web/src/lib/help-copy.test.ts` lists the kept and moved keys and every `help` or `description` prop, so a new help line fails until the diff lists it. Specs
+    that read cut text were changed (organizers, events, community, games, meet and others); the layout check closes an info button before the next hover. Screenshots
+    of 8 pages, before and after: `docs/evidence/2026-10-30-t599d/`. Local: full vitest 8970 passed, 14 skipped; tsc (web, app, api, shared), oxlint, format and limits
+    clean; `npx expo export` ok; browser suite 206 passed, 3 skipped, plus 16 specs (both projects) fixed and rerun green (22 minutes for the full run); CI minutes none yet;
+    agent tokens roughly 0.8M. **Owed:** a reviewer reads the screenshots of every page for a padded line this pass missed (the guard test cannot see a help line under an
+    ordinary key name), and the owner-only notes on the Players, Operators, Exclusions and Results pages stay as lines (ADR-371).
 - [x] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community and poll scenes (the photo wall is T-504b) — delivers FR 630, 631, 632, 633, 634, 1612, 1613; depends on: T-309, T-106
   - Plan 2026-10-30 (tier B): `docs/plans/2026-10-30-t-504-big-screen.md`, migration 0083, ADR-365 and Q-333 Proposed. Split (ADR-365): the photo wall (FR-635, FR-636, FR-637) moves to T-504b, since there are no photos until T-301b.
   - Done 2026-10-30 (tier B; code review owed), not yet run on a TV. Migration 0083: `big_screen` (the picked scenes in order, RLS forced, no grant; no row means all three), `event_big_screen` and `set_big_screen` (the team, audited `big_screen.update`, the ranking not offered while it is off, refused while the `bigScreen` add-on is not active), and the screen's own doors `screen_ranking` (the rank push's `rank_top_ten_ids`: the board's rule and order from PostgreSQL), `screen_community` (the cached progress and the milestones, no reward) and `screen_poll` (the newest sent poll in a public category, results by the poll's policy; the number of voters only for `never`, FR-1613), each taking no argument and reading only the calling device's event; `device_view` carries `scenes` and the screen's `feature_off`. API `src/screen`: `GET /v1/device/screen/:scene` (device of kind screen only, 40 a minute, one shared 2-second answer per event and scene), `GET` and `PUT …/events/{eventId}/big-screen`. Web: `/{lang}/screen` shows the scenes (rotating every 15 seconds, an empty scene skipped, the open scene read every 3 seconds, no server-sent stream), the dashboard's Big screen page (tick, order, save), `PairedPlaceholder` removed. Tests: 29 database, 13 route, scene reader and web units, the security suites, browser `big-screen.spec.ts` (desktop and phone). **Owed:** the photo wall (T-504b); a today's-ranking scene (T-216 note) if asked; Dhia: a look on a real TV.

@@ -23,7 +23,7 @@ test("builds a meet quest with its daily cap, refusing a cap above the repeat ca
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("meet");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تعرّف على لاعب");
-  await expect(page.getByText(/يتجدد كل دقيقة، فلا تنفع لقطات الشاشة/)).toBeVisible();
+  await expect(page.getByText(/يتجدد كل دقيقة، فلا تنفع لقطات الشاشة/)).toBeAttached();
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
   const dailyCap = page.getByLabel("الحد اليومي لكل لاعب (1 إلى 50)");
   await expect(dailyCap).toHaveValue("5");
@@ -50,9 +50,8 @@ test("the owner switches meet-someone quests off and on for the event", async ({
   const card = page.getByRole("region", { name: "مهام التعارف" });
   const box = card.getByLabel("إظهار مهام التعارف للاعبين");
   await expect(box).toBeChecked();
-  await expect(card.getByRole("status")).toContainText("مفعّل: يحصل اللاعبان على النقاط");
   await box.uncheck();
-  await expect(card.getByRole("status")).toContainText("يُخفى هذا النوع عن اللاعبين");
+  await expect(box).not.toBeChecked();
   await page.reload();
   await expect(
     page.getByRole("region", { name: "مهام التعارف" }).getByLabel(/مهام التعارف/),
@@ -62,7 +61,7 @@ test("the owner switches meet-someone quests off and on for the event", async ({
     .getByLabel(/مهام التعارف/)
     .check();
   await expect(
-    page.getByRole("region", { name: "مهام التعارف" }).getByRole("status"),
-  ).toContainText("مفعّل");
+    page.getByRole("region", { name: "مهام التعارف" }).getByLabel(/مهام التعارف/),
+  ).toBeChecked();
   await expectNoSidewaysScroll(page);
 });

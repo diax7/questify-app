@@ -13,7 +13,7 @@ test("builds a challenge, a survey and a share quest", async ({ page }, info) =>
   await page.getByRole("button", { name: "إضافة مهمة" }).click();
   await page.getByRole("combobox", { name: /^نوع مهمة/ }).selectOption("challenge");
   await page.getByLabel("العنوان بالعربية", { exact: true }).fill("تحدي الرماية");
-  await expect(page.getByText(/يؤكد المشغّل هذا التحدي/)).toBeVisible();
+  await expect(page.getByText(/يؤكد المشغّل هذا التحدي/)).toBeAttached();
   await expect(page.getByRole("group", { name: "طريقة التحقق" })).toHaveCount(0);
   await page.getByRole("button", { name: "إنشاء مهمة" }).click();
   await expect(page.getByText("تحدي الرماية", { exact: true })).toBeVisible();
