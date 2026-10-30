@@ -1,7 +1,9 @@
 name: CI
 
-# One job, the cheapest checks first. Drafts are skipped. Roughly 3 minutes per run; about 4 more when the web app or
-# the API changes (web build and browser tests, scoped by scripts/ci-scope.mjs).
+# One job, the cheapest checks first. Drafts are skipped. Roughly 3 minutes per run; when the web app or the API
+# changes, the web build and the browser tests (scoped by scripts/ci-scope.mjs, ADR-372) add about 7 to 12 minutes: the
+# layout check plus the specs of the changed area, or the whole suite when shared code changed. The whole suite also
+# runs every day and by hand in full.yml.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -106,7 +108,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Browser tests (dashboard, console and public pages on desktop and phone, both languages)
+      - name: Browser tests (the layout check and the specs of the changed area; all of them when shared code changed)
         if: steps.scope.outputs.e2e == 'true'
         # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
         # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).
@@ -115,14 +117,22 @@ jobs:
         # colours and the network) and run 40993429874 was cancelled at 12. It now waits by event and takes 3.1 minutes
         # (desktop 1.7, phone 1.4). All 230 specs, 1 worker, CI=1, took 16.4 minutes on the developer PC (T-599c); the runner
         # took 0.7 to 0.9 times the PC's time, so the step is expected at 12 to 15 minutes. It took 15.3 (run 41033545542);
-        # T-307b's 4 finale runs add about 1.2, so 22 leaves room until the suite is split (docs/FOLLOWUPS.md).
+        # T-307b's 4 finale runs add about 1.2, so 22 leaves room for the whole suite, which now runs here only when
+        # scripts/ci-scope.mjs finds shared code or more than 20 specs' worth of areas changed; a scoped run is the layout
+        # check (3.4 minutes) plus about 17 seconds a spec, so 4 to 9 minutes.
         timeout-minutes: 22
         run: |
           set -euo pipefail
           pnpm --filter @questify/web exec playwright install chromium
-          pnpm --filter @questify/web e2e
+          if [ "$SPECS" = "all" ]; then
+            pnpm --filter @questify/web e2e
+          else
+            # shellcheck disable=SC2086 # the list is spec paths from scripts/ci-scope.mjs, split on purpose
+            pnpm --filter @questify/web e2e $SPECS
+          fi
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          SPECS: ${{ steps.scope.outputs.specs }}
 
       - name: Keep the browser test traces on failure
         if: failure() && steps.scope.outputs.e2e == 'true'

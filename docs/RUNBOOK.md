@@ -4,31 +4,42 @@
 
 ## Local checks
 
-- `pnpm ci:changed`: lint, the function-limit ratchet, format check, types and all tests (what the pull-request gate
-  runs).
+- `pnpm ci:changed`: lint, the function-limit ratchet, format check, types and all tests (the checks of the push and
+  pull-request gate, ADR-372). The gate adds the browser specs of the changed area: `node scripts/ci-scope.mjs origin/main`
+  prints them as `specs=e2e/a.spec.ts e2e/b.spec.ts` (or `specs=all`, with the reason on stderr); after a web build run
+  `pnpm --filter @questify/web e2e <those paths>`.
 - `pnpm lint:limits`: the ratchet for the 100-line and complexity-8 limits of `docs/rules.md` (T-023). It fails on a
   function over a limit that is not in `scripts/function-limits-baseline.json`, or on a baselined one that grew
   (the message names the file, line and values). Fix it by splitting the function. It lists shrunk or removed
   offenders without failing; `node scripts/function-limits.mjs --update` then rewrites the baseline, only downward
   (it refuses while anything grew). Commit the baseline with the change. A renamed offender counts as new.
-- `pnpm ci:full`: `ci:changed` plus the dependency audit. The mutation check is not run here (ADR-174): it runs only
-  on GitHub, see below.
+- `pnpm ci:full`: `ci:changed` plus the dependency audit, and, for the browser side, the whole suite after a web build
+  (`pnpm --filter @questify/web e2e`, about 16 minutes, below). `full.yml` runs the same on GitHub, daily and by hand. The
+  mutation check is not run here (ADR-174): it runs only on GitHub, see below.
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.
 - "too many clients" or "remaining connection slots" in a local full run: every integration file opens its own pool.
   `compose.yaml` starts PostgreSQL with 300 connections; a container made before that keeps 100 until
   `docker exec questifyapp-postgres-1 psql -U postgres -c "ALTER SYSTEM SET max_connections = 300"` and a restart.
-- CI (`.github/workflows/ci.yml`): one job, a PostgreSQL 17 service, secret scan, `ci:changed`, the API build,
-  `pnpm audit`; then, only when `scripts/ci-scope.mjs` says the change needs them, the web build and the browser
-  tests (web app, shared package, lockfile, workflow, API source or migrations).
+- CI (`.github/workflows/ci.yml`, on a push to `main` and on a ready pull request): one job, a PostgreSQL 17 service,
+  secret scan, `ci:changed`, the API build, `pnpm audit` (the security floor, always); then, only when
+  `scripts/ci-scope.mjs` says the change needs them, the web build and the browser tests (web app, shared package,
+  lockfile, workflow, API source or migrations; a unit-test file alone starts nothing). The browser step runs the layout
+  check plus the specs of the changed area (the `AREAS` table in the script, 4 to 9 minutes), and the whole suite when
+  shared code changed: the interface kit, layouts, global CSS, Next, Playwright or package files, e2e helpers that many
+  specs import, the API's root files and its auth, database, audit, settings, completion and translation code, an edited
+  line in `app.ts`, `http-errors.ts` or the shared `index.ts`, a file or text no area names, more than 20 specs' worth
+  of areas, or an unknown base. The step log says which and why. A new browser spec must be named in `AREAS`
+  (`scripts/ci-scope.test.ts` fails otherwise). `full.yml` runs everything, including every browser spec, daily at
+  01:17 UTC on `main` (about 900 minutes a month, free while the repository is public) and by hand.
 - Browser tests locally (web app): `pnpm --filter @questify/web build`, then
   `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
-  playwright install chromium`). Run them before merging any web, shared or API change; they are part of `ci:full`
-  in spirit and take about 16 minutes (230 specs, one worker; the CI step is capped at 18). `E2E_API_LOG=1` prints the API's
+  playwright install chromium`). Run the specs of your area before merging a web, shared or API change, and the whole suite when `ci-scope` says
+  `all`; the whole suite is part of `ci:full` and takes about 16 minutes (230 specs, one worker; the CI step is capped at 22). `E2E_API_LOG=1` prints the API's
   unexpected errors during a browser run; `--reporter=list` shows each spec's time.
 - Heavy checks run on GitHub, started by hand (ADR-149; free while the repository is public): push the branch, then
-  `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 10 to 15
+  `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 30
   minutes) or `gh workflow run mutation.yml --ref <branch> -f mutate="<globs>"` (Stryker with incremental results
   kept between runs; empty `mutate` runs every core module). Read the result with `gh run watch` and the
   `mutation-report` artifact. The PC keeps the quick loop: single test files while coding. **Never run mutation

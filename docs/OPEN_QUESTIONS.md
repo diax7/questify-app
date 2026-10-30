@@ -1534,3 +1534,11 @@ failed state, a count), listed in `apps/web/src/lib/help-copy.test.ts`; move rea
 disabled and switched as they are, with no per-switch note; sign out is icon-only everywhere, the app keeps its confirmation. **Open:** Dhia may
 want a line back, a spoken reason for a disabled switch, or the sign-out word back in the phone menu. **Decided (developer):** as recommended,
 ADR-371 accepted (developer, 2026-10-30, T-599d review 91 GO).
+
+## Q-339 - CI cost: which pushes run which browser specs (2026-10-30)
+
+How should the browser suite (16 minutes, one worker) run so a push does not pay for all of it? **Recommended (developer):** the layout check plus
+the specs of the changed area on each push, chosen by `scripts/ci-scope.mjs`; the whole suite when shared code changed, and once a day plus by
+hand in `full.yml`; the security floor unchanged on every push (ADR-372). **Open:** Dhia may prefer two shards (needs the API's per-admin limits to
+allow two workers), a weekly full run instead of daily if the repository turns private (about 900 minutes a month), or the whole suite on every
+push again. **Decided (developer):** as recommended, ADR-372 Proposed until the coordinator accepts it after review.

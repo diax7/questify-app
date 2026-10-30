@@ -16,6 +16,7 @@
 
 ## T-599d clear titles and icons, not explanatory text — 2026-10-30
 
+- **CI cost split (coordinator follow-up, tier C; 2026-10-30).** A push now runs the layout check plus the browser specs of the changed area, chosen by `scripts/ci-scope.mjs` (AREAS table, shared code and unmapped files run the whole suite, a unit-test file starts nothing); `full.yml` runs everything daily at 01:17 UTC and by hand (about 900 minutes a month, free while public). The security floor is unchanged on every push. `scripts/ci-scope.test.ts` (35 tests) fails on a spec no area names. ADR-372 and Q-339 Proposed; RUNBOOK updated; the FOLLOWUPS line removed. **Next:** the push that carries this runs the whole suite once (workflow files changed); watch the step log for `all browser specs: ...`.
 - **T-599d done (tier B; code review owed).** ADR-370 built on every page: the dashboard's `InfoTip` (hover, focus, tap, Escape) with an `info` slot on page
   headers, sections, fields and switches; the password's eye icon; icon-only sign out in the top bar, phone menu and app; the app's `InfoTip` and `IconButton`.
   64 help keys deleted, 64 explanations moved to info buttons, 8 shortened, 68 short lines kept (warnings, prices, locked and empty states); an editor sees

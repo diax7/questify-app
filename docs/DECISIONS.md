@@ -5625,3 +5625,31 @@ shortened and stay (password length, import format, number ranges); warnings abo
 **Why:** one primitive on every page keeps the rule cheap to follow and visible in review. **Trade-offs:** an explanation behind an info button is seen
 only by those who look for it; an editor sees a greyed switch without a spoken reason; the guard test is a naming convention, so a help line under an
 unusual key name is caught only when passed as `help` or `description`, otherwise by a reviewer.
+
+## ADR-372 - The push gate runs the browser specs of the changed area; the whole suite runs daily and by hand
+
+**Status:** Proposed (developer, 2026-10-30; Q-339). Builds ADR-368's browser-test budget; changes no data.
+**Decision:** (1) The browser step of `ci.yml` (a push to `main`, a ready pull request) runs the layout check
+(`layout.spec.ts`, `layout-check.spec.ts`) plus the specs of the areas the change touches. `scripts/ci-scope.mjs` picks them
+from the changed files with the `AREAS` table (a pattern on a path or a message key, and the specs that cover it) and prints
+`specs=` for Playwright; the reason goes to the step log. (2) The whole suite runs when shared code changed: the interface kit
+(`apps/web/src/ui`), layouts, the global stylesheet, Next, Playwright and package files, the lockfile, workflows, this script;
+e2e helpers that more than 20 specs import (found by reading the imports, through other helpers too); the API's root files and
+its auth, db, audit, settings, completions and translations code; the e2e server and its direct helpers; an edited or removed
+line in `app.ts`, `http-errors.ts` or the shared `index.ts` (added lines ride along: they list what other changed files use);
+a web, API or shared file no area names; a text in `messages.ts` that changed or was removed and no area names (a new key
+cannot change a page that does not use it); more than 20 specs' worth of areas (20 specs plus the layout check take about 9
+minutes, the whole suite 16); or an unknown base (first push, force push). (3) A unit-test file starts no build or browser run.
+Migrations, public images and `apps/api/src/home` run the layout check only, which boots the server and reads every page.
+(4) `full.yml` runs everything, every browser spec included, every day at 01:17 UTC on `main` (about 900 minutes a month, free
+while the repository is public) and by hand. (5) `scripts/ci-scope.test.ts` fails when a browser spec is named by no area, so a
+new spec cannot be left out of a scoped run, and it covers each rule above. (6) The security floor is unchanged on every push:
+secret scan, lint, limits ratchet, format, types, all unit, database, access and outsider tests (`ci:changed`), the API build,
+the dependency audit; only the browser step is scoped.
+**Why:** the whole suite is 16 of the job's 30 minutes and grows by about a minute with each feature; a change to one panel
+cannot reach most specs, and the daily run still sees every spec on the same code.
+**Trade-offs:** a break outside the chosen areas shows on the next daily run (up to a day later) instead of the push, so the
+daily failure names a window of commits; a migration or an added line in a wiring file is trusted to the unit and database suites;
+the table can lag the code (a file nobody mapped costs minutes, never coverage, because unmapped means everything runs). Measured on
+the last 60 commits of `main` one by one: 33 needed no browser run, 20 the whole suite (CI and interface-kit work), 7 a scoped run of
+8.7 specs on average, about 6 minutes.

@@ -1,10 +1,17 @@
 name: Full checks
 
-# Every check on a pushed branch, started by hand, so the heavy suites run here instead of on the development PC:
-# lint, format, types, all tests, the API and web builds, the dependency audit and every browser test (no scoping).
-# Free on this public repository; about 10 to 15 minutes.
+# Every check on a branch, so the heavy suites run here instead of on the development PC: lint, format, types, all
+# tests, the API and web builds, the dependency audit and every browser test (no scoping). The push gate (ci.yml) runs
+# only the browser specs of the changed area (ADR-372), so this run is the one that sees all of them together: every
+# day on main, and by hand on any pushed branch.
 # Start it: gh workflow run full.yml --ref <branch>
+# Cost: about 30 minutes a run (checks 11, browser suite 16, builds and install), so about 900 minutes a month for the
+# daily run (30 runs). Free on this public repository; on a private one it would be metered, so change the cron to
+# weekly then.
 on:
+  schedule:
+    # 01:17 UTC, 04:17 in Riyadh, off the hour on purpose (GitHub delays runs queued on the hour).
+    - cron: "17 1 * * *"
   workflow_dispatch:
 
 concurrency:
