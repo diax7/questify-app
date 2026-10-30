@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { ForgotPasswordForm } from "#src/components/ForgotPasswordForm.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 /** Asks for a password reset link (T-020). Open to anyone; the answer never says whether the email has an account. */
 export default async function ForgotPasswordPage({
@@ -13,11 +12,8 @@ export default async function ForgotPasswordPage({
     notFound();
   }
   return (
-    <>
-      <TopBar language={lang} path="/forgot-password" />
-      <main className={styles.page}>
-        <ForgotPasswordForm language={lang} />
-      </main>
-    </>
+    <AppShell language={lang} path="/forgot-password" signedIn={false} narrow>
+      <ForgotPasswordForm language={lang} />
+    </AppShell>
   );
 }

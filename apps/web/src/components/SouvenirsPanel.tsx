@@ -7,7 +7,10 @@ import { SouvenirCard } from "#src/components/SouvenirCard.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { souvenirConfirmation } from "#src/lib/souvenir-copy.ts";
 import { useSouvenirs, type SouvenirModel, type SouvenirProps } from "#src/lib/use-souvenirs.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack, Toolbar } from "#src/ui/Section.tsx";
 
 type Edit = { id: string | null; body: SouvenirBody };
 type Choice = { rule: SouvenirRule; action: "activate" | "stop" };
@@ -106,27 +109,31 @@ function SouvenirContents({
   const t = useTranslator(props.language);
   const base = `/${props.language}/organizers/${props.organizerId}/events/${props.eventId}`;
   if (model.list === null)
-    return model.problem === null ? <p role="status">{t("common.loading")}</p> : null;
+    return model.problem === null ? <Muted role="status">{t("common.loading")}</Muted> : null;
   const list = model.list;
   return (
     <>
-      {list.archived ? <p>{t("souvenir.closed")}</p> : null}
-      <p role="status">
+      {list.archived ? <Notice tone="info">{t("souvenir.closed")}</Notice> : null}
+      <Muted role="status">
         {t(list.due > 0 || list.scanning > 0 ? "souvenir.pending" : "souvenir.complete")}
-      </p>
-      {list.failed > 0 ? <p role="alert">{t("souvenir.failed")}</p> : null}
+      </Muted>
+      {list.failed > 0 ? (
+        <Notice tone="danger" role="alert">
+          {t("souvenir.failed")}
+        </Notice>
+      ) : null}
       {list.archived ? null : (
-        <button
-          className={styles.quiet}
+        <Button
+          variant="quiet"
           disabled={model.busy}
           onClick={() => {
             void model.mutate("POST", "/process");
           }}
         >
           {t("souvenir.process")}
-        </button>
+        </Button>
       )}
-      {list.rules.length === 0 ? <p>{t("souvenir.empty")}</p> : null}
+      {list.rules.length === 0 ? <EmptyState>{t("souvenir.empty")}</EmptyState> : null}
       {list.rules.map((rule) => (
         <SouvenirCard
           key={rule.id}
@@ -154,37 +161,37 @@ export function SouvenirsPanel(props: SouvenirProps) {
   const [choice, choose] = useState<Choice | null>(null);
   return (
     <>
-      <section inert={choice !== null} className={styles.stack}>
-        <h1 className={styles.title}>{t("souvenir.title")}</h1>
+      <Stack as="section" aria-labelledby="souvenirs-title">
+        <PageHeader titleId="souvenirs-title" title={t("souvenir.title")} />
         {model.problem === null ? null : (
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {model.problem}
-          </p>
+          </Notice>
         )}
-        <div className={styles.actions}>
-          <button
-            className={styles.quiet}
+        <Toolbar>
+          <Button
+            variant="quiet"
             onClick={() => {
               void model.load();
             }}
           >
             {t("souvenir.refresh")}
-          </button>
+          </Button>
           {model.list?.archived === false ? (
-            <button
-              className={styles.button}
+            <Button
+              variant="primary"
               disabled={model.busy}
               onClick={() => setEdit({ id: null, body: EMPTY_SOUVENIR })}
             >
               {t("souvenir.add")}
-            </button>
+            </Button>
           ) : null}
-        </div>
+        </Toolbar>
         <SouvenirContents model={model} props={props} setEdit={setEdit} choose={choose} />
         {edit === null || model.list?.archived !== false ? null : (
           <Editor edit={edit} model={model} language={props.language} close={() => setEdit(null)} />
         )}
-      </section>
+      </Stack>
       {choice === null ? null : (
         <SouvenirDialog
           choice={choice}

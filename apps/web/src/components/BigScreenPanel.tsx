@@ -17,7 +17,11 @@ import {
 } from "#src/lib/big-screen.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button, ButtonLink } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -38,41 +42,36 @@ function SceneList({
   const t = useTranslator(language);
   const name = (scene: Scene) => t(`bigScreen.scene.${scene}`);
   return (
-    <ol className={styles.list}>
+    <CardList>
       {rows.map((row, index) => (
-        <li key={row.scene} className={styles.formCard}>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={row.on}
-              disabled={busy}
-              onChange={() => change(toggleRow(rows, row.scene))}
-            />
-            <span>{name(row.scene)}</span>
-          </label>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.quiet}
+        <Card as="li" key={row.scene}>
+          <Checkbox
+            checked={row.on}
+            disabled={busy}
+            onChange={() => change(toggleRow(rows, row.scene))}
+            label={name(row.scene)}
+          />
+          <Toolbar>
+            <Button
+              variant="quiet"
               disabled={busy || index === 0}
               aria-label={t("bigScreen.up", { scene: name(row.scene) })}
               onClick={() => change(moveRow(rows, index, -1))}
             >
               ↑
-            </button>
-            <button
-              type="button"
-              className={styles.quiet}
+            </Button>
+            <Button
+              variant="quiet"
               disabled={busy || index === rows.length - 1}
               aria-label={t("bigScreen.down", { scene: name(row.scene) })}
               onClick={() => change(moveRow(rows, index, 1))}
             >
               ↓
-            </button>
-          </div>
-        </li>
+            </Button>
+          </Toolbar>
+        </Card>
       ))}
-    </ol>
+    </CardList>
   );
 }
 
@@ -121,20 +120,17 @@ function SceneEditor({
   const locked = busy || !plan.enabled;
   return (
     <>
-      {plan.enabled ? null : <p className={styles.alert}>{t("bigScreen.off")}</p>}
-      {plan.offered.length === SCENES.length ? null : (
-        <p className={styles.muted}>{t("bigScreen.rankingOff")}</p>
-      )}
-      <h2 className={styles.subtitle}>{t("bigScreen.scenes")}</h2>
-      <SceneList language={language} rows={rows} busy={locked} change={change} />
-      {scenesToSave(rows).length === 0 ? (
-        <p className={styles.muted}>{t("bigScreen.none")}</p>
-      ) : null}
-      <div className={styles.actions}>
-        <button type="button" className={styles.button} disabled={locked} onClick={save}>
-          {t("bigScreen.save")}
-        </button>
-      </div>
+      {plan.enabled ? null : <Notice tone="danger">{t("bigScreen.off")}</Notice>}
+      {plan.offered.length === SCENES.length ? null : <Muted>{t("bigScreen.rankingOff")}</Muted>}
+      <Section title={t("bigScreen.scenes")}>
+        <SceneList language={language} rows={rows} busy={locked} change={change} />
+        {scenesToSave(rows).length === 0 ? <Muted>{t("bigScreen.none")}</Muted> : null}
+        <Toolbar>
+          <Button variant="primary" disabled={locked} onClick={save}>
+            {t("bigScreen.save")}
+          </Button>
+        </Toolbar>
+      </Section>
     </>
   );
 }
@@ -169,16 +165,17 @@ export function BigScreenPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="big-screen-title">
-      <h1 id="big-screen-title" className={styles.title}>
-        {t("bigScreen.title")}
-      </h1>
-      <p className={styles.muted}>{t("bigScreen.intro")}</p>
-      <p className={styles.muted}>
-        <a href={`/${language}/organizers/${organizerId}/events/${eventId}/devices`}>
-          {t("devices.link")}
-        </a>
-      </p>
+    <Stack as="section" aria-labelledby="big-screen-title">
+      <PageHeader
+        titleId="big-screen-title"
+        title={t("bigScreen.title")}
+        description={t("bigScreen.intro")}
+        actions={
+          <ButtonLink href={`/${language}/organizers/${organizerId}/events/${eventId}/devices`}>
+            {t("devices.link")}
+          </ButtonLink>
+        }
+      />
       <Notes
         problem={problem}
         notice={notice}
@@ -195,6 +192,6 @@ export function BigScreenPanel({ language, organizerId, eventId }: Props) {
           save={() => void save()}
         />
       )}
-    </section>
+    </Stack>
   );
 }

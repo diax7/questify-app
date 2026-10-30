@@ -7,7 +7,10 @@ import { PasswordInput } from "#src/components/PasswordInput.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Form } from "#src/ui/Field.tsx";
+import { Section } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -52,16 +55,13 @@ export function ChangePasswordForm({
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="change-title">
-      <h2 id="change-title" className={styles.subtitle}>
-        {t("staff.changePassword")}
-      </h2>
+    <Section title={t("staff.changePassword")} titleId="change-title">
       {changed ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("staff.passwordChanged")}
-        </p>
+        </Notice>
       ) : null}
-      <form className={styles.form} onSubmit={(event) => void submit(event)}>
+      <Form onSubmit={(event) => void submit(event)}>
         {/* Lets a password manager file the new password under the right account. */}
         <input type="text" name="username" autoComplete="username" value={email} readOnly hidden />
         <PasswordInput
@@ -78,14 +78,14 @@ export function ChangePasswordForm({
           problemId={problem === null ? undefined : "change-problem"}
         />
         {problem === null ? null : (
-          <p id="change-problem" role="alert" className={styles.alert}>
+          <Notice id="change-problem" tone="danger" role="alert">
             {problem}
-          </p>
+          </Notice>
         )}
-        <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+        <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
           {t("staff.savePassword")}
-        </button>
-      </form>
-    </section>
+        </Button>
+      </Form>
+    </Section>
   );
 }

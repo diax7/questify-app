@@ -24,7 +24,11 @@ import {
   type Results,
 } from "#src/lib/prizes.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Input } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -44,31 +48,27 @@ function PlaceRow({
   const t = translatorFor(language);
   const status = place.prizeStatus === null ? null : prizeStatusKey(place.prizeStatus);
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong>{t("results.place", { rank: formatNumber(place.rank, language) })}</strong>
         <span dir="auto">{handleOf(place.player.username, language)}</span>
-        <span className={styles.muted}>
+        <Muted as="span">
           {t("results.points", { points: formatNumber(place.score, language) })}
-        </span>
+        </Muted>
         {place.openFlags > 0 ? (
-          <span className={styles.badge}>
-            {t("results.flags", { count: formatNumber(place.openFlags, language) })}
-          </span>
+          <Badge>{t("results.flags", { count: formatNumber(place.openFlags, language) })}</Badge>
         ) : null}
-      </p>
+      </Toolbar>
       {place.prize === null ? null : (
         <p dir="auto">
           {t("results.prize", { prize: named(place.prize.name, language) })}
-          {status === null ? null : <span className={styles.badge}> {t(status)}</span>}
+          {status === null ? null : <Badge> {t(status)}</Badge>}
         </p>
       )}
       {place.openFlags > 0 ? (
-        <a className={styles.textLink} href={flagsPage}>
-          {t("results.reviewFlags")}
-        </a>
+        <TextLink href={flagsPage}>{t("results.reviewFlags")}</TextLink>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -83,7 +83,7 @@ function StateLine({
     iso === null ? "" : formatEventTime(new Date(iso), timeZone, language);
   switch (results.state) {
     case "not_ended":
-      return <p className={styles.muted}>{t("results.notEnded")}</p>;
+      return <Muted>{t("results.notEnded")}</Muted>;
     case "open":
       return <p>{t("results.open")}</p>;
     case "confirmed":
@@ -108,17 +108,14 @@ function DeadlineField({
 }: Readonly<{ language: Language; value: string; change: (local: string) => void }>) {
   const t = translatorFor(language);
   return (
-    <label className={styles.field}>
-      <span>{t("results.deadline")}</span>
-      <input
-        className={styles.input}
+    <Field label={t("results.deadline")} help={t("results.deadlineHint")}>
+      <Input
         type="datetime-local"
         dir="ltr"
         value={value}
         onChange={(e) => change(e.target.value)}
       />
-      <span className={styles.muted}>{t("results.deadlineHint")}</span>
-    </label>
+    </Field>
   );
 }
 
@@ -213,7 +210,7 @@ function StepControls({
     setAsking(false);
   };
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       {asking ? (
         <ConfirmDialog
           language={language}
@@ -227,15 +224,14 @@ function StepControls({
         />
       ) : null}
       {confirming ? null : <DeadlineField language={language} value={local} change={setDeadline} />}
-      <button
-        type="button"
-        className={styles.button}
+      <Button
+        variant="primary"
         disabled={!confirming && claim === null}
         onClick={() => setAsking(true)}
       >
         {t(confirming ? "results.confirm" : "results.reveal")}
-      </button>
-    </div>
+      </Button>
+    </FieldGroup>
   );
 }
 
@@ -275,15 +271,15 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
     setPaying(!paid);
   };
   return (
-    <section className={styles.panel} aria-labelledby="results-title">
-      <h2 id="results-title" className={styles.title}>
-        {t("results.title")}
-      </h2>
-      <p className={styles.muted}>{t("souvenir.resultsDepth")}</p>
+    <Section
+      title={t("results.title")}
+      titleId="results-title"
+      description={t("souvenir.resultsDepth")}
+    >
       <StateLine results={results} language={language} timeZone={timeZone} />
       <Notes problem={problem} notice={notice} loading={false} language={language} />
-      {results.places.length === 0 ? <p className={styles.muted}>{t("results.empty")}</p> : null}
-      <ol className={styles.list}>
+      {results.places.length === 0 ? <Muted>{t("results.empty")}</Muted> : null}
+      <CardList>
         {results.places.map((place) => (
           <PlaceRow
             key={place.enrollmentId}
@@ -292,7 +288,7 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
             flagsPage={`/${language}/organizers/${organizerId}/events/${eventId}/flags`}
           />
         ))}
-      </ol>
+      </CardList>
       {paying && owner ? (
         <CommunitySettle language={language} eventApi={eventApi} done={settled} failed={failed} />
       ) : null}
@@ -306,9 +302,7 @@ export function ResultsPanel({ language, organizerId, eventId, timeZone, owner }
           send={send}
         />
       )}
-      {owner || results.state === "revealed" ? null : (
-        <p className={styles.muted}>{t("results.ownerOnly")}</p>
-      )}
-    </section>
+      {owner || results.state === "revealed" ? null : <Muted>{t("results.ownerOnly")}</Muted>}
+    </Section>
   );
 }

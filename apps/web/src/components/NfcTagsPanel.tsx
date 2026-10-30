@@ -8,7 +8,10 @@ import { tagsOf, type TagLine } from "#src/lib/nfc-tags.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type Bilingual } from "#src/lib/quests.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Field, Select } from "#src/ui/Field.tsx";
+import { Button } from "#src/ui/Button.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -48,30 +51,28 @@ function TagCard({
   const count = (n: number) => formatNumber(n, language);
   const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   return (
-    <li className={styles.card}>
+    <Card as="li">
       <strong>{tag.label === "" ? t("tags.unnamed") : tag.label}</strong>
-      {tag.locked ? <span className={styles.badge}>{t("tags.locked")}</span> : null}
-      {tag.status === "revoked" ? <span className={styles.badge}>{t("tags.revoked")}</span> : null}
+      {tag.locked ? <Badge>{t("tags.locked")}</Badge> : null}
+      {tag.status === "revoked" ? <Badge>{t("tags.revoked")}</Badge> : null}
       {tag.writtenBy === null ? null : (
-        <span className={styles.muted}>{t("tags.writtenBy", { name: tag.writtenBy })}</span>
+        <Muted as="span">{t("tags.writtenBy", { name: tag.writtenBy })}</Muted>
       )}
-      <span className={styles.muted}>{time(tag.writtenAt)}</span>
+      <Muted as="span">{time(tag.writtenAt)}</Muted>
       <span>{t("tags.taps", { count: count(tag.taps) })}</span>
       {tag.copies > 0 ? <strong>{t("tags.copies", { count: count(tag.copies) })}</strong> : null}
       {tag.unchecked > 0 ? (
         <span>{t("tags.unchecked", { count: count(tag.unchecked) })}</span>
       ) : null}
       {tag.lastTapAt === null ? null : (
-        <span className={styles.muted}>{t("tags.lastTap", { at: time(tag.lastTapAt) })}</span>
+        <Muted as="span">{t("tags.lastTap", { at: time(tag.lastTapAt) })}</Muted>
       )}
       {readOnly || tag.status === "revoked" ? null : (
-        <div className={styles.actions}>
+        <Toolbar>
           {targets.length === 0 ? null : (
             <>
-              <label className={styles.field}>
-                {t("tags.moveTo")}
-                <select
-                  className={styles.input}
+              <Field label={t("tags.moveTo")}>
+                <Select
                   value={target}
                   disabled={busy}
                   onChange={(event) => setTarget(event.target.value)}
@@ -82,24 +83,23 @@ function TagCard({
                       {textFor(quest.title, language)}
                     </option>
                   ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className={styles.button}
+                </Select>
+              </Field>
+              <Button
+                variant="primary"
                 disabled={busy || target === ""}
                 onClick={() => move(target)}
               >
                 {t("tags.move")}
-              </button>
+              </Button>
             </>
           )}
-          <button type="button" className={styles.button} disabled={busy} onClick={revoke}>
+          <Button variant="primary" disabled={busy} onClick={revoke}>
             {t("tags.revoke")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -158,17 +158,15 @@ export function NfcTagsPanel({
     return null;
   }
   return (
-    <section className={styles.panel} aria-labelledby={`tags-${questId}`}>
-      <h3 id={`tags-${questId}`} className={styles.subtitle}>
-        {t("tags.title")}
-      </h3>
-      <p className={styles.muted}>{t("tags.basicNote")}</p>
-      <p className={styles.muted}>{t("tags.qrNote")}</p>
+    <Stack as="section" aria-labelledby={`tags-${questId}`}>
+      <SubHeading id={`tags-${questId}`}>{t("tags.title")}</SubHeading>
+      <Muted>{t("tags.basicNote")}</Muted>
+      <Muted>{t("tags.qrNote")}</Muted>
       {problem === null ? null : <p role="alert">{problem}</p>}
       {tags === null ? null : tags.length === 0 ? (
-        <p className={styles.muted}>{t("tags.empty")}</p>
+        <Muted>{t("tags.empty")}</Muted>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {tags.map((tag) => (
             <TagCard
               key={tag.id}
@@ -182,7 +180,7 @@ export function NfcTagsPanel({
               revoke={() => void act(`/nfc-tags/${tag.id}/revoke`)}
             />
           ))}
-        </ul>
+        </CardList>
       )}
       {readOnly || !active ? null : confirming ? (
         <ConfirmDialog
@@ -196,15 +194,10 @@ export function NfcTagsPanel({
           confirm={() => void act(`/quests/${questId}/nfc-tags/revoke-all`)}
         />
       ) : (
-        <button
-          type="button"
-          className={styles.button}
-          disabled={busy}
-          onClick={() => setConfirming(true)}
-        >
+        <Button variant="primary" disabled={busy} onClick={() => setConfirming(true)}>
           {t("tags.revokeAll")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Stack>
   );
 }

@@ -5,7 +5,10 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { SouvenirPreview } from "#src/components/SouvenirPreview.tsx";
 import { souvenirAudienceCopy } from "#src/lib/souvenir-copy.ts";
 import type { Translate } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Toolbar } from "#src/ui/Section.tsx";
 
 export const EMPTY_SOUVENIR: SouvenirBody = {
   kind: "frame",
@@ -31,10 +34,8 @@ type Props = {
 function KindFields({ body, editing, change, t }: Fields & { editing: boolean }) {
   return (
     <>
-      <label className={styles.field}>
-        <span>{t("souvenir.kind")}</span>
-        <select
-          className={styles.input}
+      <Field label={t("souvenir.kind")}>
+        <Select
           disabled={editing}
           value={body.kind}
           onChange={(e) => {
@@ -48,26 +49,22 @@ function KindFields({ body, editing, change, t }: Fields & { editing: boolean })
           <option value="frame">{t("souvenir.frame")}</option>
           <option value="title">{t("souvenir.titleKind")}</option>
           <option value="character">{t("souvenir.character")}</option>
-        </select>
-      </label>
+        </Select>
+      </Field>
       {(["ar", "en"] as const).map((lang) => (
-        <label className={styles.field} key={lang}>
-          <span>{t(lang === "ar" ? "souvenir.nameAr" : "souvenir.nameEn")}</span>
-          <input
-            className={styles.input}
+        <Field label={t(lang === "ar" ? "souvenir.nameAr" : "souvenir.nameEn")}>
+          <Input
             required
             maxLength={60}
             dir={lang === "ar" ? "rtl" : "ltr"}
             value={body.name[lang]}
             onChange={(e) => change({ name: { ...body.name, [lang]: e.target.value } })}
           />
-        </label>
+        </Field>
       ))}
       {body.kind === "frame" ? (
-        <label className={styles.field}>
-          <span>{t("souvenir.visual")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("souvenir.visual")}>
+          <Select
             value={body.visualKey ?? "frame-01"}
             onChange={(e) => change({ visualKey: e.target.value })}
           >
@@ -76,8 +73,8 @@ function KindFields({ body, editing, change, t }: Fields & { editing: boolean })
                 {i + 1}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       ) : null}
     </>
   );
@@ -86,10 +83,8 @@ function KindFields({ body, editing, change, t }: Fields & { editing: boolean })
 function AudienceFields({ body, change, t, categories }: Fields & { categories: Choice[] }) {
   return (
     <>
-      <label className={styles.field}>
-        <span>{t("souvenir.audience")}</span>
-        <select
-          className={styles.input}
+      <Field label={t("souvenir.audience")}>
+        <Select
           value={body.audience}
           onChange={(e) => {
             const audience = e.target.value as SouvenirBody["audience"];
@@ -106,13 +101,11 @@ function AudienceFields({ body, change, t, categories }: Fields & { categories: 
               {t(`souvenir.${audience}`)}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {body.audience === "category" ? (
-        <label className={styles.field}>
-          <span>{t("souvenir.categoryLabel")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("souvenir.categoryLabel")}>
+          <Select
             value={body.categoryId ?? ""}
             onChange={(e) => change({ categoryId: e.target.value })}
           >
@@ -121,15 +114,13 @@ function AudienceFields({ body, change, t, categories }: Fields & { categories: 
                 {category.name}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       ) : null}
       {body.audience === "rank"
         ? (["rankFrom", "rankTo"] as const).map((field) => (
-            <label className={styles.field} key={field}>
-              <span>{t(`souvenir.${field}`)}</span>
-              <input
-                className={styles.input}
+            <Field label={t(`souvenir.${field}`)}>
+              <Input
                 type="number"
                 min={1}
                 max={100}
@@ -137,7 +128,7 @@ function AudienceFields({ body, change, t, categories }: Fields & { categories: 
                 value={body[field] ?? ""}
                 onChange={(e) => change({ [field]: Number(e.target.value) })}
               />
-            </label>
+            </Field>
           ))
         : null}
     </>
@@ -161,8 +152,8 @@ export function SouvenirForm({
     setInvalid(false);
   };
   return (
-    <form
-      className={styles.card}
+    <Form
+      card
       onSubmit={(event) => {
         event.preventDefault();
         const parsed = souvenirBodySchema.safeParse(body);
@@ -170,26 +161,30 @@ export function SouvenirForm({
         else save(parsed.data);
       }}
     >
-      <fieldset disabled={busy} className={styles.stack}>
+      <FieldGroup disabled={busy}>
         <KindFields body={body} editing={editing} change={change} t={t} />
-        <p className={styles.muted}>{t("souvenir.publicName")}</p>
+        <Muted>{t("souvenir.publicName")}</Muted>
         <SouvenirPreview
           item={{ id: "preview", kind: body.kind, name: body.name, visualKey: body.visualKey }}
           language={language}
         />
         <AudienceFields body={body} change={change} t={t} categories={categories} />
-        <p className={styles.muted}>{souvenirAudienceCopy(t, body)}</p>
-        <p className={styles.muted}>{t("souvenir.eligibility")}</p>
-        {invalid ? <p role="alert">{t("souvenir.invalid")}</p> : null}
-        <div className={styles.actions}>
-          <button className={styles.quiet} type="button" onClick={cancel}>
+        <Muted>{souvenirAudienceCopy(t, body)}</Muted>
+        <Muted>{t("souvenir.eligibility")}</Muted>
+        {invalid ? (
+          <Notice tone="danger" role="alert">
+            {t("souvenir.invalid")}
+          </Notice>
+        ) : null}
+        <Toolbar>
+          <Button variant="quiet" onClick={cancel}>
             {t("common.cancel")}
-          </button>
-          <button className={styles.button} type="submit">
+          </Button>
+          <Button variant="primary" type="submit">
             {t("souvenir.save")}
-          </button>
-        </div>
-      </fieldset>
-    </form>
+          </Button>
+        </Toolbar>
+      </FieldGroup>
+    </Form>
   );
 }

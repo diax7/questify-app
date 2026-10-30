@@ -17,7 +17,10 @@ import {
   blankAnnouncement,
 } from "#src/lib/announcements.ts";
 import type { Translate } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice, Muted } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Section } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -99,31 +102,29 @@ function AnnouncementWhen({
 }>) {
   const t = useTranslator(language);
   return (
-    <>
-      <label className={styles.field}>
-        {t("announcements.page.when")}
-        <select
+    <FieldGroup layout="columns">
+      <Field label={t("announcements.page.when")}>
+        <Select
           disabled={disabled}
           value={later ? "later" : "now"}
           onChange={(event) => changeLater(event.target.value === "later")}
         >
           <option value="now">{t("announcements.page.now")}</option>
           <option value="later">{t("announcements.page.later")}</option>
-        </select>
-      </label>
+        </Select>
+      </Field>
       {later ? (
-        <label className={styles.field}>
-          {t("announcements.page.sendAt")} ({zone})
-          <input
+        <Field label={`${t("announcements.page.sendAt")} (${zone})`}>
+          <Input
             type="datetime-local"
             required
             value={local}
             disabled={disabled}
             onChange={(event) => changeLocal(event.target.value)}
           />
-        </label>
+        </Field>
       ) : null}
-    </>
+    </FieldGroup>
   );
 }
 
@@ -136,33 +137,39 @@ export function AnnouncementComposer(props: Props) {
   const payload = announcementPayload(draft, later, local, zone);
   const problem = draftProblem(draft, language, t);
   return (
-    <form
-      className={styles.formCard}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (payload !== null) props.confirm(confirmationOf(props, payload, t));
-      }}
-    >
-      <h2>{t("announcements.page.new")}</h2>
-      <AnnouncementFields language={language} draft={draft} disabled={disabled} change={setDraft} />
-      {problem === null ? null : <p>{problem}</p>}
-      <AnnouncementWhen
-        language={language}
-        zone={zone}
-        later={later}
-        local={local}
-        disabled={disabled}
-        changeLater={setLater}
-        changeLocal={setLocal}
-      />
-      <p>{audienceLine(audience, later, language, t)}</p>
-      <AnnouncementPreview language={language} draft={draft} />
-      <button
-        className={styles.button}
-        disabled={disabled || payload === null || (!later && audience.members === 0)}
+    <Section title={t("announcements.page.new")}>
+      <Form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (payload !== null) props.confirm(confirmationOf(props, payload, t));
+        }}
       >
-        {t(later ? "announcements.page.schedule" : "announcements.page.send")}
-      </button>
-    </form>
+        <AnnouncementFields
+          language={language}
+          draft={draft}
+          disabled={disabled}
+          change={setDraft}
+        />
+        {problem === null ? null : <Notice tone="warning">{problem}</Notice>}
+        <AnnouncementWhen
+          language={language}
+          zone={zone}
+          later={later}
+          local={local}
+          disabled={disabled}
+          changeLater={setLater}
+          changeLocal={setLocal}
+        />
+        <Muted>{audienceLine(audience, later, language, t)}</Muted>
+        <AnnouncementPreview language={language} draft={draft} />
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={disabled || payload === null || (!later && audience.members === 0)}
+        >
+          {t(later ? "announcements.page.schedule" : "announcements.page.send")}
+        </Button>
+      </Form>
+    </Section>
   );
 }

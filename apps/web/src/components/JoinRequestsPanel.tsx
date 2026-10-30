@@ -7,7 +7,9 @@ import { acceptAllInCalls } from "#src/lib/accept-all.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Notice } from "#src/ui/Feedback.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 
 type JoinRequest = Readonly<{
   enrollmentId: string;
@@ -78,34 +80,32 @@ function RequestItem({ request, t, busy, act }: ItemProps) {
         ? "requests.waitlist"
         : "requests.asked";
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">@{request.username}</strong>
-        <span className={styles.badge}>{t(badge)}</span>
-      </p>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.button}
+        <Badge>{t(badge)}</Badge>
+      </Toolbar>
+      <Toolbar>
+        <Button
+          variant="primary"
           disabled={busy}
           aria-label={`${t("requests.accept")} @${request.username}`}
           onClick={() => act(`${request.enrollmentId}/accept`)}
         >
           {t("requests.accept")}
-        </button>
+        </Button>
         {request.status === "pending" ? (
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
             disabled={busy}
             aria-label={`${t("requests.decline")} @${request.username}`}
             onClick={() => act(`${request.enrollmentId}/decline`)}
           >
             {t("requests.decline")}
-          </button>
+          </Button>
         ) : null}
-      </div>
-    </li>
+      </Toolbar>
+    </Card>
   );
 }
 
@@ -117,14 +117,14 @@ function Messages({
   return (
     <>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
     </>
   );
@@ -250,13 +250,11 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
     return null;
   }
   return (
-    <section className={styles.panel} aria-labelledby="requests-title">
-      <h2 id="requests-title" className={styles.title}>
-        {t("requests.title")}
-      </h2>
-      <p className={styles.muted}>
-        {t("requests.count", { count: formatNumber(queue.pending, language) })}
-      </p>
+    <Section
+      title={t("requests.title")}
+      titleId="requests-title"
+      description={t("requests.count", { count: formatNumber(queue.pending, language) })}
+    >
       <Messages problem={problem} notice={notice} />
       {askAll ? (
         <ConfirmDialog
@@ -270,18 +268,13 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
           confirm={acceptAll}
         />
       ) : queue.pending > 0 ? (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.button}
-            disabled={busy}
-            onClick={() => setAskAll(true)}
-          >
+        <Toolbar>
+          <Button variant="primary" disabled={busy} onClick={() => setAskAll(true)}>
             {t("requests.acceptAll")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       ) : null}
-      <ul className={styles.list} inert={askAll}>
+      <CardList>
         {requests.map((request) => (
           <RequestItem
             key={request.enrollmentId}
@@ -291,12 +284,12 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
             act={(path) => void act(path)}
           />
         ))}
-      </ul>
+      </CardList>
       {queue.more === null ? null : (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={queue.more}>
+        <Button variant="quiet" disabled={busy} onClick={queue.more}>
           {t("players.more")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Section>
   );
 }

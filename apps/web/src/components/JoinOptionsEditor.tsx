@@ -4,7 +4,10 @@ import { formatNumber, type Language } from "@questify/shared";
 import { useRef } from "react";
 import { JOIN_OPTION_MAX, JOIN_OPTION_MIN, type OptionDraft } from "#src/lib/joining.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input } from "#src/ui/Field.tsx";
+import { Card, CardList, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -32,68 +35,59 @@ export function JoinOptionsEditor({ language, fieldName, options, busy, change }
     change(list.map((option, at) => (at === index ? { ...option, ...patch } : option)));
 
   return (
-    <fieldset className={styles.form}>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={options !== null}
-          disabled={busy}
-          onChange={(ticked) => change(ticked.target.checked ? [fresh(), fresh()] : null)}
-        />
-        <span>{t("joinFields.choice")}</span>
-      </label>
+    <FieldGroup>
+      <Checkbox
+        checked={options !== null}
+        disabled={busy}
+        onChange={(ticked) => change(ticked.target.checked ? [fresh(), fresh()] : null)}
+        label={t("joinFields.choice")}
+      />
       {options === null ? null : (
         <>
-          <p className={styles.muted}>
+          <Muted>
             {t("joinFields.choiceHint", {
               min: formatNumber(JOIN_OPTION_MIN, language),
               max: formatNumber(JOIN_OPTION_MAX, language),
             })}
-          </p>
-          <ol className={styles.list}>
+          </Muted>
+          <CardList>
             {list.map((option, index) => (
-              <li key={option.key} className={styles.row}>
-                {(["ar", "en"] as const).map((side) => (
-                  <label key={side} className={styles.field}>
-                    <span>
-                      {t(side === "ar" ? "joinFields.optionAr" : "joinFields.optionEn", {
+              <Card as="li" key={option.key}>
+                <Toolbar>
+                  {(["ar", "en"] as const).map((side) => (
+                    <Field
+                      label={t(side === "ar" ? "joinFields.optionAr" : "joinFields.optionEn", {
                         number: formatNumber(index + 1, language),
                       })}
-                    </span>
-                    <input
-                      className={styles.input}
-                      dir={side === "ar" ? "rtl" : "ltr"}
-                      maxLength={60}
-                      value={option[side]}
-                      disabled={busy}
-                      aria-description={fieldName}
-                      onChange={(typed) => set(index, { [side]: typed.target.value })}
-                    />
-                  </label>
-                ))}
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  disabled={busy || list.length <= JOIN_OPTION_MIN}
-                  onClick={() => change(list.filter((_, at) => at !== index))}
-                >
-                  {t("joinFields.removeOption")}
-                </button>
-              </li>
+                    >
+                      <Input
+                        dir={side === "ar" ? "rtl" : "ltr"}
+                        maxLength={60}
+                        value={option[side]}
+                        disabled={busy}
+                        aria-description={fieldName}
+                        onChange={(typed) => set(index, { [side]: typed.target.value })}
+                      />
+                    </Field>
+                  ))}
+                  <Button
+                    variant="quiet"
+                    disabled={busy || list.length <= JOIN_OPTION_MIN}
+                    onClick={() => change(list.filter((_, at) => at !== index))}
+                  >
+                    {t("joinFields.removeOption")}
+                  </Button>
+                </Toolbar>
+              </Card>
             ))}
-          </ol>
+          </CardList>
           {list.length < JOIN_OPTION_MAX ? (
-            <button
-              type="button"
-              className={styles.quiet}
-              disabled={busy}
-              onClick={() => change([...list, fresh()])}
-            >
+            <Button variant="quiet" disabled={busy} onClick={() => change([...list, fresh()])}>
               {t("joinFields.addOption")}
-            </button>
+            </Button>
           ) : null}
         </>
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }

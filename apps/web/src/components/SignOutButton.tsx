@@ -4,8 +4,13 @@ import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Notice } from "#src/ui/Feedback.tsx";
+import styles from "#src/ui/shell.module.css";
 
+/**
+ * Ends the session. Its look comes from the shell (it sits in the top bar and the phone menu); a failure shows as a
+ * notice under the bar, so the dark bar never has to hold a sentence.
+ */
 export function SignOutButton({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
   const [busy, setBusy] = useState(false);
@@ -29,13 +34,15 @@ export function SignOutButton({ language }: Readonly<{ language: Language }>) {
 
   return (
     <>
-      <button type="button" className={styles.quiet} onClick={() => void signOut()} disabled={busy}>
+      <button type="button" onClick={() => void signOut()} disabled={busy}>
         {t("staff.signOut")}
       </button>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
-          {problem}
-        </p>
+        <div className={styles.signOutProblem}>
+          <Notice tone="danger" role="alert">
+            {problem}
+          </Notice>
+        </div>
       )}
     </>
   );

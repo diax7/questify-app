@@ -5,7 +5,12 @@ import { useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 /** Asks for a reset link. The answer is the same for every email, so the page says "if an account uses it". */
 export function ForgotPasswordForm({ language }: Readonly<{ language: Language }>) {
@@ -29,21 +34,17 @@ export function ForgotPasswordForm({ language }: Readonly<{ language: Language }
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="forgot-title">
-      <h1 id="forgot-title" className={styles.title}>
-        {t("staff.forgotTitle")}
-      </h1>
+    <Card as="section" aria-labelledby="forgot-title">
+      <PageHeader titleId="forgot-title" title={t("staff.forgotTitle")} />
       {sent ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {t("staff.linkSent")}
-        </p>
+        </Notice>
       ) : (
-        <form className={styles.form} onSubmit={(event) => void submit(event)}>
-          <p className={styles.muted}>{t("staff.forgotHint")}</p>
-          <label className={styles.field}>
-            <span>{t("staff.email")}</span>
-            <input
-              className={styles.input}
+        <Form onSubmit={(event) => void submit(event)}>
+          <Muted>{t("staff.forgotHint")}</Muted>
+          <Field label={t("staff.email")}>
+            <Input
               name="email"
               type="email"
               dir="ltr"
@@ -52,20 +53,18 @@ export function ForgotPasswordForm({ language }: Readonly<{ language: Language }
               disabled={busy}
               aria-describedby={problem === null ? undefined : "forgot-problem"}
             />
-          </label>
+          </Field>
           {problem === null ? null : (
-            <p id="forgot-problem" role="alert" className={styles.alert}>
+            <Notice id="forgot-problem" tone="danger" role="alert">
               {problem}
-            </p>
+            </Notice>
           )}
-          <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+          <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
             {t("staff.sendLink")}
-          </button>
-        </form>
+          </Button>
+        </Form>
       )}
-      <a className={styles.textLink} href={`/${language}/sign-in`}>
-        {t("staff.backToSignIn")}
-      </a>
-    </section>
+      <TextLink href={`/${language}/sign-in`}>{t("staff.backToSignIn")}</TextLink>
+    </Card>
   );
 }

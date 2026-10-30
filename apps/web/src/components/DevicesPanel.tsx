@@ -18,7 +18,11 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -80,34 +84,30 @@ function DeviceCard({
   const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   const status = statusOf(line);
   return (
-    <li className={styles.formCard}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{line.label}</strong>
-        <span className={styles.badge}>{t(deviceKindKey(line.kind))}</span>
-        <span className={styles.badge}>{t(STATUS_KEYS[status])}</span>
-      </p>
+        <Badge>{t(deviceKindKey(line.kind))}</Badge>
+        <Badge>{t(STATUS_KEYS[status])}</Badge>
+      </Toolbar>
       {line.quest === null ? null : <span dir="auto">{textFor(line.quest, language)}</span>}
-      {line.client === "" ? null : <span className={styles.muted}>{line.client}</span>}
+      {line.client === "" ? null : <Muted as="span">{line.client}</Muted>}
       {line.pairedBy?.name === null || line.pairedBy === null ? null : (
-        <span className={styles.muted} style={{ overflowWrap: "anywhere" }}>
-          {t("devices.pairedBy", { name: line.pairedBy.name })}
-        </span>
+        <Muted as="span">{t("devices.pairedBy", { name: line.pairedBy.name })}</Muted>
       )}
-      <span className={styles.muted}>{t("devices.pairedAt", { time: time(line.pairedAt) })}</span>
-      <span className={styles.muted}>{t("devices.lastSeen", { time: time(line.lastSeenAt) })}</span>
+      <Muted as="span">{t("devices.pairedAt", { time: time(line.pairedAt) })}</Muted>
+      <Muted as="span">{t("devices.lastSeen", { time: time(line.lastSeenAt) })}</Muted>
       {line.scans === null ? null : (
-        <span className={styles.muted}>
-          {t("devices.scans", { count: formatNumber(line.scans, language) })}
-        </span>
+        <Muted as="span">{t("devices.scans", { count: formatNumber(line.scans, language) })}</Muted>
       )}
       {line.status === "revoked" ? null : (
-        <div className={styles.actions}>
-          <button type="button" className={styles.button} disabled={busy} onClick={revoke}>
+        <Toolbar>
+          <Button variant="danger" size="sm" disabled={busy} onClick={revoke}>
             {t("devices.revoke")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -137,60 +137,51 @@ function ConfirmFields({
     confirm(needsQuest ? questId : null, label);
   };
   return (
-    <form className={styles.form} onSubmit={submit}>
-      <p className={styles.row}>
-        <span className={styles.badge}>{t(deviceKindKey(preview.kind))}</span>
+    <Form onSubmit={submit}>
+      <Toolbar>
+        <Badge>{t(deviceKindKey(preview.kind))}</Badge>
         <span>
           {preview.client === ""
             ? t("devices.clientUnknown")
             : t("devices.client", { client: preview.client })}
         </span>
-      </p>
+      </Toolbar>
       {!needsQuest ? null : choices.length === 0 ? (
-        <p className={styles.muted}>
-          {t(preview.kind === "kiosk" ? "devices.noKioskQuests" : "devices.noQuests")}
-        </p>
+        <Muted>{t(preview.kind === "kiosk" ? "devices.noKioskQuests" : "devices.noQuests")}</Muted>
       ) : (
-        <label className={styles.field}>
-          {t("devices.quest")}
-          <select
-            className={styles.input}
-            value={questId}
-            onChange={(event) => setQuestId(event.target.value)}
-          >
+        <Field label={t("devices.quest")}>
+          <Select value={questId} onChange={(event) => setQuestId(event.target.value)}>
             <option value="" />
             {choices.map((quest) => (
               <option key={quest.id} value={quest.id}>
                 {textFor(quest.title, language)}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
-      <label className={styles.field}>
-        {t("devices.label")}
-        <input
-          className={styles.input}
+      <Field label={t("devices.label")}>
+        <Input
           dir="auto"
           maxLength={40}
           placeholder={t("devices.labelHint")}
           value={label}
           onChange={(event) => setLabel(event.target.value)}
         />
-      </label>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={back}>
+      </Field>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={back}>
           {t("common.cancel")}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="primary"
           type="submit"
-          className={styles.button}
           disabled={busy || label.trim() === "" || (needsQuest && questId === "")}
         >
           {t("devices.confirm")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -255,17 +246,12 @@ function PairForm({
   };
 
   return (
-    <section className={styles.formCard} aria-labelledby="pair-device">
-      <h2 id="pair-device" className={styles.subtitle}>
-        {t("devices.pair")}
-      </h2>
+    <Section title={t("devices.pair")} titleId="pair-device">
       <Notes problem={problem} notice={notice} loading={false} language={language} />
       {preview === null ? (
-        <form className={styles.form} onSubmit={(event) => void check(event)}>
-          <label className={styles.field}>
-            {t("devices.code")}
-            <input
-              className={`${styles.input} ${styles.code}`}
+        <Form onSubmit={(event) => void check(event)}>
+          <Field label={t("devices.code")}>
+            <Input
               dir="ltr"
               autoComplete="off"
               autoCapitalize="characters"
@@ -274,11 +260,11 @@ function PairForm({
               value={code}
               onChange={(event) => setCode(event.target.value)}
             />
-          </label>
-          <button type="submit" className={styles.button} disabled={busy || code.trim() === ""}>
+          </Field>
+          <Button variant="primary" type="submit" disabled={busy || code.trim() === ""}>
             {t("devices.check")}
-          </button>
-        </form>
+          </Button>
+        </Form>
       ) : (
         <ConfirmFields
           language={language}
@@ -289,7 +275,7 @@ function PairForm({
           confirm={(questId, label) => void confirm(questId, label)}
         />
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -342,26 +328,16 @@ function RevokeAllButtons({
     return null;
   }
   return (
-    <div className={styles.actions}>
+    <Toolbar>
       {active.some((line) => line.kind === "screen") ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy}
-          onClick={() => ask({ kind: "screens" })}
-        >
+        <Button variant="quiet" disabled={busy} onClick={() => ask({ kind: "screens" })}>
           {t("devices.revokeScreens")}
-        </button>
+        </Button>
       ) : null}
-      <button
-        type="button"
-        className={styles.quiet}
-        disabled={busy}
-        onClick={() => ask({ kind: "all" })}
-      >
+      <Button variant="quiet" disabled={busy} onClick={() => ask({ kind: "all" })}>
         {t("devices.revokeAll")}
-      </button>
-    </div>
+      </Button>
+    </Toolbar>
   );
 }
 
@@ -399,12 +375,13 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="devices-title">
-      <h1 id="devices-title" className={styles.title}>
-        {t("devices.title")}
-      </h1>
-      <p className={styles.muted}>{t("devices.intro")}</p>
-      <p className={styles.muted}>
+    <Stack as="section" aria-labelledby="devices-title">
+      <PageHeader
+        titleId="devices-title"
+        title={t("devices.title")}
+        description={t("devices.intro")}
+      />
+      <Muted>
         {t("devices.pages")}{" "}
         {DEVICE_PAGES.map((kind, index) => (
           <span key={kind}>
@@ -415,7 +392,7 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
             </a>
           </span>
         ))}
-      </p>
+      </Muted>
       <PairForm
         language={language}
         eventApi={eventApi}
@@ -453,9 +430,9 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
         ask={setConfirming}
       />
       {devices === null ? null : devices.length === 0 ? (
-        <p className={styles.muted}>{t("devices.empty")}</p>
+        <EmptyState>{t("devices.empty")}</EmptyState>
       ) : (
-        <ul className={styles.list} inert={confirming !== null}>
+        <CardList>
           {devices.map((line) => (
             <DeviceCard
               key={line.id}
@@ -466,8 +443,8 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
               revoke={() => setConfirming({ kind: "one", line })}
             />
           ))}
-        </ul>
+        </CardList>
       )}
-    </section>
+    </Stack>
   );
 }

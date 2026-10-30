@@ -124,6 +124,7 @@
   border: var(--line);
   border-radius: var(--radius-sm);
   min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 
 .list {
@@ -133,6 +134,45 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+.bullets {
+  margin: 0;
+  padding-inline-start: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--color-text-muted);
+}
+
+.meter {
+  inline-size: 100%;
+  block-size: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+}
+
+.meterFill {
+  block-size: 100%;
+  background: var(--color-primary-action);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(auto, max-content) 1fr;
+  gap: var(--space-xs) var(--space-lg);
+  color: var(--color-text-muted);
+}
+
+.facts dt {
+  font-weight: var(--weight-medium);
+}
+
+.facts dd {
+  margin: 0;
+  min-inline-size: 0;
 }
 
 /* Spacing inside a box comes from its gap, not from paragraph margins. */

@@ -17,7 +17,10 @@ import {
   type QuestItemMiss,
 } from "#src/lib/quest-items.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -75,17 +78,15 @@ function TextField({
   change: (text: string) => void;
 }>) {
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         value={value}
         lang={lang}
         dir={directionOf(lang)}
         maxLength={max}
         onChange={(e) => change(e.target.value)}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -107,8 +108,7 @@ function ItemForm({
 }>) {
   const t = useTranslator(language);
   return (
-    <form
-      className={styles.form}
+    <Form
       aria-label={t("questItems.title")}
       onSubmit={(e) => {
         e.preventDefault();
@@ -143,10 +143,8 @@ function ItemForm({
         max={2000}
         change={(descriptionEn) => set({ descriptionEn })}
       />
-      <label className={styles.field}>
-        <span>{t("questItems.stock")}</span>
-        <input
-          className={styles.input}
+      <Field label={t("questItems.stock")}>
+        <Input
           type="number"
           inputMode="numeric"
           dir="ltr"
@@ -155,16 +153,16 @@ function ItemForm({
           value={draft.stock}
           onChange={(e) => set({ stock: e.target.value })}
         />
-      </label>
-      <div className={styles.actions}>
-        <button type="submit" className={styles.button} disabled={busy}>
+      </Field>
+      <Toolbar>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("questItems.save")}
-        </button>
-        <button type="button" className={styles.quiet} onClick={cancel}>
+        </Button>
+        <Button variant="quiet" onClick={cancel}>
           {t("common.cancel")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -175,18 +173,20 @@ function MissList({
 }: Readonly<{ language: Language; misses: readonly QuestItemMiss[] }>) {
   const t = useTranslator(language);
   if (misses.length === 0) {
-    return <p className={styles.muted}>{t("questItems.noMisses")}</p>;
+    return <Muted>{t("questItems.noMisses")}</Muted>;
   }
   return (
-    <ul className={styles.list}>
+    <CardList>
       {misses.map((miss) => (
-        <li key={`${miss.at}-${miss.username ?? ""}`} className={styles.row}>
-          <span dir="auto">{handleOf(miss.username, language)}</span>
-          <span dir="auto">{named(miss.sourceName, language)}</span>
-          <span className={styles.badge}>{t(MISS_REASON[miss.reason])}</span>
-        </li>
+        <Card as="li" key={`${miss.at}-${miss.username ?? ""}`}>
+          <Toolbar>
+            <span dir="auto">{handleOf(miss.username, language)}</span>
+            <span dir="auto">{named(miss.sourceName, language)}</span>
+            <Badge>{t(MISS_REASON[miss.reason])}</Badge>
+          </Toolbar>
+        </Card>
       ))}
-    </ul>
+    </CardList>
   );
 }
 
@@ -212,8 +212,8 @@ function ItemRow({
   );
   const out = item.stockLeft <= 0 && linked(item);
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{name}</strong>
         <span>
           {t("questItems.left", {
@@ -221,36 +221,34 @@ function ItemRow({
             total: formatNumber(item.stockTotal, language),
           })}
         </span>
-      </p>
-      <p className={styles.muted} dir="auto">
+      </Toolbar>
+      <Muted dir="auto">
         {sources.length === 0
           ? t("questItems.notLinked")
           : t("questItems.givenBy", { names: sources.join("، ") })}
-      </p>
+      </Muted>
       {out ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("questItems.ranOut", { item: name, count: formatNumber(item.missed, language) })}
-        </p>
+        </Notice>
       ) : item.missed > 0 ? (
-        <p className={styles.muted}>
-          {t("questItems.missed", { count: formatNumber(item.missed, language) })}
-        </p>
+        <Muted>{t("questItems.missed", { count: formatNumber(item.missed, language) })}</Muted>
       ) : null}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} onClick={edit}>
+      <Toolbar>
+        <Button variant="quiet" onClick={edit}>
           {t("prizes.edit")}
-        </button>
-        <button type="button" className={styles.quiet} onClick={remove}>
+        </Button>
+        <Button variant="quiet" onClick={remove}>
           {t("prizes.remove")}
-        </button>
+        </Button>
         {item.missed > 0 && misses === undefined ? (
-          <button type="button" className={styles.quiet} onClick={showMisses}>
+          <Button variant="quiet" onClick={showMisses}>
             {t("questItems.seeMisses")}
-          </button>
+          </Button>
         ) : null}
-      </div>
+      </Toolbar>
       {misses === undefined ? null : <MissList language={language} misses={misses} />}
-    </li>
+    </Card>
   );
 }
 
@@ -355,7 +353,11 @@ export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
     }
   };
   return (
-    <section className={styles.panel} aria-labelledby="quest-items-title">
+    <Section
+      title={t("questItems.title")}
+      titleId="quest-items-title"
+      description={t("questItems.intro")}
+    >
       {removing === null ? null : (
         <ConfirmDialog
           language={language}
@@ -368,13 +370,9 @@ export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
           confirm={() => void remove(removing)}
         />
       )}
-      <h2 id="quest-items-title" className={styles.title}>
-        {t("questItems.title")}
-      </h2>
-      <p className={styles.muted}>{t("questItems.intro")}</p>
       <Notes problem={problem} notice={notice} loading={false} language={language} />
-      {items.length === 0 ? <p className={styles.muted}>{t("questItems.empty")}</p> : null}
-      <ul className={styles.list}>
+      {items.length === 0 ? <EmptyState>{t("questItems.empty")}</EmptyState> : null}
+      <CardList>
         {items.map((item) => (
           <ItemRow
             key={item.id}
@@ -386,11 +384,11 @@ export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
             showMisses={() => void showMisses(item)}
           />
         ))}
-      </ul>
+      </CardList>
       {draft === null ? (
-        <button type="button" className={styles.button} onClick={() => setDraft(BLANK)}>
+        <Button variant="primary" onClick={() => setDraft(BLANK)}>
           {t("questItems.add")}
-        </button>
+        </Button>
       ) : (
         <ItemForm
           language={language}
@@ -401,6 +399,6 @@ export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
           cancel={() => setDraft(null)}
         />
       )}
-    </section>
+    </Section>
   );
 }

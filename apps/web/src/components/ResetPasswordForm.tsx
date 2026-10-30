@@ -6,7 +6,11 @@ import { NewPasswordFields, readNewPassword } from "#src/components/NewPasswordF
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button, ButtonLink } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Form } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
 
 const TOKEN_IN_FRAGMENT = /(?:^#|&)token=([A-Za-z0-9_-]{43})(?:&|$)/;
 
@@ -63,48 +67,46 @@ export function ResetPasswordForm({ language }: Readonly<{ language: Language }>
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="reset-title">
-      <h1 id="reset-title" className={styles.title}>
-        {t("staff.newPasswordTitle")}
-      </h1>
+    <Card as="section" aria-labelledby="reset-title">
+      <PageHeader titleId="reset-title" title={t("staff.newPasswordTitle")} />
       {state.kind === "done" ? (
         <>
-          <p role="status" className={styles.notice}>
+          <Notice tone="success" role="status">
             {t("staff.passwordReset")}
-          </p>
-          <a className={styles.button} href={`/${language}/sign-in`}>
+          </Notice>
+          <ButtonLink variant="primary" href={`/${language}/sign-in`}>
             {t("staff.signIn")}
-          </a>
+          </ButtonLink>
         </>
       ) : null}
       {state.kind === "no_link" ? (
         <>
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {state.message ?? t("staff.linkMissing")}
-          </p>
-          <a className={styles.button} href={`/${language}/forgot-password`}>
+          </Notice>
+          <ButtonLink variant="primary" href={`/${language}/forgot-password`}>
             {t("staff.requestNewLink")}
-          </a>
+          </ButtonLink>
         </>
       ) : null}
       {state.kind === "ready" ? (
-        <form className={styles.form} onSubmit={(event) => void submit(event, state.token)}>
+        <Form onSubmit={(event) => void submit(event, state.token)}>
           <NewPasswordFields
             language={language}
             disabled={busy}
             problemId={problem === null ? undefined : "reset-problem"}
           />
           {problem === null ? null : (
-            <p id="reset-problem" role="alert" className={styles.alert}>
+            <Notice id="reset-problem" tone="danger" role="alert">
               {problem}
-            </p>
+            </Notice>
           )}
-          <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+          <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
             {t("staff.savePassword")}
-          </button>
-        </form>
+          </Button>
+        </Form>
       ) : null}
-      {state.kind === "reading" ? <p className={styles.muted}>{t("common.loading")}</p> : null}
-    </section>
+      {state.kind === "reading" ? <Muted>{t("common.loading")}</Muted> : null}
+    </Card>
   );
 }

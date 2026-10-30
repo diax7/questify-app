@@ -12,19 +12,27 @@ export type TabItem = Readonly<{
 
 /**
  * A row of tabs that scrolls sideways on a phone. Link tabs mark the open page with `aria-current`; button tabs mark
- * the shown view with `aria-pressed`, since the panels stay ordinary page content.
+ * the shown view with `aria-pressed`, since the panels stay ordinary page content. With `tablist` the row is a real
+ * tab list (`role="tablist"`, `role="tab"` and `aria-selected`) for tabs that filter one list.
  */
-export function Tabs({ label, items }: Readonly<{ label: string; items: readonly TabItem[] }>) {
+export function Tabs({
+  label,
+  items,
+  tablist = false,
+}: Readonly<{ label: string; items: readonly TabItem[]; tablist?: boolean }>) {
+  const Container = tablist ? "div" : "nav";
   return (
-    <nav className={styles.tabs} aria-label={label}>
+    <Container className={styles.tabs} aria-label={label} {...(tablist ? { role: "tablist" } : {})}>
       {items.map((item) =>
         item.href === undefined ? (
           <button
             key={item.key}
             type="button"
             className={styles.tab}
-            aria-pressed={item.current}
             onClick={item.select}
+            {...(tablist
+              ? { role: "tab", "aria-selected": item.current }
+              : { "aria-pressed": item.current })}
           >
             {item.label}
           </button>
@@ -39,6 +47,6 @@ export function Tabs({ label, items }: Readonly<{ label: string; items: readonly
           </a>
         ),
       )}
-    </nav>
+    </Container>
   );
 }

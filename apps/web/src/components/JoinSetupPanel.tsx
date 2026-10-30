@@ -28,7 +28,11 @@ import { JoinOptionsEditor } from "#src/components/JoinOptionsEditor.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -67,32 +71,29 @@ function RowActions({
 }>) {
   const t = translatorFor(language);
   return (
-    <div className={styles.row}>
-      <button
-        type="button"
-        className={styles.quiet}
+    <Toolbar>
+      <Button
+        variant="quiet"
         disabled={busy || index === 0}
         onClick={() => change(moveDraft(drafts, index, -1))}
       >
         {t("joinFields.up")}
-      </button>
-      <button
-        type="button"
-        className={styles.quiet}
+      </Button>
+      <Button
+        variant="quiet"
         disabled={busy || index === drafts.length - 1}
         onClick={() => change(moveDraft(drafts, index, 1))}
       >
         {t("joinFields.down")}
-      </button>
-      <button
-        type="button"
-        className={styles.quiet}
+      </Button>
+      <Button
+        variant="quiet"
         disabled={busy}
         onClick={() => change(drafts.filter((_, at) => at !== index))}
       >
         {t("joinFields.remove")}
-      </button>
-    </div>
+      </Button>
+    </Toolbar>
   );
 }
 
@@ -114,12 +115,10 @@ function FieldRow({
   const set = (patch: Partial<FieldDraft>) =>
     change(drafts.map((row, at) => (at === index ? { ...row, ...patch } : row)));
   return (
-    <li className={styles.card}>
-      <div className={styles.row}>
-        <label className={styles.field}>
-          <span>{t("joinFields.kind")}</span>
-          <select
-            className={styles.input}
+    <Card as="li">
+      <Toolbar>
+        <Field label={t("joinFields.kind")}>
+          <Select
             value={draft.kind}
             // A saved field keeps its kind: its answers were given to that question.
             disabled={busy || draft.id !== undefined}
@@ -132,34 +131,29 @@ function FieldRow({
                 {t(joinFieldKindKey(kind))}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={draft.required}
-            disabled={busy}
-            onChange={(ticked) => set({ required: ticked.target.checked })}
-          />
-          <span>{t("joinFields.required")}</span>
-        </label>
-      </div>
+          </Select>
+        </Field>
+        <Checkbox
+          checked={draft.required}
+          disabled={busy}
+          onChange={(ticked) => set({ required: ticked.target.checked })}
+          label={t("joinFields.required")}
+        />
+      </Toolbar>
       {draft.kind === "custom" ? (
-        <div className={styles.row}>
+        <Toolbar>
           {(["labelAr", "labelEn"] as const).map((key) => (
-            <label key={key} className={styles.field}>
-              <span>{t(key === "labelAr" ? "joinFields.labelAr" : "joinFields.labelEn")}</span>
-              <input
-                className={styles.input}
+            <Field label={t(key === "labelAr" ? "joinFields.labelAr" : "joinFields.labelEn")}>
+              <Input
                 dir={key === "labelAr" ? "rtl" : "ltr"}
                 maxLength={60}
                 value={draft[key]}
                 disabled={busy}
                 onChange={(typed) => set({ [key]: typed.target.value })}
               />
-            </label>
+            </Field>
           ))}
-        </div>
+        </Toolbar>
       ) : null}
       {draft.kind === "custom" ? (
         <JoinOptionsEditor
@@ -171,7 +165,7 @@ function FieldRow({
         />
       ) : null}
       <RowActions language={language} drafts={drafts} index={index} busy={busy} change={change} />
-    </li>
+    </Card>
   );
 }
 
@@ -183,14 +177,14 @@ function Feedback({
   return (
     <>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
     </>
   );
@@ -213,28 +207,23 @@ function FieldsFooter({
   const t = translatorFor(language);
   if (!confirming) {
     return (
-      <button
-        type="submit"
-        className={styles.button}
-        disabled={busy || incomplete}
-        aria-busy={busy}
-      >
+      <Button variant="primary" type="submit" disabled={busy || incomplete} aria-busy={busy}>
         {t("joinFields.save")}
-      </button>
+      </Button>
     );
   }
   return (
-    <div role="alertdialog" aria-labelledby="remove-fields" className={styles.card}>
+    <Notice tone="warning" as="div" role="alert" labelledBy="remove-fields">
       <p id="remove-fields">{t("joinFields.confirmRemove")}</p>
-      <div className={styles.row}>
-        <button type="submit" className={styles.button} disabled={busy}>
+      <Toolbar>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("joinFields.confirmRemoveYes")}
-        </button>
-        <button type="button" className={styles.quiet} onClick={cancel}>
+        </Button>
+        <Button variant="quiet" onClick={cancel}>
           {t("joinFields.confirmRemoveNo")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Toolbar>
+    </Notice>
   );
 }
 
@@ -256,25 +245,26 @@ function WelcomeField({
 }>) {
   const t = translatorFor(language);
   return (
-    <label className={styles.field}>
-      <span>{t("joinRules.welcome")}</span>
-      <input
-        className={styles.input}
+    <Field
+      label={t("joinRules.welcome")}
+      help={
+        <>
+          {t(setup.welcomeLocked ? "joinRules.welcomeLocked" : "joinRules.welcomeHint")}
+          {setup.rules.welcomePoints === null || !setup.welcomeLocked
+            ? null
+            : ` (${formatNumber(setup.rules.welcomePoints, language)})`}
+        </>
+      }
+    >
+      <Input
         dir="ltr"
         inputMode="numeric"
         value={value}
         disabled={busy || setup.welcomeLocked}
         aria-invalid={invalid}
-        aria-describedby="welcome-hint"
         onChange={(typed) => change(typed.target.value)}
       />
-      <span id="welcome-hint" className={styles.muted}>
-        {t(setup.welcomeLocked ? "joinRules.welcomeLocked" : "joinRules.welcomeHint")}
-        {setup.rules.welcomePoints === null || !setup.welcomeLocked
-          ? null
-          : ` (${formatNumber(setup.rules.welcomePoints, language)})`}
-      </span>
-    </label>
+    </Field>
   );
 }
 
@@ -321,47 +311,44 @@ function FieldsEditor({
   };
 
   return (
-    <form className={styles.form} onSubmit={(event) => void save(event)}>
-      <h2 className={styles.subtitle}>{t("joinFields.title")}</h2>
-      <p className={styles.muted}>{t("joinFields.intro")}</p>
-      {drafts.length === 0 ? <p className={styles.muted}>{t("joinFields.empty")}</p> : null}
-      <ol className={styles.list}>
-        {drafts.map((draft, index) => (
-          <FieldRow
-            key={draft.key}
-            language={language}
-            drafts={drafts}
-            index={index}
-            busy={busy}
-            change={setDrafts}
-          />
-        ))}
-      </ol>
-      {drafts.length < JOIN_FIELD_LIMIT ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={busy}
-          onClick={() => {
-            counter.current += 1;
-            setDrafts([...drafts, newDraft(drafts, `new-${counter.current}`)]);
-          }}
-        >
-          {t("joinFields.add")}
-        </button>
-      ) : null}
-      {setup.fields.length > 0 ? (
-        <p className={styles.muted}>{t("joinFields.removeWarning")}</p>
-      ) : null}
-      <Feedback problem={problem} notice={notice} />
-      <FieldsFooter
-        language={language}
-        busy={busy}
-        confirming={confirming}
-        incomplete={drafts.some((draft) => needsLabel(draft) || needsOptions(draft))}
-        cancel={() => setConfirming(false)}
-      />
-    </form>
+    <Section title={t("joinFields.title")} description={t("joinFields.intro")}>
+      <Form onSubmit={(event) => void save(event)}>
+        {drafts.length === 0 ? <EmptyState>{t("joinFields.empty")}</EmptyState> : null}
+        <CardList>
+          {drafts.map((draft, index) => (
+            <FieldRow
+              key={draft.key}
+              language={language}
+              drafts={drafts}
+              index={index}
+              busy={busy}
+              change={setDrafts}
+            />
+          ))}
+        </CardList>
+        {drafts.length < JOIN_FIELD_LIMIT ? (
+          <Button
+            variant="quiet"
+            disabled={busy}
+            onClick={() => {
+              counter.current += 1;
+              setDrafts([...drafts, newDraft(drafts, `new-${counter.current}`)]);
+            }}
+          >
+            {t("joinFields.add")}
+          </Button>
+        ) : null}
+        {setup.fields.length > 0 ? <Muted>{t("joinFields.removeWarning")}</Muted> : null}
+        <Feedback problem={problem} notice={notice} />
+        <FieldsFooter
+          language={language}
+          busy={busy}
+          confirming={confirming}
+          incomplete={drafts.some((draft) => needsLabel(draft) || needsOptions(draft))}
+          cancel={() => setConfirming(false)}
+        />
+      </Form>
+    </Section>
   );
 }
 
@@ -406,50 +393,42 @@ function RulesEditor({
   };
 
   return (
-    <form className={styles.form} onSubmit={(event) => void save(event)}>
-      <h2 className={styles.subtitle}>{t("joinRules.title")}</h2>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
+    <Section title={t("joinRules.title")}>
+      <Form onSubmit={(event) => void save(event)}>
+        <Checkbox
           checked={guestListOnly}
           disabled={busy}
           onChange={(ticked) => setGuestListOnly(ticked.target.checked)}
+          label={t("joinRules.guestListOnly")}
         />
-        <span>{t("joinRules.guestListOnly")}</span>
-      </label>
-      <label className={styles.field}>
-        <span>{t("joinRules.domains")}</span>
-        <textarea
-          className={styles.input}
-          dir="ltr"
-          rows={3}
-          value={domains}
-          disabled={busy}
-          aria-describedby="domains-hint"
-          onChange={(typed) => setDomains(typed.target.value)}
+        <Field label={t("joinRules.domains")} help={t("joinRules.domainsHint")}>
+          <Textarea
+            dir="ltr"
+            rows={3}
+            value={domains}
+            disabled={busy}
+            onChange={(typed) => setDomains(typed.target.value)}
+          />
+        </Field>
+        <WelcomeField
+          language={language}
+          setup={setup}
+          value={welcome}
+          busy={busy}
+          invalid={amount === "invalid"}
+          change={setWelcome}
         />
-        <span id="domains-hint" className={styles.muted}>
-          {t("joinRules.domainsHint")}
-        </span>
-      </label>
-      <WelcomeField
-        language={language}
-        setup={setup}
-        value={welcome}
-        busy={busy}
-        invalid={amount === "invalid"}
-        change={setWelcome}
-      />
-      <Feedback problem={problem} notice={notice} />
-      <button
-        type="submit"
-        className={styles.button}
-        disabled={busy || amount === "invalid"}
-        aria-busy={busy}
-      >
-        {t("joinRules.save")}
-      </button>
-    </form>
+        <Feedback problem={problem} notice={notice} />
+        <Button
+          variant="primary"
+          type="submit"
+          disabled={busy || amount === "invalid"}
+          aria-busy={busy}
+        >
+          {t("joinRules.save")}
+        </Button>
+      </Form>
+    </Section>
   );
 }
 
@@ -476,17 +455,15 @@ export function JoinSetupPanel({ language, organizerId, eventId }: Props) {
   });
 
   return (
-    <section className={styles.panel} aria-labelledby="joining-title">
-      <h1 id="joining-title" className={styles.title}>
-        {t("joining.title")}
-      </h1>
+    <Stack as="section" aria-labelledby="joining-title">
+      <PageHeader titleId="joining-title" title={t("joining.title")} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {setup === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : (
         <>
           <FieldsEditor
@@ -498,6 +475,6 @@ export function JoinSetupPanel({ language, organizerId, eventId }: Props) {
           <RulesEditor language={language} base={base} setup={setup} />
         </>
       )}
-    </section>
+    </Stack>
   );
 }

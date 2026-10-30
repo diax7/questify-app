@@ -8,7 +8,12 @@ import { NewPasswordFields, readNewPassword } from "#src/components/NewPasswordF
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Step =
   | Readonly<{ kind: "form" }>
@@ -52,7 +57,7 @@ export function SignUpForm({ language }: Readonly<{ language: Language }>) {
 
   if (step.kind === "code") {
     return (
-      <section className={styles.panel} aria-labelledby="sign-in-title">
+      <Card as="section" aria-labelledby="sign-in-title">
         <CodeStep
           language={language}
           email={step.email}
@@ -64,36 +69,26 @@ export function SignUpForm({ language }: Readonly<{ language: Language }>) {
             setStep({ kind: "form" });
           }}
         />
-      </section>
+      </Card>
     );
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="sign-up-title">
-      <form className={styles.form} onSubmit={(event) => void submit(event)}>
-        <h1 id="sign-up-title" className={styles.title}>
-          {t("staff.signUpTitle")}
-        </h1>
-        <label className={styles.field}>
-          <span>{t("staff.organizerName")}</span>
-          <input
-            className={styles.input}
+    <Card as="section" aria-labelledby="sign-up-title">
+      <Form onSubmit={(event) => void submit(event)}>
+        <PageHeader titleId="sign-up-title" title={t("staff.signUpTitle")} />
+        <Field label={t("staff.organizerName")} help={t("staff.organizerNameHint")}>
+          <Input
             name="organizerName"
             autoComplete="organization"
             minLength={2}
             maxLength={80}
             required
             disabled={busy}
-            aria-describedby="organizer-name-hint"
           />
-        </label>
-        <p id="organizer-name-hint" className={styles.muted}>
-          {t("staff.organizerNameHint")}
-        </p>
-        <label className={styles.field}>
-          <span>{t("staff.email")}</span>
-          <input
-            className={styles.input}
+        </Field>
+        <Field label={t("staff.email")}>
+          <Input
             name="email"
             type="email"
             dir="ltr"
@@ -101,7 +96,7 @@ export function SignUpForm({ language }: Readonly<{ language: Language }>) {
             required
             disabled={busy}
           />
-        </label>
+        </Field>
         <NewPasswordFields
           language={language}
           disabled={busy}
@@ -109,17 +104,15 @@ export function SignUpForm({ language }: Readonly<{ language: Language }>) {
         />
         <AcceptanceFields language={language} disabled={busy} />
         {problem === null ? null : (
-          <p id="sign-up-problem" role="alert" className={styles.alert}>
+          <Notice id="sign-up-problem" tone="danger" role="alert">
             {problem}
-          </p>
+          </Notice>
         )}
-        <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+        <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
           {t("staff.createAccount")}
-        </button>
-        <a className={styles.textLink} href={`/${language}/sign-in`}>
-          {t("staff.signInLink")}
-        </a>
-      </form>
-    </section>
+        </Button>
+        <TextLink href={`/${language}/sign-in`}>{t("staff.signInLink")}</TextLink>
+      </Form>
+    </Card>
   );
 }

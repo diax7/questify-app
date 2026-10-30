@@ -12,7 +12,10 @@ import {
   type Language,
 } from "@questify/shared";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Input, Textarea } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 export function AnnouncementFields({
   language,
@@ -27,12 +30,11 @@ export function AnnouncementFields({
 }>) {
   const t = useTranslator(language);
   return (
-    <>
+    <FieldGroup layout="columns">
       {ANNOUNCEMENT_FIELDS.map((field) => {
         const title = field.startsWith("title");
         const max = title ? ANNOUNCEMENT_TITLE_MAX : ANNOUNCEMENT_BODY_MAX;
         const props = {
-          id: field,
           value: draft[field],
           disabled,
           dir: field.endsWith("Ar") ? ("rtl" as const) : ("ltr" as const),
@@ -42,19 +44,20 @@ export function AnnouncementFields({
             change({ ...draft, [field]: event.target.value }),
         };
         return (
-          <label className={styles.field} key={field} htmlFor={field}>
-            {t(`announcements.page.${field}`)}
-            {title ? <input {...props} /> : <textarea {...props} rows={4} />}
-            <span>
-              {t("announcements.page.counter", {
-                count: formatNumber(Array.from(draft[field]).length, language),
-                max,
-              })}
-            </span>
-          </label>
+          <Field
+            key={field}
+            id={field}
+            label={t(`announcements.page.${field}`)}
+            help={t("announcements.page.counter", {
+              count: formatNumber(Array.from(draft[field]).length, language),
+              max,
+            })}
+          >
+            {title ? <Input {...props} /> : <Textarea {...props} rows={4} />}
+          </Field>
         );
       })}
-    </>
+    </FieldGroup>
   );
 }
 
@@ -65,26 +68,21 @@ export function AnnouncementPreview({
   const t = useTranslator(language);
   const checked = checkAnnouncement(draft);
   return (
-    <section aria-label={t("announcements.page.preview")}>
-      <h2>{t("announcements.page.preview")}</h2>
-      <p>{t("announcements.page.previewNote", { max: 140 })}</p>
+    <Card as="section" aria-label={t("announcements.page.preview")}>
+      <SubHeading as="h2">{t("announcements.page.preview")}</SubHeading>
+      <Muted>{t("announcements.page.previewNote", { max: 140 })}</Muted>
       {checked.ok
         ? (["ar", "en"] as const).map((lang) => (
-            <div
-              className={styles.formCard}
-              dir={lang === "ar" ? "rtl" : "ltr"}
-              lang={lang}
-              key={lang}
-            >
-              <h3>
+            <Card dir={lang === "ar" ? "rtl" : "ltr"} lang={lang} key={lang}>
+              <SubHeading>
                 {t(lang === "ar" ? "announcements.page.previewAr" : "announcements.page.previewEn")}
-              </h3>
+              </SubHeading>
               <strong>{lang === "ar" ? checked.draft.titleAr : checked.draft.titleEn}</strong>
               <p>{lang === "ar" ? checked.draft.pushBodyAr : checked.draft.pushBodyEn}</p>
-            </div>
+            </Card>
           ))
         : null}
-    </section>
+    </Card>
   );
 }
 
@@ -93,10 +91,12 @@ function AnnouncementDelivery({
   language,
 }: Readonly<{ row: AnnouncementView; language: Language }>) {
   const t = useTranslator(language);
-  if (row.delivering) return <p>{t("announcements.page.delivering")}</p>;
+  if (row.delivering) return <Muted>{t("announcements.page.delivering")}</Muted>;
   if (row.delivered === null) return null;
   return (
-    <p>{t("announcements.page.delivered", { count: formatNumber(row.delivered, language) })}</p>
+    <Muted>
+      {t("announcements.page.delivered", { count: formatNumber(row.delivered, language) })}
+    </Muted>
   );
 }
 
@@ -121,26 +121,31 @@ function AnnouncementCard({
   } as const;
   const at = formatEventTime(new Date(row.sentAt ?? row.sendAt), zone, language);
   return (
-    <li className={styles.formCard}>
-      <h3 dir="auto">{language === "ar" ? row.titleAr : row.titleEn}</h3>
+    <Card as="li">
+      <SubHeading>
+        <span dir="auto">{language === "ar" ? row.titleAr : row.titleEn}</span>
+      </SubHeading>
       <p dir="auto">{language === "ar" ? row.bodyAr : row.bodyEn}</p>
-      <p>
-        {t(`announcements.page.status.${row.status}`)}{" "}
-        {row.rehearsal ? t("announcements.page.rehearsal") : ""}
-      </p>
-      <p>
-        {t(row.sentAt === null ? "announcements.page.scheduledFor" : "announcements.page.sentAt", {
-          time: at,
-        })}
-      </p>
+      <Toolbar>
+        <Badge>{t(`announcements.page.status.${row.status}`)}</Badge>
+        {row.rehearsal ? <Badge tone="info">{t("announcements.page.rehearsal")}</Badge> : null}
+        <Muted as="span">
+          {t(
+            row.sentAt === null ? "announcements.page.scheduledFor" : "announcements.page.sentAt",
+            { time: at },
+          )}
+        </Muted>
+      </Toolbar>
       <AnnouncementDelivery row={row} language={language} />
-      {row.skipReason === null ? null : <p>{t(reasonKeys[row.skipReason])}</p>}
+      {row.skipReason === null ? null : <Muted>{t(reasonKeys[row.skipReason])}</Muted>}
       {row.status === "scheduled" ? (
-        <button className={styles.quiet} type="button" disabled={busy} onClick={cancel}>
-          {t("announcements.page.cancel")}
-        </button>
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={cancel}>
+            {t("announcements.page.cancel")}
+          </Button>
+        </Toolbar>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -159,14 +164,14 @@ export function AnnouncementPagination({
 }>) {
   const t = useTranslator(language);
   return (
-    <nav aria-label={t("announcements.page.pagination")}>
-      <button type="button" disabled={!previous || busy} onClick={() => page(false)}>
+    <Toolbar label={t("announcements.page.pagination")}>
+      <Button size="sm" disabled={!previous || busy} onClick={() => page(false)}>
         {t("announcements.page.previous")}
-      </button>
-      <button type="button" disabled={!next || busy} onClick={() => page(true)}>
+      </Button>
+      <Button size="sm" disabled={!next || busy} onClick={() => page(true)}>
         {t("announcements.page.next")}
-      </button>
-    </nav>
+      </Button>
+    </Toolbar>
   );
 }
 
@@ -187,12 +192,13 @@ export function AnnouncementList({
 }>) {
   const t = useTranslator(language);
   return (
-    <section>
-      <h2>{t(pending ? "announcements.page.pending" : "announcements.page.history")}</h2>
+    <Section title={t(pending ? "announcements.page.pending" : "announcements.page.history")}>
       {rows.length === 0 ? (
-        <p>{t(pending ? "announcements.page.pendingEmpty" : "announcements.page.empty")}</p>
+        <EmptyState>
+          {t(pending ? "announcements.page.pendingEmpty" : "announcements.page.empty")}
+        </EmptyState>
       ) : (
-        <ul>
+        <CardList>
           {rows.map((row) => (
             <AnnouncementCard
               key={row.id}
@@ -203,8 +209,8 @@ export function AnnouncementList({
               cancel={() => cancel(row)}
             />
           ))}
-        </ul>
+        </CardList>
       )}
-    </section>
+    </Section>
   );
 }

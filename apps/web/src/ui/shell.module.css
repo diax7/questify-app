@@ -245,6 +245,17 @@
   }
 }
 
+/* A failed sign-out: a notice under the top bar, over the page and the phone menu. */
+.signOutProblem {
+  position: fixed;
+  inset-block-start: calc(var(--header-height) + var(--space-sm));
+  inset-inline: var(--space-lg);
+  z-index: 40;
+  max-inline-size: 24rem;
+  margin-inline-start: auto;
+  box-shadow: var(--shadow-md);
+}
+
 /* A printed page (QR codes) is the content alone. */
 @media print {
   .top,

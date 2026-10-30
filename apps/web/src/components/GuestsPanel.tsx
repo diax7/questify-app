@@ -6,7 +6,10 @@ import { GUESTS_PER_UPLOAD, guestLines } from "#src/lib/joining.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Textarea } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 
 type Guest = Readonly<{ id: string; kind: "phone" | "email"; value: string; tag: string | null }>;
 
@@ -26,7 +29,7 @@ type Props = Readonly<{ language: Language; organizerId: string; eventId: string
 function AddedResult({ language, result }: Readonly<{ language: Language; result: Added }>) {
   const t = useTranslator(language);
   return (
-    <div role="status" className={styles.notice}>
+    <Notice tone="info" as="div" role="status">
       <p>
         {t("guests.result", {
           added: formatNumber(result.added, language),
@@ -50,7 +53,7 @@ function AddedResult({ language, result }: Readonly<{ language: Language; result
           </ul>
         </>
       )}
-    </div>
+    </Notice>
   );
 }
 
@@ -103,11 +106,9 @@ function GuestUpload({
 
   return (
     <>
-      <form className={styles.form} onSubmit={(event) => void add(event)}>
-        <label className={styles.field}>
-          <span>{t("guests.paste")}</span>
-          <textarea
-            className={styles.input}
+      <Form onSubmit={(event) => void add(event)}>
+        <Field label={t("guests.paste")}>
+          <Textarea
             dir="ltr"
             rows={6}
             value={text}
@@ -115,11 +116,9 @@ function GuestUpload({
             aria-invalid={tooMany}
             onChange={(typed) => setText(typed.target.value)}
           />
-        </label>
-        <label className={styles.field}>
-          <span>{t("guests.tag")}</span>
-          <input
-            className={styles.input}
+        </Field>
+        <Field label={t("guests.tag")}>
+          <Input
             dir="auto"
             maxLength={30}
             value={tag}
@@ -127,24 +126,22 @@ function GuestUpload({
             aria-describedby="guests-tag-hint"
             onChange={(typed) => setTag(typed.target.value)}
           />
-        </label>
-        <p id="guests-tag-hint" className={styles.muted}>
-          {t("guests.tagHint")}
-        </p>
+        </Field>
+        <Muted id="guests-tag-hint">{t("guests.tagHint")}</Muted>
         {tooMany ? (
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {t("guests.tooMany", { max: formatNumber(GUESTS_PER_UPLOAD, language) })}
-          </p>
+          </Notice>
         ) : null}
-        <button
+        <Button
+          variant="primary"
           type="submit"
-          className={styles.button}
           disabled={busy || lines.length === 0 || tooMany}
           aria-busy={busy}
         >
           {t("guests.add")}
-        </button>
-      </form>
+        </Button>
+      </Form>
       {result === null ? null : <AddedResult language={language} result={result} />}
     </>
   );
@@ -164,28 +161,29 @@ function GuestRows({
 }>) {
   const t = useTranslator(language);
   return (
-    <ul className={styles.list}>
+    <CardList>
       {guests.map((guest) => (
-        <li key={guest.id} className={styles.row}>
-          {/* A masked phone or email reads left to right inside Arabic text. */}
-          <bdi dir="ltr">{guest.value}</bdi>
-          {guest.tag === null ? null : (
-            <span className={styles.badge}>
-              <bdi>{guest.tag}</bdi>
-            </span>
-          )}
-          <button
-            type="button"
-            className={styles.quiet}
-            disabled={busy}
-            aria-label={`${t("guests.remove")} ${guest.value}`}
-            onClick={() => remove(guest)}
-          >
-            {t("guests.remove")}
-          </button>
-        </li>
+        <Card as="li" key={guest.id}>
+          <Toolbar>
+            {/* A masked phone or email reads left to right inside Arabic text. */}
+            <bdi dir="ltr">{guest.value}</bdi>
+            {guest.tag === null ? null : (
+              <Badge>
+                <bdi>{guest.tag}</bdi>
+              </Badge>
+            )}
+            <Button
+              variant="quiet"
+              disabled={busy}
+              aria-label={`${t("guests.remove")} ${guest.value}`}
+              onClick={() => remove(guest)}
+            >
+              {t("guests.remove")}
+            </Button>
+          </Toolbar>
+        </Card>
       ))}
-    </ul>
+    </CardList>
   );
 }
 
@@ -269,11 +267,7 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="guests-title">
-      <h2 id="guests-title" className={styles.title}>
-        {t("guests.title")}
-      </h2>
-      <p className={styles.muted}>{t("guests.intro")}</p>
+    <Section title={t("guests.title")} titleId="guests-title" description={t("guests.intro")}>
       <GuestUpload
         language={language}
         base={base}
@@ -284,38 +278,34 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
         added={() => load()}
       />
       {list.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {list.problem}
-        </p>
+        </Notice>
       )}
       {guests === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : (
-        <p className={styles.muted}>
+        <Muted>
           {total === 0
             ? t("guests.empty")
             : t("guests.count", { count: formatNumber(total, language) })}
-        </p>
+        </Muted>
       )}
-      <form className={styles.row} role="search" onSubmit={(event) => void find(event)}>
-        <label className={styles.field}>
-          <span>{t("guests.find")}</span>
-          <input
-            className={styles.input}
+      <Form role="search" onSubmit={(event) => void find(event)}>
+        <Field label={t("guests.find")}>
+          <Input
             dir="ltr"
             maxLength={320}
             value={search}
             onChange={(typed) => setSearch(typed.target.value)}
           />
-        </label>
-        <button type="submit" className={styles.quiet}>
+        </Field>
+        <Button variant="quiet" type="submit">
           {t("guests.findButton")}
-        </button>
-      </form>
+        </Button>
+      </Form>
       {searched !== null && guests !== null && guests.length === 0 ? (
-        <p role="status" className={styles.muted}>
-          {t("guests.notFound")}
-        </p>
+        <Muted role="status">{t("guests.notFound")}</Muted>
       ) : null}
       <GuestRows
         language={language}
@@ -323,6 +313,6 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
         busy={busy}
         remove={(guest) => void remove(guest)}
       />
-    </section>
+    </Section>
   );
 }

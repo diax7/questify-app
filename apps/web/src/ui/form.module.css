@@ -80,6 +80,14 @@
   min-inline-size: 0;
 }
 
+/* A form drawn as a box of its own, like a card (an item's edit form inside a list). */
+.formCard {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-sm);
+}
+
 /* A lone button in a form keeps its own width. */
 .group > .button {
   align-self: flex-start;

@@ -2,14 +2,18 @@
 
 import type { Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
-import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { qrDrawing, qrSvgFile } from "#src/lib/qr.ts";
 import { textFor } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import codeStyles from "#src/components/codes.module.css";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { FieldGroup, Radio } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack, Toolbar } from "#src/ui/Section.tsx";
 
 type Code = Readonly<{
   questId: string;
@@ -102,22 +106,24 @@ function RegenerateDialog({
   confirm,
 }: Readonly<{ language: Language; busy: boolean; cancel: () => void; confirm: () => void }>) {
   const t = useTranslator(language);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
-    <div role="alertdialog" aria-labelledby="regenerate-title" className={styles.card}>
-      <h2 id="regenerate-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t("codes.regenerateTitle")}
-      </h2>
+    <Dialog
+      title={t("codes.regenerateTitle")}
+      cancel={cancel}
+      busy={busy}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={confirm}>
+            {t("codes.regenerate")}
+          </Button>
+        </>
+      }
+    >
       <p>{t("codes.regenerateBody")}</p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="button" className={styles.button} disabled={busy} onClick={confirm}>
-          {t("codes.regenerate")}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -216,68 +222,66 @@ export function CodesPanel({
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="codes-title">
+    <Stack as="section" aria-labelledby="codes-title">
       <div className={codeStyles.controls}>
-        <a
-          className={styles.textLink}
-          href={`/${language}/organizers/${organizerId}/events/${eventId}/quests`}
-        >
-          {t("codes.toBuilder")}
-        </a>
-        <h1 id="codes-title" className={styles.title}>
-          {t("codes.title")}
-        </h1>
-        {problem === null ? null : (
-          <p role="alert" className={styles.alert}>
-            {problem}
-          </p>
-        )}
-        {loadFailed ? (
-          <button type="button" className={styles.button} onClick={() => void load()}>
-            {t("common.retry")}
-          </button>
-        ) : null}
-        {notice === null ? null : (
-          <p role="status" className={styles.notice}>
-            {notice}
-          </p>
-        )}
-        {regenerating === null ? null : (
-          <RegenerateDialog
-            language={language}
-            busy={busy}
-            cancel={() => setRegenerating(null)}
-            confirm={() => void regenerate()}
+        <Stack>
+          <PageHeader
+            titleId="codes-title"
+            title={t("codes.title")}
+            back={{
+              href: `/${language}/organizers/${organizerId}/events/${eventId}/quests`,
+              label: t("codes.toBuilder"),
+            }}
           />
-        )}
-        {codes !== null && codes.length > 0 ? (
-          <div className={styles.actions}>
-            <fieldset className={styles.choices}>
-              <legend>{t("codes.size")}</legend>
-              {([false, true] as const).map((option) => (
-                <label key={String(option)} className={styles.check}>
-                  <input
-                    type="radio"
+          {problem === null ? null : (
+            <Notice tone="danger" role="alert">
+              {problem}
+            </Notice>
+          )}
+          {loadFailed ? (
+            <Button variant="primary" onClick={() => void load()}>
+              {t("common.retry")}
+            </Button>
+          ) : null}
+          {notice === null ? null : (
+            <Notice tone="success" role="status">
+              {notice}
+            </Notice>
+          )}
+          {regenerating === null ? null : (
+            <RegenerateDialog
+              language={language}
+              busy={busy}
+              cancel={() => setRegenerating(null)}
+              confirm={() => void regenerate()}
+            />
+          )}
+          {codes !== null && codes.length > 0 ? (
+            <Toolbar>
+              <FieldGroup legend={t("codes.size")} layout="choices">
+                {([false, true] as const).map((option) => (
+                  <Radio
+                    key={String(option)}
                     name="size"
                     checked={large === option}
                     onChange={() => setLarge(option)}
+                    label={t(option ? "codes.sizeLarge" : "codes.sizeSmall")}
                   />
-                  <span>{t(option ? "codes.sizeLarge" : "codes.sizeSmall")}</span>
-                </label>
-              ))}
-            </fieldset>
-            <button type="button" className={styles.button} onClick={() => window.print()}>
-              {t("codes.print")}
-            </button>
-          </div>
-        ) : null}
+                ))}
+              </FieldGroup>
+              <Button variant="primary" onClick={() => window.print()}>
+                {t("codes.print")}
+              </Button>
+            </Toolbar>
+          ) : null}
+        </Stack>
       </div>
       {codes === null ? (
         problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : codes.length === 0 ? (
-        <p className={styles.muted}>{t("codes.empty")}</p>
+        <EmptyState>{t("codes.empty")}</EmptyState>
       ) : (
         <ul className={`${codeStyles.sheet} ${large ? codeStyles.large : ""}`}>
           {codes.map((code) => (
@@ -324,27 +328,20 @@ export function CodesPanel({
                 </>
               )}
               <p className={codeStyles.small}>{t("codes.version", { version: code.version })}</p>
-              <div className={`${styles.actions} ${codeStyles.controls}`}>
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  onClick={() => download(code, language)}
-                >
-                  {t("codes.download")}
-                </button>
-                <button
-                  type="button"
-                  className={styles.quiet}
-                  disabled={busy}
-                  onClick={() => setRegenerating(code)}
-                >
-                  {t("codes.regenerate")}
-                </button>
+              <div className={codeStyles.controls}>
+                <Toolbar>
+                  <Button variant="quiet" onClick={() => download(code, language)}>
+                    {t("codes.download")}
+                  </Button>
+                  <Button variant="quiet" disabled={busy} onClick={() => setRegenerating(code)}>
+                    {t("codes.regenerate")}
+                  </Button>
+                </Toolbar>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Stack>
   );
 }

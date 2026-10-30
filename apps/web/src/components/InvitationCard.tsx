@@ -4,7 +4,9 @@ import { cityName } from "#src/lib/cities.ts";
 import { interestName } from "#src/lib/interests.ts";
 import { END_REASON_KEYS, countText, riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Card, CardList, Toolbar } from "#src/ui/Section.tsx";
 
 type Catalogs = Readonly<{ cities: readonly City[]; interests: readonly Interest[] }>;
 /** What a request asks for, the same for the owner and for the console. */
@@ -32,7 +34,7 @@ export function Criteria({
     return known === undefined ? id : interestName(known, language);
   });
   return (
-    <ul className={styles.list}>
+    <CardList>
       {campaign.cityId === null ? null : (
         <li>
           {t("invCampaign.card.city", {
@@ -54,7 +56,7 @@ export function Criteria({
           {t("invCampaign.card.sendAfter", { time: riyadhTime(campaign.sendAfter, language) })}
         </li>
       )}
-    </ul>
+    </CardList>
   );
 }
 
@@ -71,7 +73,7 @@ function Counts({
   ] as const;
   return (
     <div data-testid="invitation-counts">
-      <ul className={styles.list}>
+      <CardList>
         {rows.map(([name, label]) => (
           <li key={name}>
             {t(label)}:{" "}
@@ -80,12 +82,12 @@ function Counts({
             </strong>
           </li>
         ))}
-      </ul>
-      <p className={styles.muted}>
+      </CardList>
+      <Muted>
         {campaign.publishedAt === null
           ? t("invCampaign.card.daily")
           : t("invCampaign.card.published", { time: riyadhTime(campaign.publishedAt, language) })}
-      </p>
+      </Muted>
     </div>
   );
 }
@@ -135,23 +137,23 @@ export function InvitationCard({
   const t = translatorFor(language);
   const open = campaign.state === "requested" || campaign.state === "approved";
   return (
-    <article className={styles.formCard} data-testid="invitation" data-state={campaign.state}>
-      <p className={styles.row}>
-        <span className={styles.badge}>{t(`invCampaign.state.${campaign.state}`)}</span>
-        <span className={styles.muted}>
+    <Card as="article" data-testid="invitation" data-state={campaign.state}>
+      <Toolbar>
+        <Badge>{t(`invCampaign.state.${campaign.state}`)}</Badge>
+        <Muted as="span">
           {t("invCampaign.card.requestedAt", { time: riyadhTime(campaign.requestedAt, language) })}
-        </span>
-      </p>
+        </Muted>
+      </Toolbar>
       <Criteria campaign={campaign} language={language} catalogs={catalogs} />
       <Decision campaign={campaign} language={language} noteKey="invCampaign.card.note" />
       {campaign.startedAt === null ? null : <Counts campaign={campaign} language={language} />}
       {open && canWithdraw ? (
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} disabled={busy} onClick={withdraw}>
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={withdraw}>
             {t("invCampaign.withdraw")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       ) : null}
-    </article>
+    </Card>
   );
 }

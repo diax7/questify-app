@@ -12,7 +12,10 @@ import {
   type UnlockKind,
 } from "#src/lib/community.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Meter, Muted } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Card, Toolbar } from "#src/ui/Section.tsx";
 
 /** A quest or category the goal may count. */
 export type Choice = Readonly<{ id: string; name: string }>;
@@ -37,17 +40,15 @@ function TextField({
   maxLength: number;
 }>) {
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         dir={dir}
         value={value}
         maxLength={maxLength}
         disabled={disabled}
         onChange={(event) => change(event.target.value)}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -73,8 +74,7 @@ function UnlockFields({
   const t = useTranslator(language);
   return (
     <>
-      <select
-        className={styles.input}
+      <Select
         value={reward.targetKind}
         disabled={busy || locked}
         aria-label={t("community.page.unlock.target")}
@@ -87,9 +87,8 @@ function UnlockFields({
             {t(`community.page.unlock.${kind}`)}
           </option>
         ))}
-      </select>
-      <select
-        className={styles.input}
+      </Select>
+      <Select
         value={reward.targetId}
         disabled={busy || locked}
         aria-label={t(`community.page.unlock.${reward.targetKind}`)}
@@ -105,8 +104,8 @@ function UnlockFields({
             {choice.taken ? t("community.page.unlock.taken", { name: choice.name }) : choice.name}
           </option>
         ))}
-      </select>
-      <span className={styles.muted}>{t("community.page.unlock.note")}</span>
+      </Select>
+      <Muted as="span">{t("community.page.unlock.note")}</Muted>
     </>
   );
 }
@@ -130,8 +129,7 @@ function RewardFields({
   const t = useTranslator(language);
   return (
     <>
-      <select
-        className={styles.input}
+      <Select
         value={reward.kind}
         disabled={busy || locked}
         aria-label={t("community.page.goalReward")}
@@ -142,7 +140,7 @@ function RewardFields({
             {t(`community.page.reward.${kind}`)}
           </option>
         ))}
-      </select>
+      </Select>
       {reward.kind === "points" ? (
         <TextField
           label={t("community.page.points")}
@@ -209,10 +207,8 @@ function ScopeFields({
   const choices = draft.scope === "quest" ? quests : categories;
   return (
     <>
-      <label className={styles.field}>
-        <span>{t("community.page.measure")}</span>
-        <select
-          className={styles.input}
+      <Field label={t("community.page.measure")}>
+        <Select
           value={draft.measure}
           disabled={busy || locked}
           onChange={(event) => change({ ...draft, measure: event.target.value as Measure })}
@@ -222,13 +218,11 @@ function ScopeFields({
               {t(`community.measure.${measure}`)}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {draft.measure === "points" ? null : (
-        <label className={styles.field}>
-          <span>{t("community.page.scope")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("community.page.scope")}>
+          <Select
             value={draft.scope}
             disabled={busy || locked}
             onChange={(event) =>
@@ -240,12 +234,11 @@ function ScopeFields({
                 {t(`community.page.scope.${scope}`)}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
       {draft.measure === "points" || draft.scope === "all" ? null : (
-        <select
-          className={styles.input}
+        <Select
           aria-label={t(`community.page.scope.${draft.scope}`)}
           value={draft.scope === "quest" ? draft.questId : draft.categoryId}
           disabled={busy || locked}
@@ -263,7 +256,7 @@ function ScopeFields({
               {choice.name}
             </option>
           ))}
-        </select>
+        </Select>
       )}
     </>
   );
@@ -292,10 +285,10 @@ function MilestoneFields({
       milestones: draft.milestones.map((step, at) => (at === index ? next : step)),
     });
   return (
-    <fieldset className={styles.form}>
+    <FieldGroup>
       <legend>{t("community.page.milestones")}</legend>
       {draft.milestones.map((step, index) => (
-        <div key={index} className={styles.formCard}>
+        <Card key={index}>
           <TextField
             label={t("community.page.threshold")}
             value={step.threshold}
@@ -313,23 +306,21 @@ function MilestoneFields({
             targets={targets}
           />
           {locked ? null : (
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
               disabled={busy}
               onClick={() =>
                 change({ ...draft, milestones: draft.milestones.filter((_, at) => at !== index) })
               }
             >
               {t("community.page.removeMilestone")}
-            </button>
+            </Button>
           )}
-        </div>
+        </Card>
       ))}
       {locked || draft.milestones.length >= MAX_MILESTONES ? null : (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
           disabled={busy}
           onClick={() =>
             change({
@@ -342,9 +333,9 @@ function MilestoneFields({
           }
         >
           {t("community.page.addMilestone")}
-        </button>
+        </Button>
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -366,18 +357,16 @@ function BarPreview({
     )
     .filter((name) => name !== "");
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       <strong>{t("community.page.preview")}</strong>
-      <span className={styles.muted}>{t("community.page.previewNote")}</span>
+      <Muted as="span">{t("community.page.previewNote")}</Muted>
       {previewFills(draft).map((fill) => (
-        <div key={fill} className={styles.meter} aria-hidden="true">
-          <div className={styles.meterFill} style={{ inlineSize: `${fill * 100}%` }} />
-        </div>
+        <Meter key={fill} share={fill} />
       ))}
       {unlocks.map((name) => (
         <span key={name}>{t("community.reward.unlock", { name })}</span>
       ))}
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -406,27 +395,25 @@ export function CommunityGoalForm({
   const t = useTranslator(language);
   const locked = draft.started;
   const time = (field: "startsAt" | "endsAt") => (
-    <label className={styles.field}>
-      <span>{t(field === "startsAt" ? "community.page.startsAt" : "community.page.endsAt")}</span>
-      <input
-        className={styles.input}
+    <Field label={t(field === "startsAt" ? "community.page.startsAt" : "community.page.endsAt")}>
+      <Input
         type="datetime-local"
         dir="ltr"
         value={draft[field]}
         disabled={busy || locked}
         onChange={(event) => change({ ...draft, [field]: event.target.value })}
       />
-    </label>
+    </Field>
   );
   return (
-    <form
-      className={styles.formCard}
+    <Form
+      card
       onSubmit={(event) => {
         event.preventDefault();
         save();
       }}
     >
-      {locked ? <p className={styles.muted}>{t("community.page.lockedNote")}</p> : null}
+      {locked ? <Muted>{t("community.page.lockedNote")}</Muted> : null}
       <TextField
         label={t("community.page.titleAr")}
         value={draft.titleAr}
@@ -443,7 +430,7 @@ export function CommunityGoalForm({
         dir="ltr"
         maxLength={80}
       />
-      <p className={styles.muted}>{t("community.page.titleHint")}</p>
+      <Muted>{t("community.page.titleHint")}</Muted>
       <ScopeFields
         language={language}
         draft={draft}
@@ -463,10 +450,8 @@ export function CommunityGoalForm({
       />
       {time("startsAt")}
       {time("endsAt")}
-      <label className={styles.field}>
-        <span>{t("community.page.paidTo")}</span>
-        <select
-          className={styles.input}
+      <Field label={t("community.page.paidTo")}>
+        <Select
           value={draft.paidTo}
           disabled={busy || locked}
           onChange={(event) =>
@@ -475,9 +460,9 @@ export function CommunityGoalForm({
         >
           <option value="contributors">{t("community.page.paidTo.contributors")}</option>
           <option value="everyone">{t("community.page.paidTo.everyone")}</option>
-        </select>
-      </label>
-      <fieldset className={styles.form}>
+        </Select>
+      </Field>
+      <FieldGroup>
         <legend>{t("community.page.goalReward")}</legend>
         <RewardFields
           language={language}
@@ -487,7 +472,7 @@ export function CommunityGoalForm({
           change={(reward) => change({ ...draft, reward })}
           targets={targets}
         />
-      </fieldset>
+      </FieldGroup>
       <MilestoneFields
         language={language}
         draft={draft}
@@ -497,14 +482,14 @@ export function CommunityGoalForm({
         targets={targets}
       />
       <BarPreview language={language} draft={draft} targets={targets} />
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("community.page.save")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }

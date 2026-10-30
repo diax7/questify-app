@@ -3,7 +3,7 @@
 import type { Language } from "@questify/shared";
 import { PasswordInput } from "#src/components/PasswordInput.tsx";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
 
 export const NEW_PASSWORD_FIELD = "newPassword";
 export const CONFIRM_PASSWORD_FIELD = "confirmPassword";
@@ -18,9 +18,7 @@ export function NewPasswordFields({
   const describedBy = ["password-rules", problemId].filter(Boolean).join(" ");
   return (
     <>
-      <p id="password-rules" className={styles.muted}>
-        {t("staff.passwordRules")}
-      </p>
+      <Muted id="password-rules">{t("staff.passwordRules")}</Muted>
       <PasswordInput
         language={language}
         name={NEW_PASSWORD_FIELD}

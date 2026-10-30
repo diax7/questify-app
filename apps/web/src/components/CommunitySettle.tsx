@@ -7,7 +7,9 @@ import { settleAnswerOf } from "#src/lib/community.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { FieldGroup } from "#src/ui/Field.tsx";
 
 /** How many times one press settles again (a transaction from the window still open, or more to pay) before it stops. */
 const MAX_CALLS = 12;
@@ -70,7 +72,7 @@ export function CommunitySettle({
   };
 
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       {asking ? (
         <ConfirmDialog
           language={language}
@@ -83,19 +85,10 @@ export function CommunitySettle({
           confirm={() => void settle()}
         />
       ) : null}
-      {busy ? (
-        <p role="status" className={styles.muted}>
-          {t("results.settling")}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className={styles.button}
-        disabled={busy}
-        onClick={() => setAsking(true)}
-      >
+      {busy ? <Muted role="status">{t("results.settling")}</Muted> : null}
+      <Button variant="primary" disabled={busy} onClick={() => setAsking(true)}>
         {t("results.settleNow")}
-      </button>
-    </div>
+      </Button>
+    </FieldGroup>
   );
 }

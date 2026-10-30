@@ -70,15 +70,18 @@ export function SubHeading({
 export function Card({
   as: Tag = "div",
   children,
-  ...aria
+  ...rest
 }: Readonly<{
   as?: "div" | "li" | "article" | "section";
   children: ReactNode;
   "aria-labelledby"?: string;
   "aria-label"?: string;
+  /** For a card holding text in the other language than the page's (a preview of an Arabic message). */
+  dir?: "ltr" | "rtl";
+  lang?: string;
 }>) {
   return (
-    <Tag className={styles.card} {...aria}>
+    <Tag className={styles.card} {...rest}>
       {children}
     </Tag>
   );
@@ -99,6 +102,20 @@ export function Stack({
     <Tag className={styles.stack} {...aria}>
       {children}
     </Tag>
+  );
+}
+
+/** Short notes in a bulleted list: the evidence of a case, the lines of a summary. Muted, so the heading leads. */
+export function BulletList({ children }: Readonly<{ children: ReactNode }>) {
+  return <ul className={styles.bullets}>{children}</ul>;
+}
+
+/** Name and value pairs (what a player answered, a ticket's facts): `dt` and `dd` children in two columns. */
+export function Facts({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
+  return (
+    <dl className={styles.facts} aria-label={label}>
+      {children}
+    </dl>
   );
 }
 

@@ -14,7 +14,11 @@ import {
   type PrizeSettings,
 } from "#src/lib/prizes.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -74,16 +78,15 @@ function TextField({
   multiline?: boolean;
   change: (text: string) => void;
 }>) {
-  const shared = { className: styles.input, value, lang, dir: directionOf(lang), maxLength: max };
+  const shared = { value, lang, dir: directionOf(lang), maxLength: max };
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
+    <Field label={label}>
       {multiline ? (
-        <textarea {...shared} rows={4} onChange={(e) => change(e.target.value)} />
+        <Textarea {...shared} rows={4} onChange={(e) => change(e.target.value)} />
       ) : (
-        <input {...shared} onChange={(e) => change(e.target.value)} />
+        <Input {...shared} onChange={(e) => change(e.target.value)} />
       )}
-    </label>
+    </Field>
   );
 }
 
@@ -94,10 +97,8 @@ function RankField({
   change,
 }: Readonly<{ label: string; value: string; disabled: boolean; change: (text: string) => void }>) {
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         type="number"
         inputMode="numeric"
         dir="ltr"
@@ -107,7 +108,7 @@ function RankField({
         disabled={disabled}
         onChange={(e) => change(e.target.value)}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -131,78 +132,81 @@ function PrizeForm({
 }>) {
   const t = translatorFor(language);
   return (
-    <form
-      className={styles.form}
-      onSubmit={(e) => {
-        e.preventDefault();
-        save();
-      }}
-    >
-      <div className={styles.row}>
-        <RankField
-          label={t("prizes.from")}
-          value={draft.rankFrom}
-          disabled={live}
-          change={(rankFrom) => set({ rankFrom })}
-        />
-        <RankField
-          label={t("prizes.to")}
-          value={draft.rankTo}
-          disabled={live}
-          change={(rankTo) => set({ rankTo })}
-        />
-        <label className={styles.field}>
-          <span>{t("prizes.kind")}</span>
-          <select
-            className={styles.input}
-            value={draft.kind}
-            disabled={draft.id !== null}
-            onChange={(e) => set({ kind: e.target.value === "experience" ? "experience" : "item" })}
-          >
-            <option value="item">{t("prizes.kind.item")}</option>
-            <option value="experience">{t("prizes.kind.experience")}</option>
-          </select>
-        </label>
-      </div>
-      <TextField
-        label={t("prizes.nameAr")}
-        value={draft.nameAr}
-        lang="ar"
-        max={120}
-        change={(nameAr) => set({ nameAr })}
-      />
-      <TextField
-        label={t("prizes.nameEn")}
-        value={draft.nameEn}
-        lang="en"
-        max={120}
-        change={(nameEn) => set({ nameEn })}
-      />
-      <TextField
-        label={t("prizes.descriptionAr")}
-        value={draft.descriptionAr}
-        lang="ar"
-        max={2000}
-        multiline
-        change={(descriptionAr) => set({ descriptionAr })}
-      />
-      <TextField
-        label={t("prizes.descriptionEn")}
-        value={draft.descriptionEn}
-        lang="en"
-        max={2000}
-        multiline
-        change={(descriptionEn) => set({ descriptionEn })}
-      />
-      <div className={styles.actions}>
-        <button type="submit" className={styles.button} disabled={busy}>
-          {t("prizes.save")}
-        </button>
-        <button type="button" className={styles.quiet} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-      </div>
-    </form>
+    <Card>
+      <Form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <FieldGroup layout="columns">
+          <RankField
+            label={t("prizes.from")}
+            value={draft.rankFrom}
+            disabled={live}
+            change={(rankFrom) => set({ rankFrom })}
+          />
+          <RankField
+            label={t("prizes.to")}
+            value={draft.rankTo}
+            disabled={live}
+            change={(rankTo) => set({ rankTo })}
+          />
+          <Field label={t("prizes.kind")}>
+            <Select
+              value={draft.kind}
+              disabled={draft.id !== null}
+              onChange={(e) =>
+                set({ kind: e.target.value === "experience" ? "experience" : "item" })
+              }
+            >
+              <option value="item">{t("prizes.kind.item")}</option>
+              <option value="experience">{t("prizes.kind.experience")}</option>
+            </Select>
+          </Field>
+        </FieldGroup>
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("prizes.nameAr")}
+            value={draft.nameAr}
+            lang="ar"
+            max={120}
+            change={(nameAr) => set({ nameAr })}
+          />
+          <TextField
+            label={t("prizes.nameEn")}
+            value={draft.nameEn}
+            lang="en"
+            max={120}
+            change={(nameEn) => set({ nameEn })}
+          />
+          <TextField
+            label={t("prizes.descriptionAr")}
+            value={draft.descriptionAr}
+            lang="ar"
+            max={2000}
+            multiline
+            change={(descriptionAr) => set({ descriptionAr })}
+          />
+          <TextField
+            label={t("prizes.descriptionEn")}
+            value={draft.descriptionEn}
+            lang="en"
+            max={2000}
+            multiline
+            change={(descriptionEn) => set({ descriptionEn })}
+          />
+        </FieldGroup>
+        <Toolbar>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {t("prizes.save")}
+          </Button>
+          <Button variant="quiet" onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Card>
   );
 }
 
@@ -224,40 +228,43 @@ function RulesEditor({
   const [ar, setAr] = useState(rules.ar ?? "");
   const [en, setEn] = useState(rules.en ?? "");
   return (
-    <form
-      className={styles.form}
-      onSubmit={(e) => {
-        e.preventDefault();
-        save({ ar, en });
-      }}
-    >
-      <h3 className={styles.subtitle}>{t("prizes.rules")}</h3>
-      <p className={styles.muted}>{t("prizes.rulesHint")}</p>
-      <TextField
-        label={t("prizes.rulesAr")}
-        value={ar}
-        lang="ar"
-        max={10_000}
-        multiline
-        change={setAr}
-      />
-      <TextField
-        label={t("prizes.rulesEn")}
-        value={en}
-        lang="en"
-        max={10_000}
-        multiline
-        change={setEn}
-      />
-      <button type="submit" className={styles.quiet} disabled={busy}>
-        {t("prizes.rulesSave")}
-      </button>
-      {rulesPage === null ? null : (
-        <a className={styles.textLink} href={rulesPage} target="_blank" rel="noreferrer">
-          {t("prizes.rulesPage")}
-        </a>
-      )}
-    </form>
+    <Section title={t("prizes.rules")} description={t("prizes.rulesHint")}>
+      <Form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save({ ar, en });
+        }}
+      >
+        <FieldGroup layout="columns">
+          <TextField
+            label={t("prizes.rulesAr")}
+            value={ar}
+            lang="ar"
+            max={10_000}
+            multiline
+            change={setAr}
+          />
+          <TextField
+            label={t("prizes.rulesEn")}
+            value={en}
+            lang="en"
+            max={10_000}
+            multiline
+            change={setEn}
+          />
+        </FieldGroup>
+        <Toolbar>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {t("prizes.rulesSave")}
+          </Button>
+          {rulesPage === null ? null : (
+            <TextLink href={rulesPage} target="_blank" rel="noreferrer">
+              {t("prizes.rulesPage")}
+            </TextLink>
+          )}
+        </Toolbar>
+      </Form>
+    </Section>
   );
 }
 
@@ -345,25 +352,23 @@ function PrizeRow({
     Object.entries(label.values).map(([key, value]) => [key, formatNumber(value, language)]),
   );
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong>{t(label.key, values)}</strong>
         <span dir="auto">{named(prize.name, language)}</span>
-        <span className={styles.badge}>
-          {t(prize.kind === "item" ? "prizes.kind.item" : "prizes.kind.experience")}
-        </span>
-      </p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} onClick={edit}>
+        <Badge>{t(prize.kind === "item" ? "prizes.kind.item" : "prizes.kind.experience")}</Badge>
+      </Toolbar>
+      <Toolbar>
+        <Button variant="quiet" onClick={edit}>
           {t("prizes.edit")}
-        </button>
+        </Button>
         {live ? null : (
-          <button type="button" className={styles.quiet} onClick={remove}>
+          <Button variant="quiet" onClick={remove}>
             {t("prizes.remove")}
-          </button>
+          </Button>
         )}
-      </div>
-    </li>
+      </Toolbar>
+    </Card>
   );
 }
 
@@ -381,16 +386,16 @@ export function Notes({
 }>) {
   return (
     <>
-      {loading ? <p className={styles.muted}>{translatorFor(language)("common.loading")}</p> : null}
+      {loading ? <Muted>{translatorFor(language)("common.loading")}</Muted> : null}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="success" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
     </>
   );
@@ -406,16 +411,16 @@ function SwitchCard({
 }: Readonly<{ language: Language; on: boolean; live: boolean; busy: boolean; flip: () => void }>) {
   const t = translatorFor(language);
   return (
-    <div className={styles.card}>
+    <Card>
       <p>{t(on ? "prizes.on" : "prizes.off")}</p>
       {live ? (
-        <p className={styles.muted}>{t("prizes.locked")}</p>
+        <Muted>{t("prizes.locked")}</Muted>
       ) : (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={flip}>
+        <Button variant="secondary" disabled={busy} onClick={flip}>
           {t(on ? "prizes.turnOff" : "prizes.turnOn")}
-        </button>
+        </Button>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -444,7 +449,7 @@ export function PrizesPanel({ language, organizerId, eventId, joinCode, live }: 
     }
   };
   return (
-    <section className={styles.panel} aria-labelledby="prizes-title">
+    <>
       {removing === null ? null : (
         <ConfirmDialog
           language={language}
@@ -457,53 +462,52 @@ export function PrizesPanel({ language, organizerId, eventId, joinCode, live }: 
           confirm={() => void remove(removing)}
         />
       )}
-      <h2 id="prizes-title" className={styles.title}>
-        {t("prizes.title")}
-      </h2>
-      <p className={styles.muted}>{t("prizes.intro")}</p>
-      <Notes problem={problem} notice={notice} loading={false} language={language} />
-      <SwitchCard
-        language={language}
-        on={settings.rankPrizes}
-        live={live}
-        busy={busy}
-        flip={() =>
-          void write("PUT", "/rank-prizes", { rankPrizes: !settings.rankPrizes }, t("prizes.saved"))
-        }
-      />
-      {settings.prizes.length === 0 ? <p className={styles.muted}>{t("prizes.empty")}</p> : null}
-      <ul className={styles.list}>
-        {settings.prizes.map((prize) => (
-          <PrizeRow
-            key={prize.id}
-            prize={prize}
-            language={language}
-            live={live}
-            edit={() => setDraft(draftOf(prize))}
-            remove={() => setRemoving(prize)}
-          />
-        ))}
-      </ul>
-      {draft === null && !live ? (
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => setDraft(blank(nextRank(settings.prizes)))}
-        >
-          {t("prizes.add")}
-        </button>
-      ) : null}
-      {draft === null ? null : (
-        <PrizeForm
+      <Section title={t("prizes.title")} titleId="prizes-title" description={t("prizes.intro")}>
+        <Notes problem={problem} notice={notice} loading={false} language={language} />
+        <SwitchCard
           language={language}
-          draft={draft}
+          on={settings.rankPrizes}
           live={live}
           busy={busy}
-          set={(change) => setDraft({ ...draft, ...change })}
-          save={() => void save(draft)}
-          cancel={() => setDraft(null)}
+          flip={() =>
+            void write(
+              "PUT",
+              "/rank-prizes",
+              { rankPrizes: !settings.rankPrizes },
+              t("prizes.saved"),
+            )
+          }
         />
-      )}
+        {settings.prizes.length === 0 ? <EmptyState>{t("prizes.empty")}</EmptyState> : null}
+        <CardList>
+          {settings.prizes.map((prize) => (
+            <PrizeRow
+              key={prize.id}
+              prize={prize}
+              language={language}
+              live={live}
+              edit={() => setDraft(draftOf(prize))}
+              remove={() => setRemoving(prize)}
+            />
+          ))}
+        </CardList>
+        {draft === null && !live ? (
+          <Button variant="primary" onClick={() => setDraft(blank(nextRank(settings.prizes)))}>
+            {t("prizes.add")}
+          </Button>
+        ) : null}
+        {draft === null ? null : (
+          <PrizeForm
+            language={language}
+            draft={draft}
+            live={live}
+            busy={busy}
+            set={(change) => setDraft({ ...draft, ...change })}
+            save={() => void save(draft)}
+            cancel={() => setDraft(null)}
+          />
+        )}
+      </Section>
       <RulesEditor
         language={language}
         rules={settings.rules}
@@ -511,6 +515,6 @@ export function PrizesPanel({ language, organizerId, eventId, joinCode, live }: 
         save={(rules) => void write("PUT", "/rank-prizes", { rules }, t("prizes.rulesSaved"))}
         rulesPage={joinCode === null ? null : `/${language}/e/${joinCode}/rules`}
       />
-    </section>
+    </>
   );
 }

@@ -15,6 +15,7 @@ declare const styles: {
   readonly shell: string;
   readonly side: string;
   readonly sideOpen: string;
+  readonly signOutProblem: string;
   readonly skip: string;
   readonly top: string;
   readonly topEnd: string;

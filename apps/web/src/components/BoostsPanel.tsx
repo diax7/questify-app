@@ -20,7 +20,11 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 /** How often the list is read again while a boost is scheduled or running. */
@@ -123,37 +127,33 @@ function BoostCard({
   const at = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   const state = boostStateOf(boost, Date.now());
   return (
-    <li className={styles.formCard}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{textFor(boost.category, language)}</strong>
-        <span className={styles.badge}>{t("quests.boost.badge")}</span>
-        <span className={styles.badge}>{t(STATUS_KEYS[state])}</span>
-        {boost.rehearsal ? (
-          <span className={styles.badge}>{t("boosts.page.rehearsal")}</span>
-        ) : null}
-      </p>
-      <p className={styles.muted}>
-        {t("boosts.page.window", { start: at(boost.startsAt), end: at(boost.endsAt) })}
-      </p>
+        <Badge>{t("quests.boost.badge")}</Badge>
+        <Badge>{t(STATUS_KEYS[state])}</Badge>
+        {boost.rehearsal ? <Badge>{t("boosts.page.rehearsal")}</Badge> : null}
+      </Toolbar>
+      <Muted>{t("boosts.page.window", { start: at(boost.startsAt), end: at(boost.endsAt) })}</Muted>
       <p>{t("boosts.page.paid", { count: formatNumber(boost.paid, language) })}</p>
-      <div className={styles.actions}>
+      <Toolbar>
         {boost.editable ? (
           <>
-            <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
+            <Button variant="quiet" disabled={busy} onClick={edit}>
               {t("boosts.page.edit")}
-            </button>
-            <button type="button" className={styles.quiet} disabled={busy} onClick={remove}>
+            </Button>
+            <Button variant="quiet" disabled={busy} onClick={remove}>
               {t("boosts.page.delete")}
-            </button>
+            </Button>
           </>
         ) : null}
         {state === "running" ? (
-          <button type="button" className={styles.button} disabled={busy} onClick={stop}>
+          <Button variant="primary" disabled={busy} onClick={stop}>
             {t("boosts.page.stop")}
-          </button>
+          </Button>
         ) : null}
-      </div>
-    </li>
+      </Toolbar>
+    </Card>
   );
 }
 
@@ -179,17 +179,15 @@ function BoostForm({
 }>) {
   const t = useTranslator(language);
   return (
-    <form
-      className={styles.form}
+    <Form
+      card
       onSubmit={(event) => {
         event.preventDefault();
         save();
       }}
     >
-      <label className={styles.field}>
-        {t("boosts.page.category")}
-        <select
-          className={styles.input}
+      <Field label={t("boosts.page.category")}>
+        <Select
           value={draft.categoryId}
           disabled={busy}
           onChange={(event) => change({ ...draft, categoryId: event.target.value })}
@@ -199,35 +197,28 @@ function BoostForm({
               {category.name}
             </option>
           ))}
-        </select>
-      </label>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={draft.startNow}
-          disabled={busy}
-          onChange={(event) => change({ ...draft, startNow: event.target.checked })}
-        />
-        <span>{t("boosts.page.startNow")}</span>
-      </label>
+        </Select>
+      </Field>
+      <Checkbox
+        checked={draft.startNow}
+        disabled={busy}
+        onChange={(event) => change({ ...draft, startNow: event.target.checked })}
+        label={t("boosts.page.startNow")}
+      />
       {draft.startNow ? null : (
-        <label className={styles.field}>
-          {t("boosts.page.startsAt")}
-          <input
-            className={styles.input}
+        <Field label={t("boosts.page.startsAt")}>
+          <Input
             type="datetime-local"
             dir="ltr"
             value={draft.startsAt}
             disabled={busy}
             onChange={(event) => change({ ...draft, startsAt: event.target.value })}
           />
-        </label>
+        </Field>
       )}
-      {draft.startNow ? null : <p className={styles.muted}>{zoneLabel(timeZone, language)}</p>}
-      <label className={styles.field}>
-        {t("boosts.page.minutes")}
-        <input
-          className={styles.input}
+      {draft.startNow ? null : <Muted>{zoneLabel(timeZone, language)}</Muted>}
+      <Field label={t("boosts.page.minutes")}>
+        <Input
           type="number"
           dir="ltr"
           min={1}
@@ -236,17 +227,17 @@ function BoostForm({
           disabled={busy}
           onChange={(event) => change({ ...draft, minutes: Number(event.target.value) })}
         />
-      </label>
-      <p className={styles.muted}>{t("boosts.page.rehearsalNote")}</p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+      </Field>
+      <Muted>{t("boosts.page.rehearsalNote")}</Muted>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("boosts.page.save")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -315,12 +306,13 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="boosts-title">
-      <h2 id="boosts-title" className={styles.title}>
-        {t("boosts.page.title")}
-      </h2>
-      <p className={styles.muted}>{t("boosts.page.intro")}</p>
-      <p className={styles.muted}>{t("boosts.page.lockedNote")}</p>
+    <Stack as="section" aria-labelledby="boosts-title">
+      <PageHeader
+        titleId="boosts-title"
+        title={t("boosts.page.title")}
+        description={t("boosts.page.intro")}
+      />
+      <Muted>{t("boosts.page.lockedNote")}</Muted>
       <Notes
         problem={problem}
         notice={notice}
@@ -339,11 +331,11 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
           confirm={() => void confirm()}
         />
       )}
-      <div className={styles.form} inert={asking !== null}>
+      <>
         {boosts !== null && boosts.length === 0 ? (
-          <p className={styles.muted}>{t("boosts.page.empty")}</p>
+          <EmptyState>{t("boosts.page.empty")}</EmptyState>
         ) : null}
-        <ul className={styles.list}>
+        <CardList>
           {(boosts ?? []).map((boost) => (
             <BoostCard
               key={boost.id}
@@ -356,16 +348,15 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
               stop={() => setAsking({ kind: "stop", boost })}
             />
           ))}
-        </ul>
+        </CardList>
         {draft === null ? (
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            variant="primary"
             disabled={categories.length === 0}
             onClick={() => setDraft(blankBoost(categories[0]?.id ?? ""))}
           >
             {t("boosts.page.new")}
-          </button>
+          </Button>
         ) : (
           <BoostForm
             language={language}
@@ -378,7 +369,7 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
             cancel={() => setDraft(null)}
           />
         )}
-      </div>
-    </section>
+      </>
+    </Stack>
   );
 }

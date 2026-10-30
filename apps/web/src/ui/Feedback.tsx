@@ -53,6 +53,36 @@ export function Notice({
   );
 }
 
+/**
+ * A bar showing how far something has come, from the start of the reading direction. With `reading` it is a named
+ * progress bar for a screen reader; without, it only draws a share (a preview) and is hidden from one.
+ */
+export function Meter({
+  share,
+  reading,
+}: Readonly<{
+  /** 0 to 1. */
+  share: number;
+  reading?: Readonly<{ label: string; now: number; max: number; text: string }>;
+}>) {
+  const props =
+    reading === undefined
+      ? { "aria-hidden": true as const }
+      : {
+          role: "progressbar" as const,
+          "aria-label": reading.label,
+          "aria-valuemin": 0,
+          "aria-valuemax": reading.max,
+          "aria-valuenow": reading.now,
+          "aria-valuetext": reading.text,
+        };
+  return (
+    <div className={styles.meter} {...props}>
+      <div className={styles.meterFill} style={{ inlineSize: `${Math.round(share * 100)}%` }} />
+    </div>
+  );
+}
+
 /** What a list shows while it has nothing yet, with the action that fills it. */
 export function EmptyState({
   children,

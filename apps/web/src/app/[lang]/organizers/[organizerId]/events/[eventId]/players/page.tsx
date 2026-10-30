@@ -14,13 +14,18 @@ export default async function PlayersPage({ params }: Props) {
     <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}/players`}>
       {page.kind === "member" ? (
         <>
-          <JoinRequestsPanel language={page.language} organizerId={organizerId} eventId={eventId} />
           <PlayersPanel
             language={page.language}
             organizerId={organizerId}
             eventId={eventId}
             myRole={page.membership.role}
-          />
+          >
+            <JoinRequestsPanel
+              language={page.language}
+              organizerId={organizerId}
+              eventId={eventId}
+            />
+          </PlayersPanel>
           <ExclusionsPanel
             language={page.language}
             organizerId={organizerId}

@@ -13,7 +13,11 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -117,47 +121,40 @@ function CapsCard({
     }
   };
   return (
-    <form
-      className={styles.formCard}
-      onSubmit={(event) => void submit(event)}
-      aria-labelledby="caps-title"
+    <Section
+      title={t("awards.caps")}
+      titleId="caps-title"
+      description={t(isOwner ? "awards.capsHelp" : "awards.capsOwnerOnly")}
     >
-      <h3 id="caps-title" className={styles.subtitle}>
-        {t("awards.caps")}
-      </h3>
-      <p className={styles.muted}>{t(isOwner ? "awards.capsHelp" : "awards.capsOwnerOnly")}</p>
-      {(
-        [
-          ["awards.capEach", each, setEach],
-          ["awards.capDay", day, setDay],
-        ] as const
-      ).map(([label, value, set]) => (
-        <label key={label} className={styles.field}>
-          <span>{t(label)}</span>
-          <input
-            className={styles.input}
-            inputMode="numeric"
-            dir="ltr"
-            value={value}
-            readOnly={!isOwner}
-            onChange={(changed) => set(changed.target.value)}
-          />
-        </label>
-      ))}
-      {message === null ? null : (
-        <p
-          role={message.ok ? "status" : "alert"}
-          className={message.ok ? styles.notice : styles.alert}
-        >
-          {message.text}
-        </p>
-      )}
-      {isOwner ? (
-        <button type="submit" className={styles.button}>
-          {t("awards.saveCaps")}
-        </button>
-      ) : null}
-    </form>
+      <Form onSubmit={(event) => void submit(event)}>
+        {(
+          [
+            ["awards.capEach", each, setEach],
+            ["awards.capDay", day, setDay],
+          ] as const
+        ).map(([label, value, set]) => (
+          <Field key={label} label={t(label)}>
+            <Input
+              inputMode="numeric"
+              dir="ltr"
+              value={value}
+              readOnly={!isOwner}
+              onChange={(changed) => set(changed.target.value)}
+            />
+          </Field>
+        ))}
+        {message === null ? null : (
+          <Notice role={message.ok ? "status" : "alert"} tone={message.ok ? "success" : "danger"}>
+            {message.text}
+          </Notice>
+        )}
+        {isOwner ? (
+          <Button variant="primary" type="submit">
+            {t("awards.saveCaps")}
+          </Button>
+        ) : null}
+      </Form>
+    </Section>
   );
 }
 
@@ -195,47 +192,39 @@ function BulkFields({
   };
   return (
     <>
-      <fieldset className={styles.choices}>
-        <legend>{t("awards.what")}</legend>
+      <FieldGroup legend={t("awards.what")} layout="choices">
         {(["list", "quest"] as const).map((target) => (
-          <label key={target} className={styles.check}>
-            <input
-              type="radio"
-              name="bulk-target"
-              checked={draft.target === target}
-              disabled={target === "quest" && quests.length === 0}
-              onChange={() => change({ ...draft, target })}
-            />
-            {t(target === "list" ? "awards.bulkList" : "awards.bulkQuest")}
-          </label>
+          <Radio
+            key={target}
+            name="bulk-target"
+            checked={draft.target === target}
+            disabled={target === "quest" && quests.length === 0}
+            onChange={() => change({ ...draft, target })}
+            label={t(target === "list" ? "awards.bulkList" : "awards.bulkQuest")}
+          />
         ))}
-      </fieldset>
+      </FieldGroup>
       {draft.target === "list" ? (
         <>
-          <label className={styles.field}>
-            <span>{t("awards.bulkLines")}</span>
-            <textarea
-              className={styles.input}
+          <Field label={t("awards.bulkLines")}>
+            <Textarea
               dir="auto"
               rows={6}
               value={draft.lines}
               onChange={(typed) => change({ ...draft, lines: typed.target.value })}
             />
-          </label>
-          <label className={styles.field}>
-            <span>{t("awards.bulkFile")}</span>
+          </Field>
+          <Field label={t("awards.bulkFile")}>
             <input
               type="file"
               accept=".csv,.txt,text/csv,text/plain"
               onChange={(picked) => void upload(picked.target.files?.[0])}
             />
-          </label>
+          </Field>
         </>
       ) : (
-        <label className={styles.field}>
-          <span>{t("awards.quest")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("awards.quest")}>
+          <Select
             value={draft.questId}
             onChange={(picked) => change({ ...draft, questId: picked.target.value })}
           >
@@ -244,29 +233,25 @@ function BulkFields({
                 {quest.title}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
-      <label className={styles.field}>
-        <span>{t("awards.amount")}</span>
-        <input
-          className={styles.input}
+      <Field label={t("awards.amount")}>
+        <Input
           inputMode="numeric"
           dir="ltr"
           value={draft.points}
           onChange={(typed) => change({ ...draft, points: typed.target.value })}
         />
-      </label>
-      <label className={styles.field}>
-        <span>{t("awards.reason")}</span>
-        <textarea
-          className={styles.input}
+      </Field>
+      <Field label={t("awards.reason")}>
+        <Textarea
           dir="auto"
           maxLength={300}
           value={draft.reason}
           onChange={(typed) => change({ ...draft, reason: typed.target.value })}
         />
-      </label>
+      </Field>
     </>
   );
 }
@@ -277,14 +262,14 @@ function PreviewNote({ language, preview }: Readonly<{ language: Language; previ
     <div role="status">
       <p>{t("awards.matched", { count: formatNumber(preview.count, language) })}</p>
       {(preview.notFound ?? []).length === 0 ? null : (
-        <p dir="auto" className={styles.muted}>
+        <Muted dir="auto">
           {t("awards.notFound", { lines: (preview.notFound ?? []).join("، ") })}
-        </p>
+        </Muted>
       )}
       {(preview.inactive ?? []).length === 0 ? null : (
-        <p dir="auto" className={styles.muted}>
+        <Muted dir="auto">
           {t("awards.inactive", { lines: (preview.inactive ?? []).join("، ") })}
-        </p>
+        </Muted>
       )}
     </div>
   );
@@ -367,7 +352,7 @@ function BulkCard({
     preview !== null && preview.count > 0 && points !== undefined && reasonOk(draft.reason);
 
   return (
-    <section className={styles.formCard} aria-labelledby="bulk-title">
+    <Section title={t("awards.bulk")} titleId="bulk-title" description={t("awards.bulkHelp")}>
       {asking && points !== undefined && preview !== null ? (
         <ConfirmDialog
           language={language}
@@ -385,35 +370,25 @@ function BulkCard({
           </p>
         </ConfirmDialog>
       ) : null}
-      <form className={styles.form} inert={asking} onSubmit={(event) => void check(event)}>
-        <h3 id="bulk-title" className={styles.subtitle}>
-          {t("awards.bulk")}
-        </h3>
-        <p className={styles.muted}>{t("awards.bulkHelp")}</p>
+      <Form onSubmit={(event) => void check(event)}>
         <BulkFields
           language={language}
           quests={quests}
           draft={{ ...draft, questId }}
           change={change}
         />
-        <button type="submit" className={styles.quiet}>
+        <Button variant="quiet" type="submit">
           {t("awards.check")}
-        </button>
+        </Button>
         {preview === null ? null : <PreviewNote language={language} preview={preview} />}
-        {preview !== null && preview.count === 0 ? (
-          <p className={styles.muted}>{t("awards.nobody")}</p>
-        ) : null}
+        {preview !== null && preview.count === 0 ? <Muted>{t("awards.nobody")}</Muted> : null}
         {message === null ? null : (
-          <p
-            role={message.ok ? "status" : "alert"}
-            className={message.ok ? styles.notice : styles.alert}
-          >
+          <Notice role={message.ok ? "status" : "alert"} tone={message.ok ? "success" : "danger"}>
             {message.text}
-          </p>
+          </Notice>
         )}
-        <button
-          type="button"
-          className={styles.button}
+        <Button
+          variant="primary"
           disabled={!ready}
           onClick={() => {
             key.current = crypto.randomUUID();
@@ -421,9 +396,9 @@ function BulkCard({
           }}
         >
           {t("awards.award")}
-        </button>
-      </form>
-    </section>
+        </Button>
+      </Form>
+    </Section>
   );
 }
 
@@ -436,8 +411,8 @@ function ReportRow({
   const who = whoOf(line.by);
   const sign = line.kind === "removal" ? "−" : "+";
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{handleOf(line.player.username, language)}</strong>
         <span>{t(kindKey(line.kind))}</span>
         {line.quest === null ? null : <span dir="auto">{textFor(line.quest.title, language)}</span>}
@@ -445,19 +420,15 @@ function ReportRow({
           {sign}
           {formatNumber(line.points, language)}
         </span>
-        {line.bulkId === null ? null : <span className={styles.badge}>{t("awards.bulkTag")}</span>}
-        {line.removed ? <span className={styles.badge}>{t("awards.removedTag")}</span> : null}
-      </p>
-      <p className={styles.muted}>
+        {line.bulkId === null ? null : <Badge>{t("awards.bulkTag")}</Badge>}
+        {line.removed ? <Badge>{t("awards.removedTag")}</Badge> : null}
+      </Toolbar>
+      <Muted>
         {formatEventTime(new Date(line.at), timeZone, language)}
         {who === null ? null : ` · ${t("awards.by", { name: who })}`}
-      </p>
-      {line.reason === null ? null : (
-        <p dir="auto" className={styles.muted}>
-          {line.reason}
-        </p>
-      )}
-    </li>
+      </Muted>
+      {line.reason === null ? null : <Muted dir="auto">{line.reason}</Muted>}
+    </Card>
   );
 }
 
@@ -486,14 +457,12 @@ export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
   });
 
   return (
-    <section className={styles.panel} aria-labelledby="awards-title">
-      <h2 id="awards-title" className={styles.title}>
-        {t("awards.title")}
-      </h2>
+    <Stack as="section" aria-labelledby="awards-title">
+      <PageHeader titleId="awards-title" title={t("awards.title")} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {awards.caps === null ? null : (
         <CapsCard
@@ -510,23 +479,20 @@ export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
         quests={awards.quests}
         done={awards.reload}
       />
-      <h3 className={styles.subtitle}>{t("awards.report")}</h3>
-      {awards.lines === null && problem === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
-      ) : null}
-      {awards.lines?.length === 0 ? (
-        <p className={styles.muted}>{t("awards.reportEmpty")}</p>
-      ) : null}
-      <ul className={styles.list}>
-        {(awards.lines ?? []).map((line) => (
-          <ReportRow key={line.id} language={language} timeZone={awards.timeZone} line={line} />
-        ))}
-      </ul>
-      {awards.more === null ? null : (
-        <button type="button" className={styles.quiet} onClick={awards.more}>
-          {t("players.more")}
-        </button>
-      )}
-    </section>
+      <Section title={t("awards.report")}>
+        {awards.lines === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
+        {awards.lines?.length === 0 ? <EmptyState>{t("awards.reportEmpty")}</EmptyState> : null}
+        <CardList>
+          {(awards.lines ?? []).map((line) => (
+            <ReportRow key={line.id} language={language} timeZone={awards.timeZone} line={line} />
+          ))}
+        </CardList>
+        {awards.more === null ? null : (
+          <Button variant="secondary" onClick={awards.more}>
+            {t("players.more")}
+          </Button>
+        )}
+      </Section>
+    </Stack>
   );
 }

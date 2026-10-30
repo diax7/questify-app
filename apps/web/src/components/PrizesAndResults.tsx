@@ -7,7 +7,8 @@ import { QuestItemsPanel } from "#src/components/QuestItemsPanel.tsx";
 import { ResultsPanel } from "#src/components/ResultsPanel.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -39,16 +40,17 @@ export function PrizesAndResults({ language, organizerId, eventId, myRole }: Pro
   }, [organizerId, eventId]);
   if (event === null) {
     return failed ? (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {t("prizes.loadFailed")}
-      </p>
+      </Notice>
     ) : (
-      <p className={styles.muted}>{t("common.loading")}</p>
+      <Muted>{t("common.loading")}</Muted>
     );
   }
   const live = ["live", "ended", "archived"].includes(event.statusNow);
   return (
     <>
+      <PageHeader title={t("prizes.link")} />
       <PrizesPanel
         language={language}
         organizerId={organizerId}

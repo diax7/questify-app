@@ -19,7 +19,12 @@ import {
 } from "#src/lib/flags.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { FieldGroup } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { BulletList, Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Tabs } from "#src/ui/Tabs.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -58,11 +63,9 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
   const at = (iso: string | null) => when(iso, shared.timeZone, shared.language);
   return (
     <>
-      <h4 className={styles.subtitle}>{t("flags.evidence")}</h4>
-      {flag.kind === "impossible_speed" ? (
-        <p className={styles.muted}>{t("flags.speedNote")}</p>
-      ) : null}
-      <ul className={styles.muted}>
+      <SubHeading as="h4">{t("flags.evidence")}</SubHeading>
+      {flag.kind === "impossible_speed" ? <Muted>{t("flags.speedNote")}</Muted> : null}
+      <BulletList>
         {flag.phoneAccounts.map((account) => (
           <li key={account.enrollmentId} dir="auto">
             {t("flags.account", { name: account.username, date: at(account.lastScanAt) })}
@@ -100,20 +103,20 @@ function Evidence({ flag, shared }: Readonly<{ flag: FlagDetail; shared: Shared 
             </ul>
           </li>
         ))}
-      </ul>
+      </BulletList>
       {flag.waitingItems.length === 0 ? null : (
         <>
           <p>{t("flags.heldItems")}</p>
-          <ul className={styles.muted}>
+          <BulletList>
             {flag.waitingItems.map((item, index) => (
               <li key={`${item.name}-${String(index)}`} dir="auto">
                 {t("flags.pickupUntil", { name: item.name, date: at(item.reservedUntil) })}
               </li>
             ))}
-          </ul>
+          </BulletList>
         </>
       )}
-      {flag.paused ? <p className={styles.badge}>{t("flags.pausedNote")}</p> : null}
+      {flag.paused ? <Badge tone="warning">{t("flags.pausedNote")}</Badge> : null}
       <Removals removals={flag.removals} shared={shared} />
     </>
   );
@@ -129,8 +132,8 @@ function Removals({
   }
   return (
     <>
-      <h4 className={styles.subtitle}>{t("flags.removals")}</h4>
-      <ul className={styles.muted}>
+      <SubHeading as="h4">{t("flags.removals")}</SubHeading>
+      <BulletList>
         {removals.map((removal) => (
           <li key={removal.entryId} dir="auto">
             {t("flags.removal", {
@@ -140,7 +143,7 @@ function Removals({
             })}
           </li>
         ))}
-      </ul>
+      </BulletList>
     </>
   );
 }
@@ -250,34 +253,29 @@ function CaseActions({
   const [removing, setRemoving] = useState(false);
   return (
     <>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} onClick={() => ask("clear")}>
+      <Toolbar>
+        <Button variant="quiet" onClick={() => ask("clear")}>
           {t("flags.clear")}
-        </button>
-        <button
-          type="button"
-          className={styles.quiet}
-          aria-expanded={removing}
-          onClick={() => setRemoving(!removing)}
-        >
+        </Button>
+        <Button variant="quiet" aria-expanded={removing} onClick={() => setRemoving(!removing)}>
           {t("flags.removePoints")}
-        </button>
+        </Button>
         {shared.owner ? (
           <>
-            <button type="button" className={styles.quiet} onClick={() => ask("pause")}>
+            <Button variant="quiet" onClick={() => ask("pause")}>
               {t(flag.paused ? "flags.resume" : "flags.pause")}
-            </button>
+            </Button>
             {flag.enrollmentStatus === "banned" ? null : (
-              <button type="button" className={styles.quiet} onClick={() => ask("ban")}>
+              <Button variant="quiet" onClick={() => ask("ban")}>
                 {t("flags.ban")}
-              </button>
+              </Button>
             )}
           </>
         ) : null}
-      </div>
+      </Toolbar>
       {removing ? (
-        <div className={styles.form}>
-          <p className={styles.muted}>{t("flags.removeHelp")}</p>
+        <Card>
+          <Muted>{t("flags.removeHelp")}</Muted>
           <PlayerAwards
             language={shared.language}
             eventApi={shared.eventApi}
@@ -287,10 +285,10 @@ function CaseActions({
             caps={null}
             changed={() => undefined}
           />
-          <button type="button" className={styles.button} onClick={() => ask("close")}>
+          <Button variant="primary" onClick={() => ask("close")}>
             {t("flags.closeRemoved")}
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : null}
     </>
   );
@@ -317,14 +315,14 @@ function CaseDetail({ id, shared }: Readonly<{ id: string; shared: Shared }>) {
     });
   }, [id, shared]);
   if (flag === null) {
-    return <p className={styles.muted}>{t("common.loading")}</p>;
+    return <Muted>{t("common.loading")}</Muted>;
   }
   return (
-    <div className={styles.form}>
+    <>
       {asking === null ? null : (
         <CaseDialog asking={asking} flag={flag} shared={shared} close={() => setAsking(null)} />
       )}
-      <div className={styles.form} inert={asking !== null}>
+      <FieldGroup>
         <Evidence flag={flag} shared={shared} />
         {flag.status === "open" ? (
           <CaseActions flag={flag} shared={shared} ask={setAsking} />
@@ -340,8 +338,8 @@ function CaseDetail({ id, shared }: Readonly<{ id: string; shared: Shared }>) {
             {flag.note === null ? null : ` ${t("flags.note", { note: flag.note })}`}
           </p>
         )}
-      </div>
-    </div>
+      </FieldGroup>
+    </>
   );
 }
 
@@ -354,32 +352,23 @@ function FlagRow({
   const [open, setOpen] = useState(start);
   const summary = flagSummary(line);
   return (
-    <li className={styles.formCard}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">@{line.player.username}</strong>
-        <span className={styles.badge}>
-          {t(summary.key, { count: formatNumber(summary.count, shared.language) })}
-        </span>
-        <span className={styles.muted}>
+        <Badge>{t(summary.key, { count: formatNumber(summary.count, shared.language) })}</Badge>
+        <Muted as="span">
           {t("flags.raised", { date: when(line.raisedAt, shared.timeZone, shared.language) })}
-        </span>
-      </p>
+        </Muted>
+      </Toolbar>
       {line.waiting === 0 ? null : (
         <p>{t("flags.waiting", { count: formatNumber(line.waiting, shared.language) })}</p>
       )}
-      {line.resolution === null ? null : (
-        <p className={styles.muted}>{t(resolutionKey(line.resolution))}</p>
-      )}
-      <button
-        type="button"
-        className={styles.quiet}
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
+      {line.resolution === null ? null : <Muted>{t(resolutionKey(line.resolution))}</Muted>}
+      <Button variant="quiet" aria-expanded={open} onClick={() => setOpen(!open)}>
         {t(open ? "flags.hide" : "flags.view")}
-      </button>
+      </Button>
       {open ? <CaseDetail id={line.id} shared={shared} /> : null}
-    </li>
+    </Card>
   );
 }
 
@@ -398,17 +387,17 @@ function HoldSwitch({ hold, shared }: Readonly<{ hold: boolean; shared: Shared }
     setBusy(false);
   };
   return (
-    <div className={styles.card}>
-      <h3 className={styles.subtitle}>{t("flags.hold")}</h3>
+    <Card>
+      <SubHeading>{t("flags.hold")}</SubHeading>
       <p>{t(hold ? "flags.holdOn" : "flags.holdOff")}</p>
       {shared.owner ? (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={() => void flip()}>
+        <Button variant="quiet" disabled={busy} onClick={() => void flip()}>
           {t(hold ? "flags.holdTurnOff" : "flags.holdTurnOn")}
-        </button>
+        </Button>
       ) : (
-        <p className={styles.muted}>{t("flags.holdOwnerOnly")}</p>
+        <Muted>{t("flags.holdOwnerOnly")}</Muted>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -502,40 +491,33 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
   };
   const flags = list.listing?.flags ?? null;
   return (
-    <section className={styles.panel} aria-labelledby="flags-title">
-      <h2 id="flags-title" className={styles.title}>
-        {t("flags.title")}
-      </h2>
-      <p className={styles.muted}>{t("flags.intro")}</p>
+    <Stack as="section" aria-labelledby="flags-title">
+      <PageHeader titleId="flags-title" title={t("flags.title")} description={t("flags.intro")} />
       {list.listing === null ? null : <HoldSwitch hold={list.listing.hold} shared={shared} />}
-      <div className={styles.actions} role="group" aria-label={t("flags.title")}>
-        {(["open", "closed"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={tab === status ? styles.button : styles.quiet}
-            aria-pressed={tab === status}
-            onClick={() => setStatus(tab)}
-          >
-            {t(tab === "open" ? "flags.open" : "flags.closed")}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label={t("flags.title")}
+        items={(["open", "closed"] as const).map((tab) => ({
+          key: tab,
+          label: t(tab === "open" ? "flags.open" : "flags.closed"),
+          current: tab === status,
+          select: () => setStatus(tab),
+        }))}
+      />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
-      {flags === null ? <p className={styles.muted}>{t("common.loading")}</p> : null}
+      {flags === null ? <Muted>{t("common.loading")}</Muted> : null}
       {flags !== null && flags.length === 0 ? (
-        <p className={styles.muted}>{t(status === "open" ? "flags.empty" : "flags.emptyClosed")}</p>
+        <EmptyState>{t(status === "open" ? "flags.empty" : "flags.emptyClosed")}</EmptyState>
       ) : null}
-      <ul className={styles.list}>
+      <CardList>
         {(flags ?? []).map((line) => (
           <FlagRow
             key={`${line.id}-${String(list.round)}`}
@@ -544,12 +526,12 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
             start={line.id === start || line.id === acted}
           />
         ))}
-      </ul>
+      </CardList>
       {list.more === null ? null : (
-        <button type="button" className={styles.quiet} onClick={list.more}>
+        <Button variant="quiet" onClick={list.more}>
           {t("players.more")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Stack>
   );
 }

@@ -29,7 +29,10 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Meter, Muted } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 /** An unlock the API refused, in words (T-306c). */
@@ -160,66 +163,66 @@ function GoalCard({
     target: formatNumber(goal.target, language),
   });
   return (
-    <li className={styles.formCard}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{textFor(goal.title, language)}</strong>
-        <span className={styles.badge}>{t(STATUS_KEYS[goal.status])}</span>
-      </p>
-      <p className={styles.muted}>
+        <Badge>{t(STATUS_KEYS[goal.status])}</Badge>
+      </Toolbar>
+      <Muted>
         {t("community.page.window", { start: at(goal.startsAt), end: at(goal.closesAt) })}
-      </p>
-      <p>{t(MEASURE_KEYS[goal.measure])}</p>
-      <div
-        className={styles.meter}
-        role="progressbar"
-        aria-label={t("community.bar")}
-        aria-valuemin={0}
-        aria-valuemax={goal.target}
-        aria-valuenow={Math.min(goal.progress, goal.target)}
-        aria-valuetext={progress}
-      >
-        <div className={styles.meterFill} style={{ inlineSize: `${share * 100}%` }} />
-      </div>
+      </Muted>
+      <Muted>{t(MEASURE_KEYS[goal.measure])}</Muted>
+      <Meter
+        share={share}
+        reading={{
+          label: t("community.bar"),
+          now: Math.min(goal.progress, goal.target),
+          max: goal.target,
+          text: progress,
+        }}
+      />
       <p>{progress}</p>
-      <ul className={styles.list}>
+      <CardList>
         {goal.steps.map((step) => (
-          <li key={step.threshold} className={styles.row}>
-            <span>{formatNumber(step.threshold, language)}</span>
-            <span>{t(`community.page.reward.${step.reward.kind}`)}</span>
-            {step.reward.unlock === null ? null : (
-              <span dir="auto">
-                {t("community.page.unlocks", { name: textFor(step.reward.unlock.name, language) })}
-              </span>
-            )}
-            {step.reward.points === null ? null : (
-              <span>{formatNumber(step.reward.points, language)}</span>
-            )}
-            {step.reachedAt === null ? null : (
-              <span className={styles.badge}>{at(step.reachedAt)}</span>
-            )}
-            {step.reward.kind === "points" && step.reachedAt !== null ? (
-              <span className={styles.muted}>
-                {t("community.page.payouts", {
-                  paid: formatNumber(step.paid, language),
-                  due: formatNumber(step.due, language),
-                  skipped: formatNumber(step.skipped, language),
-                })}
-              </span>
-            ) : null}
-          </li>
+          <Card as="li" key={step.threshold}>
+            <Toolbar>
+              <span>{formatNumber(step.threshold, language)}</span>
+              <span>{t(`community.page.reward.${step.reward.kind}`)}</span>
+              {step.reward.unlock === null ? null : (
+                <span dir="auto">
+                  {t("community.page.unlocks", {
+                    name: textFor(step.reward.unlock.name, language),
+                  })}
+                </span>
+              )}
+              {step.reward.points === null ? null : (
+                <span>{formatNumber(step.reward.points, language)}</span>
+              )}
+              {step.reachedAt === null ? null : <Badge>{at(step.reachedAt)}</Badge>}
+              {step.reward.kind === "points" && step.reachedAt !== null ? (
+                <Muted as="span">
+                  {t("community.page.payouts", {
+                    paid: formatNumber(step.paid, language),
+                    due: formatNumber(step.due, language),
+                    skipped: formatNumber(step.skipped, language),
+                  })}
+                </Muted>
+              ) : null}
+            </Toolbar>
+          </Card>
         ))}
-      </ul>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
+      </CardList>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={edit}>
           {t("community.page.edit")}
-        </button>
+        </Button>
         {goal.started ? null : (
-          <button type="button" className={styles.quiet} disabled={busy} onClick={remove}>
+          <Button variant="quiet" disabled={busy} onClick={remove}>
             {t("community.page.delete")}
-          </button>
+          </Button>
         )}
-      </div>
-    </li>
+      </Toolbar>
+    </Card>
   );
 }
 
@@ -286,11 +289,12 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="community-title">
-      <h2 id="community-title" className={styles.title}>
-        {t("community.page.title")}
-      </h2>
-      <p className={styles.muted}>{t("community.page.intro")}</p>
+    <Stack as="section" aria-labelledby="community-title">
+      <PageHeader
+        titleId="community-title"
+        title={t("community.page.title")}
+        description={t("community.page.intro")}
+      />
       <Notes
         problem={problem}
         notice={notice}
@@ -309,11 +313,11 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
           confirm={() => void remove(deleting)}
         />
       )}
-      <div className={styles.form} inert={deleting !== null}>
+      <>
         {goals !== null && goals.length === 0 ? (
-          <p className={styles.muted}>{t("community.page.empty")}</p>
+          <EmptyState>{t("community.page.empty")}</EmptyState>
         ) : null}
-        <ul className={styles.list}>
+        <CardList>
           {(goals ?? []).map((goal) => (
             <GoalCard
               key={goal.id}
@@ -325,15 +329,11 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
               remove={() => setDeleting(goal)}
             />
           ))}
-        </ul>
+        </CardList>
         {draft === null ? (
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => setDraft(blankGoal(Date.now(), timeZone))}
-          >
+          <Button variant="primary" onClick={() => setDraft(blankGoal(Date.now(), timeZone))}>
             {t("community.page.new")}
-          </button>
+          </Button>
         ) : (
           <CommunityGoalForm
             language={language}
@@ -347,7 +347,7 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
             cancel={() => setDraft(null)}
           />
         )}
-      </div>
-    </section>
+      </>
+    </Stack>
   );
 }

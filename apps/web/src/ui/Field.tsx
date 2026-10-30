@@ -149,11 +149,14 @@ export function FieldGroup({
   legend,
   help,
   layout = "stack",
+  disabled,
   children,
 }: Readonly<{
   legend?: ReactNode;
   help?: ReactNode;
   layout?: "stack" | "columns" | "choices" | "choiceGrid";
+  /** Disables every control inside at once (a form while it saves). */
+  disabled?: boolean;
   children: ReactNode;
 }>) {
   const inner = {
@@ -164,7 +167,7 @@ export function FieldGroup({
   }[layout];
   const body = layout === "stack" ? children : <div className={inner}>{children}</div>;
   const helpText = help === undefined ? null : <p className={styles.help}>{help}</p>;
-  if (legend === undefined) {
+  if (legend === undefined && disabled === undefined) {
     return (
       <div className={styles.group}>
         {body}
@@ -173,8 +176,8 @@ export function FieldGroup({
     );
   }
   return (
-    <fieldset className={styles.group}>
-      <legend className={styles.legend}>{legend}</legend>
+    <fieldset className={styles.group} disabled={disabled}>
+      {legend === undefined ? null : <legend className={styles.legend}>{legend}</legend>}
       {helpText}
       {body}
     </fieldset>
@@ -186,8 +189,12 @@ export function InlineControls({ children }: Readonly<{ children: ReactNode }>) 
   return <div className={styles.inline}>{children}</div>;
 }
 
-/** A form whose fields and buttons stack with the standard gap. */
-export function Form({ className, ...props }: FormHTMLAttributes<HTMLFormElement>) {
-  return <form {...props} className={join(styles.group, className)} />;
+/** A form whose fields and buttons stack with the standard gap; `card` draws it as a box of its own. */
+export function Form({
+  card = false,
+  className,
+  ...props
+}: FormHTMLAttributes<HTMLFormElement> & Readonly<{ card?: boolean }>) {
+  return <form {...props} className={join(styles.group, card && styles.formCard, className)} />;
 }
 export const codeInputClass: string = styles.codeInput;

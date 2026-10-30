@@ -6,7 +6,11 @@ import { AcceptanceFields, acceptedFrom } from "#src/components/AcceptanceFields
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
 
 /**
  * A signed-in person creates another organizer they own. One Idempotency-Key per page view, so a double click or a
@@ -38,37 +42,29 @@ export function NewOrganizerForm({ language }: Readonly<{ language: Language }>)
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="new-organizer-title">
-      <form className={styles.form} onSubmit={(event) => void submit(event)}>
-        <h1 id="new-organizer-title" className={styles.title}>
-          {t("staff.newOrganizer")}
-        </h1>
-        <label className={styles.field}>
-          <span>{t("staff.organizerName")}</span>
-          <input
-            className={styles.input}
+    <Card as="section" aria-labelledby="new-organizer-title">
+      <Form onSubmit={(event) => void submit(event)}>
+        <PageHeader titleId="new-organizer-title" title={t("staff.newOrganizer")} />
+        <Field label={t("staff.organizerName")} help={t("staff.organizerNameHint")}>
+          <Input
             name="name"
             autoComplete="organization"
             minLength={2}
             maxLength={80}
             required
             disabled={busy}
-            aria-describedby="new-organizer-hint"
           />
-        </label>
-        <p id="new-organizer-hint" className={styles.muted}>
-          {t("staff.organizerNameHint")}
-        </p>
+        </Field>
         <AcceptanceFields language={language} disabled={busy} />
         {problem === null ? null : (
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {problem}
-          </p>
+          </Notice>
         )}
-        <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+        <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>
           {t("staff.create")}
-        </button>
-      </form>
-    </section>
+        </Button>
+      </Form>
+    </Card>
   );
 }

@@ -11,6 +11,7 @@ declare const styles: {
   readonly danger: string;
   readonly error: string;
   readonly field: string;
+  readonly formCard: string;
   readonly group: string;
   readonly help: string;
   readonly inline: string;

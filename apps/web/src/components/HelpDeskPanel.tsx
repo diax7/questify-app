@@ -26,7 +26,13 @@ import {
   type TicketPage,
   type TicketTab,
 } from "#src/lib/tickets.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Select, Textarea } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { Tabs } from "#src/ui/Tabs.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -105,35 +111,32 @@ function AnswerActions({
     }
   };
   return (
-    <div className={styles.formCard}>
-      <label className={styles.field}>
-        <span>{t("tickets.reply")}</span>
-        <textarea
-          className={styles.input}
+    <Card>
+      <Field label={t("tickets.reply")}>
+        <Textarea
           dir="auto"
           rows={3}
           maxLength={TICKET_TEXT_MAX}
           value={reply}
           onChange={(event) => setReply(event.target.value)}
         />
-      </label>
-      <button
-        type="button"
-        className={styles.button}
+      </Field>
+      <Button
+        variant="primary"
         disabled={busy || !canReply(reply)}
         onClick={() => void send({ reply: reply.trim() })}
       >
         {t("tickets.send")}
-      </button>
-      <button type="button" className={styles.quiet} disabled={busy} onClick={solve}>
+      </Button>
+      <Button variant="quiet" disabled={busy} onClick={solve}>
         {t("tickets.solve")}
-      </button>
+      </Button>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -172,38 +175,31 @@ function EscalateAction({
   };
   if (!opened) {
     return (
-      <button type="button" className={styles.quiet} onClick={() => setOpened(true)}>
+      <Button variant="quiet" onClick={() => setOpened(true)}>
         {t("tickets.escalate")}
-      </button>
+      </Button>
     );
   }
   return (
-    <div className={styles.formCard}>
-      <label className={styles.field}>
-        <span>{t("tickets.escalate.note")}</span>
-        <textarea
-          className={styles.input}
+    <Card>
+      <Field label={t("tickets.escalate.note")}>
+        <Textarea
           dir="auto"
           rows={3}
           maxLength={TICKET_TEXT_MAX}
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
-      </label>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={busy || !canReply(note)}
-        onClick={() => void send()}
-      >
+      </Field>
+      <Button variant="primary" disabled={busy || !canReply(note)} onClick={() => void send()}>
         {t("tickets.escalate.send")}
-      </button>
+      </Button>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -214,17 +210,17 @@ function QuestifyLines({ language, ticket }: Readonly<{ language: Language; tick
   return (
     <>
       {escalated && ticket.escalation !== null ? (
-        <p className={styles.muted} dir="auto">
+        <Muted dir="auto">
           {t("tickets.escalatedNote", { note: ticket.escalation.note })}
           {ticket.escalation.by === null
             ? null
             : ` · ${t("tickets.escalatedBy", { name: ticket.escalation.by })}`}
-        </p>
+        </Muted>
       ) : null}
       {ticket.queue === "event" && ticket.status === "open" && ticket.returned !== null ? (
-        <p className={styles.muted} dir="auto" data-testid="returned">
+        <Muted dir="auto" data-testid="returned">
           {t("tickets.returned", { note: ticket.returned.note })}
-        </p>
+        </Muted>
       ) : null}
     </>
   );
@@ -248,15 +244,15 @@ function TicketRow({
   const reported = reportedLine(ticket, language);
   const answerable = ticket.status === "open" && ticket.queue === "event";
   return (
-    <li className={styles.card} data-testid="ticket">
-      <p className={styles.row}>
-        <span className={styles.badge}>{t(kindKey(ticket.kind))}</span>
+    <Card as="li" data-testid="ticket">
+      <Toolbar>
+        <Badge>{t(kindKey(ticket.kind))}</Badge>
         {ticket.username === null ? (
           <strong>{t("tickets.deletedAccount")}</strong>
         ) : (
-          <a className={styles.textLink} href={playersPage} dir="auto">
+          <TextLink href={playersPage} dir="auto">
             {handleOf(ticket.username, language)}
-          </a>
+          </TextLink>
         )}
         <span dir="auto">
           {ticket.quest === null ? t("tickets.eventWide") : textFor(ticket.quest.title, language)}
@@ -266,35 +262,29 @@ function TicketRow({
             language === "ar" ? "ar-SA-u-nu-latn" : "en-GB",
           )}
         </time>
-        {ticket.marked ? <span className={styles.badge}>{t("tickets.marked")}</span> : null}
-        <span className={styles.badge}>
+        {ticket.marked ? <Badge>{t("tickets.marked")}</Badge> : null}
+        <Badge>
           {ticket.status === "open" && ticket.queue === "questify"
             ? t("help.status.withQuestify")
             : t(outcomeKey(ticket))}
-        </span>
-      </p>
+        </Badge>
+      </Toolbar>
       {reported === null ? null : (
         <p dir="auto">
-          <a className={styles.textLink} href={playersPage}>
-            {reported}
-          </a>
+          <TextLink href={playersPage}>{reported}</TextLink>
         </p>
       )}
       <p dir="auto">{ticket.text}</p>
       <QuestifyLines language={language} ticket={ticket} />
-      {ticket.reply === null ? null : (
-        <p dir="auto" className={styles.muted}>
-          {ticket.reply}
-        </p>
-      )}
-      {by === null ? null : <p className={styles.muted}>{by}</p>}
+      {ticket.reply === null ? null : <Muted dir="auto">{ticket.reply}</Muted>}
+      {by === null ? null : <Muted>{by}</Muted>}
       {answerable ? (
         <>
           <AnswerActions language={language} eventApi={eventApi} ticket={ticket} done={done} />
           <EscalateAction language={language} eventApi={eventApi} ticket={ticket} done={done} />
         </>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -322,28 +312,20 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
     setProblem(body === undefined ? t("join.network") : problemOf(body, language, t));
   });
   return (
-    <section className={styles.panel} aria-labelledby="tickets-title">
-      <h2 id="tickets-title" className={styles.title}>
-        {t("tickets.page")}
-      </h2>
-      <div role="tablist" className={styles.row}>
-        {TABS.map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            className={tab === name ? styles.button : styles.quiet}
-            onClick={() => setTab(name)}
-          >
-            {t(TAB_KEYS[name], { count: tabCount(list.counts, name) })}
-          </button>
-        ))}
-      </div>
-      <label className={styles.field}>
-        <span>{t("tickets.kindFilter")}</span>
-        <select
-          className={styles.input}
+    <Stack as="section" aria-labelledby="tickets-title">
+      <PageHeader titleId="tickets-title" title={t("tickets.page")} />
+      <Tabs
+        tablist
+        label={t("tickets.page")}
+        items={TABS.map((name) => ({
+          key: name,
+          label: t(TAB_KEYS[name], { count: tabCount(list.counts, name) }),
+          current: tab === name,
+          select: () => setTab(name),
+        }))}
+      />
+      <Field label={t("tickets.kindFilter")}>
+        <Select
           value={kind ?? ""}
           onChange={(event) =>
             setKind(event.target.value === "" ? null : (event.target.value as TicketKind))
@@ -355,18 +337,16 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
               {t(kindKey(name))}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-      {list.tickets === null && problem === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
-      ) : null}
-      {list.tickets?.length === 0 ? <p className={styles.muted}>{t("tickets.empty")}</p> : null}
-      <ul className={styles.list}>
+      {list.tickets === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
+      {list.tickets?.length === 0 ? <EmptyState>{t("tickets.empty")}</EmptyState> : null}
+      <CardList>
         {(list.tickets ?? []).map((ticket) => (
           <TicketRow
             key={ticket.id}
@@ -377,12 +357,12 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
             done={list.reload}
           />
         ))}
-      </ul>
+      </CardList>
       {list.more === null ? null : (
-        <button type="button" className={styles.quiet} onClick={list.more}>
+        <Button variant="quiet" onClick={list.more}>
           {t("tickets.more")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Stack>
   );
 }

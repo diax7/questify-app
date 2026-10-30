@@ -14,7 +14,12 @@ import {
   type QueueFilter,
   type QueueItem,
 } from "#src/lib/submissions.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Input } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { Tabs } from "#src/ui/Tabs.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -85,59 +90,54 @@ function ItemActions({
     setProblem(result.body === undefined ? t("join.network") : problemOf(result.body, language, t));
   };
   const reasonField = (label: "submissions.rejectReason" | "submissions.removeReason") => (
-    <label className={styles.field}>
-      <span>{t(label)}</span>
-      <input
-        className={styles.input}
+    <Field label={t(label)}>
+      <Input
         dir="auto"
         maxLength={300}
         value={reason}
         onChange={(event) => setReason(event.target.value)}
       />
-    </label>
+    </Field>
   );
   return (
-    <div className={styles.formCard}>
+    <Card>
       {item.status === "pending" ? (
         <>
-          <button
-            type="button"
-            className={styles.button}
+          <Button
+            variant="primary"
             disabled={busy}
             onClick={() => void send("review", { decision: "approve" })}
           >
             {t("submissions.approve")}
-          </button>
+          </Button>
           {reasonField("submissions.rejectReason")}
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
             disabled={busy || !canGiveReason(reason)}
             onClick={() => void send("review", { decision: "reject", reason: reason.trim() })}
           >
             {t("submissions.reject")}
-          </button>
+          </Button>
         </>
       ) : null}
       {item.status === "approved" ? (
         <>
           {reasonField("submissions.removeReason")}
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
             disabled={busy || !canGiveReason(reason)}
             onClick={() => void send("remove", { reason: reason.trim() })}
           >
             {t("submissions.remove")}
-          </button>
+          </Button>
         </>
       ) : null}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -151,24 +151,22 @@ function ItemRow({
   const player =
     item.username === null ? t("submissions.deletedPlayer") : handleOf(item.username, language);
   return (
-    <li className={styles.card} data-testid="submission">
-      <p className={styles.row}>
+    <Card as="li" data-testid="submission">
+      <Toolbar>
         <strong dir="auto">{player}</strong>
         <span dir="auto">{textFor(item.questTitle, language)}</span>
         <span dir="ltr">+{formatNumber(item.points, language)}</span>
-        <span className={styles.badge}>{t(statusKey(item.status))}</span>
-        {item.auto ? <span className={styles.badge}>{t("submissions.auto")}</span> : null}
-        {item.marked ? <span className={styles.badge}>{t("submissions.marked")}</span> : null}
-      </p>
+        <Badge>{t(statusKey(item.status))}</Badge>
+        {item.auto ? <Badge>{t("submissions.auto")}</Badge> : null}
+        {item.marked ? <Badge>{t("submissions.marked")}</Badge> : null}
+      </Toolbar>
       <p dir="auto">{item.text ?? t("submissions.erased")}</p>
-      {item.reasonSystem ? <p className={styles.muted}>{t("submissions.left")}</p> : null}
+      {item.reasonSystem ? <Muted>{t("submissions.left")}</Muted> : null}
       {!item.reasonSystem && item.reason !== null ? (
-        <p dir="auto" className={styles.muted}>
-          {t("submissions.reasonShown", { reason: item.reason })}
-        </p>
+        <Muted dir="auto">{t("submissions.reasonShown", { reason: item.reason })}</Muted>
       ) : null}
       <ItemActions language={language} eventApi={eventApi} item={item} done={done} />
-    </li>
+    </Card>
   );
 }
 
@@ -207,39 +205,31 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="submissions-title">
-      <h2 id="submissions-title" className={styles.title}>
-        {t("submissions.title")}
-      </h2>
-      <div role="tablist" className={styles.row}>
-        {FILTERS.map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={filter === name}
-            className={filter === name ? styles.button : styles.quiet}
-            onClick={() => setFilter(name)}
-          >
-            {t(`submissions.filter.${name}`)}
-          </button>
-        ))}
-      </div>
+    <Stack as="section" aria-labelledby="submissions-title">
+      <PageHeader titleId="submissions-title" title={t("submissions.title")} />
+      <Tabs
+        tablist
+        label={t("submissions.title")}
+        items={FILTERS.map((name) => ({
+          key: name,
+          label: t(`submissions.filter.${name}`),
+          current: filter === name,
+          select: () => setFilter(name),
+        }))}
+      />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-      {queue.items === null && problem === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
-      ) : null}
-      {queue.items?.length === 0 ? <p className={styles.muted}>{t("submissions.empty")}</p> : null}
+      {queue.items === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
+      {queue.items?.length === 0 ? <EmptyState>{t("submissions.empty")}</EmptyState> : null}
       {filter === "unseen" && (queue.items?.length ?? 0) > 0 ? (
-        <button type="button" className={styles.quiet} onClick={() => void markRead()}>
+        <Button variant="quiet" onClick={() => void markRead()}>
           {t("submissions.markSeen")}
-        </button>
+        </Button>
       ) : null}
-      <ul className={styles.list}>
+      <CardList>
         {(queue.items ?? []).map((item) => (
           <ItemRow
             key={item.id}
@@ -249,12 +239,12 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
             done={queue.reload}
           />
         ))}
-      </ul>
+      </CardList>
       {queue.more === null ? null : (
-        <button type="button" className={styles.quiet} onClick={queue.more}>
+        <Button variant="quiet" onClick={queue.more}>
           {t("submissions.more")}
-        </button>
+        </Button>
       )}
-    </section>
+    </Stack>
   );
 }

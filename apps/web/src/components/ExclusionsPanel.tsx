@@ -5,7 +5,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 
 type Kind = "phone" | "email_domain";
 
@@ -89,29 +92,25 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="exclusions-title">
-      <h2 id="exclusions-title" className={styles.title}>
-        {t("exclusions.title")}
-      </h2>
-      <p className={styles.muted}>{t("exclusions.intro")}</p>
+    <Section
+      title={t("exclusions.title")}
+      titleId="exclusions-title"
+      description={t("exclusions.intro")}
+    >
       {myRole === "owner" ? (
-        <form className={styles.form} onSubmit={(event) => void add(event)}>
-          <label className={styles.field}>
-            <span>{t("exclusions.kind")}</span>
-            <select
-              className={styles.input}
+        <Form onSubmit={(event) => void add(event)}>
+          <Field label={t("exclusions.kind")}>
+            <Select
               value={kind}
               disabled={busy}
               onChange={(changed) => setKind(changed.target.value as Kind)}
             >
               <option value="phone">{t("exclusions.phone")}</option>
               <option value="email_domain">{t("exclusions.domain")}</option>
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span>{t("exclusions.value")}</span>
-            <input
-              className={styles.input}
+            </Select>
+          </Field>
+          <Field label={t("exclusions.value")}>
+            <Input
               dir="ltr"
               required
               maxLength={260}
@@ -120,50 +119,49 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
               disabled={busy}
               onChange={(changed) => setValue(changed.target.value)}
             />
-          </label>
-          <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+          </Field>
+          <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
             {t("exclusions.add")}
-          </button>
-        </form>
+          </Button>
+        </Form>
       ) : (
-        <p className={styles.muted}>{t("exclusions.ownerOnly")}</p>
+        <Muted>{t("exclusions.ownerOnly")}</Muted>
       )}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {entries === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : (
-        <p className={styles.muted}>
+        <Muted>
           {entries.length === 0
             ? t("exclusions.empty")
             : t("exclusions.count", { count: formatNumber(entries.length, language) })}
-        </p>
+        </Muted>
       )}
-      <ul className={styles.list}>
+      <CardList>
         {(entries ?? []).map((entry) => (
-          <li key={entry.id} className={styles.row}>
-            <span className={styles.badge}>
-              {t(entry.kind === "phone" ? "exclusions.phone" : "exclusions.domain")}
-            </span>
-            {/* A masked phone and a domain read left to right inside Arabic text. */}
-            <bdi dir="ltr">{entry.value}</bdi>
-            {myRole === "owner" ? (
-              <button
-                type="button"
-                className={styles.quiet}
-                disabled={busy}
-                aria-label={`${t("exclusions.remove")} ${entry.value}`}
-                onClick={() => void remove(entry)}
-              >
-                {t("exclusions.remove")}
-              </button>
-            ) : null}
-          </li>
+          <Card as="li" key={entry.id}>
+            <Toolbar>
+              <Badge>{t(entry.kind === "phone" ? "exclusions.phone" : "exclusions.domain")}</Badge>
+              {/* A masked phone and a domain read left to right inside Arabic text. */}
+              <bdi dir="ltr">{entry.value}</bdi>
+              {myRole === "owner" ? (
+                <Button
+                  variant="quiet"
+                  disabled={busy}
+                  aria-label={`${t("exclusions.remove")} ${entry.value}`}
+                  onClick={() => void remove(entry)}
+                >
+                  {t("exclusions.remove")}
+                </Button>
+              ) : null}
+            </Toolbar>
+          </Card>
         ))}
-      </ul>
-    </section>
+      </CardList>
+    </Section>
   );
 }

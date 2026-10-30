@@ -16,7 +16,10 @@ import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { announcementIssueKey } from "#src/lib/announcements.ts";
 import type { Translate } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
 
 export type Audience = Readonly<{ members: number; phase: string }>;
 type Loaded = Readonly<{
@@ -169,21 +172,31 @@ export function AnnouncementsPanel({
       success: t("announcements.page.cancelled"),
     });
   return (
-    <div className={styles.stack}>
-      <h1>{t("announcements.page.title")}</h1>
-      <p>{t("announcements.page.intro")}</p>
-      <p>
+    <Stack>
+      <PageHeader
+        title={t("announcements.page.title")}
+        description={t("announcements.page.intro")}
+      />
+      <Muted>
         {t("announcements.page.limits", {
           perHour: formatNumber(ANNOUNCEMENT_RATE.perHour, language),
           perDay: formatNumber(ANNOUNCEMENT_RATE.perDay, language),
         })}
-      </p>
-      {state.problem === undefined ? null : <p role="alert">{state.problem}</p>}
-      {notice === undefined ? null : <p role="status">{notice}</p>}
+      </Muted>
+      {state.problem === undefined ? null : (
+        <Notice tone="danger" role="alert">
+          {state.problem}
+        </Notice>
+      )}
+      {notice === undefined ? null : (
+        <Notice tone="success" role="status">
+          {notice}
+        </Notice>
+      )}
       {state.loaded === undefined ? (
-        <button type="button" onClick={() => void state.load()}>
+        <Button variant="primary" onClick={() => void state.load()}>
           {t("common.retry")}
-        </button>
+        </Button>
       ) : (
         <>
           <AnnouncementComposer
@@ -233,6 +246,6 @@ export function AnnouncementsPanel({
           confirm={() => void apply()}
         />
       )}
-    </div>
+    </Stack>
   );
 }

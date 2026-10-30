@@ -1,10 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { ChangePasswordForm } from "#src/components/ChangePasswordForm.tsx";
-import { SignOutButton } from "#src/components/SignOutButton.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage, isolate, translatorFor } from "#src/lib/language.ts";
 import { currentStaff } from "#src/lib/session.ts";
-import styles from "#src/components/layout.module.css";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 /** The signed-in person's own account: who they are and a password change (T-020). */
 export default async function AccountPage({
@@ -21,32 +22,23 @@ export default async function AccountPage({
   }
   if (staff.kind === "unavailable") {
     return (
-      <>
-        <TopBar language={lang} path="/account" />
-        <main className={styles.page}>
-          <p role="alert" className={styles.alert}>
-            {t("error.generic")}
-          </p>
-          <a className={styles.button} href={`/${lang}/account`}>
-            {t("common.retry")}
-          </a>
-        </main>
-      </>
+      <AppShell language={lang} path="/account" signedIn={false}>
+        <Notice tone="danger" role="alert">
+          {t("error.generic")}
+        </Notice>
+        <ButtonLink variant="primary" href={`/${lang}/account`}>
+          {t("common.retry")}
+        </ButtonLink>
+      </AppShell>
     );
   }
   return (
-    <>
-      <TopBar language={lang} path="/account">
-        <a className={styles.link} href={`/${lang}`}>
-          {t("nav.home")}
-        </a>
-        <SignOutButton language={lang} />
-      </TopBar>
-      <main className={styles.page}>
-        <h1 className={styles.title}>{t("staff.account")}</h1>
-        <p>{t("staff.signedInAs", { email: isolate(staff.me.email) })}</p>
-        <ChangePasswordForm language={lang} email={staff.me.email} />
-      </main>
-    </>
+    <AppShell language={lang} path="/account" signedIn>
+      <PageHeader
+        title={t("staff.account")}
+        description={t("staff.signedInAs", { email: isolate(staff.me.email) })}
+      />
+      <ChangePasswordForm language={lang} email={staff.me.email} />
+    </AppShell>
   );
 }

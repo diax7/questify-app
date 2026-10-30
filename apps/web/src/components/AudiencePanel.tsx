@@ -18,7 +18,10 @@ import {
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Radio, Select } from "#src/ui/Field.tsx";
+import { Card, CardList, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -60,25 +63,23 @@ function ValueTicks({
           label: `${entry.tag} (${formatNumber(entry.guests, language)})`,
         }));
   if (values.length === 0) {
-    return (
-      <p className={styles.muted}>
-        {t(draft.kind === "answer" ? "audience.noFields" : "audience.noTags")}
-      </p>
-    );
+    return <Muted>{t(draft.kind === "answer" ? "audience.noFields" : "audience.noTags")}</Muted>;
   }
   return (
-    <fieldset className={styles.row}>
+    <FieldGroup layout="choiceGrid">
       {values.map((entry) => (
-        <label key={entry.value} className={styles.check}>
-          <input
-            type="checkbox"
-            checked={hasValue(draft, entry.value)}
-            onChange={() => change(toggleValue(draft, entry.value))}
-          />
-          <bdi>{entry.label}</bdi>
-        </label>
+        <Checkbox
+          key={entry.value}
+          checked={hasValue(draft, entry.value)}
+          onChange={() => change(toggleValue(draft, entry.value))}
+          label={
+            <>
+              <bdi>{entry.label}</bdi>
+            </>
+          }
+        />
       ))}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -88,26 +89,21 @@ function RuleEditor({ language, view, kind, item, busy, save, cancel }: EditorPr
   const [draft, setDraft] = useState<AudienceDraft>(() => draftOf(item.audience, view.fields));
   const body = ruleBody(draft);
   return (
-    <div className={styles.form}>
-      <fieldset className={styles.form}>
+    <FieldGroup>
+      <FieldGroup>
         <legend>{t("audience.who")}</legend>
         {(["everyone", "answer", "tag"] as const).map((choice) => (
-          <label key={choice} className={styles.check}>
-            <input
-              type="radio"
-              name={`audience-${item.id}`}
-              checked={draft.kind === choice}
-              onChange={() => setDraft(pickKind(draft, choice))}
-            />
-            <span>{t(`audience.kind.${choice}`)}</span>
-          </label>
+          <Radio
+            name={`audience-${item.id}`}
+            checked={draft.kind === choice}
+            onChange={() => setDraft(pickKind(draft, choice))}
+            label={t(`audience.kind.${choice}`)}
+          />
         ))}
-      </fieldset>
+      </FieldGroup>
       {draft.kind === "answer" && view.fields.length > 0 ? (
-        <label className={styles.field}>
-          <span>{t("audience.field")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("audience.field")}>
+          <Select
             value={draft.fieldId}
             onChange={(picked) => setDraft(pickField(draft, picked.target.value))}
           >
@@ -116,29 +112,28 @@ function RuleEditor({ language, view, kind, item, busy, save, cancel }: EditorPr
                 {nameIn(field.label, language)}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       ) : null}
       {draft.kind === "everyone" ? null : (
         <ValueTicks language={language} view={view} draft={draft} change={setDraft} />
       )}
       {kind === "rewards" && draft.kind === "answer" ? (
-        <p className={styles.muted}>{t("audience.rewardHint")}</p>
+        <Muted>{t("audience.rewardHint")}</Muted>
       ) : null}
-      <div className={styles.row}>
-        <button
-          type="button"
-          className={styles.button}
+      <Toolbar>
+        <Button
+          variant="primary"
           disabled={busy || body === undefined}
           onClick={() => body !== undefined && save(body)}
         >
           {t("audience.save")}
-        </button>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+        </Button>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("audience.cancel")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Toolbar>
+    </FieldGroup>
   );
 }
 
@@ -162,14 +157,14 @@ function ItemRow({
   const words = ruleWords(item.audience, view.fields, language);
   const name = nameIn(item.name, language);
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong>
           <bdi>{name}</bdi>
         </strong>
-        {item.removed ? <span className={styles.badge}>{t("audience.removed")}</span> : null}
-      </p>
-      <p className={styles.muted}>
+        {item.removed ? <Badge>{t("audience.removed")}</Badge> : null}
+      </Toolbar>
+      <Muted>
         {words === null
           ? t("audience.everyone")
           : t(words.field === null ? "audience.byTag" : "audience.byAnswer", {
@@ -179,20 +174,15 @@ function ItemRow({
         {item.members === null
           ? null
           : ` · ${t("audience.members", { count: formatNumber(item.members, language) })}`}
-      </p>
+      </Muted>
       {editing ? (
         children
       ) : (
-        <button
-          type="button"
-          className={styles.quiet}
-          aria-label={`${t("audience.change")} ${name}`}
-          onClick={edit}
-        >
+        <Button variant="quiet" aria-label={`${t("audience.change")} ${name}`} onClick={edit}>
           {t("audience.change")}
-        </button>
+        </Button>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -217,9 +207,9 @@ function ItemList({
   const t = useTranslator(language);
   return (
     <>
-      <h3 className={styles.subtitle}>{t(`audience.${kind}`)}</h3>
-      {view[kind].length === 0 ? <p className={styles.muted}>{t(`audience.no.${kind}`)}</p> : null}
-      <ul className={styles.list}>
+      <SubHeading>{t(`audience.${kind}`)}</SubHeading>
+      {view[kind].length === 0 ? <Muted>{t(`audience.no.${kind}`)}</Muted> : null}
+      <CardList>
         {view[kind].map((item) => (
           <ItemRow
             key={item.id}
@@ -240,7 +230,7 @@ function ItemList({
             />
           </ItemRow>
         ))}
-      </ul>
+      </CardList>
     </>
   );
 }
@@ -303,20 +293,16 @@ export function AudiencePanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="audience-title">
-      <h2 id="audience-title" className={styles.title}>
-        {t("audience.title")}
-      </h2>
-      <p className={styles.muted}>{t("audience.intro")}</p>
+    <Section title={t("audience.title")} titleId="audience-title" description={t("audience.intro")}>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
       {view === null ? null : (
         <>
@@ -334,6 +320,6 @@ export function AudiencePanel({ language, organizerId, eventId }: Props) {
           ))}
         </>
       )}
-    </section>
+    </Section>
   );
 }

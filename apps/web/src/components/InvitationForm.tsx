@@ -18,7 +18,10 @@ import {
   type RequestDraft,
 } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
+import { SubHeading } from "#src/ui/Section.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -37,10 +40,8 @@ function CityField({
 }: FieldProps & Pick<Catalogs, "cities">) {
   const t = translatorFor(language);
   return (
-    <label className={styles.field}>
-      {t("invCampaign.field.city")}
-      <select
-        className={styles.input}
+    <Field label={t("invCampaign.field.city")}>
+      <Select
         value={draft.cityId}
         disabled={busy}
         onChange={(changed) => change({ cityId: changed.target.value })}
@@ -51,8 +52,8 @@ function CityField({
             {cityName(city, language)}
           </option>
         ))}
-      </select>
-    </label>
+      </Select>
+    </Field>
   );
 }
 
@@ -67,34 +68,29 @@ function InterestsField({
   const t = translatorFor(language);
   const full = draft.interests.length >= INVITATION_MAX_INTERESTS;
   return (
-    <fieldset className={styles.row}>
-      <legend>{t("invCampaign.field.interests")}</legend>
+    <FieldGroup legend={t("invCampaign.field.interests")} layout="choiceGrid">
       {interestChoices(interests, draft.interests).map((interest) => {
         const ticked = draft.interests.includes(interest.id);
         return (
-          <label key={interest.id} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={ticked}
-              disabled={busy || (full && !ticked)}
-              onChange={() => change({ interests: toggleInterest(draft.interests, interest.id) })}
-            />
-            <span>{interestName(interest, language)}</span>
-          </label>
+          <Checkbox
+            key={interest.id}
+            checked={ticked}
+            disabled={busy || (full && !ticked)}
+            onChange={() => change({ interests: toggleInterest(draft.interests, interest.id) })}
+            label={interestName(interest, language)}
+          />
         );
       })}
-      <p className={styles.muted}>{t("invCampaign.interests.hint")}</p>
-    </fieldset>
+      <Muted>{t("invCampaign.interests.hint")}</Muted>
+    </FieldGroup>
   );
 }
 
 function HistoryField({ language, draft, busy, change }: FieldProps) {
   const t = translatorFor(language);
   return (
-    <label className={styles.field}>
-      {t("invCampaign.field.history")}
-      <select
-        className={styles.input}
+    <Field label={t("invCampaign.field.history")}>
+      <Select
         value={draft.history}
         disabled={busy}
         onChange={(changed) => {
@@ -109,19 +105,19 @@ function HistoryField({ language, draft, busy, change }: FieldProps) {
             {t(`invCampaign.history.${history}`)}
           </option>
         ))}
-      </select>
-    </label>
+      </Select>
+    </Field>
   );
 }
 
 /** A line under a field: its hint, or what is wrong with it. */
 function Hint({ wrong, hint, error }: Readonly<{ wrong: boolean; hint: string; error: string }>) {
   return wrong ? (
-    <p role="alert" className={styles.alert}>
+    <Notice tone="danger" role="alert">
       {error}
-    </p>
+    </Notice>
   ) : (
-    <p className={styles.muted}>{hint}</p>
+    <Muted>{hint}</Muted>
   );
 }
 
@@ -165,20 +161,20 @@ export function InvitationForm({
   };
   const fields = { language, draft, busy, change };
   return (
-    <form
-      className={styles.formCard}
+    <Form
+      card
       aria-labelledby="invitation-form-title"
       onSubmit={(submitted) => void send(submitted)}
     >
-      <h2 id="invitation-form-title" className={styles.subtitle}>
+      <SubHeading as="h2" id="invitation-form-title">
         {t("invCampaign.form.title")}
-      </h2>
+      </SubHeading>
       <CityField {...fields} cities={catalogs.cities} />
       <InterestsField {...fields} interests={catalogs.interests} />
       {catalogsFailed ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("invCampaign.catalogsFailed")}
-        </p>
+        </Notice>
       ) : null}
       <HistoryField {...fields} />
       <NumberField
@@ -193,10 +189,8 @@ export function InvitationForm({
         hint={t("invCampaign.size.hint")}
         error={t("invCampaign.invalid.size")}
       />
-      <label className={styles.field}>
-        {t("invCampaign.field.sendAfter")}
-        <input
-          className={styles.input}
+      <Field label={t("invCampaign.field.sendAfter")}>
+        <Input
           type="datetime-local"
           dir="ltr"
           value={draft.sendAfter}
@@ -204,15 +198,15 @@ export function InvitationForm({
           aria-invalid={wrong === "sendAfter"}
           onChange={(changed) => change({ sendAfter: changed.target.value })}
         />
-      </label>
+      </Field>
       <Hint
         wrong={wrong === "sendAfter"}
         hint={t("invCampaign.sendAfter.hint")}
         error={t("invCampaign.invalid.sendAfter")}
       />
-      <button type="submit" className={styles.button} disabled={busy}>
+      <Button variant="primary" type="submit" disabled={busy}>
         {t("invCampaign.submit")}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }

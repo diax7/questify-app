@@ -9,7 +9,9 @@ import {
   type InvitationsModel,
   type InvitationsProps,
 } from "#src/lib/use-invitations.ts";
-import styles from "#src/components/layout.module.css";
+import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
 
 type Props = InvitationsProps & Readonly<{ myRole: "owner" | "editor" }>;
 type Catalogs = ReturnType<typeof useInvitationCatalogs>;
@@ -31,13 +33,13 @@ function OwnerActions({
   const t = translatorFor(props.language);
   const hasOpen = list.campaigns.some((one) => OPEN_STATES.includes(one.state));
   if (props.myRole !== "owner") {
-    return <p className={styles.muted}>{t("invCampaign.ownerOnly")}</p>;
+    return <Muted>{t("invCampaign.ownerOnly")}</Muted>;
   }
   if (!list.enabled) {
     return null;
   }
   return hasOpen ? (
-    <p className={styles.muted}>{t("invCampaign.openExists")}</p>
+    <Muted>{t("invCampaign.openExists")}</Muted>
   ) : (
     <InvitationForm
       language={props.language}
@@ -64,11 +66,9 @@ function Requests({
   const t = translatorFor(props.language);
   return (
     <>
-      {list.enabled ? null : <p className={styles.warning}>{t("invCampaign.off")}</p>}
+      {list.enabled ? null : <Notice tone="warning">{t("invCampaign.off")}</Notice>}
       <OwnerActions props={props} model={model} catalogs={catalogs} list={list} />
-      {list.campaigns.length === 0 ? (
-        <p className={styles.muted}>{t("invCampaign.empty")}</p>
-      ) : null}
+      {list.campaigns.length === 0 ? <EmptyState>{t("invCampaign.empty")}</EmptyState> : null}
       {list.campaigns.map((campaign) => (
         <InvitationCard
           key={campaign.id}
@@ -98,32 +98,29 @@ export function InvitationsPanel(props: Props) {
   const model = useInvitations(props);
   const catalogs = useInvitationCatalogs();
   return (
-    <section className={styles.stack} aria-labelledby="invitations-title">
-      <h1 id="invitations-title" className={styles.title}>
-        {t("invCampaign.title")}
-      </h1>
-      <p>{t("invCampaign.intro")}</p>
-      <p className={styles.notice}>{t("invCampaign.noCharge")}</p>
-      <p className={styles.muted}>{t("invCampaign.privacy")}</p>
+    <Stack as="section" aria-labelledby="invitations-title">
+      <PageHeader
+        titleId="invitations-title"
+        title={t("invCampaign.title")}
+        description={t("invCampaign.intro")}
+      />
+      <Notice tone="info">{t("invCampaign.noCharge")}</Notice>
+      <Muted>{t("invCampaign.privacy")}</Muted>
       {model.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {model.problem}
-        </p>
+        </Notice>
       )}
       {model.notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {model.notice}
-        </p>
+        </Notice>
       )}
       {model.list === null ? (
-        model.problem === null && (
-          <p role="status" className={styles.muted}>
-            {t("common.loading")}
-          </p>
-        )
+        model.problem === null && <Muted role="status">{t("common.loading")}</Muted>
       ) : (
         <Requests props={props} model={model} catalogs={catalogs} list={model.list} />
       )}
-    </section>
+    </Stack>
   );
 }

@@ -2,7 +2,6 @@
 
 import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import {
   capProblem,
   firstBonusLabel,
@@ -19,7 +18,11 @@ import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Card, CardList, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Button } from "#src/ui/Button.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
 
 export type QuestOption = Readonly<{ id: string; title: string; points: number }>;
 export type Caps = Readonly<{ each: number; day: number }>;
@@ -41,32 +44,24 @@ export function ConfirmDialog({
   children: ReactNode;
 }>) {
   const t = useTranslator(language);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="award-confirm-title"
-      className={styles.card}
-      onKeyDown={(pressed) => {
-        if (pressed.key === "Escape" && !busy) {
-          cancel();
-        }
-      }}
+    <Dialog
+      title={title}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("awards.back")}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={confirm}>
+            {t("awards.confirm")}
+          </Button>
+        </>
+      }
     >
-      <h3 id="award-confirm-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {title}
-      </h3>
       {children}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("awards.back")}
-        </button>
-        <button type="button" className={styles.button} disabled={busy} onClick={confirm}>
-          {t("awards.confirm")}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -125,8 +120,8 @@ function RecordLine({
   const who = whoOf(line.by);
   const title = textFor(line.title, language);
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong>
           {firstBonusLabel(t, line, (value) => formatNumber(value, language)) ??
             t(kindKey(line.kind))}
@@ -136,23 +131,19 @@ function RecordLine({
           {line.scoreDelta > 0 ? "+" : ""}
           {formatNumber(line.scoreDelta, language)}
         </span>
-        {line.removed ? <span className={styles.badge}>{t("awards.removedTag")}</span> : null}
-      </p>
-      <p className={styles.muted}>
+        {line.removed ? <Badge>{t("awards.removedTag")}</Badge> : null}
+      </Toolbar>
+      <Muted>
         {formatEventTime(new Date(line.at), timeZone, language)}
         {who === null ? null : ` · ${t("awards.by", { name: who })}`}
-      </p>
-      {line.reason === null ? null : (
-        <p dir="auto" className={styles.muted}>
-          {line.reason}
-        </p>
-      )}
+      </Muted>
+      {line.reason === null ? null : <Muted dir="auto">{line.reason}</Muted>}
       {line.removable ? (
-        <button type="button" className={styles.quiet} onClick={() => remove(line)}>
+        <Button variant="quiet" onClick={() => remove(line)}>
           {t("awards.remove")}
-        </button>
+        </Button>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -177,37 +168,30 @@ function AwardFields({
   const t = useTranslator(language);
   return (
     <>
-      <fieldset className={styles.choices}>
-        <legend>{t("awards.what")}</legend>
+      <FieldGroup legend={t("awards.what")} layout="choices">
         {(["points", "quest"] as const).map((mode) => (
-          <label key={mode} className={styles.check}>
-            <input
-              type="radio"
-              name="award-mode"
-              checked={draft.mode === mode}
-              disabled={mode === "quest" && quests.length === 0}
-              onChange={() => change({ ...draft, mode })}
-            />
-            {t(mode === "points" ? "awards.somePoints" : "awards.aQuest")}
-          </label>
+          <Radio
+            key={mode}
+            name="award-mode"
+            checked={draft.mode === mode}
+            disabled={mode === "quest" && quests.length === 0}
+            onChange={() => change({ ...draft, mode })}
+            label={t(mode === "points" ? "awards.somePoints" : "awards.aQuest")}
+          />
         ))}
-      </fieldset>
+      </FieldGroup>
       {draft.mode === "points" ? (
-        <label className={styles.field}>
-          <span>{t("awards.amount")}</span>
-          <input
-            className={styles.input}
+        <Field label={t("awards.amount")}>
+          <Input
             inputMode="numeric"
             dir="ltr"
             value={draft.points}
             onChange={(changed) => change({ ...draft, points: changed.target.value })}
           />
-        </label>
+        </Field>
       ) : (
-        <label className={styles.field}>
-          <span>{t("awards.quest")}</span>
-          <select
-            className={styles.input}
+        <Field label={t("awards.quest")}>
+          <Select
             value={draft.questId}
             onChange={(changed) => change({ ...draft, questId: changed.target.value })}
           >
@@ -216,20 +200,17 @@ function AwardFields({
                 {quest.title} ({formatNumber(quest.points, language)})
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       )}
-      <label className={styles.field}>
-        <span>{t("awards.reason")}</span>
-        <textarea
-          className={styles.input}
+      <Field label={t("awards.reason")} help={t("awards.reasonHelp")}>
+        <Textarea
           dir="auto"
           maxLength={300}
           value={draft.reason}
           onChange={(changed) => change({ ...draft, reason: changed.target.value })}
         />
-        <small className={styles.muted}>{t("awards.reasonHelp")}</small>
-      </label>
+      </Field>
     </>
   );
 }
@@ -297,17 +278,15 @@ function AskDialog({
       confirm={confirm}
     >
       <p>{t("awards.removeBody")}</p>
-      {hint === undefined ? null : <p className={styles.muted}>{hint}</p>}
-      <label className={styles.field}>
-        <span>{t("awards.reason")}</span>
-        <textarea
-          className={styles.input}
+      {hint === undefined ? null : <Muted>{hint}</Muted>}
+      <Field label={t("awards.reason")}>
+        <Textarea
           dir="auto"
           maxLength={300}
           value={asking.reason}
           onChange={(typed) => change({ ...asking, reason: typed.target.value })}
         />
-      </label>
+      </Field>
     </ConfirmDialog>
   );
 }
@@ -344,19 +323,17 @@ function RecordSection({
   const t = useTranslator(language);
   return (
     <>
-      <h3 className={styles.subtitle}>{t("awards.record")}</h3>
+      <SubHeading>{t("awards.record")}</SubHeading>
       {record.failed === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problemOf(record.failed, language, t)}
-        </p>
+        </Notice>
       )}
       {record.lines === null && record.failed === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
+        <Muted>{t("common.loading")}</Muted>
       ) : null}
-      {record.lines?.length === 0 ? (
-        <p className={styles.muted}>{t("awards.recordEmpty")}</p>
-      ) : null}
-      <ul className={styles.list}>
+      {record.lines?.length === 0 ? <Muted>{t("awards.recordEmpty")}</Muted> : null}
+      <CardList>
         {(record.lines ?? []).map((line) => (
           <RecordLine
             key={line.id}
@@ -366,11 +343,11 @@ function RecordSection({
             remove={remove}
           />
         ))}
-      </ul>
+      </CardList>
       {record.more === null ? null : (
-        <button type="button" className={styles.quiet} onClick={record.more}>
+        <Button variant="quiet" onClick={record.more}>
           {t("players.more")}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -458,7 +435,7 @@ export function PlayerAwards({
   };
 
   return (
-    <div className={styles.form}>
+    <>
       {asking === null ? null : (
         <AskDialog
           language={language}
@@ -470,47 +447,43 @@ export function PlayerAwards({
           confirm={() => void send(asking)}
         />
       )}
-      <div className={styles.form} inert={asking !== null}>
+      <FieldGroup>
         {problem === null ? null : (
-          <p role="alert" className={styles.alert}>
+          <Notice tone="danger" role="alert">
             {problem}
-          </p>
+          </Notice>
         )}
         {notice === null ? null : (
-          <p role="status" className={styles.notice}>
+          <Notice tone="info" role="status">
             {notice}
-          </p>
+          </Notice>
         )}
-        <form
-          className={styles.formCard}
-          onSubmit={submit}
-          aria-label={t("awards.awardTitle", { name })}
-        >
-          <h3 className={styles.subtitle}>{t("awards.awardTitle", { name })}</h3>
+        <Form card onSubmit={submit} aria-label={t("awards.awardTitle", { name })}>
+          <SubHeading>{t("awards.awardTitle", { name })}</SubHeading>
           <AwardFields language={language} quests={quests} draft={draft} change={setDraft} />
-          <p className={styles.muted}>
+          <Muted>
             {caps === null
               ? t("awards.noLimit")
               : t("awards.capNote", {
                   each: formatNumber(caps.each, language),
                   day: formatNumber(caps.day, language),
                 })}
-          </p>
-          <button
+          </Muted>
+          <Button
+            variant="primary"
             type="submit"
-            className={styles.button}
             disabled={amount === undefined || !reasonOk(draft.reason)}
           >
             {t("awards.award")}
-          </button>
-        </form>
+          </Button>
+        </Form>
         <RecordSection
           language={language}
           timeZone={timeZone}
           record={record}
           remove={(chosen) => ask({ kind: "remove", line: chosen, reason: "" })}
         />
-      </div>
-    </div>
+      </FieldGroup>
+    </>
   );
 }

@@ -10,16 +10,21 @@ import {
   type EventTerms,
   type Language,
 } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PlayerAwards, type Caps, type QuestOption } from "#src/components/PlayerAwards.tsx";
-import { useFocusOnMount } from "#src/components/QuestBuilderParts.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { handleOf, nameOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Facts, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Status = "pending" | "active" | "left" | "removed" | "banned" | "declined";
 
@@ -57,6 +62,8 @@ type Props = Readonly<{
   organizerId: string;
   eventId: string;
   myRole: "owner" | "editor";
+  /** What shows between the title and the list: the join requests waiting for an answer. */
+  children?: ReactNode;
 }>;
 
 /**
@@ -77,36 +84,29 @@ function BanDialog({
   confirm: () => void;
 }>) {
   const t = useTranslator(language);
-  const heading = useFocusOnMount<HTMLHeadingElement>();
   const lifting = player.status === "banned";
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="ban-title"
-      aria-describedby="ban-body"
-      className={styles.card}
-      onKeyDown={(pressed) => {
-        if (pressed.key === "Escape" && !busy) {
-          cancel();
-        }
-      }}
+    <Dialog
+      titleId="ban-title"
+      describedById="ban-body"
+      title={t(lifting ? "players.unbanTitle" : "players.banTitle", {
+        name: nameOf(player.username, language),
+      })}
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={confirm}>
+            {t(lifting ? "players.unban" : "players.ban")}
+          </Button>
+        </>
+      }
     >
-      <h2 id="ban-title" ref={heading} tabIndex={-1} className={styles.subtitle}>
-        {t(lifting ? "players.unbanTitle" : "players.banTitle", {
-          name: nameOf(player.username, language),
-        })}
-      </h2>
       <p id="ban-body">{t(lifting ? "players.unbanBody" : "players.banBody")}</p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
-          {t("common.cancel")}
-        </button>
-        <button type="button" className={styles.button} disabled={busy} onClick={confirm}>
-          {t(lifting ? "players.unban" : "players.ban")}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -139,62 +139,48 @@ function PlayerRow({
 }>) {
   const t = useTranslator(language);
   return (
-    <li className={styles.card}>
-      <p className={styles.row}>
+    <Card as="li">
+      <Toolbar>
         <strong dir="auto">{handleOf(player.username, language)}</strong>
-        <span className={styles.badge}>{t(`players.status.${player.status}`)}</span>
-        {player.rehearsal === true ? (
-          <span className={styles.badge}>{t("rehearsal.badge")}</span>
-        ) : null}
+        <Badge>{t(`players.status.${player.status}`)}</Badge>
+        {player.rehearsal === true ? <Badge>{t("rehearsal.badge")}</Badge> : null}
         <span>
           {t("players.points", { currency })}: {formatNumber(player.score, language)}
         </span>
         {player.openFlag === null || player.openFlag === undefined ? null : (
-          <a className={styles.textLink} href={`${flagsPage}?case=${player.openFlag}`}>
-            {t("players.flagged")}
-          </a>
+          <TextLink href={`${flagsPage}?case=${player.openFlag}`}>{t("players.flagged")}</TextLink>
         )}
-        {player.redeemPaused === true ? (
-          <span className={styles.badge}>{t("players.redeemPaused")}</span>
-        ) : null}
-      </p>
+        {player.redeemPaused === true ? <Badge>{t("players.redeemPaused")}</Badge> : null}
+      </Toolbar>
       {(player.answers ?? []).length === 0 ? null : (
-        <dl className={styles.muted} aria-label={t("players.answers")}>
+        <Facts label={t("players.answers")}>
           {(player.answers ?? []).map((answer) => (
-            <div key={answer.fieldId} className={styles.row}>
+            <Fragment key={answer.fieldId}>
               <dt>{joinFieldLabel(answer, language)}:</dt>
               <dd dir="auto">
                 {answer.choice === undefined || answer.choice === null
                   ? answer.value
                   : joinOptionLabel({ id: answer.value, ...answer.choice }, language)}
               </dd>
-            </div>
+            </Fragment>
           ))}
-        </dl>
+        </Facts>
       )}
       {canBan && player.status !== "removed" ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          onClick={(clicked) => ask(player, clicked.currentTarget)}
-        >
+        <Button variant="quiet" onClick={(clicked) => ask(player, clicked.currentTarget)}>
           {t(player.status === "banned" ? "players.unban" : "players.ban")}
-        </button>
+        </Button>
       ) : null}
       {canBan ? (
-        <button
-          type="button"
-          className={styles.quiet}
-          onClick={(clicked) => askPause(player, clicked.currentTarget)}
-        >
+        <Button variant="quiet" onClick={(clicked) => askPause(player, clicked.currentTarget)}>
           {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
-        </button>
+        </Button>
       ) : null}
-      <button type="button" className={styles.quiet} aria-expanded={open} onClick={toggle}>
+      <Button variant="quiet" aria-expanded={open} onClick={toggle}>
         {t(open ? "awards.hideRecord" : "awards.record")}
-      </button>
+      </Button>
       {open ? children : null}
-    </li>
+    </Card>
   );
 }
 
@@ -432,14 +418,14 @@ function Said({ problem, notice }: Readonly<{ problem: string | null; notice: st
   return (
     <>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
     </>
   );
@@ -449,7 +435,7 @@ function Said({ problem, notice }: Readonly<{ problem: string | null; notice: st
  * The event's players for its team (T-208): what the join card discloses, page by page, with a username search. The
  * owner bans a player or lifts a ban after a confirmation; editors see the list only.
  */
-export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) {
+export function PlayersPanel({ language, organizerId, eventId, myRole, children }: Props) {
   const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const facts = useEventFacts(eventApi, language);
@@ -485,34 +471,32 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="players-title">
+    <Stack as="section" aria-labelledby="players-title">
       <StandingDialogs language={language} standing={standing} />
-      <div className={styles.form} inert={standing.asking !== null || standing.pausing !== null}>
-        <h2 id="players-title" className={styles.title}>
-          {t("players.title", { players: termFor(terms.player, language) })}
-        </h2>
-        {myRole === "owner" ? null : <p className={styles.muted}>{t("players.ownerOnly")}</p>}
-        <form className={styles.form} role="search" onSubmit={submit}>
-          <label className={styles.field}>
-            <span>{t("players.search")}</span>
-            <input
-              className={styles.input}
+      <>
+        <PageHeader
+          titleId="players-title"
+          title={t("players.title", { players: termFor(terms.player, language) })}
+          description={myRole === "owner" ? undefined : t("players.ownerOnly")}
+        />
+        {children}
+        <Form role="search" onSubmit={submit}>
+          <Field label={t("players.search")}>
+            <Input
               type="search"
               dir="auto"
               maxLength={30}
               value={query}
               onChange={(changed) => setQuery(changed.target.value)}
             />
-          </label>
-        </form>
+          </Field>
+        </Form>
         <Said problem={problem} notice={notice} />
-        {list.players === null ? <p className={styles.muted}>{t("common.loading")}</p> : null}
+        {list.players === null ? <Muted>{t("common.loading")}</Muted> : null}
         {list.players !== null && list.players.length === 0 ? (
-          <p className={styles.muted}>
-            {t(list.applied === "" ? "players.empty" : "players.noMatch")}
-          </p>
+          <EmptyState>{t(list.applied === "" ? "players.empty" : "players.noMatch")}</EmptyState>
         ) : null}
-        <ul className={styles.list}>
+        <CardList>
           {(list.players ?? []).map((player) => (
             <PlayerRow
               key={player.enrollmentId}
@@ -537,13 +521,13 @@ export function PlayersPanel({ language, organizerId, eventId, myRole }: Props) 
               />
             </PlayerRow>
           ))}
-        </ul>
+        </CardList>
         {list.more === null ? null : (
-          <button type="button" className={styles.quiet} onClick={list.more}>
+          <Button variant="quiet" onClick={list.more}>
             {t("players.more")}
-          </button>
+          </Button>
         )}
-      </div>
-    </section>
+      </>
+    </Stack>
   );
 }

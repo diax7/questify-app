@@ -2,7 +2,10 @@
 import type { Language, SouvenirRule } from "@questify/shared";
 import { SouvenirPreview } from "#src/components/SouvenirPreview.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 function Action({
   label,
@@ -16,9 +19,9 @@ function Action({
   primary?: boolean;
 }) {
   return (
-    <button className={primary ? styles.button : styles.quiet} disabled={busy} onClick={act}>
+    <Button variant={primary ? "primary" : "quiet"} disabled={busy} onClick={act}>
       {label}
-    </button>
+    </Button>
   );
 }
 type Props = {
@@ -45,25 +48,28 @@ export function SouvenirCard({
 }: Props) {
   const t = useTranslator(language);
   return (
-    <article className={styles.card}>
+    <Card as="article">
       <SouvenirPreview item={rule.item} language={language} />
-      <h2 className={styles.subtitle}>{rule.item.name[language]}</h2>
-      <p>
-        {t(`souvenir.${rule.status}`)} · {t(`souvenir.${rule.audience}`)}
-        {rule.audience === "rank" ? ` (${rule.rankFrom}–${rule.rankTo})` : ""}
-      </p>
-      <p>{t("souvenir.targets", { count: rule.targetCount })}</p>
-      <p>{t("souvenir.granted", { count: rule.granted })}</p>
+      <SubHeading as="h2">{rule.item.name[language]}</SubHeading>
+      <Toolbar>
+        <Badge tone={rule.status === "active" ? "success" : "neutral"}>
+          {t(`souvenir.${rule.status}`)}
+        </Badge>
+        <Muted as="span">
+          {t(`souvenir.${rule.audience}`)}
+          {rule.audience === "rank" ? ` (${rule.rankFrom}–${rule.rankTo})` : ""}
+        </Muted>
+      </Toolbar>
+      <Muted>{t("souvenir.targets", { count: rule.targetCount })}</Muted>
+      <Muted>{t("souvenir.granted", { count: rule.granted })}</Muted>
       {rule.waitingForResults ? (
-        <p>
+        <Notice tone="info">
           {t("souvenir.waiting")}{" "}
-          <a className={styles.textLink} href={`${base}/prizes`}>
-            {t("souvenir.results")}
-          </a>
-        </p>
+          <TextLink href={`${base}/prizes`}>{t("souvenir.results")}</TextLink>
+        </Notice>
       ) : null}
       {archived ? null : (
-        <div className={styles.actions}>
+        <Toolbar>
           {rule.status === "draft" ? (
             <>
               <Action busy={busy} label={t("souvenir.edit")} act={edit} />
@@ -74,8 +80,8 @@ export function SouvenirCard({
           {rule.status === "active" ? (
             <Action busy={busy} label={t("souvenir.stop")} act={stop} />
           ) : null}
-        </div>
+        </Toolbar>
       )}
-    </article>
+    </Card>
   );
 }

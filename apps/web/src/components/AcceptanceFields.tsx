@@ -1,6 +1,7 @@
 import { organizerDocuments, type Acceptance, type Language } from "@questify/shared";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Checkbox, FieldGroup } from "#src/ui/Field.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 const LABELS = {
   terms: "staff.accept.terms",
@@ -15,25 +16,25 @@ export function AcceptanceFields({
 }: Readonly<{ language: Language; disabled: boolean }>) {
   const t = translatorFor(language);
   return (
-    <fieldset className={styles.choices}>
+    <FieldGroup layout="choices">
       {organizerDocuments().map((document) => (
-        <label key={document.id} className={styles.check}>
-          <input type="checkbox" name={`accept-${document.field}`} required disabled={disabled} />
-          <span>
-            {t(LABELS[document.field])} (
-            <a
-              className={styles.textLink}
-              href={`/${language}/legal/${document.id}`}
-              target="_blank"
-              rel="noopener"
-            >
-              {t("staff.readDocument")}
-            </a>
-            )
-          </span>
-        </label>
+        <Checkbox
+          key={document.id}
+          name={`accept-${document.field}`}
+          required
+          disabled={disabled}
+          label={
+            <>
+              {t(LABELS[document.field])} (
+              <TextLink href={`/${language}/legal/${document.id}`} target="_blank" rel="noopener">
+                {t("staff.readDocument")}
+              </TextLink>
+              )
+            </>
+          }
+        />
       ))}
-    </fieldset>
+    </FieldGroup>
   );
 }
 

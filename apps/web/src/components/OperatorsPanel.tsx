@@ -22,7 +22,12 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import codeStyles from "#src/components/codes.module.css";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Dialog } from "#src/ui/Dialog.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -120,43 +125,49 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
 
   const shared: Shared = { language, busy, run };
   return (
-    <section className={styles.panel} aria-labelledby="operators-title">
-      <h2 id="operators-title" className={styles.title}>
-        {t("operators.title")}
-      </h2>
-      <p className={styles.muted}>{t("operators.intro")}</p>
+    <Stack as="section" aria-labelledby="operators-title">
+      <PageHeader
+        titleId="operators-title"
+        title={t("operators.title")}
+        description={t("operators.intro")}
+      />
       {myRole === "owner" ? (
         <NewInviteForm {...shared} sent={() => setNotice(t("operators.sent"))} />
       ) : (
-        <p className={styles.muted}>{t("operators.ownerOnly")}</p>
+        <Muted>{t("operators.ownerOnly")}</Muted>
       )}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-      {notice === null ? null : <p role="status">{notice}</p>}
-      <h3 className={styles.subtitle}>{t("operators.listTitle")}</h3>
-      {operators === null ? (
-        <p className={styles.muted}>{t("common.loading")}</p>
-      ) : operators.length === 0 ? (
-        <p className={styles.muted}>{t("operators.none")}</p>
-      ) : (
-        <ul className={styles.list}>
-          {operators.map((operator) => (
-            <OperatorRow
-              key={operator.id}
-              {...shared}
-              operator={operator}
-              stations={stations}
-              canEdit={myRole === "owner"}
-            />
-          ))}
-        </ul>
+      {notice === null ? null : (
+        <Notice tone="success" role="status">
+          {notice}
+        </Notice>
       )}
+      <Section title={t("operators.listTitle")}>
+        {operators === null ? (
+          <Muted>{t("common.loading")}</Muted>
+        ) : operators.length === 0 ? (
+          <EmptyState>{t("operators.none")}</EmptyState>
+        ) : (
+          <CardList>
+            {operators.map((operator) => (
+              <OperatorRow
+                key={operator.id}
+                {...shared}
+                operator={operator}
+                stations={stations}
+                canEdit={myRole === "owner"}
+              />
+            ))}
+          </CardList>
+        )}
+      </Section>
       <InvitesList {...shared} invites={invites} canEdit={myRole === "owner"} />
       {myRole === "owner" ? <PrintSheet language={language} invites={printable(invites)} /> : null}
-    </section>
+    </Stack>
   );
 }
 
@@ -181,85 +192,75 @@ function NewInviteForm({ language, busy, run, sent }: Shared & Readonly<{ sent: 
   };
 
   return (
-    <form className={styles.form} onSubmit={(event) => void submit(event)}>
-      <h3 className={styles.subtitle}>{t("operators.newTitle")}</h3>
-      <label className={styles.field}>
-        <span>{t("operators.kind")}</span>
-        <select
-          className={styles.input}
-          value={kind}
-          disabled={busy}
-          onChange={(changed) => setKind(changed.target.value as InviteKind)}
-        >
-          <option value="personal">{t("operators.kind.personal")}</option>
-          <option value="batch">{t("operators.kind.batch")}</option>
-          <option value="email">{t("operators.kind.email")}</option>
-        </select>
-      </label>
-      {kind === "email" ? (
-        <label className={styles.field}>
-          <span>{t("operators.email")}</span>
-          <input
-            className={styles.input}
-            type="email"
-            dir="ltr"
-            required
-            maxLength={254}
-            autoComplete="off"
-            value={email}
+    <Section title={t("operators.newTitle")}>
+      <Form onSubmit={(event) => void submit(event)}>
+        <Field label={t("operators.kind")}>
+          <Select
+            value={kind}
             disabled={busy}
-            onChange={(changed) => setEmail(changed.target.value)}
-          />
-        </label>
-      ) : (
-        <label className={styles.field}>
-          <span>{t("operators.label")}</span>
-          <input
-            className={styles.input}
-            required
-            maxLength={56}
-            value={label}
+            onChange={(changed) => setKind(changed.target.value as InviteKind)}
+          >
+            <option value="personal">{t("operators.kind.personal")}</option>
+            <option value="batch">{t("operators.kind.batch")}</option>
+            <option value="email">{t("operators.kind.email")}</option>
+          </Select>
+        </Field>
+        {kind === "email" ? (
+          <Field label={t("operators.email")}>
+            <Input
+              type="email"
+              dir="ltr"
+              required
+              maxLength={254}
+              autoComplete="off"
+              value={email}
+              disabled={busy}
+              onChange={(changed) => setEmail(changed.target.value)}
+            />
+          </Field>
+        ) : (
+          <Field label={t("operators.label")} help={t("operators.labelHint")}>
+            <Input
+              required
+              maxLength={56}
+              value={label}
+              disabled={busy}
+              onChange={(changed) => setLabel(changed.target.value)}
+            />
+          </Field>
+        )}
+        {kind === "batch" ? (
+          <Field label={t("operators.count")}>
+            <Input
+              type="number"
+              dir="ltr"
+              min={1}
+              max={100}
+              required
+              value={count}
+              disabled={busy}
+              onChange={(changed) => setCount(Number(changed.target.value))}
+            />
+          </Field>
+        ) : null}
+        <Field label={t("operators.preset")}>
+          <Select
+            value={preset}
             disabled={busy}
-            onChange={(changed) => setLabel(changed.target.value)}
-          />
-          <small className={styles.muted}>{t("operators.labelHint")}</small>
-        </label>
-      )}
-      {kind === "batch" ? (
-        <label className={styles.field}>
-          <span>{t("operators.count")}</span>
-          <input
-            className={styles.input}
-            type="number"
-            dir="ltr"
-            min={1}
-            max={100}
-            required
-            value={count}
-            disabled={busy}
-            onChange={(changed) => setCount(Number(changed.target.value))}
-          />
-        </label>
-      ) : null}
-      <label className={styles.field}>
-        <span>{t("operators.preset")}</span>
-        <select
-          className={styles.input}
-          value={preset}
-          disabled={busy}
-          onChange={(changed) => setPreset(changed.target.value as Preset)}
-        >
-          {PRESETS.map((item) => (
-            <option key={item} value={item}>
-              {t(presetKey(item))}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
-        {t("operators.create")}
-      </button>
-    </form>
+            onChange={(changed) => setPreset(changed.target.value as Preset)}
+          >
+            {PRESETS.map((item) => (
+              <option key={item} value={item}>
+                {t(presetKey(item))}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
+          {t("operators.create")}
+        </Button>
+      </Form>
+    </Section>
   );
 }
 
@@ -280,101 +281,82 @@ function OperatorRow({
   const save = () => void run("PUT", path, { abilities, canPlay, questIds });
 
   return (
-    <li className={styles.card}>
-      <p>
-        <bdi>{operator.username}</bdi>
+    <Card as="li">
+      <Toolbar>
+        <strong>
+          <bdi>{operator.username}</bdi>
+        </strong>
         {operator.claimedVia === null ? null : (
-          <span className={styles.muted}>
-            {" "}
-            · {t("operators.via", { label: operator.claimedVia.label })}
-          </span>
+          <Muted as="span">{t("operators.via", { label: operator.claimedVia.label })}</Muted>
         )}
-      </p>
-      <fieldset className={styles.field} disabled={!canEdit || busy}>
-        <legend>{t("operators.abilities")}</legend>
+      </Toolbar>
+      <FieldGroup legend={t("operators.abilities")} layout="choices" disabled={!canEdit || busy}>
         {ABILITIES.map((ability) => (
-          <label key={ability} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={abilities.includes(ability)}
-              onChange={(changed) =>
-                setAbilities(withAbility(abilities, ability, changed.target.checked))
-              }
-            />
-            <span>{t(abilityKey(ability))}</span>
-          </label>
+          <Checkbox
+            key={ability}
+            checked={abilities.includes(ability)}
+            onChange={(changed) =>
+              setAbilities(withAbility(abilities, ability, changed.target.checked))
+            }
+            label={t(abilityKey(ability))}
+          />
         ))}
-      </fieldset>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={canPlay}
-          disabled={!canEdit || busy}
-          onChange={(changed) => setCanPlay(changed.target.checked)}
-        />
-        <span>{t("operators.canPlay")}</span>
-      </label>
-      <fieldset className={styles.field} disabled={!canEdit || busy}>
-        <legend>{t("operators.quests")}</legend>
-        {questIds.length === 0 ? <p className={styles.muted}>{t("operators.allQuests")}</p> : null}
+      </FieldGroup>
+      <Checkbox
+        checked={canPlay}
+        disabled={!canEdit || busy}
+        onChange={(changed) => setCanPlay(changed.target.checked)}
+        label={t("operators.canPlay")}
+      />
+      <FieldGroup legend={t("operators.quests")} layout="choices" disabled={!canEdit || busy}>
+        {questIds.length === 0 ? <Muted>{t("operators.allQuests")}</Muted> : null}
         {stations.map((station) => (
-          <label key={station.id} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={questIds.includes(station.id)}
-              onChange={(changed) =>
-                setQuestIds(
-                  changed.target.checked
-                    ? [...questIds, station.id]
-                    : questIds.filter((id) => id !== station.id),
-                )
-              }
-            />
-            <span>{station.title}</span>
-          </label>
+          <Checkbox
+            key={station.id}
+            checked={questIds.includes(station.id)}
+            onChange={(changed) =>
+              setQuestIds(
+                changed.target.checked
+                  ? [...questIds, station.id]
+                  : questIds.filter((id) => id !== station.id),
+              )
+            }
+            label={station.title}
+          />
         ))}
-      </fieldset>
+      </FieldGroup>
       {canEdit ? (
-        <div className={styles.actions}>
-          <button type="button" className={styles.button} disabled={busy} onClick={save}>
+        <Toolbar>
+          <Button variant="primary" disabled={busy} onClick={save}>
             {t("operators.save")}
-          </button>
+          </Button>
+          <Button variant="quiet" disabled={busy} onClick={() => setConfirming(true)}>
+            {t("operators.remove")}
+          </Button>
           {confirming ? (
-            <div
-              role="alertdialog"
-              aria-labelledby={`remove-${operator.id}`}
-              className={styles.card}
+            <Dialog
+              titleId={`remove-${operator.id}`}
+              title={t("operators.removeTitle", { name: operator.username })}
+              cancel={() => setConfirming(false)}
+              busy={busy}
+              actions={
+                <>
+                  <Button variant="secondary" onClick={() => setConfirming(false)}>
+                    {t("common.cancel")}
+                  </Button>
+                  <Button variant="danger" disabled={busy} onClick={() => void run("DELETE", path)}>
+                    {t("operators.remove")}
+                  </Button>
+                </>
+              }
             >
-              <p id={`remove-${operator.id}`} className={styles.subtitle}>
-                {t("operators.removeTitle", { name: operator.username })}
-              </p>
               <p>{t("operators.removeBody")}</p>
               <p>{t("devices.removeNote")}</p>
-              <button type="button" className={styles.quiet} onClick={() => setConfirming(false)}>
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className={styles.button}
-                disabled={busy}
-                onClick={() => void run("DELETE", path)}
-              >
-                {t("operators.remove")}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className={styles.quiet}
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              {t("operators.remove")}
-            </button>
-          )}
-        </div>
+            </Dialog>
+          ) : null}
+        </Toolbar>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -394,33 +376,35 @@ function InvitesList({
       : t(`operators.status.${invite.status}`);
   return (
     <>
-      <h3 className={styles.subtitle}>{t("operators.invitesTitle")}</h3>
-      {invites.length === 0 ? <p className={styles.muted}>{t("operators.noInvites")}</p> : null}
-      <ul className={styles.list}>
-        {invites.map((invite) => (
-          <li key={invite.id} className={styles.row}>
-            <span className={styles.badge}>
-              {t(invite.kind === "email" ? "operators.kind.email" : "operators.kind.personal")}
-            </span>
-            {invite.kind === "email" && invite.email !== null ? (
-              <bdi dir="ltr">{invite.email}</bdi>
-            ) : (
-              <bdi>{invite.label}</bdi>
-            )}
-            <span className={styles.muted}>{statusOf(invite)}</span>
-            {canEdit && invite.status === "open" ? (
-              <button
-                type="button"
-                className={styles.quiet}
-                disabled={busy}
-                onClick={() => void run("DELETE", `/operators/invites/${invite.id}`)}
-              >
-                {t("operators.revoke")}
-              </button>
-            ) : null}
-          </li>
-        ))}
-      </ul>
+      <Section title={t("operators.invitesTitle")}>
+        {invites.length === 0 ? <EmptyState>{t("operators.noInvites")}</EmptyState> : null}
+        <CardList>
+          {invites.map((invite) => (
+            <Card as="li" key={invite.id}>
+              <Toolbar>
+                <Badge>
+                  {t(invite.kind === "email" ? "operators.kind.email" : "operators.kind.personal")}
+                </Badge>
+                {invite.kind === "email" && invite.email !== null ? (
+                  <bdi dir="ltr">{invite.email}</bdi>
+                ) : (
+                  <bdi>{invite.label}</bdi>
+                )}
+                <Muted as="span">{statusOf(invite)}</Muted>
+                {canEdit && invite.status === "open" ? (
+                  <Button
+                    variant="quiet"
+                    disabled={busy}
+                    onClick={() => void run("DELETE", `/operators/invites/${invite.id}`)}
+                  >
+                    {t("operators.revoke")}
+                  </Button>
+                ) : null}
+              </Toolbar>
+            </Card>
+          ))}
+        </CardList>
+      </Section>
     </>
   );
 }
@@ -437,10 +421,10 @@ function PrintSheet({
   return (
     <>
       <div className={codeStyles.controls}>
-        <p className={styles.muted}>{t("operators.printHint")}</p>
-        <button type="button" className={styles.button} onClick={() => window.print()}>
+        <Muted>{t("operators.printHint")}</Muted>
+        <Button variant="primary" onClick={() => window.print()}>
           {t("operators.print")}
-        </button>
+        </Button>
       </div>
       <div className={codeStyles.sheet}>
         {invites.map((invite) => (
