@@ -13,7 +13,7 @@ import { invitationNameIssue, trimName } from "#src/invitation-campaigns/name-ru
  */
 
 /** Organizer-written public names a template may name, each frozen on the notice as `{ar, en}`. */
-export const PUSH_NAME_PLACEHOLDERS = ["event", "quest", "category", "reward"] as const;
+export const PUSH_NAME_PLACEHOLDERS = ["event", "quest", "category", "reward", "session"] as const;
 /** A moment frozen on the notice as an ISO instant, shown in the event's zone. */
 export const PUSH_TIME_PLACEHOLDERS = ["date", "time"] as const;
 /** The event's words for quests, categories and players (FR-941): every form `wordParams` gives. */
@@ -77,6 +77,8 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   // T-503 (migration 0082): entering and leaving the event's top 10. Fixed text, never the player's place.
   rank_top_ten: fixedTemplate("rankTopTen"),
   rank_top_ten_exit: fixedTemplate("rankTopTenExit"),
+  // T-505 (migration 0086): the reminder before a registered session; a message to registrants is free text.
+  session_reminder: namedTemplate("sessionReminder"),
 };
 
 /**
@@ -84,7 +86,7 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
  * (`{ar, en}` each, already cleaned, bounded and run through the name rule, T-502). They have no message key and no
  * placeholder; the renderer asks the rule again and shows the generic text if the stored text no longer passes.
  */
-export const FREE_TEXT_KINDS: readonly string[] = ["announcement"];
+export const FREE_TEXT_KINDS: readonly string[] = ["announcement", "session_message"];
 
 /** What the renderer reads from a claimed send or a center row. */
 export type NoticeContent = Readonly<{

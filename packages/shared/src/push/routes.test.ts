@@ -30,7 +30,8 @@ describe("notificationRoute", () => {
       shop_closing: "/rewards",
       rank_top_ten: "/ranking",
       rank_top_ten_exit: "/ranking",
-      session_reminder: "/info",
+      session_reminder: "/agenda",
+      session_message: "/agenda",
     };
     for (const [kind, screen] of Object.entries(screens)) {
       expect(hrefOf(kind, EVENT), kind).toBe(`/event/${EVENT}${screen}`);

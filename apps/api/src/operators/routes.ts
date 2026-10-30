@@ -50,6 +50,7 @@ import {
 } from "#src/operators/operators";
 import { myQr, resetMyQr } from "#src/operators/my-qr";
 import { practiceScan } from "#src/operators/practice";
+import { registerSessionDoorRoutes } from "#src/sessions/door";
 import { operatorScan, type ScanDeps } from "#src/operators/scan";
 import { stationToday } from "#src/operators/station-today";
 import { verifyInviteCode, type MyCodeKey } from "#src/quests/qr";
@@ -266,6 +267,33 @@ export const STATION_TODAY_LIMIT = {
   windowSeconds: 60,
 } as const satisfies DeviceLimit;
 
+/** The practice scan's answer for the station (FR-929): the real answer's words, flagged `practice`. */
+function practiceAnswer(result: Awaited<ReturnType<typeof practiceScan>>) {
+  switch (result.kind) {
+    case "not_operator":
+      throw notOperator();
+    case "completed":
+      return {
+        result: "completed",
+        player: result.player,
+        points: result.points,
+        occurrence: result.occurrence,
+        bonusPoints: result.bonusPoints,
+        practice: true,
+      };
+    case "already_completed":
+      return { result: "already_completed", player: result.player, practice: true };
+    case "refused":
+      return {
+        result: "refused",
+        reason: result.reason,
+        ...(result.detail === undefined ? {} : { detail: result.detail }),
+        player: result.player,
+        practice: true,
+      };
+  }
+}
+
 /**
  * The person's side (T-204, T-205): claim an invite, list the events they staff, pick a station, scan, join as a player
  * when allowed, and their own My QR.
@@ -377,6 +405,8 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
     },
   );
 
+  registerSessionDoorRoutes(app, { pool: deps.pool, myKey: deps.myKey });
+
   // FR-929: a practice scan, on its own route with no ranking and no Idempotency-Key; the real route has no flag.
   app.post("/v1/operator/scan/practice", player, async (request) => {
     const body = parse(scanBody, request.body);
@@ -385,29 +415,7 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
       { operatorId: playerIdOf(request), questId: body.questId, code: body.code },
       callerOf(request),
     );
-    switch (result.kind) {
-      case "not_operator":
-        throw notOperator();
-      case "completed":
-        return {
-          result: "completed",
-          player: result.player,
-          points: result.points,
-          occurrence: result.occurrence,
-          bonusPoints: result.bonusPoints,
-          practice: true,
-        };
-      case "already_completed":
-        return { result: "already_completed", player: result.player, practice: true };
-      case "refused":
-        return {
-          result: "refused",
-          reason: result.reason,
-          ...(result.detail === undefined ? {} : { detail: result.detail }),
-          player: result.player,
-          practice: true,
-        };
-    }
+    return practiceAnswer(result);
   });
 
   // FR-923, FR-924: one result for the three colours; a removed operator gets 403 and leaves operator mode.

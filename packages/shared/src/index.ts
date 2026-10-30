@@ -534,3 +534,33 @@ export type {
   OrganizerAlertSwitches,
   OrganizerAlertType,
 } from "./organizer-alerts/organizer-alerts";
+export {
+  SESSION_ACCESS,
+  SESSION_CHECK_IN_OUTCOMES,
+  SESSION_CSV_COLUMNS,
+  SESSION_KINDS,
+  SESSION_LIMITS,
+  SESSION_STATUSES,
+  memberSessionSchema,
+  parseSessionsCsv,
+  sessionBodySchema,
+  sessionCheckInSchema,
+  sessionIssue,
+  sessionRegisterSchema,
+  sessionRegistrationSchema,
+  sessionReportCsv,
+  teamSessionSchema,
+} from "./sessions/sessions";
+export type {
+  MemberSession,
+  SessionAccess,
+  SessionBody,
+  SessionCheckInAnswer,
+  SessionImport,
+  SessionImportFailure,
+  SessionKind,
+  SessionRegisterAnswer,
+  SessionStatus,
+  SessionWindow,
+  TeamSession,
+} from "./sessions/sessions";

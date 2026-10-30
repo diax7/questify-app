@@ -1061,6 +1061,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "enrollment.event_streak_day",
         "ledger_entry.event_streak_day",
         "quest_completion.event_streak_day",
+        // A rehearsal account's session registrations and attendance go with it (ON DELETE CASCADE); the player doors
+        // wipe first, so a registration of a rehearsal account never outlives go-live (T-505, test/db/sessions).
+        "enrollment.session_registration",
+        "enrollment.session_attendance",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge
@@ -1100,6 +1104,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "push_due_shop", // reads the status for an ended event's shop closing; it writes only notices (T-501f)
         "announcement_send",
         "push_due_announcement",
+        "session_message", // a message to registrants writes notices and its own rate-limit row, nothing the wipe deletes (T-505)
+        "push_due_session", // reads the status for reminders; it writes only notices (T-505)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

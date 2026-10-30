@@ -7,7 +7,16 @@ import { REF_VALUE } from "#src/push/push";
  * and every id that does not check out open the center row.
  */
 
-type Target = "center" | "event" | "quests" | "rewards" | "ranking" | "info" | "home" | "requests";
+type Target =
+  | "center"
+  | "event"
+  | "quests"
+  | "rewards"
+  | "ranking"
+  | "info"
+  | "agenda"
+  | "home"
+  | "requests";
 
 /**
  * The kind of every owed push (the plan's table in `docs/plans/2026-10-28-t-501-push.md`) and where it opens. T-501d to
@@ -38,7 +47,8 @@ export const NOTIFICATION_TARGETS: ReadonlyMap<string, Target> = new Map<string,
   ["announcement", "event"],
   ["rank_top_ten", "ranking"],
   ["rank_top_ten_exit", "ranking"],
-  ["session_reminder", "info"],
+  ["session_reminder", "agenda"],
+  ["session_message", "agenda"],
   ["operator_invite", "center"],
 ]);
 

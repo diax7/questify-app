@@ -30,6 +30,28 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner/editor, event limit and rate limit in the door; Idempotency-Key, audited, text filtered (announcements)",
   "POST /v1/organizers/:organizerId/events/:eventId/announcements/:announcementId/cancel":
     "owner/editor, same-event row lock and state check; Idempotency-Key, audited (announcements)",
+  "GET /v1/events/:eventId/sessions":
+    "caller-bound active membership through member_sessions; the player sees only their own registration (sessions)",
+  "POST /v1/events/:eventId/sessions/:sessionId/register":
+    "caller-bound active membership, same-event session row lock and seat count; Idempotency-Key (sessions)",
+  "POST /v1/events/:eventId/sessions/:sessionId/cancel":
+    "caller-bound active membership, deletes only the caller's own registration; Idempotency-Key (sessions)",
+  "POST /v1/operator/sessions/:sessionId/check-in":
+    "caller-bound operator assignment on the session's event with the scan_quests ability and the scanned player's My QR version (sessions)",
+  "GET /v1/organizers/:organizerId/events/:eventId/sessions":
+    "owner/editor, event limit rechecked by award_event_of (sessions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/sessions":
+    "owner/editor, event limit rechecked by award_event_of; Idempotency-Key, audited (sessions)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/sessions/:sessionId":
+    "owner/editor, same-event row lock; Idempotency-Key, audited (sessions)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/sessions/:sessionId":
+    "owner/editor, same-event row lock; Idempotency-Key, audited (sessions)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/sessions/:sessionId/registration":
+    "owner/editor, same-event row lock and seat count; Idempotency-Key, audited (sessions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/sessions/import":
+    "owner/editor, event limit; one transaction; Idempotency-Key, audited (sessions)",
+  "POST /v1/organizers/:organizerId/events/:eventId/sessions/:sessionId/message":
+    "owner/editor, same-event row lock, rate limit in the door; Idempotency-Key, audited, text filtered (sessions)",
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":

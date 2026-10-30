@@ -66,6 +66,47 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("keeps the session tables and internals closed and grants only its eleven doors", async () => {
+    const doors = [
+      "member_sessions",
+      "session_authorize",
+      "session_cancel",
+      "session_check_in",
+      "session_delete",
+      "session_import",
+      "session_list",
+      "session_message",
+      "session_register",
+      "session_registration_set",
+      "session_save",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND (proname LIKE 'session\\_%' OR proname IN ('member_sessions', 'push_due_session'))`,
+    );
+    expect(functions).toHaveLength(19);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      if (doors.includes(row.proname))
+        expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT table_name, privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name IN ('event_session', 'session_registration', 'session_attendance', 'session_message')
+        AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+  });
+
   describe("live attempts", () => {
     it("cannot read or delete from any table", async () => {
       const all = await tables();

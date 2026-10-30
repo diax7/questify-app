@@ -485,6 +485,32 @@ describe("the top-10 pushes (T-503, ADR-362)", () => {
   });
 });
 
+describe("the session reminder (T-505, ADR-373)", () => {
+  const starts = "2026-11-02T10:00:00Z";
+
+  it("names the session and its start in the event's zone, or says it plainly without a name", () => {
+    expect(
+      both("session_reminder", { session: { en: "AI workshop", ar: "ورشة الذكاء" }, time: starts }),
+    ).toEqual(["AI workshop starts at 13:00.", "تبدأ «ورشة الذكاء» الساعة 13:00."]);
+    expect(both("session_reminder", { session: { en: "www.x.io" }, time: starts })).toEqual([
+      "Your session starts soon.",
+      "تبدأ جلستك قريبًا.",
+    ]);
+  });
+
+  it("renders a message to registrants as the organizer's own frozen text", () => {
+    const frozen = {
+      title: { ar: "تغيير", en: "Room change" },
+      body: { ar: "القاعة 3.", en: "Hall 3." },
+    };
+    expect(renderNotice(content({ kind: "session_message", params: frozen }))).toMatchObject({
+      title: "Room change",
+      body: "Hall 3.",
+      pushable: true,
+    });
+  });
+});
+
 describe("the organizer's announcement (T-502, ADR-358)", () => {
   const frozen = {
     event: EVENT,
@@ -495,7 +521,7 @@ describe("the organizer's announcement (T-502, ADR-358)", () => {
     content({ kind: "announcement", params: frozen, ...over });
 
   it("is a free-text kind with a route, not a template", () => {
-    expect(FREE_TEXT_KINDS).toEqual(["announcement"]);
+    expect(FREE_TEXT_KINDS).toEqual(["announcement", "session_message"]);
     expect(PUSH_TEMPLATES["announcement"]).toBeUndefined();
   });
 
@@ -608,6 +634,7 @@ describe("the template registry", () => {
       "questOne",
       "questOneCap",
       "reward",
+      "session",
       "time",
     ]);
   });

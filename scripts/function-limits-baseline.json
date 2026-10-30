@@ -173,7 +173,7 @@
   },
   "apps/api/src/operators/routes.ts": {
     "registerOperatorPlayerRoutes": {
-      "lines": [168]
+      "lines": [147]
     },
     "registerOperatorRoutes": {
       "lines": [109]
