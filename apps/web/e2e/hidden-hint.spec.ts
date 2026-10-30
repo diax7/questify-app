@@ -23,7 +23,7 @@ test("sends a hidden category's hint after a confirmation that counts the member
   const hint = garden.getByRole("button", { name: "أرسل تلميحًا" });
   await expect(hint).toHaveCount(0);
   await garden.getByRole("button", { name: "تعديل فئة" }).click();
-  await garden.getByLabel("مخفية حتى تُكتشف").check();
+  await garden.getByLabel("مخفية حتى تُكتشف", { exact: true }).check();
   await garden.getByRole("button", { name: "حفظ فئة" }).click();
   await expect(garden.getByText("مخفية حتى تُكتشف")).toBeVisible();
   // The shown category beside it never gets the button.

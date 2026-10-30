@@ -29,7 +29,7 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
   const form = page.getByRole("form", { name: `منح @falcon_${tag}` });
   await expect(form.getByRole("button", { name: "منح", exact: true })).toBeDisabled();
   await form.getByLabel("عدد النقاط").fill("50");
-  await form.getByLabel("السبب (مطلوب)").fill("ساعد في تنظيم الطابور");
+  await form.getByLabel("السبب (مطلوب)", { exact: true }).fill("ساعد في تنظيم الطابور");
   await form.getByRole("button", { name: "منح", exact: true }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText(`يحصل @falcon_${tag} على 50. السبب: ساعد في تنظيم الطابور`);
@@ -41,7 +41,7 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
   const removal = page.getByRole("alertdialog");
   await expect(removal.getByRole("heading")).toHaveText(`إزالة 50 من @falcon_${tag}؟`);
   await expect(removal.getByRole("button", { name: "تأكيد" })).toBeDisabled();
-  await removal.getByLabel("السبب (مطلوب)").fill("منح بالخطأ");
+  await removal.getByLabel("السبب (مطلوب)", { exact: true }).fill("منح بالخطأ");
   await removal.getByRole("button", { name: "تأكيد" }).click();
   await expect(page.getByRole("status")).toHaveText("أُزيلت النقاط. حُفظ السبب.");
   await expect(page.getByText("إزالة نقاط")).toBeVisible();
@@ -67,7 +67,7 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
   await expect(bulk.getByText(`غير موجودين: nobody_${tag}`)).toBeVisible();
   await expect(bulk.getByRole("button", { name: "منح", exact: true })).toBeDisabled();
   await bulk.getByLabel("عدد النقاط").fill("25");
-  await bulk.getByLabel("السبب (مطلوب)").fill("فريق الفائزين في الورشة");
+  await bulk.getByLabel("السبب (مطلوب)", { exact: true }).fill("فريق الفائزين في الورشة");
   await bulk.getByRole("button", { name: "منح", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toContainText(
     "يحصل كل واحد من 2 على 25. السبب: فريق الفائزين في الورشة",

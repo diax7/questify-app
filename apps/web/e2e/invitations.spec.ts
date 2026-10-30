@@ -154,7 +154,7 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
   await expectNoSidewaysScroll(page);
 
   // The owner renames the event before the admin clicks Approve: the API refuses, and the page shows the new text.
-  await page.getByLabel("Send time (Riyadh time)").fill(riyadhLocal(3, 23));
+  await page.getByLabel("Send time (Riyadh time)", { exact: true }).fill(riyadhLocal(3, 23));
   await page
     .getByLabel("Note for the organizer (optional)", { exact: true })
     .fill("Agreed by phone");

@@ -12,7 +12,7 @@
   its info buttons are named and report `expanded`. Dropped with a reason: the 15 s paired-device poll (the 3 s poll is what makes revoke and the
   finale list arrive in seconds), the global link colour on device pages (same colour as the text), the Arabic wordmark (ADR-020), "Revoke all" being
   quiet (it was before, and opens a danger confirm), the shell remount between the workspace and event layouts (the event layout owns the event's
-  words). Left: the intermittent `event words not read ... 500` (see FOLLOWUPS).
+  words). Left: the intermittent `event words not read ... 500` (see FOLLOWUPS; not reproduced in three runs with the API log on). Every info button now carries its label in its name, so a browser test finds a labelled field with `getByLabel(text, { exact: true })` where an info button sits beside it. Local: full vitest 8976 passed; tsc (web, app, api, shared), oxlint, format and limits clean; `npx expo export` ok; browser suite 220 passed, 17 failed on that label clash (fixed with `exact`, the 9 specs rerun green, both projects); CI minutes none yet; agent tokens roughly 1.2M.
 
 ## T-599d clear titles and icons, not explanatory text — 2026-10-30
 

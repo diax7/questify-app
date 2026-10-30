@@ -148,7 +148,7 @@ test("sets a category's order, opening time, unlock and bonus, and shows them on
   await second.getByLabel("ترتيب مهام").selectOption("in_order");
   await second.getByLabel("موعد فتح فئة").fill("2030-11-01T16:00");
   await second.getByLabel("تُفتح بعد إكمال").selectOption({ label: "عام" });
-  await second.getByLabel("مكافأة إكمال فئة").fill("250");
+  await second.getByLabel("مكافأة إكمال فئة", { exact: true }).fill("250");
   await second.getByRole("button", { name: "حفظ فئة" }).click();
   await expect(second.getByText(/بالترتيب · تُفتح .* · بعد «عام» · مكافأة/)).toBeVisible();
   await expect(second.getByText(/250/)).toBeVisible();
@@ -168,8 +168,8 @@ test("sets a category's refresh, hides it, and prints its secret code (T-304c)",
   await page.getByRole("button", { name: "إضافة فئة" }).click();
   const daily = page.getByRole("region", { name: "كنز يومي" });
   await daily.getByRole("button", { name: "تعديل فئة" }).click();
-  await daily.getByLabel("التجديد").selectOption("daily");
-  await daily.getByLabel("مخفية حتى تُكتشف").check();
+  await daily.getByLabel("التجديد", { exact: true }).selectOption("daily");
+  await daily.getByLabel("مخفية حتى تُكتشف", { exact: true }).check();
   await daily.getByRole("button", { name: "حفظ فئة" }).click();
   await expect(daily.getByText(/تتجدد يوميًا · مخفية حتى تُكتشف/)).toBeVisible();
 

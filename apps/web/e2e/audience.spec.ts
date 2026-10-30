@@ -18,14 +18,14 @@ test("the owner keeps a category for an answer, then for a guest tag", async ({ 
   await page.getByRole("button", { name: "Add a field" }).click();
   await page.getByRole("combobox", { name: "Field", exact: true }).selectOption("custom");
   await page.getByLabel("Label in English").fill("Section");
-  await page.getByLabel("Players choose the answer from a list").check();
+  await page.getByLabel("Players choose the answer from a list", { exact: true }).check();
   await page.getByLabel("Option 1 in English").fill("Women");
   await page.getByLabel("Option 2 in English").fill("Men");
   await page.getByRole("button", { name: "Save the fields" }).click();
   await expect(page.getByRole("status").filter({ hasText: "The fields are saved." })).toBeVisible();
 
   await page.getByLabel("Saudi mobile numbers or emails, one per line").fill("0512345678");
-  await page.getByLabel("Tag for these lines (optional)").fill("VIP");
+  await page.getByLabel("Tag for these lines (optional)", { exact: true }).fill("VIP");
   await expect(page.getByText("Everyone added here is invited")).toBeAttached();
   await page.getByRole("button", { name: "Add to the list" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Added: 1." })).toBeVisible();
