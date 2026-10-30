@@ -5,7 +5,7 @@ import {
   LAYOUT_PAGES,
   PUBLIC_PAGES,
   expectCleanLayout,
-  expectNavFits,
+  expectNavReachable,
   expectStateContrast,
   waitUntilSettled,
   watchRequests,
@@ -199,7 +199,7 @@ async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   return { organizerId, eventId, joinCode, ticketId, campaignId: campaignId ?? "" };
 }
 
-/** One page, read as it opens; on a phone again with the Menu sheet open; on a desktop its column must fit. */
+/** One page, read as it opens; on a phone again with the Menu sheet open; on a desktop its column must stay on the screen and show the open page. */
 async function checkPage(
   page: Page,
   project: string,
@@ -218,7 +218,7 @@ async function checkPage(
   }).toPass({ timeout: 40_000 });
   await waitUntilSettled(page, where);
   await expectCleanLayout(page, where);
-  await expectNavFits(page, where);
+  await expectNavReachable(page, where);
   await shoot(page, project, `${language}-${listed.name}`);
   if (project === "desktop") {
     await expectStateContrast(page, where, "body");

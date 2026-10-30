@@ -115,7 +115,9 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
 
 /**
  * The navigation column: the page's navigation, and on a phone the account links under it. A tap on any link in it
- * calls `close`, since a link to the open page leaves the address as it is and so would leave the sheet open.
+ * calls `close`, since a link to the open page leaves the address as it is and so would leave the sheet open. The
+ * column scrolls on its own when its links outgrow the screen; the open page's link is brought into view when the page
+ * changes and when the phone's sheet opens, so a long list never hides where the person is.
  */
 function ShellNav({
   label,
@@ -131,13 +133,24 @@ function ShellNav({
   close: () => void;
 }>) {
   const look = [open ? styles.sideOpen : styles.side, nav === null ? styles.accountOnly : ""];
+  const column = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+  useEffect(() => {
+    column.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+  }, [open, pathname]);
   const closeOnLink = (tapped: MouseEvent<HTMLElement>) => {
     if (tapped.target instanceof Element && tapped.target.closest("a") !== null) {
       close();
     }
   };
   return (
-    <nav id="shell-navigation" aria-label={label} className={look.join(" ")} onClick={closeOnLink}>
+    <nav
+      ref={column}
+      id="shell-navigation"
+      aria-label={label}
+      className={look.join(" ")}
+      onClick={closeOnLink}
+    >
       {nav}
       {account === null ? null : <div className={styles.phoneOnly}>{account}</div>}
     </nav>

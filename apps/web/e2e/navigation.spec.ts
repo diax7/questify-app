@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readBrokenImages } from "#e2e/layout.ts";
+import { expectNavReachable, readBrokenImages } from "#e2e/layout.ts";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
 import { openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
@@ -166,6 +166,51 @@ test("moving between the dashboard's pages never loads the document again", asyn
   await expect(page).toHaveURL(/\/ar\/console\/content$/);
   await expectSameDocument(page, "after the language switch");
   await expect(page.getByRole("link", { name: "التبديل إلى English" })).toBeVisible();
+});
+
+test("the desktop menu scrolls on its own when it gets more links, and shows the open page", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "The column is the desktop's navigation");
+  test.setTimeout(120_000);
+  await signUp(page, info.project.name);
+  await createDraftEvent(page);
+  const column = page.locator("nav#shell-navigation");
+
+  // Twelve more links at the top of the first group, copies of its first link: the column outgrows the screen.
+  await column.getByRole("link", { name: "Quests", exact: true }).evaluate((first) => {
+    const extras = Array.from({ length: 12 }, (_, index) => {
+      const extra = first.cloneNode(true) as HTMLAnchorElement;
+      extra.removeAttribute("aria-current");
+      extra.textContent = `Extra page ${index + 1}`;
+      return extra;
+    });
+    first.before(...extras);
+  });
+  const overflow = await column.evaluate((nav) => nav.scrollHeight - nav.clientHeight);
+  expect(overflow, "the column scrolls on its own").toBeGreaterThan(0);
+
+  // The last link is below the fold. Back and forward change the page without the column's help: the open page's link
+  // must be brought into view by the shell itself, with the page still fitting the screen.
+  await markDocument(page);
+  await markShell(page);
+  await goTo(page, "Manual awards", /\/events\/[^/]+\/awards$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
+  await column.evaluate((nav) => {
+    nav.scrollTop = 0;
+  });
+  await page.goForward();
+  await expect(page).toHaveURL(/\/awards$/);
+  const last = column.getByRole("link", { name: "Manual awards", exact: true });
+  await expect(last).toHaveAttribute("aria-current", "page");
+  await expect(last).toBeInViewport();
+  await expectNavReachable(page, "with twelve more links");
+
+  // The keyboard reaches a link above it, and the column scrolls back to it.
+  const first = column.getByRole("link", { name: "Extra page 1", exact: true });
+  await first.focus();
+  await expect(first).toBeInViewport();
 });
 
 test("the top bar shows the logo, with the language switch and Sign out as named icons", async ({

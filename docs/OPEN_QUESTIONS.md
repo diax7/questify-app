@@ -1565,3 +1565,7 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 ## Q-344 - T-509 Cheers: what is decided without Dhia (2026-10-31)
 
 **Recommended (developer):** the owner starts a cheers moment (1 to 30 minutes, 5 by default) from the Big screen page; while it is live the app shows five emoji reactions (heart, applause, fire, star, party) and the big screen runs the Cheers scene alone, floating them up with a running count of each; each player may send 30 a minute; the event's Cheers switch (on by default) sits on the same page. **Open:** whether 30 a minute is the right limit for a stadium-sized crowd (it is one constant in the database), whether a moment should interrupt a started finale (it does now), whether the reactions should be Questify's own 3D art instead of the platform's emoji (the brand deck asks for 3D icons; emoji render differently on an old TV), and whether the app should show a live counter. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, ADR-377 accepted after the T-509 review (92 GO, 2026-10-31).
+
+## Q-345 - The desktop menu: scroll, not collapse (2026-10-31)
+
+**Recommended (worker):** the desktop navigation column scrolls on its own and brings the open page's link into view; no group collapses. **Open:** whether a person with a short screen should instead get collapsible groups (the open page's group open, the state remembered); it would change every browser spec that clicks a link of the other group. **Decided:** pending the coordinator's acceptance of ADR-378.

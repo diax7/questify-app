@@ -29,10 +29,29 @@ export type LayoutProblems = Readonly<{
  * only use what it is given.
  */
 function measure(minText: number): LayoutProblems {
+  // A scrolling box (the navigation column, the phone's menu sheet) keeps the rows it scrolled up and out of sight at
+  // their place on the page, above its top edge and under whatever is there. Those rows are not on screen: a box is
+  // cut at the top edge of every scrolling box around it, or is null when nothing is left. Rows below the fold are
+  // read whole, since they are one scroll away.
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
+  const shown = (element: Element, box: DOMRect): DOMRect | null => {
+    let top = box.top;
+    for (
+      let parent = element.parentElement;
+      parent !== null && parent !== document.body;
+      parent = parent.parentElement
+    ) {
+      const { overflowY } = getComputedStyle(parent);
+      if (overflowY === "auto" || overflowY === "scroll") {
+        top = Math.max(top, parent.getBoundingClientRect().top);
+      }
+    }
+    return box.bottom - top < 2 ? null : new DOMRect(box.left, top, box.width, box.bottom - top);
+  };
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
   const visible = (element: Element): boolean => {
     const box = element.getBoundingClientRect();
-    if (box.width < 2 || box.height < 2) {
+    if (box.width < 2 || box.height < 2 || shown(element, box) === null) {
       return false;
     }
     const style = getComputedStyle(element);
@@ -51,7 +70,10 @@ function measure(minText: number): LayoutProblems {
   // The boxes of an element: one per line it is drawn on (a link that wraps covers its two lines, not the text between).
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
   const boxesOf = (element: Element): DOMRect[] =>
-    [...element.getClientRects()].filter((box) => box.width > 0 && box.height > 0);
+    [...element.getClientRects()]
+      .filter((box) => box.width > 0 && box.height > 0)
+      .map((box) => shown(element, box))
+      .filter((box) => box !== null);
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
   const touching = (first: Element, second: Element): boolean =>
     boxesOf(first).some((a) => boxesOf(second).some((b) => crossing(a, b)));
@@ -101,11 +123,15 @@ function measure(minText: number): LayoutProblems {
     // paragraph may touch by a pixel or two without covering each other.
     if (parent.closest("option, select, textarea, script, style") === null) {
       for (const rect of rects) {
-        const trim = rect.height * 0.2;
+        const seen = shown(parent, rect);
+        if (seen === null) {
+          continue;
+        }
+        const trim = seen.height * 0.2;
         lines.push({
           owner: parent,
           text,
-          box: new DOMRect(rect.x, rect.y + trim, rect.width, rect.height - 2 * trim),
+          box: new DOMRect(seen.x, seen.y + trim, seen.width, seen.height - 2 * trim),
         });
       }
     }
@@ -497,20 +523,50 @@ export async function expectCleanLayout(page: Page, where: string): Promise<void
 }
 
 /**
- * Fails the test when the desktop navigation column needs its own scrollbar: every group, the last one included, must
- * be on screen at once (ADR-366). Does nothing below 64rem, where the navigation is the phone menu.
+ * What is wrong with the desktop navigation column, read inside the browser: it must end on the screen (a column that
+ * runs past it can never be scrolled to its last link), show the open page's link, and reach its last link by scrolling
+ * the column alone. The column may scroll on its own when its links outgrow the screen; it must not push the page.
+ * Empty below 64rem, where the navigation is the phone menu, and on a page with no navigation. The column's scroll
+ * position is put back, so the page is read as it opened.
  */
-export async function expectNavFits(page: Page, where: string): Promise<void> {
-  const hidden = await page.evaluate(() => {
-    const column = document.querySelector("nav#shell-navigation");
-    if (column === null || window.innerWidth < 1024) {
-      return 0;
+export function navProblemsOf(): string[] {
+  const column = document.querySelector("nav#shell-navigation");
+  if (column === null || window.innerWidth < 1024) {
+    return [];
+  }
+  const problems: string[] = [];
+  const frame = column.getBoundingClientRect();
+  if (frame.bottom > window.innerHeight + 1) {
+    problems.push(
+      `the column ends ${Math.round(frame.bottom - window.innerHeight)}px below the screen`,
+    );
+  }
+  const shows = (link: Element) => {
+    const box = link.getBoundingClientRect();
+    return box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1;
+  };
+  const current = column.querySelector('[aria-current="page"]');
+  if (current !== null && !shows(current)) {
+    problems.push(`the open page's link (${current.textContent.trim()}) is out of view`);
+  }
+  const last = [...column.querySelectorAll("a")].filter((link) => link.offsetParent !== null).pop();
+  if (last !== undefined) {
+    const before = column.scrollTop;
+    column.scrollTop = column.scrollHeight;
+    if (!shows(last)) {
+      problems.push(`the last link (${last.textContent.trim()}) cannot be scrolled into view`);
     }
-    return column.scrollHeight - column.clientHeight;
-  });
-  expect
-    .soft(hidden, `${where}: navigation runs ${hidden}px below the screen`)
-    .toBeLessThanOrEqual(0);
+    column.scrollTop = before;
+  }
+  return problems;
+}
+
+/**
+ * Fails the test when the desktop navigation column runs off the screen, hides the open page's link or cannot reach its
+ * last link (ADR-366, amended by ADR-378: the column scrolls on its own, so a new link never needs a regroup).
+ */
+export async function expectNavReachable(page: Page, where: string): Promise<void> {
+  expect.soft(await page.evaluate(navProblemsOf), `${where}: navigation`).toEqual([]);
 }
 
 /** What a page needs to know to build its address: what the run created. */

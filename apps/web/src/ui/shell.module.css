@@ -262,12 +262,14 @@
     inline-size: var(--sidebar-width);
     block-size: calc(100dvh - var(--header-height));
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--space-md);
     background: var(--color-surface);
     border-inline-end: var(--line);
   }
 
-  /* Tighter rows for a pointer: the whole list, Review included, fits a 1280 by 720 screen without scrolling. */
+  /* Tighter rows for a pointer. The column is as tall as the screen and scrolls on its own when its links outgrow it,
+     so a page that adds a link never pushes the menu off the screen. */
   .group {
     gap: 0;
   }

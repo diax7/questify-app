@@ -14,7 +14,8 @@ export type EventPageLink = Readonly<{
 
 /**
  * Every page of one event, in the order the dashboard's menu lists them (ADR-364): what the organizer sets up, then what
- * they run and review (two groups, ADR-375: a third label put the desktop menu below a 1280 by 720 screen).
+ * they run and review. A new page is one more row: the desktop column scrolls on its own when its links outgrow the
+ * screen and brings the open page's link into view (ADR-378), so no new link needs a regroup.
  */
 export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "", icon: "overview", group: "event", label: "dashNav.overview" },

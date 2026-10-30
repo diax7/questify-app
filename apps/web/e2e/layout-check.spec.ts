@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   brokenImagesOf,
   contrastOf,
+  navProblemsOf,
   readLayout,
   waitUntilSettled,
   watchRequests,
@@ -191,6 +192,80 @@ test("the layout check reports pictures that did not load, in a tag or in a styl
   expect(broken).toHaveLength(4);
   expect(broken.filter((line) => line.startsWith("<img>"))).toHaveLength(3);
   expect(broken.filter((line) => line.startsWith("a background image"))).toHaveLength(1);
+});
+
+/** A page with a navigation column of `count` links, the one at `current` marked as the open page. */
+const navColumn = (style: string, count: number, current: number) => `
+  <body style="margin:0;font-size:16px"><nav id="shell-navigation" style="${style}">${Array.from(
+    { length: count },
+    (_, index) =>
+      `<a href="#p${index}" ${index === current ? 'aria-current="page"' : ""} style="display:block;block-size:30px">Page ${index}</a>`,
+  ).join("")}</nav></body>`;
+
+test("the layout check leaves out the rows a scrolling box has scrolled up and out of sight", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const rows = Array.from(
+    { length: 40 },
+    (_, index) =>
+      `<a href="#p${index}" style="display:block;block-size:30px;line-height:30px">Page ${index}</a>`,
+  ).join("");
+  await page.setContent(`<body style="margin:0;font-size:16px;line-height:20px">
+    <header style="position:sticky;inset-block-start:0;block-size:60px"><button>Menu</button></header>
+    <nav style="position:fixed;inset-block:60px 0;inset-inline-start:0;inline-size:200px;overflow-y:auto">${rows}</nav>
+  </body>`);
+  expect((await readLayout(page)).overlaps).toEqual([]);
+
+  // Scrolled by 75px: two rows are wholly above the column, one half of the way under its top edge, beside the button.
+  await page.locator("nav").evaluate((nav) => {
+    nav.scrollTop = 75;
+  });
+  const scrolled = await readLayout(page);
+  expect(scrolled.overlaps).toEqual([]);
+  expect(scrolled.textOverlaps).toEqual([]);
+
+  // A control that really covers another one inside the column is still reported.
+  await page
+    .locator("nav a")
+    .nth(10)
+    .evaluate((link) => {
+      link.style.position = "relative";
+      link.style.insetBlockStart = "20px";
+    });
+  expect((await readLayout(page)).overlaps).toHaveLength(1);
+});
+
+test("the layout check reports a navigation column that runs off the screen or hides the open page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const screenHigh = "position:sticky;inset-block-start:0;block-size:720px;overflow-y:auto";
+
+  await page.setContent(navColumn("", 12, 3));
+  expect(await page.evaluate(navProblemsOf)).toEqual([]);
+
+  // Links that outgrow the screen scroll inside a column that is as tall as the screen: fine, but the open page must show.
+  await page.setContent(navColumn(screenHigh, 40, 35));
+  expect(await page.evaluate(navProblemsOf)).toEqual([
+    "the open page's link (Page 35) is out of view",
+  ]);
+  expect(
+    await page.locator("nav").evaluate((nav) => nav.scrollTop),
+    "reading puts the scroll back",
+  ).toBe(0);
+  await page.getByRole("link", { name: "Page 35" }).evaluate((link) => link.scrollIntoView());
+  expect(await page.evaluate(navProblemsOf)).toEqual([]);
+
+  // A column that grows with its links pushes its last links off the screen for good.
+  await page.setContent(navColumn("", 40, 3));
+  const runsOff = await page.evaluate(navProblemsOf);
+  expect(runsOff).toHaveLength(1);
+  expect(runsOff[0]).toContain("below the screen");
+
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.setContent(navColumn("", 40, 35));
+  expect(await page.evaluate(navProblemsOf)).toEqual([]);
 });
 
 test("the wait for a page to settle ends with its loading line, and fails on a page that never does", async ({
