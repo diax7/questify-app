@@ -50,7 +50,6 @@ export function ForYouSection() {
       <AppText variant="title" accessibilityRole="header">
         {t("forYou.title")}
       </AppText>
-      <AppText muted>{t("forYou.intro")}</AppText>
       {read.failed ? (
         <>
           <AppText accessibilityRole="alert">{t("forYou.failed")}</AppText>

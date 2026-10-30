@@ -20,7 +20,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 export type Audience = Readonly<{ members: number; phase: string }>;
 type Loaded = Readonly<{
@@ -153,7 +153,7 @@ function AnnouncementsHeader({
     <>
       <PageHeader
         title={t("announcements.page.title")}
-        info={<InfoTip label={t("common.info")}>{t("announcements.page.intro")}</InfoTip>}
+        info={infoTip(t, "announcements.page.intro")}
       />
       <Muted>
         {t("announcements.page.limits", {

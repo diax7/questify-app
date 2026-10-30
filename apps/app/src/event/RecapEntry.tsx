@@ -16,7 +16,6 @@ export function RecapEntry({ eventId }: Readonly<{ eventId: string }>) {
       style={styles.card}
     >
       <AppText variant="title">{t("recap.title")}</AppText>
-      <AppText muted>{t("recap.homeHint")}</AppText>
     </Pressable>
   );
 }

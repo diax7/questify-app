@@ -16,7 +16,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Meter, Muted } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Card, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 /** A quest or category the goal may count. */
 export type Choice = Readonly<{ id: string; name: string }>;
@@ -106,7 +106,7 @@ function UnlockFields({
           </option>
         ))}
       </Select>
-      <InfoTip label={t("common.info")}>{t("community.page.unlock.note")}</InfoTip>
+      {infoTip(t, "community.page.unlock.note")}
     </>
   );
 }

@@ -9,7 +9,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Kind = "phone" | "email_domain";
 
@@ -96,7 +96,7 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
     <Section
       title={t("exclusions.title")}
       titleId="exclusions-title"
-      info={<InfoTip label={t("common.info")}>{t("exclusions.intro")}</InfoTip>}
+      info={infoTip(t, "exclusions.intro")}
     >
       {myRole === "owner" ? (
         <Form onSubmit={(event) => void add(event)}>

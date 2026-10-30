@@ -60,7 +60,6 @@ function Switches({
           onChange={(on) => void change(channel, on)}
         />
       ))}
-      <AppText muted>{t("marketing.stop")}</AppText>
     </>
   );
 }
@@ -77,7 +76,6 @@ export function OffersSection() {
   return (
     <>
       <AppText variant="title">{t("marketing.title")}</AppText>
-      <AppText muted>{t("marketing.settingsIntro")}</AppText>
       {read.failed && current === null ? (
         <>
           <AppText accessibilityRole="alert">{t("marketing.loadFailed")}</AppText>

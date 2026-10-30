@@ -32,7 +32,7 @@ import { Checkbox, Field, FieldGroup, Form, Input, Radio, Select } from "#src/ui
 import { TextLink } from "#src/ui/Text.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Card, CardList, SubHeading, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 /** How the picker holds its choice: in the form's state (the quest form), or as a named field (the category form). */
 type PickerBinding =
@@ -65,10 +65,7 @@ export function ItemPicker({
         }
       : { name: binding.name, defaultValue: binding.initial };
   return (
-    <Field
-      label={t("questItems.picker")}
-      info={<InfoTip label={t("common.info")}>{t(hint)}</InfoTip>}
-    >
+    <Field label={t("questItems.picker")} info={infoTip(t, hint)}>
       <Select disabled={busy} {...bound}>
         <option value="">{t("questItems.pickerNone")}</option>
         {items.map((item) => (
@@ -399,10 +396,7 @@ function CategoryRuleFields({
             ))}
         </Select>
       </Field>
-      <Field
-        label={t("quests.field.completionBonus")}
-        info={<InfoTip label={t("common.info")}>{t("quests.field.rulesHint")}</InfoTip>}
-      >
+      <Field label={t("quests.field.completionBonus")} info={infoTip(t, "quests.field.rulesHint")}>
         <Input
           type="number"
           name="completionBonus"
@@ -422,10 +416,7 @@ function CategoryRuleFields({
         name="itemId"
         initial={category.itemId ?? ""}
       />
-      <Field
-        label={t("quests.field.refresh")}
-        info={<InfoTip label={t("common.info")}>{t("quests.field.refreshHint")}</InfoTip>}
-      >
+      <Field label={t("quests.field.refresh")} info={infoTip(t, "quests.field.refreshHint")}>
         <Select name="refresh" defaultValue={category.refresh} disabled={busy}>
           <option value="none">{t("quests.field.refreshNone")}</option>
           <option value="daily">{t("quests.field.refreshDaily")}</option>
@@ -434,7 +425,7 @@ function CategoryRuleFields({
       </Field>
       <Checkbox
         label={t("quests.field.hidden")}
-        info={<InfoTip label={t("common.info")}>{t("quests.field.hiddenHint")}</InfoTip>}
+        info={infoTip(t, "quests.field.hiddenHint")}
         name="hidden"
         defaultChecked={category.hidden}
         disabled={busy}

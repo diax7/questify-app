@@ -23,7 +23,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 export type QuestOption = Readonly<{ id: string; title: string; points: number }>;
 export type Caps = Readonly<{ each: number; day: number }>;
@@ -204,10 +204,7 @@ function AwardFields({
           </Select>
         </Field>
       )}
-      <Field
-        label={t("awards.reason")}
-        info={<InfoTip label={t("common.info")}>{t("awards.reasonHelp")}</InfoTip>}
-      >
+      <Field label={t("awards.reason")} info={infoTip(t, "awards.reasonHelp")}>
         <Textarea
           dir="auto"
           maxLength={300}

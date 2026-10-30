@@ -98,7 +98,13 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   await page.goto(`${arabic}/community`);
   await expect(page.getByRole("heading", { name: "مغامرات للجميع" })).toBeVisible();
   await page.goto(`${english}/boosts`);
-  await expect(page.getByText(/^Double what one stage's missions pay/)).toBeVisible();
+  // The page explains itself by its title; the explanation is behind the info button, in the event's words.
+  const intro = page.getByText(/^Double what one stage's missions pay/);
+  await expect(intro).toBeHidden();
+  await page.getByRole("button", { name: "More information" }).first().hover();
+  await expect(intro).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(intro).toBeHidden();
   await page.goto(`${arabic}/joining`);
-  await expect(page.getByText(/^اجعل مرحلة أو جائزة لمجموعة من اللاعبين فقط/)).toBeVisible();
+  await expect(page.getByText(/^اجعل مرحلة أو جائزة لمجموعة من اللاعبين فقط/)).toBeAttached();
 });

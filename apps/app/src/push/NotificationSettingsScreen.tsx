@@ -6,6 +6,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { InfoTip } from "#src/components/InfoTip.tsx";
 import { SwitchRow } from "#src/components/SwitchRow.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { OffersSection } from "#src/marketing/OffersSection.tsx";
@@ -71,8 +72,9 @@ function TopicSwitches() {
   const { current, busy, failed, change } = useTopicSave(read.data);
   return (
     <>
-      <AppText variant="title">{t("pushTopics.title")}</AppText>
-      <AppText muted>{t("pushTopics.intro")}</AppText>
+      <InfoTip info={t("pushTopics.intro")}>
+        <AppText variant="title">{t("pushTopics.title")}</AppText>
+      </InfoTip>
       {read.failed && current === null ? (
         <>
           <AppText accessibilityRole="alert">{t("pushTopics.loadFailed")}</AppText>

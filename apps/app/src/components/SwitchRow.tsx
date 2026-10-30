@@ -1,6 +1,7 @@
 import type { MessageKey, Theme } from "@questify/shared";
 import { Switch, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
+import { InfoTip } from "#src/components/InfoTip.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -13,8 +14,8 @@ type Props = Readonly<{
 }>;
 
 /**
- * One setting with a switch: its name, a line saying what it carries, and the switch (a promotional channel, a push
- * topic). The switch is named for a screen reader, so it never rests on its colour alone.
+ * One setting with a switch: its name with an info button that says what it carries, and the switch (a promotional
+ * channel, a push topic). The switch is named for a screen reader, so it never rests on its colour alone.
  */
 export function SwitchRow({ title, about, on, disabled, onChange }: Props) {
   const { t } = useI18n();
@@ -23,8 +24,9 @@ export function SwitchRow({ title, about, on, disabled, onChange }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.text}>
-        <AppText variant="label">{t(title)}</AppText>
-        <AppText muted>{t(about)}</AppText>
+        <InfoTip info={t(about)}>
+          <AppText variant="label">{t(title)}</AppText>
+        </InfoTip>
       </View>
       <Switch
         accessibilityLabel={t(title)}

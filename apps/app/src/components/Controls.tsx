@@ -1,6 +1,7 @@
 import type { LocalizedText, Theme } from "@questify/shared";
 import { Pressable, TextInput, View, type TextInputProps } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
+import { InfoTip } from "#src/components/InfoTip.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -43,15 +44,24 @@ export function Button({
   );
 }
 
-type FieldProps = TextInputProps & Readonly<{ label: string }>;
+type FieldProps = TextInputProps & Readonly<{ label: string; info?: string }>;
 
-/** A labelled text field; the label is the field's accessible name. Values like phones and codes stay left to right. */
-export function Field({ label, style, ...input }: FieldProps) {
+/**
+ * A labelled text field; the label is the field's accessible name. Values like phones and codes stay left to right.
+ * `info` puts an info button beside the label (ADR-370).
+ */
+export function Field({ label, info, style, ...input }: FieldProps) {
   const styles = useThemedStyles(makeStyles);
   const { theme } = useTheme();
   return (
     <View style={styles.field}>
-      <AppText variant="label">{label}</AppText>
+      {info === undefined ? (
+        <AppText variant="label">{label}</AppText>
+      ) : (
+        <InfoTip info={info}>
+          <AppText variant="label">{label}</AppText>
+        </InfoTip>
+      )}
       <TextInput
         allowFontScaling={false}
         accessibilityLabel={label}

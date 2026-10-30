@@ -21,7 +21,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Textarea } from "#src/ui/Field.tsx";
 import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type FormProps = Readonly<{
   language: Language;
@@ -53,7 +53,7 @@ function ChannelChoices({ language, available, draft, busy, change }: ChannelPro
   return (
     <FieldGroup
       legend={t("console.invCampaign.field.channels")}
-      info={<InfoTip label={t("common.info")}>{t("console.invCampaign.channel.hint")}</InfoTip>}
+      info={infoTip(t, "console.invCampaign.channel.hint")}
       layout="choices"
     >
       {(["push", "sms"] as const).map((channel) => (
@@ -126,7 +126,7 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
       />
       <Field
         label={t("console.invCampaign.field.sendAt")}
-        info={<InfoTip label={t("common.info")}>{t("console.invCampaign.sendAt.hint")}</InfoTip>}
+        info={infoTip(t, "console.invCampaign.sendAt.hint")}
       >
         <Input
           type="datetime-local"

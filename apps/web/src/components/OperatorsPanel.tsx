@@ -28,7 +28,7 @@ import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -130,7 +130,7 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
       <PageHeader
         titleId="operators-title"
         title={t("operators.title")}
-        info={<InfoTip label={t("common.info")}>{t("operators.intro")}</InfoTip>}
+        info={infoTip(t, "operators.intro")}
       />
       {myRole === "owner" ? (
         <NewInviteForm {...shared} sent={() => setNotice(t("operators.sent"))} />

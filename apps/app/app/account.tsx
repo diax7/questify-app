@@ -54,7 +54,6 @@ function EnterStep({ state, dispatch }: StepProps<"enter">) {
   };
   return (
     <>
-      <AppText>{t(phone ? "account.hintPhone" : "account.hintEmail")}</AppText>
       <Field
         label={t(phone ? "account.newPhone" : "account.newEmail")}
         value={value}

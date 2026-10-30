@@ -52,10 +52,12 @@ describe("withWords", () => {
   });
 
   it("fills the player word into staff texts", () => {
-    expect(translatorFor(MISSIONS, "en")("operator.scanHint")).toBe(
-      "Point the camera at the student's code.",
+    expect(translatorFor(MISSIONS, "en")("operator.noStations")).toBe(
+      "No mission takes student codes yet. Ask the organizer to turn it on.",
     );
-    expect(translatorFor(MISSIONS, "ar")("operator.scanHint")).toBe("وجّه الكاميرا إلى رمز طالب.");
+    expect(translatorFor(MISSIONS, "ar")("operator.noStations")).toBe(
+      "لا شيء يقبل مسح رمز طالب بعد. اطلب من المنظِّم تفعيله.",
+    );
   });
 
   it("lets a screen's own value win over the event's word", () => {

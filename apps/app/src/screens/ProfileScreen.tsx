@@ -10,6 +10,7 @@ import { api } from "#src/api/app-session.ts";
 import { fetchMyTickets } from "#src/event/help.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { IconButton } from "#src/components/IconButton.tsx";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
@@ -212,6 +213,14 @@ export function ProfileScreen({
         </View>
         {state.status === "signed_in" ? (
           <>
+            <View style={styles.end}>
+              <IconButton
+                icon="log-out-outline"
+                label={t("signOut.confirm")}
+                mirror
+                onPress={confirmSignOut}
+              />
+            </View>
             {state.me === undefined ? <ProfileGate /> : <MyIdentity me={state.me} />}
             <Button
               kind="quiet"
@@ -234,7 +243,6 @@ export function ProfileScreen({
                 </View>
               </View>
             ) : null}
-            <Button kind="quiet" label={t("signOut.confirm")} onPress={confirmSignOut} />
             <Button
               kind="quiet"
               label={t("deletion.title")}
@@ -251,6 +259,7 @@ export function ProfileScreen({
 }
 
 const makeStyles = (theme: Theme) => ({
+  end: { flexDirection: "row" as const, justifyContent: "flex-end" as const },
   row: { flexDirection: "row" as const, gap: theme.spacing.md },
   option: {
     flex: 1,

@@ -25,7 +25,7 @@ import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 /** How often the list is read again while a boost is scheduled or running. */
@@ -311,7 +311,7 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
       <PageHeader
         titleId="boosts-title"
         title={t("boosts.page.title")}
-        info={<InfoTip label={t("common.info")}>{t("boosts.page.intro")}</InfoTip>}
+        info={infoTip(t, "boosts.page.intro")}
       />
       <Muted>{t("boosts.page.lockedNote")}</Muted>
       <Notes

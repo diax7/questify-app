@@ -34,6 +34,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { InfoTip } from "#src/ui/InfoTip.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
 import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 /** What a type does that its name does not say: shown by the info button beside the Type field (ADR-370). */
 const TYPE_INFO: Readonly<Partial<Record<QuestType, MessageKey>>> = {
@@ -103,9 +104,7 @@ export function QuestForm({
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const change = (patch: Partial<QuestDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const TypeFields = QUEST_TYPE_FIELDS[draft.type];
-  const infoKey = TYPE_INFO[draft.type];
-  const typeInfo =
-    infoKey === undefined ? undefined : <InfoTip label={t("common.info")}>{t(infoKey)}</InfoTip>;
+  const typeKey = TYPE_INFO[draft.type];
   const text = (
     key: "titleAr" | "titleEn" | "descriptionAr" | "descriptionEn",
     max: number,
@@ -141,7 +140,7 @@ export function QuestForm({
         <SubHeading as="h2" id="quest-form-title" ref={heading} tabIndex={-1}>
           {isNew ? t("quests.formNew") : t("quests.formEdit")}
         </SubHeading>
-        <Field label={t("quests.field.type")} info={typeInfo}>
+        <Field label={t("quests.field.type")} info={typeKey && infoTip(t, typeKey)}>
           <Select
             value={draft.type}
             disabled={busy || !isNew}
@@ -337,7 +336,7 @@ function FlashField({
     <>
       <Checkbox
         label={t("quests.field.flash")}
-        info={<InfoTip label={t("common.info")}>{t("quests.field.flashHint")}</InfoTip>}
+        info={infoTip(t, "quests.field.flashHint")}
         checked={draft.flash}
         disabled={busy || draft.flashRunning}
         onChange={(event) =>
@@ -460,9 +459,7 @@ function QuestVerificationField({
           <Checkbox
             key={method}
             label={t(VERIFICATION_LABELS[method])}
-            {...(infoKey === undefined
-              ? {}
-              : { info: <InfoTip label={t("common.info")}>{t(infoKey)}</InfoTip> })}
+            {...(infoKey === undefined ? {} : { info: infoTip(t, infoKey) })}
             checked={draft.verification.includes(method)}
             disabled={busy || (nfc && method === "quest_qr")}
             onChange={(event) => toggle(method, event.target.checked)}

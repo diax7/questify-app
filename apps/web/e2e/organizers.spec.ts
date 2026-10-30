@@ -139,19 +139,25 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Home" }).click();
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();
-    await expect(editor.getByText("The ranking shows in the app.", { exact: false })).toBeVisible();
-    // The ranking, share-quest (T-303), meet-someone (T-303c), mini-game (T-305), community (T-306b),
-    // flash-quest and double-points (T-307), help-desk (T-310) and day-streak (T-405b) panels each say so.
-    await expect(editor.getByText("Only the owner can change this.", { exact: false })).toHaveCount(
-      9,
-    );
+    // An editor sees the ranking, share-quest (T-303), meet-someone (T-303c), mini-game (T-305), community (T-306b),
+    // flash-quest and double-points (T-307) and help-desk (T-310) switches as they are, and cannot change them.
+    for (const name of [
+      "Show the ranking in the app",
+      "Show today's ranking",
+      "Show share quests to players",
+      "Show meet-someone quests to players",
+      "Show mini-games to players",
+      "Run community quests in the event",
+      "Run flash quests in the event",
+      "Run double points in the event",
+      "Run the help desk in the event",
+    ]) {
+      await expect(editor.getByRole("checkbox", { name })).toBeDisabled();
+    }
     // This event lasts one day, so the streak panel says why it has no controls.
     await expect(
       editor.getByText("A streak needs an event that lasts more than one day."),
     ).toBeVisible();
-    await expect(editor.getByRole("checkbox", { name: "Show the ranking in the app" })).toHaveCount(
-      0,
-    );
   } finally {
     await guest.close();
   }

@@ -43,7 +43,6 @@ test("an owner creates a draft, sees its times in its zone, edits it, and delete
 
   await expect(page.getByRole("heading", { name: "Najd Meetup" })).toBeVisible();
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
-  await expect(page.getByText("Questify activates this event after payment.")).toBeVisible();
   await expect(page.getByLabel("Starts", { exact: true })).toHaveValue("2030-11-01T09:00");
 
   await page.getByLabel("Name in English", { exact: true }).fill("Najd Summit");

@@ -557,7 +557,10 @@ export const MESSAGES = {
   },
   "quests.field.visible": { ar: "ظاهرة في التطبيق", en: "Visible in the app" },
   "quests.field.code": { ar: "الرمز", en: "Code" },
-  "quests.field.codeHint": { ar: "من 4 إلى 32 حرفًا إنجليزيًا أو رقمًا.", en: "4 to 32 English letters or digits." },
+  "quests.field.codeHint": {
+    ar: "من 4 إلى 32 حرفًا إنجليزيًا أو رقمًا.",
+    en: "4 to 32 English letters or digits.",
+  },
   "quests.field.hintAr": {
     ar: "أين يظهر الرمز (بالعربية)",
     en: "Where the code is shown (Arabic)",
@@ -991,10 +994,6 @@ export const MESSAGES = {
   },
   "location.checkIn": { ar: "سجّل حضورك هنا", en: "Check in here" },
   "location.checking": { ar: "جارٍ تحديد موقعك…", en: "Finding your location…" },
-  "location.orScan": {
-    ar: "أو امسح رمز QR الموجود في هذا المكان.",
-    en: "Or scan the QR code at this spot.",
-  },
   "location.explainTitle": { ar: "سجّل حضورك بموقعك", en: "Check in with your location" },
   "location.explainBody": {
     ar: "يستخدم Questify موقعك أثناء فتح التطبيق فقط، لتسجيل حضورك في أماكن الفعالية وللحفاظ على عدالة اللعب. لا نحتفظ بموقعك الدقيق، وقد يرى فريق الفعالية بُعدك عن مكانها. يمكنك دائمًا مسح رمز QR بدلًا من ذلك.",
@@ -1134,10 +1133,6 @@ export const MESSAGES = {
     en: "The points record of events and the prizes you collected, because event results depend on them; prize handover records are kept as long as the law requires. We also keep a one-way fingerprint of your phone and email that cannot be read, against fraud: a ban from an event or a welcome reward you got still applies if you sign up again.",
   },
   "deletion.sendCode": { ar: "أرسل رمز التأكيد", en: "Send a confirmation code" },
-  "deletion.codeHint": {
-    ar: "أدخل الرمز الذي أرسلناه إليك لتأكيد أن الحساب حسابك.",
-    en: "Enter the code we sent you to confirm the account is yours.",
-  },
   "deletion.useEmail": { ar: "أرسله إلى بريدي بدلًا من ذلك", en: "Send it to my email instead" },
   "deletion.pendingTitle": { ar: "جوائز لم تستلمها بعد", en: "Prizes you have not collected" },
   "deletion.pendingBody": {
@@ -1466,10 +1461,6 @@ export const MESSAGES = {
     en: "After the shop closes, returned {currency} can't be redeemed.",
   },
   "recap.title": { ar: "ملخّصك", en: "Your recap" },
-  "recap.homeHint": {
-    ar: "اعرض ما أنجزته في الفعالية وشاركه.",
-    en: "See what you did at the event and share it.",
-  },
   "recap.rank": { ar: "المركز {rank}", en: "Rank {rank}" },
   "recap.rankPending": {
     ar: "يظهر ترتيبك النهائي مع إعلان النتائج",
@@ -1524,14 +1515,6 @@ export const MESSAGES = {
   "account.addEmail": { ar: "إضافة بريد إلكتروني", en: "Add an email" },
   "account.newPhone": { ar: "رقم الجوال الجديد", en: "New mobile number" },
   "account.newEmail": { ar: "البريد الإلكتروني الجديد", en: "New email" },
-  "account.hintPhone": {
-    ar: "نرسل رمزًا إلى الرقم الجديد، ويبقى حسابك كما هو حتى تُدخله.",
-    en: "We send a code to the new number. Your account stays as it is until you enter it.",
-  },
-  "account.hintEmail": {
-    ar: "نرسل رمزًا إلى البريد الجديد، ويبقى حسابك كما هو حتى تُدخله.",
-    en: "We send a code to the new email. Your account stays as it is until you enter it.",
-  },
   "account.changed": {
     ar: "تم الحفظ. ادخل به من الآن، فالسابق لم يعد يعمل.",
     en: "Saved. Sign in with it from now on; the old one no longer works.",
@@ -1867,7 +1850,10 @@ export const MESSAGES = {
     ar: "امسح هذا الرمز من تطبيق Questify",
     en: "Scan this code in the Questify app",
   },
-  "scan.body": { ar: "افتح تطبيق Questify وادخل الفعالية، ثم امسح الرمز من تبويب المهام.", en: "Open the Questify app, enter the event, then scan the code from the Quests tab." },
+  "scan.body": {
+    ar: "افتح تطبيق Questify وادخل الفعالية، ثم امسح الرمز من تبويب المهام.",
+    en: "Open the Questify app, enter the event, then scan the code from the Quests tab.",
+  },
   "scan.noApp": {
     ar: "ليس لديك التطبيق؟ اسأل منظّم الفعالية عن طريقة الانضمام.",
     en: "Don't have the app? Ask the event's organizer how to join.",
@@ -2014,10 +2000,6 @@ export const MESSAGES = {
     ar: "لا اتصال. تعذّر تحميل الأرقام.",
     en: "No signal. Numbers cannot load.",
   },
-  "operator.scanHint": {
-    ar: "وجّه الكاميرا إلى رمز {playerOne}.",
-    en: "Point the camera at the {playerOne}'s code.",
-  },
   "operator.noStation": { ar: "اختر محطة من الرئيسية أولًا.", en: "Pick a station on Home first." },
   "operator.green": { ar: "+{points}", en: "+{points}" },
   "operator.orange": { ar: "سبق إنجاز هذا", en: "Already completed" },
@@ -2074,10 +2056,6 @@ export const MESSAGES = {
     en: "The desk is closed. You can still look up the {playerOne}'s items; handing over is off until it opens.",
   },
   "operator.desk.finished": { ar: "انتهت ساعات المكتب.", en: "The desk's hours have ended." },
-  "operator.desk.scanHint": {
-    ar: "وجّه الكاميرا إلى رمز {playerOne}.",
-    en: "Point at the {playerOne}'s code.",
-  },
   "operator.desk.waiting": { ar: "بانتظار التسليم: {count}", en: "Waiting: {count}" },
   "operator.desk.nothing": {
     ar: "لا شيء لتسليمه إلى {player}.",
@@ -2217,10 +2195,6 @@ export const MESSAGES = {
   "activation.noAddons": { ar: "لا إضافات.", en: "No add-ons." },
   "addon.bigScreen": { ar: "الشاشة الكبيرة", en: "Big screen" },
   "rehearsal.title": { ar: "التجربة", en: "Rehearsal" },
-  "rehearsal.intro": {
-    ar: "جرّب فعاليتك مع فريقك على جوالات حقيقية قبل أن تبدأ. يدخل الفريق بهذا الرمز من تطبيق Questify.",
-    en: "Try your event with your team on real phones before it starts. Your team joins with this code in the Questify app.",
-  },
   "rehearsal.code": { ar: "رمز التجربة: {code}", en: "Rehearsal code: {code}" },
   "rehearsal.copy": { ar: "انسخ الرمز", en: "Copy code" },
   "rehearsal.copied": { ar: "نُسخ الرمز.", en: "Code copied." },
@@ -4889,10 +4863,6 @@ export const MESSAGES = {
     en: "Promotional messages aren't available for this account, so they stay off.",
   },
   "marketing.settingsTitle": { ar: "العروض والإشعارات", en: "Offers and notifications" },
-  "marketing.settingsIntro": {
-    ar: "هذه الخيارات للرسائل الترويجية فقط.",
-    en: "These choices are for promotional messages only.",
-  },
   "marketing.loadFailed": {
     ar: "تعذّر تحميل اختياراتك. حاول مرة أخرى.",
     en: "Couldn't load your choices. Try again.",
@@ -4918,10 +4888,6 @@ export const MESSAGES = {
     en: "Choose a city and interests from the lists only.",
   },
   "forYou.title": { ar: "مقترحة لك", en: "Suggested for you" },
-  "forYou.intro": {
-    ar: "فعاليات عامة قد تعجبك بحسب اهتماماتك ومدينتك.",
-    en: "Public events you may like, based on your interests and city.",
-  },
   "forYou.none": {
     ar: "لا توجد فعاليات مقترحة الآن. أضف اهتماماتك أو مدينتك لنقترح عليك المزيد.",
     en: "No events to suggest right now. Add your interests or city and we'll suggest more.",
@@ -5075,10 +5041,6 @@ export const MESSAGES = {
   "gems.many": { ar: "{count} جوهرة", en: "{count} gems" },
   "gemShop.title": { ar: "متجر الجواهر", en: "Gem shop" },
   "gemShop.balance": { ar: "لديك {gems}", en: "You have {gems}" },
-  "gemShop.earnedByPlaying": {
-    ar: "تُكسب الجواهر باللعب ولا تُشترى.",
-    en: "Gems are earned by playing. They can't be bought.",
-  },
   "gemShop.howEarned": {
     ar: "اكسب الجواهر بالارتقاء في المستويات، وفتح الإنجازات، وإنجاز مهام Questify.",
     en: "Earn gems by leveling up, unlocking achievements and finishing Questify quests.",
@@ -5656,10 +5618,6 @@ export const MESSAGES = {
     en: "Sign in to see your events, or enter an event code to join one.",
   },
   "joinScan.title": { ar: "امسح رمز الانضمام", en: "Scan a join code" },
-  "joinScan.hint": {
-    ar: "وجّه الكاميرا إلى رمز QR الخاص بفعالية لتنضم إليها.",
-    en: "Point the camera at an event's QR code to join it.",
-  },
   "joinScan.eventOnly": {
     ar: "هذا رمز يُمسح داخل فعالية. افتح الفعالية أولًا ثم امسحه منها.",
     en: "This code is scanned inside an event. Open the event first, then scan it there.",

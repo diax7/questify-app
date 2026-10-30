@@ -212,7 +212,7 @@ test("in English an admin sets the daily words, imports a guess list and searche
   // Import: the lines that are not five letters are shown back, the others join the list.
   const [first, second, third] = mine.list;
   await page
-    .getByLabel("Words (one per line)")
+    .getByLabel("Words (5 letters, one per line)")
     .fill(`${first}\n${second}\n${third}\nbad\nab1cd\n\n${first}`);
   await expect(page.getByText("Lines ready to send: 5")).toBeVisible();
   await page.getByRole("button", { name: "Add to list" }).click();
@@ -228,7 +228,7 @@ test("in English an admin sets the daily words, imports a guess list and searche
   await expect(page.getByText("Matches: 1")).toBeVisible();
   await expect(page.getByTestId("word-list-words")).toContainText(mine.list[0]);
 
-  await page.getByLabel("Words (one per line)").fill(mine.list[0]);
+  await page.getByLabel("Words (5 letters, one per line)").fill(mine.list[0]);
   await page.getByRole("button", { name: "Remove from list" }).click();
   await expect(result).toContainText("Removed: 1");
   await expect(page.getByText("No matching words.")).toBeVisible();

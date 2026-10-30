@@ -97,9 +97,6 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
       "Nothing is charged here: the Questify team contacts you about the price before approving.",
     ),
   ).toBeVisible();
-  await expect(
-    page.getByText("You see only rounded counts, updated once a day, and never who was invited."),
-  ).toBeVisible();
   await expect(page.getByText("No requests yet.")).toBeVisible();
 
   // A name the SMS cannot carry is refused with the reason, and the size is checked before anything is sent.

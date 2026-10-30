@@ -7,8 +7,8 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
 import { Row, SubHeading } from "#src/ui/Section.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -80,7 +80,7 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
             <Switch
               key={feature}
               label={t(SWITCHES[feature].label)}
-              info={<InfoTip label={t("common.info")}>{t(SWITCHES[feature].info)}</InfoTip>}
+              info={infoTip(t, SWITCHES[feature].info)}
               checked={shown[feature]}
               disabled={busy || myRole !== "owner"}
               onChange={(changed) => void save(feature, changed.target.checked)}

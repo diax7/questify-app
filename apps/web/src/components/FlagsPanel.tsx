@@ -25,7 +25,7 @@ import { FieldGroup } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { BulletList, Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -493,11 +493,7 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
   const flags = list.listing?.flags ?? null;
   return (
     <Stack as="section" aria-labelledby="flags-title">
-      <PageHeader
-        titleId="flags-title"
-        title={t("flags.title")}
-        info={<InfoTip label={t("common.info")}>{t("flags.intro")}</InfoTip>}
-      />
+      <PageHeader titleId="flags-title" title={t("flags.title")} info={infoTip(t, "flags.intro")} />
       {list.listing === null ? null : <HoldSwitch hold={list.listing.hold} shared={shared} />}
       <Tabs
         label={t("flags.title")}

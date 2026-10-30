@@ -208,7 +208,6 @@ export default function StationScanScreen() {
       ) : null}
       {station !== null && granted && active && !cameraFailed ? (
         <>
-          <AppText muted>{t("operator.scanHint")}</AppText>
           <View style={styles.camera}>
             <CameraView
               style={{ flex: 1 }}

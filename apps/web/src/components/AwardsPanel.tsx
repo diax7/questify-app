@@ -18,7 +18,7 @@ import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -126,9 +126,7 @@ function CapsCard({
       title={t("awards.caps")}
       titleId="caps-title"
       description={isOwner ? undefined : t("awards.capsOwnerOnly")}
-      info={
-        isOwner ? <InfoTip label={t("common.info")}>{t("awards.capsHelp")}</InfoTip> : undefined
-      }
+      info={isOwner ? infoTip(t, "awards.capsHelp") : undefined}
     >
       <Form onSubmit={(event) => void submit(event)}>
         {(
@@ -356,11 +354,7 @@ function BulkCard({
     preview !== null && preview.count > 0 && points !== undefined && reasonOk(draft.reason);
 
   return (
-    <Section
-      title={t("awards.bulk")}
-      titleId="bulk-title"
-      info={<InfoTip label={t("common.info")}>{t("awards.bulkHelp")}</InfoTip>}
-    >
+    <Section title={t("awards.bulk")} titleId="bulk-title" info={infoTip(t, "awards.bulkHelp")}>
       {asking && points !== undefined && preview !== null ? (
         <ConfirmDialog
           language={language}

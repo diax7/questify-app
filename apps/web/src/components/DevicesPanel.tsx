@@ -23,7 +23,7 @@ import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -413,7 +413,7 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
       <PageHeader
         titleId="devices-title"
         title={t("devices.title")}
-        info={<InfoTip label={t("common.info")}>{t("devices.intro")}</InfoTip>}
+        info={infoTip(t, "devices.intro")}
       />
       <Muted>
         {t("devices.pages")}{" "}

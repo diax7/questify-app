@@ -33,7 +33,7 @@ import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -258,11 +258,7 @@ function WelcomeField({
           </>
         ) : undefined
       }
-      info={
-        setup.welcomeLocked ? undefined : (
-          <InfoTip label={t("common.info")}>{t("joinRules.welcomeHint")}</InfoTip>
-        )
-      }
+      info={setup.welcomeLocked ? undefined : infoTip(t, "joinRules.welcomeHint")}
     >
       <Input
         dir="ltr"
@@ -319,10 +315,7 @@ function FieldsEditor({
   };
 
   return (
-    <Section
-      title={t("joinFields.title")}
-      info={<InfoTip label={t("common.info")}>{t("joinFields.intro")}</InfoTip>}
-    >
+    <Section title={t("joinFields.title")} info={infoTip(t, "joinFields.intro")}>
       <Form onSubmit={(event) => void save(event)}>
         {drafts.length === 0 ? <EmptyState>{t("joinFields.empty")}</EmptyState> : null}
         <CardList>
@@ -412,10 +405,7 @@ function RulesEditor({
           onChange={(ticked) => setGuestListOnly(ticked.target.checked)}
           label={t("joinRules.guestListOnly")}
         />
-        <Field
-          label={t("joinRules.domains")}
-          info={<InfoTip label={t("common.info")}>{t("joinRules.domainsHint")}</InfoTip>}
-        >
+        <Field label={t("joinRules.domains")} info={infoTip(t, "joinRules.domainsHint")}>
           <Textarea
             dir="ltr"
             rows={3}

@@ -6,6 +6,7 @@ import type { SignupAcceptance } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
+import { IconButton } from "#src/components/IconButton.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { consentVersions, versionsFrom } from "#src/config/remote.ts";
 import { usePlayer } from "#src/auth/player.tsx";
@@ -66,9 +67,10 @@ export default function ReacceptScreen() {
         disabled={busy || versions === undefined}
         onPress={() => void accept()}
       />
-      <Button
-        kind="quiet"
+      <IconButton
+        icon="log-out-outline"
         label={t("signOut.confirm")}
+        mirror
         onPress={() => void signOut().then(() => router.replace("/"))}
       />
     </Screen>

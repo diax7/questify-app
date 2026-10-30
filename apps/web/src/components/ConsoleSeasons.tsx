@@ -18,7 +18,7 @@ import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Read<T> =
   | Readonly<{ kind: "loading" }>
@@ -152,7 +152,7 @@ export function ConsoleSeasons({ language }: Readonly<{ language: Language }>) {
       <PageHeader
         titleId="console-seasons-title"
         title={t("console.seasons.title")}
-        info={<InfoTip label={t("common.info")}>{t("console.seasons.intro")}</InfoTip>}
+        info={infoTip(t, "console.seasons.intro")}
       />
       {list.kind === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {list.kind === "failed" ? <Problem language={language} body={list.body} /> : null}

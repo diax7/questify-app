@@ -25,7 +25,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Radio } from "#src/ui/Field.tsx";
 import { Card, Section, SubHeading } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 const LANGUAGES: readonly Language[] = ["ar", "en"];
@@ -224,11 +224,7 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
     });
 
   return (
-    <Section
-      titleId="terms-title"
-      title={t("terms.title")}
-      info={<InfoTip label={t("common.info")}>{t("terms.intro")}</InfoTip>}
-    >
+    <Section titleId="terms-title" title={t("terms.title")} info={infoTip(t, "terms.intro")}>
       <Form noValidate onSubmit={(submitted) => void submit(submitted)}>
         {WORDS.map((word) => (
           <FieldGroup key={word} legend={t(`terms.word.${word}`)}>

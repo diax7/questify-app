@@ -31,7 +31,7 @@ import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input, Select } from "#src/ui/Field.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -129,15 +129,12 @@ function EventCityField({
     return null;
   }
   const locked = status === "live" || status === "ended" || status === "archived";
+  const note = locked
+    ? { help: t("events.city.locked") }
+    : { info: infoTip(t, "events.city.hint") };
   return (
     <FieldGroup layout="columns">
-      <Field
-        label={t("events.field.city")}
-        help={locked ? t("events.city.locked") : undefined}
-        info={
-          locked ? undefined : <InfoTip label={t("common.info")}>{t("events.city.hint")}</InfoTip>
-        }
-      >
+      <Field label={t("events.field.city")} {...note}>
         <Select
           value={draft.cityId ?? ""}
           disabled={disabled || locked}
@@ -196,7 +193,7 @@ export function EventInterestsField({ language, draft, disabled, change }: Field
     <FieldGroup
       legend={t("events.field.interests")}
       help={full ? t("events.interests.full") : undefined}
-      info={<InfoTip label={t("common.info")}>{t("events.interests.hint")}</InfoTip>}
+      info={infoTip(t, "events.interests.hint")}
       layout="choiceGrid"
     >
       {interestChoices(interests, draft.interests).map((interest) => {
@@ -241,7 +238,7 @@ export function EventVenuePinFields({ language, draft, disabled, change }: Field
   return (
     <FieldGroup
       legend={t("events.venuePin.title")}
-      info={<InfoTip label={t("common.info")}>{t("events.venuePin.help")}</InfoTip>}
+      info={infoTip(t, "events.venuePin.help")}
       layout="columns"
     >
       <NumberField
@@ -344,7 +341,7 @@ export function EventTimeFields({
       <FieldGroup layout="columns">
         <Field
           label={t("events.field.dayStartHour")}
-          info={<InfoTip label={t("common.info")}>{t("events.field.dayStartHint")}</InfoTip>}
+          info={infoTip(t, "events.field.dayStartHint")}
         >
           <Input
             type="number"

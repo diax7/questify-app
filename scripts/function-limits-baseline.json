@@ -509,7 +509,7 @@
     },
     "StationScanScreen": {
       "complexity": [19],
-      "lines": [138]
+      "lines": [137]
     }
   },
   "apps/app/app/operator/[eventId]/ticket/[ticketId].tsx": {
@@ -968,7 +968,7 @@
   "apps/web/src/components/CodesPanel.tsx": {
     "CodesPanel": {
       "complexity": [11],
-      "lines": [203]
+      "lines": [202]
     }
   },
   "apps/web/src/components/CommunityGoalForm.tsx": {
@@ -1027,7 +1027,7 @@
   },
   "apps/web/src/components/EventWords.tsx": {
     "EventWords": {
-      "lines": [109]
+      "lines": [104]
     }
   },
   "apps/web/src/components/ExclusionsPanel.tsx": {
@@ -1056,7 +1056,7 @@
   "apps/web/src/components/InviteFlow.tsx": {
     "InviteFlow": {
       "complexity": [15],
-      "lines": [137]
+      "lines": [136]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -1115,7 +1115,7 @@
   "apps/web/src/components/RehearsalCard.tsx": {
     "RehearsalCard": {
       "complexity": [14],
-      "lines": [138]
+      "lines": [136]
     }
   },
   "apps/web/src/components/ResultsPanel.tsx": {

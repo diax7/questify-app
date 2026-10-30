@@ -10,7 +10,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Textarea } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Guest = Readonly<{ id: string; kind: "phone" | "email"; value: string; tag: string | null }>;
 
@@ -118,10 +118,7 @@ function GuestUpload({
             onChange={(typed) => setText(typed.target.value)}
           />
         </Field>
-        <Field
-          label={t("guests.tag")}
-          info={<InfoTip label={t("common.info")}>{t("guests.tagHint")}</InfoTip>}
-        >
+        <Field label={t("guests.tag")} info={infoTip(t, "guests.tagHint")}>
           <Input
             dir="auto"
             maxLength={30}
@@ -269,11 +266,7 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <Section
-      title={t("guests.title")}
-      titleId="guests-title"
-      info={<InfoTip label={t("common.info")}>{t("guests.intro")}</InfoTip>}
-    >
+    <Section title={t("guests.title")} titleId="guests-title" info={infoTip(t, "guests.intro")}>
       <GuestUpload
         language={language}
         base={base}

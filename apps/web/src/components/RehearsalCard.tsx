@@ -91,7 +91,6 @@ export function RehearsalCard({ language, organizerId, eventId }: Props) {
       )}
       {view.open && view.code !== null ? (
         <>
-          <p>{t("rehearsal.intro")}</p>
           <p>
             <strong>{t("rehearsal.code", { code: view.code })}</strong>
           </p>

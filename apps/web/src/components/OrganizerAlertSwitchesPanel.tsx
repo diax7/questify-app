@@ -14,7 +14,7 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
 import { CardList, Section } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -79,11 +79,7 @@ export function OrganizerAlertSwitchesPanel({
   };
 
   return (
-    <Section
-      titleId="alerts-title"
-      title={t("alerts.title")}
-      info={<InfoTip label={t("common.info")}>{t("alerts.hint")}</InfoTip>}
-    >
+    <Section titleId="alerts-title" title={t("alerts.title")} info={infoTip(t, "alerts.hint")}>
       <Muted>{t("alerts.notLive")}</Muted>
       {switches === null ? (
         <Muted>{t("common.loading")}</Muted>

@@ -25,7 +25,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input } from "#src/ui/Field.tsx";
 import { Row, Rows, Section, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -308,7 +308,7 @@ function OwnerForm({
       />
       <NumberField
         label={t("events.streak.bonus", { currency: termFor(terms.currency, language) })}
-        info={<InfoTip label={t("common.info")}>{t("events.streak.bonusHint")}</InfoTip>}
+        info={infoTip(t, "events.streak.bonusHint")}
         value={draft.bonus}
         invalid={panel.invalidBonus}
         disabled={panel.busy}
@@ -319,7 +319,7 @@ function OwnerForm({
       />
       <FieldGroup
         legend={t("events.streak.weekdays")}
-        info={<InfoTip label={t("common.info")}>{t("events.streak.weekdaysHint")}</InfoTip>}
+        info={infoTip(t, "events.streak.weekdaysHint")}
         layout="choiceGrid"
       >
         {WEEKDAYS.map(({ day, label }) => (
@@ -409,7 +409,7 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
     <Section
       titleId="streak-title"
       title={t("events.streak.title")}
-      info={<InfoTip label={t("common.info")}>{t("events.streak.intro")}</InfoTip>}
+      info={infoTip(t, "events.streak.intro")}
     >
       <PanelBody language={language} myRole={myRole} terms={terms} panel={panel} />
       {panel.problem === null ? null : (

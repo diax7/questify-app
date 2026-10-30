@@ -76,7 +76,6 @@ function CodeStep({ state, run, busy }: StepProps<"code">) {
   const [code, setCode] = useState("");
   return (
     <>
-      <AppText>{t("deletion.codeHint")}</AppText>
       <Field
         label={t("signIn.code")}
         value={code}

@@ -63,6 +63,7 @@ import {
 import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -358,7 +359,7 @@ function DeskForm({
         </FieldGroup>
         <Checkbox
           label={t("rewards.desk.hoursOn")}
-          info={<InfoTip label={t("common.info")}>{t("rewards.desk.hoursHint")}</InfoTip>}
+          info={infoTip(t, "rewards.desk.hoursHint")}
           checked={draft.hoursOn}
           onChange={(e) =>
             set({

@@ -147,7 +147,6 @@ function ShopBody({ me }: Readonly<{ me: Me }>) {
   return (
     <ScrollView contentContainerStyle={{ gap: 12 }}>
       {shop === null ? null : <Balance gems={shop.gems} />}
-      <AppText muted>{t("gemShop.earnedByPlaying")}</AppText>
       {shop === null && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
       {failed ? (
         <>

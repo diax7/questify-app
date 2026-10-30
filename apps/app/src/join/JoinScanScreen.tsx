@@ -92,7 +92,6 @@ export function JoinScanScreen() {
   const granted = permission?.granted === true;
   return (
     <Screen title={t("joinScan.title")} header={<BackButton />}>
-      <AppText muted>{t("joinScan.hint")}</AppText>
       {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
       {permission !== null && !granted ? (
         <PermissionCard

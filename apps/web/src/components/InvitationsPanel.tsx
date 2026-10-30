@@ -12,7 +12,7 @@ import {
 import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Props = InvitationsProps & Readonly<{ myRole: "owner" | "editor" }>;
 type Catalogs = ReturnType<typeof useInvitationCatalogs>;
@@ -103,7 +103,7 @@ export function InvitationsPanel(props: Props) {
       <PageHeader
         titleId="invitations-title"
         title={t("invCampaign.title")}
-        info={<InfoTip label={t("common.info")}>{t("invCampaign.intro")}</InfoTip>}
+        info={infoTip(t, "invCampaign.intro")}
       />
       <Notice tone="info">{t("invCampaign.noCharge")}</Notice>
       {model.problem === null ? null : (

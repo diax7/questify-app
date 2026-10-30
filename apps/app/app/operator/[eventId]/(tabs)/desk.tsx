@@ -192,7 +192,6 @@ function DeskCamera({ onCode }: Readonly<{ onCode: (code: string) => void }>) {
   }
   return active ? (
     <>
-      <AppText muted>{t("operator.desk.scanHint")}</AppText>
       <View style={styles.camera}>
         <CameraView
           style={{ flex: 1 }}

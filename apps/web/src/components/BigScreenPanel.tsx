@@ -23,7 +23,7 @@ import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -171,7 +171,7 @@ export function BigScreenPanel({ language, organizerId, eventId }: Props) {
       <PageHeader
         titleId="big-screen-title"
         title={t("bigScreen.title")}
-        info={<InfoTip label={t("common.info")}>{t("bigScreen.intro")}</InfoTip>}
+        info={infoTip(t, "bigScreen.intro")}
         actions={
           <ButtonLink href={`/${language}/organizers/${organizerId}/events/${eventId}/devices`}>
             {t("devices.link")}

@@ -22,7 +22,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { SubHeading } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -178,7 +178,7 @@ export function InvitationForm({
       />
       <Field
         label={t("invCampaign.field.sendAfter")}
-        info={<InfoTip label={t("common.info")}>{t("invCampaign.sendAfter.hint")}</InfoTip>}
+        info={infoTip(t, "invCampaign.sendAfter.hint")}
         error={wrong === "sendAfter" ? t("invCampaign.invalid.sendAfter") : undefined}
       >
         <Input

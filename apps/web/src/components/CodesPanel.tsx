@@ -14,7 +14,7 @@ import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { FieldGroup, Radio } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 type Code = Readonly<{
   questId: string;
@@ -323,12 +323,9 @@ export function CodesPanel({
               {code.secretOf === null ? (
                 <p className={codeStyles.small}>{bothLanguages(code.category)}</p>
               ) : (
-                <>
-                  <p className={codeStyles.title}>
-                    {t("codes.secret")}{" "}
-                    <InfoTip label={t("common.info")}>{t("codes.secretHint")}</InfoTip>
-                  </p>
-                </>
+                <p className={codeStyles.title}>
+                  {t("codes.secret")} {infoTip(t, "codes.secretHint")}
+                </p>
               )}
               <p className={codeStyles.small}>{t("codes.version", { version: code.version })}</p>
               <div className={codeStyles.controls}>

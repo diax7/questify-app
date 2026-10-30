@@ -175,7 +175,6 @@ export function LocationEntry({
         disabled={busy || reader === undefined}
         onPress={() => void checkIn()}
       />
-      <AppText muted>{t("location.orScan")}</AppText>
       {scan}
     </>
   );

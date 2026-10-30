@@ -33,7 +33,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Meter, Muted } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
-import { InfoTip } from "#src/ui/InfoTip.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 /** An unlock the API refused, in words (T-306c). */
@@ -294,7 +294,7 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
       <PageHeader
         titleId="community-title"
         title={t("community.page.title")}
-        info={<InfoTip label={t("common.info")}>{t("community.page.intro")}</InfoTip>}
+        info={infoTip(t, "community.page.intro")}
       />
       <Notes
         problem={problem}
