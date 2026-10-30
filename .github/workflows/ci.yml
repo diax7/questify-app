@@ -19,8 +19,8 @@ jobs:
   checks:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    # Tests and checks take about 11 minutes and the browser tests 12 to 15 (see their step), plus the audit and builds.
-    timeout-minutes: 35
+    # Tests and checks take about 11 minutes and the browser tests 15 to 17 (see their step), plus the audit and builds.
+    timeout-minutes: 38
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -114,8 +114,9 @@ jobs:
         # on 2026-10-30 (run 40979237093). T-599b's layout check then grew to 5.7 minutes of its own (fixed waits for state
         # colours and the network) and run 40993429874 was cancelled at 12. It now waits by event and takes 3.1 minutes
         # (desktop 1.7, phone 1.4). All 230 specs, 1 worker, CI=1, took 16.4 minutes on the developer PC (T-599c); the runner
-        # took 0.7 to 0.9 times the PC's time, so the step is expected at 12 to 15 minutes, and 18 leaves room.
-        timeout-minutes: 18
+        # took 0.7 to 0.9 times the PC's time, so the step is expected at 12 to 15 minutes. It took 15.3 (run 41033545542);
+        # T-307b's 4 finale runs add about 1.2, so 22 leaves room until the suite is split (docs/FOLLOWUPS.md).
+        timeout-minutes: 22
         run: |
           set -euo pipefail
           pnpm --filter @questify/web exec playwright install chromium
