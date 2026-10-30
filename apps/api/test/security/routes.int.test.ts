@@ -54,6 +54,24 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner/editor, event limit; one transaction; Idempotency-Key, audited (sessions)",
   "POST /v1/organizers/:organizerId/events/:eventId/sessions/:sessionId/message":
     "owner/editor, same-event row lock, rate limit in the door; Idempotency-Key, audited, text filtered (sessions)",
+  "GET /v1/events/:eventId/maps":
+    'caller-bound active membership through member_maps; quest pins only for quests the caller may list, "you are here" from the caller\'s own completions (maps)',
+  "GET /v1/organizers/:organizerId/events/:eventId/maps":
+    "owner/editor, event limit rechecked by award_event_of (maps)",
+  "POST /v1/organizers/:organizerId/events/:eventId/maps":
+    "owner/editor, event limit rechecked by award_event_of, per-event write lock; Idempotency-Key, audited (maps)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/maps/order":
+    "owner/editor, event limit, per-event write lock; Idempotency-Key, audited (maps)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/maps/:mapId":
+    "owner/editor, same-event row, per-event write lock; Idempotency-Key, audited (maps)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/maps/:mapId":
+    "owner/editor, same-event row, per-event write lock; Idempotency-Key, audited (maps)",
+  "POST /v1/organizers/:organizerId/events/:eventId/maps/:mapId/pins":
+    "owner/editor, same-event map and quest, per-event write lock; Idempotency-Key, audited (maps)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/maps/:mapId/pins/:pinId":
+    "owner/editor, same-event map, pin and quest, per-event write lock; Idempotency-Key, audited (maps)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/maps/:mapId/pins/:pinId":
+    "owner/editor, same-event map and pin, per-event write lock; Idempotency-Key, audited (maps)",
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":

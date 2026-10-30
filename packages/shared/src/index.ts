@@ -570,3 +570,29 @@ export type {
   SessionWindow,
   TeamSession,
 } from "./sessions/sessions";
+export {
+  MAP_AMENITIES,
+  amenityKey,
+  MAP_LIMITS,
+  MAP_PIN_KINDS,
+  MAP_QUEST_STATES,
+  mapBodySchema,
+  mapOrderSchema,
+  mapPinBodySchema,
+  memberMapsSchema,
+  pinStatusOf,
+  teamMapListSchema,
+} from "./maps/maps";
+export type {
+  MapAmenity,
+  MapBody,
+  MapPinBody,
+  MapPinKind,
+  MapQuestState,
+  MemberMap,
+  MemberMapPin,
+  MemberMaps,
+  PinStatus,
+  TeamMap,
+  TeamMapPin,
+} from "./maps/maps";

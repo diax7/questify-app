@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { toWesternDigits } from "#src/i18n/digits";
+import { optionalPlainText as optionalText, plainText as plain } from "#src/text/plain-text";
 import { toInstant } from "#src/time/event-time";
 
 /**
@@ -26,24 +27,6 @@ export const SESSION_LIMITS = {
   importRows: 500,
 } as const;
 
-/** Whether the text holds a control character (a line break is allowed when `multiline`). */
-function hasControl(text: string, multiline: boolean): boolean {
-  return Array.from(text).some((char) => {
-    const code = char.codePointAt(0) ?? 0;
-    return (code < 32 && !(multiline && code === 10)) || (code >= 127 && code < 160);
-  });
-}
-
-/** The text of a field with no control characters (a description may hold line breaks). */
-const plain = (max: number, multiline = false) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .refine((text) => !hasControl(text, multiline));
-
-const optionalText = (max: number, multiline = false) =>
-  plain(max, multiline).nullable().optional();
 const instant = z.iso.datetime({ offset: true });
 
 /** The fields as the dashboard sends them (`POST …/sessions`, `PUT …/sessions/{id}`). */

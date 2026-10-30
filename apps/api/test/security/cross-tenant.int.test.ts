@@ -906,6 +906,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by session_check_in for an operator assigned to the event, read by the team through session_list's counts (sessions database suite)",
   session_message:
     "no direct API rights; written only by the owner/editor door session_message inside award_event_of, with the Idempotency-Key hash and the per-event rate limit (sessions database suite)",
+  event_map:
+    "no direct API rights; event-scoped owner/editor doors use award_event_of and a map of another event is MP404; the maps are read by active members through the caller-bound member_maps (maps database and HTTP suites)",
+  map_pin:
+    "no direct API rights; written only by the owner/editor doors map_pin_save and map_pin_delete inside award_event_of, a quest pin only for a quest of the same event; read by active members through the caller-bound member_maps, which lists a quest pin only for a quest the caller may list (maps database suite)",
   notification:
     "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
   push_device:
@@ -1477,6 +1481,38 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "event_session WHERE event_id = $1", [f.eventB])).toBe(1);
     expect(await count("owner", "session_registration WHERE event_id = $1", [f.eventB])).toBe(0);
     expect(await count("owner", "session_attendance WHERE event_id = $1", [f.eventB])).toBe(0);
+  });
+
+  it("keeps the map doors inside the caller's tenant and membership (T-506)", async () => {
+    const foreign = (
+      await db.owner.query<{ id: string }>(
+        `INSERT INTO event_map (organizer_id, event_id, name_en, position, created_by)
+         VALUES ($1, $2, 'B floor', 1, $3) RETURNING id`,
+        [f.orgB, f.eventB, f.staffB],
+      )
+    ).rows[0]?.id as string;
+    const draft = JSON.stringify({ nameEn: "Forged" });
+    const pin = JSON.stringify({ kind: "booth", nameEn: "Forged", x: 1, y: 1 });
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      const team = [
+        ["SELECT map_authorize($1)", [f.eventB]],
+        ["SELECT map_list($1)", [f.eventB]],
+        ["SELECT map_save($1, $2::jsonb, NULL, $3)", [f.eventB, draft, randomUUID()]],
+        ["SELECT map_save($1, $2::jsonb, $3, $4)", [f.eventB, draft, foreign, randomUUID()]],
+        ["SELECT map_delete($1, $2, $3)", [f.eventB, foreign, randomUUID()]],
+        ["SELECT map_order($1, ARRAY[$2]::uuid[], $3)", [f.eventB, foreign, randomUUID()]],
+        [
+          "SELECT map_pin_save($1, $2, $3::jsonb, NULL, $4)",
+          [f.eventB, foreign, pin, randomUUID()],
+        ],
+        ["SELECT map_pin_delete($1, $2, $3, $4)", [f.eventB, foreign, randomUUID(), randomUUID()]],
+      ] as const;
+      for (const [sql, values] of team)
+        expect(await refusal(asA(seat, sql, [...values])), `${seat} ${sql}`).toBe("AN404");
+      expect(await refusal(asA(seat, "SELECT member_maps($1)", [f.eventB])), seat).toBe("AM403");
+    }
+    expect(await count("owner", "event_map WHERE event_id = $1", [f.eventB])).toBe(1);
+    expect(await count("owner", "map_pin WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
   it("keeps the streak doors inside their tenant and their player (T-405)", async () => {
