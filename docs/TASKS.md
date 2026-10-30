@@ -1080,7 +1080,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     column needs a scrollbar; `e2e/modal.spec.ts` proves both.
 - [x] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
   - Done when: the T-599 layout check covers every dashboard and console page and passes.
-  - Done 2026-10-30 (tier B; code review owed). All 30 pages listed in this task moved: `/account`, `/organizers/new`, `/sign-up`,
+  - Done 2026-10-30 (tier B; review 91 GO, minors in FOLLOWUPS). All 30 pages listed in this task moved: `/account`, `/organizers/new`, `/sign-up`,
     `/forgot-password`, `/reset-password`; the event pages `announcements`, `awards`, `big-screen`, `boosts`, `codes`, `community`,
     `devices`, `flags`, `help`, `invitations`, `joining`, `operators`, `players`, `prizes`, `souvenirs`, `submissions`; the console
     `/console`, `content`, `events/{id}`, `invitations`, `invitations/{id}`, `questify`, `seasons`, `tickets`, `tickets/{id}`.
