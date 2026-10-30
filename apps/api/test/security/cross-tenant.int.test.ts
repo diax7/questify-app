@@ -1470,6 +1470,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         await refusal(asA(seat, "SELECT session_check_in($1, $2, 1)", [foreign, randomUUID()])),
         seat,
       ).toBe(seat === "player" ? "OP403" : "42501");
+      expect(await refusal(asA(seat, "SELECT operator_sessions($1)", [f.eventB])), seat).toBe(
+        seat === "player" ? "OP403" : "42501",
+      );
     }
     expect(await count("owner", "event_session WHERE event_id = $1", [f.eventB])).toBe(1);
     expect(await count("owner", "session_registration WHERE event_id = $1", [f.eventB])).toBe(0);

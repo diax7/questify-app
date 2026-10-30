@@ -760,6 +760,38 @@ END $$;
 REVOKE ALL ON FUNCTION session_check_in(uuid, uuid, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION session_check_in(uuid, uuid, integer) TO questify_app;
 
+-- The sessions an operator can check players in to right now: those of the event that start within the hour or are on,
+-- earliest first (the same window as session_check_in). The caller is an operator of the event with the scan ability and no
+-- quest limit, else OP403, OA403 or OS403 as the check-in answers.
+CREATE FUNCTION operator_sessions(target_event uuid) RETURNS jsonb
+  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  me         uuid := app_player_id();
+  assignment staff_assignment;
+BEGIN
+  IF me IS NULL THEN
+    RAISE EXCEPTION 'no player in this request' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  SELECT sa.* INTO assignment FROM staff_assignment sa WHERE sa.event_id = target_event AND sa.player_id = me;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not an operator of this event' USING ERRCODE = 'OP403';
+  ELSIF NOT ('scan_quests' = ANY (assignment.abilities)) THEN
+    RAISE EXCEPTION 'scanning is off for this operator' USING ERRCODE = 'OA403';
+  ELSIF EXISTS (SELECT 1 FROM staff_assignment_quest q WHERE q.assignment_id = assignment.id) THEN
+    RAISE EXCEPTION 'this operator works quest stations' USING ERRCODE = 'OS403';
+  END IF;
+  RETURN coalesce((
+    SELECT jsonb_agg(jsonb_build_object(
+             'id', s.id, 'kind', s.kind,
+             'title', jsonb_build_object('ar', s.title_ar, 'en', s.title_en),
+             'startsAt', s.starts_at, 'endsAt', s.ends_at, 'access', s.access, 'walkIns', s.walk_ins)
+           ORDER BY s.starts_at, s.id)
+    FROM event_session s
+    WHERE s.event_id = target_event AND now() >= s.starts_at - interval '1 hour' AND now() < s.ends_at), '[]'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION operator_sessions(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION operator_sessions(uuid) TO questify_app;
+
 -- ================================================================ the reminder scan (ADR-373 (5))
 -- Registrants of a session whose reminder time has come (its start minus the organizer's minutes, default 15) and that has
 -- not started: one personal notice each, marked `session:{session}:{player}` so it goes once, until the start. A player who

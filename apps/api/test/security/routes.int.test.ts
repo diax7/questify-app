@@ -36,6 +36,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "caller-bound active membership, same-event session row lock and seat count; Idempotency-Key (sessions)",
   "POST /v1/events/:eventId/sessions/:sessionId/cancel":
     "caller-bound active membership, deletes only the caller's own registration; Idempotency-Key (sessions)",
+  "GET /v1/operator/events/:eventId/sessions":
+    "caller-bound operator assignment on the event with the scan_quests ability and no quest limit; lists only that event's sessions in the check-in window (sessions)",
   "POST /v1/operator/sessions/:sessionId/check-in":
     "caller-bound operator assignment on the session's event with the scan_quests ability and the scanned player's My QR version (sessions)",
   "GET /v1/organizers/:organizerId/events/:eventId/sessions":

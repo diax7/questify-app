@@ -66,9 +66,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
-  it("keeps the session tables and internals closed and grants only its eleven doors", async () => {
+  it("keeps the session tables and internals closed and grants only its twelve doors", async () => {
     const doors = [
       "member_sessions",
+      "operator_sessions",
       "session_authorize",
       "session_cancel",
       "session_check_in",
@@ -90,9 +91,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
         has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
         prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-        WHERE n.nspname = 'public' AND (proname LIKE 'session\\_%' OR proname IN ('member_sessions', 'push_due_session'))`,
+        WHERE n.nspname = 'public' AND (proname LIKE 'session\\_%' OR proname IN ('member_sessions', 'operator_sessions', 'push_due_session'))`,
     );
-    expect(functions).toHaveLength(19);
+    expect(functions).toHaveLength(20);
     for (const row of functions) {
       expect(row.app, row.proname).toBe(doors.includes(row.proname));
       expect(row.outsider, row.proname).toBe(false);

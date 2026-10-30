@@ -5,10 +5,11 @@ import { unauthenticated } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import { sessionRefusal, type SessionDeps } from "#src/sessions/store";
+import { sessionCall, sessionRefusal, type SessionDeps } from "#src/sessions/store";
 import { verifyMyCode, type MyCodeKey } from "#src/quests/qr";
 
 const params = z.object({ sessionId: z.uuid() });
+const eventParams = z.object({ eventId: z.uuid() });
 const body = z.strictObject({ code: z.string().min(1).max(200) });
 
 /** Why the door shows red, with the station scan's words (FR-924); the database's codes are the keys. */
@@ -70,6 +71,23 @@ export function registerSessionDoorRoutes(app: FastifyInstance, deps: DoorDeps):
       if (opened.kind === "valid") return recordCheckIn(deps, operatorId, sessionId, opened);
       callerOf(request).log("operator.session_check_in_refused", { problem: opened.kind });
       return { result: "refused", reason: "invalid_code", player: null };
+    },
+  );
+  app.get(
+    "/v1/operator/events/:eventId/sessions",
+    { config: { access: "player" } },
+    async (request, reply) => {
+      const { eventId } = parse(eventParams, request.params);
+      const operatorId = request.player?.id;
+      if (operatorId === undefined) throw unauthenticated();
+      reply.header("cache-control", "private, no-store");
+      const result = await sessionCall<{ sessions: unknown[] }>(
+        deps,
+        { playerId: operatorId },
+        "SELECT operator_sessions($1) AS sessions",
+        [eventId],
+      );
+      return { sessions: result.sessions };
     },
   );
 }

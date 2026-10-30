@@ -442,6 +442,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
       );
       expect(await refusal(checkIn(op, id, await member()))).toBe("OP403");
     });
+
+    it("lists the sessions the door can check in to, to an operator who may scan", async () => {
+      const soon = await make({ titleEn: "Door soon", startsAt: minutes(30), endsAt: minutes(90) });
+      const later = await make({
+        titleEn: "Door later",
+        startsAt: minutes(300),
+        endsAt: minutes(360),
+      });
+      const over = await make({ titleEn: "Door over", startsAt: minutes(5), endsAt: minutes(60) });
+      await moveStart(over, minutes(-120), minutes(-60));
+      const op = await operator();
+      const listed = (
+        await f.run<{ r: { id: string }[] }>(
+          { playerId: op },
+          "SELECT operator_sessions($1) AS r",
+          [event],
+        )
+      )[0]?.r.map((row) => row.id);
+      expect(listed).toContain(soon);
+      expect(listed).not.toContain(later);
+      expect(listed).not.toContain(over);
+      const noScan = await operator({ abilities: ["award"] });
+      expect(
+        await refusal(f.run({ playerId: noScan }, "SELECT operator_sessions($1)", [event])),
+      ).toBe("OA403");
+      expect(
+        await refusal(f.run({ playerId: await member() }, "SELECT operator_sessions($1)", [event])),
+      ).toBe("OP403");
+    });
   });
 
   describe("pushes to registrants", () => {

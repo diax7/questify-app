@@ -276,6 +276,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions over HTTP", () => {
     await asPlayer("POST", agenda() + "/" + made.id + "/register", {});
     const door = (code: string, who = operatorToken) =>
       asPlayer("POST", "/v1/operator/sessions/" + made.id + "/check-in", { code }, who);
+    const listUrl = "/v1/operator/events/" + event + "/sessions";
+    const listed = await asPlayer("GET", listUrl, undefined, operatorToken);
+    expect(listed.headers["cache-control"]).toContain("no-store");
+    expect(listed.json().sessions.map((row: { id: string }) => row.id)).toContain(made.id);
+    expect((await asPlayer("GET", listUrl)).statusCode).toBe(403);
     const done = await door(myCode(MY_KEY, player, 1));
     expect(done.headers["cache-control"]).toContain("no-store");
     expect(done.json()).toMatchObject({ result: "checked_in", walkIn: false });
