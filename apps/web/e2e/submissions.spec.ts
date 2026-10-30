@@ -25,8 +25,8 @@ test("the owner reviews and removes submissions", async ({ page, request }, info
 
   await page.goto(page.url().replace(/\/quests$/, "/submissions"));
   await expect(page.getByRole("heading", { name: "المشاركات", level: 1 })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "بانتظار المراجعة" })).toHaveAttribute(
-    "aria-selected",
+  await expect(page.getByRole("button", { name: "بانتظار المراجعة" })).toHaveAttribute(
+    "aria-pressed",
     "true",
   );
   const items = page.getByTestId("submission");
@@ -43,7 +43,7 @@ test("the owner reviews and removes submissions", async ({ page, request }, info
   await oryx.getByRole("button", { name: "ارفض" }).click();
   await expect(page.getByText("لا شيء هنا.")).toBeVisible();
 
-  await page.getByRole("tab", { name: "تمت مراجعتها" }).click();
+  await page.getByRole("button", { name: "تمت مراجعتها" }).click();
   await expect(items).toHaveCount(2);
   await expect(items.filter({ hasText: `@oryx_${tag}` })).toContainText("السبب: الإجابة قصيرة جدًا");
   const approved = items.filter({ hasText: `@falcon_${tag}` });

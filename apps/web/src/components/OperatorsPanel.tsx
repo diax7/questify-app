@@ -303,6 +303,11 @@ function OperatorRow({
   const [confirming, setConfirming] = useState(false);
   const path = `/operators/${operator.id}`;
   const save = () => void run("PUT", path, { abilities, canPlay, questIds });
+  const remove = async () => {
+    if (!(await run("DELETE", path))) {
+      setConfirming(false);
+    }
+  };
 
   return (
     <Card as="li">
@@ -368,7 +373,7 @@ function OperatorRow({
                   <Button variant="secondary" onClick={() => setConfirming(false)}>
                     {t("common.cancel")}
                   </Button>
-                  <Button variant="danger" disabled={busy} onClick={() => void run("DELETE", path)}>
+                  <Button variant="danger" disabled={busy} onClick={() => void remove()}>
                     {t("operators.remove")}
                   </Button>
                 </>

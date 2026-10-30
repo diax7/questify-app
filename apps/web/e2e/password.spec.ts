@@ -98,6 +98,9 @@ test("changes the password while signed in: this browser stays, the other is sig
       "type",
       "text",
     );
+    await expect(page.getByRole("button", { name: "Hide password" }).first()).not.toHaveAttribute(
+      "aria-pressed",
+    );
     await page.getByLabel("New password", { exact: true }).fill(NEW_PASSWORD);
     await page.getByLabel("Type the new password again", { exact: true }).fill(NEW_PASSWORD);
     await page.getByRole("button", { name: "Save the password" }).click();

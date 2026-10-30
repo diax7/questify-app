@@ -20,8 +20,11 @@ describe("eventPlaceIn", () => {
   });
 });
 
+/** Pages a menu link does not open: the quest builder links to the codes page. */
+const REACHED_FROM_ANOTHER_PAGE = new Set(["codes"]);
+
 describe("EVENT_PAGES", () => {
-  it("names each event page once, and every one exists", () => {
+  it("names each event page once, and every page folder is listed or reached from another page", () => {
     const slugs = EVENT_PAGES.map((page) => page.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
     const pages = join(
@@ -41,6 +44,9 @@ describe("EVENT_PAGES", () => {
     );
     for (const slug of slugs.filter((each) => each !== "")) {
       expect(folders.has(slug), slug).toBe(true);
+    }
+    for (const folder of folders) {
+      expect(slugs.includes(folder) || REACHED_FROM_ANOTHER_PAGE.has(folder), folder).toBe(true);
     }
   });
 });

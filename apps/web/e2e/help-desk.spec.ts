@@ -42,8 +42,8 @@ test("the owner answers a player's question, and a second answer is refused", as
   await openMenu(page);
   await page.getByRole("link", { name: "المساعدة (1)" }).click();
   await expect(page.getByRole("heading", { name: "المساعدة", level: 1 })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "مفتوحة (1)" })).toHaveAttribute(
-    "aria-selected",
+  await expect(page.getByRole("button", { name: "مفتوحة (1)" })).toHaveAttribute(
+    "aria-pressed",
     "true",
   );
   const tickets = page.getByTestId("ticket");
@@ -61,7 +61,7 @@ test("the owner answers a player's question, and a second answer is refused", as
   await ticket.getByLabel("الرد (يراه اللاعب باسم فريق الفعالية)").fill("خلف القاعة ب");
   await ticket.getByRole("button", { name: "أرسل الرد" }).click();
   await expect(page.getByText("لا طلبات هنا.")).toBeVisible();
-  await page.getByRole("tab", { name: "مغلقة (1)" }).click();
+  await page.getByRole("button", { name: "مغلقة (1)" }).click();
   const closed = page.getByTestId("ticket");
   await expect(closed).toContainText("خلف القاعة ب");
   await expect(closed).toContainText("وصل الرد");

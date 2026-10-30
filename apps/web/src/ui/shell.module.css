@@ -225,7 +225,7 @@
   cursor: pointer;
 }
 
-/* Sign out in the sheet is an icon with its word, a full row, and needs no tooltip. */
+/* Sign out in the sheet is an icon button that starts where the rows above start; its tooltip names it. */
 .phoneOnly button {
   inline-size: auto;
   justify-content: flex-start;

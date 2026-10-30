@@ -7,7 +7,7 @@ import { postJson } from "#src/lib/post-json.ts";
 import { RESEND_SPACING_SECONDS, describeProblem, formatWait } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
-import { Field, Form, Input, codeInputClass } from "#src/ui/Field.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
 import { Toolbar } from "#src/ui/Section.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 
@@ -118,7 +118,7 @@ export function CodeStep({
       <Field label={t("staff.code")}>
         <Input
           ref={field}
-          className={codeInputClass}
+          code
           name="code"
           dir="ltr"
           inputMode="numeric"

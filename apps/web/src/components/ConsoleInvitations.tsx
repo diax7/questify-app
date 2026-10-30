@@ -2,12 +2,11 @@
 import type { AdminInvitationCampaign, Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { nameIn } from "#src/lib/console.ts";
-import { INVITATIONS_API, isOpen, readQueue, waitingCount } from "#src/lib/console-invitations.ts";
+import { INVITATIONS_API, isOpen, readQueue } from "#src/lib/console-invitations.ts";
 import { invitationProblemText, riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
-import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, SubHeading } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
@@ -127,36 +126,5 @@ export function ConsoleInvitations({ language }: Readonly<{ language: Language }
         </>
       ) : null}
     </Stack>
-  );
-}
-
-/** This page's item in the console's navigation, with the number of requests waiting. */
-export function ConsoleInvitationsLink({
-  language,
-  current,
-}: Readonly<{ language: Language; current: boolean }>) {
-  const t = translatorFor(language);
-  const [waiting, setWaiting] = useState(0);
-  useEffect(() => {
-    if (current) {
-      return;
-    }
-    let alive = true;
-    void requestJson("GET", INVITATIONS_API).then((result) => {
-      const campaigns = result.ok ? readQueue(result.body) : undefined;
-      if (alive && campaigns !== undefined) {
-        setWaiting(waitingCount(campaigns));
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [current]);
-  return (
-    <NavItem href={`/${language}/console/invitations`} icon="mail" current={current}>
-      {waiting === 0
-        ? t("console.invCampaign.title")
-        : t("console.invCampaign.linkCount", { count: waiting })}
-    </NavItem>
   );
 }

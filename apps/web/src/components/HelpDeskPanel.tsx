@@ -317,7 +317,6 @@ export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
     <Stack as="section" aria-labelledby="tickets-title">
       <PageHeader titleId="tickets-title" title={t("tickets.page")} />
       <Tabs
-        tablist
         label={t("tickets.page")}
         items={TABS.map((name) => ({
           key: name,

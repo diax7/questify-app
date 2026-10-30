@@ -7,7 +7,6 @@ import { nameIn } from "#src/lib/console.ts";
 import {
   consoleTicketQuery,
   deviceLine,
-  readConsoleCounts,
   readConsoleTickets,
   type ConsoleCounts,
   type ConsoleSource,
@@ -20,7 +19,6 @@ import { kindKey } from "#src/lib/tickets.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Select } from "#src/ui/Field.tsx";
-import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
@@ -108,7 +106,6 @@ export function ConsoleTickets({ language }: Readonly<{ language: Language }>) {
     <Stack as="section" aria-labelledby="console-tickets-title">
       <PageHeader titleId="console-tickets-title" title={t("console.tickets.title")} />
       <Tabs
-        tablist
         label={t("console.tickets.title")}
         items={(["open", "closed"] as const).map((name) => ({
           key: name,
@@ -166,35 +163,5 @@ export function ConsoleTickets({ language }: Readonly<{ language: Language }>) {
         </Button>
       )}
     </Stack>
-  );
-}
-
-/** This page's item in the console's navigation, with the number of open tickets. */
-export function ConsoleTicketsLink({
-  language,
-  current,
-}: Readonly<{ language: Language; current: boolean }>) {
-  const t = translatorFor(language);
-  const [open, setOpen] = useState<number | null>(null);
-  useEffect(() => {
-    // The console API serves one call at a time per admin: on its own page the count comes with the page's read.
-    if (current) {
-      return;
-    }
-    let alive = true;
-    void requestJson("GET", "/v1/admin/tickets/counts").then((result) => {
-      const counts = result.ok ? readConsoleCounts(result.body) : undefined;
-      if (alive && counts !== undefined) {
-        setOpen(counts.open);
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [current]);
-  return (
-    <NavItem href={`/${language}/console/tickets`} icon="ticket" current={current}>
-      {open === null ? t("console.tickets.title") : t("console.tickets.link", { count: open })}
-    </NavItem>
   );
 }

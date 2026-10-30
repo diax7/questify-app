@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Icon } from "#src/ui/Icon.tsx";
 import styles from "#src/ui/infotip.module.css";
 
@@ -8,13 +16,30 @@ import styles from "#src/ui/infotip.module.css";
 const GAP = 6;
 const EDGE = 8;
 
+/** Puts the explanation under its button, or above it when there is no room, and inside the window sideways. */
+function placeBubble(trigger: HTMLElement, tip: HTMLElement): void {
+  const anchor = trigger.getBoundingClientRect();
+  const center = anchor.left + anchor.width / 2 - tip.offsetWidth / 2;
+  const left = Math.min(Math.max(center, EDGE), window.innerWidth - tip.offsetWidth - EDGE);
+  const fitsBelow = anchor.bottom + GAP + tip.offsetHeight <= window.innerHeight - EDGE;
+  const top = fitsBelow ? anchor.bottom + GAP : Math.max(EDGE, anchor.top - GAP - tip.offsetHeight);
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+
 /**
  * An info button beside a label (ADR-370): the explanation shows on hover, on keyboard focus and on a tap or click, and
- * Escape, a tap elsewhere or scrolling closes it. It is for a feature or field that truly needs explaining; a line that
- * only repeats its label is cut instead. `label` names the button in the page's language; the explanation is read as
- * the button's description.
+ * Escape, a click on the open button or a tap elsewhere closes it; scrolling closes it too, except while keyboard focus
+ * holds it open, when it follows the button. It is for a feature or field that truly needs explaining; a line that
+ * only repeats its label is cut instead. `label` names the button in the page's language and `subject` is the label it
+ * sits beside, so a page of them reads "More information: Name" for each; the explanation is read as the button's
+ * description.
  */
-export function InfoTip({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
+export function InfoTip({
+  label,
+  subject,
+  children,
+}: Readonly<{ label: string; subject?: string; children: ReactNode }>) {
   const id = useId();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -22,20 +47,19 @@ export function InfoTip({ label, children }: Readonly<{ label: string; children:
   const wrapper = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLSpanElement>(null);
   const open = hovered || focused || pinned;
+  const keyboardOnly = focused && !hovered && !pinned;
+
+  const place = useCallback(() => {
+    if (wrapper.current !== null && bubble.current !== null) {
+      placeBubble(wrapper.current, bubble.current);
+    }
+  }, []);
 
   useLayoutEffect(() => {
-    const trigger = wrapper.current;
-    const tip = bubble.current;
-    if (!open || trigger === null || tip === null) {
-      return;
+    if (open) {
+      place();
     }
-    const anchor = trigger.getBoundingClientRect();
-    const center = anchor.left + anchor.width / 2 - tip.offsetWidth / 2;
-    const left = Math.min(Math.max(center, EDGE), window.innerWidth - tip.offsetWidth - EDGE);
-    const fitsBelow = anchor.bottom + GAP + tip.offsetHeight <= window.innerHeight - EDGE;
-    tip.style.left = `${left}px`;
-    tip.style.top = `${fitsBelow ? anchor.bottom + GAP : Math.max(EDGE, anchor.top - GAP - tip.offsetHeight)}px`;
-  }, [open]);
+  }, [open, place]);
 
   useEffect(() => {
     if (!open) {
@@ -45,6 +69,13 @@ export function InfoTip({ label, children }: Readonly<{ label: string; children:
       setHovered(false);
       setFocused(false);
       setPinned(false);
+    };
+    const onScroll = () => {
+      if (keyboardOnly) {
+        place();
+      } else {
+        close();
+      }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -58,15 +89,15 @@ export function InfoTip({ label, children }: Readonly<{ label: string; children:
     };
     document.addEventListener("keydown", closeOnEscape);
     document.addEventListener("pointerdown", closeOutside);
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", close);
     return () => {
       document.removeEventListener("keydown", closeOnEscape);
       document.removeEventListener("pointerdown", closeOutside);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
     };
-  }, [open]);
+  }, [open, keyboardOnly, place]);
 
   return (
     <span
@@ -78,9 +109,13 @@ export function InfoTip({ label, children }: Readonly<{ label: string; children:
       <button
         type="button"
         className={styles.trigger}
-        aria-label={label}
+        aria-label={subject === undefined ? label : `${label}: ${subject}`}
         aria-describedby={id}
-        onClick={() => setPinned((now) => !now)}
+        onClick={() => {
+          setHovered(false);
+          setFocused(false);
+          setPinned(!open);
+        }}
         onFocus={(event) => setFocused(event.currentTarget.matches(":focus-visible"))}
         onBlur={(event) => {
           if (!wrapper.current?.contains(event.relatedTarget)) {

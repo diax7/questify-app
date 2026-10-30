@@ -11,12 +11,8 @@ type Look = Readonly<{
   wide?: boolean | undefined;
 }>;
 
-/** The class names of a button look, for the rare control that must stay a plain element (a file picker label). */
-export function buttonClass({
-  variant = "secondary",
-  size = "md",
-  wide = false,
-}: Look = {}): string {
+/** The class names of a button look. */
+function buttonClass({ variant = "secondary", size = "md", wide = false }: Look = {}): string {
   return [
     styles.button,
     styles[variant],
@@ -49,11 +45,11 @@ export function Button({
 }
 
 /** A link that looks like a button: for an action that opens another page. */
-export function ButtonLink({ variant, size, className, ...props }: AppLinkProps & Look) {
+export function ButtonLink({ variant, size, wide, className, ...props }: AppLinkProps & Look) {
   return (
     <AppLink
       {...props}
-      className={[buttonClass({ variant, size }), className].filter(Boolean).join(" ")}
+      className={[buttonClass({ variant, size, wide }), className].filter(Boolean).join(" ")}
     />
   );
 }

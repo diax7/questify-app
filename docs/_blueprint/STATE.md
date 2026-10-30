@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Review follow-ups batch (T-504, T-599, T-599b, T-599c, T-599d, T-307b) — 2026-10-30
+
+- **Follow-ups cleared (tier C batch; no review).** Migration 0085 (new, undeployed): `set_finale` accepts a start up to 23 hours after the event
+  ends (a screen closes at 24), and `ranking_on` calls `feature_enabled`. Dashboard: info buttons are named "More information: {label}" by their
+  field, switch, section, header or group (a group is named by its legend alone); the info tip stays open under keyboard focus while the page scrolls
+  and a click closes an open one; Escape hides an icon tooltip; a page change sets the tab title to the page heading and moves focus to it (the phone's
+  Menu button keeps focus, as before); filter tabs are `aria-pressed` buttons (the half-built ARIA tab list is gone); the finale form is read-only for
+  an editor; the poll builder says the big screen shows live counts under "After they vote"; `plain-anchors.test.ts` lists every plain `<a>`; the
+  console navigation no longer imports the console pages (`ConsoleNavLinks.tsx`). App: the finale celebration cannot return after a failed write, and
+  its info buttons are named and report `expanded`. Dropped with a reason: the 15 s paired-device poll (the 3 s poll is what makes revoke and the
+  finale list arrive in seconds), the global link colour on device pages (same colour as the text), the Arabic wordmark (ADR-020), "Revoke all" being
+  quiet (it was before, and opens a danger confirm), the shell remount between the workspace and event layouts (the event layout owns the event's
+  words). Left: the intermittent `event words not read ... 500` (see FOLLOWUPS).
+
 ## T-599d clear titles and icons, not explanatory text — 2026-10-30
 
 - **T-599d done (tier B; code review owed).** ADR-370 built on every page: the dashboard's `InfoTip` (hover, focus, tap, Escape) with an `info` slot on page

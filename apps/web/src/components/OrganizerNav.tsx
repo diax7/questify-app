@@ -38,8 +38,8 @@ function useOpenTickets(organizerId: string, eventId: string | null, page: strin
   return open;
 }
 
-/** Whether Questify's invitations are open to this event (the Invitations page is listed only then), read on each `page`. */
-function useInvitationsOpen(organizerId: string, eventId: string | null, page: string): boolean {
+/** Whether Questify's invitations are open to this event (the Invitations page is listed only then), read once per event. */
+function useInvitationsOpen(organizerId: string, eventId: string | null): boolean {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     if (eventId === null) {
@@ -54,7 +54,7 @@ function useInvitationsOpen(organizerId: string, eventId: string | null, page: s
     return () => {
       current = false;
     };
-  }, [organizerId, eventId, page]);
+  }, [organizerId, eventId]);
   return enabled;
 }
 
@@ -80,7 +80,7 @@ export function OrganizerNav({
   const place = eventPlaceIn(path);
   const eventId = place?.eventId ?? null;
   const openTickets = useOpenTickets(organizerId, eventId, path);
-  const invitations = useInvitationsOpen(organizerId, eventId, path);
+  const invitations = useInvitationsOpen(organizerId, eventId);
   const base = `/${language}/organizers/${organizerId}`;
 
   const labelOf = (link: EventPageLink, words: Translate): string => {

@@ -50,8 +50,8 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
     .fill("سألنا مكتب الجوائز");
   page.once("dialog", (dialog) => void dialog.accept());
   await first.getByRole("button", { name: "أحِل الطلب" }).click();
-  await expect(page.getByRole("tab", { name: "لدى كويستفاي (1)" })).toBeVisible();
-  await page.getByRole("tab", { name: "لدى كويستفاي (1)" }).click();
+  await expect(page.getByRole("button", { name: "لدى كويستفاي (1)" })).toBeVisible();
+  await page.getByRole("button", { name: "لدى كويستفاي (1)" }).click();
   const waiting = page.getByTestId("ticket");
   await expect(waiting).toHaveCount(1);
   await expect(waiting).toContainText("ملاحظتكم لكويستفاي: سألنا مكتب الجوائز");
@@ -76,7 +76,7 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   await expect(page.getByText("لم نجد هذه التذكرة.")).toBeVisible();
 
   await page.goto(`${event}/help`);
-  await page.getByRole("tab", { name: "مغلقة (1)" }).click();
+  await page.getByRole("button", { name: "مغلقة (1)" }).click();
   const closed = page.getByTestId("ticket");
   await expect(closed).toContainText("من البوابة 3");
   await expect(closed).toContainText("ردّ عليه فريق كويستفاي");

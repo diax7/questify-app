@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import styles from "#src/ui/form.module.css";
+import { nameInfo } from "#src/ui/name-info.ts";
 
 type FieldWiring = Readonly<{ id: string; describedBy: string | undefined; invalid: boolean }>;
 
@@ -71,7 +72,7 @@ function FieldLabel({
   return present(info) ? (
     <div className={styles.labelRow}>
       {text}
-      {info}
+      {nameInfo(info, label)}
     </div>
   ) : (
     text
@@ -107,8 +108,19 @@ function useWiring(props: Readonly<{ "aria-invalid"?: unknown }>) {
   };
 }
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input {...useWiring(props)} {...props} className={join(styles.control, className)} />;
+/** A text field; `code` draws it as a one-time code: large, spaced digits. */
+export function Input({
+  className,
+  code = false,
+  ...props
+}: ComponentProps<"input"> & Readonly<{ code?: boolean }>) {
+  return (
+    <input
+      {...useWiring(props)}
+      {...props}
+      className={join(styles.control, code && styles.codeInput, className)}
+    />
+  );
 }
 
 export function Select({ className, ...props }: ComponentProps<"select">) {
@@ -154,7 +166,7 @@ function Choice({
   return present(info) ? (
     <div className={styles.choiceRow}>
       {choice}
-      {info}
+      {nameInfo(info, label)}
     </div>
   ) : (
     choice
@@ -175,6 +187,47 @@ export function Switch(props: ChoiceProps) {
 }
 
 /**
+ * A group's fieldset and its legend. With an info button the legend text carries an id the fieldset is named by, so the
+ * button does not become part of the group's name.
+ */
+function GroupFieldset({
+  legend,
+  info,
+  disabled,
+  children,
+}: Readonly<{
+  legend: ReactNode;
+  info: ReactNode;
+  disabled: boolean | undefined;
+  children: ReactNode;
+}>) {
+  const legendId = useId();
+  const named = legend !== undefined && present(info);
+  return (
+    <fieldset
+      className={styles.group}
+      disabled={disabled}
+      {...(named ? { "aria-labelledby": legendId } : {})}
+    >
+      {legend === undefined ? null : (
+        <legend className={styles.legend}>
+          {named ? <span id={legendId}>{legend}</span> : legend}
+          {nameInfo(info, legend)}
+        </legend>
+      )}
+      {children}
+    </fieldset>
+  );
+}
+
+const GROUP_LAYOUTS = {
+  stack: styles.group,
+  columns: styles.columns,
+  choices: styles.choiceList,
+  choiceGrid: styles.choiceGrid,
+};
+
+/**
  * Related fields under one legend. `columns` puts them side by side when there is room (an Arabic and an English
  * name); `choices` lays out a set of checkboxes or radios.
  */
@@ -188,20 +241,15 @@ export function FieldGroup({
 }: Readonly<{
   legend?: ReactNode;
   help?: ReactNode;
-  /** An `InfoTip` beside the legend (ADR-370). */
+  /** An `InfoTip` beside the legend (ADR-370); the group is named by the legend alone, not by the button. */
   info?: ReactNode;
   layout?: "stack" | "columns" | "choices" | "choiceGrid";
   /** Disables every control inside at once (a form while it saves). */
   disabled?: boolean;
   children: ReactNode;
 }>) {
-  const inner = {
-    stack: styles.group,
-    columns: styles.columns,
-    choices: styles.choiceList,
-    choiceGrid: styles.choiceGrid,
-  }[layout];
-  const body = layout === "stack" ? children : <div className={inner}>{children}</div>;
+  const body =
+    layout === "stack" ? children : <div className={GROUP_LAYOUTS[layout]}>{children}</div>;
   const helpText = help === undefined ? null : <p className={styles.help}>{help}</p>;
   if (legend === undefined && disabled === undefined) {
     return (
@@ -212,16 +260,10 @@ export function FieldGroup({
     );
   }
   return (
-    <fieldset className={styles.group} disabled={disabled}>
-      {legend === undefined ? null : (
-        <legend className={styles.legend}>
-          {legend}
-          {info}
-        </legend>
-      )}
+    <GroupFieldset legend={legend} info={info} disabled={disabled}>
       {helpText}
       {body}
-    </fieldset>
+    </GroupFieldset>
   );
 }
 
@@ -244,4 +286,3 @@ export function Form({
     />
   );
 }
-export const codeInputClass: string = styles.codeInput;

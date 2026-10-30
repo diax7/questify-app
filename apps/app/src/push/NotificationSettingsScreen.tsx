@@ -72,7 +72,7 @@ function TopicSwitches() {
   const { current, busy, failed, change } = useTopicSave(read.data);
   return (
     <>
-      <InfoTip info={t("pushTopics.intro")}>
+      <InfoTip info={t("pushTopics.intro")} subject={t("pushTopics.title")}>
         <AppText variant="title">{t("pushTopics.title")}</AppText>
       </InfoTip>
       {read.failed && current === null ? (

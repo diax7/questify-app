@@ -38,7 +38,6 @@ import { useRequestKey } from "#src/lib/use-request-key.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
-import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
@@ -433,19 +432,6 @@ function usePage(language: Language) {
     return true;
   };
   return { view, problem, setProblem, notice, busy, write };
-}
-
-/** This page's item in the console's navigation. */
-export function ConsoleQuestifyLink({
-  language,
-  current,
-}: Readonly<{ language: Language; current: boolean }>) {
-  const t = translatorFor(language);
-  return (
-    <NavItem href={`/${language}/console/questify`} icon="compass" current={current}>
-      {t("console.questify.title")}
-    </NavItem>
-  );
 }
 
 function EditorTitle({ language, editing }: Readonly<{ language: Language; editing: Editing }>) {

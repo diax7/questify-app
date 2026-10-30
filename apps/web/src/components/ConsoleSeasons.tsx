@@ -15,7 +15,6 @@ import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
-import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
@@ -170,18 +169,5 @@ export function ConsoleSeasons({ language }: Readonly<{ language: Language }>) {
         </CardList>
       ) : null}
     </Stack>
-  );
-}
-
-/** This page's item in the console's navigation. */
-export function ConsoleSeasonsLink({
-  language,
-  current,
-}: Readonly<{ language: Language; current: boolean }>) {
-  const t = translatorFor(language);
-  return (
-    <NavItem href={`/${language}/console/seasons`} icon="sun" current={current}>
-      {t("console.seasons.title")}
-    </NavItem>
   );
 }

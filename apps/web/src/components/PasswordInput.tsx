@@ -48,7 +48,6 @@ export function PasswordInput({
         <IconButton
           icon={shown ? "eyeOff" : "eye"}
           label={shown ? t("staff.hidePassword") : t("staff.showPassword")}
-          aria-pressed={shown}
           aria-controls={id}
           onClick={() => setShown((value) => !value)}
         />

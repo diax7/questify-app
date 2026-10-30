@@ -1,4 +1,5 @@
 import { useId, type ReactNode, type Ref } from "react";
+import { nameInfo } from "#src/ui/name-info.ts";
 import styles from "#src/ui/surface.module.css";
 
 /**
@@ -39,7 +40,7 @@ export function Section({
             <Heading id={id} className={level === 2 ? styles.sectionTitle : styles.subTitle}>
               {title}
             </Heading>
-            {info}
+            {nameInfo(info, title)}
           </div>
           {description === undefined ? null : <p className={styles.muted}>{description}</p>}
         </div>

@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { AppLink } from "#src/ui/AppLink.tsx";
+import { nameInfo } from "#src/ui/name-info.ts";
 import styles from "#src/ui/surface.module.css";
 
 type HeaderProps = Readonly<{
@@ -54,7 +55,7 @@ function HeaderText({
         >
           {title}
         </h1>
-        {info}
+        {nameInfo(info, title)}
       </div>
       {description === undefined ? null : <p className={styles.description}>{description}</p>}
       {meta === undefined ? null : <div className={styles.meta}>{meta}</div>}

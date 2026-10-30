@@ -11,10 +11,28 @@ import { CONTROL_PORT } from "#e2e/paths.ts";
  */
 const PASSWORD = "an organizer's own pass phrase";
 const MARKER = "questifyDocumentMarker";
+const SHELL_MARKER = "questifyShellMarker";
 
 /** Writes a mark into the open document; it survives a link that changes the page in place, never a full load. */
 async function markDocument(page: Page): Promise<void> {
   await page.evaluate((name) => Object.assign(window, { [name]: true }), MARKER);
+}
+
+/** Marks the top bar's element; it survives while the shell stays mounted, and is new when a layout swaps the shell. */
+async function markShell(page: Page): Promise<void> {
+  await page.evaluate(
+    (name) => Object.assign(document.querySelector("header") ?? {}, { [name]: true }),
+    SHELL_MARKER,
+  );
+}
+
+/** Fails when the shell was mounted again: the top bar is not the element marked. */
+async function expectSameShell(page: Page, where: string): Promise<void> {
+  const marked = await page.evaluate(
+    (name) => Reflect.get(document.querySelector("header") ?? {}, name) === true,
+    SHELL_MARKER,
+  );
+  expect(marked, `${where}: the shell was mounted again while the page changed`).toBe(true);
 }
 
 /** Fails when the document the person is looking at is not the one marked: something loaded the page again. */
@@ -58,7 +76,12 @@ async function createDraftEvent(page: Page): Promise<string> {
  * Opens a link of the navigation by its name (on a phone the Menu sheet first), waits for the page at `path` to be
  * drawn (the loading skeleton has no heading), and checks the document is still the marked one.
  */
-async function goTo(page: Page, link: string | RegExp, path: RegExp): Promise<void> {
+async function goTo(
+  page: Page,
+  link: string | RegExp,
+  path: RegExp,
+  { newShell = false }: Readonly<{ newShell?: boolean }> = {},
+): Promise<void> {
   await openMenu(page);
   const item = page
     .getByRole("navigation", { name: "Navigation" })
@@ -67,6 +90,11 @@ async function goTo(page: Page, link: string | RegExp, path: RegExp): Promise<vo
   await expect(page).toHaveURL(path);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expectSameDocument(page, `after opening ${link}`);
+  if (newShell) {
+    await markShell(page);
+  } else {
+    await expectSameShell(page, `after opening ${link}`);
+  }
   await openMenu(page);
   await expect(item).toHaveAttribute("aria-current", "page");
   const menu = page.getByRole("button", { name: "Menu" });
@@ -85,13 +113,24 @@ test("moving between the dashboard's pages never loads the document again", asyn
   await signUp(page, info.project.name);
   const eventId = await createDraftEvent(page);
   await markDocument(page);
+  await markShell(page);
 
   await goTo(page, "Quests", /\/events\/[^/]+\/quests$/);
+  // A page change names the page in the tab title (which a screen reader's route announcement reads); on a desktop the
+  // heading takes focus, on a phone focus stays on Menu where the sheet put it.
+  const heading = page.getByRole("heading", { level: 1 });
+  const name = (await heading.innerText()).trim();
+  await expect(page).toHaveTitle(new RegExp(`^${name} · `));
+  if (info.project.name === "desktop") {
+    await expect(heading).toBeFocused();
+  }
   await goTo(page, "Rewards", /\/events\/[^/]+\/rewards$/);
+  await expect(page).not.toHaveTitle(new RegExp(`^${name} · `));
   await goTo(page, "Event souvenirs", /\/events\/[^/]+\/souvenirs$/);
   await goTo(page, "Flagged activity", /\/events\/[^/]+\/flags$/);
   await goTo(page, "Event overview", /\/events\/[0-9a-f-]{36}$/);
-  await goTo(page, "Team", /\/organizers\/[^/]+\/team$/);
+  // The team page is in the organizer's workspace layout, whose shell is not the event's: it is new here, then stays.
+  await goTo(page, "Team", /\/organizers\/[^/]+\/team$/, { newShell: true });
   await goTo(page, "Events", /\/organizers\/[^/]+\/events$/);
 
   // A link inside a page (the events list opens its event) and the logo link of the top bar.
@@ -117,6 +156,7 @@ test("moving between the dashboard's pages never loads the document again", asyn
   await expect(page).toHaveURL(/\/en\/console$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expectSameDocument(page, "after opening the console");
+  await markShell(page);
   await goTo(page, "Ranking seasons", /\/en\/console\/seasons$/);
   await goTo(page, /^Content/, /\/en\/console\/content$/);
 

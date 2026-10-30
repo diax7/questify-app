@@ -58,6 +58,12 @@
   opacity: 1;
 }
 
+/* Escape hides a shown tooltip until the pointer or focus leaves the control (WCAG 1.4.13). */
+.control[data-tooltip-dismissed]::after {
+  opacity: 0;
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .control::after {
     transition: none;

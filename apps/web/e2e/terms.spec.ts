@@ -101,7 +101,25 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   // The page explains itself by its title; the explanation is behind the info button, in the event's words.
   const intro = page.getByText(/^Double what one stage's missions pay/);
   await expect(intro).toBeHidden();
-  await page.getByRole("button", { name: "More information" }).first().hover();
+  // Each info button is named for what it explains, and opens on hover, focus and click, and closes on a click or Escape.
+  const tip = page.getByRole("button", { name: /^More information: / }).first();
+  await tip.hover();
+  await expect(intro).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(intro).toBeHidden();
+  await page.mouse.move(0, 0);
+  await tip.hover();
+  await expect(intro).toBeVisible();
+  await tip.click();
+  await expect(intro).toBeHidden();
+  await tip.click();
+  await expect(intro).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(intro).toBeVisible();
+  await tip.click();
+  await expect(intro).toBeHidden();
+  await page.goto(`${english}/boosts`);
+  await tip.focus();
   await expect(intro).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(intro).toBeHidden();

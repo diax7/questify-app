@@ -1,24 +1,16 @@
 "use client";
 
 import type { Language } from "@questify/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DailyCadenceControl, DailyUnused, DailyWarnings } from "#src/components/DailyCommon.tsx";
 import { DailyQuestionBank } from "#src/components/DailyQuestionBank.tsx";
 import { DailySchedule } from "#src/components/DailySchedule.tsx";
 import { DailyWordList } from "#src/components/DailyWordList.tsx";
 import { DailyWords } from "#src/components/DailyWords.tsx";
-import {
-  API,
-  hasWarning,
-  questifyDayOf,
-  readDailyConsole,
-  warningsOf,
-} from "#src/lib/console-daily.ts";
+import { warningsOf } from "#src/lib/console-daily.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
 import { useDailyConsole, type DailyConsoleState } from "#src/lib/use-daily-console.ts";
 import { Badge, Muted, Notice, ScreenReaderOnly } from "#src/ui/Feedback.tsx";
-import { NavItem } from "#src/ui/Nav.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
@@ -143,40 +135,5 @@ export function ConsoleContent({ language }: Readonly<{ language: Language }>) {
         <WordsTab language={language} state={state} />
       )}
     </Stack>
-  );
-}
-
-/** This page's item in the console's navigation, with a badge while today's content needs attention. */
-export function ConsoleContentLink({
-  language,
-  current,
-}: Readonly<{ language: Language; current: boolean }>) {
-  const t = translatorFor(language);
-  const [warn, setWarn] = useState(false);
-  useEffect(() => {
-    if (current) {
-      return;
-    }
-    let alive = true;
-    const today = questifyDayOf(new Date());
-    void requestJson("GET", `${API}?from=${today}&to=${today}`).then((result) => {
-      const read = result.ok ? readDailyConsole(result.body) : undefined;
-      if (alive && read !== undefined) {
-        setWarn(hasWarning(read.status));
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [current]);
-  return (
-    <NavItem href={`/${language}/console/content`} icon="file" current={current}>
-      {t("console.content.title")}
-      {warn ? (
-        <span data-testid="content-badge">
-          <Badge tone="warning">{t("console.content.needsAttention")}</Badge>
-        </span>
-      ) : null}
-    </NavItem>
   );
 }

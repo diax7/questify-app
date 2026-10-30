@@ -210,7 +210,6 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
     <Stack as="section" aria-labelledby="submissions-title">
       <PageHeader titleId="submissions-title" title={t("submissions.title")} />
       <Tabs
-        tablist
         label={t("submissions.title")}
         items={FILTERS.map((name) => ({
           key: name,

@@ -27,6 +27,8 @@ then reply and stop.
 - Functions ≤100 lines. Absolute imports. No commented-out code.
 - **Deployed migrations are frozen.** Never edit a migration CranL has run (see STATE.md for the deployed
   number); write a new one. Only undeployed migrations may be edited in place.
+- **Evidence images:** a screenshot folder under `docs/evidence/` holds only the few images that prove the change (about 10, each
+  under 300 KB, cropped or scaled); a larger set stays out of git.
 - **Release-safety:** never use JS built-ins missing in release Hermes (`toSorted`, `toReversed`,
   `Object.groupBy`, the new Set methods, `structuredClone`); `apps/app/src/hermes-runtime.test.ts` enforces it.
 

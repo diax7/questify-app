@@ -58,7 +58,7 @@ export function Field({ label, info, style, ...input }: FieldProps) {
       {info === undefined ? (
         <AppText variant="label">{label}</AppText>
       ) : (
-        <InfoTip info={info}>
+        <InfoTip info={info} subject={label}>
           <AppText variant="label">{label}</AppText>
         </InfoTip>
       )}

@@ -13,7 +13,7 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
-import { CardList, Section } from "#src/ui/Section.tsx";
+import { Rows, Section } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -84,7 +84,7 @@ export function OrganizerAlertSwitchesPanel({
       {switches === null ? (
         <Muted>{t("common.loading")}</Muted>
       ) : (
-        <CardList>
+        <Rows>
           {ALERT_ORDER.map((type) => (
             <li key={type}>
               <Switch
@@ -95,7 +95,7 @@ export function OrganizerAlertSwitchesPanel({
               />
             </li>
           ))}
-        </CardList>
+        </Rows>
       )}
       {saved ? (
         <Notice tone="success" role="status">

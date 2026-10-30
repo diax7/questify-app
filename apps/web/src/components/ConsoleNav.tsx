@@ -2,11 +2,13 @@
 
 import type { Language } from "@questify/shared";
 import { usePathname } from "next/navigation";
-import { ConsoleContentLink } from "#src/components/ConsoleContent.tsx";
-import { ConsoleInvitationsLink } from "#src/components/ConsoleInvitations.tsx";
-import { ConsoleQuestifyLink } from "#src/components/ConsoleQuestify.tsx";
-import { ConsoleSeasonsLink } from "#src/components/ConsoleSeasons.tsx";
-import { ConsoleTicketsLink } from "#src/components/ConsoleTickets.tsx";
+import {
+  ConsoleContentLink,
+  ConsoleInvitationsLink,
+  ConsoleQuestifyLink,
+  ConsoleSeasonsLink,
+  ConsoleTicketsLink,
+} from "#src/components/ConsoleNavLinks.tsx";
 import { pathAfterLanguage, translatorFor } from "#src/lib/language.ts";
 import { NavGroup, NavItem } from "#src/ui/Nav.tsx";
 

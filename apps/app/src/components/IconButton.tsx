@@ -7,20 +7,29 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 /**
  * A button that shows only an icon (ADR-370): sign out, an info button. `label` is its accessible name, in the
- * screen's language. `mirror` turns an icon with a direction around in a right-to-left screen.
+ * screen's language. `mirror` turns an icon with a direction around in a right-to-left screen; `expanded` tells a screen
+ * reader whether the button has opened something.
  */
 export function IconButton({
   icon,
   label,
   onPress,
   mirror = false,
-}: Readonly<{ icon: IconName; label: string; onPress: () => void; mirror?: boolean }>) {
+  expanded,
+}: Readonly<{
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  mirror?: boolean;
+  expanded?: boolean;
+}>) {
   const { theme } = useTheme();
   const { rtl } = useI18n();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      {...(expanded === undefined ? {} : { accessibilityState: { expanded } })}
       hitSlop={4}
       onPress={onPress}
       style={{

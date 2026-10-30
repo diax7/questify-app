@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon } from "#src/ui/Icon.tsx";
+import { usePageHeading } from "#src/ui/page-heading.ts";
+import { useTooltipEscape } from "#src/ui/tooltip-escape.ts";
 import styles from "#src/ui/shell.module.css";
 
 type Props = Readonly<{
@@ -12,7 +14,7 @@ type Props = Readonly<{
   /** The signed-in person's links (home, account, sign out): in the top bar on a desktop, in the menu on a phone. */
   account: ReactNode;
   nav: ReactNode;
-  labels: Readonly<{ menu: string; navigation: string; skip: string }>;
+  labels: Readonly<{ menu: string; navigation: string; skip: string; site: string }>;
   narrow: boolean;
   children: ReactNode;
 }>;
@@ -40,6 +42,8 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
     }
     wasOpen.current = open;
   }, [open]);
+  usePageHeading("main", labels.site, menuButton);
+  useTooltipEscape();
   useEffect(() => {
     if (!open) {
       return;

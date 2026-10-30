@@ -71,7 +71,12 @@ export function AppShell({
         ) : null
       }
       nav={nav}
-      labels={{ menu: t("dashNav.menu"), navigation: t("dashNav.main"), skip: t("dashNav.skip") }}
+      labels={{
+        menu: t("dashNav.menu"),
+        navigation: t("dashNav.main"),
+        skip: t("dashNav.skip"),
+        site: t("staff.dashboard"),
+      }}
       narrow={narrow}
     >
       {children}

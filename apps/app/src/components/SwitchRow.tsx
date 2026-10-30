@@ -24,7 +24,7 @@ export function SwitchRow({ title, about, on, disabled, onChange }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.text}>
-        <InfoTip info={t(about)}>
+        <InfoTip info={t(about)} subject={t(title)}>
           <AppText variant="label">{t(title)}</AppText>
         </InfoTip>
       </View>
