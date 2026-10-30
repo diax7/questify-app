@@ -27,7 +27,7 @@
 }
 
 .choiceRow > .choice {
-  flex: 1;
+  flex: 0 1 auto;
   min-inline-size: 0;
 }
 
