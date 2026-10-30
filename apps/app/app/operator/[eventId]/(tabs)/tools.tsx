@@ -83,6 +83,10 @@ export default function OperatorToolsScreen() {
         ) : null}
         {event?.abilities.includes("scan_quests") === true ? (
           <>
+            <Button
+              label={t("door.title")}
+              onPress={() => router.push(`/operator/${eventId}/session-door`)}
+            />
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <Switch
                 value={practice}

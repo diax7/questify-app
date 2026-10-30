@@ -6507,7 +6507,6 @@ export const MESSAGES = {
     en: "The file holds no valid sessions.",
   },
   "sessions.page.export": { ar: "تصدير التقرير", en: "Export report" },
-  "sessions.page.exportTitle": { ar: "الجلسات", en: "Sessions" },
   "sessions.page.reportTitle": { ar: "العنوان", en: "Title" },
   "sessions.page.reportStart": { ar: "البداية", en: "Start" },
   "sessions.page.reportPlace": { ar: "المكان", en: "Place" },
@@ -6664,7 +6663,7 @@ export const MESSAGES = {
     en: "This session overlaps with {titles}. Register anyway?",
   },
   "agenda.overlapConfirm": { ar: "سجّل رغم ذلك", en: "Register anyway" },
-  "agenda.quest": { ar: "افتح المهمة: {title}", en: "Open the quest: {title}" },
+  "agenda.quest": { ar: "افتح {questOne}: {title}", en: "Open the {questOne}: {title}" },
   "agenda.actionFailed": {
     ar: "تعذّر إتمام الطلب. حاول مرة أخرى.",
     en: "That did not work. Try again.",
@@ -6675,7 +6674,6 @@ export const MESSAGES = {
     ar: "لا جلسات لتسجيل الحضور فيها الآن.",
     en: "No sessions to check in to right now.",
   },
-  "door.scan": { ar: "امسح رمز اللاعب", en: "Scan a player's code" },
   "door.checkedIn": { ar: "تم تسجيل الحضور", en: "Checked in" },
   "door.walkIn": { ar: "حضر دون تسجيل مسبق", en: "Walk-in, not registered" },
   "door.already": { ar: "سُجّل حضوره من قبل", en: "Already checked in" },
@@ -6683,7 +6681,7 @@ export const MESSAGES = {
   "door.tooEarly": { ar: "لم يحن وقت الدخول بعد", en: "Too early to check in" },
   "door.ended": { ar: "انتهت الجلسة", en: "The session has ended" },
   "door.invalid": { ar: "الرمز غير صالح", en: "The code is not valid" },
-  "door.refused": { ar: "لا يمكن تسجيل هذا اللاعب هنا", en: "This player cannot be checked in here" },
+  "door.refused": { ar: "لا يمكن تسجيل الحضور هنا", en: "Check-in is not possible here" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

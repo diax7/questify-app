@@ -142,6 +142,27 @@ export type MemberSession = z.infer<typeof memberSessionSchema>;
 /** `GET /v1/events/{id}/sessions` for the app. */
 export const memberSessionListSchema = z.object({ sessions: z.array(memberSessionSchema) });
 
+/** A session the door can check players in to now (`GET /v1/operator/events/{id}/sessions`). */
+export const operatorSessionSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(SESSION_KINDS),
+  title: bilingual,
+  startsAt: z.string(),
+  endsAt: z.string(),
+  access: z.enum(SESSION_ACCESS),
+  walkIns: z.boolean(),
+});
+export type OperatorSession = z.infer<typeof operatorSessionSchema>;
+export const operatorSessionListSchema = z.object({ sessions: z.array(operatorSessionSchema) });
+
+/** What the door's check-in route answers: an outcome, or a refusal with its reason, and who was scanned. */
+export const doorAnswerSchema = z.object({
+  result: z.string(),
+  reason: z.string().optional(),
+  walkIn: z.boolean().optional(),
+  player: z.object({ username: z.string() }).nullable().optional(),
+});
+
 /** What registering answers: registered, or an overlap with sessions already held (nothing written yet). */
 export const sessionRegisterSchema = z.discriminatedUnion("outcome", [
   z.object({ outcome: z.literal("registered"), replayed: z.boolean() }),

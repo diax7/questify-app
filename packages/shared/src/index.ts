@@ -541,8 +541,11 @@ export {
   SESSION_KINDS,
   SESSION_LIMITS,
   SESSION_STATUSES,
+  doorAnswerSchema,
   memberSessionListSchema,
   memberSessionSchema,
+  operatorSessionListSchema,
+  operatorSessionSchema,
   parseSessionsCsv,
   sessionBodySchema,
   sessionCheckInSchema,
@@ -555,6 +558,7 @@ export {
 } from "./sessions/sessions";
 export type {
   MemberSession,
+  OperatorSession,
   SessionAccess,
   SessionBody,
   SessionCheckInAnswer,

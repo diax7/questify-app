@@ -83,6 +83,11 @@ export function EventHomeStrips({ eventId }: Readonly<{ eventId: string }>) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.list}>
+      <Button
+        kind="quiet"
+        label={t("agenda.link")}
+        onPress={() => router.push(`/event/${eventId}/agenda`)}
+      />
       {state.running.length === 0 ? null : (
         <View style={styles.card}>
           <AppText variant="title">{t("happening.title")}</AppText>
