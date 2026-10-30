@@ -10,6 +10,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Textarea } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type Guest = Readonly<{ id: string; kind: "phone" | "email"; value: string; tag: string | null }>;
 
@@ -117,17 +118,18 @@ function GuestUpload({
             onChange={(typed) => setText(typed.target.value)}
           />
         </Field>
-        <Field label={t("guests.tag")}>
+        <Field
+          label={t("guests.tag")}
+          info={<InfoTip label={t("common.info")}>{t("guests.tagHint")}</InfoTip>}
+        >
           <Input
             dir="auto"
             maxLength={30}
             value={tag}
             disabled={busy}
-            aria-describedby="guests-tag-hint"
             onChange={(typed) => setTag(typed.target.value)}
           />
         </Field>
-        <Muted id="guests-tag-hint">{t("guests.tagHint")}</Muted>
         {tooMany ? (
           <Notice tone="danger" role="alert">
             {t("guests.tooMany", { max: formatNumber(GUESTS_PER_UPLOAD, language) })}
@@ -267,7 +269,11 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <Section title={t("guests.title")} titleId="guests-title" description={t("guests.intro")}>
+    <Section
+      title={t("guests.title")}
+      titleId="guests-title"
+      info={<InfoTip label={t("common.info")}>{t("guests.intro")}</InfoTip>}
+    >
       <GuestUpload
         language={language}
         base={base}

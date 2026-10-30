@@ -1,0 +1,63 @@
+/* The info button and its explanation (ADR-370). Logical properties only; the explanation is placed by script, since it is
+   fixed to the window and must stay inside it. */
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-block: -6px;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.trigger:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.bubble {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  inline-size: max-content;
+  max-inline-size: min(22rem, calc(100vw - 16px));
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  text-align: start;
+  white-space: normal;
+  color: var(--color-surface);
+  background: var(--color-text);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.bubble[hidden] {
+  display: none;
+}
+
+/* The gap between the icon and the explanation belongs to it, so moving the pointer across the gap keeps it open. */
+.bubble::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block: -8px;
+  z-index: -1;
+}

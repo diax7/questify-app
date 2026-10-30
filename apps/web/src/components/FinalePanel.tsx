@@ -22,6 +22,7 @@ import { Button, ButtonLink } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Section, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 type Translate = ReturnType<typeof useTranslator>;
@@ -286,8 +287,10 @@ export function FinalePanel(props: Props) {
   };
 
   return (
-    <Section title={t("finale.title")}>
-      <Muted>{t("finale.intro")}</Muted>
+    <Section
+      title={t("finale.title")}
+      info={<InfoTip label={t("common.info")}>{t("finale.intro")}</InfoTip>}
+    >
       <Notes
         problem={problem}
         notice={notice}

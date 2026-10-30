@@ -84,7 +84,6 @@ export function EventsPanel({
                     <Muted>
                       {formatEventTime(new Date(event.startsAt), event.timezone, language)}
                     </Muted>
-                    {event.statusNow === "draft" ? <Muted>{t("events.draftNote")}</Muted> : null}
                   </>
                 }
               >

@@ -9,6 +9,8 @@ import {
   zoneLabel,
   type EventTerms,
   type Language,
+  type MessageKey,
+  type QuestType,
   type QuestVerification,
 } from "@questify/shared";
 import { useState, type FormEvent } from "react";
@@ -29,9 +31,22 @@ import {
   type QuestDraft,
 } from "#src/lib/quests.ts";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted } from "#src/ui/Feedback.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
 import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+
+/** What a type does that its name does not say: shown by the info button beside the Type field (ADR-370). */
+const TYPE_INFO: Readonly<Partial<Record<QuestType, MessageKey>>> = {
+  location: "quests.location.note",
+  meet: "quests.meet.note",
+  game: "quests.game.note",
+  quiz: "quests.quiz.note",
+  vote: "quests.vote.note",
+  challenge: "quests.challenge.note",
+  survey: "quests.survey.note",
+  share: "quests.share.note",
+  passport: "quests.passport.note",
+};
 
 type Props = Readonly<{
   language: Language;
@@ -88,6 +103,9 @@ export function QuestForm({
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const change = (patch: Partial<QuestDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const TypeFields = QUEST_TYPE_FIELDS[draft.type];
+  const infoKey = TYPE_INFO[draft.type];
+  const typeInfo =
+    infoKey === undefined ? undefined : <InfoTip label={t("common.info")}>{t(infoKey)}</InfoTip>;
   const text = (
     key: "titleAr" | "titleEn" | "descriptionAr" | "descriptionEn",
     max: number,
@@ -123,7 +141,7 @@ export function QuestForm({
         <SubHeading as="h2" id="quest-form-title" ref={heading} tabIndex={-1}>
           {isNew ? t("quests.formNew") : t("quests.formEdit")}
         </SubHeading>
-        <Field label={t("quests.field.type")}>
+        <Field label={t("quests.field.type")} info={typeInfo}>
           <Select
             value={draft.type}
             disabled={busy || !isNew}
@@ -147,7 +165,6 @@ export function QuestForm({
             ))}
           </Select>
         </Field>
-        {isNew ? null : <Muted>{t("quests.field.typeFixed")}</Muted>}
         <Field label={t("quests.field.category")}>
           <Select
             value={draft.categoryId}
@@ -268,7 +285,19 @@ function QuestWindowFields({
   return (
     <>
       {(["opensAt", "closesAt"] as const).map((key) => (
-        <Field key={key} label={t(`quests.field.${key}`)}>
+        <Field
+          key={key}
+          label={t(`quests.field.${key}`)}
+          {...(key === "opensAt"
+            ? {
+                info: (
+                  <InfoTip label={t("common.info")}>
+                    {t("quests.field.windowHint", { zone: zoneLabel(timeZone, language) })}
+                  </InfoTip>
+                ),
+              }
+            : {})}
+        >
           <Input
             type="datetime-local"
             dir="ltr"
@@ -278,7 +307,6 @@ function QuestWindowFields({
           />
         </Field>
       ))}
-      <Muted>{t("quests.field.windowHint", { zone: zoneLabel(timeZone, language) })}</Muted>
       <Checkbox
         label={t("quests.field.visible")}
         checked={draft.visible}
@@ -309,6 +337,7 @@ function FlashField({
     <>
       <Checkbox
         label={t("quests.field.flash")}
+        info={<InfoTip label={t("common.info")}>{t("quests.field.flashHint")}</InfoTip>}
         checked={draft.flash}
         disabled={busy || draft.flashRunning}
         onChange={(event) =>
@@ -320,7 +349,6 @@ function FlashField({
           })
         }
       />
-      {draft.flash ? <Muted>{t("quests.field.flashHint")}</Muted> : null}
     </>
   );
 }
@@ -379,6 +407,12 @@ const VERIFICATION_LABELS = {
   kiosk: "quests.verification.kiosk",
 } as const;
 
+/** The methods that need setting up on another device: what to do is in the info button beside them. */
+const VERIFICATION_INFO: Readonly<Partial<Record<QuestVerification, MessageKey>>> = {
+  screen_qr: "quests.verification.screenQrHint",
+  kiosk: "quests.verification.kioskHint",
+};
+
 const PRINTED: ReadonlySet<QuestVerification> = new Set(["quest_qr", "nfc"]);
 
 /** Whether ticking `method` must untick `item`: the screen QR against a printed code or its NFC tag (ADR-240). */
@@ -406,7 +440,6 @@ function QuestVerificationField({
   // NFC keeps the quest QR on as its backup (FR-313): ticking it ticks the QR, which can't be unticked while it stays.
   // The screen QR never sits beside a printed code (ADR-240): ticking one side unticks the other.
   const nfc = draft.verification.includes("nfc");
-  const screen = draft.verification.includes("screen_qr");
   const toggle = (method: QuestVerification, on: boolean) =>
     change({
       verification: offered.filter((item) => {
@@ -421,20 +454,21 @@ function QuestVerificationField({
     });
   return (
     <FieldGroup legend={t("quests.verification")} layout="choices">
-      {offered.map((method) => (
-        <Checkbox
-          key={method}
-          label={t(VERIFICATION_LABELS[method])}
-          checked={draft.verification.includes(method)}
-          disabled={busy || (nfc && method === "quest_qr")}
-          onChange={(event) => toggle(method, event.target.checked)}
-        />
-      ))}
-      {nfc ? <Muted>{t("quests.verification.nfcHint")}</Muted> : null}
-      {screen ? <Muted>{t("quests.verification.screenQrHint")}</Muted> : null}
-      {draft.verification.includes("kiosk") ? (
-        <Muted>{t("quests.verification.kioskHint")}</Muted>
-      ) : null}
+      {offered.map((method) => {
+        const infoKey = VERIFICATION_INFO[method];
+        return (
+          <Checkbox
+            key={method}
+            label={t(VERIFICATION_LABELS[method])}
+            {...(infoKey === undefined
+              ? {}
+              : { info: <InfoTip label={t("common.info")}>{t(infoKey)}</InfoTip> })}
+            checked={draft.verification.includes(method)}
+            disabled={busy || (nfc && method === "quest_qr")}
+            onChange={(event) => toggle(method, event.target.checked)}
+          />
+        );
+      })}
     </FieldGroup>
   );
 }

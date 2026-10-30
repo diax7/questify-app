@@ -35,7 +35,6 @@ function ContactStep({ language, busy, submit }: StepProps<"contact">) {
   };
   return (
     <Form onSubmit={send}>
-      <Muted>{t("deletion.contactHint")}</Muted>
       <FieldGroup layout="choiceGrid">
         {(["phone", "email"] as const).map((option) => (
           <Radio
@@ -80,7 +79,6 @@ function CodeStep({ language, state, busy, submit }: StepProps<"code">) {
       <Notice tone="info" role="status">
         {t("deletion.codeSentMaybe")}
       </Notice>
-      <Muted>{t("deletion.codeHint")}</Muted>
       <Field label={t("signIn.code")}>
         <Input
           name="code"
@@ -193,11 +191,7 @@ export function DeleteAccountForm({ language }: Readonly<{ language: Language }>
   const props = { language, busy, submit };
   return (
     <Stack as="section" aria-labelledby="deletion-title">
-      <PageHeader
-        titleId="deletion-title"
-        title={t("deletion.title")}
-        description={t("deletion.webIntro")}
-      />
+      <PageHeader titleId="deletion-title" title={t("deletion.title")} />
       <p>{t("deletion.intro")}</p>
       <Section title={t("deletion.removedTitle")}>
         <p>{t("deletion.removed")}</p>

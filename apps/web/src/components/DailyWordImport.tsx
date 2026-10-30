@@ -83,7 +83,6 @@ export function DailyWordImport({
   return (
     <Stack as="section" aria-labelledby="daily-import">
       <SubHeading id="daily-import">{t("console.words.import")}</SubHeading>
-      <Muted>{t("console.words.importHelp")}</Muted>
       <Field label={t("console.words.importField")}>
         <Textarea
           dir={listLanguage === "ar" ? "rtl" : "ltr"}

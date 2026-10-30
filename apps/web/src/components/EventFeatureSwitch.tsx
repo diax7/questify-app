@@ -17,54 +17,40 @@ const FEATURES = {
     path: "share-quests",
     title: "events.shareQuests.title",
     label: "events.shareQuests.label",
-    on: "events.shareQuests.on",
-    off: "events.shareQuests.off",
   },
   meetSomeone: {
     path: "meet-someone",
     title: "events.meetSomeone.title",
     label: "events.meetSomeone.label",
-    on: "events.meetSomeone.on",
-    off: "events.meetSomeone.off",
   },
   miniGames: {
     path: "mini-games",
     title: "events.miniGames.title",
     label: "events.miniGames.label",
-    on: "events.miniGames.on",
-    off: "events.miniGames.off",
   },
   community: {
     path: "community",
     title: "events.community.title",
     label: "events.community.label",
-    on: "events.community.on",
-    off: "events.community.off",
   },
   flashQuests: {
     path: "flash-quests",
     title: "events.flashQuests.title",
     label: "events.flashQuests.label",
-    on: "events.flashQuests.on",
-    off: "events.flashQuests.off",
   },
   boosts: {
     path: "double-points",
     title: "events.boosts.title",
     label: "events.boosts.label",
-    on: "events.boosts.on",
-    off: "events.boosts.off",
   },
   helpDesk: {
     path: "help-desk",
     title: "events.helpDesk.title",
     label: "events.helpDesk.label",
-    on: "events.helpDesk.on",
-    off: "events.helpDesk.off",
   },
 } as const satisfies Record<
   string,
-  Readonly<{ path: string; title: MessageKey; label: MessageKey; on: MessageKey; off: MessageKey }>
+  Readonly<{ path: string; title: MessageKey; label: MessageKey }>
 >;
 
 type Props = Readonly<{
@@ -82,7 +68,8 @@ type Props = Readonly<{
  * ADR-213; T-306b, ADR-226): on by default; off hides every quest of that type from players and stops paying them (off
  * for community quests finishes a running goal, whose reached steps still pay, and warns that what it would unlock stays
  * locked, T-306c). Flash quests and double points (T-307) work the same way: off hides every flash quest, or stops
- * every boost paying, at once. The help desk (T-310) off stops new requests while open ones stay answerable. The owner changes it; an editor sees which it is. Saved as soon as the box changes.
+ * every boost paying, at once. The help desk (T-310) off stops new requests while open ones stay answerable. The owner
+ * changes it; an editor sees it switched and cannot change it. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
   language,
@@ -129,21 +116,15 @@ export function EventFeatureSwitch({
       main={
         <>
           <SubHeading id={`${words.path}-title`}>{t(words.title)}</SubHeading>
-          <Muted role="status">
-            {t(on ? words.on : words.off)}{" "}
-            {myRole === "owner" ? null : t("events.ranking.ownerOnly")}
-          </Muted>
           {myRole === "owner" && on && feature === "community" ? (
             <Muted>{t("events.community.offWarning")}</Muted>
           ) : null}
-          {myRole === "owner" ? (
-            <Switch
-              label={t(words.label)}
-              checked={on}
-              disabled={busy}
-              onChange={(changed) => void save(changed.target.checked)}
-            />
-          ) : null}
+          <Switch
+            label={t(words.label)}
+            checked={on}
+            disabled={busy || myRole !== "owner"}
+            onChange={(changed) => void save(changed.target.checked)}
+          />
           {problem === null ? null : (
             <Notice role="alert" tone="danger">
               {problem}

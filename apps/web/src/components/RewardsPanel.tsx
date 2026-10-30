@@ -62,6 +62,7 @@ import {
 } from "#src/ui/Field.tsx";
 import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -357,6 +358,7 @@ function DeskForm({
         </FieldGroup>
         <Checkbox
           label={t("rewards.desk.hoursOn")}
+          info={<InfoTip label={t("common.info")}>{t("rewards.desk.hoursHint")}</InfoTip>}
           checked={draft.hoursOn}
           onChange={(e) =>
             set({
@@ -368,7 +370,6 @@ function DeskForm({
         />
         {draft.hoursOn ? (
           <>
-            <Muted>{t("rewards.desk.hoursHint")}</Muted>
             {draft.windows.map((window, index) => (
               <FieldGroup layout="columns" key={index}>
                 <Field label={t("rewards.desk.opens")}>
@@ -507,18 +508,18 @@ function ShopForm({
             change={(en) => setDraft({ ...draft, rules: { ...draft.rules, en } })}
           />
         </FieldGroup>
-        <Muted>{t("rewards.rulesHint")}</Muted>
         <Checkbox
           label={t("rewards.spendLowersRank")}
           checked={draft.spendLowersRank}
+          info={
+            <InfoTip label={t("common.info")}>
+              {t("rewards.spendLowersRank.hint")}
+              {rankLock === undefined ? null : ` ${t(`rewards.spendLowersRank.${rankLock}`)}`}
+            </InfoTip>
+          }
           disabled={rankLock !== undefined}
-          aria-describedby="spend-rank-hint"
           onChange={(e) => setDraft({ ...draft, spendLowersRank: e.target.checked })}
         />
-        <Muted id="spend-rank-hint">
-          {t("rewards.spendLowersRank.hint")}
-          {rankLock === undefined ? null : ` ${t(`rewards.spendLowersRank.${rankLock}`)}`}
-        </Muted>
         {invalid === undefined ? null : (
           <Notice tone="danger" role="alert">
             {t(`rewards.invalid.${invalid}`)}

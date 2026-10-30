@@ -10,6 +10,7 @@ import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input } from "#src/ui/Field.tsx";
 import { Row, Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type Member = Readonly<{
   staffUserId: string;
@@ -168,7 +169,11 @@ function InviteForm({
   const t = translatorFor(language);
   const id = `${title.replace(".", "-")}-heading`;
   return (
-    <Section titleId={id} title={t(title)} description={t(hint)}>
+    <Section
+      titleId={id}
+      title={t(title)}
+      info={<InfoTip label={t("common.info")}>{t(hint)}</InfoTip>}
+    >
       <Form onSubmit={onSubmit} aria-labelledby={id}>
         <Field label={t("staff.email")}>
           <Input name="email" type="email" dir="ltr" autoComplete="off" required disabled={busy} />

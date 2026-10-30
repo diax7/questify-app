@@ -5,9 +5,9 @@ import { useRef } from "react";
 import { JOIN_OPTION_MAX, JOIN_OPTION_MIN, type OptionDraft } from "#src/lib/joining.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input } from "#src/ui/Field.tsx";
 import { Card, CardList, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -41,15 +41,17 @@ export function JoinOptionsEditor({ language, fieldName, options, busy, change }
         disabled={busy}
         onChange={(ticked) => change(ticked.target.checked ? [fresh(), fresh()] : null)}
         label={t("joinFields.choice")}
-      />
-      {options === null ? null : (
-        <>
-          <Muted>
+        info={
+          <InfoTip label={t("common.info")}>
             {t("joinFields.choiceHint", {
               min: formatNumber(JOIN_OPTION_MIN, language),
               max: formatNumber(JOIN_OPTION_MAX, language),
             })}
-          </Muted>
+          </InfoTip>
+        }
+      />
+      {options === null ? null : (
+        <>
           <CardList>
             {list.map((option, index) => (
               <Card as="li" key={option.key}>

@@ -19,6 +19,7 @@ import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -228,7 +229,10 @@ function RulesEditor({
   const [ar, setAr] = useState(rules.ar ?? "");
   const [en, setEn] = useState(rules.en ?? "");
   return (
-    <Section title={t("prizes.rules")} description={t("prizes.rulesHint")}>
+    <Section
+      title={t("prizes.rules")}
+      info={<InfoTip label={t("common.info")}>{t("prizes.rulesHint")}</InfoTip>}
+    >
       <Form
         onSubmit={(e) => {
           e.preventDefault();
@@ -462,7 +466,11 @@ export function PrizesPanel({ language, organizerId, eventId, joinCode, live }: 
           confirm={() => void remove(removing)}
         />
       )}
-      <Section title={t("prizes.title")} titleId="prizes-title" description={t("prizes.intro")}>
+      <Section
+        title={t("prizes.title")}
+        titleId="prizes-title"
+        info={<InfoTip label={t("common.info")}>{t("prizes.intro")}</InfoTip>}
+      >
         <Notes problem={problem} notice={notice} loading={false} language={language} />
         <SwitchCard
           language={language}

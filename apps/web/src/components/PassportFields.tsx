@@ -9,7 +9,6 @@ import {
   type TypeFieldProps,
 } from "#src/components/QuestTextFields.tsx";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Input } from "#src/ui/Field.tsx";
 
 /** A passport step in the form: a saved one keeps its id for the API, a new one gets a local id only. */
@@ -29,7 +28,6 @@ export function PassportFields({ language, config, disabled, change }: TypeField
   const save = (next: readonly StepItem[]) => change({ ...config, steps: next });
   return (
     <FieldGroup legend={t("quests.passport.steps")}>
-      <Muted>{t("quests.passport.note")}</Muted>
       <Field label={t("quests.passport.needed")}>
         <Input
           type="number"

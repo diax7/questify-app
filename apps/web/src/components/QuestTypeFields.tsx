@@ -25,7 +25,6 @@ import { NumberField } from "#src/components/NumberField.tsx";
 import { NEW_LIVE_BLOCK } from "#src/lib/polls.ts";
 import { PassportFields } from "#src/components/PassportFields.tsx";
 import {
-  ChallengeFields,
   ShareFields,
   SurveyFields,
   newSurveyQuestion,
@@ -35,40 +34,18 @@ import { Muted } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input, Radio, Select } from "#src/ui/Field.tsx";
 import { SubHeading } from "#src/ui/Section.tsx";
 
-function ScanQrFields({ language }: TypeFieldProps) {
-  return <Muted>{useTranslator(language)("quests.scanQrNote")}</Muted>;
-}
-
-/** A location quest: what a check-in trusts, and that the QR always works (the place itself is `QuestPlaceFields`). */
-function LocationFields({ language }: TypeFieldProps) {
-  const t = useTranslator(language);
-  return (
-    <>
-      <Muted>{t("quests.location.note")}</Muted>
-      <Muted>{t("quests.location.qr")}</Muted>
-    </>
-  );
-}
-
-/**
- * A meet quest (T-303c): its daily cap per player beside the repeat cap (the most people a player meets for points),
- * and how the one-minute code works.
- */
+/** A meet quest (T-303c): its daily cap per player, beside the repeat cap (the most people a player meets for points). */
 function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
   const t = useTranslator(language);
   const value = config["dailyCap"];
   return (
-    <>
-      <Muted>{t("quests.meet.note")}</Muted>
-      <NumberField
-        label={t("quests.meet.dailyCap")}
-        value={typeof value === "number" || typeof value === "string" ? value : ""}
-        invalid={false}
-        disabled={disabled}
-        change={(text) => change({ ...config, dailyCap: text === "" ? "" : Number(text) })}
-      />
-      <Muted>{t("quests.meet.repeatCap")}</Muted>
-    </>
+    <NumberField
+      label={t("quests.meet.dailyCap")}
+      value={typeof value === "number" || typeof value === "string" ? value : ""}
+      invalid={false}
+      disabled={disabled}
+      change={(text) => change({ ...config, dailyCap: text === "" ? "" : Number(text) })}
+    />
   );
 }
 
@@ -127,9 +104,7 @@ function SubmissionFields({ language, config, disabled, change }: TypeFieldProps
   );
   return (
     <>
-      <Muted>{t("quests.submission.textOnly")}</Muted>
       {toggle("autoApprove", "quests.submission.autoApprove")}
-      <Muted>{t("quests.submission.autoApproveHint")}</Muted>
       {toggle("resubmit", "quests.submission.resubmit")}
     </>
   );
@@ -170,7 +145,7 @@ function LivePollFields({
   return (
     <>
       <Muted>{t("quests.poll.helper")}</Muted>
-      <Muted>{t(sent ? "quests.poll.sentLocked" : "quests.poll.window")}</Muted>
+      {sent ? <Muted>{t("quests.poll.sentLocked")}</Muted> : null}
       <FieldGroup legend={t("quests.poll.choices")}>
         {radio("choices", "one", "quests.poll.one", sent)}
         {radio("choices", "several", "quests.poll.several", sent)}
@@ -205,7 +180,6 @@ function VoteFields({ language, config, disabled, change, sent = false }: TypeFi
   const plain = Object.fromEntries(Object.entries(config).filter(([name]) => name !== "live"));
   return (
     <FieldGroup legend={t("quests.vote.options")}>
-      <Muted>{t("quests.vote.note")}</Muted>
       <OptionList
         language={language}
         items={itemsOf(config["options"], 2)}
@@ -313,7 +287,6 @@ function QuizFields({ language, config, disabled, change }: TypeFieldProps) {
     change({ ...config, questions: next, timerSeconds });
   return (
     <>
-      <Muted>{t("quests.quiz.note")}</Muted>
       <Field label={t("quests.quiz.timer")}>
         <Input
           type="number"
@@ -388,22 +361,25 @@ export function startingConfig(type: QuestType): Config {
   }
 }
 
+/** A type with nothing to set: a QR scan, a challenge the team confirms, a check-in (the place is `QuestPlaceFields`). */
+const noFields = (): ReactNode => null;
+
 /**
  * The form fields each quest type adds (FR-1505). Typed by the registry's keys, so a type added to the registry
  * without its fields here fails the type check.
  */
 export const QUEST_TYPE_FIELDS: Readonly<Record<QuestType, (props: TypeFieldProps) => ReactNode>> =
   {
-    scan_qr: ScanQrFields,
+    scan_qr: noFields,
     enter_code: EnterCodeFields,
     submission: SubmissionFields,
     vote: VoteFields,
     quiz: QuizFields,
-    challenge: ChallengeFields,
+    challenge: noFields,
     survey: SurveyFields,
     share: ShareFields,
     passport: PassportFields,
-    location: LocationFields,
+    location: noFields,
     meet: MeetFields,
     game: GameFields,
   };

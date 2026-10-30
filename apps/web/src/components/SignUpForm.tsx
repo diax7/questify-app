@@ -77,7 +77,7 @@ export function SignUpForm({ language }: Readonly<{ language: Language }>) {
     <Card as="section" aria-labelledby="sign-up-title">
       <Form onSubmit={(event) => void submit(event)}>
         <PageHeader titleId="sign-up-title" title={t("staff.signUpTitle")} />
-        <Field label={t("staff.organizerName")} help={t("staff.organizerNameHint")}>
+        <Field label={t("staff.organizerName")}>
           <Input
             name="organizerName"
             autoComplete="organization"

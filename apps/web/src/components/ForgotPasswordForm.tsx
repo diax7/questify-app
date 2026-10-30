@@ -7,7 +7,7 @@ import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Field, Form, Input } from "#src/ui/Field.tsx";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
@@ -42,7 +42,6 @@ export function ForgotPasswordForm({ language }: Readonly<{ language: Language }
         </Notice>
       ) : (
         <Form onSubmit={(event) => void submit(event)}>
-          <Muted>{t("staff.forgotHint")}</Muted>
           <Field label={t("staff.email")}>
             <Input
               name="email"

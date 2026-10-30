@@ -5,16 +5,21 @@ import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 import { Row, SubHeading } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
 /** The two switches: the event's ranking (FR-607) and today's ranking for a multi-day event (FR-608). */
 const SWITCHES = {
-  ranking: { path: "ranking", label: "events.ranking.label" },
-  rankingToday: { path: "ranking-today", label: "events.ranking.todayLabel" },
+  ranking: { path: "ranking", label: "events.ranking.label", info: "events.ranking.hint" },
+  rankingToday: {
+    path: "ranking-today",
+    label: "events.ranking.todayLabel",
+    info: "events.ranking.todayHint",
+  },
 } as const;
 
 type Feature = keyof typeof SWITCHES;
@@ -71,22 +76,16 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
       main={
         <>
           <SubHeading id="ranking-title">{t("events.ranking.title")}</SubHeading>
-          <Muted role="status">
-            {t(shown.ranking ? "events.ranking.shown" : "events.ranking.hidden")}{" "}
-            {myRole === "owner" ? t("events.ranking.hint") : t("events.ranking.ownerOnly")}
-          </Muted>
-          <Muted>{t("events.ranking.todayHint")}</Muted>
-          {myRole === "owner"
-            ? (Object.keys(SWITCHES) as Feature[]).map((feature) => (
-                <Switch
-                  key={feature}
-                  label={t(SWITCHES[feature].label)}
-                  checked={shown[feature]}
-                  disabled={busy}
-                  onChange={(changed) => void save(feature, changed.target.checked)}
-                />
-              ))
-            : null}
+          {(Object.keys(SWITCHES) as Feature[]).map((feature) => (
+            <Switch
+              key={feature}
+              label={t(SWITCHES[feature].label)}
+              info={<InfoTip label={t("common.info")}>{t(SWITCHES[feature].info)}</InfoTip>}
+              checked={shown[feature]}
+              disabled={busy || myRole !== "owner"}
+              onChange={(changed) => void save(feature, changed.target.checked)}
+            />
+          ))}
           {problem === null ? null : (
             <Notice role="alert" tone="danger">
               {problem}

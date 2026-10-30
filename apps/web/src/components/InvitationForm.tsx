@@ -19,9 +19,10 @@ import {
 } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { SubHeading } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -81,7 +82,6 @@ function InterestsField({
           />
         );
       })}
-      <Muted>{t("invCampaign.interests.hint")}</Muted>
     </FieldGroup>
   );
 }
@@ -178,7 +178,7 @@ export function InvitationForm({
       />
       <Field
         label={t("invCampaign.field.sendAfter")}
-        help={wrong === "sendAfter" ? undefined : t("invCampaign.sendAfter.hint")}
+        info={<InfoTip label={t("common.info")}>{t("invCampaign.sendAfter.hint")}</InfoTip>}
         error={wrong === "sendAfter" ? t("invCampaign.invalid.sendAfter") : undefined}
       >
         <Input

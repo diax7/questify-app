@@ -56,7 +56,6 @@ function EventCard({
       <ButtonLink variant="primary" href={joinPath(language, event.joinCode)}>
         {t("invCampaignPage.open")}
       </ButtonLink>
-      <Muted>{t("invCampaignPage.openHint")}</Muted>
     </>
   );
 }

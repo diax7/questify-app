@@ -22,6 +22,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Radio, Select } from "#src/ui/Field.tsx";
 import { Card, CardList, Row, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -300,7 +301,11 @@ export function AudiencePanel({ language, organizerId, eventId }: Props) {
   };
 
   return (
-    <Section title={t("audience.title")} titleId="audience-title" description={t("audience.intro")}>
+    <Section
+      title={t("audience.title")}
+      titleId="audience-title"
+      info={<InfoTip label={t("common.info")}>{t("audience.intro")}</InfoTip>}
+    >
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}

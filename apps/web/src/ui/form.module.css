@@ -12,6 +12,25 @@
   line-height: var(--leading-tight);
 }
 
+/* A label with an info button beside it. */
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* A checkbox, radio or switch with an info button beside it; the button cannot sit inside the label. */
+.choiceRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.choiceRow > .choice {
+  flex: 1;
+  min-inline-size: 0;
+}
+
 .help {
   margin: 0;
   font-size: var(--text-sm);

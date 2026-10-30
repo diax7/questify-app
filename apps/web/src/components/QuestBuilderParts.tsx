@@ -11,7 +11,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
@@ -32,6 +32,7 @@ import { Checkbox, Field, FieldGroup, Form, Input, Radio, Select } from "#src/ui
 import { TextLink } from "#src/ui/Text.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Card, CardList, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 /** How the picker holds its choice: in the form's state (the quest form), or as a named field (the category form). */
 type PickerBinding =
@@ -56,7 +57,6 @@ export function ItemPicker({
 }> &
   PickerBinding) {
   const t = useTranslator(language);
-  const hintId = useId();
   const bound =
     "change" in binding
       ? {
@@ -65,22 +65,22 @@ export function ItemPicker({
         }
       : { name: binding.name, defaultValue: binding.initial };
   return (
-    <>
-      <Field label={t("questItems.picker")}>
-        <Select aria-describedby={hintId} disabled={busy} {...bound}>
-          <option value="">{t("questItems.pickerNone")}</option>
-          {items.map((item) => (
-            <option key={item.id} value={item.id}>
-              {`${textFor(item.name, language)} (${t("questItems.left", {
-                left: formatNumber(item.stockLeft, language),
-                total: formatNumber(item.stockTotal, language),
-              })})`}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Muted id={hintId}>{t(hint)}</Muted>
-    </>
+    <Field
+      label={t("questItems.picker")}
+      info={<InfoTip label={t("common.info")}>{t(hint)}</InfoTip>}
+    >
+      <Select disabled={busy} {...bound}>
+        <option value="">{t("questItems.pickerNone")}</option>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {`${textFor(item.name, language)} (${t("questItems.left", {
+              left: formatNumber(item.stockLeft, language),
+              total: formatNumber(item.stockTotal, language),
+            })})`}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }
 
@@ -399,7 +399,10 @@ function CategoryRuleFields({
             ))}
         </Select>
       </Field>
-      <Field label={t("quests.field.completionBonus")}>
+      <Field
+        label={t("quests.field.completionBonus")}
+        info={<InfoTip label={t("common.info")}>{t("quests.field.rulesHint")}</InfoTip>}
+      >
         <Input
           type="number"
           name="completionBonus"
@@ -419,28 +422,23 @@ function CategoryRuleFields({
         name="itemId"
         initial={category.itemId ?? ""}
       />
-      <Muted>{t("quests.field.rulesHint")}</Muted>
-      <Field label={t("quests.field.refresh")}>
-        <Select
-          name="refresh"
-          defaultValue={category.refresh}
-          aria-describedby={`refresh-hint-${category.id}`}
-          disabled={busy}
-        >
+      <Field
+        label={t("quests.field.refresh")}
+        info={<InfoTip label={t("common.info")}>{t("quests.field.refreshHint")}</InfoTip>}
+      >
+        <Select name="refresh" defaultValue={category.refresh} disabled={busy}>
           <option value="none">{t("quests.field.refreshNone")}</option>
           <option value="daily">{t("quests.field.refreshDaily")}</option>
           <option value="weekly">{t("quests.field.refreshWeekly")}</option>
         </Select>
       </Field>
-      <Muted id={`refresh-hint-${category.id}`}>{t("quests.field.refreshHint")}</Muted>
       <Checkbox
         label={t("quests.field.hidden")}
+        info={<InfoTip label={t("common.info")}>{t("quests.field.hiddenHint")}</InfoTip>}
         name="hidden"
         defaultChecked={category.hidden}
-        aria-describedby={`hidden-hint-${category.id}`}
         disabled={busy}
       />
-      <Muted id={`hidden-hint-${category.id}`}>{t("quests.field.hiddenHint")}</Muted>
     </>
   );
 }

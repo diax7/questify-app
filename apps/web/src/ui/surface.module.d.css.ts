@@ -42,6 +42,7 @@ declare const styles: {
   readonly tab: string;
   readonly tabs: string;
   readonly title: string;
+  readonly titleRow: string;
   readonly toolbar: string;
   readonly toolbarBetween: string;
   readonly toolbarEnd: string;

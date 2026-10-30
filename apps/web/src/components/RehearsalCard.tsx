@@ -95,7 +95,6 @@ export function RehearsalCard({ language, organizerId, eventId }: Props) {
           <p>
             <strong>{t("rehearsal.code", { code: view.code })}</strong>
           </p>
-          <Muted>{t("rehearsal.onlyTeam")}</Muted>
           <Muted>
             {t("rehearsal.accounts", { count: number(view.now.accounts), cap: number(view.cap) })}
           </Muted>

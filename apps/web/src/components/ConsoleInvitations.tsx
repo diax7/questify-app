@@ -106,7 +106,6 @@ export function ConsoleInvitations({ language }: Readonly<{ language: Language }
   return (
     <Stack as="section" aria-labelledby="console-invitations-title">
       <PageHeader titleId="console-invitations-title" title={t("console.invCampaign.title")} />
-      <Muted>{t("console.invCampaign.intro")}</Muted>
       {queue.kind === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {queue.kind === "failed" ? (
         <Notice tone="danger" role="alert">

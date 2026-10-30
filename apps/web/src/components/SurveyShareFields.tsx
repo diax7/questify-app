@@ -14,13 +14,7 @@ import {
 } from "#src/components/QuestTextFields.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input, Select, Textarea } from "#src/ui/Field.tsx";
-
-/** A challenge (T-303, ADR-197): nothing to set; the description says what to do, and staff confirm it. */
-export function ChallengeFields({ language }: TypeFieldProps) {
-  return <Muted>{useTranslator(language)("quests.challenge.note")}</Muted>;
-}
 
 const SURVEY_KINDS = ["choice", "rating", "text"] as const;
 type SurveyKind = (typeof SURVEY_KINDS)[number];
@@ -123,7 +117,6 @@ export function SurveyFields({ language, config, disabled, change }: TypeFieldPr
   const save = (next: readonly SurveyQuestion[]) => change({ ...config, questions: next });
   return (
     <>
-      <Muted>{t("quests.survey.note")}</Muted>
       {questions.map((question, index) => (
         <SurveyQuestionFields
           key={question.id}
@@ -167,7 +160,6 @@ export function ShareFields({ language, config, disabled, change }: TypeFieldPro
   };
   return (
     <>
-      <Muted>{t("quests.share.note")}</Muted>
       {(["ar", "en"] as const).map((key) => (
         <Field
           key={key}

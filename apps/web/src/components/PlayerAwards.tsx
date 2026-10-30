@@ -23,6 +23,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 export type QuestOption = Readonly<{ id: string; title: string; points: number }>;
 export type Caps = Readonly<{ each: number; day: number }>;
@@ -203,7 +204,10 @@ function AwardFields({
           </Select>
         </Field>
       )}
-      <Field label={t("awards.reason")} help={t("awards.reasonHelp")}>
+      <Field
+        label={t("awards.reason")}
+        info={<InfoTip label={t("common.info")}>{t("awards.reasonHelp")}</InfoTip>}
+      >
         <Textarea
           dir="auto"
           maxLength={300}
@@ -461,14 +465,14 @@ export function PlayerAwards({
         <Form card onSubmit={submit} aria-label={t("awards.awardTitle", { name })}>
           <SubHeading>{t("awards.awardTitle", { name })}</SubHeading>
           <AwardFields language={language} quests={quests} draft={draft} change={setDraft} />
-          <Muted>
-            {caps === null
-              ? t("awards.noLimit")
-              : t("awards.capNote", {
-                  each: formatNumber(caps.each, language),
-                  day: formatNumber(caps.day, language),
-                })}
-          </Muted>
+          {caps === null ? null : (
+            <Muted>
+              {t("awards.capNote", {
+                each: formatNumber(caps.each, language),
+                day: formatNumber(caps.day, language),
+              })}
+            </Muted>
+          )}
           <Button
             variant="primary"
             type="submit"

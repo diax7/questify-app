@@ -37,7 +37,6 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
   const preview = targetWords(t, gameTarget(game, LEVELS[game][level]), language);
   return (
     <>
-      <Muted>{t("quests.game.note")}</Muted>
       <Field label={t("quests.game.game")}>
         <Select
           value={game}
@@ -51,7 +50,6 @@ export function GameFields({ language, config, disabled, change }: TypeFieldProp
           ))}
         </Select>
       </Field>
-      {game === "catch" || game === "tap_rush" ? <Muted>{t("quests.game.quickNote")}</Muted> : null}
       <Field label={t("quests.game.level")}>
         <Select
           value={level}

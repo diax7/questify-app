@@ -32,10 +32,6 @@ export const MESSAGES = {
     en: "Who finds it and how people join",
   },
   "events.section.features": { ar: "الميزات", en: "Features" },
-  "events.section.featuresHint": {
-    ar: "يُحفظ كل مفتاح فور تغييره.",
-    en: "Each switch is saved as soon as you change it.",
-  },
   "events.section.danger": { ar: "حذف أو إنهاء", en: "Delete or end" },
   "joinCard.title": { ar: "سيرى منظّم الفعالية", en: "The event's organizer will see" },
   "joinCard.username": { ar: "اسم المستخدم والصورة الرمزية", en: "Your username and avatar" },
@@ -75,6 +71,7 @@ export const MESSAGES = {
   },
   "common.loading": { ar: "جارٍ التحميل…", en: "Loading…" },
   "common.retry": { ar: "إعادة المحاولة", en: "Try again" },
+  "common.info": { ar: "معلومات إضافية", en: "More information" },
   "error.generic": {
     ar: "حدث خطأ غير متوقع. حاول مرة أخرى.",
     en: "Something went wrong. Try again.",
@@ -132,10 +129,6 @@ export const MESSAGES = {
   "staff.signUpTitle": { ar: "إنشاء حساب منظِّم", en: "Create an organizer account" },
   "staff.signInLink": { ar: "لديك حساب؟ سجّل الدخول", en: "Have an account? Sign in" },
   "staff.organizerName": { ar: "اسم الجهة المنظِّمة", en: "Organizer name" },
-  "staff.organizerNameHint": {
-    ar: "كما يعرفه الناس، دون روابط أو عناوين بريد.",
-    en: "As people know it, without links or email addresses.",
-  },
   "staff.accept.terms": { ar: "أوافق على شروط المنظِّمين", en: "I accept the organizer terms" },
   "staff.accept.dpa": {
     ar: "أوافق على اتفاقية معالجة البيانات",
@@ -218,10 +211,6 @@ export const MESSAGES = {
     ar: "سجّل الدخول بهذا البريد لقبول الدعوة.",
     en: "Sign in with this email to accept the invite.",
   },
-  "staff.newAccountPassword": {
-    ar: "اختر كلمة مرور لحسابك الجديد.",
-    en: "Choose a password for your new account.",
-  },
   "staff.inviteOtherSignedIn": {
     ar: "أنت مسجّل بحساب آخر. سجّل الخروج ثم افتح الرابط من بريدك.",
     en: "You are signed in with another account. Sign out, then open the link from your email.",
@@ -232,10 +221,6 @@ export const MESSAGES = {
   },
   "staff.forgotPassword": { ar: "نسيت كلمة المرور؟", en: "Forgot your password?" },
   "staff.forgotTitle": { ar: "إعادة تعيين كلمة المرور", en: "Reset your password" },
-  "staff.forgotHint": {
-    ar: "أدخل بريدك الإلكتروني وسنرسل إليه رابطًا لاختيار كلمة مرور جديدة.",
-    en: "Enter your email and we will send it a link to choose a new password.",
-  },
   "staff.sendLink": { ar: "إرسال الرابط", en: "Send the link" },
   "staff.linkSent": {
     ar: "إذا كان لهذا البريد حساب، فقد أرسلنا إليه رابطًا يعمل لمدة 30 دقيقة.",
@@ -248,10 +233,7 @@ export const MESSAGES = {
     ar: "أعد كتابة كلمة المرور الجديدة",
     en: "Type the new password again",
   },
-  "staff.passwordRules": {
-    ar: "12 حرفًا على الأقل. تصلح عبارة يسهل تذكرها، دون اسم Questify أو بريدك.",
-    en: "At least 12 characters. A phrase you can remember works well; leave out Questify and your email.",
-  },
+  "staff.passwordRules": { ar: "12 حرفًا على الأقل.", en: "At least 12 characters." },
   "staff.passwordsDiffer": {
     ar: "كلمتا المرور غير متطابقتين.",
     en: "The two passwords do not match.",
@@ -307,17 +289,9 @@ export const MESSAGES = {
   "events.status.live": { ar: "جارية", en: "Live" },
   "events.status.ended": { ar: "منتهية", en: "Ended" },
   "events.status.archived": { ar: "مؤرشفة", en: "Archived" },
-  "events.draftNote": {
-    ar: "تفعّل Questify الفعالية بعد الدفع.",
-    en: "Questify activates this event after payment.",
-  },
   "events.joinCode": { ar: "رمز الانضمام: {code}", en: "Join code: {code}" },
   "events.field.nameAr": { ar: "الاسم بالعربية", en: "Name in Arabic" },
   "events.field.nameEn": { ar: "الاسم بالإنجليزية", en: "Name in English" },
-  "events.field.nameHint": {
-    ar: "اكتب الاسم بلغة واحدة على الأقل.",
-    en: "Give a name in at least one language.",
-  },
   "events.field.kind": { ar: "نوع الفعالية", en: "Kind of event" },
   "events.kind.physical": { ar: "حضورية", en: "In person" },
   "events.kind.virtual": { ar: "عن بعد", en: "Online" },
@@ -327,10 +301,6 @@ export const MESSAGES = {
   "events.field.timezone": { ar: "المنطقة الزمنية", en: "Time zone" },
   "events.field.startsAt": { ar: "تبدأ", en: "Starts" },
   "events.field.endsAt": { ar: "تنتهي", en: "Ends" },
-  "events.field.timesHint": {
-    ar: "الأوقات بتوقيت المنطقة المختارة.",
-    en: "Times are in the chosen time zone.",
-  },
   "events.field.dayStartHour": { ar: "يبدأ يوم الفعالية الساعة", en: "Event day starts at hour" },
   "events.field.dayStartHint": {
     ar: "النشاط قبل هذه الساعة يُحسب لليوم السابق.",
@@ -411,11 +381,6 @@ export const MESSAGES = {
     ar: "يبقى الترتيب محدّثًا وهو مخفي، ويعود بالمراكز الحالية عند إظهاره.",
     en: "The ranking stays up to date while hidden and comes back with current places.",
   },
-  "events.ranking.shown": { ar: "الترتيب ظاهر في التطبيق.", en: "The ranking shows in the app." },
-  "events.ranking.hidden": {
-    ar: "الترتيب مخفي في التطبيق.",
-    en: "The ranking is hidden in the app.",
-  },
   "events.ranking.todayLabel": {
     ar: "إظهار ترتيب اليوم",
     en: "Show today's ranking",
@@ -429,18 +394,6 @@ export const MESSAGES = {
     ar: "إظهار {questMany} المشاركة للاعبين",
     en: "Show share {questMany} to players",
   },
-  "events.shareQuests.on": {
-    ar: "مفعّل: يحصل اللاعب على النقاط بعد مشاركة رسالتك.",
-    en: "Share {questMany} show, and players earn points after sharing your message.",
-  },
-  "events.shareQuests.off": {
-    ar: "متوقف: يُخفى هذا النوع عن اللاعبين ولا يمنح نقاطًا.",
-    en: "Share {questMany} are hidden from players and earn nothing.",
-  },
-  "events.ranking.ownerOnly": {
-    ar: "يغيّر المالك وحده هذا الإعداد.",
-    en: "Only the owner can change this.",
-  },
   "terms.title": { ar: "كلمات الفعالية", en: "Event words" },
   "terms.intro": {
     ar: "سمِّ نقاط فعاليتك ومن يشارك فيها ومهامها وفئاتها. امسح حقول الكلمة لتعود إلى الكلمة الافتراضية.",
@@ -451,10 +404,6 @@ export const MESSAGES = {
   "terms.word.operator": { ar: "المشغّل", en: "Operator" },
   "terms.word.quest": { ar: "المهمة", en: "Quest" },
   "terms.word.category": { ar: "الفئة", en: "Category" },
-  "terms.operatorHint": {
-    ar: "فريقك في محطات الفعالية.",
-    en: "Your team at the event's stations.",
-  },
   "terms.form.ar.one": { ar: "بالعربية، مفرد", en: "Arabic, singular" },
   "terms.form.ar.many": { ar: "بالعربية، جمع", en: "Arabic, plural" },
   "terms.form.en.one": { ar: "بالإنجليزية، مفرد", en: "English, singular" },
@@ -592,10 +541,6 @@ export const MESSAGES = {
     en: "This change shows in the app at once. Go ahead?",
   },
   "quests.field.type": { ar: "نوع {questOne}", en: "{questOneCap} type" },
-  "quests.field.typeFixed": {
-    ar: "لا يتغير النوع بعد الإضافة.",
-    en: "The type stays fixed once the {questOne} is added.",
-  },
   "quests.field.category": { ar: "{categoryOne}", en: "{categoryOneCap}" },
   "quests.field.titleAr": { ar: "العنوان بالعربية", en: "Title in Arabic" },
   "quests.field.titleEn": { ar: "العنوان بالإنجليزية", en: "Title in English" },
@@ -611,15 +556,8 @@ export const MESSAGES = {
     en: "Leave both empty to keep the {questOne} open all event. Times are in {zone}.",
   },
   "quests.field.visible": { ar: "ظاهرة في التطبيق", en: "Visible in the app" },
-  "quests.scanQrNote": {
-    ar: "تُكمَل بمسح رمز QR الخاص بها.",
-    en: "Completed by scanning its QR code.",
-  },
   "quests.field.code": { ar: "الرمز", en: "Code" },
-  "quests.field.codeHint": {
-    ar: "من 4 إلى 32 حرفًا إنجليزيًا أو رقمًا. لا يظهر في التطبيق.",
-    en: "4 to 32 English letters or digits. It never shows in the app.",
-  },
+  "quests.field.codeHint": { ar: "من 4 إلى 32 حرفًا إنجليزيًا أو رقمًا.", en: "4 to 32 English letters or digits." },
   "quests.field.hintAr": {
     ar: "أين يظهر الرمز (بالعربية)",
     en: "Where the code is shown (Arabic)",
@@ -699,10 +637,6 @@ export const MESSAGES = {
     ar: "الحد اليومي لكل لاعب (1 إلى 50)",
     en: "Daily cap per player (1 to 50)",
   },
-  "quests.meet.repeatCap": {
-    ar: "حد التكرار هو أقصى عدد من اللاعبين يتعرّف عليهم اللاعب مقابل النقاط.",
-    en: "The repeat cap is the most people a player can meet for points.",
-  },
   "quests.meet.note": {
     ar: "يعرض كل لاعب من تطبيقه رمزًا يتجدد كل دقيقة، فلا تنفع لقطات الشاشة. يحصل اللاعبان على النقاط معًا، مرة واحدة لكل اثنين.",
     en: "Each player shows a one-minute code from their app; screenshots stop working. Both players earn the points together, once per pair.",
@@ -733,10 +667,6 @@ export const MESSAGES = {
   "quests.location.note": {
     ar: "يعتمد تسجيل الحضور على الموقع الذي يرسله الجوال. للجوائز المهمة، اطلب من اللاعبين مسح رمز QR في المكان.",
     en: "A check-in trusts the phone's reported position. For prizes that matter, ask players to scan the QR at the spot.",
-  },
-  "quests.location.qr": {
-    ar: "يستطيع اللاعبون دائمًا مسح رمز QR بدلًا من ذلك. اطبعه من صفحة الرموز وضعه في المكان.",
-    en: "Players can always scan the QR code instead. Print it from the Codes page and put it at the spot.",
   },
   "events.venuePin.title": { ar: "موقع مكان الفعالية (اختياري)", en: "Venue pin (optional)" },
   "events.venuePin.help": {
@@ -1219,14 +1149,6 @@ export const MESSAGES = {
   "deletion.confirmTitle": { ar: "حذف حسابك نهائيًا؟", en: "Delete your account for good?" },
   "deletion.confirm": { ar: "احذف حسابي", en: "Delete my account" },
   "deletion.done": { ar: "حُذف حسابك.", en: "Your account is deleted." },
-  "deletion.webIntro": {
-    ar: "يمكنك حذف حسابك في كويستفاي من هنا دون التطبيق، أو من التطبيق: الملف الشخصي ثم حذف الحساب.",
-    en: "You can delete your Questify account here without the app, or in the app: Profile, then Delete account.",
-  },
-  "deletion.contactHint": {
-    ar: "أدخل رقم الجوال أو البريد المسجّل في حسابك.",
-    en: "Enter the phone number or email on your account.",
-  },
   "deletion.codeSentMaybe": {
     ar: "إن كان هذا الرقم أو البريد مسجّلًا في حساب، فقد أرسلنا إليه رمزًا.",
     en: "If an account uses this phone number or email, we have sent it a code.",
@@ -1321,10 +1243,6 @@ export const MESSAGES = {
   },
   "rewards.rulesAr": { ar: "قواعد المتجر بالعربية", en: "Shop rules in Arabic" },
   "rewards.rulesEn": { ar: "قواعد المتجر بالإنجليزية", en: "Shop rules in English" },
-  "rewards.rulesHint": {
-    ar: "تظهر للاعب قبل أول استبدال له. إن تركتها فارغة يظهر نص كويستفاي المعتاد بمهلة الاستلام.",
-    en: "Players see these before their first redemption. Left empty, Questify's standard text with the pickup time shows.",
-  },
   "rewards.saveShop": { ar: "حفظ الإعدادات", en: "Save the settings" },
   "rewards.shopSaved": { ar: "حُفظت إعدادات المتجر.", en: "The shop settings are saved." },
   "rewards.spendLowersRank": {
@@ -1632,10 +1550,6 @@ export const MESSAGES = {
   "eventPage.liveNow": { ar: "الفعالية جارية الآن", en: "The event is on now" },
   "eventPage.ended": { ar: "انتهت هذه الفعالية.", en: "This event has ended." },
   "eventPage.code": { ar: "رمز الفعالية", en: "Event code" },
-  "eventPage.codeHint": {
-    ar: "اكتب هذا الرمز في التطبيق، أو امسح رمز QR الخاص بالفعالية.",
-    en: "Type this code in the app, or scan the event's QR code.",
-  },
   "eventPage.starts": { ar: "تبدأ", en: "Starts" },
   "eventPage.ends": { ar: "تنتهي", en: "Ends" },
   "eventPage.play": { ar: "حمّله من Google Play", en: "Get it on Google Play" },
@@ -1953,10 +1867,7 @@ export const MESSAGES = {
     ar: "امسح هذا الرمز من تطبيق Questify",
     en: "Scan this code in the Questify app",
   },
-  "scan.body": {
-    ar: "هذا رمز مهمة في فعالية. افتح تطبيق Questify وادخل الفعالية، ثم امسح الرمز من تبويب المهام لتحصل على النقاط.",
-    en: "This is a quest code at an event. Open the Questify app, enter the event, then scan the code from the Quests tab to earn the points.",
-  },
+  "scan.body": { ar: "افتح تطبيق Questify وادخل الفعالية، ثم امسح الرمز من تبويب المهام.", en: "Open the Questify app, enter the event, then scan the code from the Quests tab." },
   "scan.noApp": {
     ar: "ليس لديك التطبيق؟ اسأل منظّم الفعالية عن طريقة الانضمام.",
     en: "Don't have the app? Ask the event's organizer how to join.",
@@ -1981,10 +1892,6 @@ export const MESSAGES = {
   "operators.kind.batch": { ar: "مجموعة رموز", en: "A batch of codes" },
   "operators.kind.email": { ar: "دعوة بالبريد", en: "Email invite" },
   "operators.label": { ar: "الاسم", en: "Name" },
-  "operators.labelHint": {
-    ar: "اسم الشخص أو الفريق، يظهر لك فقط.",
-    en: "The person's or crew's name, shown only to you.",
-  },
   "operators.count": { ar: "العدد", en: "How many" },
   "operators.email": { ar: "البريد الإلكتروني", en: "Email" },
   "operators.preset": { ar: "الصلاحيات", en: "Abilities" },
@@ -2315,10 +2222,6 @@ export const MESSAGES = {
     en: "Try your event with your team on real phones before it starts. Your team joins with this code in the Questify app.",
   },
   "rehearsal.code": { ar: "رمز التجربة: {code}", en: "Rehearsal code: {code}" },
-  "rehearsal.onlyTeam": {
-    ar: "أعطِ الرمز لفريقك فقط.",
-    en: "Give the code to your team only.",
-  },
   "rehearsal.copy": { ar: "انسخ الرمز", en: "Copy code" },
   "rehearsal.copied": { ar: "نُسخ الرمز.", en: "Code copied." },
   "rehearsal.rotate": { ar: "غيّر الرمز", en: "Change code" },
@@ -2455,10 +2358,6 @@ export const MESSAGES = {
     ar: "الحد: {each} للمنح الواحد، و{day} لكل شخص في اليوم.",
     en: "Limit: {each} per award, {day} per person per day.",
   },
-  "awards.noLimit": {
-    ar: "أنت المالك: لا حد لمنحك.",
-    en: "You are the owner: your awards have no limit.",
-  },
   "awards.confirmTitle": { ar: "تأكيد المنح", en: "Confirm the award" },
   "awards.confirmBody": {
     ar: "يحصل {name} على {points}. السبب: {reason}",
@@ -2541,10 +2440,7 @@ export const MESSAGES = {
   },
   "flags.open": { ar: "مفتوحة", en: "Open" },
   "flags.closed": { ar: "مغلقة", en: "Closed" },
-  "flags.empty": {
-    ar: "لا حالات. يظهر هنا أي نشاط غير معتاد.",
-    en: "No flags. Unusual activity shows up here.",
-  },
+  "flags.empty": { ar: "لا حالات.", en: "No flags." },
   "flags.emptyClosed": { ar: "لا حالات مغلقة بعد.", en: "No closed cases yet." },
   "flags.kind.sharedDevice": {
     ar: "جوال واحد، {count} حسابات",
@@ -2875,8 +2771,8 @@ export const MESSAGES = {
   "results.reveal": { ar: "إعلان الفائزين", en: "Reveal the winners" },
   "results.deadline": { ar: "آخر موعد للاستلام", en: "Collect by" },
   "results.deadlineHint": {
-    ar: "بين ساعة و60 يومًا من الآن، ويجب أن تفتح منصة الجوائز قبله.",
-    en: "Between 1 hour and 60 days from now. The prize desk must open before it.",
+    ar: "بين ساعة و60 يومًا من الآن.",
+    en: "Between 1 hour and 60 days from now.",
   },
   "results.revealTitle": { ar: "إعلان الفائزين؟", en: "Reveal the winners?" },
   "results.revealBody": {
@@ -3015,17 +2911,9 @@ export const MESSAGES = {
     ar: "اقبل الإجابات تلقائيًا",
     en: "Approve answers automatically",
   },
-  "quests.submission.autoApproveHint": {
-    ar: "تُضاف النقاط فورًا، ويستطيع الفريق إزالتها لاحقًا.",
-    en: "Points land at once; the team can remove them later.",
-  },
   "quests.submission.resubmit": {
     ar: "اسمح بإجابة جديدة بعد الرفض",
     en: "Allow a new answer after a rejection",
-  },
-  "quests.submission.textOnly": {
-    ar: "يرسل اللاعبون نصًا. إرسال الصور قريبًا.",
-    en: "Players send text. Photos are coming.",
   },
   "play.loadFailed": {
     ar: "تعذّر التحميل. حاول مرة أخرى.",
@@ -3234,14 +3122,6 @@ export const MESSAGES = {
     ar: "إظهار {questMany} التعارف للاعبين",
     en: "Show meet-someone {questMany} to players",
   },
-  "events.meetSomeone.on": {
-    ar: "مفعّل: يحصل اللاعبان على النقاط عند مسح أحدهما رمز الآخر.",
-    en: "Meet {questMany} show, and two players earn points when one scans the other's code.",
-  },
-  "events.meetSomeone.off": {
-    ar: "متوقف: يُخفى هذا النوع عن اللاعبين ولا يمنح نقاطًا.",
-    en: "Meet {questMany} are hidden from players and earn nothing.",
-  },
   "flags.method.meetScan": { ar: "تعارف (مسح الرمز)", en: "Meet (scanned)" },
   "flags.method.meetShown": { ar: "تعارف (عرض الرمز)", en: "Meet (shown)" },
   "play.share.message": {
@@ -3352,10 +3232,6 @@ export const MESSAGES = {
   "quests.poll.helper": {
     ar: "صوّتوا على الأفكار، لا على مظهر أحد.",
     en: "Vote on ideas, never on how someone looks.",
-  },
-  "quests.poll.window": {
-    ar: "يفتح التصويت المباشر عندما ترسله، ويُغلق بعد مدته.",
-    en: "A live poll opens when you send it and closes after its minutes.",
   },
   "quests.poll.sentLocked": {
     ar: "أُرسل التصويت، فلا يتغيّر عدد الاختيارات ولا المدة.",
@@ -3514,14 +3390,6 @@ export const MESSAGES = {
     ar: "إظهار الألعاب المصغّرة للاعبين",
     en: "Show mini-games to players",
   },
-  "events.miniGames.on": {
-    ar: "الألعاب المصغّرة ظاهرة، ويحصل اللاعب على النقاط عند أول نجاح.",
-    en: "Mini-games show, and a player earns the points on their first pass.",
-  },
-  "events.miniGames.off": {
-    ar: "الألعاب المصغّرة مخفية عن اللاعبين ولا تمنح نقاطًا.",
-    en: "Mini-games are hidden from players and earn nothing.",
-  },
   "flags.kind.minigame": {
     ar: "نتائج ألعاب مصغّرة ({count})",
     en: "Mini-game results ({count})",
@@ -3560,10 +3428,6 @@ export const MESSAGES = {
   "flags.game.count.lucky": { ar: "تطابقات محظوظة: {n}", en: "lucky {n}" },
   "flags.game.count.foreseen": { ar: "التقاط مبكر: {n}", en: "foreseen {n}" },
   "flags.game.count.quick": { ar: "نقرات سريعة: {n}", en: "quick {n}" },
-  "quests.game.quickNote": {
-    ar: "يتطلب الالتقاط والنقر السريع سرعة في الملاحظة واللمس؛ في فعالية ميسّرة للجميع اختر لعبة الذاكرة أو أحجية الصورة.",
-    en: "Catch and tap rush need quick sight and touch; for an accessible event, prefer memory match or slide puzzle.",
-  },
   "play.game.level": { ar: "المستوى: {level}", en: "Level: {level}" },
   "play.game.attemptsLeft": {
     ar: "المحاولات المتبقية: {left} من {total}",
@@ -3837,23 +3701,11 @@ export const MESSAGES = {
     en: "{paid} paid, {due} waiting, {skipped} skipped",
   },
   "community.page.preview": { ar: "معاينة الشريط", en: "Preview of the bar" },
-  "community.page.previewNote": {
-    ar: "هكذا يظهر الشريط للاعبين في البداية وعند أول محطة.",
-    en: "How players see the bar at the start and at the first milestone.",
-  },
   "community.page.invalid": { ar: "راجع الحقول: {fields}", en: "Check these fields: {fields}" },
   "events.community.title": { ar: "{questMany} للجميع", en: "Community {questMany}" },
   "events.community.label": {
     ar: "تشغيل {questMany} للجميع في الفعالية",
     en: "Run community {questMany} in the event",
-  },
-  "events.community.on": {
-    ar: "مفعّل: يعمل كل هدف في وقته ويظهر شريط تقدّمه للاعبين.",
-    en: "Community {questMany} run on time and their bar shows to players.",
-  },
-  "events.community.off": {
-    ar: "متوقف: تنتهي الأهداف الجارية والمجدولة الآن، وتُصرف مكافآت المحطات التي تحقّقت.",
-    en: "Community {questMany} are off: running and scheduled ones end now, and the steps already reached still pay.",
   },
   "events.community.offWarning": {
     ar: "إيقافها يُنهي الهدف الجاري والأهداف المجدولة، ويبقى ما كانت ستفتحه مقفلًا.",
@@ -3949,34 +3801,14 @@ export const MESSAGES = {
     ar: "تشغيل {questMany} بوقت محدود في الفعالية",
     en: "Run flash {questMany} in the event",
   },
-  "events.flashQuests.on": {
-    ar: "مفعّل: يظهر هذا النوع للاعبين في وقته المحدد.",
-    en: "Flash {questMany} show to players in their window.",
-  },
-  "events.flashQuests.off": {
-    ar: "متوقف: يُخفى هذا النوع الآن ولا يمكن إطلاقه.",
-    en: "Flash {questMany} are off: every one is hidden now and none can be launched.",
-  },
   "events.boosts.title": { ar: "النقاط المضاعفة", en: "Double points" },
   "events.boosts.label": {
     ar: "تشغيل النقاط المضاعفة في الفعالية",
     en: "Run double points in the event",
   },
-  "events.boosts.on": {
-    ar: "مفعّل: تضاعف كل مضاعفة نقاط {categoryOne} في وقتها.",
-    en: "Each boost doubles the points of one {categoryOne} in its window.",
-  },
-  "events.boosts.off": {
-    ar: "النقاط المضاعفة متوقفة: لا تتضاعف أي نقاط من الآن.",
-    en: "Double points are off: nothing is doubled from now on.",
-  },
   "quests.verification.nfc": {
     ar: "يلمس اللاعب بطاقة NFC ل{questOne}",
     en: "The player taps the {questOne}'s NFC tag",
-  },
-  "quests.verification.nfcHint": {
-    ar: "يبقى رمز QR مفعّلًا احتياطًا.",
-    en: "The QR stays on as a backup.",
   },
   "quests.action.tapNfc": { ar: "المس بطاقة NFC", en: "Tap the NFC tag" },
   "scanner.nfc.button": { ar: "المس بطاقة NFC", en: "Tap NFC tag" },
@@ -4547,14 +4379,6 @@ export const MESSAGES = {
     ar: "تشغيل المساعدة في الفعالية",
     en: "Run the help desk in the event",
   },
-  "events.helpDesk.on": {
-    ar: "المساعدة: يطرح اللاعبون أسئلتهم ويبلغون عن المشكلات، ويردّ عليها الفريق.",
-    en: "Help desk: players ask questions and report problems, and the team answers.",
-  },
-  "events.helpDesk.off": {
-    ar: "لا يرسل اللاعبون طلبات جديدة، ويمكن الرد على الطلبات المفتوحة، ويرى اللاعبون ردودهم.",
-    en: "Players can't send new requests. Open ones can still be answered, and players still see their answers.",
-  },
   // ---------------------------------------------------------------- the ticket center (T-312)
   "help.center.title": { ar: "كيف نساعدك؟", en: "How can we help?" },
   "help.type.report": { ar: "الإبلاغ عن {playerOne}", en: "Report a {playerOne}" },
@@ -4798,10 +4622,6 @@ export const MESSAGES = {
   "souvenir.promise": {
     ar: "بعد التفعيل، يثبت التذكار وشروطه. ما كسبه اللاعب يبقى له.",
     en: "Activation freezes this item and its rules. Earned items stay with their players.",
-  },
-  "souvenir.publicName": {
-    ar: "قد يظهر الاسم والشكل في الملف العام. مصدر الفعالية يظهر لصاحب التذكار فقط.",
-    en: "The name and design may appear publicly. The source event stays private to the owner.",
   },
   "souvenir.targets": {
     ar: "المطلوب من {questMany}: {count}",
@@ -5362,14 +5182,6 @@ export const MESSAGES = {
     ar: "تشغيل سلسلة الأيام في الفعالية",
     en: "Run a day streak in the event",
   },
-  "events.streak.on": {
-    ar: "السلسلة مفعّلة: يرى اللاعبون سلسلتهم.",
-    en: "The streak is on: players see their streak.",
-  },
-  "events.streak.off": {
-    ar: "السلسلة متوقفة: لا يرى اللاعبون أي سلسلة. تُسجَّل الأيام مع ذلك، فتظهر صحيحة إن شغّلتها.",
-    en: "The streak is off: players see no streak. Days are still recorded, so it shows true if you switch it on.",
-  },
   "events.streak.bonus": {
     ar: "المكافأة اليومية ({currency}، اختياري)",
     en: "Daily bonus ({currency}, optional)",
@@ -5677,8 +5489,8 @@ export const MESSAGES = {
     en: "Sponsor name in English (optional)",
   },
   "console.daily.sponsorHelp": {
-    ar: "يظهر الراعي سطرًا معلنًا على هذا التحدي فقط، بلا رابط ولا جوائز. املأ اللغتين أو اتركهما فارغتين.",
-    en: "A sponsor shows as a disclosed line on this challenge only, with no link and no prize. Fill both languages or leave both empty.",
+    ar: "املأ اللغتين أو اتركهما فارغتين.",
+    en: "Fill both languages or leave both empty.",
   },
   "console.daily.preview": { ar: "معاينة", en: "Preview" },
   "console.daily.rightAnswer": { ar: "الإجابة الصحيحة", en: "right answer" },
@@ -5789,11 +5601,10 @@ export const MESSAGES = {
   "console.words.next": { ar: "التالي", en: "Next" },
   "console.words.page": { ar: "صفحة {page} من {pages}", en: "Page {page} of {pages}" },
   "console.words.import": { ar: "استيراد كلمات", en: "Import words" },
-  "console.words.importHelp": {
-    ar: "كلمة في كل سطر، من 5 أحرف. تُقبل هذه الكلمات كتخمينات فقط، وتُضاف كلمة اليوم إلى القائمة تلقائيًا عند جدولتها.",
-    en: "One word per line, 5 letters. These words are accepted as guesses only; a daily word joins the list automatically when you schedule it.",
+  "console.words.importField": {
+    ar: "الكلمات (5 أحرف، كلمة في كل سطر)",
+    en: "Words (5 letters, one per line)",
   },
-  "console.words.importField": { ar: "الكلمات (كلمة في كل سطر)", en: "Words (one per line)" },
   "console.words.importFile": { ar: "أو حمّل ملفًا نصيًا", en: "Or load a text file" },
   "console.words.importReady": {
     ar: "عدد الأسطر الجاهزة للإرسال: {count}",
@@ -5920,10 +5731,6 @@ export const MESSAGES = {
     ar: "لا يُدفع شيء هنا. يتواصل معك فريق Questify بشأن السعر قبل اعتماد الطلب.",
     en: "Nothing is charged here: the Questify team contacts you about the price before approving.",
   },
-  "invCampaign.privacy": {
-    ar: "لا ترى سوى أعداد مقرّبة تتحدث مرة في اليوم، ولا ترى من دُعي.",
-    en: "You see only rounded counts, updated once a day, and never who was invited.",
-  },
   "invCampaign.off": { ar: "الدعوات غير متاحة بعد.", en: "Invitations aren't open yet." },
   "invCampaign.ownerOnly": {
     ar: "المالك وحده يطلب الدعوات أو يسحب الطلب.",
@@ -5955,10 +5762,6 @@ export const MESSAGES = {
   "invCampaign.field.city": { ar: "المدينة", en: "City" },
   "invCampaign.city.any": { ar: "أي مدينة", en: "Any city" },
   "invCampaign.field.interests": { ar: "الاهتمامات (حتى 3)", en: "Interests (up to 3)" },
-  "invCampaign.interests.hint": {
-    ar: "يُدعى من اختار منها واحدًا على الأقل.",
-    en: "Players who chose at least one of these are invited.",
-  },
   "invCampaign.field.history": { ar: "الفعاليات السابقة", en: "Past events" },
   "invCampaign.history.none": { ar: "أي لاعب", en: "Any player" },
   "invCampaign.history.recent": {
@@ -5970,10 +5773,7 @@ export const MESSAGES = {
     en: "Players who joined another of your events",
   },
   "invCampaign.field.size": { ar: "عدد الدعوات", en: "Number of invitations" },
-  "invCampaign.size.hint": {
-    ar: "من 50 إلى 100,000. إن طابق أقل من 50 لاعبًا فلن يُرسل شيء.",
-    en: "From 50 to 100,000. If fewer than 50 players match, nothing is sent.",
-  },
+  "invCampaign.size.hint": { ar: "من 50 إلى 100,000.", en: "From 50 to 100,000." },
   "invCampaign.invalid.size": {
     ar: "أدخل عددًا صحيحًا بين 50 و100,000.",
     en: "Enter a whole number from 50 to 100,000.",
@@ -6087,10 +5887,6 @@ export const MESSAGES = {
   },
   "console.invCampaign.title": { ar: "الدعوات", en: "Invitations" },
   "console.invCampaign.linkCount": { ar: "الدعوات ({count})", en: "Invitations ({count})" },
-  "console.invCampaign.intro": {
-    ar: "طلبات المنظّمين. اعتمد الطلب بتحديد القناة وحدّ الرسائل وموعد الإرسال، أو ارفضه مع ملاحظة.",
-    en: "Requests from organizers. Approve one with the channel, a message limit and a send time, or refuse it with a note.",
-  },
   "console.invCampaign.open": { ar: "طلبات مفتوحة", en: "Open requests" },
   "console.invCampaign.closed": { ar: "طلبات منتهية", en: "Closed requests" },
   "console.invCampaign.empty": { ar: "لا طلبات.", en: "No requests." },
@@ -6123,10 +5919,6 @@ export const MESSAGES = {
     en: "The text players will get",
   },
   "console.invCampaign.messages.approved": { ar: "النص المعتمد", en: "The approved text" },
-  "console.invCampaign.messages.hintOpen": {
-    ar: "رمز الرابط هنا للمعاينة فقط، ويصل كل لاعب برمزه. اقرأ النص كاملًا قبل الاعتماد.",
-    en: "The link's code is a placeholder; each player gets their own. Read the text in full before you approve.",
-  },
   "console.invCampaign.messages.hintFrozen": {
     ar: "هذا النص ثابت: تغيير اسم الفعالية لا يغيّره. رمز الرابط هنا للمعاينة فقط.",
     en: "This text is frozen: renaming the event changes nothing. The link's code is a placeholder.",
@@ -6263,10 +6055,6 @@ export const MESSAGES = {
     en: "You're invited to an event on Questify",
   },
   "invCampaignPage.open": { ar: "افتح في Questify", en: "Open in Questify" },
-  "invCampaignPage.openHint": {
-    ar: "ليس عندك التطبيق؟ تجد روابط تثبيته في الصفحة التالية.",
-    en: "No app yet? The next page has the links to install it.",
-  },
   "invCampaignPage.missing": {
     ar: "الرابط ناقص. افتح الرابط من الرسالة مرة أخرى.",
     en: "This link is incomplete. Open the link from your message again.",
@@ -6513,10 +6301,6 @@ export const MESSAGES = {
   "announcements.page.later": { ar: "في موعد محدد", en: "At a set time" },
   "announcements.page.sendAt": { ar: "الموعد", en: "Send at" },
   "announcements.page.preview": { ar: "المعاينة", en: "Preview" },
-  "announcements.page.previewNote": {
-    ar: "هكذا يظهر الإشعار وسطر المركز. يُقتطع النص فيهما بعد {max} حرفًا، ويظهر كاملًا في قائمة الإعلانات داخل التطبيق.",
-    en: "This is how the notification and the center line look. The text is cut after {max} characters there and shows in full in the app's list.",
-  },
   "announcements.page.previewAr": { ar: "بالعربية", en: "In Arabic" },
   "announcements.page.previewEn": { ar: "بالإنجليزية", en: "In English" },
   "announcements.page.audienceLive": {

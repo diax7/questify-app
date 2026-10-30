@@ -31,6 +31,7 @@ import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input, Select } from "#src/ui/Field.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type FieldProps = Readonly<{
   language: Language;
@@ -63,7 +64,7 @@ export function EventIdentityFields({ language, draft, disabled, change }: Field
   );
   return (
     <>
-      <FieldGroup layout="columns" help={t("events.field.nameHint")}>
+      <FieldGroup layout="columns">
         {text("nameAr", t("events.field.nameAr"), 120)}
         {text("nameEn", t("events.field.nameEn"), 120)}
       </FieldGroup>
@@ -132,7 +133,10 @@ function EventCityField({
     <FieldGroup layout="columns">
       <Field
         label={t("events.field.city")}
-        help={t(locked ? "events.city.locked" : "events.city.hint")}
+        help={locked ? t("events.city.locked") : undefined}
+        info={
+          locked ? undefined : <InfoTip label={t("common.info")}>{t("events.city.hint")}</InfoTip>
+        }
       >
         <Select
           value={draft.cityId ?? ""}
@@ -191,7 +195,8 @@ export function EventInterestsField({ language, draft, disabled, change }: Field
   return (
     <FieldGroup
       legend={t("events.field.interests")}
-      help={t(full ? "events.interests.full" : "events.interests.hint")}
+      help={full ? t("events.interests.full") : undefined}
+      info={<InfoTip label={t("common.info")}>{t("events.interests.hint")}</InfoTip>}
       layout="choiceGrid"
     >
       {interestChoices(interests, draft.interests).map((interest) => {
@@ -236,7 +241,7 @@ export function EventVenuePinFields({ language, draft, disabled, change }: Field
   return (
     <FieldGroup
       legend={t("events.venuePin.title")}
-      help={t("events.venuePin.help")}
+      info={<InfoTip label={t("common.info")}>{t("events.venuePin.help")}</InfoTip>}
       layout="columns"
     >
       <NumberField
@@ -313,11 +318,7 @@ export function EventTimeFields({
       />
     </Field>
   );
-  const timesHint = finished
-    ? t("events.endedHint")
-    : started
-      ? t("events.liveHint")
-      : t("events.field.timesHint");
+  const timesHint = finished ? t("events.endedHint") : started ? t("events.liveHint") : undefined;
   return (
     <>
       <FieldGroup layout="columns">
@@ -341,7 +342,10 @@ export function EventTimeFields({
         {time("endsAt", finished)}
       </FieldGroup>
       <FieldGroup layout="columns">
-        <Field label={t("events.field.dayStartHour")} help={t("events.field.dayStartHint")}>
+        <Field
+          label={t("events.field.dayStartHour")}
+          info={<InfoTip label={t("common.info")}>{t("events.field.dayStartHint")}</InfoTip>}
+        >
           <Input
             type="number"
             dir="ltr"

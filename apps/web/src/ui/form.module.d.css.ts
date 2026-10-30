@@ -4,6 +4,7 @@ declare const styles: {
   readonly choice: string;
   readonly choiceGrid: string;
   readonly choiceList: string;
+  readonly choiceRow: string;
   readonly choiceText: string;
   readonly codeInput: string;
   readonly columns: string;
@@ -16,6 +17,7 @@ declare const styles: {
   readonly help: string;
   readonly inline: string;
   readonly label: string;
+  readonly labelRow: string;
   readonly legend: string;
   readonly primary: string;
   readonly quiet: string;

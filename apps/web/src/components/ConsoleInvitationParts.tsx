@@ -119,13 +119,7 @@ export function Messages({ language, detail }: PartProps) {
             : "console.invCampaign.messages.toApprove",
         )}
       </SubHeading>
-      <Muted>
-        {t(
-          frozen
-            ? "console.invCampaign.messages.hintFrozen"
-            : "console.invCampaign.messages.hintOpen",
-        )}
-      </Muted>
+      {frozen ? <Muted>{t("console.invCampaign.messages.hintFrozen")}</Muted> : null}
       {shown.map((one) => (
         <div key={one} data-testid={`message-${one}`}>
           <Muted>

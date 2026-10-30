@@ -167,7 +167,6 @@ export function InviteFlow({
       ) : null}
       {signedInEmail === null && !invite.accountExists ? (
         <Form onSubmit={(event) => void join(event, token, invite)}>
-          <Muted>{t("staff.newAccountPassword")}</Muted>
           <input
             type="text"
             name="username"

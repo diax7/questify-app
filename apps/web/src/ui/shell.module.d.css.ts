@@ -8,7 +8,6 @@ declare const styles: {
   readonly desktopOnly: string;
   readonly group: string;
   readonly groupLabel: string;
-  readonly iconLabel: string;
   readonly item: string;
   readonly logo: string;
   readonly main: string;

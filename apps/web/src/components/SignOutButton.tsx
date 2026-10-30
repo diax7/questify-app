@@ -9,9 +9,8 @@ import { IconButton } from "#src/ui/IconControl.tsx";
 import styles from "#src/ui/shell.module.css";
 
 /**
- * Ends the session. An icon in the top bar, named and explained by a tooltip; in the phone menu the same button shows
- * its word as well (the shell's styles decide). A failure shows as a notice under the bar, so the dark bar never has to
- * hold a sentence.
+ * Ends the session. An icon in the top bar and in the phone menu, named and explained by a tooltip (ADR-370). A failure
+ * shows as a notice under the bar, so the dark bar never has to hold a sentence.
  */
 export function SignOutButton({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
@@ -42,9 +41,7 @@ export function SignOutButton({ language }: Readonly<{ language: Language }>) {
         label={t("staff.signOut")}
         onClick={() => void signOut()}
         disabled={busy}
-      >
-        <span className={styles.iconLabel}>{t("staff.signOut")}</span>
-      </IconButton>
+      />
       {problem === null ? null : (
         <div className={styles.signOutProblem}>
           <Notice tone="danger" role="alert">

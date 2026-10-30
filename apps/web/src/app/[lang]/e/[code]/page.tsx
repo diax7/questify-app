@@ -147,11 +147,7 @@ export default async function EventPage({ params }: Props) {
       ) : null}
       <Headline event={event} language={lang} />
       {event === undefined ? null : <Details event={event} language={lang} />}
-      <Section
-        title={t("eventPage.code")}
-        titleId="code-title"
-        description={t("eventPage.codeHint")}
-      >
+      <Section title={t("eventPage.code")} titleId="code-title">
         <CodeText dir="ltr">{upper}</CodeText>
       </Section>
       {result.kind === "found" ? (

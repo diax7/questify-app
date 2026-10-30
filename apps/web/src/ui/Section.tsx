@@ -10,6 +10,7 @@ export function Section({
   titleId,
   level = 2,
   description,
+  info,
   actions,
   tone,
   children,
@@ -18,6 +19,8 @@ export function Section({
   titleId?: string;
   level?: 2 | 3;
   description?: ReactNode;
+  /** An `InfoTip` beside the title, for a part that truly needs explaining (ADR-370). */
+  info?: ReactNode;
   actions?: ReactNode;
   tone?: "danger";
   children?: ReactNode;
@@ -32,9 +35,12 @@ export function Section({
     >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionText}>
-          <Heading id={id} className={level === 2 ? styles.sectionTitle : styles.subTitle}>
-            {title}
-          </Heading>
+          <div className={styles.titleRow}>
+            <Heading id={id} className={level === 2 ? styles.sectionTitle : styles.subTitle}>
+              {title}
+            </Heading>
+            {info}
+          </div>
           {description === undefined ? null : <p className={styles.muted}>{description}</p>}
         </div>
         {actions === undefined ? null : <div className={styles.toolbar}>{actions}</div>}

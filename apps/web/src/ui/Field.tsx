@@ -26,13 +26,17 @@ export function Field({
   id: fixedId,
   label,
   help,
+  info,
   error,
   children,
 }: Readonly<{
   /** A fixed id for the control, when other code finds it (to focus the field a refusal names). */
   id?: string;
   label: ReactNode;
+  /** A rule the user must meet, said once and briefly. A line that only repeats the label is cut instead. */
   help?: ReactNode;
+  /** An `InfoTip` beside the label, for a field that truly needs explaining (ADR-370). */
+  info?: ReactNode;
   error?: ReactNode;
   children: ReactNode;
 }>) {
@@ -43,15 +47,34 @@ export function Field({
   const describedBy = join(hasHelp && `${id}-help`, hasError && `${id}-error`) || undefined;
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
-        {label}
-      </label>
+      <FieldLabel id={id} label={label} info={info} />
       <FieldContext.Provider value={{ id, describedBy, invalid: hasError }}>
         {children}
       </FieldContext.Provider>
       <FieldNote id={`${id}-help`} className={styles.help} text={help} />
       <FieldNote id={`${id}-error`} className={styles.error} text={error} role="alert" />
     </div>
+  );
+}
+
+/** A field's label, with its info button beside it when it has one. */
+function FieldLabel({
+  id,
+  label,
+  info,
+}: Readonly<{ id: string; label: ReactNode; info: ReactNode }>) {
+  const text = (
+    <label className={styles.label} htmlFor={id}>
+      {label}
+    </label>
+  );
+  return present(info) ? (
+    <div className={styles.labelRow}>
+      {text}
+      {info}
+    </div>
+  ) : (
+    text
   );
 }
 
@@ -103,18 +126,19 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
 }
 
 type ChoiceProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> &
-  Readonly<{ label: ReactNode; help?: ReactNode }>;
+  Readonly<{ label: ReactNode; help?: ReactNode; info?: ReactNode }>;
 
 function Choice({
   type,
   look,
   label,
   help,
+  info,
   ...props
 }: ChoiceProps & Readonly<{ type: "checkbox" | "radio"; look: string }>) {
   const id = useId();
   const hasHelp = present(help);
-  return (
+  const choice = (
     <label className={join(styles.choice, look)}>
       <input type={type} {...(hasHelp ? { "aria-describedby": `${id}-help` } : {})} {...props} />
       <span className={styles.choiceText}>
@@ -126,6 +150,14 @@ function Choice({
         ) : null}
       </span>
     </label>
+  );
+  return present(info) ? (
+    <div className={styles.choiceRow}>
+      {choice}
+      {info}
+    </div>
+  ) : (
+    choice
   );
 }
 
@@ -149,12 +181,15 @@ export function Switch(props: ChoiceProps) {
 export function FieldGroup({
   legend,
   help,
+  info,
   layout = "stack",
   disabled,
   children,
 }: Readonly<{
   legend?: ReactNode;
   help?: ReactNode;
+  /** An `InfoTip` beside the legend (ADR-370). */
+  info?: ReactNode;
   layout?: "stack" | "columns" | "choices" | "choiceGrid";
   /** Disables every control inside at once (a form while it saves). */
   disabled?: boolean;
@@ -178,7 +213,12 @@ export function FieldGroup({
   }
   return (
     <fieldset className={styles.group} disabled={disabled}>
-      {legend === undefined ? null : <legend className={styles.legend}>{legend}</legend>}
+      {legend === undefined ? null : (
+        <legend className={styles.legend}>
+          {legend}
+          {info}
+        </legend>
+      )}
       {helpText}
       {body}
     </fieldset>

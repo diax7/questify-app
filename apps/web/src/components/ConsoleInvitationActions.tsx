@@ -18,9 +18,10 @@ import {
 import { riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Textarea } from "#src/ui/Field.tsx";
 import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 type FormProps = Readonly<{
   language: Language;
@@ -50,7 +51,11 @@ type ChannelProps = Readonly<{
 function ChannelChoices({ language, available, draft, busy, change }: ChannelProps) {
   const t = translatorFor(language);
   return (
-    <FieldGroup legend={t("console.invCampaign.field.channels")} layout="choices">
+    <FieldGroup
+      legend={t("console.invCampaign.field.channels")}
+      info={<InfoTip label={t("common.info")}>{t("console.invCampaign.channel.hint")}</InfoTip>}
+      layout="choices"
+    >
       {(["push", "sms"] as const).map((channel) => (
         <Checkbox
           key={channel}
@@ -60,7 +65,6 @@ function ChannelChoices({ language, available, draft, busy, change }: ChannelPro
           label={t(`console.invCampaign.channel.${channel}`)}
         />
       ))}
-      <Muted>{t("console.invCampaign.channel.hint")}</Muted>
     </FieldGroup>
   );
 }
@@ -120,7 +124,10 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
         disabled={busy}
         change={(cap) => change({ cap })}
       />
-      <Field label={t("console.invCampaign.field.sendAt")}>
+      <Field
+        label={t("console.invCampaign.field.sendAt")}
+        info={<InfoTip label={t("common.info")}>{t("console.invCampaign.sendAt.hint")}</InfoTip>}
+      >
         <Input
           type="datetime-local"
           dir="ltr"
@@ -131,7 +138,6 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
           onChange={(changed) => change({ sendAt: changed.target.value })}
         />
       </Field>
-      <Muted>{t("console.invCampaign.sendAt.hint")}</Muted>
       <Field label={t("console.invCampaign.field.note")}>
         <Textarea
           dir="auto"

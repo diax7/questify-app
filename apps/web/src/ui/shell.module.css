@@ -119,11 +119,6 @@
   display: none;
 }
 
-/* The word beside an icon-only control: shown only where there is room for it (the phone's menu sheet). */
-.iconLabel {
-  display: none;
-}
-
 .body {
   flex: 1;
   display: flex;
@@ -235,14 +230,6 @@
   inline-size: auto;
   justify-content: flex-start;
   gap: var(--space-sm);
-}
-
-.phoneOnly [data-tooltip]::after {
-  display: none;
-}
-
-.phoneOnly .iconLabel {
-  display: inline;
 }
 
 @media (max-width: 40rem) {

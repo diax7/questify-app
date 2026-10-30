@@ -70,7 +70,6 @@ export function AnnouncementPreview({
   return (
     <Card as="section" aria-label={t("announcements.page.preview")}>
       <SubHeading as="h2">{t("announcements.page.preview")}</SubHeading>
-      <Muted>{t("announcements.page.previewNote", { max: 140 })}</Muted>
       {checked.ok
         ? (["ar", "en"] as const).map((lang) => (
             <Card dir={lang === "ar" ? "rtl" : "ltr"} lang={lang} key={lang}>

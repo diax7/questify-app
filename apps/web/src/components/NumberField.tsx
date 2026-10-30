@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Field, Input } from "#src/ui/Field.tsx";
 
 /**
@@ -9,6 +10,7 @@ export function NumberField({
   value,
   invalid,
   help,
+  info,
   error,
   change,
   decimal = false,
@@ -19,13 +21,20 @@ export function NumberField({
   invalid: boolean;
   /** A line under the field saying what it takes; the error replaces it while the value is wrong. */
   help?: string;
+  /** An `InfoTip` beside the label, for a field that truly needs explaining (ADR-370). */
+  info?: ReactNode;
   error?: string;
   change: (text: string) => void;
   decimal?: boolean;
   disabled?: boolean;
 }>) {
   return (
-    <Field label={label} help={invalid ? undefined : help} error={invalid ? error : undefined}>
+    <Field
+      label={label}
+      help={invalid ? undefined : help}
+      info={info}
+      error={invalid ? error : undefined}
+    >
       <Input
         type="number"
         inputMode={decimal ? "decimal" : "numeric"}

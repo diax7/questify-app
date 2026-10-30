@@ -25,6 +25,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input } from "#src/ui/Field.tsx";
 import { Row, Rows, Section, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -168,7 +169,6 @@ function ReadOnly({
     .join(separator);
   return (
     <>
-      <Muted>{t(settings.enabled ? "events.streak.on" : "events.streak.off")}</Muted>
       <PreviewLine language={language} draft={draftOf(settings)} terms={terms} />
       {weekdays === "" ? null : (
         <Muted>
@@ -308,6 +308,7 @@ function OwnerForm({
       />
       <NumberField
         label={t("events.streak.bonus", { currency: termFor(terms.currency, language) })}
+        info={<InfoTip label={t("common.info")}>{t("events.streak.bonusHint")}</InfoTip>}
         value={draft.bonus}
         invalid={panel.invalidBonus}
         disabled={panel.busy}
@@ -316,10 +317,9 @@ function OwnerForm({
           panel.edit({ ...draft, bonus });
         }}
       />
-      <Muted>{t("events.streak.bonusHint")}</Muted>
       <FieldGroup
         legend={t("events.streak.weekdays")}
-        help={t("events.streak.weekdaysHint")}
+        info={<InfoTip label={t("common.info")}>{t("events.streak.weekdaysHint")}</InfoTip>}
         layout="choiceGrid"
       >
         {WEEKDAYS.map(({ day, label }) => (
@@ -387,9 +387,7 @@ function PanelBody({
   );
   return (
     <>
-      <Muted>{t("events.streak.intro")}</Muted>
       {body}
-      {myRole === "owner" ? null : <Muted>{t("events.ranking.ownerOnly")}</Muted>}
       {panel.saved ? (
         <Notice tone="success" role="status">
           {t("events.streak.saved")}
@@ -408,7 +406,11 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
   const t = useTranslator(language);
   const panel = useStreakPanel(language, organizerId, eventId);
   return (
-    <Section titleId="streak-title" title={t("events.streak.title")}>
+    <Section
+      titleId="streak-title"
+      title={t("events.streak.title")}
+      info={<InfoTip label={t("common.info")}>{t("events.streak.intro")}</InfoTip>}
+    >
       <PanelBody language={language} myRole={myRole} terms={terms} panel={panel} />
       {panel.problem === null ? null : (
         <Notice tone="danger" role="alert">

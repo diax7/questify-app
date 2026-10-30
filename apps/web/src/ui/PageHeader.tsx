@@ -9,6 +9,8 @@ type HeaderProps = Readonly<{
   focusable?: boolean;
   back?: Readonly<{ href: string; label: string }>;
   description?: ReactNode;
+  /** An `InfoTip` beside the title, for a page that truly needs explaining (ADR-370). */
+  info?: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
 }>;
@@ -33,6 +35,7 @@ function HeaderText({
   focusable = false,
   back,
   description,
+  info,
   meta,
 }: Omit<HeaderProps, "actions">) {
   return (
@@ -42,14 +45,17 @@ function HeaderText({
           {back.label}
         </AppLink>
       )}
-      <h1
-        id={titleId}
-        className={styles.title}
-        ref={titleRef}
-        {...(titleRef === undefined && !focusable ? {} : { tabIndex: -1 })}
-      >
-        {title}
-      </h1>
+      <div className={styles.titleRow}>
+        <h1
+          id={titleId}
+          className={styles.title}
+          ref={titleRef}
+          {...(titleRef === undefined && !focusable ? {} : { tabIndex: -1 })}
+        >
+          {title}
+        </h1>
+        {info}
+      </div>
       {description === undefined ? null : <p className={styles.description}>{description}</p>}
       {meta === undefined ? null : <div className={styles.meta}>{meta}</div>}
     </div>

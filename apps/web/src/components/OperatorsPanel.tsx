@@ -28,6 +28,7 @@ import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -129,7 +130,7 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
       <PageHeader
         titleId="operators-title"
         title={t("operators.title")}
-        description={t("operators.intro")}
+        info={<InfoTip label={t("common.info")}>{t("operators.intro")}</InfoTip>}
       />
       {myRole === "owner" ? (
         <NewInviteForm {...shared} sent={() => setNotice(t("operators.sent"))} />
@@ -242,7 +243,7 @@ function NewInviteForm({ language, busy, run, sent }: Shared & Readonly<{ sent: 
             />
           </Field>
         ) : (
-          <Field label={t("operators.label")} help={t("operators.labelHint")}>
+          <Field label={t("operators.label")}>
             <Input
               required
               maxLength={56}

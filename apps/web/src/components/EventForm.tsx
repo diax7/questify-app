@@ -357,7 +357,6 @@ function EventFacts({ language, event }: Readonly<{ language: Language; event: E
     <>
       <Badge tone={STATUS_TONE[status]}>{t(`events.status.${status}`)}</Badge>
       <span dir="ltr">{t("events.joinCode", { code: event.joinCode })}</span>
-      {status === "draft" ? <Muted as="span">{t("events.draftNote")}</Muted> : null}
     </>
   );
 }
@@ -386,7 +385,7 @@ function EventFeatures({
 }>) {
   const t = useTranslator(language);
   return (
-    <Section title={t("events.section.features")} description={t("events.section.featuresHint")}>
+    <Section title={t("events.section.features")}>
       <Rows as="div">
         <RankingSwitch
           language={language}

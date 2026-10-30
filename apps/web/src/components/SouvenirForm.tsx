@@ -163,14 +163,12 @@ export function SouvenirForm({
     >
       <FieldGroup disabled={busy}>
         <KindFields body={body} editing={editing} change={change} t={t} />
-        <Muted>{t("souvenir.publicName")}</Muted>
         <SouvenirPreview
           item={{ id: "preview", kind: body.kind, name: body.name, visualKey: body.visualKey }}
           language={language}
         />
         <AudienceFields body={body} change={change} t={t} categories={categories} />
         <Muted>{souvenirAudienceCopy(t, body)}</Muted>
-        <Muted>{t("souvenir.eligibility")}</Muted>
         {invalid ? (
           <Notice tone="danger" role="alert">
             {t("souvenir.invalid")}

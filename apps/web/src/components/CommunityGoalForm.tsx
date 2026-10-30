@@ -16,6 +16,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Meter, Muted } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Card, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 /** A quest or category the goal may count. */
 export type Choice = Readonly<{ id: string; name: string }>;
@@ -105,7 +106,7 @@ function UnlockFields({
           </option>
         ))}
       </Select>
-      <Muted as="span">{t("community.page.unlock.note")}</Muted>
+      <InfoTip label={t("common.info")}>{t("community.page.unlock.note")}</InfoTip>
     </>
   );
 }
@@ -359,7 +360,6 @@ function BarPreview({
   return (
     <FieldGroup>
       <strong>{t("community.page.preview")}</strong>
-      <Muted as="span">{t("community.page.previewNote")}</Muted>
       {previewFills(draft).map((fill) => (
         <Meter key={fill} share={fill} />
       ))}

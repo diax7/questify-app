@@ -21,6 +21,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
+import { InfoTip } from "#src/ui/InfoTip.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -356,7 +357,7 @@ export function QuestItemsPanel({ language, organizerId, eventId }: Props) {
     <Section
       title={t("questItems.title")}
       titleId="quest-items-title"
-      description={t("questItems.intro")}
+      info={<InfoTip label={t("common.info")}>{t("questItems.intro")}</InfoTip>}
     >
       {removing === null ? null : (
         <ConfirmDialog

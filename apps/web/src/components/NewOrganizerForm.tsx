@@ -45,7 +45,7 @@ export function NewOrganizerForm({ language }: Readonly<{ language: Language }>)
     <Card as="section" aria-labelledby="new-organizer-title">
       <Form onSubmit={(event) => void submit(event)}>
         <PageHeader titleId="new-organizer-title" title={t("staff.newOrganizer")} />
-        <Field label={t("staff.organizerName")} help={t("staff.organizerNameHint")}>
+        <Field label={t("staff.organizerName")}>
           <Input
             name="name"
             autoComplete="organization"

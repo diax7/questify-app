@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes } from "react";
 import { AppLink, type AppLinkProps } from "#src/ui/AppLink.tsx";
 import { Icon, type IconName } from "#src/ui/Icon.tsx";
 import styles from "#src/ui/icon.module.css";
@@ -9,8 +9,6 @@ type IconProps = Readonly<{
   label: string;
   /** Turns the icon around in a right-to-left page (a picture with a direction). */
   mirror?: boolean;
-  /** A visible word beside the icon, for a place that has room (a phone's menu sheet); the label still names it. */
-  children?: ReactNode;
 }>;
 
 /** A button that shows only an icon. Its `label` is both its accessible name and the tooltip on hover and focus. */
@@ -18,7 +16,6 @@ export function IconButton({
   icon,
   label,
   mirror,
-  children,
   type = "button",
   className,
   ...props
@@ -32,7 +29,6 @@ export function IconButton({
       className={[styles.control, className].filter(Boolean).join(" ")}
     >
       <Icon name={icon} mirror={mirror === true} />
-      {children}
     </button>
   );
 }
@@ -42,7 +38,6 @@ export function IconLink({
   icon,
   label,
   mirror,
-  children,
   className,
   ...props
 }: Omit<AppLinkProps, "children"> & IconProps) {
@@ -54,7 +49,6 @@ export function IconLink({
       className={[styles.control, className].filter(Boolean).join(" ")}
     >
       <Icon name={icon} mirror={mirror === true} />
-      {children}
     </AppLink>
   );
 }
