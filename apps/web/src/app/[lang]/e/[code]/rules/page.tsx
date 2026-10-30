@@ -36,7 +36,7 @@ export default async function RulesPage({ params }: Props) {
   const t = translatorFor(lang);
   const own = result.kind === "found" ? organizerTextIn(result.rules, lang) : null;
   return (
-    <AppShell language={lang} path={`/e/${upper}/rules`} signedIn={false} narrow>
+    <AppShell area="public" language={lang} path={`/e/${upper}/rules`} signedIn={false} narrow>
       <PageHeader
         title={t("rules.title")}
         back={{ href: `/${lang}/e/${upper}`, label: t("common.back") }}

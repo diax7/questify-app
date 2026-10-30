@@ -1,4 +1,3 @@
-import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { RewardsPanel } from "#src/components/RewardsPanel.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
@@ -8,16 +7,12 @@ type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eve
 export default async function RewardsPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
-  return (
-    <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}/rewards`}>
-      {page.kind === "member" ? (
-        <RewardsPanel
-          language={page.language}
-          organizerId={organizerId}
-          eventId={eventId}
-          role={page.membership.role}
-        />
-      ) : null}
-    </OrganizerShell>
-  );
+  return page.kind === "member" ? (
+    <RewardsPanel
+      language={page.language}
+      organizerId={organizerId}
+      eventId={eventId}
+      role={page.membership.role}
+    />
+  ) : null;
 }

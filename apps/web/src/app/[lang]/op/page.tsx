@@ -28,7 +28,7 @@ export default async function OperatorInvitePage({ params }: Props) {
   const t = translatorFor(lang);
   const { appStoreUrl, playStoreUrl } = webConfig();
   return (
-    <AppShell language={lang} path={null} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={lang} path={null} signedIn={false} narrow>
       <OtherLanguageLink language={lang} />
       <Card as="section" aria-labelledby="op-title">
         <PageHeader titleId="op-title" title={t("invitePage.title")} />

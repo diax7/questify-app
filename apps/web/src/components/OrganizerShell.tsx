@@ -6,17 +6,16 @@ import { AppShell } from "#src/ui/Shell.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
 
 /**
- * The frame of an organizer page: the dashboard shell with the organizer's navigation (and the event's pages inside an
- * event), or the error state when the API is down.
+ * The frame of the organizer pages: the dashboard shell with the organizer's navigation (and the event's pages inside
+ * an event), or the error state when the API is down. It sits in a layout, so it stays while the pages beside it change.
  */
 export function OrganizerShell({
   page,
-  path,
   children,
-}: Readonly<{ page: OrganizerPage; path: string; children: ReactNode }>) {
+}: Readonly<{ page: OrganizerPage; children: ReactNode }>) {
   if (page.kind === "unavailable") {
     return (
-      <AppShell language={page.language} path={path} signedIn>
+      <AppShell language={page.language} signedIn>
         <Notice tone="danger" role="alert">
           {translatorFor(page.language)("error.generic")}
         </Notice>
@@ -26,14 +25,12 @@ export function OrganizerShell({
   return (
     <AppShell
       language={page.language}
-      path={path}
       signedIn
       nav={
         <OrganizerNav
           language={page.language}
           organizerId={page.membership.organizerId}
           organizerName={page.membership.organizerName}
-          path={path}
         />
       }
     >

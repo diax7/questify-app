@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { ConsoleEvent } from "#src/components/ConsoleEvent.tsx";
-import { ConsoleShell } from "#src/components/ConsoleShell.tsx";
 import { isEventId } from "#src/lib/console.ts";
 import { consolePage } from "#src/lib/console-page.ts";
 
@@ -13,9 +12,5 @@ export default async function ConsoleEventPage({ params }: Props) {
   if (!isEventId(eventId)) {
     notFound();
   }
-  return (
-    <ConsoleShell page={page} path={`/console/events/${eventId}`}>
-      <ConsoleEvent language={page.language} eventId={eventId} />
-    </ConsoleShell>
-  );
+  return <ConsoleEvent language={page.language} eventId={eventId} />;
 }

@@ -1,6 +1,5 @@
 import { ActivationCard } from "#src/components/ActivationCard.tsx";
 import { EventForm } from "#src/components/EventForm.tsx";
-import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { QuestItemWarnings } from "#src/components/QuestItemWarnings.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
@@ -11,32 +10,24 @@ type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eve
 export default async function EventPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
-  return (
-    <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}`}>
-      {page.kind === "member" ? (
-        <EventForm
-          language={page.language}
-          organizerId={organizerId}
-          eventId={eventId}
-          myRole={page.membership.role}
-          intro={
-            <>
-              <QuestItemWarnings
-                language={page.language}
-                organizerId={organizerId}
-                eventId={eventId}
-              />
-              <ActivationCard
-                language={page.language}
-                organizerId={organizerId}
-                eventId={eventId}
-                myRole={page.membership.role}
-              />
-              <RehearsalCard language={page.language} organizerId={organizerId} eventId={eventId} />
-            </>
-          }
-        />
-      ) : null}
-    </OrganizerShell>
-  );
+  return page.kind === "member" ? (
+    <EventForm
+      language={page.language}
+      organizerId={organizerId}
+      eventId={eventId}
+      myRole={page.membership.role}
+      intro={
+        <>
+          <QuestItemWarnings language={page.language} organizerId={organizerId} eventId={eventId} />
+          <ActivationCard
+            language={page.language}
+            organizerId={organizerId}
+            eventId={eventId}
+            myRole={page.membership.role}
+          />
+          <RehearsalCard language={page.language} organizerId={organizerId} eventId={eventId} />
+        </>
+      }
+    />
+  ) : null;
 }

@@ -24,6 +24,7 @@ export default async function OptOutPage({ params, searchParams }: Props) {
   const t = translatorFor(lang);
   return (
     <AppShell
+      area="public"
       language={lang}
       path={token === null ? "/opt-out" : `/opt-out?t=${encodeURIComponent(token)}`}
       signedIn={false}

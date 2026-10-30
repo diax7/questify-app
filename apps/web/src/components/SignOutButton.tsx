@@ -5,11 +5,13 @@ import { useState } from "react";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
+import { IconButton } from "#src/ui/IconControl.tsx";
 import styles from "#src/ui/shell.module.css";
 
 /**
- * Ends the session. Its look comes from the shell (it sits in the top bar and the phone menu); a failure shows as a
- * notice under the bar, so the dark bar never has to hold a sentence.
+ * Ends the session. An icon in the top bar, named and explained by a tooltip; in the phone menu the same button shows
+ * its word as well (the shell's styles decide). A failure shows as a notice under the bar, so the dark bar never has to
+ * hold a sentence.
  */
 export function SignOutButton({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
@@ -34,9 +36,15 @@ export function SignOutButton({ language }: Readonly<{ language: Language }>) {
 
   return (
     <>
-      <button type="button" onClick={() => void signOut()} disabled={busy}>
-        {t("staff.signOut")}
-      </button>
+      <IconButton
+        icon="signOut"
+        mirror
+        label={t("staff.signOut")}
+        onClick={() => void signOut()}
+        disabled={busy}
+      >
+        <span className={styles.iconLabel}>{t("staff.signOut")}</span>
+      </IconButton>
       {problem === null ? null : (
         <div className={styles.signOutProblem}>
           <Notice tone="danger" role="alert">

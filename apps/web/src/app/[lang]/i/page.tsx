@@ -23,7 +23,7 @@ export default async function InvitationPage({ params }: Props) {
   }
   return (
     // No language switch: it would leave the page and lose the token of the link, which lives only in memory.
-    <AppShell language={lang} path={null} signedIn={false} narrow>
+    <AppShell area="public" language={lang} path={null} signedIn={false} narrow>
       <InvitationLanding language={lang} />
     </AppShell>
   );

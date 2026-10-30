@@ -1,30 +1,20 @@
-import { MESSAGES } from "@questify/shared";
+import { headers } from "next/headers";
+import { LANGUAGE_HEADER, isLanguage, translatorFor } from "#src/lib/language.ts";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card } from "#src/ui/Section.tsx";
 import { AppShell } from "#src/ui/Shell.tsx";
 
 /**
- * An unknown, draft or archived event's page (FR-103). A segment's not-found gets no params, so it cannot know the
- * page's language: it says it in both, each block in its own language and direction.
+ * An unknown, draft or archived event's page (FR-103). A segment's not-found gets no params, so it reads the page's
+ * language from the header the proxy sets on every page request.
  */
-export default function EventNotFound() {
-  const text = MESSAGES["eventPage.notAvailable"];
+export default async function EventNotFound() {
+  const requested = (await headers()).get(LANGUAGE_HEADER);
+  const language = isLanguage(requested) ? requested : "en";
   return (
-    <AppShell language="en" path={null} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={language} path={null} signedIn={false} narrow>
       <Card as="article">
-        <PageHeader
-          title={
-            <>
-              <span lang="ar" dir="rtl">
-                {text.ar}
-              </span>
-              <br />
-              <span lang="en" dir="ltr">
-                {text.en}
-              </span>
-            </>
-          }
-        />
+        <PageHeader title={translatorFor(language)("eventPage.notAvailable")} />
       </Card>
     </AppShell>
   );

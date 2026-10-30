@@ -1,10 +1,13 @@
 import type { MessageKey } from "@questify/shared";
+import type { IconName } from "#src/ui/Icon.tsx";
 
 /** The event page a navigation link opens: its path after the event's own, and its group in the menu. */
 export type EventPageLink = Readonly<{
   /** "" is the event's overview. */
   slug: string;
   group: "event" | "setup" | "during" | "review";
+  /** The icon beside the link. */
+  icon: IconName;
   /** The link's words; `players` and `help` and `invitations` have words of their own (an event term, a count). */
   label: MessageKey | "players" | "help" | "invitations";
 }>;
@@ -14,24 +17,24 @@ export type EventPageLink = Readonly<{
  * they watch while it runs, and what they review.
  */
 export const EVENT_PAGES: readonly EventPageLink[] = [
-  { slug: "", group: "event", label: "dashNav.overview" },
-  { slug: "quests", group: "setup", label: "quests.title" },
-  { slug: "rewards", group: "setup", label: "rewards.title" },
-  { slug: "prizes", group: "setup", label: "prizes.link" },
-  { slug: "community", group: "setup", label: "community.page.title" },
-  { slug: "boosts", group: "setup", label: "boosts.page.title" },
-  { slug: "souvenirs", group: "setup", label: "souvenir.title" },
-  { slug: "joining", group: "setup", label: "joining.title" },
-  { slug: "invitations", group: "setup", label: "invitations" },
-  { slug: "players", group: "during", label: "players" },
-  { slug: "operators", group: "during", label: "operators.link" },
-  { slug: "devices", group: "during", label: "devices.link" },
-  { slug: "big-screen", group: "during", label: "bigScreen.link" },
-  { slug: "announcements", group: "during", label: "announcements.page.title" },
-  { slug: "help", group: "during", label: "help" },
-  { slug: "submissions", group: "review", label: "submissions.link" },
-  { slug: "flags", group: "review", label: "flags.link" },
-  { slug: "awards", group: "review", label: "awards.link" },
+  { slug: "", icon: "overview", group: "event", label: "dashNav.overview" },
+  { slug: "quests", icon: "compass", group: "setup", label: "quests.title" },
+  { slug: "rewards", icon: "gift", group: "setup", label: "rewards.title" },
+  { slug: "prizes", icon: "trophy", group: "setup", label: "prizes.link" },
+  { slug: "community", icon: "heart", group: "setup", label: "community.page.title" },
+  { slug: "boosts", icon: "bolt", group: "setup", label: "boosts.page.title" },
+  { slug: "souvenirs", icon: "star", group: "setup", label: "souvenir.title" },
+  { slug: "joining", icon: "userPlus", group: "setup", label: "joining.title" },
+  { slug: "invitations", icon: "mail", group: "setup", label: "invitations" },
+  { slug: "players", icon: "users", group: "during", label: "players" },
+  { slug: "operators", icon: "shield", group: "during", label: "operators.link" },
+  { slug: "devices", icon: "phone", group: "during", label: "devices.link" },
+  { slug: "big-screen", icon: "screen", group: "during", label: "bigScreen.link" },
+  { slug: "announcements", icon: "megaphone", group: "during", label: "announcements.page.title" },
+  { slug: "help", icon: "help", group: "during", label: "help" },
+  { slug: "submissions", icon: "inbox", group: "review", label: "submissions.link" },
+  { slug: "flags", icon: "alert", group: "review", label: "flags.link" },
+  { slug: "awards", icon: "award", group: "review", label: "awards.link" },
 ];
 
 const EVENT_PATH = /^\/organizers\/[^/]+\/events\/([^/]+)(?:\/([^/]+))?/;

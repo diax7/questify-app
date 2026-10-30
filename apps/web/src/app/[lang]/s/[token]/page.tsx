@@ -26,7 +26,7 @@ export default async function ScreenCodePage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <AppShell language={lang} path={`/s/${token}`} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={lang} path={`/s/${token}`} signedIn={false} narrow>
       <Card as="section" aria-labelledby="screen-code-title">
         <PageHeader titleId="screen-code-title" title={t("screen.landing.title")} />
         <p>{t("screen.landing")}</p>

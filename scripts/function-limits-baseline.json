@@ -1103,7 +1103,7 @@
     },
     "QuestRow": {
       "complexity": [17],
-      "lines": [133]
+      "lines": [126]
     }
   },
   "apps/web/src/components/QuestForm.tsx": {
@@ -1283,11 +1283,6 @@
   "apps/web/src/lib/surveys.ts": {
     "<anonymous>": {
       "complexity": [11]
-    }
-  },
-  "apps/web/src/proxy.ts": {
-    "proxy": {
-      "complexity": [9]
     }
   },
   "packages/shared/src/config/compose.ts": {

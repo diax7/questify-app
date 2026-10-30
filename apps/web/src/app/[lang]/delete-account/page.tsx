@@ -14,7 +14,7 @@ export default async function DeleteAccountPage({
     notFound();
   }
   return (
-    <AppShell language={lang} path="/delete-account" signedIn={false} narrow>
+    <AppShell area="public" language={lang} path="/delete-account" signedIn={false} narrow>
       <DeleteAccountForm language={lang} />
     </AppShell>
   );

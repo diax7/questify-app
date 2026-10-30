@@ -48,9 +48,21 @@ const body = localFont({
 
 type Props = Readonly<{ children: ReactNode; params: Promise<{ lang: string }> }>;
 
+/** The tab icons are the brand's app icon, shipped in `public/brand` (T-599c). */
+const ICONS: Metadata["icons"] = {
+  icon: [
+    { url: "/favicon.ico", sizes: "48x48" },
+    { url: "/brand/icon-192.png", type: "image/png", sizes: "192x192" },
+  ],
+  apple: "/brand/apple-touch-icon.png",
+};
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang } = await params;
-  return { title: isLanguage(lang) ? translatorFor(lang)("staff.dashboard") : "Questify" };
+  return {
+    title: isLanguage(lang) ? translatorFor(lang)("staff.dashboard") : "Questify",
+    icons: ICONS,
+  };
 }
 
 /** The root of every page: the language and its direction are on `<html>` from the first byte (FR-1506). */

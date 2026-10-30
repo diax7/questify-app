@@ -36,7 +36,7 @@ export default async function LegalPage({ params }: Props) {
   );
   const blocks = legalBlocks(await readFile(file, "utf8"), lang);
   return (
-    <AppShell language={lang} path={`/legal/${known.id}`} signedIn={false} narrow>
+    <AppShell area="public" language={lang} path={`/legal/${known.id}`} signedIn={false} narrow>
       <Stack as="section" aria-label={known.id}>
         <Muted>v{known.version}</Muted>
         {blocks.map((block, index) => {

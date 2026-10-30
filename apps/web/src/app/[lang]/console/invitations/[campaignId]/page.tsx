@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { ConsoleInvitation } from "#src/components/ConsoleInvitation.tsx";
-import { ConsoleShell } from "#src/components/ConsoleShell.tsx";
 import { consolePage } from "#src/lib/console-page.ts";
 import { isCampaignId } from "#src/lib/console-invitations.ts";
 
@@ -13,9 +12,5 @@ export default async function ConsoleInvitationPage({ params }: Props) {
   if (!isCampaignId(campaignId)) {
     notFound();
   }
-  return (
-    <ConsoleShell page={page} path={`/console/invitations/${campaignId}`}>
-      <ConsoleInvitation key={campaignId} language={page.language} campaignId={campaignId} />
-    </ConsoleShell>
-  );
+  return <ConsoleInvitation key={campaignId} language={page.language} campaignId={campaignId} />;
 }

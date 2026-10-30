@@ -1,5 +1,4 @@
 import { CodesPanel } from "#src/components/CodesPanel.tsx";
-import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eventId: string }> }>;
@@ -8,11 +7,7 @@ type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eve
 export default async function CodesPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
-  return (
-    <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}/codes`}>
-      {page.kind === "member" ? (
-        <CodesPanel language={page.language} organizerId={organizerId} eventId={eventId} />
-      ) : null}
-    </OrganizerShell>
-  );
+  return page.kind === "member" ? (
+    <CodesPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+  ) : null;
 }

@@ -5527,3 +5527,39 @@ new dependency: the contrast reader is a small function in `apps/web/e2e/layout.
 **Why:** the rules are checked on every page by one spec, not by review of each page.
 **Trade-offs:** a section inside a section loses its own frame (its title still marks it); the contrast reader skips text over an
 image (the dashboard has none) and disabled controls, as the guidelines do.
+
+## ADR-368 - T-599c logo, icons, a shell that stays, and the browser-test budget
+
+**Status:** Proposed (developer, from Dhia's wireframe review, 2026-10-30; Q-336).
+**Context:** Dhia asked for the photos to be fixed first, then the logo in the top bar, icons in the menu, language and Sign out as
+icons, and navigation that does not feel like opening a new website. **Photos:** no `<img>` or background image on a dashboard, console
+or public page fails to load: every picture the pages name (`/avatars`, `/currency`, `/souvenirs`) is in `apps/web/public`, tracked
+by git, copied into the Docker image, and answers 200 on the staging address; the layout check, which now fails on an image with no
+picture, passed on all 47 pages then listed, in both languages, before any change. What did fail on every page was `/favicon.ico` (404: the site had
+no icon), and the event link's share image names an address that is not live yet (ADR-113's `questify.sa`). The dashboard shows almost
+no pictures, so what Dhia saw is most likely the missing tab icon or a page that was not yet moved; he is asked to say if a picture is
+still wrong (Q-336).
+**Decision:** (1) **Logo.** The English wordmark of the brand deck (`docs/design/assets/logo/logo-wordmark-en.png`, which is not in git),
+cropped to its edges and resized to 365 by 96, is `apps/web/public/brand/questify-wordmark.png` and replaces the name text in the top
+bar, at 32px high. Beside it a signed-in dashboard page says "Dashboard" and a console page "Console" (hidden under 40rem); a player's
+page says nothing. The brand's app icon, resized, is the tab icon (`favicon.ico`, `icon-192.png`, `apple-touch-icon.png`). No art was
+made. The Arabic pages show the English wordmark until the deck has an Arabic one. (2) **Icons.** One line-drawn set of inline SVGs in
+`ui/Icon.tsx` (no dependency), in the text colour; every navigation item has one, and the language switch (a globe, named "Switch to
+{language}") and Sign out are `IconLink` and `IconButton` whose label is their accessible name and a CSS tooltip on hover and keyboard
+focus; in the phone's menu sheet Sign out shows its word too. (3) **Navigation.** Every link to a page of the app is `AppLink` (Next's
+`Link`, with no prefetch: every page reads the session and the API on the server, and a prefetched language link would change the saved
+language). The shell moved out of each page into layouts so it stays while the page changes: `console/layout.tsx`, `organizers/{id}/
+(workspace)/layout.tsx` (events, new event, team) and `events/{eventId}/layout.tsx` (which already read the event's words), each with a
+`loading.tsx` that draws a page-shaped skeleton in the shell's content area. The navigation reads the open page from the address
+(`usePathname`), the language switch follows the address, and a page change closes the phone's menu sheet. `currentStaff` is cached per
+request, so a layout and its page share one `/me`. A segment's not-found reads its language from an `x-language` request header the
+proxy sets. (4) **Public pages** say "Questify" and no area name (`area="public"`); `/q`, `/s`, `/t`, the event rules page and the event
+not-found are in the layout check. (5) **The layout check** also fails on a picture that does not load, on text over an image or a
+gradient and on text in a colour it cannot read, and reads a hovered or focused state at once with motion turned off, and the page's
+requests with a 150ms quiet window, instead of fixed waits: a pass over a page now takes about 40% of the time (the check had grown to 4
+minutes a project, which with a 2-core runner cost the whole 12-minute browser step of run 40993429874).
+**Why:** a plain anchor reloads the document, the fonts and the shell, which is what made moving around feel like a new website; a
+layout keeps the shell on screen while only the content changes; the icon set needs no package for 26 shapes.
+**Trade-offs:** moving from the events list to an event swaps one shell for another (the same look); a link is not prefetched, so the
+skeleton shows after one round trip; the Arabic pages carry an English wordmark; a page must still check the session itself, since a layout
+does not run again when only the page changes.

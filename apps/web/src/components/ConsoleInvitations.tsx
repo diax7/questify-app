@@ -154,7 +154,7 @@ export function ConsoleInvitationsLink({
     };
   }, [current]);
   return (
-    <NavItem href={`/${language}/console/invitations`} current={current}>
+    <NavItem href={`/${language}/console/invitations`} icon="mail" current={current}>
       {waiting === 0
         ? t("console.invCampaign.title")
         : t("console.invCampaign.linkCount", { count: waiting })}

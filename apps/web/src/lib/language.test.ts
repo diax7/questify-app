@@ -6,6 +6,7 @@ import {
   languageCookie,
   negotiateLanguage,
   otherLanguage,
+  pathAfterLanguage,
   translatorFor,
 } from "#src/lib/language.ts";
 
@@ -44,6 +45,13 @@ describe("language helpers", () => {
     expect(otherLanguage("en")).toBe("ar");
     expect(directionOf("ar")).toBe("rtl");
     expect(directionOf("en")).toBe("ltr");
+  });
+
+  it("takes the language off an address and leaves the rest as it is", () => {
+    expect(pathAfterLanguage("/en/console/tickets")).toBe("/console/tickets");
+    expect(pathAfterLanguage("/ar/organizers/o1/events")).toBe("/organizers/o1/events");
+    expect(pathAfterLanguage("/en")).toBe("");
+    expect(pathAfterLanguage("/english/page")).toBe("/english/page");
   });
 
   it("remembers the language for a year, site-wide, secure, readable by the page", () => {

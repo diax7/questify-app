@@ -1,6 +1,5 @@
 import { ExclusionsPanel } from "#src/components/ExclusionsPanel.tsx";
 import { JoinRequestsPanel } from "#src/components/JoinRequestsPanel.tsx";
-import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { PlayersPanel } from "#src/components/PlayersPanel.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
@@ -10,30 +9,22 @@ type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eve
 export default async function PlayersPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
-  return (
-    <OrganizerShell page={page} path={`/organizers/${organizerId}/events/${eventId}/players`}>
-      {page.kind === "member" ? (
-        <>
-          <PlayersPanel
-            language={page.language}
-            organizerId={organizerId}
-            eventId={eventId}
-            myRole={page.membership.role}
-          >
-            <JoinRequestsPanel
-              language={page.language}
-              organizerId={organizerId}
-              eventId={eventId}
-            />
-          </PlayersPanel>
-          <ExclusionsPanel
-            language={page.language}
-            organizerId={organizerId}
-            eventId={eventId}
-            myRole={page.membership.role}
-          />
-        </>
-      ) : null}
-    </OrganizerShell>
-  );
+  return page.kind === "member" ? (
+    <>
+      <PlayersPanel
+        language={page.language}
+        organizerId={organizerId}
+        eventId={eventId}
+        myRole={page.membership.role}
+      >
+        <JoinRequestsPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+      </PlayersPanel>
+      <ExclusionsPanel
+        language={page.language}
+        organizerId={organizerId}
+        eventId={eventId}
+        myRole={page.membership.role}
+      />
+    </>
+  ) : null;
 }

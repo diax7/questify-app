@@ -49,7 +49,7 @@ test("a code scanned by a phone camera lands on a page that says to use the app,
     page.getByRole("heading", { name: "امسح هذا الرمز من تطبيق Questify" }),
   ).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
-  await page.getByRole("link", { name: "English" }).click();
+  await page.getByRole("link", { name: "التبديل إلى English" }).click();
   await expect(
     page.getByRole("heading", { name: "Scan this code in the Questify app" }),
   ).toBeVisible();

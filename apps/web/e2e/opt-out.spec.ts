@@ -48,7 +48,7 @@ test("the opt-out page reads right to left in Arabic and keeps the link when the
     page.getByRole("heading", { name: "إيقاف الرسائل الترويجية", level: 1 }),
   ).toBeVisible();
   await expect(page.getByText("عبر البريد الإلكتروني")).toBeVisible();
-  await expect(page.getByRole("link", { name: "English" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "التبديل إلى English" })).toHaveAttribute(
     "href",
     `/en/opt-out?t=${token}`,
   );

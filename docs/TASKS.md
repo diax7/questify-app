@@ -1104,7 +1104,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     another line or a control. Screenshots: `docs/evidence/2026-10-30-t599b/after/`.
     **Owed:** a vote, quiz and survey quest form each deserve a page entry of their own; the layout check reads `/{lang}/e/{code}` and
     the other public pages once each; icons, header icons, smooth navigation, photos and the logo are T-599c.
-- [ ] **T-599c** Dashboard polish from Dhia's wireframe review: photos, logo, icons, smooth navigation; depends on: T-599b
+- [x] **T-599c** Dashboard polish from Dhia's wireframe review: photos, logo, icons, smooth navigation; depends on: T-599b
   - Why: Dhia, 2026-10-30 (INBOX): broken photos on some pages; the menu needs icons; language and sign-out should be
     icons; moving between pages feels "like it is opening a new website".
   - Scope, in order: (1) find and fix every broken image on the dashboard, console and public pages; (2) only then the
@@ -1113,6 +1113,23 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     languages; (5) page changes stay in the app (Next `Link`, no full reload) with a `loading` state per route group.
   - Done when: the layout check also fails on a broken image (`naturalWidth` 0) on every listed page; no internal
     dashboard link does a full document load (a browser test proves it); the layout check passes; screenshots attached.
+  - Done 2026-10-30 (tier B; code review owed), ADR-368 and Q-336 Proposed. **Photos:** no picture on a dashboard, console or public page was
+    broken: the 12 pictures the pages name load locally and on staging, and the layout check, with its new broken-image test, passed on
+    every page before any change; the only image request that failed on every page was `/favicon.ico` (the site had no icon), now the brand's
+    app icon, and the event link's share image names `questify.sa`, which is not live (ADR-113). **Then:** the wordmark of the brand deck
+    (cropped and resized, no new art) replaces the name in the top bar with "Dashboard" or "Console" beside it (none on a player's page);
+    one inline icon set (`ui/Icon.tsx`, 26 shapes, no dependency) gives every navigation item an icon; the language switch and Sign out are
+    icon buttons named and explained by a tooltip in both languages; every link is `AppLink` (Next `Link`, no prefetch) and the shell moved
+    into layouts (`console`, the organizer's `(workspace)` route group, the event's layout) with a `loading.tsx` each, so the top bar and the
+    navigation stay while the page changes. Follow-ups cleared: public pages (`/q`, `/s`, `/t`, the event rules and not-found) in the layout
+    check, the not-found in the address's language (`x-language` header), "Questify" on player pages, and unparseable ink, text over an image
+    or a gradient and a broken picture fail the layout check. **Browser budget (coordinator's request):** run 40993429874 timed out because
+    the T-599b layout check had grown to 5.7 minutes (fixed 160ms waits per hovered or focused state, a fixed 500ms of `networkidle` per page;
+    desktop 4.1, phone 1.6); it now waits by event (3.1 minutes: desktop 1.7, phone 1.4; 90 s and 53 s inside the full run); the full suite
+    (230 specs, CI=1) takes 16.4 minutes locally, so the CI step is raised from 12 to 18 minutes and the job from 25 to 35. The intermittent
+    "event words not read ... answered 500" is not a stall (no time cost; seen in 2 of 8 local layout runs, none with the API logger on):
+    `E2E_API_LOG=1` prints the API's unexpected errors in a browser run, to catch it. Screenshots: `docs/evidence/2026-10-30-t599c/` (`before/`
+    desktop, `after/` desktop and phone). Local: vitest full, tsc, oxlint, format and limits clean; browser suite 230 passed.
 - [x] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community and poll scenes (the photo wall is T-504b) — delivers FR 630, 631, 632, 633, 634, 1612, 1613; depends on: T-309, T-106
   - Plan 2026-10-30 (tier B): `docs/plans/2026-10-30-t-504-big-screen.md`, migration 0083, ADR-365 and Q-333 Proposed. Split (ADR-365): the photo wall (FR-635, FR-636, FR-637) moves to T-504b, since there are no photos until T-301b.
   - Done 2026-10-30 (tier B; code review owed), not yet run on a TV. Migration 0083: `big_screen` (the picked scenes in order, RLS forced, no grant; no row means all three), `event_big_screen` and `set_big_screen` (the team, audited `big_screen.update`, the ranking not offered while it is off, refused while the `bigScreen` add-on is not active), and the screen's own doors `screen_ranking` (the rank push's `rank_top_ten_ids`: the board's rule and order from PostgreSQL), `screen_community` (the cached progress and the milestones, no reward) and `screen_poll` (the newest sent poll in a public category, results by the poll's policy; the number of voters only for `never`, FR-1613), each taking no argument and reading only the calling device's event; `device_view` carries `scenes` and the screen's `feature_off`. API `src/screen`: `GET /v1/device/screen/:scene` (device of kind screen only, 40 a minute, one shared 2-second answer per event and scene), `GET` and `PUT …/events/{eventId}/big-screen`. Web: `/{lang}/screen` shows the scenes (rotating every 15 seconds, an empty scene skipped, the open scene read every 3 seconds, no server-sent stream), the dashboard's Big screen page (tick, order, save), `PairedPlaceholder` removed. Tests: 29 database, 13 route, scene reader and web units, the security suites, browser `big-screen.spec.ts` (desktop and phone). **Owed:** the photo wall (T-504b); a today's-ranking scene (T-216 note) if asked; Dhia: a look on a real TV.

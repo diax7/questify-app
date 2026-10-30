@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AppLink } from "#src/ui/AppLink.tsx";
 import styles from "#src/ui/surface.module.css";
 
 export type TabItem = Readonly<{
@@ -37,14 +38,14 @@ export function Tabs({
             {item.label}
           </button>
         ) : (
-          <a
+          <AppLink
             key={item.key}
             className={styles.tab}
             href={item.href}
             {...(item.current ? { "aria-current": "page" as const } : {})}
           >
             {item.label}
-          </a>
+          </AppLink>
         ),
       )}
     </Container>

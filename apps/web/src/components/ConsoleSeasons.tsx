@@ -179,7 +179,7 @@ export function ConsoleSeasonsLink({
 }: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   return (
-    <NavItem href={`/${language}/console/seasons`} current={current}>
+    <NavItem href={`/${language}/console/seasons`} icon="sun" current={current}>
       {t("console.seasons.title")}
     </NavItem>
   );

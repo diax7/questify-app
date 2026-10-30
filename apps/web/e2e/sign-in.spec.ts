@@ -72,7 +72,7 @@ test("in English: a wrong password, a wrong code with attempts left, then in, an
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.getByText(`Signed in as`)).toContainText(email);
 
-  await page.getByRole("link", { name: "العربية" }).click();
+  await page.getByRole("link", { name: "Switch to العربية" }).click();
   await expect(page).toHaveURL(/\/ar$/);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByText("Najd Events")).toBeVisible();

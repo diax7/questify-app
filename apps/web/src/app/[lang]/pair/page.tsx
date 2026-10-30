@@ -24,7 +24,7 @@ export default async function PairPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <AppShell language={lang} path={"/pair"} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={lang} path={"/pair"} signedIn={false} narrow>
       <Card as="section" aria-labelledby="pair-title">
         <PageHeader titleId="pair-title" title={t("pair.landing.title")} />
         <p>{t("pair.landing")}</p>

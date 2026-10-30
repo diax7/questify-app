@@ -17,7 +17,7 @@ export default async function ContactPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <AppShell language={lang} path="/contact" signedIn={false} narrow>
+    <AppShell area="public" language={lang} path="/contact" signedIn={false} narrow>
       <Card as="article">
         <PageHeader title={t("contact.title")} />
         <p>{t("contact.pending")}</p>

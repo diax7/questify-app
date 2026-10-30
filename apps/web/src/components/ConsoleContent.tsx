@@ -170,7 +170,7 @@ export function ConsoleContentLink({
     };
   }, [current]);
   return (
-    <NavItem href={`/${language}/console/content`} current={current}>
+    <NavItem href={`/${language}/console/content`} icon="file" current={current}>
       {t("console.content.title")}
       {warn ? (
         <span data-testid="content-badge">

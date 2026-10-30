@@ -1,4 +1,5 @@
-import type { AnchorHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { AppLink, type AppLinkProps } from "#src/ui/AppLink.tsx";
 import styles from "#src/ui/surface.module.css";
 
 /** A link in running text or a list; `strong` for the name that opens an item (an event in the list). */
@@ -6,9 +7,9 @@ export function TextLink({
   strong = false,
   className,
   ...props
-}: AnchorHTMLAttributes<HTMLAnchorElement> & Readonly<{ strong?: boolean }>) {
+}: AppLinkProps & Readonly<{ strong?: boolean }>) {
   return (
-    <a
+    <AppLink
       {...props}
       className={[styles.link, strong ? styles.linkStrong : "", className]
         .filter(Boolean)

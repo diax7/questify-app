@@ -134,7 +134,7 @@ export default async function EventPage({ params }: Props) {
   const { appStoreUrl, playStoreUrl } = webConfig();
   const event = result.kind === "found" ? result.event : undefined;
   return (
-    <AppShell language={lang} path={`/e/${upper}`} signedIn={false} narrow>
+    <AppShell area="public" language={lang} path={`/e/${upper}`} signedIn={false} narrow>
       {result.kind === "throttled" ? (
         <Notice tone="danger" role="alert">
           {t("eventPage.throttled")}

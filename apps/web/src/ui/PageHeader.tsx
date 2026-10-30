@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from "react";
+import { AppLink } from "#src/ui/AppLink.tsx";
 import styles from "#src/ui/surface.module.css";
 
 type HeaderProps = Readonly<{
@@ -37,9 +38,9 @@ function HeaderText({
   return (
     <div className={styles.headerText}>
       {back === undefined ? null : (
-        <a className={styles.back} href={back.href}>
+        <AppLink className={styles.back} href={back.href}>
           {back.label}
-        </a>
+        </AppLink>
       )}
       <h1
         id={titleId}

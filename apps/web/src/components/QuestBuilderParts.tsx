@@ -221,6 +221,7 @@ function QuestRow({
 }>) {
   const t = useTranslator(language);
   const live = isLivePoll(quest.type, quest.config);
+  const printHref = actions.codeLink(quest);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
     iso === null || live ? null : (
       <Muted as="span">
@@ -289,38 +290,26 @@ function QuestRow({
             apply={(order) => actions.reorderQuests(category, order)}
           />
           {live ? null : (
-            <Button
-              variant="quiet"
-
-              disabled={busy}
-              onClick={() => actions.toggle(quest)}
-            >
+            <Button variant="quiet" disabled={busy} onClick={() => actions.toggle(quest)}>
               {quest.visible ? t("quests.hide") : t("quests.show")}
             </Button>
           )}
           <Button
             variant="quiet"
-
             disabled={busy}
             aria-pressed={pinned}
             onClick={() => actions.pin(quest)}
           >
             {t("quests.pin")}
           </Button>
-          <Button
-            variant="quiet"
-
-            disabled={busy}
-            onClick={() => actions.edit(quest)}
-          >
+          <Button variant="quiet" disabled={busy} onClick={() => actions.edit(quest)}>
             {t("quests.edit")}
           </Button>
-          {actions.codeLink(quest) === undefined ? null : (
-            <TextLink href={actions.codeLink(quest)}>{t("codes.printQr")}</TextLink>
+          {printHref === undefined ? null : (
+            <TextLink href={printHref}>{t("codes.printQr")}</TextLink>
           )}
           <Button
             variant="quiet"
-
             disabled={busy}
             onClick={() => actions.remove({ kind: "quest", quest })}
           >

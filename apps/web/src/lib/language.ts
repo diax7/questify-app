@@ -14,8 +14,16 @@ export const LANGUAGE_COOKIE = "qs_lang";
 
 export const LANGUAGE_NAMES: Readonly<Record<Language, string>> = { ar: "العربية", en: "English" };
 
+/** The request header the proxy sets to the address's language, for the pages that are given no route params. */
+export const LANGUAGE_HEADER = "x-language";
+
 export function isLanguage(value: unknown): value is Language {
   return value === "ar" || value === "en";
+}
+
+/** An address without its language: `/en/console/tickets` is `/console/tickets`, `/en` is the empty string. */
+export function pathAfterLanguage(pathname: string): string {
+  return pathname.replace(/^\/(?:ar|en)(?=\/|$)/, "");
 }
 
 export function otherLanguage(language: Language): Language {

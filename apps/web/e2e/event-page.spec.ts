@@ -59,11 +59,21 @@ test("gives a link-preview bot the tags in the page's head, without JavaScript (
   expect(head).toMatch(/<meta property="og:image" content="https:\/\/questify\.sa\/[^"]+"/);
 });
 
-test("says an unknown or malformed code is not available, in both languages", async ({ page }) => {
-  for (const path of ["/ar/e/NOPE99", "/en/e/has-dash", "/en/e/AB"]) {
+test("says an unknown or malformed code is not available, in the language of the address", async ({
+  page,
+}) => {
+  const shown = { ar: "هذه الفعالية غير متاحة.", en: "This event is not available." } as const;
+  const cases = [
+    ["/ar/e/NOPE99", "ar", "en"],
+    ["/en/e/has-dash", "en", "ar"],
+    ["/en/e/AB", "en", "ar"],
+    ["/ar/e/AB", "ar", "en"],
+  ] as const;
+  for (const [path, language, other] of cases) {
     const answer = await page.goto(path);
     expect(answer?.status(), path).toBe(404);
-    await expect(page.getByText("هذه الفعالية غير متاحة.")).toBeVisible();
-    await expect(page.getByText("This event is not available.")).toBeVisible();
+    await expect(page.getByText(shown[language])).toBeVisible();
+    await expect(page.getByText(shown[other])).toHaveCount(0);
+    await expect(page.locator("html")).toHaveAttribute("lang", language);
   }
 });

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   LANGUAGE_COOKIE,
+  LANGUAGE_HEADER,
   isLanguage,
   languageCookie,
   negotiateLanguage,
@@ -22,6 +23,7 @@ export function proxy(request: NextRequest): NextResponse {
     isKioskPath(pathname),
   );
 
+  const first = pathname.split("/")[1];
   let response: NextResponse;
   if (pathname === "/") {
     const language = negotiateLanguage(
@@ -29,7 +31,7 @@ export function proxy(request: NextRequest): NextResponse {
       request.headers.get("accept-language"),
     );
     response = NextResponse.redirect(new URL(`/${language}`, request.url));
-  } else if (!isLanguage(pathname.split("/")[1])) {
+  } else if (!isLanguage(first)) {
     // A page without a language (an old link, a typed address) gets one rather than a dead end.
     const language = negotiateLanguage(
       request.cookies.get(LANGUAGE_COOKIE)?.value,
@@ -40,10 +42,11 @@ export function proxy(request: NextRequest): NextResponse {
     const headers = new Headers(request.headers);
     headers.set("content-security-policy", policy);
     headers.set("x-nonce", nonce);
+    // A page that gets no route params (a segment's not-found) reads its language here.
+    headers.set(LANGUAGE_HEADER, first);
     response = NextResponse.next({ request: { headers } });
-    const language = pathname.split("/")[1];
-    if (isLanguage(language) && request.cookies.get(LANGUAGE_COOKIE)?.value !== language) {
-      response.headers.append("set-cookie", languageCookie(language));
+    if (request.cookies.get(LANGUAGE_COOKIE)?.value !== first) {
+      response.headers.append("set-cookie", languageCookie(first));
     }
   }
   response.headers.set("content-security-policy", policy);

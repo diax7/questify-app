@@ -193,7 +193,7 @@ export function ConsoleTicketsLink({
     };
   }, [current]);
   return (
-    <NavItem href={`/${language}/console/tickets`} current={current}>
+    <NavItem href={`/${language}/console/tickets`} icon="ticket" current={current}>
       {open === null ? t("console.tickets.title") : t("console.tickets.link", { count: open })}
     </NavItem>
   );

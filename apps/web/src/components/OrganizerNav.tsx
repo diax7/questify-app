@@ -1,11 +1,12 @@
 "use client";
 
 import { termFor, type Language } from "@questify/shared";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useEventTerms, useTranslator } from "#src/components/TermsScope.tsx";
 import { EVENT_PAGES, eventPlaceIn, type EventPageLink } from "#src/lib/dashboard-nav.ts";
 import { invitationsOpen, invitationsPath } from "#src/lib/invitations.ts";
-import type { Translate } from "#src/lib/language.ts";
+import { pathAfterLanguage, type Translate } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import type { TicketPage } from "#src/lib/tickets.ts";
 import { NavGroup, NavItem } from "#src/ui/Nav.tsx";
@@ -61,16 +62,17 @@ const GROUPS = [
 
 /**
  * The dashboard's navigation inside one organizer (ADR-364): its events and team with the open event's overview, and
- * inside an event every other page of that event, grouped by when the organizer needs it. The open page is marked.
+ * inside an event every other page of that event, grouped by when the organizer needs it. The open page is marked,
+ * read from the address, so the navigation stays mounted while the page beside it changes.
  */
 export function OrganizerNav({
   language,
   organizerId,
   organizerName,
-  path,
-}: Readonly<{ language: Language; organizerId: string; organizerName: string; path: string }>) {
+}: Readonly<{ language: Language; organizerId: string; organizerName: string }>) {
   const t = useTranslator(language);
   const terms = useEventTerms();
+  const path = pathAfterLanguage(usePathname());
   const place = eventPlaceIn(path);
   const eventId = place?.eventId ?? null;
   const openTickets = useOpenTickets(organizerId, eventId);
@@ -93,6 +95,7 @@ export function OrganizerNav({
     <NavItem
       key={link.slug}
       href={`${base}/events/${within}${link.slug === "" ? "" : `/${link.slug}`}`}
+      icon={link.icon}
       current={current === link.slug}
     >
       {labelOf(link, t)}
@@ -106,10 +109,18 @@ export function OrganizerNav({
   return (
     <>
       <NavGroup label={organizerName}>
-        <NavItem href={`${base}/events`} current={path === `/organizers/${organizerId}/events`}>
+        <NavItem
+          href={`${base}/events`}
+          icon="calendar"
+          current={path === `/organizers/${organizerId}/events`}
+        >
           {t("events.title")}
         </NavItem>
-        <NavItem href={`${base}/team`} current={path === `/organizers/${organizerId}/team`}>
+        <NavItem
+          href={`${base}/team`}
+          icon="users"
+          current={path === `/organizers/${organizerId}/team`}
+        >
           {t("staff.team")}
         </NavItem>
         {place === null

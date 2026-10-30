@@ -26,7 +26,7 @@ export default async function TagPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <AppShell language={lang} path={`/t/${token}`} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={lang} path={`/t/${token}`} signedIn={false} narrow>
       <Card as="section" aria-labelledby="tag-title">
         <PageHeader titleId="tag-title" title={t("tag.landing.title")} />
         <p>{t("tag.landing")}</p>

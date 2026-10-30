@@ -36,16 +36,30 @@
   color: var(--color-surface);
 }
 
+/* The logo, and beside it the name of the area (Dashboard, Console); a player's page has the logo alone. */
 .brand {
-  font-family: var(--font-display), var(--font-body), sans-serif;
-  font-weight: 800;
-  font-size: var(--text-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-inline-size: 0;
   color: inherit;
   text-decoration: none;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-inline-size: 0;
+}
+
+.logo {
+  display: block;
+  block-size: 32px;
+  inline-size: auto;
+  flex: none;
+}
+
+.area {
+  padding-inline-start: var(--space-sm);
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: var(--weight-display);
+  font-size: var(--text-md);
+  border-inline-start: 1px solid color-mix(in srgb, var(--color-surface) 45%, transparent);
 }
 
 .topEnd {
@@ -102,6 +116,11 @@
 }
 
 .desktopOnly {
+  display: none;
+}
+
+/* The word beside an icon-only control: shown only where there is room for it (the phone's menu sheet). */
+.iconLabel {
   display: none;
 }
 
@@ -209,6 +228,27 @@
   display: flex;
   align-items: center;
   cursor: pointer;
+}
+
+/* Sign out in the sheet is an icon with its word, a full row, and needs no tooltip. */
+.phoneOnly button {
+  inline-size: auto;
+  justify-content: flex-start;
+  gap: var(--space-sm);
+}
+
+.phoneOnly [data-tooltip]::after {
+  display: none;
+}
+
+.phoneOnly .iconLabel {
+  display: inline;
+}
+
+@media (max-width: 40rem) {
+  .area {
+    display: none;
+  }
 }
 
 @media (min-width: 64rem) {

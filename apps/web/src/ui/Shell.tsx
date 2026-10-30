@@ -1,59 +1,71 @@
 import type { Language } from "@questify/shared";
 import type { ReactNode } from "react";
+import { LanguageSwitch } from "#src/components/LanguageSwitch.tsx";
 import { SignOutButton } from "#src/components/SignOutButton.tsx";
-import { LANGUAGE_NAMES, otherLanguage, translatorFor } from "#src/lib/language.ts";
+import { translatorFor } from "#src/lib/language.ts";
+import { AppLink } from "#src/ui/AppLink.tsx";
 import { ShellFrame } from "#src/ui/ShellFrame.tsx";
 import styles from "#src/ui/shell.module.css";
 
+/** Which part of Questify a page belongs to: the top bar names it beside the logo (a player's page names none). */
+export type ShellArea = "dashboard" | "console" | "public";
+
 /**
- * The frame of every dashboard page (ADR-364): the top bar (product name, the other language, and for a signed-in
- * person Home, My account and Sign out), the navigation column when the page has one, and the content at a readable
- * width. `narrow` is for a single small form (sign-in).
+ * The frame of every dashboard page (ADR-364): the top bar (the Questify logo, the area's name, the other language as
+ * an icon, and for a signed-in person Home, My account and the Sign out icon), the navigation column when the page has
+ * one, and the content at a readable width. `narrow` is for a single small form (sign-in).
  */
 export function AppShell({
   language,
   path,
   signedIn,
+  area = "dashboard",
   nav = null,
   narrow = false,
-  title,
   children,
 }: Readonly<{
   language: Language;
-  /** The page's path after the language, for the language switch; null hides the switch. */
-  path: string | null;
+  /**
+   * The page's path after the language, for the language switch. Left out, the switch follows the open address (a
+   * shell that stays while its pages change); null hides the switch (an address that holds a secret).
+   */
+  path?: string | null | undefined;
   signedIn: boolean;
+  area?: ShellArea;
   nav?: ReactNode;
   narrow?: boolean;
-  /** The product name in the top bar; the dashboard's own when not given (the console names itself). */
-  title?: string;
   children: ReactNode;
 }>) {
   const t = translatorFor(language);
-  const other = otherLanguage(language);
+  const areaName = {
+    dashboard: t("shell.areaDashboard"),
+    console: t("shell.areaConsole"),
+    public: null,
+  }[area];
   return (
     <ShellFrame
       brand={
-        <a className={styles.brand} href={`/${language}`}>
-          {title ?? t("staff.dashboard")}
-        </a>
+        <AppLink className={styles.brand} href={`/${language}`}>
+          <img
+            className={styles.logo}
+            src="/brand/questify-wordmark.png"
+            alt="Questify"
+            width={122}
+            height={32}
+          />
+          {areaName === null ? null : <span className={styles.area}>{areaName}</span>}
+        </AppLink>
       }
-      topEnd={
-        path === null ? null : (
-          <a href={`/${other}${path}`} lang={other} hrefLang={other}>
-            {LANGUAGE_NAMES[other]}
-          </a>
-        )
-      }
+      topEnd={path === null ? null : <LanguageSwitch language={language} path={path} />}
       account={
         signedIn ? (
           <>
-            <a className={styles.item} href={`/${language}`}>
+            <AppLink className={styles.item} href={`/${language}`}>
               {t("nav.home")}
-            </a>
-            <a className={styles.item} href={`/${language}/account`}>
+            </AppLink>
+            <AppLink className={styles.item} href={`/${language}/account`}>
               {t("staff.account")}
-            </a>
+            </AppLink>
             <SignOutButton language={language} />
           </>
         ) : null

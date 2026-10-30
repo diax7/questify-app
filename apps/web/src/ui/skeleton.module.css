@@ -1,0 +1,35 @@
+/* The loading state of a page (T-599c). */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.title,
+.panel {
+  background: color-mix(in srgb, var(--color-text) 10%, var(--color-background));
+  border-radius: var(--radius-sm);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.title {
+  block-size: 2rem;
+  inline-size: min(18rem, 60%);
+}
+
+.panel {
+  block-size: 9rem;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title,
+  .panel {
+    animation: none;
+  }
+}

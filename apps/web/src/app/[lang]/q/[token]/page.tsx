@@ -30,7 +30,7 @@ export default async function ScanPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <AppShell language={lang} path={`/q/${token}`} signedIn={false} title="Questify" narrow>
+    <AppShell area="public" language={lang} path={`/q/${token}`} signedIn={false} narrow>
       <Card as="section" aria-labelledby="scan-title">
         <PageHeader titleId="scan-title" title={t("scan.title")} />
         <p>{t("scan.body")}</p>

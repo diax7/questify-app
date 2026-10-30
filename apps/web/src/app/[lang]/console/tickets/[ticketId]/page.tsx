@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { ConsoleShell } from "#src/components/ConsoleShell.tsx";
 import { ConsoleTicket } from "#src/components/ConsoleTicket.tsx";
 import { consolePage } from "#src/lib/console-page.ts";
 import { isTicketId } from "#src/lib/console-tickets.ts";
@@ -13,9 +12,5 @@ export default async function ConsoleTicketPage({ params }: Props) {
   if (!isTicketId(ticketId)) {
     notFound();
   }
-  return (
-    <ConsoleShell page={page} path={`/console/tickets/${ticketId}`}>
-      <ConsoleTicket language={page.language} ticketId={ticketId} />
-    </ConsoleShell>
-  );
+  return <ConsoleTicket language={page.language} ticketId={ticketId} />;
 }

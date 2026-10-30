@@ -5,18 +5,19 @@ import { translatorFor } from "#src/lib/language.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { AppShell } from "#src/ui/Shell.tsx";
 
-/** The frame of a console page: "Questify console" in the top bar, so it is never mistaken for the dashboard. */
+/**
+ * The frame of the console pages: "Console" beside the logo in the top bar, so it is never mistaken for the dashboard.
+ * It sits in a layout, so it stays while the pages beside it change.
+ */
 export function ConsoleShell({
   page,
-  path,
   children,
-}: Readonly<{ page: ConsolePage; path: string; children: ReactNode }>) {
-  const t = translatorFor(page.language);
+}: Readonly<{ page: ConsolePage; children: ReactNode }>) {
   if (page.kind === "unavailable") {
     return (
-      <AppShell language={page.language} path={path} signedIn title={t("console.title")}>
+      <AppShell language={page.language} signedIn area="console">
         <Notice tone="danger" role="alert">
-          {t("error.generic")}
+          {translatorFor(page.language)("error.generic")}
         </Notice>
       </AppShell>
     );
@@ -24,10 +25,9 @@ export function ConsoleShell({
   return (
     <AppShell
       language={page.language}
-      path={path}
       signedIn
-      title={t("console.title")}
-      nav={<ConsoleNav language={page.language} path={path} />}
+      area="console"
+      nav={<ConsoleNav language={page.language} />}
     >
       {children}
     </AppShell>

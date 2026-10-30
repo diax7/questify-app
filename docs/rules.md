@@ -271,3 +271,7 @@ A change is done only when all of these hold:
   A page uses the content area's width from its start edge, shows one box level (a card or section inside another is drawn plain, with lines between rows), keeps an action on one line while the row has room,
   and every text and background pair, also hovered and focused, meets WCAG AA (4.5:1, 3:1 for large text). The layout check must pass, and a new page is added to `LAYOUT_PAGES`
   (or `PUBLIC_PAGES`) in `apps/web/e2e/layout.ts`.
+- **Web navigation and pictures (ADR-368):** a link to a page of the app is an `AppLink`, `ButtonLink`, `TextLink` or `NavItem`, never a plain `<a href>` (a plain anchor reloads the document);
+  only the device pages (`/kiosk`, `/screen`, `/station`) and links that leave the app stay plain anchors. A group of pages that share a navigation has its shell in a `layout.tsx` and a
+  `loading.tsx` beside it, so the shell stays while the page changes. Icons come from `ui/Icon.tsx`; a control that shows only an icon is an `IconButton` or `IconLink`, whose `label` is its name and
+  tooltip in the page's language. A picture is a file in `public/` listed in `src/lib/public-images.test.ts`; text over an image or in a colour the check cannot read fails the layout check.

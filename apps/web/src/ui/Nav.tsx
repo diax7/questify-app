@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { AppLink } from "#src/ui/AppLink.tsx";
+import { Icon, type IconName } from "#src/ui/Icon.tsx";
 import styles from "#src/ui/shell.module.css";
 
 /** A labelled group of navigation links. */
@@ -11,19 +13,21 @@ export function NavGroup({ label, children }: Readonly<{ label: ReactNode; child
   );
 }
 
-/** One navigation link; `current` marks the open page. */
+/** One navigation link with its icon; `current` marks the open page. */
 export function NavItem({
   href,
+  icon,
   current,
   children,
-}: Readonly<{ href: string; current: boolean; children: ReactNode }>) {
+}: Readonly<{ href: string; icon: IconName; current: boolean; children: ReactNode }>) {
   return (
-    <a
+    <AppLink
       className={styles.item}
       href={href}
       {...(current ? { "aria-current": "page" as const } : {})}
     >
+      <Icon name={icon} />
       {children}
-    </a>
+    </AppLink>
   );
 }

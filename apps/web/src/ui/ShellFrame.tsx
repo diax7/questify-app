@@ -1,6 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Icon } from "#src/ui/Icon.tsx";
 import styles from "#src/ui/shell.module.css";
 
 type Props = Readonly<{
@@ -22,6 +24,13 @@ type Props = Readonly<{
  */
 export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, children }: Props) {
   const [open, setOpen] = useState(false);
+  // The shell stays while its pages change, so a page change closes the phone's menu sheet (a full load used to).
+  const pathname = usePathname();
+  const [sheetFor, setSheetFor] = useState(pathname);
+  if (sheetFor !== pathname) {
+    setSheetFor(pathname);
+    setOpen(false);
+  }
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) {
@@ -63,6 +72,7 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
             aria-controls="shell-navigation"
             onClick={() => setOpen((now) => !now)}
           >
+            <Icon name="menu" />
             {labels.menu}
           </button>
         ) : null}

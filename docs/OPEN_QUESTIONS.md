@@ -1503,3 +1503,12 @@ How wide should a dashboard page be, and how are boxes nested? **Recommended (de
 from the start edge up to 70rem, one box level (a card or section inside another is drawn plain), and WCAG AA contrast for every
 state of every control, checked by the layout spec. **Open:** Dhia may want a different maximum width, or sections inside sections
 kept framed. ADR-367 Proposed.
+
+## Q-336 - T-599c photos, logo, icons and smooth navigation (2026-10-30)
+
+Which pictures were broken, and is an English wordmark fine on the Arabic pages? **Recommended (developer, T-599c build):** no picture on
+a dashboard, console or public page failed to load (all 12 of them load, locally and on staging); the missing tab icon was the only image
+request that failed, and it is fixed with the brand's app icon; the English wordmark in the top bar on every page; icons drawn in one
+inline set; the shell in layouts. **Open:** Dhia may know a page whose picture was wrong (name it and it is added to the layout check), may
+want an Arabic wordmark, or a different icon style; the event link's share image names `questify.sa`, which is not live (ADR-113).
+ADR-368 Proposed.

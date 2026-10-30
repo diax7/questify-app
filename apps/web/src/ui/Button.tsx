@@ -1,4 +1,5 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes } from "react";
+import { AppLink, type AppLinkProps } from "#src/ui/AppLink.tsx";
 import styles from "#src/ui/form.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
@@ -48,14 +49,9 @@ export function Button({
 }
 
 /** A link that looks like a button: for an action that opens another page. */
-export function ButtonLink({
-  variant,
-  size,
-  className,
-  ...props
-}: AnchorHTMLAttributes<HTMLAnchorElement> & Look) {
+export function ButtonLink({ variant, size, className, ...props }: AppLinkProps & Look) {
   return (
-    <a
+    <AppLink
       {...props}
       className={[buttonClass({ variant, size }), className].filter(Boolean).join(" ")}
     />

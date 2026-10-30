@@ -39,7 +39,22 @@
   Console specs open the menu before they use the console navigation. No migration, no API change, no new dependency.
   Local checks: full vitest 8896 passed; full browser suite 219 passed (the layout spec needed one retry for a transient API stall, now
   reopened by the spec); CI minutes none yet; agent tokens roughly 2M.
-  **Next:** T-599c (icons, header icons, smooth navigation, photos, logo), then T-307b.
+  **Next:** T-599c (done, below), then T-307b.
+
+## T-599c photos, logo, icons and smooth navigation — 2026-10-30
+
+- **T-599c done (tier B; code review owed).** No broken picture was found (all 12 load locally and on staging, and the layout check, now
+  failing on an image with no picture, passed every page before any change); the one failing image request was `/favicon.ico`, now the
+  brand's app icon. The top bar shows the brand wordmark (cropped and resized, no new art) with "Dashboard" or "Console" beside it, and
+  player pages say "Questify" alone; navigation items have icons (`ui/Icon.tsx`, one inline set); the language switch and Sign out are
+  named icon buttons with tooltips; every link is `AppLink` (Next `Link`, no prefetch) and the shell lives in layouts (`console`, the
+  organizer's `(workspace)` route group, the event layout) with a `loading.tsx` each, so only the content changes. The layout check
+  also covers `/q`, `/s`, `/t`, the event rules and not-found, and fails on a broken picture, text over an image and unreadable ink.
+  A new `navigation.spec.ts` proves no link loads the document again and that the icons are named and explained. ADR-368 and Q-336
+  Proposed. **Browser budget:** run 40993429874 was cancelled by the 12-minute step; cause: the T-599b layout check (fixed waits per
+  state and per page, 5.7 minutes, now 3.1); the suite is 16.4 minutes locally (230 specs), so the CI step is 18 minutes and the job 35.
+  Local checks: vitest full, tsc, oxlint, format, limits clean; browser suite 230 passed; CI minutes none yet; agent tokens roughly 3M.
+  **Next:** T-307b (the T-599c review is owed; its MINOR findings go to FOLLOWUPS).
 
 ## T-504 big screen — 2026-10-30
 

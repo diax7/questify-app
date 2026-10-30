@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
+import { AppLink } from "#src/ui/AppLink.tsx";
 import { Button } from "#src/ui/Button.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input } from "#src/ui/Field.tsx";
@@ -75,8 +76,8 @@ export function PasswordStep({
         {t("common.continue")}
       </Button>
       <Toolbar align="between">
-        <a href={`/${language}/forgot-password`}>{t("staff.forgotPassword")}</a>
-        <a href={`/${language}/sign-up`}>{t("staff.signUpLink")}</a>
+        <AppLink href={`/${language}/forgot-password`}>{t("staff.forgotPassword")}</AppLink>
+        <AppLink href={`/${language}/sign-up`}>{t("staff.signUpLink")}</AppLink>
       </Toolbar>
     </Form>
   );

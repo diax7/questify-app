@@ -442,7 +442,7 @@ export function ConsoleQuestifyLink({
 }: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   return (
-    <NavItem href={`/${language}/console/questify`} current={current}>
+    <NavItem href={`/${language}/console/questify`} icon="compass" current={current}>
       {t("console.questify.title")}
     </NavItem>
   );
