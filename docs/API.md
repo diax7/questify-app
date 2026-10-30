@@ -693,3 +693,26 @@ Player, active member of the event (403 `not_enrolled` otherwise), `private, no-
 | Method | Path | Result |
 |---|---|---|
 | GET | /v1/events/{eventId}/maps | `{maps: [{id, name: {ar,en}, pins: [{id, kind, amenity, x, y, name, details, quest}]}], here}`. A quest pin carries `quest: {id, title, points, state}` from the same read the Quests tab uses (`state` is `done`, `open`, `locked`, `not_yet`, `closed` or `not_live`; the app shows done, open or locked, FR-823) and is left out when the player does not list that quest (hidden, its category not seen, its type switched off). `here` is `{pinId, at}` for the pin of the quest the player last completed at a station (method `qr`, `my_qr`, `nfc` or `location`), or null when that scan has no pin or there is none (FR-827). It reads the caller's own completions only; no position of the phone is sent or stored. No routes or directions exist (FR-825) |
+
+
+## Sponsors (T-507, migration 0088; Proposed ADR-375 / Q-342)
+
+Team prefix: `/v1/organizers/{organizerId}/events/{eventId}`, owner/editor within the event limit. Every write needs an
+**Idempotency-Key** and re-checks the caller's access before a stored answer is replayed; the event's sponsor writes take turns
+(one advisory lock per event). A refusal maps to: 404 `not_found` (foreign, revoked or unknown event, sponsor or tagged item), 422
+`invalid_sponsor {issue}` (the issue is the field: `name`, `nameAr`, `nameEn`, `tier`, `booth`, `kind`), 409 `sponsor_limit` (100
+sponsors an event), `sponsor_event_closed` (archived). A sponsor body with any field beyond these is a 422.
+
+| Method | Suffix | Result |
+|---|---|---|
+| GET | /sponsors | `{sponsors: TeamSponsor[]}` in the strip's order (tier, then when added), each with its `tags` (`{kind, targetId}`); a reward removed from the shop is not listed; `private, no-store` |
+| POST | /sponsors | `{nameAr?, nameEn?, tier, booth?}` (one name is enough, 60 characters each; `tier` is `platinum`, `gold`, `silver`, `bronze` or `partner`; `booth` 40); 201 `TeamSponsor` |
+| PUT | /sponsors/{id} | The same body replaces the fields; `TeamSponsor` |
+| DELETE | /sponsors/{id} | `{tagsLost}`; its tags go with it |
+| PUT | /sponsor-tags | `{kind: quest|category|reward, targetId, sponsorId | null}`: tags the item to the sponsor (moving it from another) or clears its sponsor; `{sponsors}` |
+
+Player, active member of the event (403 `not_enrolled` otherwise), `private, no-store`:
+
+| Method | Path | Result |
+|---|---|---|
+| GET | /v1/events/{eventId}/sponsors | `{sponsors: [{id, name: {ar,en}, tier, booth}], tags: [{kind, targetId, sponsorId}]}`. Every sponsor of the event, in the strip's order; a tag only on an item the player may see (a quest by the Quests tab's own rule, a category they have found and are in the audience of, an active reward in their audience). It reads nothing about the caller or any other player and sends nothing to a sponsor (FR-1304). There is no sponsor login, report or share route |

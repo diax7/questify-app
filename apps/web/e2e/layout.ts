@@ -603,6 +603,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   eventPage("big-screen", "bigScreen.title"),
   eventPage("sessions", "sessions.page.title"),
   eventPage("maps", "maps.page.title"),
+  eventPage("sponsors", "sponsors.page.title"),
   eventPage("boosts", "boosts.page.title"),
   eventPage("codes", "codes.title"),
   {

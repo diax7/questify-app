@@ -1,4 +1,10 @@
-import { formatEventTime, formatNumber, termFor, type Theme } from "@questify/shared";
+import {
+  formatEventTime,
+  formatNumber,
+  termFor,
+  type MemberSponsor,
+  type Theme,
+} from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Image, Pressable, ScrollView, View } from "react-native";
@@ -10,12 +16,15 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
+import { PresentedBy } from "#src/event/PresentedBy.tsx";
 import { MapsView } from "#src/event/MapsView.tsx";
 import { boostLine, flashLine } from "#src/event/flash-boost.ts";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
+import type { SponsorLookup } from "#src/event/sponsors.ts";
 import { resetLabel } from "#src/event/reset.ts";
 import { unlockLine, type CommunityLock } from "#src/event/unlock.ts";
+import { useSponsors } from "#src/event/useSponsors.ts";
 import type { RunningBoost } from "#src/event/quests-api.ts";
 import {
   categoryNotes,
@@ -131,11 +140,13 @@ function DropLines({
  */
 function QuestCard({
   quest,
+  sponsor,
   communityLock,
   timeZone,
   onOpen,
 }: Readonly<{
   quest: Quest;
+  sponsor: MemberSponsor | undefined;
   communityLock: CommunityLock | null;
   timeZone: string;
   onOpen: () => void;
@@ -153,6 +164,7 @@ function QuestCard({
     <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
       <AppText variant="label">{textIn(quest.title, language)}</AppText>
       <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
+      <PresentedBy sponsor={sponsor} />
       <DropLines quest={quest} boost={quest.boost} timeZone={timeZone} />
       <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
       {quest.item === null ? null : (
@@ -217,12 +229,14 @@ function noteText(
 /** One category: a header that opens and closes it, with its summary (FR-230), its rules (T-304), and its quests. */
 function CategorySection({
   category,
+  sponsors,
   open,
   timeZone,
   onToggle,
   onOpenQuest,
 }: Readonly<{
   category: Category;
+  sponsors: SponsorLookup;
   open: boolean;
   timeZone: string;
   onToggle: () => void;
@@ -263,11 +277,13 @@ function CategorySection({
         ))}
         <DropLines quest={undefined} boost={category.boost} timeZone={timeZone} />
       </Pressable>
+      <PresentedBy sponsor={sponsors.of("category", category.id)} />
       {open
         ? category.quests.map((quest) => (
             <QuestCard
               key={quest.id}
               quest={quest}
+              sponsor={sponsors.of("quest", quest.id)}
               communityLock={ownCommunityLock(quest, category)}
               timeZone={timeZone}
               onOpen={() => onOpenQuest(quest.id)}
@@ -281,12 +297,14 @@ function CategorySection({
 /** The categories as a list, each opening and closing on its header. */
 function QuestList({
   categories,
+  sponsors,
   openIds,
   timeZone,
   onToggle,
   onOpenQuest,
 }: Readonly<{
   categories: readonly Category[];
+  sponsors: SponsorLookup;
   openIds: readonly string[];
   timeZone: string;
   onToggle: (id: string) => void;
@@ -304,6 +322,7 @@ function QuestList({
           <CategorySection
             key={category.id}
             category={category}
+            sponsors={sponsors}
             open={openIds.includes(category.id)}
             timeZone={timeZone}
             onToggle={() => onToggle(category.id)}
@@ -325,6 +344,7 @@ function QuestsViews({
   onView: (view: "list" | "map") => void;
   eventId: string;
   categories: readonly Category[];
+  sponsors: SponsorLookup;
   openIds: readonly string[];
   timeZone: string;
   onToggle: (id: string) => void;
@@ -361,6 +381,7 @@ export default function QuestsScreen() {
   const { eventId } = useEvent();
   const params = useLocalSearchParams<{ quest?: string }>();
   const { answer, load } = useQuests(eventId);
+  const sponsors = useSponsors();
   const [openIds, setOpenIds] = useState<string[] | undefined>(undefined);
   const [sheetId, setSheetId] = useState<string | undefined>(undefined);
   const [view, setView] = useState<"list" | "map">("list");
@@ -425,6 +446,7 @@ export default function QuestsScreen() {
           onView={setView}
           eventId={eventId}
           categories={categories ?? []}
+          sponsors={sponsors}
           openIds={openIds ?? []}
           timeZone={answer.view.event.timezone}
           onToggle={toggle}

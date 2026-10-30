@@ -1,4 +1,5 @@
 import { RewardsPanel } from "#src/components/RewardsPanel.tsx";
+import { SponsorBadgesScope } from "#src/components/SponsorBadge.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eventId: string }> }>;
@@ -8,11 +9,13 @@ export default async function RewardsPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
-    <RewardsPanel
-      language={page.language}
-      organizerId={organizerId}
-      eventId={eventId}
-      role={page.membership.role}
-    />
+    <SponsorBadgesScope organizerId={organizerId} eventId={eventId}>
+      <RewardsPanel
+        language={page.language}
+        organizerId={organizerId}
+        eventId={eventId}
+        role={page.membership.role}
+      />
+    </SponsorBadgesScope>
   ) : null;
 }

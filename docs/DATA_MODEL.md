@@ -484,7 +484,7 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
   a rule names answers 409 souvenir_data; a category a rule names or a quest frozen as a target answers 409
   souvenir_in_use. The enqueue triggers are named `enqueue_souvenir_on_*` so they fire before `mark_ranking_on_*`.
 - Only own locker joins source event names. T-708 must integrate earned provenance into future authorized exports and
-  decide transient-work disclosure/retention; no export assembly is built here. T-507 later attaches sponsor metadata.
+  decide transient-work disclosure/retention; no export assembly is built here. T-507c later attaches sponsor metadata.
 
 ### reward, reward_code, redemption
 Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,
@@ -1410,3 +1410,20 @@ the API role.
   `map_team_item`, `map_pin_shown` (a quest pin is shown to a member only while they may list the quest: visible, shown, its category
   seen), `map_lock` and `map_event_for_write` have no grant. Nothing here is personal data and nothing needs erasure or the rehearsal wipe;
   "you are here" is computed from the caller's own `quest_completion` rows and stored nowhere.
+
+
+## Sponsors (T-507, migration 0088; Proposed ADR-375)
+
+- `sponsor(id, organizer_id, event_id, name_ar/en (60; one is enough), tier platinum|gold|silver|bronze|partner, booth (40), created_by/at,
+  updated_at)`, composite FK to the event with ON DELETE CASCADE. At most 100 per event (the door counts under the event's sponsor lock).
+  No contact, link or player column (FR-1304): a database test holds the column list. The logo and banner columns are T-507b (they need the
+  storage bucket of Q-149).
+- `sponsor_tag(id, organizer_id, event_id, sponsor_id, kind quest|category|reward, quest_id, category_id, reward_id, created_by/at)`:
+  same-event composite keys to the sponsor, the quest, the category and the reward, all ON DELETE CASCADE; `sponsor_tag_shape` allows
+  exactly the column of its kind; a unique index per kind gives an item one sponsor. Souvenirs are T-507c.
+- Forced RLS and no grant on both tables; every function is closed to PUBLIC, and only six doors are granted to the API role
+  (`sponsor_authorize`, `sponsor_list`, `sponsor_save`, `sponsor_delete`, `sponsor_tag_set`, `member_sponsors`). The internals
+  `sponsor_team_item`, `sponsor_team_list`, `sponsor_tag_target`, `sponsor_tier_rank`, `sponsor_tag_shown` (a member sees a tag only on a quest
+  they may list, a category they see, or an active reward in their audience), `sponsor_lock` and `sponsor_event_for_write` have no grant.
+  Nothing here is personal data and nothing needs erasure or the rehearsal wipe. Audits `sponsor.save`, `sponsor.delete` and `sponsor.tag`
+  carry ids and the tier, never a name.

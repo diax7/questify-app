@@ -21,8 +21,7 @@ export const MESSAGES = {
   "shell.switchLanguage": { ar: "التبديل إلى {language}", en: "Switch to {language}" },
   "dashNav.overview": { ar: "نظرة عامة على الفعالية", en: "Event overview" },
   "dashNav.setup": { ar: "الإعداد", en: "Set up" },
-  "dashNav.during": { ar: "أثناء الفعالية", en: "During the event" },
-  "dashNav.review": { ar: "المراجعة", en: "Review" },
+  "dashNav.run": { ar: "التشغيل والمراجعة", en: "Run and review" },
   "events.section.details": { ar: "تفاصيل الفعالية", en: "Event details" },
   "events.section.identity": { ar: "الاسم والنوع", en: "Name and kind" },
   "events.section.place": { ar: "المكان", en: "Place" },
@@ -6811,7 +6810,7 @@ export const MESSAGES = {
   "sponsors.page.nameEn": { ar: "الاسم بالإنجليزية", en: "Name in English" },
   "sponsors.page.tier": { ar: "المستوى", en: "Tier" },
   "sponsors.page.booth": { ar: "الكشك", en: "Booth" },
-  "sponsors.page.boothLine": { ar: "الكشك {booth}", en: "Booth {booth}" },
+  "sponsors.boothLine": { ar: "الكشك {booth}", en: "Booth {booth}" },
   "sponsors.page.save": { ar: "حفظ", en: "Save" },
   "sponsors.page.saved": { ar: "تم حفظ الراعي.", en: "Sponsor saved." },
   "sponsors.page.delete": { ar: "حذف", en: "Delete" },
@@ -6841,7 +6840,6 @@ export const MESSAGES = {
   "sponsors.tier.bronze": { ar: "برونزي", en: "Bronze" },
   "sponsors.tier.partner": { ar: "شريك", en: "Partner" },
   "sponsors.presentedBy": { ar: "برعاية {name}", en: "Presented by {name}" },
-  "sponsors.change": { ar: "تغيير الراعي", en: "Change sponsor" },
   "sponsors.issue.sponsor": { ar: "تحقق من بيانات الراعي.", en: "Check the sponsor's details." },
   "sponsors.issue.name": {
     ar: "اكتب اسمًا بلغة واحدة على الأقل.",
@@ -6866,12 +6864,7 @@ export const MESSAGES = {
   },
   "sponsors.strip.title": { ar: "الرعاة", en: "Sponsors" },
   "sponsors.strip.open": { ar: "{name}: عرض {questMany}", en: "{name}: see {questMany}" },
-  "sponsors.filter.title": {
-    ar: "{questMany} برعاية {name}",
-    en: "{questCap} presented by {name}",
-  },
-  "sponsors.filter.clear": { ar: "عرض الكل", en: "Show all" },
-  "sponsors.filter.empty": {
+  "sponsors.screen.empty": {
     ar: "لا {questMany} من هذا الراعي بعد.",
     en: "No {questMany} from this sponsor yet.",
   },

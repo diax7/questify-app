@@ -1231,13 +1231,13 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1209 | F-209 | Should | pending |
 | FR-1210 | F-209 | Should | pending |
 | FR-1211 | F-210 | Could | pending |
-| FR-1301 | F-211 | Must | pending |
-| FR-1302 | F-211 | Must | pending |
-| FR-1303 | F-211 | Must | pending |
-| FR-1304 | F-211 | Must | pending |
-| FR-1305 | F-212 | Must | pending |
+| FR-1301 | F-211 | Must | built T-507 (`apps/api/src/sponsors`, `SponsorsPanel`); code review pending |
+| FR-1302 | F-211 | Must | built T-507 for quests, categories and rewards (souvenirs T-507c); code review pending |
+| FR-1303 | F-211 | Must | built T-507 with a lettered mark in the logo's place (T-507b); code review pending |
+| FR-1304 | F-211 | Must | built T-507 (`api/test/sponsors`, `db/sponsors`); code review pending |
+| FR-1305 | F-212 | Must | built T-507 as the sponsor's name on the category (banner and logo T-507b); code review pending |
 | FR-1306 | F-214 | Should | pending |
-| FR-1307 | F-213 | Could | pending |
+| FR-1307 | F-213 | Could | built T-507 (`SponsorStrip`, `SponsorQuests`); code review pending |
 | FR-1401 | F-215 | Must | pending |
 | FR-1402 | F-216 | Must | pending |
 | FR-1403 | F-216 | Must | pending |

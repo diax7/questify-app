@@ -149,6 +149,12 @@ const SHAPES = {
       <path d="M9 4v13.5M15 6.5V20" />
     </>
   ),
+  sponsor: (
+    <>
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="m8.8 13.6-1.6 7.4 4.8-2.8 4.8 2.8-1.6-7.4" />
+    </>
+  ),
   signOut: <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 8l4 4-4 4M20 12H9" />,
 } as const satisfies Record<string, ReactNode>;
 

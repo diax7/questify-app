@@ -5,7 +5,7 @@ import type { IconName } from "#src/ui/Icon.tsx";
 export type EventPageLink = Readonly<{
   /** "" is the event's overview. */
   slug: string;
-  group: "event" | "setup" | "during" | "review";
+  group: "event" | "setup" | "run";
   /** The icon beside the link. */
   icon: IconName;
   /** The link's words; `players` and `help` and `invitations` have words of their own (an event term, a count). */
@@ -13,14 +13,15 @@ export type EventPageLink = Readonly<{
 }>;
 
 /**
- * Every page of one event, in the order the dashboard's menu lists them (ADR-364): what the organizer sets up, what
- * they watch while it runs, and what they review.
+ * Every page of one event, in the order the dashboard's menu lists them (ADR-364): what the organizer sets up, then what
+ * they run and review (two groups, ADR-375: a third label put the desktop menu below a 1280 by 720 screen).
  */
 export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "", icon: "overview", group: "event", label: "dashNav.overview" },
   { slug: "quests", icon: "compass", group: "setup", label: "quests.title" },
   { slug: "sessions", icon: "calendar", group: "setup", label: "sessions.page.title" },
   { slug: "maps", icon: "map", group: "setup", label: "maps.page.title" },
+  { slug: "sponsors", icon: "sponsor", group: "setup", label: "sponsors.page.title" },
   { slug: "rewards", icon: "gift", group: "setup", label: "rewards.title" },
   { slug: "prizes", icon: "trophy", group: "setup", label: "prizes.link" },
   { slug: "community", icon: "heart", group: "setup", label: "community.page.title" },
@@ -28,15 +29,15 @@ export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "souvenirs", icon: "star", group: "setup", label: "souvenir.title" },
   { slug: "joining", icon: "userPlus", group: "setup", label: "joining.title" },
   { slug: "invitations", icon: "mail", group: "setup", label: "invitations" },
-  { slug: "players", icon: "users", group: "during", label: "players" },
-  { slug: "operators", icon: "shield", group: "during", label: "operators.link" },
-  { slug: "devices", icon: "phone", group: "during", label: "devices.link" },
-  { slug: "big-screen", icon: "screen", group: "during", label: "bigScreen.link" },
-  { slug: "announcements", icon: "megaphone", group: "during", label: "announcements.page.title" },
-  { slug: "help", icon: "help", group: "during", label: "help" },
-  { slug: "submissions", icon: "inbox", group: "review", label: "submissions.link" },
-  { slug: "flags", icon: "alert", group: "review", label: "flags.link" },
-  { slug: "awards", icon: "award", group: "review", label: "awards.link" },
+  { slug: "players", icon: "users", group: "run", label: "players" },
+  { slug: "operators", icon: "shield", group: "run", label: "operators.link" },
+  { slug: "devices", icon: "phone", group: "run", label: "devices.link" },
+  { slug: "big-screen", icon: "screen", group: "run", label: "bigScreen.link" },
+  { slug: "announcements", icon: "megaphone", group: "run", label: "announcements.page.title" },
+  { slug: "help", icon: "help", group: "run", label: "help" },
+  { slug: "submissions", icon: "inbox", group: "run", label: "submissions.link" },
+  { slug: "flags", icon: "alert", group: "run", label: "flags.link" },
+  { slug: "awards", icon: "award", group: "run", label: "awards.link" },
 ];
 
 const EVENT_PATH = /^\/organizers\/[^/]+\/events\/([^/]+)(?:\/([^/]+))?/;

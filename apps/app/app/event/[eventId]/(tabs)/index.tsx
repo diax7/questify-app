@@ -13,6 +13,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { CountingNumber } from "#src/components/motion.tsx";
 import { CommunityBar } from "#src/event/CommunityBar.tsx";
 import { EventHomeStrips } from "#src/event/Announcements.tsx";
+import { SponsorStrip } from "#src/event/SponsorStrip.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
@@ -407,6 +408,7 @@ function ActiveCards({
       />
       <EventStreakCard streak={home.streak} />
       <EventHomeStrips eventId={eventId} />
+      <SponsorStrip eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
       <FinaleCelebration eventId={eventId} finale={home.finale} />
       {community === null ? null : <CommunityBar card={community} />}

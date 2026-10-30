@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
+import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { Translate } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
@@ -190,6 +191,31 @@ function OrderButtons({
   );
 }
 
+/** A quest's name, its type and its sponsor (FR-1302), at the head of its row. */
+function QuestTitle({ language, quest }: Readonly<{ language: Language; quest: QuestView }>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      <strong>{textFor(quest.title, language)}</strong>
+      <Badge>{t(QUEST_TYPES[quest.type].label)}</Badge>
+      <SponsorBadge language={language} kind="quest" targetId={quest.id} />
+    </>
+  );
+}
+
+/** A category's name and its sponsor (FR-1302, FR-1305). */
+function CategoryHeading({
+  language,
+  category,
+}: Readonly<{ language: Language; category: CategoryView }>) {
+  return (
+    <>
+      <SubHeading as="h2">{textFor(category.name, language)}</SubHeading>
+      <SponsorBadge language={language} kind="category" targetId={category.id} />
+    </>
+  );
+}
+
 function QuestRow({
   language,
   timeZone,
@@ -228,8 +254,7 @@ function QuestRow({
   return (
     <Card as="li">
       <Toolbar>
-        <strong>{textFor(quest.title, language)}</strong>
-        <Badge>{t(QUEST_TYPES[quest.type].label)}</Badge>
+        <QuestTitle language={language} quest={quest} />
         {quest.visible || live ? null : <Badge tone="warning">{t("quests.hidden")}</Badge>}
         {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}
         {(quest.firstBonus ?? null) === null ? null : (
@@ -561,7 +586,7 @@ export function CategoryCard({
         </Form>
       ) : (
         <Toolbar align="between">
-          <SubHeading as="h2">{textFor(category.name, language)}</SubHeading>
+          <CategoryHeading language={language} category={category} />
           {readOnly ? null : (
             <CategoryActions
               language={language}

@@ -5,6 +5,7 @@ import {
   termFor,
   type Language,
   type LocalizedText,
+  type MemberSponsor,
   type MessageKey,
   type Theme,
 } from "@questify/shared";
@@ -21,8 +22,10 @@ import { Sheet } from "#src/components/Sheet.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
+import { PresentedBy } from "#src/event/PresentedBy.tsx";
 import { ShopClosedPanel } from "#src/event/ShopClosedPanel.tsx";
 import { unlockLine } from "#src/event/unlock.ts";
+import { useSponsors } from "#src/event/useSponsors.ts";
 import {
   cancelRedemption,
   fetchShop,
@@ -77,12 +80,14 @@ function Tags({ reward }: Readonly<{ reward: ShopReward }>) {
 
 function RewardCard({
   reward,
+  sponsor,
   view,
   busy,
   onRedeem,
   onPin,
 }: Readonly<{
   reward: ShopReward;
+  sponsor: MemberSponsor | undefined;
   view: ShopView;
   busy: boolean;
   onRedeem: () => void;
@@ -105,6 +110,7 @@ function RewardCard({
       {pinned ? <AppText variant="label">{t("goal.title")}</AppText> : null}
       <AppText variant="title">{textIn(reward.name, language)}</AppText>
       <Tags reward={reward} />
+      <PresentedBy sponsor={sponsor} />
       {description === "" ? null : <AppText>{description}</AppText>}
       <View style={styles.row}>
         <Amount amount={formatNumber(reward.price, language)} form="labelled" variant="label" />
@@ -612,6 +618,7 @@ function Catalog({
   actions: ReturnType<typeof useShopActions>;
 }>) {
   const { t } = useI18n();
+  const sponsors = useSponsors();
   return (
     <>
       <SectionChips sections={sectionsOf(view.rewards)} section={section} onChoose={onSection} />
@@ -620,6 +627,7 @@ function Catalog({
         <RewardCard
           key={reward.id}
           reward={reward}
+          sponsor={sponsors.of("reward", reward.id)}
           view={view}
           busy={busy}
           onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}

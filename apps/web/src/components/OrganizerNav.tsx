@@ -60,8 +60,7 @@ function useInvitationsOpen(organizerId: string, eventId: string | null): boolea
 
 const GROUPS = [
   { group: "setup", label: "dashNav.setup" },
-  { group: "during", label: "dashNav.during" },
-  { group: "review", label: "dashNav.review" },
+  { group: "run", label: "dashNav.run" },
 ] as const;
 
 /**

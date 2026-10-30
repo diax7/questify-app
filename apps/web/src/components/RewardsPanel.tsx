@@ -12,6 +12,7 @@ import {
 } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { NumberField } from "#src/components/NumberField.tsx";
+import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { directionOf, translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import {
@@ -626,6 +627,7 @@ function RewardRow({
       <Toolbar>
         <strong>{name}</strong>
         <Badge>{t(`rewards.kind.${reward.kind}`)}</Badge>
+        <SponsorBadge language={language} kind="reward" targetId={reward.id} />
       </Toolbar>
       <Toolbar>
         <span>

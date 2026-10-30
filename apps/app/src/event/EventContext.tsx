@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
+import { DEFAULT_TERMS, type EventTerms, type MemberSponsors } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { helpDeskOn, loadEventConfig, locationQuestsOn, nfcTagsOn } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
 import { livePollSecondsOf } from "#src/event/polls.ts";
+import { fetchSponsors, lookupOf, type SponsorLookup } from "#src/event/sponsors.ts";
 import { TermsScope } from "#src/i18n/provider.tsx";
 
 type EventValue = Readonly<{
@@ -32,6 +33,9 @@ type EventValue = Readonly<{
   /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
   paidCount: number;
   notePaid: () => void;
+  /** The event's sponsors and who presents what (T-507); empty until read, after a failure, and when there are none. */
+  sponsors: SponsorLookup;
+  refreshSponsors: () => void;
 }>;
 
 const EventContext = createContext<EventValue | undefined>(undefined);
@@ -50,6 +54,18 @@ export function EventProvider({
   const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
   const [paidCount, setPaidCount] = useState(0);
   const notePaid = useCallback(() => setPaidCount((count) => count + 1), []);
+  const [sponsorData, setSponsorData] = useState<MemberSponsors | undefined>(undefined);
+  const refreshSponsors = useCallback(() => {
+    void fetchSponsors(api.session, eventId).then((read) => {
+      // A failed read keeps the last good copy; a member who cannot read them sees no sponsors.
+      if (read.kind === "sponsors") setSponsorData(read.data);
+    });
+  }, [eventId]);
+  useEffect(() => {
+    // Another event never keeps the last one's sponsors; the screens read them when they come into focus.
+    setSponsorData(undefined);
+  }, [eventId]);
+  const sponsors = useMemo(() => lookupOf(sponsorData), [sponsorData]);
   const load = useCallback(async () => {
     const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
     setEvents(answer.kind === "ok" ? readMyEvents(answer.body) : undefined);
@@ -92,6 +108,8 @@ export function EventProvider({
       livePollSeconds,
       paidCount,
       notePaid,
+      sponsors,
+      refreshSponsors,
     }),
     [
       eventId,
@@ -105,6 +123,8 @@ export function EventProvider({
       livePollSeconds,
       paidCount,
       notePaid,
+      sponsors,
+      refreshSponsors,
     ],
   );
   return (

@@ -155,6 +155,7 @@ const INFO_TIPS: readonly string[] = [
   "rewards.desk.hoursHint",
   "rewards.spendLowersRank.hint",
   "sessions.page.intro",
+  "sponsors.page.intro",
   "terms.intro",
 ];
 
