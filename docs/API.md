@@ -666,3 +666,30 @@ Operator (assignment on the event, `scan_quests`, no quest limit; a removed oper
 
 Reminders are written by the push worker (`push_due_session`, inside `push_due`): one `session_reminder` notice per registrant
 at the start minus the session's minutes, marker `session:{session}:{player}`, only while the registration stands.
+
+
+## Maps (T-506, migration 0087; Proposed ADR-374 / Q-341)
+
+Team prefix: `/v1/organizers/{organizerId}/events/{eventId}`, owner/editor within the event limit. Every write needs an
+**Idempotency-Key** and re-checks the caller's access before a stored answer is replayed; the event's map writes take turns
+(one advisory lock per event). A refusal maps to: 404 `not_found` (foreign, revoked or unknown event, map or pin), 422
+`invalid_map {issue}` (the issue is the field: `name`, `nameAr`, `nameEn`, `detailsAr`, `detailsEn`, `kind`, `amenity`, `x`,
+`y`, `place`, `questId`, `order`), 409 `map_limit` (50 maps an event), `map_pin_limit` (300 pins a map), `map_quest_pinned` (a
+quest has one pin in the event), `map_event_closed` (archived).
+
+| Method | Suffix | Result |
+|---|---|---|
+| GET | /maps | `{maps: TeamMap[]}` in order, each with its `pins`; `private, no-store` |
+| POST | /maps | `{nameAr?, nameEn?}` (one is enough, 60 characters each); 201 `TeamMap`, placed last |
+| PUT | /maps/{id} | The same body renames; `TeamMap` |
+| PUT | /maps/order | `{ids}` every map of the event once, in the new order; `{maps}` |
+| DELETE | /maps/{id} | `{pinsLost}`; the order closes up |
+| POST | /maps/{id}/pins | The whole pin: `kind` (`section`, `booth`, `quest`, `amenity`), `amenity` (`prayer`, `toilets`, `food`, `info`, `first_aid`), `nameAr/En` (60), `detailsAr/En` (500), `x` and `y` (whole thousandths of the board from its top left, 0 to 1000), `questId`. A quest pin needs `questId` of this event and carries no name; an amenity needs `amenity`; a section or booth needs a name in one language. 201 the pin's `TeamMap` |
+| PUT | /maps/{id}/pins/{pinId} | The same body replaces the pin; the pin's `TeamMap` |
+| DELETE | /maps/{id}/pins/{pinId} | The pin's `TeamMap` |
+
+Player, active member of the event (403 `not_enrolled` otherwise), `private, no-store`:
+
+| Method | Path | Result |
+|---|---|---|
+| GET | /v1/events/{eventId}/maps | `{maps: [{id, name: {ar,en}, pins: [{id, kind, amenity, x, y, name, details, quest}]}], here}`. A quest pin carries `quest: {id, title, points, state}` from the same read the Quests tab uses (`state` is `done`, `open`, `locked`, `not_yet`, `closed` or `not_live`; the app shows done, open or locked, FR-823) and is left out when the player does not list that quest (hidden, its category not seen, its type switched off). `here` is `{pinId, at}` for the pin of the quest the player last completed at a station (method `qr`, `my_qr`, `nfc` or `location`), or null when that scan has no pin or there is none (FR-827). It reads the caller's own completions only; no position of the phone is sent or stored. No routes or directions exist (FR-825) |

@@ -1393,3 +1393,20 @@ the API role.
   role (`session_authorize`, `session_save`, `session_import`, `session_delete`, `session_list`, `session_registration_set`,
   `session_message`, `member_sessions`, `session_register`, `session_cancel`, `session_check_in`, `operator_sessions`). The
   rehearsal wipe removes registrations and attendance through the enrollment's cascade; the player doors wipe first.
+
+
+## Maps (T-506, migration 0087; Proposed ADR-374)
+
+- `event_map(id, organizer_id, event_id, name_ar/en (60; one is enough), position 1 to 50 (dense), created_by/at, updated_at)`,
+  composite FK to the event with ON DELETE CASCADE. At most 50 per event (the door counts under the event's map lock). The picture
+  behind a map is T-506b (`image` columns), which needs the storage bucket of Q-149.
+- `map_pin(id, organizer_id, event_id, map_id, kind section|booth|quest|amenity, amenity prayer|toilets|food|info|first_aid, name_ar/en
+  (60), details_ar/en (500), x and y smallint 0 to 1000 (thousandths of the board's width and height from its top left), quest_id
+  (same event; ON DELETE CASCADE), created_by/at, updated_at)`. `map_pin_shape` ties the fields to the kind: a quest pin has a quest and
+  no name, details or amenity; a section or booth has a name and no quest or amenity; an amenity has its kind. A unique index gives a
+  quest one pin in an event. At most 300 per map (the door counts).
+- Forced RLS and no grant on both tables; every function is closed to PUBLIC, and only eight doors are granted to the API role
+  (`map_authorize`, `map_list`, `map_save`, `map_delete`, `map_order`, `map_pin_save`, `map_pin_delete`, `member_maps`). The internals
+  `map_team_item`, `map_pin_shown` (a quest pin is shown to a member only while they may list the quest: visible, shown, its category
+  seen), `map_lock` and `map_event_for_write` have no grant. Nothing here is personal data and nothing needs erasure or the rehearsal wipe;
+  "you are here" is computed from the caller's own `quest_completion` rows and stored nowhere.

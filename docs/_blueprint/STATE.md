@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## T-506 maps — 2026-10-30
+
+- **T-506 done (tier B; code review owed; not run on a phone).** Migration 0087 (new, undeployed; staging is at 0085, 0086 is being deployed): two closed tables
+  (`event_map`, `map_pin`) and eight granted doors; a pin's place is thousandths of the board, a quest has one pin, a quest pin is listed only while the player may list
+  the quest. API `src/maps` (team routes behind `award_event_of`, the player's `GET /v1/events/{id}/maps`, which fills each quest pin's title, points and state from the
+  Quests read). Dashboard: Maps page under Setup (maps list with rename, order and delete; plain board where a click names a pin's place; pin form and list). App: Maps
+  screen linked from Event Home, and a List and Map toggle on the Quests tab; "you are here" is the pin of the last station scan, with its time. **Split (ADR-374):**
+  the uploaded picture of FR-820 moved to **T-506b** (blocked on Q-149; there is no upload path in the repo). ADR-374 and Q-341 Proposed. Local: full vitest 9113 passed, 14 skipped (3 guard failures on key names and sort order
+  fixed and the touched suites rerun green); tsc (web, app, api, shared), oxlint, format and limits clean; `npx expo export` ok (Android); browser suite 240 passed, 3 skipped, 1 failed
+  (the layout check: the desktop navigation ran 24 px below the screen with one more link; the rows are 30 px now) and the layout, navigation, maps and sessions specs rerun green
+  (13 passed, both projects); CI minutes none yet; agent tokens roughly 0.7M (estimate).
+  **Next:** the T-505 and T-506 reviews, T-505b (plan and plan review first), then T-507.
+
+
 ## T-505 agenda and sessions — 2026-10-30
 
 - **T-505 done (tier B; code review owed; not run on a phone).** Migration 0086 (new, undeployed; staging is at 0085): four closed tables (`event_session`,

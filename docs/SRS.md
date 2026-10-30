@@ -1136,14 +1136,14 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-808 | F-169 | Should | pending |
 | FR-809 | F-169 | Should | pending |
 | FR-810 | F-169 | Should | pending |
-| FR-820 | F-63 | Must | pending |
-| FR-821 | F-63 | Must | pending |
-| FR-822 | F-64 | Should | pending |
-| FR-823 | F-64 | Should | pending |
-| FR-824 | F-64 | Should | pending |
-| FR-825 | F-64, F-170 | Should | pending |
-| FR-826 | F-170 | Should | pending |
-| FR-827 | F-170 | Should | pending |
+| FR-820 | F-63 | Must | built T-506 without the uploaded picture (T-506b); code review pending |
+| FR-821 | F-63 | Must | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-822 | F-64 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-823 | F-64 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-824 | F-64 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-825 | F-64, F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-826 | F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
+| FR-827 | F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
 | FR-830 | F-171 | Must | built T-408b (`app/(questify)/_layout.tsx`); code review pending |
 | FR-831 | F-171 | Must | built T-408b (`/join-scan`, `classifyJoinScan`; `join-scan.test`); code review pending |
 | FR-832 | F-172 | Must | built T-408b (`src/home/`; `home-groups.test`); code review pending |
