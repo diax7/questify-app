@@ -541,6 +541,7 @@ export {
   SESSION_KINDS,
   SESSION_LIMITS,
   SESSION_STATUSES,
+  memberSessionListSchema,
   memberSessionSchema,
   parseSessionsCsv,
   sessionBodySchema,
@@ -549,6 +550,7 @@ export {
   sessionRegisterSchema,
   sessionRegistrationSchema,
   sessionReportCsv,
+  teamSessionListSchema,
   teamSessionSchema,
 } from "./sessions/sessions";
 export type {

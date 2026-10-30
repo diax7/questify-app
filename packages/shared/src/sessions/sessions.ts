@@ -108,6 +108,9 @@ export const teamSessionSchema = z.object({
 });
 export type TeamSession = z.infer<typeof teamSessionSchema>;
 
+/** `GET …/sessions` for the dashboard. */
+export const teamSessionListSchema = z.object({ sessions: z.array(teamSessionSchema) });
+
 const bilingual = z.object({ ar: z.string().nullable(), en: z.string().nullable() });
 
 /** Where a player stands with a session: `open` needs no registration. */
@@ -135,6 +138,9 @@ export const memberSessionSchema = z.object({
   quest: z.object({ id: z.uuid(), title: bilingual }).nullable(),
 });
 export type MemberSession = z.infer<typeof memberSessionSchema>;
+
+/** `GET /v1/events/{id}/sessions` for the app. */
+export const memberSessionListSchema = z.object({ sessions: z.array(memberSessionSchema) });
 
 /** What registering answers: registered, or an overlap with sessions already held (nothing written yet). */
 export const sessionRegisterSchema = z.discriminatedUnion("outcome", [

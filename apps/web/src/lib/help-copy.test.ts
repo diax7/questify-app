@@ -152,6 +152,7 @@ const INFO_TIPS: readonly string[] = [
   "quests.vote.note",
   "rewards.desk.hoursHint",
   "rewards.spendLowersRank.hint",
+  "sessions.page.intro",
   "terms.intro",
 ];
 
