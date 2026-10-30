@@ -1502,7 +1502,7 @@ group as "Event overview", tighter desktop rows, a native modal dialog and an in
 How wide should a dashboard page be, and how are boxes nested? **Recommended (developer, T-599b build):** the content area's width
 from the start edge up to 70rem, one box level (a card or section inside another is drawn plain), and WCAG AA contrast for every
 state of every control, checked by the layout spec. **Open:** Dhia may want a different maximum width, or sections inside sections
-kept framed. ADR-367 Proposed.
+kept framed. ADR-367 accepted (developer, 2026-10-30, T-599b review 91 GO).
 
 ## Q-336 - T-599c photos, logo, icons and smooth navigation (2026-10-30)
 
@@ -1533,4 +1533,4 @@ lines, only what changes what the user does and the label cannot carry (a rule t
 failed state, a count), listed in `apps/web/src/lib/help-copy.test.ts`; move real explanations to info buttons; show an editor's switches
 disabled and switched as they are, with no per-switch note; sign out is icon-only everywhere, the app keeps its confirmation. **Open:** Dhia may
 want a line back, a spoken reason for a disabled switch, or the sign-out word back in the phone menu. **Decided (developer):** as recommended,
-ADR-371 stays Proposed until the T-599d review.
+ADR-371 accepted (developer, 2026-10-30, T-599d review 91 GO).

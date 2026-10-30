@@ -5511,7 +5511,7 @@ header).
 
 ## ADR-367 - T-599b page width, one box level and contrast
 
-**Status:** Proposed (developer, from Dhia's review of the staging dashboard, 2026-10-30; Q-335).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; T-599b review 91 GO; Q-335).
 **Context:** Dhia found pages that were not yet moved showing a narrow centred card with boxes inside boxes, a title squeezed into a
 column, a link wrapping one word per line, and light text on a light fill when the pointer rests on "Home" in the dark header
 (the navigation's item class gave the top-bar link the page's light background on hover).
@@ -5608,7 +5608,7 @@ would otherwise be unclear.
 
 ## ADR-371 - T-599d how ADR-370 is built: info buttons, disabled switches, icon sign out, a guard test
 
-**Status:** Proposed (developer, T-599d build; Q-338). Builds ADR-370; changes no data.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; T-599d review 91 GO; Q-338). Builds ADR-370; changes no data.
 **Decision:** (1) **Info button.** The dashboard's `InfoTip` (`apps/web/src/ui/InfoTip.tsx`) is an icon button beside a label; the text opens on
 hover, keyboard focus and a tap or click, and Escape, a tap elsewhere or scrolling closes it. `Field`, `FieldGroup`, `Switch`, `Checkbox`,
 `NumberField`, `Section` and `PageHeader` take an `info` slot, and `infoTip(t, "key")` (`ui/info.tsx`) builds the button in the page's language.

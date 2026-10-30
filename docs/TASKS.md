@@ -1145,7 +1145,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     must meet to a hint or leave it to the error, move a true explanation into `InfoTip`; delete keys no longer used.
   - Done when: no field or switch has a help line that repeats its label (a reviewer reads every page's screenshots); a test lists the
     remaining help keys so a new one is a visible choice; the layout check passes; screenshots before and after attached.
-  - Done 2026-10-30 (tier B; code review owed; ADR-371 and Q-338 Proposed). **Web:** `InfoTip` (`ui/InfoTip.tsx`, hover, focus, tap, Escape; `infoTip(t, key)` in
+  - Done 2026-10-30 (tier B; review 91 GO, minors in FOLLOWUPS; ADR-371 accepted). **Web:** `InfoTip` (`ui/InfoTip.tsx`, hover, focus, tap, Escape; `infoTip(t, key)` in
     `ui/info.tsx`) with an `info` slot on PageHeader, Section, Field, FieldGroup, NumberField, Switch and Checkbox; the password's show/hide is an eye icon;
     sign out is icon-only in the top bar and the phone menu (`IconButton` lost its word slot); an editor sees the owner-only switches disabled, not hidden under a
     note each; the quest type's explanation is one info button beside the Type field. **App:** `IconButton` and `InfoTip` (a tap opens the text under the label) on
