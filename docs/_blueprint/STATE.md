@@ -19,6 +19,10 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## Follow-ups batch — 2026-10-31
+
+- **FOLLOWUPS cleared (tier C and B minors).** The desktop menu scrolls on its own and shows the open page (ADR-378, Proposed, Q-345): no new link needs a regroup, and the layout check asserts reachability instead of fit. The flaky `organizer-alerts` "checks the member again when it sends" test: the alerts are numbered in the order of members' random ids, a claim takes five rows, and a claim that finds only rows to skip ends the run (T-503 line in FOLLOWUPS), so about one run in twenty sent nothing; the test now runs twice. App and dashboard minors: the map board's click surface leaves the tab order, the sponsor screen shows loading or "no longer part of the event", a late sponsor read of the previous event is dropped, the survey's left-out line has no plural, "Thanks" shows only for a thumb sent a moment ago, and the cheers button follows the server's clock (`Server-Now` of the live read). Not run on a phone.
+
 ## T-509 cheers — 2026-10-31
 
 - **T-509 done (tier B; code review owed; not run on a phone).** Migration 0090 (new, undeployed; staging runs through 0088, 0089 is deploying): two closed tables
