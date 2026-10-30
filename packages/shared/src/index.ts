@@ -596,3 +596,24 @@ export type {
   TeamMap,
   TeamMapPin,
 } from "./maps/maps";
+export {
+  SPONSOR_LIMITS,
+  SPONSOR_TAG_KINDS,
+  SPONSOR_TIERS,
+  memberSponsorsSchema,
+  sponsorBodySchema,
+  sponsorTagBodySchema,
+  teamSponsorListSchema,
+  tierKey,
+} from "./sponsors/sponsors";
+export type {
+  MemberSponsor,
+  MemberSponsorTag,
+  MemberSponsors,
+  SponsorBody,
+  SponsorTagBody,
+  SponsorTagKind,
+  SponsorTier,
+  TeamSponsor,
+  TeamSponsorTag,
+} from "./sponsors/sponsors";

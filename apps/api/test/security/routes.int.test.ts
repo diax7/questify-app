@@ -72,6 +72,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner/editor, same-event map, pin and quest, per-event write lock; Idempotency-Key, audited (maps)",
   "DELETE /v1/organizers/:organizerId/events/:eventId/maps/:mapId/pins/:pinId":
     "owner/editor, same-event map and pin, per-event write lock; Idempotency-Key, audited (maps)",
+  "GET /v1/events/:eventId/sponsors":
+    "caller-bound active membership through member_sponsors; tags only on quests, categories and rewards the caller may see, nothing about any player (sponsors)",
+  "GET /v1/organizers/:organizerId/events/:eventId/sponsors":
+    "owner/editor, event limit rechecked by award_event_of (sponsors)",
+  "POST /v1/organizers/:organizerId/events/:eventId/sponsors":
+    "owner/editor, event limit rechecked by award_event_of, per-event write lock; Idempotency-Key, audited (sponsors)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/sponsor-tags":
+    "owner/editor, same-event item and sponsor, per-event write lock; Idempotency-Key, audited (sponsors)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/sponsors/:sponsorId":
+    "owner/editor, same-event row, per-event write lock; Idempotency-Key, audited (sponsors)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/sponsors/:sponsorId":
+    "owner/editor, same-event row, per-event write lock; Idempotency-Key, audited (sponsors)",
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":
