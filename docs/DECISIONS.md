@@ -5530,7 +5530,7 @@ image (the dashboard has none) and disabled controls, as the guidelines do.
 
 ## ADR-368 - T-599c logo, icons, a shell that stays, and the browser-test budget
 
-**Status:** Proposed (developer, from Dhia's wireframe review, 2026-10-30; Q-336).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; T-599c review 88, the MAJOR fixed in 82264dc; Q-336).
 **Context:** Dhia asked for the photos to be fixed first, then the logo in the top bar, icons in the menu, language and Sign out as
 icons, and navigation that does not feel like opening a new website. **Photos:** no `<img>` or background image on a dashboard, console
 or public page fails to load: every picture the pages name (`/avatars`, `/currency`, `/souvenirs`) is in `apps/web/public`, tracked

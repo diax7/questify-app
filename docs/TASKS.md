@@ -1113,7 +1113,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     languages; (5) page changes stay in the app (Next `Link`, no full reload) with a `loading` state per route group.
   - Done when: the layout check also fails on a broken image (`naturalWidth` 0) on every listed page; no internal
     dashboard link does a full document load (a browser test proves it); the layout check passes; screenshots attached.
-  - Done 2026-10-30 (tier B; code review owed), ADR-368 and Q-336 Proposed. **Photos:** no picture on a dashboard, console or public page was
+  - Done 2026-10-30 (tier B; review 88, MAJOR fixed in 82264dc, minors in FOLLOWUPS), ADR-368 accepted, Q-336 open. **Photos:** no picture on a dashboard, console or public page was
     broken: the 12 pictures the pages name load locally and on staging, and the layout check, with its new broken-image test, passed on
     every page before any change; the only image request that failed on every page was `/favicon.ico` (the site had no icon), now the brand's
     app icon, and the event link's share image names `questify.sa`, which is not live (ADR-113). **Then:** the wordmark of the brand deck

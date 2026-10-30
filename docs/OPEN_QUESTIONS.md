@@ -1511,4 +1511,6 @@ a dashboard, console or public page failed to load (all 12 of them load, locally
 request that failed, and it is fixed with the brand's app icon; the English wordmark in the top bar on every page; icons drawn in one
 inline set; the shell in layouts. **Open:** Dhia may know a page whose picture was wrong (name it and it is added to the layout check), may
 want an Arabic wordmark, or a different icon style; the event link's share image names `questify.sa`, which is not live (ADR-113).
+**Dhia (2026-10-30):** the broken pictures were in the currency icon picker ("maybe it's working now"); all five `/currency` pictures
+answer 200 on staging after the T-599 deploy, so the photos part is closed. Still open: an Arabic wordmark, the icon style, the share image address.
 ADR-368 Proposed.
