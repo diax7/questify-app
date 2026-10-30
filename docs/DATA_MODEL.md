@@ -1373,3 +1373,23 @@ composite FK to the event (cascade); written by `alert_enqueue` from four trigge
 low crossing, `console.ticket_read` audit rows) and the flag scan; moved only by the system-only `alert_claim`, `alert_ack`,
 `alert_settle`. Forced RLS and no grant on all three tables; every function closed to PUBLIC, only the eight doors granted to
 the API role.
+
+
+## Agenda and sessions (T-505, migration 0086; Proposed ADR-373)
+
+- `event_session(id, organizer_id, event_id, kind talk|workshop|activity, title_ar/en, description_ar/en, place_ar/en (a title in
+  one language is enough), speakers text[] (at most 10), starts_at, ends_at (at most 24 h), access open|registration, seats NULL = no
+  limit, closes_at NULL = the start, registration_open, walk_ins, reminder_minutes 1 to 1440 (default 15), quest_id (same event; ON DELETE
+  SET NULL), created_by/at, updated_at)`. A CHECK ties an open session to no seats, no closing time and no walk-ins. No price column
+  exists (FR-1789).
+- `session_registration(id, organizer_id, event_id, session_id, enrollment_id ON DELETE CASCADE, player_id, created_at)`, unique per
+  session and player. Cancelling deletes the row. It records the player, the session and the time only.
+- `session_attendance(id, organizer_id, event_id, session_id, enrollment_id ON DELETE CASCADE, player_id, operator_id, walk_in,
+  checked_in_at)`, unique per session and player.
+- `session_message(id, organizer_id, event_id, session_id, frozen title/body in both languages, press (SHA-256 of the
+  Idempotency-Key, unique per event), recipients, created_by/at)`: the replay and the rate limit of a message to registrants.
+- Two notice kinds: `session_reminder` (personal, Reminders topic, 2 h) and `session_message` (personal, Announcements topic, 6 h).
+- Forced RLS and no grant on all four tables; every function is closed to PUBLIC, and only twelve doors are granted to the API
+  role (`session_authorize`, `session_save`, `session_import`, `session_delete`, `session_list`, `session_registration_set`,
+  `session_message`, `member_sessions`, `session_register`, `session_cancel`, `session_check_in`, `operator_sessions`). The
+  rehearsal wipe removes registrations and attendance through the enrollment's cascade; the player doors wipe first.

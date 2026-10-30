@@ -1542,3 +1542,7 @@ the specs of the changed area on each push, chosen by `scripts/ci-scope.mjs`; th
 hand in `full.yml`; the security floor unchanged on every push (ADR-372). **Open:** Dhia may prefer two shards (needs the API's per-admin limits to
 allow two workers), a weekly full run instead of daily if the repository turns private (about 900 minutes a month), or the whole suite on every
 push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-30).
+
+## Q-340 - T-505 agenda and sessions: what is decided without Dhia (2026-10-30)
+
+**Recommended (developer):** registration is free and records the player, the session and the time only; an overlap is a warning the player can confirm, not a block; a registration-required session without walk-ins refuses a player who did not register, with walk-ins on it records them as walk-ins; a full or closed session simply offers no button; the agenda link on Event Home is always shown; the session's points on check-in wait for T-505b (tier A). **Open:** whether an event with no sessions should hide the Home link (needs a count on Home), whether waitlists matter for full sessions, and how many points a session should give (the organizer sets it in T-505b). **Decided (developer):** as recommended, ADR-373 pending Dhia's reading (2026-10-30).

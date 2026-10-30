@@ -628,3 +628,41 @@ Errors: 422 invalid_announcement {field,issue} for text, or {issue:sendAt:past/t
 403 not_enrolled for a player's inaccessible list. Errors/logs never echo copy. Dashboard rows include bilingual
 fields, status, sendAt, sentAt, rehearsal, skipReason, delivered (center-row count, exact below 10 then nearest 10;
 null before send/after notice purge), and delivering while the fan-out is incomplete.
+
+
+## Agenda and sessions (T-505, migration 0086; Proposed ADR-373 / Q-340)
+
+Team prefix: `/v1/organizers/{organizerId}/events/{eventId}`, owner/editor within the event limit. Every write needs an
+**Idempotency-Key** and re-checks the caller's access before a stored answer is replayed. A refusal of the database maps to:
+404 `not_found` (foreign, revoked or unknown event or session), 422 `invalid_session {issue}` (the issue is the field, or
+`endsAt:before_start`, `endsAt:too_long`, `startsAt:outside_event`, `title`), 409 `session_seats_below {registered}`,
+`session_has_registrations`, `session_has_attendance`, `session_limit` (1,000 a event), `session_event_closed` (ended or archived),
+`session_nobody`, 429 `session_message_limit {window: hour|day}`.
+
+| Method | Suffix | Result |
+|---|---|---|
+| GET | /sessions | `{sessions: TeamSession[]}`, earliest first, with `registered`, `attended`, `walkInCount`, `noShows` (no-shows count only once the session has started); `private, no-store` |
+| POST | /sessions | Body `SessionBody` (kind talk/workshop/activity, titleAr/En (one is enough), descriptionAr/En, placeAr/En, speakers (up to 10), startsAt, endsAt (inside the event's dates, at most 24 h), access open/registration, seats, closesAt, walkIns, reminderMinutes 1 to 1440 (default 15), questId); an open session ignores seats, closing time and walk-ins. No price field exists (FR-1789). 201 `TeamSession` |
+| PUT | /sessions/{id} | Same body; seats below the registered number are refused naming it; turning a session with registrations into an open one is refused |
+| DELETE | /sessions/{id} | `{registrationsLost}`; refused once anyone was checked in |
+| PUT | /sessions/{id}/registration | `{open, seats}`: close or reopen registration and change the seats (never below the registered number) |
+| POST | /sessions/import | `{rows: SessionBody[]}` (1 to 500), one transaction: every row or none; 201 `{created}`. The dashboard reads the CSV in the browser (`parseSessionsCsv`) and lists the lines it cannot read |
+| POST | /sessions/{id}/message | `{titleAr,titleEn,bodyAr,bodyEn}` checked as an announcement; one personal notice per registrant (kind `session_message`, topic Announcements); the same key replays `{id, recipients, replayed}`; 3 an hour and 10 a day for the event |
+
+Player, active member of the event (403 `not_enrolled` otherwise), all `private, no-store`:
+
+| Method | Path | Result |
+|---|---|---|
+| GET | /v1/events/{eventId}/sessions | `{sessions: MemberSession[]}` with the player's own `registered`, `checkedIn`, `cancellable`, `started`, `seatsLeft` and `status` (open, available, registered, full, closed) and the linked quest. Never another player's registration |
+| POST | /v1/events/{eventId}/sessions/{id}/register | **Idempotency-Key**, body `{confirmOverlap?}`. `{outcome: "registered", replayed}`, or `{outcome: "overlap", overlaps: [{id,title}]}` with nothing written; the app asks and calls again with `confirmOverlap: true`. The session row is locked before the seat count, so the last seat goes to one player. 409 `session_full`, `session_closed`, `session_started`, `session_not_required` |
+| POST | /v1/events/{eventId}/sessions/{id}/cancel | **Idempotency-Key**; `{status: "cancelled"}`; the seat is free at once; 409 `session_started` after the start |
+
+Operator (assignment on the event, `scan_quests`, no quest limit; a removed operator gets 403 `not_operator` and leaves operator mode):
+
+| Method | Path | Result |
+|---|---|---|
+| GET | /v1/operator/events/{eventId}/sessions | `{sessions}` the door can check in to now: from an hour before the start until the end |
+| POST | /v1/operator/sessions/{sessionId}/check-in | `{code}` (a player's My QR) → `{result, walkIn, player: {username, avatar}}` with `result` `checked_in`, `already`, `not_registered`, `too_early`, `ended`, or `refused {reason}` (`invalid_code`, `old_code`, `ability_off`, `outside_station`, `self_scan`, `not_in_event`, `enrollment_inactive`). Attendance is recorded once per player; no points yet (T-505b) |
+
+Reminders are written by the push worker (`push_due_session`, inside `push_due`): one `session_reminder` notice per registrant
+at the start minus the session's minutes, marker `session:{session}:{player}`, only while the registration stands.
