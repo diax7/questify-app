@@ -211,11 +211,12 @@ async function checkPage(
   // A page that opens on the error state because the API stalled for a moment is opened again, not read as it is.
   await expect(async () => {
     await page.goto(`/${language}${path}`);
+    // Inside the main area: the shell around it paints its own labels at once, before the page has its data.
     await expect(
-      page.getByText(listed.ready[language]).filter({ visible: true }).first(),
+      page.locator("main").getByText(listed.ready[language]).filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 6000 });
   }).toPass({ timeout: 40_000 });
-  await waitUntilSettled(page);
+  await waitUntilSettled(page, where);
   await expectCleanLayout(page, where);
   await expectNavFits(page, where);
   await shoot(page, project, `${language}-${listed.name}`);

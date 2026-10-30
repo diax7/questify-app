@@ -171,6 +171,33 @@ test("the top bar shows the logo, with the language switch and Sign out as named
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 });
 
+test("on a phone a tap on any link in the menu sheet closes it and puts focus back on Menu", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "phone", "The menu sheet is the phone's navigation");
+  test.setTimeout(120_000);
+  await signUp(page, info.project.name);
+  await page.getByRole("link", { name: "Events" }).click();
+  await expect(page).toHaveURL(/\/organizers\/[^/]+\/events$/);
+  const menu = page.getByRole("button", { name: "Menu" });
+  const links = page.getByRole("navigation", { name: "Navigation" });
+
+  // The open page's own link changes nothing in the address, and still closes the sheet.
+  await openMenu(page);
+  await links.getByRole("link", { name: "Events", exact: true }).click();
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).toBeFocused();
+
+  // A link to another page closes it when the page changes, the shell staying where it is.
+  await markDocument(page);
+  await openMenu(page);
+  await links.getByRole("link", { name: "Team", exact: true }).click();
+  await expect(page).toHaveURL(/\/organizers\/[^/]+\/team$/);
+  await expectSameDocument(page, "after opening Team");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).toBeFocused();
+});
+
 test("a page of players names Questify without the dashboard, and still shows the logo", async ({
   page,
 }) => {

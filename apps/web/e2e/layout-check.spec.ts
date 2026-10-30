@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { brokenImagesOf, contrastOf, readLayout } from "#e2e/layout.ts";
+import {
+  brokenImagesOf,
+  contrastOf,
+  readLayout,
+  waitUntilSettled,
+  watchRequests,
+} from "#e2e/layout.ts";
 
 /**
  * The layout check catches what it is for (ADR-364): a page built with each fault, as the staging dashboard had them,
@@ -185,4 +191,34 @@ test("the layout check reports pictures that did not load, in a tag or in a styl
   expect(broken).toHaveLength(4);
   expect(broken.filter((line) => line.startsWith("<img>"))).toHaveLength(3);
   expect(broken.filter((line) => line.startsWith("a background image"))).toHaveLength(1);
+});
+
+test("the wait for a page to settle ends with its loading line, and fails on a page that never does", async ({
+  page,
+}) => {
+  watchRequests(page);
+
+  for (const words of ["Loading…", "جارٍ التحميل…"]) {
+    await page.setContent(`
+      <body><header><div role="status">${words}</div></header>
+        <main><div role="status">${words}</div></main>
+        <script>setTimeout(() => document.querySelector("main").replaceChildren("Ready"), 600)</script>
+      </body>`);
+    // The shell's own line outside the main area is not the page's, and the page's goes away by itself.
+    await waitUntilSettled(page, "a page that loads");
+    await expect(page.locator("main")).toHaveText("Ready");
+  }
+
+  await page.setContent(`<body><main><div role="status">Loading…</div></main></body>`);
+  await expect(waitUntilSettled(page, "a page stuck loading")).rejects.toThrow(
+    "a page stuck loading: still showing its loading state",
+  );
+
+  await page.route("http://never.test/**", () => new Promise<void>(() => {}));
+  await page.setContent(
+    `<body><main>Ready</main><script>fetch("http://never.test/slow")</script></body>`,
+  );
+  await expect(waitUntilSettled(page, "a page that never goes quiet")).rejects.toThrow(
+    "1 requests still open",
+  );
 });

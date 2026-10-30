@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon } from "#src/ui/Icon.tsx";
 import styles from "#src/ui/shell.module.css";
 
@@ -19,8 +19,9 @@ type Props = Readonly<{
 
 /**
  * The parts of the shell that move: on a phone the navigation and the account links open from the Menu button as a
- * sheet under the top bar, with the page beneath it inert; Escape closes the sheet from anywhere and puts focus back
- * on the Menu button. On a desktop they are always shown.
+ * sheet under the top bar, with the page beneath it inert. The sheet closes on Escape, on a tap of any link in it (the
+ * page's own link included, which changes nothing in the address) and when the page changes by any other way; however it
+ * closes, focus goes back to the Menu button. On a desktop they are always shown.
  */
 export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, children }: Props) {
   const [open, setOpen] = useState(false);
@@ -32,6 +33,13 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
     setOpen(false);
   }
   const menuButton = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      menuButton.current?.focus();
+    }
+    wasOpen.current = open;
+  }, [open]);
   useEffect(() => {
     if (!open) {
       return;
@@ -39,7 +47,6 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
     const closeOnEscape = (pressed: KeyboardEvent) => {
       if (pressed.key === "Escape") {
         setOpen(false);
-        menuButton.current?.focus();
       }
     };
     // A phone turned sideways or a window widened shows the column instead; the page must not stay inert then.
@@ -84,7 +91,13 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
       </header>
       <div className={styles.body}>
         {hasMenu ? (
-          <ShellNav label={labels.navigation} open={open} nav={nav} account={account} />
+          <ShellNav
+            label={labels.navigation}
+            open={open}
+            nav={nav}
+            account={account}
+            close={() => setOpen(false)}
+          />
         ) : null}
         <main id="main" className={styles.main} inert={open}>
           <div className={narrow ? `${styles.content} ${styles.narrow}` : styles.content}>
@@ -96,16 +109,31 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
   );
 }
 
-/** The navigation column: the page's navigation, and on a phone the account links under it. */
+/**
+ * The navigation column: the page's navigation, and on a phone the account links under it. A tap on any link in it
+ * calls `close`, since a link to the open page leaves the address as it is and so would leave the sheet open.
+ */
 function ShellNav({
   label,
   open,
   nav,
   account,
-}: Readonly<{ label: string; open: boolean; nav: ReactNode; account: ReactNode }>) {
+  close,
+}: Readonly<{
+  label: string;
+  open: boolean;
+  nav: ReactNode;
+  account: ReactNode;
+  close: () => void;
+}>) {
   const look = [open ? styles.sideOpen : styles.side, nav === null ? styles.accountOnly : ""];
+  const closeOnLink = (tapped: MouseEvent<HTMLElement>) => {
+    if (tapped.target instanceof Element && tapped.target.closest("a") !== null) {
+      close();
+    }
+  };
   return (
-    <nav id="shell-navigation" aria-label={label} className={look.join(" ")}>
+    <nav id="shell-navigation" aria-label={label} className={look.join(" ")} onClick={closeOnLink}>
       {nav}
       {account === null ? null : <div className={styles.phoneOnly}>{account}</div>}
     </nav>

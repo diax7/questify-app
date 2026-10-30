@@ -11,8 +11,12 @@ import { requestJson } from "#src/lib/post-json.ts";
 import type { TicketPage } from "#src/lib/tickets.ts";
 import { NavGroup, NavItem } from "#src/ui/Nav.tsx";
 
-/** The event's open help requests, once read; null until then or when they cannot be read. */
-function useOpenTickets(organizerId: string, eventId: string | null): number | null {
+/**
+ * The event's open help requests, once read; null until then or when they cannot be read. The shell stays while the
+ * pages change, so `page` (the address) makes it read again on each page: one call per page change, the earlier count
+ * showing until the new one arrives.
+ */
+function useOpenTickets(organizerId: string, eventId: string | null, page: string): number | null {
   const [open, setOpen] = useState<number | null>(null);
   useEffect(() => {
     if (eventId === null) {
@@ -30,12 +34,12 @@ function useOpenTickets(organizerId: string, eventId: string | null): number | n
     return () => {
       current = false;
     };
-  }, [organizerId, eventId]);
+  }, [organizerId, eventId, page]);
   return open;
 }
 
-/** Whether Questify's invitations are open to this event (the Invitations page is listed only then). */
-function useInvitationsOpen(organizerId: string, eventId: string | null): boolean {
+/** Whether Questify's invitations are open to this event (the Invitations page is listed only then), read on each `page`. */
+function useInvitationsOpen(organizerId: string, eventId: string | null, page: string): boolean {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     if (eventId === null) {
@@ -43,14 +47,14 @@ function useInvitationsOpen(organizerId: string, eventId: string | null): boolea
     }
     let current = true;
     void requestJson("GET", invitationsPath(organizerId, eventId)).then((result) => {
-      if (current) {
+      if (current && result.ok) {
         setEnabled(invitationsOpen(result));
       }
     });
     return () => {
       current = false;
     };
-  }, [organizerId, eventId]);
+  }, [organizerId, eventId, page]);
   return enabled;
 }
 
@@ -75,8 +79,8 @@ export function OrganizerNav({
   const path = pathAfterLanguage(usePathname());
   const place = eventPlaceIn(path);
   const eventId = place?.eventId ?? null;
-  const openTickets = useOpenTickets(organizerId, eventId);
-  const invitations = useInvitationsOpen(organizerId, eventId);
+  const openTickets = useOpenTickets(organizerId, eventId, path);
+  const invitations = useInvitationsOpen(organizerId, eventId, path);
   const base = `/${language}/organizers/${organizerId}`;
 
   const labelOf = (link: EventPageLink, words: Translate): string => {

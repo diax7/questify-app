@@ -106,7 +106,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Browser tests (sign-in on desktop and phone, both languages)
+      - name: Browser tests (dashboard, console and public pages on desktop and phone, both languages)
         if: steps.scope.outputs.e2e == 'true'
         # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
         # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).

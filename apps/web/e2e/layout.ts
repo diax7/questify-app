@@ -412,8 +412,11 @@ export async function expectStateContrast(
 }
 
 /** How long the page's requests must stay quiet before it counts as settled, and the longest wait for that. */
-const QUIET_MS = 150;
+const QUIET_MS = 300;
 const SETTLE_LIMIT_MS = 5000;
+
+/** The words a page shows while its data is on the way, in both languages (the skeleton and the "Loading…" lines). */
+const LOADING = new RegExp(`${MESSAGES["common.loading"].en}|${MESSAGES["common.loading"].ar}`);
 
 const settlers = new WeakMap<Page, () => Promise<void>>();
 
@@ -433,21 +436,36 @@ export function watchRequests(page: Page): void {
   page.on("requestfailed", () => change(-1));
   settlers.set(page, async () => {
     const giveUp = Date.now() + SETTLE_LIMIT_MS;
-    while (
-      (requests.open > 0 || Date.now() - requests.lastActivity < QUIET_MS) &&
-      Date.now() < giveUp
-    ) {
+    while (requests.open > 0 || Date.now() - requests.lastActivity < QUIET_MS) {
+      if (Date.now() >= giveUp) {
+        throw new Error(
+          `${page.url()}: ${requests.open} requests still open after ${SETTLE_LIMIT_MS}ms, so the page never settled`,
+        );
+      }
       await page.waitForTimeout(25);
     }
   });
 }
 
-/** Waits until no request of the page is open and none has started or ended for 150ms (at most five seconds). */
-export async function waitUntilSettled(page: Page): Promise<void> {
+/**
+ * Waits until no request of the page is open and none has started or ended for 300ms, then until the page's main area
+ * no longer shows a skeleton or a "Loading…" line (a page that has not hydrated yet can be quiet and still empty), then
+ * for the requests that its data then asked for. Fails after five seconds of either wait, so a page never counts as read
+ * before it has its data.
+ */
+export async function waitUntilSettled(page: Page, where: string): Promise<void> {
   const settle = settlers.get(page);
   if (settle === undefined) {
     throw new Error("watchRequests(page) must be called before the first page is opened");
   }
+  await settle();
+  const loading = page
+    .locator("main [role='status']")
+    .filter({ hasText: LOADING })
+    .filter({ visible: true });
+  await expect(loading, `${where}: still showing its loading state`).toHaveCount(0, {
+    timeout: SETTLE_LIMIT_MS,
+  });
   await settle();
 }
 
@@ -509,7 +527,7 @@ export type LayoutPage = Readonly<{
   name: string;
   /** The path after the language, e.g. `/organizers/{id}/events`. */
   path: (ids: LayoutIds) => string;
-  /** Text the finished page shows, so the check waits for the data and not only the first paint. */
+  /** Text the finished page shows in its main area (the shell paints its labels at once), so the check waits for the data. */
   ready: Readonly<{ en: string; ar: string }>;
   /** `draft` pages are read while the event is a draft, the rest after the run has filled and started it. */
   phase?: "draft";
