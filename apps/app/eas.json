@@ -14,7 +14,7 @@
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://questify-api-staging-3ez01s.cranl.net",
-        "EXPO_PUBLIC_QUEST_CODE_ORIGIN": "https://questify-web-staging-4ecphq.cranl.net"
+        "EXPO_PUBLIC_QUEST_CODE_ORIGIN": "https://questify.nafes.com"
       }
     }
   }
