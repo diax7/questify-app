@@ -5628,7 +5628,7 @@ unusual key name is caught only when passed as `help` or `description`, otherwis
 
 ## ADR-372 - The push gate runs the browser specs of the changed area; the whole suite runs daily and by hand
 
-**Status:** Proposed (developer, 2026-10-30; Q-339). Builds ADR-368's browser-test budget; changes no data.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; tier C config, the repo is public so the daily run is free; Q-339). Builds ADR-368's browser-test budget; changes no data.
 **Decision:** (1) The browser step of `ci.yml` (a push to `main`, a ready pull request) runs the layout check
 (`layout.spec.ts`, `layout-check.spec.ts`) plus the specs of the areas the change touches. `scripts/ci-scope.mjs` picks them
 from the changed files with the `AREAS` table (a pattern on a path or a message key, and the specs that cover it) and prints

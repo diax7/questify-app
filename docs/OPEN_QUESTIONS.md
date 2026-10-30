@@ -1541,4 +1541,4 @@ How should the browser suite (16 minutes, one worker) run so a push does not pay
 the specs of the changed area on each push, chosen by `scripts/ci-scope.mjs`; the whole suite when shared code changed, and once a day plus by
 hand in `full.yml`; the security floor unchanged on every push (ADR-372). **Open:** Dhia may prefer two shards (needs the API's per-admin limits to
 allow two workers), a weekly full run instead of daily if the repository turns private (about 900 minutes a month), or the whole suite on every
-push again. **Decided (developer):** as recommended, ADR-372 Proposed until the coordinator accepts it after review.
+push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-30).
