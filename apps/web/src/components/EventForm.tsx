@@ -369,6 +369,7 @@ const FEATURE_SWITCHES = [
   ["flashQuests", (event: EventView) => event.flashQuests !== false],
   ["boosts", (event: EventView) => event.boosts !== false],
   ["helpDesk", (event: EventView) => event.helpDesk !== false],
+  ["questRatings", (event: EventView) => event.questRatings === true],
 ] as const;
 
 /** The event's on/off switches in one place: the ranking and each player feature, each saved as it changes. */

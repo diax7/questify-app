@@ -1065,6 +1065,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         // wipe first, so a registration of a rehearsal account never outlives go-live (T-505, test/db/sessions).
         "enrollment.session_registration",
         "enrollment.session_attendance",
+        // A rehearsal account's quest ratings go with it (ON DELETE CASCADE); rate_quest needs a completion of the quest,
+        // so a rating of a rehearsal account is wiped with its completion's account at go-live (T-508).
+        "enrollment.quest_rating",
       ];
       const rows = await owner<{ edge: string }>(
         `SELECT DISTINCT target.relname || '.' || source.relname AS edge

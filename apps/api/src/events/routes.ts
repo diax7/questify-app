@@ -100,6 +100,7 @@ const view = (event: EventRecord) => ({
   flashQuests: event.flashQuestsOn,
   boosts: event.boostsOn,
   helpDesk: event.helpDeskOn,
+  questRatings: event.questRatingsOn,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
   cityId: event.cityId,
@@ -237,11 +238,17 @@ export function registerEventRoutes(
         throw notFound();
     }
   });
+  registerEventSwitches(scope, settings);
+}
 
-  // FR-607, FR-608, FR-219, FR-1009 and F-101: the owner turns the event's ranking, today's ranking, share and meet
-  // quests, mini-games and community quests off and on; the event's other switches stay as they are. Community off
-  // finishes the event's running goals (migration 0053's trigger, ADR-226). Flash quests off hides every one at once;
-  // boosts off stops every boost paying at once (T-307, migration 0055). Help desk off stops new tickets (T-310).
+/**
+ * FR-607, FR-608, FR-219, FR-1009 and F-101: the owner turns the event's ranking, today's ranking, share and meet
+ * quests, mini-games and community quests off and on; the event's other switches stay as they are. Community off
+ * finishes the event's running goals (migration 0053's trigger, ADR-226). Flash quests off hides every one at once;
+ * boosts off stops every boost paying at once (T-307, migration 0055). Help desk off stops new tickets (T-310). Quest
+ * ratings are the one switch that starts off: players are asked only after the owner turns them on (T-508, FR-1623).
+ */
+function registerEventSwitches(scope: FastifyInstance, settings: SettingsService): void {
   const switches = [
     ["/events/:eventId/ranking", "ranking"],
     ["/events/:eventId/ranking-today", "rankingToday"],
@@ -252,6 +259,7 @@ export function registerEventRoutes(
     ["/events/:eventId/flash-quests", "flashQuests"],
     ["/events/:eventId/double-points", "boosts"],
     ["/events/:eventId/help-desk", "helpDesk"],
+    ["/events/:eventId/quest-ratings", "questRatings"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

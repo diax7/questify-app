@@ -19,6 +19,22 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-508 quest ratings and survey results — 2026-10-30
+
+- **T-508 done (tier B; code review owed; not run on a phone).** Migration 0089 (new, undeployed; staging is at 0087, 0088 is deploying): two closed tables
+  (`quest_rating`, `survey_share`), seven granted doors, `survey_summary` restated over an internal `survey_results_core`. API `src/ratings`: the player's
+  `GET/PUT /v1/quests/{id}/rating`, the team's `…/quest-ratings` counts and `…/survey-share` (make, replace, stop), the owner's ratings switch, and the one anonymous
+  door `POST /v1/public/survey-results` (token in the body, own throttle bucket `survey_results_open`, a name added to `BUCKETS`; no change to any throttle logic).
+  Dashboard: results on the survey quest's form and on the agenda row of a session that links it (no new menu link), spreadsheet export, "Share with the speaker",
+  the "80% liked" score on the quest row, the owner's switch on the event page (the first event switch that starts off), and the speaker's page `/{lang}/r#token`.
+  App: thumbs and Skip under a completed quest. The csv cell helper moved to `packages/shared/src/text/csv.ts` and `downloadText` to `apps/web/src/lib/download-text.ts`
+  (both now shared by sessions and surveys). ADR-376 and Q-343 Proposed. **Not built:** the survey results in the one-page PDF report (T-608) and the score in quest
+  analytics (T-607): notes added there. Local: full vitest 9199 passed, 14 skipped (two guards failed on the new doors and the new feature key: the community gate map
+  and the config defaults test; both mapped and rerun green); tsc (shared, api, web, app), oxlint, format and limits clean; `npx expo export` ok (Android);
+  browser suite 247 passed, 3 skipped, 0 failed (single worker, 23.5 min). CI minutes none yet; agent tokens roughly 0.4M for the finishing worker (the first worker was
+  cut off by a PC crash; its figure is unknown).
+  **Next:** the T-505 to T-508 reviews, T-505b (tier A: plan and plan review first), then T-509.
+
 ## T-507 sponsors — 2026-10-30
 
 - **T-507 done (tier B; code review owed; not run on a phone).** Migration 0088 (new, undeployed; staging is at 0086, 0087 is deploying): two closed tables

@@ -1427,3 +1427,17 @@ the API role.
   they may list, a category they see, or an active reward in their audience), `sponsor_lock` and `sponsor_event_for_write` have no grant.
   Nothing here is personal data and nothing needs erasure or the rehearsal wipe. Audits `sponsor.save`, `sponsor.delete` and `sponsor.tag`
   carry ids and the tier, never a name.
+
+
+## Quest ratings and the speaker's survey link (T-508, migration 0089; Proposed ADR-376)
+
+- `quest_rating(organizer_id, event_id, quest_id, enrollment_id, thumb up|down|skip, created_at, updated_at)`, primary key `(enrollment_id, quest_id)`,
+  composite FKs to the event, the enrollment and the quest, all ON DELETE CASCADE. **Personal data**: it goes with the enrollment (a deleted account,
+  the rehearsal wipe) and with its quest. Only `rate_quest` writes it (the caller's own active enrollment, a completion of that quest, the event's
+  `config.features.questRatings` true) and only the caller's own row, or the team's counts, are ever read.
+- `survey_share(organizer_id, event_id, quest_id PK, token_hash (64 hex, unique), created_by, created_at)`, composite FKs to the event and the quest with
+  ON DELETE CASCADE. Only the SHA-256 of the 256-bit token is stored; a new link replaces the row's hash.
+- Forced RLS and no grant on both tables. Doors granted to the API role: `rate_quest`, `member_quest_rating`, `quest_rating_scores`, `survey_share_state`,
+  `survey_share_save`, `survey_share_revoke` and `survey_shared_results` (the anonymous one, by hash). Internals with no grant: `quest_ratings_on`
+  (true only for an explicit `true`), `rating_member` and `survey_results_core` (the body of `survey_summary`, which 0089 restates with the same answer).
+  Audits `survey.share` and `survey.unshare` carry the quest id only, never the hash.

@@ -21,6 +21,7 @@ import { registerRecapRoutes } from "#src/recap/routes";
 import { registerMemberAnnouncementRoutes } from "#src/announcements/routes";
 import { registerMemberSessionRoutes } from "#src/sessions/routes";
 import { registerMemberMapRoutes } from "#src/maps/routes";
+import { registerMemberRatingRoutes } from "#src/ratings/routes";
 import { registerMemberSponsorRoutes } from "#src/sponsors/routes";
 
 const eventParams = z.object({ eventId: z.uuid() });
@@ -96,6 +97,7 @@ export function registerHomeRoutes(app: FastifyInstance, deps: HomeDeps): void {
   registerMemberSessionRoutes(app, deps);
   registerMemberMapRoutes(app, deps);
   registerMemberSponsorRoutes(app, deps);
+  registerMemberRatingRoutes(app, deps);
   app.get("/v1/events/:eventId/home", { config: { access: "player" } }, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const home = await readHome(deps, playerIdOf(request), eventId);

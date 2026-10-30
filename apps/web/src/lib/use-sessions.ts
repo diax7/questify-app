@@ -13,7 +13,7 @@ import { sessionIssueKey } from "#src/lib/sessions.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
 export type SessionsProps = Readonly<{ language: Language; organizerId: string; eventId: string }>;
-export type QuestChoice = Readonly<{ id: string; title: string }>;
+export type QuestChoice = Readonly<{ id: string; title: string; type: string }>;
 export type EventFrame = Readonly<{ zone: string; window: SessionWindow }>;
 
 type Frame = Readonly<{ event: EventFrame; quests: QuestChoice[] }>;
@@ -22,7 +22,7 @@ type EventBody = {
   event?: { timezone?: string; startsAt?: string | null; endsAt?: string | null };
 };
 type QuestsBody = {
-  categories?: { quests?: { id: string; title: { ar?: string; en?: string } }[] }[];
+  categories?: { quests?: { id: string; type: string; title: { ar?: string; en?: string } }[] }[];
 };
 
 function eventFrame(body: unknown): EventFrame | undefined {
@@ -39,6 +39,7 @@ function questChoices(body: unknown, language: Language): QuestChoice[] {
   return categories.flatMap((category) =>
     (category.quests ?? []).map((quest) => ({
       id: quest.id,
+      type: quest.type,
       title: quest.title[language] ?? quest.title.en ?? quest.title.ar ?? "",
     })),
   );

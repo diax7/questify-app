@@ -54,6 +54,8 @@ export type EventView = Readonly<{
   boosts?: boolean;
   /** The event's help desk switch (T-310); absent from an older API, read as on. */
   helpDesk?: boolean;
+  /** The event's quest ratings switch (T-508, FR-1623); off unless the API says so. */
+  questRatings?: boolean;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

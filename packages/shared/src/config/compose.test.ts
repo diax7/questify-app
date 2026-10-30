@@ -76,6 +76,25 @@ describe("composeConfig defaults", () => {
     expect(composeConfig(withLocation, {}, {}).features["shop"]?.enabled).toBe(true);
   });
 
+  it("keeps an event feature off until its owner switches it on, and the platform can still switch it off (FR-1623)", () => {
+    const withRatings = {
+      features: { ...FEATURES, ratings: { gated: false, eventOffByDefault: true as const } },
+      tuning: TUNING,
+    };
+    const on = (
+      platform: Parameters<typeof composeConfig>[1],
+      event: Parameters<typeof composeConfig>[2],
+    ) => composeConfig(withRatings, platform, event).features["ratings"]?.enabled;
+    expect(on({}, undefined)).toBe(false);
+    expect(on({}, {})).toBe(false);
+    expect(on({}, { features: { ratings: false } })).toBe(false);
+    expect(on({}, { features: { ratings: true } })).toBe(true);
+    expect(on({ features: { ratings: { enabled: false } } }, { features: { ratings: true } })).toBe(
+      false,
+    );
+    expect(composeConfig(withRatings, {}, {}).features["shop"]?.enabled).toBe(true);
+  });
+
   it("lists features and tuning in a fixed order, so equal settings always give equal documents", () => {
     const a = composeConfig(registries, {}, undefined);
     const reversed: FeatureRegistry = {

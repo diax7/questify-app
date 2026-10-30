@@ -914,6 +914,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by the owner/editor doors sponsor_save and sponsor_delete inside award_event_of; read by active members through the caller-bound member_sponsors (sponsors database and HTTP suites)",
   sponsor_tag:
     "no direct API rights; written only by the owner/editor door sponsor_tag_set inside award_event_of, only for a quest, category or reward and a sponsor of the same event; read by active members through the caller-bound member_sponsors, only on items they may see (sponsors database and HTTP suites)",
+  quest_rating:
+    "no direct API rights; written only by the caller-bound rate_quest (the player's own active enrollment, a quest they completed, the owner's switch on), read by the owner/editor as counts through quest_rating_scores inside award_event_of and by the player's own row through member_quest_rating (ratings database and HTTP suites)",
+  survey_share:
+    "no direct API rights; written only by the owner/editor doors survey_share_save and survey_share_revoke inside award_event_of for a survey quest of that event; the token is stored only as a hash and opened only through the anonymous survey_shared_results by that hash (ratings database and HTTP suites)",
   notification:
     "no direct API rights; the notification center: written only by the system-only fan-out, read and marked only by the caller-bound own_notifications, own_unread_notifications and mark_notifications_read for the calling player (tested below, push-store, push/routes)",
   push_device:
@@ -1548,6 +1552,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
     expect(await count("owner", "sponsor WHERE event_id = $1", [f.eventB])).toBe(1);
     expect(await count("owner", "sponsor_tag WHERE event_id = $1", [f.eventB])).toBe(0);
+  });
+
+  it("keeps the rating and survey-link doors inside the caller's tenant and membership (T-508)", async () => {
+    const foreign = (
+      await db.owner.query<{ id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
+         VALUES ($1, $2, 'survey', 'B survey', 10, 1, true,
+                 '{"questions":[{"id":"q","kind":"rating","text":{"ar":null,"en":"Q"},"required":true}]}')
+         RETURNING id`,
+        [f.eventB, f.categoryB],
+      )
+    ).rows[0]?.id as string;
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      const team = [
+        ["SELECT quest_rating_scores($1)", [f.eventB]],
+        ["SELECT survey_share_state($1, $2)", [f.eventB, foreign]],
+        [
+          "SELECT survey_share_save($1, $2, repeat('a', 64), $3)",
+          [f.eventB, foreign, randomUUID()],
+        ],
+        ["SELECT survey_share_revoke($1, $2, $3)", [f.eventB, foreign, randomUUID()]],
+        ["SELECT survey_summary($1, $2)", [f.eventB, foreign]],
+      ] as const;
+      for (const [sql, values] of team)
+        expect(await refusal(asA(seat, sql, [...values])), `${seat} ${sql}`).toBe("AN404");
+      expect(await refusal(asA(seat, "SELECT rate_quest($1, 'up')", [foreign])), seat).toBe(
+        "QR404",
+      );
+      expect(
+        (await asA(seat, "SELECT member_quest_rating($1) AS r", [foreign])).rows[0]?.["r"] ?? null,
+        seat,
+      ).toBeNull();
+    }
+    expect(await count("owner", "survey_share WHERE event_id = $1", [f.eventB])).toBe(0);
+    expect(await count("owner", "quest_rating WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
   it("keeps the streak doors inside their tenant and their player (T-405)", async () => {

@@ -155,6 +155,12 @@ const SHAPES = {
       <path d="m8.8 13.6-1.6 7.4 4.8-2.8 4.8 2.8-1.6-7.4" />
     </>
   ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v1" />
+    </>
+  ),
   signOut: <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 8l4 4-4 4M20 12H9" />,
 } as const satisfies Record<string, ReactNode>;
 

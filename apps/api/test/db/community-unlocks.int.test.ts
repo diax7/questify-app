@@ -1636,7 +1636,11 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   quest_vote_counts: "staff: the team's vote counts",
   set_audience: "staff: the team's audience rules",
   set_operator: "staff: the team's operator settings",
-  survey_summary: "staff: the team's survey results",
+  survey_share_state: "staff: the team's speaker link, a survey quest only (T-508)",
+  survey_share_save: "staff: the team's speaker link, a survey quest only (T-508)",
+  survey_share_revoke: "staff: the team's speaker link, a survey quest only (T-508)",
+  survey_shared_results:
+    "exempt: the speaker's link opens one survey quest by its token hash; no player, no quest list (T-508)",
   launch_flash: "gated: Launch refused while locked (flash-boosts.int.test.ts)",
   end_flash: "staff: ends a flash quest already running; it pays nothing",
   save_boost: "staff: the team's Boosts page",

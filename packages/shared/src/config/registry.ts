@@ -9,6 +9,8 @@ export type FeatureDefinition = Readonly<{
   level?: "platform";
   /** Off until a Questify admin switches it on (the location switch waits for the store privacy answers, ADR-208). */
   offByDefault?: true;
+  /** Off for an event until its owner switches it on (quest ratings, FR-1623); the platform switch stays on. */
+  eventOffByDefault?: true;
 }>;
 
 /** A number an admin may tune, with the range that is safe (F-279). Out-of-range values are never used. */
@@ -125,6 +127,11 @@ export const FEATURES: FeatureRegistry = {
    * answers 404 `ranking_off` at once; the boards keep being written, so turning it back on is exact.
    */
   questifyRanking: { gated: false, level: "platform" },
+  /**
+   * Quest ratings (T-508, FR-1211, FR-1623): the owner turns them on for an event; off until then. Off for the platform, no
+   * prompt shows and no rating is taken.
+   */
+  questRatings: { gated: false, eventOffByDefault: true },
   /** The event ranking (T-106, FR-607): the owner turns it off and on for an event. */
   ranking: { gated: false },
   /** Today's ranking for a multi-day event (T-216, FR-608): the owner turns it off and on. */

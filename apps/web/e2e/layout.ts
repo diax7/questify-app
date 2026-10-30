@@ -681,6 +681,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: "legal", path: "/legal/privacy_policy", ready: titled("deletion.title") },
   { name: "invite", path: "/invite", ready: titled("staff.inviteMissing") },
   { name: "invitation", path: "/i", ready: titled("invCampaignPage.title") },
+  { name: "survey-results", path: "/r", ready: titled("surveyShared.title") },
   { name: "operator-invite", path: "/op", ready: titled("invitePage.title") },
   { name: "pair", path: "/pair", ready: titled("pair.landing.title") },
   // What a camera opens outside the app: a quest's code, a station's code and an NFC tag's code (only their shape is read).

@@ -6868,6 +6868,88 @@ export const MESSAGES = {
     ar: "لا {questMany} من هذا الراعي بعد.",
     en: "No {questMany} from this sponsor yet.",
   },
+  // ---------------------------------------------------------------- quest ratings and survey results (T-508)
+  "events.questRatings.title": { ar: "تقييم {questMany}", en: "Rate {questMany}" },
+  "events.questRatings.label": {
+    ar: "السماح للاعبين بتقييم {questMany} بعد إنجازها",
+    en: "Let players rate {questMany} after completing them",
+  },
+  "rating.prompt": { ar: "ما رأيك؟", en: "What do you think?" },
+  "rating.up": { ar: "أعجبتني", en: "I liked it" },
+  "rating.down": { ar: "لم تعجبني", en: "I did not like it" },
+  "rating.skip": { ar: "تخطي", en: "Skip" },
+  "rating.thanks": { ar: "شكرًا لرأيك.", en: "Thanks for your feedback." },
+  "rating.failed": {
+    ar: "تعذّر إرسال رأيك. حاول مرة أخرى.",
+    en: "Your rating was not sent. Try again.",
+  },
+  "error.ratingsOff": {
+    ar: "التقييم متوقف في هذه الفعالية.",
+    en: "Ratings are off in this event.",
+  },
+  "error.ratingNotCompleted": {
+    ar: "أكمل المهمة قبل تقييمها.",
+    en: "Complete it before rating it.",
+  },
+  "error.ratingInvalid": {
+    ar: "اختر إعجابًا أو عدم إعجاب أو تخطي.",
+    en: "Choose up, down or skip.",
+  },
+  "quests.rating.score": {
+    ar: "أعجب {percent}% ({up} إعجاب، {down} عدم إعجاب)",
+    en: "{percent}% liked ({up} up, {down} down)",
+  },
+  "surveyResults.export": { ar: "تصدير الجدول", en: "Export spreadsheet" },
+  "surveyResults.csv.question": { ar: "السؤال", en: "Question" },
+  "surveyResults.csv.kind": { ar: "النوع", en: "Type" },
+  "surveyResults.csv.answer": { ar: "الإجابة", en: "Answer" },
+  "surveyResults.csv.count": { ar: "العدد", en: "Count" },
+  "surveyResults.csv.choice": { ar: "اختيار", en: "Choice" },
+  "surveyResults.csv.rating": { ar: "تقييم", en: "Rating" },
+  "surveyResults.csv.text": { ar: "نص", en: "Text" },
+  "surveyResults.csv.average": { ar: "المتوسط", en: "Average" },
+  "surveyResults.csv.responses": { ar: "عدد الإجابات", en: "Responses" },
+  "surveyResults.csv.noAnswers": { ar: "لم تصل أي إجابات.", en: "No answers were received." },
+  "surveyResults.share.title": { ar: "مشاركة مع المتحدث", en: "Share with the speaker" },
+  "surveyResults.share.info": {
+    ar: "يفتح الرابط الأرقام والمتوسطات والإجابات النصية دون أسماء، لمن يملكه فقط. تُحذف الإجابات التي قد تحتوي على بيانات اتصال.",
+    en: "The link opens the counts, averages and text answers without names, for whoever holds it. Answers that may hold contact details are left out.",
+  },
+  "surveyResults.share.create": { ar: "إنشاء رابط", en: "Create link" },
+  "surveyResults.share.replace": { ar: "إنشاء رابط جديد", en: "Create a new link" },
+  "surveyResults.share.stop": { ar: "إيقاف المشاركة", en: "Stop sharing" },
+  "surveyResults.share.active": { ar: "الرابط فعّال.", en: "The link is active." },
+  "surveyResults.share.off": { ar: "لا رابط مشترك.", en: "No link is shared." },
+  "surveyResults.share.once": {
+    ar: "انسخ الرابط الآن، فلن يظهر مرة أخرى.",
+    en: "Copy the link now. It is not shown again.",
+  },
+  "surveyResults.share.link": { ar: "رابط النتائج", en: "Results link" },
+  "surveyResults.share.copy": { ar: "نسخ الرابط", en: "Copy link" },
+  "surveyResults.share.copied": { ar: "تم النسخ.", en: "Copied." },
+  "surveyResults.share.stopped": { ar: "تم إيقاف المشاركة.", en: "Sharing stopped." },
+  "surveyResults.share.failed": {
+    ar: "تعذّرت العملية. حاول مرة أخرى.",
+    en: "That did not work. Try again.",
+  },
+  "surveyShared.title": { ar: "نتائج الاستبيان", en: "Survey results" },
+  "surveyShared.missing": { ar: "الرابط غير مكتمل.", en: "This link is incomplete." },
+  "surveyShared.unavailable": {
+    ar: "لم يعد هذا الرابط فعّالًا.",
+    en: "This link is no longer active.",
+  },
+  "surveyShared.throttled": {
+    ar: "محاولات كثيرة. انتظر دقائق ثم أعد المحاولة.",
+    en: "Too many tries. Wait a few minutes and try again.",
+  },
+  "surveyShared.failed": {
+    ar: "تعذّر تحميل النتائج. أعد المحاولة.",
+    en: "The results did not load. Try again.",
+  },
+  "surveyShared.hidden": {
+    ar: "حُذفت {count} إجابة لاحتمال احتوائها على بيانات اتصال.",
+    en: "{count} answers left out because they may hold contact details.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

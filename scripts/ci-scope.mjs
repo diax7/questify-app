@@ -67,6 +67,7 @@ export const AREAS = [
   [/session|agenda/i, ["sessions"]],
   [/(^|[^a-z])maps?([^a-z]|$)|maps?-?(panel|board|editor|pin|view)/i, ["maps"]],
   [/sponsor/i, ["sponsors"]],
+  [/quest-?ratings?|questscore|\/ratings\//i, ["survey-results"]],
   [/boost|flash/i, ["flash-boosts"]],
   [/modal/i, ["modal"]],
   [/push/i, ["announcements", "invitations"]],
@@ -143,7 +144,7 @@ export const AREAS = [
   [/souvenir/i, ["souvenirs"]],
   [/streak/i, ["streak"]],
   [/submission/i, ["submissions"]],
-  [/survey/i, ["survey-share"]],
+  [/survey/i, ["survey-share", "survey-results"]],
   [/terms|acceptance|accept-?all|legal/i, ["terms", "organizers"]],
   [/nav|language-?switch/i, ["navigation", "organizers"]],
 ];

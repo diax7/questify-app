@@ -8,10 +8,10 @@ import { SessionImportSection } from "#src/components/SessionImport.tsx";
 import { SessionList } from "#src/components/SessionList.tsx";
 import { SessionMessageDialog, type MessageText } from "#src/components/SessionMessage.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import { downloadText } from "#src/lib/download-text.ts";
 import type { Translate } from "#src/lib/language.ts";
 import {
   blankSession,
-  downloadText,
   draftOf,
   sessionReport,
   sessionTemplateCsv,
@@ -113,12 +113,14 @@ function SessionsBody({
   ready,
   edit,
   opened,
+  surveyUrl,
 }: Readonly<{
   language: Language;
   writes: Writes;
   ready: Ready;
   edit: Edit | null;
   opened: Opened;
+  surveyUrl: (session: TeamSession) => string | null;
 }>) {
   const { model, run, t, failure, setFailure } = writes;
   const close = () => {
@@ -155,6 +157,7 @@ function SessionsBody({
         sessions={ready.sessions}
         zone={ready.event.zone}
         busy={model.busy}
+        surveyUrl={surveyUrl}
         actions={{
           edit: (session) =>
             opened.setEdit({ id: session.id, draft: draftOf(session, ready.event.zone) }),
@@ -239,6 +242,14 @@ function SessionDialogs({
   );
 }
 
+/** The results route of the survey quest a session links to; null when it links none, or a quest of another kind. */
+function surveyUrlOf(props: SessionsProps, ready: Ready, session: TeamSession): string | null {
+  const linked = ready.quests.find((quest) => quest.id === session.questId);
+  return linked?.type === "survey"
+    ? `/v1/organizers/${props.organizerId}/events/${props.eventId}/quests/${linked.id}/survey`
+    : null;
+}
+
 export function SessionsPanel(props: SessionsProps) {
   const { language } = props;
   const writes = useSessionWrites(props);
@@ -281,6 +292,7 @@ export function SessionsPanel(props: SessionsProps) {
             ready={ready}
             edit={edit}
             opened={opened}
+            surveyUrl={(session) => surveyUrlOf(props, ready, session)}
           />
         )}
       </Stack>

@@ -1,6 +1,8 @@
 "use client";
 
 import { formatEventTime, formatNumber, type Language, type TeamSession } from "@questify/shared";
+import { useState } from "react";
+import { SurveyResults } from "#src/components/SurveyResults.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
@@ -64,10 +66,22 @@ function SessionRowActions({
   language,
   busy,
   actions,
-}: Readonly<{ session: TeamSession; language: Language; busy: boolean; actions: SessionActions }>) {
+  survey,
+}: Readonly<{
+  session: TeamSession;
+  language: Language;
+  busy: boolean;
+  actions: SessionActions;
+  survey: Readonly<{ url: string | null; shown: boolean; toggle: () => void }>;
+}>) {
   const t = useTranslator(language);
   return (
     <>
+      {survey.url === null ? null : (
+        <Button variant="quiet" aria-expanded={survey.shown} onClick={survey.toggle}>
+          {t("quests.survey.results")}
+        </Button>
+      )}
       <Button variant="quiet" disabled={busy} onClick={() => actions.edit(session)}>
         {t("sessions.page.edit")}
       </Button>
@@ -92,41 +106,82 @@ function SessionRowActions({
   );
 }
 
+function SessionRow({
+  session,
+  language,
+  zone,
+  busy,
+  actions,
+  surveyUrl,
+}: Readonly<{
+  session: TeamSession;
+  language: Language;
+  zone: string;
+  busy: boolean;
+  actions: SessionActions;
+  surveyUrl: string | null;
+}>) {
+  const t = useTranslator(language);
+  const [shown, setShown] = useState(false);
+  return (
+    <Row
+      main={
+        <>
+          <strong>{sessionTitle(session, language)}</strong>
+          <span>
+            <Badge>{t(`sessions.page.kind.${session.kind}`)}</Badge>{" "}
+            {session.access === "registration" && !session.registrationOpen ? (
+              <Badge tone="warning">{t("sessions.page.registrationClosed")}</Badge>
+            ) : null}
+          </span>
+          <SessionFacts session={session} zone={zone} language={language} />
+          {shown && surveyUrl !== null ? (
+            <SurveyResults language={language} url={surveyUrl} />
+          ) : null}
+        </>
+      }
+    >
+      <SessionRowActions
+        session={session}
+        language={language}
+        busy={busy}
+        actions={actions}
+        survey={{ url: surveyUrl, shown, toggle: () => setShown(!shown) }}
+      />
+    </Row>
+  );
+}
+
+/** The agenda's rows; a session linked to a survey quest opens that survey's results in its row (FR-1209). */
 export function SessionList({
   language,
   sessions,
   zone,
   busy,
   actions,
+  surveyUrl,
 }: Readonly<{
   language: Language;
   sessions: readonly TeamSession[];
   zone: string;
   busy: boolean;
   actions: SessionActions;
+  surveyUrl: (session: TeamSession) => string | null;
 }>) {
   const t = useTranslator(language);
   if (sessions.length === 0) return <EmptyState>{t("sessions.page.empty")}</EmptyState>;
   return (
     <Rows>
       {sessions.map((session) => (
-        <Row
+        <SessionRow
           key={session.id}
-          main={
-            <>
-              <strong>{sessionTitle(session, language)}</strong>
-              <span>
-                <Badge>{t(`sessions.page.kind.${session.kind}`)}</Badge>{" "}
-                {session.access === "registration" && !session.registrationOpen ? (
-                  <Badge tone="warning">{t("sessions.page.registrationClosed")}</Badge>
-                ) : null}
-              </span>
-              <SessionFacts session={session} zone={zone} language={language} />
-            </>
-          }
-        >
-          <SessionRowActions session={session} language={language} busy={busy} actions={actions} />
-        </Row>
+          session={session}
+          language={language}
+          zone={zone}
+          busy={busy}
+          actions={actions}
+          surveyUrl={surveyUrl(session)}
+        />
       ))}
     </Rows>
   );

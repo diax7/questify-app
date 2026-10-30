@@ -44,6 +44,8 @@ export type EventRecord = Readonly<{
   boostsOn: boolean;
   /** The event's help desk switch (T-310, ADR-248): off stops new tickets; open ones stay answerable. */
   helpDeskOn: boolean;
+  /** The event's quest ratings switch (T-508, FR-1623): off until the owner turns it on. */
+  questRatingsOn: boolean;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -100,6 +102,7 @@ type Row = {
   flash_quests_on: boolean;
   boosts_on: boolean;
   help_desk_on: boolean;
+  quest_ratings_on: boolean;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -118,7 +121,8 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'community')::boolean, true) AS community_on,
   coalesce((config -> 'features' ->> 'flashQuests')::boolean, true) AS flash_quests_on,
   coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on,
-  coalesce((config -> 'features' ->> 'helpDesk')::boolean, true) AS help_desk_on, config -> 'terms' AS terms,
+  coalesce((config -> 'features' ->> 'helpDesk')::boolean, true) AS help_desk_on,
+  coalesce((config -> 'features' ->> 'questRatings')::boolean, false) AS quest_ratings_on, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m, city_id, interests`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -145,6 +149,7 @@ const toRecord = (row: Row): EventRecord => ({
   flashQuestsOn: row.flash_quests_on,
   boostsOn: row.boosts_on,
   helpDeskOn: row.help_desk_on,
+  questRatingsOn: row.quest_ratings_on,
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

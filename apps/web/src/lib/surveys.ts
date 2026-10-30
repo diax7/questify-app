@@ -1,3 +1,6 @@
+import type { SurveyCsvLabels } from "@questify/shared";
+import type { Translate } from "#src/lib/language.ts";
+
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
 /** One question's results, as `GET …/events/{id}/quests/{qid}/survey` gives them (T-303, ADR-198). */
@@ -53,4 +56,20 @@ export function surveyResultsOf(body: unknown): SurveyResults | undefined {
     return undefined;
   }
   return { total: body["total"], questions: body["questions"] };
+}
+
+/** The spreadsheet's words in the dashboard's language (FR-1624). */
+export function surveyCsvLabels(t: Translate): SurveyCsvLabels {
+  return {
+    question: t("surveyResults.csv.question"),
+    kind: t("surveyResults.csv.kind"),
+    answer: t("surveyResults.csv.answer"),
+    count: t("surveyResults.csv.count"),
+    choice: t("surveyResults.csv.choice"),
+    rating: t("surveyResults.csv.rating"),
+    text: t("surveyResults.csv.text"),
+    average: t("surveyResults.csv.average"),
+    responses: t("surveyResults.csv.responses"),
+    noAnswers: t("surveyResults.csv.noAnswers"),
+  };
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { toWesternDigits } from "#src/i18n/digits";
+import { csvCell } from "#src/text/csv";
 import { optionalPlainText as optionalText, plainText as plain } from "#src/text/plain-text";
 import { toInstant } from "#src/time/event-time";
 
@@ -371,12 +372,6 @@ export function parseSessionsCsv(text: string, zone: string, window: SessionWind
     else rows.push(line);
   });
   return { rows, failed };
-}
-
-/** A cell of the report's CSV: quoted when it holds a delimiter, a quote or a line break; a formula's first character is made inert. */
-function csvCell(value: string | number): string {
-  const text = typeof value === "number" ? String(value) : value.replace(/^[=+\-@\t\r]/u, "'$&");
-  return /[",;\n\r]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 /** The attendance report as CSV text (FR-1795): one line a session, with a byte-order mark first so Excel reads Arabic. */

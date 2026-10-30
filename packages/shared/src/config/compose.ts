@@ -39,7 +39,9 @@ function composeFeatures(
       const setting = platform.features?.[key];
       const platformOn = setting?.enabled ?? definition.offByDefault !== true;
       const unlocked = !definition.gated || event?.unlocked?.includes(key) === true;
-      const eventOn = definition.level === "platform" || (event?.features?.[key] ?? true);
+      const eventOn =
+        definition.level === "platform" ||
+        (event?.features?.[key] ?? definition.eventOffByDefault !== true);
       const feature: ComposedFeature = {
         enabled: platformOn && unlocked && eventOn,
         minAppVersion: setting?.minAppVersion ?? null,

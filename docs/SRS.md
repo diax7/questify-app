@@ -944,7 +944,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-211 | F-83 | Must | pending |
 | FR-212 | F-84 | Should | built (T-303c, ADR-209) |
 | FR-213 | F-84 | Should | built (T-303c, ADR-210) |
-| FR-214 | F-85 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303); the results page and export are T-508 |
+| FR-214 | F-85 | Should | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int`, `apps/app/src/event/survey-share.test.ts` (T-303); the results page, the spreadsheet and the speaker's link are T-508 |
 | FR-215 | F-86 | Could | built (T-303b) |
 | FR-216 | F-86 | Could | built (T-303b) |
 | FR-217 | F-87 | Should | built (T-305, ADR-213) |
@@ -1228,9 +1228,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1206 | F-207 | Must | pending |
 | FR-1207 | F-207 | Must | pending |
 | FR-1208 | F-208 | Should | pending |
-| FR-1209 | F-209 | Should | pending |
-| FR-1210 | F-209 | Should | pending |
-| FR-1211 | F-210 | Could | pending |
+| FR-1209 | F-209 | Should | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `apps/web/e2e/survey-results.spec.ts` (T-508) |
+| FR-1210 | F-209 | Should | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `packages/shared/src/survey-results/survey-results.test.ts`, `survey-results.spec.ts` (T-508, ADR-376 (5)) |
+| FR-1211 | F-210 | Could | `test/db/ratings-survey-results.int`, `apps/app/src/event/quest-rating.test.ts` (T-508); the score shows on the quest's row, quest analytics is T-607 |
 | FR-1301 | F-211 | Must | built T-507 (`apps/api/src/sponsors`, `SponsorsPanel`); code review pending |
 | FR-1302 | F-211 | Must | built T-507 for quests, categories and rewards (souvenirs T-507c); code review pending |
 | FR-1303 | F-211 | Must | built T-507 with a lettered mark in the logo's place (T-507b); code review pending |
@@ -1287,8 +1287,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1620 | F-101 | Should | `test/db/community.int`, `test/db/community-locks.int` (T-306b) |
 | FR-1621 | F-103 | Should | pending |
 | FR-1622 | F-134 | Should | pending T-402b (ADR-266) |
-| FR-1623 | F-210 | Could | pending |
-| FR-1624 | F-209 | Should | pending |
+| FR-1623 | F-210 | Could | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `packages/shared/src/config/compose.test.ts` (T-508, ADR-376 (3)) |
+| FR-1624 | F-209 | Should | spreadsheet: `packages/shared/src/survey-results/survey-results.test.ts`, `survey-results.spec.ts` (T-508); the PDF report is T-608 |
 | FR-1625 | F-65 | Must | pending |
 | FR-1626 | F-214 | Should | pending |
 | FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301), `test/db/tickets.int` (help-desk tickets, T-310) |

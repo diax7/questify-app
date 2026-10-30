@@ -82,6 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           nfcTags: { enabled: true, minAppVersion: null, message: null },
           polls: { enabled: true, minAppVersion: null, message: null },
           pushNotifications: { enabled: true, minAppVersion: null, message: null },
+          questRatings: { enabled: false, minAppVersion: null, message: null },
           questifyRanking: { enabled: true, minAppVersion: null, message: null },
           ranking: { enabled: true, minAppVersion: null, message: null },
           rankingToday: { enabled: true, minAppVersion: null, message: null },

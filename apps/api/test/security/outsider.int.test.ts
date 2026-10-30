@@ -146,6 +146,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("keeps the rating and share tables and internals closed and grants only its seven doors (T-508)", async () => {
+    const doors = [
+      "member_quest_rating",
+      "quest_rating_scores",
+      "rate_quest",
+      "survey_share_revoke",
+      "survey_share_save",
+      "survey_share_state",
+      "survey_shared_results",
+    ];
+    const internals = ["quest_ratings_on", "rating_member", "survey_results_core"];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT table_name, privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name IN ('quest_rating', 'survey_share')
+        AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",

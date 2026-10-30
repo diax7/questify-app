@@ -76,6 +76,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "caller-bound active membership through member_sponsors; tags only on quests, categories and rewards the caller may see, nothing about any player (sponsors)",
   "GET /v1/organizers/:organizerId/events/:eventId/sponsors":
     "owner/editor, event limit rechecked by award_event_of (sponsors)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quest-ratings":
+    "owner/editor, event limit rechecked by award_event_of; counts per quest only, no player (ratings database and HTTP suites)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/quest-ratings":
+    "owner of that organizer only (owner route, walked below); changes only the questRatings switch of that event (test/ratings/routes)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/survey-share":
+    "owner/editor, event limit rechecked by award_event_of; a survey quest of that event only; whether a link exists, never the link (ratings database and HTTP suites)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/survey-share":
+    "owner/editor, event limit rechecked by award_event_of; a survey quest of that event only; the database keeps the hash of the token, replaces the quest's earlier link, audited; not idempotent on purpose (the token must not sit in the idempotency store)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/quests/:questId/survey-share":
+    "owner/editor, event limit rechecked by award_event_of; a survey quest of that event only; the link stops at once, audited (ratings database and HTTP suites)",
   "POST /v1/organizers/:organizerId/events/:eventId/sponsors":
     "owner/editor, event limit rechecked by award_event_of, per-event write lock; Idempotency-Key, audited (sponsors)",
   "PUT /v1/organizers/:organizerId/events/:eventId/sponsor-tags":
@@ -165,6 +175,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); Idempotency-Key; a note; queued rows cancelled, no row left stuck (test/invitations/routes, test/db/invitation-sending)",
   "POST /v1/public/invitation-open":
     "anonymous by design: the bearer token from the link's fragment names one recipient row, answered only with the public event card, never player data; its own bucket of 120 an hour per address counted before the token is read; the same 404 for unknown, purged and ended (test/invitations/routes, test/db/invitation-sending)",
+  "POST /v1/public/survey-results":
+    "anonymous by design: the bearer token from the link's fragment (sent in the body, never a path) names one survey quest, answered only with that quest's counts, averages and text answers that look like no contact detail, never a name; its own bucket of 120 an hour per address counted before the token is read; a replaced or stopped link answers 404 (test/ratings/routes, test/db/ratings-survey-results)",
   "GET /v1/admin/players/:playerId/marketing-consent":
     "active platform admins only (walked below); channels and dates, no contact; the admin checked again (questify_admin) and one audit row per read (test/marketing/routes, test/db/marketing)",
   "GET /v1/admin/daily":
@@ -709,6 +721,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own view only, through member_passport: the steps and which they stamped; never a step's code (test/plays/passport, test/db/passport)",
   "GET /v1/quests/:questId/survey":
     "the calling player's own view only, through member_survey: the questions and whether they answered; never anyone's answers (test/plays/survey-share, test/db/challenge-survey-share)",
+  "GET /v1/quests/:questId/rating":
+    "the calling player's own active enrollment in the quest's event only, through member_quest_rating: whether ratings are on and their own thumb, nothing about anyone else (test/ratings/routes, test/db/ratings-survey-results)",
+  "PUT /v1/quests/:questId/rating":
+    "the calling player's own active enrollment in the quest's event only, a quest they completed and an event whose owner turned ratings on, checked by rate_quest; a thumb or a skip, no points (test/ratings/routes, test/db/ratings-survey-results)",
   "POST /v1/quests/:questId/survey":
     "the calling player's own active enrollment in the quest's event only; one response, checked by submit_survey (test/plays/survey-share, test/db/challenge-survey-share)",
   "GET /v1/quests/:questId/share":
@@ -796,6 +812,7 @@ const PUBLIC_ROUTES = [
   "POST /v1/device/pairing",
   "POST /v1/public/invitation-open",
   "POST /v1/public/marketing/opt-out",
+  "POST /v1/public/survey-results",
   "POST /v1/staff/auth/code",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",

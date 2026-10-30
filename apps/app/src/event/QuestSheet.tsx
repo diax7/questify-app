@@ -24,6 +24,7 @@ import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { meetRefusalText } from "#src/event/meet.ts";
 import { MeetEntry } from "#src/event/MeetEntry.tsx";
 import { PassportEntry } from "#src/event/PassportEntry.tsx";
+import { QuestRating } from "#src/event/QuestRating.tsx";
 import { QuizEntry } from "#src/event/QuizEntry.tsx";
 import { ShareEntry } from "#src/event/ShareEntry.tsx";
 import { SubmissionEntry } from "#src/event/SubmissionEntry.tsx";
@@ -394,6 +395,7 @@ export function QuestSheet({
       {line === null ? null : <AppText variant="label">{line}</AppText>}
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
+      <QuestRating key={quest.id} quest={quest} />
       {helpOn ? (
         <Button
           kind="quiet"

@@ -118,11 +118,6 @@
       "complexity": [51]
     }
   },
-  "apps/api/src/events/routes.ts": {
-    "registerEventRoutes": {
-      "lines": [101]
-    }
-  },
   "apps/api/src/home/home.ts": {
     "questRows": {
       "complexity": [13]

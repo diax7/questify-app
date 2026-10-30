@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
+import { QuestScoreBadge } from "#src/components/QuestScoreBadge.tsx";
 import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { Translate } from "#src/lib/language.ts";
@@ -199,6 +200,7 @@ function QuestTitle({ language, quest }: Readonly<{ language: Language; quest: Q
       <strong>{textFor(quest.title, language)}</strong>
       <Badge>{t(QUEST_TYPES[quest.type].label)}</Badge>
       <SponsorBadge language={language} kind="quest" targetId={quest.id} />
+      <QuestScoreBadge language={language} questId={quest.id} />
     </>
   );
 }

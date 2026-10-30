@@ -1,4 +1,5 @@
 import { QuestBuilder } from "#src/components/QuestBuilder.tsx";
+import { QuestScoresScope } from "#src/components/QuestScoreBadge.tsx";
 import { SponsorBadgesScope } from "#src/components/SponsorBadge.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
@@ -10,7 +11,9 @@ export default async function QuestsPage({ params }: Props) {
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
     <SponsorBadgesScope organizerId={organizerId} eventId={eventId}>
-      <QuestBuilder language={page.language} organizerId={organizerId} eventId={eventId} />
+      <QuestScoresScope organizerId={organizerId} eventId={eventId}>
+        <QuestBuilder language={page.language} organizerId={organizerId} eventId={eventId} />
+      </QuestScoresScope>
     </SponsorBadgesScope>
   ) : null;
 }

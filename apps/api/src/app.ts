@@ -73,7 +73,7 @@ import { startLifecycleTick } from "#src/events/tick";
 import { startCommunityTick } from "#src/community/tick";
 import { startSouvenirTick } from "#src/souvenirs/tick";
 import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
-import { registerInvitationOpenRoute } from "#src/invitation-campaigns/routes";
+import { registerPublicLinkRoutes } from "#src/public-links";
 import { startInvitationTick } from "#src/invitation-campaigns/tick";
 import { createPushDoors } from "#src/push/doors";
 import type { PushProvider } from "#src/push/provider";
@@ -518,7 +518,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     invitations,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
-  registerInvitationOpenRoute(app, { pool: options.pool, keys: signInDeps.keys });
+  registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);

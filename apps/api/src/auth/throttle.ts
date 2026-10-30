@@ -12,6 +12,7 @@ export const BUCKETS = {
   marketingOptOut: "marketing_opt_out",
   pushDevice: "push_device",
   invitationOpen: "invitation_open",
+  surveyResultsOpen: "survey_results_open",
   failEmail: "fail_email",
   failAddress: "fail_address",
   challengeUser: "challenge_user",
