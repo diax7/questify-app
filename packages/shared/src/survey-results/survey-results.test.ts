@@ -158,6 +158,13 @@ describe("what a speaker may read", () => {
     expect(shown.total).toBe(3);
   });
 
+  it("shows no text answer while fewer than three players answered, and counts them", () => {
+    const shown = withoutContactDetails(results({ total: 2 }));
+    expect(shown.questions[2]?.texts).toEqual([]);
+    expect(shown.questions[2]?.hiddenTexts).toBe(4);
+    expect(shown.questions[0]?.choices).toEqual(results().questions[0]?.choices);
+  });
+
   it("leaves out hidden characters and a phone number spaced out or in Arabic digits", () => {
     const shown = withoutContactDetails(
       results({

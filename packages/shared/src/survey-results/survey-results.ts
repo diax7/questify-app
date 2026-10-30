@@ -88,17 +88,22 @@ export const sharedSurveyResultsSchema = z.strictObject({
 });
 export type SharedSurveyResults = z.infer<typeof sharedSurveyResultsSchema>;
 
+/** Below this many responses the speaker's view shows no text answer: one or two answers point at a person. */
+export const SHARED_TEXTS_MIN_RESPONSES = 3;
+
 /**
  * The results with every text answer that looks like a contact detail left out (an address, a phone number or hidden
- * characters, the same rule that guards what goes out under Questify's name), and the number left out beside each
- * question. The speaker's view is the only caller: the team sees every answer.
+ * characters, the same rule that guards what goes out under Questify's name), every text answer left out while fewer
+ * than {@link SHARED_TEXTS_MIN_RESPONSES} players answered, and the number left out beside each question. The speaker's
+ * view is the only caller: the team sees every answer.
  */
 export function withoutContactDetails(results: SharedSurveyResults): SharedSurveyResults {
+  const tooFew = results.total < SHARED_TEXTS_MIN_RESPONSES;
   return {
     ...results,
     questions: results.questions.map((question) => {
       if (question.texts === null) return { ...question, hiddenTexts: 0 };
-      const kept = question.texts.filter((text) => textIssue(text) === null);
+      const kept = tooFew ? [] : question.texts.filter((text) => textIssue(text) === null);
       return { ...question, texts: kept, hiddenTexts: question.texts.length - kept.length };
     }),
   };
