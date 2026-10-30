@@ -5588,3 +5588,20 @@ shows when Home is next read; the reveal's push is T-501's.
 **Why:** a finale page of its own would duplicate T-504's scene player, and a confirm/reveal of its own would duplicate T-214's guarded flow.
 **Trade-offs:** a freshly set finale reaches a screen within about 5 seconds (the 2-second shared answer and the 3-second poll); a phone
 learns of the reveal on its next Home read, not live; a goal deleted after being attached leaves the finale without its push.
+
+## ADR-370 - Clear titles and icons, not explanatory text
+
+**Status:** Accepted (Dhia, 2026-10-30).
+**Context:** Dhia, on the staging dashboard: field after field carries an obvious sentence under it (for example "At least 12
+characters. A phrase you can remember works well; leave out Questify and your email."), which "doesn't look professional at all".
+He asked for this to be a strict rule for every page, now and later: the player app, the organizer dashboard and the Questify console.
+**Decision:** (1) A page explains itself through its titles, labels and icons. No help line under a field, switch or button when the label
+already says it. (2) A rule the user must meet to succeed (a password's length, a file's size, a code's format) is said once, briefly: as the
+field's placeholder or a short hint, or in the error when it is broken. (3) A feature or field that genuinely needs explaining gets an info
+button (an "i" or "?" icon beside the label) that shows the explanation on hover, focus or tap; it is the exception, not the default. (4) A short
+line under a field stays only where it changes what the user does and the label cannot carry it (a warning that an action cannot be undone,
+a price). (5) Controls that are universally understood by icon are icons with an accessible name and tooltip: show/hide password (eye),
+sign out, language, close, edit, delete, copy, search. (6) Page intros under a title are cut to nothing, or one short line when the page
+would otherwise be unclear.
+**Why:** professional products read clean; text that repeats the label is noise and pushes the real controls down the page.
+**Trade-offs:** some guidance moves behind an info button and is seen only by those who look for it; errors carry the rest.

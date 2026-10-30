@@ -275,3 +275,7 @@ A change is done only when all of these hold:
   only the device pages (`/kiosk`, `/screen`, `/station`) and links that leave the app stay plain anchors. A group of pages that share a navigation has its shell in a `layout.tsx` and a
   `loading.tsx` beside it, so the shell stays while the page changes. Icons come from `ui/Icon.tsx`; a control that shows only an icon is an `IconButton` or `IconLink`, whose `label` is its name and
   tooltip in the page's language. A picture is a file in `public/` listed in `src/lib/public-images.test.ts`; text over an image or in a colour the check cannot read fails the layout check.
+- **Copy and icons (ADR-370, Dhia, strict):** every page, in the app, the dashboard and the console, explains itself by its titles, labels and icons. No help
+  line that repeats or pads a label; a rule the user must meet is a short hint or the error; a field or feature that truly needs explaining gets an info
+  button (`InfoTip`) beside its label, shown on hover, focus or tap. Show/hide password, sign out, language, close, edit, delete, copy and search are icons
+  with a name and tooltip in the page's language. A reviewer treats a padded help line as a finding.

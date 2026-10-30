@@ -5,6 +5,16 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-10-30 — Less explanatory text, more icons (strict rule) → processed
+
+- Dhia, quoting the password help line ("At least 12 characters. A phrase you can remember works well; leave out Questify and your
+  email."): "I don't like having a lot of explanatory text. It's very obvious ... across the whole system, both now and in the future
+  ... for players, for organizers, and for our team." Things that genuinely need it get "a question mark or an info tooltip"; a short
+  line below is fine only "if it's truly needed". "Make things clear through clear titles and icons ... like professional websites do."
+  Icons: an eye icon instead of the "Show password" button; sign out as an icon. "Apply this across all current and future pages as a
+  strict rule, starting right now."
+- Processed: ADR-370 (Accepted by Dhia), a `docs/rules.md` line, task T-599d (trim every page, `InfoTip`, password eye, sign-out icons).
+
 ## 2026-10-30 — Wireframe review of the new dashboard → processed
 
 - Dhia, on the T-599 dashboard (Flagged activity screenshot): "now it is a little bit better ... this is not the final,
