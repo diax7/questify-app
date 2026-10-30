@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## T-505 agenda and sessions — 2026-10-30
+
+- **T-505 done (tier B; code review owed; not run on a phone).** Migration 0086 (new, undeployed; staging is at 0085): four closed tables (`event_session`,
+  `session_registration`, `session_attendance`, `session_message`), twelve granted doors, the `session_reminder` and `session_message` push kinds and
+  `push_due_session`. API `src/sessions` (team, player and operator routes); shared `sessions` (schemas, overlap-free checks, CSV import and report).
+  Dashboard: Agenda page under Setup (list, form, CSV import with a per-line report, report export, close or reopen, message registrants). App: Agenda screen
+  (All sessions, My sessions, register and cancel, overlap confirmation, linked quest, linked from Event Home) and the operator's session door under Tools.
+  **Split (ADR-373):** the session's points on check-in and the "everyone checked in" bulk target moved to **T-505b** (tier A). ADR-373 and Q-340 Proposed.
+  Local: full vitest 9079 passed (one gate-map guard fixed and rerun), browser suite see below, tsc, oxlint, format and limits clean (the operator routes
+  shrank 168 to 147 lines), `npx expo export` ok; agent tokens roughly 0.75M across the interrupted and the finishing worker; CI minutes none yet.
+  **Next:** the T-505 review, T-505b (plan and plan review first), then T-506.
+
 ## Review follow-ups batch (T-504, T-599, T-599b, T-599c, T-599d, T-307b) — 2026-10-30
 
 - **Follow-ups cleared (tier C batch; no review).** Migration 0085 (new, undeployed): `set_finale` accepts a start up to 23 hours after the event
