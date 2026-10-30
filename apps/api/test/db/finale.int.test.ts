@@ -297,10 +297,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live finale (database)", () =>
       ["a time that has passed", () => new Date(Date.now() - 1000), "LF422:startsAt"],
       ["a time before the event starts", () => inHours(-3), "LF422:startsAt"],
       ["a time more than a day after it ends", () => inHours(50), "LF422:startsAt"],
+      ["a time 23.5 hours after it ends", () => inHours(24 + 23.5), "LF422:startsAt"],
     ])("refuses %s", async (_name, when, expected) => {
       const event = await newEvent();
       expect(await refusal(set(event, when()))).toBe(expected);
       expect(await owner("SELECT 1 FROM finale WHERE event_id = $1", [event])).toEqual([]);
+    });
+
+    it("accepts a time up to 23 hours after the event ends", async () => {
+      const event = await newEvent();
+      expect((await set(event, inHours(24 + 22.5))).finale).toMatchObject({ started: false });
     });
 
     it("refuses a goal of another event, one that is final, and one that closes before the finale", async () => {

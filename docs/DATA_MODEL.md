@@ -1105,7 +1105,8 @@ personal data. Kept by the rehearsal wipe (setup, as `big_screen`). Doors: `even
 `event_result.revealed_at` is set); internal `finale_json`, `finale_revealed`, `big_screen_running`, `screen_view_shut`. `device_view` restated:
 `scenes` is `big_screen_running` (the picked list, the finale last, or the finale alone from its time on or once the event has ended) and
 `shut` is not `event_ended` for an ended event while a finale is set. SQLSTATEs `LF403` (not the owner), `LF409` (`started`), `LF422`
-(`startsAt`, `goal`, `goal_done`, `goal_window`).
+(`startsAt`, `goal`, `goal_done`, `goal_window`). Migration 0085 restates `set_finale` so `startsAt` may be at most 23 hours after the event ends (a
+paired screen closes 24 hours after the end, `device_alive`), and `ranking_on` as `feature_enabled(ev, 'ranking')`.
 
 ### kiosk_scan; the kiosk method (migration 0058, T-309b, ADR-242, ADR-244)
 **Built:** `kiosk_scan (completion_id → quest_completion CASCADE primary key, device_id → paired_device SET NULL,

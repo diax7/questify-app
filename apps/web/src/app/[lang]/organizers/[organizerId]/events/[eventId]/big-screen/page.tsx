@@ -8,6 +8,11 @@ export default async function BigScreenPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
-    <BigScreenPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+    <BigScreenPanel
+      language={page.language}
+      organizerId={organizerId}
+      eventId={eventId}
+      owner={page.membership.role === "owner"}
+    />
   ) : null;
 }

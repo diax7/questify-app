@@ -2143,8 +2143,8 @@ export const MESSAGES = {
   "quests.showMyQr": { ar: "اعرض رمزك على المشغّل", en: "Show your code to an operator" },
   "activation.title": { ar: "التفعيل", en: "Activation" },
   "activation.notActivated": {
-    ar: "لم تُفعَّل الفعالية بعد. صفحتها وروابط الدعوة مغلقة أمام الجميع إلا فريقك.",
-    en: "Not activated yet. The event page and invite links are closed to everyone but your team.",
+    ar: "لم تُفعَّل الفعالية بعد.",
+    en: "Not activated yet.",
   },
   "activation.request": { ar: "اطلب التفعيل", en: "Request activation" },
   "activation.editorHint": {
@@ -2764,13 +2764,6 @@ export const MESSAGES = {
     en: "Rank {rank}: {prize}. Collect it at the prize desk by {deadline}.",
   },
   "win.open": { ar: "عرض الجائزة", en: "See the prize" },
-  "finale.celebrate.title": { ar: "أُعلن الفائزون!", en: "The winners are in!" },
-  "finale.celebrate.place": {
-    ar: "أنهيت الفعالية في المركز {rank}",
-    en: "You finished in place {rank}",
-  },
-  "finale.celebrate.thanks": { ar: "شكرًا لأنك لعبت معنا", en: "Thanks for playing with us" },
-  "finale.celebrate.close": { ar: "متابعة", en: "Continue" },
   "win.rankPrize": { ar: "جائزة المركز {rank}", en: "Rank prize · {rank}" },
   "win.collectBy": { ar: "استلمها قبل {deadline}", en: "Collect by {deadline}" },
   "win.noCancel": {
@@ -3196,6 +3189,10 @@ export const MESSAGES = {
   "quests.poll.one": { ar: "اختيار واحد", en: "One choice" },
   "quests.poll.several": { ar: "عدة اختيارات", en: "Several choices" },
   "quests.poll.results": { ar: "متى يرى اللاعبون النتائج", en: "When players see the results" },
+  "quests.poll.resultsInfo": {
+    ar: "«بعد أن يصوّتوا» تظهر فيه الأعداد المباشرة أيضًا على الشاشة الكبيرة لكل الحاضرين، صوّتوا أم لا.",
+    en: "“After they vote” also shows the live counts on the big screen to everyone in the room, voted or not.",
+  },
   "quests.poll.afterVote": { ar: "بعد أن يصوّتوا", en: "After they vote" },
   "quests.poll.atClose": { ar: "عند إغلاق التصويت", en: "When the poll closes" },
   "quests.poll.never": { ar: "لا يرونها", en: "Never" },
@@ -4146,6 +4143,7 @@ export const MESSAGES = {
     ar: "حدّد وقت الختام، وأرفق هدفًا جماعيًا قصيرًا كدفعة أخيرة إن أردت. تعرض الشاشة الكبيرة العدّ التنازلي ثم الدفعة الأخيرة، ثم أسماء الفائزين بعد أن تعلنهم من صفحة الجوائز والنتائج.",
     en: "Set the time of the finale and, if you like, attach a short community goal as its last push. The big screen shows the countdown, then the push, then the winners once you reveal them on the Prizes and results page.",
   },
+  "finale.ownerOnly": { ar: "يضبط المالك الختام فقط.", en: "Only the owner sets the finale." },
   "finale.startsAt": { ar: "وقت الختام", en: "Finale time" },
   "finale.goal": { ar: "الدفعة الأخيرة (هدف جماعي)", en: "Last push (community goal)" },
   "finale.noGoal": { ar: "بدون دفعة أخيرة", en: "No last push" },
@@ -4163,8 +4161,8 @@ export const MESSAGES = {
   },
   "finale.loadFailed": { ar: "تعذّر تحميل الختام.", en: "Couldn't load the finale." },
   "finale.invalid.startsAt": {
-    ar: "اختر وقتًا في المستقبل، بعد بداية الفعالية وقبل مرور 24 ساعة على نهايتها.",
-    en: "Pick a time in the future, after the event starts and within 24 hours after it ends.",
+    ar: "اختر وقتًا في المستقبل، بعد بداية الفعالية وقبل مرور 23 ساعة على نهايتها.",
+    en: "Pick a time in the future, after the event starts and within 23 hours after it ends.",
   },
   "finale.invalid.goal": {
     ar: "اختر هدفًا جماعيًا من هذه الفعالية.",
@@ -4195,6 +4193,13 @@ export const MESSAGES = {
     en: "The winners are revealed and their names are on the screen now.",
   },
   "finale.results.link": { ar: "فتح الجوائز والنتائج", en: "Open Prizes and results" },
+  "finale.celebrate.title": { ar: "أُعلن الفائزون!", en: "The winners are in!" },
+  "finale.celebrate.place": {
+    ar: "أنهيت الفعالية في المركز {rank}",
+    en: "You finished in place {rank}",
+  },
+  "finale.celebrate.thanks": { ar: "شكرًا لأنك لعبت معنا", en: "Thanks for playing with us" },
+  "finale.celebrate.close": { ar: "متابعة", en: "Continue" },
   "operator.devices.pair": { ar: "ربط جهاز", en: "Pair a device" },
   "operator.devices.mine": { ar: "أجهزتي المرتبطة", en: "My paired devices" },
   "operator.devices.scan": { ar: "امسح الرمز على الشاشة", en: "Scan the code on the screen" },

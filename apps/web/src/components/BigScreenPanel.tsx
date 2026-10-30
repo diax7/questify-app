@@ -25,7 +25,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+type Props = Readonly<{ language: Language; organizerId: string; eventId: string; owner: boolean }>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -141,7 +141,7 @@ function SceneEditor({
  * The event's Big screen page (T-504, FR-631, FR-1612): tick the scenes the big screen shows and put them in order;
  * the ranking is offered only while the event's ranking is on. Save replaces the list; screens follow within seconds.
  */
-export function BigScreenPanel({ language, organizerId, eventId }: Props) {
+export function BigScreenPanel({ language, organizerId, eventId, owner }: Props) {
   const t = useTranslator(language);
   const api = `/v1/organizers/${organizerId}/events/${eventId}/big-screen`;
   const { plan, rows, setRows, problem, setProblem } = usePlan(api, language);
@@ -194,7 +194,7 @@ export function BigScreenPanel({ language, organizerId, eventId }: Props) {
           save={() => void save()}
         />
       )}
-      <FinalePanel language={language} organizerId={organizerId} eventId={eventId} />
+      <FinalePanel language={language} organizerId={organizerId} eventId={eventId} owner={owner} />
     </Stack>
   );
 }

@@ -39,6 +39,7 @@ export function CommunityScene({
       <div
         className={styles.goalTrack}
         role="progressbar"
+        aria-label={textFor(goal.title, language)}
         aria-valuemin={0}
         aria-valuemax={goal.target}
         aria-valuenow={Math.min(goal.progress, goal.target)}

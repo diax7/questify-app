@@ -33,6 +33,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Muted } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Input, Radio, Select } from "#src/ui/Field.tsx";
 import { SubHeading } from "#src/ui/Section.tsx";
+import { infoTip } from "#src/ui/info.tsx";
 
 /** A meet quest (T-303c): its daily cap per player, beside the repeat cap (the most people a player meets for points). */
 function MeetFields({ language, config, disabled, change }: TypeFieldProps) {
@@ -150,7 +151,7 @@ function LivePollFields({
         {radio("choices", "one", "quests.poll.one", sent)}
         {radio("choices", "several", "quests.poll.several", sent)}
       </FieldGroup>
-      <FieldGroup legend={t("quests.poll.results")}>
+      <FieldGroup legend={t("quests.poll.results")} info={infoTip(t, "quests.poll.resultsInfo")}>
         {radio("results", "after_vote", "quests.poll.afterVote", false)}
         {radio("results", "at_close", "quests.poll.atClose", false)}
         {radio("results", "never", "quests.poll.never", false)}

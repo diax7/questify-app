@@ -145,7 +145,7 @@ test("an English finale reads left to right and a refused time is explained", as
   await page.getByRole("button", { name: "Save the finale" }).click();
   await expect(
     page.getByText(
-      "Pick a time in the future, after the event starts and within 24 hours after it ends.",
+      "Pick a time in the future, after the event starts and within 23 hours after it ends.",
     ),
   ).toBeVisible();
 

@@ -322,7 +322,7 @@ granted to nobody. Outsider suite: every new function refused to `questify_outsi
 | A stranger opens `/{lang}/screen` | A pairing code and nothing of any event (T-309); the scenes come only after a team member pairs it |
 | A stolen screen cookie | Reads the same public scenes until Revoke, the event's end + 24 h or 30 idle days; it can read nothing else (no argument names another event) |
 | A private poll or a hidden category shown to the room | The poll scene shows only a sent poll in a category with no audience that is not hidden and not held by a community goal |
-| A poll's results leaked early | By the poll's own policy: `at_close` until it closes and `never` show the number of voters only; counts only, never who voted |
+| A poll's results leaked early | By the poll's own policy: `at_close` until it closes and `never` show the number of voters only; counts only, never who voted. `after_vote` counts are also on the big screen for everyone in the room, voted or not (FR-634, public by design); the poll builder says so beside "When players see the results" |
 | Personal data on a public screen | The @username and Questify avatar and points of the top 10 (public on the boards already, FR-120); a community goal's title and numbers; a poll's options; no name, email, rank history or reward |
 | A banned or excluded player on the board | `ranking_eligible` (account, enrollment and team checks) is the board's rule and the screen's |
 

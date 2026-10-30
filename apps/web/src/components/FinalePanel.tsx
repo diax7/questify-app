@@ -24,7 +24,7 @@ import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Section, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+type Props = Readonly<{ language: Language; organizerId: string; eventId: string; owner: boolean }>;
 type Translate = ReturnType<typeof useTranslator>;
 type Loaded = Readonly<{ reading: FinaleReading; timeZone: string; goals: readonly Goal[] }>;
 
@@ -130,6 +130,7 @@ function FinaleForm({
   draft,
   locked,
   busy,
+  owner,
   change,
   save,
   clear,
@@ -141,6 +142,7 @@ function FinaleForm({
   draft: FinaleDraft;
   locked: boolean;
   busy: boolean;
+  owner: boolean;
   change: (draft: FinaleDraft) => void;
   save: () => void;
   clear: () => void;
@@ -182,7 +184,7 @@ function FinaleForm({
           {t("finale.save")}
         </Button>
         {reading.finale === null ? null : (
-          <Button variant="quiet" disabled={busy} onClick={clear}>
+          <Button variant="quiet" disabled={busy || !owner} onClick={clear}>
             {t("finale.clear")}
           </Button>
         )}
@@ -190,6 +192,10 @@ function FinaleForm({
     </Form>
   );
 }
+
+/** Whether the form is read-only: saving, the add-on off, the finale started, or a member who is not the owner. */
+const formLocked = (reading: FinaleReading, busy: boolean, owner: boolean): boolean =>
+  busy || !reading.enabled || reading.finale?.started === true || !owner;
 
 /** Once the finale is read: the started note, the form, and the line about the winners while a finale is set. */
 function FinaleBody({
@@ -199,6 +205,7 @@ function FinaleBody({
   goals,
   draft,
   busy,
+  owner,
   change,
   save,
   clear,
@@ -210,6 +217,7 @@ function FinaleBody({
   goals: readonly Goal[];
   draft: FinaleDraft;
   busy: boolean;
+  owner: boolean;
   change: (draft: FinaleDraft) => void;
   save: () => void;
   clear: () => void;
@@ -221,14 +229,16 @@ function FinaleBody({
   return (
     <>
       {started ? <Notice tone="warning">{t("finale.started")}</Notice> : null}
+      {owner ? null : <Muted>{t("finale.ownerOnly")}</Muted>}
       <FinaleForm
         language={language}
         timeZone={timeZone}
         reading={reading}
         offered={pushGoalsOf(goals, finale?.goalId ?? null)}
         draft={draft}
-        locked={busy || !reading.enabled || started}
+        locked={formLocked(reading, busy, owner)}
         busy={busy}
+        owner={owner}
         change={change}
         save={save}
         clear={clear}
@@ -251,7 +261,7 @@ function FinaleBody({
  * confirmed and revealed on the Prizes and results page, never here.
  */
 export function FinalePanel(props: Props) {
-  const { language, organizerId, eventId } = props;
+  const { language, organizerId, eventId, owner } = props;
   const t = useTranslator(language);
   const { eventApi, reading, timeZone, goals, draft, setDraft, problem, setProblem, adopt } =
     useFinale(props);
@@ -302,6 +312,7 @@ export function FinalePanel(props: Props) {
           goals={goals}
           draft={draft}
           busy={busy}
+          owner={owner}
           change={setDraft}
           save={save}
           clear={() => void send("DELETE", undefined, t("finale.cleared"))}
