@@ -18,9 +18,13 @@
   navigation column and a phone Menu, page header, section, card, rows, toolbar, form fields, buttons, badge, notice,
   empty state, tabs, modal dialog, table). Sign-in, home, the events list, new event, the event overview, quests, rewards and
   team moved onto them; every organizer page already sits in the new shell and menu (ADR-366, Q-334 Proposed). The layout
-  check (`apps/web/e2e/layout.spec.ts`, pages in `layout.ts`) walks each page at 1440 and 390 in English and Arabic and
+  check (`apps/web/e2e/layout.spec.ts`, pages in `layout.ts`) walks each page at 1440 and 360 in English and Arabic and
   fails on sideways scrolling, overlapping controls, text under 14px and words squeezed apart; `layout-check.spec.ts` proves
   it catches each. Before and after screenshots: `docs/evidence/2026-10-30-t599/`. No migration, no API change.
+  Review fixes: `Dialog` is a native modal `<dialog>` (top bar, navigation and skip link cannot take focus; focus returns to the
+  opener); the phone Menu makes the page inert and Escape closes it from anywhere; the layout check also reads the open phone menu
+  and a confirmation dialog, runs the phone at 360 and checks the desktop column fits 1440 by 900 (rows 32px, the "This event"
+  group merged into the organizer's); ADR-366 and Q-334 Accepted (developer).
   **Next:** T-599b (the remaining dashboard and console pages; list in TASKS), then T-307b.
 
 ## T-504 big screen — 2026-10-30

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "#src/ui/shell.module.css";
 
 type Props = Readonly<{
@@ -17,10 +17,36 @@ type Props = Readonly<{
 
 /**
  * The parts of the shell that move: on a phone the navigation and the account links open from the Menu button as a
- * sheet under the top bar (Escape closes it); on a desktop they are always shown.
+ * sheet under the top bar, with the page beneath it inert; Escape closes the sheet from anywhere and puts focus back
+ * on the Menu button. On a desktop they are always shown.
  */
 export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, children }: Props) {
   const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const closeOnEscape = (pressed: KeyboardEvent) => {
+      if (pressed.key === "Escape") {
+        setOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    // A phone turned sideways or a window widened shows the column instead; the page must not stay inert then.
+    const wide = window.matchMedia("(min-width: 64rem)");
+    const closeWhenWide = () => {
+      if (wide.matches) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    wide.addEventListener("change", closeWhenWide);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      wide.removeEventListener("change", closeWhenWide);
+    };
+  }, [open]);
   const hasMenu = nav !== null || account !== null;
   return (
     <div className={styles.shell}>
@@ -30,6 +56,7 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
       <header className={styles.top}>
         {hasMenu ? (
           <button
+            ref={menuButton}
             type="button"
             className={styles.menuButton}
             aria-expanded={open}
@@ -47,15 +74,9 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
       </header>
       <div className={styles.body}>
         {hasMenu ? (
-          <ShellNav
-            label={labels.navigation}
-            open={open}
-            close={() => setOpen(false)}
-            nav={nav}
-            account={account}
-          />
+          <ShellNav label={labels.navigation} open={open} nav={nav} account={account} />
         ) : null}
-        <main id="main" className={styles.main}>
+        <main id="main" className={styles.main} inert={open}>
           <div className={narrow ? `${styles.content} ${styles.narrow}` : styles.content}>
             {children}
           </div>
@@ -69,28 +90,12 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
 function ShellNav({
   label,
   open,
-  close,
   nav,
   account,
-}: Readonly<{
-  label: string;
-  open: boolean;
-  close: () => void;
-  nav: ReactNode;
-  account: ReactNode;
-}>) {
+}: Readonly<{ label: string; open: boolean; nav: ReactNode; account: ReactNode }>) {
   const look = [open ? styles.sideOpen : styles.side, nav === null ? styles.accountOnly : ""];
   return (
-    <nav
-      id="shell-navigation"
-      aria-label={label}
-      className={look.join(" ")}
-      onKeyDown={(pressed) => {
-        if (pressed.key === "Escape") {
-          close();
-        }
-      }}
-    >
+    <nav id="shell-navigation" aria-label={label} className={look.join(" ")}>
       {nav}
       {account === null ? null : <div className={styles.phoneOnly}>{account}</div>}
     </nav>

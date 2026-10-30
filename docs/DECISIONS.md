@@ -5457,8 +5457,8 @@ changes the tokens and primitives, not each page). No new dependency: CSS custom
 modules and a small set of React primitives in `apps/web/src/ui/`, logical CSS properties for right-to-left. Body text
 16px, nothing under 14px, a 4px spacing scale, a readable maximum content width, tables scroll inside their own box on
 a phone. Styles the primitives replace are deleted, not kept beside them.
-**Guard:** an automatic browser check walks every dashboard and console page at 1440 and 390 wide in both languages and
-fails on horizontal overflow, overlapping controls or text under 14px (CLAUDE.md rule 8: a repeated finding becomes a
+**Guard:** an automatic browser check walks every dashboard and console page at 1440 and 360 wide (FR-1746) in both languages
+and fails on horizontal overflow, overlapping controls or text under 14px (CLAUDE.md rule 8: a repeated finding becomes a
 check). New pages must use the primitives (`docs/rules.md`).
 
 ## ADR-365 - T-504 big screen: picked scenes, a PostgreSQL ranking read, polling and the photo wall split
@@ -5487,18 +5487,22 @@ seconds; the photo wall and its allow-on-screen choice (FR-636) wait.
 
 ## ADR-366 - T-599 dashboard navigation and page structure
 
-**Status:** Proposed (developer, T-599 build, 2026-10-30; Q-334). Fills in what ADR-364 left to the build.
-**Decision:** (1) **Navigation.** From 64rem wide a column on the start side lists the organizer (Events, Team) and, inside
-an event, every page of that event in four groups: This event (Overview), Set up (quests, rewards, prizes and results,
-community quests, double points, souvenirs, joining, invitations while Questify's switch is on), During the event (players,
-operators, devices, big screen, announcements, help desk with its open count) and Review (submissions, flagged activity,
-manual awards). The open page is marked. The top bar keeps the language switch, Home, My account and Sign out. (2) **Phone.**
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-30; Q-334, T-599 review). Fills in what ADR-364 left to the build.
+Review changes: the one-link "This event" group is gone (its Event overview link sits under the organizer's name beside Events
+and Team); the desktop rows are 32px so the whole list fits 1440 by 900; the dialog is a native modal `<dialog>`; the phone menu
+makes the page inert and Escape closes it from anywhere; the layout check also reads the open phone menu and a dialog, at 360.
+**Decision:** (1) **Navigation.** From 64rem wide a column on the start side lists the organizer (Events, Team, and inside an
+event its Event overview) and, inside an event, the rest of that event's pages in three groups: Set up (quests, rewards, prizes
+and results, community quests, double points, souvenirs, joining, invitations while Questify's switch is on), During the event
+(players, operators, devices, big screen, announcements, help desk with its open count) and Review (submissions, flagged
+activity, manual awards). The open page is marked. The top bar keeps the language switch, Home, My account and Sign out. (2) **Phone.**
 Below 64rem a Menu button in the top bar opens the same list as a sheet, with Home, My account and Sign out at its end;
-the top bar keeps only Menu, the product name and the language switch. (3) **Event overview.** The page header (name,
+the top bar keeps only Menu, the product name and the language switch; while the sheet is open the page beneath it is inert
+and Escape closes it from anywhere, returning focus to Menu. (3) **Event overview.** The page header (name,
 status, join code) comes first, then activation and rehearsal, then the event form in parts (name and kind, place, time,
 who finds it and how people join), then every on/off switch under one Features section as rows, then the streak, the
 event words and a Delete or end section. (4) **Confirmations** are one modal `Dialog` (focus on its heading, Escape
-cancels, the page beside it inert). (5) **Look.** Plain admin styling from the theme's tokens: the wood top bar, parchment
+cancels, the whole page behind it shut out of the keyboard and screen readers by the browser, focus returned to the opener). (5) **Look.** Plain admin styling from the theme's tokens: the wood top bar, parchment
 surfaces, green primary buttons, gold for the open page; no wood or parchment textures (ADR-364).
 **Why:** the old page piled 17 links in one paragraph above a form 8,000px tall; grouping by when the organizer needs a
 page keeps the list short to scan, and a phone sheet keeps every page one tap away without squeezing the top bar.

@@ -311,28 +311,27 @@
   margin: 0;
 }
 
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-lg);
-  background: var(--scrim);
-}
-
+/* The modal dialog is a native <dialog>: the browser centres it in the top layer and dims the page behind it. */
 .dialog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  inline-size: min(100%, 34rem);
+  inline-size: min(calc(100% - 2 * var(--space-lg)), 34rem);
   max-block-size: calc(100dvh - 2 * var(--space-lg));
   overflow-y: auto;
   padding: var(--space-xl);
+  color: var(--color-text);
   background: var(--color-surface);
+  border: none;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
 }
 
 .tableBox {

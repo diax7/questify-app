@@ -8,7 +8,7 @@ import { readLayout } from "#e2e/layout.ts";
 test("the layout check reports overflow, overlapping controls, small text and squeezed words", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 360, height: 780 });
   await page.setContent(`
     <meta name="viewport" content="width=device-width" />
     <style>button { font: inherit; }</style>
@@ -39,4 +39,23 @@ test("the layout check reports overflow, overlapping controls, small text and sq
     smallText: [],
     brokenWords: [],
   });
+});
+
+test("the layout check leaves out what an inert region or an open modal dialog covers on purpose", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  const covered = `
+    <button style="position:absolute;inset-block-start:100px;inset-inline-start:10px">Under</button>
+    <button style="position:absolute;inset-block-start:105px;inset-inline-start:20px">Sheet</button>`;
+  await page.setContent(`<meta name="viewport" content="width=device-width" />
+    <body style="margin:0;font-size:16px"><main inert>${covered}</main></body>`);
+  expect((await readLayout(page)).overlaps).toEqual([]);
+
+  await page.setContent(`<meta name="viewport" content="width=device-width" />
+    <body style="margin:0;font-size:16px">${covered}
+      <dialog><button>One</button> <button>Two</button></dialog></body>`);
+  expect((await readLayout(page)).overlaps).toHaveLength(1);
+  await page.evaluate(() => document.querySelector("dialog")?.showModal());
+  expect((await readLayout(page)).overlaps).toEqual([]);
 });

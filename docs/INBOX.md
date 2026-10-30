@@ -5,7 +5,7 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
-## 2026-10-30 — The dashboard is unusable; fix it first
+## 2026-10-30 — The dashboard is unusable; fix it first → processed
 
 - Dhia, after using the staging dashboard (old build, 0056): "the UI is very disaster, it is unusable ... small text, not
   organized sections, overlapping things ... a lot of basic stupid mistakes". "For now I want something minimal, usable,

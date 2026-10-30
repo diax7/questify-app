@@ -25,7 +25,6 @@ declare const styles: {
   readonly row: string;
   readonly rowMain: string;
   readonly rows: string;
-  readonly scrim: string;
   readonly section: string;
   readonly sectionDanger: string;
   readonly sectionHeader: string;

@@ -21,7 +21,7 @@ type Props = Readonly<{
 
 /**
  * A confirmation for one team action: what happens, an optional note, Cancel and the action, in the shared modal
- * `Dialog` (focus on its heading, Escape cancels, the page beside it inert).
+ * `Dialog` (focus on its heading, Escape cancels, the page behind it shut out).
  */
 export function ConfirmDialog({
   language,

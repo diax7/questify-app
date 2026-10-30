@@ -3,35 +3,11 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import styles from "#src/ui/surface.module.css";
 
-/** Makes the dialog's siblings inert while it is mounted and returns focus to the element that opened it. */
-function useModalAround<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    const opener = document.activeElement;
-    const made: Element[] = [];
-    for (const sibling of Array.from(dialog?.parentElement?.children ?? [])) {
-      if (sibling !== dialog && !sibling.hasAttribute("inert")) {
-        sibling.setAttribute("inert", "");
-        made.push(sibling);
-      }
-    }
-    return () => {
-      for (const sibling of made) {
-        sibling.removeAttribute("inert");
-      }
-      if (opener instanceof HTMLElement && opener.isConnected) {
-        opener.focus();
-      }
-    };
-  }, []);
-  return ref;
-}
-
 /**
  * A modal sheet over the page: a heading that takes focus when it opens, its content, then its buttons (Cancel first,
- * the action last). Escape cancels unless `busy`. Everything beside it is inert while it is open, and focus goes back
- * to the control that opened it when it closes.
+ * the action last). It is a native modal `<dialog>`, so the browser makes the rest of the page (top bar, navigation,
+ * skip link) unreachable by keyboard, pointer and screen reader while it is open. Escape cancels unless `busy`, and
+ * focus goes back to the control that opened it when it closes.
  */
 export function Dialog({
   title,
@@ -55,32 +31,52 @@ export function Dialog({
 }>) {
   const ownId = useId();
   const id = titleId ?? ownId;
-  const scrim = useModalAround<HTMLDivElement>();
+  const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    heading.current?.scrollIntoView({ block: "nearest" });
+    const element = dialog.current;
+    const opener = document.activeElement;
+    if (element !== null && !element.open) {
+      element.showModal();
+    }
     heading.current?.focus();
+    return () => {
+      element?.close();
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus();
+      }
+    };
   }, []);
+  // Escape (and a phone's Back button) asks the browser to close the dialog; the page decides instead, so a busy
+  // dialog stays open and a cancelled one is unmounted by its owner.
+  const askToCancel = () => {
+    if (!busy) {
+      cancel();
+    }
+  };
   return (
-    <div ref={scrim} className={styles.scrim}>
-      <div
-        role={role}
-        aria-modal="true"
-        aria-labelledby={id}
-        aria-describedby={describedById}
-        className={styles.dialog}
-        onKeyDown={(pressed) => {
-          if (pressed.key === "Escape" && !busy) {
-            cancel();
-          }
-        }}
-      >
-        <h2 id={id} ref={heading} tabIndex={-1} className={styles.sectionTitle}>
-          {title}
-        </h2>
-        {children}
-        <div className={`${styles.toolbar} ${styles.toolbarEnd}`}>{actions}</div>
-      </div>
-    </div>
+    <dialog
+      ref={dialog}
+      role={role}
+      aria-labelledby={id}
+      aria-describedby={describedById}
+      className={styles.dialog}
+      onKeyDown={(pressed) => {
+        if (pressed.key === "Escape") {
+          pressed.preventDefault();
+          askToCancel();
+        }
+      }}
+      onCancel={(asked) => {
+        asked.preventDefault();
+        askToCancel();
+      }}
+    >
+      <h2 id={id} ref={heading} tabIndex={-1} className={styles.sectionTitle}>
+        {title}
+      </h2>
+      {children}
+      <div className={`${styles.toolbar} ${styles.toolbarEnd}`}>{actions}</div>
+    </dialog>
   );
 }

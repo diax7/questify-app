@@ -1493,4 +1493,6 @@ a per-event rotation time, a different default, or a today's-ranking scene (T-21
 How should the dashboard list an event's 18 pages, and where does navigation live on a phone? **Recommended (developer,
 T-599 build):** a column on the start side on a desktop, grouped This event / Set up / During the event / Review; on a
 phone a Menu sheet with the same list and the account links. **Open:** Dhia may prefer other group names or order, the
-event's name at the top of the menu, or a bottom tab bar on a phone. ADR-366 Proposed.
+event's name at the top of the menu, or a bottom tab bar on a phone. ADR-366 Proposed. **Answered (developer, delegated by
+Dhia, 2026-10-30; T-599 review):** accepted as recommended, with the one-link "This event" group merged into the organizer's
+group as "Event overview", tighter desktop rows, a native modal dialog and an inert page behind the phone menu; ADR-366 Accepted.

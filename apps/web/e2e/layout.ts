@@ -12,8 +12,9 @@ export type LayoutProblems = Readonly<{
 
 /**
  * Reads the page as the person sees it: how far it scrolls sideways, which visible controls cover each other, which
- * visible text is under 14px, and which text is squeezed so narrow that its words break apart. Runs inside the
- * browser, so it may only use what it is given.
+ * visible text is under 14px, and which text is squeezed so narrow that its words break apart. While a modal dialog is
+ * open it reads the dialog alone, and it leaves out controls in an inert part of the page (behind the phone menu),
+ * since those are covered on purpose. Runs inside the browser, so it may only use what it is given.
  */
 function measure(minText: number): LayoutProblems {
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
@@ -32,11 +33,14 @@ function measure(minText: number): LayoutProblems {
     return `<${element.tagName.toLowerCase()}> "${label || text}"`;
   };
 
+  const modal = document.querySelector("dialog:modal");
   const controls = [
-    ...document.querySelectorAll(
+    ...(modal ?? document).querySelectorAll(
       "a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=tab]",
     ),
-  ].filter(visible);
+  ]
+    .filter(visible)
+    .filter((control) => control.closest("[inert]") === null);
   const overlaps: string[] = [];
   for (const [index, first] of controls.entries()) {
     const a = first.getBoundingClientRect();
@@ -55,7 +59,7 @@ function measure(minText: number): LayoutProblems {
 
   const smallText: string[] = [];
   const brokenWords: string[] = [];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker(modal ?? document.body, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
     const parent = node.parentElement;
     const text = (node.textContent ?? "").trim();
@@ -96,6 +100,23 @@ export async function expectCleanLayout(page: Page, where: string): Promise<void
   expect.soft(problems.overlaps, `${where}: controls on top of each other`).toEqual([]);
   expect.soft(problems.smallText, `${where}: text under ${MIN_TEXT_PX}px`).toEqual([]);
   expect.soft(problems.brokenWords, `${where}: words broken across lines`).toEqual([]);
+}
+
+/**
+ * Fails the test when the desktop navigation column needs its own scrollbar: every group, the last one included, must
+ * be on screen at once (ADR-366). Does nothing below 64rem, where the navigation is the phone menu.
+ */
+export async function expectNavFits(page: Page, where: string): Promise<void> {
+  const hidden = await page.evaluate(() => {
+    const column = document.querySelector("nav#shell-navigation");
+    if (column === null || window.innerWidth < 1024) {
+      return 0;
+    }
+    return column.scrollHeight - column.clientHeight;
+  });
+  expect
+    .soft(hidden, `${where}: navigation runs ${hidden}px below the screen`)
+    .toBeLessThanOrEqual(0);
 }
 
 /** What a page needs to know to build its address: the organizer and event the run created. */

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { expectModal } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -172,7 +173,7 @@ test("in English the publish dialog says it cannot be undone and starts paying X
   await expect(page.getByLabel("Gems paid (0 to 1000)")).toBeEnabled();
 });
 
-test("Escape closes the publish dialog, sends nothing, and the page is inert while it is open", async ({
+test("Escape closes the publish dialog, sends nothing, and the page cannot take focus while it is open", async ({
   page,
 }, info) => {
   await openBuilder(page, info.project.name);
@@ -201,11 +202,10 @@ test("Escape closes the publish dialog, sends nothing, and the page is inert whi
   const publish = campaign.getByRole("button", { name: "Publish campaign" });
   await publish.click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
-  await expect(campaign.locator("xpath=ancestor::ul")).toHaveJSProperty("inert", true);
+  await expectModal(page, page.getByRole("alertdialog"));
   await page.keyboard.press("Escape");
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect(publish).toBeFocused();
-  await expect(campaign.locator("xpath=ancestor::ul")).toHaveJSProperty("inert", false);
   expect(publishCalls).toHaveLength(0);
 });
 

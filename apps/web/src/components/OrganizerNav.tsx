@@ -54,15 +54,14 @@ function useInvitationsOpen(organizerId: string, eventId: string | null): boolea
 }
 
 const GROUPS = [
-  { group: "event", label: "dashNav.thisEvent" },
   { group: "setup", label: "dashNav.setup" },
   { group: "during", label: "dashNav.during" },
   { group: "review", label: "dashNav.review" },
 ] as const;
 
 /**
- * The dashboard's navigation inside one organizer (ADR-364): its events and team, and inside an event every page of
- * that event, grouped by when the organizer needs it. The open page is marked.
+ * The dashboard's navigation inside one organizer (ADR-364): its events and team with the open event's overview, and
+ * inside an event every other page of that event, grouped by when the organizer needs it. The open page is marked.
  */
 export function OrganizerNav({
   language,
@@ -90,6 +89,20 @@ export function OrganizerNav({
     return words(link.label === "invitations" ? "invCampaign.link" : link.label);
   };
 
+  const eventItem = (link: EventPageLink, within: string, current: string) => (
+    <NavItem
+      key={link.slug}
+      href={`${base}/events/${within}${link.slug === "" ? "" : `/${link.slug}`}`}
+      current={current === link.slug}
+    >
+      {labelOf(link, t)}
+    </NavItem>
+  );
+  const pagesOf = (group: EventPageLink["group"]) =>
+    EVENT_PAGES.filter((link) => link.group === group).filter(
+      (link) => link.slug !== "invitations" || invitations,
+    );
+
   return (
     <>
       <NavGroup label={organizerName}>
@@ -99,22 +112,15 @@ export function OrganizerNav({
         <NavItem href={`${base}/team`} current={path === `/organizers/${organizerId}/team`}>
           {t("staff.team")}
         </NavItem>
+        {place === null
+          ? null
+          : pagesOf("event").map((link) => eventItem(link, place.eventId, place.slug))}
       </NavGroup>
       {place === null
         ? null
         : GROUPS.map(({ group, label }) => (
             <NavGroup key={group} label={t(label)}>
-              {EVENT_PAGES.filter((link) => link.group === group)
-                .filter((link) => link.slug !== "invitations" || invitations)
-                .map((link) => (
-                  <NavItem
-                    key={link.slug}
-                    href={`${base}/events/${place.eventId}${link.slug === "" ? "" : `/${link.slug}`}`}
-                    current={place.slug === link.slug}
-                  >
-                    {labelOf(link, t)}
-                  </NavItem>
-                ))}
+              {pagesOf(group).map((link) => eventItem(link, place.eventId, place.slug))}
             </NavGroup>
           ))}
     </>

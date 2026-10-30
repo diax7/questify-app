@@ -1,24 +1,33 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { LAYOUT_PAGES, expectCleanLayout, type LayoutIds } from "#e2e/layout.ts";
+import {
+  LAYOUT_PAGES,
+  expectCleanLayout,
+  expectNavFits,
+  type LayoutIds,
+  type LayoutPage,
+} from "#e2e/layout.ts";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
+import { openMenu } from "#e2e/nav.ts";
 
 /**
  * The layout check (ADR-364, T-599): every page listed in `LAYOUT_PAGES`, in English and Arabic, at 1440 wide on the
- * desktop project and 390 on the phone project, with no sideways scrolling, no controls on top of each other and no
- * text under 14px. With `LAYOUT_SHOTS=<folder>` it also saves a full-page screenshot of each.
+ * desktop project and 360 on the phone project (FR-1746), with no sideways scrolling, no controls on top of each other
+ * and no text under 14px. On a phone each page is read again with the Menu sheet open, and one confirmation dialog is
+ * read on the event page. With `LAYOUT_SHOTS=<folder>` it also saves a full-page screenshot of each.
  */
 const LANGUAGES = ["en", "ar"] as const;
 const PASSWORD = "an organizer's own pass phrase";
 const SHOTS = process.env["LAYOUT_SHOTS"];
 
-async function shoot(page: Page, project: string, name: string): Promise<void> {
+/** A full-page screenshot, or with `fullPage` false only the screen (a menu or dialog is fixed to the screen). */
+async function shoot(page: Page, project: string, name: string, fullPage = true): Promise<void> {
   if (SHOTS === undefined || SHOTS === "") {
     return;
   }
   mkdirSync(SHOTS, { recursive: true });
-  await page.screenshot({ path: join(SHOTS, `${project}-${name}.png`), fullPage: true });
+  await page.screenshot({ path: join(SHOTS, `${project}-${name}.png`), fullPage });
 }
 
 /** A new organizer's owner with one draft event that has one quest; returns where they live. */
@@ -57,16 +66,58 @@ async function seed(page: Page, project: string): Promise<LayoutIds> {
   return ids;
 }
 
+/** One listed page, read as it opens; on a phone again with the Menu sheet open; on a desktop its column must fit. */
+async function checkPage(
+  page: Page,
+  project: string,
+  language: (typeof LANGUAGES)[number],
+  listed: LayoutPage,
+  ids: LayoutIds,
+): Promise<void> {
+  const where = `${language} ${listed.name}`;
+  await page.goto(`/${language}${listed.path(ids)}`);
+  await expect(page.getByText(listed.ready[language]).first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expectCleanLayout(page, where);
+  await expectNavFits(page, where);
+  await shoot(page, project, `${language}-${listed.name}`);
+  if (project === "phone") {
+    await openMenu(page);
+    await expectCleanLayout(page, `${where} with the menu open`);
+    if (listed.name === "event") {
+      await shoot(page, project, `${language}-menu-open`, false);
+    }
+  }
+}
+
+/** The event page's Delete draft confirmation, open, read like a page, then closed with Escape. */
+async function checkDialog(
+  page: Page,
+  project: string,
+  language: (typeof LANGUAGES)[number],
+  ids: LayoutIds,
+): Promise<void> {
+  await page.goto(`/${language}/organizers/${ids.organizerId}/events/${ids.eventId}`);
+  await page
+    .getByRole("button", { name: language === "en" ? "Delete draft" : "حذف المسودة" })
+    .click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expectCleanLayout(page, `${language} event confirmation dialog`);
+  await shoot(page, project, `${language}-confirm-dialog`, false);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+}
+
 test("every listed page fits the screen, keeps controls apart and text at 14px or more", async ({
   page,
 }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
   page.on("pageerror", (error) => {
     throw error;
   });
   const project = info.project.name;
   await page.setViewportSize(
-    project === "phone" ? { width: 390, height: 844 } : { width: 1440, height: 900 },
+    project === "phone" ? { width: 360, height: 780 } : { width: 1440, height: 900 },
   );
   await freshAddress(page);
 
@@ -80,11 +131,10 @@ test("every listed page fits the screen, keeps controls apart and text at 14px o
   const ids = await seed(page, project);
   for (const listed of LAYOUT_PAGES) {
     for (const language of LANGUAGES) {
-      await page.goto(`/${language}${listed.path(ids)}`);
-      await expect(page.getByText(listed.ready[language]).first()).toBeVisible();
-      await page.waitForLoadState("networkidle");
-      await expectCleanLayout(page, `${language} ${listed.name}`);
-      await shoot(page, project, `${language}-${listed.name}`);
+      await checkPage(page, project, language, listed, ids);
     }
+  }
+  for (const language of LANGUAGES) {
+    await checkDialog(page, project, language, ids);
   }
 });

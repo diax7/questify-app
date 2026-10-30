@@ -1062,7 +1062,7 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     the primitives replace. Device pages (station, kiosk, big screen) keep their own styles.
   - Split: T-599 = tokens, primitives, shell and the most-used pages (sign-in, events list, event overview and builder,
     quests, rewards, team, features); T-599b = every other dashboard and console page. Each is usable on its own.
-  - Done when: an automatic layout check over every page (desktop 1440 and phone 390, English and Arabic) finds no
+  - Done when: an automatic layout check over every page (desktop 1440 and phone 360, English and Arabic) finds no
     horizontal overflow, no overlapping controls and no text under 14px; screenshots of each page are attached for Dhia.
   - Done 2026-10-30 (tier B; code review owed). `apps/web/src/ui/`: `tokens.css` (type scale 14 to 28px, sizes, lines,
     shadows; colours, spacing and corners stay the theme's variables), `AppShell` (top bar; navigation column from 64rem,
@@ -1075,6 +1075,9 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     The layout check is `apps/web/e2e/layout.spec.ts` with the list of pages in `apps/web/e2e/layout.ts`
     (`LAYOUT_PAGES`); it also fails on words squeezed apart, and `layout-check.spec.ts` proves it catches each fault.
     Screenshots: `docs/evidence/2026-10-30-t599/before/` and `after/`. Phone specs open the menu with `#e2e/nav.ts`.
+    Review fixes (2026-10-30): `Dialog` is a native modal `<dialog>`; the phone menu makes `main` inert and Escape closes it from
+    anywhere; the layout check runs the phone at 360, reads the open menu and one confirmation dialog, and fails when the desktop
+    column needs a scrollbar; `e2e/modal.spec.ts` proves both.
 - [ ] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
   - Done when: the T-599 layout check covers every dashboard and console page and passes.
   - Not yet in `LAYOUT_PAGES` (add each as it moves): `/account`, `/organizers/new`, `/sign-up`, `/forgot-password`,
