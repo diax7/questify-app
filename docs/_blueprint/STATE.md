@@ -2,7 +2,10 @@
 
 ## Staging deploy and dashboard priority — 2026-10-30
 
-- **CranL now runs migrations through 0082** (0057 to 0082 applied 2026-10-30 from green commit 4482956, CI run
+- **CranL now runs migrations through 0083** (0083 applied 2026-10-30 from green commit fb6227f, CI run 40979237093, same
+  steps and verify as below); **migrations up to 0083 are frozen.** The web app was redeployed from 5d5c6f8 (T-599b) the
+  same day; T-599c (1f72d03) goes to staging once its CI run is green.
+- Earlier: **CranL ran migrations through 0082** (0057 to 0082 applied 2026-10-30 from green commit 4482956, CI run
   40955488938). `--verify` ok (app role not superuser, no RLS bypass, `ownerSeesSessions: true`); owner connection
   removed and the API restarted without it. API and web redeployed from 4482956; `/healthz`, `/readyz` and
   `/{en,ar}/sign-in` answer 200, no error lines in the API log. **Migrations up to 0082 are now frozen.** No snapshot was
