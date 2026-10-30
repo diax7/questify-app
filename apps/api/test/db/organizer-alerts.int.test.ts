@@ -439,7 +439,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       ]);
       await switchOff(team, muted, "size_limit");
       const { sender, sent } = mailer();
-      await run(sender);
+      // The rows are numbered in the order of the members' random ids, five rows are claimed at a time, and a claim that
+      // finds only rows to skip ends a run (FOLLOWUPS, T-503): about one run in twenty ends before the two sendable rows
+      // are reached. The second run reaches them in every order.
+      const first = await run(sender);
+      const second = await run(sender);
+      expect(first.sent + second.sent).toBe(2);
       expect(sent.map((mail) => mail.to).toSorted()).toEqual(
         [await addressOf(team.owner), await addressOf(team.editor)].toSorted(),
       );
