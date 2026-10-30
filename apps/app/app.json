@@ -45,7 +45,12 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/adaptive-foreground.png",
+        "backgroundImage": "./assets/brand/adaptive-background.png",
+        "backgroundColor": "#6C320B"
+      }
     },
     "plugins": [
       "expo-router",
@@ -59,7 +64,15 @@
           }
         }
       ],
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#6C320B"
+        }
+      ],
       "expo-status-bar",
       "expo-notifications",
       [
@@ -102,6 +115,7 @@
     "locales": {
       "ar": "./locales/ar.json",
       "en": "./locales/en.json"
-    }
+    },
+    "icon": "./assets/brand/icon.png"
   }
 }
