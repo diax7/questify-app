@@ -388,6 +388,9 @@ restated (a live poll can never be flash); the event switches' paths are `…/fl
 
 ## T-307b — the live finale (split, ADR-230; design for its worker)
 
+**Built 2026-10-30** as `docs/plans/2026-10-30-t-307b-live-finale.md` (migration 0084, ADR-369): the shape below is kept, except that the finale is not
+one of the pickable scenes (it joins the running list by itself and takes the screen from its time on) and the screen stays open after the end for it.
+
 FR-254, FR-255, FR-1621 on the big screen, after T-504 (pairing, scenes, the screen's own reader rule and outsider
 tests). Shape to build then:
 - `finale (event_id PK, starts_at, goal_id → community_goal | null)`, set by the owner: the countdown runs to

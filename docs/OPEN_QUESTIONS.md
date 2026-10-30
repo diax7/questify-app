@@ -1514,3 +1514,13 @@ want an Arabic wordmark, or a different icon style; the event link's share image
 **Dhia (2026-10-30):** the broken pictures were in the currency icon picker ("maybe it's working now"); all five `/currency` pictures
 answer 200 on staging after the T-599 deploy, so the photos part is closed. Still open: an Arabic wordmark, the icon style, the share image address.
 ADR-368 Proposed.
+
+## Q-337 - T-307b live finale: owner only, the screen stays open after the end, the reveal stays on the Results page (2026-10-30)
+
+Who sets the finale, how does it take the screen, and where are the winners revealed? **Recommended (developer, T-307b build):** only the
+owner sets or clears it (as the reveal is the owner's); a set finale joins the screen's scenes and takes the whole screen from its time on,
+and the screen stays open after the event ends while one is set (the device's own 24 hours bound it); the winners show only after the
+owner's existing Confirm and Reveal on the Prizes and results page, with no score (FR-255); Q-127 stays as it is, so a finale before the
+end needs the event's end time moved. **Open:** Dhia may want editors to set the finale, a Reveal button on the Big screen page itself, or
+confirming while the event is live (Q-127); each is a small addition. The phone's celebration shows on the next Home read, not live, until
+T-501's reveal push. ADR-369 Proposed.

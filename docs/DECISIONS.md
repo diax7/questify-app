@@ -5563,3 +5563,28 @@ layout keeps the shell on screen while only the content changes; the icon set ne
 **Trade-offs:** moving from the events list to an event swaps one shell for another (the same look); a link is not prefetched, so the
 skeleton shows after one round trip; the Arabic pages carry an English wordmark; a page must still check the session itself, since a layout
 does not run again when only the page changes.
+
+## ADR-369 - T-307b the live finale: a closed row, a scene that takes the screen, the reveal stays the owner's
+
+**Status:** Proposed (developer, T-307b build, 2026-10-30; Q-337). Fills in the T-307 plan's last section and ADR-230. Tier B: it only
+reads `event_result` and `result_place`; points, the ledger, `confirm_results`, `reveal_results` and prize handover are untouched.
+**Decision:** (1) **The finale** is one closed row per event (`finale`: `starts_at`, an optional `goal_id` of one of the event's community
+goals). The owner alone sets it (`set_finale`) and clears it (`clear_finale`), audited with ids and the time. The time must be in the
+future, inside the event's start and 24 hours after its end (the screen's own life); the goal must be this event's, not final, and
+open past the finale's start. Once the time has come only Clear remains. (2) **It is not a pickable scene.** The three pickable scenes and
+their CHECK are unchanged. A set finale joins the running list as its last scene; from its time on, and for good once the event has
+ended, it is the only scene (`big_screen_running`). A screen of an ended event stays open while a finale is set (`screen_view_shut`);
+the other three doors stay shut (`event_ended`). (3) **`screen_finale()`** (no argument, the calling device's event) answers a phase:
+`countdown` (the time only, nothing of the goal), `push` (from the time on, while a goal is attached and the event's community switch
+is on: its cached progress and milestones, never a reward; a missed goal reads "not reached"), `waiting` (no goal), `reveal` (only once
+the owner's reveal ran: the top ten frozen places as place, username and avatar, never a score, FR-255). No place is read before the
+reveal. The route adds `serverNow`, so the countdown follows the server's clock and not the TV's. (4) **Winners are revealed on the
+Results page, not here.** The Finale section on the Big screen page sets the time and the goal and says where the results stand
+(`results_state`) with a link to Prizes and results, where the owner confirms (after the event ends, ADR-163) and reveals; it never
+duplicates that flow. Q-127 (confirming while live) is left as it is: a finale before the end needs the end time moved to it, and the
+section says so. (5) **The app's celebration** (FR-407): Home carries `finale: {place} | null`, set once the winners are revealed; the
+app plays one full-screen "The winners are in" per event on the phone (a key in its store), naming only the player's own place. It
+shows when Home is next read; the reveal's push is T-501's.
+**Why:** a finale page of its own would duplicate T-504's scene player, and a confirm/reveal of its own would duplicate T-214's guarded flow.
+**Trade-offs:** a freshly set finale reaches a screen within about 5 seconds (the 2-second shared answer and the 3-second poll); a phone
+learns of the reveal on its next Home read, not live; a goal deleted after being attached leaves the finale without its push.

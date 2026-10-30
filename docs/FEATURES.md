@@ -133,7 +133,7 @@ anti-cheat) is Area 3.
 |---|---|---|---|---|
 | F-100 | Live poll: a vote pushed to everyone as a pop-up card | Should | user | The vote type (F-06) delivered live. One or several choices; points optional; results shown after voting, at close, or never |
 | F-101 | Community quest: every player works toward one shared goal | Should | user | Detail below; ADR-039 |
-| F-102 | Flash quests and boosts: quests that appear for a short window; double-point windows on a category or zone | Should | Claude | Fired live or scheduled. No prayer-time pause (ADR-065). Built (T-307): a zone is a category; ×2 only; the live finale is T-307b |
+| F-102 | Flash quests and boosts: quests that appear for a short window; double-point windows on a category or zone | Should | Claude | Fired live or scheduled. No prayer-time pause (ADR-065). Built (T-307): a zone is a category; ×2 only; the live finale is T-307b (built: the owner sets a time and a last-push goal on the Big screen page; the screen counts down, pushes and shows the winners after the owner reveals them) |
 | F-103 | Live finale: countdown, last community push, winner reveal on the big screen | Should | Claude | Built in Area 6 |
 
 **Community quest (F-101), as designed with the user:**

@@ -1096,6 +1096,17 @@ reads `current_device()`'s event only); internal `feature_enabled`, `big_screen_
 `big_screen_plan`, `big_screen_json`, `screen_event`, `screen_shut`. `device_view` restated: `scenes` and the screen's
 `feature_off`.
 
+### finale (migration 0084, T-307b, ADR-369)
+**Built:** `finale (event_id primary key, organizer_id, starts_at, goal_id, updated_at, updated_by → staff_user SET NULL)`, `(event_id,
+organizer_id)` → `event` CASCADE, `(goal_id, event_id)` → `community_goal` `ON DELETE SET NULL (goal_id)`. Row-level security forced, PUBLIC and
+the API role revoked; written only by `set_finale` and `clear_finale` (owner, audited `finale.update` / `finale.clear`, ids and the time only). No
+personal data. Kept by the rehearsal wipe (setup, as `big_screen`). Doors: `event_finale`, `set_finale`, `clear_finale` (team, through
+`award_event_of`), `screen_finale` (a paired big screen; no argument; reads only `event_result` and `result_place`, and a place only once
+`event_result.revealed_at` is set); internal `finale_json`, `finale_revealed`, `big_screen_running`, `screen_view_shut`. `device_view` restated:
+`scenes` is `big_screen_running` (the picked list, the finale last, or the finale alone from its time on or once the event has ended) and
+`shut` is not `event_ended` for an ended event while a finale is set. SQLSTATEs `LF403` (not the owner), `LF409` (`started`), `LF422`
+(`startsAt`, `goal`, `goal_done`, `goal_window`).
+
 ### kiosk_scan; the kiosk method (migration 0058, T-309b, ADR-242, ADR-244)
 **Built:** `kiosk_scan (completion_id → quest_completion CASCADE primary key, device_id → paired_device SET NULL,
 organizer_id, event_id, created_at)`, index `(device_id, created_at)`: which kiosk paid a completion. No personal data.
@@ -1266,6 +1277,7 @@ rows or push text.
 | ranking_season | Monthly Questify-wide seasons and archives: built as the month boards of `xp_board` (T-408, migration 0072) | No |
 | report, block, ban_appeal | Player reports and blocks, platform-ban appeals | Yes |
 | big_screen (built, T-504, migration 0083) | The scenes an event's big screen shows, in order (scene names only) | No |
+| finale (built, T-307b, migration 0084) | An event's finale time and the community goal that is its last push (ids and a time) | No |
 | device_request, paired_device (built, T-309, migration 0057) | Pairing requests and paired stations, kiosks and big screens (see above); secrets and codes only as hashes | No (a device row names no person; who paired it is staff) |
 | operator_invite | Personal QRs, batches with a preset and email invites (T-204): label, abilities, expiry, claimed by, cancelled. The token is the API's signature over the id, never stored; the email is cleared once claimed, cancelled or expired | Claimed person |
 | invitation_campaign (built, T-409, migration 0073) | Questify invitations to opted-in players by city, interests and history: the request, the admin's approval with the frozen names, exact counters and their rounded daily copies (see above) | No (counts only) |

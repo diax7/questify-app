@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## T-307b live finale — 2026-10-30
+
+- **T-307b done (tier B; code review owed), not yet run on a TV or a phone.** Migration 0084 (new, undeployed; CranL is at 0083): the
+  closed `finale` row (time, optional community goal), `set_finale` / `clear_finale` (owner only, audited), `event_finale`, the screen's
+  `screen_finale` door and `device_view` restated. A set finale joins the screen's scenes last and takes the whole screen from its time on;
+  the screen stays open after the event ends while one is set (confirming still needs the end, ADR-163; Q-127 left as it is). Phases:
+  countdown on the server's clock (`serverNow`), the push (the goal's cached bar, "not reached" when missed, no reward), then the winners
+  (top ten, username and avatar, no score) only after the owner's Confirm and Reveal on the Prizes and results page. Dashboard: a Finale
+  section on the Big screen page (time, goal, Clear, where the results stand). App: Home's `finale` and a one-time full-screen
+  celebration (shows on the next Home read; the reveal push is T-501's). ADR-369 and Q-337 Proposed. Mutation: none (not tier A).
+  Local checks: full vitest 8965 passed; tsc (api, web, app, shared), oxlint, format, limits clean; `npx expo export` ok; browser
+  suite 237 passed, 3 skipped (20 minutes; the finale spec is 4 of them, 1.2 minutes); CI minutes none yet; agent tokens roughly 2.5M.
+  **Next:** the next unblocked task in `docs/TASKS.md` order (T-505 agenda and sessions); reviews of T-307b and T-599c are owed.
+
 ## Staging deploy and dashboard priority — 2026-10-30
 
 - **CranL now runs migrations through 0083** (0083 applied 2026-10-30 from green commit fb6227f, CI run 40979237093, same
