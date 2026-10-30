@@ -711,7 +711,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
         )) {
           expect(value).toMatch(REF_VALUE);
         }
-        const shown = [message?.title, message?.body, JSON.stringify(message?.data)].join(" ");
+        // The data holds random ids (checked by REF_VALUE above), which can contain "7919" by chance.
+        const shown = [message?.title, message?.body, Object.keys(message?.data ?? {})].join(" ");
         expect(shown).not.toMatch(/Secret|secret|7919|Too short|private answer/);
       }
     });
