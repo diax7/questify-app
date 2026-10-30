@@ -5,6 +5,17 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-10-30 — Wireframe review of the new dashboard → processed
+
+- Dhia, on the T-599 dashboard (Flagged activity screenshot): "now it is a little bit better ... this is not the final,
+  it's just like wireframe, but it is good wireframe". Problems: the page content is "boxed" and cramped; the side menu
+  needs icons; "changing the language should be an icon, sign out should be an icon"; navigating "doesn't feel smooth
+  ... like it is opening a new website"; photos are broken on some pages: "fix the photos first. If you fix the photos,
+  then yes, add the logo instead of Questify on the header"; contrast: the header "Home" hover hides the word, and
+  light-on-light colours elsewhere.
+- Processed: boxing and contrast went into T-599b (ADR-367, a contrast check in the layout check); photos, logo, icons
+  and smooth navigation are task T-599c.
+
 ## 2026-10-30 — The dashboard is unusable; fix it first → processed
 
 - Dhia, after using the staging dashboard (old build, 0056): "the UI is very disaster, it is unusable ... small text, not
