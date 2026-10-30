@@ -7,6 +7,8 @@ import {
   expectCleanLayout,
   expectNavFits,
   expectStateContrast,
+  waitUntilSettled,
+  watchRequests,
   type LayoutIds,
   type LayoutPage,
 } from "#e2e/layout.ts";
@@ -213,7 +215,7 @@ async function checkPage(
       page.getByText(listed.ready[language]).filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 6000 });
   }).toPass({ timeout: 40_000 });
-  await page.waitForLoadState("networkidle");
+  await waitUntilSettled(page);
   await expectCleanLayout(page, where);
   await expectNavFits(page, where);
   await shoot(page, project, `${language}-${listed.name}`);
@@ -262,6 +264,7 @@ test("every listed page fits the screen, keeps controls apart and text at 14px o
     project === "phone" ? { width: 360, height: 780 } : { width: 1440, height: 900 },
   );
   await freshAddress(page);
+  watchRequests(page);
 
   for (const listed of PUBLIC_PAGES) {
     for (const language of LANGUAGES) {

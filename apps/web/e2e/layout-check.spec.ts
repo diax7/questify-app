@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { contrastOf, readLayout } from "#e2e/layout.ts";
+import { brokenImagesOf, contrastOf, readLayout } from "#e2e/layout.ts";
 
 /**
  * The layout check catches what it is for (ADR-364): a page built with each fault, as the staging dashboard had them,
@@ -142,4 +142,47 @@ test("the layout check leaves out what an inert region or an open modal dialog c
   expect((await readLayout(page)).overlaps).toHaveLength(1);
   await page.evaluate(() => document.querySelector("dialog")?.showModal());
   expect((await readLayout(page)).overlaps).toEqual([]);
+});
+
+test("the layout check fails on text it cannot measure: over an image, or in a colour it cannot read", async ({
+  page,
+}) => {
+  await page.setContent(`
+    <body style="margin:0;font-size:16px;background:white;color:black">
+      <p style="background-image:linear-gradient(white, rgb(230, 230, 230))">Text over a gradient</p>
+      <p style="color:oklch(0.6 0.1 200)">Ink in a colour space the check does not read</p>
+      <p>Plain black on white</p>
+    </body>`);
+  const failed = await page.evaluate(contrastOf, [4.5, 3] as const);
+  expect(failed.filter((line) => line.includes("Text over a gradient"))).toHaveLength(1);
+  expect(failed.find((line) => line.includes("Text over a gradient"))).toContain("over an image");
+  expect(failed.filter((line) => line.includes("Ink in a colour space"))).toHaveLength(1);
+  expect(failed.find((line) => line.includes("Ink in a colour space"))).toContain("cannot read");
+  expect(failed.filter((line) => line.includes("Plain black"))).toHaveLength(0);
+});
+
+test("the layout check reports pictures that did not load, in a tag or in a style", async ({
+  page,
+}) => {
+  const good =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  await page.setContent(`
+    <body>
+      <img src="${good}" alt="" width="20" height="20" />
+      <div style="background-image:url(${good});inline-size:20px;block-size:20px"></div>
+    </body>`);
+  expect(await page.evaluate(brokenImagesOf)).toEqual([]);
+
+  await page.setContent(`
+    <body>
+      <img src="${good}" alt="" width="20" height="20" />
+      <img src="data:image/png;base64,AAAA" alt="" width="20" height="20" />
+      <img alt="" width="20" height="20" />
+      <img src="http://127.0.0.1:9/nothing.png" alt="" width="20" height="20" />
+      <div style="background-image:url(data:image/png;base64,AAAA);inline-size:20px;block-size:20px"></div>
+    </body>`);
+  const broken = await page.evaluate(brokenImagesOf);
+  expect(broken).toHaveLength(4);
+  expect(broken.filter((line) => line.startsWith("<img>"))).toHaveLength(3);
+  expect(broken.filter((line) => line.startsWith("a background image"))).toHaveLength(1);
 });

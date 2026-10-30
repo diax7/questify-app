@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     promoSmsSender: { name: "e2e-promo", send: () => Promise.resolve({ kind: "sent" }) },
     // The push worker on the fake provider (ADR-344): the center fills as in production and nothing leaves the machine.
     push: { pool: pushPool, providers: PUSH_TARGETS.map((target) => createFakeProvider(target)) },
-    logger: false,
+    logger: process.env["E2E_API_LOG"] === "1" ? { level: "error" } : false,
   });
   const stop = async (): Promise<void> => {
     await app.close();

@@ -285,10 +285,13 @@ export function contrastOf(
     const back = behind(element);
     const ink = parse(style.color);
     const name = `<${element.tagName.toLowerCase()}> "${(element.textContent ?? "").trim().slice(0, 30)}"`;
-    if (typeof back === "string" || ink === null) {
-      if (typeof back === "string" && back !== "an image") {
-        failures.push(`${name} over ${back}`);
-      }
+    // What cannot be measured is a failure, not a pass: a page may not hide text from the check.
+    if (typeof back === "string") {
+      failures.push(`${name} over ${back}, which the contrast check cannot measure`);
+      continue;
+    }
+    if (ink === null) {
+      failures.push(`${name} in a colour it cannot read (${style.color})`);
       continue;
     }
     const text = over(ink, back);
@@ -304,17 +307,79 @@ export function contrastOf(
   return failures;
 }
 
+/**
+ * Reads every image the page draws and returns those that did not load: an `<img>` with no picture (a wrong path, a
+ * missing file, a blocked address, an empty `src`) and a CSS background image that fails to load. An image still
+ * loading is waited for, up to five seconds. Runs inside the browser, so it may only use what it is given.
+ */
+export async function brokenImagesOf(): Promise<string[]> {
+  const broken: string[] = [];
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function's source.
+  const settled = (image: HTMLImageElement): Promise<void> =>
+    new Promise((resolve) => {
+      if (image.complete) {
+        resolve();
+        return;
+      }
+      image.addEventListener("load", () => resolve(), { once: true });
+      image.addEventListener("error", () => resolve(), { once: true });
+      setTimeout(resolve, 5000);
+    });
+  for (const image of document.querySelectorAll("img")) {
+    image.loading = "eager";
+    await settled(image);
+    if (image.naturalWidth === 0) {
+      broken.push(`<img> "${image.getAttribute("src") ?? ""}" shows no picture`);
+    }
+  }
+  const backgrounds = new Set<string>();
+  for (const element of document.querySelectorAll("*")) {
+    for (const found of getComputedStyle(element).backgroundImage.matchAll(
+      /url\(\s*(["']?)(.*?)\1\s*\)/g,
+    )) {
+      backgrounds.add(found[2] ?? "");
+    }
+  }
+  for (const source of backgrounds) {
+    const loaded = await new Promise<boolean>((resolve) => {
+      const probe = new Image();
+      probe.addEventListener("load", () => resolve(probe.naturalWidth > 0), { once: true });
+      probe.addEventListener("error", () => resolve(false), { once: true });
+      probe.src = source;
+      setTimeout(() => resolve(false), 5000);
+    });
+    if (!loaded) {
+      broken.push(`a background image "${source}" did not load`);
+    }
+  }
+  return broken;
+}
+
 const LIMITS = [MIN_CONTRAST, MIN_CONTRAST_LARGE] as const;
+
+/** The images of the open page that did not load. */
+export function readBrokenImages(page: Page): Promise<string[]> {
+  return page.evaluate(brokenImagesOf);
+}
 
 /** The contrast problems of the open page, as drawn now. */
 export function readContrast(page: Page): Promise<string[]> {
   return page.evaluate(contrastOf, LIMITS);
 }
 
+/** Turns off transitions and animations, so a hovered or focused state is at its final colour the moment it is read. */
+const NO_MOTION =
+  "*, *::before, *::after { transition: none !important; animation: none !important; }";
+
+/** Waits for the page to draw what it has changed (one frame), so a state the pointer or keyboard just set is read. */
+const nextFrame = (page: Page): Promise<void> =>
+  page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
 /**
  * Reads the contrast of the controls the pointer can rest on and the keyboard can reach: each one hovered, then
  * focused, because a state colour is where light text lands on a light fill. `chrome` is the top bar and the
- * navigation (read once per kind of page), else the first controls of the page body.
+ * navigation (read once per kind of page), else the first controls of the page body. Motion is turned off for the
+ * read, so a state is read at once and not after a fixed wait (the waits were most of the layout check's time).
  */
 export async function expectStateContrast(
   page: Page,
@@ -327,22 +392,63 @@ export async function expectStateContrast(
       : "main a, main button, main summary";
   const targets = page.locator(selector).filter({ visible: true });
   const count = Math.min(await targets.count(), scope === "chrome" ? 12 : 5);
+  await page.addStyleTag({ content: NO_MOTION });
   await page.keyboard.press("Tab");
   for (let index = 0; index < count; index += 1) {
     const target = targets.nth(index);
     const name = (await target.textContent())?.trim().slice(0, 30) ?? "";
     await target.hover({ timeout: 3000 });
-    await page.waitForTimeout(160);
+    await nextFrame(page);
     expect
       .soft(await target.evaluate(contrastOf, LIMITS), `${where}: "${name}" hovered`)
       .toEqual([]);
     await target.focus();
-    await page.waitForTimeout(160);
+    await nextFrame(page);
     expect
       .soft(await target.evaluate(contrastOf, LIMITS), `${where}: "${name}" focused`)
       .toEqual([]);
   }
   await page.mouse.move(0, 0);
+}
+
+/** How long the page's requests must stay quiet before it counts as settled, and the longest wait for that. */
+const QUIET_MS = 150;
+const SETTLE_LIMIT_MS = 5000;
+
+const settlers = new WeakMap<Page, () => Promise<void>>();
+
+/**
+ * Counts the page's requests from now on, for `waitUntilSettled`: a page that fetches its data after it first draws is
+ * read once it has it. Faster than Playwright's `networkidle`, which always waits a fixed 500ms (it was a fifth of the
+ * layout check's time). Call it once, before the first page is opened.
+ */
+export function watchRequests(page: Page): void {
+  const requests = { open: 0, lastActivity: Date.now() };
+  const change = (by: number): void => {
+    requests.open = Math.max(0, requests.open + by);
+    requests.lastActivity = Date.now();
+  };
+  page.on("request", () => change(1));
+  page.on("requestfinished", () => change(-1));
+  page.on("requestfailed", () => change(-1));
+  settlers.set(page, async () => {
+    const giveUp = Date.now() + SETTLE_LIMIT_MS;
+    while (
+      (requests.open > 0 || Date.now() - requests.lastActivity < QUIET_MS) &&
+      Date.now() < giveUp
+    ) {
+      await page.waitForTimeout(25);
+    }
+  });
+}
+
+/** Waits until no request of the page is open and none has started or ended for 150ms (at most five seconds). */
+export async function waitUntilSettled(page: Page): Promise<void> {
+  const settle = settlers.get(page);
+  if (settle === undefined) {
+    throw new Error("watchRequests(page) must be called before the first page is opened");
+  }
+  await settle();
 }
 
 /** The open page's layout problems, as the check sees them. */
@@ -365,6 +471,7 @@ export async function expectCleanLayout(page: Page, where: string): Promise<void
     .soft(problems.cramped, `${where}: text or controls crammed into a narrow column`)
     .toEqual([]);
   expect.soft(problems.nestedBoxes, `${where}: a box inside another box`).toEqual([]);
+  expect.soft(await readBrokenImages(page), `${where}: images that did not load`).toEqual([]);
   expect.soft(await readContrast(page), `${where}: text without enough contrast`).toEqual([]);
 }
 
@@ -502,6 +609,11 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     path: (ids) => `/e/${ids.joinCode}`,
     ready: titled("eventPage.code"),
   },
+  {
+    name: "event-rules",
+    path: (ids) => `/e/${ids.joinCode}/rules`,
+    ready: titled("rules.title"),
+  },
   { name: "console", path: () => "/console", ready: titled("console.queue") },
   consolePage("content", "console.content.title"),
   {
@@ -527,7 +639,13 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
 
 export type PublicPage = Readonly<{ name: string; path: string; ready: LayoutPage["ready"] }>;
 
-/** The pages anyone can open, read before the run signs in. */
+/** A signed code's shape (50 URL-safe characters): enough for the landing pages, which read nothing and verify nothing. */
+const CODE_SHAPE = "A".repeat(50);
+
+/**
+ * The pages anyone can open, read before the run signs in. The event's own public pages (`event-public`, `event-rules`)
+ * need its join code and are in `LAYOUT_PAGES`.
+ */
 export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: "sign-in", path: "/sign-in", ready: titled("staff.signIn") },
   { name: "sign-up", path: "/sign-up", ready: titled("staff.signUpTitle") },
@@ -541,4 +659,9 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: "invitation", path: "/i", ready: titled("invCampaignPage.title") },
   { name: "operator-invite", path: "/op", ready: titled("invitePage.title") },
   { name: "pair", path: "/pair", ready: titled("pair.landing.title") },
+  // What a camera opens outside the app: a quest's code, a station's code and an NFC tag's code (only their shape is read).
+  { name: "quest-code", path: `/q/${CODE_SHAPE}`, ready: titled("scan.title") },
+  { name: "station-code", path: `/s/${CODE_SHAPE}`, ready: titled("screen.landing.title") },
+  { name: "tag-code", path: `/t/${CODE_SHAPE}`, ready: titled("tag.landing.title") },
+  { name: "event-not-found", path: "/e/NOSUCH", ready: titled("eventPage.notAvailable") },
 ];

@@ -19,7 +19,8 @@ jobs:
   checks:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # Tests and checks take about 11 minutes and the browser tests 12 to 15 (see their step), plus the audit and builds.
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -109,8 +110,12 @@ jobs:
         if: steps.scope.outputs.e2e == 'true'
         # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
         # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).
-        # 171 specs ran 8.0 minutes on 2026-10-27 (run 40502683226) and hit the old 8-minute limit.
-        timeout-minutes: 12
+        # 171 specs ran 8.0 minutes on 2026-10-27 (run 40502683226) and hit the old 8-minute limit; the step took 10.4 minutes
+        # on 2026-10-30 (run 40979237093). T-599b's layout check then grew to 5.7 minutes of its own (fixed waits for state
+        # colours and the network) and run 40993429874 was cancelled at 12. It now waits by event and takes 3.1 minutes
+        # (desktop 1.7, phone 1.4). All 230 specs, 1 worker, CI=1, took 16.4 minutes on the developer PC (T-599c); the runner
+        # took 0.7 to 0.9 times the PC's time, so the step is expected at 12 to 15 minutes, and 18 leaves room.
+        timeout-minutes: 18
         run: |
           set -euo pipefail
           pnpm --filter @questify/web exec playwright install chromium

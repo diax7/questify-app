@@ -25,7 +25,8 @@
 - Browser tests locally (web app): `pnpm --filter @questify/web build`, then
   `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
   playwright install chromium`). Run them before merging any web, shared or API change; they are part of `ci:full`
-  in spirit and take about a minute.
+  in spirit and take about 16 minutes (230 specs, one worker; the CI step is capped at 18). `E2E_API_LOG=1` prints the API's
+  unexpected errors during a browser run; `--reporter=list` shows each spec's time.
 - Heavy checks run on GitHub, started by hand (ADR-149; free while the repository is public): push the branch, then
   `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 10 to 15
   minutes) or `gh workflow run mutation.yml --ref <branch> -f mutate="<globs>"` (Stryker with incremental results
