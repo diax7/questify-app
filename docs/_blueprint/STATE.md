@@ -19,6 +19,22 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-507 sponsors — 2026-10-30
+
+- **T-507 done (tier B; code review owed; not run on a phone).** Migration 0088 (new, undeployed; staging is at 0086, 0087 is deploying): two closed tables
+  (`sponsor`, `sponsor_tag`) and six granted doors; a tag is a row of its own, so the quest, category and reward builders are untouched; an item has one sponsor; the
+  player's door lists a tag only on an item the player may see. API `src/sponsors` (team routes behind `award_event_of`, the player's
+  `GET /v1/events/{id}/sponsors`). Dashboard: Sponsors page under Set up (list, form, tag editor with a checkbox per quest, category and reward, delete confirmation naming
+  the items that lose the sponsor) and a "Presented by" badge on tagged quests, categories and rewards. App: "Presented by {name}" with a lettered mark on a tagged quest
+  card, category header and shop reward, the sponsor strip on Event Home, and a screen listing a sponsor's quests (tagged ones and those of a tagged category). **Menu:**
+  the extra link ran the desktop navigation 10 px below a 1280 by 720 screen, so During the event and Review joined as "Run and review" instead of cutting the rows again
+  (amends ADR-366 (1)). **Splits (ADR-375):** the logo and banner uploads moved to **T-507b** (blocked on Q-149; a lettered mark stands in), souvenir tags to **T-507c**.
+  ADR-375 and Q-342 Proposed. Local: full vitest 9147 passed, 14 skipped (one guard failed on the new `sponsor_tag_set` and was mapped; its test and the touched suites rerun
+  green); tsc (web, app, api, shared), oxlint, format and limits clean; `npx expo export` ok (Android); browser suite 243 passed, 3 skipped, 0 failed (after the menu regroup; the layout spec had failed once on the navigation, 10 px below the screen, before it);
+  CI minutes none yet; agent tokens roughly 0.6M (estimate).
+  **Next:** the T-505, T-506 and T-507 reviews, T-505b (tier A: plan and plan review first), then T-508.
+
+
 ## T-506 maps — 2026-10-30
 
 - **T-506 done (tier B; code review owed; not run on a phone).** Migration 0087 (new, undeployed; staging is at 0085, 0086 is being deployed): two closed tables
