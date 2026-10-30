@@ -1,7 +1,8 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { tooManyAttempts, unauthenticated } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
+import { createCheerFlood } from "#src/cheers/flood";
 import { cheersCall, sendCheer, type CheersDeps, type CheersReading } from "#src/cheers/store";
 import { organizerContextOf } from "#src/organizers/context";
 
@@ -47,23 +48,38 @@ export function registerCheersTeamRoutes(scope: FastifyInstance, deps: CheersDep
 
 const player = { config: { access: "player" }, bodyLimit: 256 } as const;
 
+/** The 429 for a player who must wait `seconds`, the same from the flood counter and from the database. */
+function slowDown(reply: FastifyReply, seconds: number): never {
+  reply.header("retry-after", String(seconds));
+  throw tooManyAttempts({ retryAfterSeconds: seconds });
+}
+
 /**
  * The player's cheer (T-509, FR-1841): one of the five reactions while a moment is live. A tap is not idempotent on
  * purpose: it pays nothing, a repeated tap is another cheer, and the per-minute limit bounds a retry storm. Over the
- * limit the answer is 429 with `Retry-After`.
+ * limit the answer is 429 with `Retry-After`. The database counts the real limit; a cheap per-server counter in front
+ * (twice that limit) turns an obvious flood away before it takes a connection or the lock quest completions share.
  */
-export function registerMemberCheerRoutes(app: FastifyInstance, deps: CheersDeps): void {
+export function registerMemberCheerRoutes(
+  app: FastifyInstance,
+  deps: CheersDeps,
+  now: () => number = Date.now,
+): void {
+  const flood = createCheerFlood(now);
   app.post("/v1/events/:eventId/cheers", player, async (request, reply) => {
     reply.header("cache-control", "private, no-store");
     const { eventId } = parse(eventParams, request.params);
     if (request.player === undefined) {
       throw unauthenticated();
     }
+    const flooded = flood(request.player.id);
+    if (flooded !== undefined) {
+      slowDown(reply, flooded);
+    }
     const { reaction } = parse(cheerBody, request.body);
     const wait = await sendCheer(deps, { playerId: request.player.id, eventId, reaction });
     if (wait !== undefined) {
-      reply.header("retry-after", String(wait));
-      throw tooManyAttempts({ retryAfterSeconds: wait });
+      slowDown(reply, wait);
     }
     return reply.code(201).send({ sent: true });
   });

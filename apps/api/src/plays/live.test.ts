@@ -12,12 +12,17 @@ import { fakePool } from "#test/support/fake-pool";
 
 const unusedPool = {} as Pool;
 const unusedSettings = { forEvent: () => Promise.reject(new Error("unused")) };
+const noLog = (): void => undefined;
 
 describe("the live read's limit (T-306)", () => {
   it("allows 30 calls a player in a minute, then says how long to wait, and starts again next minute", () => {
     let at = 60_000 * 100 + 15_000;
     const reader = createLiveReader(
-      { pool: unusedPool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: unusedPool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => at,
     );
     for (let call = 0; call < LIVE_LIMIT.max; call += 1) {
@@ -46,7 +51,11 @@ const quietReader = (at: () => number) => {
   });
   return {
     reader: createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       at,
     ),
     checks,
@@ -57,24 +66,24 @@ describe("the live read's memory (ADR-221)", () => {
   it("keeps an event's answer for 3 seconds, then asks again", async () => {
     let at = 1_000_000;
     const { reader, checks } = quietReader(() => at);
-    await reader.read(PLAYER, "e1");
+    await reader.read(PLAYER, "e1", noLog);
     at += LIVE_CACHE_MS - 1;
-    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual(EMPTY_LIVE);
     expect(checks).toEqual(["e1"]);
     at += 1;
-    await reader.read(PLAYER, "e1");
+    await reader.read(PLAYER, "e1", noLog);
     expect(checks).toEqual(["e1", "e1"]);
   });
 
   it("keeps each event apart, and empties itself past 20,000 events", async () => {
     const { reader, checks } = quietReader(() => 5_000);
     for (let n = 0; n < 20_000; n += 1) {
-      await reader.read(PLAYER, `e${n}`);
+      await reader.read(PLAYER, `e${n}`, noLog);
     }
-    await reader.read(PLAYER, "e0");
+    await reader.read(PLAYER, "e0", noLog);
     expect(checks).toHaveLength(20_000);
-    await reader.read(PLAYER, "fresh");
-    await reader.read(PLAYER, "e1");
+    await reader.read(PLAYER, "fresh", noLog);
+    await reader.read(PLAYER, "e1", noLog);
     expect(checks.slice(20_000)).toEqual(["fresh", "e1"]);
   });
 
@@ -85,19 +94,27 @@ describe("the live read's memory (ADR-221)", () => {
     );
     let at = 0;
     const reader = createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => at,
     );
-    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual(EMPTY_LIVE);
     live = false;
     at += LIVE_CACHE_MS;
-    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual(EMPTY_LIVE);
     expect(fake.queries.filter((sql) => sql.includes("live_state"))).toHaveLength(1);
   });
 
   it("forgets the minute's counts past 20,000 players", () => {
     const reader = createLiveReader(
-      { pool: unusedPool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: unusedPool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => 30_000,
     );
     for (let call = 0; call < LIVE_LIMIT.max; call += 1) {
@@ -163,10 +180,14 @@ describe("the live read's flash quests and boosts (T-307)", () => {
     });
     let at = 0;
     const reader = createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => at,
     );
-    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e1")).toEqual({
+    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e1", noLog)).toEqual({
       polls: [],
       closed: [],
       community: null,
@@ -187,7 +208,9 @@ describe("the live read's flash quests and boosts (T-307)", () => {
     });
     anything = false;
     at += LIVE_CACHE_MS + 1;
-    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e2")).toEqual(EMPTY_LIVE);
+    expect(await reader.read("33333333-3333-4333-8333-333333333333", "e2", noLog)).toEqual(
+      EMPTY_LIVE,
+    );
     expect(EMPTY_LIVE).toEqual({
       polls: [],
       closed: [],
@@ -213,7 +236,11 @@ const readerWith = (answers: { cheers: boolean; member: unknown; live?: boolean 
   return {
     fake,
     reader: createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => 0,
     ),
   };
@@ -225,7 +252,7 @@ describe("the live read's cheers moment (T-509)", () => {
       cheers: true,
       member: { endsAt: "2030-11-01T07:30:00+00:00" },
     });
-    expect(await reader.read(PLAYER, "e1")).toEqual({
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual({
       ...EMPTY_LIVE,
       cheers: { endsAt: "2030-11-01T07:30:00.000Z" },
     });
@@ -236,19 +263,106 @@ describe("the live read's cheers moment (T-509)", () => {
       cheers: false,
       member: { endsAt: "2030-11-01T07:30:00Z" },
     });
-    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual(EMPTY_LIVE);
     expect(fake.queries.filter((sql) => sql.includes("member_cheers"))).toEqual([]);
   });
 
   it("shows no moment to someone who is not a member", async () => {
     const { reader } = readerWith({ cheers: true, member: null });
-    expect(await reader.read(PLAYER, "e1")).toEqual(EMPTY_LIVE);
+    expect(await reader.read(PLAYER, "e1", noLog)).toEqual(EMPTY_LIVE);
   });
 
   it("gives the moment a different ETag from none", () => {
     expect(liveEtagOf({ ...EMPTY_LIVE, cheers: { endsAt: "2030-11-01T07:30:00.000Z" } })).not.toBe(
       liveEtagOf(EMPTY_LIVE),
     );
+  });
+});
+
+describe("the live read when cheers cannot be read (T-509 review)", () => {
+  const flash = {
+    questId: "q1",
+    title: { ar: null, en: "Drop" },
+    closesAt: "2030-11-01T07:10:00+00:00",
+  };
+  /** Cheers are live for the event; the database fails on `failing` (or on nothing) and the rest answers. */
+  const readerFailing = (failing: string | null, live = true) => {
+    const logged: Record<string, unknown>[] = [];
+    const fake = fakePool((sql) => {
+      if (failing !== null && sql.includes(failing)) {
+        throw new Error(`connection lost for ${PLAYER}`);
+      }
+      if (sql.includes("event_has_cheers")) {
+        return { rows: [{ open: true }] };
+      }
+      if (sql.includes("member_cheers")) {
+        return { rows: [{ answer: { endsAt: "2030-11-01T07:30:00Z" } }] };
+      }
+      if (sql.includes("event_has_live")) {
+        return { rows: [{ open: live }] };
+      }
+      return {
+        rows: [
+          {
+            state: {
+              polls: [],
+              closed: [],
+              community: null,
+              flash: [flash],
+              boosts: [],
+              firstBonus: [],
+            },
+          },
+        ],
+      };
+    });
+    const reader = createLiveReader(
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
+      () => 0,
+    );
+    const read = () => reader.read(PLAYER, "e1", (fields) => logged.push(fields));
+    return { read, logged, fake };
+  };
+
+  it.each(["event_has_cheers", "member_cheers"])(
+    "keeps the flash quests and hides only the button when %s fails, and logs no player",
+    async (failing) => {
+      const { read, logged } = readerFailing(failing);
+      const state = await read();
+      expect(state.cheers).toBeNull();
+      expect(state.flash.map((quest) => quest.questId)).toEqual(["q1"]);
+      expect(logged).toEqual([{ event: "live.cheers_unreadable", eventId: "e1", reason: "Error" }]);
+      expect(JSON.stringify(logged)).not.toContain(PLAYER);
+    },
+  );
+
+  it("answers the empty state when cheers fail and nothing else is live", async () => {
+    const { read, logged } = readerFailing("member_cheers", false);
+    expect(await read()).toEqual(EMPTY_LIVE);
+    expect(logged).toHaveLength(1);
+  });
+
+  it("asks again at the next read, because a failed answer is not kept", async () => {
+    const { read, fake } = readerFailing("event_has_cheers");
+    await read();
+    await read();
+    expect(fake.queries.filter((sql) => sql.includes("event_has_cheers"))).toHaveLength(2);
+  });
+
+  it("still fails the read when the rest of it fails", async () => {
+    const { read } = readerFailing("event_has_live");
+    await expect(read()).rejects.toThrow("connection lost");
+  });
+
+  it("asks whether anything is live without waiting for the cheers answer", async () => {
+    const { read, fake } = readerFailing(null);
+    await read();
+    const at = (name: string) => fake.queries.findIndex((sql) => sql.includes(name));
+    expect(at("event_has_live")).toBeLessThan(at("member_cheers"));
   });
 });
 
@@ -287,18 +401,22 @@ describe("the live read's first-N bonuses (T-313, ADR-263)", () => {
     const fake = liveWith(["q1", "gone"], () => free);
     let at = 0;
     const reader = createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache(() => at) },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(() => at),
+      },
       () => at,
     );
-    const first = await reader.read(PLAYER, "e1");
+    const first = await reader.read(PLAYER, "e1", noLog);
     expect(first.firstBonus).toEqual([{ questId: "q1", left: 4, slots: 5 }]);
     free = 0;
     at += 1000;
-    expect((await reader.read(PLAYER, "e1")).firstBonus).toEqual([
+    expect((await reader.read(PLAYER, "e1", noLog)).firstBonus).toEqual([
       { questId: "q1", left: 4, slots: 5 },
     ]);
     at += 3000;
-    const later = await reader.read(PLAYER, "e1");
+    const later = await reader.read(PLAYER, "e1", noLog);
     expect(later.firstBonus).toEqual([{ questId: "q1", left: 0, slots: 5 }]);
     expect(liveEtagOf(later)).not.toBe(liveEtagOf(first));
     expect(fake.queries.filter((sql) => sql.includes("first_bonus_left"))).toHaveLength(2);
@@ -307,10 +425,14 @@ describe("the live read's first-N bonuses (T-313, ADR-263)", () => {
   it("never counts for a player live_state named no bonus quest for", async () => {
     const fake = liveWith([], () => 1);
     const reader = createLiveReader(
-      { pool: fake.pool, settings: unusedSettings, firstBonus: createFirstBonusCache() },
+      {
+        pool: fake.pool,
+        settings: unusedSettings,
+        firstBonus: createFirstBonusCache(),
+      },
       () => 0,
     );
-    expect((await reader.read(PLAYER, "e1")).firstBonus).toEqual([]);
+    expect((await reader.read(PLAYER, "e1", noLog)).firstBonus).toEqual([]);
     expect(fake.queries.filter((sql) => sql.includes("first_bonus_left"))).toEqual([]);
   });
 });

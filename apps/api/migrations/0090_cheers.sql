@@ -57,7 +57,10 @@ CREATE TABLE cheer (
   FOREIGN KEY (enrollment_id, event_id) REFERENCES enrollment (id, event_id) ON DELETE CASCADE
 );
 CREATE INDEX cheer_by_player ON cheer (enrollment_id, created_at DESC);
-CREATE INDEX cheer_by_event ON cheer (event_id, id DESC);
+-- Covering: the screen's totals count a moment's cheers by reaction every 2 seconds and its newest 40 read the tail, and
+-- starting the next moment deletes the last one's, all by event; the reaction rides in the index so the count and the tail
+-- are index-only scans however many cheers a busy event has made.
+CREATE INDEX cheer_by_event ON cheer (event_id, id DESC) INCLUDE (reaction);
 ALTER TABLE cheer ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cheer FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON cheer FROM PUBLIC, questify_app;

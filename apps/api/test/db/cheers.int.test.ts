@@ -432,6 +432,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cheers (database)", () => {
       );
     });
 
+    it("counts and reads a busy moment from the covering index alone", async () => {
+      const event = await newEvent();
+      const fan = await newPlayer(event);
+      await owner(
+        `INSERT INTO cheer (organizer_id, event_id, enrollment_id, reaction)
+         SELECT $1, $2, $3, 'fire' FROM generate_series(1, 300)`,
+        [ids.orgA, event, fan.enrollment],
+      );
+      await owner("VACUUM ANALYZE cheer");
+      const reads = [
+        "SELECT c.reaction, count(*) FROM cheer c WHERE c.event_id = $1 GROUP BY c.reaction",
+        "SELECT c.id, c.reaction FROM cheer c WHERE c.event_id = $1 ORDER BY c.id DESC LIMIT 40",
+      ];
+      await owner("BEGIN");
+      try {
+        await owner("SET LOCAL enable_seqscan = off");
+        for (const sql of reads) {
+          const plan = await owner<Row>(`EXPLAIN ${sql}`, [event]);
+          expect(plan.map((line) => String(line["QUERY PLAN"])).join(" "), sql).toContain(
+            "Index Only Scan using cheer_by_event",
+          );
+        }
+      } finally {
+        await owner("ROLLBACK");
+      }
+    });
+
     it("runs alone while a moment is live and gives the screen back when it stops", async () => {
       const event = await newEvent();
       const screen = await device(event);

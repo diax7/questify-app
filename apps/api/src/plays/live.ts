@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { reasonOf } from "#src/auth/sign-in";
 import { communityPlatformOn } from "#src/community/goals";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -106,11 +107,14 @@ export type LiveDeps = Readonly<{
 /** The weak ETag of a live answer: over the body without `serverNow`, which changes every call (CTO 3). */
 export const liveEtagOf = (state: LiveState): string => `W/${etagOf(state)}`;
 
+/** Where a fault in a part of the read that can be done without is reported; the fields never hold personal data. */
+export type LiveLog = (fields: Readonly<Record<string, unknown>>) => void;
+
 export type LiveReader = Readonly<{
   /** Counts one call against the player's limit: undefined when allowed, else the seconds to wait. */
   allow: (playerId: string) => number | undefined;
   /** The player's live state for the event; the same empty state for anyone who is not an active member. */
-  read: (playerId: string, eventId: string) => Promise<LiveState>;
+  read: (playerId: string, eventId: string, log: LiveLog) => Promise<LiveState>;
 }>;
 
 /** An event-level yes or no from the database, kept for 3 s: it says nothing about any player. */
@@ -164,6 +168,19 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
 
   const anythingLive = eventFlag(deps, now, "SELECT event_has_live($1) AS open");
   const anyCheers = eventFlag(deps, now, "SELECT event_has_cheers($1) AS open");
+  // The cheers button is a small extra: a fault in reading it hides the button, never the polls, flash quests or boosts.
+  const cheersOf = async (
+    playerId: string,
+    eventId: string,
+    log: LiveLog,
+  ): Promise<LiveState["cheers"]> => {
+    try {
+      return (await anyCheers(eventId)) ? await memberCheers(deps.pool, playerId, eventId) : null;
+    } catch (error) {
+      log({ event: "live.cheers_unreadable", eventId, reason: reasonOf(error) });
+      return null;
+    }
+  };
 
   return {
     allow: (playerId) => {
@@ -179,11 +196,12 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
       }
       return Math.max(1, Math.ceil(((current + 1) * LIVE_LIMIT.windowMs - now()) / 1000));
     },
-    read: async (playerId, eventId) => {
-      const cheers = (await anyCheers(eventId))
-        ? await memberCheers(deps.pool, playerId, eventId)
-        : null;
-      if (!(await anythingLive(eventId))) {
+    read: async (playerId, eventId, log) => {
+      const [cheers, live] = await Promise.all([
+        cheersOf(playerId, eventId, log),
+        anythingLive(eventId),
+      ]);
+      if (!live) {
         return cheers === null ? EMPTY_LIVE : { ...EMPTY_LIVE, cheers };
       }
       const { state, firstBonus } = await withConnection(deps.pool, (client) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatEventTime, type Language } from "@questify/shared";
+import { CHEER_MINUTES_KEYS, formatEventTime, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
 import { DEFAULT_ZONE, zoneOf } from "#src/components/FinalePanel.tsx";
@@ -94,7 +94,7 @@ function LengthField({
       >
         {MOMENT_CHOICES.map((choice) => (
           <option key={choice} value={choice}>
-            {t("cheers.minutesOption", { minutes: String(choice) })}
+            {t(CHEER_MINUTES_KEYS[choice])}
           </option>
         ))}
       </Select>

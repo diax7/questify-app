@@ -1,4 +1,8 @@
-import { CHEER_MOMENT_DEFAULT_MINUTES, CHEER_MOMENT_MINUTES } from "@questify/shared";
+import {
+  CHEER_MOMENT_DEFAULT_MINUTES,
+  CHEER_MOMENT_MINUTES,
+  type CheerMomentMinutes,
+} from "@questify/shared";
 
 /** The Cheers section of the Big screen page as `GET …/cheers` answers it (T-509). */
 export type CheersReading = Readonly<{
@@ -34,5 +38,5 @@ export const canStartCheers = (reading: CheersReading): boolean =>
   reading.enabled && reading.switchOn && reading.platformOn && reading.endsAt === null;
 
 /** The lengths offered for a moment, and the one chosen first. */
-export const MOMENT_CHOICES: readonly number[] = CHEER_MOMENT_MINUTES;
+export const MOMENT_CHOICES: readonly CheerMomentMinutes[] = CHEER_MOMENT_MINUTES;
 export const DEFAULT_MOMENT_MINUTES = CHEER_MOMENT_DEFAULT_MINUTES;

@@ -6957,7 +6957,13 @@ export const MESSAGES = {
   },
   "cheers.title": { ar: "لحظة التشجيع", en: "Cheers moment" },
   "cheers.minutes": { ar: "المدة", en: "Length" },
-  "cheers.minutesOption": { ar: "{minutes} دقيقة", en: "{minutes} min" },
+  // One key per length the owner can pick (CHEER_MOMENT_MINUTES): Arabic counts minutes in three forms, so no one string fits.
+  "cheers.minutesOption.m1": { ar: "دقيقة واحدة", en: "1 min" },
+  "cheers.minutesOption.m2": { ar: "دقيقتان", en: "2 min" },
+  "cheers.minutesOption.m5": { ar: "5 دقائق", en: "5 min" },
+  "cheers.minutesOption.m10": { ar: "10 دقائق", en: "10 min" },
+  "cheers.minutesOption.m15": { ar: "15 دقيقة", en: "15 min" },
+  "cheers.minutesOption.m30": { ar: "30 دقيقة", en: "30 min" },
   "cheers.start": { ar: "ابدأ لحظة تشجيع", en: "Start a cheers moment" },
   "cheers.stop": { ar: "أوقف اللحظة", en: "Stop the moment" },
   "cheers.live": { ar: "مباشرة حتى {time}", en: "Live until {time}" },
@@ -6983,7 +6989,7 @@ export const MESSAGES = {
   "cheers.prompt": { ar: "شجّع الشاشة الكبيرة", en: "Cheer for the big screen" },
   "cheers.endsIn": { ar: "تنتهي بعد {time}", en: "Ends in {time}" },
   "cheers.slow": {
-    ar: "على مهلك! حاول بعد {seconds} ثانية.",
+    ar: "أرسلت تشجيعات كثيرة. الثواني المتبقية للمحاولة: {seconds}",
     en: "Easy! Try again in {seconds} seconds.",
   },
   "cheers.failed": {

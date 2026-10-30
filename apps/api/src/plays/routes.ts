@@ -246,7 +246,7 @@ export function registerPlayRoutes(
       reply.header("retry-after", String(wait));
       throw tooManyAttempts({ retryAfterSeconds: wait });
     }
-    const state = await live.read(playerId, eventId);
+    const state = await live.read(playerId, eventId, (fields) => request.log.warn(fields));
     const etag = liveEtagOf(state);
     const serverNow = new Date().toISOString();
     reply.header("etag", etag).header("server-now", serverNow).header("cache-control", "no-cache");
