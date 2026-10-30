@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { api } from "#src/api/app-session.ts";
-import { NOTHING_LIVE, fetchLive, type LiveState } from "#src/event/polls.ts";
+import { NOTHING_LIVE, fetchLive, stateWithClock, type LiveState } from "#src/event/polls.ts";
 
 /**
  * What is live in the event (ADR-221): read every `seconds` while the app is active, once more on each return to it,
@@ -19,8 +19,11 @@ export function useLiveState(eventId: string, seconds: number): LiveState {
     const read = async () => {
       const answer = await fetchLive(api.session, eventId, etag.current);
       if (!stopped && answer.kind === "state") {
+        const receivedAt = Date.now();
         etag.current = answer.etag;
-        setState(answer.state);
+        setState((before) =>
+          stateWithClock(answer.state, answer.serverNow, before.clockOffsetMs, receivedAt),
+        );
       }
     };
     const start = () => {

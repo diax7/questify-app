@@ -6868,6 +6868,10 @@ export const MESSAGES = {
     ar: "لا {questMany} من هذا الراعي بعد.",
     en: "No {questMany} from this sponsor yet.",
   },
+  "sponsors.screen.gone": {
+    ar: "لم يعد هذا الراعي ضمن الفعالية.",
+    en: "This sponsor is no longer part of the event.",
+  },
   // ---------------------------------------------------------------- quest ratings and survey results (T-508)
   "events.questRatings.title": { ar: "تقييم {questMany}", en: "Rate {questMany}" },
   "events.questRatings.label": {
@@ -6947,8 +6951,8 @@ export const MESSAGES = {
     en: "The results did not load. Try again.",
   },
   "surveyShared.hidden": {
-    ar: "حُذفت {count} إجابة لاحتمال احتوائها على بيانات اتصال.",
-    en: "{count} answers left out because they may hold contact details.",
+    ar: "إجابات حُذفت لاحتمال احتوائها على بيانات اتصال: {count}",
+    en: "Answers left out because they may hold contact details: {count}",
   },
   "events.cheers.title": { ar: "التشجيع", en: "Cheers" },
   "events.cheers.label": {

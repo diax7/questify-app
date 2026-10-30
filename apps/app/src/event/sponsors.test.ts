@@ -70,10 +70,16 @@ describe("who presents what", () => {
     expect(lookup.byId(Q1)).toBeUndefined();
   });
 
-  it("is empty before the read, after a failure and for an event with no sponsors", () => {
+  it("is empty and unread before the read and after a failed one, empty and read for an event with none", () => {
     expect(lookupOf(undefined)).toBe(NO_SPONSORS);
-    expect(lookupOf({ sponsors: [], tags: [] })).toBe(NO_SPONSORS);
+    expect(NO_SPONSORS.read).toBe(false);
+    const none = lookupOf({ sponsors: [], tags: [] });
+    expect(none.read).toBe(true);
+    expect(none.sponsors).toEqual([]);
+    expect(none.of("quest", Q1)).toBeUndefined();
+    expect(none.byId(ACME)).toBeUndefined();
     expect(NO_SPONSORS.of("quest", Q1)).toBeUndefined();
+    expect(lookup.read).toBe(true);
   });
 });
 

@@ -31,10 +31,15 @@ function useSecondClock(): number {
  * reactions, no text. Over the per-minute limit the buttons rest for the seconds the API names. A moment that ended or a
  * lost connection says so in one line and never blocks anything else.
  */
-export function CheersBar({ eventId, endsAt }: Readonly<{ eventId: string; endsAt: string }>) {
+export function CheersBar({
+  eventId,
+  endsAt,
+  clockOffsetMs,
+}: Readonly<{ eventId: string; endsAt: string; clockOffsetMs: number }>) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const now = useSecondClock();
+  const serverNow = now + clockOffsetMs;
   const [slowUntil, setSlowUntil] = useState(0);
   const [notice, setNotice] = useState<Notice>(null);
   const wait = secondsToWait(slowUntil, now);
@@ -50,12 +55,12 @@ export function CheersBar({ eventId, endsAt }: Readonly<{ eventId: string; endsA
     [eventId],
   );
 
-  if (!momentIsOn(endsAt, now)) return null;
+  if (!momentIsOn(endsAt, serverNow)) return null;
   return (
     <View style={styles.card} accessibilityLiveRegion="polite">
       <AppText variant="title">{t("cheers.prompt")}</AppText>
       <AppText variant="label" muted>
-        {t("cheers.endsIn", { time: clockText((Date.parse(endsAt) - now) / 1000) })}
+        {t("cheers.endsIn", { time: clockText((Date.parse(endsAt) - serverNow) / 1000) })}
       </AppText>
       <View style={styles.row}>
         {CHEER_REACTIONS.map((reaction) => (

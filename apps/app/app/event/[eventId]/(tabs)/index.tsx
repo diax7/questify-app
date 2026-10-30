@@ -399,7 +399,7 @@ function ActiveCards({
   ranking,
   ended,
 }: Readonly<{ home: Home; ranking: RankingAnswer | undefined; ended: boolean }>) {
-  const { community, cheers } = useLive();
+  const { community, cheers, clockOffsetMs } = useLive();
   const eventId = home.event.id;
   return (
     <>
@@ -412,7 +412,9 @@ function ActiveCards({
       <SponsorStrip eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
       <FinaleCelebration eventId={eventId} finale={home.finale} />
-      {cheers === null ? null : <CheersBar eventId={eventId} endsAt={cheers.endsAt} />}
+      {cheers === null ? null : (
+        <CheersBar eventId={eventId} endsAt={cheers.endsAt} clockOffsetMs={clockOffsetMs} />
+      )}
       {community === null ? null : <CommunityBar card={community} />}
       <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />
       {ranking === undefined ? null : <RankingCard eventId={eventId} ranking={ranking} />}

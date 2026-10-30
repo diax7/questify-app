@@ -21,8 +21,8 @@ function placeOf(event: MouseEvent<HTMLButtonElement>): { x: number; y: number }
 }
 
 /**
- * The plain board of one map with its pins (T-506). A click on the board names a place (the number fields beside it
- * are the way for a keyboard); a pin is a button that opens its form. `draft` marks where the pin being edited will
+ * The plain board of one map with its pins (T-506). A click on the board names a place (the surface is for a pointer
+ * alone, out of the tab order and hidden from a screen reader; the number fields beside it are the way for a keyboard); a pin is a button that opens its form. `draft` marks where the pin being edited will
  * sit. The board is a plan, so it is never mirrored for Arabic.
  */
 export function MapBoard({
@@ -47,7 +47,8 @@ export function MapBoard({
       <button
         type="button"
         className={styles.surface}
-        aria-label={label}
+        tabIndex={-1}
+        aria-hidden="true"
         onClick={(event) => {
           const place = placeOf(event);
           if (place !== null) onPlace(place);

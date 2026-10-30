@@ -42,5 +42,5 @@ export async function sendCheer(
 export const secondsToWait = (slowUntil: number, now: number): number =>
   Math.max(0, Math.ceil((slowUntil - now) / 1000));
 
-/** Whether the moment is still on by the phone's clock; the read of what is live corrects a skewed clock. */
+/** Whether the moment is still on at `now`, the phone's clock plus the live read's `clockOffsetMs` (the server's time). */
 export const momentIsOn = (endsAt: string, now: number): boolean => Date.parse(endsAt) > now;

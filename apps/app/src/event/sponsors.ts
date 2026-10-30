@@ -25,24 +25,33 @@ export async function fetchSponsors(session: Requester, eventId: string): Promis
 
 /** What the screens ask of the sponsors: who presents an item, and which quests a sponsor presents. */
 export type SponsorLookup = Readonly<{
+  /** False until a read has answered for this event: an unknown sponsor is then still loading, not gone. */
+  read: boolean;
   sponsors: readonly MemberSponsor[];
   of: (kind: SponsorTagKind, targetId: string) => MemberSponsor | undefined;
   byId: (id: string) => MemberSponsor | undefined;
 }>;
 
+/** Before the read, and after a failed first read. */
 export const NO_SPONSORS: SponsorLookup = {
+  read: false,
   sponsors: [],
   of: () => undefined,
   byId: () => undefined,
 };
 
+/** An event whose read answered with no sponsors. */
+const NONE_TAGGED: SponsorLookup = { ...NO_SPONSORS, read: true };
+
 export function lookupOf(data: MemberSponsors | undefined): SponsorLookup {
-  if (data === undefined || data.sponsors.length === 0) return NO_SPONSORS;
+  if (data === undefined) return NO_SPONSORS;
+  if (data.sponsors.length === 0) return NONE_TAGGED;
   const byId = new Map(data.sponsors.map((sponsor) => [sponsor.id, sponsor]));
   const tagged = new Map(
     data.tags.map((tag) => [`${tag.kind}:${tag.targetId}`, byId.get(tag.sponsorId)] as const),
   );
   return {
+    read: true,
     sponsors: data.sponsors,
     of: (kind, targetId) => tagged.get(`${kind}:${targetId}`),
     byId: (id) => byId.get(id),

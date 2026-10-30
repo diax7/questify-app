@@ -24,6 +24,7 @@ export function QuestRating({ quest }: Readonly<{ quest: Quest }>) {
   const [read, setRead] = useState<RatingRead | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [justRated, setJustRated] = useState(false);
   const completed = quest.done > 0;
   useEffect(() => {
     if (!completed) return;
@@ -42,13 +43,19 @@ export function QuestRating({ quest }: Readonly<{ quest: Quest }>) {
       const answer = await sendRating(api.session, quest.id, thumb);
       setBusy(false);
       if (answer.kind === "network") setFailed(true);
-      else setRead(answer);
+      else {
+        setRead(answer);
+        setJustRated(thumb !== "skip");
+      }
     },
     [quest.id],
   );
   const view: RatingView = completed ? ratingViewOf(read) : "none";
   if (view === "none") return null;
-  if (view !== "ask") return <AppText accessibilityRole="alert">{t("rating.thanks")}</AppText>;
+  if (view !== "ask") {
+    // The thanks answers the thumb sent a moment ago; a quest opened again with a thumb already given stays quiet.
+    return justRated ? <AppText accessibilityRole="alert">{t("rating.thanks")}</AppText> : null;
+  }
   return (
     <View style={{ gap: 8 }}>
       <AppText variant="label">{t("rating.prompt")}</AppText>

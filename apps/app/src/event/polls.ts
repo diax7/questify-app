@@ -8,6 +8,7 @@ import {
 } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
 import { communityOf, type CommunityCard } from "#src/event/community.ts";
+import { clockOffset } from "#src/event/games.ts";
 import {
   liveBoostsOf,
   liveFlashOf,
@@ -147,6 +148,8 @@ export type LiveState = Readonly<{
   firstBonus: readonly LiveFirstBonus[];
   /** The cheers moment live now (T-509): the end, or null; none from an older API. */
   cheers: Readonly<{ endsAt: string }> | null;
+  /** What to add to the phone's clock to read the server's (ADR-213), from the last read; 0 until one names the time. */
+  clockOffsetMs: number;
 }>;
 
 export const NOTHING_LIVE: LiveState = {
@@ -157,6 +160,7 @@ export const NOTHING_LIVE: LiveState = {
   boosts: [],
   firstBonus: [],
   cheers: null,
+  clockOffsetMs: 0,
 };
 
 export function liveStateOf(body: unknown): LiveState | undefined {
@@ -178,7 +182,22 @@ export function liveStateOf(body: unknown): LiveState | undefined {
     boosts: liveBoostsOf(body["boosts"]),
     firstBonus: liveFirstBonusOf(body["firstBonus"]),
     cheers: liveCheersOf(body["cheers"]),
+    clockOffsetMs: 0,
   };
+}
+
+/**
+ * A fresh read with the server's clock measured against the phone's at `receivedAt`. An answer that names no usable
+ * time keeps the offset `known` from before, so a skewed phone clock is corrected from the first read that has one.
+ */
+export function stateWithClock(
+  state: LiveState,
+  serverNow: string | null,
+  known: number,
+  receivedAt: number,
+): LiveState {
+  const named = serverNow !== null && !Number.isNaN(Date.parse(serverNow));
+  return { ...state, clockOffsetMs: named ? clockOffset(serverNow, receivedAt) : known };
 }
 
 /** The cheers moment in a live answer, or null when none is live or the answer is not one. */

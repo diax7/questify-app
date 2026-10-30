@@ -36,8 +36,7 @@ function QuestRow({ quest, eventId }: Readonly<{ quest: Quest; eventId: string }
 type Translate = ReturnType<typeof useI18n>["t"];
 
 /** The line under the sponsor's name: its tier and its booth. */
-function factsOf(sponsor: MemberSponsor | undefined, t: Translate): string {
-  if (sponsor === undefined) return "";
+function factsOf(sponsor: MemberSponsor, t: Translate): string {
   const booth = sponsor.booth === null ? [] : [t("sponsors.boothLine", { booth: sponsor.booth })];
   return [t(tierKey(sponsor.tier)), ...booth].join(" · ");
 }
@@ -101,8 +100,17 @@ export function SponsorScreen() {
         : [],
     [answer, sponsorId, lookup],
   );
+  if (sponsor === undefined) {
+    // Not in the read yet is loading; in a read that answered it is a sponsor that was deleted since.
+    return (
+      <Screen title="">
+        <BackButton />
+        <AppText muted>{t(lookup.read ? "sponsors.screen.gone" : "common.loading")}</AppText>
+      </Screen>
+    );
+  }
   return (
-    <Screen title={sponsor === undefined ? "" : textIn(sponsor.name, language)}>
+    <Screen title={textIn(sponsor.name, language)}>
       <BackButton />
       <AppText muted>{factsOf(sponsor, t)}</AppText>
       <ScrollView contentContainerStyle={styles.list}>

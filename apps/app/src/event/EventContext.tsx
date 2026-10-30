@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { DEFAULT_TERMS, type EventTerms, type MemberSponsors } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -55,14 +63,17 @@ export function EventProvider({
   const [paidCount, setPaidCount] = useState(0);
   const notePaid = useCallback(() => setPaidCount((count) => count + 1), []);
   const [sponsorData, setSponsorData] = useState<MemberSponsors | undefined>(undefined);
+  const openEvent = useRef(eventId);
   const refreshSponsors = useCallback(() => {
     void fetchSponsors(api.session, eventId).then((read) => {
-      // A failed read keeps the last good copy; a member who cannot read them sees no sponsors.
-      if (read.kind === "sponsors") setSponsorData(read.data);
+      // A failed read keeps the last good copy; a member who cannot read them sees no sponsors. A read that was
+      // still out when the event changed belongs to the event before and is dropped.
+      if (read.kind === "sponsors" && openEvent.current === eventId) setSponsorData(read.data);
     });
   }, [eventId]);
   useEffect(() => {
     // Another event never keeps the last one's sponsors; the screens read them when they come into focus.
+    openEvent.current = eventId;
     setSponsorData(undefined);
   }, [eventId]);
   const sponsors = useMemo(() => lookupOf(sponsorData), [sponsorData]);
